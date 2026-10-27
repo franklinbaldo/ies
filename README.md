@@ -16,6 +16,9 @@ Não há compatibilidade com o antigo `agir`, `Action` ou `PageModel` público.
 O IES Python histórico está preservado no cofre privado
 `franklinbaldo/projects-backup`.
 
+O CI público em [GitHub Actions](.github/workflows/ci.yml) executa os mesmos
+gates do `prek` usados localmente.
+
 ## Desenvolvimento
 
 - `cargo test --locked`
