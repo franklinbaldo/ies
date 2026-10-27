@@ -1,0 +1,58 @@
+default_install_hook_types = ["pre-commit", "pre-push"]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "tamanho"
+name = "Arquivos texto <= 20.000 bytes"
+entry = "cargo run --quiet --locked --bin check_size"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
+id = "formato"
+name = "Rustfmt"
+entry = "cargo fmt --all -- --check"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
+id = "okf"
+name = "OKF estrito em todos os Markdown"
+entry = "uvx --from okf-parser==0.48.2 okf-parser check . --require-spec okf_specs/{slug}.md --normative-spec"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
+id = "lint"
+name = "Clippy sem warnings"
+entry = "cargo clippy --locked --all-targets -- -D warnings"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "build"
+name = "Build travado"
+entry = "cargo build --locked --all-targets"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "testes"
+name = "Suite Rust"
+entry = "cargo test --locked --all-targets"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
