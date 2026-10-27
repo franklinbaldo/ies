@@ -1,7 +1,7 @@
 ---
 type: Policy
 title: Política de integração contínua do IES
-description: Gates reproduzíveis com prek e regras OKF e tamanho
+description: Gates reproduzíveis com prek, GitHub Actions, OKF e limite de tamanho
 ---
 
 # CI orientado por prek
@@ -17,6 +17,15 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 O pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
 build e testes, todos com Cargo.lock travado.
 
+## GitHub Actions
+
+O [workflow de CI](../.github/workflows/ci.yml) roda em PRs, pushes na
+`main` e por execução manual. O checkout e a instalação de uv usam
+actions fixadas por SHA; a versão de Rust vem de `rust-toolchain.toml`.
+O executor roda o mesmo comando do pré-push, sem duplicar os gates.
+O token do workflow recebe apenas `contents: read`.
+Não há secrets ou acesso autenticado ao SEI.
+
 ## OKF
 
 Todo Markdown autoral exige frontmatter com `type` e Spec correspondente
@@ -30,9 +39,3 @@ Máximo de 20.000 bytes UTF-8 por arquivo texto, inclusive `Cargo.lock`.
 Arquivos binários são ignorados. Nada de exceções automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
-
-## Reexecução
-
-Os hooks devem ser idênticos na estação local e no executor Cloud Build.
-O CI remoto não está configurado por este documento: requer conexão do
-novo repositório GitHub e execução do mesmo comando do pré-push.

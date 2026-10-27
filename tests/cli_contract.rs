@@ -37,7 +37,15 @@ fn uso_invalido_falha_antes_da_execucao() {
 
 #[test]
 fn escrita_reconhecida_nao_executa_sei() {
-    let output = ies(&["processo", "enviar", "123", "--para", "PGE-PPI", "--confirmar", "--json"]);
+    let output = ies(&[
+        "processo",
+        "enviar",
+        "123",
+        "--para",
+        "PGE-PPI",
+        "--confirmar",
+        "--json",
+    ]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");

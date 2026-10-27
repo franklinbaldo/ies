@@ -21,7 +21,10 @@ Antes de enviar qualquer PR:
 uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
 ```
 
-Ative os hooks locais com `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
-Não habilite GitHub Actions. O Cloud Build deve executar os mesmos hooks.
+Ative os hooks locais com
+`uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
+O [GitHub Actions](.github/workflows/ci.yml) executa esses mesmos gates em
+PRs e pushes na `main`, com permissões apenas de leitura.
+Não crie um segundo conjunto independente de checks.
 
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.
