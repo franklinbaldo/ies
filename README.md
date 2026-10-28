@@ -9,8 +9,10 @@ description: CLI Rust para operar o SEI por contratos de dominio e evidencias re
 Recriação limpa do IES em Rust, orientada pelo contrato público de comandos
 do Todos atual e pelas evidências de instalações reais.
 
-**Estado:** fundação. A CLI reconhece uma amostra da gramática, mas nenhuma
-operação acessa o SEI. Comandos ainda não implementados falham explicitamente.
+**Estado:** primeiro leitor de caixa de processos implementado em Rust.
+Outras operações permanecem não implementadas. A leitura da caixa aceita
+cassette pública verificada ou uma URL HTTPS assinada de sessão já autenticada;
+não implementa login nem paginação.
 
 Não há compatibilidade com o antigo `agir`, `Action` ou `PageModel` público.
 O IES Python histórico está preservado no cofre privado
@@ -29,6 +31,13 @@ Essas relações não certificam a implementação IES.
 Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
 [como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação
 empírica independente da arquitetura Python anterior.
+
+## Primeira leitura
+
+O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
+explica como verificar um ZIP no Internet Archive e executar
+`ies unidade listar-processos` com estado de completude explícito.
+O programa não expõe links assinados em JSON, nem executa escritas.
 
 ## Desenvolvimento
 

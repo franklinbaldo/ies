@@ -38,6 +38,9 @@ Reproduza offline a evidência antes de implementar; o nome da cassette
 não comprova um efeito nem autoriza escrita live.
 
 Antes de alterar um comando de leitura, consulte seus [contratos OKF](contracts/cli.md)
-e as cassettes da operação. O stub não é uma execução de SEI.
+e as cassettes da operação. A [leitura da caixa](docs/unidade-primeira-leitura.md)
+usa replay offline ou GET com sessão existente; não incorpora login nem paginação.
+Nunca passe URLs assinadas ou cookies como argumentos de processo: use arquivos
+privados `0600` e nunca os inclua em logs, commits ou capturas.
 
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.
