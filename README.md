@@ -21,13 +21,15 @@ O IES Python histórico está preservado no cofre privado
 O CI público em [GitHub Actions](.github/workflows/ci.yml) executa os mesmos
 gates do `prek` usados localmente.
 
-## Experimentos reais do SEI
+## Documentação do SEI
 
 O [catálogo OKF de cassettes](docs/cassettes.md) registra 495 revisões
-distintas observadas em sete instalações de treinamento/homologação.
+capturadas em sete instalações de treinamento/homologação.
 O [índice por operação](docs/evidencias.md) liga 129 operações da matriz do
 Todos a esses cards, registrando agora 0 passos sem card, com revisões ainda a desambiguar.
 Essas relações não certificam a implementação IES.
+`Cassette`, `OperationEvidence` e `SEIObservation` são categorias
+de **documentos OKF**, não tipos ou componentes do runtime.
 Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
 [como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação
 empírica independente da arquitetura Python anterior.
@@ -36,7 +38,7 @@ empírica independente da arquitetura Python anterior.
 
 O [ADR de rotas por evidência](docs/arquitetura/0001-rotas-por-evidencia.md)
 separa contratos públicos dos mecanismos REST WSSEI, SOAP autorizado
-e navegação Web observada. Antes de ampliar os comandos, o
+e cliente Web do SEI. Antes de ampliar os comandos, o
 [experimento de comparação](docs/experimentos/comparar-acessos-sei.md)
 deve verificar a equivalência por operação e por instalação.
 

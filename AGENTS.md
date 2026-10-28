@@ -50,6 +50,15 @@ O [GitHub Actions](.github/workflows/ci.yml) executa esses mesmos gates em
 PRs e pushes na `main`, com permissões apenas de leitura.
 Não crie um segundo conjunto independente de checks.
 
+## Documentação OKF e código
+
+`Cassette`, `OperationEvidence` e `SEIObservation` são categorias
+de **documentos OKF**, não classes nem serviços do runtime.
+Não criar um subsistema de pesquisa nem uma camada de observação.
+O adaptador da interface HTML chama-se `web`, não `web-observed`.
+A prova `completa` indica somente cobertura das posições declaradas,
+não um snapshot transacional do SEI.
+
 ## Evidências antes de implementar
 
 Leia o [índice de evidências por operação](contracts/evidencias/README.md),

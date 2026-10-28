@@ -1,4 +1,4 @@
-//! Junção de páginas por intervalos observados, sem emitir requisições.
+//! Junção de páginas por intervalos de posição, sem emitir requisições.
 //! A prova de cobertura vive somente aqui, não em Tabela nem em Caixa.
 use crate::dominio::{Caixa, Categoria, ErroCaixa, Processo, Tabela};
 use std::collections::BTreeMap;
@@ -157,6 +157,8 @@ pub struct Cobertura {
 }
 
 impl Cobertura {
+    // Comprova somente a cobertura das posições declaradas, sem snapshot
+    // transacional; a caixa pode mudar entre requisições.
     pub fn completa(&self, tabela: &Tabela<Processo>) -> bool {
         if !self.confirmada {
             return false;
@@ -290,7 +292,6 @@ mod tests {
     fn primeira_pagina_incompleta_nao_inventa_completude() {
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let l = juntar(&[a]).unwrap();
-        assert!(!l.recebidos.completa(&l.caixa.recebidos));
         assert!(!l.recebidos.completa(&l.caixa.recebidos));
         assert!(l.gerados.completa(&l.caixa.gerados));
     }

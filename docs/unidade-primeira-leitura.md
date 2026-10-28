@@ -46,7 +46,9 @@ primeira precisa ser idêntica; revisão divergente falha fechado.
 Os intervalos verificados são independentes por tabela e existem
 somente enquanto a paginação está sendo consolidada. `completa: false`
 significa que a cobertura não foi provada, mesmo quando a contagem
-de linhas parecer compatível.
+de linhas parecer compatível. `completa: true` significa somente
+que os intervalos e totais declarados foram conferidos; **não prova
+snapshot transacional ou imutabilidade do conjunto entre páginas**.
 
 ## Leitura HTTPS de caixa assinada
 
