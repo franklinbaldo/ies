@@ -138,8 +138,7 @@ fn read_verified_html(
         list.iter()
             .enumerate()
             .filter_map(|(i, it)| {
-                (it["request"]["operation"] == operation
-                    && it["request"]["method"] == "GET")
+                (it["request"]["operation"] == operation && it["request"]["method"] == "GET")
                     .then_some(i)
             })
             .collect()
@@ -163,9 +162,7 @@ fn read_verified_html(
         let method = it["request"]["method"].as_str();
         if it["request"]["operation"] != operation
             || !(method == Some("GET")
-                || (operation == "procedimento_controlar"
-                    && order > 0
-                    && method == Some("POST")))
+                || (operation == "procedimento_controlar" && order > 0 && method == Some("POST")))
             || it["response"]["status_code"] != 200
         {
             return Err("passo não é uma resposta de caixa admitida (GET inicial; GET/POST subsequentes offline)".into());
