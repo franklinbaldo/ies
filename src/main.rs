@@ -295,11 +295,11 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     let pasta = replay.acervo.join("cassettes");
     let mut encontrados = Vec::new();
     let Ok(dirs) = std::fs::read_dir(&pasta) else {
-            return erro_fonte(
-                json_mode,
-                "acervo_ausente",
-                "diretório de cassettes não encontrado",
-            );
+        return erro_fonte(
+            json_mode,
+            "acervo_ausente",
+            "diretório de cassettes não encontrado",
+        );
     };
     for dir in dirs.flatten() {
         if !dir.path().is_dir() {
