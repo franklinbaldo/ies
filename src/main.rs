@@ -32,6 +32,21 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
+    /// Omite documentos da leitura
+    #[arg(long)]
+    sem_documentos: bool,
+    /// Omite marcadores da leitura
+    #[arg(long)]
+    sem_marcadores: bool,
+    /// Omite andamentos da leitura
+    #[arg(long)]
+    sem_andamentos: bool,
+    /// Omite propriedades adicionais da leitura
+    #[arg(long)]
+    sem_propriedades: bool,
+    /// Solicita histórico completo do processo
+    #[arg(long)]
+    andamentos_completos: bool,
     #[command(subcommand)]
     acao: Option<ProcessoAcao>,
 }
@@ -58,7 +73,21 @@ enum ProcessoAcao {
 
 #[derive(Debug, Args)]
 struct Documento {
-    numero: Option<String>,
+    /// Números dos documentos SEI
+    #[arg(num_args = 0..)]
+    numeros: Vec<String>,
+    /// Contexto de processo, quando conhecido
+    #[arg(long)]
+    processo: Option<String>,
+    /// Diretório onde os conteúdos serão salvos
+    #[arg(long)]
+    saida: Option<String>,
+    /// Oculta documentos não acessíveis
+    #[arg(long)]
+    ocultar_inacessiveis: bool,
+    /// Inclui propriedades do cadastro
+    #[arg(long)]
+    com_propriedades: bool,
     #[command(subcommand)]
     acao: Option<DocumentoAcao>,
 }
@@ -84,7 +113,10 @@ struct Unidade {
 
 #[derive(Debug, Subcommand)]
 enum UnidadeAcao {
-    ListarProcessos,
+    ListarProcessos {
+        #[arg(long)]
+        saida: Option<String>,
+    },
 }
 
 fn show_noun_help(noun: &str) {
@@ -100,14 +132,16 @@ fn run(cli: Cli) -> ExitCode {
         Domain::Processo(Processo {
             numero: None,
             acao: None,
+            ..
         }) => {
             show_noun_help("processo");
             return ExitCode::SUCCESS;
         }
         Domain::Documento(Documento {
-            numero: None,
+            numeros,
             acao: None,
-        }) => {
+            ..
+        }) if numeros.is_empty() => {
             show_noun_help("documento");
             return ExitCode::SUCCESS;
         }
