@@ -90,4 +90,3 @@ impl fmt::Display for ErroCaixa {
     }
 }
 impl std::error::Error for ErroCaixa {}
-
