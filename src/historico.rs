@@ -46,7 +46,8 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
     let titulo = dom
         .query_selector("title")
@@ -73,7 +74,8 @@ pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
 
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
     let numero = NumeroProcesso::novo(numero).map_err(|_| ErroHistorico::NumeroInvalido)?;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
     let titulo = dom
         .query_selector("title")
