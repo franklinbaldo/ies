@@ -129,6 +129,8 @@ fn comando_sem_fonte_conserva_stubs() {
     assert_eq!(result["codigo"], "nao_implementado");
 }
 
+// Cenário integrado: mantém o fluxo multi-página verificável em um teste.
+#[allow(clippy::too_many_lines)]
 #[test]
 fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
     use std::time::{SystemTime, UNIX_EPOCH};
