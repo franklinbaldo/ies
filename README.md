@@ -21,10 +21,10 @@ gates do `prek` usados localmente.
 
 ## Experimentos reais do SEI
 
-O [catálogo OKF de cassettes](docs/cassettes.md) registra 478 revisões
+O [catálogo OKF de cassettes](docs/cassettes.md) registra 495 revisões
 distintas observadas em sete instalações de treinamento/homologação.
 O [índice por operação](docs/evidencias.md) liga 129 operações da matriz do
-Todos a esses cards, explicitando 76 passos ainda sem cassette no acervo.
+Todos a esses cards, registrando agora 0 passos sem card, com revisões ainda a desambiguar.
 Essas relações não certificam a implementação IES.
 Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
 [como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação

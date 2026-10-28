@@ -26,13 +26,20 @@ A definição da CLI do IES continua em [contratos](../contracts/cli.md).
 5. Faça replay estrutural offline e escreva testes do contrato antes
    de implementar a operação HTTP no IES.
 
+## Cobertura atualizada dos ZIPs
+
+A atualização de 29 ZIPs no Internet Archive acrescenta 17 revisões
+distintas, levando o catálogo a 495 cards. A matriz permanece com
+129 operações e 2.154 referências de passos. A atualização não modifica
+o contrato de execução no IES.
+
 ## Lacunas conhecidas
 
-A matriz registra **2.154 referências de passos**. **76 referências** de
-oito operações da família `repo` não foram encontradas entre os
-478 cards do acervo histórico; aparecem como `PENDENTE_DE_CASSETTE`.
-Isso não significa que a operação não exista no SEI nem que esteja
-comprovada sem os arquivos.
+A matriz registra **2.154 referências de passos**. As **76 referências anteriormente ausentes** da família `repo` agora
+apontam para cassettes de novos lotes publicados. Permanecem **zero referências
+sem card**. Quando existem duas revisões do mesmo cenário, ambas ficam
+visíveis, sem escolha arbitrária. A correspondência exata de revisão
+ainda depende da conferência com o manifesto do Todos.
 
 Mesmo as relações com card encontrado não provam ainda qual
 **revisão exata** foi usada na demonstração da matriz. Revisões
