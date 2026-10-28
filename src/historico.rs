@@ -2,6 +2,38 @@
 //! Não confundir histórico parcial com a representação integral do processo.
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
+/// Condições específicas do parser, independentes de mensagens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErroHistorico {
+    HtmlInvalido,
+    TituloAusente,
+    TituloInvalido,
+    NumeroAmbiguo,
+    NumeroInvalido,
+    ProcessoDivergente,
+    HistoricoAusente,
+    HistoricoInvalido,
+    LinhaInvalida,
+    HistoricoVazio,
+}
+
+impl ErroHistorico {
+    pub fn subcodigo(self) -> &'static str {
+        match self {
+            Self::HtmlInvalido => "html_invalido",
+            Self::TituloAusente => "titulo_ausente",
+            Self::TituloInvalido => "titulo_invalido",
+            Self::NumeroAmbiguo => "numero_ambiguo",
+            Self::NumeroInvalido => "numero_invalido",
+            Self::ProcessoDivergente => "processo_divergente",
+            Self::HistoricoAusente => "historico_ausente",
+            Self::HistoricoInvalido => "historico_invalido",
+            Self::LinhaInvalida => "linha_invalida",
+            Self::HistoricoVazio => "historico_vazio",
+        }
+    }
+}
+
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     let valor = no.inner_text(parser);
     valor
@@ -13,18 +45,19 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-pub fn numero_do_historico(html: &str) -> Result<String, &'static str> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| "html_invalido")?;
+pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
     let titulo = dom
         .query_selector("title")
         .and_then(|mut nodes| nodes.next())
         .and_then(|no| no.get(parser))
         .map(|no| texto(no, parser))
-        .ok_or("titulo_ausente")?;
+        .ok_or(ErroHistorico::TituloAusente)?;
     let (_, depois) = titulo
         .split_once("Histórico do Processo ")
-        .ok_or("titulo_invalido")?;
+        .ok_or(ErroHistorico::TituloInvalido)?;
     let candidatos: Vec<_> = depois
         .split_whitespace()
         .filter(|v| {
@@ -34,49 +67,50 @@ pub fn numero_do_historico(html: &str) -> Result<String, &'static str> {
         })
         .collect();
     if candidatos.len() != 1 {
-        return Err("numero_ambiguo");
+        return Err(ErroHistorico::NumeroAmbiguo);
     }
     Ok(candidatos[0].to_owned())
 }
 
-pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, &'static str> {
-    let numero = NumeroProcesso::novo(numero).map_err(|_| "numero_invalido")?;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| "html_invalido")?;
+pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
+    let numero = NumeroProcesso::novo(numero).map_err(|_| ErroHistorico::NumeroInvalido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
     let titulo = dom
         .query_selector("title")
         .and_then(|mut nodes| nodes.next())
         .and_then(|no| no.get(parser))
         .map(|no| texto(no, parser))
-        .ok_or("titulo_ausente")?;
+        .ok_or(ErroHistorico::TituloAusente)?;
     // Não converter um histórico de outro processo numa resposta para o NUP pedido.
     if !titulo
         .split(|c: char| !c.is_ascii_alphanumeric())
         .any(|item| item == numero.as_str())
     {
-        return Err("processo_divergente");
+        return Err(ErroHistorico::ProcessoDivergente);
     }
     let tabela = dom
         .get_element_by_id("tblHistorico")
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or("historico_ausente")?;
+        .ok_or(ErroHistorico::HistoricoAusente)?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
             .is_some_and(|mut nodes| nodes.next().is_some())
     {
-        return Err("historico_invalido");
+        return Err(ErroHistorico::HistoricoInvalido);
     }
     let mut detalhe = DetalheProcesso::novo(numero);
     let linhas = tabela
         .query_selector(parser, "tr")
-        .ok_or("historico_invalido")?;
+        .ok_or(ErroHistorico::HistoricoInvalido)?;
     for linha in linhas {
         let tag = linha
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or("historico_invalido")?;
+            .ok_or(ErroHistorico::HistoricoInvalido)?;
         let cells: Vec<String> = tag
             .query_selector(parser, "td")
             .into_iter()
@@ -88,7 +122,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, &'stat
             continue;
         }
         if cells.len() != 4 || cells[0].is_empty() || cells[3].is_empty() {
-            return Err("linha_invalida");
+            return Err(ErroHistorico::LinhaInvalida);
         }
         detalhe.andamentos.push(Andamento {
             ocorrido_em: Some(cells[0].clone()),
@@ -98,7 +132,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, &'stat
         });
     }
     if detalhe.andamentos.is_empty() {
-        return Err("historico_vazio");
+        return Err(ErroHistorico::HistoricoVazio);
     }
     Ok(detalhe)
 }
@@ -126,12 +160,12 @@ mod tests {
     fn recusa_outro_processo_e_tabela_incompleta() {
         assert_eq!(
             ler_historico(&fixture("202600005002487"), "202600005002488").unwrap_err(),
-            "processo_divergente"
+            ErroHistorico::ProcessoDivergente
         );
         let invalido = "<title>Histórico do Processo 202600005002487</title>        <table id='tblHistorico'><tr><td>12/07/2026</td></tr></table>";
         assert_eq!(
             ler_historico(invalido, "202600005002487").unwrap_err(),
-            "linha_invalida"
+            ErroHistorico::LinhaInvalida
         );
     }
 }
