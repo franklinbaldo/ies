@@ -15,6 +15,9 @@ O inventário atual contém **25 ZIPs (7 históricos e 18 lotes)**, com
 485 capturas e **478 revisões distintas**; sete cópias idênticas
 foram consolidadas. Instalações: UnB, UFRJ, Goiás e PEN1–PEN4.
 
+O [índice por operação](evidencias.md) relaciona os cenários e passos
+da matriz do Todos com estes registros, sem inventar provas de escrita.
+
 ## Procedimento para agentes
 
 1. Localize o cenário pelo nome, instalação ou operação em `cassettes/`.
