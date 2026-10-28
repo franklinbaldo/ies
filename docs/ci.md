@@ -15,20 +15,22 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
 O pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
-build e testes, todos com Cargo.lock travado.
+testes, integridade de evidências e decisões. O `cargo test --workspace
+--all-targets` compila os targets; não há gate `cargo build` redundante.
 
 ## GitHub Actions
 
 O [workflow de CI](../.github/workflows/ci.yml) roda em PRs, pushes na
 `main` e por execução manual. O checkout e a instalação de uv usam
-actions fixadas por SHA; a versão de Rust vem de `rust-toolchain.toml`.
+actions fixadas por SHA, inclusive `Swatinem/rust-cache` para o cache
+de compilação Rust. A versão de Rust vem de `rust-toolchain.toml`.
 O executor roda o mesmo comando do pré-push, sem duplicar os gates.
 O token do workflow recebe apenas `contents: read`.
 Não há secrets ou acesso autenticado ao SEI.
 
 ## Decisões de engenharia
 
-O `prek` executa `cargo run --quiet --locked --bin check_design`.
+O `prek` executa `cargo run --quiet --locked -p xtask --bin check_design`.
 Para cada `CommandContract` com `implementation: partial` ou `complete`,
 o gate exige um `ImplementationDecision` em `docs/decisoes/`, com
 alternativas distintas, recorte implementado, estratégia selecionada,
@@ -37,6 +39,16 @@ estado de evidência e links válidos para contrato, matriz e testes Rust.
 O gate impede documentação órfã e omissões estruturais. Ele **não
 transforma uma justificativa em demonstração de equivalência**.
 Stubs são dispensados, sem gerar documentos vazios.
+
+## Ferramentas de verificação
+
+`check_size`, `check_evidence` e `check_design` pertencem ao membro Rust
+`xtask`, sem dependências. O check de tamanho não deve compilar `ies`
+(`openssl`, `zip` ou `clap`) apenas para verificar os arquivos. Todos
+os caminhos OKF e de contratos são resolvidos na raiz do workspace.
+
+Para medir gargalos sem especular, execute `cargo build --timings` num
+executor adequado; não mantenha o HTML de timings versionado.
 
 ## OKF
 

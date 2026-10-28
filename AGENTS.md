@@ -34,6 +34,10 @@ Todo Markdown autoral deve ser OKF conforme a [política de CI](docs/ci.md), com
 Nenhum arquivo texto pode ultrapassar 20.000 bytes, inclusive arquivos
 de código, testes e lockfiles. Divida por responsabilidade, não minifique.
 
+`xtask` contém apenas verificadores de infraestrutura, sem dependências
+externas. Não importe o runtime IES para os hooks de tamanho/OKF,
+nem reintroduza um gate `cargo build` redundante com os testes.
+
 Antes de enviar qualquer PR:
 
 ```sh
