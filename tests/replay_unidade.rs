@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const HTML: &str = r#"<html><body>
+<a id="lnkInfraUnidade">TESTE</a>
 <table id="tblProcessosRecebidos"><caption>2 registros:</caption>
 <tr><th>Número</th></tr>
 <tr id="P42"><td><a class="processoVisualizado" href="controlador.php?acao=procedimento_trabalhar&amp;infra_hash=SEGREDO">23106.000001/2026-01</a></td></tr>
@@ -153,7 +154,11 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
             })
             .collect::<String>();
         format!(
-            "<html><table id=\"tblProcessosRecebidos\"><caption>4 registros - {inicio} a {fim}):</caption>{lines}</table>\
+            "<html><a id=\"lnkInfraUnidade\">TESTE</a>\
+             <input id=\"hdnTipoVisualizacao\" value=\"R\">\
+             <input id=\"hdnRecebidosHashCriterios\" value=\"recebidos\">\
+             <input id=\"hdnGeradosHashCriterios\" value=\"gerados\">\
+             <table id=\"tblProcessosRecebidos\"><caption>4 registros - {inicio} a {fim}):</caption>{lines}</table>\
              <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></html>"
         )
     };
@@ -304,4 +309,96 @@ fn parser_repassa_subcodigo_sem_vazar_html() {
     assert!(!stdout.contains("SEGREDO"));
     assert!(!stdout.contains("infra_hash"));
     fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn unidade_solicitada_precisa_ser_confirmada_pelo_sei() {
+    let (pasta, card, zip) = preparar_fixture();
+    let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            zip.to_str().unwrap(),
+            "--unidade",
+            "OUTRA",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(resposta.status.code(), Some(1));
+    let dado: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(dado["subcodigo"], "unidade_inesperada");
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
+    let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--url-caixa-file",
+            "qualquer-arquivo-de-url",
+            "--cookie-file",
+            "qualquer-arquivo-de-cookie",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(resposta.status.code(), Some(2));
+    let dado: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(dado["codigo"], "entrada_invalida");
+}
+
+#[test]
+fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
+    let dir = std::env::temp_dir().join(format!(
+        "ies-origem-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&dir).unwrap();
+    let url = dir.join("url");
+    let origem = dir.join("origem");
+    fs::write(
+        &url,
+        format!(
+            "https://sei.adulterado.tld/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+            "a".repeat(64)
+        ),
+    ).unwrap();
+    fs::write(&origem, "https://sei.treinamento.unb.br").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for p in [&url, &origem] {
+            fs::set_permissions(p, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+    }
+    let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--url-caixa-file",
+            url.to_str().unwrap(),
+            "--origem-file",
+            origem.to_str().unwrap(),
+            "--cookie-file",
+            dir.join("cookie-inexistente").to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(resposta.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(json["codigo"], "fonte_invalida");
+    assert_eq!(json["subcodigo"], "origem_nao_autorizada");
+    assert!(!String::from_utf8_lossy(&resposta.stdout).contains("infra_hash"));
+    fs::remove_dir_all(dir).unwrap();
 }

@@ -24,6 +24,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [Tabelas e paginação](tabelas-e-paginacao.md)
 - [Estado e diferenças entre instalações](estado-e-instalacoes.md)
 - [Efeitos e verificação](efeitos-e-verificacao.md)
+- [Regressões recentes do Todos relevantes ao IES](alertas-do-todos.md)
 
 Esses fatos ajudam a construir testes e compreender as capturas.
 Não são licença para fabricar URLs, inferir permissões ou executar

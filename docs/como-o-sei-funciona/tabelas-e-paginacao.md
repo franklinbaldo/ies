@@ -15,6 +15,34 @@ Transições da lista podem usar `infraAcaoPaginar` e
 `hdnInfraPaginaAtual`. Algumas telas contêm mais de uma
 listagem com paginação independente.
 
+O IES agora compara o rótulo da unidade em `lnkInfraUnidade`, o
+modo `hdnTipoVisualizacao` e os hashes de critérios
+`hdnRecebidosHashCriterios`/`hdnGeradosHashCriterios`.
+Esses últimos são marcadores opacos da página, não autorização,
+identidade interna ou comprovante criptográfico de sessão.
+Uma comparação não substitui a verificação de faixas e IDs.
+Sem contexto suficiente, não juntar páginas offline.
+
+[Relato Todos #1200](https://github.com/franklinbaldo/todos/issues/1200):
+na instalação PGE-IPERON/RO, a caixa resumida paginou acima de 500
+processos e tinha paginação independente de Recebidos/Gerados.
+O relato recomenda testar também a visão detalhada, mas não autoriza
+alterar automaticamente a preferência visual do usuário no IES.
+
+O IES agora compara o rótulo da unidade em `lnkInfraUnidade`, o
+modo `hdnTipoVisualizacao` e os hashes de critérios
+`hdnRecebidosHashCriterios`/`hdnGeradosHashCriterios`.
+Esses últimos são marcadores opacos da página, não autorização,
+identidade interna ou comprovante criptográfico de sessão.
+Uma comparação não substitui a verificação de faixas e IDs.
+Sem contexto suficiente, não juntar páginas offline.
+
+[Relato Todos #1200](https://github.com/franklinbaldo/todos/issues/1200):
+na instalação PGE-IPERON/RO, a caixa resumida paginou acima de 500
+processos e tinha paginação independente de Recebidos/Gerados.
+O relato recomenda testar também a visão detalhada, mas não autoriza
+alterar automaticamente a preferência visual do usuário no IES.
+
 A estrutura não é uniforme: há cabeçalhos `colspan`, tabelas
 que reutilizam `id` em contextos diferentes, células sem nome e
 linhas de comentário adicionais. Ler por cabeçalho e identidade

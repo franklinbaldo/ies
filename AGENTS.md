@@ -73,8 +73,18 @@ Antes de alterar um comando de leitura, consulte seus [contratos OKF](contracts/
 e as cassettes da operação. A [leitura da caixa](docs/unidade-primeira-leitura.md)
 usa replay offline (inclusive páginas já capturadas) ou GET com sessão
 existente; **não automatiza POST de paginação**, login nem escrita.
-Nunca passe URLs assinadas ou cookies como argumentos de processo: use arquivos
-privados `0600` e nunca os inclua em logs, commits ou capturas.
+Nunca passe URLs assinadas ou cookies como argumentos de processo:
+use arquivos privados `0600` e nunca os inclua em logs, commits ou
+capturas. O GET da caixa exige `--origem-file` independente e host
+idêntico ao da URL, validado **antes** de ler/enviar cookies. Toda
+resposta HTTP tem limite de 8 MB durante o recebimento, não apenas
+depois de receber o corpo inteiro. Não seguir redirects.
+
+Em replay multipágina, conferir `lnkInfraUnidade`,
+`hdnTipoVisualizacao` e hashes de critérios das duas tabelas.
+`--unidade` é pré-condição conferida na tela, não um rótulo ecoado
+na saída. Campos de contexto não pertencem ao domínio e não
+provam snapshot transacional.
 
 ## Domínio tipado mínimo e saída
 

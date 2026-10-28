@@ -97,6 +97,9 @@ pub enum ErroCaixa {
     FaixaAlterada { categoria: Categoria },
     FaixaDescontinua { categoria: Categoria },
     LimitePaginas,
+    UnidadeInesperada,
+    ContextoNaoVerificavel,
+    ContextoDivergente,
     SemPaginas,
 }
 
@@ -118,6 +121,9 @@ impl ErroCaixa {
             Self::FaixaAlterada { .. } => "faixa_alterada",
             Self::FaixaDescontinua { .. } => "faixa_descontinua",
             Self::LimitePaginas => "limite_paginas",
+            Self::UnidadeInesperada => "unidade_inesperada",
+            Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
+            Self::ContextoDivergente => "contexto_divergente",
             Self::SemPaginas => "sem_paginas",
         }
     }
