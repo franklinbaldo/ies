@@ -26,6 +26,18 @@ O executor roda o mesmo comando do pré-push, sem duplicar os gates.
 O token do workflow recebe apenas `contents: read`.
 Não há secrets ou acesso autenticado ao SEI.
 
+## Decisões de engenharia
+
+O `prek` executa `cargo run --quiet --locked --bin check_design`.
+Para cada `CommandContract` com `implementation: partial` ou `complete`,
+o gate exige um `ImplementationDecision` em `docs/decisoes/`, com
+alternativas distintas, recorte implementado, estratégia selecionada,
+estado de evidência e links válidos para contrato, matriz e testes Rust.
+
+O gate impede documentação órfã e omissões estruturais. Ele **não
+transforma uma justificativa em demonstração de equivalência**.
+Stubs são dispensados, sem gerar documentos vazios.
+
 ## OKF
 
 Todo Markdown autoral exige frontmatter com `type` e Spec correspondente

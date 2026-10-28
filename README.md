@@ -40,6 +40,11 @@ e navegação Web observada. Antes de ampliar os comandos, o
 [experimento de comparação](docs/experimentos/comparar-acessos-sei.md)
 deve verificar a equivalência por operação e por instalação.
 
+O [gate de decisões](docs/decisoes/unidade-listar-processos.md) exige
+alternativas e evidências para cada operação efetivamente implementada.
+Ele preserva a liberdade de escolher a arquitetura interna mais simples
+e adequada por instalação, sem portar automaticamente o Todos.
+
 ## Primeira leitura
 
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)

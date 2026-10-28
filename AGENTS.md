@@ -14,6 +14,12 @@ Antes de implementar transporte de uma operação, compare as
 e siga o [plano experimental](docs/experimentos/comparar-acessos-sei.md).
 Não adivinhe disponibilidade de módulo, token ou equivalência entre APIs.
 Uma falha ou timeout de escrita nunca autoriza troca automática de backend.
+Uma operação com `CommandContract.implementation` diferente de `stub`
+exige uma [decisão OKF por operação](docs/decisoes/unidade-listar-processos.md):
+alternativas concretas, escolha restrita ao escopo, trade-offs, evidências,
+testes existentes, lacunas e condições de revisão. O gate `check_design`
+confere a ligação ao contrato antes do push; ele **não certifica o mérito**
+da escolha. Não crie fichas para os 129 itens ainda não implementados.
 Não invente operações pela inspeção de telas: preserve apenas comportamentos
 observados e demonstrados nas instalações reais de treinamento do SEI.
 
