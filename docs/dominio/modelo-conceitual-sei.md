@@ -90,7 +90,9 @@ identifica registros individuais com data/hora, unidade, usuário e descrição.
 A operação de atualizar andamento insere um registro textual sem permitir
 edição ou exclusão posterior; correções são lançadas como novos registros.
 O identificador técnico de cada andamento ainda precisa ser comprovado.
-Não inventar ID a partir de data/hora ou posição da tabela. Candidatos a separar após exame de cassettes e manuais:
+Não inventar ID a partir de data/hora ou posição da tabela.
+
+Candidatos a separar após exame de cassettes e manuais:
 
 - **Envio**: ato iniciado pela remetente, potencialmente com vários
   destinatários e a opção de manter aberto.
@@ -135,8 +137,9 @@ adequada quando houver dados confirmados.
   `Documento`, `Assinatura` e situação da atuação na unidade,
   conforme campos comprovados e contratos respectivos.
 - **Somente conceituais por enquanto**: Pessoa, órgão, módulo,
-  perfil, andamento (entidade aprovada, sem estrutura Rust), envio, recebimento, bloco de assinatura e
-  classificações ainda não necessárias aos comandos.
+  perfil, andamento (entidade aprovada, sem estrutura Rust), envio,
+  recebimento, bloco de assinatura e classificações ainda não
+  necessárias aos comandos.
 
 Novos tipos devem distinguir IDs internos, números visíveis e
 identidade de instalação. `Option` representa dado não obtido; não
@@ -176,3 +179,35 @@ com cassettes de envio, recebimento, conclusão e reabertura; extrair
 IDs e cardinalidades sem presumir o resultado. Em paralelo, mapear
 usuário/unidade e documento/assinatura contra contratos REST/SOAP
 oficiais e evidências Web, mantendo divergências explícitas.
+
+## Índice canônico de decisões e evidências
+
+Este arquivo define os conceitos. Os guias a seguir aprofundam
+uma única dimensão, sem criar novos subsistemas no runtime:
+
+- [Vínculos e testes discriminantes](validacao-vinculos.md): processo/unidade,
+  usuário/unidade e documento/assinatura, com rastreabilidade aos cards.
+- [Entidades derivadas de formulários](entidades-dos-formularios.md):
+  candidatos e critérios para distinguir entidade, vínculo e evento.
+- [Opções com efeito administrativo](opcoes-formularios.md):
+  valores, políticas configuráveis e parâmetros de comandos.
+- [Catálogos administrativos](catalogos-formularios.md):
+  cargo/função de assinatura, tipo, assunto, classe e opções controladas.
+- [Endpoints e operações](endpoints-operacoes.md): separação entre
+  modelo técnico de integração e domínio administrativo.
+
+**Decisões consolidadas:** `Andamento` é entidade conceitual;
+`Tramitação` permanece questão investigativa. `Endpoint` pertence
+à arquitetura de integração, não ao domínio administrativo. Um
+checkbox de formulário não vira entidade automaticamente: modelar
+conforme identidade, ciclo de vida, vínculos ou efeito. Os tipos
+Rust são criados somente quando uma operação concreta exige seus
+campos e seus testes. Não inferir capacidades por versão nem afirmar
+que um endpoint público está habilitado numa instalação.
+
+**Regra de promoção:** documentação oficial estabelece significado;
+card OKF comprova a existência de captura; corpo de cassette e replay
+comprovam campos e comportamento no recorte registrado. Somente
+um teste autorizado na instalação permite afirmar disponibilidade
+ou efeitos atuais. Cada conclusão deve declarar qual desses níveis
+foi realmente verificado.
