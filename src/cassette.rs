@@ -145,6 +145,15 @@ fn read_verified_html(
     if !root.starts_with(&format!("https://{allowed}/")) && root != format!("https://{allowed}") {
         return Err("host da cassette não corresponde à instalação".into());
     }
+    let pages = selected_html_pages(&json, passos, operation)?;
+    Ok((pages, installation))
+}
+
+fn selected_html_pages(
+    json: &serde_json::Value,
+    passos: &[usize],
+    operation: &str,
+) -> Result<Vec<String>, String> {
     let list = json["interactions"]
         .as_array()
         .ok_or("interações ausentes")?;
@@ -206,7 +215,7 @@ fn read_verified_html(
         }
         pages.push(legivel(&bytes, encoding)?);
     }
-    Ok((pages, installation))
+    Ok(pages)
 }
 
 trait NewlineNormalization {
