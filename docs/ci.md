@@ -14,7 +14,7 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 - Pré-push e CI remoto: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
-O pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
+O Clippy ativa `clippy::pedantic` e trata avisos como erros; eventuais exceções devem ser pontuais e justificadas no código.\n\nO pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
 testes, integridade de evidências e decisões. O `cargo test --workspace
 --all-targets` compila os targets; não há gate `cargo build` redundante.
 
