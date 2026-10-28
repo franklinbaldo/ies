@@ -12,8 +12,8 @@ do Todos atual e pelas evidências de instalações reais.
 **Estado:** primeiro leitor de caixa de processos implementado em Rust,
 com instalação HTTPS autorizada (host e caminho-base) antes de
 enviar cookies e leitura HTTP limitada em fluxo.
-Outras operações permanecem não implementadas. A leitura da caixa aceita
-cassette pública verificada ou uma URL HTTPS assinada de sessão já autenticada;
+Outras operações permanecem não implementadas. O replay independente aceita cassette pública verificada;
+a consulta experimental de sessão aceita URL HTTPS assinada já autenticada;
 não implementa login nem paginação.
 
 Não há compatibilidade com o antigo `agir`, `Action` ou `PageModel` público.
@@ -86,3 +86,12 @@ usa cache de Rust pinado por SHA e testa todos os alvos do workspace.
 
 O [contrato de CLI](contracts/cli.md) deve ser completado e aprovado antes
 de implementar transporte e operações do SEI. Consulte a [política de CI](docs/ci.md).
+
+## Entradas de execução
+
+- `ies processo NUP` e `ies unidade listar-processos` são contratos de
+  domínio e não recebem arquivos de cassette nem URLs assinadas.
+- `ies replay CENARIO` reproduz uma captura verificada do catálogo OKF
+  sem abrir conexão com o SEI; [guia de replay](docs/replay.md).
+- `ies sessao ler-caixa` é uma ferramenta experimental para uma sessão
+  Web previamente autenticada, com origem e credenciais privadas.

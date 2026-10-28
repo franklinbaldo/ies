@@ -4,41 +4,26 @@ title: Listar processos da unidade
 operation: unidade.listar_processos
 command: ies unidade listar-processos
 effect: read
-implementation: partial
+implementation: stub
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
 # Listar processos da unidade
 
 `ies unidade listar-processos` lê as tabelas `Recebidos` e `Gerados`
-na caixa da unidade ativa. A implementação Rust possui **primeira leitura
-de página**, por cassette verificada ou GET HTTPS de uma sessão existente.
+na caixa da unidade ativa. A CLI de domínio ainda não tem
+configuração canônica de conexão; retorna `nao_implementado`.
 
 ## Entradas
 
-- `--cassette-card ARQ.md --zip-file ZIP`: replay offline, com hashes do
-  card OKF e validação da instalação. `--passo N` seleciona uma resposta; pode ser repetido para consolidar
-  páginas já capturadas (GET inicial; demais respostas GET ou POST offline).
-- `--url-caixa-file ARQ --cookie-file ARQ --origem-file ARQ`:
-  leitura Web HTTPS com sessão já autenticada. `--origem-file`
-contém o endereço-base HTTPS (`https://host` ou
-`https://host/caminho`), com versão opcional declarada na segunda
-linha (`versao=5.0.4`). É obrigatório e independente da URL assinada.
-  Os três arquivos devem ser privados (`0600` no Unix).
-O host **e o caminho-base da instalação** devem coincidir
-exatamente antes da leitura do cookie e do envio do GET.
-A versão informada não altera a autorização ou a escolha de backend. Nenhum login é feito.
-- `--saida ARQ`: grava JSON em arquivo novo, `0600` em Unix.
-- `--json`: imprime JSON de resultado (também pode gravar em arquivo).
-- `--unidade SIGLA`: **asserção de unidade esperada**, não rótulo
-  para ecoar na resposta. O IES compara com a unidade exibida no
-  `lnkInfraUnidade` do HTML; divergência/ausência recusa a leitura.
-  Sem essa opção, o JSON usa a unidade efetivamente identificada
-  na tela, ou `null` se não houver marcador confiável.
+- `--saida ARQ`: destino de saída reservado para implementação futura.
+- `--json` e `--unidade SIGLA`: opções do contrato público.
 
-Sem origem explícita, permanece `nao_implementado` até existir
-a configuração e autenticação canônicas do IES. Entradas incompletas
-ou misturadas são erro de uso.
+A reprodução das cassettes foi removida deste comando: consulte
+[`ies replay CENARIO`](../../docs/replay.md). A leitura experimental de
+sessão já autenticada está em `ies sessao ler-caixa` e exige origem
+autorizada e arquivos privados; não se deve confundi-la com uma
+conexão SEI configurada do usuário.
 
 ## Resultado de domínio e contrato JSON v1
 

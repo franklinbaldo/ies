@@ -26,7 +26,8 @@ fn preparar_fixture_com_html(html: &str) -> (PathBuf, PathBuf, PathBuf) {
             .as_nanos()
     ));
     fs::create_dir_all(&folder).unwrap();
-    let zip = folder.join("replay.zip");
+    let zip = folder.join(".cache/ies/todos-sei-cassettes-unb.zip");
+    fs::create_dir_all(zip.parent().unwrap()).unwrap();
     let member = "unidade-processos-unb.json";
     let cassette = serde_json::json!({
         "complete": true, "schema_version": 1,
@@ -49,7 +50,8 @@ fn preparar_fixture_com_html(html: &str) -> (PathBuf, PathBuf, PathBuf) {
     writer.write_all(json_bytes.as_bytes()).unwrap();
     writer.finish().unwrap();
 
-    let card = folder.join("replay.md");
+    let card = folder.join("cassettes/unb/replay--synthetic.md");
+    fs::create_dir_all(card.parent().unwrap()).unwrap();
     fs::write(
         &card,
         format!(
@@ -68,15 +70,13 @@ fn preparar_fixture() -> (PathBuf, PathBuf, PathBuf) {
 
 #[test]
 fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
-    let (folder, card, zip) = preparar_fixture();
+    let (folder, _card, _zip) = preparar_fixture();
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "replay",
+            "--acervo",
+            folder.to_str().unwrap(),
             "--json",
         ])
         .output()
@@ -97,19 +97,17 @@ fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
 
 #[test]
 fn hash_adulterado_é_recusado() {
-    let (folder, card, zip) = preparar_fixture();
+    let (folder, card, _zip) = preparar_fixture();
     let text = fs::read_to_string(&card)
         .unwrap()
         .replace("archive_sha1: ", "archive_sha1: 0000");
     fs::write(&card, text).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "replay",
+            "--acervo",
+            folder.to_str().unwrap(),
             "--json",
         ])
         .output()
@@ -143,7 +141,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
             .as_nanos()
     ));
     fs::create_dir_all(&folder).unwrap();
-    let zip = folder.join("paginas.zip");
+    let zip = folder.join(".cache/ies/todos-sei-cassettes-unb.zip");
+    fs::create_dir_all(zip.parent().unwrap()).unwrap();
     let member = "paginas-unb.json";
     let build = |inicio: u32, fim: u32| {
         let lines = (inicio..=fim)
@@ -188,7 +187,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     writer.write_all(bytes.as_bytes()).unwrap();
     writer.finish().unwrap();
-    let card = folder.join("paginas.md");
+    let card = folder.join("cassettes/unb/paginas--synthetic.md");
+    fs::create_dir_all(card.parent().unwrap()).unwrap();
     fs::write(&card,format!(
         "---\ntype: Cassette\ninstallation: unb\n\
          source_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\n\
@@ -198,12 +198,10 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
     )).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "paginas",
+            "--acervo",
+            folder.to_str().unwrap(),
             "--passo",
             "0",
             "--passo",
@@ -220,12 +218,10 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
     assert_eq!(value["recebidos"]["processos"][3]["id"], "4");
     let no_selection = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "paginas",
+            "--acervo",
+            folder.to_str().unwrap(),
             "--json",
         ])
         .output()
@@ -236,12 +232,10 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
     assert_eq!(partial["gerados"]["completa"], true);
     let repeat = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "paginas",
+            "--acervo",
+            folder.to_str().unwrap(),
             "--passo",
             "0",
             "--passo",
@@ -256,15 +250,13 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
 
 #[test]
 fn contrato_json_v1_e_deterministico() {
-    let (pasta, card, arquivo) = preparar_fixture();
+    let (pasta, _card, _arquivo) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            arquivo.to_str().unwrap(),
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
             "--unidade",
             "TESTE",
             "--json",
@@ -287,15 +279,13 @@ fn contrato_json_v1_e_deterministico() {
 #[test]
 fn parser_repassa_subcodigo_sem_vazar_html() {
     let html = "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>        <tr id='P8'><td><a class='outraClasse' href='?infra_hash=SEGREDO'>123</a></td></tr></table>        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-    let (pasta, card, zip) = preparar_fixture_com_html(html);
+    let (pasta, _card, _zip) = preparar_fixture_com_html(html);
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
             "--json",
         ])
         .output()
@@ -313,15 +303,13 @@ fn parser_repassa_subcodigo_sem_vazar_html() {
 
 #[test]
 fn unidade_solicitada_precisa_ser_confirmada_pelo_sei() {
-    let (pasta, card, zip) = preparar_fixture();
+    let (pasta, _card, _zip) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
-            "--cassette-card",
-            card.to_str().unwrap(),
-            "--zip-file",
-            zip.to_str().unwrap(),
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
             "--unidade",
             "OUTRA",
             "--json",
@@ -338,8 +326,8 @@ fn unidade_solicitada_precisa_ser_confirmada_pelo_sei() {
 fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
+            "sessao",
+            "ler-caixa",
             "--url-caixa-file",
             "qualquer-arquivo-de-url",
             "--cookie-file",
@@ -349,8 +337,7 @@ fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
         .output()
         .unwrap();
     assert_eq!(resposta.status.code(), Some(2));
-    let dado: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
-    assert_eq!(dado["codigo"], "entrada_invalida");
+    assert!(String::from_utf8_lossy(&resposta.stderr).contains("--origem-file"));
 }
 
 #[test]
@@ -383,8 +370,8 @@ fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
     }
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "unidade",
-            "listar-processos",
+            "sessao",
+            "ler-caixa",
             "--url-caixa-file",
             url.to_str().unwrap(),
             "--origem-file",

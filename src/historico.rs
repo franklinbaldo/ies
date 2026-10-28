@@ -13,6 +13,32 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
+pub fn numero_do_historico(html: &str) -> Result<String, &'static str> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| "html_invalido")?;
+    let parser = dom.parser();
+    let titulo = dom
+        .query_selector("title")
+        .and_then(|mut nodes| nodes.next())
+        .and_then(|no| no.get(parser))
+        .map(|no| texto(no, parser))
+        .ok_or("titulo_ausente")?;
+    let (_, depois) = titulo
+        .split_once("Histórico do Processo ")
+        .ok_or("titulo_invalido")?;
+    let candidatos: Vec<_> = depois
+        .split_whitespace()
+        .filter(|v| {
+            !v.is_empty()
+                && v.bytes()
+                    .all(|b| b.is_ascii_digit() || b == b'.' || b == b'/' || b == b'-')
+        })
+        .collect();
+    if candidatos.len() != 1 {
+        return Err("numero_ambiguo");
+    }
+    Ok(candidatos[0].to_owned())
+}
+
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, &'static str> {
     let numero = NumeroProcesso::novo(numero).map_err(|_| "numero_invalido")?;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| "html_invalido")?;
