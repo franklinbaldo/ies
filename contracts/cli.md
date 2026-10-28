@@ -24,6 +24,14 @@ A [matriz de evidências](evidencias/README.md) relaciona operações
 registradas pelo Todos a cassettes, mas **não equivale a aprovação dos
 contratos desta CLI**. Contrato e evidência são fontes distintas.
 
+## Independência de implementação
+
+O contrato descreve somente comportamento e efeitos observáveis.
+A decisão de usar REST, SOAP ou HTML pertence a um adaptador específico
+e precisa de [evidência comparativa](../docs/arquitetura/0001-rotas-por-evidencia.md).
+Nenhum método HTTP, resultado de uma API não habilitada ou mecanismo
+legado do Todos faz parte do contrato público por pressuposição.
+
 ## Primeiro recorte, sem acesso ao SEI
 
 - `ies processo NUP`
