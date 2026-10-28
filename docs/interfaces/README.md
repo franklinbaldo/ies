@@ -23,6 +23,14 @@ e [controle de acesso por instalação](acesso-por-instalacao.md).
 WSDL SOAP pode exigir credenciais até para consulta.** O catálogo de
 interfaces não autoriza probing anônimo nem descoberta por tentativa e erro.
 
+O [modelo de instalação, órgão, unidade e versão](instalacoes-e-versoes.md)
+separa ambiente técnico, estrutura administrativa e contexto de sessão.
+A versão do SEI é metadado, **não um indicador automático de compatibilidade**.
+
+O [modelo de instalação, órgão, unidade e versão](instalacoes-e-versoes.md)
+separa ambiente técnico, estrutura administrativa e contexto de sessão.
+A versão do SEI é metadado, **não um indicador automático de compatibilidade**.
+
 A disponibilidade de módulos, o modelo de autenticação e as permissões
 são externos à CLI. Contratos publicados não comprovam equivalência
 de campos, coleções, paginação nem escopo da unidade ativa.

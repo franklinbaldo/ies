@@ -10,8 +10,8 @@ Recriação limpa do IES em Rust, orientada pelo contrato público de comandos
 do Todos atual e pelas evidências de instalações reais.
 
 **Estado:** primeiro leitor de caixa de processos implementado em Rust,
-com host HTTPS autorizado antes de enviar cookies e leitura HTTP
-limitada em fluxo.
+com instalação HTTPS autorizada (host e caminho-base) antes de
+enviar cookies e leitura HTTP limitada em fluxo.
 Outras operações permanecem não implementadas. A leitura da caixa aceita
 cassette pública verificada ou uma URL HTTPS assinada de sessão já autenticada;
 não implementa login nem paginação.
@@ -48,6 +48,16 @@ O [gate de decisões](docs/decisoes/unidade-listar-processos.md) exige
 alternativas e evidências para cada operação efetivamente implementada.
 Ele preserva a liberdade de escolher a arquitetura interna mais simples
 e adequada por instalação, sem portar automaticamente o Todos.
+
+## Identidades do SEI
+
+A [instalação SEI](docs/interfaces/instalacoes-e-versoes.md) é o
+endereço-base HTTPS autorizado, com `VersaoSei` declarada opcional.
+Órgão é a instituição administrada no SEI/SIP; unidade é seu
+setor, ativo na sessão. Uma instalação pode conter vários órgãos.
+A compatibilidade é inferida dos **testes por operação e instalação**,
+nunca apenas do número de versão. Não existe um framework de
+compatibilidade nem uma confiança percentual inventada.
 
 ## Primeira leitura
 

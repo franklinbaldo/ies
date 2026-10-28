@@ -1,6 +1,7 @@
 mod caixa;
 mod cassette;
 mod dominio;
+mod instalacao;
 mod paginas;
 mod saida;
 mod transporte;

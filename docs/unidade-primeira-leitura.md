@@ -66,10 +66,15 @@ Para uma sessão **já autenticada**, o IES aceita exclusivamente
 GET de URL HTTPS publicada pela própria caixa do SEI, assinada na
 mesma sessão **e no host da origem explicitamente autorizada**.
 Forneça três arquivos privados `0600`: URL assinada, cookie e
-origem, contendo somente o URL `https://host` da instalação,
-sem caminho. O cookie contém apenas os pares da linha `Cookie`
+origem, contendo o endereço-base HTTPS da instalação
+(`https://host` ou `https://host/caminho`). O arquivo admite
+opcionalmente uma segunda linha, `versao=5.0.4`, apenas como
+metadado declarado. Host **e caminho-base** são conferidos antes
+de enviar cookies; outra instalação no mesmo host é recusada.
+O cookie contém apenas os pares da linha `Cookie`
 (por exemplo, `PHPSESSID=...; OUTRO=...`), sem prefixo `Cookie:`.
-O host é conferido antes de ler os cookies ou fazer rede.
+O endereço-base é conferido antes de ler os cookies ou fazer rede.
+A versão não altera permissões nem habilita recursos.
 
 ```sh
 chmod 600 /caminho/privado/cookies /caminho/privado/url-caixa /caminho/privado/origem
