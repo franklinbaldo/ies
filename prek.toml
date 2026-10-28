@@ -65,3 +65,12 @@ language = "system"
 pass_filenames = false
 always_run = true
 stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "decisoes"
+name = "Decisões de engenharia por operação implementada"
+entry = "cargo run --quiet --locked --bin check_design"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
