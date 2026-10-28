@@ -1,6 +1,7 @@
 mod caixa;
 mod cassette;
 mod dominio;
+mod historico;
 mod instalacao;
 mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
@@ -45,6 +46,15 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
+    /// Card OKF com o histórico previamente capturado (offline)
+    #[arg(long)]
+    cassette_card: Option<PathBuf>,
+    /// ZIP original do Internet Archive (offline)
+    #[arg(long)]
+    zip_file: Option<PathBuf>,
+    /// Índice da resposta de histórico na cassette
+    #[arg(long)]
+    passo: Option<usize>,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
@@ -297,6 +307,49 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+fn ler_processo_offline(
+    numero: &str,
+    card: &Path,
+    zip: &Path,
+    passo: usize,
+    json_mode: bool,
+) -> ExitCode {
+    let (html, instalacao) = match cassette::read_cassette_history(card, zip, passo) {
+        Ok(valor) => valor,
+        Err(_) => {
+            return erro_fonte(
+                json_mode,
+                "cassette_invalida",
+                "cassette, hash ou passo de histórico inválido",
+            );
+        }
+    };
+    let detalhe = match historico::ler_historico(&html, numero) {
+        Ok(valor) => valor,
+        Err(causa) => {
+            return erro_fonte(json_mode, causa, "histórico não corresponde ao processo solicitado");
+        }
+    };
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "processo": detalhe,
+                "instalacao": instalacao,
+                "escopo": "historico_offline",
+                "parcial": true
+            })
+        );
+    } else {
+        println!(
+            "Histórico offline do processo {}: {} andamento(s), dados parciais.",
+            detalhe.numero.as_str(),
+            detalhe.andamentos.len()
+        );
+    }
+    ExitCode::SUCCESS
+}
+
 fn show_noun_help(noun: &str) {
     let mut root = Cli::command();
     if let Some(command) = root.find_subcommand_mut(noun) {
@@ -306,6 +359,36 @@ fn show_noun_help(noun: &str) {
 }
 
 fn run(cli: Cli) -> ExitCode {
+    if let Domain::Processo(p) = &cli.command {
+        let offline = p.cassette_card.is_some() || p.zip_file.is_some() || p.passo.is_some();
+        if offline {
+            if p.numero.is_none()
+                || p.acao.is_some()
+                || p.cassette_card.is_none()
+                || p.zip_file.is_none()
+                || p.passo.is_none()
+                || p.sem_andamentos
+                || p.andamentos_completos
+                || p.sem_documentos
+                || p.sem_marcadores
+                || p.sem_propriedades
+            {
+                return erro_lista(
+                    cli.json,
+                    "entrada_invalida",
+                    "replay de processo exige NUP, --cassette-card, --zip-file e --passo; projeções ainda não implementadas",
+                    2,
+                );
+            }
+            return ler_processo_offline(
+                p.numero.as_deref().unwrap(),
+                p.cassette_card.as_deref().unwrap(),
+                p.zip_file.as_deref().unwrap(),
+                p.passo.unwrap(),
+                cli.json,
+            );
+        }
+    }
     if let Domain::Unidade(Unidade {
         acao:
             Some(UnidadeAcao::ListarProcessos {
