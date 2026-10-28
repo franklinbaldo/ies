@@ -27,11 +27,13 @@ e baixe o ZIP que ele referencia. Confira o SHA-1 antes de executar:
 curl -fL -o /tmp/ies-go.zip \
   https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-go.zip
 echo '42a08cd3714bb863d136ed98e517221510a31982  /tmp/ies-go.zip' | sha1sum -c -
-cargo run --locked -- unidade listar-processos \
-  --cassette-card cassettes/go/unidade-processos-paginado-go--ca25324d2aac.md \
-  --zip-file /tmp/ies-go.zip --json
+mkdir -p .cache/ies
+cp /tmp/ies-go.zip .cache/ies/todos-sei-cassettes-go.zip
+cargo run --locked -- replay unidade-processos-paginado-go --json
 ```
 
+O comando público de domínio não recebe opções de cassette.
+O replay usa nome de cenário e cache local.
 O IES também confere internamente SHA-1 do ZIP, SHA-256
 normalizado da cassette, host público permitido, schema e status 200.
 Não publica cookies, HTML bruto nem URLs `infra_hash`.
@@ -78,7 +80,7 @@ A versão não altera permissões nem habilita recursos.
 
 ```sh
 chmod 600 /caminho/privado/cookies /caminho/privado/url-caixa /caminho/privado/origem
-ies unidade listar-processos \
+ies sessao ler-caixa \
   --url-caixa-file /caminho/privado/url-caixa \
   --cookie-file /caminho/privado/cookies \
   --origem-file /caminho/privado/origem --json
