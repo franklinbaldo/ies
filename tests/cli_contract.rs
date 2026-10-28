@@ -122,3 +122,40 @@ fn busca_documento_permanece_subcomando() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["codigo"], "nao_implementado");
 }
+
+#[test]
+fn replay_de_processo_exige_fonte_offline_verificavel() {
+    let output = ies(&[
+        "processo",
+        "202600005002487",
+        "--cassette-card",
+        "inexistente.md",
+        "--zip-file",
+        "inexistente.zip",
+        "--passo",
+        "6",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "fonte_invalida");
+}
+
+#[test]
+fn replay_de_processo_parcial_nao_aceita_projecoes_ainda_ausentes() {
+    let output = ies(&[
+        "processo",
+        "202600005002487",
+        "--cassette-card",
+        "inexistente.md",
+        "--zip-file",
+        "inexistente.zip",
+        "--passo",
+        "6",
+        "--sem-documentos",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "entrada_invalida");
+}
