@@ -70,9 +70,8 @@ mod tests {
 
     #[test]
     fn situacoes_de_unidade_nao_sao_um_estado_global() {
-        let mut processo = DetalheProcesso::novo(
-            NumeroProcesso::novo("23106.000001/2026-01").unwrap(),
-        );
+        let mut processo =
+            DetalheProcesso::novo(NumeroProcesso::novo("23106.000001/2026-01").unwrap());
         processo.atuacoes = vec![
             AtuacaoNaUnidade {
                 unidade: "A".into(),
@@ -112,7 +111,9 @@ mod tests {
         assert!(NumeroProcesso::novo(" ").is_err());
         assert!(NumeroProcesso::novo("ok\nsegredo").is_err());
         assert_eq!(
-            NumeroProcesso::novo(" 23106.000001/2026-01 ").unwrap().as_str(),
+            NumeroProcesso::novo(" 23106.000001/2026-01 ")
+                .unwrap()
+                .as_str(),
             "23106.000001/2026-01"
         );
     }
