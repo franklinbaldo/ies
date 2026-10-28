@@ -24,7 +24,7 @@ stages = ["pre-commit", "pre-push"]
 [[repos.hooks]]
 id = "okf"
 name = "OKF estrito em todos os Markdown"
-entry = "uvx --from okf-parser==0.48.2 okf-parser check . --require-spec okf_specs/{slug}.md --normative-spec"
+entry = "uvx --from okf-parser==0.48.2 okf-parser check . --require-spec .okf/specs/{slug}.md --normative-spec"
 language = "system"
 pass_filenames = false
 always_run = true
