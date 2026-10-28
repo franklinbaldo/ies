@@ -13,7 +13,7 @@ live_validation: not-performed
 
 # Histórico do processo — recorte offline
 
-## Alternativas
+## Alternativas consideradas
 
 - Web: resposta `procedimento_consultar_historico` já capturada,
   identificada por passo, com tabela `tblHistorico`.
@@ -21,7 +21,13 @@ live_validation: not-performed
   nem equivalente ao histórico completo do Web.
 - SOAP: requer cadastro e autorização próprios; não comprovado.
 
-## Escolha
+## Comparação
+
+Web histórica: campos de andamento verificáveis no replay, sem rede.
+REST: não comparado nesta instalação; SOAP: não comparado nem autorizado.
+Não há medição de latência ou equivalência entre transportes.
+
+## Decisão
 
 Implementar apenas a projeção **parcial de andamentos históricos**
 pela Web gravada. A consulta exige ZIP e card OKF conferidos
@@ -35,11 +41,12 @@ O resultado tem `escopo: historico_offline` e `parcial: true`.
 inferida dos andamentos. Não criar identificador artificial de
 andamento, não inferir completude de outros componentes do processo.
 
-## Evidência e limites
+## Evidências verificáveis
 
 - [Contrato CLI](../cli/processo-obter.md)
 - [Card Goiás](../../cassettes/go/processo-andamento-go--ae86a5f02b6f.md)
 - [Matriz](../evidencias/processo-obter.md)
+- [Testes do contrato CLI](../../tests/cli_contract.rs)
 - [Modelo](../../docs/dominio/modelo-conceitual-sei.md)
 - [Acesso por instalação](../../docs/interfaces/acesso-por-instalacao.md)
 
@@ -48,7 +55,7 @@ cassette de sete interações. A resposta histórica possui
 `tblHistorico`. Isto não comprova a equivalência de REST/SOAP,
 nem valida a semântica de todas as sete instalações.
 
-## Revisão obrigatória
+## Limitações e revisão
 
 Reavaliar quando houver replay comprovado nas demais instalações,
 histórico resumido/completo, paginação, múltiplos processos numa
