@@ -327,7 +327,11 @@ fn ler_processo_offline(
     let detalhe = match historico::ler_historico(&html, numero) {
         Ok(valor) => valor,
         Err(causa) => {
-            return erro_fonte(json_mode, causa, "histórico não corresponde ao processo solicitado");
+            return erro_fonte(
+                json_mode,
+                causa,
+                "histórico não corresponde ao processo solicitado",
+            );
         }
     };
     if json_mode {
