@@ -125,7 +125,13 @@ fn busca_documento_permanece_subcomando() {
 
 #[test]
 fn replay_falha_sem_acervo_e_nao_executa_o_sei() {
-    let output = ies(&["replay", "processo-andamento-go", "--acervo", "inexistente", "--json"]);
+    let output = ies(&[
+        "replay",
+        "processo-andamento-go",
+        "--acervo",
+        "inexistente",
+        "--json",
+    ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "acervo_ausente");
