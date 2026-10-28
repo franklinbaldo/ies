@@ -19,6 +19,14 @@ O IES Python histórico está preservado no cofre privado
 O CI público em [GitHub Actions](.github/workflows/ci.yml) executa os mesmos
 gates do `prek` usados localmente.
 
+## Experimentos reais do SEI
+
+O [catálogo OKF de cassettes](docs/cassettes.md) registra 478 revisões
+distintas observadas em sete instalações de treinamento/homologação.
+Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
+[como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação
+empírica independente da arquitetura Python anterior.
+
 ## Desenvolvimento
 
 - `cargo test --locked`

@@ -29,7 +29,7 @@ Não há secrets ou acesso autenticado ao SEI.
 ## OKF
 
 Todo Markdown autoral exige frontmatter com `type` e Spec correspondente
-em `okf_specs/{slug}.md`; o gate exige `--normative-spec`.
+em `.okf/specs/{slug}.md`; o gate exige `--normative-spec`.
 A versão do parser é fixada em `0.48.2`, ferramenta externa de CI;
 o executável IES não depende de Python.
 
