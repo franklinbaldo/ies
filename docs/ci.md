@@ -50,6 +50,13 @@ os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 Para medir gargalos sem especular, execute `cargo build --timings` num
 executor adequado; não mantenha o HTML de timings versionado.
 
+## Compatibilidade da saída JSON
+
+O teste `contrato_json_v1_e_deterministico` compara byte a byte
+o replay sintético com `tests/fixtures/caixa-v1.json`. Alterações
+de formato exigem revisão explícita do golden e do contrato OKF.
+O domínio tipado pode evoluir sem gerar chaves JSON acidentalmente.
+
 ## OKF
 
 Todo Markdown autoral exige frontmatter com `type` e Spec correspondente

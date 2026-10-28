@@ -8,8 +8,9 @@ description: Replay com cassettes verificadas e GET seguro de uma caixa já aute
 
 O IES Rust interpreta duas tabelas independentes da caixa SEI:
 `tblProcessosRecebidos` e `tblProcessosGerados`. O resultado JSON
-contém número, identificador interno, visualização, total declarado,
-linhas lidas e `completude` de cada categoria.
+contém número, identificador interno, visualização e total declarado.
+O valor `completa: bool` é calculado na borda a partir da cobertura
+conferida, jamais armazenado no domínio.
 
 **O GET ao vivo continua lendo somente a página atual.** No modo
 offline, o IES agora aceita uma seleção explícita de páginas de uma
@@ -42,7 +43,10 @@ ou POST de `procedimento_controlar` **já presentes no ZIP**. O comando
 não reproduz o corpo do POST nem envia requisições durante o replay.
 Quando uma tabela fica numa página e outra avança, a página repetida da
 primeira precisa ser idêntica; revisão divergente falha fechado.
-A contagem `paginas_lidas` é independente para recebidos e gerados.
+Os intervalos verificados são independentes por tabela e existem
+somente enquanto a paginação está sendo consolidada. `completa: false`
+significa que a cobertura não foi provada, mesmo quando a contagem
+de linhas parecer compatível.
 
 ## Leitura HTTPS de caixa assinada
 
@@ -68,6 +72,19 @@ Em arquivos `--saida`, a escrita usa modo `0600` em Unix,
 recusa sobrescrever outro arquivo e produz apenas o resultado
 estruturado. Os dados da caixa podem ser sensíveis: não envie
 essas saídas ao Git ou ao Internet Archive.
+
+## Contrato JSON v1 simplificado
+
+O domínio guarda `IdProcedimento`, `Processo`, `Tabela<Processo>` e
+`Caixa`, sem enum de completude nem campos de apresentação.
+A borda em `src/saida.rs` calcula o booleano de cobertura e formata
+JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
+
+O JSON contém `unidade`, `origem` e, para Recebidos e Gerados,
+`processos`, `total_declarado` e `completa`. A prova de cobertura
+não é exposta como estado mutável. O
+[golden de saída](../tests/fixtures/caixa-v1.json)
+fixa esse contrato byte a byte num teste de integração.
 
 ## Testes e limites
 

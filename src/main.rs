@@ -1,12 +1,16 @@
 mod caixa;
 mod cassette;
+mod dominio;
 mod paginas;
+mod saida;
 mod transporte;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
 
 #[derive(Debug, Parser)]
 #[command(name = "ies", version, about = "CLI Rust de domínio para o SEI")]
@@ -221,18 +225,28 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
             );
         }
     };
-    let mut result = match paginas::juntar(&htmls, unidade) {
-        Ok(value) => value,
-        Err(_) => {
-            return erro_lista(
-                json_mode,
-                "tela_inesperada",
-                "tabelas ou identidades da caixa não conferem com o contrato",
-                1,
-            );
+    let leitura = match paginas::juntar(&htmls) {
+        Ok(valor) => valor,
+        Err(erro) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "tela_inesperada",
+                        "subcodigo": erro.subcodigo(),
+                        "erro": erro.to_string(),
+                        "categoria": erro.categoria().map(|c| c.rotulo()),
+                        "id": erro.id(),
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!("IES: {erro}");
+            }
+            return ExitCode::from(1);
         }
     };
-    result["origem"] = json!(origin);
+    let result = saida::json(&leitura, unidade, &origin);
     let serialized = match serde_json::to_vec_pretty(&result) {
         Ok(value) => value,
         Err(_) => return erro_lista(json_mode, "saida_invalida", "falha na serialização JSON", 1),
@@ -248,16 +262,7 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
     if json_mode {
         println!("{}", String::from_utf8_lossy(&serialized));
     } else if output.is_none() {
-        for kind in ["recebidos", "gerados"] {
-            println!(
-                "{kind}: {} de {:?} processos ({})",
-                result[kind]["linhas_lidas"],
-                result[kind]["total_declarado"],
-                result[kind]["completude"]
-                    .as_str()
-                    .unwrap_or("indeterminada"),
-            );
-        }
+        println!("{}", saida::humano(&leitura));
     }
     ExitCode::SUCCESS
 }

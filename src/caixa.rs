@@ -1,76 +1,85 @@
-//! Leitura estruturada das duas tabelas independentes da caixa do SEI.
-//! Não serializa links assinados e nunca infere que uma página parcial está completa.
-use serde_json::{Value, json};
-use std::collections::HashSet;
+//! Parser Web puro: HTML -> Caixa tipada; sem estado de sessão ou JSON.
+use crate::dominio::{Caixa, Categoria, ErroCaixa, IdProcedimento, Processo, Tabela};
 
-fn atributo(tag: &tl::HTMLTag<'_>, key: &str) -> Option<String> {
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
     tag.attributes()
-        .get(key)
+        .get(nome)
         .flatten()
         .map(|v| v.as_utf8_str().into_owned())
 }
 
-fn total_da_legenda(text: &str) -> Option<usize> {
-    let words: Vec<&str> = text.split_whitespace().collect();
-    words
+pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
+    // O tl mantém algumas entidades HTML como texto literal.
+    let texto = texto
+        .replace("&nbsp;", " ")
+        .replace("&#160;", " ")
+        .replace('\u{a0}', " ");
+    let palavras: Vec<&str> = texto.split_whitespace().collect();
+    palavras
         .windows(2)
-        .find(|pair| pair[1].starts_with("registro"))
-        .and_then(|pair| pair[0].trim_start_matches('(').parse::<usize>().ok())
+        .find(|par| par[1].starts_with("registro"))
+        .and_then(|par| par[0].trim_start_matches('(').parse::<usize>().ok())
 }
 
-fn conteudo_tabela(dom: &tl::VDom<'_>, table_id: &str, category: &str) -> Result<Value, String> {
+fn ler_tabela(
+    dom: &tl::VDom<'_>,
+    table_id: &str,
+    categoria: Categoria,
+) -> Result<Tabela<Processo>, ErroCaixa> {
     let parser = dom.parser();
-    let table = dom
+    let tabela = dom
         .get_element_by_id(table_id)
-        .and_then(|node| node.get(parser))
+        .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or_else(|| format!("tabela ausente: {category}"))?;
-    if table.name() != "table" {
-        return Err(format!("elemento inválido para {category}"));
+        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    if tabela.name() != "table"
+        || tabela
+            .query_selector(parser, "table")
+            .is_some_and(|mut filhos| filhos.next().is_some())
+    {
+        // Não permitir que linhas de tabelas aninhadas contaminem o resultado.
+        return Err(ErroCaixa::TabelaInvalida { categoria });
     }
 
-    let caption = table
+    let legenda = tabela
         .query_selector(parser, "caption")
-        .and_then(|mut it| it.next())
-        .and_then(|n| n.get(parser))
+        .and_then(|mut itens| itens.next())
+        .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .map(|tag| tag.inner_text(parser).into_owned())
-        .ok_or_else(|| format!("legenda ausente: {category}"))?;
-    let total = total_da_legenda(&caption);
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?
+        .inner_text(parser);
+    let total = total_da_legenda(&legenda);
     let mut processos = Vec::new();
-    let mut ids = HashSet::new();
-    let rows = table
+    let linhas = tabela
         .query_selector(parser, "tr")
-        .ok_or_else(|| "seletor HTML inválido".to_owned())?;
-    for row in rows {
-        let Some(tag) = row.get(parser).and_then(tl::Node::as_tag) else {
+        .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
+    for linha in linhas {
+        let Some(tag) = linha.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
         let Some(id) = atributo(tag, "id") else {
+            // Cabeçalhos e avisos podem aparecer entre as linhas.
             continue;
         };
         let Some(id) = id.strip_prefix('P') else {
             continue;
         };
-        if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(format!("identificador de processo inválido: {category}"));
-        }
-        if !ids.insert(id.to_owned()) {
-            return Err(format!("processo repetido na mesma tabela: {category}"));
-        }
-
-        let anchors = tag
+        let id = IdProcedimento::novo(id)?;
+        let links = tag
             .query_selector(parser, "a")
-            .ok_or_else(|| "seletor de links inválido".to_owned())?;
-        let mut found = Vec::new();
-        for anchor in anchors {
-            let Some(a) = anchor.get(parser).and_then(tl::Node::as_tag) else {
+            .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
+        let mut encontrado = None;
+        for link in links {
+            let Some(a) = link.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let class = atributo(a, "class").unwrap_or_default();
-            let visto = if class.split_whitespace().any(|x| x == "processoVisualizado") {
+            let classes = atributo(a, "class").unwrap_or_default();
+            let visualizado = if classes
+                .split_whitespace()
+                .any(|x| x == "processoVisualizado")
+            {
                 Some(true)
-            } else if class
+            } else if classes
                 .split_whitespace()
                 .any(|x| x == "processoNaoVisualizado")
             {
@@ -78,67 +87,130 @@ fn conteudo_tabela(dom: &tl::VDom<'_>, table_id: &str, category: &str) -> Result
             } else {
                 None
             };
-            if let Some(visualizado) = visto {
-                // O link assinado nunca sai no modelo JSON nem é salvo no índice.
+            if let Some(visualizado) = visualizado {
                 let numero = a.inner_text(parser).trim().to_owned();
                 if numero.is_empty() || numero.len() > 100 {
-                    return Err(format!("número de processo inválido: {category}"));
+                    return Err(ErroCaixa::NumeroInvalido {
+                        categoria,
+                        id: id.as_str().to_owned(),
+                    });
                 }
-                found.push(json!({"id":id,"numero":numero,"visualizado":visualizado}));
+                if encontrado.is_some() {
+                    return Err(ErroCaixa::ProcessoAmbiguo {
+                        categoria,
+                        id: id.as_str().to_owned(),
+                    });
+                }
+                encontrado = Some(Processo {
+                    id: id.clone(),
+                    numero,
+                    visualizado,
+                });
             }
         }
-        if found.len() != 1 {
-            return Err(format!("nó de processo ambíguo: {category}"));
-        }
-        processos.push(found.remove(0));
+        processos.push(encontrado.ok_or(ErroCaixa::ProcessoAmbiguo {
+            categoria,
+            id: id.as_str().to_owned(),
+        })?);
     }
-
-    let status = match total {
-        Some(n) if processos.len() == n => "completa",
-        Some(n) if processos.len() < n => "parcial",
-        Some(_) => return Err(format!("mais linhas que o total declarado: {category}")),
-        None => "indeterminada",
-    };
-    Ok(json!({
-        "categoria":category,
-        "total_declarado":total,
-        "linhas_lidas":processos.len(),
-        "completude":status,
-        "processos":processos
-    }))
+    Tabela::nova(categoria, total, processos)
 }
 
-pub fn parse_html(html: &str, unidade: Option<&str>) -> Result<Value, String> {
-    if html.len() > 8_000_000 {
-        return Err("HTML excede o limite de 8 MB".into());
-    }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| "HTML não interpretável".to_owned())?;
-    let recebidos = conteudo_tabela(&dom, "tblProcessosRecebidos", "recebidos")?;
-    let gerados = conteudo_tabela(&dom, "tblProcessosGerados", "gerados")?;
-    let completa = recebidos["completude"] == "completa" && gerados["completude"] == "completa";
-    Ok(json!({
-        "unidade":unidade,
-        "recebidos":recebidos,
-        "gerados":gerados,
-        "completude": if completa { "completa" } else { "parcial_ou_indeterminada" },
-        "fonte":"tela_do_sei",
-        "avisos": if completa { Vec::<&str>::new() } else {
-            vec!["A caixa pode ter mais páginas. Nenhuma página extra foi inferida ou requisitada."]
-        }
-    }))
+pub fn parse_html(html: &str) -> Result<Caixa, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    Ok(Caixa {
+        recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
+        gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn html(recebidos: &str, total: usize) -> String {
+        format!(
+            "<table id='tblProcessosRecebidos'><caption>{total} registros:</caption>{recebidos}</table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>"
+        )
+    }
+    fn linha(id: &str) -> String {
+        format!("<tr id='P{id}'><td><a class='processoVisualizado'>123</a></td></tr>")
+    }
+
     #[test]
-    fn legendas() {
+    fn legendas_reais_e_entidades() {
         assert_eq!(total_da_legenda("25 registros:"), Some(25));
         assert_eq!(
             total_da_legenda("Processos recebidos (131 registros - 1 a 10):"),
             Some(131)
         );
-        assert_eq!(total_da_legenda("sem total"), None);
+        assert_eq!(total_da_legenda("131&nbsp;registros:"), Some(131));
+        assert_eq!(total_da_legenda("indefinido"), None);
+    }
+
+    #[test]
+    fn linha_sem_id_nao_cria_processo() {
+        let resultado = parse_html(&html("<tr><td>aviso</td></tr>", 1)).unwrap();
+        assert!(resultado.recebidos.processos.is_empty());
+        assert_eq!(resultado.recebidos.total_declarado, Some(1));
+    }
+
+    #[test]
+    fn recusa_id_repetido() {
+        let linha = linha("42");
+        assert_eq!(
+            parse_html(&html(&format!("{linha}{linha}"), 2))
+                .unwrap_err()
+                .subcodigo(),
+            "id_repetido"
+        );
+    }
+
+    #[test]
+    fn recusa_link_ambiguo_com_id() {
+        let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
+            <a class='processoNaoVisualizado'>124</a></td></tr>";
+        let erro = parse_html(&html(linhas, 1)).unwrap_err();
+        assert_eq!(erro.subcodigo(), "processo_ambiguo");
+        assert_eq!(erro.id(), Some("7"));
+    }
+
+    #[test]
+    fn recusa_legenda_ausente() {
+        let html = "<table id='tblProcessosRecebidos'></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(parse_html(html).unwrap_err().subcodigo(), "legenda_ausente");
+    }
+
+    #[test]
+    fn recusa_excesso_de_linhas() {
+        assert_eq!(
+            parse_html(&html(&format!("{}{}", linha("1"), linha("2")), 1))
+                .unwrap_err()
+                .subcodigo(),
+            "total_excedido"
+        );
+    }
+
+    #[test]
+    fn recusa_tabela_aninhada() {
+        let linhas = format!(
+            "<tr id='P3'><td>{}<table><tr id='P4'><td><a class='processoVisualizado'>outro</a></td></tr></table></td></tr>",
+            "<a class='processoVisualizado'>123</a>"
+        );
+        assert_eq!(
+            parse_html(&html(&linhas, 2)).unwrap_err().subcodigo(),
+            "tabela_invalida"
+        );
+    }
+
+    #[test]
+    fn ancora_de_classe_desconhecida_falha_fechado() {
+        let linhas = "<tr id='P9'><td><a class='outraClasse'>123</a></td></tr>";
+        assert_eq!(
+            parse_html(&html(linhas, 1)).unwrap_err().subcodigo(),
+            "processo_ambiguo"
+        );
     }
 }
