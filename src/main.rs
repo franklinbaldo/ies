@@ -218,7 +218,7 @@ fn mostrar_caixa(
     unidade: Option<&str>,
     json_mode: bool,
 ) -> ExitCode {
-    let leitura = match paginas::juntar(&htmls, unidade) {
+    let leitura = match paginas::juntar(htmls, unidade) {
         Ok(valor) => valor,
         Err(erro) => {
             if json_mode {
