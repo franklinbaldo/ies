@@ -37,4 +37,7 @@ Um card por revisão aponta para o ZIP original no Internet Archive.
 Reproduza offline a evidência antes de implementar; o nome da cassette
 não comprova um efeito nem autoriza escrita live.
 
+Antes de alterar um comando de leitura, consulte seus [contratos OKF](contracts/cli.md)
+e as cassettes da operação. O stub não é uma execução de SEI.
+
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.

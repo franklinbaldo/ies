@@ -50,3 +50,75 @@ fn escrita_reconhecida_nao_executa_sei() {
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
 }
+
+#[test]
+fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
+    let output = ies(&[
+        "processo",
+        "0064.001060/2023-08",
+        "--sem-documentos",
+        "--sem-marcadores",
+        "--sem-andamentos",
+        "--sem-propriedades",
+        "--andamentos-completos",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "nao_implementado");
+    assert!(
+        value["dados"]["comando"]
+            .as_str()
+            .unwrap()
+            .contains("sem_documentos: true")
+    );
+}
+
+#[test]
+fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
+    let output = ies(&[
+        "documento",
+        "77782513",
+        "77782514",
+        "--processo",
+        "0064.001060/2023-08",
+        "--saida",
+        "conteudos",
+        "--com-propriedades",
+        "--ocultar-inacessiveis",
+        "--unidade",
+        "PPI",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "nao_implementado");
+    assert!(
+        value["dados"]["comando"]
+            .as_str()
+            .unwrap()
+            .contains("77782514")
+    );
+}
+
+#[test]
+fn unidade_listar_processos_aceita_saida() {
+    let output = ies(&[
+        "unidade",
+        "listar-processos",
+        "--saida",
+        "processos.json",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "nao_implementado");
+}
+
+#[test]
+fn busca_documento_permanece_subcomando() {
+    let output = ies(&["documento", "buscar", "--assunto", "previdencia", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "nao_implementado");
+}

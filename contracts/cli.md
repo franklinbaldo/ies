@@ -34,3 +34,13 @@ contratos desta CLI**. Contrato e evidência são fontes distintas.
 - `ies status`
 - `ies setup`
 - `ies esquema`
+
+## Contratos iniciais de leitura
+
+- [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
+- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+- [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos.
+
+Os três contratos estão em fase de conformidade da CLI: o Rust reconhece
+os argumentos, mas **não acessa o SEI** e devolve `nao_implementado`.
+A implementação HTTP exige ensaio por cassette com a revisão verificada.
