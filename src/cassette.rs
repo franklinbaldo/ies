@@ -34,15 +34,24 @@ pub fn read_cassette_pages(
     read_verified_html(card, archive, passos, "procedimento_controlar")
 }
 
-/// Replay offline de um histórico previamente gravado. Nunca realiza HTTP.
-pub fn read_cassette_history(
-    card: &Path,
-    archive: &Path,
-    passo: usize,
-) -> Result<(String, String), String> {
-    let (mut htmls, origem) =
-        read_verified_html(card, archive, &[passo], "procedimento_consultar_historico")?;
-    Ok((htmls.remove(0), origem))
+pub fn archive_filename(card: &Path) -> Result<String, String> {
+    let text = std::fs::read_to_string(card).map_err(|_| "card ausente")?;
+    let url = campo(&text, "source_zip").ok_or("origem ausente")?;
+    let base = url.strip_prefix("https://archive.org/download/todos-sei-cassettes-2026/")
+        .ok_or("origem fora do acervo")?;
+    if base.contains("..") || !base.ends_with(".zip") {
+        return Err("origem insegura".into());
+    }
+    let name = base.rsplit('/').next().ok_or("nome ausente")?;
+    if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.') {
+        return Err("nome de ZIP inválido".into());
+    }
+    Ok(name.to_owned())
+}
+
+pub fn read_cassette_history_auto(card: &Path, archive: &Path) -> Result<(String, String), String> {
+    let (mut pages, origem) = read_verified_html(card, archive, &[], "procedimento_consultar_historico")?;
+    Ok((pages.remove(0), origem))
 }
 
 fn read_verified_html(
