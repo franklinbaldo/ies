@@ -6,8 +6,8 @@ source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
 ies_implemented: false
+upstream_steps: 7
 unresolved_steps: 0
-UNRESOLVED_PLACEHOLDER
 ---
 
 # processo.duplicar

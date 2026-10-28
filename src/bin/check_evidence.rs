@@ -71,10 +71,11 @@ fn verify() -> Result<(usize, usize), String> {
         } else if kind == "OperationEvidence" {
             let operation = frontmatter(&content, "operation").unwrap_or("");
             let name = file.file_stem().unwrap_or_default().to_string_lossy();
-            if operation.replace('.', "-") != name
-                || !operations.insert(operation.to_owned())
-            {
-                missing.push(format!("Identidade de operação inválida: {}", file.display()));
+            if operation.replace('.', "-") != name || !operations.insert(operation.to_owned()) {
+                missing.push(format!(
+                    "Identidade de operação inválida: {}",
+                    file.display()
+                ));
             }
             if frontmatter(&content, "source") != Some("todos-demonstration-matrix")
                 || frontmatter(&content, "source_commit").is_none()
@@ -84,8 +85,8 @@ fn verify() -> Result<(usize, usize), String> {
             if !index.contains(&format!("]({name}.md)")) {
                 missing.push(format!("Operação sem índice: {operation}"));
             }
-            let unresolved = frontmatter(&content, "unresolved_steps")
-                .and_then(|v| v.parse::<usize>().ok());
+            let unresolved =
+                frontmatter(&content, "unresolved_steps").and_then(|v| v.parse::<usize>().ok());
             if unresolved.is_none() {
                 missing.push(format!("Contagem de lacunas ausente: {}", file.display()));
             }
@@ -141,7 +142,10 @@ fn verify() -> Result<(usize, usize), String> {
         }
     }
     if operations.len() < 129 {
-        missing.push(format!("Apenas {} operações (esperadas: 129)", operations.len()));
+        missing.push(format!(
+            "Apenas {} operações (esperadas: 129)",
+            operations.len()
+        ));
     }
     if details == 0 {
         missing.push("Detalhes de operações extensas não encontrados".to_owned());
