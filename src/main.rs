@@ -3,6 +3,8 @@ mod cassette;
 mod dominio;
 mod instalacao;
 mod paginas;
+#[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
+mod processo;
 mod saida;
 mod transporte;
 
