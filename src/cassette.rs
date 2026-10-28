@@ -31,6 +31,26 @@ pub fn read_cassette_pages(
     archive: &Path,
     passos: &[usize],
 ) -> Result<(Vec<String>, String), String> {
+    read_verified_html(card, archive, passos, "procedimento_controlar")
+}
+
+/// Replay offline de um histórico previamente gravado. Nunca realiza HTTP.
+pub fn read_cassette_history(
+    card: &Path,
+    archive: &Path,
+    passo: usize,
+) -> Result<(String, String), String> {
+    let (mut htmls, origem) =
+        read_verified_html(card, archive, &[passo], "procedimento_consultar_historico")?;
+    Ok((htmls.remove(0), origem))
+}
+
+fn read_verified_html(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+    operation: &str,
+) -> Result<(Vec<String>, String), String> {
     let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
     if campo(&card_text, "type") != Some("Cassette") {
         return Err("card não é uma cassette OKF".into());
@@ -118,8 +138,7 @@ pub fn read_cassette_pages(
         list.iter()
             .enumerate()
             .filter_map(|(i, it)| {
-                (it["request"]["operation"] == "procedimento_controlar"
-                    && it["request"]["method"] == "GET")
+                (it["request"]["operation"] == operation && it["request"]["method"] == "GET")
                     .then_some(i)
             })
             .collect()
@@ -141,8 +160,9 @@ pub fn read_cassette_pages(
     for (order, step) in chosen.into_iter().enumerate() {
         let it = list.get(step).ok_or("passo inexistente")?;
         let method = it["request"]["method"].as_str();
-        if it["request"]["operation"] != "procedimento_controlar"
-            || !(method == Some("GET") || (order > 0 && method == Some("POST")))
+        if it["request"]["operation"] != operation
+            || !(method == Some("GET")
+                || (operation == "procedimento_controlar" && order > 0 && method == Some("POST")))
             || it["response"]["status_code"] != 200
         {
             return Err("passo não é uma resposta de caixa admitida (GET inicial; GET/POST subsequentes offline)".into());
