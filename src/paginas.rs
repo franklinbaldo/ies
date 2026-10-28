@@ -133,7 +133,7 @@ fn faixa_da_tabela(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
-    faixa_da_legenda(&legenda, linhas).map_err(|_| ErroCaixa::FaixaInvalida { categoria })
+    faixa_da_legenda(&legenda, linhas).map_err(|()| ErroCaixa::FaixaInvalida { categoria })
 }
 
 #[derive(Debug)]
