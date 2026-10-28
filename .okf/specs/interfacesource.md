@@ -13,6 +13,9 @@ Campos do frontmatter:
 - `protocol`: `rest-openapi` ou `soap-wsdl`.
 - `contract_status`: `published-static` ou `per-installation-dynamic`.
 - `runtime_availability`: `unknown` até verificação autorizada na instalação.
+  Não confundir com um estado global; o registro operacional precisa de
+  instalação, identidade/sistema, unidade e operação.
+- A consulta WSDL pode exigir credenciais, mesmo sendo um GET de documento.
 - `source_commit`: SHA de referência somente quando a fonte é Git versionado.
 - `document_version`: versão da especificação, quando publicada.
 

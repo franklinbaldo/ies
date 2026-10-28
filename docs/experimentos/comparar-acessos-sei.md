@@ -21,7 +21,11 @@ unidade e a semântica do retorno devem ser observados, não adivinhados.
 O [OpenAPI REST WSSEI fixado por commit](../interfaces/rest-wssei.md)
 possui 127 operações e 34 schemas; o [WSDL/XSD SOAP](../interfaces/soap-sei.md)
 é dinâmico por instalação e não foi coletado em ambiente live.
-Os contratos não comprovam disponibilidade nem autorização.
+Os contratos não comprovam disponibilidade nem autorização. Algumas
+instalações não disponibilizam REST funcional, e o WSDL SOAP pode exigir
+credenciais até para ser obtido. Aplicar a
+[política de acesso por instalação](../interfaces/acesso-por-instalacao.md).
+Nenhum ensaio live é iniciado sem host, identidade e permissão acordados.
 
 ## Primeiros pares a investigar
 
@@ -48,16 +52,20 @@ sete instalações do acervo.**
 3. **Fixtures REST/SOAP sintéticas:** produzir somente modelos
    inventados para testar parsing e invariantes. Nunca registrar
    resposta autenticada de produção no Git.
-4. **Teste controlado**, se houver instalação de laboratório com
+4. **Autorização prévia:** obter do administrador confirmação do módulo,
+   credenciais adequadas para REST e separadamente para SOAP/WSDL, e a
+   identidade/unidade permitidas. Uma negativa de autenticação não é
+   prova de ausência da API; não tentar endpoints por enumeração.
+5. **Teste controlado**, se houver instalação de laboratório com
    interfaces habilitadas e autorização: mesma identidade de usuário,
    mesma unidade, mesmo conjunto estável de processos, mesmos filtros
    e mesma janela de leitura. Separar diferenças legítimas de
    inconsistências.
-5. **Critérios:** comparar conjuntos por ID e NUP, totais e páginas,
+6. **Critérios:** comparar conjuntos por ID e NUP, totais e páginas,
    permissões, campos requeridos, erros, round-trips, latência,
    bytes transferidos e custo de manutenção. Ordenação só é critério
    se fizer parte do contrato.
-6. **Escritas:** em transações de laboratório descartáveis, observar
+7. **Escritas:** em transações de laboratório descartáveis, observar
    a transição do estado e releitura independente. Um timeout
    é efeito incerto, sem fallback e sem repetição automática.
 

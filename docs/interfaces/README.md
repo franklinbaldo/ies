@@ -8,7 +8,8 @@ description: Fontes versionadas de REST e referência SOAP sem presumir disponib
 
 O IES mantém **referências de origem**, não cópias gigantes de contratos
 externos: [REST WSSEI OpenAPI](rest-wssei.md),
-[SOAP SEI WSDL](soap-sei.md) e [índice REST por endpoint](rest-endpoints.md).
+[SOAP SEI WSDL](soap-sei.md), [índice REST por endpoint](rest-endpoints.md)
+e [controle de acesso por instalação](acesso-por-instalacao.md).
 
 ## Diferença fundamental
 
@@ -17,6 +18,10 @@ externos: [REST WSSEI OpenAPI](rest-wssei.md),
 - O WSDL SOAP do SEI é **produzido/servido por instalação** e deve ser
   consultado na instalação autorizada. Um manual de versão não substitui
   o contrato dinâmico do serviço específico.
+
+**Na prática, algumas instalações não oferecem REST funcional e o
+WSDL SOAP pode exigir credenciais até para consulta.** O catálogo de
+interfaces não autoriza probing anônimo nem descoberta por tentativa e erro.
 
 A disponibilidade de módulos, o modelo de autenticação e as permissões
 são externos à CLI. Contratos publicados não comprovam equivalência

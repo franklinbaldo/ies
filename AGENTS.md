@@ -14,6 +14,12 @@ Antes de implementar transporte de uma operação, consulte os
 compare as [alternativas REST, SOAP e Web](docs/arquitetura/0001-rotas-por-evidencia.md)
 e siga o [plano experimental](docs/experimentos/comparar-acessos-sei.md).
 Não adivinhe disponibilidade de módulo, token ou equivalência entre APIs.
+**OpenAPI público não comprova REST funcional na instalação; WSDL SOAP
+pode exigir credenciais até para leitura.** Antes de qualquer teste live,
+consulte a [política de acesso por instalação](docs/interfaces/acesso-por-instalacao.md),
+obtenha autorização e jamais faça probing de endpoints protegidos ou
+publique credenciais. Não classifique 401/403/404 como ausência de API
+sem diagnóstico autorizado.
 Uma falha ou timeout de escrita nunca autoriza troca automática de backend.
 Uma operação com `CommandContract.implementation` diferente de `stub`
 exige uma [decisão OKF por operação](docs/decisoes/unidade-listar-processos.md):

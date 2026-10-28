@@ -45,6 +45,11 @@ Há interfaces de integração próprias do SEI que devem ser consideradas.
 ter implementações pequenas e explícitas, mas nenhuma é escolhida
 sem evidência de disponibilidade, escopo e equivalência semântica.
 
+A [disponibilidade por instalação e identidade](../interfaces/acesso-por-instalacao.md)
+deve ser registrada separadamente: há instalações sem REST WSSEI funcional,
+e a leitura do próprio WSDL SOAP pode ser autenticada. A publicação do
+OpenAPI não fornece acesso, e uma falha 401/403/404 não prova ausência.
+
 A escolha não é uniforme para todo o aplicativo. O mesmo contrato
 pode ter um caminho REST comprovado numa instalação e precisar de
 Web comprovada em outra. SOAP é alternativa condicionada a cadastro

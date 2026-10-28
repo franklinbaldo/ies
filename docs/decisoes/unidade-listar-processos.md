@@ -17,10 +17,12 @@ live_validation: not-performed
 
 - `web-observed`: interpretar a caixa HTML, com Recebidos e Gerados,
   sem executar POST de paginação e sem inventar URLs assinadas.
-- `rest-wssei`: avaliar `GET /processo/listar` onde o módulo oficial
-  estiver instalado e a conta tiver autorização; equivalência não testada.
+- `rest-wssei`: avaliar `GET /processo/listar` somente se a instalação
+  tiver módulo funcional e a conta/token forem autorizados; desconhecido
+  neste recorte. OpenAPI público não comprova acesso ou equivalência.
 - `soap-official`: avaliar WebServices configurados pela instituição;
-  disponibilidade e cobertura ainda desconhecidas.
+  WSDL pode exigir credenciais para consulta e a permissão de cada
+  operação precisa ser confirmada. Disponibilidade desconhecida.
 
 ## Comparação
 

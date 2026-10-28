@@ -27,8 +27,11 @@ que todos os servidores mantenham o mesmo `soap:address`.
 É o WSDL efetivamente servido pela instalação que declara bindings,
 ports, tipos, operações e o endereço real do serviço.
 
-**O WSDL específico não está versionado neste repositório.** Consultá-lo
-exige host da instalação e autorização para a integração. Não foram
+**O WSDL específico não está versionado neste repositório.**
+Em instalações protegidas, **até obter o WSDL exige credenciais**;
+não presumir acesso anônimo. Consultá-lo depende do host, da identidade,
+do cadastro do sistema e da autorização para a integração.
+O método de autenticação deve ser obtido do administrador, não adivinhado. Não foram
 executados acessos live a SOAP nesta etapa. O manual é referência de
 família de operações, não prova da disponibilidade local.
 
@@ -66,8 +69,9 @@ Não substitui os serviços do SEI.
 
 ## Como validar uma instalação autorizada
 
-1. Obter do administrador o **host HTTPS**, a existência do serviço
-   e a autorização para consultar o WSDL.
+1. Obter do administrador o **host HTTPS**, a existência do serviço,
+   a credencial necessária e a autorização para consultar o WSDL.
+   Não consultar anonimamente um endpoint que exige autenticação.
 2. Guardar o WSDL em local privado e identificar `wsdl:definitions`,
    `wsdl:portType`, `wsdl:binding`, `soap:address` e tipos XSD.
 3. Resolver `xsd:import` e `xsd:include` somente de origens
@@ -76,6 +80,10 @@ Não substitui os serviços do SEI.
    sem executar operações de escrita só para testar conectividade.
 5. Criar fixtures artificiais sem identificadores reais e comparar
    campos, resultados e erros com o contrato da CLI do IES.
+
+A [política por instalação](acesso-por-instalacao.md) distingue
+`auth-required` de serviço ausente. Um WSDL obtido não comprova que
+cada operação SOAP tenha permissão para execução.
 
 Conferir [REST OpenAPI](rest-wssei.md) e
 [a matriz experimental](../experimentos/comparar-acessos-sei.md).
