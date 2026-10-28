@@ -35,6 +35,10 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
+    /// Reproduz evidências históricas sem acesso ao SEI
+    Replay(Replay),
+    /// Ferramentas de sessão Web autorizada
+    Sessao(Sessao),
     /// Diagnóstico da conexão (ainda não implementado)
     Status,
     /// Configura a conexão (ainda não implementado)
@@ -46,15 +50,6 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
-    /// Card OKF com o histórico previamente capturado (offline)
-    #[arg(long)]
-    cassette_card: Option<PathBuf>,
-    /// ZIP original do Internet Archive (offline)
-    #[arg(long)]
-    zip_file: Option<PathBuf>,
-    /// Índice da resposta de histórico na cassette
-    #[arg(long)]
-    passo: Option<usize>,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
@@ -139,24 +134,37 @@ enum UnidadeAcao {
     ListarProcessos {
         #[arg(long)]
         saida: Option<PathBuf>,
-        /// Card OKF de provenance da cassette do Internet Archive
+    },
+}
+
+#[derive(Debug, Args)]
+struct Replay {
+    /// Nome do cenário OKF, sem caminho, ex.: processo-andamento-go
+    cenario: String,
+    /// Raiz local do acervo contendo cassettes/ e .cache/ies/
+    #[arg(long, default_value = ".")]
+    acervo: PathBuf,
+    /// Passos explicitamente escolhidos para caixa multipágina (uso avançado)
+    #[arg(long)]
+    passo: Vec<usize>,
+}
+
+#[derive(Debug, Args)]
+struct Sessao {
+    #[command(subcommand)]
+    acao: SessaoAcao,
+}
+
+#[derive(Debug, Subcommand)]
+enum SessaoAcao {
+    /// Consulta caixa via URL assinada e credenciais em arquivos privados
+    LerCaixa {
         #[arg(long)]
-        cassette_card: Option<PathBuf>,
-        /// ZIP original baixado do Internet Archive
+        url_caixa_file: PathBuf,
         #[arg(long)]
-        zip_file: Option<PathBuf>,
-        /// Índice da interação, quando a cassette contém várias caixas
+        cookie_file: PathBuf,
         #[arg(long)]
-        passo: Vec<usize>,
-        /// URL da caixa já assinada, obtida na mesma sessão
-        #[arg(long)]
-        url_caixa_file: Option<PathBuf>,
-        /// Arquivo local 0600 contendo apenas os pares Cookie da sessão
-        #[arg(long)]
-        cookie_file: Option<PathBuf>,
-        /// Arquivo privado 0600 contendo a origem HTTPS autorizada (sem caminho)
-        #[arg(long)]
-        origem_file: Option<PathBuf>,
+        origem_file: PathBuf,
     },
 }
 
@@ -189,169 +197,109 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn salvar_json(destino: &Path, conteudo: &[u8]) -> Result<(), String> {
-    use std::io::Write;
-    let mut cfg = std::fs::OpenOptions::new();
-    cfg.create_new(true).write(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        cfg.mode(0o600);
-    }
-    let mut file = cfg
-        .open(destino)
-        .map_err(|_| "não foi possível criar o arquivo de saída")?;
-    file.write_all(conteudo)
-        .map_err(|_| "falha ao escrever a saída")?;
-    Ok(())
-}
-
-struct ConsultaUnidade<'a> {
-    output: Option<&'a Path>,
-    card: Option<&'a Path>,
-    zip: Option<&'a Path>,
-    passo: &'a [usize],
-    url: Option<&'a Path>,
-    cookie: Option<&'a Path>,
-    origem_file: Option<&'a Path>,
-    unidade: Option<&'a str>,
-    json_mode: bool,
-}
-
-fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
-    let ConsultaUnidade {
-        output,
-        card,
-        zip,
-        passo,
-        url,
-        cookie,
-        origem_file,
-        unidade,
-        json_mode,
-    } = args;
-    let offline = card.is_some() || zip.is_some() || !passo.is_empty();
-    let live = url.is_some() || cookie.is_some() || origem_file.is_some();
-    if offline == live
-        || (offline && (card.is_none() || zip.is_none()))
-        || (live && (url.is_none() || cookie.is_none() || origem_file.is_none()))
-    {
-        return erro_lista(
-            json_mode,
-            "entrada_invalida",
-            "informe --cassette-card e --zip-file, ou --url-caixa-file, --cookie-file e --origem-file (sem misturar)",
-            2,
-        );
-    }
-    let (htmls, origin) = if offline {
-        match cassette::read_cassette_pages(card.unwrap(), zip.unwrap(), passo) {
-            Ok(resultado) => resultado,
-            Err(motivo) => {
-                let subcodigo = if motivo.contains("SHA-") {
-                    "integridade_cassette"
-                } else {
-                    "cassette_invalida"
-                };
-                return erro_fonte(
-                    json_mode,
-                    subcodigo,
-                    "cassette ou ZIP inválidos; confira os hashes e a seleção de passos",
-                );
-            }
-        }
-    } else {
-        match transporte::read_box_from_file(url.unwrap(), cookie.unwrap(), origem_file.unwrap()) {
-            Ok(html) => (vec![html], "sessao".to_owned()),
-            Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
-        }
+fn listar_caixa_sessao(url: &Path, cookie: &Path, origem: &Path, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    let html = match transporte::read_box_from_file(url, cookie, origem) {
+        Ok(html) => html,
+        Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
     };
+    mostrar_caixa(vec![html], "sessao", unidade, json_mode)
+}
+
+fn mostrar_caixa(htmls: Vec<String>, origem: &str, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let leitura = match paginas::juntar(&htmls, unidade) {
         Ok(valor) => valor,
         Err(erro) => {
             if json_mode {
-                println!(
-                    "{}",
-                    json!({
-                        "codigo": "tela_inesperada",
-                        "subcodigo": erro.subcodigo(),
-                        "erro": erro.to_string(),
-                        "categoria": erro.categoria().map(|c| c.rotulo()),
-                        "id": erro.id(),
-                        "retentavel": false
-                    })
-                );
+                println!("{}", json!({
+                    "codigo": "tela_inesperada",
+                    "subcodigo": erro.subcodigo(),
+                    "erro": erro.to_string(),
+                    "categoria": erro.categoria().map(|c| c.rotulo()),
+                    "id": erro.id(),
+                    "retentavel": false
+                }));
             } else {
                 eprintln!("IES: {erro}");
             }
             return ExitCode::from(1);
-        }
+        },
     };
-    let result = saida::json(&leitura, &origin);
-    let serialized = match serde_json::to_vec_pretty(&result) {
-        Ok(value) => value,
-        Err(_) => return erro_lista(json_mode, "saida_invalida", "falha na serialização JSON", 1),
-    };
-    if let Some(dest) = output {
-        if let Err(message) = salvar_json(dest, &serialized) {
-            return erro_lista(json_mode, "saida_invalida", &message, 1);
-        }
-        if !json_mode {
-            println!("Resultado gravado no arquivo solicitado.");
-        }
-    }
+    let resultado = saida::json(&leitura, origem);
     if json_mode {
-        println!("{}", String::from_utf8_lossy(&serialized));
-    } else if output.is_none() {
+        println!("{}", serde_json::to_string_pretty(&resultado).unwrap());
+    } else {
         println!("{}", saida::humano(&leitura));
     }
     ExitCode::SUCCESS
 }
 
-fn ler_processo_offline(
-    numero: &str,
-    card: &Path,
-    zip: &Path,
-    passo: usize,
-    json_mode: bool,
-) -> ExitCode {
-    let (html, instalacao) = match cassette::read_cassette_history(card, zip, passo) {
-        Ok(valor) => valor,
-        Err(_) => {
-            return erro_fonte(
-                json_mode,
-                "cassette_invalida",
-                "cassette, hash ou passo de histórico inválido",
-            );
-        }
+fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode {
+    let numero = match historico::numero_do_historico(html) {
+        Ok(n) => n,
+        Err(motivo) => return erro_fonte(json_mode, motivo, "NUP ausente ou ambíguo no histórico"),
     };
-    let detalhe = match historico::ler_historico(&html, numero) {
+    let detalhe = match historico::ler_historico(html, &numero) {
         Ok(valor) => valor,
-        Err(causa) => {
-            return erro_fonte(
-                json_mode,
-                causa,
-                "histórico não corresponde ao processo solicitado",
-            );
-        }
+        Err(motivo) => return erro_fonte(json_mode, motivo, "histórico não verificável"),
     };
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "processo": detalhe,
-                "instalacao": instalacao,
-                "escopo": "historico_offline",
-                "parcial": true
-            })
-        );
+        println!("{}", json!({"processo": detalhe, "instalacao": instalacao, "escopo": "historico_offline", "parcial": true}));
     } else {
-        println!(
-            "Histórico offline do processo {}: {} andamento(s), dados parciais.",
-            detalhe.numero.as_str(),
-            detalhe.andamentos.len()
-        );
+        println!("Histórico offline do processo {}: {} andamento(s), dados parciais.", detalhe.numero.as_str(), detalhe.andamentos.len());
     }
     ExitCode::SUCCESS
+}
+
+fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    let cenario = &replay.cenario;
+    if cenario.is_empty() || cenario.contains('/') || cenario.contains('\\')
+        || cenario.contains("..") || !cenario.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+        return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
+    }
+    let pasta = replay.acervo.join("cassettes");
+    let mut encontrados = Vec::new();
+    let dirs = match std::fs::read_dir(&pasta) {
+        Ok(dirs) => dirs,
+        Err(_) => return erro_fonte(json_mode, "acervo_ausente", "diretório de cassettes não encontrado"),
+    };
+    for dir in dirs.flatten() {
+        if !dir.path().is_dir() { continue; }
+        if let Ok(cards) = std::fs::read_dir(dir.path()) {
+            for file in cards.flatten() {
+                let name = file.file_name();
+                let name = name.to_string_lossy();
+                if name == format!("{cenario}.md") || name.starts_with(&format!("{cenario}--")) && name.ends_with(".md") {
+                    encontrados.push(file.path());
+                }
+            }
+        }
+    }
+    if encontrados.len() != 1 {
+        return erro_fonte(json_mode, "cenario_ambiguo_ou_ausente", "cenário não encontrado ou com várias revisões; use um identificador mais específico");
+    }
+    let card = &encontrados[0];
+    let zip_name = match cassette::archive_filename(card) {
+        Ok(name) => name,
+        Err(_) => return erro_fonte(json_mode, "card_invalido", "metadados de origem inválidos"),
+    };
+    let zip = replay.acervo.join(".cache/ies").join(zip_name);
+    if !zip.is_file() {
+        return erro_fonte(json_mode, "zip_ausente", "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF");
+    }
+    if cenario.contains("andamento") {
+        if !replay.passo.is_empty() {
+            return erro_lista(json_mode, "entrada_invalida", "passos não são necessários para histórico", 2);
+        }
+        match cassette::read_cassette_history_auto(card, &zip) {
+            Ok((html, origem)) => mostrar_historico(&html, &origem, json_mode),
+            Err(_) => erro_fonte(json_mode, "historico_invalido", "histórico ausente ou ambíguo na cassette"),
+        }
+    } else {
+        match cassette::read_cassette_pages(card, &zip, &replay.passo) {
+            Ok((htmls, origem)) => mostrar_caixa(htmls, &origem, unidade, json_mode),
+            Err(_) => erro_fonte(json_mode, "cassette_invalida", "caixa ausente ou ambígua na cassette"),
+        }
+    }
 }
 
 fn show_noun_help(noun: &str) {
@@ -363,69 +311,12 @@ fn show_noun_help(noun: &str) {
 }
 
 fn run(cli: Cli) -> ExitCode {
-    if let Domain::Processo(p) = &cli.command {
-        let offline = p.cassette_card.is_some() || p.zip_file.is_some() || p.passo.is_some();
-        if offline {
-            if p.numero.is_none()
-                || p.acao.is_some()
-                || p.cassette_card.is_none()
-                || p.zip_file.is_none()
-                || p.passo.is_none()
-                || p.sem_andamentos
-                || p.andamentos_completos
-                || p.sem_documentos
-                || p.sem_marcadores
-                || p.sem_propriedades
-            {
-                return erro_lista(
-                    cli.json,
-                    "entrada_invalida",
-                    "replay de processo exige NUP, --cassette-card, --zip-file e --passo; projeções ainda não implementadas",
-                    2,
-                );
-            }
-            return ler_processo_offline(
-                p.numero.as_deref().unwrap(),
-                p.cassette_card.as_deref().unwrap(),
-                p.zip_file.as_deref().unwrap(),
-                p.passo.unwrap(),
-                cli.json,
-            );
+    match &cli.command {
+        Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
+        Domain::Sessao(Sessao { acao: SessaoAcao::LerCaixa { url_caixa_file, cookie_file, origem_file } }) => {
+            return listar_caixa_sessao(url_caixa_file, cookie_file, origem_file, cli.unidade.as_deref(), cli.json);
         }
-    }
-    if let Domain::Unidade(Unidade {
-        acao:
-            Some(UnidadeAcao::ListarProcessos {
-                saida,
-                cassette_card,
-                zip_file,
-                passo,
-                url_caixa_file,
-                cookie_file,
-                origem_file,
-            }),
-    }) = &cli.command
-    {
-        // Sem origem explícita, preserva o erro de stub do contrato provisório.
-        if cassette_card.is_some()
-            || zip_file.is_some()
-            || !passo.is_empty()
-            || url_caixa_file.is_some()
-            || cookie_file.is_some()
-            || origem_file.is_some()
-        {
-            return listar_processos(ConsultaUnidade {
-                output: saida.as_deref(),
-                card: cassette_card.as_deref(),
-                zip: zip_file.as_deref(),
-                passo,
-                url: url_caixa_file.as_deref(),
-                cookie: cookie_file.as_deref(),
-                origem_file: origem_file.as_deref(),
-                unidade: cli.unidade.as_deref(),
-                json_mode: cli.json,
-            });
-        }
+        _ => {}
     }
     match &cli.command {
         Domain::Processo(Processo {
