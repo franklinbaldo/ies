@@ -43,9 +43,9 @@ andamento, não inferir completude de outros componentes do processo.
 
 ## Evidências verificáveis
 
-- [Contrato CLI](../cli/processo-obter.md)
+- [Contrato CLI](../../contracts/cli/processo-obter.md)
 - [Card Goiás](../../cassettes/go/processo-andamento-go--ae86a5f02b6f.md)
-- [Matriz](../evidencias/processo-obter.md)
+- [Matriz](../../contracts/evidencias/processo-obter.md)
 - [Testes do contrato CLI](../../tests/cli_contract.rs)
 - [Modelo](../../docs/dominio/modelo-conceitual-sei.md)
 - [Acesso por instalação](../../docs/interfaces/acesso-por-instalacao.md)
