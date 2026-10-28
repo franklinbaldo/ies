@@ -9,8 +9,9 @@ description: Disciplina de desenvolvimento e validação do projeto Rust
 O [contrato da CLI](contracts/cli.md) é a interface pública primária.
 Não reintroduza `agir`, `Action` ou `PageModel` públicos.
 O Todos é oráculo de comportamento, **não arquitetura a ser portada**.
-Antes de implementar transporte de uma operação, compare as
-[alternativas oficiais REST, SOAP e Web](docs/arquitetura/0001-rotas-por-evidencia.md)
+Antes de implementar transporte de uma operação, consulte os
+[contratos oficiais REST OpenAPI e SOAP WSDL](docs/interfaces/README.md),
+compare as [alternativas REST, SOAP e Web](docs/arquitetura/0001-rotas-por-evidencia.md)
 e siga o [plano experimental](docs/experimentos/comparar-acessos-sei.md).
 Não adivinhe disponibilidade de módulo, token ou equivalência entre APIs.
 Uma falha ou timeout de escrita nunca autoriza troca automática de backend.

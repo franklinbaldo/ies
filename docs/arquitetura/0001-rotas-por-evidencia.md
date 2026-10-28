@@ -82,6 +82,14 @@ sem autorização para experimentos.
 - Benchmarks devem contabilizar requests, latência, bytes, memória,
   custo de desenvolvimento e dependência administrativa.
 
+## Contratos oficiais localizados
+
+A [referência REST OpenAPI](../interfaces/rest-wssei.md) e a
+[referência SOAP WSDL/XSD](../interfaces/soap-sei.md) são fontes
+explicitamente distintas. A primeira é estática e versionada por commit;
+a segunda depende do servidor que a disponibiliza. Nenhuma das duas
+atesta equivalência com a caixa Web sem experimentação.
+
 ## Próximo experimento
 
 Executar o [comparativo de interfaces](../experimentos/comparar-acessos-sei.md),

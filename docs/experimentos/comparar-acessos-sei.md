@@ -16,6 +16,13 @@ menor custo, menor fragilidade e sem alterar permissões?
 A disponibilidade do módulo, os escopos do serviço, a identidade da
 unidade e a semântica do retorno devem ser observados, não adivinhados.
 
+## Contratos localizados
+
+O [OpenAPI REST WSSEI fixado por commit](../interfaces/rest-wssei.md)
+possui 127 operações e 34 schemas; o [WSDL/XSD SOAP](../interfaces/soap-sei.md)
+é dinâmico por instalação e não foi coletado em ambiente live.
+Os contratos não comprovam disponibilidade nem autorização.
+
 ## Primeiros pares a investigar
 
 | Operação do IES | Alternativa documentada | Pergunta discriminante |
