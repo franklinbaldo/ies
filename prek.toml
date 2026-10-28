@@ -32,8 +32,8 @@ stages = ["pre-commit", "pre-push"]
 
 [[repos.hooks]]
 id = "lint"
-name = "Clippy sem warnings"
-entry = "cargo clippy --locked --workspace --all-targets -- -D warnings"
+name = "Clippy rigoroso sem warnings"
+entry = "cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic"
 language = "system"
 pass_filenames = false
 always_run = true
