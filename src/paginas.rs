@@ -1,6 +1,7 @@
 //! Junção de páginas por intervalos de posição, sem emitir requisições.
 //! A prova de cobertura vive somente aqui, não em Tabela nem em Caixa.
-use crate::dominio::{Caixa, Categoria, ErroCaixa, Processo, Tabela};
+use crate::dominio::{Caixa, Categoria, Processo, Tabela};
+use crate::erro_web::ErroCaixa;
 use std::collections::BTreeMap;
 
 /// Contexto da página HTML: só é usado para conferir a junção.

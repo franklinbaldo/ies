@@ -1,6 +1,7 @@
 mod caixa;
 mod cassette;
 mod dominio;
+mod erro_web;
 mod historico;
 mod instalacao;
 mod paginas;
