@@ -251,11 +251,11 @@ fn mostrar_caixa(
 fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode {
     let numero = match historico::numero_do_historico(html) {
         Ok(n) => n,
-        Err(motivo) => return erro_fonte(json_mode, motivo, "NUP ausente ou ambíguo no histórico"),
+        Err(motivo) => return erro_fonte(json_mode, motivo.subcodigo(), "NUP ausente ou ambíguo no histórico"),
     };
     let detalhe = match historico::ler_historico(html, &numero) {
         Ok(valor) => valor,
-        Err(motivo) => return erro_fonte(json_mode, motivo, "histórico não verificável"),
+        Err(motivo) => return erro_fonte(json_mode, motivo.subcodigo(), "histórico não verificável"),
     };
     if json_mode {
         println!(
