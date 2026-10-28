@@ -32,6 +32,14 @@ Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
 [como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação
 empírica independente da arquitetura Python anterior.
 
+## Arquitetura independente do Todos
+
+O [ADR de rotas por evidência](docs/arquitetura/0001-rotas-por-evidencia.md)
+separa contratos públicos dos mecanismos REST WSSEI, SOAP autorizado
+e navegação Web observada. Antes de ampliar os comandos, o
+[experimento de comparação](docs/experimentos/comparar-acessos-sei.md)
+deve verificar a equivalência por operação e por instalação.
+
 ## Primeira leitura
 
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
