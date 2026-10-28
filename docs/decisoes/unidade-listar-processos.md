@@ -37,10 +37,11 @@ não atribuir vantagem medida a nenhum deles.
 
 ## Decisão
 
-Adotar **`web-observed` somente para a leitura parcial atual**: parser
-Rust das duas tabelas, conferência de totais e intervalos e replay de
-respostas previamente capturadas. Um GET live de caixa assinada foi
-implementado, mas não validado contra uma sessão real nesta rodada.
+Adotar **`web-observed` somente para a leitura parcial atual**:
+parser Rust tipado, conferência transitória de intervalos e replay
+de respostas capturadas. O domínio só guarda dados observados,
+`completa` é uma derivação de apresentação. Um GET live de caixa
+assinada foi implementado, mas não validado contra sessão real.
 
 A decisão não seleciona arquitetura universal do IES, não exige que
 outras operações sigam o Todos e não autoriza paginação POST. O contrato

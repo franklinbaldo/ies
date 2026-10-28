@@ -67,4 +67,16 @@ existente; **não automatiza POST de paginação**, login nem escrita.
 Nunca passe URLs assinadas ou cookies como argumentos de processo: use arquivos
 privados `0600` e nunca os inclua em logs, commits ou capturas.
 
+## Domínio tipado mínimo e saída
+
+O Web parser devolve `Caixa` tipada e não recebe unidade nem origem.
+`Tabela<Processo>` armazena somente dados observados; os intervalos
+são transitórios da paginação. Não introduza `Completude` ou
+`completa: bool` como campos persistidos. Na borda, `saida.rs` calcula
+`completa` a partir da cobertura comprovada, sem adivinhar páginas.
+
+O contrato JSON v1 é verificado por
+[golden test](tests/fixtures/caixa-v1.json). Alterações intencionais
+de saída exigem atualizar o golden e o contrato OKF na mesma PR.
+
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.

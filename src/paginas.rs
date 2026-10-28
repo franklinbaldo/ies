@@ -1,8 +1,7 @@
-//! Consolidação conservadora de páginas já observadas: nunca envia POST.
-//! Cada tabela pagina de modo independente. Faixas repetidas só podem coincidir
-//! exatamente; lacunas, sobreposições e troca de conteúdo falham fechado.
-use serde_json::{Value, json};
-use std::collections::{BTreeMap, HashSet};
+//! Junção de páginas por intervalos observados, sem emitir requisições.
+//! A prova de cobertura vive somente aqui, não em Tabela nem em Caixa.
+use crate::dominio::{Caixa, Categoria, ErroCaixa, Processo, Tabela};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Faixa {
@@ -11,287 +10,305 @@ struct Faixa {
     fim: usize,
 }
 
-fn faixa_da_legenda(caption: &str, linhas: usize) -> Result<Option<Faixa>, String> {
-    let legenda = caption.trim();
-    let marcador = " registros";
-    let Some((antes, depois)) = legenda.split_once(marcador) else {
+fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
+    let normalizada = legenda
+        .replace("&nbsp;", " ")
+        .replace("&#160;", " ")
+        .replace('\u{a0}', " ");
+    let Some((antes, depois)) = normalizada.trim().split_once(" registros") else {
         return Ok(None);
     };
     let total = antes
         .split_whitespace()
         .last()
-        .and_then(|s| s.trim_start_matches('(').parse::<usize>().ok())
-        .ok_or("total de registros inválido")?;
-    if let Some(rest) = depois.strip_prefix(" - ") {
-        let (a, b) = rest
-            .split_once(" a ")
-            .ok_or("intervalo de paginação inválido")?;
-        let inicio = a
-            .trim()
-            .parse::<usize>()
-            .map_err(|_| "início de faixa inválido")?;
-        let fim = b
+        .and_then(|x| x.trim_start_matches('(').parse::<usize>().ok())
+        .ok_or(())?;
+    if let Some(resto) = depois.strip_prefix(" - ") {
+        let (inicio, fim) = resto.split_once(" a ").ok_or(())?;
+        let inicio = inicio.trim().parse::<usize>().map_err(|_| ())?;
+        let fim = fim
             .trim()
             .trim_end_matches(|c: char| !c.is_ascii_digit())
             .parse::<usize>()
-            .map_err(|_| "fim de faixa inválido")?;
+            .map_err(|_| ())?;
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
-            return Err("faixa de paginação inconsistente com as linhas".into());
+            return Err(());
         }
         Ok(Some(Faixa { total, inicio, fim }))
     } else if total == linhas {
+        // Sentinela de faixa vazia: a tabela informou zero registros.
         Ok(Some(Faixa {
             total,
             inicio: 1,
             fim: total,
         }))
     } else {
-        // Sem faixa, não se pode afirmar completude por agregação.
         Ok(None)
     }
 }
 
-fn faixa_da_tabela(html: &str, table_id: &str, linhas: usize) -> Result<Option<Faixa>, String> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| "HTML de paginação inválido")?;
+fn faixa_da_tabela(
+    html: &str,
+    id: &str,
+    categoria: Categoria,
+    linhas: usize,
+) -> Result<Option<Faixa>, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
     let parser = dom.parser();
-    let table = dom
-        .get_element_by_id(table_id)
-        .and_then(|node| node.get(parser))
+    let tabela = dom
+        .get_element_by_id(id)
+        .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or("tabela ausente para paginação")?;
-    let caption = table
+        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    let legenda = tabela
         .query_selector(parser, "caption")
-        .and_then(|mut it| it.next())
-        .and_then(|n| n.get(parser))
+        .and_then(|mut itens| itens.next())
+        .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or("legenda de paginação ausente")?
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
-    faixa_da_legenda(&caption, linhas)
+    faixa_da_legenda(&legenda, linhas).map_err(|_| ErroCaixa::FaixaInvalida { categoria })
 }
 
-#[derive(Default)]
+#[derive(Debug)]
 struct Grupo {
     total: Option<usize>,
-    faixas: BTreeMap<usize, (usize, Vec<Value>)>,
-    desconhecido: bool,
+    faixas: BTreeMap<usize, (usize, Vec<Processo>)>,
+    desconhecida: bool,
 }
 
 impl Grupo {
-    fn add(&mut self, classe: &str, parsed: &Value, faixa: Option<Faixa>) -> Result<(), String> {
-        let processes = parsed["processos"]
-            .as_array()
-            .ok_or("processos não são uma lista")?
-            .clone();
-        let declared = parsed["total_declarado"].as_u64().map(|v| v as usize);
-        if let (Some(previous), Some(current)) = (self.total, declared)
-            && previous != current
+    fn novo() -> Self {
+        Self {
+            total: None,
+            faixas: BTreeMap::new(),
+            desconhecida: false,
+        }
+    }
+
+    fn incluir(
+        &mut self,
+        categoria: Categoria,
+        tabela: &Tabela<Processo>,
+        faixa: Option<Faixa>,
+    ) -> Result<(), ErroCaixa> {
+        if let (Some(anterior), Some(atual)) = (self.total, tabela.total_declarado)
+            && anterior != atual
         {
-            return Err(format!("total de {classe} mudou entre páginas"));
+            return Err(ErroCaixa::TotalDivergente { categoria });
         }
         if self.total.is_none() {
-            self.total = declared;
+            self.total = tabela.total_declarado;
         }
         let Some(faixa) = faixa else {
-            self.desconhecido = true;
-            return if self.faixas.is_empty() {
-                self.faixas.insert(1, (processes.len(), processes));
-                Ok(())
-            } else {
-                Err(format!(
-                    "faixa indeterminada de {classe} em páginas adicionais"
-                ))
-            };
+            if !self.faixas.is_empty() {
+                return Err(ErroCaixa::FaixaDesconhecida { categoria });
+            }
+            self.desconhecida = true;
+            self.faixas
+                .insert(1, (tabela.processos.len(), tabela.processos.clone()));
+            return Ok(());
         };
-        if declared != Some(faixa.total) {
-            return Err(format!("legenda de {classe} e total não coincidem"));
+        if self.desconhecida {
+            return Err(ErroCaixa::FaixaDesconhecida { categoria });
         }
-        if self.desconhecido {
-            return Err(format!(
-                "não se pode agregar página de {classe} sem faixa inicial"
-            ));
+        if tabela.total_declarado != Some(faixa.total) {
+            return Err(ErroCaixa::TotalDivergente { categoria });
         }
         match self.faixas.get(&faixa.inicio) {
-            Some((end, before)) if *end == faixa.fim && *before == processes => Ok(()),
-            Some(_) => Err(format!("mesma faixa de {classe} mudou de conteúdo")),
+            Some((fim, anterior)) if *fim == faixa.fim && anterior == &tabela.processos => Ok(()),
+            Some(_) => Err(ErroCaixa::FaixaAlterada { categoria }),
             None => {
-                self.faixas.insert(faixa.inicio, (faixa.fim, processes));
+                self.faixas
+                    .insert(faixa.inicio, (faixa.fim, tabela.processos.clone()));
                 Ok(())
             }
         }
     }
 
-    fn into_result(self, category: &str) -> Result<Value, String> {
-        let mut cursor = 1usize;
-        let mut ids = HashSet::new();
+    fn finalizar(self, categoria: Categoria) -> Result<(Tabela<Processo>, Cobertura), ErroCaixa> {
+        let mut proximo = 1usize;
+        let mut intervalos = Vec::new();
         let mut processos = Vec::new();
-        for (inicio, (fim, rows)) in &self.faixas {
-            if *inicio != cursor {
-                return Err(format!(
-                    "lacuna ou sobreposição em {category}: posição {cursor}"
-                ));
+        for (inicio, (fim, itens)) in self.faixas {
+            if inicio != proximo {
+                return Err(ErroCaixa::FaixaDescontinua { categoria });
             }
-            for row in rows {
-                let id = row["id"].as_str().ok_or("processo sem id")?;
-                if !ids.insert(id.to_owned()) {
-                    return Err(format!("processo duplicado entre páginas de {category}"));
-                }
-                processos.push(row.clone());
-            }
-            cursor = fim.saturating_add(1);
+            processos.extend(itens);
+            intervalos.push((inicio, fim));
+            proximo = fim.saturating_add(1);
         }
-        if let Some(total) = self.total
-            && processos.len() > total
-        {
-            return Err(format!("mais processos que o total de {category}"));
-        }
-        let completeness = if self.desconhecido || self.total.is_none() {
-            "indeterminada"
-        } else if self.total == Some(processos.len()) {
-            "completa"
-        } else {
-            "parcial"
-        };
-        Ok(json!({
-            "categoria":category,
-            "total_declarado":self.total,
-            "linhas_lidas":processos.len(),
-            "paginas_lidas":self.faixas.len(),
-            "completude":completeness,
-            "processos":processos
-        }))
+        let tabela = Tabela::nova(categoria, self.total, processos)?;
+        Ok((
+            tabela,
+            Cobertura {
+                intervalos,
+                confirmada: !self.desconhecida,
+            },
+        ))
     }
 }
 
-pub fn juntar(htmls: &[String], unidade: Option<&str>) -> Result<Value, String> {
-    if htmls.is_empty() || htmls.len() > 200 {
-        return Err("número de páginas inválido (1 a 200)".into());
+/// Evidência de paginação transitória: nunca é guardada no domínio.
+#[derive(Debug)]
+pub struct Cobertura {
+    intervalos: Vec<(usize, usize)>,
+    confirmada: bool,
+}
+
+impl Cobertura {
+    pub fn completa(&self, tabela: &Tabela<Processo>) -> bool {
+        if !self.confirmada {
+            return false;
+        }
+        let Some(total) = tabela.total_declarado else {
+            return false;
+        };
+        if tabela.processos.len() != total {
+            return false;
+        }
+        let mut proximo = 1usize;
+        for &(inicio, fim) in &self.intervalos {
+            if inicio != proximo {
+                return false;
+            }
+            if total == 0 && inicio == 1 && fim == 0 && self.intervalos.len() == 1 {
+                return true;
+            }
+            if fim < inicio {
+                return false;
+            }
+            proximo = fim.saturating_add(1);
+        }
+        proximo == total.saturating_add(1)
     }
-    if htmls.iter().map(String::len).sum::<usize>() > 48_000_000 {
-        return Err("conjunto de HTML maior que 48 MB".into());
+}
+
+pub struct Leitura {
+    pub caixa: Caixa,
+    pub recebidos: Cobertura,
+    pub gerados: Cobertura,
+}
+
+pub fn juntar(paginas: &[String]) -> Result<Leitura, ErroCaixa> {
+    if paginas.is_empty() {
+        return Err(ErroCaixa::SemPaginas);
     }
-    let mut received = Grupo::default();
-    let mut created = Grupo::default();
-    for html in htmls {
-        let parsed = crate::caixa::parse_html(html, unidade)?;
-        for (category, table, group) in [
-            ("recebidos", "tblProcessosRecebidos", &mut received),
-            ("gerados", "tblProcessosGerados", &mut created),
+    if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+        return Err(ErroCaixa::LimitePaginas);
+    }
+    let mut recebidos = Grupo::novo();
+    let mut gerados = Grupo::novo();
+    for html in paginas {
+        let caixa = crate::caixa::parse_html(html)?;
+        for (categoria, nome, tabela, grupo) in [
+            (
+                Categoria::Recebidos,
+                "tblProcessosRecebidos",
+                &caixa.recebidos,
+                &mut recebidos,
+            ),
+            (
+                Categoria::Gerados,
+                "tblProcessosGerados",
+                &caixa.gerados,
+                &mut gerados,
+            ),
         ] {
-            let rows = parsed[category]["linhas_lidas"]
-                .as_u64()
-                .ok_or("quantidade de linhas ausente")? as usize;
-            let range = faixa_da_tabela(html, table, rows)?;
-            group.add(category, &parsed[category], range)?;
+            let faixa = faixa_da_tabela(html, nome, categoria, tabela.processos.len())?;
+            grupo.incluir(categoria, tabela, faixa)?;
         }
     }
-    let received = received.into_result("recebidos")?;
-    let created = created.into_result("gerados")?;
-    let complete = received["completude"] == "completa" && created["completude"] == "completa";
-    Ok(json!({
-        "unidade": unidade,
-        "recebidos": received,
-        "gerados": created,
-        "completude": if complete { "completa" } else { "parcial_ou_indeterminada" },
-        "fonte":"tela_do_sei",
-        "paginas_observadas": htmls.len(),
-        "avisos": if complete { Vec::<&str>::new() } else {
-            vec!["Listagem não comprovadamente completa; não foi executada paginação HTTP."]
-        }
-    }))
+    let (rec, cobertura_rec) = recebidos.finalizar(Categoria::Recebidos)?;
+    let (ger, cobertura_ger) = gerados.finalizar(Categoria::Gerados)?;
+    Ok(Leitura {
+        caixa: Caixa {
+            recebidos: rec,
+            gerados: ger,
+        },
+        recebidos: cobertura_rec,
+        gerados: cobertura_ger,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn intervalo_reconhecido() {
-        assert_eq!(
-            faixa_da_legenda("Processos recebidos (131 registros - 1 a 10):", 10).unwrap(),
-            Some(Faixa {
-                total: 131,
-                inicio: 1,
-                fim: 10
-            })
-        );
-        assert_eq!(
-            faixa_da_legenda("25 registros:", 25).unwrap(),
-            Some(Faixa {
-                total: 25,
-                inicio: 1,
-                fim: 25
-            })
-        );
-        assert!(faixa_da_legenda("5 registros - 3 a 4):", 1).is_err());
-    }
-}
-#[cfg(test)]
-mod test_paginas {
-    use super::*;
+
     fn linha(id: u32) -> String {
-        format!(
-            r#"<tr id="P{id}"><td><a class="processoVisualizado" href="controlador.php?acao=procedimento_trabalhar&amp;infra_hash=SECRETO">NUP-{id}</a></td></tr>"#
-        )
+        format!("<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>")
     }
-    fn html(
-        rec: (usize, usize, usize, &[u32]),
-        generated: (usize, usize, usize, &[u32]),
-    ) -> String {
-        let tabela = |kind: &str, (total, start, end, ids): (usize, usize, usize, &[u32])| {
+    fn html(rec: (usize, usize, usize, &[u32]), ger: (usize, usize, usize, &[u32])) -> String {
+        let montar = |nome: &str, (total, ini, fim, ids): (usize, usize, usize, &[u32])| {
             format!(
-                r#"<table id="tblProcessos{kind}"><caption>Processos ({total} registros - {start} a {end}):</caption>{}</table>"#,
-                ids.iter().map(|i| linha(*i)).collect::<String>()
+                "<table id='tblProcessos{nome}'><caption>{total} registros - {ini} a {fim}):</caption>{}</table>",
+                ids.iter().map(|id| linha(*id)).collect::<String>()
             )
         };
-        format!(
-            "<html>{}{}</html>",
-            tabela("Recebidos", rec),
-            tabela("Gerados", generated)
-        )
+        format!("{}{}", montar("Recebidos", rec), montar("Gerados", ger))
     }
     #[test]
     fn duas_tabelas_paginam_independentemente() {
-        let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-        let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
-        let result = juntar(&[a, b], Some("TESTE")).unwrap();
-        assert_eq!(result["completude"], "completa");
-        assert_eq!(result["recebidos"]["linhas_lidas"], 4);
-        assert_eq!(result["recebidos"]["paginas_lidas"], 2);
-        assert_eq!(result["gerados"]["linhas_lidas"], 1);
-        assert_eq!(result["gerados"]["paginas_lidas"], 1);
-        assert_eq!(result["paginas_observadas"], 2);
-        assert!(!result.to_string().contains("SECRETO"));
+        let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        let leitura = juntar(&[primeira, segunda]).unwrap();
+        assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
+        assert!(leitura.gerados.completa(&leitura.caixa.gerados));
+        assert_eq!(leitura.caixa.recebidos.processos.len(), 4);
     }
     #[test]
-    fn recusa_lacuna_de_intervalos() {
+    fn recusa_lacuna_e_sobreposicao() {
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((5, 4, 5, &[4, 5]), (1, 1, 1, &[11]));
-        assert!(juntar(&[a, b], None).is_err());
-    }
-    #[test]
-    fn recusa_sobreposicao_ou_troca_de_conteudo() {
+        assert_eq!(
+            juntar(&[a, b]).err().unwrap().subcodigo(),
+            "faixa_descontinua"
+        );
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 2, 3, &[2, 3]), (1, 1, 1, &[11]));
-        assert!(juntar(&[a.clone(), b], None).is_err());
-        let changed = html((4, 1, 2, &[1, 7]), (1, 1, 1, &[11]));
-        assert!(juntar(&[a, changed], None).is_err());
+        assert_eq!(
+            juntar(&[a, b]).err().unwrap().subcodigo(),
+            "faixa_descontinua"
+        );
     }
     #[test]
-    fn recusa_processos_duplicados_entre_paginas() {
+    fn recusa_troca_conteudo_total_e_identidade_repetida() {
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-        let b = html((4, 3, 4, &[2, 4]), (1, 1, 1, &[11]));
-        assert!(juntar(&[a, b], None).is_err());
-    }
-    #[test]
-    fn recusa_total_que_muda_entre_paginas() {
+        let b = html((4, 1, 2, &[1, 7]), (1, 1, 1, &[11]));
+        assert_eq!(juntar(&[a, b]).err().unwrap().subcodigo(), "faixa_alterada");
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
-        assert!(juntar(&[a, b], None).is_err());
+        assert_eq!(
+            juntar(&[a, b]).err().unwrap().subcodigo(),
+            "total_divergente"
+        );
+        let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let b = html((4, 3, 4, &[2, 4]), (1, 1, 1, &[11]));
+        assert_eq!(juntar(&[a, b]).err().unwrap().subcodigo(), "id_repetido");
     }
     #[test]
-    fn pagina_inicial_parcial_nao_finge_completude() {
-        let page = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-        let result = juntar(&[page], None).unwrap();
-        assert_eq!(result["completude"], "parcial_ou_indeterminada");
+    fn primeira_pagina_incompleta_nao_inventa_completude() {
+        let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let l = juntar(&[a]).unwrap();
+        assert!(!l.recebidos.completa(&l.caixa.recebidos));
+        assert!(!l.recebidos.completa(&l.caixa.recebidos));
+        assert!(l.gerados.completa(&l.caixa.gerados));
+    }
+    #[test]
+    fn legenda_sem_faixa_nao_gera_prova_falsa() {
+        let a = "<table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
+            <tr id='P1'><td><a class='processoVisualizado'>NUP-1</a></td></tr></table>\
+            <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let l = juntar(&[a.to_owned()]).unwrap();
+        assert!(!l.recebidos.completa(&l.caixa.recebidos));
+        assert!(l.gerados.completa(&l.caixa.gerados));
+    }
+    #[test]
+    fn zero_itens_verificados_e_uma_colecao_completa() {
+        let a = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+            <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let l = juntar(&[a.to_owned()]).unwrap();
+        assert!(l.recebidos.completa(&l.caixa.recebidos));
+        assert!(l.gerados.completa(&l.caixa.gerados));
     }
 }

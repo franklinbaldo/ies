@@ -30,16 +30,27 @@ Sem origem explícita, permanece `nao_implementado` até existir
 a configuração e autenticação canônicas do IES. Entradas incompletas
 ou misturadas são erro de uso.
 
-## Resultado de domínio
+## Resultado de domínio e contrato JSON v1
 
-`recebidos` e `gerados` são coleções distintas, cada uma com:
-`processos` (`numero`, `id`, `visualizado`),
-`total_declarado`, `linhas_lidas`, `paginas_lidas` e `completude`.
+O domínio tipado guarda apenas fatos: `Caixa` possui duas
+`Tabela<Processo>`, cada qual com `processos` (id interno validado,
+número e visualização) e `total_declarado: Option<usize>`.
 
-`completude` é `completa`, `parcial` ou `indeterminada`.
-A resposta total informa `parcial_ou_indeterminada` quando
-qualquer das duas coleções não está comprovadamente completa.
-URLs assinadas nunca são incluídas nos resultados.
+A paginação verifica intervalos e identidades, sem armazenar
+`completa`, contagens redundantes ou uma enumeração de completude
+dentro do domínio.
+
+O JSON v1 expõe `unidade`, `origem`, `recebidos` e `gerados`.
+Cada tabela inclui apenas `processos`, `total_declarado` e
+`completa: bool`, **calculado a partir dos intervalos verificados**.
+`false` quer dizer cobertura não comprovada, não necessariamente
+incompletude definitiva. Não existem no novo contrato os campos
+antigos `completude`, `linhas_lidas`, `paginas_lidas`, `avisos`
+e `fonte`. A saída humana calcula seus avisos separadamente.
+
+O [golden JSON v1](../../tests/fixtures/caixa-v1.json)
+protege o formato público. Não há campo `href` no `Processo`
+para permitir serializar URLs assinadas inadvertidamente.
 
 ## Segurança e verificação
 

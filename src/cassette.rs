@@ -157,7 +157,7 @@ pub fn read_cassette_pages(
             .as_str()
             .ok_or("body_base64 ausente")?;
         let bytes = STANDARD.decode(b64).map_err(|_| "body_base64 inválido")?;
-        if bytes.len() > 8_000_000 {
+        if bytes.len() > crate::MAX_HTML_BYTES {
             return Err("HTML acima do limite".into());
         }
         let encoding = it["response"]["encoding"].as_str().unwrap_or("");
@@ -196,7 +196,7 @@ impl NewlineNormalization for Vec<u8> {
 }
 
 pub fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, String> {
-    if bytes.len() > 8_000_000 {
+    if bytes.len() > crate::MAX_HTML_BYTES {
         return Err("HTML maior que 8 MB".into());
     }
     let enc = if content_type.to_ascii_lowercase().contains("8859-1") {

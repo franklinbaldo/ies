@@ -50,6 +50,10 @@ e adequada por instalação, sem portar automaticamente o Todos.
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
 `ies unidade listar-processos` com estado de completude explícito.
+O domínio usa tipos Rust (`Processo`, `IdProcedimento`,
+`Tabela<T>` e `Caixa`). A cobertura é validada na paginação;
+`completa: bool` é **derivação da borda**, não estado duplicado.
+O [golden JSON v1](tests/fixtures/caixa-v1.json) protege a saída.
 O programa não expõe links assinados em JSON, nem executa escritas.
 O replay offline agora pode consolidar várias páginas já gravadas usando
 `--passo N` repetido, sem enviar POST ao SEI e sem inferir páginas ausentes.

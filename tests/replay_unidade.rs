@@ -15,7 +15,7 @@ const HTML: &str = r#"<html><body>
 <table id="tblProcessosGerados"><caption>0 registros:</caption></table>
 </body></html>"#;
 
-fn preparar_fixture() -> (PathBuf, PathBuf, PathBuf) {
+fn preparar_fixture_com_html(html: &str) -> (PathBuf, PathBuf, PathBuf) {
     let folder = std::env::temp_dir().join(format!(
         "ies-replay-{}-{}",
         std::process::id(),
@@ -36,7 +36,7 @@ fn preparar_fixture() -> (PathBuf, PathBuf, PathBuf) {
                 "status_code":200,
                 "encoding":"utf-8",
                 "headers":{"content-type":"text/html; charset=utf-8"},
-                "body_base64": STANDARD.encode(HTML.as_bytes())
+                "body_base64": STANDARD.encode(html.as_bytes())
             }
         }]
     });
@@ -61,6 +61,10 @@ fn preparar_fixture() -> (PathBuf, PathBuf, PathBuf) {
     (folder, card, zip)
 }
 
+fn preparar_fixture() -> (PathBuf, PathBuf, PathBuf) {
+    preparar_fixture_com_html(HTML)
+}
+
 #[test]
 fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
     let (folder, card, zip) = preparar_fixture();
@@ -78,7 +82,8 @@ fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["completude"], "completa");
+    assert_eq!(result["recebidos"]["completa"], true);
+    assert_eq!(result["gerados"]["completa"], true);
     assert_eq!(result["recebidos"]["total_declarado"], 2);
     assert_eq!(result["gerados"]["total_declarado"], 0);
     assert_eq!(result["recebidos"]["processos"][0]["id"], "42");
@@ -204,9 +209,10 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["completude"], "completa");
-    assert_eq!(value["recebidos"]["linhas_lidas"], 4);
-    assert_eq!(value["recebidos"]["paginas_lidas"], 2);
+    assert_eq!(value["recebidos"]["completa"], true);
+    assert_eq!(value["gerados"]["completa"], true);
+    assert_eq!(value["recebidos"]["processos"].as_array().unwrap().len(), 4);
+    assert_eq!(value["recebidos"]["processos"][3]["id"], "4");
     let no_selection = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "unidade",
@@ -221,7 +227,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(no_selection.status.code(), Some(0));
     let partial: serde_json::Value = serde_json::from_slice(&no_selection.stdout).unwrap();
-    assert_eq!(partial["completude"], "parcial_ou_indeterminada");
+    assert_eq!(partial["recebidos"]["completa"], false);
+    assert_eq!(partial["gerados"]["completa"], true);
     let repeat = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "unidade",
@@ -240,4 +247,61 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(repeat.status.code(), Some(1));
     fs::remove_dir_all(folder).unwrap();
+}
+
+#[test]
+fn contrato_json_v1_e_deterministico() {
+    let (pasta, card, arquivo) = preparar_fixture();
+    let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            arquivo.to_str().unwrap(),
+            "--unidade",
+            "TESTE",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(resposta.status.code(), Some(0), "{resposta:?}");
+    assert_eq!(
+        std::str::from_utf8(&resposta.stdout).unwrap(),
+        include_str!("fixtures/caixa-v1.json"),
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert!(valor.get("completude").is_none());
+    assert!(valor["recebidos"].get("linhas_lidas").is_none());
+    assert!(valor["recebidos"].get("paginas_lidas").is_none());
+    assert!(!String::from_utf8_lossy(&resposta.stdout).contains("infra_hash"));
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn parser_repassa_subcodigo_sem_vazar_html() {
+    let html = "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>        <tr id='P8'><td><a class='outraClasse' href='?infra_hash=SEGREDO'>123</a></td></tr></table>        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+    let (pasta, card, zip) = preparar_fixture_com_html(html);
+    let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            zip.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(resposta.status.code(), Some(1));
+    let data: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(data["codigo"], "tela_inesperada");
+    assert_eq!(data["subcodigo"], "processo_ambiguo");
+    assert_eq!(data["id"], "8");
+    let stdout = String::from_utf8(resposta.stdout).unwrap();
+    assert!(!stdout.contains("SEGREDO"));
+    assert!(!stdout.contains("infra_hash"));
+    fs::remove_dir_all(pasta).unwrap();
 }
