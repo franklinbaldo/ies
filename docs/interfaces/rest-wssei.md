@@ -49,10 +49,19 @@ e validar a instância de destino.
 
 ## Decisão de engenharia
 
+O **OpenAPI ser público não significa que o módulo REST funcione na instalação**.
+Algumas instalações não o disponibilizam ou não autorizam determinada
+operação/identidade. O Swagger do GitHub não é uma API live.
+
 Uma instalação SEI **não é obrigada a ter o módulo WSSEI**.
 Confirme versão, presença, autenticação, filtros e equivalência antes
 de usar REST como implementação. Não coletar dados de produção
 para provar disponibilidade. Não executar POST para mera descoberta.
+
+A [matriz de acesso por instalação](acesso-por-instalacao.md) separa
+`unknown`, `auth-required`, `access-denied`, indisponibilidade
+comprovada, disponibilidade comprovada e incompatibilidade. Não
+interpretar resposta 401/403/404 isolada como ausência do módulo.
 
 Veja o [catálogo SOAP](soap-sei.md) e
 [o experimento de comparação](../experimentos/comparar-acessos-sei.md).
