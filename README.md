@@ -38,6 +38,8 @@ O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
 `ies unidade listar-processos` com estado de completude explícito.
 O programa não expõe links assinados em JSON, nem executa escritas.
+O replay offline agora pode consolidar várias páginas já gravadas usando
+`--passo N` repetido, sem enviar POST ao SEI e sem inferir páginas ausentes.
 
 ## Desenvolvimento
 

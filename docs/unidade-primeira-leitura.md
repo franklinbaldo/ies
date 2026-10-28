@@ -11,9 +11,11 @@ O IES Rust interpreta duas tabelas independentes da caixa SEI:
 contém número, identificador interno, visualização, total declarado,
 linhas lidas e `completude` de cada categoria.
 
-**Esta etapa implementa a primeira página observada.** Não tenta
-paginar nem inventa que uma lista está completa quando o total é maior
-que as linhas lidas. Não inclui login, troca de unidade ou escrita.
+**O GET ao vivo continua lendo somente a página atual.** No modo
+offline, o IES agora aceita uma seleção explícita de páginas de uma
+cassette já verificada, consolida as duas tabelas separadamente e recusa
+lacunas, sobreposições, totais divergentes e processos repetidos.
+Não inclui login, troca de unidade, POST ou escrita no SEI.
 
 ## Replay offline de cassette do Internet Archive
 
@@ -32,6 +34,15 @@ cargo run --locked -- unidade listar-processos \
 O IES também confere internamente SHA-1 do ZIP, SHA-256
 normalizado da cassette, host público permitido, schema e status 200.
 Não publica cookies, HTML bruto nem URLs `infra_hash`.
+
+Para reunir páginas já capturadas, passe vários `--passo` na ordem da
+observação, por exemplo `--passo 0 --passo 2 --passo 3`. O primeiro passo
+deve ser uma resposta GET da caixa; os seguintes podem ser respostas GET
+ou POST de `procedimento_controlar` **já presentes no ZIP**. O comando
+não reproduz o corpo do POST nem envia requisições durante o replay.
+Quando uma tabela fica numa página e outra avança, a página repetida da
+primeira precisa ser idêntica; revisão divergente falha fechado.
+A contagem `paginas_lidas` é independente para recebidos e gerados.
 
 ## Leitura HTTPS de caixa assinada
 
@@ -68,6 +79,7 @@ Os três resultados foram reproduzidos offline a partir dos ZIPs
 públicos, sem gravações no repositório. O `cargo test` utiliza
 HTML sintético para proteger parser e transportes contra regressões.
 
-Próximos passos: tratamento de paginação conforme o formulário da
-instalação, fluxo autenticado sem tokens em comandos e validação das
-listagens por cursores e critérios.
+Próximos passos: capturar o payload **completo** da navegação de página
+em ambiente autorizado, reconstruir o POST a partir do formulário fresco,
+verificar a resposta e restaurar filtros/página da sessão. Até isso ser
+comprovado, **a paginação HTTP permanece desabilitada**.

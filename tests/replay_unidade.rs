@@ -124,3 +124,120 @@ fn comando_sem_fonte_conserva_stubs() {
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
 }
+
+#[test]
+fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let folder = std::env::temp_dir().join(format!(
+        "ies-paginas-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&folder).unwrap();
+    let zip = folder.join("paginas.zip");
+    let member = "paginas-unb.json";
+    let build = |inicio: u32, fim: u32| {
+        let lines = (inicio..=fim)
+            .map(|id| {
+                format!(
+                    "<tr id=\"P{id}\"><td><a class=\"processoVisualizado\">NUP-{id}</a></td></tr>"
+                )
+            })
+            .collect::<String>();
+        format!(
+            "<html><table id=\"tblProcessosRecebidos\"><caption>4 registros - {inicio} a {fim}):</caption>{lines}</table>\
+             <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></html>"
+        )
+    };
+    let interactions = [build(1,2), build(3,4)].iter().enumerate().map(|(index, html)| {
+        serde_json::json!({
+            "request": {"method": if index == 0 { "GET" } else { "POST" }, "operation": "procedimento_controlar"},
+            "response": {
+                "status_code":200,"encoding":"utf-8",
+                "headers":{"content-type":"text/html"},
+                "body_base64":STANDARD.encode(html.as_bytes())
+            }
+        })
+    }).collect::<Vec<_>>();
+    let bytes = serde_json::json!({
+        "complete":true,"schema_version":1,
+        "sei_root":"https://sei.treinamento.unb.br/",
+        "interactions": interactions
+    })
+    .to_string();
+    let mut writer = zip::ZipWriter::new(File::create(&zip).unwrap());
+    writer
+        .start_file(
+            member,
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated),
+        )
+        .unwrap();
+    writer.write_all(bytes.as_bytes()).unwrap();
+    writer.finish().unwrap();
+    let card = folder.join("paginas.md");
+    fs::write(&card,format!(
+        "---\ntype: Cassette\ninstallation: unb\n\
+         source_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\n\
+         archive_member: {member}\narchive_sha1: {:x}\ncassette_sha256_lf: {:x}\n---\n",
+        Sha1::digest(fs::read(&zip).unwrap()),
+        Sha256::digest(bytes.as_bytes())
+    )).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            zip.to_str().unwrap(),
+            "--passo",
+            "0",
+            "--passo",
+            "1",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["completude"], "completa");
+    assert_eq!(value["recebidos"]["linhas_lidas"], 4);
+    assert_eq!(value["recebidos"]["paginas_lidas"], 2);
+    let no_selection = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            zip.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(no_selection.status.code(), Some(0));
+    let partial: serde_json::Value = serde_json::from_slice(&no_selection.stdout).unwrap();
+    assert_eq!(partial["completude"], "parcial_ou_indeterminada");
+    let repeat = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "unidade",
+            "listar-processos",
+            "--cassette-card",
+            card.to_str().unwrap(),
+            "--zip-file",
+            zip.to_str().unwrap(),
+            "--passo",
+            "0",
+            "--passo",
+            "0",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(repeat.status.code(), Some(1));
+    fs::remove_dir_all(folder).unwrap();
+}
