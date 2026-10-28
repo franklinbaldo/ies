@@ -4,7 +4,7 @@ title: Ler processo administrativo
 operation: processo.obter
 command: ies processo NUP
 effect: read
-implementation: partial
+implementation: stub
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
@@ -32,7 +32,9 @@ Ausência de um dado não equivale a autorização para fabricar seu valor.
 
 ## Falhas e estado de implementação
 
-Sem fonte explícita, o comando ainda retorna `nao_implementado` e código 1.\nO recorte offline usa `--cassette-card`, `--zip-file` e `--passo N`\npara consultar **somente** o histórico de uma captura verificada.\nA saída inclui `escopo: historico_offline` e `parcial: true`: não\ncomprova documentos, propriedades, marcadores, estado por unidade\nnem disponibilidade atual na instalação. Projeções ainda não são\nsuportadas nesse recorte. Nenhuma rede é utilizada.
+O comando de domínio permanece não implementado até existir uma
+fonte SEI configurada e com efeitos conhecidos. Evidências históricas
+são reproduzidas separadamente pelo comando ies replay CENARIO.
 Ao implementar, códigos 0/1/2/3 devem distinguir sucesso, falha,
 uso inválido e efeito incerto; uma consulta não deve fabricar sessão.
 
