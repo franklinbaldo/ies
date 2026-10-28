@@ -80,7 +80,7 @@ usa cache de Rust pinado por SHA e testa todos os alvos do workspace.
 
 - `cargo test --locked --workspace --all-targets`
 - `cargo fmt --all -- --check`
-- `cargo clippy --locked --workspace --all-targets -- -D warnings`
+- `cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic`
 - `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
 - `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`
 
