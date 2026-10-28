@@ -50,6 +50,8 @@ fn files_recursive(path: &Path, output: &mut Vec<PathBuf>) -> Result<(), String>
     Ok(())
 }
 
+// Auditoria sequencial: preservar a leitura conjunta dos vínculos OKF.
+#[allow(clippy::too_many_lines)]
 fn verify() -> Result<(usize, usize), String> {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
