@@ -148,12 +148,9 @@ fn check(root: &Path) -> Result<(usize, usize), String> {
             continue;
         }
         let content = fs::read_to_string(&file).map_err(|e| e.to_string())?;
-        let fields = match frontmatter(&content) {
-            Some(f) => f,
-            None => {
-                failures.push(format!("{}: frontmatter inválido", file.display()));
-                continue;
-            }
+        let Some(fields) = frontmatter(&content) else {
+            failures.push(format!("{}: frontmatter inválido", file.display()));
+            continue;
         };
         if fields.get("type") != Some(&"CommandContract") {
             continue;
