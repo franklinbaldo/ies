@@ -197,7 +197,13 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn listar_caixa_sessao(url: &Path, cookie: &Path, origem: &Path, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+fn listar_caixa_sessao(
+    url: &Path,
+    cookie: &Path,
+    origem: &Path,
+    unidade: Option<&str>,
+    json_mode: bool,
+) -> ExitCode {
     let html = match transporte::read_box_from_file(url, cookie, origem) {
         Ok(html) => html,
         Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
@@ -205,24 +211,32 @@ fn listar_caixa_sessao(url: &Path, cookie: &Path, origem: &Path, unidade: Option
     mostrar_caixa(vec![html], "sessao", unidade, json_mode)
 }
 
-fn mostrar_caixa(htmls: Vec<String>, origem: &str, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+fn mostrar_caixa(
+    htmls: Vec<String>,
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+) -> ExitCode {
     let leitura = match paginas::juntar(&htmls, unidade) {
         Ok(valor) => valor,
         Err(erro) => {
             if json_mode {
-                println!("{}", json!({
-                    "codigo": "tela_inesperada",
-                    "subcodigo": erro.subcodigo(),
-                    "erro": erro.to_string(),
-                    "categoria": erro.categoria().map(|c| c.rotulo()),
-                    "id": erro.id(),
-                    "retentavel": false
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "tela_inesperada",
+                        "subcodigo": erro.subcodigo(),
+                        "erro": erro.to_string(),
+                        "categoria": erro.categoria().map(|c| c.rotulo()),
+                        "id": erro.id(),
+                        "retentavel": false
+                    })
+                );
             } else {
                 eprintln!("IES: {erro}");
             }
             return ExitCode::from(1);
-        },
+        }
     };
     let resultado = saida::json(&leitura, origem);
     if json_mode {
@@ -243,39 +257,66 @@ fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode 
         Err(motivo) => return erro_fonte(json_mode, motivo, "histórico não verificável"),
     };
     if json_mode {
-        println!("{}", json!({"processo": detalhe, "instalacao": instalacao, "escopo": "historico_offline", "parcial": true}));
+        println!(
+            "{}",
+            json!({"processo": detalhe, "instalacao": instalacao, "escopo": "historico_offline", "parcial": true})
+        );
     } else {
-        println!("Histórico offline do processo {}: {} andamento(s), dados parciais.", detalhe.numero.as_str(), detalhe.andamentos.len());
+        println!(
+            "Histórico offline do processo {}: {} andamento(s), dados parciais.",
+            detalhe.numero.as_str(),
+            detalhe.andamentos.len()
+        );
     }
     ExitCode::SUCCESS
 }
 
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let cenario = &replay.cenario;
-    if cenario.is_empty() || cenario.contains('/') || cenario.contains('\\')
-        || cenario.contains("..") || !cenario.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+    if cenario.is_empty()
+        || cenario.contains('/')
+        || cenario.contains('\\')
+        || cenario.contains("..")
+        || !cenario
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
         return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
     }
     let pasta = replay.acervo.join("cassettes");
     let mut encontrados = Vec::new();
     let dirs = match std::fs::read_dir(&pasta) {
         Ok(dirs) => dirs,
-        Err(_) => return erro_fonte(json_mode, "acervo_ausente", "diretório de cassettes não encontrado"),
+        Err(_) => {
+            return erro_fonte(
+                json_mode,
+                "acervo_ausente",
+                "diretório de cassettes não encontrado",
+            );
+        }
     };
     for dir in dirs.flatten() {
-        if !dir.path().is_dir() { continue; }
+        if !dir.path().is_dir() {
+            continue;
+        }
         if let Ok(cards) = std::fs::read_dir(dir.path()) {
             for file in cards.flatten() {
                 let name = file.file_name();
                 let name = name.to_string_lossy();
-                if name == format!("{cenario}.md") || name.starts_with(&format!("{cenario}--")) && name.ends_with(".md") {
+                if name == format!("{cenario}.md")
+                    || name.starts_with(&format!("{cenario}--")) && name.ends_with(".md")
+                {
                     encontrados.push(file.path());
                 }
             }
         }
     }
     if encontrados.len() != 1 {
-        return erro_fonte(json_mode, "cenario_ambiguo_ou_ausente", "cenário não encontrado ou com várias revisões; use um identificador mais específico");
+        return erro_fonte(
+            json_mode,
+            "cenario_ambiguo_ou_ausente",
+            "cenário não encontrado ou com várias revisões; use um identificador mais específico",
+        );
     }
     let card = &encontrados[0];
     let zip_name = match cassette::archive_filename(card) {
@@ -284,20 +325,37 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     };
     let zip = replay.acervo.join(".cache/ies").join(zip_name);
     if !zip.is_file() {
-        return erro_fonte(json_mode, "zip_ausente", "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF");
+        return erro_fonte(
+            json_mode,
+            "zip_ausente",
+            "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
+        );
     }
     if cenario.contains("andamento") {
         if !replay.passo.is_empty() {
-            return erro_lista(json_mode, "entrada_invalida", "passos não são necessários para histórico", 2);
+            return erro_lista(
+                json_mode,
+                "entrada_invalida",
+                "passos não são necessários para histórico",
+                2,
+            );
         }
         match cassette::read_cassette_history_auto(card, &zip) {
             Ok((html, origem)) => mostrar_historico(&html, &origem, json_mode),
-            Err(_) => erro_fonte(json_mode, "historico_invalido", "histórico ausente ou ambíguo na cassette"),
+            Err(_) => erro_fonte(
+                json_mode,
+                "historico_invalido",
+                "histórico ausente ou ambíguo na cassette",
+            ),
         }
     } else {
         match cassette::read_cassette_pages(card, &zip, &replay.passo) {
             Ok((htmls, origem)) => mostrar_caixa(htmls, &origem, unidade, json_mode),
-            Err(_) => erro_fonte(json_mode, "cassette_invalida", "caixa ausente ou ambígua na cassette"),
+            Err(_) => erro_fonte(
+                json_mode,
+                "cassette_invalida",
+                "caixa ausente ou ambígua na cassette",
+            ),
         }
     }
 }
@@ -313,8 +371,21 @@ fn show_noun_help(noun: &str) {
 fn run(cli: Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
-        Domain::Sessao(Sessao { acao: SessaoAcao::LerCaixa { url_caixa_file, cookie_file, origem_file } }) => {
-            return listar_caixa_sessao(url_caixa_file, cookie_file, origem_file, cli.unidade.as_deref(), cli.json);
+        Domain::Sessao(Sessao {
+            acao:
+                SessaoAcao::LerCaixa {
+                    url_caixa_file,
+                    cookie_file,
+                    origem_file,
+                },
+        }) => {
+            return listar_caixa_sessao(
+                url_caixa_file,
+                cookie_file,
+                origem_file,
+                cli.unidade.as_deref(),
+                cli.json,
+            );
         }
         _ => {}
     }
