@@ -140,3 +140,32 @@ Próxima ação com maior valor: abrir os passos relevantes do ZIP de
 e comparar com UnB/UFRJ antes de fixar identificadores da tramitação.
 Em paralelo, inspecionar a estrutura das respostas de listagem de
 assinaturas e unidades nas fontes autorizadas.
+
+## Hipótese operacional: pendência de recebimento
+
+Relato de uso do SEI: após o envio de A para B, o processo aparece
+na unidade B **pendente de recebimento**. A abertura/visualização
+por usuário da unidade destinatária pode registrar o recebimento.
+Este relato orienta o teste, mas não prova que toda visualização,
+prévia, consulta REST ou operação Web tenha esse efeito.
+
+Distinguir os momentos:
+1. Envio por A: registra destinatário(s), sem supor que A perdeu acesso.
+2. Disponibilização em B: processo figura como pendente de recebimento.
+3. Recebimento em B: evento associado a ação e identidade do usuário,
+   com horário quando fornecido pela instalação.
+4. Atuação em B: situação local após o recebimento, que não define
+   a situação das demais unidades.
+
+**Regra de segurança para o IES:** uma leitura deve declarar se pode
+produzir recebimento implícito. Nunca etiquetar como leitura pura uma
+navegação que possa gerar ato administrativo. Antes de executar essa
+navegação, exigir contrato explícito, intenção e confirmação; não
+considerar `GET` automaticamente isento de efeitos. Na dúvida,
+falhar fechado ou usar fonte comprovadamente sem efeito colateral.
+
+**Experimento discriminante:** capturar o estado em B antes de abrir,
+abrir a página com usuário autorizado, conferir histórico e caixa
+antes/depois, repetir com abertura de lista, prévia e consulta de
+detalhes em laboratório. Comparar também envio com manutenção de A
+aberta e com conclusão de A. Não realizar testes live sem autorização.
