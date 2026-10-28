@@ -1,6 +1,5 @@
 [package]
 name = "ies"
-default-run = "ies"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
@@ -15,3 +14,7 @@ sha1 = "0.10"
 sha2 = "0.10"
 tl = "0.7.8"
 zip = { version = "4", default-features = false, features = ["deflate"] }
+
+[workspace]
+members = ["xtask"]
+resolver = "3"

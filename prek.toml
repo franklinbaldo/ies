@@ -6,7 +6,7 @@ repo = "local"
 [[repos.hooks]]
 id = "tamanho"
 name = "Arquivos texto <= 20.000 bytes"
-entry = "cargo run --quiet --locked --bin check_size"
+entry = "cargo run --quiet --locked -p xtask --bin check_size"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -33,16 +33,7 @@ stages = ["pre-commit", "pre-push"]
 [[repos.hooks]]
 id = "lint"
 name = "Clippy sem warnings"
-entry = "cargo clippy --locked --all-targets -- -D warnings"
-language = "system"
-pass_filenames = false
-always_run = true
-stages = ["pre-push"]
-
-[[repos.hooks]]
-id = "build"
-name = "Build travado"
-entry = "cargo build --locked --all-targets"
+entry = "cargo clippy --locked --workspace --all-targets -- -D warnings"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -51,7 +42,7 @@ stages = ["pre-push"]
 [[repos.hooks]]
 id = "testes"
 name = "Suite Rust"
-entry = "cargo test --locked --all-targets"
+entry = "cargo test --locked --workspace --all-targets"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -60,7 +51,7 @@ stages = ["pre-push"]
 [[repos.hooks]]
 id = "evidencias"
 name = "Relações OKF de operações e cassettes"
-entry = "cargo run --quiet --locked --bin check_evidence"
+entry = "cargo run --quiet --locked -p xtask --bin check_evidence"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -69,7 +60,7 @@ stages = ["pre-push"]
 [[repos.hooks]]
 id = "decisoes"
 name = "Decisões de engenharia por operação implementada"
-entry = "cargo run --quiet --locked --bin check_design"
+entry = "cargo run --quiet --locked -p xtask --bin check_design"
 language = "system"
 pass_filenames = false
 always_run = true

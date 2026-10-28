@@ -56,9 +56,13 @@ O replay offline agora pode consolidar várias páginas já gravadas usando
 
 ## Desenvolvimento
 
-- `cargo test --locked`
+Os checkers de infraestrutura são um `xtask` Rust sem dependências
+externas; o `prek` os executa sem compilar a CLI. O GitHub Actions
+usa cache de Rust pinado por SHA e testa todos os alvos do workspace.
+
+- `cargo test --locked --workspace --all-targets`
 - `cargo fmt --all -- --check`
-- `cargo clippy --locked --all-targets -- -D warnings`
+- `cargo clippy --locked --workspace --all-targets -- -D warnings`
 - `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
 - `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`
 

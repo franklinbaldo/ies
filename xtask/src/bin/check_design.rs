@@ -222,7 +222,11 @@ fn check(root: &Path) -> Result<(usize, usize), String> {
 }
 
 fn main() -> ExitCode {
-    match check(Path::new(env!("CARGO_MANIFEST_DIR"))) {
+    match check(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("raiz do workspace"),
+    ) {
         Ok((implemented, stubs)) => {
             println!(
                 "Decisões de engenharia: {implemented} implementações com alternativas; {stubs} stubs dispensados"

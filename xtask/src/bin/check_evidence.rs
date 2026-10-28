@@ -51,7 +51,10 @@ fn files_recursive(path: &Path, output: &mut Vec<PathBuf>) -> Result<(), String>
 }
 
 fn verify() -> Result<(usize, usize), String> {
-    let root = fs::canonicalize(env!("CARGO_MANIFEST_DIR")).map_err(|e| e.to_string())?;
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("raiz do workspace não encontrada")?;
+    let root = fs::canonicalize(workspace).map_err(|e| e.to_string())?;
     let folder = root.join("contracts/evidencias");
     let mut files = Vec::new();
     files_recursive(&folder, &mut files)?;
