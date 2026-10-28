@@ -1,5 +1,6 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
 //! Sem login, redirects, POST ou tentativa de outro backend.
+use crate::instalacao::{Instalacao, host_valido};
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -46,27 +47,7 @@ impl FalhaTransporte {
     }
 }
 
-fn host_valido(host: &str) -> bool {
-    host.len() <= 253
-        && !host.is_empty()
-        && host.split('.').all(|rotulo| {
-            !rotulo.is_empty()
-                && rotulo.len() <= 63
-                && rotulo
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-                && rotulo
-                    .as_bytes()
-                    .first()
-                    .is_some_and(u8::is_ascii_alphanumeric)
-                && rotulo
-                    .as_bytes()
-                    .last()
-                    .is_some_and(u8::is_ascii_alphanumeric)
-        })
-}
-
-fn validar_url(url: &str) -> Result<&str, FalhaTransporte> {
+fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let (authority, path) = url
         .strip_prefix("https://")
         .and_then(|rest| rest.split_once('/'))
@@ -103,16 +84,13 @@ fn validar_url(url: &str) -> Result<&str, FalhaTransporte> {
     if actions != 1 || hashes != 1 {
         return Err(FalhaTransporte::UrlInvalida);
     }
-    Ok(authority)
+    Ok((authority, route))
 }
 
 fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
-    let host = validar_url(url)?;
-    let autorizado = origem
-        .strip_prefix("https://")
-        .ok_or(FalhaTransporte::OrigemNaoAutorizada)?
-        .trim_end_matches('/');
-    if !host_valido(autorizado) || !host.eq_ignore_ascii_case(autorizado) {
+    let (host, rota) = validar_url(url)?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
+    if !instalacao.autoriza_controlador(host, rota) {
         return Err(FalhaTransporte::OrigemNaoAutorizada);
     }
     Ok(())
@@ -249,23 +227,23 @@ mod tests {
         let legitimo = url("sei.treinamento.unb.br");
         let adulterado = url("sei.exemplo");
         assert_eq!(
-            validar_origem(&legitimo, "https://sei.treinamento.unb.br"),
+            validar_origem(&legitimo, "https://sei.treinamento.unb.br/sei"),
             Ok(())
         );
         assert_eq!(
-            validar_origem(&legitimo, "https://SEI.TREINAMENTO.UNB.BR/"),
+            validar_origem(&legitimo, "https://SEI.TREINAMENTO.UNB.BR/sei/"),
             Ok(())
         );
         assert_eq!(
-            validar_origem(&adulterado, "https://sei.treinamento.unb.br"),
+            validar_origem(&adulterado, "https://sei.treinamento.unb.br/sei"),
             Err(FalhaTransporte::OrigemNaoAutorizada)
         );
         assert_eq!(
-            validar_origem(&legitimo, "https://sei.treinamento.unb.br.evil.tld"),
+            validar_origem(&legitimo, "https://sei.treinamento.unb.br.evil.tld/sei"),
             Err(FalhaTransporte::OrigemNaoAutorizada)
         );
         assert_eq!(
-            validar_origem(&legitimo, "http://sei.treinamento.unb.br"),
+            validar_origem(&legitimo, "http://sei.treinamento.unb.br/sei"),
             Err(FalhaTransporte::OrigemNaoAutorizada)
         );
     }
@@ -283,6 +261,26 @@ mod tests {
         assert_eq!(
             ler_limitado(Cursor::new(vec![42; 10_000]), 10),
             Err(FalhaTransporte::RespostaExcessiva)
+        );
+    }
+    #[test]
+    fn mesma_origem_em_outra_pasta_nao_recebe_cookie() {
+        let legitimo = url("sei.exemplo");
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.exemplo"),
+            Err(FalhaTransporte::OrigemNaoAutorizada)
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.exemplo/outro"),
+            Err(FalhaTransporte::OrigemNaoAutorizada)
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.exemplo/sei\nversao=5.0.4"),
+            Ok(())
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.exemplo/sei\nversao=4.0.9"),
+            Ok(())
         );
     }
 }

@@ -30,6 +30,12 @@ podem persistir na sessão. No histórico de andamentos,
 `hdnTipoHistorico` distingue modo resumido e completo.
 A caixa sinaliza processos visualizados por classes CSS.
 
+A versão SEI é metadado do ambiente e **não certificado de
+compatibilidade**. Duas instalações com o mesmo número de versão
+podem divergir por módulos instalados, opções, órgão e permissões.
+A [separação entre instalação, órgão, unidade e versão](../interfaces/instalacoes-e-versoes.md)
+é documentada sem criar um subsistema de pesquisa no runtime.
+
 As instalações públicas mapeadas em outubro de 2026 foram
 UnB (SEI 4.0.9), UFRJ (4.1.5), Goiás (5.0.3),
 PEN1 (4.0.12), PEN2 (4.1.5), PEN3 e PEN4 (5.0.4).

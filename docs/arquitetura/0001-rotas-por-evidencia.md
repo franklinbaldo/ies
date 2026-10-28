@@ -76,6 +76,18 @@ ausência de caminho aprovado ou solicitar configuração explícita.
 Não sondar endpoints restritos ou usar credenciais de produção
 sem autorização para experimentos.
 
+## Instalação e versões
+
+`Instalacao` identifica um ambiente técnico pelo endereço-base HTTPS
+(host e caminho), com versão SEI opcionalmente declarada.
+Órgãos e unidades são identidades administrativas distintas;
+a unidade ativa pertence ao contexto da sessão. Não inferir
+permissões ou suporte funcional a partir da versão sozinha.
+A compatibilidade deve ser avaliada por operação, instalação,
+identidade e versão documentada, com testes reproduzíveis;
+coincidência de versão em outra instalação serve para priorizar
+experimentos, **não para selecionar automaticamente backends**.
+
 ## Invariantes da arquitetura
 
 - `Cassette`, `OperationEvidence` e `SEIObservation` são **tipos de

@@ -21,11 +21,13 @@ de página**, por cassette verificada ou GET HTTPS de uma sessão existente.
   páginas já capturadas (GET inicial; demais respostas GET ou POST offline).
 - `--url-caixa-file ARQ --cookie-file ARQ --origem-file ARQ`:
   leitura Web HTTPS com sessão já autenticada. `--origem-file`
-  contém somente `https://host` da instalação autorizada; é
-  obrigatório e independente do arquivo da URL assinada.
+contém o endereço-base HTTPS (`https://host` ou
+`https://host/caminho`), com versão opcional declarada na segunda
+linha (`versao=5.0.4`). É obrigatório e independente da URL assinada.
   Os três arquivos devem ser privados (`0600` no Unix).
-  O host da URL precisa coincidir exatamente com a origem
-  antes da leitura do cookie e do envio do GET. Nenhum login é feito.
+O host **e o caminho-base da instalação** devem coincidir
+exatamente antes da leitura do cookie e do envio do GET.
+A versão informada não altera a autorização ou a escolha de backend. Nenhum login é feito.
 - `--saida ARQ`: grava JSON em arquivo novo, `0600` em Unix.
 - `--json`: imprime JSON de resultado (também pode gravar em arquivo).
 - `--unidade SIGLA`: **asserção de unidade esperada**, não rótulo

@@ -75,8 +75,11 @@ usa replay offline (inclusive páginas já capturadas) ou GET com sessão
 existente; **não automatiza POST de paginação**, login nem escrita.
 Nunca passe URLs assinadas ou cookies como argumentos de processo:
 use arquivos privados `0600` e nunca os inclua em logs, commits ou
-capturas. O GET da caixa exige `--origem-file` independente e host
-idêntico ao da URL, validado **antes** de ler/enviar cookies. Toda
+capturas. O GET exige `--origem-file` independente, identificado
+por `Instalacao` (host + caminho-base HTTPS); essa identidade deve
+corresponder à URL **antes** de ler/enviar cookies.
+`VersaoSei` é metadado declarado opcional, não autorização nem
+predição de compatibilidade. Toda
 resposta HTTP tem limite de 8 MB durante o recebimento, não apenas
 depois de receber o corpo inteiro. Não seguir redirects.
 
