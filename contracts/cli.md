@@ -20,6 +20,10 @@ testes e pelas instalações reais.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.
 - Esta superfície de demonstração não é integral: o inventário será aprovado comando a comando.
 
+A [matriz de evidências](evidencias/README.md) relaciona operações
+registradas pelo Todos a cassettes, mas **não equivale a aprovação dos
+contratos desta CLI**. Contrato e evidência são fontes distintas.
+
 ## Primeiro recorte, sem acesso ao SEI
 
 - `ies processo NUP`

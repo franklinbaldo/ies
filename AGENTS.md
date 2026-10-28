@@ -29,6 +29,8 @@ Não crie um segundo conjunto independente de checks.
 
 ## Evidências antes de implementar
 
+Leia o [índice de evidências por operação](contracts/evidencias/README.md),
+com as referências `cenario#passo` da matriz do Todos.
 Leia o [catálogo OKF de cassettes](docs/cassettes.md) e o conhecimento
 [como o SEI funciona](docs/como-o-sei-funciona/README.md).
 Um card por revisão aponta para o ZIP original no Internet Archive.

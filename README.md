@@ -23,6 +23,9 @@ gates do `prek` usados localmente.
 
 O [catálogo OKF de cassettes](docs/cassettes.md) registra 478 revisões
 distintas observadas em sete instalações de treinamento/homologação.
+O [índice por operação](docs/evidencias.md) liga 129 operações da matriz do
+Todos a esses cards, explicitando 76 passos ainda sem cassette no acervo.
+Essas relações não certificam a implementação IES.
 Os ZIPs continuam exclusivamente no Internet Archive. Consulte também
 [como o SEI funciona](docs/como-o-sei-funciona/README.md), documentação
 empírica independente da arquitetura Python anterior.
