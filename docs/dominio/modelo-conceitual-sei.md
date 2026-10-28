@@ -66,7 +66,7 @@ não entram em documentos OKF nem no modelo público.
 | Tipo de processo | Classificação administrativa, separada da identidade do processo. |
 | Atuação processo-unidade | Situação contextual da unidade perante o processo; não é um booleano global do processo. |
 | Atribuição | Responsável por tratamento na unidade; não substitui vínculo organizacional. |
-| Andamento | Registro de acontecimento no histórico, não necessariamente envio. |
+| Andamento | Entidade de registro histórico do processo, com data/hora, unidade, usuário e descrição quando disponíveis; não necessariamente envio. |
 | Marcador/anotação | Organização da atividade; não determina situação global. |
 | Nível de acesso | Regime de publicidade/restrição do processo ou documento, observado no contexto autorizado. |
 
@@ -85,7 +85,12 @@ contextual; não é uma propriedade imutável do processo.
 ## Tramitação: questão aberta
 
 Tramitação é um conceito de negócio, ainda **não** uma entidade Rust
-aprovada. Candidatos a separar após exame de cassettes e manuais:
+aprovada. **Andamento já é uma entidade conceitual aprovada**: o manual
+identifica registros individuais com data/hora, unidade, usuário e descrição.
+A operação de atualizar andamento insere um registro textual sem permitir
+edição ou exclusão posterior; correções são lançadas como novos registros.
+O identificador técnico de cada andamento ainda precisa ser comprovado.
+Não inventar ID a partir de data/hora ou posição da tabela. Candidatos a separar após exame de cassettes e manuais:
 
 - **Envio**: ato iniciado pela remetente, potencialmente com vários
   destinatários e a opção de manter aberto.
@@ -130,7 +135,7 @@ adequada quando houver dados confirmados.
   `Documento`, `Assinatura` e situação da atuação na unidade,
   conforme campos comprovados e contratos respectivos.
 - **Somente conceituais por enquanto**: Pessoa, órgão, módulo,
-  perfil, andamento, envio, recebimento, bloco de assinatura e
+  perfil, andamento (entidade aprovada, sem estrutura Rust), envio, recebimento, bloco de assinatura e
   classificações ainda não necessárias aos comandos.
 
 Novos tipos devem distinguir IDs internos, números visíveis e
