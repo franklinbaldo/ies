@@ -1,5 +1,10 @@
+mod caixa;
+mod cassette;
+mod transporte;
+
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 #[derive(Debug, Parser)]
@@ -115,8 +120,145 @@ struct Unidade {
 enum UnidadeAcao {
     ListarProcessos {
         #[arg(long)]
-        saida: Option<String>,
+        saida: Option<PathBuf>,
+        /// Card OKF de provenance da cassette do Internet Archive
+        #[arg(long)]
+        cassette_card: Option<PathBuf>,
+        /// ZIP original baixado do Internet Archive
+        #[arg(long)]
+        zip_file: Option<PathBuf>,
+        /// Índice da interação, quando a cassette contém várias caixas
+        #[arg(long)]
+        passo: Option<usize>,
+        /// URL da caixa já assinada, obtida na mesma sessão
+        #[arg(long)]
+        url_caixa_file: Option<PathBuf>,
+        /// Arquivo local 0600 contendo apenas os pares Cookie da sessão
+        #[arg(long)]
+        cookie_file: Option<PathBuf>,
     },
+}
+
+fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCode {
+    if json_mode {
+        println!(
+            "{}",
+            json!({"codigo": codigo, "erro": mensagem, "retentavel": false})
+        );
+    } else {
+        eprintln!("IES: {mensagem}");
+    }
+    ExitCode::from(exit)
+}
+
+fn salvar_json(destino: &Path, conteudo: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let mut cfg = std::fs::OpenOptions::new();
+    cfg.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        cfg.mode(0o600);
+    }
+    let mut file = cfg
+        .open(destino)
+        .map_err(|_| "não foi possível criar o arquivo de saída")?;
+    file.write_all(conteudo)
+        .map_err(|_| "falha ao escrever a saída")?;
+    Ok(())
+}
+
+struct ConsultaUnidade<'a> {
+    output: Option<&'a Path>,
+    card: Option<&'a Path>,
+    zip: Option<&'a Path>,
+    passo: Option<usize>,
+    url: Option<&'a Path>,
+    cookie: Option<&'a Path>,
+    unidade: Option<&'a str>,
+    json_mode: bool,
+}
+
+fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
+    let ConsultaUnidade {
+        output,
+        card,
+        zip,
+        passo,
+        url,
+        cookie,
+        unidade,
+        json_mode,
+    } = args;
+    let offline = card.is_some() || zip.is_some() || passo.is_some();
+    let live = url.is_some() || cookie.is_some();
+    if offline == live
+        || (offline && (card.is_none() || zip.is_none()))
+        || (live && (url.is_none() || cookie.is_none()))
+    {
+        return erro_lista(
+            json_mode,
+            "entrada_invalida",
+            "informe --cassette-card e --zip-file, ou --url-caixa-file e --cookie-file (sem misturar)",
+            2,
+        );
+    }
+    let response = if offline {
+        cassette::read_cassette(card.unwrap(), zip.unwrap(), passo)
+    } else {
+        transporte::read_box_from_file(url.unwrap(), cookie.unwrap())
+            .map(|html| (html, "sessao".into()))
+    };
+    let (html, origin) = match response {
+        Ok(value) => value,
+        Err(_) => {
+            return erro_lista(
+                json_mode,
+                "fonte_invalida",
+                "não foi possível verificar a origem ou a resposta; confira o card, o ZIP e a sessão",
+                1,
+            );
+        }
+    };
+    let mut result = match caixa::parse_html(&html, unidade) {
+        Ok(value) => value,
+        Err(_) => {
+            return erro_lista(
+                json_mode,
+                "tela_inesperada",
+                "tabelas ou identidades da caixa não conferem com o contrato",
+                1,
+            );
+        }
+    };
+    result["origem"] = json!(origin);
+    let serialized = match serde_json::to_vec_pretty(&result) {
+        Ok(value) => value,
+        Err(_) => return erro_lista(json_mode, "saida_invalida", "falha na serialização JSON", 1),
+    };
+    if let Some(dest) = output {
+        if let Err(message) = salvar_json(dest, &serialized) {
+            return erro_lista(json_mode, "saida_invalida", &message, 1);
+        }
+        if !json_mode {
+            println!("Resultado gravado no arquivo solicitado.");
+        }
+    }
+    if json_mode {
+        println!("{}", String::from_utf8_lossy(&serialized));
+    } else if output.is_none() {
+        for kind in ["recebidos", "gerados"] {
+            println!(
+                "{kind}: {} de {:?} processos ({})",
+                result[kind]["linhas_lidas"],
+                result[kind]["total_declarado"],
+                result[kind]["completude"]
+                    .as_str()
+                    .unwrap_or("indeterminada"),
+            );
+        }
+    }
+    ExitCode::SUCCESS
 }
 
 fn show_noun_help(noun: &str) {
@@ -128,6 +270,37 @@ fn show_noun_help(noun: &str) {
 }
 
 fn run(cli: Cli) -> ExitCode {
+    if let Domain::Unidade(Unidade {
+        acao:
+            Some(UnidadeAcao::ListarProcessos {
+                saida,
+                cassette_card,
+                zip_file,
+                passo,
+                url_caixa_file,
+                cookie_file,
+            }),
+    }) = &cli.command
+    {
+        // Sem origem explícita, preserva o erro de stub do contrato provisório.
+        if cassette_card.is_some()
+            || zip_file.is_some()
+            || passo.is_some()
+            || url_caixa_file.is_some()
+            || cookie_file.is_some()
+        {
+            return listar_processos(ConsultaUnidade {
+                output: saida.as_deref(),
+                card: cassette_card.as_deref(),
+                zip: zip_file.as_deref(),
+                passo: *passo,
+                url: url_caixa_file.as_deref(),
+                cookie: cookie_file.as_deref(),
+                unidade: cli.unidade.as_deref(),
+                json_mode: cli.json,
+            });
+        }
+    }
     match &cli.command {
         Domain::Processo(Processo {
             numero: None,
