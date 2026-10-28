@@ -1,5 +1,6 @@
 mod caixa;
 mod cassette;
+mod paginas;
 mod transporte;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
@@ -129,7 +130,7 @@ enum UnidadeAcao {
         zip_file: Option<PathBuf>,
         /// Índice da interação, quando a cassette contém várias caixas
         #[arg(long)]
-        passo: Option<usize>,
+        passo: Vec<usize>,
         /// URL da caixa já assinada, obtida na mesma sessão
         #[arg(long)]
         url_caixa_file: Option<PathBuf>,
@@ -172,7 +173,7 @@ struct ConsultaUnidade<'a> {
     output: Option<&'a Path>,
     card: Option<&'a Path>,
     zip: Option<&'a Path>,
-    passo: Option<usize>,
+    passo: &'a [usize],
     url: Option<&'a Path>,
     cookie: Option<&'a Path>,
     unidade: Option<&'a str>,
@@ -190,7 +191,7 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
         unidade,
         json_mode,
     } = args;
-    let offline = card.is_some() || zip.is_some() || passo.is_some();
+    let offline = card.is_some() || zip.is_some() || !passo.is_empty();
     let live = url.is_some() || cookie.is_some();
     if offline == live
         || (offline && (card.is_none() || zip.is_none()))
@@ -204,12 +205,12 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
         );
     }
     let response = if offline {
-        cassette::read_cassette(card.unwrap(), zip.unwrap(), passo)
+        cassette::read_cassette_pages(card.unwrap(), zip.unwrap(), passo)
     } else {
         transporte::read_box_from_file(url.unwrap(), cookie.unwrap())
-            .map(|html| (html, "sessao".into()))
+            .map(|html| (vec![html], "sessao".into()))
     };
-    let (html, origin) = match response {
+    let (htmls, origin) = match response {
         Ok(value) => value,
         Err(_) => {
             return erro_lista(
@@ -220,7 +221,7 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
             );
         }
     };
-    let mut result = match caixa::parse_html(&html, unidade) {
+    let mut result = match paginas::juntar(&htmls, unidade) {
         Ok(value) => value,
         Err(_) => {
             return erro_lista(
@@ -285,7 +286,7 @@ fn run(cli: Cli) -> ExitCode {
         // Sem origem explícita, preserva o erro de stub do contrato provisório.
         if cassette_card.is_some()
             || zip_file.is_some()
-            || passo.is_some()
+            || !passo.is_empty()
             || url_caixa_file.is_some()
             || cookie_file.is_some()
         {
@@ -293,7 +294,7 @@ fn run(cli: Cli) -> ExitCode {
                 output: saida.as_deref(),
                 card: cassette_card.as_deref(),
                 zip: zip_file.as_deref(),
-                passo: *passo,
+                passo,
                 url: url_caixa_file.as_deref(),
                 cookie: cookie_file.as_deref(),
                 unidade: cli.unidade.as_deref(),

@@ -17,8 +17,8 @@ de página**, por cassette verificada ou GET HTTPS de uma sessão existente.
 ## Entradas
 
 - `--cassette-card ARQ.md --zip-file ZIP`: replay offline, com hashes do
-  card OKF e validação da instalação. `--passo N` seleciona uma resposta
-  quando houver várias caixas na mesma cassette.
+  card OKF e validação da instalação. `--passo N` seleciona uma resposta; pode ser repetido para consolidar
+  páginas já capturadas (GET inicial; demais respostas GET ou POST offline).
 - `--url-caixa-file ARQ --cookie-file ARQ`: leitura de URL assinada
   **já obtida da sessão**; nenhuma autenticação é iniciada.
 - `--saida ARQ`: grava JSON em arquivo novo, `0600` em Unix.
@@ -34,7 +34,7 @@ ou misturadas são erro de uso.
 
 `recebidos` e `gerados` são coleções distintas, cada uma com:
 `processos` (`numero`, `id`, `visualizado`),
-`total_declarado`, `linhas_lidas` e `completude`.
+`total_declarado`, `linhas_lidas`, `paginas_lidas` e `completude`.
 
 `completude` é `completa`, `parcial` ou `indeterminada`.
 A resposta total informa `parcial_ou_indeterminada` quando
@@ -48,9 +48,11 @@ publicada com `infra_hash`; não segue redirect nem faz retries.
 O modo offline confere os hashes do ZIP e do JSON, schema e origem.
 O parser recusa tabela ausente, ID repetido e número ambíguo.
 
-Esta fase **não pagina**. A página da caixa pode ter um total
-maior que as linhas lidas; nesse caso, a saída é explicitamente
-parcial. Nenhuma alteração do SEI é efetuada.
+Esta fase **consolida páginas offline**, exigindo faixas contíguas,
+totais coerentes e IDs distintos por categoria. A paginação HTTP
+continua bloqueada: o corpus histórico não preserva os corpos de POST
+necessários para reproduzir esse gesto com segurança. Se só a primeira
+página foi lida, a saída continua explicitamente parcial.
 
 [Evidências](../evidencias/unidade-listar_processos.md),
 [replay](../../docs/cassettes.md) e

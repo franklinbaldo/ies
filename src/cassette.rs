@@ -26,11 +26,11 @@ fn legivel(bytes: &[u8], encoding: &str) -> Result<String, String> {
     Err("codificação de resposta ainda não suportada".into())
 }
 
-pub fn read_cassette(
+pub fn read_cassette_pages(
     card: &Path,
     archive: &Path,
-    passo: Option<usize>,
-) -> Result<(String, String), String> {
+    passos: &[usize],
+) -> Result<(Vec<String>, String), String> {
     let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
     if campo(&card_text, "type") != Some("Cassette") {
         return Err("card não é uma cassette OKF".into());
@@ -114,48 +114,65 @@ pub fn read_cassette(
     let list = json["interactions"]
         .as_array()
         .ok_or("interações ausentes")?;
-    let chosen: Vec<usize> = match passo {
-        Some(index) => vec![index],
-        None => list
-            .iter()
+    let chosen: Vec<usize> = if passos.is_empty() {
+        list.iter()
             .enumerate()
             .filter_map(|(i, it)| {
                 (it["request"]["operation"] == "procedimento_controlar"
                     && it["request"]["method"] == "GET")
                     .then_some(i)
             })
-            .collect(),
-    };
-    if chosen.len() != 1 {
-        return Err("cassette sem resposta única de caixa; informe --passo".into());
-    }
-    let it = list.get(chosen[0]).ok_or("passo inexistente")?;
-    if it["request"]["operation"] != "procedimento_controlar"
-        || it["request"]["method"] != "GET"
-        || it["response"]["status_code"] != 200
-    {
-        return Err("passo não é GET 200 da caixa de processos".into());
-    }
-    let mime = it["response"]["headers"]["content-type"]
-        .as_str()
-        .unwrap_or("");
-    if !mime.to_ascii_lowercase().contains("text/html") {
-        return Err("resposta não é HTML".into());
-    }
-    let b64 = it["response"]["body_base64"]
-        .as_str()
-        .ok_or("body_base64 ausente")?;
-    let bytes = STANDARD.decode(b64).map_err(|_| "body_base64 inválido")?;
-    if bytes.len() > 8_000_000 {
-        return Err("HTML acima do limite".into());
-    }
-    let encoding = it["response"]["encoding"].as_str().unwrap_or("");
-    let encoding = if encoding.is_empty() && mime.to_ascii_lowercase().contains("8859-1") {
-        "iso-8859-1"
+            .collect()
     } else {
-        encoding
+        passos.to_vec()
     };
-    Ok((legivel(&bytes, encoding)?, installation))
+    if chosen.is_empty() || chosen.len() > 200 {
+        return Err("quantidade de páginas inválida".into());
+    }
+    if passos.is_empty() && chosen.len() != 1 {
+        return Err("cassette com várias caixas: selecione os passos explicitamente".into());
+    }
+    let mut seen = std::collections::HashSet::new();
+    if !chosen.iter().all(|i| seen.insert(*i)) {
+        return Err("passo repetido na seleção".into());
+    }
+    let mut pages = Vec::with_capacity(chosen.len());
+    let mut total_bytes = 0usize;
+    for (order, step) in chosen.into_iter().enumerate() {
+        let it = list.get(step).ok_or("passo inexistente")?;
+        let method = it["request"]["method"].as_str();
+        if it["request"]["operation"] != "procedimento_controlar"
+            || !(method == Some("GET") || (order > 0 && method == Some("POST")))
+            || it["response"]["status_code"] != 200
+        {
+            return Err("passo não é uma resposta de caixa admitida (GET inicial; GET/POST subsequentes offline)".into());
+        }
+        let mime = it["response"]["headers"]["content-type"]
+            .as_str()
+            .unwrap_or("");
+        if !mime.to_ascii_lowercase().contains("text/html") {
+            return Err("resposta não é HTML".into());
+        }
+        let b64 = it["response"]["body_base64"]
+            .as_str()
+            .ok_or("body_base64 ausente")?;
+        let bytes = STANDARD.decode(b64).map_err(|_| "body_base64 inválido")?;
+        if bytes.len() > 8_000_000 {
+            return Err("HTML acima do limite".into());
+        }
+        let encoding = it["response"]["encoding"].as_str().unwrap_or("");
+        let encoding = if encoding.is_empty() && mime.to_ascii_lowercase().contains("8859-1") {
+            "iso-8859-1"
+        } else {
+            encoding
+        };
+        total_bytes += bytes.len();
+        if total_bytes > 48_000_000 {
+            return Err("conjunto de HTML maior que 48 MB".into());
+        }
+        pages.push(legivel(&bytes, encoding)?);
+    }
+    Ok((pages, installation))
 }
 
 trait NewlineNormalization {
