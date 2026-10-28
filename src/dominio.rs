@@ -1,7 +1,7 @@
 //! Domínio da caixa do SEI: dados tipados, sem completude armazenada,
 //! apresentação, origem da sessão, HTML ou links assinados.
-use serde::Serialize;
 use crate::erro_web::ErroCaixa;
+use serde::Serialize;
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
