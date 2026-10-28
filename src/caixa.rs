@@ -1,6 +1,6 @@
 //! Parser Web puro: HTML -> Caixa tipada; sem estado de sessão ou JSON.
-use crate::erro_web::ErroCaixa;
 use crate::dominio::{Caixa, Categoria, IdProcedimento, Processo, Tabela};
+use crate::erro_web::ErroCaixa;
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
     tag.attributes()
