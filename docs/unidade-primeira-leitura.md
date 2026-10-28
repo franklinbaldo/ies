@@ -44,7 +44,17 @@ não reproduz o corpo do POST nem envia requisições durante o replay.
 Quando uma tabela fica numa página e outra avança, a página repetida da
 primeira precisa ser idêntica; revisão divergente falha fechado.
 Os intervalos verificados são independentes por tabela e existem
-somente enquanto a paginação está sendo consolidada. `completa: false`
+somente enquanto a paginação está sendo consolidada. Para mesclar,
+o código compara o rótulo exibido em `lnkInfraUnidade`, o modo
+`hdnTipoVisualizacao` e os dois hashes de critérios
+`hdnRecebidosHashCriterios` e `hdnGeradosHashCriterios`.
+Falta ou divergência de contexto recusa a junção. A equivalência
+não comprova identidade da sessão nem snapshot transacional. Para mesclar,
+o código compara o rótulo exibido em `lnkInfraUnidade`, o modo
+`hdnTipoVisualizacao` e os dois hashes de critérios
+`hdnRecebidosHashCriterios` e `hdnGeradosHashCriterios`.
+Falta ou divergência de contexto recusa a junção. A equivalência
+não comprova identidade da sessão nem snapshot transacional. `completa: false`
 significa que a cobertura não foi provada, mesmo quando a contagem
 de linhas parecer compatível. `completa: true` significa somente
 que os intervalos e totais declarados foram conferidos; **não prova
@@ -54,21 +64,45 @@ snapshot transacional ou imutabilidade do conjunto entre páginas**.
 
 Para uma sessão **já autenticada**, o IES aceita exclusivamente
 GET de URL HTTPS publicada pela própria caixa do SEI, assinada na
-mesma sessão. Forneça um arquivo privado `0600` com os pares
-da linha `Cookie` (por exemplo, `PHPSESSID=...; OUTRO=...`),
-sem prefixo `Cookie:`.
+mesma sessão **e no host da origem explicitamente autorizada**.
+Forneça três arquivos privados `0600`: URL assinada, cookie e
+origem, contendo somente o URL `https://host` da instalação,
+sem caminho. O cookie contém apenas os pares da linha `Cookie`
+(por exemplo, `PHPSESSID=...; OUTRO=...`), sem prefixo `Cookie:`.
+O host é conferido antes de ler os cookies ou fazer rede.
 
 ```sh
-chmod 600 /caminho/privado/cookies /caminho/privado/url-caixa
+chmod 600 /caminho/privado/cookies /caminho/privado/url-caixa /caminho/privado/origem
 ies unidade listar-processos \
   --url-caixa-file /caminho/privado/url-caixa \
-  --cookie-file /caminho/privado/cookies --json
+  --cookie-file /caminho/privado/cookies \
+  --origem-file /caminho/privado/origem --json
 ```
 
 O exemplo de URL é ilustrativo: **não construa nem adivinhe o hash**.
 Obtenha-o intacto no navegador ou cliente autorizado. O programa
 não segue redirects, não faz POST, não cria login e não repete
 pedidos automaticamente. Falhas não imprimem cookies ou URL assinada.
+
+O `lnkInfraUnidade` no HTML é o rótulo exibido pela sessão,
+não um ID interno nem uma URL de navegação. `--unidade` agora
+verifica esse rótulo como pré-condição, sem fabricá-lo. Quando
+o marcador não está presente, o JSON apresenta `unidade: null`
+e não aceita uma asserção de unidade sem verificação.
+
+Falhas distinguem origem não autorizada, resposta excessiva,
+acesso negado, redirect e integridade da cassette por subcódigos
+JSON, mas não exibem cookies ou respostas autenticadas.
+
+O `lnkInfraUnidade` no HTML é o rótulo exibido pela sessão,
+não um ID interno nem uma URL de navegação. `--unidade` agora
+verifica esse rótulo como pré-condição, sem fabricá-lo. Quando
+o marcador não está presente, o JSON apresenta `unidade: null`
+e não aceita uma asserção de unidade sem verificação.
+
+Falhas distinguem origem não autorizada, resposta excessiva,
+acesso negado, redirect e integridade da cassette por subcódigos
+JSON, mas não exibem cookies ou respostas autenticadas.
 
 Em arquivos `--saida`, a escrita usa modo `0600` em Unix,
 recusa sobrescrever outro arquivo e produz apenas o resultado

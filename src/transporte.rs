@@ -1,120 +1,223 @@
-//! Transporte mínimo de leitura, restrito a GET da caixa, sem login implícito.
+//! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
+//! Sem login, redirects, POST ou tentativa de outro backend.
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 
-fn validar_url(url: &str) -> Result<(), String> {
-    let origin = url
-        .strip_prefix("https://")
-        .ok_or("a caixa exige URL HTTPS")?;
-    let (authority, path) = origin.split_once('/').ok_or("URL da caixa inválida")?;
-    if authority.is_empty()
-        || authority.contains('@')
-        || authority.contains(':')
-        || authority.contains('#')
-        || authority.chars().any(char::is_whitespace)
-    {
-        return Err("host da caixa inválido".into());
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FalhaTransporte {
+    UrlInvalida,
+    OrigemNaoAutorizada,
+    ArquivoPrivadoInvalido,
+    CookieInvalido,
+    AcessoNegado,
+    Redirecionamento,
+    RespostaInesperada,
+    RespostaExcessiva,
+    Rede,
+}
+
+impl FalhaTransporte {
+    pub fn subcodigo(self) -> &'static str {
+        match self {
+            Self::UrlInvalida => "url_invalida",
+            Self::OrigemNaoAutorizada => "origem_nao_autorizada",
+            Self::ArquivoPrivadoInvalido => "arquivo_privado_invalido",
+            Self::CookieInvalido => "cookie_invalido",
+            Self::AcessoNegado => "sessao_nao_autorizada",
+            Self::Redirecionamento => "redirecionamento_recusado",
+            Self::RespostaInesperada => "resposta_inesperada",
+            Self::RespostaExcessiva => "resposta_excessiva",
+            Self::Rede => "falha_de_rede",
+        }
     }
-    let (route, query) = path.split_once('?').ok_or("query assinada ausente")?;
-    if route.rsplit('/').next() != Some("controlador.php")
-        || route.contains("..")
+    pub fn mensagem(self) -> &'static str {
+        match self {
+            Self::UrlInvalida => "URL assinada da caixa inválida",
+            Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
+            Self::ArquivoPrivadoInvalido => "arquivo privado ausente, inseguro ou inválido",
+            Self::CookieInvalido => "formato de cookie de sessão inválido",
+            Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
+            Self::Redirecionamento => "redirecionamento recusado; a sessão pode exigir novo login",
+            Self::RespostaInesperada => "servidor não retornou a caixa HTML esperada",
+            Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
+            Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
+        }
+    }
+}
+
+fn host_valido(host: &str) -> bool {
+    host.len() <= 253
+        && !host.is_empty()
+        && host.split('.').all(|rotulo| {
+            !rotulo.is_empty()
+                && rotulo.len() <= 63
+                && rotulo
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                && rotulo
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+                && rotulo
+                    .as_bytes()
+                    .last()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+        })
+}
+
+fn validar_url(url: &str) -> Result<&str, FalhaTransporte> {
+    let (authority, path) = url
+        .strip_prefix("https://")
+        .and_then(|rest| rest.split_once('/'))
+        .ok_or(FalhaTransporte::UrlInvalida)?;
+    if !host_valido(authority)
+        || !url.bytes().all(|byte| (33..=126).contains(&byte))
         || url.contains('#')
+        || url.contains('\\')
     {
-        return Err("não é uma URL de controlador do SEI".into());
+        return Err(FalhaTransporte::UrlInvalida);
+    }
+    let (route, query) = path.split_once('?').ok_or(FalhaTransporte::UrlInvalida)?;
+    if route.rsplit('/').next() != Some("controlador.php") || route.contains("..") {
+        return Err(FalhaTransporte::UrlInvalida);
     }
     let mut actions = 0;
     let mut hashes = 0;
     for item in query.split('&') {
-        let (name, value) = item.split_once('=').ok_or("parâmetro inválido")?;
-        if !name.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
-            return Err("nome de parâmetro não permitido".into());
+        let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::UrlInvalida)?;
+        if !nome.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
+            return Err(FalhaTransporte::UrlInvalida);
         }
-        if name == "acao" {
-            if value != "procedimento_controlar" {
-                return Err("ação diferente da caixa".into());
+        match nome {
+            "acao" if valor == "procedimento_controlar" => actions += 1,
+            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
+                hashes += 1;
             }
-            actions += 1;
-        }
-        if name == "infra_hash" {
-            if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
-                return Err("assinatura inválida".into());
+            "acao" | "infra_hash" | "acao_ajax" => {
+                return Err(FalhaTransporte::UrlInvalida);
             }
-            hashes += 1;
-        }
-        if name == "acao_ajax" {
-            return Err("ação AJAX não permitida".into());
+            _ => {}
         }
     }
     if actions != 1 || hashes != 1 {
-        return Err("a URL não é a caixa assinada da sessão atual".into());
+        return Err(FalhaTransporte::UrlInvalida);
+    }
+    Ok(authority)
+}
+
+fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
+    let host = validar_url(url)?;
+    let autorizado = origem
+        .strip_prefix("https://")
+        .ok_or(FalhaTransporte::OrigemNaoAutorizada)?
+        .trim_end_matches('/');
+    if !host_valido(autorizado) || !host.eq_ignore_ascii_case(autorizado) {
+        return Err(FalhaTransporte::OrigemNaoAutorizada);
     }
     Ok(())
 }
 
-pub fn read_box(url: &str, cookie_file: &Path) -> Result<String, String> {
-    validar_url(url)?;
-    let meta = fs::metadata(cookie_file).map_err(|_| "arquivo de cookie não encontrado")?;
-    if !meta.is_file() || meta.len() > 8_192 {
-        return Err("arquivo de cookie inválido".into());
+fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
+    let metadata = fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoInvalido)?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > limite {
+        return Err(FalhaTransporte::ArquivoPrivadoInvalido);
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if meta.permissions().mode() & 0o077 != 0 {
-            return Err("arquivo de cookie deve ter permissão 0600".into());
+        if metadata.permissions().mode() & 0o077 != 0 {
+            return Err(FalhaTransporte::ArquivoPrivadoInvalido);
         }
     }
-    let cookie = fs::read_to_string(cookie_file).map_err(|_| "cookie não é UTF-8")?;
-    let cookie = cookie.trim();
-    if cookie.is_empty()
-        || cookie.contains('\r')
-        || cookie.contains('\n')
-        || cookie.contains(':')
-        || cookie.bytes().any(|b| b < 32 || b == 127)
-    {
-        return Err("formato de cookie inválido; use apenas os pares nome=valor".into());
+    fs::read_to_string(path).map_err(|_| FalhaTransporte::ArquivoPrivadoInvalido)
+}
+
+pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
+    let mut bytes = Vec::new();
+    leitor
+        .take(limite as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| FalhaTransporte::Rede)?;
+    if bytes.len() > limite {
+        return Err(FalhaTransporte::RespostaExcessiva);
     }
-    let response = minreq::get(url)
+    Ok(bytes)
+}
+
+pub fn read_box(
+    url: &str,
+    cookie_file: &Path,
+    origem_autorizada: &str,
+) -> Result<String, FalhaTransporte> {
+    // Antes de ler o cookie ou abrir o socket, conferir o destino.
+    validar_origem(url, origem_autorizada)?;
+    let texto = arquivo_privado(cookie_file, 8_192)?;
+    let cookie = texto.trim();
+    if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
+    {
+        return Err(FalhaTransporte::CookieInvalido);
+    }
+    let mut resposta = minreq::get(url)
         .with_timeout(30)
         .with_follow_redirects(false)
         .with_header("Cookie", cookie)
-        .send()
-        .map_err(|_| "falha de transporte HTTPS; nenhum pedido foi repetido".to_owned())?;
-    if response.status_code != 200 {
-        return Err(
-            "SEI não retornou HTTP 200; confira a sessão, sem repetir automaticamente".into(),
-        );
+        .send_lazy()
+        .map_err(|_| FalhaTransporte::Rede)?;
+    if (300..400).contains(&resposta.status_code) {
+        return Err(FalhaTransporte::Redirecionamento);
     }
-    let mime = response
+    if resposta.status_code == 401 || resposta.status_code == 403 {
+        return Err(FalhaTransporte::AcessoNegado);
+    }
+    if resposta.status_code != 200 {
+        return Err(FalhaTransporte::RespostaInesperada);
+    }
+    let mime = resposta
         .headers
         .get("content-type")
-        .map(String::as_str)
-        .unwrap_or("");
+        .cloned()
+        .unwrap_or_default();
     if !mime.to_ascii_lowercase().contains("text/html") {
-        return Err("resposta inesperada: não é HTML do SEI".into());
+        return Err(FalhaTransporte::RespostaInesperada);
     }
-    crate::cassette::decode_http_body(response.as_bytes(), mime)
+    if resposta
+        .headers
+        .get("content-length")
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .is_some_and(|n| n > crate::MAX_HTML_BYTES)
+    {
+        return Err(FalhaTransporte::RespostaExcessiva);
+    }
+    // O limite vale para os bytes REALMENTE recebidos, ainda que a
+    // resposta omita ou minta sobre Content-Length (inclusive chunked).
+    let bytes = ler_limitado(&mut resposta, crate::MAX_HTML_BYTES)?;
+    crate::cassette::decode_http_body(&bytes, &mime)
+        .map_err(|_| FalhaTransporte::RespostaInesperada)
 }
 
-pub fn read_box_from_file(url_file: &Path, cookie_file: &Path) -> Result<String, String> {
-    let meta = fs::metadata(url_file).map_err(|_| "arquivo de URL não encontrado")?;
-    if !meta.is_file() || meta.len() > 8192 {
-        return Err("arquivo de URL inválido".into());
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if meta.permissions().mode() & 0o077 != 0 {
-            return Err("arquivo de URL deve ter permissão 0600".into());
-        }
-    }
-    let text = fs::read_to_string(url_file).map_err(|_| "URL inválida")?;
-    read_box(text.trim(), cookie_file)
+pub fn read_box_from_file(
+    url_file: &Path,
+    cookie_file: &Path,
+    origem_file: &Path,
+) -> Result<String, FalhaTransporte> {
+    let url = arquivo_privado(url_file, 8_192)?;
+    let origem = arquivo_privado(origem_file, 512)?;
+    read_box(url.trim(), cookie_file, origem.trim())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
+
+    fn url(host: &str) -> String {
+        format!(
+            "https://{host}/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+            "a".repeat(64)
+        )
+    }
+
     #[test]
     fn nao_aceita_url_sem_assinatura() {
         assert!(
@@ -123,17 +226,15 @@ mod tests {
         assert!(
             validar_url("https://sei.exemplo/controlador.php?acao=procedimento_controlar").is_err()
         );
-        assert!(
-            validar_url("https://usuario@sei.exemplo/controlador.php?acao=procedimento_controlar")
-                .is_err()
-        );
+        assert!(validar_url(&url("usuario@sei.exemplo")).is_err());
+        assert!(validar_url(&url("sei.exemplo:443")).is_err());
+        assert!(validar_url(&format!("{}&param=\r\nCookie:unsafe", url("sei.exemplo"))).is_err());
+        assert!(validar_url(&url("sei.exemplo\\outro")).is_err());
     }
+
     #[test]
     fn permite_somente_url_assinada_da_caixa() {
-        let url = format!(
-            "https://sei.exemplo/controlador.php?acao=procedimento_controlar&infra_hash={}",
-            "a".repeat(64)
-        );
+        let url = url("sei.exemplo");
         assert!(validar_url(&url).is_ok());
         assert!(
             validar_url(&url.replace("procedimento_controlar", "procedimento_excluir")).is_err()
@@ -141,5 +242,47 @@ mod tests {
         assert!(validar_url(&format!("{url}&acao=procedimento_excluir")).is_err());
         assert!(validar_url(&format!("{url}&infra_hash={}", "b".repeat(64))).is_err());
         assert!(validar_url(&format!("{url}&a%63ao=procedimento_excluir")).is_err());
+    }
+
+    #[test]
+    fn host_de_cookies_precisa_conferir_antes_da_rede() {
+        let legitimo = url("sei.treinamento.unb.br");
+        let adulterado = url("sei.exemplo");
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.treinamento.unb.br"),
+            Ok(())
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "https://SEI.TREINAMENTO.UNB.BR/"),
+            Ok(())
+        );
+        assert_eq!(
+            validar_origem(&adulterado, "https://sei.treinamento.unb.br"),
+            Err(FalhaTransporte::OrigemNaoAutorizada)
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "https://sei.treinamento.unb.br.evil.tld"),
+            Err(FalhaTransporte::OrigemNaoAutorizada)
+        );
+        assert_eq!(
+            validar_origem(&legitimo, "http://sei.treinamento.unb.br"),
+            Err(FalhaTransporte::OrigemNaoAutorizada)
+        );
+    }
+
+    #[test]
+    fn corpo_e_limitado_durante_a_leitura() {
+        assert_eq!(
+            ler_limitado(Cursor::new(vec![42; 10]), 10).unwrap().len(),
+            10
+        );
+        assert_eq!(
+            ler_limitado(Cursor::new(vec![42; 11]), 10),
+            Err(FalhaTransporte::RespostaExcessiva)
+        );
+        assert_eq!(
+            ler_limitado(Cursor::new(vec![42; 10_000]), 10),
+            Err(FalhaTransporte::RespostaExcessiva)
+        );
     }
 }

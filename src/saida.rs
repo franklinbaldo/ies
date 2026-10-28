@@ -12,9 +12,9 @@ fn tabela_json(tabela: &Tabela<Processo>, cobertura: &Cobertura) -> Value {
     })
 }
 
-pub fn json(leitura: &Leitura, unidade: Option<&str>, origem: &str) -> Value {
+pub fn json(leitura: &Leitura, origem: &str) -> Value {
     json!({
-        "unidade": unidade,
+        "unidade": leitura.unidade,
         "origem": origem,
         "recebidos": tabela_json(&leitura.caixa.recebidos, &leitura.recebidos),
         "gerados": tabela_json(&leitura.caixa.gerados, &leitura.gerados),
@@ -53,8 +53,8 @@ mod tests {
     fn json_derive_completa_da_cobertura_verificada() {
         let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = juntar(&[html.into()]).unwrap();
-        let obj = json(&leitura, Some("TESTE"), "unb");
+        let leitura = juntar(&[html.into()], None).unwrap();
+        let obj = json(&leitura, "unb");
         assert_eq!(obj["recebidos"]["completa"], true);
         assert_eq!(obj["gerados"]["completa"], true);
         assert!(obj.get("completude").is_none());

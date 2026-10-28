@@ -32,7 +32,7 @@ e precisa de [evidência comparativa](../docs/arquitetura/0001-rotas-por-evidenc
 Nenhum método HTTP, resultado de uma API não habilitada ou mecanismo
 legado do Todos faz parte do contrato público por pressuposição.
 
-## Primeiro recorte, sem acesso ao SEI
+## Primeiro recorte, com acesso Web estritamente limitado
 
 - `ies processo NUP`
 - `ies documento NUMERO`
@@ -49,6 +49,12 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos.
 
-Os três contratos estão em fase de conformidade da CLI: o Rust reconhece
-os argumentos, mas **não acessa o SEI** e devolve `nao_implementado`.
-A implementação HTTP exige ensaio por cassette com a revisão verificada.
+O comando `ies unidade listar-processos` possui **leitura HTTP GET
+restrita da caixa Web**, com sessão já existente e origem HTTPS
+explicitamente autorizada, ou replay offline verificado. Não faz
+login, POST ou paginação HTTP. Sem esses insumos retorna
+`nao_implementado`.
+
+`processo NUP`, `documento NUMERO` e comandos de escrita continuam
+como stubs. A autorização e a equivalência de outras rotas exigem
+ensaios por cassette e por instalação.

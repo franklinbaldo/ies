@@ -141,6 +141,9 @@ enum UnidadeAcao {
         /// Arquivo local 0600 contendo apenas os pares Cookie da sessão
         #[arg(long)]
         cookie_file: Option<PathBuf>,
+        /// Arquivo privado 0600 contendo a origem HTTPS autorizada (sem caminho)
+        #[arg(long)]
+        origem_file: Option<PathBuf>,
     },
 }
 
@@ -154,6 +157,23 @@ fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCo
         eprintln!("IES: {mensagem}");
     }
     ExitCode::from(exit)
+}
+
+fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "codigo": "fonte_invalida",
+                "subcodigo": subcodigo,
+                "erro": mensagem,
+                "retentavel": false
+            })
+        );
+    } else {
+        eprintln!("IES: {mensagem} [{subcodigo}]");
+    }
+    ExitCode::from(1)
 }
 
 fn salvar_json(destino: &Path, conteudo: &[u8]) -> Result<(), String> {
@@ -180,6 +200,7 @@ struct ConsultaUnidade<'a> {
     passo: &'a [usize],
     url: Option<&'a Path>,
     cookie: Option<&'a Path>,
+    origem_file: Option<&'a Path>,
     unidade: Option<&'a str>,
     json_mode: bool,
 }
@@ -192,40 +213,46 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
         passo,
         url,
         cookie,
+        origem_file,
         unidade,
         json_mode,
     } = args;
     let offline = card.is_some() || zip.is_some() || !passo.is_empty();
-    let live = url.is_some() || cookie.is_some();
+    let live = url.is_some() || cookie.is_some() || origem_file.is_some();
     if offline == live
         || (offline && (card.is_none() || zip.is_none()))
-        || (live && (url.is_none() || cookie.is_none()))
+        || (live && (url.is_none() || cookie.is_none() || origem_file.is_none()))
     {
         return erro_lista(
             json_mode,
             "entrada_invalida",
-            "informe --cassette-card e --zip-file, ou --url-caixa-file e --cookie-file (sem misturar)",
+            "informe --cassette-card e --zip-file, ou --url-caixa-file, --cookie-file e --origem-file (sem misturar)",
             2,
         );
     }
-    let response = if offline {
-        cassette::read_cassette_pages(card.unwrap(), zip.unwrap(), passo)
+    let (htmls, origin) = if offline {
+        match cassette::read_cassette_pages(card.unwrap(), zip.unwrap(), passo) {
+            Ok(resultado) => resultado,
+            Err(motivo) => {
+                let subcodigo = if motivo.contains("SHA-") {
+                    "integridade_cassette"
+                } else {
+                    "cassette_invalida"
+                };
+                return erro_fonte(
+                    json_mode,
+                    subcodigo,
+                    "cassette ou ZIP inválidos; confira os hashes e a seleção de passos",
+                );
+            }
+        }
     } else {
-        transporte::read_box_from_file(url.unwrap(), cookie.unwrap())
-            .map(|html| (vec![html], "sessao".into()))
-    };
-    let (htmls, origin) = match response {
-        Ok(value) => value,
-        Err(_) => {
-            return erro_lista(
-                json_mode,
-                "fonte_invalida",
-                "não foi possível verificar a origem ou a resposta; confira o card, o ZIP e a sessão",
-                1,
-            );
+        match transporte::read_box_from_file(url.unwrap(), cookie.unwrap(), origem_file.unwrap()) {
+            Ok(html) => (vec![html], "sessao".to_owned()),
+            Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
         }
     };
-    let leitura = match paginas::juntar(&htmls) {
+    let leitura = match paginas::juntar(&htmls, unidade) {
         Ok(valor) => valor,
         Err(erro) => {
             if json_mode {
@@ -246,7 +273,7 @@ fn listar_processos(args: ConsultaUnidade<'_>) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let result = saida::json(&leitura, unidade, &origin);
+    let result = saida::json(&leitura, &origin);
     let serialized = match serde_json::to_vec_pretty(&result) {
         Ok(value) => value,
         Err(_) => return erro_lista(json_mode, "saida_invalida", "falha na serialização JSON", 1),
@@ -285,6 +312,7 @@ fn run(cli: Cli) -> ExitCode {
                 passo,
                 url_caixa_file,
                 cookie_file,
+                origem_file,
             }),
     }) = &cli.command
     {
@@ -294,6 +322,7 @@ fn run(cli: Cli) -> ExitCode {
             || !passo.is_empty()
             || url_caixa_file.is_some()
             || cookie_file.is_some()
+            || origem_file.is_some()
         {
             return listar_processos(ConsultaUnidade {
                 output: saida.as_deref(),
@@ -302,6 +331,7 @@ fn run(cli: Cli) -> ExitCode {
                 passo,
                 url: url_caixa_file.as_deref(),
                 cookie: cookie_file.as_deref(),
+                origem_file: origem_file.as_deref(),
                 unidade: cli.unidade.as_deref(),
                 json_mode: cli.json,
             });

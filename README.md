@@ -9,7 +9,9 @@ description: CLI Rust para operar o SEI por contratos de dominio e evidencias re
 Recriação limpa do IES em Rust, orientada pelo contrato público de comandos
 do Todos atual e pelas evidências de instalações reais.
 
-**Estado:** primeiro leitor de caixa de processos implementado em Rust.
+**Estado:** primeiro leitor de caixa de processos implementado em Rust,
+com host HTTPS autorizado antes de enviar cookies e leitura HTTP
+limitada em fluxo.
 Outras operações permanecem não implementadas. A leitura da caixa aceita
 cassette pública verificada ou uma URL HTTPS assinada de sessão já autenticada;
 não implementa login nem paginação.

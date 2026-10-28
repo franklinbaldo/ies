@@ -3,6 +3,71 @@
 use crate::dominio::{Caixa, Categoria, ErroCaixa, Processo, Tabela};
 use std::collections::BTreeMap;
 
+/// Contexto da página HTML: só é usado para conferir a junção.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ContextoPagina {
+    unidade: Option<String>,
+    modo: Option<String>,
+    criterios_recebidos: Option<String>,
+    criterios_gerados: Option<String>,
+}
+
+impl ContextoPagina {
+    fn verificavel(&self) -> bool {
+        self.unidade.is_some()
+            && self.modo.is_some()
+            && self.criterios_recebidos.is_some()
+            && self.criterios_gerados.is_some()
+    }
+}
+
+fn unidade_html(dom: &tl::VDom<'_>) -> Option<String> {
+    let parser = dom.parser();
+    let link = dom
+        .get_element_by_id("lnkInfraUnidade")
+        .and_then(|n| n.get(parser))
+        .and_then(tl::Node::as_tag)?;
+    if link.name() != "a" {
+        return None;
+    }
+    let texto = link
+        .inner_text(parser)
+        .replace("&nbsp;", " ")
+        .replace("&#160;", " ")
+        .replace('\u{a0}', " ");
+    let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!unidade.is_empty() && unidade.len() <= 128).then_some(unidade)
+}
+
+fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Option<String> {
+    let parser = dom.parser();
+    let elemento = dom
+        .get_element_by_id(id)
+        .and_then(|n| n.get(parser))
+        .and_then(tl::Node::as_tag)?;
+    if elemento.name() != "input" {
+        return None;
+    }
+    let valor = elemento
+        .attributes()
+        .get("value")
+        .flatten()?
+        .as_utf8_str()
+        .trim()
+        .to_owned();
+    (!valor.is_empty() && valor.len() <= 128).then_some(valor)
+}
+
+fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    Ok(ContextoPagina {
+        unidade: unidade_html(&dom),
+        modo: valor_oculto(&dom, "hdnTipoVisualizacao"),
+        criterios_recebidos: valor_oculto(&dom, "hdnRecebidosHashCriterios"),
+        criterios_gerados: valor_oculto(&dom, "hdnGeradosHashCriterios"),
+    })
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Faixa {
     total: usize,
@@ -190,18 +255,40 @@ pub struct Leitura {
     pub caixa: Caixa,
     pub recebidos: Cobertura,
     pub gerados: Cobertura,
+    pub unidade: Option<String>,
 }
 
-pub fn juntar(paginas: &[String]) -> Result<Leitura, ErroCaixa> {
+pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leitura, ErroCaixa> {
     if paginas.is_empty() {
         return Err(ErroCaixa::SemPaginas);
     }
     if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroCaixa::LimitePaginas);
     }
+    let contexto_inicial = contexto_da_pagina(&paginas[0])?;
+    if let Some(esperada) = unidade_esperada
+        && contexto_inicial
+            .unidade
+            .as_deref()
+            .is_none_or(|atual| !atual.eq_ignore_ascii_case(esperada.trim()))
+    {
+        return Err(ErroCaixa::UnidadeInesperada);
+    }
+    if paginas.len() > 1 && !contexto_inicial.verificavel() {
+        return Err(ErroCaixa::ContextoNaoVerificavel);
+    }
     let mut recebidos = Grupo::novo();
     let mut gerados = Grupo::novo();
     for html in paginas {
+        if paginas.len() > 1 {
+            let contexto = contexto_da_pagina(html)?;
+            if !contexto.verificavel() {
+                return Err(ErroCaixa::ContextoNaoVerificavel);
+            }
+            if contexto != contexto_inicial {
+                return Err(ErroCaixa::ContextoDivergente);
+            }
+        }
         let caixa = crate::caixa::parse_html(html)?;
         for (categoria, nome, tabela, grupo) in [
             (
@@ -230,6 +317,7 @@ pub fn juntar(paginas: &[String]) -> Result<Leitura, ErroCaixa> {
         },
         recebidos: cobertura_rec,
         gerados: cobertura_ger,
+        unidade: contexto_inicial.unidade,
     })
 }
 
@@ -242,18 +330,27 @@ mod tests {
     }
     fn html(rec: (usize, usize, usize, &[u32]), ger: (usize, usize, usize, &[u32])) -> String {
         let montar = |nome: &str, (total, ini, fim, ids): (usize, usize, usize, &[u32])| {
+            let legenda = if total == 0 {
+                "0 registros:".to_owned()
+            } else {
+                format!("{total} registros - {ini} a {fim}):")
+            };
             format!(
-                "<table id='tblProcessos{nome}'><caption>{total} registros - {ini} a {fim}):</caption>{}</table>",
+                "<table id='tblProcessos{nome}'><caption>{legenda}</caption>{}</table>",
                 ids.iter().map(|id| linha(*id)).collect::<String>()
             )
         };
-        format!("{}{}", montar("Recebidos", rec), montar("Gerados", ger))
+        format!(
+            "<a id='lnkInfraUnidade'>TESTE</a>             <input id='hdnTipoVisualizacao' value='R'>             <input id='hdnRecebidosHashCriterios' value='recebidos'>             <input id='hdnGeradosHashCriterios' value='gerados'>             {}{}",
+            montar("Recebidos", rec),
+            montar("Gerados", ger)
+        )
     }
     #[test]
     fn duas_tabelas_paginam_independentemente() {
         let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
-        let leitura = juntar(&[primeira, segunda]).unwrap();
+        let leitura = juntar(&[primeira, segunda], None).unwrap();
         assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
         assert!(leitura.gerados.completa(&leitura.caixa.gerados));
         assert_eq!(leitura.caixa.recebidos.processos.len(), 4);
@@ -263,13 +360,13 @@ mod tests {
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((5, 4, 5, &[4, 5]), (1, 1, 1, &[11]));
         assert_eq!(
-            juntar(&[a, b]).err().unwrap().subcodigo(),
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
             "faixa_descontinua"
         );
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 2, 3, &[2, 3]), (1, 1, 1, &[11]));
         assert_eq!(
-            juntar(&[a, b]).err().unwrap().subcodigo(),
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
             "faixa_descontinua"
         );
     }
@@ -277,21 +374,27 @@ mod tests {
     fn recusa_troca_conteudo_total_e_identidade_repetida() {
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 1, 2, &[1, 7]), (1, 1, 1, &[11]));
-        assert_eq!(juntar(&[a, b]).err().unwrap().subcodigo(), "faixa_alterada");
+        assert_eq!(
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
+            "faixa_alterada"
+        );
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
         assert_eq!(
-            juntar(&[a, b]).err().unwrap().subcodigo(),
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
             "total_divergente"
         );
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 3, 4, &[2, 4]), (1, 1, 1, &[11]));
-        assert_eq!(juntar(&[a, b]).err().unwrap().subcodigo(), "id_repetido");
+        assert_eq!(
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
+            "id_repetido"
+        );
     }
     #[test]
     fn primeira_pagina_incompleta_nao_inventa_completude() {
         let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-        let l = juntar(&[a]).unwrap();
+        let l = juntar(&[a], None).unwrap();
         assert!(!l.recebidos.completa(&l.caixa.recebidos));
         assert!(l.gerados.completa(&l.caixa.gerados));
     }
@@ -300,7 +403,7 @@ mod tests {
         let a = "<table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
             <tr id='P1'><td><a class='processoVisualizado'>NUP-1</a></td></tr></table>\
             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let l = juntar(&[a.to_owned()]).unwrap();
+        let l = juntar(&[a.to_owned()], None).unwrap();
         assert!(!l.recebidos.completa(&l.caixa.recebidos));
         assert!(l.gerados.completa(&l.caixa.gerados));
     }
@@ -308,8 +411,75 @@ mod tests {
     fn zero_itens_verificados_e_uma_colecao_completa() {
         let a = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let l = juntar(&[a.to_owned()]).unwrap();
+        let l = juntar(&[a.to_owned()], None).unwrap();
         assert!(l.recebidos.completa(&l.caixa.recebidos));
         assert!(l.gerados.completa(&l.caixa.gerados));
+    }
+
+    #[test]
+    fn unidades_distintas_nao_podem_ser_mescladas() {
+        let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        let b = b.replace(">TESTE</a>", ">OUTRA</a>");
+        assert_eq!(
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
+            "contexto_divergente"
+        );
+    }
+
+    #[test]
+    fn filtros_e_modo_divergentes_bloqueiam_juncao() {
+        let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        assert_eq!(
+            juntar(
+                &[a.clone(), b.replace("value='recebidos'", "value='outro'")],
+                None
+            )
+            .err()
+            .unwrap()
+            .subcodigo(),
+            "contexto_divergente"
+        );
+        let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        assert_eq!(
+            juntar(&[a, b.replace("value='R'", "value='D'")], None)
+                .err()
+                .unwrap()
+                .subcodigo(),
+            "contexto_divergente"
+        );
+    }
+
+    #[test]
+    fn unidade_solicitada_precisa_estar_na_pagina() {
+        let a = html((1, 1, 1, &[42]), (0, 1, 0, &[]));
+        assert_eq!(
+            juntar(std::slice::from_ref(&a), Some("TESTE"))
+                .unwrap()
+                .unidade
+                .as_deref(),
+            Some("TESTE")
+        );
+        assert_eq!(
+            juntar(&[a,], Some("OUTRA")).err().unwrap().subcodigo(),
+            "unidade_inesperada"
+        );
+        let b = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table><table id='tblProcessosGerados'><caption>0 registros:</caption></table>".to_owned();
+        assert_eq!(
+            juntar(&[b], Some("TESTE")).err().unwrap().subcodigo(),
+            "unidade_inesperada"
+        );
+    }
+
+    #[test]
+    fn contexto_ausente_nao_certifica_mescla() {
+        let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        let b = b.replace("id='lnkInfraUnidade'", "id='outro'");
+        assert_eq!(
+            juntar(&[a, b], None).err().unwrap().subcodigo(),
+            "contexto_nao_verificavel"
+        );
     }
 }
