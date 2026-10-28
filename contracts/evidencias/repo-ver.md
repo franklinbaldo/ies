@@ -7,7 +7,7 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
 ies_implemented: false
 upstream_steps: 8
-unresolved_steps: 8
+unresolved_steps: 0
 ---
 
 # repo.ver
@@ -23,8 +23,8 @@ Confronte os hashes com o manifesto atual antes de alegar paridade.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-unb#6` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-push-unb#5` (sem card da revisão).
+- `repo-ciclo-unb#6` → [repo-ciclo-unb--2971c693c603.md](../../cassettes/unb/repo-ciclo-unb--2971c693c603.md), [repo-ciclo-unb--47d9730f042c.md](../../cassettes/unb/repo-ciclo-unb--47d9730f042c.md) (revisões não desambiguadas)
+- `repo-push-unb#5` → [repo-push-unb--698152982240.md](../../cassettes/unb/repo-push-unb--698152982240.md)
 
 ## pen1
 
@@ -51,22 +51,22 @@ Nenhum passo de prova publicado nesta célula.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-pen3#6` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-push-pen3#5` (sem card da revisão).
+- `repo-ciclo-pen3#6` → [repo-ciclo-pen3--5b44968d308d.md](../../cassettes/pen3/repo-ciclo-pen3--5b44968d308d.md), [repo-ciclo-pen3--f2d6249e2afd.md](../../cassettes/pen3/repo-ciclo-pen3--f2d6249e2afd.md) (revisões não desambiguadas)
+- `repo-push-pen3#5` → [repo-push-pen3--3e286fa9ee8f.md](../../cassettes/pen3/repo-push-pen3--3e286fa9ee8f.md)
 
 ## pen4
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-pen4#6` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-push-pen4#5` (sem card da revisão).
+- `repo-ciclo-pen4#6` → [repo-ciclo-pen4--1ce9b01e8c71.md](../../cassettes/pen4/repo-ciclo-pen4--1ce9b01e8c71.md), [repo-ciclo-pen4--a12f0aa74efc.md](../../cassettes/pen4/repo-ciclo-pen4--a12f0aa74efc.md) (revisões não desambiguadas)
+- `repo-push-pen4#5` → [repo-push-pen4--dc7761ec7891.md](../../cassettes/pen4/repo-push-pen4--dc7761ec7891.md)
 
 ## go
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-go#6` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-push-go#5` (sem card da revisão).
+- `repo-ciclo-go#6` → [repo-ciclo-go--9ba6c6d2c5c8.md](../../cassettes/go/repo-ciclo-go--9ba6c6d2c5c8.md), [repo-ciclo-go--f87e8127672e.md](../../cassettes/go/repo-ciclo-go--f87e8127672e.md) (revisões não desambiguadas)
+- `repo-push-go#5` → [repo-push-go--ef2f56fb258e.md](../../cassettes/go/repo-push-go--ef2f56fb258e.md)
 
 ## Limite da evidência
 

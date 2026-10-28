@@ -7,7 +7,7 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
 ies_implemented: false
 upstream_steps: 4
-unresolved_steps: 4
+unresolved_steps: 0
 ---
 
 # repo.listar
@@ -23,7 +23,7 @@ Confronte os hashes com o manifesto atual antes de alegar paridade.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-unb#5` (sem card da revisão).
+- `repo-ciclo-unb#5` → [repo-ciclo-unb--2971c693c603.md](../../cassettes/unb/repo-ciclo-unb--2971c693c603.md), [repo-ciclo-unb--47d9730f042c.md](../../cassettes/unb/repo-ciclo-unb--47d9730f042c.md) (revisões não desambiguadas)
 
 ## pen1
 
@@ -50,19 +50,19 @@ Nenhum passo de prova publicado nesta célula.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-pen3#5` (sem card da revisão).
+- `repo-ciclo-pen3#5` → [repo-ciclo-pen3--5b44968d308d.md](../../cassettes/pen3/repo-ciclo-pen3--5b44968d308d.md), [repo-ciclo-pen3--f2d6249e2afd.md](../../cassettes/pen3/repo-ciclo-pen3--f2d6249e2afd.md) (revisões não desambiguadas)
 
 ## pen4
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-pen4#5` (sem card da revisão).
+- `repo-ciclo-pen4#5` → [repo-ciclo-pen4--1ce9b01e8c71.md](../../cassettes/pen4/repo-ciclo-pen4--1ce9b01e8c71.md), [repo-ciclo-pen4--a12f0aa74efc.md](../../cassettes/pen4/repo-ciclo-pen4--a12f0aa74efc.md) (revisões não desambiguadas)
 
 ## go
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-ciclo-go#5` (sem card da revisão).
+- `repo-ciclo-go#5` → [repo-ciclo-go--9ba6c6d2c5c8.md](../../cassettes/go/repo-ciclo-go--9ba6c6d2c5c8.md), [repo-ciclo-go--f87e8127672e.md](../../cassettes/go/repo-ciclo-go--f87e8127672e.md) (revisões não desambiguadas)
 
 ## Limite da evidência
 

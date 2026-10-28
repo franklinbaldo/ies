@@ -11,8 +11,8 @@ Markdown para cada revisão distinta de cassette. O Git guarda apenas
 os metadados verificáveis: todo ZIP e toda cassette JSON original
 continuam no [Internet Archive](https://archive.org/details/todos-sei-cassettes-2026).
 
-O inventário atual contém **25 ZIPs (7 históricos e 18 lotes)**, com
-485 capturas e **478 revisões distintas**; sete cópias idênticas
+O inventário atual contém **29 ZIPs (7 históricos e 22 lotes)**, com
+502 capturas e **495 revisões distintas**; sete cópias idênticas
 foram consolidadas. Instalações: UnB, UFRJ, Goiás e PEN1–PEN4.
 
 O [índice por operação](evidencias.md) relaciona os cenários e passos

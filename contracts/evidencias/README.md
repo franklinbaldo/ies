@@ -11,7 +11,7 @@ já aprovados ou implementados no IES Rust. Um link aponta para uma
 cassette de mesmo cenário, não comprova identidade da revisão.
 
 Operações: 129. Passos: 2154.
-Passos sem cassette indexada: 76.
+Passos sem cassette indexada: 0.
 
 - [assunto.buscar](assunto-buscar.md)
 - [bloco.alterar](bloco-alterar.md)

@@ -59,7 +59,7 @@ Estado registrado no Todos: **demonstrada**.
 
 Estado registrado no Todos: **demonstrada**.
 
-- `grupo-envio-ciclo-go#6,7` → [grupo-envio-ciclo-go--9b9278313033.md](../../cassettes/go/grupo-envio-ciclo-go--9b9278313033.md)
+- `grupo-envio-ciclo-go#6,7` → [grupo-envio-ciclo-go--1cd5bea7daf5.md](../../cassettes/go/grupo-envio-ciclo-go--1cd5bea7daf5.md), [grupo-envio-ciclo-go--9b9278313033.md](../../cassettes/go/grupo-envio-ciclo-go--9b9278313033.md) (revisões não desambiguadas)
 
 ## Limite da evidência
 

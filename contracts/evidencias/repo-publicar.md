@@ -7,7 +7,7 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
 ies_implemented: false
 upstream_steps: 12
-unresolved_steps: 12
+unresolved_steps: 0
 ---
 
 # repo.publicar
@@ -23,8 +23,8 @@ Confronte os hashes com o manifesto atual antes de alegar paridade.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-push-unb#7` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-sync-unb#5,9` (sem card da revisão).
+- `repo-push-unb#7` → [repo-push-unb--698152982240.md](../../cassettes/unb/repo-push-unb--698152982240.md)
+- `repo-sync-unb#5,9` → [repo-sync-unb--489192a5345f.md](../../cassettes/unb/repo-sync-unb--489192a5345f.md)
 
 ## pen1
 
@@ -51,22 +51,22 @@ Nenhum passo de prova publicado nesta célula.
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-push-pen3#7` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-sync-pen3#5,9` (sem card da revisão).
+- `repo-push-pen3#7` → [repo-push-pen3--3e286fa9ee8f.md](../../cassettes/pen3/repo-push-pen3--3e286fa9ee8f.md)
+- `repo-sync-pen3#5,9` → [repo-sync-pen3--702ee701b514.md](../../cassettes/pen3/repo-sync-pen3--702ee701b514.md)
 
 ## pen4
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-push-pen4#7` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-sync-pen4#5,9` (sem card da revisão).
+- `repo-push-pen4#7` → [repo-push-pen4--dc7761ec7891.md](../../cassettes/pen4/repo-push-pen4--dc7761ec7891.md)
+- `repo-sync-pen4#5,9` → [repo-sync-pen4--d6afd0a6c981.md](../../cassettes/pen4/repo-sync-pen4--d6afd0a6c981.md)
 
 ## go
 
 Estado registrado no Todos: **demonstrada**.
 
-- PENDENTE_DE_CASSETTE: `repo-push-go#7` (sem card da revisão).
-- PENDENTE_DE_CASSETTE: `repo-sync-go#5,9` (sem card da revisão).
+- `repo-push-go#7` → [repo-push-go--ef2f56fb258e.md](../../cassettes/go/repo-push-go--ef2f56fb258e.md)
+- `repo-sync-go#5,9` → [repo-sync-go--ec09211c5eff.md](../../cassettes/go/repo-sync-go--ec09211c5eff.md)
 
 ## Limite da evidência
 
