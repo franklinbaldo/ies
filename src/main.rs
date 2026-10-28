@@ -209,11 +209,11 @@ fn listar_caixa_sessao(
         Ok(html) => html,
         Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
     };
-    mostrar_caixa(vec![html], "sessao", unidade, json_mode)
+    mostrar_caixa(&[html], "sessao", unidade, json_mode)
 }
 
 fn mostrar_caixa(
-    htmls: Vec<String>,
+    htmls: &[String],
     origem: &str,
     unidade: Option<&str>,
     json_mode: bool,
@@ -228,7 +228,7 @@ fn mostrar_caixa(
                         "codigo": "tela_inesperada",
                         "subcodigo": erro.subcodigo(),
                         "erro": erro.to_string(),
-                        "categoria": erro.categoria().map(|c| c.rotulo()),
+                        "categoria": erro.categoria().map(dominio::Categoria::rotulo),
                         "id": erro.id(),
                         "retentavel": false
                     })
@@ -294,15 +294,12 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     }
     let pasta = replay.acervo.join("cassettes");
     let mut encontrados = Vec::new();
-    let dirs = match std::fs::read_dir(&pasta) {
-        Ok(dirs) => dirs,
-        Err(_) => {
+    let Ok(dirs) = std::fs::read_dir(&pasta) else {
             return erro_fonte(
                 json_mode,
                 "acervo_ausente",
                 "diretório de cassettes não encontrado",
             );
-        }
     };
     for dir in dirs.flatten() {
         if !dir.path().is_dir() {
@@ -328,9 +325,8 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     let card = &encontrados[0];
-    let zip_name = match cassette::archive_filename(card) {
-        Ok(name) => name,
-        Err(_) => return erro_fonte(json_mode, "card_invalido", "metadados de origem inválidos"),
+    let Ok(zip_name) = cassette::archive_filename(card) else {
+        return erro_fonte(json_mode, "card_invalido", "metadados de origem inválidos");
     };
     let zip = replay.acervo.join(".cache/ies").join(zip_name);
     if !zip.is_file() {
@@ -359,7 +355,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         }
     } else {
         match cassette::read_cassette_pages(card, &zip, &replay.passo) {
-            Ok((htmls, origem)) => mostrar_caixa(htmls, &origem, unidade, json_mode),
+            Ok((htmls, origem)) => mostrar_caixa(&htmls, &origem, unidade, json_mode),
             Err(_) => erro_fonte(
                 json_mode,
                 "cassette_invalida",
@@ -377,7 +373,7 @@ fn show_noun_help(noun: &str) {
     }
 }
 
-fn run(cli: Cli) -> ExitCode {
+fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Sessao(Sessao {
@@ -441,7 +437,7 @@ fn run(cli: Cli) -> ExitCode {
 
 fn main() -> ExitCode {
     match Cli::try_parse() {
-        Ok(cli) => run(cli),
+        Ok(cli) => run(&cli),
         Err(err) => {
             let status = if matches!(
                 err.kind(),
