@@ -44,7 +44,10 @@ O JSON v1 expõe `unidade`, `origem`, `recebidos` e `gerados`.
 Cada tabela inclui apenas `processos`, `total_declarado` e
 `completa: bool`, **calculado a partir dos intervalos verificados**.
 `false` quer dizer cobertura não comprovada, não necessariamente
-incompletude definitiva. Não existem no novo contrato os campos
+incompletude definitiva. `true` certifica somente cobertura dos
+intervalos declarados, totais coerentes e IDs sem duplicação.
+**Não demonstra snapshot transacional**, nem estabilidade dos
+processos entre as requisições. Não existem no novo contrato os campos
 antigos `completude`, `linhas_lidas`, `paginas_lidas`, `avisos`
 e `fonte`. A saída humana calcula seus avisos separadamente.
 

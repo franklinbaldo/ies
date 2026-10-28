@@ -247,7 +247,7 @@ mod tests {
     fn aceita_opcoes_diferentes_sem_presumir_equivalencia() {
         let fm = "---\ntype: CommandContract\noperation: unidade.listar_processos\nimplementation: partial\n---\n";
         assert_eq!(frontmatter(fm).unwrap()["implementation"], "partial");
-        let options: HashSet<_> = "web-observed, rest-wssei, soap-official"
+        let options: HashSet<_> = "web, rest-wssei, soap-official"
             .split(',')
             .map(str::trim)
             .collect();

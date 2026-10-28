@@ -1,4 +1,4 @@
-//! Domínio da caixa do SEI: fatos observados, sem completude armazenada,
+//! Domínio da caixa do SEI: dados tipados, sem completude armazenada,
 //! apresentação, origem da sessão, HTML ou links assinados.
 use serde::Serialize;
 use std::collections::HashSet;

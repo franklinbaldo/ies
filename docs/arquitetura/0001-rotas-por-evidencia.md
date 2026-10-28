@@ -31,13 +31,14 @@ Há interfaces de integração próprias do SEI que devem ser consideradas.
 2. **WebServices oficiais do SEI (SOAP/WSDL)**, quando o administrador
    houver cadastrado o sistema, serviços, escopos e forma de autenticação.
    Não presumir permissão a partir do acesso à interface Web.
-3. **Web observada**: páginas, links assinados, formulários e transporte
-   HTTP, usados apenas nos fluxos cujos gestos e efeitos foram demonstrados
-   por instalação. Útil sem instalação de módulo; nunca montar
-   `infra_hash`, explorar rotas não oferecidas nem inferir POSTs.
-4. **Índice local derivado de observações autorizadas**: acelera
-   pesquisas já observadas, mas não é uma fonte independente de verdade.
-   Não deve autorizar ações nem substituir releituras de estado mutável.
+3. **Web (interface HTML do SEI)**: páginas, links assinados,
+   formulários e transporte HTTP implementados por operação.
+   Útil sem módulo REST adicional; nunca inventar `infra_hash`,
+   explorar rotas não oferecidas nem inferir POSTs.
+
+Índice/cache local é otimização, **não um quarto protocolo**.
+Não autoriza ações nem substitui releituras de estado mutável.
+Cassettes e documentação OKF não são adaptadores de execução.
 
 ## Decisão provisória
 
@@ -59,9 +60,9 @@ Não reintroduzir despachante genérico `Action`, `agir` nem
 `PageModel`. Preferir funções por operação a um mecanismo que
 descubra e execute ações arbitrárias.
 
-Para **leituras**, alternativas são comparadas por completude,
-identidades, paginação, ordem, campos, escopo de unidade, políticas
-de permissão e custo. Uma resposta REST de processos não é, sem
+Para **leituras**, alternativas são comparadas por cobertura de
+páginas, identidades, paginação, ordem, campos, escopo de unidade,
+políticas de permissão e custo. Uma resposta REST de processos não é, sem
 teste, a mesma coisa que as duas listas da caixa Web.
 
 Para **escritas**, exigem-se intenção explícita, prévia, confirmação,
@@ -77,6 +78,9 @@ sem autorização para experimentos.
 
 ## Invariantes da arquitetura
 
+- `Cassette`, `OperationEvidence` e `SEIObservation` são **tipos de
+  documentos OKF**; não exigem modelos Rust, serviços ou subsistemas
+  de pesquisa.
 - Modelo de domínio e erros independentes do protocolo.
 - Operação sem backend aprovado falha fechado, sem resposta simulada.
 - Identificadores visíveis e internos não são intercambiáveis.

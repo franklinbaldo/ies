@@ -6,8 +6,9 @@ description: Relação indexada entre operação de domínio e passos das casset
 
 # OperationEvidence
 
-Cada conceito descreve **uma operação** da matriz do Todos, sem afirmar
-que ela já esteja contratada, implementada ou certificada no IES.
+Cada card é **documentação OKF** de uma operação da matriz do Todos;
+não corresponde a classe ou estado de runtime. Não afirma que a operação
+já esteja contratada, implementada ou certificada no IES.
 
 - `operation`: identidade de domínio (ex.: `processo.enviar`).
 - `source`: matriz autoritativa da pesquisa no Todos.
