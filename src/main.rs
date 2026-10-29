@@ -354,19 +354,29 @@ fn show_noun_help(noun: &str) {
 }
 
 fn mostrar_status(json_mode: bool) -> ExitCode {
-    // Sem configuração persistida, nunca afirmar que o SEI está fora do ar.
+    // Diagnóstico local somente: não abre arquivos privados nem faz rede.
+    let configuracao = configuracao::arquivos_de_acesso();
+    let (estado, detalhe) = match &configuracao {
+        Ok(_) => ("caminhos_informados", None),
+        Err(erro) => ("caminhos_pendentes", Some(erro.subcodigo())),
+    };
     if json_mode {
         println!(
             "{}",
             json!({
-                "configuracao": "nao_implementada",
+                "configuracao": estado,
+                "subcodigo": detalhe,
                 "conexao": "nao_verificada",
                 "acesso_remoto": false,
-                "proximo_passo": "configurar uma instalacao e identidade autorizadas"
+                "proximo_passo": if configuracao.is_ok() {
+                    "validar os arquivos privados e consultar a instalacao autorizada"
+                } else {
+                    "configurar os caminhos de acesso com ies setup"
+                }
             })
         );
     } else {
-        println!("IES: configuração de conexão ainda não implementada; SEI não consultado.");
+        println!("IES: {estado}; conexão SEI não verificada (nenhuma requisição enviada).");
     }
     ExitCode::SUCCESS
 }
