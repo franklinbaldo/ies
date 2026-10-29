@@ -38,7 +38,9 @@ impl ErroCaixa {
             Self::IdRepetido { .. } => "id_repetido",
             Self::NumeroInvalido { .. } => "numero_invalido",
             Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
-            Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => "link_do_processo_nao_identificado_na_linha",
+            Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => {
+                "link_do_processo_nao_identificado_na_linha"
+            }
             Self::TotalExcedido { .. } => "total_excedido",
             Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
             Self::FaixaInvalida { .. } => "faixa_invalida",
