@@ -1,5 +1,5 @@
 //! Junção de páginas por intervalos de posição, sem emitir requisições.
-//! A prova de cobertura vive somente aqui, não em Tabela nem em CaixaDeEntrada.
+//! A prova de cobertura vive somente aqui, não em Tabela nem em `CaixaDeEntrada`.
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use std::collections::BTreeMap;
