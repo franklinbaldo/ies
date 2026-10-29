@@ -29,9 +29,6 @@ impl NumeroDocumento {
         Ok(Self(texto.to_owned()))
     }
 
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
 }
 
 #[cfg(test)]
@@ -40,14 +37,23 @@ mod tests {
 
     #[test]
     fn aceita_zeros_e_documentos_grandes() {
-        assert_eq!(NumeroDocumento::novo(" 00001 ").unwrap().as_str(), "00001");
+        assert_eq!(NumeroDocumento::novo(" 00001 ").unwrap(), NumeroDocumento("00001".into()));
         assert!(NumeroDocumento::novo("123456789012345678901234567890").is_ok());
     }
 
     #[test]
     fn recusa_texto_e_numeros_unicode_por_tipo() {
-        assert_eq!(NumeroDocumento::novo(" "), Err(NumeroDocumentoInvalido::Vazio));
-        assert_eq!(NumeroDocumento::novo("１２３"), Err(NumeroDocumentoInvalido::NaoNumerico));
-        assert_eq!(NumeroDocumento::novo("123-A"), Err(NumeroDocumentoInvalido::NaoNumerico));
+        assert_eq!(
+            NumeroDocumento::novo(" "),
+            Err(NumeroDocumentoInvalido::Vazio)
+        );
+        assert_eq!(
+            NumeroDocumento::novo("１２３"),
+            Err(NumeroDocumentoInvalido::NaoNumerico)
+        );
+        assert_eq!(
+            NumeroDocumento::novo("123-A"),
+            Err(NumeroDocumentoInvalido::NaoNumerico)
+        );
     }
 }
