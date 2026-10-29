@@ -109,12 +109,10 @@ fn ler_tabela(
                 });
             }
         }
-        processos.push(
-            encontrado.ok_or(ErroCaixa::NumeroDoProcessoAusenteNaLinha {
-                categoria,
-                id: id.as_str().to_owned(),
-            })?,
-        );
+        processos.push(encontrado.ok_or(ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha {
+            categoria,
+            id: id.as_str().to_owned(),
+        })?);
     }
     Tabela::nova(categoria, total, processos)
 }
@@ -175,7 +173,7 @@ mod tests {
         let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
             <a class='processoNaoVisualizado'>124</a></td></tr>";
         let erro = parse_html(&html(linhas, 1)).unwrap_err();
-        assert_eq!(erro.subcodigo(), "processo_ambiguo");
+        assert_eq!(erro.subcodigo(), "link_do_processo_nao_identificado_na_linha");
         assert_eq!(erro.id(), Some("7"));
     }
 
