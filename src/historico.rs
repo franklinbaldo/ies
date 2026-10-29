@@ -152,7 +152,7 @@ mod tests {
         let resultado = ler_historico(&fixture("202600005002487"), "202600005002487").unwrap();
         assert_eq!(resultado.andamentos.len(), 1);
         assert_eq!(resultado.andamentos[0].usuario.as_deref(), Some("usuario"));
-        assert!(resultado.atuacoes.is_empty());
+        assert_eq!(resultado.atuacoes, []);
         assert!(resultado.id_interno.is_none());
     }
 
