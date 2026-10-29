@@ -29,7 +29,9 @@ impl FalhaTransporte {
             Self::UrlInvalida => "url_invalida",
             Self::OrigemNaoAutorizada => "origem_nao_autorizada",
             Self::ArquivoPrivadoAusenteOuInacessivel => "arquivo_privado_ausente_ou_inacessivel",
-            Self::ArquivoPrivadoComPermissoesInseguras => "arquivo_privado_com_permissoes_inseguras",
+            Self::ArquivoPrivadoComPermissoesInseguras => {
+                "arquivo_privado_com_permissoes_inseguras"
+            }
             Self::CaminhoDeArquivoNaoEhArquivo => "caminho_nao_eh_arquivo",
             Self::ArquivoPrivadoVazio => "arquivo_privado_vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
@@ -46,9 +48,15 @@ impl FalhaTransporte {
         match self {
             Self::UrlInvalida => "URL assinada da caixa inválida",
             Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
-            Self::ArquivoPrivadoAusenteOuInacessivel => "arquivo privado não encontrado ou sem acesso",
-            Self::ArquivoPrivadoComPermissoesInseguras => "arquivo privado permite acesso por outros usuários",
-            Self::CaminhoDeArquivoNaoEhArquivo => "caminho informado não aponta para arquivo regular",
+            Self::ArquivoPrivadoAusenteOuInacessivel => {
+                "arquivo privado não encontrado ou sem acesso"
+            }
+            Self::ArquivoPrivadoComPermissoesInseguras => {
+                "arquivo privado permite acesso por outros usuários"
+            }
+            Self::CaminhoDeArquivoNaoEhArquivo => {
+                "caminho informado não aponta para arquivo regular"
+            }
             Self::ArquivoPrivadoVazio => "arquivo privado vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
@@ -112,7 +120,8 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 }
 
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
-    let metadata = fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+    let metadata =
+        fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
     }
