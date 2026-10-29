@@ -338,32 +338,18 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
         );
     }
-    if cenario.contains("andamento") {
-        if !replay.passo.is_empty() {
-            return erro_lista(
-                json_mode,
-                "entrada_invalida",
-                "passos não são necessários para histórico",
-                2,
-            );
+    match cassette::read_cassette_auto(card, &zip, &replay.passo) {
+        Ok(cassette::ReplayLido::Historico(html, origem)) => {
+            mostrar_historico(&html, &origem, json_mode)
         }
-        match cassette::read_cassette_history_auto(card, &zip) {
-            Ok((html, origem)) => mostrar_historico(&html, &origem, json_mode),
-            Err(_) => erro_fonte(
-                json_mode,
-                "historico_invalido",
-                "histórico ausente ou ambíguo na cassette",
-            ),
+        Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
+            mostrar_caixa(&htmls, &origem, unidade, json_mode)
         }
-    } else {
-        match cassette::read_cassette_pages(card, &zip, &replay.passo) {
-            Ok((htmls, origem)) => mostrar_caixa(&htmls, &origem, unidade, json_mode),
-            Err(_) => erro_fonte(
-                json_mode,
-                "cassette_invalida",
-                "caixa ausente ou ambígua na cassette",
-            ),
-        }
+        Err(_) => erro_fonte(
+            json_mode,
+            "cassette_invalida",
+            "replay não verificável para as operações registradas",
+        ),
     }
 }
 
