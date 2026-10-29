@@ -55,7 +55,7 @@ executor adequado; não mantenha o HTML de timings versionado.
 ## Compatibilidade da saída JSON
 
 O teste `contrato_json_v1_e_deterministico` compara byte a byte
-o replay sintético com `tests/fixtures/caixa-v1.json`. Alterações
+o replay sintético com `tests/fixtures/caixa-v2.json`. Alterações
 de formato exigem revisão explícita do golden e do contrato OKF.
 O domínio tipado pode evoluir sem gerar chaves JSON acidentalmente.
 
