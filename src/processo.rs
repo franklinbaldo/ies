@@ -33,7 +33,10 @@ impl NumeroProcesso {
         if valor.chars().any(char::is_control) {
             return Err(NumeroProcessoInvalido::Controle);
         }
-        if valor.get(..6).is_some_and(|prefix| prefix.eq_ignore_ascii_case("sei://")) {
+        if valor
+            .get(..6)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("sei://"))
+        {
             return Err(NumeroProcessoInvalido::ReferenciaLegada);
         }
         Ok(Self(valor.to_owned()))
