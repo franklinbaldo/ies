@@ -396,6 +396,29 @@ fn run(cli: &Cli) -> ExitCode {
         }
         _ => {}
     }
+    // Shim de contrato: valida o NUP antes de qualquer adaptador ou acesso Web.
+    if let Domain::Processo(Processo {
+        numero: Some(numero),
+        acao: None,
+        ..
+    }) = &cli.command
+        && let Err(erro) = processo::NumeroProcesso::novo(numero)
+    {
+        if cli.json {
+            println!(
+                "{}",
+                json!({
+                    "codigo": "entrada_invalida",
+                    "subcodigo": erro.subcodigo(),
+                    "erro": "número de processo inválido",
+                    "retentavel": false
+                })
+            );
+        } else {
+            eprintln!("IES: número de processo inválido [{}]", erro.subcodigo());
+        }
+        return ExitCode::from(2);
+    }
     match &cli.command {
         Domain::Processo(Processo {
             numero: None,
