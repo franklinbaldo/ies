@@ -9,8 +9,8 @@ mod instalacao;
 mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
-mod resumo_processo;
 mod processo_resumo_cli;
+mod resumo_processo;
 mod saida;
 mod transporte;
 
