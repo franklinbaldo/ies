@@ -14,7 +14,9 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 - Pré-push e CI remoto: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
-O Clippy ativa `clippy::pedantic` e trata avisos como erros; exceções explícitas e justificadas: `case_sensitive_file_extension_comparisons` (extensões de artefatos verificadas exatamente), `assert_is_empty` (testes legíveis). A exceção de `struct_excessive_bools` fica apenas na estrutura das flags do Clap; o teste multipágina monta HTML sem `format_collect`. Reavaliar cada exceção ao tocar no código correspondente.\n\nO pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
+O Clippy ativa `clippy::pedantic` e trata avisos como erros. Não há exceções globais; a validação literal de extensões de evidências possui exceções locais documentadas e as flags independentes do Clap conservam uma exceção localizada de `struct_excessive_bools`.
+
+O pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
 testes, integridade de evidências e decisões. O `cargo test --workspace
 --all-targets` compila os targets; não há gate `cargo build` redundante.
 

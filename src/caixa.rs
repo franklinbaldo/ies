@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn linha_sem_id_nao_cria_processo() {
         let resultado = parse_html(&html("<tr><td>aviso</td></tr>", 1)).unwrap();
-        assert!(resultado.recebidos.processos.is_empty());
+        assert_eq!(resultado.recebidos.processos, []);
         assert_eq!(resultado.recebidos.total_declarado, Some(1));
     }
 
