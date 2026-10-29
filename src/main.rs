@@ -14,7 +14,7 @@ mod transporte;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
