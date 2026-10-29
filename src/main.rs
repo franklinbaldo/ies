@@ -43,7 +43,7 @@ enum Domain {
     /// Diagnóstico da conexão (ainda não implementado)
     Status,
     /// Configura a conexão (ainda não implementado)
-    Setup,
+    Setup(SetupArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
 }
@@ -150,6 +150,18 @@ struct Replay {
     /// Passos explicitamente escolhidos para caixa multipágina (uso avançado)
     #[arg(long)]
     passo: Vec<usize>,
+}
+
+#[derive(Debug, Args)]
+struct SetupArgs {
+    #[arg(long)]
+    config_file: PathBuf,
+    #[arg(long)]
+    url_controle_file: PathBuf,
+    #[arg(long)]
+    cookie_file: PathBuf,
+    #[arg(long)]
+    origem_file: PathBuf,
 }
 
 fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCode {
@@ -427,6 +439,24 @@ fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
+        Domain::Setup(setup) => {
+            let arquivos = configuracao::ArquivosDeAcesso {
+                url_controle: setup.url_controle_file.clone(),
+                cookie: setup.cookie_file.clone(),
+                origem: setup.origem_file.clone(),
+            };
+            return match configuracao::salvar_arquivos_de_acesso(&setup.config_file, &arquivos) {
+                Ok(()) => {
+                    if cli.json {
+                        println!("{}", json!({"configuracao": "gravada", "conexao": "nao_verificada"}));
+                    } else {
+                        println!("IES: caminhos privados configurados; conexão ainda não verificada.");
+                    }
+                    ExitCode::SUCCESS
+                }
+                Err(codigo) => erro_fonte(cli.json, codigo, "não foi possível gravar a configuração local"),
+            };
+        }
         Domain::Status => return mostrar_status(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
