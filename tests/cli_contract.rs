@@ -272,7 +272,11 @@ fn resumo_de_processo_exige_configuracao_sem_tentar_abrir_arvore() {
 #[test]
 fn resumo_e_historico_completo_sao_pedidos_incompativeis() {
     let output = ies(&[
-        "processo", "000123", "--resumo", "--andamentos-completos", "--json",
+        "processo",
+        "000123",
+        "--resumo",
+        "--andamentos-completos",
+        "--json",
     ]);
     assert_eq!(output.status.code(), Some(2));
     let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
