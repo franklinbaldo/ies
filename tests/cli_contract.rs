@@ -203,3 +203,20 @@ fn esquema_expoe_comandos_reais_sem_conectar_ao_sei() {
     assert!(comandos.iter().any(|c| c == "unidade"));
     assert!(value["versao"].is_string());
 }
+
+#[test]
+fn documento_rejeita_texto_sem_abrir_sessao() {
+    let output = ies(&["documento", "abc", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "entrada_invalida");
+    assert_eq!(value["subcodigo"], "numero_documento_nao_numerico");
+}
+
+#[test]
+fn documento_valida_todos_os_itens_do_lote() {
+    let output = ies(&["documento", "00123", "documento-ruim", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "numero_documento_nao_numerico");
+}
