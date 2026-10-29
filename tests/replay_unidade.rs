@@ -300,7 +300,10 @@ fn parser_repassa_subcodigo_sem_vazar_html() {
     assert_eq!(resposta.status.code(), Some(1));
     let data: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(data["codigo"], "tela_inesperada");
-    assert_eq!(data["subcodigo"], "link_do_processo_nao_identificado_na_linha");
+    assert_eq!(
+        data["subcodigo"],
+        "link_do_processo_nao_identificado_na_linha"
+    );
     assert_eq!(data["id"], "8");
     let stdout = String::from_utf8(resposta.stdout).unwrap();
     assert!(!stdout.contains("SEGREDO"));
