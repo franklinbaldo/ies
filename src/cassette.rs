@@ -31,7 +31,8 @@ pub fn read_cassette_pages(
     archive: &Path,
     passos: &[usize],
 ) -> Result<(Vec<String>, String), String> {
-    read_verified_html(card, archive, passos, "procedimento_controlar")
+    read_verified_html(card, archive, passos, Some("procedimento_controlar"))
+        .map(|(pages, origem, _)| (pages, origem))
 }
 
 // O acervo OKF exige sufixo `.zip` exatamente em minúsculas.
@@ -56,19 +57,60 @@ pub fn archive_filename(card: &Path) -> Result<String, String> {
 }
 
 pub fn read_cassette_history_auto(card: &Path, archive: &Path) -> Result<(String, String), String> {
-    let (mut pages, origem) =
-        read_verified_html(card, archive, &[], "procedimento_consultar_historico")?;
+    let (mut pages, origem, _) =
+        read_verified_html(card, archive, &[], Some("procedimento_consultar_historico"))?;
     Ok((pages.remove(0), origem))
 }
 
 // O formato canônico das cassettes exige `.json` e `.zip` literais.
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
+/// O replay escolhe pelo conteúdo verificado da cassette, nunca pelo nome do cenário.
+pub enum ReplayLido {
+    Caixa(Vec<String>, String),
+    Historico(String, String),
+}
+
+pub fn read_cassette_auto(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+) -> Result<ReplayLido, String> {
+    let (pages, origem, operacao) = read_verified_html(card, archive, passos, None)?;
+    if operacao == "procedimento_consultar_historico" {
+        let mut pages = pages;
+        Ok(ReplayLido::Historico(pages.remove(0), origem))
+    } else {
+        Ok(ReplayLido::Caixa(pages, origem))
+    }
+}
+
+fn operation_for_replay(
+    json: &serde_json::Value,
+    passos: &[usize],
+) -> Result<&'static str, String> {
+    if !passos.is_empty() {
+        return Ok("procedimento_controlar");
+    }
+    let interactions = json["interactions"]
+        .as_array()
+        .ok_or("interações ausentes")?;
+    let has_history = interactions.iter().any(|it| {
+        it["request"]["operation"] == "procedimento_consultar_historico"
+            && it["request"]["method"] == "GET"
+    });
+    if has_history {
+        Ok("procedimento_consultar_historico")
+    } else {
+        Ok("procedimento_controlar")
+    }
+}
+
 fn read_verified_html(
     card: &Path,
     archive: &Path,
     passos: &[usize],
-    operation: &str,
-) -> Result<(Vec<String>, String), String> {
+    operation: Option<&str>,
+) -> Result<(Vec<String>, String, String), String> {
     let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
     if campo(&card_text, "type") != Some("Cassette") {
         return Err("card não é uma cassette OKF".into());
@@ -149,8 +191,12 @@ fn read_verified_html(
     if !root.starts_with(&format!("https://{allowed}/")) && root != format!("https://{allowed}") {
         return Err("host da cassette não corresponde à instalação".into());
     }
+    let operation = match operation {
+        Some(operation) => operation,
+        None => operation_for_replay(&json, passos)?,
+    };
     let pages = selected_html_pages(&json, passos, operation)?;
-    Ok((pages, installation))
+    Ok((pages, installation, operation.to_owned()))
 }
 
 fn selected_html_pages(
