@@ -97,7 +97,7 @@ fn ler_tabela(
                     });
                 }
                 if encontrado.is_some() {
-                    return Err(ErroCaixa::ProcessoAmbiguo {
+                    return Err(ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso {
                         categoria,
                         id: id.as_str().to_owned(),
                     });
@@ -109,7 +109,7 @@ fn ler_tabela(
                 });
             }
         }
-        processos.push(encontrado.ok_or(ErroCaixa::ProcessoAmbiguo {
+        processos.push(encontrado.ok_or(ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso {
             categoria,
             id: id.as_str().to_owned(),
         })?);
