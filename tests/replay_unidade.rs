@@ -144,13 +144,15 @@ fn preparar_fixture_paginas() -> PathBuf {
     fs::create_dir_all(zip.parent().unwrap()).unwrap();
     let member = "paginas-unb.json";
     let build = |inicio: u32, fim: u32| {
-        let lines = (inicio..=fim)
-            .map(|id| {
-                format!(
-                    "<tr id=\"P{id}\"><td><a class=\"processoVisualizado\">NUP-{id}</a></td></tr>"
-                )
-            })
-            .collect::<String>();
+        let lines = (inicio..=fim).fold(String::new(), |mut linhas, id| {
+            use std::fmt::Write as _;
+            write!(
+                linhas,
+                "<tr id=\"P{id}\"><td><a class=\"processoVisualizado\">NUP-{id}</a></td></tr>"
+            )
+            .unwrap();
+            linhas
+        });
         format!(
             "<html><a id=\"lnkInfraUnidade\">TESTE</a>\
              <input id=\"hdnTipoVisualizacao\" value=\"R\">\
