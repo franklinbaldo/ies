@@ -87,6 +87,27 @@ usa cache de Rust pinado por SHA e testa todos os alvos do workspace.
 O [contrato de CLI](contracts/cli.md) deve ser completado e aprovado antes
 de implementar transporte e operações do SEI. Consulte a [política de CI](docs/ci.md).
 
+
+## Configuração local de caminhos privados
+
+`ies setup` registra somente **caminhos absolutos** de arquivos
+existentes e privados; não copia cookies, URLs assinadas nem senhas.
+`--config-file` deve apontar para um arquivo **novo**, em diretório
+privado; a ferramenta não sobrescreve configurações anteriores:
+
+```sh
+ies setup --config-file /privado/ies-config.json \
+  --url-controle-file /privado/url-controle \
+  --cookie-file /privado/cookies \
+  --origem-file /privado/origem
+IES_CONFIG_FILE=/privado/ies-config.json ies status --json
+IES_CONFIG_FILE=/privado/ies-config.json ies unidade listar-processos --json
+```
+
+A leitura continua limitada a GET HTTPS da página autorizada, sem
+login, POST, paginação ativa nem reutilização automática de credenciais
+para outras interfaces. `status` não testa rede nem declara autenticação.
+
 ## Entradas de execução
 
 - `ies processo NUP` e `ies unidade listar-processos` são contratos de
