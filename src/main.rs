@@ -449,9 +449,7 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
                     json!({"configuracao": "gravada", "conexao": "nao_verificada"})
                 );
             } else {
-                println!(
-                    "IES: caminhos privados configurados; conexão ainda não verificada."
-                );
+                println!("IES: caminhos privados configurados; conexão ainda não verificada.");
             }
             ExitCode::SUCCESS
         }
