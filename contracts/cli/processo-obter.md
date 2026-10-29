@@ -45,7 +45,7 @@ caixa) e só depois permite correspondência por letras e algarismos,
 ignorando pontuação. Não altera o valor original, não escolhe o primeiro
 entre candidatos ambíguos e não presume padrões locais. Retorna
 `ErroResolucao::NaoEncontrado` ou `ErroResolucao::Ambiguo`, não
-mensagens como discriminante. A resolução é um mecanismo reutilizável
+mensagens como discriminante. Para a caixa Web já interpretada, `resolver_na_caixa` seleciona a linha\ncom `IdProcedimento` preservado: duas aparições do mesmo ID nos grupos\nrecebidos e gerados não constituem ambiguidade; IDs distintos com\nprotocolos equivalentes constituem ambiguidade. Essa seleção não prova\na existência fora da caixa nem autoriza abrir ou receber processos.\n\nA resolução é um mecanismo reutilizável
 para candidatos vindos de um adaptador autorizado; não representa
 consulta ou descoberta de existência no SEI.
 
