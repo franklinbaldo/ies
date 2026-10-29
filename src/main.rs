@@ -13,6 +13,7 @@ mod processo_resumo_cli;
 mod resumo_processo;
 mod saida;
 mod transporte;
+mod unidade_atual_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
@@ -198,47 +199,6 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
         eprintln!("IES: {mensagem} [{subcodigo}]");
     }
     ExitCode::from(1)
-}
-
-fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let html = match transporte::read_box_from_file(
-        &arquivos.url_controle,
-        &arquivos.cookie,
-        &arquivos.origem,
-    ) {
-        Ok(html) => html,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let unidade = match paginas::unidade_exibida_no_controle(&html) {
-        Ok(unidade) => unidade,
-        Err(erro) => {
-            return erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "identificação da unidade não aparece no Controle de Processos",
-            );
-        }
-    };
-    if unidade_esperada.is_some_and(|esperada| esperada != unidade) {
-        return erro_fonte(
-            json_mode,
-            "unidade_exibida_diferente_da_solicitada",
-            "a unidade mostrada pelo SEI não corresponde à solicitada",
-        );
-    }
-    if json_mode {
-        println!(
-            "{}",
-            json!({"unidade_exibida": unidade, "origem": "controle_de_processos"})
-        );
-    } else {
-        println!("Unidade exibida na sessão SEI: {unidade}");
-    }
-    ExitCode::SUCCESS
 }
 
 fn listar_processos_da_unidade(unidade: Option<&str>, json_mode: bool) -> ExitCode {
@@ -520,7 +480,7 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Status => return mostrar_status(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
-        }) => return mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
+        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
         }) => {
