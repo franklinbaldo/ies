@@ -10,10 +10,7 @@ pub struct Ocorrencia {
 
 pub fn ocorrencias(caixa: &CaixaDeEntrada, numero: &str) -> Vec<Ocorrencia> {
     let mut achados = Vec::new();
-    for (categoria, tabela) in [
-        ("recebidos", &caixa.recebidos),
-        ("gerados", &caixa.gerados),
-    ] {
+    for (categoria, tabela) in [("recebidos", &caixa.recebidos), ("gerados", &caixa.gerados)] {
         for processo in &tabela.processos {
             if processo.numero == numero {
                 achados.push(Ocorrencia {
@@ -43,6 +40,6 @@ mod tests {
             gerados: Tabela::nova(Categoria::Gerados, Some(0), Vec::new()).unwrap(),
         };
         assert_eq!(ocorrencias(&caixa, "000123/2026").len(), 1);
-        assert!(ocorrencias(&caixa, "123/2026").is_empty());
+        assert_eq!(ocorrencias(&caixa, "123/2026"), []);
     }
 }
