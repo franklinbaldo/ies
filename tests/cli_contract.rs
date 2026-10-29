@@ -223,10 +223,33 @@ fn documento_valida_todos_os_itens_do_lote() {
 
 #[test]
 fn status_distingue_configuracao_ausente_de_sei_indisponivel() {
-    let output = ies(&["status", "--json"]);
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["status", "--json"])
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(0));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["configuracao"], "nao_implementada");
+    assert_eq!(value["configuracao"], "caminhos_pendentes");
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
     assert_eq!(value["conexao"], "nao_verificada");
     assert_eq!(value["acesso_remoto"], false);
+}
+
+#[test]
+fn status_local_com_caminhos_nao_faz_requisicoes() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["status", "--json"])
+        .env("IES_URL_CONTROLE_FILE", "url-inexistente")
+        .env("IES_COOKIE_FILE", "cookie-inexistente")
+        .env("IES_ORIGEM_FILE", "origem-inexistente")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let status: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(status["configuracao"], "caminhos_informados");
+    assert_eq!(status["conexao"], "nao_verificada");
+    assert_eq!(status["acesso_remoto"], false);
 }
