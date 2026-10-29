@@ -11,7 +11,15 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 # Ler processo administrativo
 
 `ies processo NUP` consulta um processo pelo número visível, sem exigir
-o identificador interno do SEI. Substantivo sem NUP mostra ajuda. Antes de consultar qualquer adaptador,\no shim de contrato valida o número com `NumeroProcesso`: vazio, mais de\n80 bytes ou caracteres de controle são recusados por variantes tipadas\nde `NumeroProcessoInvalido`, com `entrada_invalida`, subcódigo estável\ne saída 2. Identificadores válidos preservam zeros à esquerda.\nIsso ainda não implementa uma leitura do SEI.
+o identificador interno do SEI. Substantivo sem NUP mostra ajuda.
+
+O shim valida apenas a representação de entrada: vazio, caracteres de
+controle e referências legadas `sei://` são rejeitados com erro tipado,
+subcódigo estável e saída 2. Um NUP é uma cadeia opaca: não se exige
+máscara, tamanho máximo arbitrário, apenas dígitos ou prefixo de órgão.
+Cada instalação pode reconhecer outra numeração, inclusive de sistemas
+externos. O valor preserva zeros à esquerda. Cabe ao SEI resolver se o
+protocolo existe ou é acessível; a leitura permanece não implementada.
 
 ## Entradas
 
