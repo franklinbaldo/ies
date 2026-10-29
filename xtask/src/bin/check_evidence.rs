@@ -59,49 +59,49 @@ fn check_document(
     details: &mut usize,
     missing: &mut Vec<String>,
 ) {
-        let kind = frontmatter(content, "type").unwrap_or("");
-        if file == &folder.join("README.md") {
-            if kind != "Guide" {
-                missing.push("README do catálogo não é OKF Guide".to_owned());
-            }
-        } else if kind == "OperationEvidence" {
-            let operation = frontmatter(&content, "operation").unwrap_or("");
-            let name = file.file_stem().unwrap_or_default().to_string_lossy();
-            if operation.replace('.', "-") != name || !operations.insert(operation.to_owned()) {
-                missing.push(format!(
-                    "Identidade de operação inválida: {}",
-                    file.display()
-                ));
-            }
-            if frontmatter(&content, "source") != Some("todos-demonstration-matrix")
-                || frontmatter(&content, "source_commit").is_none()
-            {
-                missing.push(format!("Proveniência ausente: {}", file.display()));
-            }
-            if !index.contains(&format!("]({name}.md)")) {
-                missing.push(format!("Operação sem índice: {operation}"));
-            }
-            let unresolved =
-                frontmatter(&content, "unresolved_steps").and_then(|v| v.parse::<usize>().ok());
-            if unresolved.is_none() {
-                missing.push(format!("Contagem de lacunas ausente: {}", file.display()));
-            }
-            if unresolved.is_some_and(|n| n > 0)
-                && !content.contains("PENDENTE_DE_CASSETTE")
-                && !content.contains("detalhes/")
-            {
-                missing.push(format!("Lacunas não explicitadas: {}", file.display()));
-            }
-        } else if kind == "OperationEvidenceDetail" {
-            details += 1;
-            if frontmatter(&content, "operation").is_none()
-                || frontmatter(&content, "installation").is_none()
-            {
-                missing.push(format!("Detalhe sem escopo: {}", file.display()));
-            }
-        } else {
-            missing.push(format!("Tipo OKF desconhecido: {}", file.display()));
+    let kind = frontmatter(content, "type").unwrap_or("");
+    if file == &folder.join("README.md") {
+        if kind != "Guide" {
+            missing.push("README do catálogo não é OKF Guide".to_owned());
         }
+    } else if kind == "OperationEvidence" {
+        let operation = frontmatter(&content, "operation").unwrap_or("");
+        let name = file.file_stem().unwrap_or_default().to_string_lossy();
+        if operation.replace('.', "-") != name || !operations.insert(operation.to_owned()) {
+            missing.push(format!(
+                "Identidade de operação inválida: {}",
+                file.display()
+            ));
+        }
+        if frontmatter(&content, "source") != Some("todos-demonstration-matrix")
+            || frontmatter(&content, "source_commit").is_none()
+        {
+            missing.push(format!("Proveniência ausente: {}", file.display()));
+        }
+        if !index.contains(&format!("]({name}.md)")) {
+            missing.push(format!("Operação sem índice: {operation}"));
+        }
+        let unresolved =
+            frontmatter(&content, "unresolved_steps").and_then(|v| v.parse::<usize>().ok());
+        if unresolved.is_none() {
+            missing.push(format!("Contagem de lacunas ausente: {}", file.display()));
+        }
+        if unresolved.is_some_and(|n| n > 0)
+            && !content.contains("PENDENTE_DE_CASSETTE")
+            && !content.contains("detalhes/")
+        {
+            missing.push(format!("Lacunas não explicitadas: {}", file.display()));
+        }
+    } else if kind == "OperationEvidenceDetail" {
+        details += 1;
+        if frontmatter(&content, "operation").is_none()
+            || frontmatter(&content, "installation").is_none()
+        {
+            missing.push(format!("Detalhe sem escopo: {}", file.display()));
+        }
+    } else {
+        missing.push(format!("Tipo OKF desconhecido: {}", file.display()));
+    }
 }
 
 fn check_links(
@@ -111,40 +111,40 @@ fn check_links(
     links_count: &mut usize,
     missing: &mut Vec<String>,
 ) -> Result<(), String> {
-        for line in content.lines() {
-            for link in md_links(line) {
-                if link.starts_with("http://") || link.starts_with("https://") {
+    for line in content.lines() {
+        for link in md_links(line) {
+            if link.starts_with("http://") || link.starts_with("https://") {
+                continue;
+            }
+            if !link.ends_with(".md") {
+                continue;
+            }
+            *links_count += 1;
+            let candidate = file.parent().unwrap_or(&root).join(link);
+            let target = match fs::canonicalize(&candidate) {
+                Ok(target) if target.starts_with(&root) => target,
+                _ => {
+                    missing.push(format!("Link quebrado: {} → {link}", file.display()));
                     continue;
                 }
-                if !link.ends_with(".md") {
-                    continue;
-                }
-                *links_count += 1;
-                let candidate = file.parent().unwrap_or(&root).join(link);
-                let target = match fs::canonicalize(&candidate) {
-                    Ok(target) if target.starts_with(&root) => target,
-                    _ => {
-                        missing.push(format!("Link quebrado: {} → {link}", file.display()));
-                        continue;
-                    }
-                };
-                if link.contains("/cassettes/") {
-                    let raw = fs::read_to_string(&target).map_err(|e| e.to_string())?;
-                    let inst = target
-                        .strip_prefix(root.join("cassettes"))
-                        .ok()
-                        .and_then(|p| p.components().next())
-                        .map(|s| s.as_os_str().to_string_lossy().into_owned());
-                    if frontmatter(&raw, "type") != Some("Cassette")
-                        || frontmatter(&raw, "installation") != inst.as_deref()
-                        || frontmatter(&raw, "source_zip").is_none()
-                        || frontmatter(&raw, "cassette_sha256_lf").is_none()
-                    {
-                        missing.push(format!("Cassette sem proveniência: {}", target.display()));
-                    }
+            };
+            if link.contains("/cassettes/") {
+                let raw = fs::read_to_string(&target).map_err(|e| e.to_string())?;
+                let inst = target
+                    .strip_prefix(root.join("cassettes"))
+                    .ok()
+                    .and_then(|p| p.components().next())
+                    .map(|s| s.as_os_str().to_string_lossy().into_owned());
+                if frontmatter(&raw, "type") != Some("Cassette")
+                    || frontmatter(&raw, "installation") != inst.as_deref()
+                    || frontmatter(&raw, "source_zip").is_none()
+                    || frontmatter(&raw, "cassette_sha256_lf").is_none()
+                {
+                    missing.push(format!("Cassette sem proveniência: {}", target.display()));
                 }
             }
-        }    Ok(())
+        }
+    }    Ok(())
 }
 
 fn verify() -> Result<(usize, usize), String> {
@@ -163,7 +163,15 @@ fn verify() -> Result<(usize, usize), String> {
 
     for file in &files {
         let content = fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
-        check_document(file, &folder, &content, &index, &mut operations, &mut details, &mut missing);
+        check_document(
+            file,
+            &folder,
+            &content,
+            &index,
+            &mut operations,
+            &mut details,
+            &mut missing,
+        );
         check_links(file, &root, &content, &mut links_count, &mut missing)?;
     }
     if operations.len() < 129 {
