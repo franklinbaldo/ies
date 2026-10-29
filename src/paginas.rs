@@ -42,8 +42,7 @@ fn unidade_html(dom: &tl::VDom<'_>) -> Option<String> {
 
 /// Rótulo mostrado pelo SEI, não um ID nem uma lista de unidades.
 pub fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
     unidade_html(&dom).ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
