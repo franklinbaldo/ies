@@ -152,7 +152,6 @@ struct Replay {
     passo: Vec<usize>,
 }
 
-
 fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCode {
     if json_mode {
         println!(
