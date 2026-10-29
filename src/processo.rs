@@ -6,20 +6,20 @@ use serde::Serialize;
 #[serde(transparent)]
 pub struct NumeroProcesso(String);
 
-/// Erros específicos da entrada de número, sem mensagens como discriminante.
+/// Apenas entrada opaca: cada instalação decide a numeração que reconhece.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumeroProcessoInvalido {
     Vazio,
-    Excessivo,
     Controle,
+    ReferenciaLegada,
 }
 
 impl NumeroProcessoInvalido {
     pub fn subcodigo(self) -> &'static str {
         match self {
             Self::Vazio => "numero_processo_vazio",
-            Self::Excessivo => "numero_processo_excessivo",
             Self::Controle => "numero_processo_controle",
+            Self::ReferenciaLegada => "referencia_processo_legada",
         }
     }
 }
@@ -30,11 +30,11 @@ impl NumeroProcesso {
         if valor.is_empty() {
             return Err(NumeroProcessoInvalido::Vazio);
         }
-        if valor.len() > 80 {
-            return Err(NumeroProcessoInvalido::Excessivo);
-        }
         if valor.chars().any(char::is_control) {
             return Err(NumeroProcessoInvalido::Controle);
+        }
+        if valor.get(..6).is_some_and(|prefix| prefix.eq_ignore_ascii_case("sei://")) {
+            return Err(NumeroProcessoInvalido::ReferenciaLegada);
         }
         Ok(Self(valor.to_owned()))
     }
