@@ -9,24 +9,24 @@ pub struct ArquivosDeAcesso {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErroConfiguracao {
-    CaminhoDaUrlDoControleNaoInformado,
-    CaminhoDoCookieNaoInformado,
-    CaminhoDaOrigemAutorizadaNaoInformado,
+    UrlDoControleSemCaminho,
+    CookieSemCaminhoConfigurado,
+    OrigemAutorizadaNaoConfigurada,
 }
 
 impl ErroConfiguracao {
     pub fn subcodigo(self) -> &'static str {
         match self {
-            Self::CaminhoDaUrlDoControleNaoInformado => "caminho_url_controle_nao_informado",
-            Self::CaminhoDoCookieNaoInformado => "caminho_cookie_nao_informado",
-            Self::CaminhoDaOrigemAutorizadaNaoInformado => "caminho_origem_nao_informado",
+            Self::UrlDoControleSemCaminho => "caminho_url_controle_nao_informado",
+            Self::CookieSemCaminhoConfigurado => "caminho_cookie_nao_informado",
+            Self::OrigemAutorizadaNaoConfigurada => "caminho_origem_nao_informado",
         }
     }
     pub fn mensagem(self) -> &'static str {
         match self {
-            Self::CaminhoDaUrlDoControleNaoInformado => "defina IES_URL_CONTROLE_FILE",
-            Self::CaminhoDoCookieNaoInformado => "defina IES_COOKIE_FILE",
-            Self::CaminhoDaOrigemAutorizadaNaoInformado => "defina IES_ORIGEM_FILE",
+            Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
+            Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
+            Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
         }
     }
 }
@@ -42,15 +42,15 @@ pub fn arquivos_de_acesso() -> Result<ArquivosDeAcesso, ErroConfiguracao> {
     Ok(ArquivosDeAcesso {
         url_controle: caminho(
             "IES_URL_CONTROLE_FILE",
-            ErroConfiguracao::CaminhoDaUrlDoControleNaoInformado,
+            ErroConfiguracao::UrlDoControleSemCaminho,
         )?,
         cookie: caminho(
             "IES_COOKIE_FILE",
-            ErroConfiguracao::CaminhoDoCookieNaoInformado,
+            ErroConfiguracao::CookieSemCaminhoConfigurado,
         )?,
         origem: caminho(
             "IES_ORIGEM_FILE",
-            ErroConfiguracao::CaminhoDaOrigemAutorizadaNaoInformado,
+            ErroConfiguracao::OrigemAutorizadaNaoConfigurada,
         )?,
     })
 }
