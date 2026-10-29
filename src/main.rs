@@ -371,7 +371,10 @@ fn run(cli: &Cli) -> ExitCode {
                 .collect();
             comandos.sort();
             if cli.json {
-                println!("{}", json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")}));
+                println!(
+                    "{}",
+                    json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
+                );
             } else {
                 println!("Comandos do IES: {}", comandos.join(", "));
             }
