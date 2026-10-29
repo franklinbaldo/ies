@@ -50,25 +50,16 @@ fn files_recursive(path: &Path, output: &mut Vec<PathBuf>) -> Result<(), String>
     Ok(())
 }
 
-// Auditoria sequencial: preservar a leitura conjunta dos vínculos OKF.
-#[allow(clippy::too_many_lines)]
-fn verify() -> Result<(usize, usize), String> {
-    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("raiz do workspace não encontrada")?;
-    let root = fs::canonicalize(workspace).map_err(|e| e.to_string())?;
-    let folder = root.join("contracts/evidencias");
-    let mut files = Vec::new();
-    files_recursive(&folder, &mut files)?;
-    let mut operations = HashSet::new();
-    let mut details = 0usize;
-    let mut missing = Vec::new();
-    let mut links_count = 0usize;
-    let index = fs::read_to_string(folder.join("README.md")).map_err(|e| e.to_string())?;
-
-    for file in &files {
-        let content = fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
-        let kind = frontmatter(&content, "type").unwrap_or("");
+fn check_document(
+    file: &Path,
+    folder: &Path,
+    content: &str,
+    index: &str,
+    operations: &mut HashSet<String>,
+    details: &mut usize,
+    missing: &mut Vec<String>,
+) {
+        let kind = frontmatter(content, "type").unwrap_or("");
         if file == &folder.join("README.md") {
             if kind != "Guide" {
                 missing.push("README do catálogo não é OKF Guide".to_owned());
@@ -111,6 +102,15 @@ fn verify() -> Result<(usize, usize), String> {
         } else {
             missing.push(format!("Tipo OKF desconhecido: {}", file.display()));
         }
+}
+
+fn check_links(
+    file: &Path,
+    root: &Path,
+    content: &str,
+    links_count: &mut usize,
+    missing: &mut Vec<String>,
+) -> Result<(), String> {
         for line in content.lines() {
             for link in md_links(line) {
                 if link.starts_with("http://") || link.starts_with("https://") {
@@ -119,7 +119,7 @@ fn verify() -> Result<(usize, usize), String> {
                 if !link.ends_with(".md") {
                     continue;
                 }
-                links_count += 1;
+                *links_count += 1;
                 let candidate = file.parent().unwrap_or(&root).join(link);
                 let target = match fs::canonicalize(&candidate) {
                     Ok(target) if target.starts_with(&root) => target,
@@ -144,7 +144,27 @@ fn verify() -> Result<(usize, usize), String> {
                     }
                 }
             }
-        }
+        }    Ok(())
+}
+
+fn verify() -> Result<(usize, usize), String> {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("raiz do workspace não encontrada")?;
+    let root = fs::canonicalize(workspace).map_err(|e| e.to_string())?;
+    let folder = root.join("contracts/evidencias");
+    let mut files = Vec::new();
+    files_recursive(&folder, &mut files)?;
+    let mut operations = HashSet::new();
+    let mut details = 0usize;
+    let mut missing = Vec::new();
+    let mut links_count = 0usize;
+    let index = fs::read_to_string(folder.join("README.md")).map_err(|e| e.to_string())?;
+
+    for file in &files {
+        let content = fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        check_document(file, &folder, &content, &index, &mut operations, &mut details, &mut missing);
+        check_links(file, &root, &content, &mut links_count, &mut missing)?;
     }
     if operations.len() < 129 {
         missing.push(format!(
