@@ -12,9 +12,9 @@ pub enum ErroCaixa {
     IdInvalido,
     IdRepetido { categoria: Categoria, id: String },
     NumeroInvalido { categoria: Categoria, id: String },
-    ProcessoAmbiguo { categoria: Categoria, id: String },
+    MaisDeUmNumeroNaLinhaDoProcesso { categoria: Categoria, id: String },
     TotalExcedido { categoria: Categoria },
-    TotalDivergente { categoria: Categoria },
+    TotaisDeclaradosDiferentesEntrePaginas { categoria: Categoria },
     FaixaInvalida { categoria: Categoria },
     FaixaDesconhecida { categoria: Categoria },
     FaixaAlterada { categoria: Categoria },
@@ -22,7 +22,7 @@ pub enum ErroCaixa {
     LimitePaginas,
     UnidadeInesperada,
     ContextoNaoVerificavel,
-    ContextoDivergente,
+    ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
 }
 
@@ -36,9 +36,9 @@ impl ErroCaixa {
             Self::IdInvalido => "id_invalido",
             Self::IdRepetido { .. } => "id_repetido",
             Self::NumeroInvalido { .. } => "numero_invalido",
-            Self::ProcessoAmbiguo { .. } => "processo_ambiguo",
+            Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
             Self::TotalExcedido { .. } => "total_excedido",
-            Self::TotalDivergente { .. } => "total_divergente",
+            Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
             Self::FaixaInvalida { .. } => "faixa_invalida",
             Self::FaixaDesconhecida { .. } => "faixa_desconhecida",
             Self::FaixaAlterada { .. } => "faixa_alterada",
@@ -46,7 +46,7 @@ impl ErroCaixa {
             Self::LimitePaginas => "limite_paginas",
             Self::UnidadeInesperada => "unidade_inesperada",
             Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
-            Self::ContextoDivergente => "contexto_divergente",
+            Self::ContextoDaPaginaDiferenteDoAnterior => "contexto_divergente",
             Self::SemPaginas => "sem_paginas",
         }
     }
@@ -57,9 +57,9 @@ impl ErroCaixa {
             | Self::LegendaAusente { categoria }
             | Self::IdRepetido { categoria, .. }
             | Self::NumeroInvalido { categoria, .. }
-            | Self::ProcessoAmbiguo { categoria, .. }
+            | Self::MaisDeUmNumeroNaLinhaDoProcesso { categoria, .. }
             | Self::TotalExcedido { categoria }
-            | Self::TotalDivergente { categoria }
+            | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
             | Self::FaixaInvalida { categoria }
             | Self::FaixaDesconhecida { categoria }
             | Self::FaixaAlterada { categoria }
@@ -71,7 +71,7 @@ impl ErroCaixa {
         match self {
             Self::IdRepetido { id, .. }
             | Self::NumeroInvalido { id, .. }
-            | Self::ProcessoAmbiguo { id, .. } => Some(id),
+            | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. } => Some(id),
             _ => None,
         }
     }
