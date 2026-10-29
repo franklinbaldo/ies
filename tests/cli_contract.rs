@@ -102,7 +102,7 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
 }
 
 #[test]
-fn unidade_listar_processos_aceita_saida() {
+fn unidade_listar_processos_recusa_saida_ainda_nao_suportada() {
     let output = ies(&[
         "unidade",
         "listar-processos",
@@ -112,7 +112,7 @@ fn unidade_listar_processos_aceita_saida() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
+    assert_eq!(value["codigo"], "saida_arquivo_nao_suportada");
 }
 
 #[test]
