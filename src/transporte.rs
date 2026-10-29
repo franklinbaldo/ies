@@ -11,7 +11,9 @@ pub enum FalhaTransporte {
     OrigemNaoAutorizada,
     ArquivoPrivadoAusenteOuInacessivel,
     ArquivoPrivadoComPermissoesInseguras,
-    ArquivoPrivadoVazioOuAcimaDoLimite,
+    CaminhoDeArquivoNaoEhArquivo,
+    ArquivoPrivadoVazio,
+    ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
     CookieInvalido,
     AcessoNegado,
@@ -28,7 +30,9 @@ impl FalhaTransporte {
             Self::OrigemNaoAutorizada => "origem_nao_autorizada",
             Self::ArquivoPrivadoAusenteOuInacessivel => "arquivo_privado_ausente_ou_inacessivel",
             Self::ArquivoPrivadoComPermissoesInseguras => "arquivo_privado_com_permissoes_inseguras",
-            Self::ArquivoPrivadoVazioOuAcimaDoLimite => "arquivo_privado_vazio_ou_acima_do_limite",
+            Self::CaminhoDeArquivoNaoEhArquivo => "caminho_nao_eh_arquivo",
+            Self::ArquivoPrivadoVazio => "arquivo_privado_vazio",
+            Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
             Self::CookieInvalido => "cookie_invalido",
             Self::AcessoNegado => "sessao_nao_autorizada",
@@ -44,7 +48,9 @@ impl FalhaTransporte {
             Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
             Self::ArquivoPrivadoAusenteOuInacessivel => "arquivo privado não encontrado ou sem acesso",
             Self::ArquivoPrivadoComPermissoesInseguras => "arquivo privado permite acesso por outros usuários",
-            Self::ArquivoPrivadoVazioOuAcimaDoLimite => "arquivo privado vazio ou acima do limite permitido",
+            Self::CaminhoDeArquivoNaoEhArquivo => "caminho informado não aponta para arquivo regular",
+            Self::ArquivoPrivadoVazio => "arquivo privado vazio",
+            Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
             Self::CookieInvalido => "formato de cookie de sessão inválido",
             Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
@@ -107,8 +113,14 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
     let metadata = fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
-    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > limite {
-        return Err(FalhaTransporte::ArquivoPrivadoVazioOuAcimaDoLimite);
+    if !metadata.is_file() {
+        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
+    }
+    if metadata.len() == 0 {
+        return Err(FalhaTransporte::ArquivoPrivadoVazio);
+    }
+    if metadata.len() > limite {
+        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
     }
     #[cfg(unix)]
     {
