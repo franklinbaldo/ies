@@ -55,21 +55,11 @@ pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
         .and_then(|no| no.get(parser))
         .map(|no| texto(no, parser))
         .ok_or(ErroHistorico::TituloAusente)?;
-    let (_, depois) = titulo
+    let (_, protocolo) = titulo
         .split_once("Histórico do Processo ")
         .ok_or(ErroHistorico::TituloInvalido)?;
-    let candidatos: Vec<_> = depois
-        .split_whitespace()
-        .filter(|v| {
-            !v.is_empty()
-                && v.bytes()
-                    .all(|b| b.is_ascii_digit() || b == b'.' || b == b'/' || b == b'-')
-        })
-        .collect();
-    if candidatos.len() != 1 {
-        return Err(ErroHistorico::NumeroAmbiguo);
-    }
-    Ok(candidatos[0].to_owned())
+    let numero = NumeroProcesso::novo(protocolo).map_err(|_| ErroHistorico::NumeroInvalido)?;
+    Ok(numero.as_str().to_owned())
 }
 
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
@@ -83,11 +73,11 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
         .and_then(|no| no.get(parser))
         .map(|no| texto(no, parser))
         .ok_or(ErroHistorico::TituloAusente)?;
-    // Não converter um histórico de outro processo numa resposta para o NUP pedido.
-    if !titulo
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .any(|item| item == numero.as_str())
-    {
+    // O protocolo é opaco. Não fragmentar por pontuação nem remover zeros.
+    let (_, mostrado) = titulo
+        .split_once("Histórico do Processo ")
+        .ok_or(ErroHistorico::TituloInvalido)?;
+    if mostrado != numero.as_str() {
         return Err(ErroHistorico::ProcessoDivergente);
     }
     let tabela = dom
@@ -154,6 +144,36 @@ mod tests {
         assert_eq!(resultado.andamentos[0].usuario.as_deref(), Some("usuario"));
         assert_eq!(resultado.atuacoes, []);
         assert!(resultado.id_interno.is_none());
+    }
+
+    #[test]
+    fn historico_aceita_protocolo_opaco_sem_mascara() {
+        for protocolo in [
+            "23106.000001/2026-01",
+            "550e8400-e29b-41d4-a716-446655440000",
+            "000123",
+            "AB-C",
+        ] {
+            let html = fixture(protocolo);
+            assert_eq!(numero_do_historico(&html).unwrap(), protocolo);
+            assert_eq!(
+                ler_historico(&html, protocolo).unwrap().numero.as_str(),
+                protocolo
+            );
+        }
+    }
+
+    #[test]
+    fn historico_nao_confunde_prefixos_de_protocolo() {
+        let html = fixture("AB-C");
+        assert_eq!(
+            ler_historico(&html, "ABC").unwrap_err(),
+            ErroHistorico::ProcessoDivergente
+        );
+        assert_eq!(
+            ler_historico(&fixture("000123"), "123").unwrap_err(),
+            ErroHistorico::ProcessoDivergente
+        );
     }
 
     #[test]
