@@ -40,6 +40,13 @@ fn unidade_html(dom: &tl::VDom<'_>) -> Option<String> {
     (!unidade.is_empty() && unidade.len() <= 128).then_some(unidade)
 }
 
+/// Rótulo mostrado pelo SEI, não um ID nem uma lista de unidades.
+pub fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroCaixa::HtmlInvalido)?;
+    unidade_html(&dom).ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+}
+
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Option<String> {
     let parser = dom.parser();
     let elemento = dom
