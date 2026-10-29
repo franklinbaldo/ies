@@ -88,6 +88,8 @@ fn operation_for_replay(
     }
 }
 
+// O formato canônico exige sufixos em minúsculas nas evidências.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn read_verified_html(
     card: &Path,
     archive: &Path,
@@ -293,8 +295,14 @@ mod replay_operation_tests {
             {"request": {"operation": "procedimento_controlar", "method": "GET"}},
             {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
         ]});
-        assert_eq!(operation_for_replay(&json, &[]), Ok("procedimento_consultar_historico"));
-        assert_eq!(operation_for_replay(&json, &[0]), Ok("procedimento_controlar"));
+        assert_eq!(
+            operation_for_replay(&json, &[]),
+            Ok("procedimento_consultar_historico")
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[0]),
+            Ok("procedimento_controlar")
+        );
     }
 
     #[test]
@@ -302,6 +310,9 @@ mod replay_operation_tests {
         let json = serde_json::json!({"interactions": [
             {"request": {"operation": "procedimento_controlar", "method": "GET"}}
         ]});
-        assert_eq!(operation_for_replay(&json, &[]), Ok("procedimento_controlar"));
+        assert_eq!(
+            operation_for_replay(&json, &[]),
+            Ok("procedimento_controlar")
+        );
     }
 }
