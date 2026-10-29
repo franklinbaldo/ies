@@ -255,17 +255,13 @@ fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode 
     let numero = match historico::numero_do_historico(html) {
         Ok(n) => n,
         Err(motivo) => {
-            return erro_fonte(
-                json_mode,
-                motivo.subcodigo(),
-                "NUP ausente ou ambíguo no histórico",
-            );
+            return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
         }
     };
     let detalhe = match historico::ler_historico(html, &numero) {
         Ok(valor) => valor,
         Err(motivo) => {
-            return erro_fonte(json_mode, motivo.subcodigo(), "histórico não verificável");
+            return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
         }
     };
     if json_mode {

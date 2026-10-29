@@ -30,6 +30,22 @@ impl ErroHistorico {
             Self::HistoricoVazio => "historico_vazio",
         }
     }
+
+    pub fn mensagem(self) -> &'static str {
+        match self {
+            Self::HtmlInvalido => "HTML do histórico não pôde ser interpretado",
+            Self::TituloAusente => "título do histórico ausente",
+            Self::TituloInvalido => "o título não informa que esta é a página de histórico",
+            Self::NumeroInvalido => "número de processo informado não é aceito",
+            Self::NumeroDoHistoricoDiferenteDoSolicitado => {
+                "número mostrado no título do histórico é diferente do solicitado"
+            }
+            Self::HistoricoAusente => "tabela do histórico não encontrada",
+            Self::HistoricoInvalido => "tabela do histórico não possui a estrutura esperada",
+            Self::LinhaInvalida => "linha do histórico sem campos obrigatórios",
+            Self::HistoricoVazio => "nenhum andamento foi encontrado no histórico",
+        }
+    }
 }
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
