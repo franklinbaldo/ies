@@ -1,6 +1,7 @@
 mod caixa;
 mod cassette;
 mod dominio;
+mod documento;
 mod erro_web;
 mod historico;
 mod instalacao;
@@ -397,6 +398,32 @@ fn run(cli: &Cli) -> ExitCode {
             );
         }
         _ => {}
+    }
+    // Shim do documento: valida o identificador visível sem consultar o SEI.
+    if let Domain::Documento(Documento {
+        numeros,
+        acao: None,
+        ..
+    }) = &cli.command
+    {
+        for numero in numeros {
+            if let Err(erro) = documento::NumeroDocumento::novo(numero) {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "codigo": "entrada_invalida",
+                            "subcodigo": erro.subcodigo(),
+                            "erro": "número SEI de documento inválido",
+                            "retentavel": false
+                        })
+                    );
+                } else {
+                    eprintln!("IES: número SEI de documento inválido [{}]", erro.subcodigo());
+                }
+                return ExitCode::from(2);
+            }
+        }
     }
     // Shim de contrato: valida o NUP antes de qualquer adaptador ou acesso Web.
     if let Domain::Processo(Processo {
