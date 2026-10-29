@@ -97,7 +97,7 @@ fn ler_tabela(
                     });
                 }
                 if encontrado.is_some() {
-                    return Err(ErroCaixa::ProcessoAmbiguo {
+                    return Err(ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso {
                         categoria,
                         id: id.as_str().to_owned(),
                     });
@@ -109,10 +109,12 @@ fn ler_tabela(
                 });
             }
         }
-        processos.push(encontrado.ok_or(ErroCaixa::ProcessoAmbiguo {
-            categoria,
-            id: id.as_str().to_owned(),
-        })?);
+        processos.push(
+            encontrado.ok_or(ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha {
+                categoria,
+                id: id.as_str().to_owned(),
+            })?,
+        );
     }
     Tabela::nova(categoria, total, processos)
 }
@@ -169,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn recusa_link_ambiguo_com_id() {
+    fn recusa_dois_links_de_processo_na_linha() {
         let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
             <a class='processoNaoVisualizado'>124</a></td></tr>";
         let erro = parse_html(&html(linhas, 1)).unwrap_err();
@@ -211,7 +213,7 @@ mod tests {
         let linhas = "<tr id='P9'><td><a class='outraClasse'>123</a></td></tr>";
         assert_eq!(
             parse_html(&html(linhas, 1)).unwrap_err().subcodigo(),
-            "processo_ambiguo"
+            "link_do_processo_nao_identificado_na_linha"
         );
     }
 }
