@@ -65,7 +65,7 @@ fn check_document(
             missing.push("README do catálogo não é OKF Guide".to_owned());
         }
     } else if kind == "OperationEvidence" {
-        let operation = frontmatter(&content, "operation").unwrap_or("");
+        let operation = frontmatter(content, "operation").unwrap_or("");
         let name = file.file_stem().unwrap_or_default().to_string_lossy();
         if operation.replace('.', "-") != name || !operations.insert(operation.to_owned()) {
             missing.push(format!(
@@ -73,8 +73,8 @@ fn check_document(
                 file.display()
             ));
         }
-        if frontmatter(&content, "source") != Some("todos-demonstration-matrix")
-            || frontmatter(&content, "source_commit").is_none()
+        if frontmatter(content, "source") != Some("todos-demonstration-matrix")
+            || frontmatter(content, "source_commit").is_none()
         {
             missing.push(format!("Proveniência ausente: {}", file.display()));
         }
@@ -82,7 +82,7 @@ fn check_document(
             missing.push(format!("Operação sem índice: {operation}"));
         }
         let unresolved =
-            frontmatter(&content, "unresolved_steps").and_then(|v| v.parse::<usize>().ok());
+            frontmatter(content, "unresolved_steps").and_then(|v| v.parse::<usize>().ok());
         if unresolved.is_none() {
             missing.push(format!("Contagem de lacunas ausente: {}", file.display()));
         }
@@ -93,9 +93,9 @@ fn check_document(
             missing.push(format!("Lacunas não explicitadas: {}", file.display()));
         }
     } else if kind == "OperationEvidenceDetail" {
-        details += 1;
-        if frontmatter(&content, "operation").is_none()
-            || frontmatter(&content, "installation").is_none()
+        *details += 1;
+        if frontmatter(content, "operation").is_none()
+            || frontmatter(content, "installation").is_none()
         {
             missing.push(format!("Detalhe sem escopo: {}", file.display()));
         }
@@ -144,7 +144,8 @@ fn check_links(
                 }
             }
         }
-    }    Ok(())
+    }
+    Ok(())
 }
 
 fn verify() -> Result<(usize, usize), String> {
