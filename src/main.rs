@@ -242,6 +242,18 @@ fn mostrar_caixa(
             return ExitCode::from(1);
         }
     };
+    // Consulta de sessão promete a caixa inteira; replay offline só relata
+    // as páginas selecionadas, sem alegar que representam toda a unidade.
+    if origem == "sessao"
+        && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
+            || !leitura.gerados.completa(&leitura.caixa.gerados))
+    {
+        return erro_fonte(
+            json_mode,
+            "paginas_do_controle_nao_obtidas",
+            "o Controle de Processos possui páginas que não foram obtidas",
+        );
+    }
     let resultado = saida::json(&leitura, origem);
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&resultado).unwrap());
