@@ -171,7 +171,12 @@ fn processo_preserva_zeros_e_nao_inventa_leitura() {
 
 #[test]
 fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
-    for numero in ["ABC-123", "550e8400-e29b-41d4-a716-446655440000", "CNJ 000001", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123"] {
+    for numero in [
+        "ABC-123",
+        "550e8400-e29b-41d4-a716-446655440000",
+        "CNJ 000001",
+        "12345678901234567890123456789012345678901234567890123456789012345678901234567890123",
+    ] {
         let output = ies(&["processo", numero, "--json"]);
         assert_eq!(output.status.code(), Some(1), "{numero}");
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
