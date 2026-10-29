@@ -481,6 +481,16 @@ mod tests {
     }
 
     #[test]
+    fn identifica_unidade_publicada_sem_consultar_paginacao() {
+        let html = "<a id='lnkInfraUnidade'>PGE-PPI</a>";
+        assert_eq!(unidade_exibida_no_controle(html).unwrap(), "PGE-PPI");
+        assert_eq!(
+            unidade_exibida_no_controle("<body>sem unidade</body>").unwrap_err(),
+            ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle
+        );
+    }
+
+    #[test]
     fn contexto_ausente_nao_certifica_mescla() {
         let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
