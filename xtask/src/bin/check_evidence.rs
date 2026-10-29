@@ -104,6 +104,8 @@ fn check_document(
     }
 }
 
+// Links OKF do catálogo seguem a extensão canônica `.md`.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn check_links(
     file: &Path,
     root: &Path,
