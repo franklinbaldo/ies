@@ -28,7 +28,6 @@ impl NumeroDocumento {
         }
         Ok(Self(texto.to_owned()))
     }
-
 }
 
 #[cfg(test)]
@@ -37,7 +36,10 @@ mod tests {
 
     #[test]
     fn aceita_zeros_e_documentos_grandes() {
-        assert_eq!(NumeroDocumento::novo(" 00001 ").unwrap(), NumeroDocumento("00001".into()));
+        assert_eq!(
+            NumeroDocumento::novo(" 00001 ").unwrap(),
+            NumeroDocumento("00001".into())
+        );
         assert!(NumeroDocumento::novo("123456789012345678901234567890").is_ok());
     }
 
