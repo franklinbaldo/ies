@@ -220,3 +220,13 @@ fn documento_valida_todos_os_itens_do_lote() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "numero_documento_nao_numerico");
 }
+
+#[test]
+fn status_distingue_configuracao_ausente_de_sei_indisponivel() {
+    let output = ies(&["status", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["configuracao"], "nao_implementada");
+    assert_eq!(value["conexao"], "nao_verificada");
+    assert_eq!(value["acesso_remoto"], false);
+}
