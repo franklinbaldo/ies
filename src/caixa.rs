@@ -213,7 +213,7 @@ mod tests {
         let linhas = "<tr id='P9'><td><a class='outraClasse'>123</a></td></tr>";
         assert_eq!(
             parse_html(&html(linhas, 1)).unwrap_err().subcodigo(),
-            "processo_ambiguo"
+            "link_do_processo_nao_identificado_na_linha"
         );
     }
 }
