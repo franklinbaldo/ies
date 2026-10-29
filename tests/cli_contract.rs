@@ -154,7 +154,7 @@ fn processo_rejeita_numero_vazio_com_erro_tipado() {
 
 #[test]
 fn processo_rejeita_numero_com_controle_sem_vazar_entrada() {
-    let output = ies(&["processo", "123\\nSEGREDO", "--json"]);
+    let output = ies(&["processo", "123\nSEGREDO", "--json"]);
     assert_eq!(output.status.code(), Some(2));
     let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(erro["subcodigo"], "numero_processo_controle");
