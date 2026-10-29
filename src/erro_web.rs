@@ -13,6 +13,7 @@ pub enum ErroCaixa {
     IdRepetido { categoria: Categoria, id: String },
     NumeroInvalido { categoria: Categoria, id: String },
     MaisDeUmNumeroNaLinhaDoProcesso { categoria: Categoria, id: String },
+    NumeroDoProcessoAusenteNaLinha { categoria: Categoria, id: String },
     TotalExcedido { categoria: Categoria },
     TotaisDeclaradosDiferentesEntrePaginas { categoria: Categoria },
     FaixaInvalida { categoria: Categoria },
@@ -37,6 +38,7 @@ impl ErroCaixa {
             Self::IdRepetido { .. } => "id_repetido",
             Self::NumeroInvalido { .. } => "numero_invalido",
             Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
+            Self::NumeroDoProcessoAusenteNaLinha { .. } => "numero_do_processo_ausente_na_linha",
             Self::TotalExcedido { .. } => "total_excedido",
             Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
             Self::FaixaInvalida { .. } => "faixa_invalida",
@@ -58,6 +60,7 @@ impl ErroCaixa {
             | Self::IdRepetido { categoria, .. }
             | Self::NumeroInvalido { categoria, .. }
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { categoria, .. }
+            | Self::NumeroDoProcessoAusenteNaLinha { categoria, .. }
             | Self::TotalExcedido { categoria }
             | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
             | Self::FaixaInvalida { categoria }
@@ -71,7 +74,8 @@ impl ErroCaixa {
         match self {
             Self::IdRepetido { id, .. }
             | Self::NumeroInvalido { id, .. }
-            | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. } => Some(id),
+            | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. }
+            | Self::NumeroDoProcessoAusenteNaLinha { id, .. } => Some(id),
             _ => None,
         }
     }
