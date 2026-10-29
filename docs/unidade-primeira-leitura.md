@@ -119,7 +119,7 @@ essas saídas ao Git ou ao Internet Archive.
 ## Contrato JSON v2 simplificado
 
 O domínio guarda `IdProcedimento`, `Processo`, `Tabela<Processo>` e
-`Caixa`, sem enum de completude nem campos de apresentação.
+`CaixaDeEntrada`, sem enum de completude nem campos de apresentação.
 A borda em `src/saida.rs` calcula o booleano de cobertura e formata
 JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
 
