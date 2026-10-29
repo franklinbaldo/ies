@@ -119,14 +119,17 @@ fn hash_adulterado_é_recusado() {
 }
 
 #[test]
-fn comando_sem_fonte_conserva_stubs() {
+fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["unidade", "listar-processos", "--json"])
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["codigo"], "nao_implementado");
+    assert_eq!(result["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 fn preparar_fixture_paginas() -> PathBuf {
