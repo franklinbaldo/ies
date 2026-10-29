@@ -26,15 +26,6 @@ fn legivel(bytes: &[u8], encoding: &str) -> Result<String, String> {
     Err("codificação de resposta ainda não suportada".into())
 }
 
-pub fn read_cassette_pages(
-    card: &Path,
-    archive: &Path,
-    passos: &[usize],
-) -> Result<(Vec<String>, String), String> {
-    read_verified_html(card, archive, passos, Some("procedimento_controlar"))
-        .map(|(pages, origem, _)| (pages, origem))
-}
-
 // O acervo OKF exige sufixo `.zip` exatamente em minúsculas.
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub fn archive_filename(card: &Path) -> Result<String, String> {
@@ -56,14 +47,6 @@ pub fn archive_filename(card: &Path) -> Result<String, String> {
     Ok(name.to_owned())
 }
 
-pub fn read_cassette_history_auto(card: &Path, archive: &Path) -> Result<(String, String), String> {
-    let (mut pages, origem, _) =
-        read_verified_html(card, archive, &[], Some("procedimento_consultar_historico"))?;
-    Ok((pages.remove(0), origem))
-}
-
-// O formato canônico das cassettes exige `.json` e `.zip` literais.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
 /// O replay escolhe pelo conteúdo verificado da cassette, nunca pelo nome do cenário.
 pub enum ReplayLido {
     Caixa(Vec<String>, String),
@@ -298,4 +281,27 @@ pub fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, Stri
         "utf-8"
     };
     legivel(bytes, enc)
+}
+
+#[cfg(test)]
+mod replay_operation_tests {
+    use super::*;
+
+    #[test]
+    fn historia_e_escolhida_pela_operacao_e_nao_pelo_nome() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}},
+            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
+        ]});
+        assert_eq!(operation_for_replay(&json, &[]), Ok("procedimento_consultar_historico"));
+        assert_eq!(operation_for_replay(&json, &[0]), Ok("procedimento_controlar"));
+    }
+
+    #[test]
+    fn caixa_e_padrao_quando_nao_ha_historico() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}}
+        ]});
+        assert_eq!(operation_for_replay(&json, &[]), Ok("procedimento_controlar"));
+    }
 }
