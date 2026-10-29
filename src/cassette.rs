@@ -34,6 +34,8 @@ pub fn read_cassette_pages(
     read_verified_html(card, archive, passos, "procedimento_controlar")
 }
 
+// O acervo OKF exige sufixo `.zip` exatamente em minúsculas.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub fn archive_filename(card: &Path) -> Result<String, String> {
     let text = std::fs::read_to_string(card).map_err(|_| "card ausente")?;
     let url = campo(&text, "source_zip").ok_or("origem ausente")?;
@@ -59,6 +61,8 @@ pub fn read_cassette_history_auto(card: &Path, archive: &Path) -> Result<(String
     Ok((pages.remove(0), origem))
 }
 
+// O formato canônico das cassettes exige `.json` e `.zip` literais.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn read_verified_html(
     card: &Path,
     archive: &Path,
