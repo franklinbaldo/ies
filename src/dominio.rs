@@ -100,6 +100,6 @@ mod tests {
     fn nenhuma_completude_e_armazenada() {
         let tabela = Tabela::nova(Categoria::Recebidos, Some(100), Vec::new()).unwrap();
         assert_eq!(tabela.total_declarado, Some(100));
-        assert!(tabela.processos.is_empty());
+        assert_eq!(tabela.processos, []);
     }
 }
