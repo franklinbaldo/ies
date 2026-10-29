@@ -83,8 +83,8 @@ fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["recebidos"]["completa"], true);
-    assert_eq!(result["gerados"]["completa"], true);
+    assert!(result["recebidos"].get("completa").is_none());
+    assert!(result["gerados"].get("completa").is_none());
     assert_eq!(result["recebidos"]["total_declarado"], 2);
     assert_eq!(result["gerados"]["total_declarado"], 0);
     assert_eq!(result["recebidos"]["processos"][0]["id"], "42");
@@ -219,8 +219,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["recebidos"]["completa"], true);
-    assert_eq!(value["gerados"]["completa"], true);
+    assert!(value["recebidos"].get("completa").is_none());
+    assert!(value["gerados"].get("completa").is_none());
     assert_eq!(value["recebidos"]["processos"].as_array().unwrap().len(), 4);
     assert_eq!(value["recebidos"]["processos"][3]["id"], "4");
     let no_selection = Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -235,8 +235,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(no_selection.status.code(), Some(0));
     let partial: serde_json::Value = serde_json::from_slice(&no_selection.stdout).unwrap();
-    assert_eq!(partial["recebidos"]["completa"], false);
-    assert_eq!(partial["gerados"]["completa"], true);
+    assert!(partial["recebidos"].get("completa").is_none());
+    assert!(partial["gerados"].get("completa").is_none());
     let repeat = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "replay",
