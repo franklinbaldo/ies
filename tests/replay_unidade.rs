@@ -129,10 +129,7 @@ fn comando_sem_fonte_conserva_stubs() {
     assert_eq!(result["codigo"], "nao_implementado");
 }
 
-// Cenário integrado: mantém o fluxo multi-página verificável em um teste.
-#[allow(clippy::too_many_lines)]
-#[test]
-fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
+fn preparar_fixture_paginas() -> PathBuf {
     use std::time::{SystemTime, UNIX_EPOCH};
     let folder = std::env::temp_dir().join(format!(
         "ies-paginas-{}-{}",
@@ -198,6 +195,12 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         Sha1::digest(fs::read(&zip).unwrap()),
         Sha256::digest(bytes.as_bytes())
     )).unwrap();
+    folder
+}
+
+#[test]
+fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
+    let folder = preparar_fixture_paginas();
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "replay",
