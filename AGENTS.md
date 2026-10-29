@@ -114,11 +114,10 @@ sucesso ou a falha, sem inventar propriedades do domínio.
 O Web parser devolve `Caixa` tipada e não recebe unidade nem origem.
 `Tabela<Processo>` armazena somente dados observados; os intervalos
 são transitórios da paginação. Não introduza `Completude` ou
-`completa: bool` como campos persistidos. Na borda, `saida.rs` calcula
-`completa` a partir da cobertura comprovada, sem adivinhar páginas.
+`completa: bool` como campos persistidos. A borda de apresentação não publica `completa` nem afirma que os dados\nrepresentam um snapshot da unidade. A verificação de intervalos é técnica.
 
-O contrato JSON v1 é verificado por
-[golden test](tests/fixtures/caixa-v1.json). Alterações intencionais
+O contrato JSON v2 é verificado por
+[golden test](tests/fixtures/caixa-v2.json). Alterações intencionais
 de saída exigem atualizar o golden e o contrato OKF na mesma PR.
 
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.
