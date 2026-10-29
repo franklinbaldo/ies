@@ -38,6 +38,17 @@ documentos, marcadores, andamentos e propriedades, salvo projeções omitidas.
 A URL estável, quando presente, não contém `infra_hash`.
 Ausência de um dado não equivale a autorização para fabricar seu valor.
 
+## Resolução de identidade (shim puro)
+
+O resolvedor tipado compara primeiro o protocolo textual (sem diferença de
+caixa) e só depois permite correspondência por letras e algarismos,
+ignorando pontuação. Não altera o valor original, não escolhe o primeiro
+entre candidatos ambíguos e não presume padrões locais. Retorna
+`ErroResolucao::NaoEncontrado` ou `ErroResolucao::Ambiguo`, não
+mensagens como discriminante. A resolução é um mecanismo reutilizável
+para candidatos vindos de um adaptador autorizado; não representa
+consulta ou descoberta de existência no SEI.
+
 ## Falhas e estado de implementação
 
 O comando de domínio permanece não implementado até existir uma
