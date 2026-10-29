@@ -161,7 +161,7 @@ impl Grupo {
         if let (Some(anterior), Some(atual)) = (self.total, tabela.total_declarado)
             && anterior != atual
         {
-            return Err(ErroCaixa::TotalDivergente { categoria });
+            return Err(ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { categoria });
         }
         if self.total.is_none() {
             self.total = tabela.total_declarado;
@@ -179,7 +179,7 @@ impl Grupo {
             return Err(ErroCaixa::FaixaDesconhecida { categoria });
         }
         if tabela.total_declarado != Some(faixa.total) {
-            return Err(ErroCaixa::TotalDivergente { categoria });
+            return Err(ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { categoria });
         }
         match self.faixas.get(&faixa.inicio) {
             Some((fim, anterior)) if *fim == faixa.fim && anterior == &tabela.processos => Ok(()),
@@ -287,7 +287,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
                 return Err(ErroCaixa::ContextoNaoVerificavel);
             }
             if contexto != contexto_inicial {
-                return Err(ErroCaixa::ContextoDivergente);
+                return Err(ErroCaixa::ContextoDaPaginaDiferenteDoAnterior);
             }
         }
         let caixa = crate::caixa::parse_html(html)?;
