@@ -109,10 +109,12 @@ fn ler_tabela(
                 });
             }
         }
-        processos.push(encontrado.ok_or(ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso {
-            categoria,
-            id: id.as_str().to_owned(),
-        })?);
+        processos.push(
+            encontrado.ok_or(ErroCaixa::NumeroDoProcessoAusenteNaLinha {
+                categoria,
+                id: id.as_str().to_owned(),
+            })?,
+        );
     }
     Tabela::nova(categoria, total, processos)
 }
