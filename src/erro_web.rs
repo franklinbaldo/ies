@@ -52,7 +52,7 @@ impl ErroCaixa {
             Self::UnidadeInesperada => "unidade_inesperada",
             Self::IdentificacaoDaUnidadeAusenteNoControle => {
                 "identificacao_da_unidade_ausente_no_controle"
-            },
+            }
             Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
             Self::ContextoDaPaginaDiferenteDoAnterior => "contexto_divergente",
             Self::SemPaginas => "sem_paginas",
