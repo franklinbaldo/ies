@@ -14,6 +14,7 @@ mod processo_resumo_cli;
 mod resumo_processo;
 mod saida;
 mod transporte;
+mod unidade_atual_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
@@ -140,6 +141,8 @@ struct Unidade {
 
 #[derive(Debug, Subcommand)]
 enum UnidadeAcao {
+    /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
+    Atual,
     ListarProcessos {
         #[arg(long)]
         saida: Option<PathBuf>,
@@ -522,6 +525,9 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status => return mostrar_status(cli.json),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Atual),
+        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
         }) => {

@@ -282,3 +282,18 @@ fn resumo_e_historico_completo_sao_pedidos_incompativeis() {
     let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(resposta["codigo"], "opcoes_incompativeis");
 }
+
+#[test]
+fn unidade_atual_sem_sessao_falha_sem_rede() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["unidade", "atual", "--json"])
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
