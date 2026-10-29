@@ -57,22 +57,22 @@ A inferência atual de categoria usa o nome do cenário contendo
 conservador: cenários de outras operações ainda não possuem replay
 de domínio e falham em vez de inventar uma interpretação.
 
-## Sessão Web experimental
+## Consulta Web autorizada da unidade
 
-O acesso Web com uma sessão existente foi separado da CLI de domínio:
+O comando de domínio é `ies unidade listar-processos`. A sessão
+existente é informada por caminhos de arquivos privados no ambiente:
 
 ```sh
-ies sessao ler-caixa \
-  --url-caixa-file /privado/url-caixa \
-  --cookie-file /privado/cookies \
-  --origem-file /privado/origem --json
+IES_URL_CONTROLE_FILE=/privado/url-caixa \\
+IES_COOKIE_FILE=/privado/cookies \\
+IES_ORIGEM_FILE=/privado/origem \\
+ies unidade listar-processos --json
 ```
 
-Essa operação exige HTTPS, host e caminho-base conferidos antes do
-envio de cookies e não segue redirects. Não executa login, POST,
-paginação ou comandos de escrita. Abrir um processo pode registrar
-recebimento no SEI, portanto não generalizar a segurança dessa
-leitura da caixa para outras páginas.
+A consulta exige HTTPS e valida host/caminho-base antes de enviar
+cookies. Não segue redirects nem executa login, POST ou escrita.
+Se o Controle de Processos exige outras páginas, o comando falha
+em vez de apresentar uma caixa parcial como resultado integral.
 
 Veja [cassettes](cassettes.md),
 [contrato de processo](../contracts/cli/processo-obter.md) e

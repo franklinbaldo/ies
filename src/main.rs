@@ -1,5 +1,6 @@
 mod caixa;
 mod cassette;
+mod configuracao;
 mod documento;
 mod dominio;
 mod erro_web;
@@ -13,7 +14,7 @@ mod transporte;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
@@ -39,8 +40,6 @@ enum Domain {
     Unidade(Unidade),
     /// Reproduz evidências históricas sem acesso ao SEI
     Replay(Replay),
-    /// Ferramentas de sessão Web autorizada
-    Sessao(Sessao),
     /// Diagnóstico da conexão (ainda não implementado)
     Status,
     /// Configura a conexão (ainda não implementado)
@@ -153,25 +152,6 @@ struct Replay {
     passo: Vec<usize>,
 }
 
-#[derive(Debug, Args)]
-struct Sessao {
-    #[command(subcommand)]
-    acao: SessaoAcao,
-}
-
-#[derive(Debug, Subcommand)]
-enum SessaoAcao {
-    /// Consulta caixa via URL assinada e credenciais em arquivos privados
-    LerCaixa {
-        #[arg(long)]
-        url_caixa_file: PathBuf,
-        #[arg(long)]
-        cookie_file: PathBuf,
-        #[arg(long)]
-        origem_file: PathBuf,
-    },
-}
-
 fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCode {
     if json_mode {
         println!(
@@ -201,18 +181,20 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn listar_caixa_sessao(
-    url: &Path,
-    cookie: &Path,
-    origem: &Path,
-    unidade: Option<&str>,
-    json_mode: bool,
-) -> ExitCode {
-    let html = match transporte::read_box_from_file(url, cookie, origem) {
+fn listar_processos_da_unidade(unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let html = match transporte::read_box_from_file(
+        &arquivos.url_controle,
+        &arquivos.cookie,
+        &arquivos.origem,
+    ) {
         Ok(html) => html,
         Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
     };
-    mostrar_caixa(&[html], "sessao", unidade, json_mode)
+    mostrar_caixa(&[html], "web", unidade, json_mode, true)
 }
 
 fn mostrar_caixa(
@@ -220,6 +202,7 @@ fn mostrar_caixa(
     origem: &str,
     unidade: Option<&str>,
     json_mode: bool,
+    exigir_todas_paginas: bool,
 ) -> ExitCode {
     let leitura = match paginas::juntar(htmls, unidade) {
         Ok(valor) => valor,
@@ -244,7 +227,7 @@ fn mostrar_caixa(
     };
     // Consulta de sessão promete a caixa inteira; replay offline só relata
     // as páginas selecionadas, sem alegar que representam toda a unidade.
-    if origem == "sessao"
+    if exigir_todas_paginas
         && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
             || !leitura.gerados.completa(&leitura.caixa.gerados))
     {
@@ -352,7 +335,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             mostrar_historico(&html, &origem, json_mode)
         }
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
-            mostrar_caixa(&htmls, &origem, unidade, json_mode)
+            mostrar_caixa(&htmls, &origem, unidade, json_mode, false)
         }
         Err(_) => erro_fonte(
             json_mode,
@@ -435,21 +418,18 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Status => return mostrar_status(cli.json),
-        Domain::Sessao(Sessao {
-            acao:
-                SessaoAcao::LerCaixa {
-                    url_caixa_file,
-                    cookie_file,
-                    origem_file,
-                },
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::ListarProcessos { saida }),
         }) => {
-            return listar_caixa_sessao(
-                url_caixa_file,
-                cookie_file,
-                origem_file,
-                cli.unidade.as_deref(),
-                cli.json,
-            );
+            if saida.is_some() {
+                return erro_lista(
+                    cli.json,
+                    "saida_arquivo_nao_suportada",
+                    "a opção --saida ainda não está disponível para esta operação",
+                    2,
+                );
+            }
+            return listar_processos_da_unidade(cli.unidade.as_deref(), cli.json);
         }
         _ => {}
     }

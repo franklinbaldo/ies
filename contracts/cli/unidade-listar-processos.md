@@ -4,78 +4,57 @@ title: Listar processos da unidade
 operation: unidade.listar_processos
 command: ies unidade listar-processos
 effect: read
-implementation: stub
+implementation: partial
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
 # Listar processos da unidade
 
-`ies unidade listar-processos` lê as tabelas `Recebidos` e `Gerados`
-na caixa da unidade ativa. A CLI de domínio ainda não tem
-configuração canônica de conexão; retorna `nao_implementado`.
+Lê os processos recebidos e gerados da unidade ativa na tela
+**Controle de Processos** do SEI Web. A CaixaDeEntrada é da unidade;
+sessão e credenciais são meios de acesso, não entidades proprietárias.
 
-## Entradas
+## Configuração e limites
 
-- `--saida ARQ`: destino de saída reservado para implementação futura.
-- `--json` e `--unidade SIGLA`: opções do contrato público.
+A sessão existente é fornecida por caminhos locais definidos
+em variáveis de ambiente, **nunca por valores secretos na linha de comando**:
 
-A reprodução das cassettes foi removida deste comando: consulte
-[`ies replay CENARIO`](../../docs/replay.md). A leitura experimental de
-sessão já autenticada está em `ies sessao ler-caixa` e exige origem
-autorizada e arquivos privados; não se deve confundi-la com uma
-conexão SEI configurada do usuário.
+- `IES_URL_CONTROLE_FILE`: caminho privado contendo URL HTTPS assinada
+  `procedimento_controlar` publicada pela instalação autorizada.
+- `IES_COOKIE_FILE`: caminho privado com o cookie de sessão existente.
+- `IES_ORIGEM_FILE`: caminho privado com a origem HTTPS autorizada.
 
-## Resultado de domínio e contrato JSON v1
+Os arquivos devem respeitar as regras de privacidade do adaptador
+(no Unix, modo 0600). O IES confere a origem antes de ler cookies e
+não segue redirects, não executa login, POST de paginação, nem realiza
+escritas ou tentativa de outro backend. Não há configuração persistente
+nem automação de autenticação.
 
-O domínio tipado guarda apenas fatos: `Caixa` possui duas
-`Tabela<Processo>`, cada qual com `processos` (id interno validado,
-número e visualização) e `total_declarado: Option<usize>`.
+`--unidade SIGLA` exige que a página identifique a unidade esperada.
+`--saida` ainda não é suportado e falha explicitamente.
 
-A paginação verifica intervalos e identidades, sem armazenar
-`completa`, contagens redundantes ou uma enumeração de completude
-dentro do domínio.
+## Resultado e alcance
 
-O JSON v2 expõe `unidade`, `origem`, `recebidos` e `gerados`.
-Cada grupo inclui `processos` e `total_declarado`, **sem**
-`completa` ou uma classificação alternativa de completude. O
-adaptador Web verifica faixas e contexto para decidir se pode combinar
-páginas, mas não atribui essa propriedade à caixa. O resultado de replay
-descreve os dados presentes nas páginas selecionadas: não representa
-automaticamente todos os processos da unidade, nem um snapshot
-transacional. A saída humana informa quantos processos foram observados
-e qual total foi declarado pelo SEI.
+A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
+`unidade`, `origem`, `recebidos`, `gerados`; cada agrupamento tem
+`processos` e `total_declarado`, sem campo `completa`.
+A apresentação não transforma critérios de paginação em propriedades
+do domínio.
 
-O [golden JSON v2](../../tests/fixtures/caixa-v2.json)
-protege o formato público. Não há campo `href` no `Processo`
-para permitir serializar URLs assinadas inadvertidamente.
+O comando de domínio só retorna sucesso quando as tabelas disponíveis
+cobrem os totais declarados. Se a tela exige outras páginas, ele
+retorna `paginas_do_controle_nao_obtidas` e **não publica um resultado
+parcial como se fosse toda a caixa**. Este recorte não implementa o
+POST de paginação; portanto, algumas unidades ainda não podem ser
+consultadas integralmente.
 
-## Segurança e verificação
+O replay de [evidências offline](../../docs/replay.md) continua em
+`ies replay CENARIO`, independente de sessão e sem afirmar snapshot
+transacional. SOAP e REST precisam de validação própria, sem presunção
+de equivalência à tela Web.
 
-O HTTP permite somente GET HTTPS da ação `procedimento_controlar`
-publicada com `infra_hash` e host idêntico à origem autorizada;
-não segue redirects nem faz retries. O corpo HTTP é limitado a
-8 MB **durante o recebimento**, incluindo respostas sem
-`Content-Length`. Redirecionamento, falta de autorização e
-origem incompatível produzem subcódigos seguros.
-O modo offline confere os hashes do ZIP e do JSON, schema e origem.
-O parser recusa tabela ausente, ID repetido e número ambíguo.
+## Evidências e verificação
 
-Esta fase **consolida páginas offline**, exigindo faixas contíguas,
-totais coerentes e IDs distintos por categoria. Para juntar páginas,
-exige unidade exibida, modo de visualização e hashes dos critérios
-iguais nos HTMLs. Divergência recusa a junção; ausência de marcador
-impede confirmar a mescla. Os campos ocultos não são publicados
-no JSON e não são prova de identidade de sessão. Para juntar páginas,
-exige unidade exibida, modo de visualização e hashes dos critérios
-iguais nos HTMLs. Divergência recusa a junção; ausência de marcador
-impede confirmar a mescla. Os campos ocultos não são publicados
-no JSON e não são prova de identidade de sessão. A paginação HTTP
-continua bloqueada: o corpus histórico não preserva os corpos de POST
-necessários para reproduzir esse gesto com segurança. Se só a primeira
-página foi lida, a saída continua explicitamente parcial.
-
-[Evidências](../evidencias/unidade-listar_processos.md),
-[replay](../../docs/cassettes.md) e
-[como o SEI funciona](../../docs/como-o-sei-funciona/tabelas-e-paginacao.md)
-sustentam este recorte. Ainda não há equivalência funcional plena
-com a CLI do Todos.
+Veja a [matriz da operação](../evidencias/unidade-listar_processos.md)
+e os [testes Rust](../../tests/replay_unidade.rs). Nenhuma URL
+assinada nem cookie pode aparecer em logs ou no resultado JSON.

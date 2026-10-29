@@ -119,14 +119,17 @@ fn hash_adulterado_é_recusado() {
 }
 
 #[test]
-fn comando_sem_fonte_conserva_stubs() {
+fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["unidade", "listar-processos", "--json"])
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["codigo"], "nao_implementado");
+    assert_eq!(result["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 fn preparar_fixture_paginas() -> PathBuf {
@@ -335,19 +338,15 @@ fn unidade_solicitada_precisa_ser_confirmada_pelo_sei() {
 #[test]
 fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "sessao",
-            "ler-caixa",
-            "--url-caixa-file",
-            "qualquer-arquivo-de-url",
-            "--cookie-file",
-            "qualquer-arquivo-de-cookie",
-            "--json",
-        ])
+        .args(["unidade", "listar-processos", "--json"])
+        .env("IES_URL_CONTROLE_FILE", "qualquer-arquivo-de-url")
+        .env("IES_COOKIE_FILE", "qualquer-arquivo-de-cookie")
+        .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
-    assert_eq!(resposta.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&resposta.stderr).contains("--origem-file"));
+    assert_eq!(resposta.status.code(), Some(1));
+    let dados: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(dados["subcodigo"], "caminho_origem_nao_informado");
 }
 
 #[test]
@@ -379,17 +378,10 @@ fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
         }
     }
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "sessao",
-            "ler-caixa",
-            "--url-caixa-file",
-            url.to_str().unwrap(),
-            "--origem-file",
-            origem.to_str().unwrap(),
-            "--cookie-file",
-            dir.join("cookie-inexistente").to_str().unwrap(),
-            "--json",
-        ])
+        .args(["unidade", "listar-processos", "--json"])
+        .env("IES_URL_CONTROLE_FILE", url.to_str().unwrap())
+        .env("IES_ORIGEM_FILE", origem.to_str().unwrap())
+        .env("IES_COOKIE_FILE", dir.join("cookie-inexistente"))
         .output()
         .unwrap();
     assert_eq!(resposta.status.code(), Some(1));

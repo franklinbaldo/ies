@@ -93,5 +93,6 @@ de implementar transporte e operações do SEI. Consulte a [política de CI](doc
   domínio e não recebem arquivos de cassette nem URLs assinadas.
 - `ies replay CENARIO` reproduz uma captura verificada do catálogo OKF
   sem abrir conexão com o SEI; [guia de replay](docs/replay.md).
-- `ies sessao ler-caixa` é uma ferramenta experimental para uma sessão
-  Web previamente autenticada, com origem e credenciais privadas.
+- `ies unidade listar-processos` lê por GET uma sessão Web já autenticada,
+  com caminhos de arquivos privados definidos em variáveis de ambiente.
+  Falha quando precisa de páginas ainda não obtidas.

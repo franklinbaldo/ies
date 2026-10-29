@@ -1,6 +1,6 @@
 //! Junção de páginas por intervalos de posição, sem emitir requisições.
-//! A prova de cobertura vive somente aqui, não em Tabela nem em Caixa.
-use crate::dominio::{Caixa, Categoria, Processo, Tabela};
+//! A prova de cobertura vive somente aqui, não em Tabela nem em `CaixaDeEntrada`.
+use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use std::collections::BTreeMap;
 
@@ -253,7 +253,7 @@ impl Cobertura {
 }
 
 pub struct Leitura {
-    pub caixa: Caixa,
+    pub caixa: CaixaDeEntrada,
     pub recebidos: Cobertura,
     pub gerados: Cobertura,
     pub unidade: Option<String>,
@@ -312,7 +312,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
     let (rec, cobertura_rec) = recebidos.finalizar(Categoria::Recebidos)?;
     let (ger, cobertura_ger) = gerados.finalizar(Categoria::Gerados)?;
     Ok(Leitura {
-        caixa: Caixa {
+        caixa: CaixaDeEntrada {
             recebidos: rec,
             gerados: ger,
         },

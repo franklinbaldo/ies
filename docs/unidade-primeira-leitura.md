@@ -80,10 +80,10 @@ A versão não altera permissões nem habilita recursos.
 
 ```sh
 chmod 600 /caminho/privado/cookies /caminho/privado/url-caixa /caminho/privado/origem
-ies sessao ler-caixa \
-  --url-caixa-file /caminho/privado/url-caixa \
-  --cookie-file /caminho/privado/cookies \
-  --origem-file /caminho/privado/origem --json
+IES_URL_CONTROLE_FILE=/caminho/privado/url-caixa \\
+IES_COOKIE_FILE=/caminho/privado/cookies \\
+IES_ORIGEM_FILE=/caminho/privado/origem \\
+ies unidade listar-processos --json
 ```
 
 O exemplo de URL é ilustrativo: **não construa nem adivinhe o hash**.
@@ -119,7 +119,7 @@ essas saídas ao Git ou ao Internet Archive.
 ## Contrato JSON v2 simplificado
 
 O domínio guarda `IdProcedimento`, `Processo`, `Tabela<Processo>` e
-`Caixa`, sem enum de completude nem campos de apresentação.
+`CaixaDeEntrada`, sem enum de completude nem campos de apresentação.
 A borda em `src/saida.rs` calcula o booleano de cobertura e formata
 JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
 

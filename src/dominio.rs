@@ -74,7 +74,7 @@ impl Tabela<Processo> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Caixa {
+pub struct CaixaDeEntrada {
     pub recebidos: Tabela<Processo>,
     pub gerados: Tabela<Processo>,
 }
