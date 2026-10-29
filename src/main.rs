@@ -1,7 +1,7 @@
 mod caixa;
 mod cassette;
-mod dominio;
 mod documento;
+mod dominio;
 mod erro_web;
 mod historico;
 mod instalacao;
@@ -362,6 +362,31 @@ fn show_noun_help(noun: &str) {
     }
 }
 
+fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
+    for numero in numeros {
+        if let Err(erro) = documento::NumeroDocumento::novo(numero) {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "entrada_invalida",
+                        "subcodigo": erro.subcodigo(),
+                        "erro": "número SEI de documento inválido",
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!(
+                    "IES: número SEI de documento inválido [{}]",
+                    erro.subcodigo()
+                );
+            }
+            return Some(ExitCode::from(2));
+        }
+    }
+    None
+}
+
 fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
@@ -399,31 +424,14 @@ fn run(cli: &Cli) -> ExitCode {
         }
         _ => {}
     }
-    // Shim do documento: valida o identificador visível sem consultar o SEI.
     if let Domain::Documento(Documento {
         numeros,
         acao: None,
         ..
     }) = &cli.command
+        && let Some(status) = validar_documentos(numeros, cli.json)
     {
-        for numero in numeros {
-            if let Err(erro) = documento::NumeroDocumento::novo(numero) {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "codigo": "entrada_invalida",
-                            "subcodigo": erro.subcodigo(),
-                            "erro": "número SEI de documento inválido",
-                            "retentavel": false
-                        })
-                    );
-                } else {
-                    eprintln!("IES: número SEI de documento inválido [{}]", erro.subcodigo());
-                }
-                return ExitCode::from(2);
-            }
-        }
+        return status;
     }
     // Shim de contrato: valida o NUP antes de qualquer adaptador ou acesso Web.
     if let Domain::Processo(Processo {
