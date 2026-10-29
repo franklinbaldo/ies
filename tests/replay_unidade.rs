@@ -273,7 +273,7 @@ fn contrato_json_v1_e_deterministico() {
     assert_eq!(resposta.status.code(), Some(0), "{resposta:?}");
     assert_eq!(
         std::str::from_utf8(&resposta.stdout).unwrap(),
-        include_str!("fixtures/caixa-v1.json"),
+        include_str!("fixtures/caixa-v2.json"),
     );
     let valor: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert!(valor.get("completude").is_none());
