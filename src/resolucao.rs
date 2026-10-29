@@ -147,7 +147,8 @@ mod tests {
             visualizado: false,
         };
         let caixa = Caixa {
-            recebidos: Tabela::nova(Categoria::Recebidos, None, vec![linha("0042", "AB-C")]).unwrap(),
+            recebidos: Tabela::nova(Categoria::Recebidos, None, vec![linha("0042", "AB-C")])
+                .unwrap(),
             gerados: Tabela::nova(Categoria::Gerados, None, vec![linha("0042", "AB-C")]).unwrap(),
         };
         let escolhido = resolver_na_caixa(&n("ABC"), &caixa).unwrap();
@@ -167,9 +168,17 @@ mod tests {
             recebidos: Tabela::nova(Categoria::Recebidos, None, vec![linha("42", "AB-C")]).unwrap(),
             gerados: Tabela::nova(Categoria::Gerados, None, vec![linha("43", "A-BC")]).unwrap(),
         };
-        assert_eq!(resolver_na_caixa(&n("ABC"), &caixa), Err(ErroResolucao::Ambiguo));
-        assert_eq!(resolver_na_caixa(&n("AB-C"), &caixa).unwrap().id.as_str(), "42");
-        assert_eq!(resolver_na_caixa(&n("00123"), &caixa), Err(ErroResolucao::NaoEncontrado));
+        assert_eq!(
+            resolver_na_caixa(&n("ABC"), &caixa),
+            Err(ErroResolucao::Ambiguo)
+        );
+        assert_eq!(
+            resolver_na_caixa(&n("AB-C"), &caixa).unwrap().id.as_str(),
+            "42"
+        );
+        assert_eq!(
+            resolver_na_caixa(&n("00123"), &caixa),
+            Err(ErroResolucao::NaoEncontrado)
+        );
     }
-
 }
