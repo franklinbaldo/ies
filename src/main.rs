@@ -1,5 +1,6 @@
 mod caixa;
 mod cassette;
+mod documento;
 mod dominio;
 mod erro_web;
 mod historico;
@@ -361,25 +362,52 @@ fn show_noun_help(noun: &str) {
     }
 }
 
+fn mostrar_esquema(json_mode: bool) -> ExitCode {
+    let mut comandos: Vec<_> = Cli::command()
+        .get_subcommands()
+        .map(|c| c.get_name().to_owned())
+        .collect();
+    comandos.sort();
+    if json_mode {
+        println!(
+            "{}",
+            json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
+        );
+    } else {
+        println!("Comandos do IES: {}", comandos.join(", "));
+    }
+    ExitCode::SUCCESS
+}
+
+fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
+    for numero in numeros {
+        if let Err(erro) = documento::NumeroDocumento::novo(numero) {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "entrada_invalida",
+                        "subcodigo": erro.subcodigo(),
+                        "erro": "número SEI de documento inválido",
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!(
+                    "IES: número SEI de documento inválido [{}]",
+                    erro.subcodigo()
+                );
+            }
+            return Some(ExitCode::from(2));
+        }
+    }
+    None
+}
+
 fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
-        Domain::Esquema => {
-            let mut comandos: Vec<_> = Cli::command()
-                .get_subcommands()
-                .map(|c| c.get_name().to_owned())
-                .collect();
-            comandos.sort();
-            if cli.json {
-                println!(
-                    "{}",
-                    json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
-                );
-            } else {
-                println!("Comandos do IES: {}", comandos.join(", "));
-            }
-            return ExitCode::SUCCESS;
-        }
+        Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Sessao(Sessao {
             acao:
                 SessaoAcao::LerCaixa {
@@ -397,6 +425,15 @@ fn run(cli: &Cli) -> ExitCode {
             );
         }
         _ => {}
+    }
+    if let Domain::Documento(Documento {
+        numeros,
+        acao: None,
+        ..
+    }) = &cli.command
+        && let Some(status) = validar_documentos(numeros, cli.json)
+    {
+        return status;
     }
     // Shim de contrato: valida o NUP antes de qualquer adaptador ou acesso Web.
     if let Domain::Processo(Processo {

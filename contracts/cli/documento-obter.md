@@ -31,7 +31,7 @@ Não presumir essa oferta em instalações que não a apresentam.
 
 ## Falhas e evidências
 
-A gramática é validada, mas a execução retorna `nao_implementado` e
+O shim de entrada interpreta `DOC` como número SEI composto apenas por\ndígitos ASCII, preserva zeros à esquerda e não consulta a instalação.\nEntrada inválida retorna `entrada_invalida` com subcódigo tipado e saída 2.\nUma entrada válida ainda retorna `nao_implementado` e
 código 1. Arquivo inacessível, ausência de documento e sessão inválida
 precisarão de contratos de erro específicos antes de implementar HTTP.
 
