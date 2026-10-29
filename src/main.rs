@@ -9,6 +9,7 @@ mod instalacao;
 mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
+mod resumo_processo;
 mod saida;
 mod transporte;
 
@@ -53,6 +54,9 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
+    /// Consulta somente a identidade já exibida na Caixa de Entrada
+    #[arg(long)]
+    resumo: bool,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
@@ -254,6 +258,53 @@ fn mostrar_caixa(
         println!("{}", serde_json::to_string_pretty(&resultado).unwrap());
     } else {
         println!("{}", saida::humano(&leitura));
+    }
+    ExitCode::SUCCESS
+}
+
+fn mostrar_resumo_processo(numero: &str, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let html = match transporte::read_box_from_file(
+        &arquivos.url_controle,
+        &arquivos.cookie,
+        &arquivos.origem,
+    ) {
+        Ok(html) => html,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let leitura = match paginas::juntar(&[html], unidade) {
+        Ok(leitura) => leitura,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "Controle de Processos não reconhecido"),
+    };
+    if !leitura.recebidos.completa(&leitura.caixa.recebidos)
+        || !leitura.gerados.completa(&leitura.caixa.gerados)
+    {
+        return erro_fonte(
+            json_mode,
+            "paginas_do_controle_nao_obtidas",
+            "a caixa da unidade exige páginas que não foram obtidas",
+        );
+    }
+    let achados = resumo_processo::ocorrencias(&leitura.caixa, numero);
+    if achados.is_empty() {
+        return erro_fonte(
+            json_mode,
+            "numero_nao_observado_na_caixa",
+            "o número solicitado não aparece na Caixa de Entrada desta unidade; isso não prova que o processo não existe",
+        );
+    }
+    if json_mode {
+        println!("{}", json!({
+            "numero": numero,
+            "escopo": "resumo_da_caixa",
+            "ocorrencias": achados,
+            "unidade": leitura.unidade
+        }));
+    } else {
+        println!("IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.", achados.len());
     }
     ExitCode::SUCCESS
 }
@@ -466,6 +517,25 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
+        Domain::Processo(Processo {
+            numero: Some(numero),
+            resumo: true,
+            andamentos_completos,
+            acao: None,
+            ..
+        }) => {
+            if *andamentos_completos {
+                return erro_lista(
+                    cli.json,
+                    "opcoes_incompativeis",
+                    "o resumo da caixa não inclui andamentos",
+                    2,
+                );
+            }
+            if processo::NumeroProcesso::novo(numero).is_ok() {
+                return mostrar_resumo_processo(numero, cli.unidade.as_deref(), cli.json);
+            }
+        }
         Domain::Status => return mostrar_status(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
