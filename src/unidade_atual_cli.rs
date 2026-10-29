@@ -43,4 +43,3 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
     }
     ExitCode::SUCCESS
 }
-
