@@ -362,6 +362,24 @@ fn show_noun_help(noun: &str) {
     }
 }
 
+fn mostrar_status(json_mode: bool) -> ExitCode {
+    // Sem configuração persistida, nunca afirmar que o SEI está fora do ar.
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "configuracao": "nao_implementada",
+                "conexao": "nao_verificada",
+                "acesso_remoto": false,
+                "proximo_passo": "configurar uma instalacao e identidade autorizadas"
+            })
+        );
+    } else {
+        println!("IES: configuração de conexão ainda não implementada; SEI não consultado.");
+    }
+    ExitCode::SUCCESS
+}
+
 fn mostrar_esquema(json_mode: bool) -> ExitCode {
     let mut comandos: Vec<_> = Cli::command()
         .get_subcommands()
@@ -408,6 +426,7 @@ fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
+        Domain::Status => return mostrar_status(cli.json),
         Domain::Sessao(Sessao {
             acao:
                 SessaoAcao::LerCaixa {
