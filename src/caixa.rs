@@ -1,5 +1,5 @@
-//! Parser Web puro: HTML -> Caixa tipada; sem estado de sessão ou JSON.
-use crate::dominio::{Caixa, Categoria, IdProcedimento, Processo, Tabela};
+//! Parser Web puro: HTML -> CaixaDeEntrada tipada; sem estado de sessão ou JSON.
+use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
@@ -119,9 +119,9 @@ fn ler_tabela(
     Tabela::nova(categoria, total, processos)
 }
 
-pub fn parse_html(html: &str) -> Result<Caixa, ErroCaixa> {
+pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
-    Ok(Caixa {
+    Ok(CaixaDeEntrada {
         recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
         gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
     })
