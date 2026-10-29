@@ -57,6 +57,19 @@ A inferência atual de categoria usa o nome do cenário contendo
 conservador: cenários de outras operações ainda não possuem replay
 de domínio e falham em vez de inventar uma interpretação.
 
+## Documento HTML capturado
+
+`ies replay CENARIO --documento --json` seleciona somente a resposta
+`documento_imprimir_web` da cassette verificada e extrai do título o
+número SEI e o tipo, preservando zeros. Se houver mais de uma resposta,
+use `--passo N` para selecionar um único HTML registrado. Não envia
+requisições, não expõe o HTML integral e **não equivale** a
+`ies documento NUMERO`: conteúdo e propriedades ainda não foram lidos.
+
+Exemplo com a cassette pública `documento-numero-e-busca-unb`,
+que contém a resposta GET da operação. O ZIP indicado no card OKF
+precisa estar no cache local; sem ele o replay falha fechado.
+
 ## Consulta Web autorizada da unidade
 
 O comando de domínio é `ies unidade listar-processos`. A sessão

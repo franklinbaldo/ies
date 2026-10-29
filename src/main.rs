@@ -2,6 +2,7 @@ mod caixa;
 mod cassette;
 mod configuracao;
 mod documento;
+mod documento_web;
 mod dominio;
 mod erro_web;
 mod historico;
@@ -155,6 +156,9 @@ struct Replay {
     /// Passos explicitamente escolhidos para caixa multipágina (uso avançado)
     #[arg(long)]
     passo: Vec<usize>,
+    /// Reproduz um único HTML de documento da operação `documento_imprimir_web`
+    #[arg(long)]
+    documento: bool,
 }
 
 #[derive(Debug, Args)]
@@ -291,6 +295,46 @@ fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode 
     ExitCode::SUCCESS
 }
 
+fn mostrar_documento_replay(
+    card: &std::path::Path,
+    zip: &std::path::Path,
+    passos: &[usize],
+    json_mode: bool,
+) -> ExitCode {
+    match cassette::read_cassette_document(card, zip, passos) {
+        Ok((html, instalacao)) => match documento_web::identidade_do_titulo(&html) {
+            Ok(documento) => {
+                if json_mode {
+                    println!(
+                        "{}",
+                        json!({
+                            "documento": documento,
+                            "instalacao": instalacao,
+                            "escopo": "titulo_documento_offline"
+                        })
+                    );
+                } else {
+                    println!(
+                        "Documento SEI {}: {} (título de HTML offline)",
+                        documento.numero, documento.tipo
+                    );
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "título do documento não identifica número e tipo",
+            ),
+        },
+        Err(_) => erro_fonte(
+            json_mode,
+            "replay_documento_nao_selecionado",
+            "nenhuma resposta única de documento foi selecionada",
+        ),
+    }
+}
+
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let cenario = &replay.cenario;
     if cenario.is_empty()
@@ -346,6 +390,9 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "zip_ausente",
             "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
         );
+    }
+    if replay.documento {
+        return mostrar_documento_replay(card, &zip, &replay.passo, json_mode);
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {

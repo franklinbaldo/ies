@@ -67,6 +67,19 @@ pub fn read_cassette_auto(
     }
 }
 
+pub fn read_cassette_document(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+) -> Result<(String, String), String> {
+    let (mut pages, instalacao, _) =
+        read_verified_html(card, archive, passos, Some("documento_imprimir_web"))?;
+    if pages.len() != 1 {
+        return Err("um único HTML do documento deve ser selecionado".into());
+    }
+    Ok((pages.remove(0), instalacao))
+}
+
 fn operation_for_replay(
     json: &serde_json::Value,
     passos: &[usize],
