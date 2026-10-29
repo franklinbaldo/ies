@@ -1,5 +1,8 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
-use crate::{Cli, Processo, configuracao, erro_fonte, erro_lista, paginas, processo, resumo_processo, transporte};
+use crate::{
+    Cli, Domain, Processo, configuracao, erro_fonte, erro_lista, paginas, processo, resumo_processo,
+    transporte,
+};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -88,4 +91,3 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         cli.json,
     ))
 }
-
