@@ -48,6 +48,8 @@ enum Domain {
     Esquema,
 }
 
+// Flags de exclusão independentes correspondem diretamente às opções da CLI.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
