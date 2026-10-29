@@ -116,7 +116,7 @@ recusa sobrescrever outro arquivo e produz apenas o resultado
 estruturado. Os dados da caixa podem ser sensíveis: não envie
 essas saídas ao Git ou ao Internet Archive.
 
-## Contrato JSON v1 simplificado
+## Contrato JSON v2 simplificado
 
 O domínio guarda `IdProcedimento`, `Processo`, `Tabela<Processo>` e
 `Caixa`, sem enum de completude nem campos de apresentação.
@@ -126,7 +126,7 @@ JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
 O JSON contém `unidade`, `origem` e, para Recebidos e Gerados,
 `processos`, `total_declarado` e `completa`. A prova de cobertura
 não é exposta como estado mutável. O
-[golden de saída](../tests/fixtures/caixa-v1.json)
+[golden de saída](../tests/fixtures/caixa-v2.json)
 fixa esse contrato byte a byte num teste de integração.
 
 ## Testes e limites
