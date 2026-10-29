@@ -142,3 +142,29 @@ fn processo_nao_aceita_parametros_de_replay() {
     let output = ies(&["processo", "202600005002487", "--zip-file", "x.zip"]);
     assert_eq!(output.status.code(), Some(2));
 }
+
+#[test]
+fn processo_rejeita_numero_vazio_com_erro_tipado() {
+    let output = ies(&["processo", "   ", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(erro["codigo"], "entrada_invalida");
+    assert_eq!(erro["subcodigo"], "numero_processo_vazio");
+}
+
+#[test]
+fn processo_rejeita_numero_com_controle_sem_vazar_entrada() {
+    let output = ies(&["processo", "123\\nSEGREDO", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(erro["subcodigo"], "numero_processo_controle");
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("SEGREDO"));
+}
+
+#[test]
+fn processo_preserva_zeros_e_nao_inventa_leitura() {
+    let output = ies(&["processo", "000123/2026-01", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resposta["codigo"], "nao_implementado");
+}
