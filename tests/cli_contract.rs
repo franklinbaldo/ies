@@ -253,3 +253,32 @@ fn status_local_com_caminhos_nao_faz_requisicoes() {
     assert_eq!(status["conexao"], "nao_verificada");
     assert_eq!(status["acesso_remoto"], false);
 }
+
+#[test]
+fn resumo_de_processo_exige_configuracao_sem_tentar_abrir_arvore() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["processo", "000123", "--resumo", "--json"])
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resposta["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+#[test]
+fn resumo_e_historico_completo_sao_pedidos_incompativeis() {
+    let output = ies(&[
+        "processo",
+        "000123",
+        "--resumo",
+        "--andamentos-completos",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resposta["codigo"], "opcoes_incompativeis");
+}

@@ -9,6 +9,8 @@ mod instalacao;
 mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
+mod processo_resumo_cli;
+mod resumo_processo;
 mod saida;
 mod transporte;
 
@@ -53,6 +55,9 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
+    /// Consulta somente a identidade já exibida na Caixa de Entrada
+    #[arg(long)]
+    resumo: bool,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
@@ -462,6 +467,9 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
 }
 
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = processo_resumo_cli::tentar_resumo(cli) {
+        return status;
+    }
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
