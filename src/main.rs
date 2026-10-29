@@ -364,6 +364,22 @@ fn show_noun_help(noun: &str) {
 fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
+        Domain::Esquema => {
+            let mut comandos: Vec<_> = Cli::command()
+                .get_subcommands()
+                .map(|c| c.get_name().to_owned())
+                .collect();
+            comandos.sort();
+            if cli.json {
+                println!(
+                    "{}",
+                    json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
+                );
+            } else {
+                println!("Comandos do IES: {}", comandos.join(", "));
+            }
+            return ExitCode::SUCCESS;
+        }
         Domain::Sessao(Sessao {
             acao:
                 SessaoAcao::LerCaixa {

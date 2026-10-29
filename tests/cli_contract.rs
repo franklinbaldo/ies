@@ -191,3 +191,15 @@ fn processo_recusa_referencia_legada_por_tipo() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "referencia_processo_legada");
 }
+
+#[test]
+fn esquema_expoe_comandos_reais_sem_conectar_ao_sei() {
+    let output = ies(&["esquema", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let comandos = value["comandos"].as_array().unwrap();
+    assert!(comandos.iter().any(|c| c == "processo"));
+    assert!(comandos.iter().any(|c| c == "documento"));
+    assert!(comandos.iter().any(|c| c == "unidade"));
+    assert!(value["versao"].is_string());
+}
