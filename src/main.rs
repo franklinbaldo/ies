@@ -362,6 +362,23 @@ fn show_noun_help(noun: &str) {
     }
 }
 
+fn mostrar_esquema(json_mode: bool) -> ExitCode {
+    let mut comandos: Vec<_> = Cli::command()
+        .get_subcommands()
+        .map(|c| c.get_name().to_owned())
+        .collect();
+    comandos.sort();
+    if json_mode {
+        println!(
+            "{}",
+            json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
+        );
+    } else {
+        println!("Comandos do IES: {}", comandos.join(", "));
+    }
+    ExitCode::SUCCESS
+}
+
 fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
     for numero in numeros {
         if let Err(erro) = documento::NumeroDocumento::novo(numero) {
@@ -390,22 +407,7 @@ fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
 fn run(cli: &Cli) -> ExitCode {
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
-        Domain::Esquema => {
-            let mut comandos: Vec<_> = Cli::command()
-                .get_subcommands()
-                .map(|c| c.get_name().to_owned())
-                .collect();
-            comandos.sort();
-            if cli.json {
-                println!(
-                    "{}",
-                    json!({"comandos": comandos, "versao": env!("CARGO_PKG_VERSION")})
-                );
-            } else {
-                println!("Comandos do IES: {}", comandos.join(", "));
-            }
-            return ExitCode::SUCCESS;
-        }
+        Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Sessao(Sessao {
             acao:
                 SessaoAcao::LerCaixa {
