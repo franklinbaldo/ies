@@ -277,7 +277,13 @@ fn mostrar_resumo_processo(numero: &str, unidade: Option<&str>, json_mode: bool)
     };
     let leitura = match paginas::juntar(&[html], unidade) {
         Ok(leitura) => leitura,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "Controle de Processos não reconhecido"),
+        Err(erro) => {
+            return erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "Controle de Processos não reconhecido",
+            );
+        }
     };
     if !leitura.recebidos.completa(&leitura.caixa.recebidos)
         || !leitura.gerados.completa(&leitura.caixa.gerados)
@@ -297,14 +303,20 @@ fn mostrar_resumo_processo(numero: &str, unidade: Option<&str>, json_mode: bool)
         );
     }
     if json_mode {
-        println!("{}", json!({
-            "numero": numero,
-            "escopo": "resumo_da_caixa",
-            "ocorrencias": achados,
-            "unidade": leitura.unidade
-        }));
+        println!(
+            "{}",
+            json!({
+                "numero": numero,
+                "escopo": "resumo_da_caixa",
+                "ocorrencias": achados,
+                "unidade": leitura.unidade
+            })
+        );
     } else {
-        println!("IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.", achados.len());
+        println!(
+            "IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.",
+            achados.len()
+        );
     }
     ExitCode::SUCCESS
 }
@@ -512,30 +524,36 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
     }
 }
 
+fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
+    let Domain::Processo(Processo {
+        numero: Some(numero),
+        resumo: true,
+        andamentos_completos,
+        acao: None,
+        ..
+    }) = &cli.command else {
+        return None;
+    };
+    if *andamentos_completos {
+        return Some(erro_lista(
+            cli.json,
+            "opcoes_incompativeis",
+            "o resumo da caixa não inclui andamentos",
+            2,
+        ));
+    }
+    processo::NumeroProcesso::novo(numero).ok()?;
+    Some(mostrar_resumo_processo(numero, cli.unidade.as_deref(), cli.json))
+}
+
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = tentar_resumo(cli) {
+        return status;
+    }
     match &cli.command {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
-        Domain::Processo(Processo {
-            numero: Some(numero),
-            resumo: true,
-            andamentos_completos,
-            acao: None,
-            ..
-        }) => {
-            if *andamentos_completos {
-                return erro_lista(
-                    cli.json,
-                    "opcoes_incompativeis",
-                    "o resumo da caixa não inclui andamentos",
-                    2,
-                );
-            }
-            if processo::NumeroProcesso::novo(numero).is_ok() {
-                return mostrar_resumo_processo(numero, cli.unidade.as_deref(), cli.json);
-            }
-        }
         Domain::Status => return mostrar_status(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
