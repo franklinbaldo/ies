@@ -1,4 +1,4 @@
-//! Parser Web puro: HTML -> CaixaDeEntrada tipada; sem estado de sessão ou JSON.
+//! Parser Web puro: HTML -> `CaixaDeEntrada` tipada; sem estado de sessão ou JSON.
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 
