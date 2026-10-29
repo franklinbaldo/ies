@@ -1,0 +1,23 @@
+{
+  "gerados": {
+    "processos": [],
+    "total_declarado": 0
+  },
+  "origem": "unb",
+  "recebidos": {
+    "processos": [
+      {
+        "id": "42",
+        "numero": "23106.000001/2026-01",
+        "visualizado": true
+      },
+      {
+        "id": "43",
+        "numero": "23106.000002/2026-02",
+        "visualizado": false
+      }
+    ],
+    "total_declarado": 2
+  },
+  "unidade": "TESTE"
+}
