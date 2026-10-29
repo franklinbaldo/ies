@@ -60,7 +60,7 @@ fn check_document(
     missing: &mut Vec<String>,
 ) {
     let kind = frontmatter(content, "type").unwrap_or("");
-    if file == &folder.join("README.md") {
+    if file == folder.join("README.md") {
         if kind != "Guide" {
             missing.push("README do catálogo não é OKF Guide".to_owned());
         }
@@ -120,9 +120,9 @@ fn check_links(
                 continue;
             }
             *links_count += 1;
-            let candidate = file.parent().unwrap_or(&root).join(link);
+            let candidate = file.parent().unwrap_or(root).join(link);
             let target = match fs::canonicalize(&candidate) {
-                Ok(target) if target.starts_with(&root) => target,
+                Ok(target) if target.starts_with(root) => target,
                 _ => {
                     missing.push(format!("Link quebrado: {} → {link}", file.display()));
                     continue;
