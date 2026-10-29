@@ -89,6 +89,26 @@ Em replay multipágina, conferir `lnkInfraUnidade`,
 na saída. Campos de contexto não pertencem ao domínio e não
 provam snapshot transacional.
 
+## Nomes precisos e erros tipados
+
+Siga [a disciplina de erros tipados](docs/erros-tipados.md): cada falha
+observável tem variante específica de `enum` Rust, com dados tipados e
+subcódigo estável. Mensagens são apresentação, nunca o mecanismo de
+classificação. Não crie erros genéricos com mensagens variáveis nem
+coloque falhas de adaptadores nas entidades administrativas.
+
+Nomeie cada erro pelo **fato verificável**, indicando o objeto e a
+condição concreta: prefira `NumeroDoHistoricoDiferenteDoSolicitado`
+a `ProcessoDivergente`. Evite `Ambiguo`, `Divergente`,
+`Inconsistente` e `Invalido` sem especificar a observação ou regra
+violada. Se duas condições são diferentes e exigem diagnósticos diferentes,
+nomeie-as separadamente e teste cada uma. Preserve identificadores opacos
+como o NUP sem inferir máscara, pontuação ou zeros à esquerda.
+
+Não introduza `completa: bool` nem estado de consulta em entidades.
+Paginação pertence ao adaptador; o contrato da operação determina o
+sucesso ou a falha, sem inventar propriedades do domínio.
+
 ## Domínio tipado mínimo e saída
 
 O Web parser devolve `Caixa` tipada e não recebe unidade nem origem.

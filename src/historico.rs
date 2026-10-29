@@ -9,7 +9,7 @@ pub enum ErroHistorico {
     TituloAusente,
     TituloInvalido,
     NumeroInvalido,
-    ProcessoDivergente,
+    NumeroDoHistoricoDiferenteDoSolicitado,
     HistoricoAusente,
     HistoricoInvalido,
     LinhaInvalida,
@@ -23,7 +23,7 @@ impl ErroHistorico {
             Self::TituloAusente => "titulo_ausente",
             Self::TituloInvalido => "titulo_invalido",
             Self::NumeroInvalido => "numero_invalido",
-            Self::ProcessoDivergente => "processo_divergente",
+            Self::NumeroDoHistoricoDiferenteDoSolicitado => "processo_divergente",
             Self::HistoricoAusente => "historico_ausente",
             Self::HistoricoInvalido => "historico_invalido",
             Self::LinhaInvalida => "linha_invalida",
@@ -76,7 +76,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
         .split_once("Histórico do Processo ")
         .ok_or(ErroHistorico::TituloInvalido)?;
     if mostrado != numero.as_str() {
-        return Err(ErroHistorico::ProcessoDivergente);
+        return Err(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado);
     }
     let tabela = dom
         .get_element_by_id("tblHistorico")
@@ -166,11 +166,11 @@ mod tests {
         let html = fixture("AB-C");
         assert_eq!(
             ler_historico(&html, "ABC").unwrap_err(),
-            ErroHistorico::ProcessoDivergente
+            ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
         assert_eq!(
             ler_historico(&fixture("000123"), "123").unwrap_err(),
-            ErroHistorico::ProcessoDivergente
+            ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
     }
 
@@ -178,7 +178,7 @@ mod tests {
     fn recusa_outro_processo_e_tabela_incompleta() {
         assert_eq!(
             ler_historico(&fixture("202600005002487"), "202600005002488").unwrap_err(),
-            ErroHistorico::ProcessoDivergente
+            ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
         let invalido = "<title>Histórico do Processo 202600005002487</title>        <table id='tblHistorico'><tr><td>12/07/2026</td></tr></table>";
         assert_eq!(

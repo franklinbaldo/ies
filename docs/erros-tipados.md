@@ -33,10 +33,10 @@ a hierarquia de subclasses Python quando a família é fechada.
 ## Primeiro recorte aplicado
 
 `src/historico.rs` devolve `ErroHistorico` com variantes como
-`ProcessoDivergente`, `HistoricoAusente`, `LinhaInvalida` e
-`NumeroAmbiguo`. As funções não devolvem mais códigos como
+`NumeroDoHistoricoDiferenteDoSolicitado`, `HistoricoAusente` e
+`LinhaInvalida`. As funções não devolvem mais códigos como
 `&'static str`; o texto público deriva de `subcodigo()` na CLI.
-Testes comparam variantes, não mensagens.
+Testes comparam variantes, não mensagens. Nomes descrevem a condição\nobservada, evitando qualificadores vagos como `ambíguo` e `divergente`.\nO subcódigo público legado `processo_divergente` permanece por compatibilidade\naté migração explícita do contrato; o tipo Rust é descritivo.
 
 `ErroCaixa` e `FalhaTransporte` já utilizam variantes específicas.
 Revisões posteriores devem acrescentar dados úteis e padronizar
