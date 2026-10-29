@@ -168,3 +168,21 @@ fn processo_preserva_zeros_e_nao_inventa_leitura() {
     let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(resposta["codigo"], "nao_implementado");
 }
+
+#[test]
+fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
+    for numero in ["ABC-123", "550e8400-e29b-41d4-a716-446655440000", "CNJ 000001", "12345678901234567890123456789012345678901234567890123456789012345678901234567890123"] {
+        let output = ies(&["processo", numero, "--json"]);
+        assert_eq!(output.status.code(), Some(1), "{numero}");
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["codigo"], "nao_implementado", "{numero}");
+    }
+}
+
+#[test]
+fn processo_recusa_referencia_legada_por_tipo() {
+    let output = ies(&["processo", "SEI://processo/abc", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "referencia_processo_legada");
+}
