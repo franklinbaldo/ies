@@ -30,6 +30,32 @@ da escolha. Não crie fichas para os 129 itens ainda não implementados.
 Não invente operações pela inspeção de telas: preserve apenas comportamentos
 observados e demonstrados nas instalações reais de treinamento do SEI.
 
+## Prioridade de interfaces do SEI
+
+**Web é a via principal e o alvo de compatibilidade nacional do IES.**
+A interface Web faz parte do uso normal das instalações SEI; implementar
+os fluxos Web observados e autorizados tem precedência sobre desenvolver
+clientes opcionais. Isso não prova que um fluxo ou versão específica
+seja compatível: validar por instalação, com cassettes e testes seguros.
+
+**REST WSSEI tem prioridade baixa.** É um módulo opcional, ausente em
+muitas instalações. Só implementar quando houver benefício concreto,
+escopo pequeno e esforço marginal baixo, sem atrasar funcionalidades
+Web. Não condicionar `processo`, `documento`, `unidade`, `setup`
+ou a compatibilidade principal à existência de REST, token ou módulo.
+REST nunca é fallback automático de uma escrita.
+
+**SOAP não é prioridade de implementação.** Pode exigir autenticação
+própria e credenciais distintas da sessão Web. Não pressupor que o
+cookie da interface Web autoriza SOAP, nem tentar extrair ou reutilizar
+credenciais sem suporte explícito e autorização. Manter contratos SOAP
+apenas como referências, salvo necessidade concreta e aprovada.
+
+As três interfaces não são equivalentes por definição. Ao avaliar
+alternativas por operação, documentar brevemente REST e SOAP quando
+pertinente, mas não transformar essa comparação em trabalho obrigatório
+de implementação ou em bloqueio para evoluir a interface Web.
+
 Todo Markdown autoral deve ser OKF conforme a [política de CI](docs/ci.md), com Specs e schemas em [`.okf/`](.okf/specs/spec.md).
 Nenhum arquivo texto pode ultrapassar 20.000 bytes, inclusive arquivos
 de código, testes e lockfiles. Divida por responsabilidade, não minifique.
