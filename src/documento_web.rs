@@ -39,11 +39,15 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
         .ok_or(ErroTituloDocumento::TituloAusente)?;
     let mut campos = titulo.splitn(3, " - ");
     let _instalacao = campos.next();
-    let numero = campos.next().ok_or(ErroTituloDocumento::TituloSemNumeroSei)?;
+    let numero = campos
+        .next()
+        .ok_or(ErroTituloDocumento::TituloSemNumeroSei)?;
     if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroTituloDocumento::TituloSemNumeroSei);
     }
-    let tipo = campos.next().ok_or(ErroTituloDocumento::TituloSemTipoDocumento)?;
+    let tipo = campos
+        .next()
+        .ok_or(ErroTituloDocumento::TituloSemTipoDocumento)?;
     if tipo.trim().is_empty() {
         return Err(ErroTituloDocumento::TituloSemTipoDocumento);
     }
