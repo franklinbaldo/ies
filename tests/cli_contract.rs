@@ -110,7 +110,7 @@ fn unidade_listar_processos_recusa_saida_ainda_nao_suportada() {
         "processos.json",
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["codigo"], "saida_arquivo_nao_suportada");
 }
