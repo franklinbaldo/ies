@@ -142,3 +142,5 @@ Passos sem cassette indexada: 0.
 - [usuario.listar_acessos](usuario-listar_acessos.md)
 - [usuario.listar_pesquisas_salvas](usuario-listar_pesquisas_salvas.md)
 - [usuario.listar_unidades](usuario-listar_unidades.md)
+
+- [unidade.atual](unidade-atual.md) — rótulo da unidade derivado da tela da caixa, não operação original do Todos.
