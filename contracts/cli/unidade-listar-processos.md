@@ -35,18 +35,17 @@ A paginação verifica intervalos e identidades, sem armazenar
 `completa`, contagens redundantes ou uma enumeração de completude
 dentro do domínio.
 
-O JSON v1 expõe `unidade`, `origem`, `recebidos` e `gerados`.
-Cada tabela inclui apenas `processos`, `total_declarado` e
-`completa: bool`, **calculado a partir dos intervalos verificados**.
-`false` quer dizer cobertura não comprovada, não necessariamente
-incompletude definitiva. `true` certifica somente cobertura dos
-intervalos declarados, totais coerentes e IDs sem duplicação.
-**Não demonstra snapshot transacional**, nem estabilidade dos
-processos entre as requisições. Não existem no novo contrato os campos
-antigos `completude`, `linhas_lidas`, `paginas_lidas`, `avisos`
-e `fonte`. A saída humana calcula seus avisos separadamente.
+O JSON v2 expõe `unidade`, `origem`, `recebidos` e `gerados`.
+Cada grupo inclui `processos` e `total_declarado`, **sem**
+`completa` ou uma classificação alternativa de completude. O
+adaptador Web verifica faixas e contexto para decidir se pode combinar
+páginas, mas não atribui essa propriedade à caixa. O resultado de replay
+descreve os dados presentes nas páginas selecionadas: não representa
+automaticamente todos os processos da unidade, nem um snapshot
+transacional. A saída humana informa quantos processos foram observados
+e qual total foi declarado pelo SEI.
 
-O [golden JSON v1](../../tests/fixtures/caixa-v1.json)
+O [golden JSON v2](../../tests/fixtures/caixa-v2.json)
 protege o formato público. Não há campo `href` no `Processo`
 para permitir serializar URLs assinadas inadvertidamente.
 
