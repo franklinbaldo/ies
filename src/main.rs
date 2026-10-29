@@ -255,11 +255,7 @@ fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode 
     let numero = match historico::numero_do_historico(html) {
         Ok(n) => n,
         Err(motivo) => {
-            return erro_fonte(
-                json_mode,
-                motivo.subcodigo(),
-                motivo.mensagem(),
-            );
+            return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
         }
     };
     let detalhe = match historico::ler_historico(html, &numero) {
