@@ -30,6 +30,28 @@ da escolha. Não crie fichas para os 129 itens ainda não implementados.
 Não invente operações pela inspeção de telas: preserve apenas comportamentos
 observados e demonstrados nas instalações reais de treinamento do SEI.
 
+## Testes e spikes nas instalações de treinamento
+
+**Use instalações SEI de treinamento ou homologação para testes e spikes**.
+Comece pelas cassettes OKF e replays offline; quando precisar observar
+comportamento real, escolha uma instalação de treinamento autorizada e
+registre versão, identidade, unidade, operação, requisições e efeitos.
+Não use o SEI de produção para desenvolvimento, experimentação,
+descoberta de endpoints ou testes que possam alterar estado.
+
+Preferir os ambientes de treinamento já documentados no acervo;
+um cenário reproduzido em uma instalação não comprova paridade nas
+outras. Compare variantes reais de HTML e comportamento entre versões,
+sem impor uma única gramática de protocolo. Antes de acesso autenticado,
+confira a política por instalação e a autorização da identidade.
+
+Uma requisição GET não é automaticamente livre de efeitos:
+abrir/visualizar processo pode registrar recebimento. POST de pesquisa,
+paginação ou troca de unidade exige avaliação explícita do efeito,
+mesmo quando usado para consulta. Se faltar autorização ou evidência,
+mantenha o spike offline e o comando live bloqueado; não use
+produção como substituto. Faça **testes de ablação de etapas** por operação: parta do fluxo\nreproduzido, remova uma requisição ou etapa por vez e compare\nresultado de domínio, identidade/unidade, permissões, efeitos e erros.\nRegistre no OKF o fluxo de referência, a etapa removida, as condições\nde ensaio, os resultados positivos/negativos e o orçamento de requests.\nAblação de leitura não autoriza suprimir verificação necessária de\nescrita ou repetir uma ação de efeito incerto. Só mantenha a remoção\nquando testes em treinamento demonstrarem equivalência para o escopo.\nMeça o número de requisições por operação e elimine consultas duplicadas\nou especulativas.
+
 ## Prioridade de interfaces do SEI
 
 **Web é a via principal e o alvo de compatibilidade nacional do IES.**
