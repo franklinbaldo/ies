@@ -1,4 +1,4 @@
-//! Projeção offline da resposta documento_imprimir_web já verificada.
+//! Projeção offline da resposta `documento_imprimir_web` já verificada.
 use crate::{cassette, documento_web, erro_fonte};
 use serde_json::json;
 use std::process::ExitCode;
