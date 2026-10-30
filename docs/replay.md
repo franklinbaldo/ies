@@ -59,6 +59,22 @@ de domínio e falham em vez de inventar uma interpretação.
 
 ## Documento HTML capturado
 
+`ies replay CENARIO --documento --texto --json` extrai uma lista de
+**parágrafos visíveis da impressão HTML**, quando ela contém elementos
+`<p>`. É uma projeção textual offline da resposta verificada
+`documento_imprimir_web`: não é download integral de documento,
+não extrai anexos externos/PDF, não certifica propriedades nem
+consulta a instalação. Não inclui HTML, scripts nem URLs dos atributos
+de links; o texto pedido pode conter dados administrativos da
+cassette e deve receber tratamento adequado pelo operador.
+
+`--texto` só pode acompanhar `--documento`; casos sem corpo ou sem
+parágrafos retornam subcódigos tipados. Preservar a ordem de parágrafos
+observados, sem inventar formatação ou texto omitido. A saída JSON
+contém `documento`, `paragrafos`, `instalacao` e
+`escopo: "paragrafos_impressao_offline"`. Não gravar o texto
+automaticamente em disco.
+
 `ies replay CENARIO --documento --json` seleciona somente a resposta
 `documento_imprimir_web` da cassette verificada e extrai do título o
 número SEI e o tipo, preservando zeros. Se houver mais de uma resposta,
