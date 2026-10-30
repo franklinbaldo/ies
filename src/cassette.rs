@@ -235,8 +235,7 @@ fn read_verified_html(
     }
     let operation = match operation {
         Some(operation) => operation,
-        None => operation_for_replay(&json, passos)
-            .map_err(|erro| erro.subcodigo().to_owned())?,
+        None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
     };
     let pages = selected_html_pages(&json, passos, operation)?;
     Ok((pages, installation, operation.to_owned()))
@@ -420,5 +419,4 @@ mod replay_operation_tests {
             Err(ErroSelecaoOperacao::OperacaoDoPassoNaoSuportada { indice: 2 })
         );
     }
-
 }
