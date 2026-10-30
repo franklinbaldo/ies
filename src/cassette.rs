@@ -80,16 +80,33 @@ pub fn read_cassette_document(
     Ok((pages.remove(0), instalacao))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ErroSelecaoOperacao {
+    InteracoesAusentes,
+    PassoNaoEncontrado { indice: usize },
+    OperacaoDoPassoNaoSuportada { indice: usize },
+    PassosComOperacoesDiferentes,
+}
+impl ErroSelecaoOperacao {
+    fn subcodigo(self) -> &'static str {
+        match self {
+            Self::InteracoesAusentes => "interacoes_da_cassette_ausentes",
+            Self::PassoNaoEncontrado { .. } => "passo_da_cassette_ausente",
+            Self::OperacaoDoPassoNaoSuportada { .. } => "operacao_do_passo_nao_suportada",
+            Self::PassosComOperacoesDiferentes => "passos_de_operacoes_diferentes",
+        }
+    }
+}
+
 fn operation_for_replay(
     json: &serde_json::Value,
     passos: &[usize],
-) -> Result<&'static str, String> {
+) -> Result<&'static str, ErroSelecaoOperacao> {
     if !passos.is_empty() {
         return Ok("procedimento_controlar");
     }
-    let interactions = json["interactions"]
-        .as_array()
-        .ok_or("interações ausentes")?;
+    let interactions = json["interactions"].as_array()
+        .ok_or(ErroSelecaoOperacao::InteracoesAusentes)?;
     let has_history = interactions.iter().any(|it| {
         it["request"]["operation"] == "procedimento_consultar_historico"
             && it["request"]["method"] == "GET"
@@ -191,7 +208,8 @@ fn read_verified_html(
     }
     let operation = match operation {
         Some(operation) => operation,
-        None => operation_for_replay(&json, passos)?,
+        None => operation_for_replay(&json, passos)
+            .map_err(|erro| erro.subcodigo().to_owned())?,
     };
     let pages = selected_html_pages(&json, passos, operation)?;
     Ok((pages, installation, operation.to_owned()))
@@ -328,4 +346,35 @@ mod replay_operation_tests {
             Ok("procedimento_controlar")
         );
     }
+    #[test]
+    fn passo_explicito_de_historico_escolhe_a_operacao_observada() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}},
+            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
+        ]});
+        assert_eq!(
+            operation_for_replay(&json, &[1]),
+            Ok("procedimento_consultar_historico")
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[0]),
+            Ok("procedimento_controlar")
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[0, 1]),
+            Err(ErroSelecaoOperacao::PassosComOperacoesDiferentes)
+        );
+    }
+
+    #[test]
+    fn passo_inexistente_falha_com_erro_tipado() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}}
+        ]});
+        assert_eq!(
+            operation_for_replay(&json, &[7]),
+            Err(ErroSelecaoOperacao::PassoNaoEncontrado { indice: 7 })
+        );
+    }
+
 }
