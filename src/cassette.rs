@@ -145,6 +145,21 @@ fn operation_for_replay(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ErroPaginasAutomaticas {
+    NaoImplementado,
+    SemInteracoes,
+    SemPaginasDoControle,
+    PrimeiraPaginaNaoEGet,
+    PaginasDeBlocosDiferentes,
+}
+
+fn passos_de_todas_as_paginas(
+    _json: &serde_json::Value,
+) -> Result<Vec<usize>, ErroPaginasAutomaticas> {
+    Err(ErroPaginasAutomaticas::NaoImplementado)
+}
+
 // O formato canônico exige sufixos em minúsculas nas evidências.
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn read_verified_html(
@@ -372,6 +387,39 @@ mod replay_operation_tests {
             Ok("procedimento_controlar")
         );
     }
+    #[test]
+    fn seleciona_get_e_post_de_uma_unica_sequencia_do_controle() {
+        let dados = serde_json::json!({"interactions": [
+            {"request":{"operation":"procedimento_controlar","method":"GET"}},
+            {"request":{"operation":"procedimento_controlar","method":"POST"}}
+        ]});
+        assert_eq!(passos_de_todas_as_paginas(&dados), Ok(vec![0, 1]));
+    }
+
+    #[test]
+    fn recusa_intercalacao_de_outra_operacao_sem_agregar_caixas() {
+        let dados = serde_json::json!({"interactions": [
+            {"request":{"operation":"procedimento_controlar","method":"GET"}},
+            {"request":{"operation":"documento_imprimir_web","method":"GET"}},
+            {"request":{"operation":"procedimento_controlar","method":"POST"}}
+        ]});
+        assert_eq!(
+            passos_de_todas_as_paginas(&dados),
+            Err(ErroPaginasAutomaticas::PaginasDeBlocosDiferentes)
+        );
+    }
+
+    #[test]
+    fn recusa_controle_sem_get_inicial() {
+        let dados = serde_json::json!({"interactions": [
+            {"request":{"operation":"procedimento_controlar","method":"POST"}}
+        ]});
+        assert_eq!(
+            passos_de_todas_as_paginas(&dados),
+            Err(ErroPaginasAutomaticas::PrimeiraPaginaNaoEGet)
+        );
+    }
+
     #[test]
     fn passo_explicito_de_historico_escolhe_a_operacao_observada() {
         let json = serde_json::json!({"interactions": [

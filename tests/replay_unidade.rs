@@ -259,6 +259,21 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
 }
 
 #[test]
+fn replay_todas_paginas_consolida_get_e_post_sem_enviar_requisicoes() {
+    let folder = preparar_fixture_paginas();
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["replay", "paginas", "--acervo", folder.to_str().unwrap(),
+               "--todas-paginas", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let resultado: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resultado["recebidos"]["processos"].as_array().unwrap().len(), 4);
+    assert_eq!(resultado["recebidos"]["processos"][3]["id"], "4");
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[test]
 fn contrato_json_v1_e_deterministico() {
     let (pasta, _card, _arquivo) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
