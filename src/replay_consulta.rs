@@ -1,6 +1,8 @@
 //! Consulta de identidade em cassettes da caixa, sem rede nem inferência de inexistência.
 use crate::erro_web::ErroCaixa;
-use crate::processo::NumeroProcessoInvalido;
+use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
+use crate::paginas;
+use crate::resumo_processo;
 use crate::resumo_processo::Ocorrencia;
 use serde::Serialize;
 use serde_json::json;
@@ -12,7 +14,6 @@ enum ErroBusca {
     Caixa(ErroCaixa),
     PaginasNaoObtidas,
     NumeroNaoObservado,
-    AindaNaoImplementada,
 }
 
 impl ErroBusca {
@@ -22,7 +23,6 @@ impl ErroBusca {
             Self::Caixa(erro) => erro.subcodigo(),
             Self::PaginasNaoObtidas => "paginas_do_controle_nao_obtidas",
             Self::NumeroNaoObservado => "numero_nao_observado_na_caixa",
-            Self::AindaNaoImplementada => "consulta_no_replay_nao_implementada",
         }
     }
 }
@@ -37,12 +37,29 @@ struct Consulta {
 }
 
 fn consultar(
-    _htmls: &[String],
-    _instalacao: &str,
-    _numero: &str,
-    _unidade: Option<&str>,
+    htmls: &[String],
+    instalacao: &str,
+    numero: &str,
+    unidade: Option<&str>,
 ) -> Result<Consulta, ErroBusca> {
-    Err(ErroBusca::AindaNaoImplementada)
+    let numero = NumeroProcesso::novo(numero).map_err(ErroBusca::Numero)?;
+    let leitura = paginas::juntar(htmls, unidade).map_err(ErroBusca::Caixa)?;
+    if !leitura.recebidos.completa(&leitura.caixa.recebidos)
+        || !leitura.gerados.completa(&leitura.caixa.gerados)
+    {
+        return Err(ErroBusca::PaginasNaoObtidas);
+    }
+    let ocorrencias = resumo_processo::ocorrencias(&leitura.caixa, numero.as_str());
+    if ocorrencias.is_empty() {
+        return Err(ErroBusca::NumeroNaoObservado);
+    }
+    Ok(Consulta {
+        escopo: "resumo_cassette_caixa",
+        numero: numero.as_str().to_owned(),
+        instalacao: instalacao.to_owned(),
+        unidade: leitura.unidade,
+        ocorrencias,
+    })
 }
 
 pub(super) fn mostrar(
@@ -81,5 +98,24 @@ pub(super) fn mostrar(
             }
             ExitCode::from(exit)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn numero_com_controle_falha_por_tipo_antes_de_ler_html() {
+        let erro = consultar(&[], "unb", "0001\nSECRETO", None).unwrap_err();
+        assert_eq!(erro, ErroBusca::Numero(NumeroProcessoInvalido::Controle));
+        assert_eq!(erro.subcodigo(), "numero_processo_controle");
+    }
+
+    #[test]
+    fn caixa_ausente_tem_erro_diferente_de_numero_ausente() {
+        let erro = consultar(&[], "unb", "0001", None).unwrap_err();
+        assert_eq!(erro, ErroBusca::Caixa(ErroCaixa::SemPaginas));
+        assert_ne!(erro, ErroBusca::NumeroNaoObservado);
     }
 }
