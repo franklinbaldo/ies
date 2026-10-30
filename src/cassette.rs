@@ -57,8 +57,10 @@ pub fn read_cassette_auto(
     card: &Path,
     archive: &Path,
     passos: &[usize],
+    todas_paginas: bool,
 ) -> Result<ReplayLido, String> {
-    let (pages, origem, operacao) = read_verified_html(card, archive, passos, None)?;
+    let (pages, origem, operacao) =
+        read_verified_html(card, archive, passos, None, todas_paginas)?;
     if operacao == "procedimento_consultar_historico" {
         let mut pages = pages;
         Ok(ReplayLido::Historico(pages.remove(0), origem))
@@ -73,7 +75,7 @@ pub fn read_cassette_document(
     passos: &[usize],
 ) -> Result<(String, String), String> {
     let (mut pages, instalacao, _) =
-        read_verified_html(card, archive, passos, Some("documento_imprimir_web"))?;
+        read_verified_html(card, archive, passos, Some("documento_imprimir_web"), false)?;
     if pages.len() != 1 {
         return Err("um único HTML do documento deve ser selecionado".into());
     }
@@ -147,17 +149,46 @@ fn operation_for_replay(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ErroPaginasAutomaticas {
-    NaoImplementado,
     SemInteracoes,
     SemPaginasDoControle,
     PrimeiraPaginaNaoEGet,
     PaginasDeBlocosDiferentes,
 }
 
+impl ErroPaginasAutomaticas {
+    fn subcodigo(self) -> &'static str {
+        match self {
+            Self::SemInteracoes => "interacoes_da_cassette_ausentes",
+            Self::SemPaginasDoControle => "paginas_do_controle_ausentes",
+            Self::PrimeiraPaginaNaoEGet => "primeira_pagina_do_controle_nao_e_get",
+            Self::PaginasDeBlocosDiferentes => "paginas_do_controle_intercaladas",
+        }
+    }
+}
+
 fn passos_de_todas_as_paginas(
-    _json: &serde_json::Value,
+    json: &serde_json::Value,
 ) -> Result<Vec<usize>, ErroPaginasAutomaticas> {
-    Err(ErroPaginasAutomaticas::NaoImplementado)
+    let interacoes = json["interactions"]
+        .as_array()
+        .ok_or(ErroPaginasAutomaticas::SemInteracoes)?;
+    let indices: Vec<usize> = interacoes
+        .iter()
+        .enumerate()
+        .filter_map(|(indice, passo)| {
+            (passo["request"]["operation"] == "procedimento_controlar").then_some(indice)
+        })
+        .collect();
+    let Some(&inicio) = indices.first() else {
+        return Err(ErroPaginasAutomaticas::SemPaginasDoControle);
+    };
+    if interacoes[inicio]["request"]["method"] != "GET" {
+        return Err(ErroPaginasAutomaticas::PrimeiraPaginaNaoEGet);
+    }
+    if indices.windows(2).any(|par| par[1] != par[0] + 1) {
+        return Err(ErroPaginasAutomaticas::PaginasDeBlocosDiferentes);
+    }
+    Ok(indices)
 }
 
 // O formato canônico exige sufixos em minúsculas nas evidências.
@@ -167,6 +198,7 @@ fn read_verified_html(
     archive: &Path,
     passos: &[usize],
     operation: Option<&str>,
+    todas_paginas: bool,
 ) -> Result<(Vec<String>, String, String), String> {
     let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
     if campo(&card_text, "type") != Some("Cassette") {
@@ -248,11 +280,15 @@ fn read_verified_html(
     if !root.starts_with(&format!("https://{allowed}/")) && root != format!("https://{allowed}") {
         return Err("host da cassette não corresponde à instalação".into());
     }
-    let operation = match operation {
-        Some(operation) => operation,
-        None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
+    let operation = if todas_paginas {
+        "procedimento_controlar"
+    } else {
+        match operation {
+            Some(operation) => operation,
+            None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
+        }
     };
-    let pages = selected_html_pages(&json, passos, operation)?;
+    let pages = selected_html_pages(&json, passos, operation, todas_paginas)?;
     Ok((pages, installation, operation.to_owned()))
 }
 
@@ -260,11 +296,14 @@ fn selected_html_pages(
     json: &serde_json::Value,
     passos: &[usize],
     operation: &str,
+    todas_paginas: bool,
 ) -> Result<Vec<String>, String> {
     let list = json["interactions"]
         .as_array()
         .ok_or("interações ausentes")?;
-    let chosen: Vec<usize> = if passos.is_empty() {
+    let chosen: Vec<usize> = if todas_paginas {
+        passos_de_todas_as_paginas(json).map_err(|erro| erro.subcodigo().to_owned())?
+    } else if passos.is_empty() {
         list.iter()
             .enumerate()
             .filter_map(|(i, it)| {
@@ -278,7 +317,7 @@ fn selected_html_pages(
     if chosen.is_empty() || chosen.len() > 200 {
         return Err("quantidade de páginas inválida".into());
     }
-    if passos.is_empty() && chosen.len() != 1 {
+    if passos.is_empty() && chosen.len() != 1 && !todas_paginas {
         return Err("cassette com várias caixas: selecione os passos explicitamente".into());
     }
     let mut seen = std::collections::HashSet::new();
