@@ -374,7 +374,9 @@ mod tests {
         let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
         let outra_unidade = segunda.replace(">TESTE</a>", ">OUTRA</a>");
-        let erro = juntar(&[primeira, outra_unidade], Some("TESTE")).unwrap_err();
+        let erro = juntar(&[primeira, outra_unidade], Some("TESTE"))
+            .err()
+            .unwrap();
         assert_eq!(erro.subcodigo(), "contexto_divergente");
     }
 
