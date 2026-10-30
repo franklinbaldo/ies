@@ -14,6 +14,7 @@ pub enum ErroTituloDocumento {
     TituloAusente,
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
+    IdentificacaoDaInstalacaoAusenteNoTitulo,
 }
 
 impl ErroTituloDocumento {
@@ -23,6 +24,9 @@ impl ErroTituloDocumento {
             Self::TituloAusente => "titulo_documento_ausente",
             Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
             Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
+            Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
+                "titulo_documento_sem_identificacao_sei"
+            }
         }
     }
 }
@@ -38,7 +42,10 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
         .map(|node| node.inner_text(parser).into_owned())
         .ok_or(ErroTituloDocumento::TituloAusente)?;
     let mut campos = titulo.splitn(3, " - ");
-    let _instalacao = campos.next();
+    let instalacao = campos.next().unwrap_or_default();
+    if !instalacao.starts_with("SEI/") || instalacao.len() <= 4 {
+        return Err(ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo);
+    }
     let numero = campos
         .next()
         .ok_or(ErroTituloDocumento::TituloSemNumeroSei)?;
@@ -73,7 +80,14 @@ mod tests {
     fn titulo_sem_numero_nao_fabrica_documento() {
         assert_eq!(
             identidade_do_titulo("<title>SEI - Documento</title>").unwrap_err(),
-            ErroTituloDocumento::TituloSemNumeroSei
+            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
+        );
+    }
+    #[test]
+    fn titulo_generico_com_digitos_nao_e_documento_sei() {
+        assert_eq!(
+            identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
+            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
         );
     }
 }
