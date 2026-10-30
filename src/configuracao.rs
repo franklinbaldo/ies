@@ -12,6 +12,7 @@ pub enum ErroConfiguracao {
     UrlDoControleSemCaminho,
     CookieSemCaminhoConfigurado,
     OrigemAutorizadaNaoConfigurada,
+    ArquivoDeConfiguracaoNaoPodeSerLido,
 }
 
 impl ErroConfiguracao {
@@ -20,6 +21,7 @@ impl ErroConfiguracao {
             Self::UrlDoControleSemCaminho => "caminho_url_controle_nao_informado",
             Self::CookieSemCaminhoConfigurado => "caminho_cookie_nao_informado",
             Self::OrigemAutorizadaNaoConfigurada => "caminho_origem_nao_informado",
+            Self::ArquivoDeConfiguracaoNaoPodeSerLido => "arquivo_configuracao_nao_pode_ser_lido",
         }
     }
     pub fn mensagem(self) -> &'static str {
@@ -27,6 +29,9 @@ impl ErroConfiguracao {
             Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
             Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
             Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
+            Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
+                "arquivo IES_CONFIG_FILE ausente, inseguro ou ilegível"
+            }
         }
     }
 }
@@ -39,10 +44,9 @@ fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfigurac
 }
 
 pub fn arquivos_de_acesso() -> Result<ArquivosDeAcesso, ErroConfiguracao> {
-    if let Some(path) = arquivo_de_configuracao()
-        && let Some(arquivos) = ler_configuracao_local(&path)
-    {
-        return Ok(arquivos);
+    if let Some(path) = arquivo_de_configuracao() {
+        return ler_configuracao_local(&path)
+            .ok_or(ErroConfiguracao::ArquivoDeConfiguracaoNaoPodeSerLido);
     }
     Ok(ArquivosDeAcesso {
         url_controle: caminho(
