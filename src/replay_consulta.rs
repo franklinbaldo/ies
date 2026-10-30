@@ -1,7 +1,7 @@
 //! Consulta de identidade em cassettes da caixa, sem rede nem inferência de inexistência.
 use crate::erro_web::ErroCaixa;
-use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::paginas;
+use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::resumo_processo;
 use crate::resumo_processo::Ocorrencia;
 use serde::Serialize;
@@ -72,10 +72,16 @@ pub(super) fn mostrar(
     match consultar(htmls, instalacao, numero, unidade) {
         Ok(consulta) => {
             if json_mode {
-                println!("{}", serde_json::to_string_pretty(&consulta).expect("resultado serializável"));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&consulta).expect("resultado serializável")
+                );
             } else {
-                println!("IES: processo {} observado em {} ocorrência(s) da cassette; consulta offline.",
-                    consulta.numero, consulta.ocorrencias.len());
+                println!(
+                    "IES: processo {} observado em {} ocorrência(s) da cassette; consulta offline.",
+                    consulta.numero,
+                    consulta.ocorrencias.len()
+                );
             }
             ExitCode::SUCCESS
         }
@@ -87,12 +93,15 @@ pub(super) fn mostrar(
             };
             let exit = if codigo == "entrada_invalida" { 2 } else { 1 };
             if json_mode {
-                println!("{}", json!({
-                    "codigo": codigo,
-                    "subcodigo": erro.subcodigo(),
-                    "retentavel": false,
-                    "erro": "consulta offline de processo não concluída"
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": codigo,
+                        "subcodigo": erro.subcodigo(),
+                        "retentavel": false,
+                        "erro": "consulta offline de processo não concluída"
+                    })
+                );
             } else {
                 eprintln!("IES: consulta offline não concluída [{}]", erro.subcodigo());
             }
