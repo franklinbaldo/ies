@@ -354,6 +354,33 @@ mod tests {
         )
     }
     #[test]
+    fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
+        let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        let referencia = juntar(&[primeira.clone(), segunda], Some("TESTE")).unwrap();
+        let sem_segunda = juntar(&[primeira], Some("TESTE")).unwrap();
+        assert_eq!(referencia.caixa.recebidos.processos.len(), 4);
+        assert!(referencia.recebidos.completa(&referencia.caixa.recebidos));
+        assert_eq!(sem_segunda.caixa.recebidos.processos.len(), 2);
+        assert!(!sem_segunda.recebidos.completa(&sem_segunda.caixa.recebidos));
+        assert_eq!(
+            referencia.caixa.gerados.processos,
+            sem_segunda.caixa.gerados.processos
+        );
+    }
+
+    #[test]
+    fn ablacao_de_verificacao_de_contexto_nao_e_segura() {
+        let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+        let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+        let outra_unidade = segunda.replace(">TESTE</a>", ">OUTRA</a>");
+        let erro = juntar(&[primeira, outra_unidade], Some("TESTE"))
+            .err()
+            .unwrap();
+        assert_eq!(erro.subcodigo(), "contexto_divergente");
+    }
+
+    #[test]
     fn duas_tabelas_paginam_independentemente() {
         let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
