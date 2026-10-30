@@ -24,16 +24,10 @@ impl ErroTituloDocumento {
             Self::TituloAusente => "titulo_documento_ausente",
             Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
             Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
-            Self::IdentificacaoDaInstalacaoAusenteNoTitulo => "titulo_documento_sem_identificacao_sei",
+            Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
+                "titulo_documento_sem_identificacao_sei"
+            }
         }
-    }
-
-    #[test]
-    fn titulo_generico_com_digitos_nao_e_documento_sei() {
-        assert_eq!(
-            identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
-            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
-        );
     }
 }
 
@@ -89,4 +83,12 @@ mod tests {
             ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
         );
     }
+    #[test]
+    fn titulo_generico_com_digitos_nao_e_documento_sei() {
+        assert_eq!(
+            identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
+            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
+        );
+    }
+
 }
