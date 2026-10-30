@@ -8,6 +8,15 @@ pub(super) fn listar_processos_da_unidade(
     json_mode: bool,
     destino: Option<&std::path::Path>,
 ) -> ExitCode {
+    if let Some(destino) = destino
+        && let Err(erro) = arquivo_caixa::validar_destino(destino)
+    {
+        return erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "o destino local da caixa não pode ser utilizado",
+        );
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -54,7 +63,7 @@ pub(super) fn mostrar_caixa(
     };
     // Consulta de sessão promete a caixa inteira; replay offline só relata
     // as páginas selecionadas, sem alegar que representam toda a unidade.
-    if exigir_todas_paginas
+    if (exigir_todas_paginas || destino.is_some())
         && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
             || !leitura.gerados.completa(&leitura.caixa.gerados))
     {
@@ -65,12 +74,23 @@ pub(super) fn mostrar_caixa(
         );
     }
     let resultado = saida::json(&leitura, origem);
-    if destino.is_some() {
-        return erro_fonte(
-            json_mode,
-            "exportacao_da_caixa_nao_implementada",
-            "exportação local da caixa ainda não implementada",
-        );
+    if let Some(destino) = destino {
+        if let Err(erro) = arquivo_caixa::salvar_exclusivo(destino, &resultado) {
+            return erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "a caixa não pôde ser gravada no arquivo solicitado",
+            );
+        }
+        if json_mode {
+            println!("{}", json!({
+                "arquivo": destino.display().to_string(),
+                "salvo": true
+            }));
+        } else {
+            println!("IES: caixa validada gravada em {}", destino.display());
+        }
+        return ExitCode::SUCCESS;
     }
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&resultado).unwrap());
@@ -80,3 +100,30 @@ pub(super) fn mostrar_caixa(
     ExitCode::SUCCESS
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leitura_parcial_nao_gera_arquivo_de_caixa() {
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-caixa-parcial-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir(&pasta).unwrap();
+        let destino = pasta.join("caixa.json");
+        let html = "<html><a id='lnkInfraUnidade'>TESTE</a>\
+            <table id='tblProcessosRecebidos'><caption>3 registros:</caption>\
+            <tr id='P1'><td><a class='processoVisualizado'>001</a></td></tr>\
+            </table><table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let retorno = mostrar_caixa(
+            &[html.to_owned()], "offline", Some("TESTE"), true, false, Some(&destino)
+        );
+        assert_eq!(retorno, ExitCode::from(1));
+        assert!(!destino.exists());
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+}
