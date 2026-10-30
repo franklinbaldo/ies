@@ -3,7 +3,7 @@ use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn acervo_de_documentos(titulos: &[&str]) -> PathBuf {
@@ -54,7 +54,7 @@ fn acervo_de_documentos(titulos: &[&str]) -> PathBuf {
     pasta
 }
 
-fn consultar(pasta: &PathBuf, numero: &str) -> std::process::Output {
+fn consultar(pasta: &Path, numero: &str) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "replay",
