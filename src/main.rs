@@ -164,6 +164,9 @@ struct Replay {
     /// Reproduz um único HTML de documento da operação `documento_imprimir_web`
     #[arg(long)]
     documento: bool,
+    /// Escolhe pelo número SEI exato entre documentos de uma cassette verificada
+    #[arg(long, requires = "documento")]
+    numero_documento: Option<String>,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
