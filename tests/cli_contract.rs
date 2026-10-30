@@ -297,3 +297,18 @@ fn unidade_atual_sem_sessao_falha_sem_rede() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
 }
+
+#[test]
+fn configuracao_explicita_ilegivel_nao_usa_caminhos_de_fallback() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["unidade", "atual", "--json"])
+        .env("IES_CONFIG_FILE", "/configuracao-ies-inexistente.json")
+        .env("IES_URL_CONTROLE_FILE", "url-fallback")
+        .env("IES_COOKIE_FILE", "cookie-fallback")
+        .env("IES_ORIGEM_FILE", "origem-fallback")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "arquivo_configuracao_nao_pode_ser_lido");
+}
