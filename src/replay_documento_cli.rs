@@ -11,6 +11,28 @@ pub(super) fn mostrar_documento_replay(
     texto: bool,
 ) -> ExitCode {
     match cassette::read_cassette_document(card, zip, passos) {
+        Ok((html, instalacao)) if texto => match documento_web::paragrafos_impressos(&html) {
+            Ok(resultado) => {
+                if json_mode {
+                    println!("{}", json!({
+                        "documento": resultado.documento,
+                        "paragrafos": resultado.paragrafos,
+                        "instalacao": instalacao,
+                        "escopo": "paragrafos_impressao_offline"
+                    }));
+                } else {
+                    for paragrafo in resultado.paragrafos {
+                        println!("{paragrafo}");
+                    }
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "parágrafos da impressão não foram obtidos"
+            ),
+        },
         Ok((html, instalacao)) => match documento_web::identidade_do_titulo(&html) {
             Ok(documento) => {
                 if json_mode {
