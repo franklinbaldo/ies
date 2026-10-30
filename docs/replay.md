@@ -44,18 +44,21 @@ requisição POST é enviado ou repetido.
 
 ## Seleção de respostas
 
-Para cenários de andamento, a ferramenta seleciona a única resposta
-GET `procedimento_consultar_historico`, confere o número no título
-e retorna uma projeção parcial de `Andamento`.
-Para cenários de caixa, seleciona a resposta
-`procedimento_controlar`; com múltiplas caixas, requer seleção
-explícita. Somente o comando técnico `ies replay` aceita `--passo N`
-repetido para consolidar páginas já registradas.
+A operação é escolhida pelo campo `request.operation` dos passos
+verificados, nunca pelo nome da cassette. Sem `--passo`, o replay
+seleciona a resposta GET `procedimento_consultar_historico` quando
+observada; caso contrário, seleciona `procedimento_controlar`.
+Histórico selecionado explicitamente com `--passo N` deve funcionar
+mesmo em cassettes que também contêm outras operações, preservando
+o NUP indicado no título e a projeção parcial de `Andamento`.
 
-A inferência atual de categoria usa o nome do cenário contendo
-`andamento`; outros cenários tentam caixa. Trata-se de um recorte
-conservador: cenários de outras operações ainda não possuem replay
-de domínio e falham em vez de inventar uma interpretação.
+`--passo N` é um índice **zero-based** de interação da cassette.
+Vários passos são aceitos para consolidar páginas do Controle de Processos,
+mas não se podem misturar operações nem compor um histórico artificial
+a partir de respostas distintas. A seleção de passo ausente, operação
+não reconhecida ou operações diferentes deve falhar com subcódigo
+específico sem acessar a rede. O replay não é consulta live nem prova
+de leitura integral do processo.
 
 ## Documento HTML capturado
 
