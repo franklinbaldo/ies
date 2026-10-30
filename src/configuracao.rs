@@ -29,7 +29,9 @@ impl ErroConfiguracao {
             Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
             Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
             Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
-            Self::ArquivoDeConfiguracaoNaoPodeSerLido => "arquivo IES_CONFIG_FILE ausente, inseguro ou ilegível",
+            Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
+                "arquivo IES_CONFIG_FILE ausente, inseguro ou ilegível"
+            }
         }
     }
 }
