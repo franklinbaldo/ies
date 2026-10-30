@@ -80,25 +80,69 @@ pub fn read_cassette_document(
     Ok((pages.remove(0), instalacao))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ErroSelecaoOperacao {
+    InteracoesAusentes,
+    PassoNaoEncontrado { indice: usize },
+    OperacaoDoPassoNaoSuportada { indice: usize },
+    PassosComOperacoesDiferentes,
+    HistoricoComVariasRespostas,
+}
+impl ErroSelecaoOperacao {
+    fn subcodigo(self) -> &'static str {
+        match self {
+            Self::InteracoesAusentes => "interacoes_da_cassette_ausentes",
+            Self::PassoNaoEncontrado { .. } => "passo_da_cassette_ausente",
+            Self::OperacaoDoPassoNaoSuportada { .. } => "operacao_do_passo_nao_suportada",
+            Self::PassosComOperacoesDiferentes => "passos_de_operacoes_diferentes",
+            Self::HistoricoComVariasRespostas => "historico_exige_um_passo",
+        }
+    }
+}
+
 fn operation_for_replay(
     json: &serde_json::Value,
     passos: &[usize],
-) -> Result<&'static str, String> {
-    if !passos.is_empty() {
-        return Ok("procedimento_controlar");
-    }
+) -> Result<&'static str, ErroSelecaoOperacao> {
     let interactions = json["interactions"]
         .as_array()
-        .ok_or("interações ausentes")?;
+        .ok_or(ErroSelecaoOperacao::InteracoesAusentes)?;
+
+    // Seleção explícita tem precedência sobre outras operações da cassette.
+    // Não deduzir o tipo pelo nome do cenário nem misturar respostas.
+    if !passos.is_empty() {
+        let mut escolhido = None;
+        for &indice in passos {
+            let passo = interactions
+                .get(indice)
+                .ok_or(ErroSelecaoOperacao::PassoNaoEncontrado { indice })?;
+            let operacao = match passo["request"]["operation"].as_str() {
+                Some("procedimento_controlar") => "procedimento_controlar",
+                Some("procedimento_consultar_historico") => "procedimento_consultar_historico",
+                _ => return Err(ErroSelecaoOperacao::OperacaoDoPassoNaoSuportada { indice }),
+            };
+            if escolhido.is_some_and(|anterior| anterior != operacao) {
+                return Err(ErroSelecaoOperacao::PassosComOperacoesDiferentes);
+            }
+            escolhido = Some(operacao);
+        }
+        if escolhido == Some("procedimento_consultar_historico") && passos.len() != 1 {
+            return Err(ErroSelecaoOperacao::HistoricoComVariasRespostas);
+        }
+        return Ok(escolhido.expect("passos não vazios"));
+    }
+
+    // No modo automático, histórico é preferido somente quando observado
+    // em GET; a cardinalidade é conferida pelo leitor de páginas.
     let has_history = interactions.iter().any(|it| {
         it["request"]["operation"] == "procedimento_consultar_historico"
             && it["request"]["method"] == "GET"
     });
-    if has_history {
-        Ok("procedimento_consultar_historico")
+    Ok(if has_history {
+        "procedimento_consultar_historico"
     } else {
-        Ok("procedimento_controlar")
-    }
+        "procedimento_controlar"
+    })
 }
 
 // O formato canônico exige sufixos em minúsculas nas evidências.
@@ -191,7 +235,7 @@ fn read_verified_html(
     }
     let operation = match operation {
         Some(operation) => operation,
-        None => operation_for_replay(&json, passos)?,
+        None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
     };
     let pages = selected_html_pages(&json, passos, operation)?;
     Ok((pages, installation, operation.to_owned()))
@@ -326,6 +370,53 @@ mod replay_operation_tests {
         assert_eq!(
             operation_for_replay(&json, &[]),
             Ok("procedimento_controlar")
+        );
+    }
+    #[test]
+    fn passo_explicito_de_historico_escolhe_a_operacao_observada() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}},
+            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
+        ]});
+        assert_eq!(
+            operation_for_replay(&json, &[1]),
+            Ok("procedimento_consultar_historico")
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[0]),
+            Ok("procedimento_controlar")
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[0, 1]),
+            Err(ErroSelecaoOperacao::PassosComOperacoesDiferentes)
+        );
+    }
+
+    #[test]
+    fn passo_inexistente_falha_com_erro_tipado() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_controlar", "method": "GET"}}
+        ]});
+        assert_eq!(
+            operation_for_replay(&json, &[7]),
+            Err(ErroSelecaoOperacao::PassoNaoEncontrado { indice: 7 })
+        );
+    }
+
+    #[test]
+    fn replay_nao_mistura_multiplos_historicos_nem_aceita_acao_aleatoria() {
+        let json = serde_json::json!({"interactions": [
+            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
+            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
+            {"request": {"operation": "documento_assinar", "method": "POST"}}
+        ]});
+        assert_eq!(
+            operation_for_replay(&json, &[0, 1]),
+            Err(ErroSelecaoOperacao::HistoricoComVariasRespostas)
+        );
+        assert_eq!(
+            operation_for_replay(&json, &[2]),
+            Err(ErroSelecaoOperacao::OperacaoDoPassoNaoSuportada { indice: 2 })
         );
     }
 }
