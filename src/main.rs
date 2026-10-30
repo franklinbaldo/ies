@@ -11,10 +11,10 @@ mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_resumo_cli;
-mod resumo_processo;
 mod replay_consulta;
-mod status_cli;
+mod resumo_processo;
 mod saida;
+mod status_cli;
 mod transporte;
 mod unidade_atual_cli;
 
@@ -400,7 +400,12 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     if replay.documento && replay.numero_processo.is_some() {
-        return erro_lista(json_mode, "opcoes_incompativeis", "documento não é caixa de processos", 2);
+        return erro_lista(
+            json_mode,
+            "opcoes_incompativeis",
+            "documento não é caixa de processos",
+            2,
+        );
     }
     if replay.documento {
         return mostrar_documento_replay(card, &zip, &replay.passo, json_mode);
@@ -408,7 +413,11 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     match cassette::read_cassette_auto(card, &zip, &replay.passo) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {
             if replay.numero_processo.is_some() {
-                return erro_fonte(json_mode, "replay_nao_e_caixa", "a resposta é de histórico, não da caixa");
+                return erro_fonte(
+                    json_mode,
+                    "replay_nao_e_caixa",
+                    "a resposta é de histórico, não da caixa",
+                );
             }
             mostrar_historico(&html, &origem, json_mode)
         }
