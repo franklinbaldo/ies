@@ -59,8 +59,7 @@ pub fn read_cassette_auto(
     passos: &[usize],
     todas_paginas: bool,
 ) -> Result<ReplayLido, String> {
-    let (pages, origem, operacao) =
-        read_verified_html(card, archive, passos, None, todas_paginas)?;
+    let (pages, origem, operacao) = read_verified_html(card, archive, passos, None, todas_paginas)?;
     if operacao == "procedimento_consultar_historico" {
         let mut pages = pages;
         Ok(ReplayLido::Historico(pages.remove(0), origem))
@@ -285,7 +284,9 @@ fn read_verified_html(
     } else {
         match operation {
             Some(operation) => operation,
-            None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
+            None => {
+                operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?
+            }
         }
     };
     let pages = selected_html_pages(&json, passos, operation, todas_paginas)?;
