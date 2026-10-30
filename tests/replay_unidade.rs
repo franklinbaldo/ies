@@ -396,9 +396,17 @@ fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
 fn replay_busca_processo_pelo_nup_opaco_sem_consultar_rede() {
     let (pasta, _card, _zip) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["replay", "replay", "--acervo", pasta.to_str().unwrap(),
-               "--numero-processo", "23106.000001/2026-01", "--json"])
-        .output().unwrap();
+        .args([
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--numero-processo",
+            "23106.000001/2026-01",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(resposta.status.code(), Some(0), "{resposta:?}");
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(json["numero"], "23106.000001/2026-01");
@@ -414,9 +422,17 @@ fn replay_busca_processo_pelo_nup_opaco_sem_consultar_rede() {
 fn replay_busca_nup_ausente_na_caixa_inteira_nao_afirma_inexistencia() {
     let (pasta, _card, _zip) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["replay", "replay", "--acervo", pasta.to_str().unwrap(),
-               "--numero-processo", "000123", "--json"])
-        .output().unwrap();
+        .args([
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--numero-processo",
+            "000123",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(resposta.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(json["subcodigo"], "numero_nao_observado_na_caixa");
@@ -428,10 +444,18 @@ fn replay_busca_nup_recusa_cobertura_incompleta_e_aceita_paginas_explicitas() {
     let pasta = preparar_fixture_paginas();
     let consulta = |extra: &[&str]| {
         Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(["replay", "paginas", "--acervo", pasta.to_str().unwrap(),
-                   "--numero-processo", "NUP-3", "--json"])
+            .args([
+                "replay",
+                "paginas",
+                "--acervo",
+                pasta.to_str().unwrap(),
+                "--numero-processo",
+                "NUP-3",
+                "--json",
+            ])
             .args(extra)
-            .output().unwrap()
+            .output()
+            .unwrap()
     };
     let parcial = consulta(&[]);
     assert_eq!(parcial.status.code(), Some(1));
@@ -448,9 +472,17 @@ fn replay_busca_nup_recusa_cobertura_incompleta_e_aceita_paginas_explicitas() {
 fn replay_busca_nup_com_caractere_de_controle_retorna_erro_tipado() {
     let (pasta, _card, _zip) = preparar_fixture();
     let resposta = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["replay", "replay", "--acervo", pasta.to_str().unwrap(),
-               "--numero-processo", "00123\nSEGREDO", "--json"])
-        .output().unwrap();
+        .args([
+            "replay",
+            "replay",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--numero-processo",
+            "00123\nSEGREDO",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(resposta.status.code(), Some(2));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(json["subcodigo"], "numero_processo_controle");
