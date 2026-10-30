@@ -1,6 +1,9 @@
 //! Publicação local exclusiva de caixa validada; nunca grava uma leitura parcial.
 use serde_json::Value;
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write};
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErroArquivoCaixa {
@@ -13,7 +16,6 @@ pub enum ErroArquivoCaixa {
     FalhaAoGravarTemporario,
     FalhaAoSincronizarTemporario,
     FalhaAoPublicarDestino,
-    AindaNaoImplementado,
 }
 impl ErroArquivoCaixa {
     pub fn subcodigo(self) -> &'static str {
@@ -27,15 +29,83 @@ impl ErroArquivoCaixa {
             Self::FalhaAoGravarTemporario => "temporario_da_caixa_nao_gravado",
             Self::FalhaAoSincronizarTemporario => "temporario_da_caixa_nao_sincronizado",
             Self::FalhaAoPublicarDestino => "arquivo_da_caixa_nao_publicado",
-            Self::AindaNaoImplementado => "exportacao_da_caixa_nao_implementada",
         }
     }
 }
-pub fn validar_destino(_destino: &Path) -> Result<(), ErroArquivoCaixa> {
-    Err(ErroArquivoCaixa::AindaNaoImplementado)
+fn diretorio_pai(destino: &Path) -> Result<&Path, ErroArquivoCaixa> {
+    destino.file_name().ok_or(ErroArquivoCaixa::CaminhoDestinoSemNome)?;
+    let pai = destino.parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    match fs::metadata(pai) {
+        Ok(info) if info.is_dir() => Ok(pai),
+        Ok(_) => Err(ErroArquivoCaixa::DiretorioPaiInacessivel),
+        Err(erro) if erro.kind() == io::ErrorKind::NotFound => {
+            Err(ErroArquivoCaixa::DiretorioPaiAusente)
+        }
+        Err(_) => Err(ErroArquivoCaixa::DiretorioPaiInacessivel),
+    }
 }
-pub fn salvar_exclusivo(_destino: &Path, _valor: &Value) -> Result<(), ErroArquivoCaixa> {
-    Err(ErroArquivoCaixa::AindaNaoImplementado)
+
+pub fn validar_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
+    let _ = diretorio_pai(destino)?;
+    match fs::symlink_metadata(destino) {
+        Ok(_) => Err(ErroArquivoCaixa::DestinoJaExistente),
+        Err(erro) if erro.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err(ErroArquivoCaixa::DiretorioPaiInacessivel),
+    }
+}
+
+/// Publica o arquivo completo com hard link exclusivo: rename poderia
+/// sobrescrever silenciosamente uma criação concorrente de outro processo.
+pub fn salvar_exclusivo(destino: &Path, valor: &Value) -> Result<(), ErroArquivoCaixa> {
+    validar_destino(destino)?;
+    let pai = diretorio_pai(destino)?;
+    let mut bytes = serde_json::to_vec_pretty(valor)
+        .map_err(|_| ErroArquivoCaixa::ConteudoNaoSerializado)?;
+    bytes.push(b'\n');
+    let hora = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duracao| duracao.as_nanos());
+    let nome = destino
+        .file_name()
+        .ok_or(ErroArquivoCaixa::CaminhoDestinoSemNome)?
+        .to_string_lossy();
+    let temporario = pai.join(format!(".ies-caixa-{}-{hora}-{nome}.tmp", std::process::id()));
+    let mut opcoes = OpenOptions::new();
+    opcoes.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opcoes.mode(0o600);
+    }
+    let mut arquivo = opcoes
+        .open(&temporario)
+        .map_err(|_| ErroArquivoCaixa::TemporarioNaoCriado)?;
+    let gravacao = arquivo.write_all(&bytes);
+    let sincronizacao = if gravacao.is_ok() {
+        arquivo.sync_all()
+    } else {
+        Ok(())
+    };
+    drop(arquivo);
+    if gravacao.is_err() {
+        let _ = fs::remove_file(&temporario);
+        return Err(ErroArquivoCaixa::FalhaAoGravarTemporario);
+    }
+    if sincronizacao.is_err() {
+        let _ = fs::remove_file(&temporario);
+        return Err(ErroArquivoCaixa::FalhaAoSincronizarTemporario);
+    }
+    let publicacao = fs::hard_link(&temporario, destino);
+    let _ = fs::remove_file(&temporario);
+    match publicacao {
+        Ok(()) => Ok(()),
+        Err(erro) if erro.kind() == io::ErrorKind::AlreadyExists => {
+            Err(ErroArquivoCaixa::DestinoJaExistente)
+        }
+        Err(_) => Err(ErroArquivoCaixa::FalhaAoPublicarDestino),
+    }
 }
 
 #[cfg(test)]
