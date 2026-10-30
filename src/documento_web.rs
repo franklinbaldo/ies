@@ -90,5 +90,4 @@ mod tests {
             ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
         );
     }
-
 }
