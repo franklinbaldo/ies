@@ -76,7 +76,6 @@ pub enum ErroParagrafosDocumento {
     CorpoDaImpressaoAusente,
     ParagrafosDaImpressaoAusentes,
     TextoDaImpressaoAcimaDoLimite,
-    AindaNaoImplementado,
 }
 
 impl ErroParagrafosDocumento {
@@ -86,13 +85,46 @@ impl ErroParagrafosDocumento {
             Self::CorpoDaImpressaoAusente => "corpo_da_impressao_ausente",
             Self::ParagrafosDaImpressaoAusentes => "paragrafos_da_impressao_ausentes",
             Self::TextoDaImpressaoAcimaDoLimite => "texto_da_impressao_acima_do_limite",
-            Self::AindaNaoImplementado => "paragrafos_da_impressao_nao_implementados",
         }
     }
 }
 
-pub fn paragrafos_impressos(_html: &str) -> Result<ParagrafosDocumento, ErroParagrafosDocumento> {
-    Err(ErroParagrafosDocumento::AindaNaoImplementado)
+pub fn paragrafos_impressos(html: &str) -> Result<ParagrafosDocumento, ErroParagrafosDocumento> {
+    let documento = identidade_do_titulo(html).map_err(ErroParagrafosDocumento::Titulo)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroParagrafosDocumento::Titulo(ErroTituloDocumento::HtmlNaoInterpretado))?;
+    let parser = dom.parser();
+    let corpo = dom
+        .query_selector("body")
+        .and_then(|mut nos| nos.next())
+        .and_then(|no| no.get(parser))
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroParagrafosDocumento::CorpoDaImpressaoAusente)?;
+    let mut paragrafos = Vec::new();
+    let mut tamanho = 0usize;
+    for no in corpo.query_selector(parser, "p").into_iter().flatten() {
+        let Some(no) = no.get(parser) else {
+            continue;
+        };
+        let conteudo = no
+            .inner_text(parser)
+            .replace("&nbsp;", " ")
+            .replace("&#160;", " ")
+            .replace('\u{a0}', " ");
+        let texto = conteudo.split_whitespace().collect::<Vec<_>>().join(" ");
+        if texto.is_empty() {
+            continue;
+        }
+        tamanho = tamanho.saturating_add(texto.len());
+        if tamanho > 1_000_000 {
+            return Err(ErroParagrafosDocumento::TextoDaImpressaoAcimaDoLimite);
+        }
+        paragrafos.push(texto);
+    }
+    if paragrafos.is_empty() {
+        return Err(ErroParagrafosDocumento::ParagrafosDaImpressaoAusentes);
+    }
+    Ok(ParagrafosDocumento { documento, paragrafos })
 }
 
 #[cfg(test)]
