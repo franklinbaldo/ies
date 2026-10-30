@@ -50,8 +50,7 @@ abrir/visualizar processo pode registrar recebimento. POST de pesquisa,
 paginação ou troca de unidade exige avaliação explícita do efeito,
 mesmo quando usado para consulta. Se faltar autorização ou evidência,
 mantenha o spike offline e o comando live bloqueado; não use
-produção como substituto. Meça o número de requisições por operação
-e elimine consultas duplicadas ou especulativas.
+produção como substituto. Faça **testes de ablação de etapas** por operação: parta do fluxo\nreproduzido, remova uma requisição ou etapa por vez e compare\nresultado de domínio, identidade/unidade, permissões, efeitos e erros.\nRegistre no OKF o fluxo de referência, a etapa removida, as condições\nde ensaio, os resultados positivos/negativos e o orçamento de requests.\nAblação de leitura não autoriza suprimir verificação necessária de\nescrita ou repetir uma ação de efeito incerto. Só mantenha a remoção\nquando testes em treinamento demonstrarem equivalência para o escopo.\nMeça o número de requisições por operação e elimine consultas duplicadas\nou especulativas.
 
 ## Prioridade de interfaces do SEI
 
