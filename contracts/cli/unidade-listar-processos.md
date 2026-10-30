@@ -31,7 +31,32 @@ escritas ou tentativa de outro backend. Não há configuração persistente
 nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
-`--saida` ainda não é suportado e falha explicitamente.
+
+### Exportar a caixa observada
+
+`ies unidade listar-processos --saida CAMINHO` grava **o mesmo JSON**
+que a apresentação normal produz, mas somente após conferir a cobertura
+integral de recebidos e gerados. Um arquivo parcial jamais pode ser
+publicado como caixa integral. Esta opção não acrescenta chamadas HTTP.
+
+O destino pode ser relativo à pasta de trabalho ou absoluto. O diretório
+pai precisa existir; o IES não cria diretórios, não sobrescreve arquivos
+e não segue uma referência de destino preexistente, inclusive symlink.
+A escrita é preparada em arquivo temporário privado na mesma pasta,
+sincronizada e publicada de modo exclusivo, sem substituição. Em Unix,
+o arquivo é criado com permissão `0600`. Em erro, a tentativa de
+arquivo temporário é removida quando possível; nenhuma caixa incompleta
+é anunciada como salva. O IES não imprime o JSON novamente quando
+`--saida` foi escolhido: em `--json`, informa `arquivo` e
+`salvo: true`; em modo humano, o caminho gravado.
+
+Erros de destino existente, diretório pai ausente, preparação, gravação,
+sincronização e publicação são **tipados** e possuem subcódigos estáveis.
+Destino claramente existente ou pasta ausente falha antes do único GET
+de leitura da caixa. Essa exportação é uma escrita **local no disco**,
+não uma operação de escrita no SEI. A política de autorização para o
+GET Web, a verificação de unidade e a recusa de paginação incompleta
+continuam idênticas às da consulta sem `--saida`.
 
 ## Resultado e alcance
 
