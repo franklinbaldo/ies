@@ -12,6 +12,8 @@ mod paginas;
 mod processo;
 mod processo_resumo_cli;
 mod resumo_processo;
+mod replay_consulta;
+mod status_cli;
 mod saida;
 mod transporte;
 mod unidade_atual_cli;
@@ -162,6 +164,9 @@ struct Replay {
     /// Reproduz um único HTML de documento da operação `documento_imprimir_web`
     #[arg(long)]
     documento: bool,
+    /// Consulta NUP nas caixas já gravadas, sem acesso à rede
+    #[arg(long)]
+    numero_processo: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -394,15 +399,25 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
         );
     }
+    if replay.documento && replay.numero_processo.is_some() {
+        return erro_lista(json_mode, "opcoes_incompativeis", "documento não é caixa de processos", 2);
+    }
     if replay.documento {
         return mostrar_documento_replay(card, &zip, &replay.passo, json_mode);
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {
+            if replay.numero_processo.is_some() {
+                return erro_fonte(json_mode, "replay_nao_e_caixa", "a resposta é de histórico, não da caixa");
+            }
             mostrar_historico(&html, &origem, json_mode)
         }
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
-            mostrar_caixa(&htmls, &origem, unidade, json_mode, false)
+            if let Some(numero) = replay.numero_processo.as_deref() {
+                replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
+            } else {
+                mostrar_caixa(&htmls, &origem, unidade, json_mode, false)
+            }
         }
         Err(_) => erro_fonte(
             json_mode,
@@ -418,34 +433,6 @@ fn show_noun_help(noun: &str) {
         let _ = command.print_help();
         println!();
     }
-}
-
-fn mostrar_status(json_mode: bool) -> ExitCode {
-    // Diagnóstico local somente: não abre arquivos privados nem faz rede.
-    let configuracao = configuracao::arquivos_de_acesso();
-    let (estado, detalhe) = match &configuracao {
-        Ok(_) => ("caminhos_informados", None),
-        Err(erro) => ("caminhos_pendentes", Some(erro.subcodigo())),
-    };
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "configuracao": estado,
-                "subcodigo": detalhe,
-                "conexao": "nao_verificada",
-                "acesso_remoto": false,
-                "proximo_passo": if configuracao.is_ok() {
-                    "validar os arquivos privados e consultar a instalacao autorizada"
-                } else {
-                    "configurar os caminhos de acesso com ies setup"
-                }
-            })
-        );
-    } else {
-        println!("IES: {estado}; conexão SEI não verificada (nenhuma requisição enviada).");
-    }
-    ExitCode::SUCCESS
 }
 
 fn mostrar_esquema(json_mode: bool) -> ExitCode {
@@ -524,7 +511,7 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
-        Domain::Status => return mostrar_status(cli.json),
+        Domain::Status => return status_cli::mostrar_status(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
