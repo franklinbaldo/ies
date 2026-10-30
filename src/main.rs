@@ -12,6 +12,7 @@ mod paginas;
 mod processo;
 mod processo_resumo_cli;
 mod replay_consulta;
+mod replay_documento_cli;
 mod resumo_processo;
 mod saida;
 mod status_cli;
@@ -306,46 +307,6 @@ fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode 
     ExitCode::SUCCESS
 }
 
-fn mostrar_documento_replay(
-    card: &std::path::Path,
-    zip: &std::path::Path,
-    passos: &[usize],
-    json_mode: bool,
-) -> ExitCode {
-    match cassette::read_cassette_document(card, zip, passos) {
-        Ok((html, instalacao)) => match documento_web::identidade_do_titulo(&html) {
-            Ok(documento) => {
-                if json_mode {
-                    println!(
-                        "{}",
-                        json!({
-                            "documento": documento,
-                            "instalacao": instalacao,
-                            "escopo": "titulo_documento_offline"
-                        })
-                    );
-                } else {
-                    println!(
-                        "Documento SEI {}: {} (título de HTML offline)",
-                        documento.numero, documento.tipo
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "título do documento não identifica número e tipo",
-            ),
-        },
-        Err(_) => erro_fonte(
-            json_mode,
-            "replay_documento_nao_selecionado",
-            "nenhuma resposta única de documento foi selecionada",
-        ),
-    }
-}
-
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let cenario = &replay.cenario;
     if cenario.is_empty()
@@ -411,7 +372,13 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     if replay.documento {
-        return mostrar_documento_replay(card, &zip, &replay.passo, json_mode);
+        return replay_documento_cli::mostrar(
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_documento.as_deref(),
+            json_mode,
+        );
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {

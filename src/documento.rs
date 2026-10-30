@@ -18,6 +18,10 @@ impl NumeroDocumentoInvalido {
 }
 
 impl NumeroDocumento {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
     pub fn novo(texto: &str) -> Result<Self, NumeroDocumentoInvalido> {
         let texto = texto.trim();
         if texto.is_empty() {

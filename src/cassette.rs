@@ -58,7 +58,7 @@ pub fn read_cassette_auto(
     archive: &Path,
     passos: &[usize],
 ) -> Result<ReplayLido, String> {
-    let (pages, origem, operacao) = read_verified_html(card, archive, passos, None)?;
+    let (pages, origem, operacao) = read_verified_html(card, archive, passos, None, false)?;
     if operacao == "procedimento_consultar_historico" {
         let mut pages = pages;
         Ok(ReplayLido::Historico(pages.remove(0), origem))
@@ -73,11 +73,23 @@ pub fn read_cassette_document(
     passos: &[usize],
 ) -> Result<(String, String), String> {
     let (mut pages, instalacao, _) =
-        read_verified_html(card, archive, passos, Some("documento_imprimir_web"))?;
+        read_verified_html(card, archive, passos, Some("documento_imprimir_web"), false)?;
     if pages.len() != 1 {
         return Err("um único HTML do documento deve ser selecionado".into());
     }
     Ok((pages.remove(0), instalacao))
+}
+
+/// Seleção de todas as respostas GET de documento, preservando revisão e host
+/// verificados. A identidade por número é decidida depois, pelo título SEI.
+pub fn read_cassette_documents(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+) -> Result<(Vec<String>, String), String> {
+    let (pages, instalacao, _) =
+        read_verified_html(card, archive, passos, Some("documento_imprimir_web"), true)?;
+    Ok((pages, instalacao))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,6 +164,7 @@ fn read_verified_html(
     archive: &Path,
     passos: &[usize],
     operation: Option<&str>,
+    permitir_multiplos: bool,
 ) -> Result<(Vec<String>, String, String), String> {
     let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
     if campo(&card_text, "type") != Some("Cassette") {
@@ -237,7 +250,7 @@ fn read_verified_html(
         Some(operation) => operation,
         None => operation_for_replay(&json, passos).map_err(|erro| erro.subcodigo().to_owned())?,
     };
-    let pages = selected_html_pages(&json, passos, operation)?;
+    let pages = selected_html_pages(&json, passos, operation, permitir_multiplos)?;
     Ok((pages, installation, operation.to_owned()))
 }
 
@@ -245,6 +258,7 @@ fn selected_html_pages(
     json: &serde_json::Value,
     passos: &[usize],
     operation: &str,
+    permitir_multiplos: bool,
 ) -> Result<Vec<String>, String> {
     let list = json["interactions"]
         .as_array()
@@ -263,7 +277,7 @@ fn selected_html_pages(
     if chosen.is_empty() || chosen.len() > 200 {
         return Err("quantidade de páginas inválida".into());
     }
-    if passos.is_empty() && chosen.len() != 1 {
+    if passos.is_empty() && chosen.len() != 1 && !permitir_multiplos {
         return Err("cassette com várias caixas: selecione os passos explicitamente".into());
     }
     let mut seen = std::collections::HashSet::new();
