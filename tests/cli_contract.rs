@@ -102,17 +102,28 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
 }
 
 #[test]
-fn unidade_listar_processos_recusa_saida_ainda_nao_suportada() {
-    let output = ies(&[
-        "unidade",
-        "listar-processos",
-        "--saida",
-        "processos.json",
-        "--json",
-    ]);
-    assert_eq!(output.status.code(), Some(2));
+fn unidade_listar_processos_recusa_sobrescrever_arquivo_antes_de_abrir_sessao() {
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-destino-existente-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir(&pasta).unwrap();
+    let destino = pasta.join("processos.json");
+    std::fs::write(&destino, b"preservar").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["unidade", "listar-processos", "--saida", destino.to_str().unwrap(), "--json"])
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "saida_arquivo_nao_suportada");
+    assert_eq!(value["subcodigo"], "arquivo_da_caixa_ja_existe");
+    assert_eq!(std::fs::read(&destino).unwrap(), b"preservar");
+    std::fs::remove_dir_all(pasta).unwrap();
 }
 
 #[test]
