@@ -45,6 +45,54 @@ credenciais de gravação/publicação de cassettes, entregar roteiro/script
 reproduzível para outra máquina; isso não autoriza capturar dados reais
 nem dispensa distinguir capacidade offline da live.
 
+## Login Web: referência comportamental verificada no Todos
+
+Antes de criar login, sessão ou bootstrap Web no IES, consulte o código atual
+do [Todos](https://github.com/franklinbaldo/todos/blob/6127bd38b9182108c9b0922d6796493e338e5f05/src/todos/sei/session.py),
+a [observação do login](https://github.com/franklinbaldo/todos/blob/6127bd38b9182108c9b0922d6796493e338e5f05/docs/como-o-sei-funciona/02-sessao-e-login.md)
+e a [matriz de instalações](https://github.com/franklinbaldo/todos/blob/6127bd38b9182108c9b0922d6796493e338e5f05/docs/sei-multi-instalacao.md).
+São **evidências de comportamento**, não arquitetura Python para portar,
+nem prova de que um login continua funcionando hoje.
+
+- A raiz HTTPS da instalação pode redirecionar para SIP ou para um
+  **módulo próprio** de login (Goiás). Interpretar a tela real, sem
+  adivinhar endpoint, órgão, sistema, campo ou permissões; nunca tratar
+  HTTP 200 de login como autenticação concluída.
+- No formulário observado, preservar os campos ocultos e a seleção
+  efetiva do órgão/contexto; a ação do formulário é relativa à **URL
+  da tela servida**. O JavaScript do `onsubmit` pode determinar
+  `hdnAcao`, e o botão submit efetivo também participa da requisição.
+  O transporte precisa respeitar a codificação, Origin, Referer e
+  cookies relevantes observados. Não basta enviar usuário e senha.
+- Somente confirmar login após a navegação autorizada chegar à ação
+  `procedimento_controlar` com URL assinada da mesma sessão e contexto
+  validado. Algumas contas chegam primeiro ao Painel de Controle:
+  seguir apenas o link do menu que a tela realmente publicou.
+  Captcha, 2FA, formulário ambíguo, órgão não identificado ou
+  credencial recusada exigem **falha tipada específica**, sem insistência
+  automática ou adivinhação.
+- Sessões reutilizadas precisam manter cookies e URLs assinadas da
+  **mesma geração**, com escopo por instalação, identidade e unidade.
+  O Todos usa Keyring ou arquivo privado `0600` opt-in e lock de login
+  entre processos. IES pode escolher solução Rust mais simples;
+  não persistir capacidades assinadas em logs ou artefatos públicos,
+  nem usar link antigo após renovar sessão ou trocar unidade.
+- O Todos já demonstrou diferenças entre UnB, UFRJ, Goiás e PEN1–PEN4,
+  incluindo login próprio de Goiás, seleção de órgão e versões.
+  Testar por combinação instalação + conta autorizada + unidade +
+  operação, primeiro offline e depois em treinamento quando permitido.
+  Reproduzir as condições observadas, não generalizar uma instalação.
+
+**Critério de validação:** Contract-First TDD com shims e erros tipados;
+RED para campos omitidos, contexto errado, sessão expirada e recusa;
+GREEN local; por fim ensaio autorizado e reproduzível, com orçamento
+de requisições e relato PASS/FAIL/NOT_RUN. Em 31/10/2026 houve GET
+HTTP 200 das páginas públicas de login da UnB, UFRJ e Goiás, mas **não
+foi comprovada sessão autenticada**; tentativas bloqueadas por controles
+de segurança não devem ser repetidas nem redirecionadas por outro canal.
+Não acessar produção, nem incluir senhas, cookies ou `infra_hash`
+em commits, cassettes públicas ou saídas de diagnóstico.
+
 ## Testes e spikes nas instalações de treinamento
 
 **Use instalações SEI de treinamento ou homologação para testes e spikes**.
