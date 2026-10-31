@@ -93,3 +93,14 @@ de equivalência à tela Web.
 Veja a [matriz da operação](../evidencias/unidade-listar_processos.md)
 e os [testes Rust](../../tests/replay_unidade.rs). Nenhuma URL
 assinada nem cookie pode aparecer em logs ou no resultado JSON.
+
+
+## Legendas únicas por tabela (Refs #57)
+
+Uma tabela de processos recebidos ou gerados com duas ou mais tags
+`caption`, inclusive iguais, não oferece interpretação inequívoca do
+total/faixa de paginação. O adaptador Web deve falhar com
+`legendas_da_tabela_repetidas` (incluindo categoria) antes de atestar
+cobertura das posições ou devolver a caixa. Não escolher simplesmente
+a primeira legenda. Um `caption` válido único preserva o comportamento.
+Não há mudança de requests ou promessa de snapshot transacional.
