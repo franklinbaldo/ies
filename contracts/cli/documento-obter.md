@@ -40,3 +40,16 @@ precisarão de contratos de erro específicos antes de implementar HTTP.
 [documento.obter](../evidencias/documento-obter.md) e
 [formulários e payloads](../../docs/como-o-sei-funciona/formularios.md)
 fornecem evidências de partida. Não inferir autorização ou saída sem prova.
+
+## Recorte adicional: histórico de versões reproduzido offline
+
+A ferramenta auxiliar `ies replay CENARIO --documento --historico-versoes`
+aceita número SEI solicitado, ID interno explicitamente observado,
+resposta GET `documento_versao_listar` de cassette conferida e,
+opcionalmente, `--versao-documento N`. Apresenta somente maior versão
+efetivamente observada e metadados mínimos da versão selecionada;
+**não implementa** `ies documento DOC --versao N` nem cria
+`listar-versoes`. A relação entre número SEI e ID interno permanece
+não comprovada e é exposta como `numero_documento_confirmado: false`.
+Links assinados não são publicados nem executados. Refs #88.
+
