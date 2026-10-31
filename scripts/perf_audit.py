@@ -29,9 +29,26 @@ def executar(comando: list[str]) -> dict:
     return {
         "ms": (time.perf_counter_ns() - inicio) / 1_000_000,
         "cpu_ms": (uso.ru_utime + uso.ru_stime) * 1000,
-        "rss_kib": uso.ru_maxrss,
         "exit": os.waitstatus_to_exitcode(status),
     }
+
+
+def medir_rss_externo(comando: list[str], esperado: int | None) -> list[int]:
+    # /usr/bin/time executa o alvo a partir de um medidor pequeno e reporta
+    # seu próprio wait4. Medir wait4 diretamente do Python herda o HWM do
+    # processo Python e produziria picos RSS artificiais e invariantes.
+    resultados = []
+    with tempfile.TemporaryDirectory(prefix="ies-time-rss-") as pasta:
+        arquivo = str(Path(pasta) / "rss.txt")
+        for _ in range(5):
+            executado = subprocess.run(
+                ["/usr/bin/time", "-f", "%M", "-o", arquivo, *comando],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+            )
+            if esperado is not None and executado.returncode != esperado:
+                raise RuntimeError("falha durante a medição independente de memória")
+            resultados.append(int(Path(arquivo).read_text().strip()))
+    return resultados
 
 
 def medir(comando: list[str], n: int, esperado: int | None = 0) -> dict:
@@ -44,7 +61,7 @@ def medir(comando: list[str], n: int, esperado: int | None = 0) -> dict:
     if esperado is not None and any(v["exit"] != esperado for v in amostras):
         raise RuntimeError("código de saída inesperado durante medição")
     t = sorted(v["ms"] for v in amostras)
-    rss = [v["rss_kib"] for v in amostras]
+    rss = medir_rss_externo(comando, esperado)
     cpu = [v["cpu_ms"] for v in amostras]
     return {
         "n": len(t), "ms_mediana": round(statistics.median(t), 3),
@@ -151,7 +168,7 @@ def principal() -> None:
         },
         "ies_binario_bytes": Path(args.ies).stat().st_size,
         "observacao": (
-            "Picos RSS de subprocessos Linux via wait4. "
+            "Tempo/CPU via wait4 e RSS do executável via /usr/bin/time separado. "
             "Fixture sintética, sem rede. Todos só comparado se disponível "
             "no mesmo runner de forma autorizada."
         ),
