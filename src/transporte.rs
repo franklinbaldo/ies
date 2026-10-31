@@ -183,6 +183,16 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
     String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
 }
 
+/// Pré-validação offline dos arquivos privados; não cria sessão nem envia request.
+pub fn verificar_sessao_local_de_arquivos(
+    _url_file: &Path,
+    _cookie_file: &Path,
+    _origem_file: &Path,
+) -> Result<(), FalhaTransporte> {
+    // Shim RED: os testes exigem validação de origem e cookie sem rede.
+    Err(FalhaTransporte::UrlInvalida)
+}
+
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
     let mut bytes = Vec::new();
     leitor
