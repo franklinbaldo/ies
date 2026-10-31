@@ -99,11 +99,18 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
     if mostrado != numero.as_str() {
         return Err(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado);
     }
-    let tabela = dom
-        .get_element_by_id("tblHistorico")
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
+    // O primeiro ID não é suficiente: tabelas duplicadas podem ocultar andamentos.
+    let mut candidatas = dom
+        .query_selector("#tblHistorico")
         .ok_or(ErroHistorico::HistoricoAusente)?;
+    let primeira = candidatas.next().ok_or(ErroHistorico::HistoricoAusente)?;
+    if candidatas.next().is_some() {
+        return Err(ErroHistorico::TabelasDoHistoricoRepetidas);
+    }
+    let tabela = primeira
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroHistorico::HistoricoInvalido)?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
