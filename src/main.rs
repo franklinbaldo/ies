@@ -22,11 +22,11 @@ mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_resumo_cli;
+mod replay_args;
 mod replay_busca_documento;
 mod replay_consulta;
 mod replay_documento_cli;
 mod replay_pesquisa_cli;
-mod replay_args;
 mod replay_versoes_cli;
 mod resumo_processo;
 mod saida;
@@ -36,8 +36,8 @@ mod unidade_atual_cli;
 mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
-use serde_json::json;
 use replay_args::Replay;
+use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -260,6 +260,42 @@ fn localizar_cards(pasta: &std::path::Path, cenario: &str) -> std::io::Result<Ve
     Ok(encontrados)
 }
 
+fn executar_replay_documento(
+    card: &std::path::Path,
+    zip: &std::path::Path,
+    replay: &Replay,
+    json_mode: bool,
+) -> ExitCode {
+    if replay.historico_versoes {
+        return replay_versoes_cli::mostrar(
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_documento.as_deref(),
+            replay.id_documento_interno.as_deref(),
+            replay.versao_documento,
+            json_mode,
+        );
+    }
+    if replay.documento {
+        if let Some(termo) = replay.termo_documento.as_deref() {
+            return replay_busca_documento::mostrar(card, &zip, &replay.passo, termo, json_mode);
+        }
+        return replay_documento_cli::mostrar(
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_documento.as_deref(),
+            replay.listar_documentos,
+            &replay_documento_cli::SaidaDocumento {
+                texto: replay.texto_documento,
+                arquivo: replay.arquivo_texto.as_deref(),
+            },
+            json_mode,
+        );
+    }
+}
+
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     if !nome_cenario_aceito(&replay.cenario) {
         return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
@@ -310,33 +346,8 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             2,
         );
     }
-    if replay.historico_versoes {
-        return replay_versoes_cli::mostrar(
-            card,
-            &zip,
-            &replay.passo,
-            replay.numero_documento.as_deref(),
-            replay.id_documento_interno.as_deref(),
-            replay.versao_documento,
-            json_mode,
-        );
-    }
     if replay.documento {
-        if let Some(termo) = replay.termo_documento.as_deref() {
-            return replay_busca_documento::mostrar(card, &zip, &replay.passo, termo, json_mode);
-        }
-        return replay_documento_cli::mostrar(
-            card,
-            &zip,
-            &replay.passo,
-            replay.numero_documento.as_deref(),
-            replay.listar_documentos,
-            &replay_documento_cli::SaidaDocumento {
-                texto: replay.texto_documento,
-                arquivo: replay.arquivo_texto.as_deref(),
-            },
-            json_mode,
-        );
+        return executar_replay_documento(card, &zip, replay, json_mode);
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo, replay.todas_paginas) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => historico_cli::mostrar_historico(
