@@ -218,22 +218,16 @@ pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>,
     Ok(bytes)
 }
 
-pub fn read_box(
-    url: &str,
-    cookie_file: &Path,
-    origem_autorizada: &str,
-) -> Result<String, FalhaTransporte> {
-    // Antes de ler o cookie ou abrir o socket, conferir o destino.
-    validar_origem(url, origem_autorizada)?;
-    let texto = arquivo_privado(cookie_file, 8_192)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie)?;
-    let mut resposta = minreq::get(url)
-        .with_timeout(30)
-        .with_follow_redirects(false)
-        .with_header("Cookie", cookie)
-        .send_lazy()
-        .map_err(|_| FalhaTransporte::Rede)?;
+/// Resposta HTTP separada do transporte para ensaiar a mesma verificação
+/// de status, MIME e limite com um leitor sintético, sem acesso ao SEI.
+struct RespostaWeb<R: Read> {
+    status_code: i32,
+    mime: String,
+    content_length: Option<usize>,
+    corpo: R,
+}
+
+fn decodificar_resposta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
     if (300..400).contains(&resposta.status_code) {
         return Err(FalhaTransporte::Redirecionamento);
     }
@@ -243,27 +237,69 @@ pub fn read_box(
     if resposta.status_code != 200 {
         return Err(FalhaTransporte::RespostaInesperada);
     }
-    let mime = resposta
-        .headers
-        .get("content-type")
-        .cloned()
-        .unwrap_or_default();
-    if !mime.to_ascii_lowercase().contains("text/html") {
+    if !resposta.mime.to_ascii_lowercase().contains("text/html") {
         return Err(FalhaTransporte::RespostaInesperada);
     }
     if resposta
-        .headers
-        .get("content-length")
-        .and_then(|s| s.trim().parse::<usize>().ok())
-        .is_some_and(|n| n > crate::MAX_HTML_BYTES)
+        .content_length
+        .is_some_and(|tamanho| tamanho > crate::MAX_HTML_BYTES)
     {
         return Err(FalhaTransporte::RespostaExcessiva);
     }
-    // O limite vale para os bytes REALMENTE recebidos, ainda que a
-    // resposta omita ou minta sobre Content-Length (inclusive chunked).
-    let bytes = ler_limitado(&mut resposta, crate::MAX_HTML_BYTES)?;
-    crate::cassette::decode_http_body(&bytes, &mime)
+    // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
+    let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
+    crate::cassette::decode_http_body(&bytes, &resposta.mime)
         .map_err(|_| FalhaTransporte::RespostaInesperada)
+}
+
+/// A única chamada GET é injetável em testes; URL, origem e cookie passam
+/// pelas mesmas validações que o transporte real, antes de qualquer conexão.
+/// A closure FnOnce impede retries ocultos ou consultas adicionais.
+fn read_box_via<R: Read, F>(
+    url: &str,
+    cookie_file: &Path,
+    origem_autorizada: &str,
+    requisitar: F,
+) -> Result<String, FalhaTransporte>
+where
+    F: FnOnce(&str, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
+{
+    validar_origem(url, origem_autorizada)?;
+    let texto = arquivo_privado(cookie_file, 8_192)?;
+    let cookie = texto.trim();
+    validar_cookie(cookie)?;
+    let resposta = requisitar(url, cookie)?;
+    decodificar_resposta(resposta)
+}
+
+pub fn read_box(
+    url: &str,
+    cookie_file: &Path,
+    origem_autorizada: &str,
+) -> Result<String, FalhaTransporte> {
+    read_box_via(url, cookie_file, origem_autorizada, |destino, cookie| {
+        let resposta = minreq::get(destino)
+            .with_timeout(30)
+            .with_follow_redirects(false)
+            .with_header("Cookie", cookie)
+            .send_lazy()
+            .map_err(|_| FalhaTransporte::Rede)?;
+        let mime = resposta
+            .headers
+            .get("content-type")
+            .cloned()
+            .unwrap_or_default();
+        let content_length = resposta
+            .headers
+            .get("content-length")
+            .and_then(|n| n.trim().parse::<usize>().ok());
+        Ok(RespostaWeb {
+            status_code: resposta.status_code,
+            mime,
+            content_length,
+            corpo: resposta,
+        })
+    })
 }
 
 pub fn read_box_from_file(
