@@ -43,9 +43,7 @@ impl ErroResultadoPesquisa {
             Self::LinkDeProcessoForaDaLinhaDePesquisa => {
                 "link_de_processo_fora_da_linha_de_pesquisa"
             }
-            Self::LinkDeProcessoSemClasseReconhecida => {
-                "link_de_processo_sem_classe_reconhecida"
-            }
+            Self::LinkDeProcessoSemClasseReconhecida => "link_de_processo_sem_classe_reconhecida",
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::LinkDePesquisaSemIdentificadorDoProcesso => {
                 "link_de_pesquisa_sem_identificador_do_processo"
@@ -100,6 +98,56 @@ fn validar_nomes_dos_parametros(campos: &[&str]) -> Result<(), ErroResultadoPesq
     Ok(())
 }
 
+/// Confere a ação e a identidade de um href Web sem realizar a navegação.
+fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
+    // Não aceitar múltiplos parâmetros de ação: proxies/servidores podem
+    // escolher o primeiro ou o último, tornando o destino indeterminado.
+    // tl preserva entidades HTML em atributos de algumas versões do SEI.
+    let query = href
+        .strip_prefix("controlador.php?")
+        .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
+    // Somente após um separador & o prefixo amp; pode ser sobra de
+    // &amp; no HTML. No primeiro campo, amp;acao é outra chave, não acao.
+    let campos: Vec<_> = query
+        .split('&')
+        .enumerate()
+        .map(|(indice, campo)| {
+            if indice == 0 {
+                campo
+            } else {
+                campo.strip_prefix("amp;").unwrap_or(campo)
+            }
+        })
+        .collect();
+    let acoes: Vec<_> = campos
+        .iter()
+        .filter_map(|campo| campo.strip_prefix("acao="))
+        .collect();
+    if acoes != ["procedimento_trabalhar"] {
+        return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
+    }
+    validar_nomes_dos_parametros(&campos)?;
+    // Um link de trabalho sem ID interno não endereça um processo.
+    // Dois IDs tornam o destino dependente da interpretação do servidor.
+    // O identificador é validado somente para uso local e não é serializado.
+    let mut ids = campos
+        .iter()
+        .filter_map(|campo| campo.strip_prefix("id_procedimento="));
+    let primeiro_id = ids
+        .next()
+        .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
+    if ids.next().is_some() {
+        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
+    }
+    if primeiro_id.is_empty() {
+        return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
+    }
+    if !primeiro_id.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal);
+    }
+    Ok(primeiro_id)
+}
+
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
@@ -149,51 +197,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .flatten()
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?
             .as_utf8_str();
-        // Não aceitar múltiplos parâmetros de ação: proxies/servidores podem
-        // escolher o primeiro ou o último, tornando o destino indeterminado.
-        // tl preserva entidades HTML em atributos de algumas versões do SEI.
-        let query = href
-            .strip_prefix("controlador.php?")
-            .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
-        // Somente após um separador & o prefixo amp; pode ser sobra de
-        // &amp; no HTML. No primeiro campo, amp;acao é outra chave, não acao.
-        let campos: Vec<_> = query
-            .split('&')
-            .enumerate()
-            .map(|(indice, campo)| {
-                if indice == 0 {
-                    campo
-                } else {
-                    campo.strip_prefix("amp;").unwrap_or(campo)
-                }
-            })
-            .collect();
-        let acoes: Vec<_> = campos
-            .iter()
-            .filter_map(|campo| campo.strip_prefix("acao="))
-            .collect();
-        if acoes != ["procedimento_trabalhar"] {
-            return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
-        }
-        validar_nomes_dos_parametros(&campos)?;
-        // Um link de trabalho sem ID interno não endereça um processo.
-        // Dois IDs tornam o destino dependente da interpretação do servidor.
-        // O identificador é validado somente para uso local e não é serializado.
-        let mut ids = campos
-            .iter()
-            .filter_map(|campo| campo.strip_prefix("id_procedimento="));
-        let primeiro_id = ids
-            .next()
-            .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
-        if ids.next().is_some() {
-            return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
-        }
-        if primeiro_id.is_empty() {
-            return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
-        }
-        if !primeiro_id.bytes().all(|byte| byte.is_ascii_digit()) {
-            return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal);
-        }
+        let primeiro_id = validar_href_de_processo(&href)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
         if !observados.insert(numero.as_str().to_owned()) {
