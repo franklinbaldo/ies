@@ -40,11 +40,8 @@ fn mostrar_resumo_processo(
         Ok(observacao) => observacao,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let mut modelo = resumo_exportacao::modelo(
-        numero,
-        leitura.unidade.as_deref(),
-        &observacao.ocorrencias,
-    );
+    let mut modelo =
+        resumo_exportacao::modelo(numero, leitura.unidade.as_deref(), &observacao.ocorrencias);
     if observacao.pagina_parcial {
         modelo["escopo"] = json!("resumo_da_pagina");
         modelo["demais_paginas"] = json!("nao_consultadas");
