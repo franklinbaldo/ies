@@ -75,7 +75,11 @@ pontuação e demais caracteres opacos aceitos no contrato. Não deduz
 identidade pelo nome da cassette. Entrada inválida resulta em saída 2
 com erro tipado; número diferente resulta em saída 1 com subcódigo
 `numero_do_historico_diferente_do_solicitado`. Sem a opção, preserva a
-leitura do NUP observado no título. Não há consulta live ao SEI.
+leitura do NUP observado no título. Não há consulta live ao SEI. Uma resposta com mais de um elemento
+`id="tblHistorico"` é recusada com o subcódigo tipado
+`tabelas_do_historico_repetidas`; o replay não escolhe a primeira tabela
+nem omite os andamentos exibidos nas demais. A correção evita declarar
+um histórico parcial como íntegro (refs #59).
 
 ## Inventário offline de documentos observados
 
