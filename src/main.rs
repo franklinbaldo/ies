@@ -186,8 +186,11 @@ enum UnidadeAcao {
 #[derive(Debug, Args)]
 struct StatusArgs {
     /// Confere apenas metadados dos arquivos privados, sem abrir conteúdos nem rede
-    #[arg(long)]
+    #[arg(long, conflicts_with = "verificar_sessao_local")]
     verificar_arquivos: bool,
+    /// Confere URL, origem e cookie em arquivos privados, sem consultar SEI
+    #[arg(long, conflicts_with = "verificar_arquivos")]
+    verificar_sessao_local: bool,
 }
 
 #[derive(Debug, Args)]
@@ -446,7 +449,11 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status(args) => {
-            return status_cli::mostrar_status(cli.json, args.verificar_arquivos);
+            return status_cli::mostrar_status(
+                cli.json,
+                args.verificar_arquivos,
+                args.verificar_sessao_local,
+            );
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
@@ -471,28 +478,8 @@ fn run(cli: &Cli) -> ExitCode {
     {
         return status;
     }
-    // Shim de contrato: valida o NUP antes de qualquer adaptador ou acesso Web.
-    if let Domain::Processo(Processo {
-        numero: Some(numero),
-        acao: None,
-        ..
-    }) = &cli.command
-        && let Err(erro) = processo::NumeroProcesso::novo(numero)
-    {
-        if cli.json {
-            println!(
-                "{}",
-                json!({
-                    "codigo": "entrada_invalida",
-                    "subcodigo": erro.subcodigo(),
-                    "erro": "número de processo inválido",
-                    "retentavel": false
-                })
-            );
-        } else {
-            eprintln!("IES: número de processo inválido [{}]", erro.subcodigo());
-        }
-        return ExitCode::from(2);
+    if let Some(status) = processo_resumo_cli::validar_numero(cli) {
+        return status;
     }
     match &cli.command {
         Domain::Processo(Processo {

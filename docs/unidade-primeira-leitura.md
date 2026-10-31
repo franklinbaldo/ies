@@ -62,6 +62,29 @@ de linhas parecer compatível. `completa: true` significa somente
 que os intervalos e totais declarados foram conferidos; **não prova
 snapshot transacional ou imutabilidade do conjunto entre páginas**.
 
+## Prévia segura dos arquivos de sessão, sem rede
+
+Antes de usar `ies unidade listar-processos`, é possível testar
+localmente o formato da URL assinada, o caminho-base HTTPS da instalação
+e a sintaxe do Cookie, sem enviar nenhuma requisição:
+
+```sh
+IES_URL_CONTROLE_FILE=/caminho/privado/url-caixa \
+IES_COOKIE_FILE=/caminho/privado/cookie \
+IES_ORIGEM_FILE=/caminho/privado/origem \
+ies status --verificar-sessao-local --json
+```
+
+A verificação compartilha com o transporte as regras de arquivo privado
+regular, permissões `0600`, assinatura de `procedimento_controlar`,
+origem e cabeçalho Cookie. Valida a origem antes de abrir o cookie.
+O resultado positivo informa `sessao_local: formato_e_origem_verificados`,
+mas **não** prova que o SEI esteja acessível, autenticado ou que o
+`infra_hash` continue válido: `conexao: nao_verificada` e
+`acesso_remoto: false` permanecem explícitos. Nenhum valor confidencial
+é mostrado. O modo `--verificar-arquivos` antigo lê somente metadados;
+não confundir as duas verificações.
+
 ## Leitura HTTPS de caixa assinada
 
 Para uma sessão **já autenticada**, o IES aceita exclusivamente
