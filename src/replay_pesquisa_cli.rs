@@ -5,6 +5,7 @@ use crate::{
     processo::{NumeroProcesso, NumeroProcessoInvalido},
 };
 use serde_json::json;
+use std::collections::HashSet;
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -16,6 +17,8 @@ enum ErroReplayPesquisa {
     Pagina(pesquisa_web::ErroResultadoPesquisa),
     NumeroSolicitado(NumeroProcessoInvalido),
     NumeroNaoObservadoNaRespostaDePesquisa,
+    RespostasParaConsolidarInsuficientes,
+    NumeroDePesquisaRepetidoEntreRespostas,
 }
 impl ErroReplayPesquisa {
     fn subcodigo(self) -> &'static str {
@@ -28,15 +31,22 @@ impl ErroReplayPesquisa {
             Self::NumeroNaoObservadoNaRespostaDePesquisa => {
                 "numero_nao_observado_na_resposta_de_pesquisa"
             }
+            Self::RespostasParaConsolidarInsuficientes => "respostas_para_consolidar_insuficientes",
+            Self::NumeroDePesquisaRepetidoEntreRespostas => {
+                "numero_de_pesquisa_repetido_entre_respostas"
+            }
         }
     }
     fn codigo(self) -> (&'static str, u8) {
         match self {
             Self::PassoDePesquisaNaoInformado
             | Self::PesquisaExigeUmUnicoPasso
-            | Self::NumeroSolicitado(_) => ("entrada_invalida", 2),
+            | Self::NumeroSolicitado(_)
+            | Self::RespostasParaConsolidarInsuficientes => ("entrada_invalida", 2),
             Self::NumeroNaoObservadoNaRespostaDePesquisa => ("numero_nao_observado", 1),
-            Self::RespostaDePesquisaNaoVerificada | Self::Pagina(_) => ("fonte_invalida", 1),
+            Self::RespostaDePesquisaNaoVerificada
+            | Self::Pagina(_)
+            | Self::NumeroDePesquisaRepetidoEntreRespostas => ("fonte_invalida", 1),
         }
     }
 }
@@ -62,13 +72,94 @@ fn selecionar_numero(
         .ok_or(ErroReplayPesquisa::NumeroNaoObservadoNaRespostaDePesquisa)
 }
 
-pub(super) fn mostrar(
+/// Consolida somente as respostas explicitamente selecionadas, sem afirmar paginação completa.
+fn juntar_resultados(
+    paginas: Vec<Vec<pesquisa_web::ResultadoPesquisa>>,
+) -> Result<Vec<pesquisa_web::ResultadoPesquisa>, ErroReplayPesquisa> {
+    let mut vistos = HashSet::new();
+    let mut resultado = Vec::new();
+    for pagina in paginas {
+        for processo in pagina {
+            if !vistos.insert(processo.numero.as_str().to_owned()) {
+                return Err(ErroReplayPesquisa::NumeroDePesquisaRepetidoEntreRespostas);
+            }
+            resultado.push(processo);
+        }
+    }
+    Ok(resultado)
+}
+
+fn mostrar_consolidado(
     card: &Path,
     zip: &Path,
     passos: &[usize],
     numero: Option<&str>,
     json_mode: bool,
 ) -> ExitCode {
+    let resultado = (|| {
+        if passos.len() < 2 {
+            return Err(ErroReplayPesquisa::RespostasParaConsolidarInsuficientes);
+        }
+        let (htmls, instalacao) = cassette::read_cassette_search_results(card, zip, passos)
+            .map_err(|_| ErroReplayPesquisa::RespostaDePesquisaNaoVerificada)?;
+        let resultados = htmls
+            .iter()
+            .map(|html| pesquisa_web::ler_resultados(html).map_err(ErroReplayPesquisa::Pagina))
+            .collect::<Result<Vec<_>, _>>()?;
+        let reunidos = juntar_resultados(resultados)?;
+        let total = reunidos.len();
+        let escolhidos = selecionar_numero(reunidos, numero)?;
+        Ok((escolhidos, instalacao, total))
+    })();
+    match resultado {
+        Ok((processos, instalacao, total_observado)) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "processos":processos, "instalacao":instalacao,
+                        "passos":passos,"total_observado":total_observado,
+                        "escopo":"respostas_pesquisa_cassette_offline",
+                        "cobertura":"somente_passos_selecionados"
+                    })
+                );
+            } else {
+                println!(
+                    "IES: {} processo(s) nas respostas escolhidas offline.",
+                    processos.len()
+                );
+                for processo in processos {
+                    println!("Processo {}", processo.numero.as_str());
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Err(erro) => {
+            let (codigo, saida) = erro.codigo();
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({"codigo":codigo,"subcodigo":erro.subcodigo(),"retentavel":false})
+                );
+            } else {
+                eprintln!("IES: consolidação offline recusada [{}]", erro.subcodigo());
+            }
+            ExitCode::from(saida)
+        }
+    }
+}
+
+pub(super) fn mostrar(
+    card: &Path,
+    zip: &Path,
+    passos: &[usize],
+    numero: Option<&str>,
+    unir: bool,
+    json_mode: bool,
+) -> ExitCode {
+    if unir {
+        return mostrar_consolidado(card, zip, passos, numero, json_mode);
+    }
     let resultado = selecionar_passo(passos).and_then(|passo| {
         cassette::read_cassette_search_result(card, zip, passo)
             .map_err(|_| ErroReplayPesquisa::RespostaDePesquisaNaoVerificada)
@@ -194,5 +285,45 @@ mod tests {
             Err(ErroReplayPesquisa::PesquisaExigeUmUnicoPasso)
         );
         assert_eq!(selecionar_passo(&[2]), Ok(2));
+    }
+}
+
+#[cfg(test)]
+mod testes_consolidacao {
+    use super::*;
+
+    fn resultado(numero: &str) -> pesquisa_web::ResultadoPesquisa {
+        pesquisa_web::ResultadoPesquisa {
+            numero: NumeroProcesso::novo(numero).unwrap(),
+        }
+    }
+
+    #[test]
+    fn consolida_respostas_distintas_sem_perder_ordem_nem_zeros() {
+        let resultado = juntar_resultados(vec![
+            vec![resultado("000123/2026"), resultado("000124/2026")],
+            vec![resultado("000125/2026")],
+        ])
+        .unwrap();
+        assert_eq!(resultado.len(), 3);
+        assert_eq!(resultado[0].numero.as_str(), "000123/2026");
+        assert_eq!(resultado[2].numero.as_str(), "000125/2026");
+    }
+
+    #[test]
+    fn numero_repetido_entre_paginas_falha_sem_inventario_parcial() {
+        let erro = juntar_resultados(vec![
+            vec![resultado("000123/2026")],
+            vec![resultado("000123/2026")],
+        ])
+        .unwrap_err();
+        assert_eq!(
+            erro,
+            ErroReplayPesquisa::NumeroDePesquisaRepetidoEntreRespostas
+        );
+        assert_eq!(
+            erro.subcodigo(),
+            "numero_de_pesquisa_repetido_entre_respostas"
+        );
     }
 }

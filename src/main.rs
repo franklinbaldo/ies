@@ -1,4 +1,5 @@
 mod arquivo_caixa;
+mod arquivo_texto_documento;
 mod caixa;
 mod cassette;
 mod configuracao;
@@ -7,6 +8,7 @@ mod documento;
 mod documento_web;
 mod dominio;
 mod erro_web;
+mod filtro_andamentos;
 mod historico;
 mod historico_cli;
 mod instalacao;
@@ -180,15 +182,24 @@ struct Replay {
     /// Inclui o texto visível do corpo no replay offline do documento
     #[arg(long, requires = "documento", conflicts_with = "listar_documentos")]
     texto_documento: bool,
+    /// Salva o texto verificado em arquivo privado novo, sem exibir o corpo no terminal
+    #[arg(long, requires = "texto_documento")]
+    arquivo_texto: Option<PathBuf>,
     /// Lista as identidades distintas observadas em documentos da cassette
     #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
     listar_documentos: bool,
     /// Busca termo no texto de documentos já capturados e verificados, sem rede
     #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
     termo_documento: Option<String>,
+    /// Filtra descrições dos andamentos de histórico já gravado, sem rede
+    #[arg(long, conflicts_with_all = ["documento", "resultado_pesquisa", "todas_paginas"])]
+    termo_andamento: Option<String>,
     /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
     #[arg(long, conflicts_with_all = ["documento", "todas_paginas"])]
     resultado_pesquisa: bool,
+    /// Consolida respostas POST de pesquisa escolhidas explicitamente, sem consultar SEI
+    #[arg(long, requires = "resultado_pesquisa", requires = "passo")]
+    unir_resultados_pesquisa: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -312,6 +323,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &zip,
             &replay.passo,
             replay.numero_processo.as_deref(),
+            replay.unir_resultados_pesquisa,
             json_mode,
         );
     }
@@ -333,7 +345,10 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &replay.passo,
             replay.numero_documento.as_deref(),
             replay.listar_documentos,
-            replay.texto_documento,
+            &replay_documento_cli::SaidaDocumento {
+                texto: replay.texto_documento,
+                arquivo: replay.arquivo_texto.as_deref(),
+            },
             json_mode,
         );
     }
@@ -342,9 +357,13 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &html,
             &origem,
             replay.numero_processo.as_deref(),
+            replay.termo_andamento.as_deref(),
             json_mode,
         ),
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
+            if replay.termo_andamento.is_some() {
+                return historico_cli::erro_filtro_em_caixa(json_mode);
+            }
             if let Some(numero) = replay.numero_processo.as_deref() {
                 replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
             } else {

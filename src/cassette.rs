@@ -123,6 +123,24 @@ pub fn read_cassette_search_result(
     Ok((paginas.remove(0), instalacao))
 }
 
+/// Lê múltiplas respostas POST de pesquisa com a mesma validação integral da
+/// cassette e da instalação. Não infere sequencialidade nem cobertura de páginas.
+pub fn read_cassette_search_results(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+) -> Result<(Vec<String>, String), String> {
+    let (pages, instalacao, _) = read_verified_html(
+        card,
+        archive,
+        passos,
+        Some("protocolo_pesquisar"),
+        false,
+        true,
+    )?;
+    Ok((pages, instalacao))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ErroSelecaoOperacao {
     InteracoesAusentes,

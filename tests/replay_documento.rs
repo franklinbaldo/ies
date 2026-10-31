@@ -118,3 +118,68 @@ fn numero_nao_decimal_e_recusado_antes_da_escolha() {
     assert_eq!(json["subcodigo"], "numero_documento_nao_numerico");
     fs::remove_dir_all(pasta).unwrap();
 }
+
+#[test]
+fn exporta_texto_verificado_sem_divulgar_conteudo_no_terminal() {
+    let pasta = acervo_de_documentos(&["SEI/UnB - 0007 - Ofício"]);
+    let destino = pasta.join("0007.txt");
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "replay",
+            "documentos",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--documento",
+            "--numero-documento",
+            "0007",
+            "--texto-documento",
+            "--arquivo-texto",
+            destino.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(saida.status.code(), Some(0), "{saida:?}");
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["escopo"], "texto_documento_exportado_offline");
+    assert_eq!(json["documento"]["numero"], "0007");
+    assert_eq!(fs::read_to_string(&destino).unwrap(), "SEM SEGREDOS");
+    assert!(!String::from_utf8_lossy(&saida.stdout).contains("SEM SEGREDOS"));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn exportacao_recusa_sobrescrever_texto_preexistente() {
+    let pasta = acervo_de_documentos(&["SEI/UnB - 0007 - Ofício"]);
+    let destino = pasta.join("0007.txt");
+    fs::write(&destino, "MANTER").unwrap();
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "replay",
+            "documentos",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--documento",
+            "--numero-documento",
+            "0007",
+            "--texto-documento",
+            "--arquivo-texto",
+            destino.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(saida.status.code(), Some(1), "{saida:?}");
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["subcodigo"], "arquivo_texto_documento_ja_existe");
+    assert_eq!(fs::read_to_string(&destino).unwrap(), "MANTER");
+    fs::remove_dir_all(pasta).unwrap();
+}
