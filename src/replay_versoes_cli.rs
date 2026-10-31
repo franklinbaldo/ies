@@ -25,7 +25,8 @@ impl ErroConsultaVersoes {
     }
     fn codigo(self) -> (&'static str, u8) {
         match self {
-            Self::NumeroDocumento(_) | Self::IdInternoInvalido
+            Self::NumeroDocumento(_)
+            | Self::IdInternoInvalido
             | Self::NumeroVersao(ErroVersao::NumeroInvalido) => ("entrada_invalida", 2),
             _ => ("fonte_invalida", 1),
         }
@@ -49,9 +50,8 @@ fn consultar(
     if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroConsultaVersoes::IdInternoInvalido);
     }
-    let historico = documento_versoes::interpretar_historico(
-        html, documento, id_interno, None
-    ).map_err(ErroConsultaVersoes::NumeroVersao)?;
+    let historico = documento_versoes::interpretar_historico(html, documento, id_interno, None)
+        .map_err(ErroConsultaVersoes::NumeroVersao)?;
     let selecionada = solicitada
         .map(|versao| historico.selecionar(versao))
         .transpose()
@@ -91,16 +91,19 @@ pub(super) fn mostrar(
     match resultado {
         Ok((documento, id_interno, consulta, instalacao)) => {
             if json_mode {
-                println!("{}", json!({
-                    "numero_documento_informado": documento.as_str(),
-                    "numero_documento_confirmado": false,
-                    "id_interno_documento": id_interno,
-                    "instalacao": instalacao,
-                    "escopo": "historico_versoes_cassette_offline",
-                    "versao_atual": consulta.versao_atual,
-                    "versao_selecionada": consulta.versao_selecionada,
-                    "total_observado": consulta.total_observado
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "numero_documento_informado": documento.as_str(),
+                        "numero_documento_confirmado": false,
+                        "id_interno_documento": id_interno,
+                        "instalacao": instalacao,
+                        "escopo": "historico_versoes_cassette_offline",
+                        "versao_atual": consulta.versao_atual,
+                        "versao_selecionada": consulta.versao_selecionada,
+                        "total_observado": consulta.total_observado
+                    })
+                );
             } else {
                 println!(
                     "IES: {} versão(ões) observadas para ID interno {id_interno}; versão atual observada: {:?}. O vínculo ao número SEI informado não foi comprovado.",
@@ -112,9 +115,15 @@ pub(super) fn mostrar(
         Err(erro) => {
             let (codigo, saida) = erro.codigo();
             if json_mode {
-                println!("{}", json!({"codigo":codigo,"subcodigo":erro.subcodigo(),"retentavel":false}));
+                println!(
+                    "{}",
+                    json!({"codigo":codigo,"subcodigo":erro.subcodigo(),"retentavel":false})
+                );
             } else {
-                eprintln!("IES: histórico de versões offline recusado [{}]", erro.subcodigo());
+                eprintln!(
+                    "IES: histórico de versões offline recusado [{}]",
+                    erro.subcodigo()
+                );
             }
             ExitCode::from(saida)
         }
@@ -131,13 +140,16 @@ mod tests {
         for n in numeros {
             write!(rows, "<tr><td></td><td>{n}</td><td>Ana</td><td>PPI</td><td>31/10/2026</td><td><a href='controlador.php?acao=documento_visualizar&amp;id_documento={id}&amp;versao={n}&amp;infra_hash={}'>Ver</a></td></tr>", "a".repeat(64)).unwrap();
         }
-        format!("<table class='infraTable'><caption>Lista de Versões ({} registros):</caption><tr><th></th><th>Versão</th><th>Usuário</th><th>Unidade</th><th>Última Modificação</th><th>Ações</th></tr>{rows}</table>", numeros.len())
+        format!(
+            "<table class='infraTable'><caption>Lista de Versões ({} registros):</caption><tr><th></th><th>Versão</th><th>Usuário</th><th>Unidade</th><th>Última Modificação</th><th>Ações</th></tr>{rows}</table>",
+            numeros.len()
+        )
     }
 
     #[test]
     fn atual_observada_nao_infere_versoes_ausentes() {
         let doc = NumeroDocumento::novo("0007").unwrap();
-        let resultado = consultar(&pagina(&[1,4], "42"), &doc, "42", None).unwrap();
+        let resultado = consultar(&pagina(&[1, 4], "42"), &doc, "42", None).unwrap();
         assert_eq!(resultado.versao_atual, Some(4));
         assert_eq!(resultado.versao_selecionada, None);
         assert_eq!(resultado.total_observado, 2);
@@ -146,17 +158,34 @@ mod tests {
     #[test]
     fn selecao_pontual_nao_retorna_link_assinado() {
         let doc = NumeroDocumento::novo("0007").unwrap();
-        let resultado = consultar(&pagina(&[1,4], "42"), &doc, "42", Some(VersaoDocumento::nova(4).unwrap())).unwrap();
+        let resultado = consultar(
+            &pagina(&[1, 4], "42"),
+            &doc,
+            "42",
+            Some(VersaoDocumento::nova(4).unwrap()),
+        )
+        .unwrap();
         assert_eq!(resultado.versao_selecionada, Some(4));
-        assert!(!serde_json::to_string(&resultado).unwrap().contains("infra_hash"));
+        assert!(
+            !serde_json::to_string(&resultado)
+                .unwrap()
+                .contains("infra_hash")
+        );
     }
 
     #[test]
     fn ausencia_na_tabela_nao_fabrica_versao_historica() {
         let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
-            consultar(&pagina(&[1,4], "42"), &doc, "42", Some(VersaoDocumento::nova(2).unwrap())),
-            Err(ErroConsultaVersoes::NumeroVersao(ErroVersao::VersaoNaoObservada))
+            consultar(
+                &pagina(&[1, 4], "42"),
+                &doc,
+                "42",
+                Some(VersaoDocumento::nova(2).unwrap())
+            ),
+            Err(ErroConsultaVersoes::NumeroVersao(
+                ErroVersao::VersaoNaoObservada
+            ))
         );
     }
 
@@ -165,7 +194,9 @@ mod tests {
         let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
             consultar(&pagina(&[1], "43"), &doc, "42", None),
-            Err(ErroConsultaVersoes::NumeroVersao(ErroVersao::DocumentoDivergente))
+            Err(ErroConsultaVersoes::NumeroVersao(
+                ErroVersao::DocumentoDivergente
+            ))
         );
     }
 }
