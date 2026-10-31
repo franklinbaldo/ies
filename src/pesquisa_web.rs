@@ -109,9 +109,18 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         let query = href
             .strip_prefix("controlador.php?")
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
+        // Somente após um separador & o prefixo amp; pode ser sobra de
+        // &amp; no HTML. No primeiro campo, amp;acao é outra chave, não acao.
         let campos: Vec<_> = query
             .split('&')
-            .map(|campo| campo.strip_prefix("amp;").unwrap_or(campo))
+            .enumerate()
+            .map(|(indice, campo)| {
+                if indice == 0 {
+                    campo
+                } else {
+                    campo.strip_prefix("amp;").unwrap_or(campo)
+                }
+            })
             .collect();
         let acoes: Vec<_> = campos
             .iter()
@@ -229,6 +238,18 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso)
+        );
+    }
+
+    #[test]
+    fn chave_amp_acao_no_primeiro_parametro_nao_e_acao_valida() {
+        let html = RESULTADO.replace(
+            "?acao=procedimento_trabalhar",
+            "?amp;acao=procedimento_trabalhar",
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
         );
     }
 

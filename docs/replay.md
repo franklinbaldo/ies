@@ -171,7 +171,8 @@ requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
 resultados, linha com múltiplos links, ação inesperada, link sem identificador
 interno de processo, identificador interno que não seja decimal ASCII,
-parâmetro de identificador repetido, dois NUPs distintos apontando ao mesmo
+parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
+parâmetro (não é uma ação `acao` real), dois NUPs distintos apontando ao mesmo
 identificador interno (inclusive representações decimais equivalentes como `7` e
 `007`) e NUP duplicado geram erros específicos. O identificador interno é conferido apenas na origem;
 nunca é incluído no resultado JSON. Ausência de achados significa apenas
