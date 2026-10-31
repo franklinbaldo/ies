@@ -37,7 +37,9 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroTituloDocumento::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut titulos = dom.query_selector("title").ok_or(ErroTituloDocumento::TituloAusente)?;
+    let mut titulos = dom
+        .query_selector("title")
+        .ok_or(ErroTituloDocumento::TituloAusente)?;
     let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
     if titulos.next().is_some() {
         return Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos);
@@ -187,12 +189,16 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroCorpoDocumento::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut corpos = dom.query_selector("body").ok_or(ErroCorpoDocumento::CorpoAusente)?;
+    let mut corpos = dom
+        .query_selector("body")
+        .ok_or(ErroCorpoDocumento::CorpoAusente)?;
     let primeiro = corpos.next().ok_or(ErroCorpoDocumento::CorpoAusente)?;
     if corpos.next().is_some() {
         return Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos);
     }
-    let corpo = primeiro.get(parser).ok_or(ErroCorpoDocumento::CorpoAusente)?;
+    let corpo = primeiro
+        .get(parser)
+        .ok_or(ErroCorpoDocumento::CorpoAusente)?;
     let tag = corpo.as_tag().ok_or(ErroCorpoDocumento::CorpoAusente)?;
     for nome in ["script", "style", "iframe", "noscript"] {
         if tag
