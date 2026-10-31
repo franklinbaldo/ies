@@ -10,6 +10,7 @@ pub enum ErroCaixa {
     TabelasDaCategoriaRepetidas { categoria: Categoria },
     TabelaInvalida { categoria: Categoria },
     LegendaAusente { categoria: Categoria },
+    LegendasDaTabelaRepetidas { categoria: Categoria },
     IdInvalido,
     IdRepetido { categoria: Categoria, id: String },
     NumeroInvalido { categoria: Categoria, id: String },
@@ -41,6 +42,7 @@ impl ErroCaixa {
             Self::TabelasDaCategoriaRepetidas { .. } => "tabelas_da_categoria_repetidas",
             Self::TabelaInvalida { .. } => "tabela_invalida",
             Self::LegendaAusente { .. } => "legenda_ausente",
+            Self::LegendasDaTabelaRepetidas { .. } => "legendas_da_tabela_repetidas",
             Self::IdInvalido => "id_invalido",
             Self::IdRepetido { .. } => "id_repetido",
             Self::NumeroInvalido { .. } => "numero_invalido",
@@ -82,6 +84,7 @@ impl ErroCaixa {
             | Self::TabelasDaCategoriaRepetidas { categoria }
             | Self::TabelaInvalida { categoria }
             | Self::LegendaAusente { categoria }
+            | Self::LegendasDaTabelaRepetidas { categoria }
             | Self::IdRepetido { categoria, .. }
             | Self::NumeroInvalido { categoria, .. }
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { categoria, .. }
