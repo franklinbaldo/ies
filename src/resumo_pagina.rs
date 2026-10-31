@@ -37,13 +37,30 @@ pub(crate) struct ObservacaoPagina {
     pub(crate) pagina_parcial: bool,
 }
 
-/// Shim de CONTRACT: não libera a página parcial enquanto testes RED falham.
+/// Só uma ocorrência positiva permite responder com parte da caixa observada.
 pub(crate) fn observar(
-    _leitura: &Leitura,
-    _numero: &str,
-    _aceitar_pagina_parcial: bool,
+    leitura: &Leitura,
+    numero: &str,
+    aceitar_pagina_parcial: bool,
 ) -> Result<ObservacaoPagina, FalhaResumoPagina> {
-    Err(FalhaResumoPagina::PaginasDoControleNaoObtidas)
+    use crate::resumo_processo;
+    let pagina_parcial = !leitura.recebidos.completa(&leitura.caixa.recebidos)
+        || !leitura.gerados.completa(&leitura.caixa.gerados);
+    if pagina_parcial && !aceitar_pagina_parcial {
+        return Err(FalhaResumoPagina::PaginasDoControleNaoObtidas);
+    }
+    let ocorrencias = resumo_processo::ocorrencias(&leitura.caixa, numero);
+    if ocorrencias.is_empty() {
+        return Err(if pagina_parcial {
+            FalhaResumoPagina::NumeroNaoObservadoNaPagina
+        } else {
+            FalhaResumoPagina::NumeroNaoObservadoNaCaixa
+        });
+    }
+    Ok(ObservacaoPagina {
+        ocorrencias,
+        pagina_parcial,
+    })
 }
 
 #[cfg(test)]
