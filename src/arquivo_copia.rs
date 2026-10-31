@@ -6,7 +6,7 @@ use std::path::Path;
 
 const LIMITE_COPIA: u64 = 8_000_000;
 
-/// Shim inicial: os testes RED exigem validação do descritor, não só do caminho.
+/// Confere arquivo regular privado no descritor efetivamente lido, sem seguir link final.
 pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
     // A observação do caminho só determina o erro legível. A decisão
     // de segurança deve usar o mesmo descritor que vai fornecer os bytes.
@@ -106,6 +106,22 @@ mod testes {
         assert_eq!(
             ler_regular(&atalho, ErroCopia::ArquivoAusente),
             Err(ErroCopia::LinkSimbolico)
+        );
+        fs::remove_dir_all(pasta).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recusa_arquivo_acima_de_oito_megabytes_antes_da_leitura() {
+        use std::os::unix::fs::PermissionsExt;
+        let pasta = pasta();
+        let arquivo = pasta.join("001.v2.html");
+        let file = fs::File::create(&arquivo).unwrap();
+        file.set_len(8_000_001).unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(
+            ler_regular(&arquivo, ErroCopia::ArquivoAusente),
+            Err(ErroCopia::DestinoInseguro)
         );
         fs::remove_dir_all(pasta).unwrap();
     }
