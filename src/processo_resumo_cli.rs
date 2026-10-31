@@ -1,6 +1,6 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
-    Cli, Domain, Processo, configuracao, erro_fonte, erro_lista, paginas, processo,
+    Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas, processo,
     resumo_exportacao, resumo_processo, transporte,
 };
 use serde_json::json;
@@ -84,12 +84,46 @@ fn mostrar_resumo_processo(
     ExitCode::SUCCESS
 }
 
+
+fn mostrar_resumo_de_caixa_local(
+    numero: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    caminho: &Path,
+) -> ExitCode {
+    let observada = match caixa_local::ler(caminho, unidade) {
+        Ok(dados) => dados,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let achados = resumo_processo::ocorrencias(&observada.caixa, numero);
+    if achados.is_empty() {
+        return erro_fonte(
+            json_mode,
+            "numero_nao_observado_no_arquivo_da_caixa",
+            "número não observado no arquivo local; isso não prova inexistência no SEI",
+        );
+    }
+    let mut modelo = resumo_exportacao::modelo(numero, observada.unidade.as_deref(), &achados);
+    modelo["fonte"] = json!("arquivo_local");
+    modelo["autenticacao_remota"] = json!(false);
+    if json_mode {
+        println!("{modelo}");
+    } else {
+        println!(
+            "IES: {numero} observado em {} ocorrência(s) no arquivo local; SEI não consultado.",
+            achados.len()
+        );
+    }
+    ExitCode::SUCCESS
+}
+
 pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
         numero: Some(numero),
         resumo: true,
         andamentos_completos,
         saida,
+        caixa_local,
         acao: None,
         ..
     }) = &cli.command
@@ -105,6 +139,14 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         ));
     }
     processo::NumeroProcesso::novo(numero).ok()?;
+    if let Some(caminho) = caixa_local.as_deref() {
+        return Some(mostrar_resumo_de_caixa_local(
+            numero,
+            cli.unidade.as_deref(),
+            cli.json,
+            caminho,
+        ));
+    }
     Some(mostrar_resumo_processo(
         numero,
         cli.unidade.as_deref(),
