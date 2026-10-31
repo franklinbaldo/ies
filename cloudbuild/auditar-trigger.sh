@@ -4,6 +4,7 @@
 # A impressão digital deve vir da configuração aprovada FORA da PR analisada.
 # Contrato: além do gate imutável, a fonte deve ser o repositório IES autorizado
 # e o evento deve contemplar PRs da main, sem filtros silenciosos de arquivos.
+# Não aceitar inversão de branch: `.*` invertido deixa o CI sem gatilho.
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
@@ -33,6 +34,7 @@ if ! jq -e --arg sa "$service_account" --arg repositorio "$repositorio" \
   and (.repositoryEventConfig.repository == $repositorio)
   and (.repositoryEventConfig.repositoryType == "GITHUB")
   and (.repositoryEventConfig.pullRequest.branch == ".*")
+  and (.repositoryEventConfig.pullRequest.invertRegex != true)
   and (.repositoryEventConfig.pullRequest.commentControl == "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY")
   and ((.includedFiles // []) == [])
   and ((.ignoredFiles // []) == [])
