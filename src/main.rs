@@ -188,6 +188,9 @@ struct Replay {
     /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
     #[arg(long, conflicts_with_all = ["documento", "todas_paginas"])]
     resultado_pesquisa: bool,
+    /// Consolida respostas POST de pesquisa escolhidas explicitamente, sem consultar SEI
+    #[arg(long, requires = "resultado_pesquisa", requires = "passo")]
+    unir_resultados_pesquisa: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -311,6 +314,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &zip,
             &replay.passo,
             replay.numero_processo.as_deref(),
+            replay.unir_resultados_pesquisa,
             json_mode,
         );
     }

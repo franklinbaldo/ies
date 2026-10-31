@@ -224,3 +224,22 @@ Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
 execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
 sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
 permanece `NOT_RUN`.
+
+
+## Consolidação explícita de respostas de pesquisa capturadas
+
+`ies replay CENARIO --resultado-pesquisa --unir-resultados-pesquisa
+--passo N --passo M --json` reúne as identidades de processos observadas
+em **duas ou mais respostas POST** de `protocolo_pesquisar` da **mesma
+cassette verificada**. Valida ZIP, hash, host, MIME, método e HTTP 200 em
+todas as respostas antes de consolidar. Preserva ordem e NUP opaco;
+rejeita número repetido entre respostas com erro tipado
+`numero_de_pesquisa_repetido_entre_respostas`. Passos iguais, ausentes,
+GETs e operações diferentes são recusados pela verificação da cassette.
+`--numero-processo NUP` limita os resultados por identidade exata.
+
+O JSON informa os `passos`, o total observado nessas respostas e
+`cobertura: somente_passos_selecionados`. O IES **não infere** que os
+passos representam todas as páginas, filtros iguais ou snapshot.
+Sem a nova flag, `--resultado-pesquisa` continua exigindo exatamente
+um passo. A consolidação é offline, sem POST, login ou navegação. Refs #58.
