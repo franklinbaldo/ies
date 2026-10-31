@@ -33,6 +33,7 @@ mod replay_versoes_cli;
 mod resumo_processo;
 mod saida;
 mod status_cli;
+mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
 mod unidade_lista_cli;
