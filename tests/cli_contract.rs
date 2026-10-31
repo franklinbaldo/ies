@@ -347,8 +347,17 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
     std::fs::create_dir_all(&pasta).unwrap();
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_ies"))
         .current_dir(&pasta)
-        .args(["documento", "salvar", "0011519", "--versao", "4", "--confirmar", "--json"])
-        .output().unwrap();
+        .args([
+            "documento",
+            "salvar",
+            "0011519",
+            "--versao",
+            "4",
+            "--confirmar",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "base_versao_ausente");

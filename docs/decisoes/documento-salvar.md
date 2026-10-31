@@ -13,7 +13,7 @@ live_validation: nao-executada
 
 # Prévia local antes de escrita Web
 
-## Alternativas e riscos
+## Alternativas consideradas
 
 - **local-preview:** conferir em disco número opaco, versão, identidade,
   hash da base e edição local sem fazer rede, preservando as gerações.

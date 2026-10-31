@@ -57,11 +57,17 @@ pub struct IdentidadeCopia {
 }
 impl IdentidadeCopia {
     fn conferir(&self) -> Result<(), ErroCopia> {
-        if self.id_interno.is_empty() || !self.id_interno.bytes().all(|b| b.is_ascii_digit())
+        if self.id_interno.is_empty()
+            || !self.id_interno.bytes().all(|b| b.is_ascii_digit())
             || !self.instalacao.starts_with("https://")
             || self.instalacao.len() > 512
-            || self.instalacao.chars().any(|c| matches!(c, '?' | '#' | '@' | '\\'))
-        { return Err(ErroCopia::IdentidadeInvalida); }
+            || self
+                .instalacao
+                .chars()
+                .any(|c| matches!(c, '?' | '#' | '@' | '\\'))
+        {
+            return Err(ErroCopia::IdentidadeInvalida);
+        }
         Ok(())
     }
 }
@@ -70,7 +76,10 @@ impl IdentidadeCopia {
 pub enum FonteHtml<'a> {
     /// Só deve ser produzida por adaptador após observar documento não assinado,
     /// com editor que comprove as seções realmente editáveis.
-    EditorVerificado { html: &'a str, assinado: bool },
+    EditorVerificado {
+        html: &'a str,
+        assinado: bool,
+    },
     VisualizacaoHistorica,
 }
 
@@ -114,10 +123,15 @@ fn criar_novo(alvo: &Path, bytes: &[u8]) -> Result<(), ErroCopia> {
         use std::os::unix::fs::OpenOptionsExt;
         opts.mode(0o600);
     }
-    let mut file = opts.open(alvo).map_err(|e| if e.kind() == std::io::ErrorKind::AlreadyExists {
-        ErroCopia::ArquivoExistente
-    } else { ErroCopia::GravacaoFalhou })?;
-    file.write_all(bytes).and_then(|_| file.sync_all())
+    let mut file = opts.open(alvo).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::AlreadyExists {
+            ErroCopia::ArquivoExistente
+        } else {
+            ErroCopia::GravacaoFalhou
+        }
+    })?;
+    file.write_all(bytes)
+        .and_then(|_| file.sync_all())
         .map_err(|_| ErroCopia::GravacaoFalhou)
 }
 fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
@@ -127,8 +141,12 @@ fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
     }
     let file = fs::File::open(alvo).map_err(|_| ErroCopia::LeituraFalhou)?;
     let mut bytes = Vec::new();
-    file.take(8_000_001).read_to_end(&mut bytes).map_err(|_| ErroCopia::LeituraFalhou)?;
-    if bytes.len() > 8_000_000 { return Err(ErroCopia::DestinoInseguro); }
+    file.take(8_000_001)
+        .read_to_end(&mut bytes)
+        .map_err(|_| ErroCopia::LeituraFalhou)?;
+    if bytes.len() > 8_000_000 {
+        return Err(ErroCopia::DestinoInseguro);
+    }
     Ok(bytes)
 }
 fn manifesto(id: &IdentidadeCopia, base: &[u8]) -> ManifestoCopia {
@@ -143,13 +161,20 @@ fn manifesto(id: &IdentidadeCopia, base: &[u8]) -> ManifestoCopia {
 /// Publicação sem sobrescrita: em falha remove apenas os arquivos criados por
 /// esta chamada; um processo interrompido pode deixar par órfão, detectado.
 pub fn preparar(
-    pasta: &Path, id: &IdentidadeCopia, fonte: FonteHtml<'_>,
+    pasta: &Path,
+    id: &IdentidadeCopia,
+    fonte: FonteHtml<'_>,
 ) -> Result<CaminhosCopia, ErroCopia> {
     id.conferir()?;
     pasta_segura(pasta)?;
     let html = match fonte {
-        FonteHtml::EditorVerificado { html, assinado: false } => html.as_bytes(),
-        FonteHtml::EditorVerificado { assinado: true, .. } => return Err(ErroCopia::DocumentoAssinado),
+        FonteHtml::EditorVerificado {
+            html,
+            assinado: false,
+        } => html.as_bytes(),
+        FonteHtml::EditorVerificado { assinado: true, .. } => {
+            return Err(ErroCopia::DocumentoAssinado);
+        }
         FonteHtml::VisualizacaoHistorica => return Err(ErroCopia::FonteNaoEditavel),
     };
     if html.is_empty() || html.len() > 8_000_000 {
@@ -157,16 +182,19 @@ pub fn preparar(
     }
     let paths = caminhos(pasta, id);
     conferir_ausencia(&paths)?;
-    let meta = serde_json::to_vec(&manifesto(id, html))
-        .map_err(|_| ErroCopia::GravacaoFalhou)?;
+    let meta = serde_json::to_vec(&manifesto(id, html)).map_err(|_| ErroCopia::GravacaoFalhou)?;
     let mut criados = Vec::new();
     for (alvo, bytes) in [
-        (&paths.base, html), (&paths.manifesto, meta.as_slice()), (&paths.trabalho, html),
+        (&paths.base, html),
+        (&paths.manifesto, meta.as_slice()),
+        (&paths.trabalho, html),
     ] {
         match criar_novo(alvo, bytes) {
             Ok(()) => criados.push(alvo),
             Err(erro) => {
-                for criado in criados { let _ = fs::remove_file(criado); }
+                for criado in criados {
+                    let _ = fs::remove_file(criado);
+                }
                 return Err(erro);
             }
         }
@@ -196,7 +224,8 @@ pub fn previa(pasta: &Path, id: &IdentidadeCopia) -> Result<PreviaCopia, ErroCop
     if observado.documento != id.documento.as_str()
         || observado.id_interno != id.id_interno
         || observado.instalacao != id.instalacao
-        || observado.versao != id.versao.numero() {
+        || observado.versao != id.versao.numero()
+    {
         return Err(ErroCopia::IdentidadeDivergente);
     }
     if observado.hash_base != digest(&base) {
@@ -215,7 +244,9 @@ pub fn previa(pasta: &Path, id: &IdentidadeCopia) -> Result<PreviaCopia, ErroCop
 /// Seleciona cópia local sem consultar o histórico remoto. Não afirma versão
 /// atual do SEI e nunca tenta publicar nem repetir uma escrita.
 pub fn previa_local(
-    pasta: &Path, documento: &NumeroDocumento, solicitada: Option<VersaoDocumento>,
+    pasta: &Path,
+    documento: &NumeroDocumento,
+    solicitada: Option<VersaoDocumento>,
 ) -> Result<PreviaCopia, ErroCopia> {
     pasta_segura(pasta)?;
     let versao = if let Some(n) = solicitada {
@@ -227,19 +258,25 @@ pub fn previa_local(
             let item = item.map_err(|_| ErroCopia::LeituraFalhou)?;
             let nome = item.file_name();
             let nome = nome.to_string_lossy();
-            if let Some(n) = nome.strip_prefix(&prefixo).and_then(|n| n.strip_suffix(".html"))
+            if let Some(n) = nome
+                .strip_prefix(&prefixo)
+                .and_then(|n| n.strip_suffix(".html"))
                 && let Ok(n) = VersaoDocumento::interpretar(n)
-            { maior = Some(maior.map_or(n, |atual: VersaoDocumento| atual.max(n))); }
+            {
+                maior = Some(maior.map_or(n, |atual: VersaoDocumento| atual.max(n)));
+            }
         }
         maior.ok_or(ErroCopia::ArquivoAusente)?
     };
     let prefixo = format!(".{}.v{}.meta.json", documento.as_str(), versao.numero());
     let metadata = ler_regular(&pasta.join(prefixo), ErroCopia::BaseAusente)?;
-    let observado: ManifestoCopia = serde_json::from_slice(&metadata)
-        .map_err(|_| ErroCopia::BaseDivergente)?;
+    let observado: ManifestoCopia =
+        serde_json::from_slice(&metadata).map_err(|_| ErroCopia::BaseDivergente)?;
     let identidade = IdentidadeCopia {
-        documento: documento.clone(), id_interno: observado.id_interno,
-        instalacao: observado.instalacao, versao,
+        documento: documento.clone(),
+        id_interno: observado.id_interno,
+        instalacao: observado.instalacao,
+        versao,
     };
     previa(pasta, &identidade)
 }
@@ -257,9 +294,12 @@ mod testes {
     }
     fn diretorio() -> PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "ies-versoes-{}-{}", std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-                .unwrap().as_nanos()
+            "ies-versoes-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir(&path).unwrap();
         path
@@ -268,12 +308,18 @@ mod testes {
     fn nao_sobrescreve_versoes_nem_edicoes_locais() {
         let pasta = diretorio();
         let id = contexto();
-        let fonte = FonteHtml::EditorVerificado { html: "<p>original</p>", assinado: false };
+        let fonte = FonteHtml::EditorVerificado {
+            html: "<p>original</p>",
+            assinado: false,
+        };
         let paths = preparar(&pasta, &id, fonte).unwrap();
         assert!(!previa(&pasta, &id).unwrap().alterado);
         fs::write(&paths.trabalho, "<p>editado</p>").unwrap();
         assert!(previa(&pasta, &id).unwrap().alterado);
-        assert_eq!(preparar(&pasta, &id, fonte), Err(ErroCopia::ArquivoExistente));
+        assert_eq!(
+            preparar(&pasta, &id, fonte),
+            Err(ErroCopia::ArquivoExistente)
+        );
         assert_eq!(fs::read(&paths.base).unwrap(), b"<p>original</p>");
         fs::remove_dir_all(pasta).unwrap();
     }
@@ -281,10 +327,30 @@ mod testes {
     fn recusa_assinado_historico_base_ausente_e_identidade_trocada() {
         let pasta = diretorio();
         let mut id = contexto();
-        assert_eq!(preparar(&pasta, &id, FonteHtml::VisualizacaoHistorica), Err(ErroCopia::FonteNaoEditavel));
-        assert_eq!(preparar(&pasta, &id, FonteHtml::EditorVerificado { html: "x", assinado: true }),
-            Err(ErroCopia::DocumentoAssinado));
-        let paths = preparar(&pasta, &id, FonteHtml::EditorVerificado { html: "x", assinado: false }).unwrap();
+        assert_eq!(
+            preparar(&pasta, &id, FonteHtml::VisualizacaoHistorica),
+            Err(ErroCopia::FonteNaoEditavel)
+        );
+        assert_eq!(
+            preparar(
+                &pasta,
+                &id,
+                FonteHtml::EditorVerificado {
+                    html: "x",
+                    assinado: true
+                }
+            ),
+            Err(ErroCopia::DocumentoAssinado)
+        );
+        let paths = preparar(
+            &pasta,
+            &id,
+            FonteHtml::EditorVerificado {
+                html: "x",
+                assinado: false,
+            },
+        )
+        .unwrap();
         id.id_interno = "43".into();
         assert_eq!(previa(&pasta, &id), Err(ErroCopia::IdentidadeDivergente));
         fs::remove_file(&paths.base).unwrap();
@@ -299,8 +365,17 @@ mod testes {
         let id = contexto();
         let paths = caminhos(&pasta, &id);
         symlink("/etc/passwd", &paths.trabalho).unwrap();
-        assert_eq!(preparar(&pasta, &id, FonteHtml::EditorVerificado { html: "x", assinado: false }),
-            Err(ErroCopia::ArquivoExistente));
+        assert_eq!(
+            preparar(
+                &pasta,
+                &id,
+                FonteHtml::EditorVerificado {
+                    html: "x",
+                    assinado: false
+                }
+            ),
+            Err(ErroCopia::ArquivoExistente)
+        );
         assert_eq!(previa(&pasta, &id), Err(ErroCopia::DestinoInseguro));
         fs::remove_dir_all(pasta).unwrap();
     }
