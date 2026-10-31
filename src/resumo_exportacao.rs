@@ -28,13 +28,14 @@ mod testes {
     #[test]
     fn saida_exige_resumo_mas_pode_ser_usada_com_json() {
         assert!(
-            crate::Cli::try_parse_from(["ies", "processo", "00007", "--saida", "r.json"])
-                .is_err()
+            crate::Cli::try_parse_from(["ies", "processo", "00007", "--saida", "r.json"]).is_err()
         );
-        assert!(crate::Cli::try_parse_from([
-            "ies", "processo", "00007", "--resumo", "--saida", "r.json", "--json"
-        ])
-        .is_ok());
+        assert!(
+            crate::Cli::try_parse_from([
+                "ies", "processo", "00007", "--resumo", "--saida", "r.json", "--json"
+            ])
+            .is_ok()
+        );
     }
 
     #[test]
@@ -62,7 +63,10 @@ mod testes {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(&destino).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
         }
         fs::remove_file(destino).unwrap();
     }
