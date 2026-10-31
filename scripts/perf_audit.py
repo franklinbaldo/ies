@@ -104,7 +104,7 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
             ies, "replay", f"documento-{tamanho}", "--acervo", str(pasta),
             "--documento", "--numero-documento", "0011354", "--texto-documento", "--json",
         ]
-    for n in (20, 1000):
+    for n in (20, 1000, 10000):
         linhas = "".join(
             "<tr><td>31/10/2026</td><td>Unidade A</td>"
             "<td>usuario</td><td>Decisão assinada de teste</td></tr>"
@@ -118,7 +118,7 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
             ies, "replay", f"historico-{n}", "--acervo", str(pasta),
             "--numero-processo", "000123/2026-X", "--json",
         ]
-    for n in (20, 1000):
+    for n in (20, 1000, 20000):
         linhas = "".join(
             '<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" '
             'href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento='
