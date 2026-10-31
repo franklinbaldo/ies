@@ -183,14 +183,29 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
     String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
 }
 
-/// Pré-validação offline dos arquivos privados; não cria sessão nem envia request.
+fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
+    if cookie.is_empty()
+        || cookie.contains(':')
+        || !cookie.bytes().all(|b| (32..=126).contains(&b))
+    {
+        return Err(FalhaTransporte::CookieInvalido);
+    }
+    Ok(())
+}
+
+/// Pré-validação offline: usa exatamente as regras do transporte Web,
+/// sem enviar cookies nem testar se a sessão continua autenticada.
 pub fn verificar_sessao_local_de_arquivos(
-    _url_file: &Path,
-    _cookie_file: &Path,
-    _origem_file: &Path,
+    url_file: &Path,
+    cookie_file: &Path,
+    origem_file: &Path,
 ) -> Result<(), FalhaTransporte> {
-    // Shim RED: os testes exigem validação de origem e cookie sem rede.
-    Err(FalhaTransporte::UrlInvalida)
+    let url = arquivo_privado(url_file, 8_192)?;
+    let origem = arquivo_privado(origem_file, 512)?;
+    // Bloquear destino divergente ANTES de abrir o cookie confidencial.
+    validar_origem(url.trim(), origem.trim())?;
+    let cookie = arquivo_privado(cookie_file, 8_192)?;
+    validar_cookie(cookie.trim())
 }
 
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
@@ -214,10 +229,7 @@ pub fn read_box(
     validar_origem(url, origem_autorizada)?;
     let texto = arquivo_privado(cookie_file, 8_192)?;
     let cookie = texto.trim();
-    if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
-    {
-        return Err(FalhaTransporte::CookieInvalido);
-    }
+    validar_cookie(cookie)?;
     let mut resposta = minreq::get(url)
         .with_timeout(30)
         .with_follow_redirects(false)
