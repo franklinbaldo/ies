@@ -1,8 +1,8 @@
 //! Projeção Web de uma categoria integralmente observada, sem POST.
-use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
 use crate::paginas::Leitura;
+use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
 use clap::ValueEnum;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -33,7 +33,11 @@ impl FalhaCategoria {
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
-        "a categoria selecionada exige páginas que não foram obtidas"
+        match self {
+            Self::PaginasNaoObtidas(_) => {
+                "a categoria selecionada exige páginas que não foram obtidas"
+            }
+        }
     }
 }
 
@@ -80,7 +84,13 @@ pub(crate) fn listar_categoria(
     };
     let leitura = match paginas::juntar(&[html], unidade) {
         Ok(leitura) => leitura,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "Controle de Processos não reconhecido"),
+        Err(erro) => {
+            return erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "Controle de Processos não reconhecido",
+            );
+        }
     };
     let modelo = match selecionar(&leitura, categoria, "web") {
         Ok(modelo) => modelo,
@@ -90,14 +100,19 @@ pub(crate) fn listar_categoria(
         return match arquivo_caixa::gravar(caminho, &modelo) {
             Ok(bytes) => {
                 if json_mode {
-                    println!("{}", json!({
-                        "arquivo":"gravado",
-                        "bytes":bytes,
-                        "escopo":"categoria_verificada",
-                        "categoria":categoria.rotulo()
-                    }));
+                    println!(
+                        "{}",
+                        json!({
+                            "arquivo":"gravado",
+                            "bytes":bytes,
+                            "escopo":"categoria_verificada",
+                            "categoria":categoria.rotulo()
+                        })
+                    );
                 } else {
-                    println!("IES: categoria verificada gravada em arquivo privado ({bytes} bytes).");
+                    println!(
+                        "IES: categoria verificada gravada em arquivo privado ({bytes} bytes)."
+                    );
                 }
                 ExitCode::SUCCESS
             }
@@ -135,12 +150,26 @@ mod tests {
     #[test]
     fn tipo_de_categoria_da_cli_aceita_somente_valores_do_dominio() {
         use clap::Parser;
-        assert!(crate::Cli::try_parse_from([
-            "ies", "unidade", "listar-processos", "--categoria", "gerados"
-        ]).is_ok());
-        assert!(crate::Cli::try_parse_from([
-            "ies", "unidade", "listar-processos", "--categoria", "desconhecida"
-        ]).is_err());
+        assert!(
+            crate::Cli::try_parse_from([
+                "ies",
+                "unidade",
+                "listar-processos",
+                "--categoria",
+                "gerados"
+            ])
+            .is_ok()
+        );
+        assert!(
+            crate::Cli::try_parse_from([
+                "ies",
+                "unidade",
+                "listar-processos",
+                "--categoria",
+                "desconhecida"
+            ])
+            .is_err()
+        );
     }
 
     #[test]
