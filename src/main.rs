@@ -33,8 +33,8 @@ mod replay_versoes_cli;
 mod resumo_exportacao;
 mod resumo_processo;
 mod saida;
-mod status_web;
 mod status_cli;
+mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
@@ -463,12 +463,7 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status(args) => {
-            return status_cli::mostrar_status(
-                cli.json,
-                args.verificar_arquivos,
-                args.verificar_sessao_local,
-                args.verificar_controle_web,
-            );
+            return status_cli::mostrar_status(cli.json, args);
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
