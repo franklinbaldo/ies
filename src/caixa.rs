@@ -28,11 +28,22 @@ fn ler_tabela(
     categoria: Categoria,
 ) -> Result<Tabela<Processo>, ErroCaixa> {
     let parser = dom.parser();
-    let tabela = dom
-        .get_element_by_id(table_id)
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
+    // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
+    // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
+    let seletor = format!("#{table_id}");
+    let mut candidatas = dom
+        .query_selector(&seletor)
         .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    let primeira = candidatas
+        .next()
+        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    if candidatas.next().is_some() {
+        return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria });
+    }
+    let tabela = primeira
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
@@ -214,6 +225,35 @@ mod tests {
         assert_eq!(
             parse_html(&html(linhas, 1)).unwrap_err().subcodigo(),
             "link_do_processo_nao_identificado_na_linha"
+        );
+    }
+
+    #[test]
+    fn duas_tabelas_de_recebidos_nao_podem_ocultar_processos() {
+        let original = html(&linha("1"), 1);
+        let extra = format!(
+            "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>{}</table>",
+            linha("2")
+        );
+        let erro = parse_html(&format!("{original}{extra}")).unwrap_err();
+        assert_eq!(
+            erro,
+            ErroCaixa::TabelasDaCategoriaRepetidas {
+                categoria: Categoria::Recebidos
+            }
+        );
+        assert_eq!(erro.subcodigo(), "tabelas_da_categoria_repetidas");
+    }
+
+    #[test]
+    fn duas_tabelas_de_gerados_nao_podem_ser_tratadas_como_uma() {
+        let original = html("", 0);
+        let extra = "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            parse_html(&format!("{original}{extra}")).unwrap_err(),
+            ErroCaixa::TabelasDaCategoriaRepetidas {
+                categoria: Categoria::Gerados
+            }
         );
     }
 }
