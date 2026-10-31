@@ -278,3 +278,31 @@ O JSON informa os `passos`, o total observado nessas respostas e
 passos representam todas as páginas, filtros iguais ou snapshot.
 Sem a nova flag, `--resultado-pesquisa` continua exigindo exatamente
 um passo. A consolidação é offline, sem POST, login ou navegação. Refs #58.
+
+## Consulta pontual de versão em histórico capturado (Refs #88)
+
+O histórico Web de versões pode ser consultado somente por **replay offline**
+hash-verificado, sem abrir editor e sem pedir páginas ao SEI:
+
+```sh
+ies replay CENARIO --documento --historico-versoes \
+  --numero-documento DOC --id-documento-interno ID --passo PASSO --json
+ies replay CENARIO --documento --historico-versoes \
+  --numero-documento DOC --id-documento-interno ID --versao-documento 2 --passo PASSO --json
+```
+
+`PASSO` deve ser a resposta GET capturada para `documento_versao_listar`;
+o card e o ZIP precisam conferir SHA-1/SHA-256, instalação, status e HTML.
+A saída informa `versao_atual` (maior índice **observado**, sem inferir
+continuidade), `versao_selecionada` (somente quando solicitado) e
+`total_observado`. Versão 0, tabela incompleta, linha duplicada, ID interno
+diferente e ação/link inválidos falham com **subcódigo tipado**.
+Nenhum link `infra_hash`, conteúdo ou nome de usuário sai no JSON.
+
+**Limite de identidade:** a página de histórico comprova o ID interno dos
+links, **não** que o número SEI digitado pertença àquele ID. Por isso a
+saída declara `numero_documento_confirmado: false` e não serve como
+leitura real do documento ou validação live da versão. Esse vínculo
+depende de uma árvore autenticada verificada em outra etapa. A ausência
+de uma versão na cassette não demonstra inexistência no SEI.
+
