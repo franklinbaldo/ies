@@ -154,3 +154,25 @@ pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
     }
     None
 }
+
+#[cfg(test)]
+mod testes_listagem {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn opcoes_de_listagem_local_nao_permitem_confirmacao_nem_versao_especifica() {
+        assert!(Cli::try_parse_from([
+            "ies", "documento", "salvar", "0007", "--listar-copias",
+        ])
+        .is_ok());
+        assert!(Cli::try_parse_from([
+            "ies", "documento", "salvar", "0007", "--listar-copias", "--versao", "2",
+        ])
+        .is_err());
+        assert!(Cli::try_parse_from([
+            "ies", "documento", "salvar", "0007", "--listar-copias", "--confirmar",
+        ])
+        .is_err());
+    }
+}
