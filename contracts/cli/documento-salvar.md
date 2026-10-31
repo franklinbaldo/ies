@@ -48,3 +48,22 @@ sem alterar o conteúdo de qualquer arquivo.
 A inspeção permanece offline, sempre submetida à conferência de
 metadados, identidade, hash da base e à recusa de arquivos simbólicos.
 Nenhuma opção de `salvar --confirmar` passa a executar escrita remota.
+
+
+## Leitura privada dos arquivos locais (Refs #89)
+
+A prévia lê trabalho, base e manifesto como bytes, nunca como conteúdo
+remoto. Em Linux, cada arquivo deve ser aberto com proteção contra
+link simbólico no componente final e contra bloqueio em arquivo especial;
+a segurança (arquivo regular, limite 8 MB e permissão 0600/sem acesso
+a grupo ou terceiros) é conferida no **descritor já aberto**, e não apenas
+com `symlink_metadata` prévio. Um link simbólico retorna
+`copia_local_link_simbolico` e permissão excessiva retorna
+`copia_local_permissoes_inseguras`, ambos erros tipados antes
+de publicar qualquer prévia. Dados não UTF-8 permanecem bytes opacos.
+Não emitir o conteúdo de cópias na saída de diagnóstico.
+
+Os controles de Linux reduzem a janela de troca do componente final,
+mas **não** constituem defesa universal contra substituição de
+diretórios ancestrais ou alteração simultânea dos bytes após leitura.
+Não há operação Web, escrita no SEI ou afirmação de versão remota.
