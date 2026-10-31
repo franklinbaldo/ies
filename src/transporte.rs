@@ -184,9 +184,7 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
 }
 
 fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
-    if cookie.is_empty()
-        || cookie.contains(':')
-        || !cookie.bytes().all(|b| (32..=126).contains(&b))
+    if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
     {
         return Err(FalhaTransporte::CookieInvalido);
     }
