@@ -1,9 +1,9 @@
 //! Inventário de cópias de trabalho locais, sem sessão, rede ou links de histórico.
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
+use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use std::collections::BTreeSet;
 use std::fs;
-use crate::documento::NumeroDocumento;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,8 +50,8 @@ pub(crate) fn listar(
         else {
             continue;
         };
-        let versao =
-            VersaoDocumento::interpretar(digitos).map_err(|_| ErroListagem::NomeDaVersaoInvalido)?;
+        let versao = VersaoDocumento::interpretar(digitos)
+            .map_err(|_| ErroListagem::NomeDaVersaoInvalido)?;
         if !versoes.insert(versao) {
             return Err(ErroListagem::VersaoDuplicada);
         }
@@ -117,7 +117,10 @@ mod testes {
         let paths = criar(&pasta, "0007", 2);
         fs::write(&paths.trabalho, "<p>rascunho alterado sigiloso</p>").unwrap();
         let copias = listar(&pasta, &doc).unwrap();
-        assert_eq!(copias.iter().map(|c| c.versao_base).collect::<Vec<_>>(), [2, 10]);
+        assert_eq!(
+            copias.iter().map(|c| c.versao_base).collect::<Vec<_>>(),
+            [2, 10]
+        );
         assert!(copias[0].alterado);
         assert!(!copias[1].alterado);
         let serializado = serde_json::to_string(&copias).unwrap();
