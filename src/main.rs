@@ -239,7 +239,6 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let cenario = &replay.cenario;
     if cenario.is_empty()
