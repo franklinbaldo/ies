@@ -183,6 +183,15 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         }
         resultados.push(ResultadoPesquisa { numero });
     }
+    // A seleção por classe das linhas pode omitir links reais se a versão
+    // do SEI mudar o HTML. Nunca devolver subconjunto silencioso como se
+    // representasse todos os links observáveis da tabela de resultados.
+    let links_da_tabela = tabela
+        .query_selector(parser, "a.protocoloNormal")
+        .map_or(0, Iterator::count);
+    if links_da_tabela != resultados.len() {
+        return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
+    }
     Ok(resultados)
 }
 
