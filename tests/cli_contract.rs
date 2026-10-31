@@ -363,3 +363,53 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
     assert_eq!(value["subcodigo"], "base_versao_ausente");
     std::fs::remove_dir_all(pasta).unwrap();
 }
+
+
+#[cfg(unix)]
+#[test]
+fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let arquivo = std::env::temp_dir().join(format!(
+        "ies-caixa-local-{}-{}.json",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let dados = serde_json::json!({
+        "origem": "web", "unidade": "PPI",
+        "recebidos": {
+            "total_declarado": 1,
+            "processos": [{"id": "0042", "numero": "000123/2026", "visualizado": false}]
+        },
+        "gerados": {"total_declarado": 0, "processos": []}
+    });
+    fs::write(&arquivo, serde_json::to_vec(&dados).unwrap()).unwrap();
+    fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
+
+    let consultar = |numero: &str| {
+        Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(["processo", numero, "--resumo", "--caixa-local"])
+            .arg(&arquivo)
+            .arg("--json")
+            .env("IES_URL_CONTROLE_FILE", "nao-existe-e-nao-deve-ser-usado")
+            .env("IES_COOKIE_FILE", "nao-existe-e-nao-deve-ser-usado")
+            .env("IES_ORIGEM_FILE", "nao-existe-e-nao-deve-ser-usado")
+            .output()
+            .unwrap()
+    };
+    let encontrado = consultar("000123/2026");
+    assert_eq!(encontrado.status.code(), Some(0));
+    let valor: serde_json::Value = serde_json::from_slice(&encontrado.stdout).unwrap();
+    assert_eq!(valor["numero"], "000123/2026");
+    assert_eq!(valor["ocorrencias"][0]["processo"]["id"], "0042");
+    assert_eq!(valor["fonte"], "arquivo_local");
+    assert_eq!(valor["autenticacao_remota"], false);
+
+    let ausente = consultar("123/2026");
+    assert_eq!(ausente.status.code(), Some(1));
+    let falha: serde_json::Value = serde_json::from_slice(&ausente.stdout).unwrap();
+    assert_eq!(falha["subcodigo"], "numero_nao_observado_no_arquivo_da_caixa");
+    fs::remove_file(arquivo).unwrap();
+}
