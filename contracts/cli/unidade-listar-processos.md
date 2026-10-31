@@ -31,7 +31,12 @@ escritas ou tentativa de outro backend. Não há configuração persistente
 nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
-`--saida` ainda não é suportado e falha explicitamente.
+`--saida ARQUIVO` exporta a mesma projeção JSON da caixa **somente depois**
+de verificar cobertura de recebidos e gerados. O arquivo novo é criado sem
+sobrescrever destinos existentes; em Unix recebe modo privado 0600.
+Sem essa opção, a saída de terminal é preservada. O comprovante não
+exibe dados dos processos ou caminhos de credenciais. Não implementa
+paginação adicional nem declara snapshot transacional.
 
 ## Resultado e alcance
 
