@@ -12,6 +12,7 @@ pub struct IdentidadeDoDocumento {
 pub enum ErroTituloDocumento {
     HtmlNaoInterpretado,
     TituloAusente,
+    TitulosDeDocumentoRepetidos,
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
     IdentificacaoDaInstalacaoAusenteNoTitulo,
@@ -22,6 +23,7 @@ impl ErroTituloDocumento {
         match self {
             Self::HtmlNaoInterpretado => "html_documento_nao_interpretado",
             Self::TituloAusente => "titulo_documento_ausente",
+            Self::TitulosDeDocumentoRepetidos => "titulos_de_documento_repetidos",
             Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
             Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
             Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
@@ -84,6 +86,14 @@ mod tests {
         );
     }
     #[test]
+    fn dois_titulos_sei_na_mesma_resposta_nao_escolhem_primeiro_documento() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title><title>SEI/UnB - 0008 - Memorando</title></head></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+        );
+    }
+    #[test]
     fn titulo_generico_com_digitos_nao_e_documento_sei() {
         assert_eq!(
             identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
@@ -97,6 +107,7 @@ mod tests {
 pub enum ErroCorpoDocumento {
     HtmlNaoInterpretado,
     CorpoAusente,
+    CorposDeDocumentoRepetidos,
     CorpoVazio,
     CorpoComConteudoExecutavel,
     TextoAcimaDoLimite,
@@ -107,6 +118,7 @@ impl ErroCorpoDocumento {
         match self {
             Self::HtmlNaoInterpretado => "html_corpo_documento_nao_interpretado",
             Self::CorpoAusente => "corpo_documento_ausente",
+            Self::CorposDeDocumentoRepetidos => "corpos_de_documento_repetidos",
             Self::CorpoVazio => "corpo_documento_vazio",
             Self::CorpoComConteudoExecutavel => "corpo_documento_contem_script_ou_estilo",
             Self::TextoAcimaDoLimite => "texto_documento_acima_do_limite",
@@ -217,6 +229,14 @@ mod testes_texto {
         assert_eq!(
             texto_do_corpo("<html><head></head></html>"),
             Err(ErroCorpoDocumento::CorpoAusente)
+        );
+    }
+    #[test]
+    fn duas_areas_de_corpo_nao_omitem_texto_silenciosamente() {
+        let html = "<html><body><p>Primeiro documento</p></body><body><p>Segundo documento</p></body></html>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos)
         );
     }
     #[test]
