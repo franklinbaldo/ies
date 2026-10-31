@@ -81,3 +81,63 @@ fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
     Ok(valor_oculto_original(dom, id))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn controle() -> String {
+        "<a id='lnkInfraUnidade'>UNIDADE A</a>\
+         <input id='hdnTipoVisualizacao' value='R'>\
+         <input id='hdnRecebidosHashCriterios' value='recebidos'>\
+         <input id='hdnGeradosHashCriterios' value='gerados'>"
+            .to_owned()
+    }
+
+    #[test]
+    fn unidade_repetida_na_mesma_tela_nao_pode_virar_uma_identidade_falsa() {
+        let html = format!("{}<a id='lnkInfraUnidade'>UNIDADE B</a>", controle());
+        assert_eq!(
+            unidade_exibida_no_controle(&html),
+            Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
+        );
+        assert_eq!(
+            contexto_da_pagina(&html).unwrap_err(),
+            ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
+        );
+    }
+
+    #[test]
+    fn tipo_de_visualizacao_repetido_nao_prova_mesma_paginacao() {
+        let html = format!("{}<input id='hdnTipoVisualizacao' value='D'>", controle());
+        assert_eq!(
+            contexto_da_pagina(&html).unwrap_err(),
+            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+        );
+    }
+
+    #[test]
+    fn hashes_de_criterios_repetidos_nao_selecionam_o_primeiro() {
+        for (id, esperado) in [
+            (
+                "hdnRecebidosHashCriterios",
+                ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
+            ),
+            (
+                "hdnGeradosHashCriterios",
+                ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
+            ),
+        ] {
+            let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
+            assert_eq!(contexto_da_pagina(&html).unwrap_err(), esperado);
+            assert_ne!(esperado.subcodigo(), "contexto_divergente");
+        }
+    }
+
+    #[test]
+    fn controle_com_identificadores_unicos_preserva_o_contexto_original() {
+        let ctx = contexto_da_pagina(&controle()).unwrap();
+        assert_eq!(ctx.unidade.as_deref(), Some("UNIDADE A"));
+        assert!(ctx.verificavel());
+    }
+}
