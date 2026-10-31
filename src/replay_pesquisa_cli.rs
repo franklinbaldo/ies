@@ -32,10 +32,9 @@ impl ErroReplayPesquisa {
     }
     fn codigo(self) -> (&'static str, u8) {
         match self {
-            Self::PassoDePesquisaNaoInformado | Self::PesquisaExigeUmUnicoPasso => {
-                ("entrada_invalida", 2)
-            }
-            Self::NumeroSolicitado(_) => ("entrada_invalida", 2),
+            Self::PassoDePesquisaNaoInformado
+            | Self::PesquisaExigeUmUnicoPasso
+            | Self::NumeroSolicitado(_) => ("entrada_invalida", 2),
             Self::NumeroNaoObservadoNaRespostaDePesquisa => ("numero_nao_observado", 1),
             Self::RespostaDePesquisaNaoVerificada | Self::Pagina(_) => ("fonte_invalida", 1),
         }
@@ -52,7 +51,9 @@ fn selecionar_numero(
     processos: Vec<pesquisa_web::ResultadoPesquisa>,
     solicitado: Option<&str>,
 ) -> Result<Vec<pesquisa_web::ResultadoPesquisa>, ErroReplayPesquisa> {
-    let Some(numero) = solicitado else { return Ok(processos); };
+    let Some(numero) = solicitado else {
+        return Ok(processos);
+    };
     let numero = NumeroProcesso::novo(numero).map_err(ErroReplayPesquisa::NumeroSolicitado)?;
     processos
         .into_iter()
@@ -134,13 +135,18 @@ mod tests {
 
     #[test]
     fn sem_filtro_preserva_todos_os_resultados() {
-        assert_eq!(selecionar_numero(processos_observados(), None).unwrap().len(), 2);
+        assert_eq!(
+            selecionar_numero(processos_observados(), None)
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]
     fn nup_exato_preserva_zeros_e_pontuacao_sem_retornar_outro() {
-        let saida = selecionar_numero(processos_observados(), Some("00001.123456/2026-07"))
-            .unwrap();
+        let saida =
+            selecionar_numero(processos_observados(), Some("00001.123456/2026-07")).unwrap();
         assert_eq!(saida.len(), 1);
         assert_eq!(saida[0].numero.as_str(), "00001.123456/2026-07");
     }
@@ -155,17 +161,25 @@ mod tests {
 
     #[test]
     fn ausencia_na_resposta_nao_declara_inexistencia_no_sei() {
-        let erro = selecionar_numero(processos_observados(), Some("00000.999999/2026-01"))
-            .unwrap_err();
-        assert_eq!(erro, ErroReplayPesquisa::NumeroNaoObservadoNaRespostaDePesquisa);
-        assert_eq!(erro.subcodigo(), "numero_nao_observado_na_resposta_de_pesquisa");
+        let erro =
+            selecionar_numero(processos_observados(), Some("00000.999999/2026-01")).unwrap_err();
+        assert_eq!(
+            erro,
+            ErroReplayPesquisa::NumeroNaoObservadoNaRespostaDePesquisa
+        );
+        assert_eq!(
+            erro.subcodigo(),
+            "numero_nao_observado_na_resposta_de_pesquisa"
+        );
     }
 
     #[test]
     fn numero_com_controle_tem_erro_tipado_de_entrada() {
         assert_eq!(
             selecionar_numero(processos_observados(), Some("123\nPRIVADO")),
-            Err(ErroReplayPesquisa::NumeroSolicitado(NumeroProcessoInvalido::Controle))
+            Err(ErroReplayPesquisa::NumeroSolicitado(
+                NumeroProcessoInvalido::Controle
+            ))
         );
     }
 

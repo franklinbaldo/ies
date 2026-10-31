@@ -307,7 +307,11 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     }
     if replay.resultado_pesquisa {
         return replay_pesquisa_cli::mostrar(
-            card, &zip, &replay.passo, replay.numero_processo.as_deref(), json_mode,
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_processo.as_deref(),
+            json_mode,
         );
     }
     if replay.documento && (replay.numero_processo.is_some() || replay.todas_paginas) {
@@ -562,8 +566,14 @@ mod testes_nome_cenario {
         use super::{Cli, Domain};
         use clap::Parser;
         let cli = Cli::try_parse_from([
-            "ies", "--json", "replay", "processo-busca-unb--67c8f2ed35b6",
-            "--resultado-pesquisa", "--passo", "2", "--numero-processo",
+            "ies",
+            "--json",
+            "replay",
+            "processo-busca-unb--67c8f2ed35b6",
+            "--resultado-pesquisa",
+            "--passo",
+            "2",
+            "--numero-processo",
             "00001.123456/2026-07",
         ])
         .unwrap();
@@ -572,7 +582,10 @@ mod testes_nome_cenario {
         };
         assert!(replay.resultado_pesquisa);
         assert_eq!(replay.passo, vec![2]);
-        assert_eq!(replay.numero_processo.as_deref(), Some("00001.123456/2026-07"));
+        assert_eq!(
+            replay.numero_processo.as_deref(),
+            Some("00001.123456/2026-07")
+        );
     }
 
     #[test]
