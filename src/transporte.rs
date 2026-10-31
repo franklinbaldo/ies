@@ -59,6 +59,7 @@ impl FalhaTransporte {
             Self::CaminhoDeArquivoNaoEhArquivo => {
                 "caminho informado não aponta para arquivo regular"
             }
+            Self::ArquivoPrivadoLinkSimbolico => "arquivo privado não pode ser link simbólico",
             Self::ArquivoPrivadoVazio => "arquivo privado vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
