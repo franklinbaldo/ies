@@ -111,6 +111,7 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
         "ies_ajuda": [ies, "--help"],
         "ies_versao": [ies, "--version"],
         "ies_esquema": [ies, "esquema", "--json"],
+        "ies_status_local": [ies, "status", "--json"],
         "ies_stub_documento": [ies, "documento", "0011519", "--json"],
     }
     for tamanho in (1024, 64000, 220000):
@@ -147,6 +148,29 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
         casos[f"ies_pesquisa_{n}"] = [
             ies, "replay", f"pesquisa-{n}", "--acervo", str(pasta),
             "--resultado-pesquisa", "--passo", "0", "--json",
+        ]
+    for n in (20, 1000, 10000):
+        linhas = "".join(
+            "<tr id='P" + str(i + 1)
+            + "'><td><a class='processoVisualizado'>NUP-"
+            + str(i + 1) + "</a></td></tr>"
+            for i in range(n)
+        )
+        legenda = f"{n} registros - 1 a {n}):"
+        html = (
+            "<html><a id='lnkInfraUnidade'>TESTE</a>"
+            "<input id='hdnTipoVisualizacao' value='R'>"
+            "<input id='hdnRecebidosHashCriterios' value='recebidos'>"
+            "<input id='hdnGeradosHashCriterios' value='gerados'>"
+            "<table id='tblProcessosRecebidos'><caption>"
+            + legenda + "</caption>" + linhas + "</table>"
+            "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>"
+            "</html>"
+        )
+        pasta = fixture(raiz, f"caixa-{n}", "procedimento_controlar", "GET", html)
+        casos[f"ies_caixa_{n}"] = [
+            ies, "replay", f"caixa-{n}", "--acervo", str(pasta),
+            "--json",
         ]
     return casos
 
@@ -185,7 +209,7 @@ def principal() -> None:
         for nome, cmd in casos.items():
             try:
                 resumo["resultados"][nome] = medir(cmd, args.repeticoes,
-                    esperado=None if nome == "ies_stub_documento" else 0)
+                    esperado=None if nome in ("ies_stub_documento", "ies_status_local") else 0)
                 print("BENCH", nome, json.dumps(resumo["resultados"][nome]), flush=True)
             except (OSError, RuntimeError, ValueError) as erro:
                 resumo["erros"][nome] = str(erro)
