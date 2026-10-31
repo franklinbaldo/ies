@@ -123,8 +123,13 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 }
 
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
+    // symlink_metadata não segue atalhos: status e transporte adotam a mesma
+    // regra antes de ler qualquer conteúdo de sessão.
     let metadata =
-        fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+        fs::symlink_metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+    if metadata.file_type().is_symlink() {
+        return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
+    }
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
     }
@@ -300,7 +305,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn links_simbolicos_para_arquivos_privados_nao_podem_ser_lidos() {
-        use std::os::unix::fs::{symlink, PermissionsExt};
+        use std::os::unix::fs::{PermissionsExt, symlink};
         let raiz = std::env::temp_dir().join(format!(
             "ies-privados-symlink-{}-{}",
             std::process::id(),
@@ -329,7 +334,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn url_assinada_via_link_simbolico_falha_antes_de_consultar_rede() {
-        use std::os::unix::fs::{symlink, PermissionsExt};
+        use std::os::unix::fs::{PermissionsExt, symlink};
         let raiz = std::env::temp_dir().join(format!(
             "ies-url-symlink-{}-{}",
             std::process::id(),
@@ -345,7 +350,11 @@ mod tests {
         let atalho = raiz.join("url-atalho");
         symlink(&original, &atalho).unwrap();
         assert_eq!(
-            read_box_from_file(&atalho, &raiz.join("cookie-nao-existe"), &raiz.join("origem-nao-existe")),
+            read_box_from_file(
+                &atalho,
+                &raiz.join("cookie-nao-existe"),
+                &raiz.join("origem-nao-existe"),
+            ),
             Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
         );
         fs::remove_dir_all(raiz).unwrap();
