@@ -1,10 +1,11 @@
 //! Cópias locais imutáveis por geração; não é transporte de escrita no SEI.
+use crate::arquivo_copia::ler_regular;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,6 +14,8 @@ pub enum ErroCopia {
     DocumentoAssinado,
     IdentidadeInvalida,
     DestinoInseguro,
+    LinkSimbolico,
+    PermissoesInseguras,
     ArquivoExistente,
     ArquivoAusente,
     BaseAusente,
@@ -28,6 +31,8 @@ impl ErroCopia {
             Self::DocumentoAssinado => "documento_assinado_editor_proibido",
             Self::IdentidadeInvalida => "identidade_copia_invalida",
             Self::DestinoInseguro => "destino_copia_inseguro",
+            Self::LinkSimbolico => "copia_local_link_simbolico",
+            Self::PermissoesInseguras => "copia_local_permissoes_inseguras",
             Self::ArquivoExistente => "copia_versao_ja_existe",
             Self::ArquivoAusente => "copia_versao_ausente",
             Self::BaseAusente => "base_versao_ausente",
@@ -133,21 +138,6 @@ fn criar_novo(alvo: &Path, bytes: &[u8]) -> Result<(), ErroCopia> {
     file.write_all(bytes)
         .and_then(|()| file.sync_all())
         .map_err(|_| ErroCopia::GravacaoFalhou)
-}
-fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
-    let dados = fs::symlink_metadata(alvo).map_err(|_| ausente)?;
-    if !dados.is_file() || dados.file_type().is_symlink() || dados.len() > 8_000_000 {
-        return Err(ErroCopia::DestinoInseguro);
-    }
-    let file = fs::File::open(alvo).map_err(|_| ErroCopia::LeituraFalhou)?;
-    let mut bytes = Vec::new();
-    file.take(8_000_001)
-        .read_to_end(&mut bytes)
-        .map_err(|_| ErroCopia::LeituraFalhou)?;
-    if bytes.len() > 8_000_000 {
-        return Err(ErroCopia::DestinoInseguro);
-    }
-    Ok(bytes)
 }
 fn manifesto(id: &IdentidadeCopia, base: &[u8]) -> ManifestoCopia {
     ManifestoCopia {
@@ -424,7 +414,7 @@ mod testes {
             ),
             Err(ErroCopia::ArquivoExistente)
         );
-        assert_eq!(previa(&pasta, &id), Err(ErroCopia::DestinoInseguro));
+        assert_eq!(previa(&pasta, &id), Err(ErroCopia::LinkSimbolico));
         fs::remove_dir_all(pasta).unwrap();
     }
 
