@@ -56,6 +56,23 @@ impl ErroResultadoPesquisa {
     }
 }
 
+// O controlador PHP decodifica nomes de query e normaliza pontos/espacos
+// para '_'. %5F, '.' ou '+' podem sobrescrever acao/id_procedimento.
+// Os nomes devem ser literais ASCII, inclusive os parametros auxiliares.
+fn validar_nomes_dos_parametros(campos: &[&str]) -> Result<(), ErroResultadoPesquisa> {
+    for campo in campos {
+        let chave = campo.split_once('=').map_or(*campo, |(nome, _)| nome);
+        if chave.is_empty()
+            || !chave
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+        {
+            return Err(ErroResultadoPesquisa::LinkDePesquisaComChaveNaoCanonica);
+        }
+    }
+    Ok(())
+}
+
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
@@ -131,20 +148,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         if acoes != ["procedimento_trabalhar"] {
             return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
         }
-        // O controlador PHP decodifica nomes de query e normaliza pontos
-        // e espacos para '_'. Chaves %5F, '.' ou '+' podem, portanto,
-        // sobrescrever acao/id_procedimento apesar de parecerem diferentes.
-        // Falhar fechado evita projetar um NUP a partir do destino errado.
-        for campo in &campos {
-            let chave = campo.split_once('=').map_or(*campo, |(nome, _)| nome);
-            if chave.is_empty()
-                || !chave.bytes().all(|byte| {
-                    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-'
-                })
-            {
-                return Err(ErroResultadoPesquisa::LinkDePesquisaComChaveNaoCanonica);
-            }
-        }
+        validar_nomes_dos_parametros(&campos)?;
         // Um link de trabalho sem ID interno não endereça um processo.
         // Dois IDs tornam o destino dependente da interpretação do servidor.
         // O identificador é validado somente para uso local e não é serializado.
