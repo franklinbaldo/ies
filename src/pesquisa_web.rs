@@ -13,6 +13,7 @@ pub struct ResultadoPesquisa {
 pub enum ErroResultadoPesquisa {
     HtmlDePesquisaNaoInterpretado,
     TabelaDePesquisaAusente,
+    TabelasDePesquisaRepetidas,
     LinhaDePesquisaSemLinkDoProcesso,
     LinkDePesquisaNaoAbreProcesso,
     NumeroDePesquisa(NumeroProcessoInvalido),
@@ -24,6 +25,7 @@ impl ErroResultadoPesquisa {
         match self {
             Self::HtmlDePesquisaNaoInterpretado => "html_de_pesquisa_nao_interpretado",
             Self::TabelaDePesquisaAusente => "tabela_de_pesquisa_ausente",
+            Self::TabelasDePesquisaRepetidas => "tabelas_de_pesquisa_repetidas",
             Self::LinhaDePesquisaSemLinkDoProcesso => "linha_de_pesquisa_sem_link_do_processo",
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
@@ -38,10 +40,17 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     let parser = dom.parser();
-    let tabela = dom
+    let mut tabelas = dom
         .query_selector("table.pesquisaResultado")
-        .and_then(|mut itens| itens.next())
-        .and_then(|no| no.get(parser))
+        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
+    let primeira = tabelas
+        .next()
+        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
+    if tabelas.next().is_some() {
+        return Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas);
+    }
+    let tabela = primeira
+        .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
     let linhas = tabela
@@ -143,6 +152,17 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
+        );
+    }
+
+    #[test]
+    fn duas_tabelas_de_pesquisa_nao_podem_ocultar_resultados() {
+        let html = format!(
+            "{RESULTADO}<table class='pesquisaResultado'><tr class='pesquisaTituloRegistro'><td><a class='protocoloNormal' href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8'>00002.123456/2026-07</a></td></tr></table>"
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas)
         );
     }
 
