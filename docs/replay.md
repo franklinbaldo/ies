@@ -83,6 +83,13 @@ um histórico parcial como íntegro (refs #59).
 
 ## Inventário offline de documentos observados
 
+A extração offline de identidade e texto de documento exige uma única
+ocorrência de `<title>` e de `<body>` no HTML analisado. Estruturas
+duplicadas falham com erros tipados
+`titulos_de_documento_repetidos` ou
+`corpos_de_documento_repetidos`, em vez de selecionar o primeiro
+elemento e ocultar dados da mesma resposta (refs #60).
+
 `ies replay CENARIO --documento --listar-documentos --json` lista os
 números SEI e tipos de todas as respostas `documento_imprimir_web`
 verificadas da cassette, na ordem da gravação, sem mostrar conteúdos.
