@@ -91,7 +91,6 @@ impl HistoricoDocumento {
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     no.inner_text(parser)
-        .trim()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -141,57 +140,11 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
     Ok(())
 }
 
-/// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
-/// disponível na tabela de origem, é obrigatório conferir a cobertura.
-pub fn interpretar_historico(
-    html: &str,
-    documento: &NumeroDocumento,
+fn linhas_do_historico(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
     id_interno: &str,
-    total_declarado: Option<usize>,
-) -> Result<HistoricoDocumento, ErroVersao> {
-    if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(ErroVersao::DocumentoDivergente);
-    }
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroVersao::HistoricoAusente)?;
-    let parser = dom.parser();
-    let mut tabela = None;
-    for handle in dom
-        .query_selector("table.infraTable")
-        .ok_or(ErroVersao::HistoricoAusente)?
-    {
-        let no = handle.get(parser).ok_or(ErroVersao::HistoricoAusente)?;
-        let tag = no.as_tag().ok_or(ErroVersao::HistoricoAusente)?;
-        let captions: Vec<_> = tag
-            .query_selector(parser, "caption")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
-        if captions
-            .iter()
-            .any(|c| texto(c, parser).contains("Versões"))
-        {
-            if tabela.is_some() {
-                return Err(ErroVersao::HistoricosDuplicados);
-            }
-            tabela = Some(tag);
-        }
-    }
-    let tabela = tabela.ok_or(ErroVersao::HistoricoAusente)?;
-    let legenda = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser))
-        .map(|no| texto(no, parser))
-        .next()
-        .ok_or(ErroVersao::ListaIncompleta)?;
-    let declaradas = legenda
-        .rsplit_once('(')
-        .and_then(|(_, resto)| resto.split_once(" registros"))
-        .and_then(|(numero, _)| numero.parse::<usize>().ok())
-        .ok_or(ErroVersao::ListaIncompleta)?;
+) -> Result<Vec<EntradaVersao>, ErroVersao> {
     let mut cabecalho = false;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
@@ -265,6 +218,61 @@ pub fn interpretar_historico(
     if !cabecalho {
         return Err(ErroVersao::ColunasInesperadas);
     }
+    Ok(entradas)
+}
+
+/// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
+/// disponível na tabela de origem, é obrigatório conferir a cobertura.
+pub fn interpretar_historico(
+    html: &str,
+    documento: &NumeroDocumento,
+    id_interno: &str,
+    total_declarado: Option<usize>,
+) -> Result<HistoricoDocumento, ErroVersao> {
+    if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroVersao::DocumentoDivergente);
+    }
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroVersao::HistoricoAusente)?;
+    let parser = dom.parser();
+    let mut tabela = None;
+    for handle in dom
+        .query_selector("table.infraTable")
+        .ok_or(ErroVersao::HistoricoAusente)?
+    {
+        let no = handle.get(parser).ok_or(ErroVersao::HistoricoAusente)?;
+        let tag = no.as_tag().ok_or(ErroVersao::HistoricoAusente)?;
+        let captions: Vec<_> = tag
+            .query_selector(parser, "caption")
+            .into_iter()
+            .flatten()
+            .filter_map(|h| h.get(parser))
+            .collect();
+        if captions
+            .iter()
+            .any(|c| texto(c, parser).contains("Versões"))
+        {
+            if tabela.is_some() {
+                return Err(ErroVersao::HistoricosDuplicados);
+            }
+            tabela = Some(tag);
+        }
+    }
+    let tabela = tabela.ok_or(ErroVersao::HistoricoAusente)?;
+    let legenda = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten()
+        .filter_map(|h| h.get(parser))
+        .map(|no| texto(no, parser))
+        .next()
+        .ok_or(ErroVersao::ListaIncompleta)?;
+    let declaradas = legenda
+        .rsplit_once('(')
+        .and_then(|(_, resto)| resto.split_once(" registros"))
+        .and_then(|(numero, _)| numero.parse::<usize>().ok())
+        .ok_or(ErroVersao::ListaIncompleta)?;
+    let entradas = linhas_do_historico(tabela, parser, id_interno)?;
     if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);
     }
@@ -277,11 +285,12 @@ mod testes {
     use super::*;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {
         let mut linhas = String::new();
+        use std::fmt::Write as _;
         for (&n, &id) in numeros.iter().zip(ids) {
-            linhas.push_str(&format!(
+            let _ = write!(linhas,
                 "<tr><td><input type=\"checkbox\" /></td><td>{n}</td><td><a>Ana</a></td><td><a>PPI</a></td><td>31/10/2026</td><td><a href=\"controlador.php?acao=documento_visualizar&amp;id_documento={id}&amp;versao={n}&amp;infra_hash={}\">Ver</a></td></tr>",
                 "a".repeat(64)
-            ));
+            );
         }
         format!(
             "<table class=\"infraTable\"><caption>Lista de Versões ({} registros):</caption><tr><th></th><th>Versão</th><th>Usuário</th><th>Unidade</th><th>Última Modificação</th><th>Ações</th></tr>{linhas}</table>",
@@ -319,7 +328,13 @@ mod testes {
     fn numero_zero_e_link_com_acao_repetida_sao_recusados() {
         assert_eq!(VersaoDocumento::nova(0), Err(ErroVersao::NumeroInvalido));
         let doc = NumeroDocumento::novo("0007").unwrap();
-        let html = pagina(&[1], &["42"]).replace("acao=documento_visualizar", "acao=documento_visualizar&amp;acao=editor_montar");
-        assert_eq!(interpretar_historico(&html, &doc,"42",None), Err(ErroVersao::LinkInseguro));
+        let html = pagina(&[1], &["42"]).replace(
+            "acao=documento_visualizar",
+            "acao=documento_visualizar&amp;acao=editor_montar",
+        );
+        assert_eq!(
+            interpretar_historico(&html, &doc, "42", None),
+            Err(ErroVersao::LinkInseguro)
+        );
     }
 }

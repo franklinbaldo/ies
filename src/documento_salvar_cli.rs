@@ -65,3 +65,41 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
         )),
     }
 }
+
+pub(super) fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
+    for numero in numeros {
+        if let Err(erro) = documento::NumeroDocumento::novo(numero) {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "entrada_invalida",
+                        "subcodigo": erro.subcodigo(),
+                        "erro": "número SEI de documento inválido",
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!(
+                    "IES: número SEI de documento inválido [{}]",
+                    erro.subcodigo()
+                );
+            }
+            return Some(ExitCode::from(2));
+        }
+    }
+    None
+}
+
+pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
+    if let Domain::Documento(Documento {
+        acao: None,
+        versao: Some(versao),
+        ..
+    }) = &cli.command
+        && let Err(erro) = documento_versoes::VersaoDocumento::nova(*versao)
+    {
+        return Some(erro_fonte(cli.json, erro.subcodigo(), "versão do documento inválida"));
+    }
+    None
+}

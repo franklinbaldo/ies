@@ -131,7 +131,7 @@ fn criar_novo(alvo: &Path, bytes: &[u8]) -> Result<(), ErroCopia> {
         }
     })?;
     file.write_all(bytes)
-        .and_then(|_| file.sync_all())
+        .and_then(|()| file.sync_all())
         .map_err(|_| ErroCopia::GravacaoFalhou)
 }
 fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
