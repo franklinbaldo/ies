@@ -30,6 +30,21 @@ da escolha. Não crie fichas para os 129 itens ainda não implementados.
 Não invente operações pela inspeção de telas: preserve apenas comportamentos
 observados e demonstrados nas instalações reais de treinamento do SEI.
 
+## Contract-First TDD: sequência obrigatória de desenvolvimento
+
+Toda nova capacidade começa no [contrato e nos shims tipados](docs/metodo-contract-first.md):
+**CONTRACT** (contrato OKF, domínio, erros específicos e shim compilável),
+**RED** (testes comportamentais e de variantes tipadas, executados com
+falha esperada antes do miolo), **GREEN/REFACTOR** (implementação mínima,
+refatoração e gates) e **VALIDATED** (ensaio offline, depois nas instalações
+de treinamento autorizadas, idealmente várias em paralelo quando seguro).
+
+Não declarar PASS sem execução. Usar `NOT_RUN` com o bloqueio explícito
+quando faltarem instalação, sessão, permissões ou coletor. Quando não houver
+credenciais de gravação/publicação de cassettes, entregar roteiro/script
+reproduzível para outra máquina; isso não autoriza capturar dados reais
+nem dispensa distinguir capacidade offline da live.
+
 ## Testes e spikes nas instalações de treinamento
 
 **Use instalações SEI de treinamento ou homologação para testes e spikes**.
