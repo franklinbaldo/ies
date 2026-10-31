@@ -33,6 +33,7 @@ mod replay_versoes_cli;
 mod resumo_exportacao;
 mod resumo_processo;
 mod saida;
+mod status_web;
 mod status_cli;
 mod tela_login;
 mod transporte;
@@ -201,6 +202,9 @@ struct StatusArgs {
     /// Confere URL, origem e cookie em arquivos privados, sem consultar SEI
     #[arg(long, conflicts_with = "verificar_arquivos")]
     verificar_sessao_local: bool,
+    /// Consulta o Controle Web autenticado configurado: um GET com possíveis efeitos
+    #[arg(long, conflicts_with_all = ["verificar_arquivos", "verificar_sessao_local"])]
+    verificar_controle_web: bool,
 }
 
 #[derive(Debug, Args)]
@@ -463,6 +467,7 @@ fn run(cli: &Cli) -> ExitCode {
                 cli.json,
                 args.verificar_arquivos,
                 args.verificar_sessao_local,
+                args.verificar_controle_web,
             );
         }
         Domain::Unidade(Unidade {
