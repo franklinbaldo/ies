@@ -47,7 +47,7 @@ def medir_rss_externo(comando: list[str], esperado: int | None) -> list[int]:
             )
             if esperado is not None and executado.returncode != esperado:
                 raise RuntimeError("falha durante a medição independente de memória")
-            resultados.append(int(Path(arquivo).read_text().strip()))
+            resultados.append(int(Path(arquivo).read_text().strip().splitlines()[-1]))
     return resultados
 
 
