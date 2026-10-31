@@ -152,6 +152,8 @@ enum UnidadeAcao {
     },
 }
 
+// As opções do replay são flags independentes de cenários, não estado de domínio.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 struct Replay {
     /// Nome do cenário OKF, sem caminho, ex.: processo-andamento-go
@@ -168,8 +170,11 @@ struct Replay {
     /// Escolhe pelo número SEI exato entre documentos de uma cassette verificada
     #[arg(long, requires = "documento")]
     numero_documento: Option<String>,
+    /// Inclui o texto visível do corpo no replay offline do documento
+    #[arg(long, requires = "documento", conflicts_with = "listar_documentos")]
+    texto_documento: bool,
     /// Lista as identidades distintas observadas em documentos da cassette
-    #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo"])]
+    #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
     listar_documentos: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
@@ -418,6 +423,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &replay.passo,
             replay.numero_documento.as_deref(),
             replay.listar_documentos,
+            replay.texto_documento,
             json_mode,
         );
     }

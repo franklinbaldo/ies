@@ -109,6 +109,17 @@ Exemplo com a cassette pública `documento-numero-e-busca-unb`,
 que contém a resposta GET da operação. O ZIP indicado no card OKF
 precisa estar no cache local; sem ele o replay falha fechado.
 
+## Texto de documento já verificado
+
+`ies replay CENARIO --documento --numero-documento DOC --texto-documento --json`
+expõe somente o texto visível do `body` do HTML selecionado e hash-verificado,
+separado do título, sem executar rede ou scripts. Recusa corpo ausente, vazio,
+script/estilo executável no corpo e texto acima do limite; URLs assinadas em
+atributos HTML não são serializadas. O conteúdo pode conter dados pessoais:
+tratar a saída como informação confidencial e não registrar em logs de CI.
+Sem `--texto-documento`, a saída continua limitada à identidade/tipo, sem
+expor corpo. Isto **não é** a leitura live `ies documento DOC`.
+
 ## Consulta Web autorizada da unidade
 
 O comando de domínio é `ies unidade listar-processos`. A sessão
