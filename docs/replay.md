@@ -200,3 +200,16 @@ Número inválido falha com variante tipada e saída 2; ausência na resposta
 falha com `numero_nao_observado_na_resposta_de_pesquisa` e saída 1,
 sem inventar identidade ou realizar requisição adicional. A execução
 continua estritamente offline e não prova a capacidade live da issue #58.
+
+
+Para reproduzir a validação offline, execute
+`scripts/validar-pesquisa-cassette.sh --acervo DIR --bin EXEC --instalacao unb
+--cenario processo-busca-unb--67c8f2ed35b6 --passo 2
+--numero-processo NUP_OBSERVADO` em prévia (padrão). Acrescente
+`--executar` somente depois de colocar o ZIP verificado no cache.
+O script não acessa o SEI, não faz login nem publica resultados; confere
+instalação, identidade exata, projeção e escopo. Repita com cards da UFRJ,
+Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
+execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
+sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
+permanece `NOT_RUN`.
