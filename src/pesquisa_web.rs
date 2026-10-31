@@ -19,6 +19,7 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
+    LinkDePesquisaComChaveNaoCanonica,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     IdentificadorDoProcessoRepetidoNaPesquisa,
     NumeroDePesquisa(NumeroProcessoInvalido),
@@ -42,6 +43,7 @@ impl ErroResultadoPesquisa {
             Self::LinkDePesquisaComIdentificadoresRepetidos => {
                 "link_de_pesquisa_com_identificadores_repetidos"
             }
+            Self::LinkDePesquisaComChaveNaoCanonica => "link_de_pesquisa_com_chave_nao_canonica",
             Self::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal => {
                 "link_de_pesquisa_com_identificador_do_processo_nao_decimal"
             }
@@ -312,6 +314,38 @@ mod tests {
             Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa),
             "o mesmo ID numérico (7 e 007) não pode identificar NUPs diferentes"
         );
+    }
+
+    #[test]
+    fn chaves_que_o_php_pode_normalizar_nao_alteram_identidade_silenciosamente() {
+        // PHP converte pontos e espacos em '_' e decodifica percent/+
+        // antes de escolher o valor do parametro; o parser nao pode
+        // aceitar somente a chave literal e ignorar seu alias.
+        for extra in [
+            "id.procedimento=8",
+            "id+procedimento=8",
+            "id%5Fprocedimento=8",
+            "a%63ao=documento_imprimir_web",
+        ] {
+            let html = RESULTADO.replace(
+                "&amp;id_procedimento=7",
+                &format!("&amp;id_procedimento=7&amp;{extra}"),
+            );
+            assert_eq!(
+                ler_resultados(&html),
+                Err(ErroResultadoPesquisa::LinkDePesquisaComChaveNaoCanonica),
+                "chave alternativa nao pode mudar a acao ou o ID: {extra}"
+            );
+        }
+    }
+
+    #[test]
+    fn parametros_adicionais_com_nomes_canonicos_preservam_resultado() {
+        let html = RESULTADO.replace(
+            "&amp;id_procedimento=7",
+            "&amp;id_procedimento=7&amp;infra_hash=exemplo&amp;id-contexto=8",
+        );
+        assert_eq!(ler_resultados(&html).unwrap().len(), 1);
     }
 
     #[test]
