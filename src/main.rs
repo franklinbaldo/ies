@@ -36,8 +36,8 @@ mod saida;
 mod status_cli;
 mod tela_login;
 mod transporte;
-mod unidade_categoria;
 mod unidade_atual_cli;
+mod unidade_categoria;
 mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
