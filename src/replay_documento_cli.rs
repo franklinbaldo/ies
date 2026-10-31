@@ -87,22 +87,26 @@ fn ler(
     }
 }
 
+pub(super) struct SaidaDocumento<'a> {
+    pub texto: bool,
+    pub arquivo: Option<&'a Path>,
+}
+
 pub(super) fn mostrar(
     card: &Path,
     arquivo: &Path,
     passos: &[usize],
     numero: Option<&str>,
     listar: bool,
-    texto: bool,
-    arquivo_texto: Option<&Path>,
+    saida: SaidaDocumento<'_>,
     json_mode: bool,
 ) -> ExitCode {
     if listar {
         return mostrar_lista(card, arquivo, passos, json_mode);
     }
-    match ler(card, arquivo, passos, numero, texto) {
+    match ler(card, arquivo, passos, numero, saida.texto) {
         Ok((documento, instalacao, conteudo)) => {
-            if let Some(destino) = arquivo_texto {
+            if let Some(destino) = saida.arquivo {
                 let Some(texto) = conteudo.as_deref() else {
                     return erro_exportacao("texto_documento_nao_selecionado", json_mode);
                 };
@@ -126,7 +130,7 @@ pub(super) fn mostrar(
                         "documento": documento,
                         "texto": conteudo,
                         "instalacao": instalacao,
-                        "escopo": if texto { "texto_documento_offline" } else { "titulo_documento_offline" }
+                        "escopo": if saida.texto { "texto_documento_offline" } else { "titulo_documento_offline" }
                     })
                 );
             } else {

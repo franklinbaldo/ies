@@ -8,7 +8,6 @@ pub enum ErroArquivoTexto {
     DiretorioAusente,
     DestinoJaExiste,
     EscritaFalhou,
-    ImplementacaoPendente,
 }
 impl ErroArquivoTexto {
     pub fn subcodigo(self) -> &'static str {
@@ -17,13 +16,42 @@ impl ErroArquivoTexto {
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
-            Self::ImplementacaoPendente => "exportacao_texto_documento_nao_implementada",
         }
     }
 }
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
-    let _ = (destino, texto);
-    Err(ErroArquivoTexto::ImplementacaoPendente)
+    use std::fs::{self, OpenOptions};
+    use std::io::{ErrorKind, Write};
+    #[cfg(unix)]
+    use std::os::unix::fs::OpenOptionsExt;
+
+    if destino.file_name().is_none() {
+        return Err(ErroArquivoTexto::NomeAusente);
+    }
+    if !destino.parent().is_some_and(Path::is_dir) {
+        return Err(ErroArquivoTexto::DiretorioAusente);
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut arquivo = options.open(destino).map_err(|erro| {
+        if erro.kind() == ErrorKind::AlreadyExists {
+            ErroArquivoTexto::DestinoJaExiste
+        } else {
+            ErroArquivoTexto::EscritaFalhou
+        }
+    })?;
+    if arquivo
+        .write_all(texto.as_bytes())
+        .and_then(|()| arquivo.sync_all())
+        .is_err()
+    {
+        drop(arquivo);
+        let _ = fs::remove_file(destino);
+        return Err(ErroArquivoTexto::EscritaFalhou);
+    }
+    Ok(texto.len())
 }
 
 #[cfg(test)]
