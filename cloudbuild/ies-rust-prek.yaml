@@ -1,9 +1,9 @@
 # Candidato revisável para o trigger externo ies-pr-ci (issue #76).
 # NÃO ativa nem altera o trigger por si só; requer revisão independente.
-# Preserva exatamente o gate pre-push canônico da main IES Rust.
+# Preserva o gate pre-push canônico e a versão uv 0.13.5 da main IES Rust.
 steps:
   - id: uv-pinned
-    name: ghcr.io/astral-sh/uv@sha256:47965cdc9d53a515f68f78241161c901e70051ce428f12e791bd7fe19f6a631a
+    name: ghcr.io/astral-sh/uv@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff
     entrypoint: sh
     args:
       - -ceu
