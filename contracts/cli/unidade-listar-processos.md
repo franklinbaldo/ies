@@ -25,7 +25,10 @@ em variáveis de ambiente, **nunca por valores secretos na linha de comando**:
 - `IES_ORIGEM_FILE`: caminho privado com a origem HTTPS autorizada.
 
 Os arquivos devem respeitar as regras de privacidade do adaptador
-(no Unix, modo 0600). O IES confere a origem antes de ler cookies e
+(no Unix, modo 0600). O transporte deve rejeitar **links simbólicos**
+para URL assinada, origem autorizada e cookie, distinguindo-os de arquivo
+regular: metadados de links não provam posse segura do arquivo alvo.
+Esta validação deve ocorrer antes de qualquer envio de cookie por rede. O IES confere a origem antes de ler cookies e
 não segue redirects, não executa login, POST de paginação, nem realiza
 escritas ou tentativa de outro backend. Não há configuração persistente
 nem automação de autenticação.
