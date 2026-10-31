@@ -26,6 +26,8 @@ mod replay_busca_documento;
 mod replay_consulta;
 mod replay_documento_cli;
 mod replay_pesquisa_cli;
+mod replay_args;
+mod replay_versoes_cli;
 mod resumo_processo;
 mod saida;
 mod status_cli;
@@ -35,6 +37,7 @@ mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
+use replay_args::Replay;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -180,53 +183,6 @@ enum UnidadeAcao {
     },
 }
 
-// As opções do replay são flags independentes de cenários, não estado de domínio.
-#[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Args)]
-struct Replay {
-    /// Nome do cenário OKF, sem caminho, ex.: processo-andamento-go
-    cenario: String,
-    /// Raiz local do acervo contendo cassettes/ e .cache/ies/
-    #[arg(long, default_value = ".")]
-    acervo: PathBuf,
-    /// Passos explicitamente escolhidos para caixa multipágina (uso avançado)
-    #[arg(long)]
-    passo: Vec<usize>,
-    /// Reproduz um único HTML de documento da operação `documento_imprimir_web`
-    #[arg(long)]
-    documento: bool,
-    /// Escolhe pelo número SEI exato entre documentos de uma cassette verificada
-    #[arg(long, requires = "documento")]
-    numero_documento: Option<String>,
-    /// Inclui o texto visível do corpo no replay offline do documento
-    #[arg(long, requires = "documento", conflicts_with = "listar_documentos")]
-    texto_documento: bool,
-    /// Salva o texto verificado em arquivo privado novo, sem exibir o corpo no terminal
-    #[arg(long, requires = "texto_documento")]
-    arquivo_texto: Option<PathBuf>,
-    /// Lista as identidades distintas observadas em documentos da cassette
-    #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
-    listar_documentos: bool,
-    /// Busca termo no texto de documentos já capturados e verificados, sem rede
-    #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
-    termo_documento: Option<String>,
-    /// Filtra descrições dos andamentos de histórico já gravado, sem rede
-    #[arg(long, conflicts_with_all = ["documento", "resultado_pesquisa", "todas_paginas"])]
-    termo_andamento: Option<String>,
-    /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
-    #[arg(long, conflicts_with_all = ["documento", "todas_paginas"])]
-    resultado_pesquisa: bool,
-    /// Consolida respostas POST de pesquisa escolhidas explicitamente, sem consultar SEI
-    #[arg(long, requires = "resultado_pesquisa", requires = "passo")]
-    unir_resultados_pesquisa: bool,
-    /// Consulta NUP nas caixas já gravadas, sem acesso à rede
-    #[arg(long)]
-    numero_processo: Option<String>,
-    /// Reúne páginas contíguas já gravadas na cassette, sem executar POST
-    #[arg(long, conflicts_with = "passo")]
-    todas_paginas: bool,
-}
-
 #[derive(Debug, Args)]
 struct StatusArgs {
     /// Confere apenas metadados dos arquivos privados, sem abrir conteúdos nem rede
@@ -352,6 +308,17 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "opcoes_incompativeis",
             "documento não é caixa de processos",
             2,
+        );
+    }
+    if replay.historico_versoes {
+        return replay_versoes_cli::mostrar(
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_documento.as_deref(),
+            replay.id_documento_interno.as_deref(),
+            replay.versao_documento,
+            json_mode,
         );
     }
     if replay.documento {
