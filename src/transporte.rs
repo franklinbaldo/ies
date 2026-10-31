@@ -254,7 +254,7 @@ fn decodificar_resposta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String,
 
 /// A única chamada GET é injetável em testes; URL, origem e cookie passam
 /// pelas mesmas validações que o transporte real, antes de qualquer conexão.
-/// A closure FnOnce impede retries ocultos ou consultas adicionais.
+/// A closure `FnOnce` impede retries ocultos ou consultas adicionais.
 fn read_box_via<R: Read, F>(
     url: &str,
     cookie_file: &Path,
