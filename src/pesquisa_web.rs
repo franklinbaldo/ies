@@ -16,6 +16,7 @@ pub enum ErroResultadoPesquisa {
     TabelasDePesquisaRepetidas,
     LinhaDePesquisaSemLinkDoProcesso,
     LinhaDePesquisaComMaisDeUmLinkDoProcesso,
+    LinkDeProcessoForaDaLinhaDePesquisa,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
@@ -35,6 +36,9 @@ impl ErroResultadoPesquisa {
             Self::LinhaDePesquisaSemLinkDoProcesso => "linha_de_pesquisa_sem_link_do_processo",
             Self::LinhaDePesquisaComMaisDeUmLinkDoProcesso => {
                 "linha_de_pesquisa_com_mais_de_um_link_do_processo"
+            }
+            Self::LinkDeProcessoForaDaLinhaDePesquisa => {
+                "link_de_processo_fora_da_linha_de_pesquisa"
             }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::LinkDePesquisaSemIdentificadorDoProcesso => {
@@ -258,6 +262,20 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso)
+        );
+    }
+
+    #[test]
+    fn linha_sem_classe_nao_pode_ocultar_processo_da_contagem() {
+        // A tabela continua contendo um link SEI de processo legítimo, mas
+        // sua linha perdeu a classe de resultado: ignorá-la perde um NUP.
+        let html = RESULTADO.replace(
+            "</table>",
+            r#"<tr><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8">00002.123456/2026-07</a></td></tr></table>"#,
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa)
         );
     }
 

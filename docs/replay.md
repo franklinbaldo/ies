@@ -169,7 +169,8 @@ IDs internos, trechos de documentos ou HTML. Um formulário GET não pode
 ser confundido com resultado. O leitor não executa links nem novas
 requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
-resultados, linha com múltiplos links, ação inesperada, link sem identificador
+resultados, linha com múltiplos links, link de processo em linha fora do formato
+observado (que seria omitido silenciosamente), ação inesperada, link sem identificador
 interno de processo, identificador interno que não seja decimal ASCII,
 parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
 parâmetro (não é uma ação `acao` real), chaves de query não canônicas
