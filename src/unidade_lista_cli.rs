@@ -1,5 +1,8 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
-use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida, transporte};
+use crate::{
+    arquivo_caixa, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida,
+    transporte,
+};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
