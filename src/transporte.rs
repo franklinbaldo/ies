@@ -399,9 +399,12 @@ mod tests {
     fn descritor_revalida_permissoes_e_limite_de_conteudo() {
         use std::os::unix::fs::PermissionsExt;
         let pasta = std::env::temp_dir().join(format!(
-            "ies-descritor-{}-{}", std::process::id(),
+            "ies-descritor-{}-{}",
+            std::process::id(),
             std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir(&pasta).unwrap();
         let arquivo = pasta.join("privado");
@@ -416,10 +419,7 @@ mod tests {
             arquivo_privado(&arquivo, 4),
             Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite)
         );
-        assert_eq!(
-            arquivo_privado(&arquivo, 128),
-            Ok("CONTEUDO".to_owned())
-        );
+        assert_eq!(arquivo_privado(&arquivo, 128), Ok("CONTEUDO".to_owned()));
         fs::remove_dir_all(&pasta).unwrap();
     }
 
