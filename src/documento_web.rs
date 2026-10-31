@@ -91,3 +91,140 @@ mod tests {
         );
     }
 }
+
+/// Erros de extração textual; não convertidos em mensagens livres.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErroCorpoDocumento {
+    HtmlNaoInterpretado,
+    CorpoAusente,
+    CorpoVazio,
+    CorpoComConteudoExecutavel,
+    TextoAcimaDoLimite,
+    AninhamentoExcessivo,
+}
+impl ErroCorpoDocumento {
+    pub fn subcodigo(self) -> &'static str {
+        match self {
+            Self::HtmlNaoInterpretado => "html_corpo_documento_nao_interpretado",
+            Self::CorpoAusente => "corpo_documento_ausente",
+            Self::CorpoVazio => "corpo_documento_vazio",
+            Self::CorpoComConteudoExecutavel => "corpo_documento_contem_script_ou_estilo",
+            Self::TextoAcimaDoLimite => "texto_documento_acima_do_limite",
+            Self::AninhamentoExcessivo => "arvore_documento_aninhamento_excessivo",
+        }
+    }
+}
+/// Percorre nós do corpo sem executar scripts; separa blocos visíveis.
+fn anexar_texto(
+    no: &tl::Node<'_>,
+    parser: &tl::Parser<'_>,
+    saida: &mut String,
+    profundidade: usize,
+) -> Result<(), ErroCorpoDocumento> {
+    if profundidade > 256 {
+        return Err(ErroCorpoDocumento::AninhamentoExcessivo);
+    }
+    match no {
+        tl::Node::Raw(valor) => saida.push_str(valor.as_utf8_str().as_ref()),
+        tl::Node::Comment(_) => {}
+        tl::Node::Tag(tag) => {
+            let nome = tag.name().as_utf8_str();
+            let quebra = matches!(
+                nome.as_ref(),
+                "p" | "div"
+                    | "li"
+                    | "br"
+                    | "tr"
+                    | "td"
+                    | "th"
+                    | "table"
+                    | "h1"
+                    | "h2"
+                    | "h3"
+                    | "h4"
+                    | "h5"
+                    | "h6"
+                    | "section"
+                    | "article"
+            );
+            if quebra {
+                saida.push(' ');
+            }
+            for filho in tag.children().top().iter() {
+                if let Some(no) = filho.get(parser) {
+                    anexar_texto(no, parser, saida, profundidade + 1)?;
+                }
+            }
+            if quebra {
+                saida.push(' ');
+            }
+        }
+    }
+    if saida.len() > 1_000_000 {
+        return Err(ErroCorpoDocumento::TextoAcimaDoLimite);
+    }
+    Ok(())
+}
+
+/// Extrai o texto do body observado sem executar HTML nem serializar atributos.
+/// Recusa conteúdo executável no corpo para evitar expor scripts ou segredos.
+pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroCorpoDocumento::HtmlNaoInterpretado)?;
+    let parser = dom.parser();
+    let corpo = dom
+        .query_selector("body")
+        .and_then(|mut nodes| nodes.next())
+        .and_then(|node| node.get(parser))
+        .ok_or(ErroCorpoDocumento::CorpoAusente)?;
+    let tag = corpo.as_tag().ok_or(ErroCorpoDocumento::CorpoAusente)?;
+    for nome in ["script", "style", "iframe", "noscript"] {
+        if tag
+            .query_selector(parser, nome)
+            .is_some_and(|mut nodes| nodes.next().is_some())
+        {
+            return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
+        }
+    }
+    let mut bruto = String::new();
+    anexar_texto(corpo, parser, &mut bruto, 0)?;
+    let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
+    if texto.is_empty() {
+        return Err(ErroCorpoDocumento::CorpoVazio);
+    }
+    if texto.len() > 250_000 {
+        return Err(ErroCorpoDocumento::TextoAcimaDoLimite);
+    }
+    Ok(texto)
+}
+#[cfg(test)]
+mod testes_texto {
+    use super::*;
+    #[test]
+    fn extrai_somente_texto_visivel_de_paragrafos() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title><style>SEGREDO_CSS</style></head><body><p>Olá,</p><p>mundo!</p></body></html>";
+        assert_eq!(texto_do_corpo(html), Ok("Olá, mundo!".to_owned()));
+    }
+    #[test]
+    fn corpo_sem_texto_tem_erro_tipado() {
+        assert_eq!(
+            texto_do_corpo("<html><body></body></html>"),
+            Err(ErroCorpoDocumento::CorpoVazio)
+        );
+    }
+    #[test]
+    fn corpo_ausente_tem_erro_distinto() {
+        assert_eq!(
+            texto_do_corpo("<html><head></head></html>"),
+            Err(ErroCorpoDocumento::CorpoAusente)
+        );
+    }
+    #[test]
+    fn recusa_scripts_no_corpo_para_nao_expor_tokens() {
+        let html = "<body><script>infra_hash=SEGREDO</script><p>Conteúdo</p></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Err(ErroCorpoDocumento::CorpoComConteudoExecutavel)
+        );
+    }
+}
