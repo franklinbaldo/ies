@@ -41,6 +41,22 @@ Sem essa opção, a saída de terminal é preservada. O comprovante não
 exibe dados dos processos ou caminhos de credenciais. Não implementa
 paginação adicional nem declara snapshot transacional.
 
+## Pré-validação da sessão local, sem rede
+
+`ies status --verificar-sessao-local --json` confere, **sem abrir socket**,
+os três arquivos privados: regularidade/permissões, URL assinada de
+`procedimento_controlar`, origem HTTPS autorizada incluindo caminho-base
+e sintaxe do cabeçalho Cookie. A validação de origem antecede a leitura
+do cookie, usando as mesmas regras da leitura de caixa para evitar divergência
+entre prévia e transporte. Falhas são variantes de `FalhaTransporte` e
+subcódigos estáveis; nenhuma entrada secreta é exibida.
+
+Sucesso declara somente `sessao_local: formato_e_origem_verificados`,
+`conexao: nao_verificada` e `acesso_remoto: false`: **não** demonstra
+sessão viva, identidade, permissão, renovação de hash ou cobertura de
+paginação. O modo existente `--verificar-arquivos` continua consultando
+**apenas metadados**, sem ler conteúdo. Refs #57.
+
 ## Resultado e alcance
 
 A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
