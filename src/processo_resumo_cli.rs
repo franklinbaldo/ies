@@ -91,3 +91,31 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         cli.json,
     ))
 }
+
+pub(super) fn validar_numero(cli: &Cli) -> Option<ExitCode> {
+    let Domain::Processo(Processo {
+        numero: Some(numero),
+        acao: None,
+        ..
+    }) = &cli.command
+    else {
+        return None;
+    };
+    let Err(erro) = processo::NumeroProcesso::novo(numero) else {
+        return None;
+    };
+    if cli.json {
+        println!(
+            "{}",
+            json!({
+                "codigo": "entrada_invalida",
+                "subcodigo": erro.subcodigo(),
+                "erro": "número de processo inválido",
+                "retentavel": false
+            })
+        );
+    } else {
+        eprintln!("IES: número de processo inválido [{}]", erro.subcodigo());
+    }
+    Some(ExitCode::from(2))
+}
