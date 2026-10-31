@@ -123,13 +123,36 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 }
 
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
-    // symlink_metadata não segue atalhos: status e transporte adotam a mesma
-    // regra antes de ler qualquer conteúdo de sessão.
-    let metadata = fs::symlink_metadata(path)
+    // A checagem do caminho fornece erros específicos; a decisão de
+    // segurança usa o descritor aberto, não metadados sujeitos a TOCTOU.
+    let observado = fs::symlink_metadata(path)
         .map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
-    if metadata.file_type().is_symlink() {
+    if observado.file_type().is_symlink() {
         return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
     }
+    if !observado.is_file() {
+        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
+    }
+
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        // O_NOFOLLOW impede a troca do último componente por symlink.
+        // O_NONBLOCK impede que a troca por FIFO bloqueie a leitura.
+        options.custom_flags(0o400_000 | 0o4_000);
+    }
+    let arquivo = options.open(path).map_err(|erro| {
+        if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
+            FalhaTransporte::ArquivoPrivadoLinkSimbolico
+        } else {
+            FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
+        }
+    })?;
+    let metadata = arquivo
+        .metadata()
+        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
     }
@@ -146,7 +169,18 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
             return Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras);
         }
     }
-    fs::read_to_string(path).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
+    let mut bytes = Vec::new();
+    arquivo
+        .take(limite + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
+    if u64::try_from(bytes.len()).is_ok_and(|tamanho| tamanho > limite) {
+        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
+    }
+    if bytes.is_empty() {
+        return Err(FalhaTransporte::ArquivoPrivadoVazio);
+    }
+    String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
 }
 
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
@@ -358,6 +392,35 @@ mod tests {
             Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
         );
         fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn descritor_revalida_permissoes_e_limite_de_conteudo() {
+        use std::os::unix::fs::PermissionsExt;
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-descritor-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&pasta).unwrap();
+        let arquivo = pasta.join("privado");
+        fs::write(&arquivo, "CONTEUDO").unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(
+            arquivo_privado(&arquivo, 128),
+            Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        );
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(
+            arquivo_privado(&arquivo, 4),
+            Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite)
+        );
+        assert_eq!(arquivo_privado(&arquivo, 128), Ok("CONTEUDO".to_owned()));
+        fs::remove_dir_all(&pasta).unwrap();
     }
 
     #[test]
