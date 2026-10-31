@@ -392,6 +392,35 @@ mod tests {
         fs::remove_dir_all(raiz).unwrap();
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn descritor_revalida_permissoes_e_limite_de_conteudo() {
+        use std::os::unix::fs::PermissionsExt;
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-descritor-{}-{}", std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir(&pasta).unwrap();
+        let arquivo = pasta.join("privado");
+        fs::write(&arquivo, "CONTEUDO").unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(
+            arquivo_privado(&arquivo, 128),
+            Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        );
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(
+            arquivo_privado(&arquivo, 4),
+            Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite)
+        );
+        assert_eq!(
+            arquivo_privado(&arquivo, 128),
+            Ok("CONTEUDO".to_owned())
+        );
+        fs::remove_dir_all(&pasta).unwrap();
+    }
+
     #[test]
     fn mesma_origem_em_outra_pasta_nao_recebe_cookie() {
         let legitimo = url("sei.exemplo");
