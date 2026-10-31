@@ -1,14 +1,18 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
-use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, saida, transporte};
+use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida, transporte};
 use serde_json::json;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 pub(super) fn listar_processos_da_unidade(
     unidade: Option<&str>,
     json_mode: bool,
     destino: Option<&Path>,
+    paginas_privadas: &[PathBuf],
 ) -> ExitCode {
+    if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -21,7 +25,20 @@ pub(super) fn listar_processos_da_unidade(
         Ok(html) => html,
         Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
     };
-    mostrar_caixa(&[html], "web", unidade, json_mode, true, destino)
+    let paginas_adicionais =
+        match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
+            Ok(paginas) => paginas,
+            Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        };
+    let mut paginas = Vec::with_capacity(paginas_adicionais.len() + 1);
+    paginas.push(html);
+    paginas.extend(paginas_adicionais);
+    let origem = if paginas_privadas.is_empty() {
+        "web"
+    } else {
+        "web_com_paginas_privadas"
+    };
+    mostrar_caixa(&paginas, origem, unidade, json_mode, true, destino)
 }
 
 pub(super) fn mostrar_caixa(
