@@ -154,3 +154,22 @@ tipadas. Nenhum achado significa apenas ausência entre os documentos
 **da cassette escolhida**, não inexistência no SEI. Incompatível com
 `--passo`, `--numero-documento`, `--texto-documento` e
 `--listar-documentos`. A busca live de documentos segue indisponível.
+
+## Resultados de uma pesquisa de processos capturada
+
+`ies replay CENARIO --resultado-pesquisa --passo INDICE --json` interpreta
+**uma resposta POST 200** de `protocolo_pesquisar` já presente em uma
+cassette pública com ZIP, SHA-1, SHA-256, instalação e MIME verificados.
+O índice é zero-based da interação gravada, não a ordem dos resultados.
+Exemplo observado: `processo-busca-unb--67c8f2ed35b6`, `--passo 2`, UnB.
+
+A saída devolve somente os NUPs observados nos links de processo da tabela
+`pesquisaResultado`, preservando zeros e pontuação, sem URLs assinadas,
+IDs internos, trechos de documentos ou HTML. Um formulário GET não pode
+ser confundido com resultado. O leitor não executa links nem novas
+requisições ao SEI, não reproduz formulários e não oferece busca live.
+Entrada de passo inválida, ausência de tabela, link inesperado e NUP
+duplicado geram erros específicos. Ausência de achados significa apenas
+ausência na resposta escolhida, jamais inexistência no SEI. Ver a
+[matriz da operação](../contracts/evidencias/processo-buscar.md);
+a capacidade live segue pendente na issue #58.

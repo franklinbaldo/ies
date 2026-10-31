@@ -106,6 +106,23 @@ pub fn read_cassette_documents(
     Ok((pages, instalacao))
 }
 
+/// Lê somente uma resposta POST de pesquisa observada e verificada offline.
+pub fn read_cassette_search_result(
+    card: &Path,
+    archive: &Path,
+    passo: usize,
+) -> Result<(String, String), String> {
+    let (mut paginas, instalacao, _) = read_verified_html(
+        card,
+        archive,
+        &[passo],
+        Some("protocolo_pesquisar"),
+        false,
+        false,
+    )?;
+    Ok((paginas.remove(0), instalacao))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ErroSelecaoOperacao {
     InteracoesAusentes,
@@ -357,9 +374,14 @@ fn selected_html_pages(
     for (order, step) in chosen.into_iter().enumerate() {
         let it = list.get(step).ok_or("passo inexistente")?;
         let method = it["request"]["method"].as_str();
+        let metodo_esperado = if operation == "protocolo_pesquisar" {
+            method == Some("POST")
+        } else {
+            method == Some("GET")
+                || (operation == "procedimento_controlar" && order > 0 && method == Some("POST"))
+        };
         if it["request"]["operation"] != operation
-            || !(method == Some("GET")
-                || (operation == "procedimento_controlar" && order > 0 && method == Some("POST")))
+            || !metodo_esperado
             || it["response"]["status_code"] != 200
         {
             return Err("passo não é uma resposta de caixa admitida (GET inicial; GET/POST subsequentes offline)".into());
@@ -425,113 +447,5 @@ pub fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, Stri
 }
 
 #[cfg(test)]
-mod replay_operation_tests {
-    use super::*;
-
-    #[test]
-    fn historia_e_escolhida_pela_operacao_e_nao_pelo_nome() {
-        let json = serde_json::json!({"interactions": [
-            {"request": {"operation": "procedimento_controlar", "method": "GET"}},
-            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
-        ]});
-        assert_eq!(
-            operation_for_replay(&json, &[]),
-            Ok("procedimento_consultar_historico")
-        );
-        assert_eq!(
-            operation_for_replay(&json, &[0]),
-            Ok("procedimento_controlar")
-        );
-    }
-
-    #[test]
-    fn caixa_e_padrao_quando_nao_ha_historico() {
-        let json = serde_json::json!({"interactions": [
-            {"request": {"operation": "procedimento_controlar", "method": "GET"}}
-        ]});
-        assert_eq!(
-            operation_for_replay(&json, &[]),
-            Ok("procedimento_controlar")
-        );
-    }
-    #[test]
-    fn seleciona_get_e_post_de_uma_unica_sequencia_do_controle() {
-        let dados = serde_json::json!({"interactions": [
-            {"request":{"operation":"procedimento_controlar","method":"GET"}},
-            {"request":{"operation":"procedimento_controlar","method":"POST"}}
-        ]});
-        assert_eq!(passos_de_todas_as_paginas(&dados), Ok(vec![0, 1]));
-    }
-
-    #[test]
-    fn recusa_intercalacao_de_outra_operacao_sem_agregar_caixas() {
-        let dados = serde_json::json!({"interactions": [
-            {"request":{"operation":"procedimento_controlar","method":"GET"}},
-            {"request":{"operation":"documento_imprimir_web","method":"GET"}},
-            {"request":{"operation":"procedimento_controlar","method":"POST"}}
-        ]});
-        assert_eq!(
-            passos_de_todas_as_paginas(&dados),
-            Err(ErroPaginasAutomaticas::PaginasDeBlocosDiferentes)
-        );
-    }
-
-    #[test]
-    fn recusa_controle_sem_get_inicial() {
-        let dados = serde_json::json!({"interactions": [
-            {"request":{"operation":"procedimento_controlar","method":"POST"}}
-        ]});
-        assert_eq!(
-            passos_de_todas_as_paginas(&dados),
-            Err(ErroPaginasAutomaticas::PrimeiraPaginaNaoEGet)
-        );
-    }
-
-    #[test]
-    fn passo_explicito_de_historico_escolhe_a_operacao_observada() {
-        let json = serde_json::json!({"interactions": [
-            {"request": {"operation": "procedimento_controlar", "method": "GET"}},
-            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
-        ]});
-        assert_eq!(
-            operation_for_replay(&json, &[1]),
-            Ok("procedimento_consultar_historico")
-        );
-        assert_eq!(
-            operation_for_replay(&json, &[0]),
-            Ok("procedimento_controlar")
-        );
-        assert_eq!(
-            operation_for_replay(&json, &[0, 1]),
-            Err(ErroSelecaoOperacao::PassosComOperacoesDiferentes)
-        );
-    }
-
-    #[test]
-    fn passo_inexistente_falha_com_erro_tipado() {
-        let json = serde_json::json!({"interactions": [
-            {"request": {"operation": "procedimento_controlar", "method": "GET"}}
-        ]});
-        assert_eq!(
-            operation_for_replay(&json, &[7]),
-            Err(ErroSelecaoOperacao::PassoNaoEncontrado { indice: 7 })
-        );
-    }
-
-    #[test]
-    fn replay_nao_mistura_multiplos_historicos_nem_aceita_acao_aleatoria() {
-        let json = serde_json::json!({"interactions": [
-            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
-            {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
-            {"request": {"operation": "documento_assinar", "method": "POST"}}
-        ]});
-        assert_eq!(
-            operation_for_replay(&json, &[0, 1]),
-            Err(ErroSelecaoOperacao::HistoricoComVariasRespostas)
-        );
-        assert_eq!(
-            operation_for_replay(&json, &[2]),
-            Err(ErroSelecaoOperacao::OperacaoDoPassoNaoSuportada { indice: 2 })
-        );
-    }
-}
+#[path = "cassette/tests.rs"]
+mod replay_operation_tests;
