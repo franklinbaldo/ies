@@ -27,17 +27,43 @@ impl FalhaPaginaCapturada {
         }
     }
 }
-/// Shim do contrato; testes RED devem reprovar uma lista de caminhos válidos.
-pub(crate) fn conferir_caminhos(_caminhos: &[PathBuf]) -> Result<(), FalhaPaginaCapturada> {
-    Err(FalhaPaginaCapturada::QuantidadeAcimaDoLimite)
+/// Antes do GET verifica quantidade e identidade de cada caminho solicitado.
+pub(crate) fn conferir_caminhos(caminhos: &[PathBuf]) -> Result<(), FalhaPaginaCapturada> {
+    use std::collections::HashSet;
+    if caminhos.len() > 199 {
+        return Err(FalhaPaginaCapturada::QuantidadeAcimaDoLimite);
+    }
+    let mut vistos = HashSet::new();
+    for caminho in caminhos {
+        if !vistos.insert(caminho) {
+            return Err(FalhaPaginaCapturada::CaminhosRepetidos);
+        }
+    }
+    Ok(())
 }
 
-/// Shim de leitura, sem rede. A implementação fará leitura privada com limite.
+fn conferir_orcamento(atual: usize, adicional: usize) -> Result<usize, FalhaPaginaCapturada> {
+    atual
+        .checked_add(adicional)
+        .filter(|total| *total <= 48_000_000)
+        .ok_or(FalhaPaginaCapturada::BytesAcimaDoLimite)
+}
+
+/// Somente arquivos privados selecionados: nenhuma request HTTP adicional.
 pub(crate) fn ler_complementos(
-    _caminhos: &[PathBuf],
-    _bytes_pagina_inicial: usize,
+    caminhos: &[PathBuf],
+    bytes_pagina_inicial: usize,
 ) -> Result<Vec<String>, FalhaPaginaCapturada> {
-    Err(FalhaPaginaCapturada::QuantidadeAcimaDoLimite)
+    conferir_caminhos(caminhos)?;
+    let mut bytes = conferir_orcamento(0, bytes_pagina_inicial)?;
+    let mut paginas = Vec::with_capacity(caminhos.len());
+    for caminho in caminhos {
+        let html = crate::transporte::arquivo_privado(caminho, 8_000_000)
+            .map_err(FalhaPaginaCapturada::Arquivo)?;
+        bytes = conferir_orcamento(bytes, html.len())?;
+        paginas.push(html);
+    }
+    Ok(paginas)
 }
 
 #[cfg(test)]
@@ -72,6 +98,15 @@ mod tests {
             Ok(vec!["<html>SEGUNDA PÁGINA</html>".to_owned()])
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recusa_orcamento_global_de_paginas_sem_alocar_tudo() {
+        assert_eq!(
+            conferir_orcamento(48_000_000, 1),
+            Err(FalhaPaginaCapturada::BytesAcimaDoLimite)
+        );
+        assert_eq!(conferir_orcamento(47_000_000, 1_000_000), Ok(48_000_000));
     }
 
     #[test]
