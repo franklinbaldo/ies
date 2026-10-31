@@ -100,8 +100,11 @@ fn preflight_distingue_cookie_invalido_e_url_sem_assinatura() {
     let erro_cookie = executar_sessao_local(&url, &cookie, &origem);
     let resposta: serde_json::Value = serde_json::from_slice(&erro_cookie.stdout).unwrap();
     assert_eq!(resposta["subcodigo"], "cookie_invalido");
-    fs::write(&url, "https://sei.exemplo/sei/controlador.php?acao=procedimento_controlar")
-        .unwrap();
+    fs::write(
+        &url,
+        "https://sei.exemplo/sei/controlador.php?acao=procedimento_controlar",
+    )
+    .unwrap();
     let erro_url = executar_sessao_local(&url, &cookie, &origem);
     let resposta: serde_json::Value = serde_json::from_slice(&erro_url.stdout).unwrap();
     assert_eq!(resposta["subcodigo"], "url_invalida");
