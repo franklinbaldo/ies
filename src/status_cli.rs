@@ -48,7 +48,9 @@ fn mostrar_sessao_local(json_mode: bool) -> ExitCode {
                     })
                 );
             } else {
-                println!("IES: formato e origem da sessão local conferidos; conexão SEI não verificada.");
+                println!(
+                    "IES: formato e origem da sessão local conferidos; conexão SEI não verificada."
+                );
             }
             ExitCode::SUCCESS
         }
@@ -135,7 +137,11 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
     }
 }
 
-pub(super) fn mostrar_status(json_mode: bool, verificar_arquivos: bool, verificar_sessao_local: bool) -> ExitCode {
+pub(super) fn mostrar_status(
+    json_mode: bool,
+    verificar_arquivos: bool,
+    verificar_sessao_local: bool,
+) -> ExitCode {
     if verificar_sessao_local {
         return mostrar_sessao_local(json_mode);
     }
