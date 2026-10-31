@@ -238,7 +238,9 @@ mod tests {
         let erro = parse_html(&format!("{original}{extra}")).unwrap_err();
         assert_eq!(
             erro,
-            ErroCaixa::TabelasDaCategoriaRepetidas { categoria: Categoria::Recebidos }
+            ErroCaixa::TabelasDaCategoriaRepetidas {
+                categoria: Categoria::Recebidos
+            }
         );
         assert_eq!(erro.subcodigo(), "tabelas_da_categoria_repetidas");
     }
@@ -249,7 +251,9 @@ mod tests {
         let extra = "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         assert_eq!(
             parse_html(&format!("{original}{extra}")).unwrap_err(),
-            ErroCaixa::TabelasDaCategoriaRepetidas { categoria: Categoria::Gerados }
+            ErroCaixa::TabelasDaCategoriaRepetidas {
+                categoria: Categoria::Gerados
+            }
         );
     }
 }
