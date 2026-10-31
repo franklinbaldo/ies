@@ -140,3 +140,17 @@ em vez de apresentar uma caixa parcial como resultado integral.
 Veja [cassettes](cassettes.md),
 [contrato de processo](../contracts/cli/processo-obter.md) e
 [primeira leitura da caixa](unidade-primeira-leitura.md).
+
+
+## Busca textual nos documentos já capturados
+
+`ies replay CENARIO --documento --termo-documento TERMO --json` consulta
+somente textos de documentos `documento_imprimir_web` cujos ZIPs e cards
+foram verificados. A busca usa caracteres Unicode sem distinção de caixa,
+retorna apenas número/tipo dos documentos observados e **não** publica o
+corpo nem faz GET/POST no SEI. Termo vazio, caracteres de controle,
+documento duplicado ou corpo impossível de interpretar são falhas
+tipadas. Nenhum achado significa apenas ausência entre os documentos
+**da cassette escolhida**, não inexistência no SEI. Incompatível com
+`--passo`, `--numero-documento`, `--texto-documento` e
+`--listar-documentos`. A busca live de documentos segue indisponível.

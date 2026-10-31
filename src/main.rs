@@ -6,11 +6,13 @@ mod documento_web;
 mod dominio;
 mod erro_web;
 mod historico;
+mod historico_cli;
 mod instalacao;
 mod paginas;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_resumo_cli;
+mod replay_busca_documento;
 mod replay_consulta;
 mod replay_documento_cli;
 mod resumo_processo;
@@ -176,6 +178,9 @@ struct Replay {
     /// Lista as identidades distintas observadas em documentos da cassette
     #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
     listar_documentos: bool,
+    /// Busca termo no texto de documentos já capturados e verificados, sem rede
+    #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
+    termo_documento: Option<String>,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -297,61 +302,6 @@ fn mostrar_caixa(
     ExitCode::SUCCESS
 }
 
-fn mostrar_historico(
-    html: &str,
-    instalacao: &str,
-    numero_solicitado: Option<&str>,
-    json_mode: bool,
-) -> ExitCode {
-    let numero = if let Some(informado) = numero_solicitado {
-        match processo::NumeroProcesso::novo(informado) {
-            Ok(numero) => numero.as_str().to_owned(),
-            Err(erro) => {
-                if json_mode {
-                    println!(
-                        "{}",
-                        json!({
-                            "codigo": "entrada_invalida",
-                            "subcodigo": erro.subcodigo(),
-                            "erro": "número de processo não aceito",
-                            "retentavel": false
-                        })
-                    );
-                } else {
-                    eprintln!("IES: número de processo não aceito [{}]", erro.subcodigo());
-                }
-                return ExitCode::from(2);
-            }
-        }
-    } else {
-        match historico::numero_do_historico(html) {
-            Ok(numero) => numero,
-            Err(motivo) => {
-                return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
-            }
-        }
-    };
-    let detalhe = match historico::ler_historico(html, &numero) {
-        Ok(valor) => valor,
-        Err(motivo) => {
-            return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
-        }
-    };
-    if json_mode {
-        println!(
-            "{}",
-            json!({"processo": detalhe, "instalacao": instalacao, "escopo": "historico_offline", "parcial": true})
-        );
-    } else {
-        println!(
-            "Histórico offline do processo {}: {} andamento(s), dados parciais.",
-            detalhe.numero.as_str(),
-            detalhe.andamentos.len()
-        );
-    }
-    ExitCode::SUCCESS
-}
-
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let cenario = &replay.cenario;
     if cenario.is_empty()
@@ -417,6 +367,9 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     if replay.documento {
+        if let Some(termo) = replay.termo_documento.as_deref() {
+            return replay_busca_documento::mostrar(card, &zip, &replay.passo, termo, json_mode);
+        }
         return replay_documento_cli::mostrar(
             card,
             &zip,
@@ -428,9 +381,12 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo, replay.todas_paginas) {
-        Ok(cassette::ReplayLido::Historico(html, origem)) => {
-            mostrar_historico(&html, &origem, replay.numero_processo.as_deref(), json_mode)
-        }
+        Ok(cassette::ReplayLido::Historico(html, origem)) => historico_cli::mostrar_historico(
+            &html,
+            &origem,
+            replay.numero_processo.as_deref(),
+            json_mode,
+        ),
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
             if let Some(numero) = replay.numero_processo.as_deref() {
                 replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
