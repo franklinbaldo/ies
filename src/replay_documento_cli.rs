@@ -3,8 +3,8 @@ use crate::cassette;
 use crate::documento::{NumeroDocumento, NumeroDocumentoInvalido};
 use crate::documento_web::{ErroTituloDocumento, IdentidadeDoDocumento, identidade_do_titulo};
 use serde_json::json;
-use std::path::Path;
 use std::collections::HashSet;
+use std::path::Path;
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +81,9 @@ pub(super) fn mostrar(
     listar: bool,
     json_mode: bool,
 ) -> ExitCode {
-    if listar { return mostrar_lista(card, arquivo, passos, json_mode); }
+    if listar {
+        return mostrar_lista(card, arquivo, passos, json_mode);
+    }
     match ler(card, arquivo, passos, numero) {
         Ok((documento, instalacao)) => {
             if json_mode {
@@ -166,20 +168,35 @@ fn listar_identidades(htmls: &[String]) -> Result<Vec<IdentidadeDoDocumento>, Er
 fn mostrar_lista(card: &Path, arquivo: &Path, passos: &[usize], json_mode: bool) -> ExitCode {
     let resultado = cassette::read_cassette_documents(card, arquivo, passos)
         .map_err(|_| ErroReplayDocumento::FonteNaoVerificada)
-        .and_then(|(htmls, instalacao)| listar_identidades(&htmls).map(|documentos| (documentos, instalacao)));
+        .and_then(|(htmls, instalacao)| {
+            listar_identidades(&htmls).map(|documentos| (documentos, instalacao))
+        });
     match resultado {
         Ok((documentos, instalacao)) => {
             if json_mode {
-                println!("{}", json!({"documentos":documentos,"instalacao":instalacao,"escopo":"titulos_documentos_offline"}));
+                println!(
+                    "{}",
+                    json!({"documentos":documentos,"instalacao":instalacao,"escopo":"titulos_documentos_offline"})
+                );
             } else {
-                for item in documentos { println!("Documento SEI {}: {} (HTML offline)", item.numero, item.tipo); }
+                for item in documentos {
+                    println!(
+                        "Documento SEI {}: {} (HTML offline)",
+                        item.numero, item.tipo
+                    );
+                }
             }
             ExitCode::SUCCESS
         }
         Err(erro) => {
             if json_mode {
-                println!("{}", json!({"codigo":"fonte_invalida","subcodigo":erro.subcodigo(),"retentavel":false}));
-            } else { eprintln!("IES: listagem offline não concluída [{}]", erro.subcodigo()); }
+                println!(
+                    "{}",
+                    json!({"codigo":"fonte_invalida","subcodigo":erro.subcodigo(),"retentavel":false})
+                );
+            } else {
+                eprintln!("IES: listagem offline não concluída [{}]", erro.subcodigo());
+            }
             ExitCode::from(1)
         }
     }
@@ -201,10 +218,18 @@ mod testes_listagem {
     #[test]
     fn recusa_identidade_repetida() {
         let html = "<title>SEI/UnB - 0007 - Ofício</title>".to_owned();
-        assert_eq!(listar_identidades(&[html.clone(),html]),Err(ErroReplayDocumento::NumeroRepetido));
+        assert_eq!(
+            listar_identidades(&[html.clone(), html]),
+            Err(ErroReplayDocumento::NumeroRepetido)
+        );
     }
     #[test]
     fn recusa_titulo_sem_identidade_do_sei() {
-        assert_eq!(listar_identidades(&["<title>Portal - 7 - Texto</title>".to_owned()]),Err(ErroReplayDocumento::Titulo(ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo)));
+        assert_eq!(
+            listar_identidades(&["<title>Portal - 7 - Texto</title>".to_owned()]),
+            Err(ErroReplayDocumento::Titulo(
+                ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
+            ))
+        );
     }
 }
