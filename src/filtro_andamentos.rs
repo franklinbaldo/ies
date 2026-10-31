@@ -7,7 +7,6 @@ pub enum ErroFiltroAndamentos {
     TermoVazio,
     TermoComControle,
     TermoAcimaDoLimite,
-    ImplementacaoPendente,
 }
 impl ErroFiltroAndamentos {
     pub fn subcodigo(self) -> &'static str {
@@ -15,7 +14,6 @@ impl ErroFiltroAndamentos {
             Self::TermoVazio => "termo_de_andamento_vazio",
             Self::TermoComControle => "termo_de_andamento_contem_controle",
             Self::TermoAcimaDoLimite => "termo_de_andamento_acima_do_limite",
-            Self::ImplementacaoPendente => "filtro_de_andamentos_nao_implementado",
         }
     }
 }
@@ -35,9 +33,12 @@ fn validar_termo(termo: &str) -> Result<&str, ErroFiltroAndamentos> {
 
 /// Devolve o total original; só é permitido filtrar depois do parser completo.
 pub fn filtrar(detalhe: &mut DetalheProcesso, termo: &str) -> Result<usize, ErroFiltroAndamentos> {
-    validar_termo(termo)?;
-    let _ = detalhe;
-    Err(ErroFiltroAndamentos::ImplementacaoPendente)
+    let procurado = validar_termo(termo)?.to_lowercase();
+    let total = detalhe.andamentos.len();
+    detalhe
+        .andamentos
+        .retain(|andamento| andamento.descricao.to_lowercase().contains(&procurado));
+    Ok(total)
 }
 
 #[cfg(test)]

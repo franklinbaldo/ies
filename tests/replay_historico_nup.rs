@@ -20,7 +20,7 @@ fn acervo_com_historico(numero: &str) -> PathBuf {
     let html = format!(
         "<html><head><title>SEI - Histórico do Processo {numero}</title></head>\
          <body><table id='tblHistorico'><tr><td>30/10/2026</td><td>Unidade A</td>\
-         <td>usuario</td><td>Processo recebido</td></tr></table></body></html>"
+         <td>usuario</td><td>Processo recebido</td></tr>         <tr><td>31/10/2026</td><td>Unidade B</td><td>usuario</td>         <td>Decisão assinada</td></tr></table></body></html>"
     );
     let json = serde_json::json!({
         "schema_version":1,
@@ -115,5 +115,41 @@ fn entrada_contendo_caractere_de_controle_e_recusada_com_erro_tipado() {
     assert_eq!(json["codigo"], "entrada_invalida");
     assert_eq!(json["subcodigo"], "numero_processo_controle");
     assert!(!String::from_utf8_lossy(&output.stdout).contains("SECRETO"));
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+
+#[test]
+fn filtro_replay_historico_seleciona_andamentos_sem_perder_identidade() {
+    let pasta = acervo_com_historico("000123/2026-X");
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["replay", "historico-sei-unb", "--acervo", pasta.to_str().unwrap(),
+            "--numero-processo", "000123/2026-X", "--termo-andamento", "decisão",
+            "--json"])
+        .output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["escopo"], "historico_filtrado_offline");
+    assert_eq!(json["parcial"], true);
+    assert_eq!(json["total_observado"], 2);
+    assert_eq!(json["total_filtrado"], 1);
+    assert_eq!(json["processo"]["numero"], "000123/2026-X");
+    assert_eq!(json["processo"]["andamentos"][0]["descricao"], "Decisão assinada");
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("Processo recebido"));
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn filtro_ausente_na_cassette_nao_declara_inexistencia_no_sei() {
+    let pasta = acervo_com_historico("000123/2026-X");
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["replay", "historico-sei-unb", "--acervo", pasta.to_str().unwrap(),
+            "--termo-andamento", "sem resultado", "--json"])
+        .output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["total_observado"], 2);
+    assert_eq!(json["total_filtrado"], 0);
+    assert_eq!(json["processo"]["andamentos"].as_array().unwrap().len(), 0);
     fs::remove_dir_all(pasta).unwrap();
 }
