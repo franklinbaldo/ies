@@ -168,6 +168,9 @@ struct Replay {
     /// Escolhe pelo número SEI exato entre documentos de uma cassette verificada
     #[arg(long, requires = "documento")]
     numero_documento: Option<String>,
+    /// Lista as identidades distintas observadas em documentos da cassette
+    #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo"])]
+    listar_documentos: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -414,6 +417,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &zip,
             &replay.passo,
             replay.numero_documento.as_deref(),
+            replay.listar_documentos,
             json_mode,
         );
     }
