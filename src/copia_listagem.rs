@@ -1,11 +1,13 @@
 //! Inventário de cópias de trabalho locais, sem sessão, rede ou links de histórico.
-use crate::copia_documento::{ErroCopia, PreviaCopia};
+use crate::copia_documento::{self, ErroCopia, PreviaCopia};
+use crate::documento_versoes::VersaoDocumento;
+use std::collections::BTreeSet;
+use std::fs;
 use crate::documento::NumeroDocumento;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ErroListagem {
-    NaoImplementado,
     DiretorioInseguro,
     LeituraDoDiretorioFalhou,
     NomeDaVersaoInvalido,
@@ -17,7 +19,6 @@ pub(crate) enum ErroListagem {
 impl ErroListagem {
     pub(crate) fn subcodigo(self) -> &'static str {
         match self {
-            Self::NaoImplementado => "listagem_copias_nao_implementada",
             Self::DiretorioInseguro => "diretorio_copias_inseguro",
             Self::LeituraDoDiretorioFalhou => "leitura_diretorio_copias_falhou",
             Self::NomeDaVersaoInvalido => "nome_versao_local_invalido",
@@ -31,10 +32,41 @@ impl ErroListagem {
 /// Consulta somente as cópias de trabalho para o número fornecido.
 /// Uma cópia insegura deve recusar a lista inteira, não ser omitida.
 pub(crate) fn listar(
-    _pasta: &Path,
-    _documento: &NumeroDocumento,
+    pasta: &Path,
+    documento: &NumeroDocumento,
 ) -> Result<Vec<PreviaCopia>, ErroListagem> {
-    Err(ErroListagem::NaoImplementado)
+    copia_documento::pasta_segura(pasta).map_err(|_| ErroListagem::DiretorioInseguro)?;
+    let prefixo = format!("{}.v", documento.as_str());
+    let mut versoes = BTreeSet::new();
+    for item in fs::read_dir(pasta).map_err(|_| ErroListagem::LeituraDoDiretorioFalhou)? {
+        let item = item.map_err(|_| ErroListagem::LeituraDoDiretorioFalhou)?;
+        let nome_os = item.file_name();
+        let Some(nome) = nome_os.to_str() else {
+            continue;
+        };
+        let Some(digitos) = nome
+            .strip_prefix(&prefixo)
+            .and_then(|n| n.strip_suffix(".html"))
+        else {
+            continue;
+        };
+        let versao =
+            VersaoDocumento::interpretar(digitos).map_err(|_| ErroListagem::NomeDaVersaoInvalido)?;
+        if !versoes.insert(versao) {
+            return Err(ErroListagem::VersaoDuplicada);
+        }
+        if versoes.len() > 128 {
+            return Err(ErroListagem::LimiteDeCopias);
+        }
+    }
+    let mut copias = Vec::with_capacity(versoes.len());
+    for versao in versoes {
+        copias.push(
+            copia_documento::previa_local(pasta, documento, Some(versao))
+                .map_err(ErroListagem::CopiaInvalida)?,
+        );
+    }
+    Ok(copias)
 }
 
 #[cfg(test)]
@@ -122,6 +154,17 @@ mod testes {
         criar(&pasta, "0008", 1);
         let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(listar(&pasta, &doc), Ok(Vec::new()));
+        fs::remove_dir_all(pasta).unwrap();
+    }
+
+    #[test]
+    fn recusa_mais_de_128_copias_sem_tentar_abrir_todas() {
+        let pasta = pasta();
+        let doc = NumeroDocumento::novo("0007").unwrap();
+        for n in 1..=129 {
+            fs::write(pasta.join(format!("0007.v{n}.html")), "teste").unwrap();
+        }
+        assert_eq!(listar(&pasta, &doc), Err(ErroListagem::LimiteDeCopias));
         fs::remove_dir_all(pasta).unwrap();
     }
 
