@@ -2,6 +2,7 @@ mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_texto_documento;
 mod caixa;
+mod caixa_local;
 mod cassette;
 mod configuracao;
 mod controle_contexto;
@@ -87,6 +88,9 @@ struct Processo {
     /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
     #[arg(long, requires = "resumo")]
     saida: Option<PathBuf>,
+    /// Lê resumo de caixa previamente exportada, sem conectar ao SEI
+    #[arg(long, requires = "resumo", conflicts_with = "saida")]
+    caixa_local: Option<PathBuf>,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
