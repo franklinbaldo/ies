@@ -34,6 +34,7 @@ mod resumo_exportacao;
 mod resumo_processo;
 mod saida;
 mod status_cli;
+mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
@@ -201,6 +202,9 @@ struct StatusArgs {
     /// Confere URL, origem e cookie em arquivos privados, sem consultar SEI
     #[arg(long, conflicts_with = "verificar_arquivos")]
     verificar_sessao_local: bool,
+    /// Consulta o Controle Web autenticado configurado: um GET com possíveis efeitos
+    #[arg(long, conflicts_with_all = ["verificar_arquivos", "verificar_sessao_local"])]
+    verificar_controle_web: bool,
 }
 
 #[derive(Debug, Args)]
@@ -459,11 +463,7 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status(args) => {
-            return status_cli::mostrar_status(
-                cli.json,
-                args.verificar_arquivos,
-                args.verificar_sessao_local,
-            );
+            return status_cli::mostrar_status(cli.json, args);
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
