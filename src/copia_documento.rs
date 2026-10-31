@@ -212,10 +212,40 @@ pub struct TrechoDivergente {
     pub trabalho_fim_exclusivo_linha: usize,
 }
 
-// Shim do contrato: testes RED demonstram que falta localizar alterações.
+/// Computa o menor intervalo CONTÍNUO que contém todas as diferenças
+/// de linha. Não inventa diff fino nem armazena/expõe o texto.
 fn trecho_divergente(base: &[u8], trabalho: &[u8]) -> Option<TrechoDivergente> {
-    let _ = (base, trabalho);
-    None
+    if base == trabalho {
+        return None;
+    }
+    let total_base = base.iter().filter(|byte| **byte == b'\n').count() + 1;
+    let total_trabalho = trabalho.iter().filter(|byte| **byte == b'\n').count() + 1;
+
+    let mut prefixo = 0;
+    let mut base_inicio = base.split(|byte| *byte == b'\n');
+    let mut trabalho_inicio = trabalho.split(|byte| *byte == b'\n');
+    loop {
+        match (base_inicio.next(), trabalho_inicio.next()) {
+            (Some(a), Some(b)) if a == b => prefixo += 1,
+            _ => break,
+        }
+    }
+
+    let mut sufixo = 0;
+    let mut base_fim = base.rsplit(|byte| *byte == b'\n');
+    let mut trabalho_fim = trabalho.rsplit(|byte| *byte == b'\n');
+    while prefixo + sufixo < total_base && prefixo + sufixo < total_trabalho {
+        match (base_fim.next(), trabalho_fim.next()) {
+            (Some(a), Some(b)) if a == b => sufixo += 1,
+            _ => break,
+        }
+    }
+    Some(TrechoDivergente {
+        base_inicio_linha: prefixo,
+        base_fim_exclusivo_linha: total_base - sufixo,
+        trabalho_inicio_linha: prefixo,
+        trabalho_fim_exclusivo_linha: total_trabalho - sufixo,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
