@@ -216,4 +216,29 @@ mod tests {
             "link_do_processo_nao_identificado_na_linha"
         );
     }
+
+    #[test]
+    fn duas_tabelas_de_recebidos_nao_podem_ocultar_processos() {
+        let original = html(&linha("1"), 1);
+        let extra = format!(
+            "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>{}</table>",
+            linha("2")
+        );
+        let erro = parse_html(&format!("{original}{extra}")).unwrap_err();
+        assert_eq!(
+            erro,
+            ErroCaixa::TabelasDaCategoriaRepetidas { categoria: Categoria::Recebidos }
+        );
+        assert_eq!(erro.subcodigo(), "tabelas_da_categoria_repetidas");
+    }
+
+    #[test]
+    fn duas_tabelas_de_gerados_nao_podem_ser_tratadas_como_uma() {
+        let original = html("", 0);
+        let extra = "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            parse_html(&format!("{original}{extra}")).unwrap_err(),
+            ErroCaixa::TabelasDaCategoriaRepetidas { categoria: Categoria::Gerados }
+        );
+    }
 }
