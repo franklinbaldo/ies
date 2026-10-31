@@ -35,6 +35,79 @@ fn executar(url: &Path, cookie: &Path, origem: &Path, verificar: bool) -> Output
     cmd.output().unwrap()
 }
 
+fn executar_sessao_local(url: &Path, cookie: &Path, origem: &Path) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["status", "--verificar-sessao-local", "--json"])
+        .env_remove("IES_CONFIG_FILE")
+        .env("IES_URL_CONTROLE_FILE", url)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .output()
+        .unwrap()
+}
+
+fn arquivo_privado_com(dir: &Path, nome: &str, valor: &str) -> PathBuf {
+    let path = arquivo(dir, nome);
+    fs::write(&path, valor).unwrap();
+    path
+}
+
+fn url_assinada_teste() -> String {
+    format!(
+        "https://sei.exemplo/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+        "a".repeat(64)
+    )
+}
+
+#[test]
+fn preflight_confere_formato_e_origem_sem_rede_nem_vazar_cookie_ou_hash() {
+    let dir = pasta_teste();
+    let url = arquivo_privado_com(&dir, "url", &url_assinada_teste());
+    let cookie = arquivo_privado_com(&dir, "cookie", "PHPSESSID=FICTICIO");
+    let origem = arquivo_privado_com(&dir, "origem", "https://sei.exemplo/sei");
+    let output = executar_sessao_local(&url, &cookie, &origem);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resposta["sessao_local"], "formato_e_origem_verificados");
+    assert_eq!(resposta["conexao"], "nao_verificada");
+    assert_eq!(resposta["acesso_remoto"], false);
+    assert_eq!(resposta["autenticacao_remota"], false);
+    let saida = String::from_utf8_lossy(&output.stdout);
+    assert!(!saida.contains("PHPSESSID"));
+    assert!(!saida.contains("infra_hash"));
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn preflight_recusa_origem_antes_de_tentar_abrir_cookie_inexistente() {
+    let dir = pasta_teste();
+    let url = arquivo_privado_com(&dir, "url", &url_assinada_teste());
+    let origem = arquivo_privado_com(&dir, "origem", "https://outro.exemplo/sei");
+    let output = executar_sessao_local(&url, &dir.join("cookie-inexistente"), &origem);
+    assert_eq!(output.status.code(), Some(1));
+    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(resposta["subcodigo"], "origem_nao_autorizada");
+    assert_eq!(resposta["acesso_remoto"], false);
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn preflight_distingue_cookie_invalido_e_url_sem_assinatura() {
+    let dir = pasta_teste();
+    let url = arquivo_privado_com(&dir, "url", &url_assinada_teste());
+    let cookie = arquivo_privado_com(&dir, "cookie", "Cookie: PHPSESSID=FICTICIO");
+    let origem = arquivo_privado_com(&dir, "origem", "https://sei.exemplo/sei");
+    let erro_cookie = executar_sessao_local(&url, &cookie, &origem);
+    let resposta: serde_json::Value = serde_json::from_slice(&erro_cookie.stdout).unwrap();
+    assert_eq!(resposta["subcodigo"], "cookie_invalido");
+    fs::write(&url, "https://sei.exemplo/sei/controlador.php?acao=procedimento_controlar")
+        .unwrap();
+    let erro_url = executar_sessao_local(&url, &cookie, &origem);
+    let resposta: serde_json::Value = serde_json::from_slice(&erro_url.stdout).unwrap();
+    assert_eq!(resposta["subcodigo"], "url_invalida");
+    fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn verifica_metadados_sem_ler_conteudo_e_sem_conectar() {
     let dir = pasta_teste();
