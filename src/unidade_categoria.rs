@@ -1,7 +1,10 @@
 //! Projeção Web de uma categoria integralmente observada, sem POST.
+use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
 use crate::paginas::Leitura;
 use clap::ValueEnum;
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::path::Path;
+use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum CategoriaLista {
@@ -34,13 +37,83 @@ impl FalhaCategoria {
     }
 }
 
-/// Shim do contrato. Testes RED evidenciam rejeição indevida de categoria já coberta.
+/// Projeta apenas a categoria com posições inteiramente observadas no GET.
 pub(crate) fn selecionar(
-    _leitura: &Leitura,
+    leitura: &Leitura,
     categoria: CategoriaLista,
-    _origem: &str,
+    origem: &str,
 ) -> Result<Value, FalhaCategoria> {
-    Err(FalhaCategoria::PaginasNaoObtidas(categoria))
+    let (tabela, cobertura) = match categoria {
+        CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
+        CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
+    };
+    if !cobertura.completa(tabela) {
+        return Err(FalhaCategoria::PaginasNaoObtidas(categoria));
+    }
+    Ok(json!({
+        "unidade": leitura.unidade,
+        "origem": origem,
+        "categoria": categoria.rotulo(),
+        "total_declarado": tabela.total_declarado,
+        "processos": tabela.processos,
+    }))
+}
+
+/// Uma consulta HTTPS já existente; sem POST nem busca especulativa.
+pub(crate) fn listar_categoria(
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+    categoria: CategoriaLista,
+) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let html = match transporte::read_box_from_file(
+        &arquivos.url_controle,
+        &arquivos.cookie,
+        &arquivos.origem,
+    ) {
+        Ok(html) => html,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let leitura = match paginas::juntar(&[html], unidade) {
+        Ok(leitura) => leitura,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "Controle de Processos não reconhecido"),
+    };
+    let modelo = match selecionar(&leitura, categoria, "web") {
+        Ok(modelo) => modelo,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    if let Some(caminho) = destino {
+        return match arquivo_caixa::gravar(caminho, &modelo) {
+            Ok(bytes) => {
+                if json_mode {
+                    println!("{}", json!({
+                        "arquivo":"gravado",
+                        "bytes":bytes,
+                        "escopo":"categoria_verificada",
+                        "categoria":categoria.rotulo()
+                    }));
+                } else {
+                    println!("IES: categoria verificada gravada em arquivo privado ({bytes} bytes).");
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        };
+    }
+    if json_mode {
+        println!("{}", serde_json::to_string_pretty(&modelo).unwrap());
+    } else {
+        let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
+        println!(
+            "IES: {}: {quantidade} processo(s) observados e cobertos na categoria; demais categorias não consultadas integralmente.",
+            categoria.rotulo()
+        );
+    }
+    ExitCode::SUCCESS
 }
 
 #[cfg(test)]
@@ -57,6 +130,17 @@ mod tests {
              <tr id='P2'><td><a class='processoVisualizado'>G-0002</a></td></tr></table>"
         );
         paginas::juntar(&[html], None).unwrap()
+    }
+
+    #[test]
+    fn tipo_de_categoria_da_cli_aceita_somente_valores_do_dominio() {
+        use clap::Parser;
+        assert!(crate::Cli::try_parse_from([
+            "ies", "unidade", "listar-processos", "--categoria", "gerados"
+        ]).is_ok());
+        assert!(crate::Cli::try_parse_from([
+            "ies", "unidade", "listar-processos", "--categoria", "desconhecida"
+        ]).is_err());
     }
 
     #[test]
