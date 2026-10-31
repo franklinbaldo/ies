@@ -251,6 +251,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     if !nome_cenario_aceito(&replay.cenario) {
         return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
     }
+    let cenario = &replay.cenario;
     let pasta = replay.acervo.join("cassettes");
     let mut encontrados = Vec::new();
     let Ok(dirs) = std::fs::read_dir(&pasta) else {
