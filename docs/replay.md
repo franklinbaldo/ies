@@ -169,8 +169,10 @@ IDs internos, trechos de documentos ou HTML. Um formulário GET não pode
 ser confundido com resultado. O leitor não executa links nem novas
 requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
-resultados, linha com múltiplos links de processo, link inesperado e NUP
-duplicado geram erros específicos. Ausência de achados significa apenas
+resultados, linha com múltiplos links, ação inesperada, link sem identificador
+interno de processo ou com identificadores repetidos e NUP duplicado geram
+erros específicos. O identificador interno é conferido apenas na origem;
+nunca é incluído no resultado JSON. Ausência de achados significa apenas
 ausência na resposta escolhida, jamais inexistência no SEI. Ver a
 [matriz da operação](../contracts/evidencias/processo-buscar.md);
 a capacidade live segue pendente na issue #58.

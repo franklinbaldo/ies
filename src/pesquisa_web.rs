@@ -17,6 +17,8 @@ pub enum ErroResultadoPesquisa {
     LinhaDePesquisaSemLinkDoProcesso,
     LinhaDePesquisaComMaisDeUmLinkDoProcesso,
     LinkDePesquisaNaoAbreProcesso,
+    LinkDePesquisaSemIdentificadorDoProcesso,
+    LinkDePesquisaComIdentificadoresRepetidos,
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
 }
@@ -32,6 +34,12 @@ impl ErroResultadoPesquisa {
                 "linha_de_pesquisa_com_mais_de_um_link_do_processo"
             }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
+            Self::LinkDePesquisaSemIdentificadorDoProcesso => {
+                "link_de_pesquisa_sem_identificador_do_processo"
+            }
+            Self::LinkDePesquisaComIdentificadoresRepetidos => {
+                "link_de_pesquisa_com_identificadores_repetidos"
+            }
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
             Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
         }
@@ -89,16 +97,34 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         // Não aceitar múltiplos parâmetros de ação: proxies/servidores podem
         // escolher o primeiro ou o último, tornando o destino indeterminado.
         // tl preserva entidades HTML em atributos de algumas versões do SEI.
-        let acao_confirmada = href.strip_prefix("controlador.php?").is_some_and(|query| {
-            let acoes: Vec<_> = query
-                .split('&')
-                .map(|campo| campo.strip_prefix("amp;").unwrap_or(campo))
-                .filter_map(|campo| campo.strip_prefix("acao="))
-                .collect();
-            acoes == ["procedimento_trabalhar"]
-        });
-        if !acao_confirmada {
+        let query = href
+            .strip_prefix("controlador.php?")
+            .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
+        let campos: Vec<_> = query
+            .split('&')
+            .map(|campo| campo.strip_prefix("amp;").unwrap_or(campo))
+            .collect();
+        let acoes: Vec<_> = campos
+            .iter()
+            .filter_map(|campo| campo.strip_prefix("acao="))
+            .collect();
+        if acoes != ["procedimento_trabalhar"] {
             return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
+        }
+        // Um link de trabalho sem ID interno não endereça um processo.
+        // Dois IDs tornam o destino dependente da interpretação do servidor.
+        // O identificador é validado somente para uso local e não é serializado.
+        let mut ids = campos
+            .iter()
+            .filter_map(|campo| campo.strip_prefix("id_procedimento="));
+        let primeiro_id = ids
+            .next()
+            .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
+        if ids.next().is_some() {
+            return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
+        }
+        if primeiro_id.is_empty() {
+            return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
         }
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
@@ -147,7 +173,7 @@ mod tests {
 
     #[test]
     fn numeros_repetidos_da_mesma_resposta_sao_recusados() {
-        let html = RESULTADO.replace("</table>", r#"<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar">00001.123456/2026-07</a></td></tr></table>"#);
+        let html = RESULTADO.replace("</table>", r#"<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8">00001.123456/2026-07</a></td></tr></table>"#);
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido)
@@ -186,6 +212,27 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso)
+        );
+    }
+
+    #[test]
+    fn link_sem_identificador_interno_nao_e_um_link_de_processo() {
+        let html = RESULTADO.replace("&amp;id_procedimento=7", "");
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)
+        );
+    }
+
+    #[test]
+    fn link_com_identificadores_repetidos_nao_escolhe_destino_arbitrario() {
+        let html = RESULTADO.replace(
+            "&amp;id_procedimento=7",
+            "&amp;id_procedimento=7&amp;id_procedimento=8",
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos)
         );
     }
 
