@@ -53,6 +53,15 @@ mesmo em cassettes que também contêm outras operações, preservando
 o NUP indicado no título e a projeção parcial de `Andamento`.
 
 `--passo N` é um índice **zero-based** de interação da cassette.
+A opção técnica `--todas-paginas` reúne automaticamente as interações
+contíguas de `procedimento_controlar` da **mesma cassette verificada**:
+primeira página GET e páginas subsequentes GET/POST capturadas. Não
+executa POST nem consulta o SEI. A união passa pelas invariantes existentes
+de unidade, filtros, faixas e totais. Operações intercaladas, ausência
+de página inicial ou cobertura insuficiente devem falhar. É incompatível
+com `--passo` e `--documento`. A opção só abrange o que foi gravado;
+não descobre páginas ou garante snapshot transacional.
+
 Vários passos são aceitos para consolidar páginas do Controle de Processos,
 mas não se podem misturar operações nem compor um histórico artificial
 a partir de respostas distintas. A seleção de passo ausente, operação
