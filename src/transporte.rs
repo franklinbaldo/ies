@@ -12,6 +12,7 @@ pub enum FalhaTransporte {
     ArquivoPrivadoAusenteOuInacessivel,
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
+    ArquivoPrivadoLinkSimbolico,
     ArquivoPrivadoVazio,
     ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
@@ -33,6 +34,7 @@ impl FalhaTransporte {
                 "arquivo_privado_com_permissoes_inseguras"
             }
             Self::CaminhoDeArquivoNaoEhArquivo => "caminho_nao_eh_arquivo",
+            Self::ArquivoPrivadoLinkSimbolico => "arquivo_privado_link_simbolico",
             Self::ArquivoPrivadoVazio => "arquivo_privado_vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
