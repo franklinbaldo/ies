@@ -1,7 +1,10 @@
 //! Seleção por número exato a partir de HTML de documento já verificado, sem rede.
 use crate::cassette;
 use crate::documento::{NumeroDocumento, NumeroDocumentoInvalido};
-use crate::documento_web::{ErroTituloDocumento, IdentidadeDoDocumento, identidade_do_titulo};
+use crate::documento_web::{
+    ErroCorpoDocumento, ErroTituloDocumento, IdentidadeDoDocumento, identidade_do_titulo,
+    texto_do_corpo,
+};
 use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
@@ -11,6 +14,7 @@ enum ErroReplayDocumento {
     FonteNaoVerificada,
     Numero(NumeroDocumentoInvalido),
     Titulo(ErroTituloDocumento),
+    Corpo(ErroCorpoDocumento),
     NumeroNaoObservado,
     NumeroRepetido,
 }
@@ -21,6 +25,7 @@ impl ErroReplayDocumento {
             Self::FonteNaoVerificada => "replay_documento_nao_selecionado",
             Self::Numero(erro) => erro.subcodigo(),
             Self::Titulo(erro) => erro.subcodigo(),
+            Self::Corpo(erro) => erro.subcodigo(),
             Self::NumeroNaoObservado => "numero_documento_nao_observado_na_cassette",
             Self::NumeroRepetido => "numero_documento_repetido_na_cassette",
         }
@@ -38,15 +43,15 @@ impl ErroReplayDocumento {
 fn selecionar(
     htmls: &[String],
     numero: &NumeroDocumento,
-) -> Result<IdentidadeDoDocumento, ErroReplayDocumento> {
+) -> Result<(IdentidadeDoDocumento, usize), ErroReplayDocumento> {
     let mut encontrado = None;
-    for html in htmls {
+    for (indice, html) in htmls.iter().enumerate() {
         let documento = identidade_do_titulo(html).map_err(ErroReplayDocumento::Titulo)?;
         if documento.numero == numero.as_str() {
             if encontrado.is_some() {
                 return Err(ErroReplayDocumento::NumeroRepetido);
             }
-            encontrado = Some(documento);
+            encontrado = Some((documento, indice));
         }
     }
     encontrado.ok_or(ErroReplayDocumento::NumeroNaoObservado)
@@ -57,18 +62,27 @@ fn ler(
     arquivo: &Path,
     passos: &[usize],
     numero: Option<&str>,
-) -> Result<(IdentidadeDoDocumento, String), ErroReplayDocumento> {
+    texto: bool,
+) -> Result<(IdentidadeDoDocumento, String, Option<String>), ErroReplayDocumento> {
     if let Some(numero) = numero {
         let solicitado = NumeroDocumento::novo(numero).map_err(ErroReplayDocumento::Numero)?;
         let (paginas, instalacao) = cassette::read_cassette_documents(card, arquivo, passos)
             .map_err(|_| ErroReplayDocumento::FonteNaoVerificada)?;
-        let documento = selecionar(&paginas, &solicitado)?;
-        Ok((documento, instalacao))
+        let (documento, indice) = selecionar(&paginas, &solicitado)?;
+        let conteudo = texto
+            .then(|| texto_do_corpo(&paginas[indice]))
+            .transpose()
+            .map_err(ErroReplayDocumento::Corpo)?;
+        Ok((documento, instalacao, conteudo))
     } else {
         let (html, instalacao) = cassette::read_cassette_document(card, arquivo, passos)
             .map_err(|_| ErroReplayDocumento::FonteNaoVerificada)?;
         let documento = identidade_do_titulo(&html).map_err(ErroReplayDocumento::Titulo)?;
-        Ok((documento, instalacao))
+        let conteudo = texto
+            .then(|| texto_do_corpo(&html))
+            .transpose()
+            .map_err(ErroReplayDocumento::Corpo)?;
+        Ok((documento, instalacao, conteudo))
     }
 }
 
@@ -77,24 +91,29 @@ pub(super) fn mostrar(
     arquivo: &Path,
     passos: &[usize],
     numero: Option<&str>,
+    texto: bool,
     json_mode: bool,
 ) -> ExitCode {
-    match ler(card, arquivo, passos, numero) {
-        Ok((documento, instalacao)) => {
+    match ler(card, arquivo, passos, numero, texto) {
+        Ok((documento, instalacao, conteudo)) => {
             if json_mode {
                 println!(
                     "{}",
                     json!({
                         "documento": documento,
+                        "texto": conteudo,
                         "instalacao": instalacao,
-                        "escopo": "titulo_documento_offline"
+                        "escopo": if texto { "texto_documento_offline" } else { "titulo_documento_offline" }
                     })
                 );
             } else {
                 println!(
-                    "Documento SEI {}: {} (título de HTML offline)",
+                    "Documento SEI {}: {} (HTML offline)",
                     documento.numero, documento.tipo
                 );
+                if let Some(conteudo) = conteudo {
+                    println!("{conteudo}");
+                }
             }
             ExitCode::SUCCESS
         }
