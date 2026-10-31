@@ -88,3 +88,31 @@ no modo de exportação. Continua exigindo cobertura da caixa antes da
 consulta e usa **o mesmo GET** autorizado da operação de resumo, sem
 novas solicitações Web. Não equivale a processo completo, snapshot da
 instalação ou consulta fora da caixa.
+
+
+## Observação positiva em página parcial da caixa (Refs #59)
+
+A opção aditiva `ies processo NUP --resumo --observado-na-pagina [--json]`
+permite relatar **somente a identidade efetivamente observada na
+primeira página** do Controle de Processos, mesmo quando a legenda
+declara páginas adicionais. Não busca o processo fora da caixa, não
+executa POST de paginação, não afirma cobertura total nem muda a
+preferência de visualização do usuário. O GET autorizado é exatamente
+o mesmo do `--resumo`, sem requisição extra.
+
+Sem a opção, `--resumo` preserva a exigência de cobertura integral e
+falha `paginas_do_controle_nao_obtidas` quando necessário. Com a opção,
+um NUP **presente** pode ser relatado com
+`escopo: resumo_da_pagina` e `demais_paginas: nao_consultadas`;
+um NUP **ausente** na página parcial retorna erro tipado
+`numero_nao_observado_na_pagina`, jamais `processo_inexistente`.
+Quando a única página já cobre a caixa inteira, mantém
+`escopo: resumo_da_caixa` e a ausência original. A checagem
+de unidade/contexto e os erros de parsing permanecem obrigatórios;
+não publicar uma caixa incompleta como se fosse íntegra.
+
+O resultado descreve observações da sessão atual, não snapshot
+transacional nem identidade validada na árvore do processo.
+O escopo pertence à projeção de apresentação, não ao domínio
+`Processo`. Validação live multicorpus pendente; saída de teste
+offline não demonstra efeito da requisição.
