@@ -224,3 +224,57 @@ Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
 execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
 sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
 permanece `NOT_RUN`.
+
+## Filtro de descrições no histórico capturado
+
+`ies replay CENARIO --termo-andamento TERMO --numero-processo NUP --json`
+seleciona somente os andamentos cuja **descrição observada** contém o
+termo, sem distinção de caixa Unicode, após verificar o ZIP/card e
+interpretar o histórico integral gravado. É uma operação exclusivamente
+offline de `procedimento_consultar_historico`, não consulta live.
+Preserva NUP, ordem, unidade, data e autor dos andamentos selecionados.
+`total_observado` refere-se à resposta gravada, `total_filtrado` aos
+resultados do filtro; resposta vazia não demonstra inexistência no SEI.
+O JSON mantém `parcial: true` e `escopo: historico_filtrado_offline`.
+
+Termo vazio, caracteres de controle e mais de 100 caracteres falham com
+variantes tipadas, sem imprimir o termo no diagnóstico. `--termo-andamento`
+em replay de caixa falha com `termo_andamento_exige_historico`; é
+incompatível com `--documento`, `--resultado-pesquisa` e
+`--todas-paginas`. Não há GET/POST, login ou gravação.
+Refs #59; a leitura integral live do processo continua pendente.
+
+## Exportar texto de documento verificado para arquivo privado
+
+`ies replay CENARIO --documento --numero-documento DOC --texto-documento
+--arquivo-texto DESTINO --json` grava o texto visível extraído de
+`documento_imprimir_web` após verificar card, ZIP, identidade do documento
+e corpo HTML. O destino é **arquivo novo**, nunca sobrescrito; diretório
+deve existir e em Unix é criado com permissão `0600`.
+Link simbólico existente também é recusado. Em caso de escrita incompleta,
+o arquivo recém-criado é descartado.
+
+O terminal retorna somente tipo/número, instalação, total de bytes e
+`escopo: texto_documento_exportado_offline`, **sem publicar o texto nem
+o caminho privado**. Falhas de destino possuem subcódigo tipado. A
+extração segue sem rede nem autenticação e não implica capacidade
+`ies documento DOC` live. Usar apenas com informações autorizadas.
+Refs #60.
+
+## Consolidação explícita de respostas de pesquisa capturadas
+
+`ies replay CENARIO --resultado-pesquisa --unir-resultados-pesquisa
+--passo N --passo M --json` reúne as identidades de processos observadas
+em **duas ou mais respostas POST** de `protocolo_pesquisar` da **mesma
+cassette verificada**. Valida ZIP, hash, host, MIME, método e HTTP 200 em
+todas as respostas antes de consolidar. Preserva ordem e NUP opaco;
+rejeita número repetido entre respostas com erro tipado
+`numero_de_pesquisa_repetido_entre_respostas`. Passos iguais, ausentes,
+GETs e operações diferentes são recusados pela verificação da cassette.
+`--numero-processo NUP` limita os resultados por identidade exata.
+
+O JSON informa os `passos`, o total observado nessas respostas e
+`cobertura: somente_passos_selecionados`. O IES **não infere** que os
+passos representam todas as páginas, filtros iguais ou snapshot.
+Sem a nova flag, `--resultado-pesquisa` continua exigindo exatamente
+um passo. A consolidação é offline, sem POST, login ou navegação. Refs #58.
