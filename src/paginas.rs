@@ -63,10 +63,17 @@ fn faixa_da_tabela(
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    let legenda = tabela
+    let mut legendas = tabela
         .query_selector(parser, "caption")
-        .and_then(|mut itens| itens.next())
-        .and_then(|no| no.get(parser))
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    let primeira = legendas
+        .next()
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    if legendas.next().is_some() {
+        return Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria });
+    }
+    let legenda = primeira
+        .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
