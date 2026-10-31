@@ -174,7 +174,7 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
         .take(limite + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
-    if bytes.len() > limite as usize {
+    if u64::try_from(bytes.len()).is_ok_and(|tamanho| tamanho > limite) {
         return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
     }
     if bytes.is_empty() {
