@@ -143,7 +143,9 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         if !observados.insert(numero.as_str().to_owned()) {
             return Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido);
         }
-        if !ids_observados.insert(primeiro_id.to_owned()) {
+        // O identificador interno é decimal: 7 e 007 denotam a mesma chave.
+        // Normalização por string evita overflow em IDs maiores que u64.
+        if !ids_observados.insert(primeiro_id.trim_start_matches('0').to_owned()) {
             return Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa);
         }
         resultados.push(ResultadoPesquisa { numero });
