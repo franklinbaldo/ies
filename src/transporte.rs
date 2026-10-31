@@ -464,3 +464,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "transporte/web_mock_tests.rs"]
+mod web_mock_tests;
