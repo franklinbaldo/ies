@@ -19,6 +19,7 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
+    LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
 }
@@ -39,6 +40,9 @@ impl ErroResultadoPesquisa {
             }
             Self::LinkDePesquisaComIdentificadoresRepetidos => {
                 "link_de_pesquisa_com_identificadores_repetidos"
+            }
+            Self::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal => {
+                "link_de_pesquisa_com_identificador_do_processo_nao_decimal"
             }
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
             Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
@@ -125,6 +129,9 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         }
         if primeiro_id.is_empty() {
             return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
+        }
+        if !primeiro_id.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal);
         }
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
@@ -234,6 +241,21 @@ mod tests {
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos)
         );
+    }
+
+    #[test]
+    fn link_com_id_interno_nao_decimal_nao_vira_processo_observado() {
+        for id in ["abc", "-7", "%37"] {
+            let html = RESULTADO.replace(
+                "&amp;id_procedimento=7",
+                &format!("&amp;id_procedimento={id}"),
+            );
+            assert_eq!(
+                ler_resultados(&html),
+                Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal),
+                "identificador interno {id} deve ser decimal ASCII"
+            );
+        }
     }
 
     #[test]

@@ -170,7 +170,8 @@ ser confundido com resultado. O leitor não executa links nem novas
 requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
 resultados, linha com múltiplos links, ação inesperada, link sem identificador
-interno de processo ou com identificadores repetidos e NUP duplicado geram
+interno de processo, identificador interno que não seja decimal ASCII,
+identificadores repetidos e NUP duplicado geram
 erros específicos. O identificador interno é conferido apenas na origem;
 nunca é incluído no resultado JSON. Ausência de achados significa apenas
 ausência na resposta escolhida, jamais inexistência no SEI. Ver a
