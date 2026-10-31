@@ -279,6 +279,19 @@ mod tests {
     }
 
     #[test]
+    fn id_interno_com_zeros_a_esquerda_nao_pode_representar_dois_processos() {
+        let html = RESULTADO.replace(
+            "</table>",
+            r#"<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=007">00002.123456/2026-07</a></td></tr></table>"#,
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa),
+            "o mesmo ID numérico (7 e 007) não pode identificar NUPs diferentes"
+        );
+    }
+
+    #[test]
     fn tabela_sem_processos_observados_nao_inventa_identidade() {
         assert_eq!(
             ler_resultados("<table class='pesquisaResultado'></table>"),
