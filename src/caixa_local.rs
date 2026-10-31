@@ -25,30 +25,30 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "formato_do_arquivo_da_caixa_invalido",
             Self::OrigemNaoWeb => "origem_do_arquivo_da_caixa_nao_web",
             Self::UnidadeDiferenteDaSolicitada => "unidade_do_arquivo_da_caixa_diferente",
-            Self::TotalNaoComprovado { categoria: Categoria::Recebidos } => {
-                "total_recebidos_do_arquivo_nao_comprovado"
-            }
-            Self::TotalNaoComprovado { categoria: Categoria::Gerados } => {
-                "total_gerados_do_arquivo_nao_comprovado"
-            }
-            Self::IdentificadorInvalido { categoria: Categoria::Recebidos } => {
-                "id_recebidos_do_arquivo_invalido"
-            }
-            Self::IdentificadorInvalido { categoria: Categoria::Gerados } => {
-                "id_gerados_do_arquivo_invalido"
-            }
-            Self::NumeroInvalido { categoria: Categoria::Recebidos } => {
-                "numero_recebidos_do_arquivo_invalido"
-            }
-            Self::NumeroInvalido { categoria: Categoria::Gerados } => {
-                "numero_gerados_do_arquivo_invalido"
-            }
-            Self::IdentificadorRepetido { categoria: Categoria::Recebidos } => {
-                "id_recebidos_do_arquivo_repetido"
-            }
-            Self::IdentificadorRepetido { categoria: Categoria::Gerados } => {
-                "id_gerados_do_arquivo_repetido"
-            }
+            Self::TotalNaoComprovado {
+                categoria: Categoria::Recebidos,
+            } => "total_recebidos_do_arquivo_nao_comprovado",
+            Self::TotalNaoComprovado {
+                categoria: Categoria::Gerados,
+            } => "total_gerados_do_arquivo_nao_comprovado",
+            Self::IdentificadorInvalido {
+                categoria: Categoria::Recebidos,
+            } => "id_recebidos_do_arquivo_invalido",
+            Self::IdentificadorInvalido {
+                categoria: Categoria::Gerados,
+            } => "id_gerados_do_arquivo_invalido",
+            Self::NumeroInvalido {
+                categoria: Categoria::Recebidos,
+            } => "numero_recebidos_do_arquivo_invalido",
+            Self::NumeroInvalido {
+                categoria: Categoria::Gerados,
+            } => "numero_gerados_do_arquivo_invalido",
+            Self::IdentificadorRepetido {
+                categoria: Categoria::Recebidos,
+            } => "id_recebidos_do_arquivo_repetido",
+            Self::IdentificadorRepetido {
+                categoria: Categoria::Gerados,
+            } => "id_gerados_do_arquivo_repetido",
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
@@ -57,7 +57,9 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "arquivo da caixa não tem a estrutura JSON esperada",
             Self::OrigemNaoWeb => "arquivo não declara a origem de exportação Web",
             Self::UnidadeDiferenteDaSolicitada => "unidade do arquivo da caixa não é a solicitada",
-            Self::TotalNaoComprovado { .. } => "total da categoria não confere com as linhas exportadas",
+            Self::TotalNaoComprovado { .. } => {
+                "total da categoria não confere com as linhas exportadas"
+            }
             Self::IdentificadorInvalido { .. } => "identificador de processo inválido no arquivo",
             Self::NumeroInvalido { .. } => "número de processo inválido no arquivo",
             Self::IdentificadorRepetido { .. } => "identificador de processo repetido no arquivo",
@@ -124,13 +126,20 @@ fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, Err
 }
 
 /// Interpreta somente exportações da CLI; consistência interna não autentica o SEI.
-pub(crate) fn interpretar(json: &str, unidade: Option<&str>) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
+pub(crate) fn interpretar(
+    json: &str,
+    unidade: Option<&str>,
+) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
     let exportada: Exportacao =
         serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
     if exportada.origem != "web" {
         return Err(ErroCaixaLocal::OrigemNaoWeb);
     }
-    if exportada.unidade.as_deref().is_some_and(|valor| valor.trim().is_empty()) {
+    if exportada
+        .unidade
+        .as_deref()
+        .is_some_and(|valor| valor.trim().is_empty())
+    {
         return Err(ErroCaixaLocal::FormatoInvalido);
     }
     if let Some(esperada) = unidade
@@ -151,7 +160,10 @@ pub(crate) fn interpretar(json: &str, unidade: Option<&str>) -> Result<CaixaObse
 }
 
 /// Reaproveita leitura privada com limite e descritor protegido, sem abrir socket.
-pub(crate) fn ler(caminho: &Path, unidade: Option<&str>) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
+pub(crate) fn ler(
+    caminho: &Path,
+    unidade: Option<&str>,
+) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
     let dados = transporte::arquivo_privado(caminho, 8_000_000).map_err(ErroCaixaLocal::Arquivo)?;
     interpretar(&dados, unidade)
 }
@@ -169,7 +181,8 @@ mod tests {
                 "processos": [{"id":"0042","numero":"000123/2026","visualizado":false}]
             },
             "gerados": {"total_declarado": 0, "processos": []}
-        }).to_string()
+        })
+        .to_string()
     }
     #[test]
     fn encontra_nup_exato_de_arquivo_de_caixa_sem_rede() {
@@ -183,7 +196,9 @@ mod tests {
         let json = caixa().replace("\"total_declarado\":1", "\"total_declarado\":2");
         assert_eq!(
             interpretar(&json, None).unwrap_err(),
-            ErroCaixaLocal::TotalNaoComprovado { categoria: Categoria::Recebidos }
+            ErroCaixaLocal::TotalNaoComprovado {
+                categoria: Categoria::Recebidos
+            }
         );
     }
     #[test]
@@ -198,15 +213,23 @@ mod tests {
         let mut objeto: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
         objeto["recebidos"]["total_declarado"] = json!(2);
         let repetido = objeto["recebidos"]["processos"][0].clone();
-        objeto["recebidos"]["processos"].as_array_mut().unwrap().push(repetido);
+        objeto["recebidos"]["processos"]
+            .as_array_mut()
+            .unwrap()
+            .push(repetido);
         assert_eq!(
             interpretar(&objeto.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::IdentificadorRepetido { categoria: Categoria::Recebidos }
+            ErroCaixaLocal::IdentificadorRepetido {
+                categoria: Categoria::Recebidos
+            }
         );
     }
     #[test]
     fn recusa_origem_de_cassette_ou_json_nao_proveniente_de_exportacao() {
         let json = caixa().replace("\"origem\":\"web\"", "\"origem\":\"replay\"");
-        assert_eq!(interpretar(&json, None).unwrap_err(), ErroCaixaLocal::OrigemNaoWeb);
+        assert_eq!(
+            interpretar(&json, None).unwrap_err(),
+            ErroCaixaLocal::OrigemNaoWeb
+        );
     }
 }
