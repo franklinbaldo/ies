@@ -1,4 +1,4 @@
-name: Desempenho offline IES vs Todos
+name: Desempenho offline IES
 
 on:
   pull_request:
@@ -21,31 +21,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout Todos público
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: franklinbaldo/todos
-          path: todos
-          persist-credentials: false
-
-      - name: Instalar uv fixado
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          version: "0.13.5"
-          enable-cache: false
-
       - name: Instalar toolchain Rust
         run: rustup toolchain install 1.99.1 --profile minimal
 
       - name: Compilar IES em release
         run: cargo +1.99.1 build --release --locked --bin ies
 
-      - name: Instalar CLI Todos sem dependências de desenvolvimento
-        run: uv sync --project todos --frozen --no-dev
-
       - name: Benchmarks somente locais, com cassettes sintéticas
         run: |
           python3 scripts/perf_audit.py \
             --ies "$PWD/target/release/ies" \
-            --todos "$PWD/todos/.venv/bin/todos" \
             --repeticoes 25
