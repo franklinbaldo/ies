@@ -125,8 +125,8 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
     // symlink_metadata não segue atalhos: status e transporte adotam a mesma
     // regra antes de ler qualquer conteúdo de sessão.
-    let metadata =
-        fs::symlink_metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
     if metadata.file_type().is_symlink() {
         return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
     }
