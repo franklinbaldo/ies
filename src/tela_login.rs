@@ -43,9 +43,13 @@ pub(crate) fn e_tela_login(html: &str) -> bool {
                     .and_then(tl::Node::as_tag)
                     .is_some_and(|input| {
                         ["name", "id"].into_iter().any(|campo| {
-                            input.attributes().get(campo).flatten().is_some_and(|valor| {
-                                valor.as_utf8_str().eq_ignore_ascii_case("txtUsuario")
-                            })
+                            input
+                                .attributes()
+                                .get(campo)
+                                .flatten()
+                                .is_some_and(|valor| {
+                                    valor.as_utf8_str().eq_ignore_ascii_case("txtUsuario")
+                                })
                         })
                     })
             })
