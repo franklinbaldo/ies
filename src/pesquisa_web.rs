@@ -21,6 +21,8 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
     LinkDePesquisaComChaveNaoCanonica,
+    LinkDePesquisaComAcaoSemIgual,
+    LinkDePesquisaComIdentificadorSemIgual,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     IdentificadorDoProcessoRepetidoNaPesquisa,
     NumeroDePesquisa(NumeroProcessoInvalido),
@@ -48,6 +50,10 @@ impl ErroResultadoPesquisa {
                 "link_de_pesquisa_com_identificadores_repetidos"
             }
             Self::LinkDePesquisaComChaveNaoCanonica => "link_de_pesquisa_com_chave_nao_canonica",
+            Self::LinkDePesquisaComAcaoSemIgual => "link_de_pesquisa_com_acao_sem_igual",
+            Self::LinkDePesquisaComIdentificadorSemIgual => {
+                "link_de_pesquisa_com_identificador_sem_igual"
+            }
             Self::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal => {
                 "link_de_pesquisa_com_identificador_do_processo_nao_decimal"
             }
@@ -382,6 +388,32 @@ mod tests {
                 "chave alternativa nao pode mudar a acao ou o ID: {extra}"
             );
         }
+    }
+
+    #[test]
+    fn parametro_acao_sem_igual_nao_pode_sobrescrever_acao_valida() {
+        // O parse de query do PHP trata `acao` sem "=" como valor vazio.
+        // Um valor vazio posterior sobrepõe a ação reconhecida pelo parser.
+        let html = RESULTADO.replace(
+            "&amp;id_procedimento=7",
+            "&amp;id_procedimento=7&amp;acao",
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaComAcaoSemIgual)
+        );
+    }
+
+    #[test]
+    fn parametro_id_sem_igual_nao_pode_sobrescrever_identificador_valido() {
+        let html = RESULTADO.replace(
+            "&amp;id_procedimento=7",
+            "&amp;id_procedimento=7&amp;id_procedimento",
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorSemIgual)
+        );
     }
 
     #[test]

@@ -172,7 +172,8 @@ Entrada de passo inválida, ausência ou multiplicidade de tabelas de
 resultados, linha com múltiplos links, link de processo em linha fora do formato
 observado (que seria omitido silenciosamente), ação inesperada, link sem identificador
 interno de processo, identificador interno que não seja decimal ASCII,
-parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
+parâmetro obrigatório `acao` ou `id_procedimento` sem sinal de igual (o PHP
+pode sobrescrever o valor anterior com string vazia), parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
 parâmetro (não é uma ação `acao` real), chaves de query não canônicas
 (como `%5F`, `+` ou ponto, que o servidor PHP pode normalizar para `_`),
 dois NUPs distintos apontando ao mesmo
