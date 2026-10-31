@@ -71,7 +71,20 @@ impl ErroResultadoPesquisa {
 // Os nomes devem ser literais ASCII, inclusive os parametros auxiliares.
 fn validar_nomes_dos_parametros(campos: &[&str]) -> Result<(), ErroResultadoPesquisa> {
     for campo in campos {
-        let chave = campo.split_once('=').map_or(*campo, |(nome, _)| nome);
+        // Para o controlador PHP, `acao` e `id_procedimento` sem `=`
+        // são campos vazios e podem substituir os valores anteriores.
+        // Não deixar uma chave obrigatória sem valor parecer parâmetro auxiliar.
+        let chave = if let Some((nome, _)) = campo.split_once('=') {
+            nome
+        } else {
+            match *campo {
+                "acao" => return Err(ErroResultadoPesquisa::LinkDePesquisaComAcaoSemIgual),
+                "id_procedimento" => {
+                    return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorSemIgual);
+                }
+                _ => campo,
+            }
+        };
         if chave.is_empty()
             || !chave
                 .bytes()
