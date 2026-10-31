@@ -19,9 +19,10 @@ if ! grep -q '^serviceAccount: projects/virtual-computer-fsb/serviceAccounts/ies
 fi
 mkdir "$temporarios/correto" "$temporarios/politica-trocada" "$temporarios/toolchain-trocada" \
   "$temporarios/checker-trocado" "$temporarios/build-script-injetado" "$temporarios/workspace-trocado" "$temporarios/checker-link" \
-  "$temporarios/cargo-config-injetado" "$temporarios/rustfmt-config-injetado"
-for pasta in correto politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado; do
-  cp prek.toml rust-toolchain.toml Cargo.toml "$temporarios/$pasta/"
+  "$temporarios/cargo-config-injetado" "$temporarios/rustfmt-config-injetado" \
+  "$temporarios/root-build-script-injetado" "$temporarios/lockfile-trocado"
+for pasta in correto politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado root-build-script-injetado lockfile-trocado; do
+  cp prek.toml rust-toolchain.toml Cargo.toml Cargo.lock "$temporarios/$pasta/"
   cp -a xtask "$temporarios/$pasta/"
 done
 printf '\n# alteração da própria lista de gates no checkout não confiável\n' >> "$temporarios/politica-trocada/prek.toml"
@@ -39,8 +40,12 @@ ln -s src/bin/check_size.rs "$temporarios/checker-link/xtask/build.rs"
 mkdir "$temporarios/cargo-config-injetado/.cargo"
 printf '[build]\nrustc = "./executavel-da-pr"\n' > "$temporarios/cargo-config-injetado/.cargo/config.toml"
 printf 'skip_children = true\n' > "$temporarios/rustfmt-config-injetado/.rustfmt.toml"
+# Cargo executa build.rs na raiz de um pacote mesmo sem declaração no manifesto.
+printf 'fn main() { println!("cargo:warning=executou build inesperado"); }\n' > "$temporarios/root-build-script-injetado/build.rs"
+# A branch não pode escolher versões não revisadas de dependências antes do gate.
+printf '\n# alteração de resolução de dependência não aprovada\n' >> "$temporarios/lockfile-trocado/Cargo.lock"
 (cd "$temporarios/correto"; bash -eu "$temporarios/preflight.sh" >/dev/null)
-for pasta in politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado; do
+for pasta in politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado root-build-script-injetado lockfile-trocado; do
   if (cd "$temporarios/$pasta"; bash -eu "$temporarios/preflight.sh" >/dev/null 2>&1); then
     echo "FAIL: aceitou configuração adulterada: $pasta" >&2
     exit 1

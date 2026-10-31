@@ -45,6 +45,7 @@ steps:
           '48b0c8e2e27d4c242c1c14d02835e38e4c0731f41dcb61b4a360200d74dad568  prek.toml' \
           'd13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33  rust-toolchain.toml' \
           'e65f44384e703d19d96028376dd597e26924fbe59dbd200040b1e7ced6b6df20  Cargo.toml' \
+          'a7727abdc0659deef0f6d7af3ba32782e45de3bf64df3fa4250583e4aee96c2b  Cargo.lock' \
           | sha256sum --check --status
         # Sem arquivo .cargo local: a branch poderia redefinir rustc/rustc-wrapper
         # ou aliases e tornar os executores de validação não confiáveis.
@@ -55,6 +56,12 @@ steps:
             exit 1
           fi
         done
+        # O pacote raiz também executa build.rs sem entrada no Cargo.toml.
+        # Não aceitar scripts de compilação não aprovados neste checkout.
+        if [ -e build.rs ] || [ -L build.rs ]; then
+          echo 'FAIL: script build.rs do pacote raiz não aprovado' >&2
+          exit 1
+        fi
         # Cargo executa xtask/build.rs automaticamente, mesmo sem declarar
         # esse arquivo no manifesto. Proteger a árvore inteira, não somente
         # os binários atuais. Alterações de checker pedem revisão independente.
