@@ -33,7 +33,9 @@ steps:
         export PATH="/ci-tools:$$PATH"
         if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
           git init --quiet
-          git add --all
+          # O snapshot nao vem com .git; .gitignore pertence a PR nao confiavel.
+          # Indexar TODOS os arquivos antes de prek/check_size (fail closed).
+          git add --force --all
         fi
         rustup component add rustfmt clippy
         # INICIO_POLITICA_CONFIAVEL
