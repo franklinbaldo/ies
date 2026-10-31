@@ -41,9 +41,16 @@ fn resposta(html: &str) -> RespostaWeb<Cursor<Vec<u8>>> {
 }
 
 fn html_caixa(n: usize) -> String {
-    let linhas: String = (1..=n)
-        .map(|id| {
-            format!(
+    use std::fmt::Write as _;
+    let mut linhas = String::new();
+    for id in 1..=n {
+        write!(
+            &mut linhas,
+            "<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>"
+        )
+        .unwrap();
+    }
+    format!(
                 "<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>"
             )
         })
@@ -146,7 +153,7 @@ fn web_mock_benchmark_p50_p95_inclui_transporte_parser_e_json() {
             assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
             assert!(leitura.gerados.completa(&leitura.caixa.gerados));
             let serializado = serde_json::to_vec(&crate::saida::json(&leitura, "web-mock")).unwrap();
-            assert!(!serializado.is_empty());
+            assert_ne!(serializado.len(), 0);
             assert_eq!(leitura.caixa.recebidos.processos.len(), n);
             assert_eq!(chamadas.get(), 1);
             tempos.push(inicio.elapsed().as_micros());
