@@ -20,6 +20,7 @@ mod historico;
 mod historico_cli;
 mod instalacao;
 mod paginas;
+mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
@@ -190,6 +191,9 @@ enum UnidadeAcao {
     ListarProcessos {
         #[arg(long)]
         saida: Option<PathBuf>,
+        /// Complementa o GET com páginas HTML privadas já capturadas, sem fazer POST
+        #[arg(long = "pagina-arquivo", value_name = "HTML_PRIVADO")]
+        paginas_capturadas: Vec<PathBuf>,
     },
 }
 
@@ -469,12 +473,16 @@ fn run(cli: &Cli) -> ExitCode {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida }),
+            acao: Some(UnidadeAcao::ListarProcessos {
+                saida,
+                paginas_capturadas,
+            }),
         }) => {
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,
                 saida.as_deref(),
+                paginas_capturadas,
             );
         }
         _ => {}
