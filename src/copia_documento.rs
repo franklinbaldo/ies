@@ -206,10 +206,10 @@ pub fn preparar(
 /// Índices zero-based e fim exclusivo; não é um diff por hunk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct TrechoDivergente {
-    pub base_inicio_linha: usize,
-    pub base_fim_exclusivo_linha: usize,
-    pub trabalho_inicio_linha: usize,
-    pub trabalho_fim_exclusivo_linha: usize,
+    pub base_inicio: usize,
+    pub base_fim_exclusivo: usize,
+    pub trabalho_inicio: usize,
+    pub trabalho_fim_exclusivo: usize,
 }
 
 /// Computa o menor intervalo CONTÍNUO que contém todas as diferenças
@@ -218,8 +218,8 @@ fn trecho_divergente(base: &[u8], trabalho: &[u8]) -> Option<TrechoDivergente> {
     if base == trabalho {
         return None;
     }
-    let total_base = base.iter().filter(|byte| **byte == b'\n').count() + 1;
-    let total_trabalho = trabalho.iter().filter(|byte| **byte == b'\n').count() + 1;
+    let total_base = base.split(|byte| *byte == b'\n').count();
+    let total_trabalho = trabalho.split(|byte| *byte == b'\n').count();
 
     let mut prefixo = 0;
     let mut base_inicio = base.split(|byte| *byte == b'\n');
@@ -241,10 +241,10 @@ fn trecho_divergente(base: &[u8], trabalho: &[u8]) -> Option<TrechoDivergente> {
         }
     }
     Some(TrechoDivergente {
-        base_inicio_linha: prefixo,
-        base_fim_exclusivo_linha: total_base - sufixo,
-        trabalho_inicio_linha: prefixo,
-        trabalho_fim_exclusivo_linha: total_trabalho - sufixo,
+        base_inicio: prefixo,
+        base_fim_exclusivo: total_base - sufixo,
+        trabalho_inicio: prefixo,
+        trabalho_fim_exclusivo: total_trabalho - sufixo,
     })
 }
 
@@ -436,10 +436,10 @@ mod testes {
         assert_eq!(
             trecho,
             TrechoDivergente {
-                base_inicio_linha: 1,
-                base_fim_exclusivo_linha: 2,
-                trabalho_inicio_linha: 1,
-                trabalho_fim_exclusivo_linha: 2,
+                base_inicio: 1,
+                base_fim_exclusivo: 2,
+                trabalho_inicio: 1,
+                trabalho_fim_exclusivo: 2,
             }
         );
         let json = serde_json::to_string(&trecho).unwrap();
@@ -452,10 +452,10 @@ mod testes {
         assert_eq!(
             trecho_divergente(b"a\nc", b"a\nb\nc"),
             Some(TrechoDivergente {
-                base_inicio_linha: 1,
-                base_fim_exclusivo_linha: 1,
-                trabalho_inicio_linha: 1,
-                trabalho_fim_exclusivo_linha: 2,
+                base_inicio: 1,
+                base_fim_exclusivo: 1,
+                trabalho_inicio: 1,
+                trabalho_fim_exclusivo: 2,
             })
         );
     }
@@ -465,10 +465,10 @@ mod testes {
         assert_eq!(
             trecho_divergente(b"a\nb\nc\nd\ne", b"a\nB\nc\nD\ne"),
             Some(TrechoDivergente {
-                base_inicio_linha: 1,
-                base_fim_exclusivo_linha: 4,
-                trabalho_inicio_linha: 1,
-                trabalho_fim_exclusivo_linha: 4,
+                base_inicio: 1,
+                base_fim_exclusivo: 4,
+                trabalho_inicio: 1,
+                trabalho_fim_exclusivo: 4,
             })
         );
     }
@@ -479,10 +479,10 @@ mod testes {
         assert_eq!(
             trecho_divergente(&[255, 10, 65], &[255, 10, 66]),
             Some(TrechoDivergente {
-                base_inicio_linha: 1,
-                base_fim_exclusivo_linha: 2,
-                trabalho_inicio_linha: 1,
-                trabalho_fim_exclusivo_linha: 2,
+                base_inicio: 1,
+                base_fim_exclusivo: 2,
+                trabalho_inicio: 1,
+                trabalho_fim_exclusivo: 2,
             })
         );
     }
@@ -504,8 +504,7 @@ mod testes {
         fs::write(&paths.trabalho, "cabecalho\nnovo\nfim").unwrap();
         let resultado = previa(&pasta, &id).unwrap();
         assert!(resultado.alterado);
-        assert_eq!(resultado.trecho_divergente.unwrap().base_inicio_linha, 1);
+        assert_eq!(resultado.trecho_divergente.unwrap().base_inicio, 1);
         fs::remove_dir_all(pasta).unwrap();
     }
-
 }
