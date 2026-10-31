@@ -179,6 +179,19 @@ pub fn interpretar_historico(
         }
     }
     let tabela = tabela.ok_or(ErroVersao::HistoricoAusente)?;
+    let legenda = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten()
+        .filter_map(|h| h.get(parser))
+        .map(|no| texto(no, parser))
+        .next()
+        .ok_or(ErroVersao::ListaIncompleta)?;
+    let declaradas = legenda
+        .rsplit_once('(')
+        .and_then(|(_, resto)| resto.split_once(" registros"))
+        .and_then(|(numero, _)| numero.parse::<usize>().ok())
+        .ok_or(ErroVersao::ListaIncompleta)?;
     let mut cabecalho = false;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
@@ -194,9 +207,10 @@ pub fn interpretar_historico(
             .filter_map(|h| h.get(parser))
             .collect();
         if !cols.is_empty() {
+            let titulos: Vec<_> = cols.iter().map(|n| texto(n, parser)).collect();
             if cabecalho
-                || cols.iter().map(|n| texto(n, parser)).collect::<Vec<_>>()
-                    != ["Versão", "Usuário", "Unidade", "Última Modificação"]
+                || titulos
+                    != ["", "Versão", "Usuário", "Unidade", "Última Modificação", "Ações"]
             {
                 return Err(ErroVersao::ColunasInesperadas);
             }
@@ -212,14 +226,14 @@ pub fn interpretar_historico(
         if celulas.is_empty() {
             continue;
         }
-        if !cabecalho || celulas.len() != 4 {
+        if !cabecalho || celulas.len() != 6 {
             return Err(ErroVersao::LinhaIncompleta);
         }
-        let numero = VersaoDocumento::interpretar(&texto(celulas[0], parser))?;
+        let numero = VersaoDocumento::interpretar(&texto(celulas[1], parser))?;
         if !encontrados.insert(numero) {
             return Err(ErroVersao::VersaoDuplicada);
         }
-        let td = celulas[0].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
+        let td = celulas[5].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
         let mut links: Vec<_> = td
             .query_selector(parser, "a")
             .into_iter()
@@ -233,7 +247,7 @@ pub fn interpretar_historico(
             return Err(ErroVersao::LinkAusenteOuAmbiguo);
         }
         conferir_link(&links[0], id_interno, numero)?;
-        let valores: Vec<_> = celulas[1..].iter().map(|n| texto(n, parser)).collect();
+        let valores: Vec<_> = celulas[2..5].iter().map(|n| texto(n, parser)).collect();
         if valores.iter().any(String::is_empty) {
             return Err(ErroVersao::LinhaIncompleta);
         }
@@ -251,7 +265,7 @@ pub fn interpretar_historico(
     if !cabecalho {
         return Err(ErroVersao::ColunasInesperadas);
     }
-    if total_declarado.is_some_and(|n| n != entradas.len()) {
+    if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);
     }
     let _ = documento; // Número SEI é opaco: ID interno vem do nó do documento.
@@ -265,12 +279,13 @@ mod testes {
         let mut linhas = String::new();
         for (&n, &id) in numeros.iter().zip(ids) {
             linhas.push_str(&format!(
-                "<tr><td><a href=\"controlador.php?acao=documento_visualizar&amp;id_documento={id}&amp;versao={n}&amp;infra_hash={}\">{n}</a></td><td>Ana</td><td>PPI</td><td>31/10/2026</td></tr>",
+                "<tr><td><input type=\"checkbox\" /></td><td>{n}</td><td><a>Ana</a></td><td><a>PPI</a></td><td>31/10/2026</td><td><a href=\"controlador.php?acao=documento_visualizar&amp;id_documento={id}&amp;versao={n}&amp;infra_hash={}\">Ver</a></td></tr>",
                 "a".repeat(64)
             ));
         }
         format!(
-            "<table class=\"infraTable\"><caption>Versões</caption><tr><th>Versão</th><th>Usuário</th><th>Unidade</th><th>Última Modificação</th></tr>{linhas}</table>"
+            "<table class=\"infraTable\"><caption>Lista de Versões ({} registros):</caption><tr><th></th><th>Versão</th><th>Usuário</th><th>Unidade</th><th>Última Modificação</th><th>Ações</th></tr>{linhas}</table>",
+            numeros.len()
         )
     }
     #[test]
