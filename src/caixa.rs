@@ -28,11 +28,22 @@ fn ler_tabela(
     categoria: Categoria,
 ) -> Result<Tabela<Processo>, ErroCaixa> {
     let parser = dom.parser();
-    let tabela = dom
-        .get_element_by_id(table_id)
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
+    // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
+    // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
+    let seletor = format!("#{table_id}");
+    let mut candidatas = dom
+        .query_selector(&seletor)
         .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    let primeira = candidatas
+        .next()
+        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
+    if candidatas.next().is_some() {
+        return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria });
+    }
+    let tabela = primeira
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
