@@ -115,3 +115,33 @@ total/faixa de paginação. O adaptador Web deve falhar com
 cobertura das posições ou devolver a caixa. Não escolher simplesmente
 a primeira legenda. Um `caption` válido único preserva o comportamento.
 Não há mudança de requests ou promessa de snapshot transacional.
+
+
+## Complemento com páginas HTML privadas previamente capturadas (Refs #57)
+
+A opção aditiva `ies unidade listar-processos --pagina-arquivo ARQUIVO`
+pode ser repetida para acrescentar **páginas HTML já capturadas**
+ao GET autorizado da tela inicial. O IES não produz nem repete
+POST de paginação: orçamento de rede permanece **um GET**.
+Cada arquivo precisa ser regular, privado (0600 no Unix), não pode
+ser link simbólico final no Linux, tem limite de 8 MB e deve
+conter HTML UTF-8 previamente normalizado. Recusam-se caminhos
+duplicados, mais de 199 complementos ou mais de 48 MB de HTML
+total. A CLI não publica HTML nem URLs assinadas ou cookies.
+
+A união utiliza as verificações existentes de
+`paginas::juntar`: rótulo de unidade, visualização, hashes de
+critérios, faixas contíguas, IDs e totais de ambas as tabelas.
+Um complemento ausente, divergente ou insuficiente deve produzir
+erro e **não** devolver caixa parcial. Quando complementos são
+usados, a saída JSON declara `origem: web_com_paginas_privadas`,
+distinguindo da consulta baseada apenas no GET atual.
+
+As páginas extras precisam ter sido capturadas legitimamente
+pela própria pessoa autorizada na **mesma sessão, unidade e
+configuração**; os hashes de critério são apenas marcadores
+opacos, **não** provas criptográficas de origem, atualidade
+ou snapshot do SEI. O IES não executa coleta autenticada, não
+pode provar a frescura dos arquivos e não afirma suporte live
+à paginação POST. O modo sem a opção e o golden JSON existente
+permanecem inalterados.
