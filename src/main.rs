@@ -8,6 +8,7 @@ mod dominio;
 mod erro_web;
 mod historico;
 mod historico_cli;
+mod filtro_andamentos;
 mod instalacao;
 mod paginas;
 mod pesquisa_web;
@@ -185,6 +186,9 @@ struct Replay {
     /// Busca termo no texto de documentos já capturados e verificados, sem rede
     #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
     termo_documento: Option<String>,
+    /// Filtra descrições dos andamentos de histórico já gravado, sem rede
+    #[arg(long, conflicts_with_all = ["documento", "resultado_pesquisa", "todas_paginas"])]
+    termo_andamento: Option<String>,
     /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
     #[arg(long, conflicts_with_all = ["documento", "todas_paginas"])]
     resultado_pesquisa: bool,
@@ -341,9 +345,13 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &html,
             &origem,
             replay.numero_processo.as_deref(),
+            replay.termo_andamento.as_deref(),
             json_mode,
         ),
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
+            if replay.termo_andamento.is_some() {
+                return historico_cli::erro_filtro_em_caixa(json_mode);
+            }
             if let Some(numero) = replay.numero_processo.as_deref() {
                 replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
             } else {

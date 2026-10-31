@@ -224,3 +224,23 @@ Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
 execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
 sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
 permanece `NOT_RUN`.
+
+
+## Filtro de descrições no histórico capturado
+
+`ies replay CENARIO --termo-andamento TERMO --numero-processo NUP --json`
+seleciona somente os andamentos cuja **descrição observada** contém o
+termo, sem distinção de caixa Unicode, após verificar o ZIP/card e
+interpretar o histórico integral gravado. É uma operação exclusivamente
+offline de `procedimento_consultar_historico`, não consulta live.
+Preserva NUP, ordem, unidade, data e autor dos andamentos selecionados.
+`total_observado` refere-se à resposta gravada, `total_filtrado` aos
+resultados do filtro; resposta vazia não demonstra inexistência no SEI.
+O JSON mantém `parcial: true` e `escopo: historico_filtrado_offline`.
+
+Termo vazio, caracteres de controle e mais de 100 caracteres falham com
+variantes tipadas, sem imprimir o termo no diagnóstico. `--termo-andamento`
+em replay de caixa falha com `termo_andamento_exige_historico`; é
+incompatível com `--documento`, `--resultado-pesquisa` e
+`--todas-paginas`. Não há GET/POST, login ou gravação.
+Refs #59; a leitura integral live do processo continua pendente.
