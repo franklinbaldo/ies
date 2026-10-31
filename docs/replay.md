@@ -69,6 +69,14 @@ não reconhecida ou operações diferentes deve falhar com subcódigo
 específico sem acessar a rede. O replay não é consulta live nem prova
 de leitura integral do processo.
 
+No histórico verificado, `--numero-processo NUP` exige correspondência
+exata entre o número solicitado e o título do HTML, preservando zeros,
+pontuação e demais caracteres opacos aceitos no contrato. Não deduz
+identidade pelo nome da cassette. Entrada inválida resulta em saída 2
+com erro tipado; número diferente resulta em saída 1 com subcódigo
+`numero_do_historico_diferente_do_solicitado`. Sem a opção, preserva a
+leitura do NUP observado no título. Não há consulta live ao SEI.
+
 ## Documento HTML capturado
 
 `ies replay CENARIO --documento --json` seleciona somente a resposta
