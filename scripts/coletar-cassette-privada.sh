@@ -67,8 +67,15 @@ import hashlib,json,sys,pathlib
 p=pathlib.Path(sys.argv[1])
 arquivos=[]
 for f in sorted(p.rglob('*')):
-    if f.is_file() and not f.is_symlink() and f.name!='manifesto.json':
-        arquivos.append({'arquivo':str(f.relative_to(p)),'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()})
+    if f.is_symlink():
+        raise SystemExit('ERRO: coletor produziu link simbólico; captura não foi certificada')
+    if f.is_file() and f.name!='manifesto.json':
+        # O arquivo bruto pode ser grande: hash por blocos, sem carregar tudo na RAM.
+        digest=hashlib.sha256()
+        with f.open('rb') as stream:
+            for bloco in iter(lambda: stream.read(1024*1024), b''):
+                digest.update(bloco)
+        arquivos.append({'arquivo':str(f.relative_to(p)),'bytes':f.stat().st_size,'sha256':digest.hexdigest()})
 manifesto={'schema_version':1,'instalacao':sys.argv[2],'operacao':sys.argv[3],
            'cenario':sys.argv[4],'estado':sys.argv[5],
            'publicacao':'proibida_ate_sanitizacao_e_revisao','arquivos_brutos':arquivos}
