@@ -57,7 +57,8 @@ Nunca usar instalação de produção como substituta.
 O [roteiro offline](../scripts/validar-cassettes.sh) executa cenários existentes
 e verificados, isoladamente e em paralelo, **sem rede** pelo IES. Deve-se
 preparar os ZIPs previamente, de acordo com cada card OKF. O script não
-grava cassette nem publica no Internet Archive. O executor externo, com
+grava cassette nem publica no Internet Archive. O [roteiro de coleta privada](coleta-privada.md) prepara a execução delegada
+por um coletor autorizado, sem publicar os dados brutos. O executor externo, com
 autorização e coletor apropriados, deverá gravar os cenários live, excluir
 cookies, URLs assinadas, dados pessoais e segredos da publicação, calcular
 hashes e registrar manifesto/revisão. Nunca deixar o capturador no CI.
