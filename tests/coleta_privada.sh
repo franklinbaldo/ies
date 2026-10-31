@@ -31,7 +31,7 @@ fi
 saida=$(bash "$script" "${args[@]}" --destino "$temp/nova-captura" --executar --autorizar-live)
 [[ "$saida" == coleta_privada_nao_sanitizada* ]]
 python3 - "$temp/nova-captura" <<'PY'
-import json,sys,pathlib
+import json,sys,pathlib,hashlib
 raiz=pathlib.Path(sys.argv[1]);pastas=list(raiz.glob('captura-*'))
 assert len(pastas)==1
 p=pastas[0]
@@ -40,6 +40,7 @@ m=json.loads((p/'manifesto.json').read_text())
 assert m['estado']=='coleta_privada_nao_sanitizada'
 assert m['instalacao']=='unb' and m['cenario']=='documento-numero-e-busca-unb'
 assert m['publicacao']=='proibida_ate_sanitizacao_e_revisao'
+assert next(x['sha256'] for x in m['arquivos_brutos'] if x['arquivo']=='dados-brutos.json')==hashlib.sha256(b'CASSSETTE_SIMULADA\n').hexdigest()
 assert not any('TOKEN' in str(v) or 'EXEMPLO_FICTICIO' in str(v) for v in m.values())
 assert 'TOKEN_PRIVADO_SIMULADO' in (p/'gravador.stdout').read_text()
 PY
@@ -47,4 +48,16 @@ PY
 chmod 644 "$temp/cookie"
 if bash "$script" "${args[@]}" --destino "$temp/inseguro" --executar --autorizar-live >"$temp/inseguro.out" 2>&1; then echo 'ERRO: modo 644 aceito' >&2; exit 1; fi
 [[ ! -e "$temp/inseguro" ]]
+# Coletor externo não pode fazer uma captura com link simbólico parecer íntegra.
+chmod 600 "$temp/cookie"
+cat >"$temp/gravador-link" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+ln -s "$IES_COOKIE_FILE" "$IES_CAPTURE_OUTPUT_DIR/cookie-link"
+EOF
+chmod +x "$temp/gravador-link"
+if bash "$script" "${args[@]}" --gravador "$temp/gravador-link" --destino "$temp/saida-link" --executar --autorizar-live >"$temp/link.out" 2>&1; then
+  echo 'ERRO: captura com link simbólico foi certificada' >&2; exit 1
+fi
+[[ ! -s "$temp/link.out" || $(cat "$temp/link.out") != coleta_privada* ]]
 echo 'PASS: prévia sem rede, recusa autorização ausente/destino reutilizado/permissão insegura, captura privada simulada e manifesto sem segredos'
