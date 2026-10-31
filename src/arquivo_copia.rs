@@ -1,6 +1,6 @@
 //! Leitura binária privada de cópias locais, independente de sessão SEI.
 use crate::copia_documento::ErroCopia;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::Read;
 use std::path::Path;
 
@@ -8,17 +8,52 @@ const LIMITE_COPIA: u64 = 8_000_000;
 
 /// Shim inicial: os testes RED exigem validação do descritor, não só do caminho.
 pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
-    let dados = fs::symlink_metadata(alvo).map_err(|_| ausente)?;
-    if !dados.is_file() || dados.file_type().is_symlink() || dados.len() > LIMITE_COPIA {
+    // A observação do caminho só determina o erro legível. A decisão
+    // de segurança deve usar o mesmo descritor que vai fornecer os bytes.
+    let observado = fs::symlink_metadata(alvo).map_err(|_| ausente)?;
+    if observado.file_type().is_symlink() {
+        return Err(ErroCopia::LinkSimbolico);
+    }
+    if !observado.is_file() {
         return Err(ErroCopia::DestinoInseguro);
     }
-    let arquivo = fs::File::open(alvo).map_err(|_| ErroCopia::LeituraFalhou)?;
+
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        // O_NOFOLLOW impede troca do último componente por link.
+        // O_NONBLOCK impede bloquear numa FIFO colocada no caminho.
+        options.custom_flags(0o400_000 | 0o4_000);
+    }
+    let arquivo = options.open(alvo).map_err(|erro| {
+        if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
+            ErroCopia::LinkSimbolico
+        } else if erro.kind() == std::io::ErrorKind::NotFound {
+            ausente
+        } else {
+            ErroCopia::LeituraFalhou
+        }
+    })?;
+    let dados = arquivo.metadata().map_err(|_| ErroCopia::LeituraFalhou)?;
+    if !dados.is_file() || dados.len() > LIMITE_COPIA {
+        return Err(ErroCopia::DestinoInseguro);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if dados.permissions().mode() & 0o077 != 0 {
+            return Err(ErroCopia::PermissoesInseguras);
+        }
+    }
+
     let mut bytes = Vec::new();
     arquivo
         .take(LIMITE_COPIA + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| ErroCopia::LeituraFalhou)?;
-    if bytes.len() as u64 > LIMITE_COPIA {
+    if bytes.len() > 8_000_000 {
         return Err(ErroCopia::DestinoInseguro);
     }
     Ok(bytes)
