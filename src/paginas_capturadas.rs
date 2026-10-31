@@ -76,7 +76,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "ies-paginas-{}-{}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir(&dir).unwrap();
         dir
@@ -92,7 +95,7 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
         }
-        assert_eq!(conferir_caminhos(&[arquivo.clone()]), Ok(()));
+        assert_eq!(conferir_caminhos(std::slice::from_ref(&arquivo)), Ok(()));
         assert_eq!(
             ler_complementos(&[arquivo], 10),
             Ok(vec!["<html>SEGUNDA PÁGINA</html>".to_owned()])
@@ -132,7 +135,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn pagina_extra_nao_pode_ser_link_simbolico() {
-        use std::os::unix::fs::{symlink, PermissionsExt};
+        use std::os::unix::fs::{PermissionsExt, symlink};
         let dir = pasta();
         let original = dir.join("original.html");
         let atalho = dir.join("atalho.html");
@@ -141,7 +144,9 @@ mod tests {
         symlink(&original, &atalho).unwrap();
         assert_eq!(
             ler_complementos(&[atalho], 0),
-            Err(FalhaPaginaCapturada::Arquivo(FalhaTransporte::ArquivoPrivadoLinkSimbolico))
+            Err(FalhaPaginaCapturada::Arquivo(
+                FalhaTransporte::ArquivoPrivadoLinkSimbolico
+            ))
         );
         fs::remove_dir_all(dir).unwrap();
     }
