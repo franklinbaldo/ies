@@ -32,6 +32,7 @@ mod replay_pesquisa_cli;
 mod replay_versoes_cli;
 mod resumo_exportacao;
 mod resumo_processo;
+mod resumo_pagina;
 mod saida;
 mod status_cli;
 mod tela_login;
@@ -87,6 +88,9 @@ struct Processo {
     /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
     #[arg(long, requires = "resumo")]
     saida: Option<PathBuf>,
+    /// Permite relatar NUP observado na primeira página, sem alegar cobertura total
+    #[arg(long, requires = "resumo")]
+    observado_na_pagina: bool,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
