@@ -36,6 +36,7 @@ mod saida;
 mod status_cli;
 mod tela_login;
 mod transporte;
+mod unidade_categoria;
 mod unidade_atual_cli;
 mod unidade_lista_cli;
 
@@ -190,6 +191,9 @@ enum UnidadeAcao {
     ListarProcessos {
         #[arg(long)]
         saida: Option<PathBuf>,
+        /// Devolve apenas a categoria verificada na primeira página do Controle
+        #[arg(long, value_enum)]
+        categoria: Option<unidade_categoria::CategoriaLista>,
     },
 }
 
@@ -469,7 +473,7 @@ fn run(cli: &Cli) -> ExitCode {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida }),
+            acao: Some(UnidadeAcao::ListarProcessos { saida, .. }),
         }) => {
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
