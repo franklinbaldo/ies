@@ -4,29 +4,29 @@ use crate::processo::DetalheProcesso;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErroFiltroAndamentos {
-    TermoVazio,
-    TermoComControle,
-    TermoAcimaDoLimite,
+    Vazio,
+    ContemControle,
+    AcimaDoLimite,
 }
 impl ErroFiltroAndamentos {
     pub fn subcodigo(self) -> &'static str {
         match self {
-            Self::TermoVazio => "termo_de_andamento_vazio",
-            Self::TermoComControle => "termo_de_andamento_contem_controle",
-            Self::TermoAcimaDoLimite => "termo_de_andamento_acima_do_limite",
+            Self::Vazio => "termo_de_andamento_vazio",
+            Self::ContemControle => "termo_de_andamento_contem_controle",
+            Self::AcimaDoLimite => "termo_de_andamento_acima_do_limite",
         }
     }
 }
 fn validar_termo(termo: &str) -> Result<&str, ErroFiltroAndamentos> {
     let termo = termo.trim();
     if termo.is_empty() {
-        return Err(ErroFiltroAndamentos::TermoVazio);
+        return Err(ErroFiltroAndamentos::Vazio);
     }
     if termo.chars().any(char::is_control) {
-        return Err(ErroFiltroAndamentos::TermoComControle);
+        return Err(ErroFiltroAndamentos::ContemControle);
     }
     if termo.chars().count() > 100 {
-        return Err(ErroFiltroAndamentos::TermoAcimaDoLimite);
+        return Err(ErroFiltroAndamentos::AcimaDoLimite);
     }
     Ok(termo)
 }
@@ -48,10 +48,16 @@ mod tests {
 
     fn historico() -> DetalheProcesso {
         let mut detalhe = DetalheProcesso::novo(NumeroProcesso::novo("00012").unwrap());
-        for descricao in ["Processo recebido", "Juntada de decisão", "DECISÃO assinada"] {
+        for descricao in [
+            "Processo recebido",
+            "Juntada de decisão",
+            "DECISÃO assinada",
+        ] {
             detalhe.andamentos.push(Andamento {
                 descricao: descricao.into(),
-                ocorrido_em: None, unidade: None, usuario: None
+                ocorrido_em: None,
+                unidade: None,
+                usuario: None,
             });
         }
         detalhe
@@ -70,21 +76,21 @@ mod tests {
     fn ausencia_de_termo_na_captura_eh_resultado_vazio_nao_inexistencia() {
         let mut detalhe = historico();
         assert_eq!(filtrar(&mut detalhe, "nunca ocorreu"), Ok(3));
-        assert!(detalhe.andamentos.is_empty());
+        assert_eq!(detalhe.andamentos.len(), 0);
     }
     #[test]
     fn entradas_ruins_falham_por_variantes_tipadas_sem_alterar_historico() {
         let mut detalhe = historico();
         for (termo, esperado) in [
-            (" ", ErroFiltroAndamentos::TermoVazio),
-            ("linha\nsecreta", ErroFiltroAndamentos::TermoComControle),
+            (" ", ErroFiltroAndamentos::Vazio),
+            ("linha\nsecreta", ErroFiltroAndamentos::ContemControle),
         ] {
             assert_eq!(filtrar(&mut detalhe, termo), Err(esperado));
             assert_eq!(detalhe.andamentos.len(), 3);
         }
         assert_eq!(
             filtrar(&mut detalhe, &"x".repeat(101)),
-            Err(ErroFiltroAndamentos::TermoAcimaDoLimite)
+            Err(ErroFiltroAndamentos::AcimaDoLimite)
         );
         assert_eq!(detalhe.andamentos.len(), 3);
     }

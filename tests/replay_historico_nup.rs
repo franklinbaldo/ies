@@ -118,15 +118,23 @@ fn entrada_contendo_caractere_de_controle_e_recusada_com_erro_tipado() {
     fs::remove_dir_all(pasta).unwrap();
 }
 
-
 #[test]
 fn filtro_replay_historico_seleciona_andamentos_sem_perder_identidade() {
     let pasta = acervo_com_historico("000123/2026-X");
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["replay", "historico-sei-unb", "--acervo", pasta.to_str().unwrap(),
-            "--numero-processo", "000123/2026-X", "--termo-andamento", "decisão",
-            "--json"])
-        .output().unwrap();
+        .args([
+            "replay",
+            "historico-sei-unb",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--numero-processo",
+            "000123/2026-X",
+            "--termo-andamento",
+            "decisão",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["escopo"], "historico_filtrado_offline");
@@ -134,7 +142,10 @@ fn filtro_replay_historico_seleciona_andamentos_sem_perder_identidade() {
     assert_eq!(json["total_observado"], 2);
     assert_eq!(json["total_filtrado"], 1);
     assert_eq!(json["processo"]["numero"], "000123/2026-X");
-    assert_eq!(json["processo"]["andamentos"][0]["descricao"], "Decisão assinada");
+    assert_eq!(
+        json["processo"]["andamentos"][0]["descricao"],
+        "Decisão assinada"
+    );
     assert!(!String::from_utf8_lossy(&output.stdout).contains("Processo recebido"));
     fs::remove_dir_all(pasta).unwrap();
 }
@@ -143,9 +154,17 @@ fn filtro_replay_historico_seleciona_andamentos_sem_perder_identidade() {
 fn filtro_ausente_na_cassette_nao_declara_inexistencia_no_sei() {
     let pasta = acervo_com_historico("000123/2026-X");
     let output = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["replay", "historico-sei-unb", "--acervo", pasta.to_str().unwrap(),
-            "--termo-andamento", "sem resultado", "--json"])
-        .output().unwrap();
+        .args([
+            "replay",
+            "historico-sei-unb",
+            "--acervo",
+            pasta.to_str().unwrap(),
+            "--termo-andamento",
+            "sem resultado",
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["total_observado"], 2);
