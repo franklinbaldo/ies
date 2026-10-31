@@ -1,6 +1,6 @@
 //! Prévia segura: nunca executa confirmação Web.
 use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
-use crate::{copia_documento, documento, documento_versoes};
+use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -11,6 +11,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                 numero,
                 versao,
                 confirmar,
+                listar_copias,
             }),
         ..
     }) = &cli.command
@@ -27,6 +28,52 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
             ));
         }
     };
+    if *listar_copias {
+        let pasta = match std::env::current_dir() {
+            Ok(pasta) => pasta,
+            Err(_) => {
+                return Some(erro_fonte(
+                    cli.json,
+                    "leitura_diretorio_copias_falhou",
+                    "diretório de trabalho não pode ser lido",
+                ));
+            }
+        };
+        return Some(match copia_listagem::listar(&pasta, &documento) {
+            Ok(copias) => {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "copias": copias,
+                            "escopo": "copias_de_trabalho_locais_verificadas",
+                            "versao_remota_confirmada": false,
+                            "escrita_remota": false
+                        })
+                    );
+                } else {
+                    println!(
+                        "IES: {} cópia(s) local(is) verificadas; nenhuma versão remota confirmada.",
+                        copias.len()
+                    );
+                    for copia in &copias {
+                        println!(
+                            "  {} v{}: {}",
+                            copia.documento,
+                            copia.versao_base,
+                            if copia.alterado { "alterada" } else { "inalterada" }
+                        );
+                    }
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(
+                cli.json,
+                erro.subcodigo(),
+                "listagem local de cópias não foi verificada",
+            ),
+        });
+    }
     let versao = match versao
         .map(documento_versoes::VersaoDocumento::nova)
         .transpose()
