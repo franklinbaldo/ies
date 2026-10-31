@@ -24,6 +24,10 @@ pub enum ErroCaixa {
     LimitePaginas,
     UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
+    IdentificacoesDaUnidadeRepetidasNoControle,
+    TiposDeVisualizacaoRepetidosNoControle,
+    HashesDeCriteriosRecebidosRepetidosNoControle,
+    HashesDeCriteriosGeradosRepetidosNoControle,
     ContextoNaoVerificavel,
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
@@ -54,6 +58,18 @@ impl ErroCaixa {
             Self::UnidadeInesperada => "unidade_inesperada",
             Self::IdentificacaoDaUnidadeAusenteNoControle => {
                 "identificacao_da_unidade_ausente_no_controle"
+            }
+            Self::IdentificacoesDaUnidadeRepetidasNoControle => {
+                "identificacoes_da_unidade_repetidas_no_controle"
+            }
+            Self::TiposDeVisualizacaoRepetidosNoControle => {
+                "tipos_de_visualizacao_repetidos_no_controle"
+            }
+            Self::HashesDeCriteriosRecebidosRepetidosNoControle => {
+                "hashes_de_criterios_recebidos_repetidos_no_controle"
+            }
+            Self::HashesDeCriteriosGeradosRepetidosNoControle => {
+                "hashes_de_criterios_gerados_repetidos_no_controle"
             }
             Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
             Self::ContextoDaPaginaDiferenteDoAnterior => "contexto_divergente",

@@ -46,6 +46,14 @@ A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.
 
+A unidade e os critérios de paginação publicados na tela precisam ter
+identidade inequívoca: em uma mesma resposta, IDs estruturais repetidos
+`lnkInfraUnidade`, `hdnTipoVisualizacao`,
+`hdnRecebidosHashCriterios` ou `hdnGeradosHashCriterios`
+devem ser recusados por erros tipados específicos antes de aceitar
+cobertura de páginas ou o rótulo da unidade (refs #57).
+Não selecionar o primeiro controle e ocultar o segundo.
+
 O comando de domínio só retorna sucesso quando as tabelas disponíveis
 cobrem os totais declarados. A resposta que contenha mais de uma ocorrência
 do mesmo ID estrutural `tblProcessosRecebidos` ou `tblProcessosGerados`

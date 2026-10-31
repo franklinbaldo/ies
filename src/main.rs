@@ -2,6 +2,7 @@ mod arquivo_caixa;
 mod caixa;
 mod cassette;
 mod configuracao;
+mod controle_contexto;
 mod documento;
 mod documento_web;
 mod dominio;
