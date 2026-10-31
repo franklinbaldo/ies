@@ -6,6 +6,7 @@ mod configuracao;
 mod controle_contexto;
 #[allow(dead_code)] // A criação dependerá de editor Web validado.
 mod copia_documento;
+mod copia_listagem;
 mod documento;
 mod documento_salvar_cli;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
@@ -155,6 +156,9 @@ enum DocumentoAcao {
         versao: Option<u32>,
         #[arg(long)]
         confirmar: bool,
+        /// Lista as cópias locais versionadas sem consultar o SEI
+        #[arg(long, conflicts_with_all = ["versao", "confirmar"])]
+        listar_copias: bool,
     },
     Buscar {
         #[arg(long)]
