@@ -102,17 +102,29 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
 }
 
 #[test]
-fn unidade_listar_processos_recusa_saida_ainda_nao_suportada() {
+fn unidade_listar_processos_nao_exporta_sem_sessao_autorizada() {
+    let arquivo = std::env::temp_dir().join(format!(
+        "ies-sem-sessao-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
     let output = ies(&[
         "unidade",
         "listar-processos",
         "--saida",
-        "processos.json",
+        arquivo.to_str().unwrap(),
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "saida_arquivo_nao_suportada");
+    assert_eq!(value["codigo"], "fonte_invalida");
+    assert!(
+        !arquivo.exists(),
+        "não se cria arquivo sem leitura autorizada"
+    );
 }
 
 #[test]

@@ -40,6 +40,12 @@ não efetuar POST ou login e não realizar troca automática de backend.
 Quando o total declarado exigir outras páginas, falhar explicitamente
 em vez de responder como se todos os processos tivessem sido obtidos.
 
+A opção local `--saida ARQUIVO` usa somente o resultado da mesma leitura
+já aprovada, depois da verificação de cobertura, sem GET/POST adicional.
+A exportação não deve sobrescrever arquivo existente nem publicar dados
+dos processos no comprovante; testes cobrem confidencialidade no Unix
+e falha segura de gravação.
+
 ## Evidências verificáveis
 
 - [Contrato da operação](../../contracts/cli/unidade-listar-processos.md)

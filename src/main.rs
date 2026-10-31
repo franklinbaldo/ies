@@ -1,3 +1,4 @@
+mod arquivo_caixa;
 mod caixa;
 mod cassette;
 mod configuracao;
@@ -20,6 +21,7 @@ mod saida;
 mod status_cli;
 mod transporte;
 mod unidade_atual_cli;
+mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::json;
@@ -237,83 +239,19 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn listar_processos_da_unidade(unidade: Option<&str>, json_mode: bool) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let html = match transporte::read_box_from_file(
-        &arquivos.url_controle,
-        &arquivos.cookie,
-        &arquivos.origem,
-    ) {
-        Ok(html) => html,
-        Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
-    };
-    mostrar_caixa(&[html], "web", unidade, json_mode, true)
-}
-
-fn mostrar_caixa(
-    htmls: &[String],
-    origem: &str,
-    unidade: Option<&str>,
-    json_mode: bool,
-    exigir_todas_paginas: bool,
-) -> ExitCode {
-    let leitura = match paginas::juntar(htmls, unidade) {
-        Ok(valor) => valor,
-        Err(erro) => {
-            if json_mode {
-                println!(
-                    "{}",
-                    json!({
-                        "codigo": "tela_inesperada",
-                        "subcodigo": erro.subcodigo(),
-                        "erro": erro.to_string(),
-                        "categoria": erro.categoria().map(dominio::Categoria::rotulo),
-                        "id": erro.id(),
-                        "retentavel": false
-                    })
-                );
-            } else {
-                eprintln!("IES: {erro}");
-            }
-            return ExitCode::from(1);
-        }
-    };
-    // Consulta de sessão promete a caixa inteira; replay offline só relata
-    // as páginas selecionadas, sem alegar que representam toda a unidade.
-    if exigir_todas_paginas
-        && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
-            || !leitura.gerados.completa(&leitura.caixa.gerados))
-    {
-        return erro_fonte(
-            json_mode,
-            "paginas_do_controle_nao_obtidas",
-            "o Controle de Processos possui páginas que não foram obtidas",
-        );
-    }
-    let resultado = saida::json(&leitura, origem);
-    if json_mode {
-        println!("{}", serde_json::to_string_pretty(&resultado).unwrap());
-    } else {
-        println!("{}", saida::humano(&leitura));
-    }
-    ExitCode::SUCCESS
+fn nome_cenario_aceito(cenario: &str) -> bool {
+    !cenario.is_empty()
+        && !cenario.contains("..")
+        && cenario
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
-    let cenario = &replay.cenario;
-    if cenario.is_empty()
-        || cenario.contains('/')
-        || cenario.contains('\\')
-        || cenario.contains("..")
-        || !cenario
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-    {
+    if !nome_cenario_aceito(&replay.cenario) {
         return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
     }
+    let cenario = &replay.cenario;
     let pasta = replay.acervo.join("cassettes");
     let mut encontrados = Vec::new();
     let Ok(dirs) = std::fs::read_dir(&pasta) else {
@@ -391,7 +329,14 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             if let Some(numero) = replay.numero_processo.as_deref() {
                 replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
             } else {
-                mostrar_caixa(&htmls, &origem, unidade, json_mode, replay.todas_paginas)
+                unidade_lista_cli::mostrar_caixa(
+                    &htmls,
+                    &origem,
+                    unidade,
+                    json_mode,
+                    replay.todas_paginas,
+                    None,
+                )
             }
         }
         Err(_) => erro_fonte(
@@ -495,15 +440,11 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida }),
         }) => {
-            if saida.is_some() {
-                return erro_lista(
-                    cli.json,
-                    "saida_arquivo_nao_suportada",
-                    "a opção --saida ainda não está disponível para esta operação",
-                    2,
-                );
-            }
-            return listar_processos_da_unidade(cli.unidade.as_deref(), cli.json);
+            return unidade_lista_cli::listar_processos_da_unidade(
+                cli.unidade.as_deref(),
+                cli.json,
+                saida.as_deref(),
+            );
         }
         _ => {}
     }
@@ -594,6 +535,19 @@ fn main() -> ExitCode {
             };
             let _ = err.print();
             ExitCode::from(status)
+        }
+    }
+}
+
+#[cfg(test)]
+mod testes_nome_cenario {
+    use super::nome_cenario_aceito;
+
+    #[test]
+    fn aceita_apenas_nome_de_cenario_sem_caminho() {
+        assert!(nome_cenario_aceito("processo-busca-unb--67c8f2ed35b6"));
+        for nome in ["", "../processo", "a/b", "a\\b", "a..b", "cenário", "a b"] {
+            assert!(!nome_cenario_aceito(nome), "não aceito: {nome}");
         }
     }
 }
