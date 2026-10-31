@@ -224,3 +224,21 @@ Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
 execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
 sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
 permanece `NOT_RUN`.
+
+
+## Exportar texto de documento verificado para arquivo privado
+
+`ies replay CENARIO --documento --numero-documento DOC --texto-documento
+--arquivo-texto DESTINO --json` grava o texto visível extraído de
+`documento_imprimir_web` após verificar card, ZIP, identidade do documento
+e corpo HTML. O destino é **arquivo novo**, nunca sobrescrito; diretório
+deve existir e em Unix é criado com permissão `0600`.
+Link simbólico existente também é recusado. Em caso de escrita incompleta,
+o arquivo recém-criado é descartado.
+
+O terminal retorna somente tipo/número, instalação, total de bytes e
+`escopo: texto_documento_exportado_offline`, **sem publicar o texto nem
+o caminho privado**. Falhas de destino possuem subcódigo tipado. A
+extração segue sem rede nem autenticação e não implica capacidade
+`ies documento DOC` live. Usar apenas com informações autorizadas.
+Refs #60.

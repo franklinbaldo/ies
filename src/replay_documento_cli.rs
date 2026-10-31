@@ -1,5 +1,5 @@
 //! Seleção por número exato a partir de HTML de documento já verificado, sem rede.
-use crate::cassette;
+use crate::{arquivo_texto_documento, cassette};
 use crate::documento::{NumeroDocumento, NumeroDocumentoInvalido};
 use crate::documento_web::{
     ErroCorpoDocumento, ErroTituloDocumento, IdentidadeDoDocumento, identidade_do_titulo,
@@ -94,6 +94,7 @@ pub(super) fn mostrar(
     numero: Option<&str>,
     listar: bool,
     texto: bool,
+    arquivo_texto: Option<&Path>,
     json_mode: bool,
 ) -> ExitCode {
     if listar {
@@ -101,6 +102,23 @@ pub(super) fn mostrar(
     }
     match ler(card, arquivo, passos, numero, texto) {
         Ok((documento, instalacao, conteudo)) => {
+            if let Some(destino) = arquivo_texto {
+                let Some(texto) = conteudo.as_deref() else {
+                    return erro_exportacao("texto_documento_nao_selecionado", json_mode);
+                };
+                return match arquivo_texto_documento::salvar(destino, texto) {
+                    Ok(bytes) => {
+                        if json_mode {
+                            println!("{}", json!({"documento":documento,"instalacao":instalacao,
+                                "escopo":"texto_documento_exportado_offline","bytes":bytes}));
+                        } else {
+                            println!("IES: texto de documento {} gravado em arquivo privado.", documento.numero);
+                        }
+                        ExitCode::SUCCESS
+                    }
+                    Err(erro) => erro_exportacao(erro.subcodigo(), json_mode),
+                };
+            }
             if json_mode {
                 println!(
                     "{}",
@@ -251,4 +269,15 @@ mod testes_listagem {
             ))
         );
     }
+}
+
+
+fn erro_exportacao(subcodigo: &str, json_mode: bool) -> ExitCode {
+    if json_mode {
+        println!("{}", json!({"codigo":"arquivo_privado_invalido",
+            "subcodigo":subcodigo,"retentavel":false}));
+    } else {
+        eprintln!("IES: exportação de texto não concluída [{subcodigo}]");
+    }
+    ExitCode::from(1)
 }

@@ -1,4 +1,5 @@
 mod arquivo_caixa;
+mod arquivo_texto_documento;
 mod caixa;
 mod cassette;
 mod configuracao;
@@ -179,6 +180,9 @@ struct Replay {
     /// Inclui o texto visível do corpo no replay offline do documento
     #[arg(long, requires = "documento", conflicts_with = "listar_documentos")]
     texto_documento: bool,
+    /// Salva o texto verificado em arquivo privado novo, sem exibir o corpo no terminal
+    #[arg(long, requires = "texto_documento")]
+    arquivo_texto: Option<PathBuf>,
     /// Lista as identidades distintas observadas em documentos da cassette
     #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
     listar_documentos: bool,
@@ -333,6 +337,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             replay.numero_documento.as_deref(),
             replay.listar_documentos,
             replay.texto_documento,
+            replay.arquivo_texto.as_deref(),
             json_mode,
         );
     }
