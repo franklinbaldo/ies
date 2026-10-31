@@ -46,6 +46,15 @@ steps:
           'd13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33  rust-toolchain.toml' \
           'e65f44384e703d19d96028376dd597e26924fbe59dbd200040b1e7ced6b6df20  Cargo.toml' \
           | sha256sum --check --status
+        # Sem arquivo .cargo local: a branch poderia redefinir rustc/rustc-wrapper
+        # ou aliases e tornar os executores de validação não confiáveis.
+        # Main aprovada também não possui configuração rustfmt externa.
+        for caminho in .cargo .rustfmt.toml rustfmt.toml; do
+          if [ -e "$$caminho" ] || [ -L "$$caminho" ]; then
+            echo "FAIL: configuração local de ferramenta fora da main: $$caminho" >&2
+            exit 1
+          fi
+        done
         # Cargo executa xtask/build.rs automaticamente, mesmo sem declarar
         # esse arquivo no manifesto. Proteger a árvore inteira, não somente
         # os binários atuais. Alterações de checker pedem revisão independente.

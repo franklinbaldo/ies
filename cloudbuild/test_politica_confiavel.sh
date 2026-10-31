@@ -18,8 +18,9 @@ if ! grep -q '^serviceAccount: projects/virtual-computer-fsb/serviceAccounts/ies
   exit 1
 fi
 mkdir "$temporarios/correto" "$temporarios/politica-trocada" "$temporarios/toolchain-trocada" \
-  "$temporarios/checker-trocado" "$temporarios/build-script-injetado" "$temporarios/workspace-trocado" "$temporarios/checker-link"
-for pasta in correto politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link; do
+  "$temporarios/checker-trocado" "$temporarios/build-script-injetado" "$temporarios/workspace-trocado" "$temporarios/checker-link" \
+  "$temporarios/cargo-config-injetado" "$temporarios/rustfmt-config-injetado"
+for pasta in correto politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado; do
   cp prek.toml rust-toolchain.toml Cargo.toml "$temporarios/$pasta/"
   cp -a xtask "$temporarios/$pasta/"
 done
@@ -33,8 +34,13 @@ printf 'fn main() {}\n' > "$temporarios/build-script-injetado/xtask/build.rs"
 printf '\n# workspace alterado pela PR\n' >> "$temporarios/workspace-trocado/Cargo.toml"
 # Um symlink não pode escapar ao inventário de fontes aprovado.
 ln -s src/bin/check_size.rs "$temporarios/checker-link/xtask/build.rs"
+# A configuração Cargo local pode substituir o compilador por um executável
+# controlado pela branch, mesmo que Cargo.toml e xtask sejam autênticos.
+mkdir "$temporarios/cargo-config-injetado/.cargo"
+printf '[build]\nrustc = "./executavel-da-pr"\n' > "$temporarios/cargo-config-injetado/.cargo/config.toml"
+printf 'skip_children = true\n' > "$temporarios/rustfmt-config-injetado/.rustfmt.toml"
 (cd "$temporarios/correto"; bash -eu "$temporarios/preflight.sh" >/dev/null)
-for pasta in politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link; do
+for pasta in politica-trocada toolchain-trocada checker-trocado build-script-injetado workspace-trocado checker-link cargo-config-injetado rustfmt-config-injetado; do
   if (cd "$temporarios/$pasta"; bash -eu "$temporarios/preflight.sh" >/dev/null 2>&1); then
     echo "FAIL: aceitou configuração adulterada: $pasta" >&2
     exit 1
