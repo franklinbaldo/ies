@@ -269,7 +269,7 @@ fn executar_replay_documento(
     if replay.historico_versoes {
         return replay_versoes_cli::mostrar(
             card,
-            &zip,
+            zip,
             &replay.passo,
             replay.numero_documento.as_deref(),
             replay.id_documento_interno.as_deref(),
