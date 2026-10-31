@@ -71,3 +71,20 @@ instalação. Veja também [árvore do processo](../../docs/como-o-sei-funciona/
 e [paginação](../../docs/como-o-sei-funciona/tabelas-e-paginacao.md).
 
 A aprovação da interface não comprova paridade nem execução HTTP no IES.
+
+
+## Exportação privada do resumo observado na caixa (Refs #59)
+
+`ies processo NUP --resumo --saida CAMINHO [--json]` grava **em novo arquivo
+privado** a mesma projeção de identidade da caixa que `--resumo --json`
+produz: número exato, unidade, categoria e ocorrências observadas.
+`--saida` exige `--resumo`; o comando `processo NUP` sem resumo
+não passa a consultar a árvore, documentos ou histórico.
+
+O arquivo é criado sem sobrescrever destino preexistente, com permissão
+0600 em Unix e erros tipados já definidos para arquivo da caixa. No
+terminal, apenas estado e bytes gravados; nunca imprimir dados do resumo
+no modo de exportação. Continua exigindo cobertura da caixa antes da
+consulta e usa **o mesmo GET** autorizado da operação de resumo, sem
+novas solicitações Web. Não equivale a processo completo, snapshot da
+instalação ou consulta fora da caixa.

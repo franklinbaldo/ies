@@ -1,12 +1,18 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
     Cli, Domain, Processo, configuracao, erro_fonte, erro_lista, paginas, processo,
-    resumo_processo, transporte,
+    resumo_exportacao, resumo_processo, transporte,
 };
 use serde_json::json;
+use std::path::Path;
 use std::process::ExitCode;
 
-fn mostrar_resumo_processo(numero: &str, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+fn mostrar_resumo_processo(
+    numero: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -46,16 +52,29 @@ fn mostrar_resumo_processo(numero: &str, unidade: Option<&str>, json_mode: bool)
             "o número solicitado não aparece na Caixa de Entrada desta unidade; isso não prova que o processo não existe",
         );
     }
+    let modelo = resumo_exportacao::modelo(numero, leitura.unidade.as_deref(), &achados);
+    if let Some(destino) = destino {
+        return match resumo_exportacao::gravar(destino, &modelo) {
+            Ok(bytes) => {
+                if json_mode {
+                    println!(
+                        "{}",
+                        json!({
+                            "arquivo": "gravado",
+                            "bytes": bytes,
+                            "escopo": "resumo_da_caixa"
+                        })
+                    );
+                } else {
+                    println!("IES: resumo da caixa gravado em arquivo privado ({bytes} bytes).");
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        };
+    }
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "numero": numero,
-                "escopo": "resumo_da_caixa",
-                "ocorrencias": achados,
-                "unidade": leitura.unidade
-            })
-        );
+        println!("{modelo}");
     } else {
         println!(
             "IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.",
@@ -70,6 +89,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         numero: Some(numero),
         resumo: true,
         andamentos_completos,
+        saida,
         acao: None,
         ..
     }) = &cli.command
@@ -89,6 +109,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         numero,
         cli.unidade.as_deref(),
         cli.json,
+        saida.as_deref(),
     ))
 }
 

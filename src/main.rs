@@ -30,6 +30,7 @@ mod replay_consulta;
 mod replay_documento_cli;
 mod replay_pesquisa_cli;
 mod replay_versoes_cli;
+mod resumo_exportacao;
 mod resumo_processo;
 mod saida;
 mod status_cli;
@@ -83,6 +84,9 @@ struct Processo {
     /// Consulta somente a identidade já exibida na Caixa de Entrada
     #[arg(long)]
     resumo: bool,
+    /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
+    #[arg(long, requires = "resumo")]
+    saida: Option<PathBuf>,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
