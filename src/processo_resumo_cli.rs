@@ -84,7 +84,6 @@ fn mostrar_resumo_processo(
     ExitCode::SUCCESS
 }
 
-
 fn mostrar_resumo_de_caixa_local(
     numero: &str,
     unidade: Option<&str>,
