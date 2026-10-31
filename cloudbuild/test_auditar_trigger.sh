@@ -73,3 +73,4 @@ recusar "$tmp/trigger-impersonado.json" "$aprovado"
 jq '.resourceName = "projects/virtual-computer-fsb/locations/us-central1/triggers/00000000-0000-0000-0000-000000000000"' "$tmp/valido.json" > "$tmp/outra-identidade.json"
 recusar "$tmp/outra-identidade.json" "$aprovado"
 echo "PASS: fonte inline, identidade do trigger e build integral aprovados; dezoito cenários negativos recusados"
+bash ./test_politica_confiavel.sh

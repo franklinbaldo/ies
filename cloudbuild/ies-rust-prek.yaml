@@ -36,9 +36,18 @@ steps:
           git add --all
         fi
         rustup component add rustfmt clippy
+        # INICIO_POLITICA_CONFIAVEL
+        # Estes SHA-256 são aprovados a partir da main, fora do checkout da PR.
+        # Uma PR que altera gates/toolchain deve ter revisão da política antes.
+        printf '%s\n' \
+          '48b0c8e2e27d4c242c1c14d02835e38e4c0731f41dcb61b4a360200d74dad568  prek.toml' \
+          'd13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33  rust-toolchain.toml' \
+          | sha256sum --check --status
+        # FIM_POLITICA_CONFIAVEL
         uv --version
         rustc --version
         uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
+serviceAccount: projects/virtual-computer-fsb/serviceAccounts/ies-ci@virtual-computer-fsb.iam.gserviceaccount.com
 options:
   machineType: E2_HIGHCPU_8
   logging: CLOUD_LOGGING_ONLY
