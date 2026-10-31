@@ -6,6 +6,8 @@ trap 'rm -rf "$tmp"' EXIT
 cat > "$tmp/valido.json" <<'JSON'
 {
   "name": "ies-pr-ci",
+  "id": "ecaec137-806f-428a-8b19-e3e5b9387dcc",
+  "resourceName": "projects/virtual-computer-fsb/locations/us-central1/triggers/ecaec137-806f-428a-8b19-e3e5b9387dcc",
   "repositoryEventConfig": {
     "repository": "projects/virtual-computer-fsb/locations/us-central1/connections/judicial-github/repositories/ies",
     "repositoryType": "GITHUB",
@@ -61,4 +63,10 @@ jq '.build.artifacts = {"objects":{"location":"gs://outro-bucket/builds/","paths
 recusar "$tmp/artefatos-nao-aprovados.json" "$aprovado"
 jq '.build.substitutions = {"_MODO":"ignorar-validacao"}' "$tmp/valido.json" > "$tmp/substituicoes-nao-aprovadas.json"
 recusar "$tmp/substituicoes-nao-aprovadas.json" "$aprovado"
-echo "PASS: fonte inline de confiança e build integral aprovados; quinze cenários negativos recusados"
+# Dois triggers podem ter o mesmo nome/repositório/build sem serem o gate
+# efetivamente exigido pelo GitHub. Exigir a identidade imutável da instância.
+jq '.id = "00000000-0000-0000-0000-000000000000"' "$tmp/valido.json" > "$tmp/trigger-impersonado.json"
+recusar "$tmp/trigger-impersonado.json" "$aprovado"
+jq '.resourceName = "projects/virtual-computer-fsb/locations/us-central1/triggers/00000000-0000-0000-0000-000000000000"' "$tmp/valido.json" > "$tmp/outra-identidade.json"
+recusar "$tmp/outra-identidade.json" "$aprovado"
+echo "PASS: fonte inline, identidade do trigger e build integral aprovados; dezessete cenários negativos recusados"
