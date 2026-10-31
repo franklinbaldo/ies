@@ -74,7 +74,14 @@ de leitura integral do processo.
 `ies replay CENARIO --documento --json` seleciona somente a resposta
 `documento_imprimir_web` da cassette verificada e extrai do título o
 número SEI e o tipo, preservando zeros. Se houver mais de uma resposta,
-use `--passo N` para selecionar um único HTML registrado. Não envia
+use `--passo N` para selecionar um único HTML registrado. O recorte `--documento --numero-documento DOC` exige número SEI decimal
+com zeros preservados e escolhe **somente** o título exato desse documento
+entre todas as respostas `documento_imprimir_web` GET verificadas da
+cassette; falha ao faltar a identidade, existir mais de uma resposta com
+o mesmo número, ou aparecer título sem identificação SEI. Não escolhe
+um documento por posição arbitrária nem por substrings. `--passo N`
+continua disponível para limitar manualmente o escopo da consulta.
+Não envia
 requisições, não expõe o HTML integral e **não equivale** a
 `ies documento NUMERO`: conteúdo e propriedades ainda não foram lidos.
 
