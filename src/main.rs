@@ -473,8 +473,16 @@ fn run(cli: &Cli) -> ExitCode {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida, .. }),
+            acao: Some(UnidadeAcao::ListarProcessos { saida, categoria }),
         }) => {
+            if let Some(categoria) = categoria {
+                return unidade_categoria::listar_categoria(
+                    cli.unidade.as_deref(),
+                    cli.json,
+                    saida.as_deref(),
+                    *categoria,
+                );
+            }
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,
