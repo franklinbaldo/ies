@@ -1,7 +1,7 @@
 //! Diagnóstico opt-in do Controle Web: nunca revela processos ou links assinados.
 use crate::erro_web::ErroCaixa;
 use crate::{configuracao, paginas, transporte};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,18 +81,24 @@ mod testes {
 
     #[test]
     fn comando_web_requer_opt_in_e_recusa_mistura_com_validacao_local() {
+        assert!(crate::Cli::try_parse_from(["ies", "status", "--verificar-controle-web"]).is_ok());
         assert!(
-            crate::Cli::try_parse_from(["ies", "status", "--verificar-controle-web"]).is_ok()
+            crate::Cli::try_parse_from([
+                "ies",
+                "status",
+                "--verificar-controle-web",
+                "--verificar-sessao-local"
+            ])
+            .is_err()
         );
         assert!(
             crate::Cli::try_parse_from([
-                "ies", "status", "--verificar-controle-web", "--verificar-sessao-local"
-            ]).is_err()
-        );
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies", "status", "--verificar-controle-web", "--verificar-arquivos"
-            ]).is_err()
+                "ies",
+                "status",
+                "--verificar-controle-web",
+                "--verificar-arquivos"
+            ])
+            .is_err()
         );
     }
 
