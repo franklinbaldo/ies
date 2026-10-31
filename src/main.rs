@@ -2,9 +2,14 @@ mod arquivo_caixa;
 mod caixa;
 mod cassette;
 mod configuracao;
+#[allow(dead_code)] // A criação dependerá de editor Web validado.
+mod copia_documento;
 mod controle_contexto;
 mod documento;
 mod documento_web;
+#[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
+mod documento_versoes;
+mod documento_salvar_cli;
 mod dominio;
 mod erro_web;
 mod historico;
@@ -117,6 +122,12 @@ struct Documento {
     /// Contexto de processo, quando conhecido
     #[arg(long)]
     processo: Option<String>,
+    /// Solicita exatamente esta versão histórica (requer transporte autorizado)
+    #[arg(long)]
+    versao: Option<u32>,
+    /// Não prepara cópia editável ao ler
+    #[arg(long)]
+    sem_copia: bool,
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,
@@ -132,6 +143,14 @@ struct Documento {
 
 #[derive(Debug, Subcommand)]
 enum DocumentoAcao {
+    /// Prévia de cópia local; confirmação remota ainda bloqueada
+    Salvar {
+        numero: String,
+        #[arg(long)]
+        versao: Option<u32>,
+        #[arg(long)]
+        confirmar: bool,
+    },
     Buscar {
         #[arg(long)]
         assunto: Option<String>,
@@ -443,6 +462,11 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
 }
 
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = documento_salvar_cli::tentar_salvar_documento(cli) { return status; }
+    if let Domain::Documento(Documento { acao: None, versao: Some(versao), .. }) = &cli.command
+        && let Err(erro) = documento_versoes::VersaoDocumento::nova(*versao) {
+        return erro_fonte(cli.json, erro.subcodigo(), "versão do documento inválida");
+    }
     if let Some(status) = processo_resumo_cli::tentar_resumo(cli) {
         return status;
     }

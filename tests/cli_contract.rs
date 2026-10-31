@@ -324,3 +324,33 @@ fn configuracao_explicita_ilegivel_nao_usa_caminhos_de_fallback() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "arquivo_configuracao_nao_pode_ser_lido");
 }
+
+#[test]
+fn documento_versao_zero_rejeitada_sem_rede() {
+    let output = ies(&["documento", "0011519", "--versao", "0", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "versao_documento_invalida");
+}
+
+#[test]
+fn documento_sem_copia_nao_prepara_arquivo_sem_sessao() {
+    let output = ies(&["documento", "0011519", "--sem-copia", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["codigo"], "nao_implementado");
+}
+
+#[test]
+fn salvar_local_sem_base_nao_envia_escrita_remota() {
+    let pasta = std::env::temp_dir().join(format!("ies-salvar-local-{}", std::process::id()));
+    std::fs::create_dir_all(&pasta).unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta)
+        .args(["documento", "salvar", "0011519", "--versao", "4", "--confirmar", "--json"])
+        .output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "base_versao_ausente");
+    std::fs::remove_dir_all(pasta).unwrap();
+}

@@ -17,6 +17,8 @@ visível. A implementação atual permanece um stub sem acesso à rede.
 
 - `DOC [DOC ...]`: um ou mais números de documento.
 - `--processo NUP`: contexto opcional, quando informado.
+- `--versao N`: índice positivo de versão histórica solicitado; continua indisponível sem árvore e sessão Web verificadas. Não implica listagem pública.
+- `--sem-copia`: leitura sem preparação de cópia local; hoje não altera o stub.
 - `--saida DIR`: diretório de saída para conteúdo baixado.
 - `--ocultar-inacessiveis`: não expor documentos que a sessão não pode acessar.
 - `--com-propriedades`: inclui os metadados do cadastro do documento.

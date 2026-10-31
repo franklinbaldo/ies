@@ -39,6 +39,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade listar-processos`
 - `ies processo enviar NUP --para SIGLA`
 - `ies documento assinar NUMERO`
+- `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
 - `ies esquema`
@@ -47,6 +48,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 - [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+- [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos.
 
 O comando `ies unidade listar-processos` possui **leitura HTTP GET
@@ -55,6 +57,6 @@ explicitamente autorizada, ou replay offline verificado. Não faz
 login, POST ou paginação HTTP. Sem esses insumos retorna
 `nao_implementado`.
 
-`processo NUP`, `documento NUMERO` e comandos de escrita continuam
-como stubs. A autorização e a equivalência de outras rotas exigem
+`processo NUP`, `documento NUMERO` e a escrita remota continuam
+como stubs. A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
 ensaios por cassette e por instalação.
