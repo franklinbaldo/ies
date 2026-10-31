@@ -163,7 +163,14 @@ fn linhas_do_historico(
             let titulos: Vec<_> = cols.iter().map(|n| texto(n, parser)).collect();
             if cabecalho
                 || titulos
-                    != ["", "Versão", "Usuário", "Unidade", "Última Modificação", "Ações"]
+                    != [
+                        "",
+                        "Versão",
+                        "Usuário",
+                        "Unidade",
+                        "Última Modificação",
+                        "Ações",
+                    ]
             {
                 return Err(ErroVersao::ColunasInesperadas);
             }
@@ -284,10 +291,11 @@ pub fn interpretar_historico(
 mod testes {
     use super::*;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {
-        let mut linhas = String::new();
         use std::fmt::Write as _;
+        let mut linhas = String::new();
         for (&n, &id) in numeros.iter().zip(ids) {
-            let _ = write!(linhas,
+            let _ = write!(
+                linhas,
                 "<tr><td><input type=\"checkbox\" /></td><td>{n}</td><td><a>Ana</a></td><td><a>PPI</a></td><td>31/10/2026</td><td><a href=\"controlador.php?acao=documento_visualizar&amp;id_documento={id}&amp;versao={n}&amp;infra_hash={}\">Ver</a></td></tr>",
                 "a".repeat(64)
             );

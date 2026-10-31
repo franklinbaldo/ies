@@ -99,7 +99,11 @@ pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
     }) = &cli.command
         && let Err(erro) = documento_versoes::VersaoDocumento::nova(*versao)
     {
-        return Some(erro_fonte(cli.json, erro.subcodigo(), "versão do documento inválida"));
+        return Some(erro_fonte(
+            cli.json,
+            erro.subcodigo(),
+            "versão do documento inválida",
+        ));
     }
     None
 }
