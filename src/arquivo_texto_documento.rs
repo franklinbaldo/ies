@@ -76,12 +76,22 @@ mod tests {
     fn salva_texto_exato_em_arquivo_privado_novo_sem_sobrescrever() {
         let pasta = pasta();
         let destino = pasta.join("0007.txt");
-        assert_eq!(salvar(&destino, "Decisão\nAssinada"), Ok("Decisão\nAssinada".len()));
+        assert_eq!(
+            salvar(&destino, "Decisão\nAssinada"),
+            Ok("Decisão\nAssinada".len())
+        );
         assert_eq!(fs::read_to_string(&destino).unwrap(), "Decisão\nAssinada");
-        assert_eq!(salvar(&destino, "OUTRO"), Err(ErroArquivoTexto::DestinoJaExiste));
-        #[cfg(unix)] {
+        assert_eq!(
+            salvar(&destino, "OUTRO"),
+            Err(ErroArquivoTexto::DestinoJaExiste)
+        );
+        #[cfg(unix)]
+        {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(&destino).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
         }
         fs::remove_dir_all(pasta).unwrap();
     }
@@ -90,7 +100,10 @@ mod tests {
     fn ausencia_de_diretorio_tem_erro_tipado_e_nao_cria_destino() {
         let pasta = pasta();
         let destino = pasta.join("inexistente/0007.txt");
-        assert_eq!(salvar(&destino, "conteúdo"), Err(ErroArquivoTexto::DiretorioAusente));
+        assert_eq!(
+            salvar(&destino, "conteúdo"),
+            Err(ErroArquivoTexto::DiretorioAusente)
+        );
         assert!(!destino.exists());
         fs::remove_dir_all(pasta).unwrap();
     }
@@ -104,7 +117,10 @@ mod tests {
         fs::write(&original, "NAO SUBSTITUIR").unwrap();
         let destino = pasta.join("texto.txt");
         symlink(&original, &destino).unwrap();
-        assert_eq!(salvar(&destino, "INTRUSO"), Err(ErroArquivoTexto::DestinoJaExiste));
+        assert_eq!(
+            salvar(&destino, "INTRUSO"),
+            Err(ErroArquivoTexto::DestinoJaExiste)
+        );
         assert_eq!(fs::read_to_string(&original).unwrap(), "NAO SUBSTITUIR");
         fs::remove_dir_all(pasta).unwrap();
     }

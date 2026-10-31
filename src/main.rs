@@ -336,7 +336,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &replay.passo,
             replay.numero_documento.as_deref(),
             replay.listar_documentos,
-            replay_documento_cli::SaidaDocumento {
+            &replay_documento_cli::SaidaDocumento {
                 texto: replay.texto_documento,
                 arquivo: replay.arquivo_texto.as_deref(),
             },

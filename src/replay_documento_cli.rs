@@ -1,10 +1,10 @@
 //! Seleção por número exato a partir de HTML de documento já verificado, sem rede.
-use crate::{arquivo_texto_documento, cassette};
 use crate::documento::{NumeroDocumento, NumeroDocumentoInvalido};
 use crate::documento_web::{
     ErroCorpoDocumento, ErroTituloDocumento, IdentidadeDoDocumento, identidade_do_titulo,
     texto_do_corpo,
 };
+use crate::{arquivo_texto_documento, cassette};
 use serde_json::json;
 use std::collections::HashSet;
 use std::path::Path;
@@ -98,7 +98,7 @@ pub(super) fn mostrar(
     passos: &[usize],
     numero: Option<&str>,
     listar: bool,
-    saida: SaidaDocumento<'_>,
+    saida: &SaidaDocumento<'_>,
     json_mode: bool,
 ) -> ExitCode {
     if listar {
@@ -113,10 +113,16 @@ pub(super) fn mostrar(
                 return match arquivo_texto_documento::salvar(destino, texto) {
                     Ok(bytes) => {
                         if json_mode {
-                            println!("{}", json!({"documento":documento,"instalacao":instalacao,
-                                "escopo":"texto_documento_exportado_offline","bytes":bytes}));
+                            println!(
+                                "{}",
+                                json!({"documento":documento,"instalacao":instalacao,
+                                "escopo":"texto_documento_exportado_offline","bytes":bytes})
+                            );
                         } else {
-                            println!("IES: texto de documento {} gravado em arquivo privado.", documento.numero);
+                            println!(
+                                "IES: texto de documento {} gravado em arquivo privado.",
+                                documento.numero
+                            );
                         }
                         ExitCode::SUCCESS
                     }
@@ -275,11 +281,13 @@ mod testes_listagem {
     }
 }
 
-
 fn erro_exportacao(subcodigo: &str, json_mode: bool) -> ExitCode {
     if json_mode {
-        println!("{}", json!({"codigo":"arquivo_privado_invalido",
-            "subcodigo":subcodigo,"retentavel":false}));
+        println!(
+            "{}",
+            json!({"codigo":"arquivo_privado_invalido",
+            "subcodigo":subcodigo,"retentavel":false})
+        );
     } else {
         eprintln!("IES: exportação de texto não concluída [{subcodigo}]");
     }
