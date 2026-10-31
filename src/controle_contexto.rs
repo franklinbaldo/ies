@@ -70,14 +70,11 @@ pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa
         criterios_gerados: valor_oculto(&dom, "hdnGeradosHashCriterios")?,
     })
 }
-
-
 // O primeiro ID nunca comprova unicidade. Mesmo que o valor coincida, a
 // resposta precisa ser unívoca antes de certificar identidade de página.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> bool {
-    dom.query_selector(&format!("#{id}")).is_some_and(|mut encontrados| {
-        encontrados.next().is_some() && encontrados.next().is_some()
-    })
+    dom.query_selector(&format!("#{id}"))
+        .is_some_and(|mut encontrados| encontrados.next().is_some() && encontrados.next().is_some())
 }
 
 fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
@@ -91,9 +88,7 @@ fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaix
     if id_repetido(dom, id) {
         return Err(match id {
             "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
-            "hdnRecebidosHashCriterios" => {
-                ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
-            }
+            "hdnRecebidosHashCriterios" => ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
             "hdnGeradosHashCriterios" => ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
             _ => ErroCaixa::ContextoNaoVerificavel,
         });
