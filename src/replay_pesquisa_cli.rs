@@ -19,7 +19,6 @@ enum ErroReplayPesquisa {
     NumeroNaoObservadoNaRespostaDePesquisa,
     RespostasParaConsolidarInsuficientes,
     NumeroDePesquisaRepetidoEntreRespostas,
-    ConsolidacaoPendente,
 }
 impl ErroReplayPesquisa {
     fn subcodigo(self) -> &'static str {
@@ -38,7 +37,6 @@ impl ErroReplayPesquisa {
             Self::NumeroDePesquisaRepetidoEntreRespostas => {
                 "numero_de_pesquisa_repetido_entre_respostas"
             }
-            Self::ConsolidacaoPendente => "consolidacao_de_pesquisa_nao_implementada",
         }
     }
     fn codigo(self) -> (&'static str, u8) {
@@ -50,8 +48,7 @@ impl ErroReplayPesquisa {
             Self::NumeroNaoObservadoNaRespostaDePesquisa => ("numero_nao_observado", 1),
             Self::RespostaDePesquisaNaoVerificada
             | Self::Pagina(_)
-            | Self::NumeroDePesquisaRepetidoEntreRespostas
-            | Self::ConsolidacaoPendente => ("fonte_invalida", 1),
+            | Self::NumeroDePesquisaRepetidoEntreRespostas => ("fonte_invalida", 1),
         }
     }
 }
@@ -81,8 +78,17 @@ fn selecionar_numero(
 fn juntar_resultados(
     paginas: Vec<Vec<pesquisa_web::ResultadoPesquisa>>,
 ) -> Result<Vec<pesquisa_web::ResultadoPesquisa>, ErroReplayPesquisa> {
-    let _ = paginas;
-    Err(ErroReplayPesquisa::ConsolidacaoPendente)
+    let mut vistos = HashSet::new();
+    let mut resultado = Vec::new();
+    for pagina in paginas {
+        for processo in pagina {
+            if !vistos.insert(processo.numero.as_str().to_owned()) {
+                return Err(ErroReplayPesquisa::NumeroDePesquisaRepetidoEntreRespostas);
+            }
+            resultado.push(processo);
+        }
+    }
+    Ok(resultado)
 }
 
 fn mostrar_consolidado(
