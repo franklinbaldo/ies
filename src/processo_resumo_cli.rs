@@ -57,11 +57,14 @@ fn mostrar_resumo_processo(
         return match resumo_exportacao::gravar(destino, &modelo) {
             Ok(bytes) => {
                 if json_mode {
-                    println!("{}", json!({
-                        "arquivo": "gravado",
-                        "bytes": bytes,
-                        "escopo": "resumo_da_caixa"
-                    }));
+                    println!(
+                        "{}",
+                        json!({
+                            "arquivo": "gravado",
+                            "bytes": bytes,
+                            "escopo": "resumo_da_caixa"
+                        })
+                    );
                 } else {
                     println!("IES: resumo da caixa gravado em arquivo privado ({bytes} bytes).");
                 }
