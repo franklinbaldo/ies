@@ -16,7 +16,6 @@ enum ErroReplayPesquisa {
     Pagina(pesquisa_web::ErroResultadoPesquisa),
     NumeroSolicitado(NumeroProcessoInvalido),
     NumeroNaoObservadoNaRespostaDePesquisa,
-    FiltroDePesquisaNaoImplementado,
 }
 impl ErroReplayPesquisa {
     fn subcodigo(self) -> &'static str {
@@ -29,7 +28,6 @@ impl ErroReplayPesquisa {
             Self::NumeroNaoObservadoNaRespostaDePesquisa => {
                 "numero_nao_observado_na_resposta_de_pesquisa"
             }
-            Self::FiltroDePesquisaNaoImplementado => "filtro_de_pesquisa_nao_implementado",
         }
     }
     fn codigo(self) -> (&'static str, u8) {
@@ -39,9 +37,7 @@ impl ErroReplayPesquisa {
             }
             Self::NumeroSolicitado(_) => ("entrada_invalida", 2),
             Self::NumeroNaoObservadoNaRespostaDePesquisa => ("numero_nao_observado", 1),
-            Self::RespostaDePesquisaNaoVerificada
-            | Self::FiltroDePesquisaNaoImplementado
-            | Self::Pagina(_) => ("fonte_invalida", 1),
+            Self::RespostaDePesquisaNaoVerificada | Self::Pagina(_) => ("fonte_invalida", 1),
         }
     }
 }
@@ -57,8 +53,12 @@ fn selecionar_numero(
     solicitado: Option<&str>,
 ) -> Result<Vec<pesquisa_web::ResultadoPesquisa>, ErroReplayPesquisa> {
     let Some(numero) = solicitado else { return Ok(processos); };
-    let _numero = NumeroProcesso::novo(numero).map_err(ErroReplayPesquisa::NumeroSolicitado)?;
-    Err(ErroReplayPesquisa::FiltroDePesquisaNaoImplementado)
+    let numero = NumeroProcesso::novo(numero).map_err(ErroReplayPesquisa::NumeroSolicitado)?;
+    processos
+        .into_iter()
+        .find(|processo| processo.numero == numero)
+        .map(|processo| vec![processo])
+        .ok_or(ErroReplayPesquisa::NumeroNaoObservadoNaRespostaDePesquisa)
 }
 
 pub(super) fn mostrar(
