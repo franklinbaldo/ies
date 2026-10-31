@@ -152,6 +152,8 @@ enum UnidadeAcao {
     },
 }
 
+// As opções do replay são flags independentes de cenários, não estado de domínio.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 struct Replay {
     /// Nome do cenário OKF, sem caminho, ex.: processo-andamento-go
