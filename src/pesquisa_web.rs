@@ -66,10 +66,17 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .flatten()
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?
             .as_utf8_str();
-        let acao_confirmada = href.starts_with("controlador.php?")
-            && href
-                .split(['?', '&'])
-                .any(|campo| campo == "acao=procedimento_trabalhar");
+        // Não aceitar múltiplos parâmetros de ação: proxies/servidores podem
+        // escolher o primeiro ou o último, tornando o destino indeterminado.
+        // tl preserva entidades HTML em atributos de algumas versões do SEI.
+        let acao_confirmada = href.strip_prefix("controlador.php?").is_some_and(|query| {
+            let acoes: Vec<_> = query
+                .split('&')
+                .map(|campo| campo.strip_prefix("amp;").unwrap_or(campo))
+                .filter_map(|campo| campo.strip_prefix("acao="))
+                .collect();
+            acoes == ["procedimento_trabalhar"]
+        });
         if !acao_confirmada {
             return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
         }
@@ -124,6 +131,18 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido)
+        );
+    }
+
+    #[test]
+    fn recusa_duas_acoes_no_mesmo_link_antes_de_projetar_nup() {
+        let html = RESULTADO.replace(
+            "&amp;id_procedimento=7",
+            "&amp;acao=documento_imprimir_web&amp;id_procedimento=7",
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
         );
     }
 
