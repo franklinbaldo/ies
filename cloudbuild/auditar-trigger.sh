@@ -23,8 +23,13 @@ fi
 
 service_account="projects/virtual-computer-fsb/serviceAccounts/ies-ci@virtual-computer-fsb.iam.gserviceaccount.com"
 repositorio="projects/virtual-computer-fsb/locations/us-central1/connections/judicial-github/repositories/ies"
-if ! jq -e --arg sa "$service_account" --arg repositorio "$repositorio" '
+trigger_id="ecaec137-806f-428a-8b19-e3e5b9387dcc"
+trigger_recurso="projects/virtual-computer-fsb/locations/us-central1/triggers/$trigger_id"
+if ! jq -e --arg sa "$service_account" --arg repositorio "$repositorio" \
+  --arg id "$trigger_id" --arg recurso "$trigger_recurso" '
   .name == "ies-pr-ci"
+  and (.id == $id)
+  and (.resourceName == $recurso)
   and (.repositoryEventConfig.repository == $repositorio)
   and (.repositoryEventConfig.repositoryType == "GITHUB")
   and (.repositoryEventConfig.pullRequest.branch == ".*")
