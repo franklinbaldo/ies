@@ -186,7 +186,7 @@ struct Replay {
     #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
     termo_documento: Option<String>,
     /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
-    #[arg(long, conflicts_with_all = ["documento", "todas_paginas", "numero_processo"])]
+    #[arg(long, conflicts_with_all = ["documento", "todas_paginas"])]
     resultado_pesquisa: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
@@ -306,7 +306,13 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
         );
     }
     if replay.resultado_pesquisa {
-        return replay_pesquisa_cli::mostrar(card, &zip, &replay.passo, json_mode);
+        return replay_pesquisa_cli::mostrar(
+            card,
+            &zip,
+            &replay.passo,
+            replay.numero_processo.as_deref(),
+            json_mode,
+        );
     }
     if replay.documento && (replay.numero_processo.is_some() || replay.todas_paginas) {
         return erro_lista(
@@ -554,6 +560,33 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod testes_nome_cenario {
     use super::nome_cenario_aceito;
+
+    #[test]
+    fn replay_pesquisa_aceita_filtro_nup_ja_previsto_para_replay() {
+        use super::{Cli, Domain};
+        use clap::Parser;
+        let cli = Cli::try_parse_from([
+            "ies",
+            "--json",
+            "replay",
+            "processo-busca-unb--67c8f2ed35b6",
+            "--resultado-pesquisa",
+            "--passo",
+            "2",
+            "--numero-processo",
+            "00001.123456/2026-07",
+        ])
+        .unwrap();
+        let Domain::Replay(replay) = cli.command else {
+            panic!("comando diferente de replay");
+        };
+        assert!(replay.resultado_pesquisa);
+        assert_eq!(replay.passo, vec![2]);
+        assert_eq!(
+            replay.numero_processo.as_deref(),
+            Some("00001.123456/2026-07")
+        );
+    }
 
     #[test]
     fn aceita_apenas_nome_de_cenario_sem_caminho() {

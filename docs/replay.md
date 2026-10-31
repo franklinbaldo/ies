@@ -184,3 +184,32 @@ nunca é incluído no resultado JSON. Ausência de achados significa apenas
 ausência na resposta escolhida, jamais inexistência no SEI. Ver a
 [matriz da operação](../contracts/evidencias/processo-buscar.md);
 a capacidade live segue pendente na issue #58.
+
+
+### Conferência de um NUP exato na resposta de pesquisa
+
+`ies replay CENARIO --resultado-pesquisa --passo INDICE --numero-processo NUP --json`
+confere a presença **exata** do número opaco em uma única resposta POST de
+pesquisa cuja cassette foi verificada. Conserva zeros e pontuação, não
+normaliza NUP por máscara nem trata ausência na resposta como inexistência
+no SEI (ou nas outras páginas da pesquisa). A saída preserva
+`total_observado` como tamanho original da resposta e limita `processos`
+à ocorrência solicitada; `numero_solicitado` só aparece com filtro.
+
+Número inválido falha com variante tipada e saída 2; ausência na resposta
+falha com `numero_nao_observado_na_resposta_de_pesquisa` e saída 1,
+sem inventar identidade ou realizar requisição adicional. A execução
+continua estritamente offline e não prova a capacidade live da issue #58.
+
+
+Para reproduzir a validação offline, execute
+`scripts/validar-pesquisa-cassette.sh --acervo DIR --bin EXEC --instalacao unb
+--cenario processo-busca-unb--67c8f2ed35b6 --passo 2
+--numero-processo NUP_OBSERVADO` em prévia (padrão). Acrescente
+`--executar` somente depois de colocar o ZIP verificado no cache.
+O script não acessa o SEI, não faz login nem publica resultados; confere
+instalação, identidade exata, projeção e escopo. Repita com cards da UFRJ,
+Goiás e PEN conforme os respectivos passos e NUPs observados. Sem ZIP,
+execute apenas a prévia e registre `NOT_RUN` para o ensaio offline; sem
+sessão oficialmente autorizada e teste de efeito de POST, o ensaio live
+permanece `NOT_RUN`.
