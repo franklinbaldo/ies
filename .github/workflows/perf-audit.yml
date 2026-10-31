@@ -1,0 +1,34 @@
+name: Desempenho offline IES
+
+on:
+  pull_request:
+    paths:
+      - "scripts/perf_audit.py"
+      - ".github/workflows/perf-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Medir latência, CPU e RSS (sem acesso ao SEI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout IES
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar toolchain Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Compilar IES em release
+        run: cargo +1.99.1 build --release --locked --bin ies
+
+      - name: Benchmarks somente locais, com cassettes sintéticas
+        run: |
+          python3 scripts/perf_audit.py \
+            --ies "$PWD/target/release/ies" \
+            --repeticoes 25
