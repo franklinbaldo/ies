@@ -154,3 +154,33 @@ tipadas. Nenhum achado significa apenas ausência entre os documentos
 **da cassette escolhida**, não inexistência no SEI. Incompatível com
 `--passo`, `--numero-documento`, `--texto-documento` e
 `--listar-documentos`. A busca live de documentos segue indisponível.
+
+## Resultados de uma pesquisa de processos capturada
+
+`ies replay CENARIO --resultado-pesquisa --passo INDICE --json` interpreta
+**uma resposta POST 200** de `protocolo_pesquisar` já presente em uma
+cassette pública com ZIP, SHA-1, SHA-256, instalação e MIME verificados.
+O índice é zero-based da interação gravada, não a ordem dos resultados.
+Exemplo observado: `processo-busca-unb--67c8f2ed35b6`, `--passo 2`, UnB.
+
+A saída devolve somente os NUPs observados nos links de processo da tabela
+`pesquisaResultado`, preservando zeros e pontuação, sem URLs assinadas,
+IDs internos, trechos de documentos ou HTML. Um formulário GET não pode
+ser confundido com resultado. O leitor não executa links nem novas
+requisições ao SEI, não reproduz formulários e não oferece busca live.
+Entrada de passo inválida, ausência ou multiplicidade de tabelas de
+resultados, linha com múltiplos links, link de processo em linha fora do formato
+observado (que seria omitido silenciosamente), link de trabalho do SEI
+sem a classe CSS reconhecida (não pode desaparecer da contagem), ação inesperada, link sem identificador
+interno de processo, identificador interno que não seja decimal ASCII,
+parâmetro obrigatório `acao` ou `id_procedimento` sem sinal de igual (o PHP
+pode sobrescrever o valor anterior com string vazia), parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
+parâmetro (não é uma ação `acao` real), chaves de query não canônicas
+(como `%5F`, `+` ou ponto, que o servidor PHP pode normalizar para `_`),
+dois NUPs distintos apontando ao mesmo
+identificador interno (inclusive representações decimais equivalentes como `7` e
+`007`) e NUP duplicado geram erros específicos. O identificador interno é conferido apenas na origem;
+nunca é incluído no resultado JSON. Ausência de achados significa apenas
+ausência na resposta escolhida, jamais inexistência no SEI. Ver a
+[matriz da operação](../contracts/evidencias/processo-buscar.md);
+a capacidade live segue pendente na issue #58.

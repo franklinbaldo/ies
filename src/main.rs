@@ -10,12 +10,14 @@ mod historico;
 mod historico_cli;
 mod instalacao;
 mod paginas;
+mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_resumo_cli;
 mod replay_busca_documento;
 mod replay_consulta;
 mod replay_documento_cli;
+mod replay_pesquisa_cli;
 mod resumo_processo;
 mod saida;
 mod status_cli;
@@ -183,6 +185,9 @@ struct Replay {
     /// Busca termo no texto de documentos já capturados e verificados, sem rede
     #[arg(long, requires = "documento", conflicts_with_all = ["listar_documentos", "numero_documento", "passo", "texto_documento"])]
     termo_documento: Option<String>,
+    /// Lê resultados da pesquisa Web capturados em uma resposta POST verificada, sem rede
+    #[arg(long, conflicts_with_all = ["documento", "todas_paginas", "numero_processo"])]
+    resultado_pesquisa: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -247,21 +252,9 @@ fn nome_cenario_aceito(cenario: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
-fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
-    if !nome_cenario_aceito(&replay.cenario) {
-        return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
-    }
-    let cenario = &replay.cenario;
-    let pasta = replay.acervo.join("cassettes");
+fn localizar_cards(pasta: &std::path::Path, cenario: &str) -> std::io::Result<Vec<PathBuf>> {
     let mut encontrados = Vec::new();
-    let Ok(dirs) = std::fs::read_dir(&pasta) else {
-        return erro_fonte(
-            json_mode,
-            "acervo_ausente",
-            "diretório de cassettes não encontrado",
-        );
-    };
-    for dir in dirs.flatten() {
+    for dir in std::fs::read_dir(pasta)?.flatten() {
         if !dir.path().is_dir() {
             continue;
         }
@@ -277,6 +270,22 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             }
         }
     }
+    Ok(encontrados)
+}
+
+fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    if !nome_cenario_aceito(&replay.cenario) {
+        return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
+    }
+    let cenario = &replay.cenario;
+    let pasta = replay.acervo.join("cassettes");
+    let Ok(encontrados) = localizar_cards(&pasta, cenario) else {
+        return erro_fonte(
+            json_mode,
+            "acervo_ausente",
+            "diretório de cassettes não encontrado",
+        );
+    };
     if encontrados.len() != 1 {
         return erro_fonte(
             json_mode,
@@ -295,6 +304,9 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "zip_ausente",
             "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
         );
+    }
+    if replay.resultado_pesquisa {
+        return replay_pesquisa_cli::mostrar(card, &zip, &replay.passo, json_mode);
     }
     if replay.documento && (replay.numero_processo.is_some() || replay.todas_paginas) {
         return erro_lista(
