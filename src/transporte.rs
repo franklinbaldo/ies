@@ -127,7 +127,7 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
     Ok(())
 }
 
-fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
+pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
     // A checagem do caminho fornece erros específicos; a decisão de
     // segurança usa o descritor aberto, não metadados sujeitos a TOCTOU.
     let observado = fs::symlink_metadata(path)
