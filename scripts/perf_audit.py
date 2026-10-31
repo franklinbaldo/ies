@@ -137,7 +137,7 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
 def principal() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ies", required=True)
-    parser.add_argument("--todos", required=True)
+    parser.add_argument("--todos", help="caminho opcional para Todos no mesmo runner")
     parser.add_argument("--repeticoes", type=int, default=20)
     args = parser.parse_args()
     if not 5 <= args.repeticoes <= 100:
@@ -151,18 +151,20 @@ def principal() -> None:
         },
         "ies_binario_bytes": Path(args.ies).stat().st_size,
         "observacao": (
-            "Picos RSS de subprocessos Linux, /usr/bin/time equivalente via wait4. "
-            "Fixture sintética, sem rede. Todos só comparado nos comandos comuns de CLI."
+            "Picos RSS de subprocessos Linux via wait4. "
+            "Fixture sintética, sem rede. Todos só comparado se disponível "
+            "no mesmo runner de forma autorizada."
         ),
         "resultados": {},
         "erros": {},
     }
     with tempfile.TemporaryDirectory(prefix="ies-perf-offline-") as temp:
         casos = inputs(args.ies, Path(temp))
-        casos.update({
-            "todos_ajuda": [args.todos, "--help"],
-            "todos_versao": [args.todos, "--version"],
-        })
+        if args.todos:
+            casos.update({
+                "todos_ajuda": [args.todos, "--help"],
+                "todos_versao": [args.todos, "--version"],
+            })
         for nome, cmd in casos.items():
             try:
                 resumo["resultados"][nome] = medir(cmd, args.repeticoes,
