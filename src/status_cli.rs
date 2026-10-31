@@ -1,4 +1,4 @@
-//! Relato local da configuração, sem abrir credenciais nem consultar o SEI.
+//! Diagnóstico local por padrão, com consulta Web somente por opt-in explícito.
 use crate::{configuracao, transporte};
 use serde_json::json;
 use std::process::ExitCode;
@@ -141,7 +141,11 @@ pub(super) fn mostrar_status(
     json_mode: bool,
     verificar_arquivos: bool,
     verificar_sessao_local: bool,
+    verificar_controle_web: bool,
 ) -> ExitCode {
+    if verificar_controle_web {
+        return crate::status_web::mostrar(json_mode);
+    }
     if verificar_sessao_local {
         return mostrar_sessao_local(json_mode);
     }
