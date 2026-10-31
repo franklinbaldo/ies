@@ -14,8 +14,8 @@ pub(crate) fn modelo(numero: &str, unidade: Option<&str>, achados: &[Ocorrencia]
 }
 
 /// Shim de persistência. A implementação usa criação privada sem sobrescrita.
-pub(crate) fn gravar(_destino: &Path, _valor: &Value) -> Result<usize, ErroArquivoCaixa> {
-    Err(ErroArquivoCaixa::EscritaDeArquivoFalhou)
+pub(crate) fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
+    arquivo_caixa::gravar(destino, valor)
 }
 
 #[cfg(test)]
