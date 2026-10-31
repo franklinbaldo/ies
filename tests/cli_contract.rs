@@ -364,7 +364,6 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
     std::fs::remove_dir_all(pasta).unwrap();
 }
 
-
 #[cfg(unix)]
 #[test]
 fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
@@ -375,7 +374,10 @@ fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
     let arquivo = std::env::temp_dir().join(format!(
         "ies-caixa-local-{}-{}.json",
         std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     let dados = serde_json::json!({
         "origem": "web", "unidade": "PPI",
@@ -410,6 +412,9 @@ fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
     let ausente = consultar("123/2026");
     assert_eq!(ausente.status.code(), Some(1));
     let falha: serde_json::Value = serde_json::from_slice(&ausente.stdout).unwrap();
-    assert_eq!(falha["subcodigo"], "numero_nao_observado_no_arquivo_da_caixa");
+    assert_eq!(
+        falha["subcodigo"],
+        "numero_nao_observado_no_arquivo_da_caixa"
+    );
     fs::remove_file(arquivo).unwrap();
 }
