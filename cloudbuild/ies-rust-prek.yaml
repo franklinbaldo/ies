@@ -1,5 +1,9 @@
 # Candidato revisável para o trigger externo ies-pr-ci (issue #76).
 # NÃO ativa nem altera o trigger por si só; requer revisão independente.
+# SEGURANÇA: jamais usar este YAML como `filename` vindo da branch da PR.
+# Um autor de PR poderia alterá-lo e substituir os testes por sucesso falso.
+# Depois da revisão, aplicar a receita aprovada como build INLINE no trigger,
+# fora do código não confiável, e auditar o resultado com auditar-trigger.sh.
 # Preserva o gate pre-push canônico e a versão uv 0.13.5 da main IES Rust.
 steps:
   - id: uv-pinned
