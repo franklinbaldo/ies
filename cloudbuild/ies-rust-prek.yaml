@@ -5,26 +5,28 @@ steps:
   - id: uv-pinned
     name: ghcr.io/astral-sh/uv@sha256:477cd3e9492fa6199f4d524198fa75ec03f1c7a64c566cdc7e05fe290042fa3a
     entrypoint: sh
+    volumes:
+      - name: ies-ci-tools
+        path: /ci-tools
     args:
       - -ceu
       - |
-        mkdir -p /workspace/.ci-tools
-        cp "$(command -v uv)" /workspace/.ci-tools/uv
+        # Ferramenta transiente em volume do build, fora do checkout da PR.
+        cp "$(command -v uv)" /ci-tools/uv
   - id: rust-prek
     # Imagem oficial Rust 1.99.1: índice OCI imutável verificado no Docker Hub.
     name: docker.io/library/rust@sha256:09027f873d45b8ecd1dc86f1fa13b7a62b875c961f017a0e331267b350430137
     entrypoint: bash
+    volumes:
+      - name: ies-ci-tools
+        path: /ci-tools
     args:
       - -ceu
       - |
-        # O workspace é compartilhado entre as etapas, mas /tmp não.
-        # Mantenha binários transitórios fora do índice do repositório.
-        mkdir -p /tmp/ies-ci-bin
-        cp /workspace/.ci-tools/uv /tmp/ies-ci-bin/uv
-        printf '#!/bin/sh\nexec /tmp/ies-ci-bin/uv tool run "$$@"\n' > /tmp/ies-ci-bin/uvx
-        chmod 0755 /tmp/ies-ci-bin/uvx
-        rm -rf /workspace/.ci-tools
-        export PATH="/tmp/ies-ci-bin:$$PATH"
+        # Volume nomeado só desta execução: arquivos do checkout nunca o preenchem.
+        printf '#!/bin/sh\nexec /ci-tools/uv tool run "$$@"\n' > /ci-tools/uvx
+        chmod 0755 /ci-tools/uvx
+        export PATH="/ci-tools:$$PATH"
         if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
           git init --quiet
           git add --all
