@@ -202,6 +202,22 @@ pub fn preparar(
     Ok(paths)
 }
 
+/// Envelope contínuo mínimo de linhas potencialmente diferentes.
+/// Índices zero-based e fim exclusivo; não é um diff por hunk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct TrechoDivergente {
+    pub base_inicio_linha: usize,
+    pub base_fim_exclusivo_linha: usize,
+    pub trabalho_inicio_linha: usize,
+    pub trabalho_fim_exclusivo_linha: usize,
+}
+
+// Shim do contrato: testes RED demonstram que falta localizar alterações.
+fn trecho_divergente(base: &[u8], trabalho: &[u8]) -> Option<TrechoDivergente> {
+    let _ = (base, trabalho);
+    None
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PreviaCopia {
     pub documento: String,
@@ -210,6 +226,7 @@ pub struct PreviaCopia {
     pub bytes_base: usize,
     pub bytes_trabalho: usize,
     pub escrita_remota: bool,
+    pub trecho_divergente: Option<TrechoDivergente>,
 }
 /// Apenas prévia; nenhuma chamada Web, leitura do editor ou POST.
 pub fn previa(pasta: &Path, id: &IdentidadeCopia) -> Result<PreviaCopia, ErroCopia> {
@@ -238,6 +255,7 @@ pub fn previa(pasta: &Path, id: &IdentidadeCopia) -> Result<PreviaCopia, ErroCop
         bytes_base: base.len(),
         bytes_trabalho: trabalho.len(),
         escrita_remota: false,
+        trecho_divergente: trecho_divergente(&base, &trabalho),
     })
 }
 
@@ -379,4 +397,85 @@ mod testes {
         assert_eq!(previa(&pasta, &id), Err(ErroCopia::DestinoInseguro));
         fs::remove_dir_all(pasta).unwrap();
     }
+
+    #[test]
+    fn localiza_troca_de_linha_sem_divulgar_texto() {
+        let antes = b"<p>cabecalho</p>\n<p>ANTIGO SIGILOSO</p>\n<p>fim</p>";
+        let depois = b"<p>cabecalho</p>\n<p>NOVO SIGILOSO</p>\n<p>fim</p>";
+        let trecho = trecho_divergente(antes, depois).unwrap();
+        assert_eq!(
+            trecho,
+            TrechoDivergente {
+                base_inicio_linha: 1,
+                base_fim_exclusivo_linha: 2,
+                trabalho_inicio_linha: 1,
+                trabalho_fim_exclusivo_linha: 2,
+            }
+        );
+        let json = serde_json::to_string(&trecho).unwrap();
+        assert!(!json.contains("SIGILOSO"));
+        assert!(!json.contains("<p>"));
+    }
+
+    #[test]
+    fn insercao_no_meio_tem_intervalo_vazio_na_base() {
+        assert_eq!(
+            trecho_divergente(b"a\nc", b"a\nb\nc"),
+            Some(TrechoDivergente {
+                base_inicio_linha: 1,
+                base_fim_exclusivo_linha: 1,
+                trabalho_inicio_linha: 1,
+                trabalho_fim_exclusivo_linha: 2,
+            })
+        );
+    }
+
+    #[test]
+    fn edicoes_disjuntas_geram_envelope_conservador() {
+        assert_eq!(
+            trecho_divergente(b"a\nb\nc\nd\ne", b"a\nB\nc\nD\ne"),
+            Some(TrechoDivergente {
+                base_inicio_linha: 1,
+                base_fim_exclusivo_linha: 4,
+                trabalho_inicio_linha: 1,
+                trabalho_fim_exclusivo_linha: 4,
+            })
+        );
+    }
+
+    #[test]
+    fn arquivo_inalterado_e_linhas_nao_utf8_tem_comportamento_definido() {
+        assert_eq!(trecho_divergente(b"a\nb", b"a\nb"), None);
+        assert_eq!(
+            trecho_divergente(&[255, 10, 65], &[255, 10, 66]),
+            Some(TrechoDivergente {
+                base_inicio_linha: 1,
+                base_fim_exclusivo_linha: 2,
+                trabalho_inicio_linha: 1,
+                trabalho_fim_exclusivo_linha: 2,
+            })
+        );
+    }
+
+    #[test]
+    fn previa_publica_trecho_somente_depois_de_conferir_a_base() {
+        let pasta = diretorio();
+        let id = contexto();
+        let paths = preparar(
+            &pasta,
+            &id,
+            FonteHtml::EditorVerificado {
+                html: "cabecalho\nantigo\nfim",
+                assinado: false,
+            },
+        )
+        .unwrap();
+        assert_eq!(previa(&pasta, &id).unwrap().trecho_divergente, None);
+        fs::write(&paths.trabalho, "cabecalho\nnovo\nfim").unwrap();
+        let resultado = previa(&pasta, &id).unwrap();
+        assert!(resultado.alterado);
+        assert_eq!(resultado.trecho_divergente.unwrap().base_inicio_linha, 1);
+        fs::remove_dir_all(pasta).unwrap();
+    }
+
 }
