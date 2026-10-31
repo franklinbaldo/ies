@@ -7,6 +7,7 @@ use std::fmt;
 pub enum ErroCaixa {
     HtmlInvalido,
     TabelaAusente { categoria: Categoria },
+    TabelasDaCategoriaRepetidas { categoria: Categoria },
     TabelaInvalida { categoria: Categoria },
     LegendaAusente { categoria: Categoria },
     IdInvalido,
@@ -33,6 +34,7 @@ impl ErroCaixa {
         match self {
             Self::HtmlInvalido => "html_invalido",
             Self::TabelaAusente { .. } => "tabela_ausente",
+            Self::TabelasDaCategoriaRepetidas { .. } => "tabelas_da_categoria_repetidas",
             Self::TabelaInvalida { .. } => "tabela_invalida",
             Self::LegendaAusente { .. } => "legenda_ausente",
             Self::IdInvalido => "id_invalido",
@@ -61,6 +63,7 @@ impl ErroCaixa {
     pub fn categoria(&self) -> Option<Categoria> {
         match self {
             Self::TabelaAusente { categoria }
+            | Self::TabelasDaCategoriaRepetidas { categoria }
             | Self::TabelaInvalida { categoria }
             | Self::LegendaAusente { categoria }
             | Self::IdRepetido { categoria, .. }
