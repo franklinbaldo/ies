@@ -4,6 +4,54 @@ use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
 use std::process::ExitCode;
 
+fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
+    let Ok(pasta) = std::env::current_dir() else {
+        return erro_fonte(
+            json_mode,
+            "leitura_diretorio_copias_falhou",
+            "diretório de trabalho não pode ser lido",
+        );
+    };
+    match copia_listagem::listar(&pasta, documento) {
+        Ok(copias) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "copias": copias,
+                        "escopo": "copias_de_trabalho_locais_verificadas",
+                        "versao_remota_confirmada": false,
+                        "escrita_remota": false
+                    })
+                );
+            } else {
+                println!(
+                    "IES: {} cópia(s) local(is) verificadas; nenhuma versão remota confirmada.",
+                    copias.len()
+                );
+                for copia in &copias {
+                    println!(
+                        "  {} v{}: {}",
+                        copia.documento,
+                        copia.versao_base,
+                        if copia.alterado {
+                            "alterada"
+                        } else {
+                            "inalterada"
+                        }
+                    );
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Err(erro) => erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "listagem local de cópias não foi verificada",
+        ),
+    }
+}
+
 pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(Documento {
         acao:
@@ -29,50 +77,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
         }
     };
     if *listar_copias {
-        let pasta = match std::env::current_dir() {
-            Ok(pasta) => pasta,
-            Err(_) => {
-                return Some(erro_fonte(
-                    cli.json,
-                    "leitura_diretorio_copias_falhou",
-                    "diretório de trabalho não pode ser lido",
-                ));
-            }
-        };
-        return Some(match copia_listagem::listar(&pasta, &documento) {
-            Ok(copias) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "copias": copias,
-                            "escopo": "copias_de_trabalho_locais_verificadas",
-                            "versao_remota_confirmada": false,
-                            "escrita_remota": false
-                        })
-                    );
-                } else {
-                    println!(
-                        "IES: {} cópia(s) local(is) verificadas; nenhuma versão remota confirmada.",
-                        copias.len()
-                    );
-                    for copia in &copias {
-                        println!(
-                            "  {} v{}: {}",
-                            copia.documento,
-                            copia.versao_base,
-                            if copia.alterado { "alterada" } else { "inalterada" }
-                        );
-                    }
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => erro_fonte(
-                cli.json,
-                erro.subcodigo(),
-                "listagem local de cópias não foi verificada",
-            ),
-        });
+        return Some(mostrar_listagem_copias(&documento, cli.json));
     }
     let versao = match versao
         .map(documento_versoes::VersaoDocumento::nova)
@@ -162,17 +167,31 @@ mod testes_listagem {
 
     #[test]
     fn opcoes_de_listagem_local_nao_permitem_confirmacao_nem_versao_especifica() {
-        assert!(Cli::try_parse_from([
-            "ies", "documento", "salvar", "0007", "--listar-copias",
-        ])
-        .is_ok());
-        assert!(Cli::try_parse_from([
-            "ies", "documento", "salvar", "0007", "--listar-copias", "--versao", "2",
-        ])
-        .is_err());
-        assert!(Cli::try_parse_from([
-            "ies", "documento", "salvar", "0007", "--listar-copias", "--confirmar",
-        ])
-        .is_err());
+        assert!(
+            Cli::try_parse_from(["ies", "documento", "salvar", "0007", "--listar-copias",]).is_ok()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "ies",
+                "documento",
+                "salvar",
+                "0007",
+                "--listar-copias",
+                "--versao",
+                "2",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "ies",
+                "documento",
+                "salvar",
+                "0007",
+                "--listar-copias",
+                "--confirmar",
+            ])
+            .is_err()
+        );
     }
 }
