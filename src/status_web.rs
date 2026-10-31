@@ -1,6 +1,7 @@
 //! Diagnóstico opt-in do Controle Web: nunca revela processos ou links assinados.
 use crate::erro_web::ErroCaixa;
-use serde_json::Value;
+use crate::{configuracao, paginas, transporte};
+use serde_json::{json, Value};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,18 +28,50 @@ impl FalhaControleWeb {
     }
 }
 
-/// Shim de CONTRATO: uma página HTTP 200 não basta para um resultado positivo.
-pub(crate) fn projetar(_html: &str) -> Result<Value, FalhaControleWeb> {
-    Err(FalhaControleWeb::IdentidadeUnidadeNaoObservada)
+/// A tela precisa conter Controle de Processos e unidade única, não apenas HTTP 200.
+pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
+    let leitura = paginas::juntar(&[html.to_owned()], None)
+        .map_err(FalhaControleWeb::ControleNaoReconhecido)?;
+    let unidade = leitura
+        .unidade
+        .ok_or(FalhaControleWeb::IdentidadeUnidadeNaoObservada)?;
+    Ok(json!({
+        "controle_web": "observado",
+        "unidade_exibida": unidade,
+        "conexao": "get_realizado",
+        "autenticacao_remota": "nao_auditada",
+    }))
 }
 
-/// Shim compilável; GREEN fará um único GET se a opção for solicitada.
+/// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
 pub(crate) fn mostrar(json_mode: bool) -> ExitCode {
-    crate::erro_fonte(
-        json_mode,
-        "controle_web_nao_reconhecido",
-        "controle Web ainda não verificado",
-    )
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let html = match transporte::read_box_from_file(
+        &arquivos.url_controle,
+        &arquivos.cookie,
+        &arquivos.origem,
+    ) {
+        Ok(html) => html,
+        Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let modelo = match projetar(&html) {
+        Ok(modelo) => modelo,
+        Err(erro) => {
+            return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+        }
+    };
+    if json_mode {
+        println!("{modelo}");
+    } else {
+        println!(
+            "IES: Controle Web observado na unidade {}; autenticação não auditada.",
+            modelo["unidade_exibida"].as_str().unwrap_or("desconhecida")
+        );
+    }
+    ExitCode::SUCCESS
 }
 
 #[cfg(test)]
