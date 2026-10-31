@@ -69,7 +69,9 @@ impl FalhaTransporte {
             Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
             Self::Redirecionamento => "redirecionamento recusado; a sessão pode exigir novo login",
             Self::RespostaInesperada => "servidor não retornou a caixa HTML esperada",
-            Self::PaginaDeLoginRecebidaNoControle => "o SEI devolveu formulário de login em vez da caixa",
+            Self::PaginaDeLoginRecebidaNoControle => {
+                "o SEI devolveu formulário de login em vez da caixa"
+            }
             Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
             Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
         }
