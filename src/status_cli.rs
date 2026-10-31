@@ -137,19 +137,14 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
     }
 }
 
-pub(super) fn mostrar_status(
-    json_mode: bool,
-    verificar_arquivos: bool,
-    verificar_sessao_local: bool,
-    verificar_controle_web: bool,
-) -> ExitCode {
-    if verificar_controle_web {
+pub(super) fn mostrar_status(json_mode: bool, args: &crate::StatusArgs) -> ExitCode {
+    if args.verificar_controle_web {
         return crate::status_web::mostrar(json_mode);
     }
-    if verificar_sessao_local {
+    if args.verificar_sessao_local {
         return mostrar_sessao_local(json_mode);
     }
-    if verificar_arquivos {
+    if args.verificar_arquivos {
         return mostrar_verificacao(json_mode);
     }
     // Diagnóstico local somente: não abre arquivos privados nem faz rede.
