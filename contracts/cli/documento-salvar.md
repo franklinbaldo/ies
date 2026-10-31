@@ -48,3 +48,26 @@ sem alterar o conteúdo de qualquer arquivo.
 A inspeção permanece offline, sempre submetida à conferência de
 metadados, identidade, hash da base e à recusa de arquivos simbólicos.
 Nenhuma opção de `salvar --confirmar` passa a executar escrita remota.
+
+
+## Inventário seguro de cópias locais (Refs #89)
+
+`ies documento salvar DOC --listar-copias [--json]` enumera **somente**
+cópias de trabalho `DOC.vN.html` observadas no diretório atual, em
+ordem **numérica** de versão, sem acesso à rede. Não recebe `--versao`
+nem `--confirmar`; não equivale a listar versões existentes no SEI.
+
+Cada entrada precisa ter base `.DOC.vN.base.html` e manifesto
+`.DOC.vN.meta.json` válidos para o mesmo documento, ID interno,
+instalação e hash SHA-256 da base, seguindo exatamente as invariantes
+da prévia. Não descartar cópias corrompidas para retornar sucesso
+parcial; recusar a lista inteira com subcódigo tipado. Rejeitar
+diretório simbólico, versão inválida, duas grafias para a mesma
+versão e coleções além do limite local estabelecido.
+
+A saída JSON contém `copias` (projeção de `PreviaCopia`),
+`escopo: copias_de_trabalho_locais_verificadas`,
+`versao_remota_confirmada: false` e `escrita_remota: false`.
+Uma lista vazia significa apenas ausência de cópias para esse número
+no diretório observado. Nunca publicar conteúdo HTML nem alegar
+versão atual no servidor. Sem comandos Web adicionais.
