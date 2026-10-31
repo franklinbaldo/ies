@@ -13,7 +13,6 @@ enum ErroConsultaVersoes {
     NumeroVersao(ErroVersao),
     IdInternoInvalido,
     FonteNaoVerificada,
-    ConsultarAindaNaoImplementado,
 }
 impl ErroConsultaVersoes {
     fn subcodigo(self) -> &'static str {
@@ -22,7 +21,6 @@ impl ErroConsultaVersoes {
             Self::NumeroVersao(erro) => erro.subcodigo(),
             Self::IdInternoInvalido => "id_interno_documento_invalido",
             Self::FonteNaoVerificada => "historico_versoes_nao_verificado",
-            Self::ConsultarAindaNaoImplementado => "consulta_versoes_nao_implementada",
         }
     }
     fn codigo(self) -> (&'static str, u8) {
@@ -48,8 +46,21 @@ fn consultar(
     id_interno: &str,
     solicitada: Option<VersaoDocumento>,
 ) -> Result<ConsultaVersoes, ErroConsultaVersoes> {
-    let _ = (html, documento, id_interno, solicitada);
-    Err(ErroConsultaVersoes::ConsultarAindaNaoImplementado)
+    if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroConsultaVersoes::IdInternoInvalido);
+    }
+    let historico = documento_versoes::interpretar_historico(
+        html, documento, id_interno, None
+    ).map_err(ErroConsultaVersoes::NumeroVersao)?;
+    let selecionada = solicitada
+        .map(|versao| historico.selecionar(versao))
+        .transpose()
+        .map_err(ErroConsultaVersoes::NumeroVersao)?;
+    Ok(ConsultaVersoes {
+        versao_atual: historico.atual().map(VersaoDocumento::numero),
+        versao_selecionada: selecionada.map(|entrada| entrada.versao.numero()),
+        total_observado: historico.len(),
+    })
 }
 
 pub(super) fn mostrar(
