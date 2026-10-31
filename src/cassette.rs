@@ -88,6 +88,27 @@ pub fn read_cassette_document(
     Ok((pages.remove(0), instalacao))
 }
 
+/// Um único GET de histórico de versões já capturado e conferido por hash.
+/// A consulta não executa links do histórico nem abre editor no SEI.
+pub fn read_cassette_document_versions(
+    card: &Path,
+    archive: &Path,
+    passos: &[usize],
+) -> Result<(String, String), String> {
+    let (mut pages, instalacao, _) = read_verified_html(
+        card,
+        archive,
+        passos,
+        Some("documento_versao_listar"),
+        false,
+        false,
+    )?;
+    if pages.len() != 1 {
+        return Err("histórico de versões exige uma única resposta GET".into());
+    }
+    Ok((pages.remove(0), instalacao))
+}
+
 /// Seleção de todas as respostas GET de documento, preservando revisão e host
 /// verificados. A identidade por número é decidida depois, pelo título SEI.
 pub fn read_cassette_documents(
