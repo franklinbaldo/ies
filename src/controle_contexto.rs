@@ -72,13 +72,32 @@ pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa
 }
 
 
-// Shims do contrato: inicialmente preservam a escolha do primeiro elemento.
-// Os testes RED demonstram que duplicatas ainda não produzem erro.
+// O primeiro ID nunca comprova unicidade. Mesmo que o valor coincida, a
+// resposta precisa ser unívoca antes de certificar identidade de página.
+fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> bool {
+    dom.query_selector(&format!("#{id}")).is_some_and(|mut encontrados| {
+        encontrados.next().is_some() && encontrados.next().is_some()
+    })
+}
+
 fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
+    if id_repetido(dom, "lnkInfraUnidade") {
+        return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
+    }
     Ok(unidade_html_original(dom))
 }
 
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
+    if id_repetido(dom, id) {
+        return Err(match id {
+            "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
+            "hdnRecebidosHashCriterios" => {
+                ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
+            }
+            "hdnGeradosHashCriterios" => ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
+            _ => ErroCaixa::ContextoNaoVerificavel,
+        });
+    }
     Ok(valor_oculto_original(dom, id))
 }
 
