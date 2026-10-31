@@ -39,7 +39,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade listar-processos`
 - `ies processo enviar NUP --para SIGLA`
 - `ies documento assinar NUMERO`
-- `ies status`
+- `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
 - `ies esquema`
 

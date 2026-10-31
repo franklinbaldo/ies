@@ -140,3 +140,92 @@ fn ler_configuracao_local(path: &std::path::Path) -> Option<ArquivosDeAcesso> {
         origem: config.origem,
     })
 }
+
+/// Papel dos caminhos de acesso; não contém conteúdo nem nome do arquivo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArquivoPrivado {
+    UrlControle,
+    Cookie,
+    Origem,
+}
+impl ArquivoPrivado {
+    pub fn rotulo(self) -> &'static str {
+        match self {
+            Self::UrlControle => "url_controle",
+            Self::Cookie => "cookie",
+            Self::Origem => "origem",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErroArquivoPrivado {
+    CaminhoNaoAbsoluto(ArquivoPrivado),
+    Ausente(ArquivoPrivado),
+    LinkSimbolico(ArquivoPrivado),
+    NaoRegular(ArquivoPrivado),
+    Vazio(ArquivoPrivado),
+    PermissoesInseguras(ArquivoPrivado),
+    MetadadosNaoLidos(ArquivoPrivado),
+}
+impl ErroArquivoPrivado {
+    pub fn subcodigo(self) -> &'static str {
+        match self {
+            Self::CaminhoNaoAbsoluto(_) => "caminho_privado_nao_absoluto",
+            Self::Ausente(_) => "arquivo_privado_ausente",
+            Self::LinkSimbolico(_) => "arquivo_privado_link_simbolico",
+            Self::NaoRegular(_) => "arquivo_privado_nao_regular",
+            Self::Vazio(_) => "arquivo_privado_vazio",
+            Self::PermissoesInseguras(_) => "arquivo_privado_permissoes_inseguras",
+            Self::MetadadosNaoLidos(_) => "metadados_arquivo_privado_nao_lidos",
+        }
+    }
+    pub fn arquivo(self) -> ArquivoPrivado {
+        match self {
+            Self::CaminhoNaoAbsoluto(a)
+            | Self::Ausente(a)
+            | Self::LinkSimbolico(a)
+            | Self::NaoRegular(a)
+            | Self::Vazio(a)
+            | Self::PermissoesInseguras(a)
+            | Self::MetadadosNaoLidos(a) => a,
+        }
+    }
+}
+
+/// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.
+pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoPrivado> {
+    for (tipo, caminho) in [
+        (ArquivoPrivado::UrlControle, arquivos.url_controle.as_path()),
+        (ArquivoPrivado::Cookie, arquivos.cookie.as_path()),
+        (ArquivoPrivado::Origem, arquivos.origem.as_path()),
+    ] {
+        if !caminho.is_absolute() {
+            return Err(ErroArquivoPrivado::CaminhoNaoAbsoluto(tipo));
+        }
+        let info = std::fs::symlink_metadata(caminho).map_err(|erro| {
+            if erro.kind() == std::io::ErrorKind::NotFound {
+                ErroArquivoPrivado::Ausente(tipo)
+            } else {
+                ErroArquivoPrivado::MetadadosNaoLidos(tipo)
+            }
+        })?;
+        if info.file_type().is_symlink() {
+            return Err(ErroArquivoPrivado::LinkSimbolico(tipo));
+        }
+        if !info.is_file() {
+            return Err(ErroArquivoPrivado::NaoRegular(tipo));
+        }
+        if info.len() == 0 {
+            return Err(ErroArquivoPrivado::Vazio(tipo));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if info.permissions().mode() & 0o077 != 0 {
+                return Err(ErroArquivoPrivado::PermissoesInseguras(tipo));
+            }
+        }
+    }
+    Ok(())
+}

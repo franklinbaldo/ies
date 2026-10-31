@@ -48,7 +48,7 @@ enum Domain {
     /// Reproduz evidências históricas sem acesso ao SEI
     Replay(Replay),
     /// Diagnóstico da conexão (ainda não implementado)
-    Status,
+    Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
     Setup(SetupArgs),
     /// Mostra o contrato de saída (ainda não implementado)
@@ -174,6 +174,13 @@ struct Replay {
     /// Reúne páginas contíguas já gravadas na cassette, sem executar POST
     #[arg(long, conflicts_with = "passo")]
     todas_paginas: bool,
+}
+
+#[derive(Debug, Args)]
+struct StatusArgs {
+    /// Confere apenas metadados dos arquivos privados, sem abrir conteúdos nem rede
+    #[arg(long)]
+    verificar_arquivos: bool,
 }
 
 #[derive(Debug, Args)]
@@ -493,7 +500,9 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Replay(replay) => return executar_replay(replay, cli.unidade.as_deref(), cli.json),
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
-        Domain::Status => return status_cli::mostrar_status(cli.json),
+        Domain::Status(args) => {
+            return status_cli::mostrar_status(cli.json, args.verificar_arquivos);
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),

@@ -3,7 +3,73 @@ use crate::configuracao;
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(super) fn mostrar_status(json_mode: bool) -> ExitCode {
+fn mostrar_verificacao(json_mode: bool) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "configuracao_invalida",
+                        "subcodigo": erro.subcodigo(),
+                        "conexao": "nao_verificada",
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!("IES: caminhos privados pendentes [{}]", erro.subcodigo());
+            }
+            return ExitCode::from(1);
+        }
+    };
+    match configuracao::verificar_arquivos_privados(&arquivos) {
+        Ok(()) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "configuracao": "caminhos_informados",
+                        "arquivos_privados": "metadados_verificados",
+                        "conexao": "nao_verificada",
+                        "acesso_remoto": false
+                    })
+                );
+            } else {
+                println!(
+                    "IES: metadados dos arquivos privados verificados; conexão SEI não verificada."
+                );
+            }
+            ExitCode::SUCCESS
+        }
+        Err(erro) => {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "configuracao_invalida",
+                        "subcodigo": erro.subcodigo(),
+                        "arquivo": erro.arquivo().rotulo(),
+                        "conexao": "nao_verificada",
+                        "retentavel": false
+                    })
+                );
+            } else {
+                eprintln!(
+                    "IES: arquivo privado {} não validado [{}]",
+                    erro.arquivo().rotulo(),
+                    erro.subcodigo()
+                );
+            }
+            ExitCode::from(1)
+        }
+    }
+}
+
+pub(super) fn mostrar_status(json_mode: bool, verificar_arquivos: bool) -> ExitCode {
+    if verificar_arquivos {
+        return mostrar_verificacao(json_mode);
+    }
     // Diagnóstico local somente: não abre arquivos privados nem faz rede.
     let configuracao = configuracao::arquivos_de_acesso();
     let (estado, detalhe) = match &configuracao {
