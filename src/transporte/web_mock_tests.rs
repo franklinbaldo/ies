@@ -18,7 +18,10 @@ fn arquivo_privado_temporario() -> (PathBuf, PathBuf) {
     let pasta = std::env::temp_dir().join(format!(
         "ies-perf-web-mock-{}-{}",
         std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     fs::create_dir(&pasta).unwrap();
     let cookie = pasta.join("cookie");
@@ -76,7 +79,10 @@ fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
     assert_eq!(leitura.caixa.recebidos.processos.len(), 20);
     let saida = crate::saida::json(&leitura, "web-mock");
-    assert_eq!(saida["recebidos"]["processos"].as_array().unwrap().len(), 20);
+    assert_eq!(
+        saida["recebidos"]["processos"].as_array().unwrap().len(),
+        20
+    );
     let json = serde_json::to_string(&saida).unwrap();
     assert!(!json.contains("infra_hash"));
     assert!(!json.contains("PHPSESSID"));
@@ -106,19 +112,34 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
     let url = url_controle();
     for (status_code, mime, size, esperado) in [
         (302, "text/html", Some(5), FalhaTransporte::Redirecionamento),
-        (200, "application/json", Some(5), FalhaTransporte::RespostaInesperada),
-        (200, "text/html", Some(crate::MAX_HTML_BYTES + 1), FalhaTransporte::RespostaExcessiva),
+        (
+            200,
+            "application/json",
+            Some(5),
+            FalhaTransporte::RespostaInesperada,
+        ),
+        (
+            200,
+            "text/html",
+            Some(crate::MAX_HTML_BYTES + 1),
+            FalhaTransporte::RespostaExcessiva,
+        ),
     ] {
         let chamadas = Cell::new(0u32);
-        let obtido = read_box_via(&url, &cookie, "https://sei.treinamento.unb.br/sei", |_, _| {
-            chamadas.set(chamadas.get() + 1);
-            Ok(RespostaWeb {
-                status_code,
-                mime: mime.to_owned(),
-                content_length: size,
-                corpo: Cursor::new(b"<html>".to_vec()),
-            })
-        });
+        let obtido = read_box_via(
+            &url,
+            &cookie,
+            "https://sei.treinamento.unb.br/sei",
+            |_, _| {
+                chamadas.set(chamadas.get() + 1);
+                Ok(RespostaWeb {
+                    status_code,
+                    mime: mime.to_owned(),
+                    content_length: size,
+                    corpo: Cursor::new(b"<html>".to_vec()),
+                })
+            },
+        );
         assert_eq!(obtido, Err(esperado));
         assert_eq!(chamadas.get(), 1);
     }
@@ -147,7 +168,8 @@ fn web_mock_benchmark_p50_p95_inclui_transporte_parser_e_json() {
             let leitura = crate::paginas::juntar(&[lido], Some("TESTE")).unwrap();
             assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
             assert!(leitura.gerados.completa(&leitura.caixa.gerados));
-            let serializado = serde_json::to_vec(&crate::saida::json(&leitura, "web-mock")).unwrap();
+            let serializado =
+                serde_json::to_vec(&crate::saida::json(&leitura, "web-mock")).unwrap();
             assert_ne!(serializado.len(), 0);
             assert_eq!(leitura.caixa.recebidos.processos.len(), n);
             assert_eq!(chamadas.get(), 1);
