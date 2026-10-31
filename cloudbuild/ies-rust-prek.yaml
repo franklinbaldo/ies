@@ -3,7 +3,7 @@
 # Preserva o gate pre-push canônico e a versão uv 0.13.5 da main IES Rust.
 steps:
   - id: uv-pinned
-    name: ghcr.io/astral-sh/uv@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff
+    name: ghcr.io/astral-sh/uv@sha256:477cd3e9492fa6199f4d524198fa75ec03f1c7a64c566cdc7e05fe290042fa3a
     entrypoint: sh
     args:
       - -ceu
