@@ -6,7 +6,11 @@ trap 'rm -rf "$tmp"' EXIT
 cat > "$tmp/valido.json" <<'JSON'
 {
   "name": "ies-pr-ci",
-  "repositoryEventConfig": {"pullRequest": {"branch": ".*"}},
+  "repositoryEventConfig": {
+    "repository": "projects/virtual-computer-fsb/locations/us-central1/connections/judicial-github/repositories/ies",
+    "repositoryType": "GITHUB",
+    "pullRequest": {"branch": ".*", "commentControl": "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"}
+  },
   "serviceAccount": "projects/virtual-computer-fsb/serviceAccounts/ies-ci@virtual-computer-fsb.iam.gserviceaccount.com",
   "build": {
     "serviceAccount": "projects/virtual-computer-fsb/serviceAccounts/ies-ci@virtual-computer-fsb.iam.gserviceaccount.com",
@@ -36,4 +40,12 @@ recusar "$tmp/sa.json" "$aprovado"
 jq '.build.steps[1].args = ["echo OK; exit 0"]' "$tmp/valido.json" > "$tmp/gate-adulterado.json"
 recusar "$tmp/gate-adulterado.json" "$aprovado"
 recusar "$tmp/valido.json" "0000000000000000000000000000000000000000000000000000000000000000"
-echo "PASS: fonte inline de confiança, SHA de gate, identidade e PR verificados; seis cenários negativos recusados"
+jq '.repositoryEventConfig.repository = "projects/virtual-computer-fsb/locations/us-central1/connections/judicial-github/repositories/outro"' "$tmp/valido.json" > "$tmp/outro-repo.json"
+recusar "$tmp/outro-repo.json" "$aprovado"
+jq '.repositoryEventConfig.pullRequest.branch = "refs/heads/nao-existe"' "$tmp/valido.json" > "$tmp/nao-roda-main.json"
+recusar "$tmp/nao-roda-main.json" "$aprovado"
+jq '.ignoredFiles = ["src/**", "contracts/**"]' "$tmp/valido.json" > "$tmp/ignora-codigo.json"
+recusar "$tmp/ignora-codigo.json" "$aprovado"
+jq '.disabled = true' "$tmp/valido.json" > "$tmp/desativado.json"
+recusar "$tmp/desativado.json" "$aprovado"
+echo "PASS: fonte inline de confiança, SHA de gate, identidade e PR verificados; dez cenários negativos recusados"

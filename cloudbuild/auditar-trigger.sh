@@ -2,6 +2,8 @@
 # Auditoria offline de trigger Cloud Build; não altera recursos nem faz rede.
 # Execute sobre o JSON descrito pelo gcloud após revisão independente.
 # A impressão digital deve vir da configuração aprovada FORA da PR analisada.
+# Contrato: além do gate imutável, a fonte deve ser o repositório IES autorizado
+# e o evento deve contemplar PRs da main, sem filtros silenciosos de arquivos.
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
@@ -20,9 +22,17 @@ if ! [ -f "$arquivo" ] || ! command -v jq >/dev/null || ! command -v sha256sum >
 fi
 
 service_account="projects/virtual-computer-fsb/serviceAccounts/ies-ci@virtual-computer-fsb.iam.gserviceaccount.com"
-if ! jq -e --arg sa "$service_account" '
+repositorio="projects/virtual-computer-fsb/locations/us-central1/connections/judicial-github/repositories/ies"
+if ! jq -e --arg sa "$service_account" --arg repositorio "$repositorio" '
   .name == "ies-pr-ci"
-  and (.repositoryEventConfig.pullRequest? != null)
+  and (.repositoryEventConfig.repository == $repositorio)
+  and (.repositoryEventConfig.repositoryType == "GITHUB")
+  and (.repositoryEventConfig.pullRequest.branch == ".*")
+  and (.repositoryEventConfig.pullRequest.commentControl == "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY")
+  and ((.includedFiles // []) == [])
+  and ((.ignoredFiles // []) == [])
+  and ((.substitutions // {}) == {})
+  and (.disabled != true)
   and ((.filename // "") == "")
   and (.gitFileSource? == null)
   and (.autodetect? != true)
@@ -32,7 +42,7 @@ if ! jq -e --arg sa "$service_account" '
   and ([.build.steps[].id] == ["uv-pinned", "rust-prek"])
   and (.build.options.logging == "CLOUD_LOGGING_ONLY")
 ' "$arquivo" >/dev/null; then
-  echo "FAIL: trigger deve executar gate inline aprovado em PR com conta restrita" >&2
+  echo "FAIL: trigger de PR deve conferir repositório, evento, filtros, gate inline e conta autorizada" >&2
   exit 1
 fi
 
