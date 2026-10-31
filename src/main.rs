@@ -167,6 +167,9 @@ struct Replay {
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
+    /// Reúne páginas contíguas já gravadas na cassette, sem executar POST
+    #[arg(long, conflicts_with = "passo")]
+    todas_paginas: bool,
 }
 
 #[derive(Debug, Args)]
@@ -399,7 +402,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             "ZIP não localizado no cache .cache/ies; obtenha o arquivo indicado no card OKF",
         );
     }
-    if replay.documento && replay.numero_processo.is_some() {
+    if replay.documento && (replay.numero_processo.is_some() || replay.todas_paginas) {
         return erro_lista(
             json_mode,
             "opcoes_incompativeis",
@@ -410,7 +413,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     if replay.documento {
         return mostrar_documento_replay(card, &zip, &replay.passo, json_mode);
     }
-    match cassette::read_cassette_auto(card, &zip, &replay.passo) {
+    match cassette::read_cassette_auto(card, &zip, &replay.passo, replay.todas_paginas) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {
             if replay.numero_processo.is_some() {
                 return erro_fonte(
@@ -425,7 +428,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             if let Some(numero) = replay.numero_processo.as_deref() {
                 replay_consulta::mostrar(&htmls, &origem, numero, unidade, json_mode)
             } else {
-                mostrar_caixa(&htmls, &origem, unidade, json_mode, false)
+                mostrar_caixa(&htmls, &origem, unidade, json_mode, replay.todas_paginas)
             }
         }
         Err(_) => erro_fonte(
