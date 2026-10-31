@@ -150,7 +150,8 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
             FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
         }
     })?;
-    let metadata = arquivo.metadata()
+    let metadata = arquivo
+        .metadata()
         .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
@@ -169,7 +170,8 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
         }
     }
     let mut bytes = Vec::new();
-    arquivo.take(limite + 1)
+    arquivo
+        .take(limite + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
     if bytes.len() > limite as usize {
