@@ -239,16 +239,16 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
-    let cenario = &replay.cenario;
-    if cenario.is_empty()
-        || cenario.contains('/')
-        || cenario.contains('\\')
-        || cenario.contains("..")
-        || !cenario
+fn nome_cenario_aceito(cenario: &str) -> bool {
+    !cenario.is_empty()
+        && !cenario.contains("..")
+        && cenario
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-    {
+}
+
+fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
+    if !nome_cenario_aceito(&replay.cenario) {
         return erro_lista(json_mode, "entrada_invalida", "nome de cenário inválido", 2);
     }
     let pasta = replay.acervo.join("cassettes");
@@ -534,6 +534,19 @@ fn main() -> ExitCode {
             };
             let _ = err.print();
             ExitCode::from(status)
+        }
+    }
+}
+
+#[cfg(test)]
+mod testes_nome_cenario {
+    use super::nome_cenario_aceito;
+
+    #[test]
+    fn aceita_apenas_nome_de_cenario_sem_caminho() {
+        assert!(nome_cenario_aceito("processo-busca-unb--67c8f2ed35b6"));
+        for nome in ["", "../processo", "a/b", "a\\b", "a..b", "cenário", "a b"] {
+            assert!(!nome_cenario_aceito(nome), "não aceito: {nome}");
         }
     }
 }
