@@ -1,0 +1,38 @@
+# Candidato revisável para o trigger externo ies-pr-ci (issue #76).
+# NÃO ativa nem altera o trigger por si só; requer revisão independente.
+# Preserva exatamente o gate pre-push canônico da main IES Rust.
+steps:
+  - id: uv-pinned
+    name: ghcr.io/astral-sh/uv@sha256:47965cdc9d53a515f68f78241161c901e70051ce428f12e791bd7fe19f6a631a
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        mkdir -p /workspace/.ci-tools
+        cp "$(command -v uv)" /workspace/.ci-tools/uv
+  - id: rust-prek
+    name: rust:1.99.1
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # O workspace é compartilhado entre as etapas, mas /tmp não.
+        # Mantenha binários transitórios fora do índice do repositório.
+        mkdir -p /tmp/ies-ci-bin
+        cp /workspace/.ci-tools/uv /tmp/ies-ci-bin/uv
+        printf '#!/bin/sh\nexec /tmp/ies-ci-bin/uv tool run "$$@"\n' > /tmp/ies-ci-bin/uvx
+        chmod 0755 /tmp/ies-ci-bin/uvx
+        rm -rf /workspace/.ci-tools
+        export PATH="/tmp/ies-ci-bin:$$PATH"
+        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          git init --quiet
+          git add --all
+        fi
+        rustup component add rustfmt clippy
+        uv --version
+        rustc --version
+        uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
