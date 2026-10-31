@@ -11,6 +11,7 @@ pub enum ErroHistorico {
     NumeroInvalido,
     NumeroDoHistoricoDiferenteDoSolicitado,
     HistoricoAusente,
+    TabelasDoHistoricoRepetidas,
     HistoricoInvalido,
     LinhaInvalida,
     HistoricoVazio,
@@ -27,6 +28,7 @@ impl ErroHistorico {
                 "numero_do_historico_diferente_do_solicitado"
             }
             Self::HistoricoAusente => "historico_ausente",
+            Self::TabelasDoHistoricoRepetidas => "tabelas_do_historico_repetidas",
             Self::HistoricoInvalido => "historico_invalido",
             Self::LinhaInvalida => "linha_invalida",
             Self::HistoricoVazio => "historico_vazio",
@@ -43,6 +45,7 @@ impl ErroHistorico {
                 "número mostrado no título do histórico é diferente do solicitado"
             }
             Self::HistoricoAusente => "tabela do histórico não encontrada",
+            Self::TabelasDoHistoricoRepetidas => "mais de uma tabela do histórico na resposta",
             Self::HistoricoInvalido => "tabela do histórico não possui a estrutura esperada",
             Self::LinhaInvalida => "linha do histórico sem campos obrigatórios",
             Self::HistoricoVazio => "nenhum andamento foi encontrado no histórico",
@@ -202,6 +205,28 @@ mod tests {
         assert_eq!(
             ler_historico(invalido, "202600005002487").unwrap_err(),
             ErroHistorico::LinhaInvalida
+        );
+    }
+
+    #[test]
+    fn duas_tabelas_de_historico_falham_sem_omitir_andamentos() {
+        let numero = "000123";
+        let html = format!(
+            "{}<table id='tblHistorico'><tr><td>13/07/2026</td><td>U</td><td>X</td><td>Outro andamento</td></tr></table>",
+            fixture(numero)
+        );
+        let erro = ler_historico(&html, numero).unwrap_err();
+        assert_eq!(erro, ErroHistorico::TabelasDoHistoricoRepetidas);
+        assert_eq!(erro.subcodigo(), "tabelas_do_historico_repetidas");
+    }
+
+    #[test]
+    fn tabela_com_id_de_historico_em_div_e_table_e_ambigua() {
+        let numero = "000123";
+        let html = format!("<div id='tblHistorico'>navegação</div>{}", fixture(numero));
+        assert_eq!(
+            ler_historico(&html, numero).unwrap_err(),
+            ErroHistorico::TabelasDoHistoricoRepetidas
         );
     }
 }
