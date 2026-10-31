@@ -171,8 +171,8 @@ requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
 resultados, linha com múltiplos links, ação inesperada, link sem identificador
 interno de processo, identificador interno que não seja decimal ASCII,
-identificadores repetidos e NUP duplicado geram
-erros específicos. O identificador interno é conferido apenas na origem;
+parâmetro de identificador repetido, dois NUPs distintos apontando ao mesmo
+identificador interno e NUP duplicado geram erros específicos. O identificador interno é conferido apenas na origem;
 nunca é incluído no resultado JSON. Ausência de achados significa apenas
 ausência na resposta escolhida, jamais inexistência no SEI. Ver a
 [matriz da operação](../contracts/evidencias/processo-buscar.md);

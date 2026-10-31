@@ -20,6 +20,7 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
+    IdentificadorDoProcessoRepetidoNaPesquisa,
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
 }
@@ -43,6 +44,9 @@ impl ErroResultadoPesquisa {
             }
             Self::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal => {
                 "link_de_pesquisa_com_identificador_do_processo_nao_decimal"
+            }
+            Self::IdentificadorDoProcessoRepetidoNaPesquisa => {
+                "identificador_do_processo_repetido_na_pesquisa"
             }
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
             Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
@@ -73,6 +77,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         .query_selector(parser, "tr.pesquisaTituloRegistro")
         .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
     let mut observados = HashSet::new();
+    let mut ids_observados = HashSet::new();
     let mut resultados = Vec::new();
     for linha in linhas {
         let tag = linha
@@ -137,6 +142,9 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
         if !observados.insert(numero.as_str().to_owned()) {
             return Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido);
+        }
+        if !ids_observados.insert(primeiro_id.to_owned()) {
+            return Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa);
         }
         resultados.push(ResultadoPesquisa { numero });
     }
@@ -256,6 +264,18 @@ mod tests {
                 "identificador interno {id} deve ser decimal ASCII"
             );
         }
+    }
+
+    #[test]
+    fn dois_nups_distintos_nao_podem_apontar_para_o_mesmo_processo_interno() {
+        let html = RESULTADO.replace(
+            "</table>",
+            r#"<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=7">00002.123456/2026-07</a></td></tr></table>"#,
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa)
+        );
     }
 
     #[test]
