@@ -169,8 +169,11 @@ struct Replay {
     #[arg(long, requires = "documento")]
     numero_documento: Option<String>,
     /// Inclui o texto visível do corpo no replay offline do documento
-    #[arg(long, requires = "documento")]
+    #[arg(long, requires = "documento", conflicts_with = "listar_documentos")]
     texto_documento: bool,
+    /// Lista as identidades distintas observadas em documentos da cassette
+    #[arg(long, requires = "documento", conflicts_with_all = ["numero_documento", "passo", "texto_documento"])]
+    listar_documentos: bool,
     /// Consulta NUP nas caixas já gravadas, sem acesso à rede
     #[arg(long)]
     numero_processo: Option<String>,
@@ -417,6 +420,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
             &zip,
             &replay.passo,
             replay.numero_documento.as_deref(),
+            replay.listar_documentos,
             replay.texto_documento,
             json_mode,
         );

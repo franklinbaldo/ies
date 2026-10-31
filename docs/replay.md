@@ -77,6 +77,18 @@ com erro tipado; número diferente resulta em saída 1 com subcódigo
 `numero_do_historico_diferente_do_solicitado`. Sem a opção, preserva a
 leitura do NUP observado no título. Não há consulta live ao SEI.
 
+## Inventário offline de documentos observados
+
+`ies replay CENARIO --documento --listar-documentos --json` lista os
+números SEI e tipos de todas as respostas `documento_imprimir_web`
+verificadas da cassette, na ordem da gravação, sem mostrar conteúdos.
+Não deduz documentos que não apareceram na evidência. Recusa documentos
+sem título SEI identificável, números repetidos (observações não são
+identidades únicas) e cassettes que não atendam à verificação de hashes.
+A lista é uma observação offline, não uma busca live nem uma árvore completa
+de documentos. A opção não pode ser combinada com `--passo` ou
+`--numero-documento`.
+
 ## Documento HTML capturado
 
 `ies replay CENARIO --documento --json` seleciona somente a resposta
