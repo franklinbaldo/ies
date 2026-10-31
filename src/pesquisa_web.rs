@@ -17,6 +17,7 @@ pub enum ErroResultadoPesquisa {
     LinhaDePesquisaSemLinkDoProcesso,
     LinhaDePesquisaComMaisDeUmLinkDoProcesso,
     LinkDeProcessoForaDaLinhaDePesquisa,
+    LinkDeProcessoSemClasseReconhecida,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
@@ -41,6 +42,9 @@ impl ErroResultadoPesquisa {
             }
             Self::LinkDeProcessoForaDaLinhaDePesquisa => {
                 "link_de_processo_fora_da_linha_de_pesquisa"
+            }
+            Self::LinkDeProcessoSemClasseReconhecida => {
+                "link_de_processo_sem_classe_reconhecida"
             }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::LinkDePesquisaSemIdentificadorDoProcesso => {
@@ -305,6 +309,30 @@ mod tests {
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa)
         );
+    }
+
+    #[test]
+    fn link_de_trabalho_sem_classe_css_nao_pode_sumir_do_resultado() {
+        // Uma versão do HTML pode alterar a classe do link e da linha.
+        // O link ainda é de abrir processo: não retornar somente os
+        // resultados cujas classes antigas o parser reconheceu.
+        let html = RESULTADO.replace(
+            "</table>",
+            r#"<tr><td><a href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8">00002.123456/2026-07</a></td></tr></table>"#,
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida)
+        );
+    }
+
+    #[test]
+    fn link_de_outra_acao_sem_classe_nao_cria_processo() {
+        let html = RESULTADO.replace(
+            "</table>",
+            r#"<tr><td><a href="controlador.php?acao=usuario_selecionar">Outra ação</a></td></tr></table>"#,
+        );
+        assert_eq!(ler_resultados(&html).unwrap().len(), 1);
     }
 
     #[test]
