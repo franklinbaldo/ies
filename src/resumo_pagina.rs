@@ -18,9 +18,7 @@ impl FalhaResumoPagina {
     }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
-            Self::PaginasDoControleNaoObtidas => {
-                "a caixa exige páginas que não foram obtidas"
-            }
+            Self::PaginasDoControleNaoObtidas => "a caixa exige páginas que não foram obtidas",
             Self::NumeroNaoObservadoNaPagina => {
                 "número não observado na página recebida; outras páginas não foram consultadas"
             }
