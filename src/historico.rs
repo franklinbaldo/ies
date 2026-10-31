@@ -23,7 +23,9 @@ impl ErroHistorico {
             Self::TituloAusente => "titulo_ausente",
             Self::TituloInvalido => "titulo_invalido",
             Self::NumeroInvalido => "numero_invalido",
-            Self::NumeroDoHistoricoDiferenteDoSolicitado => "processo_divergente",
+            Self::NumeroDoHistoricoDiferenteDoSolicitado => {
+                "numero_do_historico_diferente_do_solicitado"
+            }
             Self::HistoricoAusente => "historico_ausente",
             Self::HistoricoInvalido => "historico_invalido",
             Self::LinhaInvalida => "linha_invalida",

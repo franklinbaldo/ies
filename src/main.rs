@@ -289,11 +289,38 @@ fn mostrar_caixa(
     ExitCode::SUCCESS
 }
 
-fn mostrar_historico(html: &str, instalacao: &str, json_mode: bool) -> ExitCode {
-    let numero = match historico::numero_do_historico(html) {
-        Ok(n) => n,
-        Err(motivo) => {
-            return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
+fn mostrar_historico(
+    html: &str,
+    instalacao: &str,
+    numero_solicitado: Option<&str>,
+    json_mode: bool,
+) -> ExitCode {
+    let numero = if let Some(informado) = numero_solicitado {
+        match processo::NumeroProcesso::novo(informado) {
+            Ok(numero) => numero.as_str().to_owned(),
+            Err(erro) => {
+                if json_mode {
+                    println!(
+                        "{}",
+                        json!({
+                            "codigo": "entrada_invalida",
+                            "subcodigo": erro.subcodigo(),
+                            "erro": "número de processo não aceito",
+                            "retentavel": false
+                        })
+                    );
+                } else {
+                    eprintln!("IES: número de processo não aceito [{}]", erro.subcodigo());
+                }
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        match historico::numero_do_historico(html) {
+            Ok(numero) => numero,
+            Err(motivo) => {
+                return erro_fonte(json_mode, motivo.subcodigo(), motivo.mensagem());
+            }
         }
     };
     let detalhe = match historico::ler_historico(html, &numero) {
@@ -392,14 +419,7 @@ fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> E
     }
     match cassette::read_cassette_auto(card, &zip, &replay.passo, replay.todas_paginas) {
         Ok(cassette::ReplayLido::Historico(html, origem)) => {
-            if replay.numero_processo.is_some() {
-                return erro_fonte(
-                    json_mode,
-                    "replay_nao_e_caixa",
-                    "a resposta é de histórico, não da caixa",
-                );
-            }
-            mostrar_historico(&html, &origem, json_mode)
+            mostrar_historico(&html, &origem, replay.numero_processo.as_deref(), json_mode)
         }
         Ok(cassette::ReplayLido::Caixa(htmls, origem)) => {
             if let Some(numero) = replay.numero_processo.as_deref() {
