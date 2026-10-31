@@ -277,23 +277,21 @@ fn executar_replay_documento(
             json_mode,
         );
     }
-    if replay.documento {
-        if let Some(termo) = replay.termo_documento.as_deref() {
-            return replay_busca_documento::mostrar(card, &zip, &replay.passo, termo, json_mode);
-        }
-        return replay_documento_cli::mostrar(
-            card,
-            &zip,
-            &replay.passo,
-            replay.numero_documento.as_deref(),
-            replay.listar_documentos,
-            &replay_documento_cli::SaidaDocumento {
-                texto: replay.texto_documento,
-                arquivo: replay.arquivo_texto.as_deref(),
-            },
-            json_mode,
-        );
+    if let Some(termo) = replay.termo_documento.as_deref() {
+        return replay_busca_documento::mostrar(card, zip, &replay.passo, termo, json_mode);
     }
+    replay_documento_cli::mostrar(
+        card,
+        zip,
+        &replay.passo,
+        replay.numero_documento.as_deref(),
+        replay.listar_documentos,
+        &replay_documento_cli::SaidaDocumento {
+            texto: replay.texto_documento,
+            arquivo: replay.arquivo_texto.as_deref(),
+        },
+        json_mode,
+    )
 }
 
 fn executar_replay(replay: &Replay, unidade: Option<&str>, json_mode: bool) -> ExitCode {
