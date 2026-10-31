@@ -51,9 +51,11 @@ if ! jq -e --arg sa "$service_account" --arg repositorio "$repositorio" '
   exit 1
 fi
 
-# Normalização estável: exclui somente metadados atribuídos pelo Cloud Build,
-# mas inclui TODOS os comandos, imagens, volumes, argumentos, SA e timeout.
-observado="$(jq -cS '.build | {steps, options, timeout, serviceAccount}' "$arquivo" | sha256sum | cut -d' ' -f1)"
+# A impressão digital cobre TODO o corpo do build. Restringir a poucos campos
+# deixaria disponíveis opções como artifacts, secrets e substitutions sem
+# validação, capazes de alterar os efeitos de um job embora os steps não mudem.
+# O hash deve provir do JSON de configuração integral aprovado FORA da PR.
+observado="$(jq -cS '.build' "$arquivo" | sha256sum | cut -d' ' -f1)"
 if [ "$observado" != "$aprovado" ]; then
   echo "FAIL: gate em execução não corresponde ao SHA-256 aprovado" >&2
   exit 1

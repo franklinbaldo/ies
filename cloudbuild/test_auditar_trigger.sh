@@ -20,7 +20,7 @@ cat > "$tmp/valido.json" <<'JSON'
   }
 }
 JSON
-aprovado="$(jq -cS '.build | {steps, options, timeout, serviceAccount}' "$tmp/valido.json" | sha256sum | cut -d' ' -f1)"
+aprovado="$(jq -cS '.build' "$tmp/valido.json" | sha256sum | cut -d' ' -f1)"
 bash ./auditar-trigger.sh "$tmp/valido.json" "$aprovado" >/dev/null
 recusar() {
   local arquivo="$1" hash="$2"
@@ -54,4 +54,11 @@ jq '.filter = "false"' "$tmp/valido.json" > "$tmp/filtro-cel.json"
 recusar "$tmp/filtro-cel.json" "$aprovado"
 jq '.build.source = {"repoSource":{"branchName":"main"}}' "$tmp/valido.json" > "$tmp/build-source.json"
 recusar "$tmp/build-source.json" "$aprovado"
-echo "PASS: fonte inline de confiança, SHA de gate, identidade e PR verificados; treze cenários negativos recusados"
+# A impressão digital deve cobrir todo o build, não apenas quatro campos.
+# Artefatos não auditados podem exfiltrar saída da compilação ou alterar o
+# efeito do job mesmo que os steps permaneçam idênticos.
+jq '.build.artifacts = {"objects":{"location":"gs://outro-bucket/builds/","paths":["**"]}}' "$tmp/valido.json" > "$tmp/artefatos-nao-aprovados.json"
+recusar "$tmp/artefatos-nao-aprovados.json" "$aprovado"
+jq '.build.substitutions = {"_MODO":"ignorar-validacao"}' "$tmp/valido.json" > "$tmp/substituicoes-nao-aprovadas.json"
+recusar "$tmp/substituicoes-nao-aprovadas.json" "$aprovado"
+echo "PASS: fonte inline de confiança e build integral aprovados; quinze cenários negativos recusados"
