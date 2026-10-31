@@ -170,7 +170,8 @@ ser confundido com resultado. O leitor não executa links nem novas
 requisições ao SEI, não reproduz formulários e não oferece busca live.
 Entrada de passo inválida, ausência ou multiplicidade de tabelas de
 resultados, linha com múltiplos links, link de processo em linha fora do formato
-observado (que seria omitido silenciosamente), ação inesperada, link sem identificador
+observado (que seria omitido silenciosamente), link de trabalho do SEI
+sem a classe CSS reconhecida (não pode desaparecer da contagem), ação inesperada, link sem identificador
 interno de processo, identificador interno que não seja decimal ASCII,
 parâmetro obrigatório `acao` ou `id_procedimento` sem sinal de igual (o PHP
 pode sobrescrever o valor anterior com string vazia), parâmetro de identificador repetido, ação com prefixo `amp;` no primeiro
