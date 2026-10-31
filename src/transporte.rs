@@ -141,7 +141,7 @@ fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> 
         use std::os::unix::fs::OpenOptionsExt;
         // O_NOFOLLOW impede a troca do último componente por symlink.
         // O_NONBLOCK impede que a troca por FIFO bloqueie a leitura.
-        options.custom_flags(0o400000 | 0o4000);
+        options.custom_flags(0o400_000 | 0o4_000);
     }
     let arquivo = options.open(path).map_err(|erro| {
         if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
