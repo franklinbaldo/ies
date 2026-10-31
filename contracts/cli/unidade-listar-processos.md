@@ -95,6 +95,17 @@ e os [testes Rust](../../tests/replay_unidade.rs). Nenhuma URL
 assinada nem cookie pode aparecer em logs ou no resultado JSON.
 
 
+## Formulário de login devolvido com HTTP 200 (Refs #57)
+
+Uma requisição GET autenticada à caixa pode receber HTTP 200 e HTML
+contendo o formulário de login SIP ou de módulo próprio; sucesso HTTP
+**não** equivale a sessão válida. O transporte identifica o formulário
+pela estrutura real (form de login e campo de usuário no mesmo form),
+retornando `pagina_de_login_recebida_no_controle` como falha tipada.
+Não classificar tela de assinatura como login; não iniciar nova tentativa,
+seguir links, reenviar cookie ou acrescentar requests. Evidência baseada
+no fluxo de login documentado pelo Todos, sem validação live nova.
+
 ## Legendas únicas por tabela (Refs #57)
 
 Uma tabela de processos recebidos ou gerados com duas ou mais tags

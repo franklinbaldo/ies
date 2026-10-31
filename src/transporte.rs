@@ -20,6 +20,7 @@ pub enum FalhaTransporte {
     AcessoNegado,
     Redirecionamento,
     RespostaInesperada,
+    PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
 }
@@ -42,6 +43,7 @@ impl FalhaTransporte {
             Self::AcessoNegado => "sessao_nao_autorizada",
             Self::Redirecionamento => "redirecionamento_recusado",
             Self::RespostaInesperada => "resposta_inesperada",
+            Self::PaginaDeLoginRecebidaNoControle => "pagina_de_login_recebida_no_controle",
             Self::RespostaExcessiva => "resposta_excessiva",
             Self::Rede => "falha_de_rede",
         }
@@ -67,6 +69,9 @@ impl FalhaTransporte {
             Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
             Self::Redirecionamento => "redirecionamento recusado; a sessão pode exigir novo login",
             Self::RespostaInesperada => "servidor não retornou a caixa HTML esperada",
+            Self::PaginaDeLoginRecebidaNoControle => {
+                "o SEI devolveu formulário de login em vez da caixa"
+            }
             Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
             Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
         }
@@ -248,8 +253,12 @@ fn decodificar_resposta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String,
     }
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    crate::cassette::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::RespostaInesperada)
+    let html = crate::cassette::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| FalhaTransporte::RespostaInesperada)?;
+    if crate::tela_login::e_tela_login(&html) {
+        return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
+    }
+    Ok(html)
 }
 
 /// A única chamada GET é injetável em testes; URL, origem e cookie passam
@@ -322,6 +331,21 @@ mod tests {
             "https://{host}/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
             "a".repeat(64)
         )
+    }
+
+    #[test]
+    fn http_200_com_formulario_de_login_nao_eh_caixa_autenticada() {
+        let corpo = b"<form id='frmLogin'><input name='txtUsuario'></form>";
+        let resposta = RespostaWeb {
+            status_code: 200,
+            mime: "text/html; charset=utf-8".to_owned(),
+            content_length: None,
+            corpo: Cursor::new(corpo),
+        };
+        assert_eq!(
+            decodificar_resposta(resposta),
+            Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+        );
     }
 
     #[test]
