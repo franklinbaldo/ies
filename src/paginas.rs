@@ -63,10 +63,17 @@ fn faixa_da_tabela(
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    let legenda = tabela
+    let mut legendas = tabela
         .query_selector(parser, "caption")
-        .and_then(|mut itens| itens.next())
-        .and_then(|no| no.get(parser))
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    let primeira = legendas
+        .next()
+        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    if legendas.next().is_some() {
+        return Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria });
+    }
+    let legenda = primeira
+        .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
@@ -262,6 +269,31 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duas_legendas_na_mesma_tabela_recusam_cobertura_mesmo_se_iguais() {
+        for (id, categoria) in [
+            ("tblProcessosRecebidos", Categoria::Recebidos),
+            ("tblProcessosGerados", Categoria::Gerados),
+        ] {
+            let html = format!(
+                "<table id='{id}'><caption>0 registros:</caption><caption>0 registros:</caption></table>"
+            );
+            assert_eq!(
+                faixa_da_tabela(&html, id, categoria, 0),
+                Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria })
+            );
+        }
+    }
+
+    #[test]
+    fn unica_legenda_continua_sendo_aceita() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>";
+        assert!(matches!(
+            faixa_da_tabela(html, "tblProcessosRecebidos", Categoria::Recebidos, 0),
+            Ok(Some(Faixa { total: 0, .. }))
+        ));
+    }
 
     fn linha(id: u32) -> String {
         format!("<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>")

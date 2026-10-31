@@ -105,3 +105,13 @@ retornando `pagina_de_login_recebida_no_controle` como falha tipada.
 Não classificar tela de assinatura como login; não iniciar nova tentativa,
 seguir links, reenviar cookie ou acrescentar requests. Evidência baseada
 no fluxo de login documentado pelo Todos, sem validação live nova.
+
+## Legendas únicas por tabela (Refs #57)
+
+Uma tabela de processos recebidos ou gerados com duas ou mais tags
+`caption`, inclusive iguais, não oferece interpretação inequívoca do
+total/faixa de paginação. O adaptador Web deve falhar com
+`legendas_da_tabela_repetidas` (incluindo categoria) antes de atestar
+cobertura das posições ou devolver a caixa. Não escolher simplesmente
+a primeira legenda. Um `caption` válido único preserva o comportamento.
+Não há mudança de requests ou promessa de snapshot transacional.
