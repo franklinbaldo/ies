@@ -47,7 +47,10 @@ A apresentação não transforma critérios de paginação em propriedades
 do domínio.
 
 O comando de domínio só retorna sucesso quando as tabelas disponíveis
-cobrem os totais declarados. Se a tela exige outras páginas, ele
+cobrem os totais declarados. A resposta que contenha mais de uma ocorrência
+do mesmo ID estrutural `tblProcessosRecebidos` ou `tblProcessosGerados`
+deve falhar com `tabelas_da_categoria_repetidas` e categoria tipada:
+escolher só a primeira permitiria ocultar processos sem erro. Se a tela exige outras páginas, ele
 retorna `paginas_do_controle_nao_obtidas` e **não publica um resultado
 parcial como se fosse toda a caixa**. Este recorte não implementa o
 POST de paginação; portanto, algumas unidades ainda não podem ser
