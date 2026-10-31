@@ -12,6 +12,7 @@ pub enum FalhaTransporte {
     ArquivoPrivadoAusenteOuInacessivel,
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
+    ArquivoPrivadoLinkSimbolico,
     ArquivoPrivadoVazio,
     ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
@@ -33,6 +34,7 @@ impl FalhaTransporte {
                 "arquivo_privado_com_permissoes_inseguras"
             }
             Self::CaminhoDeArquivoNaoEhArquivo => "caminho_nao_eh_arquivo",
+            Self::ArquivoPrivadoLinkSimbolico => "arquivo_privado_link_simbolico",
             Self::ArquivoPrivadoVazio => "arquivo_privado_vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
@@ -57,6 +59,7 @@ impl FalhaTransporte {
             Self::CaminhoDeArquivoNaoEhArquivo => {
                 "caminho informado não aponta para arquivo regular"
             }
+            Self::ArquivoPrivadoLinkSimbolico => "arquivo privado não pode ser link simbólico",
             Self::ArquivoPrivadoVazio => "arquivo privado vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
@@ -120,8 +123,13 @@ fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
 }
 
 fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
-    let metadata =
-        fs::metadata(path).map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+    // symlink_metadata não segue atalhos: status e transporte adotam a mesma
+    // regra antes de ler qualquer conteúdo de sessão.
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+    if metadata.file_type().is_symlink() {
+        return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
+    }
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
     }
@@ -293,6 +301,65 @@ mod tests {
             Err(FalhaTransporte::RespostaExcessiva)
         );
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_simbolicos_para_arquivos_privados_nao_podem_ser_lidos() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-privados-symlink-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&raiz).unwrap();
+        let original = raiz.join("cookie-original");
+        fs::write(&original, "PHPSESSID=DEMONSTRACAO").unwrap();
+        fs::set_permissions(&original, fs::Permissions::from_mode(0o600)).unwrap();
+        let atalho = raiz.join("cookie-atalho");
+        symlink(&original, &atalho).unwrap();
+        assert_eq!(
+            arquivo_privado(&atalho, 8_192),
+            Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        );
+        assert_eq!(
+            arquivo_privado(&original, 8_192),
+            Ok("PHPSESSID=DEMONSTRACAO".to_owned())
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn url_assinada_via_link_simbolico_falha_antes_de_consultar_rede() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-url-symlink-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&raiz).unwrap();
+        let original = raiz.join("url-original");
+        fs::write(&original, url("sei.exemplo")).unwrap();
+        fs::set_permissions(&original, fs::Permissions::from_mode(0o600)).unwrap();
+        let atalho = raiz.join("url-atalho");
+        symlink(&original, &atalho).unwrap();
+        assert_eq!(
+            read_box_from_file(
+                &atalho,
+                &raiz.join("cookie-nao-existe"),
+                &raiz.join("origem-nao-existe"),
+            ),
+            Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
     #[test]
     fn mesma_origem_em_outra_pasta_nao_recebe_cookie() {
         let legitimo = url("sei.exemplo");
