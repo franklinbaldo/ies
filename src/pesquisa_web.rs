@@ -15,6 +15,7 @@ pub enum ErroResultadoPesquisa {
     TabelaDePesquisaAusente,
     TabelasDePesquisaRepetidas,
     LinhaDePesquisaSemLinkDoProcesso,
+    LinhaDePesquisaComMaisDeUmLinkDoProcesso,
     LinkDePesquisaNaoAbreProcesso,
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
@@ -27,6 +28,9 @@ impl ErroResultadoPesquisa {
             Self::TabelaDePesquisaAusente => "tabela_de_pesquisa_ausente",
             Self::TabelasDePesquisaRepetidas => "tabelas_de_pesquisa_repetidas",
             Self::LinhaDePesquisaSemLinkDoProcesso => "linha_de_pesquisa_sem_link_do_processo",
+            Self::LinhaDePesquisaComMaisDeUmLinkDoProcesso => {
+                "linha_de_pesquisa_com_mais_de_um_link_do_processo"
+            }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
             Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
@@ -63,10 +67,17 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let link = tag
+        let mut links = tag
             .query_selector(parser, "a.protocoloNormal")
-            .and_then(|mut itens| itens.next())
-            .and_then(|no| no.get(parser))
+            .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
+        let link_no = links
+            .next()
+            .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
+        if links.next().is_some() {
+            return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso);
+        }
+        let link = link_no
+            .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
         let href = link
@@ -163,6 +174,18 @@ mod tests {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas)
+        );
+    }
+
+    #[test]
+    fn linha_com_dois_links_de_processos_nao_escolhe_o_primeiro_silenciosamente() {
+        let html = RESULTADO.replace(
+            "</a>",
+            r#"</a><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8">00002.123456/2026-07</a>"#,
+        );
+        assert_eq!(
+            ler_resultados(&html),
+            Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso)
         );
     }
 
