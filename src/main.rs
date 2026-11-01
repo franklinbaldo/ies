@@ -28,7 +28,6 @@ mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_historico_privado_cli;
-#[allow(dead_code)] // Shim contract-first: implementação na fase GREEN.
 mod processo_pesquisa_privada_cli;
 mod processo_resumo_cli;
 mod replay_args;
@@ -488,7 +487,8 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    documento_html_privado_cli::tentar_ler(cli)
+    processo_pesquisa_privada_cli::tentar_consultar(cli)
+        .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| processo_historico_privado_cli::tentar_ler(cli))
