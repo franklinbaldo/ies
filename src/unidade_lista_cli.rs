@@ -153,6 +153,36 @@ mod testes_exportacao {
     use std::fs;
 
     #[test]
+    fn controle_resumido_paginado_nao_exporta_falso_total() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <input id='hdnTipoVisualizacao' value='R'>\
+                    <input id='hdnRecebidosHashCriterios' value='filtro-r'>\
+                    <input id='hdnGeradosHashCriterios' value='filtro-g'>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>\
+                    <a id='lnkInfraProximaPaginaDetalhado'>Próxima</a>";
+        let destino = std::env::temp_dir().join(format!(
+            "ies-resumida-paginada-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let status = mostrar_caixa_com_politica(
+            &[html.to_owned()],
+            "web",
+            Some("PPI"),
+            true,
+            true,
+            Some(&destino),
+            true,
+        );
+        assert_eq!(status, ExitCode::from(1));
+        assert!(!destino.exists());
+    }
+
+    #[test]
     fn caixa_observada_com_cobertura_total_pode_ser_exportada() {
         let pasta = std::env::temp_dir().join(format!("ies-caixa-saida-{}", std::process::id()));
         fs::create_dir_all(&pasta).unwrap();
