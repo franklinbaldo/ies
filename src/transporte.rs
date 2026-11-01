@@ -242,7 +242,7 @@ fn decodificar_resposta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String,
     if resposta.status_code != 200 {
         return Err(FalhaTransporte::RespostaInesperada);
     }
-    if !resposta.mime.to_ascii_lowercase().contains("text/html") {
+    if !crate::mime_web::e_html(&resposta.mime) {
         return Err(FalhaTransporte::RespostaInesperada);
     }
     if resposta
