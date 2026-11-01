@@ -189,6 +189,11 @@ impl ErroCorpoDocumento {
         }
     }
 }
+/// Shim inicial do filtro de subárvores não renderizadas (fase RED).
+fn ignorar_subarvore_decorativa(_nome: &str) -> bool {
+    false
+}
+
 /// Percorre nós do corpo sem executar scripts; separa blocos visíveis.
 fn anexar_texto(
     no: &tl::Node<'_>,
@@ -204,6 +209,9 @@ fn anexar_texto(
         tl::Node::Comment(_) => {}
         tl::Node::Tag(tag) => {
             let nome = tag.name().as_utf8_str();
+            if ignorar_subarvore_decorativa(nome.as_ref()) {
+                return Ok(());
+            }
             let quebra = matches!(
                 nome.as_ref(),
                 "p" | "div"
@@ -280,6 +288,37 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
 #[cfg(test)]
 mod testes_texto {
     use super::*;
+    #[test]
+    fn svg_de_icone_nao_entra_no_texto_do_documento() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
+                    <body><svg><title>Abrir menu</title><text>Controle</text></svg>\
+                    <p>Texto do documento.</p></body></html>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Ok("Texto do documento.".to_owned())
+        );
+    }
+
+    #[test]
+    fn template_nao_vaza_rascunho_nem_substitui_texto_real() {
+        let html = "<body><template><p>Rascunho não exibido</p></template>\
+                    <p>Texto público de teste.</p></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Ok("Texto público de teste.".to_owned())
+        );
+    }
+
+    #[test]
+    fn corpo_apenas_com_decoracao_recusa_com_erro_tipado() {
+        let html = "<body><svg><title>Ícone</title></svg>\
+                    <template><p>Não renderizado</p></template></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Err(ErroCorpoDocumento::CorpoVazio)
+        );
+    }
+
     #[test]
     fn extrai_somente_texto_visivel_de_paragrafos() {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title><style>SEGREDO_CSS</style></head><body><p>Olá,</p><p>mundo!</p></body></html>";
