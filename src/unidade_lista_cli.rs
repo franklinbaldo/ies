@@ -1,6 +1,6 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
 use crate::{
-    arquivo_caixa, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida,
+    arquivo_caixa, caixa_detalhada, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida,
     transporte,
 };
 use serde_json::json;
@@ -41,7 +41,59 @@ pub(super) fn listar_processos_da_unidade(
     } else {
         "web_com_paginas_privadas"
     };
+    if caixa_detalhada::possui_tabela(&paginas[0]) {
+        return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, destino);
+    }
     mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
+}
+
+/// A visão detalhada não inventa as categorias recebidos/gerados.
+/// Continua usando o único GET já autorizado ou páginas capturadas privadamente.
+fn mostrar_caixa_detalhada(
+    paginas: &[String],
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+) -> ExitCode {
+    let leitura = match caixa_detalhada::ler_paginas(paginas, unidade) {
+        Ok(leitura) => leitura,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "caixa detalhada não comprovada"),
+    };
+    let saida = json!({
+        "unidade": leitura.unidade,
+        "origem": origem,
+        "visualizacao": "detalhada",
+        "total_declarado": leitura.total_declarado,
+        "processos": leitura.processos
+    });
+    if let Some(caminho) = destino {
+        return match arquivo_caixa::gravar(caminho, &saida) {
+            Ok(bytes) => {
+                if json_mode {
+                    println!("{}", json!({
+                        "arquivo": "gravado",
+                        "bytes": bytes,
+                        "escopo": "caixa_detalhada_verificada"
+                    }));
+                } else {
+                    println!("IES: caixa detalhada verificada gravada em arquivo privado.");
+                }
+                ExitCode::SUCCESS
+            }
+            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        };
+    }
+    if json_mode {
+        println!("{}", serde_json::to_string_pretty(&saida).unwrap());
+    } else {
+        println!("IES: {} processos da visão detalhada da unidade {}.", 
+            leitura.total_declarado, leitura.unidade);
+        for processo in &leitura.processos {
+            println!("{} ({})", processo.numero, processo.id.as_str());
+        }
+    }
+    ExitCode::SUCCESS
 }
 
 pub(super) fn mostrar_caixa(
