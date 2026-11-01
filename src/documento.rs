@@ -5,6 +5,7 @@ pub struct NumeroDocumento(String);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumeroDocumentoInvalido {
     Vazio,
+    Controle,
     NaoNumerico,
 }
 
@@ -12,6 +13,7 @@ impl NumeroDocumentoInvalido {
     pub fn subcodigo(self) -> &'static str {
         match self {
             Self::Vazio => "numero_documento_vazio",
+            Self::Controle => "numero_documento_controle",
             Self::NaoNumerico => "numero_documento_nao_numerico",
         }
     }
