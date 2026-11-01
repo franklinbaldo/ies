@@ -62,7 +62,10 @@ mod tests {
         fs::write(&caminho, dados.to_string()).unwrap();
         let (codigo, erro) = executar(&caminho);
         assert_eq!(codigo, 1);
-        assert_eq!(erro["subcodigo"], "total_recebidos_do_arquivo_nao_comprovado");
+        assert_eq!(
+            erro["subcodigo"],
+            "total_recebidos_do_arquivo_nao_comprovado"
+        );
         fs::remove_file(caminho).unwrap();
     }
 }
