@@ -100,7 +100,9 @@ não abre processo, documentos, sessão ou POST.
 A leitura exige arquivo regular e privado (Unix 0600), limite de 8 MB,
 não segue o link simbólico final no Linux, e aplica as mesmas regras do
 transporte de arquivos privados. A estrutura JSON é interpretada em
-tipos Rust com campos obrigatórios, origem `web`, identidade de
+tipos Rust com campos obrigatórios, origem `web` ou
+`web_com_paginas_privadas` (exportação verificada pela própria CLI
+após junção de páginas privadas), identidade de
 processo opaca, IDs numéricos, e totais declarados iguais ao número
 de linhas em **ambas** as categorias. IDs repetidos, unidade diferente,
 formato desconhecido ou totais não demonstrados produzem falhas
@@ -111,7 +113,10 @@ O resultado inclui `fonte: arquivo_local` e
 `autenticacao_remota: false`, preservando o formato das ocorrências
 do resumo da caixa. A origem declarada no JSON não é assinatura
 digital nem prova de autenticidade/frescura: o IES apenas verifica a
-consistência interna do arquivo escolhido pelo usuário. Alterações
+consistência interna do arquivo escolhido pelo usuário. As duas origens
+aceitas identificam o **formato da exportação**, não autenticam a origem
+real, a sessão ou a atualidade das páginas; totais e IDs continuam
+sujeitos às mesmas verificações em ambas. Alterações
 externas podem fabricar observações; nunca atribuir a esta operação
 existência, ausência ou cobertura atual do SEI. Orçamento de
 requisições SEI: **zero**. Não altera `processo NUP` sem `--resumo`.
