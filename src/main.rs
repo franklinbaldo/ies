@@ -2,6 +2,7 @@ mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_texto_documento;
 mod caixa;
+mod caixa_local;
 mod cassette;
 mod configuracao;
 mod controle_contexto;
@@ -20,6 +21,7 @@ mod historico;
 mod historico_cli;
 mod instalacao;
 mod paginas;
+mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
@@ -35,9 +37,11 @@ mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod status_cli;
+mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
+mod unidade_categoria;
 mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
@@ -88,8 +92,11 @@ struct Processo {
     /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
     #[arg(long, requires = "resumo")]
     saida: Option<PathBuf>,
-    /// Permite relatar NUP observado na primeira página, sem alegar cobertura total
-    #[arg(long, requires = "resumo")]
+    /// Lê resumo de caixa previamente exportada, sem conectar ao SEI
+    #[arg(long, requires = "resumo", conflicts_with = "saida")]
+    caixa_local: Option<PathBuf>,
+    /// Relata NUP na primeira página sem alegar cobertura da caixa
+    #[arg(long, requires = "resumo", conflicts_with = "caixa_local")]
     observado_na_pagina: bool,
     /// Omite documentos da leitura
     #[arg(long)]
@@ -194,6 +201,12 @@ enum UnidadeAcao {
     ListarProcessos {
         #[arg(long)]
         saida: Option<PathBuf>,
+        /// Complementa o GET com páginas HTML privadas já capturadas, sem fazer POST
+        #[arg(long = "pagina-arquivo", value_name = "HTML_PRIVADO")]
+        paginas_capturadas: Vec<PathBuf>,
+        /// Projeta somente categoria coberta no primeiro GET; não usa páginas privadas
+        #[arg(long, value_enum, conflicts_with = "paginas_capturadas")]
+        categoria: Option<unidade_categoria::CategoriaLista>,
     },
 }
 
@@ -205,6 +218,9 @@ struct StatusArgs {
     /// Confere URL, origem e cookie em arquivos privados, sem consultar SEI
     #[arg(long, conflicts_with = "verificar_arquivos")]
     verificar_sessao_local: bool,
+    /// Consulta o Controle Web autenticado configurado: um GET com possíveis efeitos
+    #[arg(long, conflicts_with_all = ["verificar_arquivos", "verificar_sessao_local"])]
+    verificar_controle_web: bool,
 }
 
 #[derive(Debug, Args)]
@@ -463,22 +479,32 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status(args) => {
-            return status_cli::mostrar_status(
-                cli.json,
-                args.verificar_arquivos,
-                args.verificar_sessao_local,
-            );
+            return status_cli::mostrar_status(cli.json, args);
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida }),
+            acao:
+                Some(UnidadeAcao::ListarProcessos {
+                    saida,
+                    paginas_capturadas,
+                    categoria,
+                }),
         }) => {
+            if let Some(categoria) = categoria {
+                return unidade_categoria::listar_categoria(
+                    cli.unidade.as_deref(),
+                    cli.json,
+                    saida.as_deref(),
+                    *categoria,
+                );
+            }
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,
                 saida.as_deref(),
+                paginas_capturadas,
             );
         }
         _ => {}

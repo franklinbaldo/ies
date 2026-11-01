@@ -89,6 +89,32 @@ consulta e usa **o mesmo GET** autorizado da operação de resumo, sem
 novas solicitações Web. Não equivale a processo completo, snapshot da
 instalação ou consulta fora da caixa.
 
+## Resumo a partir de exportação privada da caixa (Refs #59)
+
+`ies processo NUP --resumo --caixa-local CAMINHO [--json]` consulta
+**sem rede** um arquivo JSON de caixa anteriormente exportado pelo
+`ies unidade listar-processos --saida CAMINHO`. A nova opção é
+incompatível com `--saida` e só funciona com `--resumo`;
+não abre processo, documentos, sessão ou POST.
+
+A leitura exige arquivo regular e privado (Unix 0600), limite de 8 MB,
+não segue o link simbólico final no Linux, e aplica as mesmas regras do
+transporte de arquivos privados. A estrutura JSON é interpretada em
+tipos Rust com campos obrigatórios, origem `web`, identidade de
+processo opaca, IDs numéricos, e totais declarados iguais ao número
+de linhas em **ambas** as categorias. IDs repetidos, unidade diferente,
+formato desconhecido ou totais não demonstrados produzem falhas
+tipadas e impedem emitir resultados. A ausência de NUP significa
+apenas que não foi observado no arquivo fornecido.
+
+O resultado inclui `fonte: arquivo_local` e
+`autenticacao_remota: false`, preservando o formato das ocorrências
+do resumo da caixa. A origem declarada no JSON não é assinatura
+digital nem prova de autenticidade/frescura: o IES apenas verifica a
+consistência interna do arquivo escolhido pelo usuário. Alterações
+externas podem fabricar observações; nunca atribuir a esta operação
+existência, ausência ou cobertura atual do SEI. Orçamento de
+requisições SEI: **zero**. Não altera `processo NUP` sem `--resumo`.
 
 ## Observação positiva em página parcial da caixa (Refs #59)
 
@@ -116,3 +142,8 @@ transacional nem identidade validada na árvore do processo.
 O escopo pertence à projeção de apresentação, não ao domínio
 `Processo`. Validação live multicorpus pendente; saída de teste
 offline não demonstra efeito da requisição.
+
+`--observado-na-pagina` é incompatível com `--caixa-local`:
+a observação usa a página do GET e não pode ignorar um arquivo local
+indicado pelo operador. Com `--saida`, o comprovante preserva o mesmo
+`escopo` da projeção gravada (inclusive `resumo_da_pagina`).

@@ -60,3 +60,37 @@ login, POST ou paginação HTTP. Sem esses insumos retorna
 `processo NUP`, `documento NUMERO` e a escrita remota continuam
 como stubs. A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
 ensaios por cassette e por instalação.
+
+
+## Diagnóstico opt-in do Controle de Processos Web (Refs #57)
+
+`ies status --verificar-controle-web [--json]` realiza **um GET**
+da URL assinada do Controle de Processos configurada em arquivos
+privados, aplicando as restrições existentes de HTTPS, mesma origem,
+cookies e ausência de redirects. A operação é explicitamente
+solicitada: `ies status` sem opções,
+`--verificar-arquivos` e `--verificar-sessao-local`
+continuam **sem rede**; opções de diagnóstico são mutuamente
+exclusivas. Um GET do SEI pode registrar visualização/recebimento:
+usar apenas quando essa leitura estiver autorizada e seus efeitos
+forem conhecidos para a instalação.
+
+HTTP 200 isolado, página de login, HTML genérico ou uma página
+sem identificação inequívoca da unidade **não são sucesso**.
+A resposta precisa conter Controle de Processos reconhecível,
+tabelas de Recebidos/Gerados e `lnkInfraUnidade` único.
+O diagnóstico não publica números de processos, HTML, cookies,
+hashes, URLs nem detalhes de outros usuários, somente
+`controle_web: observado`, `unidade_exibida`,
+`conexao: get_realizado` e
+`autenticacao_remota: nao_auditada`. Erros
+`configuracao_invalida`, `transporte_invalido`,
+`controle_web_nao_reconhecido` e
+`identidade_unidade_nao_observada` são variantes
+Rust específicas sem classificar mensagens por regex.
+
+Isso não é login automático, teste de permissões para operações
+protegidas, prova de cobertura/paginação nem certificação de
+autenticação do usuário. Testes live nas instalações autorizadas
+seguem exigindo evidência independente; um GET 200 não comprova
+o restante da API.

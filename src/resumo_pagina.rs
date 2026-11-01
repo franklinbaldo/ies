@@ -78,6 +78,23 @@ mod tests {
     }
 
     #[test]
+    fn resumo_parcial_e_arquivo_local_nao_aceitam_flags_ambiguas() {
+        use clap::Parser;
+        assert!(
+            crate::Cli::try_parse_from([
+                "ies",
+                "processo",
+                "000123/2026",
+                "--resumo",
+                "--caixa-local",
+                "caixa.json",
+                "--observado-na-pagina"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn nup_presente_na_primeira_pagina_de_caixa_grande_e_observavel_com_opt_in() {
         let resultado = observar(&observada(120), "000123/2026", true).unwrap();
         assert!(resultado.pagina_parcial);
