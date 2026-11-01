@@ -10,6 +10,10 @@ pub(crate) struct ContextoPagina {
 }
 
 impl ContextoPagina {
+    pub(crate) fn eh_resumida(&self) -> bool {
+        self.modo.as_deref() == Some("R")
+    }
+
     pub(crate) fn verificavel(&self) -> bool {
         self.unidade.is_some()
             && self.modo.is_some()
