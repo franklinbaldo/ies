@@ -68,6 +68,17 @@ complementos válidos mantém até 1 GET e 0 POST. Os gates Rust/OKF/20 KB e
 GitGuardian passaram no HEAD revisado. Não habilita paginação ativa, não
 promove `PARCIAL WEB` e não equivale a validação live.
 
+**Proposta de revisão em PR (#57/#59):** o mesmo caminho Web já existente
+recusa `--saida` impossível **antes** de carregar sessão ou enviar GET, seja
+na caixa inteira, categoria selecionada ou resumo do NUP. Em Linux, ancoragem
+dos diretórios por descritor e criação exclusiva 0600 evitam desvio
+concorrente da exportação JSON. O orçamento de destino inválido cai de até
+um GET potencialmente administrativo para zero; quando válido, mantém até
+um GET e nenhum POST. Essa proteção **não** é paginação ativa, autenticação
+comprovada, nem leitura integral de processo. Enquanto o código estiver
+em PR aberta, não atribuir a `main` nem promover estados: **14 caminhos,
+11 incompletos, três locais**.
+
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
