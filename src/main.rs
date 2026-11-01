@@ -26,6 +26,7 @@ mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
+mod processo_historico_privado_cli;
 mod processo_resumo_cli;
 mod replay_args;
 mod replay_busca_documento;
@@ -90,6 +91,9 @@ struct Processo {
     /// Consulta somente a identidade já exibida na Caixa de Entrada
     #[arg(long)]
     resumo: bool,
+    /// Interpreta histórico HTML privado previamente capturado, sem rede
+    #[arg(long = "historico-privado", value_name = "ARQUIVO")]
+    historico_privado: Option<PathBuf>,
     /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
     #[arg(long, requires = "resumo")]
     saida: Option<PathBuf>,
@@ -475,17 +479,18 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
     }
 }
 
+/// Despacha os recortes de leitura e prévia já implementados, sem duplicar
+/// verificações nem acessar serviços fora do comando explicitamente solicitado.
+fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
+    documento_html_privado_cli::tentar_ler(cli)
+        .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
+        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
+        .or_else(|| processo_historico_privado_cli::tentar_ler(cli))
+        .or_else(|| processo_resumo_cli::tentar_resumo(cli))
+}
+
 fn run(cli: &Cli) -> ExitCode {
-    if let Some(status) = documento_html_privado_cli::tentar_ler(cli) {
-        return status;
-    }
-    if let Some(status) = documento_salvar_cli::tentar_salvar_documento(cli) {
-        return status;
-    }
-    if let Some(status) = documento_salvar_cli::tentar_validar_versao(cli) {
-        return status;
-    }
-    if let Some(status) = processo_resumo_cli::tentar_resumo(cli) {
+    if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
         return status;
     }
     match &cli.command {
