@@ -33,11 +33,10 @@ fn mostrar_resumo_processo(
     aceitar_pagina_parcial: bool,
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
-    if let Some(caminho) = destino
-        && let Err(erro) = arquivo_caixa::conferir_destino(caminho)
-    {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
-    }
+    let preparado = match destino.map(arquivo_caixa::preparar_destino).transpose() {
+        Ok(valor) => valor,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     // Complementos locais inviáveis não devem provocar GET administrativo.
     let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
         Ok(paginas) => paginas,
@@ -86,8 +85,8 @@ fn mostrar_resumo_processo(
         modelo["escopo"] = json!(escopo);
         modelo["demais_paginas"] = json!("nao_consultadas");
     }
-    if let Some(destino) = destino {
-        return match resumo_exportacao::gravar(destino, &modelo) {
+    if let Some(destino) = preparado.as_ref() {
+        return match arquivo_caixa::gravar_preparado(destino, &modelo) {
             Ok(bytes) => {
                 if json_mode {
                     println!(

@@ -14,11 +14,10 @@ pub(super) fn listar_processos_da_unidade(
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
     // A saída previamente impossível deve falhar sem acessar a sessão/SEI.
-    if let Some(caminho) = destino
-        && let Err(erro) = arquivo_caixa::conferir_destino(caminho)
-    {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
-    }
+    let preparado = match destino.map(arquivo_caixa::preparar_destino).transpose() {
+        Ok(valor) => valor,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     // Arquivos locais inviáveis não podem provocar GET potencialmente
     // administrativo: validar e ler complementos antes da sessão.
     let paginas_adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
@@ -51,9 +50,11 @@ pub(super) fn listar_processos_da_unidade(
         "web_com_paginas_privadas"
     };
     if caixa_detalhada::possui_tabela(&paginas[0]) {
-        return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, destino);
+        return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, preparado.as_ref());
     }
-    mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
+    mostrar_caixa_com_politica(
+        &paginas, origem, unidade, json_mode, true, preparado.as_ref(), true,
+    )
 }
 
 /// A visão detalhada não inventa as categorias recebidos/gerados.
@@ -63,7 +64,7 @@ fn mostrar_caixa_detalhada(
     origem: &str,
     unidade: Option<&str>,
     json_mode: bool,
-    destino: Option<&Path>,
+    destino: Option<&arquivo_caixa::DestinoPreparado<'_>>,
 ) -> ExitCode {
     let leitura = match caixa_detalhada::ler_paginas(paginas, unidade) {
         Ok(leitura) => leitura,
@@ -83,7 +84,7 @@ fn mostrar_caixa_detalhada(
         "processos": &leitura.processos
     });
     if let Some(caminho) = destino {
-        return match arquivo_caixa::gravar(caminho, &saida) {
+        return match arquivo_caixa::gravar_preparado(caminho, &saida) {
             Ok(bytes) => {
                 if json_mode {
                     println!(
@@ -124,13 +125,17 @@ pub(super) fn mostrar_caixa(
     exigir_todas_paginas: bool,
     destino: Option<&Path>,
 ) -> ExitCode {
+    let preparado = match destino.map(arquivo_caixa::preparar_destino).transpose() {
+        Ok(valor) => valor,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     mostrar_caixa_com_politica(
         htmls,
         origem,
         unidade,
         json_mode,
         exigir_todas_paginas,
-        destino,
+        preparado.as_ref(),
         false,
     )
 }
@@ -151,7 +156,7 @@ fn mostrar_caixa_com_politica(
     unidade: Option<&str>,
     json_mode: bool,
     exigir_todas_paginas: bool,
-    destino: Option<&Path>,
+    destino: Option<&arquivo_caixa::DestinoPreparado<'_>>,
     exigir_identidade_web: bool,
 ) -> ExitCode {
     let leitura = match paginas::juntar(htmls, unidade) {
@@ -196,7 +201,7 @@ fn mostrar_caixa_com_politica(
     }
     let resultado = saida::json(&leitura, origem);
     if let Some(caminho) = destino {
-        match arquivo_caixa::gravar(caminho, &resultado) {
+        match arquivo_caixa::gravar_preparado(caminho, &resultado) {
             Ok(bytes) => {
                 if json_mode {
                     println!(

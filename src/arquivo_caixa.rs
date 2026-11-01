@@ -101,8 +101,28 @@ fn diretorio_ancorado(pai: &Path) -> Result<std::fs::File, ErroArquivoCaixa> {
     Ok(atual)
 }
 
-fn gravar_com_intervalo(
-    destino: &Path,
+/// Mantem o mesmo diretório desde antes do GET até a gravação privada.
+pub(crate) struct DestinoPreparado<'a> {
+    caminho: &'a Path,
+    #[cfg(target_os = "linux")]
+    pai: std::fs::File,
+}
+
+pub(crate) fn preparar_destino(destino: &Path) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
+    conferir_destino(destino)?;
+    #[cfg(target_os = "linux")]
+    let pai = diretorio_ancorado(
+        destino.parent().ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
+    )?;
+    Ok(DestinoPreparado {
+        caminho: destino,
+        #[cfg(target_os = "linux")]
+        pai,
+    })
+}
+
+fn gravar_preparado_com_intervalo(
+    destino: &DestinoPreparado<'_>,
     valor: &Value,
     entre_ancoragem_e_abertura: impl FnOnce(),
 ) -> Result<usize, ErroArquivoCaixa> {
@@ -111,13 +131,6 @@ fn gravar_com_intervalo(
     #[cfg(unix)]
     use std::os::unix::fs::OpenOptionsExt;
 
-    conferir_destino(destino)?;
-    #[cfg(target_os = "linux")]
-    let pai = diretorio_ancorado(
-        destino
-            .parent()
-            .ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
-    )?;
     let bytes =
         serde_json::to_vec_pretty(valor).map_err(|_| ErroArquivoCaixa::EscritaDeArquivoFalhou)?;
     let mut opcoes = OpenOptions::new();
@@ -128,14 +141,12 @@ fn gravar_com_intervalo(
     #[cfg(target_os = "linux")]
     let caminho = {
         use std::os::fd::AsRawFd;
-        std::path::PathBuf::from(format!("/proc/self/fd/{}", pai.as_raw_fd())).join(
-            destino
-                .file_name()
-                .ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?,
+        std::path::PathBuf::from(format!("/proc/self/fd/{}", destino.pai.as_raw_fd())).join(
+            destino.caminho.file_name().ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?,
         )
     };
     #[cfg(not(target_os = "linux"))]
-    let caminho = destino.to_path_buf();
+    let caminho = destino.caminho.to_path_buf();
     let mut arquivo = opcoes.open(&caminho).map_err(|erro| {
         if erro.kind() == ErrorKind::AlreadyExists {
             ErroArquivoCaixa::DestinoJaExiste
@@ -143,19 +154,30 @@ fn gravar_com_intervalo(
             ErroArquivoCaixa::EscritaDeArquivoFalhou
         }
     })?;
-    if arquivo
-        .write_all(&bytes)
-        .and_then(|()| arquivo.sync_all())
-        .is_err()
-    {
-        // Não remover por pathname: um concorrente pode ter trocado ancestrais.
-        // Um parcial permanece privado (0600) para recuperação supervisionada.
+    if arquivo.write_all(&bytes).and_then(|()| arquivo.sync_all()).is_err() {
+        // Não remover por pathname após falha: diretório pode ter mudado.
         return Err(ErroArquivoCaixa::EscritaDeArquivoFalhou);
     }
     Ok(bytes.len())
 }
 
-/// Grava JSON em arquivo novo e 0600; Linux ancora o pai contra symlink concorrente.
+pub(crate) fn gravar_preparado(
+    destino: &DestinoPreparado<'_>,
+    valor: &Value,
+) -> Result<usize, ErroArquivoCaixa> {
+    gravar_preparado_com_intervalo(destino, valor, || {})
+}
+
+fn gravar_com_intervalo(
+    destino: &Path,
+    valor: &Value,
+    entre_ancoragem_e_abertura: impl FnOnce(),
+) -> Result<usize, ErroArquivoCaixa> {
+    let preparado = preparar_destino(destino)?;
+    gravar_preparado_com_intervalo(&preparado, valor, entre_ancoragem_e_abertura)
+}
+
+/// Uso local direto; fluxo Web deve preparar o destino antes da rede.
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
     gravar_com_intervalo(destino, valor, || {})
 }
