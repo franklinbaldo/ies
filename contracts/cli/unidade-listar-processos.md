@@ -226,3 +226,23 @@ se a captura não possui identificador de unidade, pode apresentar o conteúdo
 somente com escopo de replay, **sem alegar proveniência de leitura live**.
 O comportamento é testado com HTML sintético; acesso autenticado nas
 instalações de treinamento continua **NOT_RUN**.
+
+## Chaves canônicas de URL e separadores PHP na leitura Web (Refs #57)
+
+Antes de enviar cookie no GET do Controle, o adaptador exige nomes
+**literais** de parâmetros ASCII `a-z`, `0-9`, `_`; não aceita nomes
+normalizados pelo PHP, inclusive `a%63ao`, `infra.hash`, `infra+hash`
+ou `acao ajax`. Caso contrário uma chave aparentemente desconhecida
+pode sobrescrever `acao` ou `infra_hash` ao ser decodificada pelo
+servidor. Recusar separador literal `;` em qualquer valor: servidores
+podem tratá-lo como delimitador de query além de `&`.
+
+As variantes Rust tipadas são `ChaveDeConsultaNaoCanonica`
+(`chave_de_consulta_do_controle_nao_canonica`) e
+`SeparadorDeConsultaAmbiguo`
+(`separador_de_consulta_do_controle_ambiguo`).
+Mantém parâmetros auxiliares canônicos realmente publicados; não
+introduz GET, POST ou fallback. Testes offline não provam compatibilidade
+nas instalações UnB/UFRJ/Goiás/PEN (**NOT_RUN**). A gramática precisa
+ser revista contra URLs reais autorizadas caso uma instalação use outro
+formato; nunca relaxar uma proteção sem evidência.
