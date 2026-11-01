@@ -85,13 +85,21 @@ impl FalhaTransporte {
 }
 
 
-// Shims contract-first: as regras serão habilitadas após os testes RED.
-fn conferir_chave_de_consulta(_chave: &str) -> Result<(), FalhaTransporte> {
-    Err(FalhaTransporte::ChaveDeConsultaNaoCanonica)
+// PHP decodifica percent/plus e converte pontos/espaços em underscores;
+// preservar a rejeição de nomes não literais já exigida pelo transporte.
+fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
+    if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
+        return Err(FalhaTransporte::ChaveDeConsultaNaoCanonica);
+    }
+    Ok(())
 }
 
-fn conferir_valor_de_consulta(_valor: &str) -> Result<(), FalhaTransporte> {
-    Err(FalhaTransporte::SeparadorDeConsultaAmbiguo)
+// Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
+fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTransporte> {
+    if valor.contains(';') {
+        return Err(FalhaTransporte::SeparadorDeConsultaAmbiguo);
+    }
+    Ok(())
 }
 
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
@@ -114,9 +122,8 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let mut hashes = 0;
     for item in query.split('&') {
         let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::UrlInvalida)?;
-        if !nome.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
-            return Err(FalhaTransporte::UrlInvalida);
-        }
+        conferir_chave_de_consulta(nome)?;
+        conferir_valor_de_consulta(valor)?;
         match nome {
             "acao" if valor == "procedimento_controlar" => actions += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {

@@ -230,7 +230,8 @@ instalações de treinamento continua **NOT_RUN**.
 ## Chaves canônicas de URL e separadores PHP na leitura Web (Refs #57)
 
 Antes de enviar cookie no GET do Controle, o adaptador exige nomes
-**literais** de parâmetros ASCII `a-z`, `0-9`, `_`; não aceita nomes
+**literais** de parâmetros ASCII `a-z` e `_` (a regra já rejeitava
+aliases, agora com erro tipado); não aceita nomes
 normalizados pelo PHP, inclusive `a%63ao`, `infra.hash`, `infra+hash`
 ou `acao ajax`. Caso contrário uma chave aparentemente desconhecida
 pode sobrescrever `acao` ou `infra_hash` ao ser decodificada pelo
