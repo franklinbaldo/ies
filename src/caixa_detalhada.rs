@@ -42,6 +42,7 @@ pub(crate) enum ErroDetalhada {
     LegendasRepetidas,
     TotalNaoDeclarado,
     FaixaInvalida,
+    FaixaSemIntervaloComPaginacao,
     FaixaDescontinua,
     TotalAlterado,
     PaginasNaoObtidas,
@@ -71,6 +72,7 @@ impl ErroDetalhada {
             Self::LegendasRepetidas => "legendas_detalhadas_repetidas",
             Self::TotalNaoDeclarado => "total_detalhado_nao_declarado",
             Self::FaixaInvalida => "faixa_detalhada_invalida",
+            Self::FaixaSemIntervaloComPaginacao => "faixa_detalhada_sem_intervalo_com_paginacao",
             Self::FaixaDescontinua => "faixa_detalhada_descontinua",
             Self::TotalAlterado => "total_detalhado_alterado",
             Self::PaginasNaoObtidas => "paginas_detalhadas_nao_obtidas",
@@ -99,7 +101,11 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 /// Legenda da lista detalhada, sem supor que o total é igual à página.
-fn faixa(legenda: &str, linhas: usize) -> Result<(usize, usize, usize), ErroDetalhada> {
+fn faixa(
+    legenda: &str,
+    linhas: usize,
+    paginacao_visivel: bool,
+) -> Result<(usize, usize, usize), ErroDetalhada> {
     let (anterior, restante) = legenda
         .split_once(" registro")
         .ok_or(ErroDetalhada::TotalNaoDeclarado)?;
@@ -113,6 +119,9 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, usize, usize), ErroDeta
         .parse::<usize>()
         .map_err(|_| ErroDetalhada::TotalNaoDeclarado)?;
     let Some((_, intervalo)) = restante.split_once(" - ") else {
+        if paginacao_visivel {
+            return Err(ErroDetalhada::FaixaSemIntervaloComPaginacao);
+        }
         return Ok((total, 1, linhas));
     };
     let (inicio, fim) = intervalo
@@ -294,7 +303,11 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
             }
         }
     }
-    let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len())?;
+    // Marcadores de paginação sem faixa explícita não demonstram cobertura.
+    let paginacao_visivel = dom.get_element_by_id("hdnDetalhadoPaginaAtual").is_some()
+        || crate::paginacao_controle::controles_de_paginacao(html)
+            .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+    let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {
         contexto,
         total,

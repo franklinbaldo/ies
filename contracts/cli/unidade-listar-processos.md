@@ -297,3 +297,12 @@ mas o comando não fabrica uma tela D a partir de R e não restaura estado
 do usuário. Esta fatia não conclui a paginação ativa da #57, que exige
 prova de payload/efeitos do formulário por instalação. Cassettes históricas
 e testes sintéticos são limites de validação, não equivalência live.
+
+
+Se uma tela detalhada publicar `hdnDetalhadoPaginaAtual` ou controles
+`lnkInfraProximaPagina*`, `lnkInfraPaginaAnterior*` ou
+`selInfraPaginacao*`, sua legenda deve declarar o **intervalo explícito**.
+Coincidência entre total e linhas sem faixa não comprova cobertura:
+falhar com `faixa_detalhada_sem_intervalo_com_paginacao`, sem exportação
+nem requests adicionais. Isso evita apresentar uma página posterior
+como primeira página completa.

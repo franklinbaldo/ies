@@ -107,3 +107,20 @@ fn nao_atribui_detalhada_a_visao_resumida() {
         Err(ErroDetalhada::VisualizacaoIncorreta)
     );
 }
+
+#[test]
+fn paginacao_detalhada_sem_intervalo_explicito_nao_prova_cobertura() {
+    let original = pagina(1, 1, &[(1, "000001/2026")]);
+    let sem_faixa = original.replace("registros - 1 a 1", "registros");
+    for marcador in [
+        "<input id='hdnDetalhadoPaginaAtual' value='2'>",
+        "<select id='selInfraPaginacaoDetalhado'><option>2</option></select>",
+    ] {
+        let html = sem_faixa.replace("</body>", &format!("{marcador}</body>"));
+        assert_eq!(
+            ler_paginas(&[html], Some("PPI")),
+            Err(ErroDetalhada::FaixaSemIntervaloComPaginacao)
+        );
+    }
+    assert_eq!(ler_paginas(&[sem_faixa], Some("PPI")).unwrap().total_declarado, 1);
+}
