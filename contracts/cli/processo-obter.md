@@ -243,3 +243,15 @@ requisições; caminho válido conserva até um GET, zero POST. No Linux,
 a criação 0600 é ancorada em descritores de diretório abertos e não
 remove arquivo por caminho após erro de escrita. Isso não representa
 leitura integral do processo nem evidência live autenticada.
+
+## Complementos do resumo: recusa antes do GET (Refs #57 e #59)
+
+`ies processo NUP --resumo --pagina-arquivo HTML_PRIVADO` deve validar e
+carregar os complementos privados **antes** de ler configuração/cookies ou
+fazer o GET de Controle, tal como `unidade listar-processos`. Um arquivo
+ausente, inacessível, vazio, inseguro, duplicado ou acima do limite deve
+produzir seu erro Rust tipado e **zero requests**; não pode mascarar a
+falha com erro de sessão. Uma entrada válida continua exigindo no máximo
+um GET, nenhum POST; após o GET, conferir os 48 MB agregados utilizando
+os mesmos bytes já lidos, sem abrir novamente os complementos. Esta
+pré-condição não prova completude, sessão live nem autoriza o efeito do GET.
