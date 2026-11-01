@@ -55,9 +55,7 @@ fn mostrar_resumo_processo(
         Ok(html) => html,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    if let Err(erro) =
-        paginas_capturadas::conferir_orcamento_com_inicial(&adicionais, html.len())
-    {
+    if let Err(erro) = paginas_capturadas::conferir_orcamento_com_inicial(&adicionais, html.len()) {
         return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
     }
     let leitura = match juntar_paginas_do_resumo(html, adicionais, unidade) {
