@@ -53,7 +53,13 @@ pub(super) fn listar_processos_da_unidade(
         return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, preparado.as_ref());
     }
     mostrar_caixa_com_politica(
-        &paginas, origem, unidade, json_mode, true, preparado.as_ref(), true,
+        &paginas,
+        origem,
+        unidade,
+        json_mode,
+        true,
+        preparado.as_ref(),
+        true,
     )
 }
 
@@ -246,13 +252,14 @@ mod testes_exportacao {
                 .unwrap()
                 .as_nanos()
         ));
+        let preparado = arquivo_caixa::preparar_destino(&destino).unwrap();
         let status = mostrar_caixa_com_politica(
             &[html.to_owned()],
             "web",
             Some("PPI"),
             true,
             true,
-            Some(&destino),
+            Some(&preparado),
             true,
         );
         assert_eq!(status, ExitCode::from(1));
@@ -277,8 +284,15 @@ mod testes_exportacao {
                 .unwrap()
                 .as_nanos()
         ));
+        let preparado = arquivo_caixa::preparar_destino(&caminho).unwrap();
         assert_eq!(
-            mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
+            mostrar_caixa_detalhada(
+                &[html.to_owned()],
+                "web",
+                Some("PPI"),
+                true,
+                Some(&preparado),
+            ),
             ExitCode::SUCCESS
         );
         let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
@@ -342,13 +356,14 @@ mod testes_exportacao {
                 .unwrap()
                 .as_nanos()
         ));
+        let preparado = arquivo_caixa::preparar_destino(&caminho).unwrap();
         let codigo = mostrar_caixa_com_politica(
             &[html.to_owned()],
             "web",
             None,
             true,
             true,
-            Some(&caminho),
+            Some(&preparado),
             true,
         );
         assert_eq!(codigo, ExitCode::from(1));
