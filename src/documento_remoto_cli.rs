@@ -21,6 +21,14 @@ impl ErroDocumentoRemoto {
         }
     }
 }
+fn conferir(_comando: &crate::Documento, _unidade: Option<&str>)
+    -> Result<documento::NumeroDocumento, ErroDocumentoRemoto> {
+    Err(ErroDocumentoRemoto::OpcoesNaoComprovadas)
+}
+fn selecionar(_html: &str, _numero: &documento::NumeroDocumento)
+    -> Result<(crate::documento_web::IdentidadeDoDocumento, String), ErroDocumentoRemoto> {
+    Err(ErroDocumentoRemoto::NumeroDoHtmlDiferenteDoSolicitado)
+}
 pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(comando) = &cli.command else { return None; };
     let _ = comando.url_documento_file.as_deref()?;
@@ -30,3 +38,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
         "consulta opt-in ainda não implementada",
     ))
 }
+
+#[cfg(test)]
+#[path = "documento_remoto_cli/tests.rs"]
+mod tests;
