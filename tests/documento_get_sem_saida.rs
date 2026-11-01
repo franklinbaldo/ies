@@ -22,6 +22,8 @@ fn get_opt_in_sem_destino_privado_falha_antes_de_sessao_ou_url() {
     let saida: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(saida["codigo"], "entrada_invalida");
     assert_eq!(saida["subcodigo"], "saida_privada_obrigatoria_para_documento_web");
+    assert_eq!(saida["retentavel"], false);
+    assert!(saida.get("texto").is_none());
     assert!(resposta.stderr.is_empty());
     assert!(!String::from_utf8_lossy(&resposta.stdout).contains("PHPSESSID"));
 }
