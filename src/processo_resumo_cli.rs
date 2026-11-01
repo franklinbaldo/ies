@@ -240,14 +240,32 @@ mod tests {
 
     #[test]
     fn contrato_de_paginas_requer_resumo_e_recusa_fontes_concorrentes() {
-        assert!(Cli::try_parse_from([
-            "ies", "processo", "0002/2026", "--resumo",
-            "--pagina-arquivo", "segunda.html"
-        ]).is_ok());
+        assert!(
+            Cli::try_parse_from([
+                "ies",
+                "processo",
+                "0002/2026",
+                "--resumo",
+                "--pagina-arquivo",
+                "segunda.html"
+            ])
+            .is_ok()
+        );
         for opcoes in [
             vec!["--pagina-arquivo", "segunda.html"],
-            vec!["--resumo", "--pagina-arquivo", "segunda.html", "--caixa-local", "caixa.json"],
-            vec!["--resumo", "--pagina-arquivo", "segunda.html", "--observado-na-pagina"],
+            vec![
+                "--resumo",
+                "--pagina-arquivo",
+                "segunda.html",
+                "--caixa-local",
+                "caixa.json",
+            ],
+            vec![
+                "--resumo",
+                "--pagina-arquivo",
+                "segunda.html",
+                "--observado-na-pagina",
+            ],
         ] {
             let mut args = vec!["ies", "processo", "0002/2026"];
             args.extend(opcoes);
@@ -278,13 +296,15 @@ mod tests {
         let outra = segunda.replace(">PPI</a>", ">OUTRA</a>");
         assert_eq!(
             juntar_paginas_do_resumo(primeira.clone(), vec![outra], Some("PPI"))
-                .unwrap_err(),
+                .err()
+                .unwrap(),
             ErroCaixa::ContextoDaPaginaDiferenteDoAnterior
         );
         let alterada = pagina(2, 1, 99, "0009/2026");
         assert_eq!(
             juntar_paginas_do_resumo(primeira, vec![alterada], Some("PPI"))
-                .unwrap_err(),
+                .err()
+                .unwrap(),
             ErroCaixa::FaixaAlterada {
                 categoria: crate::dominio::Categoria::Recebidos
             }
