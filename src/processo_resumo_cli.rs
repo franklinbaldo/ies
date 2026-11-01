@@ -1,11 +1,23 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
-    Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas, processo,
-    resumo_exportacao, resumo_pagina, resumo_processo, transporte,
+    Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas,
+    paginas_capturadas, processo, resumo_exportacao, resumo_pagina, resumo_processo, transporte,
 };
 use serde_json::json;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+/// Reutiliza a junção de caixa: páginas capturadas nunca disparam POST.
+fn juntar_paginas_do_resumo(
+    primeira: String,
+    adicionais: Vec<String>,
+    unidade: Option<&str>,
+) -> Result<paginas::Leitura, crate::erro_web::ErroCaixa> {
+    let mut paginas = Vec::with_capacity(adicionais.len() + 1);
+    paginas.push(primeira);
+    paginas.extend(adicionais);
+    paginas::juntar(&paginas, unidade)
+}
 
 fn mostrar_resumo_processo(
     numero: &str,
@@ -13,7 +25,11 @@ fn mostrar_resumo_processo(
     json_mode: bool,
     destino: Option<&Path>,
     aceitar_pagina_parcial: bool,
+    paginas_privadas: &[PathBuf],
 ) -> ExitCode {
+    if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -26,7 +42,11 @@ fn mostrar_resumo_processo(
         Ok(html) => html,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let leitura = match paginas::juntar(&[html], unidade) {
+    let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
+        Ok(paginas) => paginas,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let leitura = match juntar_paginas_do_resumo(html, adicionais, unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
             return erro_fonte(
@@ -47,6 +67,9 @@ fn mostrar_resumo_processo(
     };
     let mut modelo =
         resumo_exportacao::modelo(numero, leitura.unidade.as_deref(), &observacao.ocorrencias);
+    if !paginas_privadas.is_empty() {
+        modelo["origem"] = json!("web_com_paginas_privadas");
+    }
     if observacao.pagina_parcial {
         modelo["escopo"] = json!(escopo);
         modelo["demais_paginas"] = json!("nao_consultadas");
@@ -76,6 +99,11 @@ fn mostrar_resumo_processo(
     } else if observacao.pagina_parcial {
         println!(
             "IES: processo {numero} observado na página atual ({} ocorrência(s)); demais páginas não consultadas.",
+            observacao.ocorrencias.len()
+        );
+    } else if !paginas_privadas.is_empty() {
+        println!(
+            "IES: processo {numero} observado na caixa complementada por páginas privadas ({} ocorrência(s)); detalhes não consultados.",
             observacao.ocorrencias.len()
         );
     } else {
@@ -127,6 +155,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         saida,
         caixa_local,
         observado_na_pagina,
+        paginas_capturadas,
         acao: None,
         ..
     }) = &cli.command
@@ -156,6 +185,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         cli.json,
         saida.as_deref(),
         *observado_na_pagina,
+        paginas_capturadas,
     ))
 }
 
