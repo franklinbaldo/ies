@@ -142,6 +142,38 @@ mod testes {
     }
 
     #[test]
+    fn unidade_global_errada_nao_pode_gerar_sucesso_web() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            projetar_com_unidade(html, Some("OUTRA")),
+            Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
+        );
+        assert_eq!(
+            FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.subcodigo(),
+            "unidade_exibida_diferente_da_solicitada"
+        );
+        assert!(!FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.mensagem().contains("PPI"));
+        assert_eq!(
+            projetar_com_unidade(html, Some("ppi")),
+            Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
+        );
+    }
+
+    #[test]
+    fn unidade_global_igual_ou_ausente_preserva_diagnostico() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        for esperada in [None, Some("PPI")] {
+            let valor = projetar_com_unidade(html, esperada).unwrap();
+            assert_eq!(valor["unidade_exibida"], "PPI");
+            assert_eq!(valor["autenticacao_remota"], "nao_auditada");
+        }
+    }
+
+    #[test]
     fn controles_sem_rotulo_de_unidade_nao_provam_contexto() {
         let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
