@@ -212,10 +212,7 @@ fn anexar_texto(
             if ignorar_subarvore_decorativa(nome.as_ref()) {
                 return Ok(());
             }
-            if matches!(
-                nome.as_ref(),
-                "script" | "style" | "iframe" | "noscript"
-            ) {
+            if matches!(nome.as_ref(), "script" | "style" | "iframe" | "noscript") {
                 return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
             }
             let quebra = matches!(
@@ -312,6 +309,7 @@ mod testes_texto {
             Err(ErroCorpoDocumento::CorpoVazio)
         );
     }
+
     #[test]
     fn svg_de_icone_nao_entra_no_texto_do_documento() {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
