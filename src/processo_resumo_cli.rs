@@ -7,6 +7,14 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+/// Preserva os zeros e normaliza espaços externos antes de comparar o NUP.
+fn normalizar_numero_resumo(
+    entrada: &str,
+) -> Result<String, processo::NumeroProcessoInvalido> {
+    let _ = processo::NumeroProcesso::novo(entrada)?;
+    Ok(entrada.to_owned())
+}
+
 /// Reutiliza a junção de caixa: páginas capturadas nunca disparam POST.
 fn juntar_paginas_do_resumo(
     primeira: String,
@@ -170,7 +178,8 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
             2,
         ));
     }
-    processo::NumeroProcesso::novo(numero).ok()?;
+    let normalizado = normalizar_numero_resumo(numero).ok()?;
+    let numero = normalizado.as_str();
     if let Some(caminho) = caixa_local.as_deref() {
         return Some(mostrar_resumo_de_caixa_local(
             numero,
@@ -310,4 +319,23 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn resumo_compara_nup_normalizado_sem_perder_zeros_no_inicio() {
+        let normalizado = normalizar_numero_resumo("  0001/2026  ").unwrap();
+        assert_eq!(normalizado, "0001/2026");
+        let leitura = juntar_paginas_do_resumo(
+            pagina(1, 1, 1, "0001/2026"),
+            Vec::new(),
+            Some("PPI"),
+        )
+        .unwrap();
+        let observacao = resumo_pagina::observar(&leitura, &normalizado, false).unwrap();
+        assert_eq!(observacao.ocorrencias.len(), 1);
+        assert_eq!(
+            normalizar_numero_resumo("0001/2026\n"),
+            Err(processo::NumeroProcessoInvalido::Controle)
+        );
+    }
+
 }

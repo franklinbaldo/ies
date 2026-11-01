@@ -178,3 +178,15 @@ não são autenticados criptograficamente: selecionar páginas da mesma
 sessão e unidade é obrigação do operador, e o IES não pode certificar
 frescura nem snapshot da caixa. Testes em instalações externas seguem
 NOT_RUN, sem declarar capacidade live de paginação.
+
+## Normalização de NUP na projeção de resumo (Refs #59)
+
+A entrada de `ies processo NUP --resumo` é convertida ao
+`NumeroProcesso` tipado **antes** de comparar o NUP com linhas da caixa,
+seja por um GET existente ou arquivo local exportado. Espaços comuns nas
+extremidades são removidos uma única vez e os zeros do número
+permanecem exatos. CR/LF/tab continuam recusados ainda na entrada
+original, com `numero_processo_controle`; caracteres internos e
+pontuação não são transformados em equivalências conjecturadas.
+A projeção e o comprovante mostram o NUP normalizado. Não acrescenta
+requisições, não prova ausência fora da caixa nem habilita leitura integral.
