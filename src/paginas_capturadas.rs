@@ -148,7 +148,10 @@ mod tests {
     #[test]
     fn orcamento_final_inclui_get_sem_reabrir_complementos() {
         let paginas = vec![String::from("abc"), String::from("defg")];
-        assert_eq!(conferir_orcamento_com_inicial(&paginas, 48_000_000 - 7), Ok(()));
+        assert_eq!(
+            conferir_orcamento_com_inicial(&paginas, 48_000_000 - 7),
+            Ok(())
+        );
         assert_eq!(
             conferir_orcamento_com_inicial(&paginas, 48_000_000 - 6),
             Err(FalhaPaginaCapturada::BytesAcimaDoLimite)
