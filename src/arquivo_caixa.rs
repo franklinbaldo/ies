@@ -248,6 +248,28 @@ mod tests {
         fs::remove_dir_all(raiz).unwrap();
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn troca_por_diretorio_regular_apos_preparacao_nao_desvia_json() {
+        let raiz = pasta();
+        let saida = raiz.join("saida");
+        let original = raiz.join("saida-original");
+        fs::create_dir(&saida).unwrap();
+        let destino = saida.join("caixa.json");
+        let preparado = preparar_destino(&destino).unwrap();
+        fs::rename(&saida, &original).unwrap();
+        fs::create_dir(&saida).unwrap();
+        let valor = serde_json::json!({"conteudo": "CONFIDENCIAL"});
+        assert!(gravar_preparado(&preparado, &valor).is_ok());
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(original.join("caixa.json")).unwrap()).unwrap(),
+            valor
+        );
+        assert!(!saida.join("caixa.json").exists());
+        drop(preparado);
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
     #[cfg(unix)]
     #[test]
     fn arquivo_simbolico_pendente_e_ancestral_simbolico_falham_na_previa() {
