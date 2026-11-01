@@ -231,11 +231,11 @@ fn linhas_do_historico(
 }
 
 /// Caption única é requisito de identidade e contagem da tabela Web.
-fn legenda_unica(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-) -> Result<String, ErroVersao> {
-    let mut legendas = tabela.query_selector(parser, "caption").into_iter().flatten();
+fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroVersao> {
+    let mut legendas = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten();
     let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
     if legendas.next().is_some() {
         return Err(ErroVersao::LegendasDoHistoricoRepetidas);
@@ -382,5 +382,4 @@ mod testes {
             "legendas_historico_versoes_repetidas"
         );
     }
-
 }
