@@ -285,6 +285,18 @@ mod testes_texto {
     use super::*;
 
     #[test]
+    fn elementos_executaveis_visiveis_continuam_recusados_por_tipo() {
+        for tag in ["script", "style", "iframe", "noscript"] {
+            let html = format!("<body><{tag}>oculto</{tag}><p>Visível</p></body>");
+            assert_eq!(
+                texto_do_corpo(&html),
+                Err(ErroCorpoDocumento::CorpoComConteudoExecutavel),
+                "{tag}"
+            );
+        }
+    }
+
+    #[test]
     fn script_em_template_inerte_nao_impede_texto_do_documento() {
         let html = "<body><template><script>nao_executado()</script></template>\
                     <p>Texto visível legítimo.</p></body>";
