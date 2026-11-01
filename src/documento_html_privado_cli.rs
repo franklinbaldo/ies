@@ -63,10 +63,12 @@ fn selecionar(
     html: &str,
     numero: &documento::NumeroDocumento,
 ) -> Result<(documento_web::IdentidadeDoDocumento, String), ErroHtmlPrivado> {
-    let _ = (html, numero);
-    Err(ErroHtmlPrivado::Titulo(
-        documento_web::ErroTituloDocumento::TituloAusente,
-    ))
+    let identidade = documento_web::identidade_do_titulo(html).map_err(ErroHtmlPrivado::Titulo)?;
+    if identidade.numero != numero.as_str() {
+        return Err(ErroHtmlPrivado::NumeroDiferenteDoSolicitado);
+    }
+    let texto = documento_web::texto_do_corpo(html).map_err(ErroHtmlPrivado::Corpo)?;
+    Ok((identidade, texto))
 }
 
 pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
