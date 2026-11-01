@@ -115,3 +115,35 @@ consistência interna do arquivo escolhido pelo usuário. Alterações
 externas podem fabricar observações; nunca atribuir a esta operação
 existência, ausência ou cobertura atual do SEI. Orçamento de
 requisições SEI: **zero**. Não altera `processo NUP` sem `--resumo`.
+
+## Observação positiva em página parcial da caixa (Refs #59)
+
+A opção aditiva `ies processo NUP --resumo --observado-na-pagina [--json]`
+permite relatar **somente a identidade efetivamente observada na
+primeira página** do Controle de Processos, mesmo quando a legenda
+declara páginas adicionais. Não busca o processo fora da caixa, não
+executa POST de paginação, não afirma cobertura total nem muda a
+preferência de visualização do usuário. O GET autorizado é exatamente
+o mesmo do `--resumo`, sem requisição extra.
+
+Sem a opção, `--resumo` preserva a exigência de cobertura integral e
+falha `paginas_do_controle_nao_obtidas` quando necessário. Com a opção,
+um NUP **presente** pode ser relatado com
+`escopo: resumo_da_pagina` e `demais_paginas: nao_consultadas`;
+um NUP **ausente** na página parcial retorna erro tipado
+`numero_nao_observado_na_pagina`, jamais `processo_inexistente`.
+Quando a única página já cobre a caixa inteira, mantém
+`escopo: resumo_da_caixa` e a ausência original. A checagem
+de unidade/contexto e os erros de parsing permanecem obrigatórios;
+não publicar uma caixa incompleta como se fosse íntegra.
+
+O resultado descreve observações da sessão atual, não snapshot
+transacional nem identidade validada na árvore do processo.
+O escopo pertence à projeção de apresentação, não ao domínio
+`Processo`. Validação live multicorpus pendente; saída de teste
+offline não demonstra efeito da requisição.
+
+`--observado-na-pagina` é incompatível com `--caixa-local`:
+a observação usa a página do GET e não pode ignorar um arquivo local
+indicado pelo operador. Com `--saida`, o comprovante preserva o mesmo
+`escopo` da projeção gravada (inclusive `resumo_da_pagina`).

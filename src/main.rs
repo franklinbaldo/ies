@@ -33,6 +33,7 @@ mod replay_documento_cli;
 mod replay_pesquisa_cli;
 mod replay_versoes_cli;
 mod resumo_exportacao;
+mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod status_cli;
@@ -94,6 +95,9 @@ struct Processo {
     /// Lê resumo de caixa previamente exportada, sem conectar ao SEI
     #[arg(long, requires = "resumo", conflicts_with = "saida")]
     caixa_local: Option<PathBuf>,
+    /// Relata NUP na primeira página sem alegar cobertura da caixa
+    #[arg(long, requires = "resumo", conflicts_with = "caixa_local")]
+    observado_na_pagina: bool,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,

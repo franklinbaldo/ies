@@ -1,7 +1,7 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
     Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas, processo,
-    resumo_exportacao, resumo_processo, transporte,
+    resumo_exportacao, resumo_pagina, resumo_processo, transporte,
 };
 use serde_json::json;
 use std::path::Path;
@@ -12,6 +12,7 @@ fn mostrar_resumo_processo(
     unidade: Option<&str>,
     json_mode: bool,
     destino: Option<&Path>,
+    aceitar_pagina_parcial: bool,
 ) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
@@ -35,24 +36,21 @@ fn mostrar_resumo_processo(
             );
         }
     };
-    if !leitura.recebidos.completa(&leitura.caixa.recebidos)
-        || !leitura.gerados.completa(&leitura.caixa.gerados)
-    {
-        return erro_fonte(
-            json_mode,
-            "paginas_do_controle_nao_obtidas",
-            "a caixa da unidade exige páginas que não foram obtidas",
-        );
+    let observacao = match resumo_pagina::observar(&leitura, numero, aceitar_pagina_parcial) {
+        Ok(observacao) => observacao,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let escopo = if observacao.pagina_parcial {
+        "resumo_da_pagina"
+    } else {
+        "resumo_da_caixa"
+    };
+    let mut modelo =
+        resumo_exportacao::modelo(numero, leitura.unidade.as_deref(), &observacao.ocorrencias);
+    if observacao.pagina_parcial {
+        modelo["escopo"] = json!(escopo);
+        modelo["demais_paginas"] = json!("nao_consultadas");
     }
-    let achados = resumo_processo::ocorrencias(&leitura.caixa, numero);
-    if achados.is_empty() {
-        return erro_fonte(
-            json_mode,
-            "numero_nao_observado_na_caixa",
-            "o número solicitado não aparece na Caixa de Entrada desta unidade; isso não prova que o processo não existe",
-        );
-    }
-    let modelo = resumo_exportacao::modelo(numero, leitura.unidade.as_deref(), &achados);
     if let Some(destino) = destino {
         return match resumo_exportacao::gravar(destino, &modelo) {
             Ok(bytes) => {
@@ -62,11 +60,11 @@ fn mostrar_resumo_processo(
                         json!({
                             "arquivo": "gravado",
                             "bytes": bytes,
-                            "escopo": "resumo_da_caixa"
+                            "escopo": escopo
                         })
                     );
                 } else {
-                    println!("IES: resumo da caixa gravado em arquivo privado ({bytes} bytes).");
+                    println!("IES: {escopo} gravado em arquivo privado ({bytes} bytes).");
                 }
                 ExitCode::SUCCESS
             }
@@ -75,10 +73,15 @@ fn mostrar_resumo_processo(
     }
     if json_mode {
         println!("{modelo}");
+    } else if observacao.pagina_parcial {
+        println!(
+            "IES: processo {numero} observado na página atual ({} ocorrência(s)); demais páginas não consultadas.",
+            observacao.ocorrencias.len()
+        );
     } else {
         println!(
             "IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.",
-            achados.len()
+            observacao.ocorrencias.len()
         );
     }
     ExitCode::SUCCESS
@@ -123,6 +126,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         andamentos_completos,
         saida,
         caixa_local,
+        observado_na_pagina,
         acao: None,
         ..
     }) = &cli.command
@@ -151,6 +155,7 @@ pub(super) fn tentar_resumo(cli: &Cli) -> Option<ExitCode> {
         cli.unidade.as_deref(),
         cli.json,
         saida.as_deref(),
+        *observado_na_pagina,
     ))
 }
 
