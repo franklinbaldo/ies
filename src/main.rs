@@ -22,6 +22,7 @@ mod historico;
 mod historico_cli;
 mod instalacao;
 mod mime_web;
+mod paginacao_controle;
 mod paginas;
 mod paginas_capturadas;
 mod pesquisa_web;

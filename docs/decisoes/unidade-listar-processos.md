@@ -74,3 +74,21 @@ Revisar a estratégia quando houver evidência autorizada de paginação
 Web segura ou comprovação funcional de REST/SOAP por instalação.
 A mudança de categoria de processos entre páginas impede inferir
 estabilidade durante uma consulta.
+
+
+## Paginação da visão resumida — recusa de falso sucesso (Refs #57)
+
+A referência comportamental do Todos distingue a visão resumida de
+Recebidos/Gerados, sem paginação comprovada, da visão detalhada,
+que publica `tblProcessosDetalhado` e utiliza
+`hdnDetalhadoPaginaAtual` para avançar no formulário. A observação
+reprodutível não autoriza extrapolar o campo de outras listas
+(`hdnInfraPaginaAtual`) nem inventar um POST da caixa resumida.
+
+Como recorte de integridade, o adaptador recusa controles explícitos
+de paginação presentes em uma página `R` mesmo que a legenda
+coincida com o número de linhas. A decisão evita afirmar cobertura
+com base na primeira página; preserva o orçamento atual de **um GET**
+e **nenhum POST**. A leitura Web ativa de múltiplas páginas permanece
+bloqueada até prova por instalação dos controles, payload, possíveis
+efeitos sobre a sessão e semântica das duas visões.

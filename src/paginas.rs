@@ -5,6 +5,7 @@ use crate::controle_contexto::contexto_da_pagina;
 use crate::controle_contexto::unidade_exibida_no_controle;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
+use crate::paginacao_controle::controles_de_paginacao;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,6 +213,9 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(&paginas[0])?;
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(&paginas[0])? {
+        return Err(ErroCaixa::VisaoResumidaComPaginacao);
+    }
     if let Some(esperada) = unidade_esperada
         && contexto_inicial
             .unidade
@@ -230,6 +234,9 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             let contexto = contexto_da_pagina(html)?;
             if !contexto.verificavel() {
                 return Err(ErroCaixa::ContextoNaoVerificavel);
+            }
+            if contexto.eh_resumida() && controles_de_paginacao(html)? {
+                return Err(ErroCaixa::VisaoResumidaComPaginacao);
             }
             if contexto != contexto_inicial {
                 return Err(ErroCaixa::ContextoDaPaginaDiferenteDoAnterior);
@@ -317,6 +324,30 @@ mod tests {
             montar("Gerados", ger)
         )
     }
+    #[test]
+    fn resumida_com_controles_de_paginacao_nao_pode_atestar_cobertura() {
+        let base = html((2, 1, 2, &[1, 2]), (0, 1, 0, &[]));
+        for controle in [
+            "<a id='lnkInfraProximaPaginaDetalhado'>Próxima</a>",
+            "<a id='lnkInfraPaginaAnteriorDetalhado'>Anterior</a>",
+            "<select id='selInfraPaginacaoDetalhado'><option>1</option></select>",
+        ] {
+            let pagina = format!("{base}{controle}");
+            assert_eq!(
+                juntar(&[pagina], Some("TESTE")).err(),
+                Some(ErroCaixa::VisaoResumidaComPaginacao)
+            );
+        }
+    }
+
+    #[test]
+    fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
+        let pagina = html((2, 1, 2, &[1, 2]), (0, 1, 0, &[]));
+        let leitura = juntar(&[pagina], Some("TESTE")).unwrap();
+        assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
+        assert!(leitura.gerados.completa(&leitura.caixa.gerados));
+    }
+
     #[test]
     fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
         let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
