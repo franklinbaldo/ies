@@ -212,6 +212,12 @@ fn anexar_texto(
             if ignorar_subarvore_decorativa(nome.as_ref()) {
                 return Ok(());
             }
+            if matches!(
+                nome.as_ref(),
+                "script" | "style" | "iframe" | "noscript"
+            ) {
+                return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
+            }
             let quebra = matches!(
                 nome.as_ref(),
                 "p" | "div"
@@ -266,14 +272,6 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
         .get(parser)
         .ok_or(ErroCorpoDocumento::CorpoAusente)?;
     let tag = corpo.as_tag().ok_or(ErroCorpoDocumento::CorpoAusente)?;
-    for nome in ["script", "style", "iframe", "noscript"] {
-        if tag
-            .query_selector(parser, nome)
-            .is_some_and(|mut nodes| nodes.next().is_some())
-        {
-            return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
-        }
-    }
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
