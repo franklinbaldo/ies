@@ -318,6 +318,30 @@ mod tests {
         )
     }
     #[test]
+    fn resumida_com_controles_de_paginacao_nao_pode_atestar_cobertura() {
+        let base = html((2, 1, 2, &[1, 2]), (0, 1, 0, &[]));
+        for controle in [
+            "<a id='lnkInfraProximaPaginaDetalhado'>Próxima</a>",
+            "<a id='lnkInfraPaginaAnteriorDetalhado'>Anterior</a>",
+            "<select id='selInfraPaginacaoDetalhado'><option>1</option></select>",
+        ] {
+            let pagina = format!("{base}{controle}");
+            assert_eq!(
+                juntar(&[pagina], Some("TESTE")).err(),
+                Some(ErroCaixa::VisaoResumidaComPaginacao)
+            );
+        }
+    }
+
+    #[test]
+    fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
+        let pagina = html((2, 1, 2, &[1, 2]), (0, 1, 0, &[]));
+        let leitura = juntar(&[pagina], Some("TESTE")).unwrap();
+        assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
+        assert!(leitura.gerados.completa(&leitura.caixa.gerados));
+    }
+
+    #[test]
     fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
         let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
         let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
