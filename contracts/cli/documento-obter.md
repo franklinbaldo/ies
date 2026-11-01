@@ -211,6 +211,13 @@ Falhas são variantes/subcódigos Rust tipados. A opção `--saida DIR` é
 `DOC.txt` privado em diretório já existente sem sobrescrever. Sua ausência
 retorna `SaidaPrivadaObrigatoria`, subcódigo
 `saida_privada_obrigatoria_para_documento_web`, **antes de ler sessão ou URL**.
+O caminho de destino `DIR/DOC.txt` é conferido **antes** de carregar
+configuração/cookie ou emitir GET: diretório inexistente, ancestral
+simbólico e arquivo já existente impedem a leitura com erros específicos.
+Após a resposta, `create_new` e a conferência do destino continuam
+obrigatórios. Essa prévia impede um GET evitável com potencial efeito
+administrativo, mas **não** elimina alterações concorrentes do caminho;
+se o destino mudar após a prévia, a exportação falha sem sobrescrever.
 
 Sem `--url-documento-file`, `ies documento DOC` permanece stub. O recorte
 não resolve árvore, histórico, versão, assinaturas nem acesso ao documento
