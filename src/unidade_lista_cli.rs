@@ -52,7 +52,15 @@ pub(super) fn mostrar_caixa(
     exigir_todas_paginas: bool,
     destino: Option<&Path>,
 ) -> ExitCode {
-    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, exigir_todas_paginas, destino, false)
+    mostrar_caixa_com_politica(
+        htmls,
+        origem,
+        unidade,
+        json_mode,
+        exigir_todas_paginas,
+        destino,
+        false,
+    )
 }
 
 /// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
@@ -95,10 +103,14 @@ fn mostrar_caixa_com_politica(
             return ExitCode::from(1);
         }
     };
-    if exigir_identidade_web {
-        if let Err(erro) = conferir_identidade_web(&leitura) {
-            return erro_fonte(json_mode, erro.subcodigo(), "unidade não identificada no Controle Web");
-        }
+    if exigir_identidade_web
+        && let Err(erro) = conferir_identidade_web(&leitura)
+    {
+        return erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "unidade não identificada no Controle Web",
+        );
     }
     // Consulta de sessão promete a caixa inteira; replay offline só relata
     // as páginas selecionadas, sem alegar que representam toda a unidade.
@@ -196,7 +208,13 @@ mod testes_exportacao {
                 .as_nanos()
         ));
         let codigo = mostrar_caixa_com_politica(
-            &[html.to_owned()], "web", None, true, true, Some(&caminho), true
+            &[html.to_owned()],
+            "web",
+            None,
+            true,
+            true,
+            Some(&caminho),
+            true,
         );
         assert_eq!(codigo, ExitCode::from(1));
         assert!(!caminho.exists());
