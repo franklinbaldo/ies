@@ -41,7 +41,7 @@ pub(super) fn listar_processos_da_unidade(
     } else {
         "web_com_paginas_privadas"
     };
-    mostrar_caixa(&paginas, origem, unidade, json_mode, true, destino)
+    mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
 }
 
 pub(super) fn mostrar_caixa(
@@ -51,6 +51,36 @@ pub(super) fn mostrar_caixa(
     json_mode: bool,
     exigir_todas_paginas: bool,
     destino: Option<&Path>,
+) -> ExitCode {
+    mostrar_caixa_com_politica(
+        htmls,
+        origem,
+        unidade,
+        json_mode,
+        exigir_todas_paginas,
+        destino,
+        false,
+    )
+}
+
+/// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
+fn conferir_identidade_web(leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
+    leitura
+        .unidade
+        .as_deref()
+        .filter(|rotulo| !rotulo.is_empty())
+        .map(|_| ())
+        .ok_or(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+}
+
+fn mostrar_caixa_com_politica(
+    htmls: &[String],
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    exigir_todas_paginas: bool,
+    destino: Option<&Path>,
+    exigir_identidade_web: bool,
 ) -> ExitCode {
     let leitura = match paginas::juntar(htmls, unidade) {
         Ok(valor) => valor,
@@ -73,6 +103,13 @@ pub(super) fn mostrar_caixa(
             return ExitCode::from(1);
         }
     };
+    if exigir_identidade_web && let Err(erro) = conferir_identidade_web(&leitura) {
+        return erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "unidade não identificada no Controle Web",
+        );
+    }
     // Consulta de sessão promete a caixa inteira; replay offline só relata
     // as páginas selecionadas, sem alegar que representam toda a unidade.
     if exigir_todas_paginas
@@ -143,5 +180,51 @@ mod testes_exportacao {
         assert_eq!(valor["gerados"]["total_declarado"], 0);
         assert!(valor.get("completa").is_none());
         fs::remove_file(arquivo).unwrap();
+    }
+
+    #[test]
+    fn controle_web_com_cobertura_integral_sem_identidade_de_unidade_falha() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        assert_eq!(
+            conferir_identidade_web(&leitura),
+            Err(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+        );
+    }
+
+    #[test]
+    fn controle_web_nao_grava_exportacao_se_unidade_nao_foi_identificada() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let caminho = std::env::temp_dir().join(format!(
+            "ies-caixa-unidade-ausente-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let codigo = mostrar_caixa_com_politica(
+            &[html.to_owned()],
+            "web",
+            None,
+            true,
+            true,
+            Some(&caminho),
+            true,
+        );
+        assert_eq!(codigo, ExitCode::from(1));
+        assert!(!caminho.exists());
+    }
+
+    #[test]
+    fn unidade_comprovada_passando_pelas_duas_tabelas_eh_aceita() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        assert_eq!(leitura.unidade.as_deref(), Some("PPI"));
+        assert_eq!(conferir_identidade_web(&leitura), Ok(()));
     }
 }

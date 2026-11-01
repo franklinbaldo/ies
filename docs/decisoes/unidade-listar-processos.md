@@ -53,6 +53,11 @@ e falha segura de gravação.
 - [Testes de autenticação e replay](../../tests/replay_unidade.rs)
 - [Comparação experimental](../experimentos/comparar-acessos-sei.md)
 
+A verificação do GET rejeita nomes de parâmetros PHP não canônicos e
+separadores literais `;` para impedir ambiguidade de ação/hash após o
+servidor decodificar a query. O teste de segurança permanece offline,
+sem assumir gramática universal de URLs ainda não verificadas.
+
 ## Limitações e revisão
 
 O replay pareado da cassette UnB `e02dbcfde8c4` demonstrou dois rótulos
