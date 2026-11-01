@@ -138,3 +138,14 @@ configuração; regressão Linux troca o ancestral depois da inspeção. A
 pré-validação elimina até um GET em destino inviável (1 → 0); caminho
 válido mantém até um GET, zero POST. Não certifica o efeito do GET nem
 implementa a paginação ativa. REST/SOAP não oferecem vantagem nesse recorte.
+
+## Revisão de segurança da janela pré-GET (Refs #57 e #59)
+
+O `conferir_destino` anterior à requisição não fixa a identidade da pasta:
+se `diretorio_ancorado` só abre o ancestral depois do GET, uma troca por
+outro diretório regular é aceita, pois `O_NOFOLLOW` só bloqueia links.
+A solução é manter o descritor aberto antes do GET e criar nele, sem
+reabrir o ancestral, com `create_new` e 0600. Teste determinístico
+substitui a pasta por outro diretório comum entre preparação e escrita.
+Fora do Linux não se afirma isolamento equivalente; não há POST nem
+validade live presumida.

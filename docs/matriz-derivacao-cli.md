@@ -147,3 +147,10 @@ Se só houver nova flag, parser ou contrato sem redução demonstrável
 do caminho incompleto, redirecionar o esforço para as lacunas acima.
 A nova capacidade **não** fecha issue ampla enquanto os critérios
 de aceitação não forem integralmente comprovados.
+
+**Revisão adicional na PR #139 (ainda não integrada):** o destino privado
+passa a ser fixado com descritor **antes do GET**, eliminando a corrida
+contra substituição por outro diretório regular na janela de rede.
+Teste determinístico de troca de pasta sem symlink; nenhum novo comando,
+GET ou POST. A matriz da main continua 14 caminhos, 11 incompletos,
+3 locais; nenhuma capacidade validada live.

@@ -255,3 +255,12 @@ falha com erro de sessão. Uma entrada válida continua exigindo no máximo
 um GET, nenhum POST; após o GET, conferir os 48 MB agregados utilizando
 os mesmos bytes já lidos, sem abrir novamente os complementos. Esta
 pré-condição não prova completude, sessão live nem autoriza o efeito do GET.
+
+## Exportação do resumo fixada antes do GET (Refs #59)
+
+`ies processo NUP --resumo --saida ARQUIVO` prepara e fixa em Linux o
+descritor do diretório de saída **antes** de configurar a sessão ou fazer
+GET do Controle, mantendo o mesmo descritor até a criação exclusiva 0600.
+Outro diretório regular substituído no caminho durante o GET não pode
+receber o resumo. O teste de regressão da caixa cobre esse isolamento.
+Nenhuma flag ou requisição adicional; não habilita leitura integral do NUP.

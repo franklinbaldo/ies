@@ -347,3 +347,16 @@ isolamento equivalente sob concorrência.
 Orçamento: destino previamente inviável **0 GET/0 POST** em vez de até
 1 GET; destino válido conserva até **1 GET/0 POST**. Não implementa
 paginação ativa, nem valida efeitos administrativos ou sessão live.
+
+## Diretório de exportação ancorado antes do GET (Refs #57)
+
+A inspeção sem rede não basta se o diretório pai só for aberto após a
+requisição: um concorrente pode substituir o ancestral por outro diretório
+**regular**, não apenas por symlink. No Linux, preparar o destino antes
+da leitura Web, manter aberto o descritor do pai até a gravação e criar
+o arquivo 0600 exclusivamente nesse mesmo diretório; `O_NOFOLLOW`
+isoladamente não impede a substituição por diretório comum. Teste
+reproduzível renomeia o pai original, cria outra pasta comum no pathname
+e comprova que somente o pai inicialmente ancorado contém o JSON.
+Fora do Linux não há garantia de concorrência equivalente. Continua até
+1 GET válido e 0 POST, sem certificar efeito do GET nem sessão live.
