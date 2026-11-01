@@ -38,7 +38,8 @@ fn recusa_acao_de_efeito_incerto_hash_falso_duplicatas_e_url_externa() {
 }
 #[test]
 fn http_200_html_de_documento_aceito_e_login_nao() {
-    let corpo = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head><body><p>Texto</p></body></html>";
+    let corpo =
+        "<html><head><title>SEI/UnB - 0007 - Ofício</title></head><body><p>Texto</p></body></html>";
     let resultado = decodificar(Resposta {
         status_code: 200,
         mime: "text/html; charset=utf-8".to_owned(),
@@ -49,8 +50,10 @@ fn http_200_html_de_documento_aceito_e_login_nao() {
     let login = b"<form id='frmLogin'><input name='txtUsuario'></form>";
     assert_eq!(
         decodificar(Resposta {
-            status_code: 200, mime: "text/html".to_owned(),
-            content_length: None, corpo: Cursor::new(login),
+            status_code: 200,
+            mime: "text/html".to_owned(),
+            content_length: None,
+            corpo: Cursor::new(login),
         }),
         Err(ErroDocumentoTransporte::Fonte(
             FalhaTransporte::PaginaDeLoginRecebidaNoControle
@@ -66,8 +69,10 @@ fn redirect_e_tipo_mime_divergente_recusados_antes_do_corpo() {
     ] {
         assert_eq!(
             decodificar(Resposta {
-                status_code: status, mime: mime.to_owned(),
-                content_length: None, corpo: Cursor::new(b"qualquer"),
+                status_code: status,
+                mime: mime.to_owned(),
+                content_length: None,
+                corpo: Cursor::new(b"qualquer"),
             }),
             Err(ErroDocumentoTransporte::Fonte(esperado))
         );
@@ -81,10 +86,15 @@ fn origem_errada_impede_leitura_de_cookie_ou_chamada_get() {
     let resultado = ler_via(&legitima(), nenhum, "https://outro.exemplo/sei", |_, _| {
         pedidos += 1;
         Ok(Resposta {
-            status_code: 200, mime: "text/html".to_owned(),
-            content_length: None, corpo: Cursor::new(Vec::<u8>::new()),
+            status_code: 200,
+            mime: "text/html".to_owned(),
+            content_length: None,
+            corpo: Cursor::new(Vec::<u8>::new()),
         })
     });
-    assert_eq!(resultado, Err(ErroDocumentoTransporte::OrigemDoDocumentoNaoAutorizada));
+    assert_eq!(
+        resultado,
+        Err(ErroDocumentoTransporte::OrigemDoDocumentoNaoAutorizada)
+    );
     assert_eq!(pedidos, 0);
 }

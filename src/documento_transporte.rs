@@ -24,10 +24,7 @@ impl ErroDocumentoTransporte {
 /// Falha fechada: só a ação de visualização comprovada recebe cookie.
 pub(crate) fn validar_link(url: &str, origem: &str) -> Result<(), ErroDocumentoTransporte> {
     let ruim = ErroDocumentoTransporte::UrlNaoEhVisualizacaoAssinada;
-    if url.contains('#')
-        || url.contains('\\')
-        || !url.bytes().all(|b| (33..=126).contains(&b))
-    {
+    if url.contains('#') || url.contains('\\') || !url.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(ruim);
     }
     let (host, resto) = url
@@ -68,9 +65,7 @@ pub(crate) fn validar_link(url: &str, origem: &str) -> Result<(), ErroDocumentoT
                 && id.bytes().all(|b| b.is_ascii_digit())
                 && id.bytes().any(|b| b != b'0')
         })
-        || !hash.is_some_and(|h: &str| {
-            h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit())
-        })
+        || !hash.is_some_and(|h: &str| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()))
     {
         return Err(ruim);
     }
@@ -95,11 +90,14 @@ fn decodificar<R: Read>(mut resposta: Resposta<R>) -> Result<String, ErroDocumen
     if resposta.status_code != 200 || !crate::mime_web::e_html(&resposta.mime) {
         return Err(fonte(FalhaTransporte::RespostaInesperada));
     }
-    if resposta.content_length.is_some_and(|n| n > crate::MAX_HTML_BYTES) {
+    if resposta
+        .content_length
+        .is_some_and(|n| n > crate::MAX_HTML_BYTES)
+    {
         return Err(fonte(FalhaTransporte::RespostaExcessiva));
     }
-    let bytes = transporte::ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
-        .map_err(fonte)?;
+    let bytes =
+        transporte::ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES).map_err(fonte)?;
     let html = crate::cassette::decode_http_body(&bytes, &resposta.mime)
         .map_err(|_| fonte(FalhaTransporte::RespostaInesperada))?;
     if crate::tela_login::e_tela_login(&html) {
@@ -108,7 +106,7 @@ fn decodificar<R: Read>(mut resposta: Resposta<R>) -> Result<String, ErroDocumen
     Ok(html)
 }
 
-/// A closure FnOnce impede retry oculto; a origem antecede leitura do cookie.
+/// A closure `FnOnce` impede retry oculto; a origem antecede leitura do cookie.
 fn ler_via<R: Read, F>(
     url: &str,
     cookie_file: &Path,
@@ -119,8 +117,8 @@ where
     F: FnOnce(&str, &str) -> Result<Resposta<R>, ErroDocumentoTransporte>,
 {
     validar_link(url, origem)?;
-    let cookie = transporte::arquivo_privado(cookie_file, 8_192)
-        .map_err(ErroDocumentoTransporte::Fonte)?;
+    let cookie =
+        transporte::arquivo_privado(cookie_file, 8_192).map_err(ErroDocumentoTransporte::Fonte)?;
     let cookie = cookie.trim();
     transporte::validar_cookie(cookie).map_err(ErroDocumentoTransporte::Fonte)?;
     decodificar(requisitar(url, cookie)?)
@@ -131,10 +129,10 @@ pub(crate) fn ler_de_arquivos(
     cookie_file: &Path,
     origem_file: &Path,
 ) -> Result<String, ErroDocumentoTransporte> {
-    let url = transporte::arquivo_privado(url_file, 8_192)
-        .map_err(ErroDocumentoTransporte::Fonte)?;
-    let origem = transporte::arquivo_privado(origem_file, 512)
-        .map_err(ErroDocumentoTransporte::Fonte)?;
+    let url =
+        transporte::arquivo_privado(url_file, 8_192).map_err(ErroDocumentoTransporte::Fonte)?;
+    let origem =
+        transporte::arquivo_privado(origem_file, 512).map_err(ErroDocumentoTransporte::Fonte)?;
     ler_via(url.trim(), cookie_file, origem.trim(), |destino, cookie| {
         let resposta = minreq::get(destino)
             .with_timeout(30)
@@ -142,7 +140,11 @@ pub(crate) fn ler_de_arquivos(
             .with_header("Cookie", cookie)
             .send_lazy()
             .map_err(|_| ErroDocumentoTransporte::Fonte(FalhaTransporte::Rede))?;
-        let mime = resposta.headers.get("content-type").cloned().unwrap_or_default();
+        let mime = resposta
+            .headers
+            .get("content-type")
+            .cloned()
+            .unwrap_or_default();
         let content_length = resposta
             .headers
             .get("content-length")

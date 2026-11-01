@@ -13,7 +13,7 @@ live_validation: nao-realizada-neste-recorte
 
 # Consulta Web limitada de documento SEI
 
-## Alternativas
+## Alternativas consideradas
 
 - **web-signed-readonly:** um GET explicitamente solicitado, de link
   observado da mesma instalação/sessão, com identidade conferida na resposta.
@@ -21,7 +21,13 @@ live_validation: nao-realizada-neste-recorte
   substituto automático da Web.
 - **soap-official:** credencial e equivalência desconhecidas; sem prioridade.
 
-## Escolha e invariantes
+## Comparação
+
+A via Web usa o link efetivamente publicado pela instalação, mas a origem
+confere apenas o host e o caminho-base, não a atualidade da sessão. REST e
+SOAP são opcionais e não podem ser tratados como equivalentes sem provas.
+
+## Decisão
 
 Validar URL HTTPS assinada para `documento_visualizar`, ID interno decimal,
 hash, domínio e caminho-base antes de ler o cookie. Usar apenas a sessão
@@ -34,15 +40,16 @@ O GET pode registrar recebimento/visualização; sua execução depende de
 autorização de efeitos na instalação de treinamento. Nenhum teste live,
 login ou escrita SEI é autorizado por esta decisão isoladamente.
 
-## Evidência e verificadores
+## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/documento-obter.md)
 - [Matriz](../../contracts/evidencias/documento-obter.md)
-- [Testes de comando](../../src/documento_remoto_cli.rs)
+- [Testes de comando](../../src/documento_remoto_cli/tests.rs)
+- [Testes Rust da operação](../../tests/documento_html_privado_export.rs)
 - [Testes de transporte](../../src/documento_transporte.rs)
 - [Política de acesso](../interfaces/acesso-por-instalacao.md)
 
-## Limites
+## Limitações e revisão
 
 Não implementa resolução do documento pela árvore, versões, assinatura,
 consulta geral ou login. Revisar após mock Rust com orçamento de uma

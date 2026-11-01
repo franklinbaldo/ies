@@ -1,8 +1,8 @@
 //! GET opt-in de documento por link assinado explicitamente fornecido.
 //! Não resolve links, não autentica, não usa GET de editor e não faz POST.
 use crate::{
-    Cli, Documento, Domain, arquivo_texto_documento, configuracao, documento,
-    documento_transporte, documento_web,
+    Cli, Documento, Domain, arquivo_texto_documento, configuracao, documento, documento_transporte,
+    documento_web,
 };
 use serde_json::json;
 use std::path::Path;
@@ -66,8 +66,8 @@ fn selecionar(
     html: &str,
     numero: &documento::NumeroDocumento,
 ) -> Result<(documento_web::IdentidadeDoDocumento, String), ErroDocumentoRemoto> {
-    let identidade = documento_web::identidade_do_titulo(html)
-        .map_err(ErroDocumentoRemoto::Titulo)?;
+    let identidade =
+        documento_web::identidade_do_titulo(html).map_err(ErroDocumentoRemoto::Titulo)?;
     if identidade.numero != numero.as_str() {
         return Err(ErroDocumentoRemoto::NumeroDoHtmlDiferenteDoSolicitado);
     }
@@ -82,11 +82,11 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     let url_file = comando.url_documento_file.as_deref()?;
     let resultado: Result<_, ErroDocumentoRemoto> = (|| {
         let numero = conferir(comando, cli.unidade.as_deref())?;
-        let arquivos = configuracao::arquivos_de_acesso()
-            .map_err(ErroDocumentoRemoto::Configuracao)?;
-        let html = documento_transporte::ler_de_arquivos(
-            url_file, &arquivos.cookie, &arquivos.origem,
-        ).map_err(ErroDocumentoRemoto::Transporte)?;
+        let arquivos =
+            configuracao::arquivos_de_acesso().map_err(ErroDocumentoRemoto::Configuracao)?;
+        let html =
+            documento_transporte::ler_de_arquivos(url_file, &arquivos.cookie, &arquivos.origem)
+                .map_err(ErroDocumentoRemoto::Transporte)?;
         let (identidade, texto) = selecionar(&html, &numero)?;
         let bytes = comando
             .saida
@@ -118,21 +118,30 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                 }
                 println!("{modelo}");
             } else if bytes.is_some() {
-                println!("IES: documento {} exportado em arquivo privado; sessão não auditada.", identidade.numero);
+                println!(
+                    "IES: documento {} exportado em arquivo privado; sessão não auditada.",
+                    identidade.numero
+                );
             } else {
-                println!("IES: documento {} observado via GET opt-in; sessão não auditada.", identidade.numero);
+                println!(
+                    "IES: documento {} observado via GET opt-in; sessão não auditada.",
+                    identidade.numero
+                );
                 println!("{texto}");
             }
             ExitCode::SUCCESS
         }
         Err(erro) => {
             if cli.json {
-                println!("{}", json!({
-                    "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
-                    "subcodigo": erro.subcodigo(),
-                    "retentavel": false,
-                    "erro": "leitura Web de documento não comprovada"
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
+                        "subcodigo": erro.subcodigo(),
+                        "retentavel": false,
+                        "erro": "leitura Web de documento não comprovada"
+                    })
+                );
             } else {
                 eprintln!("IES: GET de documento recusado [{}]", erro.subcodigo());
             }

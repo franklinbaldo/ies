@@ -12,8 +12,8 @@ mod copia_listagem;
 mod documento;
 mod documento_html_privado_cli;
 mod documento_remoto_cli;
-mod documento_transporte;
 mod documento_salvar_cli;
+mod documento_transporte;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;
@@ -170,7 +170,11 @@ struct Documento {
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
     html_privado: Option<PathBuf>,
     /// Link assinado de visualização previamente fornecido em arquivo privado
-    #[arg(long = "url-documento-file", value_name = "ARQUIVO", conflicts_with = "html_privado")]
+    #[arg(
+        long = "url-documento-file",
+        value_name = "ARQUIVO",
+        conflicts_with = "html_privado"
+    )]
     url_documento_file: Option<PathBuf>,
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
