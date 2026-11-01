@@ -1,6 +1,6 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
-    Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas,
+    Cli, Domain, Processo, arquivo_caixa, caixa_local, configuracao, erro_fonte, erro_lista, paginas,
     paginas_capturadas, processo, resumo_exportacao, resumo_pagina, resumo_processo, transporte,
 };
 use serde_json::json;
