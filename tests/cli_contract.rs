@@ -174,6 +174,17 @@ fn processo_rejeita_numero_com_controle_sem_vazar_entrada() {
 }
 
 #[test]
+fn processo_rejeita_controle_removivel_no_inicio_ou_fim_sem_rede() {
+    for numero in ["\n000123/2026", "000123/2026\n"] {
+        let output = ies(&["processo", numero, "--json"]);
+        assert_eq!(output.status.code(), Some(2));
+        let valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(valor["subcodigo"], "numero_processo_controle");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("000123/2026"));
+    }
+}
+
+#[test]
 fn processo_preserva_zeros_e_nao_inventa_leitura() {
     let output = ies(&["processo", "000123/2026-01", "--json"]);
     assert_eq!(output.status.code(), Some(1));
