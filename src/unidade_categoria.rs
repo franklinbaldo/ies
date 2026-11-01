@@ -173,6 +173,23 @@ mod tests {
     }
 
     #[test]
+    fn categoria_e_paginas_privadas_nao_podem_ser_combinadas_silenciosamente() {
+        use clap::Parser;
+        assert!(
+            crate::Cli::try_parse_from([
+                "ies",
+                "unidade",
+                "listar-processos",
+                "--categoria",
+                "gerados",
+                "--pagina-arquivo",
+                "pagina-2.html"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn gerados_inteiros_sao_consultaveis_mesmo_se_recebidos_paginam() {
         let modelo = selecionar(&leitura(200), CategoriaLista::Gerados, "web").unwrap();
         assert_eq!(modelo["categoria"], "gerados");
