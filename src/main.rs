@@ -23,6 +23,7 @@ mod historico_cli;
 mod instalacao;
 mod mime_web;
 mod paginas;
+mod paginacao_controle;
 mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
