@@ -140,3 +140,18 @@ A regra se aplica tanto à leitura `--html-privado` quanto à
 exportação `--saida`, compartilhando o mesmo parser.
 É verificação estrutural offline de HTML privado, sem supor que
 a leitura Web autenticada esteja implementada ou validada.
+
+## Destino privado sem diretórios simbólicos (Refs #60)
+
+O caminho de saída de `--html-privado ... --saida DIR` é
+explicitamente escolhido pelo operador. Antes da criação de `DOC.txt`,
+a implementação rejeita qualquer componente de diretório que seja
+link simbólico, inclusive ancestral de `DIR`, com erro Rust tipado
+`ErroArquivoTexto::DiretorioLinkSimbolico` e subcódigo
+`diretorio_texto_documento_link_simbolico`. Assim um atalho de
+diretório não pode deslocar silenciosamente o arquivo para outro lugar.
+Diretório ausente continua gerando erro próprio; saída em diretório
+regular continua com 0600 e sem sobrescrita. Essa verificação é
+estrutural, não uma garantia contra substituições concorrentes de
+componentes do caminho entre inspeção e criação. Nenhum acesso Web é
+acrescentado.
