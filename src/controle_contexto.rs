@@ -70,18 +70,73 @@ pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa
         criterios_gerados: valor_oculto(&dom, "hdnGeradosHashCriterios")?,
     })
 }
-// O primeiro ID nunca comprova unicidade. Mesmo que o valor coincida, a
-// resposta precisa ser unívoca antes de certificar identidade de página.
+// O primeiro ID nunca comprova unicidade. A única exceção de layout
+// é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> bool {
     dom.query_selector(&format!("#{id}"))
         .is_some_and(|mut encontrados| encontrados.next().is_some() && encontrados.next().is_some())
 }
 
 fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
-    if id_repetido(dom, "lnkInfraUnidade") {
+    if id_repetido(dom, "lnkInfraUnidade") && !par_de_barras_equivalentes(dom) {
         return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
     }
     Ok(unidade_html_original(dom))
+}
+
+fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> bool {
+    let parser = dom.parser();
+    let Some(todos) = dom.query_selector("#lnkInfraUnidade") else {
+        return false;
+    };
+    if todos.count() != 2 {
+        return false;
+    }
+    let mut links = Vec::new();
+    for id in ["divInfraBarraSistemaMovel", "divInfraBarraSistemaPadrao"] {
+        if id_repetido(dom, id) {
+            return false;
+        }
+        let Some(barra) = dom
+            .get_element_by_id(id)
+            .and_then(|n| n.get(parser))
+            .and_then(tl::Node::as_tag)
+        else {
+            return false;
+        };
+        let Some(mut achados) = barra.query_selector(parser, "#lnkInfraUnidade") else {
+            return false;
+        };
+        let Some(link) = achados.next() else {
+            return false;
+        };
+        // tl mantém a barra desktop dentro da móvel neste HTML observado;
+        // ambas as ocorrências precisam pertencer ao par, sem terceiro link.
+        if let Some(outro) = achados.next() {
+            if id != "divInfraBarraSistemaMovel" || achados.next().is_some() {
+                return false;
+            }
+            if !links.contains(&outro) {
+                links.push(outro);
+            }
+        }
+        if !links.contains(&link) {
+            links.push(link);
+        }
+    }
+    if links.len() != 2 {
+        return false;
+    }
+    let tags: Vec<_> = links
+        .iter()
+        .filter_map(|n| n.get(parser))
+        .filter_map(tl::Node::as_tag)
+        .collect();
+    tags.len() == 2
+        && tags.iter().all(|tag| tag.name() == "a")
+        && tags[0].inner_text(parser) == tags[1].inner_text(parser)
+        && tags[0].attributes().get("href").flatten().is_some()
+        && tags[0].attributes().get("href") == tags[1].attributes().get("href")
 }
 
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
@@ -153,5 +208,37 @@ mod tests {
         let ctx = contexto_da_pagina(&controle()).unwrap();
         assert_eq!(ctx.unidade.as_deref(), Some("UNIDADE A"));
         assert!(ctx.verificavel());
+    }
+
+    fn barras(movel: &str, padrao: &str, destino: &str) -> String {
+        format!(
+            "<div id='divInfraBarraSistemaMovel'><a id='lnkInfraUnidade' href='#'>{movel}</a></div>\
+             <div id='divInfraBarraSistemaPadrao'><a id='lnkInfraUnidade' href='{destino}'>{padrao}</a></div>"
+        )
+    }
+
+    #[test]
+    fn unidade_nas_barras_movel_e_desktop_observadas_na_unb() {
+        assert_eq!(
+            unidade_exibida_no_controle(&barras("Unidade4", "Unidade4", "#")),
+            Ok("Unidade4".into())
+        );
+        let nested = barras("Unidade4", "Unidade4", "#").replacen("</div>", "", 1) + "</div>";
+        assert_eq!(unidade_exibida_no_controle(&nested), Ok("Unidade4".into()));
+    }
+
+    #[test]
+    fn barras_com_unidades_ou_destinos_distintos_continuam_recusadas() {
+        for html in [
+            barras("A", "B", "#"),
+            barras("A", "A", "#outro"),
+            "<a id='lnkInfraUnidade'>A</a><a id='lnkInfraUnidade'>A</a>".into(),
+            format!("{}<a id='lnkInfraUnidade'>A</a>", barras("A", "A", "#")),
+        ] {
+            assert_eq!(
+                unidade_exibida_no_controle(&html),
+                Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
+            );
+        }
     }
 }

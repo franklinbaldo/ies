@@ -55,6 +55,14 @@ e falha segura de gravação.
 
 ## Limitações e revisão
 
+O replay pareado da cassette UnB `e02dbcfde8c4` demonstrou dois rótulos
+`lnkInfraUnidade` nas barras móvel e desktop. Aceitar somente esse par
+nas barras identificadas, com texto e href iguais; manter recusa para
+unidades/destinos distintos, terceiro link e duplicações fora das barras.
+O parser tl mantém a barra desktop dentro da móvel nessa resposta;
+conferir as duas ocorrências distintas, sem assumir árvores disjuntas.
+Evidência e medições: [ensaio pareado](../performance/paired-unit.md).
+
 O recorte não valida sessão live, não estabelece login persistente,
 não implementa POST de paginação e não garante snapshot transacional.
 Revisar a estratégia quando houver evidência autorizada de paginação

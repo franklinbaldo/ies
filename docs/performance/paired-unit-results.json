@@ -1,0 +1,131 @@
+{
+  "scope": "mock transport + native box reader + native JSON; not full CLI",
+  "cassette_sha256": "e02dbcfde8c433a95874ed74aade3aa9fd9e5b94c4360953792107d4a49c5df4",
+  "ies_revision": "b9451e8-plus-paired-worker",
+  "todos_revision": "snapshot-0.24.254-sha256:e121615246caf350e3bedc52b316db520e2d76e5698a264a7140712059e320c7",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+  "logical_cpus": 9,
+  "unique_processes": 43,
+  "equivalence": "PASS: unit and ordered unique (id, number)",
+  "results": {
+    "ies_delay_0ms": {
+      "samples": 25,
+      "rss_peak_kib": 5228,
+      "requests_per_operation": 1,
+      "response_body_bytes_per_operation": 103392,
+      "network": "NOT_RUN",
+      "total_ns": {
+        "p50": 1260093,
+        "p95": 1426843
+      },
+      "cpu_ns": {
+        "p50": 1260884,
+        "p95": 1428002
+      },
+      "mock_wait_ns": {
+        "p50": 30,
+        "p95": 40
+      },
+      "local_ns": {
+        "p50": 1260063,
+        "p95": 1426813
+      },
+      "local_ns_per_process_p50": 29303.79069767442,
+      "local_ns_per_mib_p50": 12779246.17270195
+    },
+    "todos_delay_0ms": {
+      "samples": 25,
+      "rss_peak_kib": 47424,
+      "requests_per_operation": 1,
+      "response_body_bytes_per_operation": 103392,
+      "network": "NOT_RUN",
+      "total_ns": {
+        "p50": 4813889,
+        "p95": 6729066
+      },
+      "cpu_ns": {
+        "p50": 4816816,
+        "p95": 6730960
+      },
+      "mock_wait_ns": {
+        "p50": 410,
+        "p95": 671
+      },
+      "local_ns": {
+        "p50": 4813498,
+        "p95": 6728775
+      },
+      "local_ns_per_process_p50": 111941.81395348837,
+      "local_ns_per_mib_p50": 48817301.907768495
+    },
+    "todos_delay_10ms": {
+      "samples": 25,
+      "rss_peak_kib": 47588,
+      "requests_per_operation": 1,
+      "response_body_bytes_per_operation": 103392,
+      "network": "NOT_RUN",
+      "total_ns": {
+        "p50": 15803095,
+        "p95": 16645839
+      },
+      "cpu_ns": {
+        "p50": 5737513,
+        "p95": 6583912
+      },
+      "mock_wait_ns": {
+        "p50": 10181481,
+        "p95": 10243865
+      },
+      "local_ns": {
+        "p50": 5601392,
+        "p95": 6473462
+      },
+      "local_ns_per_process_p50": 130264.93023255814,
+      "local_ns_per_mib_p50": 56807927.28443206
+    },
+    "ies_delay_10ms": {
+      "samples": 25,
+      "rss_peak_kib": 5308,
+      "requests_per_operation": 1,
+      "response_body_bytes_per_operation": 103392,
+      "network": "NOT_RUN",
+      "total_ns": {
+        "p50": 11530837,
+        "p95": 11843697
+      },
+      "cpu_ns": {
+        "p50": 1460279,
+        "p95": 1778592
+      },
+      "mock_wait_ns": {
+        "p50": 10093849,
+        "p95": 10145306
+      },
+      "local_ns": {
+        "p50": 1430158,
+        "p95": 1755967
+      },
+      "local_ns_per_process_p50": 33259.48837209302,
+      "local_ns_per_mib_p50": 14504307.441658929
+    }
+  },
+  "budget_violations": [],
+  "todos_snapshot_files_sha256": {
+    "todos/__init__.py": "ffc38f0e46237fe801886b85193fb4251941d65d0ba3ff306f6cfb7cfce21540",
+    "todos/erros.py": "33bb32302f5192cf23652c17b84f3bae7e6e26db86b8c2a8d72a718c5a3ebb09",
+    "todos/sei/__init__.py": "ed8521bdeb3dd7f832b1964063a5f612c7db0994b58c62c60fddd3413266e9d9",
+    "todos/sei/caixa.py": "561374d335a4e452d3ee2cb785b682d13120bc6283973b18f885fd524674b935",
+    "todos/sei/consulta_url.py": "1877dea8a4a4fa991adb3a67255a4fc75bc65fe11754d65fd3a93d088eb4dcea",
+    "todos/sei/errors.py": "15093a9f53db67c0955a52d729e7cd8da85359ece3642aed6d389d95e883aa35",
+    "todos/sei/javascript.py": "e4115284e444f44f31aab35e78a379a2d51e775a61790f7fb1562e3a912d0257",
+    "todos/sei/links_do_menu.py": "82c977b5c53a1cbe564ed45186d0274a83fd06c0aa5ddf22b840d33eba850861",
+    "todos/sei/lxml_html.py": "d3b4d0c3da4c8f60783286dceafe623feb7429e4a85826c331b4ee26b6c75d20",
+    "todos/sei/perfil.py": "223e6907d52ebd98b462c6004d849e64f4735a0f9b17a933e5f768cf0a28c4e0",
+    "todos/sei/sinalizacoes.py": "ee189ac74534f2641641a8e6b03423df8442b74cf0e66a19899e372b19d2e91c",
+    "todos/sei/tabela_infra.py": "87cf5ed1d0115d4a182f88a919c2bb1ddf71a91bbeb8dd04b26250bb865cf5da",
+    "todos/sei/transport.py": "38b08862f0ee6766c25055c8f0f7310b404bc2a7d4b43b56efb3fcae040f91f2",
+    "todos/sei/url_tolerante.py": "6d9b408b073d43385d351f913ac42bcedfd39c24f3fb831a19cae84980a07c3f",
+    "todos/texto.py": "2a24ecd164e7a6f9422480d1feacabc61cf52301e317e47994723af244df2427"
+  },
+  "ies_test_binary_sha256": "a3ea397810f06ae130cb3e8ae15e075ec9157fe16ecc6a45ec7be6bacde00875"
+}

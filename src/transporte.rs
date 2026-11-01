@@ -528,3 +528,7 @@ mod tests {
 #[cfg(test)]
 #[path = "transporte/web_mock_tests.rs"]
 mod web_mock_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "transporte/paired_worker.rs"]
+mod paired_worker;
