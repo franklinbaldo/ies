@@ -8,12 +8,14 @@ use std::process::ExitCode;
 pub(crate) enum FalhaControleWeb {
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,
+    UnidadeExibidaDiferenteDaSolicitada,
 }
 impl FalhaControleWeb {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::ControleNaoReconhecido(_) => "controle_web_nao_reconhecido",
             Self::IdentidadeUnidadeNaoObservada => "identidade_unidade_nao_observada",
+            Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -23,6 +25,9 @@ impl FalhaControleWeb {
             }
             Self::IdentidadeUnidadeNaoObservada => {
                 "identidade da unidade não está publicada na resposta"
+            }
+            Self::UnidadeExibidaDiferenteDaSolicitada => {
+                "a unidade exibida pelo SEI não corresponde à solicitada"
             }
         }
     }
@@ -43,8 +48,21 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
     }))
 }
 
+/// Shim de conferência: o comportamento será guiado por testes do contrato.
+fn projetar_com_unidade(
+    html: &str,
+    unidade_esperada: Option<&str>,
+) -> Result<Value, FalhaControleWeb> {
+    let modelo = projetar(html)?;
+    if unidade_esperada.is_some_and(|esperada| modelo["unidade_exibida"].as_str() != Some(esperada))
+    {
+        return Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada);
+    }
+    Ok(modelo)
+}
+
 /// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
-pub(crate) fn mostrar(json_mode: bool) -> ExitCode {
+pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -57,7 +75,7 @@ pub(crate) fn mostrar(json_mode: bool) -> ExitCode {
         Ok(html) => html,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let modelo = match projetar(&html) {
+    let modelo = match projetar_com_unidade(&html, unidade_esperada) {
         Ok(modelo) => modelo,
         Err(erro) => {
             return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
@@ -123,6 +141,42 @@ mod testes {
             projetar(html).unwrap_err().subcodigo(),
             "controle_web_nao_reconhecido"
         );
+    }
+
+    #[test]
+    fn unidade_global_errada_nao_pode_gerar_sucesso_web() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            projetar_com_unidade(html, Some("OUTRA")),
+            Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
+        );
+        assert_eq!(
+            FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.subcodigo(),
+            "unidade_exibida_diferente_da_solicitada"
+        );
+        assert!(
+            !FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada
+                .mensagem()
+                .contains("PPI")
+        );
+        assert_eq!(
+            projetar_com_unidade(html, Some("ppi")),
+            Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
+        );
+    }
+
+    #[test]
+    fn unidade_global_igual_ou_ausente_preserva_diagnostico() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        for esperada in [None, Some("PPI")] {
+            let valor = projetar_com_unidade(html, esperada).unwrap();
+            assert_eq!(valor["unidade_exibida"], "PPI");
+            assert_eq!(valor["autenticacao_remota"], "nao_auditada");
+        }
     }
 
     #[test]

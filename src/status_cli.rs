@@ -137,9 +137,13 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
     }
 }
 
-pub(super) fn mostrar_status(json_mode: bool, args: &crate::StatusArgs) -> ExitCode {
+pub(super) fn mostrar_status(
+    json_mode: bool,
+    args: &crate::StatusArgs,
+    unidade_esperada: Option<&str>,
+) -> ExitCode {
     if args.verificar_controle_web {
-        return crate::status_web::mostrar(json_mode);
+        return crate::status_web::mostrar(json_mode, unidade_esperada);
     }
     if args.verificar_sessao_local {
         return mostrar_sessao_local(json_mode);
