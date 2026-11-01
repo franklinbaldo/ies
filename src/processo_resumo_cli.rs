@@ -1,7 +1,8 @@
 //! Caso de uso de resumo: uma única leitura da caixa, sem abrir processo.
 use crate::{
-    Cli, Domain, Processo, caixa_local, configuracao, erro_fonte, erro_lista, paginas,
-    paginas_capturadas, processo, resumo_exportacao, resumo_pagina, resumo_processo, transporte,
+    Cli, Domain, Processo, arquivo_caixa, caixa_local, configuracao, erro_fonte, erro_lista,
+    paginas, paginas_capturadas, processo, resumo_exportacao, resumo_pagina, resumo_processo,
+    transporte,
 };
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -32,9 +33,15 @@ fn mostrar_resumo_processo(
     aceitar_pagina_parcial: bool,
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
-    if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
-    }
+    let preparado = match destino.map(arquivo_caixa::preparar_destino).transpose() {
+        Ok(valor) => valor,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    // Complementos locais inviáveis não devem provocar GET administrativo.
+    let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
+        Ok(paginas) => paginas,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -47,10 +54,9 @@ fn mostrar_resumo_processo(
         Ok(html) => html,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
-        Ok(paginas) => paginas,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
+    if let Err(erro) = paginas_capturadas::conferir_orcamento_com_inicial(&adicionais, html.len()) {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let leitura = match juntar_paginas_do_resumo(html, adicionais, unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
@@ -79,8 +85,8 @@ fn mostrar_resumo_processo(
         modelo["escopo"] = json!(escopo);
         modelo["demais_paginas"] = json!("nao_consultadas");
     }
-    if let Some(destino) = destino {
-        return match resumo_exportacao::gravar(destino, &modelo) {
+    if let Some(destino) = preparado.as_ref() {
+        return match arquivo_caixa::gravar_preparado(destino, &modelo) {
             Ok(bytes) => {
                 if json_mode {
                     println!(

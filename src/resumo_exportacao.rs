@@ -13,7 +13,8 @@ pub(crate) fn modelo(numero: &str, unidade: Option<&str>, achados: &[Ocorrencia]
     })
 }
 
-/// Shim de persistência. A implementação usa criação privada sem sobrescrita.
+/// Shim utilizado nos testes locais; fluxo Web usa pasta preparada antes da rede.
+#[allow(dead_code)]
 pub(crate) fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
     arquivo_caixa::gravar(destino, valor)
 }

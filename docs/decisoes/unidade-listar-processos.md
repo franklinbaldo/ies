@@ -114,3 +114,38 @@ autenticada em UnB/UFRJ/Goiás/PEN. A estratégia não autoriza automaticamente
 mudar a visualização, navegar por links assinados ou enviar POST.
 Implantar paginação ativa só após observar payload integral, efeito
 administrativo e preservação da sessão em laboratório autorizado.
+
+
+## Exportação administrativa pré-validada e descritor ancorado (Refs #57)
+
+A saída `--saida` preexistente pode falhar por diretório ausente, ancestral
+simbólico ou destino ocupado sem qualquer participação do SEI. Fazer primeiro
+o GET da caixa desperdiça uma chamada que pode registrar visualização ou
+recebimento, além de arriscar escrita em diretório trocado por symlink.
+
+A escolha restrita é validar a viabilidade do destino sem rede, antes de
+abrir a sessão, e revalidar a exclusividade na criação do arquivo. Linux
+ancora cada ancestral por descritor, sem seguir symlink, e cria `0600`
+relativo ao pai ancorado. Não remover por pathname em falha de escrita,
+pois um concorrente pode ter trocado o caminho. Outros sistemas mantêm a
+checagem inicial, mas sem garantia de resistência à corrida equivalente.
+Não acrescentar flags, requisições ou parser.
+
+O código usa o mesmo gravador nos três caminhos existentes: caixa completa,
+`--categoria` e `processo NUP --resumo --saida`. Testes de recusa com
+credenciais ausentes verificam que o erro de destino prevalece antes da
+configuração; regressão Linux troca o ancestral depois da inspeção. A
+pré-validação elimina até um GET em destino inviável (1 → 0); caminho
+válido mantém até um GET, zero POST. Não certifica o efeito do GET nem
+implementa a paginação ativa. REST/SOAP não oferecem vantagem nesse recorte.
+
+## Revisão de segurança da janela pré-GET (Refs #57 e #59)
+
+O `conferir_destino` anterior à requisição não fixa a identidade da pasta:
+se `diretorio_ancorado` só abre o ancestral depois do GET, uma troca por
+outro diretório regular é aceita, pois `O_NOFOLLOW` só bloqueia links.
+A solução é manter o descritor aberto antes do GET e criar nele, sem
+reabrir o ancestral, com `create_new` e 0600. Teste determinístico
+substitui a pasta por outro diretório comum entre preparação e escrita.
+Fora do Linux não se afirma isolamento equivalente; não há POST nem
+validade live presumida.

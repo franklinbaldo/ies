@@ -68,6 +68,22 @@ complementos válidos mantém até 1 GET e 0 POST. Os gates Rust/OKF/20 KB e
 GitGuardian passaram no HEAD revisado. Não habilita paginação ativa, não
 promove `PARCIAL WEB` e não equivale a validação live.
 
+**Proposta de revisão em PR (#57/#59):** o mesmo caminho Web já existente
+recusa `--saida` impossível **antes** de carregar sessão ou enviar GET, seja
+na caixa inteira, categoria selecionada ou resumo do NUP. Em Linux, ancoragem
+dos diretórios por descritor e criação exclusiva 0600 evitam desvio
+concorrente da exportação JSON. O orçamento de destino inválido cai de até
+um GET potencialmente administrativo para zero; quando válido, mantém até
+um GET e nenhum POST. A revisão também aplica ao resumo de NUP
+o pré-carregamento de `--pagina-arquivo`: arquivos privados inválidos
+geram erro tipado antes de qualquer GET, e o limite agregado de 48 MB
+é checado após a resposta com os bytes já lidos. A regressão RED
+foi observada no CI; o GREEN requer validação no HEAD final.
+Isso **não** é paginação ativa, autenticação comprovada, nem leitura
+integral de processo. Enquanto o código estiver em PR aberta, não
+atribuir a `main` nem promover estados: **14 caminhos, 11 incompletos,
+três locais**.
+
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
@@ -131,3 +147,10 @@ Se só houver nova flag, parser ou contrato sem redução demonstrável
 do caminho incompleto, redirecionar o esforço para as lacunas acima.
 A nova capacidade **não** fecha issue ampla enquanto os critérios
 de aceitação não forem integralmente comprovados.
+
+**Revisão adicional na PR #139 (ainda não integrada):** o destino privado
+passa a ser fixado com descritor **antes do GET**, eliminando a corrida
+contra substituição por outro diretório regular na janela de rede.
+Teste determinístico de troca de pasta sem symlink; nenhum novo comando,
+GET ou POST. A matriz da main continua 14 caminhos, 11 incompletos,
+3 locais; nenhuma capacidade validada live.

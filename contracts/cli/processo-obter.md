@@ -231,3 +231,36 @@ subcódigo `termo_de_andamento_contem_controle`, deve prevalecer sobre
 continuam tolerados, e termo inválido não pode descartar andamentos.
 A busca continua restrita à cassette hash-verificada, sem HTTP nem
 prova de histórico completo/live.
+
+
+## Prévia do destino para resumo Web (Refs #59 e #57)
+
+`ies processo NUP --resumo --saida ARQUIVO` usa a mesma exportação
+privada da caixa. Recusa destino previamente inviável, inclusive symlink
+de ancestral, antes de ler arquivos de sessão ou fazer o GET.
+Uma tentativa sobre destino existente, ausente ou inseguro faz zero
+requisições; caminho válido conserva até um GET, zero POST. No Linux,
+a criação 0600 é ancorada em descritores de diretório abertos e não
+remove arquivo por caminho após erro de escrita. Isso não representa
+leitura integral do processo nem evidência live autenticada.
+
+## Complementos do resumo: recusa antes do GET (Refs #57 e #59)
+
+`ies processo NUP --resumo --pagina-arquivo HTML_PRIVADO` deve validar e
+carregar os complementos privados **antes** de ler configuração/cookies ou
+fazer o GET de Controle, tal como `unidade listar-processos`. Um arquivo
+ausente, inacessível, vazio, inseguro, duplicado ou acima do limite deve
+produzir seu erro Rust tipado e **zero requests**; não pode mascarar a
+falha com erro de sessão. Uma entrada válida continua exigindo no máximo
+um GET, nenhum POST; após o GET, conferir os 48 MB agregados utilizando
+os mesmos bytes já lidos, sem abrir novamente os complementos. Esta
+pré-condição não prova completude, sessão live nem autoriza o efeito do GET.
+
+## Exportação do resumo fixada antes do GET (Refs #59)
+
+`ies processo NUP --resumo --saida ARQUIVO` prepara e fixa em Linux o
+descritor do diretório de saída **antes** de configurar a sessão ou fazer
+GET do Controle, mantendo o mesmo descritor até a criação exclusiva 0600.
+Outro diretório regular substituído no caminho durante o GET não pode
+receber o resumo. O teste de regressão da caixa cobre esse isolamento.
+Nenhuma flag ou requisição adicional; não habilita leitura integral do NUP.
