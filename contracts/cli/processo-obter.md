@@ -178,3 +178,22 @@ não são autenticados criptograficamente: selecionar páginas da mesma
 sessão e unidade é obrigação do operador, e o IES não pode certificar
 frescura nem snapshot da caixa. Testes em instalações externas seguem
 NOT_RUN, sem declarar capacidade live de paginação.
+
+## Histórico do processo em HTML privado (Refs #59)
+
+`ies processo NUP --historico-privado ARQUIVO [--json]` interpreta
+andamentos previamente capturados em HTML pelo operador autorizado.
+Não depende de sessão e faz **zero GET e zero POST**. Exige um NUP
+válido, arquivo regular privado 0600 no Unix e até 8 MB, sem seguir
+symlink final no Linux. A identidade do título e a tabela de histórico
+são verificadas pelos mesmos tipos de domínio de `historico.rs`;
+números diferentes, títulos ausentes, tabelas duplicadas e linhas
+incompletas falham com variantes e subcódigos Rust específicos.
+
+A saída inclui `escopo: historico_privado_offline`, `parcial: true`,
+`autenticacao_remota: false`. O operador não deve interpretar o arquivo
+como histórico atual, integral, autenticado ou snapshot do SEI.
+`--resumo`, `--andamentos-completos`, filtros de omissão e outras fontes
+não podem ser combinadas ao modo de histórico privado, que continua
+separado da leitura live de `ies processo NUP` sem a nova opção.
+Nenhum login, efeito de GET, POST ou escrita é declarado ou realizado.

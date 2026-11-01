@@ -26,6 +26,7 @@ mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_resumo_cli;
+mod processo_historico_privado_cli;
 mod replay_args;
 mod replay_busca_documento;
 mod replay_consulta;
@@ -89,6 +90,9 @@ struct Processo {
     /// Consulta somente a identidade já exibida na Caixa de Entrada
     #[arg(long)]
     resumo: bool,
+    /// Interpreta histórico HTML privado previamente capturado, sem rede
+    #[arg(long = "historico-privado", value_name = "ARQUIVO")]
+    historico_privado: Option<PathBuf>,
     /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
     #[arg(long, requires = "resumo")]
     saida: Option<PathBuf>,
@@ -476,6 +480,9 @@ fn run(cli: &Cli) -> ExitCode {
         return status;
     }
     if let Some(status) = documento_salvar_cli::tentar_validar_versao(cli) {
+        return status;
+    }
+    if let Some(status) = processo_historico_privado_cli::tentar_ler(cli) {
         return status;
     }
     if let Some(status) = processo_resumo_cli::tentar_resumo(cli) {
