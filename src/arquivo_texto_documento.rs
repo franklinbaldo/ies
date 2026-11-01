@@ -21,8 +21,23 @@ impl ErroArquivoTexto {
         }
     }
 }
-/// Shim RED: verificar ancestrais de diretório antes de gravar.
-fn conferir_diretorios(_destino: &Path) -> Result<(), ErroArquivoTexto> {
+/// Rejeita atalhos de diretório em qualquer ancestral conhecido do destino.
+/// Não estabelece exclusividade contra alterações concorrentes do caminho.
+fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
+    let pai = destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?;
+    for ancestral in pai.ancestors() {
+        if ancestral.as_os_str().is_empty() {
+            continue;
+        }
+        let metadados = std::fs::symlink_metadata(ancestral)
+            .map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
+        if metadados.file_type().is_symlink() {
+            return Err(ErroArquivoTexto::DiretorioLinkSimbolico);
+        }
+        if !metadados.is_dir() {
+            return Err(ErroArquivoTexto::DiretorioAusente);
+        }
+    }
     Ok(())
 }
 
