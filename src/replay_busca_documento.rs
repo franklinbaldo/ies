@@ -195,5 +195,4 @@ mod tests {
     fn espacos_comuns_externos_continuam_tolerados() {
         assert_eq!(validar_termo("  assunto  "), Ok("assunto"));
     }
-
 }
