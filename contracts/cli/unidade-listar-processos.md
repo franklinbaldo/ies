@@ -324,3 +324,26 @@ Coincidência entre total e linhas sem faixa não comprova cobertura:
 falhar com `faixa_detalhada_sem_intervalo_com_paginacao`, sem exportação
 nem requests adicionais. Isso evita apresentar uma página posterior
 como primeira página completa.
+
+
+## Pré-validação e ancoragem da exportação da caixa (Refs #57)
+
+Para `ies unidade listar-processos --saida ARQUIVO`, com ou sem
+`--categoria`, recusar antes de qualquer acesso à configuração, cookie ou
+GET do Controle quando o diretório não existir, o nome estiver ausente,
+o arquivo já existir (inclusive link simbólico pendente) ou houver diretório
+ancestral simbólico. Erros Rust tipados e subcódigos permanecem estáveis;
+acrescentar `diretorio_do_arquivo_da_caixa_link_simbolico` para a condição
+específica de ancestral simbólico.
+
+A prévia não substitui a proteção da gravação: em Linux, abrir cada diretório
+ancestral relativo ao descritor anterior com `O_DIRECTORY|O_NOFOLLOW`,
+criar arquivo novo 0600 relativo ao diretório ancorado (`create_new`),
+sem remover por pathname potencialmente trocado em falha. Testar troca
+concorrente determinística para impedir desvio de JSON administrativo.
+Demais sistemas continuam com recusa inicial de symlink, sem alegar
+isolamento equivalente sob concorrência.
+
+Orçamento: destino previamente inviável **0 GET/0 POST** em vez de até
+1 GET; destino válido conserva até **1 GET/0 POST**. Não implementa
+paginação ativa, nem valida efeitos administrativos ou sessão live.
