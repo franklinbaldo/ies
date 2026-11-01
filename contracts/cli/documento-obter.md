@@ -124,3 +124,18 @@ Na exportação, a saída JSON informa documento, escopo
 Sem `--saida`, permanece a leitura offline de texto existente.
 Esta opção não equivale a `--saida DIR` da futura leitura Web;
 a capacidade remota de `documento.obter` continua stub.
+
+## Destino privado sem diretórios simbólicos (Refs #60)
+
+O caminho de saída de `--html-privado ... --saida DIR` é
+explicitamente escolhido pelo operador. Antes da criação de `DOC.txt`,
+a implementação rejeita qualquer componente de diretório que seja
+link simbólico, inclusive ancestral de `DIR`, com erro Rust tipado
+`ErroArquivoTexto::DiretorioLinkSimbolico` e subcódigo
+`diretorio_texto_documento_link_simbolico`. Assim um atalho de
+diretório não pode deslocar silenciosamente o arquivo para outro lugar.
+Diretório ausente continua gerando erro próprio; saída em diretório
+regular continua com 0600 e sem sobrescrita. Essa verificação é
+estrutural, não uma garantia contra substituições concorrentes de
+componentes do caminho entre inspeção e criação. Nenhum acesso Web é
+acrescentado.
