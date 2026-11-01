@@ -56,8 +56,13 @@ pub(super) fn mostrar_caixa(
 }
 
 /// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
-fn conferir_identidade_web(_leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
-    Ok(())
+fn conferir_identidade_web(leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
+    leitura
+        .unidade
+        .as_deref()
+        .filter(|rotulo| !rotulo.is_empty())
+        .map(|_| ())
+        .ok_or(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
 fn mostrar_caixa_com_politica(
