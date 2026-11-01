@@ -1,7 +1,9 @@
 //! Conferência estrita do tipo de mídia do Controle Web do SEI.
 //! Nunca autoriza rede, apenas interpreta o cabeçalho recebido.
 pub(crate) fn e_html(mime: &str) -> bool {
-    mime.to_ascii_lowercase().contains("text/html")
+    mime.split(';')
+        .next()
+        .is_some_and(|principal| principal.trim().eq_ignore_ascii_case("text/html"))
 }
 
 #[cfg(test)]
