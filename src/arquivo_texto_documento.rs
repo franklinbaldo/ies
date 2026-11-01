@@ -111,9 +111,8 @@ fn salvar_com_ponto_de_corrida(
 
     conferir_destino(destino)?;
     #[cfg(target_os = "linux")]
-    let pai_ancorado = diretorio_ancorado(
-        destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?,
-    )?;
+    let pai_ancorado =
+        diretorio_ancorado(destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?)?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -241,7 +240,6 @@ mod tests {
         assert_eq!(salvar(&subpasta.join("0007.txt"), "OK"), Ok(2));
         fs::remove_dir_all(raiz).unwrap();
     }
-
 
     #[cfg(target_os = "linux")]
     #[test]
