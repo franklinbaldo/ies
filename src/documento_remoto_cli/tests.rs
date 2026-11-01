@@ -123,11 +123,8 @@ fn get_sem_autorizacao_explicita_do_efeito_falha_antes_de_ler_sessao() {
 
 #[test]
 fn nao_aceita_autorizacao_de_efeito_sem_url_opt_in() {
-    assert!(Cli::try_parse_from([
-        "ies",
-        "documento",
-        "0007",
-        "--autorizar-efeito-de-leitura",
-    ])
-    .is_err());
+    assert!(
+        Cli::try_parse_from(["ies", "documento", "0007", "--autorizar-efeito-de-leitura",])
+            .is_err()
+    );
 }

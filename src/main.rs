@@ -153,6 +153,8 @@ enum ProcessoAcao {
 }
 
 #[derive(Debug, Args)]
+// Flags do Clap são opções independentes, não um estado booleano de domínio.
+#[allow(clippy::struct_excessive_bools)]
 struct Documento {
     /// Números dos documentos SEI
     #[arg(num_args = 0..)]
