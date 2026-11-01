@@ -31,7 +31,6 @@ fn get_opt_in_sem_destino_privado_falha_antes_de_sessao_ou_url() {
     assert!(!String::from_utf8_lossy(&resposta.stdout).contains("PHPSESSID"));
 }
 
-
 fn executar_get_sem_sessao(destino: &str) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
@@ -67,8 +66,7 @@ fn diretorio_de_saida_ausente_recusa_antes_de_abrir_sessao_ou_gerar_get() {
     assert_eq!(resposta.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(
-        json["subcodigo"],
-        "diretorio_texto_documento_ausente",
+        json["subcodigo"], "diretorio_texto_documento_ausente",
         "a falha no destino precisa anteceder qualquer consulta de sessão"
     );
     assert!(!destino.exists());
@@ -91,8 +89,7 @@ fn arquivo_que_ja_existe_recusa_antes_de_abrir_sessao_ou_gerar_get() {
     assert_eq!(resposta.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(
-        json["subcodigo"],
-        "arquivo_texto_documento_ja_existe",
+        json["subcodigo"], "arquivo_texto_documento_ja_existe",
         "um GET com possivel efeito administrativo nao deve ocorrer para destino ocupado"
     );
     assert_eq!(
