@@ -6,8 +6,9 @@ description: Cruzamento dos comandos declarados, código executável, evidência
 
 # Matriz de derivação da CLI — implementar antes de ampliar
 
-**Base auditada:** `main` em `b896389ab145f02f4f969ea848e5a99a4e86aea5`,
-01/11/2026. Fontes: [superfície Clap e despacho](../src/main.rs),
+**Base auditada:** `main` em `4264379b448205c3a177afd4eb6d57ee39cf8842`,
+01/11/2026, com correção #57 desta revisão aplicada à matriz. A integração
+altera o SHA da `main`, mas não promove a capacidade a completa. Fontes: [superfície Clap e despacho](../src/main.rs),
 [contrato público](../contracts/cli.md), [matriz de evidências](../contracts/evidencias/README.md),
 [política de acesso](interfaces/acesso-por-instalacao.md) e
 [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
@@ -45,7 +46,7 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento salvar DOC` | **PARCIAL LOCAL**; `--confirmar` remoto bloqueado | Prévia, diff/cópias de trabalho locais e inventário versionado | Detectar versão/assinatura/conflitos no SEI; salvar com efeito e reconciliação; preservar rascunhos | [#89](https://github.com/franklinbaldo/ies/issues/89) |
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
-| `ies unidade listar-processos` | **PARCIAL WEB** | GET único de controle com sessão já fornecida; identidade e totais verificados, exportação e páginas privadas complementares | Paginação Web **ativa**, cobertura de recebidos/gerados, controle de contexto e efeitos do POST; sem aceitar lista parcial como total | [#57](https://github.com/franklinbaldo/ies/issues/57) |
+| `ies unidade listar-processos` | **PARCIAL WEB** | GET único do Controle com sessão já fornecida; identidade, totais e exportação condicionada à cobertura; páginas privadas complementares; recusa de controles explícitos de paginação na visão resumida (Refs #57) | Paginação Web **ativa** e comprovada por instalação, com contexto, totais e efeitos do POST; o teste de recusa não coleta páginas | [#57](https://github.com/franklinbaldo/ies/issues/57) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
