@@ -75,8 +75,31 @@ fn titulo_do_historico(
     dom: &tl::VDom<'_>,
     parser: &tl::Parser<'_>,
 ) -> Result<String, ErroHistorico> {
-    let _ = (dom, parser);
-    Err(ErroHistorico::TituloAusente)
+    let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
+    let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
+        if cabecalhos.next().is_some() {
+            return Err(ErroHistorico::CabecalhosHtmlRepetidos);
+        }
+        let tag = cabecalho
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ErroHistorico::TituloAusente)?;
+        tag.query_selector(parser, "title")
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        dom.query_selector("title").into_iter().flatten().collect()
+    };
+    let mut titulos = titulos.into_iter();
+    let primeiro = titulos.next().ok_or(ErroHistorico::TituloAusente)?;
+    if titulos.next().is_some() {
+        return Err(ErroHistorico::TitulosRepetidos);
+    }
+    primeiro
+        .get(parser)
+        .map(|no| texto(no, parser))
+        .ok_or(ErroHistorico::TituloAusente)
 }
 
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
