@@ -74,10 +74,15 @@ na caixa inteira, categoria selecionada ou resumo do NUP. Em Linux, ancoragem
 dos diretórios por descritor e criação exclusiva 0600 evitam desvio
 concorrente da exportação JSON. O orçamento de destino inválido cai de até
 um GET potencialmente administrativo para zero; quando válido, mantém até
-um GET e nenhum POST. Essa proteção **não** é paginação ativa, autenticação
-comprovada, nem leitura integral de processo. Enquanto o código estiver
-em PR aberta, não atribuir a `main` nem promover estados: **14 caminhos,
-11 incompletos, três locais**.
+um GET e nenhum POST. A revisão também aplica ao resumo de NUP
+o pré-carregamento de `--pagina-arquivo`: arquivos privados inválidos
+geram erro tipado antes de qualquer GET, e o limite agregado de 48 MB
+é checado após a resposta com os bytes já lidos. A regressão RED
+foi observada no CI; o GREEN requer validação no HEAD final.
+Isso **não** é paginação ativa, autenticação comprovada, nem leitura
+integral de processo. Enquanto o código estiver em PR aberta, não
+atribuir a `main` nem promover estados: **14 caminhos, 11 incompletos,
+três locais**.
 
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
