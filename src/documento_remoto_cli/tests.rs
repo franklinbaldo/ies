@@ -22,6 +22,8 @@ fn comando_opt_in_valida_numero_sem_perder_zeros() {
         "--url-documento-file",
         "/tmp/link",
         "--autorizar-efeito-de-leitura",
+        "--saida",
+        "/tmp",
     ]);
     assert_eq!(conferir(&c, None).unwrap().as_str(), "0007");
 }
@@ -117,6 +119,8 @@ fn get_sem_autorizacao_explicita_do_efeito_falha_antes_de_ler_sessao() {
         "--url-documento-file",
         "/caminho-ainda-nao-lido",
         "--autorizar-efeito-de-leitura",
+        "--saida",
+        "/tmp",
     ]);
     assert_eq!(conferir(&com, None).unwrap().as_str(), "0007");
 }
@@ -127,4 +131,25 @@ fn nao_aceita_autorizacao_de_efeito_sem_url_opt_in() {
         Cli::try_parse_from(["ies", "documento", "0007", "--autorizar-efeito-de-leitura",])
             .is_err()
     );
+}
+
+#[test]
+fn get_autorizado_sem_saida_recusa_antes_de_abrir_sessao() {
+    let sem = cli(&[
+        "ies",
+        "documento",
+        "0007",
+        "--url-documento-file",
+        "/sessao/nao-lida",
+        "--autorizar-efeito-de-leitura",
+    ]);
+    assert_eq!(
+        conferir(&sem, None),
+        Err(ErroDocumentoRemoto::SaidaPrivadaObrigatoria)
+    );
+    assert_eq!(
+        ErroDocumentoRemoto::SaidaPrivadaObrigatoria.subcodigo(),
+        "saida_privada_obrigatoria_para_documento_web"
+    );
+    assert_eq!(ErroDocumentoRemoto::SaidaPrivadaObrigatoria.status(), 2);
 }
