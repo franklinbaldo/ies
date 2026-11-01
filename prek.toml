@@ -58,6 +58,15 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
+id = "comparador-performance"
+name = "Contrato do benchmark pareado (sem Todos privado)"
+entry = "python3 -m unittest discover -s scripts -p test_perf_pair.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
 id = "decisoes"
 name = "Decisões de engenharia por operação implementada"
 entry = "cargo run --quiet --locked -p xtask --bin check_design"
