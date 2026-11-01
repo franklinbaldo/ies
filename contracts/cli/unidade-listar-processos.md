@@ -192,3 +192,19 @@ subtipos continuam recusados com a variante de transporte existente
 `FalhaTransporte::RespostaInesperada`. Não há retry nem GET adicional:
 o limite, o status e a verificação de login permanecem iguais. A
 regra é ensaiada offline; nenhum teste de produção é autorizado.
+
+## Categoria sem identificação da unidade no Controle (Refs #57, #56)
+
+No recorte `--categoria recebidos|gerados`, a resposta precisa publicar
+a identidade da unidade em `lnkInfraUnidade`, além de demonstrar
+cobertura da categoria. Sem esse rótulo, não se deve retornar sucesso
+com `unidade: null` nem exportar uma lista de processos que não foi
+atribuída a contexto observável. Retornar falha Rust tipada
+`FalhaCategoria::UnidadeNaoObservada`, subcódigo
+`identificacao_da_unidade_ausente_no_controle`. A ausência na página
+não demonstra falta de permissão ou inexistência da unidade.
+
+Permanecem os mesmos **um GET autorizado, zero POST**, a mesma CLI,
+a validação de tabelas/intervalos e a exigência de autorização da
+leitura com possíveis efeitos. Essa restrição foi testada offline,
+não prova o resultado live em instalações de treinamento.
