@@ -13,6 +13,12 @@ pub(super) fn listar_processos_da_unidade(
     destino: Option<&Path>,
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
+    // A saída previamente impossível deve falhar sem acessar a sessão/SEI.
+    if let Some(caminho) = destino
+        && let Err(erro) = arquivo_caixa::conferir_destino(caminho)
+    {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     // Arquivos locais inviáveis não podem provocar GET potencialmente
     // administrativo: validar e ler complementos antes da sessão.
     let paginas_adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
