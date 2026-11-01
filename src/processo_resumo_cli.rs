@@ -11,8 +11,9 @@ use std::process::ExitCode;
 fn normalizar_numero_resumo(
     entrada: &str,
 ) -> Result<String, processo::NumeroProcessoInvalido> {
-    let _ = processo::NumeroProcesso::novo(entrada)?;
-    Ok(entrada.to_owned())
+    Ok(processo::NumeroProcesso::novo(entrada)?
+        .as_str()
+        .to_owned())
 }
 
 /// Reutiliza a junção de caixa: páginas capturadas nunca disparam POST.
