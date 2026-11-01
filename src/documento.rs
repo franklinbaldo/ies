@@ -5,6 +5,7 @@ pub struct NumeroDocumento(String);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumeroDocumentoInvalido {
     Vazio,
+    Controle,
     NaoNumerico,
 }
 
@@ -12,6 +13,7 @@ impl NumeroDocumentoInvalido {
     pub fn subcodigo(self) -> &'static str {
         match self {
             Self::Vazio => "numero_documento_vazio",
+            Self::Controle => "numero_documento_controle",
             Self::NaoNumerico => "numero_documento_nao_numerico",
         }
     }
@@ -23,6 +25,10 @@ impl NumeroDocumento {
     }
 
     pub fn novo(texto: &str) -> Result<Self, NumeroDocumentoInvalido> {
+        // Antes de trim: LF/tab/CR no começo ou fim não são espaços tolerados.
+        if texto.chars().any(char::is_control) {
+            return Err(NumeroDocumentoInvalido::Controle);
+        }
         let texto = texto.trim();
         if texto.is_empty() {
             return Err(NumeroDocumentoInvalido::Vazio);
@@ -45,6 +51,34 @@ mod tests {
             NumeroDocumento("00001".into())
         );
         assert!(NumeroDocumento::novo("123456789012345678901234567890").is_ok());
+    }
+
+    #[test]
+    fn rejeita_controle_no_numero_bruto_antes_de_remover_espacos() {
+        for numero in [
+            "\n0011519",
+            "0011519\n",
+            "\t0011519",
+            "0011519\r\n",
+            " \t0011519 ",
+        ] {
+            assert_eq!(
+                NumeroDocumento::novo(numero),
+                Err(NumeroDocumentoInvalido::Controle)
+            );
+        }
+    }
+
+    #[test]
+    fn texto_nao_decimal_mantem_erro_diferente_de_controle() {
+        assert_eq!(
+            NumeroDocumento::novo(" 0011519 "),
+            Ok(NumeroDocumento("0011519".into()))
+        );
+        assert_eq!(
+            NumeroDocumento::novo("0011519X"),
+            Err(NumeroDocumentoInvalido::NaoNumerico)
+        );
     }
 
     #[test]

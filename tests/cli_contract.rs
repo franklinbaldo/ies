@@ -237,6 +237,18 @@ fn documento_rejeita_texto_sem_abrir_sessao() {
 }
 
 #[test]
+fn documento_recusa_controle_nas_extremidades_sem_expor_numero() {
+    for numero in ["\n0011519", "0011519\r\n"] {
+        let output = ies(&["documento", numero, "--json"]);
+        assert_eq!(output.status.code(), Some(2));
+        let valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert_eq!(valor["subcodigo"], "numero_documento_controle");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("0011519"));
+    }
+}
+
+#[test]
 fn documento_valida_todos_os_itens_do_lote() {
     let output = ies(&["documento", "00123", "documento-ruim", "--json"]);
     assert_eq!(output.status.code(), Some(2));
