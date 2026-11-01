@@ -145,3 +145,18 @@ fn resumo_com_pagina_symlink_falha_antes_de_get() {
     assert_eq!(erro["subcodigo"], "arquivo_privado_link_simbolico");
     fs::remove_dir_all(base).unwrap();
 }
+
+#[test]
+fn caminho_com_separador_terminal_nao_vira_arquivo_apos_get() {
+    let base = raiz();
+    let falso_diretorio = format!("{}/novo/", base.display());
+    for args in [
+        vec!["unidade", "listar-processos", "--saida", &falso_diretorio],
+        vec!["processo", "000042/2026", "--resumo", "--saida", &falso_diretorio],
+    ] {
+        let erro = comando(&args);
+        assert_eq!(erro["subcodigo"], "destino_da_caixa_sem_nome_de_arquivo");
+        assert!(!base.join("novo").exists());
+    }
+    fs::remove_dir_all(base).unwrap();
+}
