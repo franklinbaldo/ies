@@ -247,3 +247,24 @@ introduz GET, POST ou fallback. Testes offline não provam compatibilidade
 nas instalações UnB/UFRJ/Goiás/PEN (**NOT_RUN**). A gramática precisa
 ser revista contra URLs reais autorizadas caso uma instalação use outro
 formato; nunca relaxar uma proteção sem evidência.
+
+
+## Controle de paginação explícito na visão resumida (Refs #57)
+
+Se a página do Controle declarar `hdnTipoVisualizacao=R` e apresentar
+controles de paginação da infraestrutura (`lnkInfraProximaPagina*`,
+`lnkInfraPaginaAnterior*` ou `selInfraPaginacao*`), **não** considerar
+a listagem completa apenas porque os totais da legenda coincidem com
+as linhas da página. Recusar com `ErroCaixa::VisaoResumidaComPaginacao`
+e subcódigo `visao_resumida_com_paginacao_nao_demonstrada`, sem
+exportação ou novas requisições. Os replays e o GET do comando
+compartilham a verificação.
+
+A observação do Todos distingue visão resumida (sem paginação comprovada)
+e detalhada (`tblProcessosDetalhado`, página em
+`hdnDetalhadoPaginaAtual`). **Não** enviar campo de página de outro
+formulário, inventar POST, converter a visão detalhada em recebidos/gerados
+ou afirmar compatibilidade live sem prova. A correção protege contra
+**falso sucesso** no comando existente; a paginação ativa da issue #57
+continua **não implementada** e exige evidência de forma, efeito e sessão
+por instalação.
