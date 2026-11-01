@@ -78,7 +78,7 @@ fn selecionar(
 }
 
 /// Exporta o texto para nome derivado exclusivamente do DOC validado.
-/// O writer create_new mantém o arquivo privado e nunca substitui um existente.
+/// A gravação com `create_new` mantém o arquivo privado sem sobrescrever.
 fn exportar(
     diretorio: &Path,
     identidade: &documento_web::IdentidadeDoDocumento,
