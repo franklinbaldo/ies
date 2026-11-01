@@ -134,6 +134,28 @@ mod tests {
     }
 
     #[test]
+    fn controles_no_inicio_ou_fim_nao_sao_apagados_pelo_trim() {
+        for entrada in ["\n000123/2026", "000123/2026\\n", "\\t000123/2026", "000123/2026\\r\\n"] {
+            assert_eq!(
+                NumeroProcesso::novo(entrada),
+                Err(NumeroProcessoInvalido::Controle)
+            );
+        }
+    }
+
+    #[test]
+    fn espacos_externos_sem_controles_continuam_aceitos() {
+        assert_eq!(
+            NumeroProcesso::novo(" 000123/2026 ").unwrap().as_str(),
+            "000123/2026"
+        );
+        assert_eq!(
+            NumeroProcesso::novo("  "),
+            Err(NumeroProcessoInvalido::Vazio)
+        );
+    }
+
+    #[test]
     fn numero_visivel_nao_exige_id_interno() {
         assert!(NumeroProcesso::novo(" ").is_err());
         assert!(NumeroProcesso::novo("ok\nsegredo").is_err());
