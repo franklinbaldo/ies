@@ -1,7 +1,12 @@
 //! Leitor do rótulo da unidade ativa, sem paginação nem mudança de sessão.
 use crate::{configuracao, erro_fonte, paginas, transporte};
+use crate::erro_web::ErroCaixa;
 use serde_json::json;
 use std::process::ExitCode;
+
+fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
+    paginas::unidade_exibida_no_controle(html)
+}
 
 pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
@@ -16,7 +21,7 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         Ok(html) => html,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let unidade = match paginas::unidade_exibida_no_controle(&html) {
+    let unidade = match unidade_validada(&html) {
         Ok(unidade) => unidade,
         Err(erro) => {
             return erro_fonte(
