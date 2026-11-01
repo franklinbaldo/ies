@@ -55,8 +55,12 @@ impl FalhaTransporte {
     pub fn mensagem(self) -> &'static str {
         match self {
             Self::UrlInvalida => "URL assinada da caixa inválida",
-            Self::ChaveDeConsultaNaoCanonica => "nome de parâmetro da URL de controle não é canônico",
-            Self::SeparadorDeConsultaAmbiguo => "separador de parâmetros da URL de controle não é inequívoco",
+            Self::ChaveDeConsultaNaoCanonica => {
+                "nome de parâmetro da URL de controle não é canônico"
+            }
+            Self::SeparadorDeConsultaAmbiguo => {
+                "separador de parâmetros da URL de controle não é inequívoco"
+            }
             Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
             Self::ArquivoPrivadoAusenteOuInacessivel => {
                 "arquivo privado não encontrado ou sem acesso"
@@ -83,7 +87,6 @@ impl FalhaTransporte {
         }
     }
 }
-
 
 // PHP decodifica percent/plus e converte pontos/espaços em underscores;
 // preservar a rejeição de nomes não literais já exigida pelo transporte.

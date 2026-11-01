@@ -25,9 +25,7 @@ fn http_200_com_formulario_de_login_nao_eh_caixa_autenticada() {
 
 #[test]
 fn nao_aceita_url_sem_assinatura() {
-    assert!(
-        validar_url("http://sei.exemplo/controlador.php?acao=procedimento_controlar").is_err()
-    );
+    assert!(validar_url("http://sei.exemplo/controlador.php?acao=procedimento_controlar").is_err());
     assert!(
         validar_url("https://sei.exemplo/controlador.php?acao=procedimento_controlar").is_err()
     );
@@ -41,9 +39,7 @@ fn nao_aceita_url_sem_assinatura() {
 fn permite_somente_url_assinada_da_caixa() {
     let url = url("sei.exemplo");
     assert!(validar_url(&url).is_ok());
-    assert!(
-        validar_url(&url.replace("procedimento_controlar", "procedimento_excluir")).is_err()
-    );
+    assert!(validar_url(&url.replace("procedimento_controlar", "procedimento_excluir")).is_err());
     assert!(validar_url(&format!("{url}&acao=procedimento_excluir")).is_err());
     assert!(validar_url(&format!("{url}&infra_hash={}", "b".repeat(64))).is_err());
     assert!(validar_url(&format!("{url}&a%63ao=procedimento_excluir")).is_err());
@@ -199,7 +195,6 @@ fn mesma_origem_em_outra_pasta_nao_recebe_cookie() {
     );
 }
 
-
 #[test]
 fn nomes_que_php_normaliza_nao_podem_sobrescrever_acao_ou_hash() {
     let legitima = url("sei.exemplo");
@@ -222,7 +217,9 @@ fn nomes_que_php_normaliza_nao_podem_sobrescrever_acao_ou_hash() {
 fn ponto_e_virgula_na_query_nao_muda_acao_apos_parse_php() {
     let legitima = url("sei.exemplo");
     assert_eq!(
-        validar_url(&format!("{legitima}&origem=publica;acao=procedimento_excluir")),
+        validar_url(&format!(
+            "{legitima}&origem=publica;acao=procedimento_excluir"
+        )),
         Err(FalhaTransporte::SeparadorDeConsultaAmbiguo)
     );
 }
