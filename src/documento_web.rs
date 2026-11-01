@@ -95,6 +95,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn titulo_dentro_de_svg_sem_head_nao_identifica_documento() {
+        let html = "<svg><title>SEI/UnB - 0007 - Ofício</title></svg>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TituloAusente)
+        );
+    }
+
+    #[test]
+    fn titulo_em_body_ou_template_sem_head_eh_ignorado() {
+        for html in [
+            "<body><title>SEI/UnB - 0007 - Ofício</title></body>",
+            "<template><title>SEI/UnB - 0007 - Ofício</title></template>",
+        ] {
+            assert_eq!(
+                identidade_do_titulo(html),
+                Err(ErroTituloDocumento::TituloAusente)
+            );
+        }
+    }
+
+    #[test]
+    fn titulo_externo_em_fragmento_sem_head_eh_preservado() {
+        let html = "<title>SEI/UnB - 0007 - Ofício</title>\
+                    <body><svg><title>SEI/UnB - 9999 - Outro</title></svg></body>";
+        assert_eq!(identidade_do_titulo(html).unwrap().numero, "0007");
+    }
+
+    #[test]
+    fn dois_titulos_externos_sem_head_nao_escolhem_primeiro() {
+        let html = "<title>SEI/UnB - 0007 - Ofício</title>\
+                    <title>SEI/UnB - 0008 - Memorando</title>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+        );
+    }
+
+    #[test]
     fn preserva_zeros_na_identidade_observada() {
         let html = "<html><head><title>SEI/UnB - 0011354 - Ofício</title></head></html>";
         let identidade = identidade_do_titulo(html).unwrap();
