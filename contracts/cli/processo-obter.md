@@ -264,6 +264,6 @@ GET do Controle, mantendo o mesmo descritor até a criação exclusiva 0600.
 Outro diretório regular substituído no caminho durante o GET não pode
 receber o resumo. O teste de regressão da caixa cobre esse isolamento.
 Nenhuma flag ou requisição adicional; não habilita leitura integral do NUP.
-O destino `--saida DIR/` não é nome de arquivo: falha tipada
+O destino `--saida DIR/` ou `--saida DIR/.` não é nome de arquivo: falha tipada
 `destino_da_caixa_sem_nome_de_arquivo` antes da configuração/GET, sem
 normalizar a barra e criar arquivo `DIR`.
