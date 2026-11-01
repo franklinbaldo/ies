@@ -16,7 +16,9 @@ impl ErroHistoricoPrivado {
     fn subcodigo(self) -> &'static str {
         match self {
             Self::NumeroAusente => "historico_privado_exige_nup",
-            Self::OpcoesDeProcessoIncompativeis => "opcoes_de_processo_incompativeis_com_historico_privado",
+            Self::OpcoesDeProcessoIncompativeis => {
+                "opcoes_de_processo_incompativeis_com_historico_privado"
+            }
             Self::Numero(erro) => erro.subcodigo(),
             Self::Fonte(erro) => erro.subcodigo(),
             Self::Historico(erro) => erro.subcodigo(),
@@ -34,7 +36,10 @@ fn conferir_opcoes(
     comando: &Processo,
     unidade: Option<&str>,
 ) -> Result<processo::NumeroProcesso, ErroHistoricoPrivado> {
-    let numero = comando.numero.as_deref().ok_or(ErroHistoricoPrivado::NumeroAusente)?;
+    let numero = comando
+        .numero
+        .as_deref()
+        .ok_or(ErroHistoricoPrivado::NumeroAusente)?;
     if comando.resumo
         || comando.saida.is_some()
         || comando.caixa_local.is_some()
@@ -64,22 +69,23 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(comando) = &cli.command else {
         return None;
     };
-    let Some(arquivo) = comando.historico_privado.as_deref() else {
-        return None;
-    };
+    let arquivo = comando.historico_privado.as_deref()?;
     let resultado = (|| {
         let numero = conferir_opcoes(comando, cli.unidade.as_deref())?;
-        let html = transporte::arquivo_privado(arquivo, 8_000_000)
-            .map_err(ErroHistoricoPrivado::Fonte)?;
+        let html =
+            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHistoricoPrivado::Fonte)?;
         selecionar(&html, &numero)
     })();
     Some(match resultado {
         Ok(detalhe) => {
             if cli.json {
-                println!("{}", json!({
-                    "processo": detalhe, "escopo": "historico_privado_offline",
-                    "parcial": true, "autenticacao_remota": false
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "processo": detalhe, "escopo": "historico_privado_offline",
+                        "parcial": true, "autenticacao_remota": false
+                    })
+                );
             } else {
                 println!(
                     "IES: {} andamento(s) observados no HTML privado do processo {}; histórico remoto não certificado.",
@@ -91,12 +97,15 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
         }
         Err(erro) => {
             if cli.json {
-                println!("{}", json!({
-                    "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
-                    "subcodigo": erro.subcodigo(),
-                    "erro": "histórico privado de processo não comprovado",
-                    "retentavel": false
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
+                        "subcodigo": erro.subcodigo(),
+                        "erro": "histórico privado de processo não comprovado",
+                        "retentavel": false
+                    })
+                );
             } else {
                 eprintln!("IES: histórico privado recusado [{}]", erro.subcodigo());
             }
@@ -137,10 +146,8 @@ mod tests {
                 historico::ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
             ))
         );
-        let duplicado = historico_html("000123/2026").replace(
-            "</body>",
-            "<table id='tblHistorico'></table></body>"
-        );
+        let duplicado = historico_html("000123/2026")
+            .replace("</body>", "<table id='tblHistorico'></table></body>");
         assert_eq!(
             selecionar(&duplicado, &numero),
             Err(ErroHistoricoPrivado::Historico(
@@ -152,16 +159,30 @@ mod tests {
     #[test]
     fn cli_aceita_opt_in_e_recusa_mistura_de_fonte_com_caixa() {
         let cli = Cli::try_parse_from([
-            "ies", "processo", "000123/2026", "--historico-privado", "/tmp/historico.html"
-        ]).unwrap();
-        let Domain::Processo(comando) = cli.command else { panic!("não é processo") };
+            "ies",
+            "processo",
+            "000123/2026",
+            "--historico-privado",
+            "/tmp/historico.html",
+        ])
+        .unwrap();
+        let Domain::Processo(comando) = cli.command else {
+            panic!("não é processo")
+        };
         assert!(conferir_opcoes(&comando, None).is_ok());
 
         let cli = Cli::try_parse_from([
-            "ies", "processo", "000123/2026", "--resumo",
-            "--historico-privado", "/tmp/historico.html"
-        ]).unwrap();
-        let Domain::Processo(comando) = cli.command else { panic!("não é processo") };
+            "ies",
+            "processo",
+            "000123/2026",
+            "--resumo",
+            "--historico-privado",
+            "/tmp/historico.html",
+        ])
+        .unwrap();
+        let Domain::Processo(comando) = cli.command else {
+            panic!("não é processo")
+        };
         assert_eq!(
             conferir_opcoes(&comando, None),
             Err(ErroHistoricoPrivado::OpcoesDeProcessoIncompativeis)
@@ -171,12 +192,21 @@ mod tests {
     #[test]
     fn nup_com_controle_tem_variante_propria_antes_de_ler_html() {
         let cli = Cli::try_parse_from([
-            "ies", "processo", "000123/2026\n", "--historico-privado", "/tmp/historico.html"
-        ]).unwrap();
-        let Domain::Processo(comando) = cli.command else { panic!("não é processo") };
+            "ies",
+            "processo",
+            "000123/2026\n",
+            "--historico-privado",
+            "/tmp/historico.html",
+        ])
+        .unwrap();
+        let Domain::Processo(comando) = cli.command else {
+            panic!("não é processo")
+        };
         assert_eq!(
             conferir_opcoes(&comando, None),
-            Err(ErroHistoricoPrivado::Numero(processo::NumeroProcessoInvalido::Controle))
+            Err(ErroHistoricoPrivado::Numero(
+                processo::NumeroProcessoInvalido::Controle
+            ))
         );
     }
 }
