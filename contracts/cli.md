@@ -94,3 +94,14 @@ protegidas, prova de cobertura/paginação nem certificação de
 autenticação do usuário. Testes live nas instalações autorizadas
 seguem exigindo evidência independente; um GET 200 não comprova
 o restante da API.
+
+## Busca textual offline: validação da entrada bruta (Refs #61)
+
+Em `ies replay CENARIO --documento --termo-documento TERMO`, a entrada
+original é validada **antes** de aparar espaços externos. CR, LF, tab e
+outros caracteres de controle, mesmo nas extremidades, retornam a variante
+Rust `ErroBuscaDocumento::TermoComControle`, subcódigo
+`termo_de_documento_contem_controle` e saída 2. Espaços comuns externos
+continuam tolerados; termo vazio continua tendo erro específico.
+Não alterar a busca por Unicode nem tratar ausência na cassette como
+inexistência no SEI. Sem GET, POST ou validação live.

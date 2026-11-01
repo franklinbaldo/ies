@@ -43,12 +43,13 @@ impl ErroBuscaDocumento {
     }
 }
 fn validar_termo(termo: &str) -> Result<&str, ErroBuscaDocumento> {
+    // Conferir a entrada original: trim apagaria CR/LF/tab nas extremidades.
+    if termo.chars().any(char::is_control) {
+        return Err(ErroBuscaDocumento::TermoComControle);
+    }
     let termo = termo.trim();
     if termo.is_empty() {
         return Err(ErroBuscaDocumento::TermoVazio);
-    }
-    if termo.chars().any(char::is_control) {
-        return Err(ErroBuscaDocumento::TermoComControle);
     }
     if termo.chars().count() > 100 {
         return Err(ErroBuscaDocumento::TermoAcimaDoLimite);
@@ -167,5 +168,31 @@ mod tests {
             buscar(&[html.clone(), html], "busca"),
             Err(ErroBuscaDocumento::NumeroDocumentoRepetido)
         );
+    }
+
+    #[test]
+    fn controles_nas_extremidades_do_termo_falham_antes_do_trim() {
+        for termo in [
+            "\nassunto",
+            "assunto\n",
+            "\tassunto",
+            "assunto\r\n",
+            "\u{0085}assunto",
+        ] {
+            assert_eq!(
+                validar_termo(termo),
+                Err(ErroBuscaDocumento::TermoComControle),
+                "entrada com controle deve ser recusada"
+            );
+        }
+        assert_eq!(
+            validar_termo("\n"),
+            Err(ErroBuscaDocumento::TermoComControle)
+        );
+    }
+
+    #[test]
+    fn espacos_comuns_externos_continuam_tolerados() {
+        assert_eq!(validar_termo("  assunto  "), Ok("assunto"));
     }
 }
