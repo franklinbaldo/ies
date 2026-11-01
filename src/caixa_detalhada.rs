@@ -108,15 +108,27 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, usize, usize), ErroDeta
         .last()
         .ok_or(ErroDetalhada::TotalNaoDeclarado)?
         .trim_start_matches('(');
-    let total = bruto.replace('.', "").parse::<usize>()
+    let total = bruto
+        .replace('.', "")
+        .parse::<usize>()
         .map_err(|_| ErroDetalhada::TotalNaoDeclarado)?;
     let Some((_, intervalo)) = restante.split_once(" - ") else {
         return Ok((total, 1, linhas));
     };
-    let (inicio, fim) = intervalo.split_once(" a ").ok_or(ErroDetalhada::FaixaInvalida)?;
-    let inicio = inicio.trim().parse::<usize>().map_err(|_| ErroDetalhada::FaixaInvalida)?;
-    let fim = fim.trim().chars().take_while(char::is_ascii_digit).collect::<String>()
-        .parse::<usize>().map_err(|_| ErroDetalhada::FaixaInvalida)?;
+    let (inicio, fim) = intervalo
+        .split_once(" a ")
+        .ok_or(ErroDetalhada::FaixaInvalida)?;
+    let inicio = inicio
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| ErroDetalhada::FaixaInvalida)?;
+    let fim = fim
+        .trim()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse::<usize>()
+        .map_err(|_| ErroDetalhada::FaixaInvalida)?;
     if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
         return Err(ErroDetalhada::FaixaInvalida);
     }
@@ -129,10 +141,19 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         return false;
     };
     let campos: Vec<_> = query.split('&').collect();
-    let acoes: Vec<_> = campos.iter().filter_map(|s| s.strip_prefix("acao=")).collect();
-    let ids: Vec<_> = campos.iter().filter_map(|s| s.strip_prefix("id_procedimento=")).collect();
+    let acoes: Vec<_> = campos
+        .iter()
+        .filter_map(|s| s.strip_prefix("acao="))
+        .collect();
+    let ids: Vec<_> = campos
+        .iter()
+        .filter_map(|s| s.strip_prefix("id_procedimento="))
+        .collect();
     acoes.len() == 1
-        && matches!(acoes[0], "procedimento_trabalhar" | "procedimento_visualizar")
+        && matches!(
+            acoes[0],
+            "procedimento_trabalhar" | "procedimento_visualizar"
+        )
         && ids == [id]
 }
 
@@ -150,7 +171,10 @@ fn ler_linha(
         return Ok(None);
     };
     let id = IdProcedimento::novo(id).map_err(|_| ErroDetalhada::IdentificadorInvalido)?;
-    let celulas: Vec<_> = tag.children().top().iter()
+    let celulas: Vec<_> = tag
+        .children()
+        .top()
+        .iter()
         .filter_map(|h| h.get(parser))
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name() == "td")
@@ -159,7 +183,8 @@ fn ler_linha(
         return Err(ErroDetalhada::ColunasDaLinhaDiferentes);
     }
     let celula = celulas[coluna];
-    let links = celula.query_selector(parser, "a")
+    let links = celula
+        .query_selector(parser, "a")
         .ok_or(ErroDetalhada::LinkDoProcessoAusente)?;
     let mut escolhido = None;
     for link in links {
@@ -173,12 +198,21 @@ fn ler_linha(
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoRepetidos);
         }
-        let classe = link.attributes().get("class").flatten()
+        let classe = link
+            .attributes()
+            .get("class")
+            .flatten()
             .map(|v| v.as_utf8_str().into_owned())
             .unwrap_or_default();
-        let visualizado = if classe.split_whitespace().any(|c| c == "processoNaoVisualizado") {
+        let visualizado = if classe
+            .split_whitespace()
+            .any(|c| c == "processoNaoVisualizado")
+        {
             Some(false)
-        } else if classe.split_whitespace().any(|c| c == "processoVisualizado") {
+        } else if classe
+            .split_whitespace()
+            .any(|c| c == "processoVisualizado")
+        {
             Some(true)
         } else {
             None
@@ -191,7 +225,9 @@ fn ler_linha(
             visualizado,
         });
     }
-    escolhido.map(Some).ok_or(ErroDetalhada::LinkDoProcessoAusente)
+    escolhido
+        .map(Some)
+        .ok_or(ErroDetalhada::LinkDoProcessoAusente)
 }
 
 fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
@@ -205,19 +241,26 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut tabelas = dom.query_selector("#tblProcessosDetalhado")
+    let mut tabelas = dom
+        .query_selector("#tblProcessosDetalhado")
         .ok_or(ErroDetalhada::TabelaAusente)?;
     let tabela = tabelas.next().ok_or(ErroDetalhada::TabelaAusente)?;
     if tabelas.next().is_some() {
         return Err(ErroDetalhada::TabelasRepetidas);
     }
-    let tabela = tabela.get(parser).and_then(tl::Node::as_tag)
+    let tabela = tabela
+        .get(parser)
+        .and_then(tl::Node::as_tag)
         .ok_or(ErroDetalhada::TabelaAusente)?;
-    if tabela.name() != "table" || tabela.query_selector(parser, "table")
-        .is_some_and(|mut itens| itens.next().is_some()) {
+    if tabela.name() != "table"
+        || tabela
+            .query_selector(parser, "table")
+            .is_some_and(|mut itens| itens.next().is_some())
+    {
         return Err(ErroDetalhada::TabelaAusente);
     }
-    let mut legendas = tabela.query_selector(parser, "caption")
+    let mut legendas = tabela
+        .query_selector(parser, "caption")
         .ok_or(ErroDetalhada::LegendaAusente)?;
     let legenda = legendas.next().ok_or(ErroDetalhada::LegendaAusente)?;
     if legendas.next().is_some() {
@@ -226,14 +269,15 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let legenda = legenda.get(parser).ok_or(ErroDetalhada::LegendaAusente)?;
     let mut coluna = None;
     let mut colunas = 0usize;
-    let ths = tabela.query_selector(parser, "th")
+    let ths = tabela
+        .query_selector(parser, "th")
         .ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
     for th in ths {
-        let th = th.get(parser).ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
-        if texto(th, parser) == "Processo" {
-            if coluna.replace(colunas).is_some() {
-                return Err(ErroDetalhada::CabecalhoProcessoRepetido);
-            }
+        let th = th
+            .get(parser)
+            .ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
+        if texto(th, parser) == "Processo" && coluna.replace(colunas).is_some() {
+            return Err(ErroDetalhada::CabecalhoProcessoRepetido);
         }
         colunas += 1;
     }
@@ -241,7 +285,9 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let mut processos = Vec::new();
     if let Some(linhas) = tabela.query_selector(parser, "tr") {
         for linha in linhas {
-            let tag = linha.get(parser).and_then(tl::Node::as_tag)
+            let tag = linha
+                .get(parser)
+                .and_then(tl::Node::as_tag)
                 .ok_or(ErroDetalhada::ColunasDaLinhaDiferentes)?;
             if let Some(processo) = ler_linha(tag, parser, coluna, colunas)? {
                 processos.push(processo);
@@ -249,7 +295,13 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         }
     }
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len())?;
-    Ok(Pagina { contexto, total, inicio, fim, processos })
+    Ok(Pagina {
+        contexto,
+        total,
+        inicio,
+        fim,
+        processos,
+    })
 }
 
 /// Consome páginas de uma mesma sessão sem inventar uma cobertura transacional.
@@ -276,9 +328,9 @@ pub(crate) fn ler_paginas(
                 return Err(ErroDetalhada::ContextoDiferente);
             }
         } else {
-            if unidade_esperada.is_some_and(|v| {
-                pagina.contexto.unidade.as_deref() != Some(v.trim())
-            }) {
+            if unidade_esperada
+                .is_some_and(|v| pagina.contexto.unidade.as_deref() != Some(v.trim()))
+            {
                 return Err(ErroDetalhada::UnidadeDiferente);
             }
             contexto = Some(pagina.contexto.clone());
@@ -305,9 +357,14 @@ pub(crate) fn ler_paginas(
     if processos.len() != total || proximo != total.saturating_add(1) {
         return Err(ErroDetalhada::PaginasNaoObtidas);
     }
-    let unidade = contexto.and_then(|v: ContextoPagina| v.unidade)
+    let unidade = contexto
+        .and_then(|v: ContextoPagina| v.unidade)
         .ok_or(ErroDetalhada::UnidadeNaoIdentificada)?;
-    Ok(LeituraDetalhada { unidade, total_declarado: total, processos })
+    Ok(LeituraDetalhada {
+        unidade,
+        total_declarado: total,
+        processos,
+    })
 }
 
 pub(crate) fn possui_tabela(html: &str) -> bool {
