@@ -99,7 +99,11 @@ struct Processo {
     #[arg(long, requires = "resumo", conflicts_with = "caixa_local")]
     observado_na_pagina: bool,
     /// Une HTML privado previamente capturado ao único GET de resumo
-    #[arg(long = "pagina-arquivo", requires = "resumo", conflicts_with_all = ["caixa_local", "observado_na_pagina"])]
+    #[arg(
+        long = "pagina-arquivo",
+        requires = "resumo",
+        conflicts_with_all = ["caixa_local", "observado_na_pagina"]
+    )]
     paginas_capturadas: Vec<PathBuf>,
     /// Omite documentos da leitura
     #[arg(long)]
