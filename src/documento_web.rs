@@ -13,6 +13,7 @@ pub enum ErroTituloDocumento {
     HtmlNaoInterpretado,
     TituloAusente,
     TitulosDeDocumentoRepetidos,
+    CabecalhosHtmlRepetidos,
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
     IdentificacaoDaInstalacaoAusenteNoTitulo,
@@ -24,6 +25,7 @@ impl ErroTituloDocumento {
             Self::HtmlNaoInterpretado => "html_documento_nao_interpretado",
             Self::TituloAusente => "titulo_documento_ausente",
             Self::TitulosDeDocumentoRepetidos => "titulos_de_documento_repetidos",
+            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_repetidos",
             Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
             Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
             Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
