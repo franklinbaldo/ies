@@ -38,9 +38,11 @@ fn mostrar_resumo_processo(
     {
         return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
     }
-    if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
-    }
+    // Complementos locais inviáveis não devem provocar GET administrativo.
+    let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
+        Ok(paginas) => paginas,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -53,10 +55,11 @@ fn mostrar_resumo_processo(
         Ok(html) => html,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
-        Ok(paginas) => paginas,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
+    if let Err(erro) =
+        paginas_capturadas::conferir_orcamento_com_inicial(&adicionais, html.len())
+    {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let leitura = match juntar_paginas_do_resumo(html, adicionais, unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
