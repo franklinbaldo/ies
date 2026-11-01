@@ -94,4 +94,24 @@ mod tests {
         );
         assert_eq!(detalhe.andamentos.len(), 3);
     }
+
+    #[test]
+    fn controles_nas_extremidades_do_filtro_nao_podem_desaparecer_no_trim() {
+        for termo in [
+            "\nDECISÃO",
+            "DECISÃO\n",
+            "\tDECISÃO",
+            "DECISÃO\r\n",
+            "\u{0085}DECISÃO",
+            "\n",
+        ] {
+            let mut detalhe = historico();
+            let antes = detalhe.andamentos.clone();
+            assert_eq!(
+                filtrar(&mut detalhe, termo),
+                Err(ErroFiltroAndamentos::ContemControle)
+            );
+            assert_eq!(detalhe.andamentos, antes);
+        }
+    }
 }
