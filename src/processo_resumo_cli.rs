@@ -8,12 +8,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 /// Preserva os zeros e normaliza espaços externos antes de comparar o NUP.
-fn normalizar_numero_resumo(
-    entrada: &str,
-) -> Result<String, processo::NumeroProcessoInvalido> {
-    Ok(processo::NumeroProcesso::novo(entrada)?
-        .as_str()
-        .to_owned())
+fn normalizar_numero_resumo(entrada: &str) -> Result<String, processo::NumeroProcessoInvalido> {
+    Ok(processo::NumeroProcesso::novo(entrada)?.as_str().to_owned())
 }
 
 /// Reutiliza a junção de caixa: páginas capturadas nunca disparam POST.
@@ -325,12 +321,9 @@ mod tests {
     fn resumo_compara_nup_normalizado_sem_perder_zeros_no_inicio() {
         let normalizado = normalizar_numero_resumo("  0001/2026  ").unwrap();
         assert_eq!(normalizado, "0001/2026");
-        let leitura = juntar_paginas_do_resumo(
-            pagina(1, 1, 1, "0001/2026"),
-            Vec::new(),
-            Some("PPI"),
-        )
-        .unwrap();
+        let leitura =
+            juntar_paginas_do_resumo(pagina(1, 1, 1, "0001/2026"), Vec::new(), Some("PPI"))
+                .unwrap();
         let observacao = resumo_pagina::observar(&leitura, &normalizado, false).unwrap();
         assert_eq!(observacao.ocorrencias.len(), 1);
         assert_eq!(
@@ -338,5 +331,4 @@ mod tests {
             Err(processo::NumeroProcessoInvalido::Controle)
         );
     }
-
 }
