@@ -41,6 +41,46 @@ fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
     Ok(())
 }
 
+/// Cada componente do pai é aberto em relação ao descritor do anterior.
+#[cfg(target_os = "linux")]
+fn diretorio_ancorado(pai: &Path) -> Result<std::fs::File, ErroArquivoTexto> {
+    use std::fs::{File, OpenOptions};
+    use std::os::fd::AsRawFd;
+    use std::os::unix::fs::OpenOptionsExt;
+    use std::path::{Component, PathBuf};
+
+    let mut atual = File::open(if pai.is_absolute() { "/" } else { "." })
+        .map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
+    for componente in pai.components() {
+        let nome = match componente {
+            Component::RootDir | Component::CurDir => continue,
+            Component::ParentDir => std::ffi::OsStr::new(".."),
+            Component::Normal(nome) => nome,
+            Component::Prefix(_) => return Err(ErroArquivoTexto::DiretorioAusente),
+        };
+        let proximo = PathBuf::from(format!("/proc/self/fd/{}", atual.as_raw_fd())).join(nome);
+        let mut opcoes = OpenOptions::new();
+        // Linux: O_DIRECTORY | O_NOFOLLOW. Falhar fechado se /proc não estiver disponível.
+        opcoes.read(true).custom_flags(0o600_000);
+        let aberto = opcoes.open(&proximo).map_err(|erro| {
+            if erro.raw_os_error() == Some(40) {
+                ErroArquivoTexto::DiretorioLinkSimbolico
+            } else {
+                ErroArquivoTexto::DiretorioAusente
+            }
+        })?;
+        if !aberto
+            .metadata()
+            .map_err(|_| ErroArquivoTexto::DiretorioAusente)?
+            .is_dir()
+        {
+            return Err(ErroArquivoTexto::DiretorioAusente);
+        }
+        atual = aberto;
+    }
+    Ok(atual)
+}
+
 /// Prévia sem rede nem escrita: recusa um destino sabidamente inutilizável
 /// antes que o GET potencialmente registre recebimento no SEI.
 /// Não substitui `O_EXCL/create_new` nem elimina corridas concorrentes.
@@ -64,18 +104,30 @@ fn salvar_com_ponto_de_corrida(
     texto: &str,
     entre_inspecao_e_abertura: impl FnOnce(),
 ) -> Result<usize, ErroArquivoTexto> {
-    use std::fs::{self, OpenOptions};
+    use std::fs::OpenOptions;
     use std::io::{ErrorKind, Write};
     #[cfg(unix)]
     use std::os::unix::fs::OpenOptionsExt;
 
     conferir_destino(destino)?;
+    #[cfg(target_os = "linux")]
+    let pai_ancorado = diretorio_ancorado(
+        destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?,
+    )?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
     options.mode(0o600);
     entre_inspecao_e_abertura();
-    let mut arquivo = options.open(destino).map_err(|erro| {
+    #[cfg(target_os = "linux")]
+    let caminho_ancorado = {
+        use std::os::fd::AsRawFd;
+        std::path::PathBuf::from(format!("/proc/self/fd/{}", pai_ancorado.as_raw_fd()))
+            .join(destino.file_name().ok_or(ErroArquivoTexto::NomeAusente)?)
+    };
+    #[cfg(not(target_os = "linux"))]
+    let caminho_ancorado = destino.to_path_buf();
+    let mut arquivo = options.open(&caminho_ancorado).map_err(|erro| {
         if erro.kind() == ErrorKind::AlreadyExists {
             ErroArquivoTexto::DestinoJaExiste
         } else {
@@ -87,8 +139,8 @@ fn salvar_com_ponto_de_corrida(
         .and_then(|()| arquivo.sync_all())
         .is_err()
     {
-        drop(arquivo);
-        let _ = fs::remove_file(destino);
+        // O caminho original pode ter sido substituído: não remover arquivo
+        // alheio por pathname. O parcial continua privado (0600).
         return Err(ErroArquivoTexto::EscritaFalhou);
     }
     Ok(texto.len())
