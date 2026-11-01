@@ -208,3 +208,21 @@ Permanecem os mesmos **um GET autorizado, zero POST**, a mesma CLI,
 a validação de tabelas/intervalos e a exigência de autorização da
 leitura com possíveis efeitos. Essa restrição foi testada offline,
 não prova o resultado live em instalações de treinamento.
+
+
+## Identidade da unidade obrigatória na caixa Web completa (Refs #57, #56)
+
+O comando live `ies unidade listar-processos`, inclusive quando salva
+`--saida`, precisa de rótulo inequívoco de unidade publicado pelo Controle
+Web antes de devolver processos. Mesmo que ambos os totais e faixas estejam
+cobertos, `unidade: null` **não** comprova a origem dos dados e deve falhar
+com `ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle` e o subcódigo
+`identificacao_da_unidade_ausente_no_controle`. Não gravar exportação
+parcial nem informar sucesso. A regra não requer outro GET, não troca
+unidade e não altera a verificação de cobertura das duas categorias.
+
+`ies replay` permanece um instrumento de análise de cassettes antigos:
+se a captura não possui identificador de unidade, pode apresentar o conteúdo
+somente com escopo de replay, **sem alegar proveniência de leitura live**.
+O comportamento é testado com HTML sintético; acesso autenticado nas
+instalações de treinamento continua **NOT_RUN**.

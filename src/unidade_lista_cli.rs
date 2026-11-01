@@ -41,7 +41,7 @@ pub(super) fn listar_processos_da_unidade(
     } else {
         "web_com_paginas_privadas"
     };
-    mostrar_caixa(&paginas, origem, unidade, json_mode, true, destino)
+    mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
 }
 
 pub(super) fn mostrar_caixa(
@@ -51,6 +51,23 @@ pub(super) fn mostrar_caixa(
     json_mode: bool,
     exigir_todas_paginas: bool,
     destino: Option<&Path>,
+) -> ExitCode {
+    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, exigir_todas_paginas, destino, false)
+}
+
+/// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
+fn conferir_identidade_web(_leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
+    Ok(())
+}
+
+fn mostrar_caixa_com_politica(
+    htmls: &[String],
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    exigir_todas_paginas: bool,
+    destino: Option<&Path>,
+    exigir_identidade_web: bool,
 ) -> ExitCode {
     let leitura = match paginas::juntar(htmls, unidade) {
         Ok(valor) => valor,
@@ -73,6 +90,11 @@ pub(super) fn mostrar_caixa(
             return ExitCode::from(1);
         }
     };
+    if exigir_identidade_web {
+        if let Err(erro) = conferir_identidade_web(&leitura) {
+            return erro_fonte(json_mode, erro.subcodigo(), "unidade não identificada no Controle Web");
+        }
+    }
     // Consulta de sessão promete a caixa inteira; replay offline só relata
     // as páginas selecionadas, sem alegar que representam toda a unidade.
     if exigir_todas_paginas
