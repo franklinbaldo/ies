@@ -43,8 +43,17 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
     }))
 }
 
+/// Shim de conferência: o comportamento será guiado por testes do contrato.
+fn projetar_com_unidade(
+    html: &str,
+    unidade_esperada: Option<&str>,
+) -> Result<Value, FalhaControleWeb> {
+    let _ = unidade_esperada;
+    projetar(html)
+}
+
 /// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
-pub(crate) fn mostrar(json_mode: bool) -> ExitCode {
+pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -57,7 +66,7 @@ pub(crate) fn mostrar(json_mode: bool) -> ExitCode {
         Ok(html) => html,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let modelo = match projetar(&html) {
+    let modelo = match projetar_com_unidade(&html, unidade_esperada) {
         Ok(modelo) => modelo,
         Err(erro) => {
             return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
