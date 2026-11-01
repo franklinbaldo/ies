@@ -1,8 +1,10 @@
 //! Leitura opt-in de HTML privado previamente obtido da interface Web.
 //! Nunca estabelece sessão nem executa GET, POST ou escrita no SEI.
-use crate::{Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte};
-use std::path::Path;
+use crate::{
+    Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte,
+};
 use serde_json::json;
+use std::path::Path;
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -146,7 +148,13 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                 println!(
                     "{}",
                     json!({
-                        "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
+                        "codigo": if erro.status() == 2 {
+                            "entrada_invalida"
+                        } else if matches!(erro, ErroHtmlPrivado::Exportacao(_)) {
+                            "arquivo_privado_invalido"
+                        } else {
+                            "fonte_invalida"
+                        },
                         "subcodigo": erro.subcodigo(),
                         "erro": "leitura de documento no HTML privado não comprovada",
                         "retentavel": false
@@ -178,8 +186,13 @@ mod tests {
     #[test]
     fn contrato_aceita_saida_para_html_privado_e_recusa_versao_remota() {
         let cli = Cli::try_parse_from([
-            "ies", "documento", "0007", "--html-privado", "/tmp/captura.html",
-            "--saida", "/tmp",
+            "ies",
+            "documento",
+            "0007",
+            "--html-privado",
+            "/tmp/captura.html",
+            "--saida",
+            "/tmp",
         ])
         .unwrap();
         let Domain::Documento(comando) = cli.command else {
@@ -218,7 +231,10 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(std::fs::metadata(&destino).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                std::fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
         }
         assert_eq!(
             exportar(&raiz, &identidade, "OUTRO"),
