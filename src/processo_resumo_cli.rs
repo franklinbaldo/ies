@@ -32,6 +32,11 @@ fn mostrar_resumo_processo(
     aceitar_pagina_parcial: bool,
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
+    if let Some(caminho) = destino
+        && let Err(erro) = arquivo_caixa::conferir_destino(caminho)
+    {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
         return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
     }
