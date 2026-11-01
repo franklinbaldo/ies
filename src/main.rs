@@ -499,7 +499,7 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Esquema => return mostrar_esquema(cli.json),
         Domain::Setup(setup) => return executar_setup(setup, cli.json),
         Domain::Status(args) => {
-            return status_cli::mostrar_status(cli.json, args);
+            return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
