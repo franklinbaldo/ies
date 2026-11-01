@@ -50,6 +50,34 @@ mod tests {
     }
 
     #[test]
+    fn rejeita_controle_no_numero_bruto_antes_de_remover_espacos() {
+        for numero in [
+            "\n0011519",
+            "0011519\n",
+            "\t0011519",
+            "0011519\r\n",
+            " \t0011519 ",
+        ] {
+            assert_eq!(
+                NumeroDocumento::novo(numero),
+                Err(NumeroDocumentoInvalido::Controle)
+            );
+        }
+    }
+
+    #[test]
+    fn texto_nao_decimal_mantem_erro_diferente_de_controle() {
+        assert_eq!(
+            NumeroDocumento::novo(" 0011519 "),
+            Ok(NumeroDocumento("0011519".into()))
+        );
+        assert_eq!(
+            NumeroDocumento::novo("0011519X"),
+            Err(NumeroDocumentoInvalido::NaoNumerico)
+        );
+    }
+
+    #[test]
     fn recusa_texto_e_numeros_unicode_por_tipo() {
         assert_eq!(
             NumeroDocumento::novo(" "),
