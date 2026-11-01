@@ -36,8 +36,9 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Option<String> {
     (!unidade.is_empty() && unidade.len() <= 128).then_some(unidade)
 }
 
-/// Rótulo mostrado pelo SEI, não um ID nem uma lista de unidades.
-pub fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
+/// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
+#[cfg(test)]
+pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
