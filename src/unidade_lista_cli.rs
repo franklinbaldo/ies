@@ -166,4 +166,44 @@ mod testes_exportacao {
         assert!(valor.get("completa").is_none());
         fs::remove_file(arquivo).unwrap();
     }
+
+    #[test]
+    fn controle_web_com_cobertura_integral_sem_identidade_de_unidade_falha() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        assert_eq!(
+            conferir_identidade_web(&leitura),
+            Err(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+        );
+    }
+
+    #[test]
+    fn controle_web_nao_grava_exportacao_se_unidade_nao_foi_identificada() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let caminho = std::env::temp_dir().join(format!(
+            "ies-caixa-unidade-ausente-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let codigo = mostrar_caixa_com_politica(
+            &[html.to_owned()], "web", None, true, true, Some(&caminho), true
+        );
+        assert_eq!(codigo, ExitCode::from(1));
+        assert!(!caminho.exists());
+    }
+
+    #[test]
+    fn unidade_comprovada_passando_pelas_duas_tabelas_eh_aceita() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        assert_eq!(leitura.unidade.as_deref(), Some("PPI"));
+        assert_eq!(conferir_identidade_web(&leitura), Ok(()));
+    }
 }
