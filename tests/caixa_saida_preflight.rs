@@ -51,8 +51,12 @@ fn categoria_com_destino_ja_ocupado_nao_consulta_sessao() {
     let destino = base.join("caixa.json");
     fs::write(&destino, "ORIGINAL").unwrap();
     let erro = comando(&[
-        "unidade", "listar-processos", "--categoria", "gerados",
-        "--saida", caminho(&destino),
+        "unidade",
+        "listar-processos",
+        "--categoria",
+        "gerados",
+        "--saida",
+        caminho(&destino),
     ]);
     assert_eq!(erro["subcodigo"], "arquivo_da_caixa_ja_existe");
     assert_eq!(fs::read_to_string(&destino).unwrap(), "ORIGINAL");
@@ -65,7 +69,11 @@ fn resumo_com_destino_existente_nao_consulta_sessao() {
     let destino = base.join("resumo.json");
     fs::write(&destino, "ORIGINAL").unwrap();
     let erro = comando(&[
-        "processo", "000042/2026", "--resumo", "--saida", caminho(&destino),
+        "processo",
+        "000042/2026",
+        "--resumo",
+        "--saida",
+        caminho(&destino),
     ]);
     assert_eq!(erro["subcodigo"], "arquivo_da_caixa_ja_existe");
     assert_eq!(fs::read_to_string(&destino).unwrap(), "ORIGINAL");
