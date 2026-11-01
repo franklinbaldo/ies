@@ -6,6 +6,7 @@ use std::path::Path;
 pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
+    DiretorioLinkSimbolico,
     DestinoJaExiste,
     EscritaFalhou,
 }
@@ -14,11 +15,17 @@ impl ErroArquivoTexto {
         match self {
             Self::NomeAusente => "destino_texto_documento_sem_nome",
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
+            Self::DiretorioLinkSimbolico => "diretorio_texto_documento_link_simbolico",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
         }
     }
 }
+/// Shim RED: verificar ancestrais de diretório antes de gravar.
+fn conferir_diretorios(_destino: &Path) -> Result<(), ErroArquivoTexto> {
+    Ok(())
+}
+
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
     use std::fs::{self, OpenOptions};
     use std::io::{ErrorKind, Write};
@@ -31,6 +38,7 @@ pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoTexto::DiretorioAusente);
     }
+    conferir_diretorios(destino)?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -106,6 +114,44 @@ mod tests {
         );
         assert!(!destino.exists());
         fs::remove_dir_all(pasta).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recusa_link_simbolico_como_diretorio_de_saida() {
+        use std::os::unix::fs::symlink;
+        let raiz = pasta();
+        let real = raiz.join("real");
+        fs::create_dir(&real).unwrap();
+        let link = raiz.join("atalho");
+        symlink(&real, &link).unwrap();
+        let destino = link.join("0007.txt");
+        assert_eq!(
+            salvar(&destino, "DADO CONFIDENCIAL"),
+            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
+        );
+        assert!(!real.join("0007.txt").exists());
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recusa_link_em_ancestral_do_diretorio_de_saida() {
+        use std::os::unix::fs::symlink;
+        let raiz = pasta();
+        let real = raiz.join("real");
+        let subpasta = real.join("subpasta");
+        fs::create_dir_all(&subpasta).unwrap();
+        let link = raiz.join("atalho");
+        symlink(&real, &link).unwrap();
+        let destino = link.join("subpasta").join("0007.txt");
+        assert_eq!(
+            salvar(&destino, "DADO CONFIDENCIAL"),
+            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
+        );
+        assert!(!subpasta.join("0007.txt").exists());
+        assert_eq!(salvar(&subpasta.join("0007.txt"), "OK"), Ok(2));
+        fs::remove_dir_all(raiz).unwrap();
     }
 
     #[cfg(unix)]
