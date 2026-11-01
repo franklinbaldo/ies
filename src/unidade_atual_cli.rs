@@ -48,3 +48,41 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
     }
     ExitCode::SUCCESS
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dominio::Categoria;
+
+    #[test]
+    fn rotulo_isolado_na_tela_de_login_nao_e_controle_verificado() {
+        let html =
+            "<form id='frmLogin'><input name='txtUsuario'></form><a id='lnkInfraUnidade'>PPI</a>";
+        assert_eq!(
+            unidade_validada(html),
+            Err(ErroCaixa::TabelaAusente {
+                categoria: Categoria::Recebidos
+            })
+        );
+    }
+
+    #[test]
+    fn uma_tabela_ausente_impede_afirmar_unidade_ativa() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            unidade_validada(html),
+            Err(ErroCaixa::TabelaAusente {
+                categoria: Categoria::Gerados
+            })
+        );
+    }
+
+    #[test]
+    fn controle_com_duas_tabelas_reconhecidas_retorna_unidade_sem_paginar() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(unidade_validada(html), Ok("PPI".to_owned()));
+    }
+}
