@@ -93,7 +93,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
         return None;
     };
     let arquivo = documento.html_privado.as_deref()?;
-    let resultado = (|| {
+    let resultado: Result<_, ErroHtmlPrivado> = (|| {
         let numero = conferir_comando(documento, cli.unidade.as_deref())?;
         let html =
             transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
@@ -201,9 +201,9 @@ mod tests {
         assert!(conferir_comando(&comando, None).is_ok());
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
         let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
-        let inexistente = std::env::temp_dir().join(format!(
-            "ies-html-diretorio-ausente-{}", std::process::id()
-        )).join("nao-existe");
+        let inexistente = std::env::temp_dir()
+            .join(format!("ies-html-diretorio-ausente-{}", std::process::id()))
+            .join("nao-existe");
         assert_eq!(
             exportar(&inexistente, &identidade, &texto),
             Err(ErroHtmlPrivado::Exportacao(
