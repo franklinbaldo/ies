@@ -168,3 +168,16 @@ conteúdo do fragmento: a subárvore toda é descartada antes da
 verificação de executáveis. A ausência de texto visível continua
 `ErroCorpoDocumento::CorpoVazio`. A regra é local/offline e não altera
 o número de requisições ao SEI (zero), identidade, MIME ou autorização.
+
+## Cabeçalho sem `head` não aceita títulos dentro do conteúdo (Refs #60)
+
+Alguns fragmentos HTML históricos têm um `title` no nível externo,
+sem `head`; preservar essa possibilidade de replay local. Porém um
+`title` presente **somente** em `body`, `svg` ou `template` não
+identifica o documento SEI, ainda que seu texto pareça um título
+`SEI/instalação - DOC - Tipo`. Nessa situação a função de identidade
+falha com a variante tipada existente `ErroTituloDocumento::TituloAusente`,
+sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
+externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
+A regra não abre URLs, não consulta a instalação, não modifica a
+sintaxe da CLI e não prova autenticidade do HTML previamente capturado.

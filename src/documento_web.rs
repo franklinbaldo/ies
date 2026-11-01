@@ -55,8 +55,23 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
             .flatten()
             .collect()
     } else {
-        // Fragmentos históricos sem head: preservar o contrato offline.
-        dom.query_selector("title").into_iter().flatten().collect()
+        // Fragmentos sem head admitem title externo, mas nunca aquele
+        // inserido no corpo, em ícones SVG ou em template inerte.
+        let mut titulos_de_conteudo = Vec::new();
+        for nome in ["body", "svg", "template"] {
+            for area in dom.query_selector(nome).into_iter().flatten() {
+                let Some(tag) = area.get(parser).and_then(tl::Node::as_tag) else {
+                    continue;
+                };
+                titulos_de_conteudo
+                    .extend(tag.query_selector(parser, "title").into_iter().flatten());
+            }
+        }
+        dom.query_selector("title")
+            .into_iter()
+            .flatten()
+            .filter(|titulo| !titulos_de_conteudo.contains(titulo))
+            .collect()
     };
     let mut titulos = titulos.into_iter();
     let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
@@ -93,6 +108,45 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn titulo_dentro_de_svg_sem_head_nao_identifica_documento() {
+        let html = "<svg><title>SEI/UnB - 0007 - Ofício</title></svg>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TituloAusente)
+        );
+    }
+
+    #[test]
+    fn titulo_em_body_ou_template_sem_head_eh_ignorado() {
+        for html in [
+            "<body><title>SEI/UnB - 0007 - Ofício</title></body>",
+            "<template><title>SEI/UnB - 0007 - Ofício</title></template>",
+        ] {
+            assert_eq!(
+                identidade_do_titulo(html),
+                Err(ErroTituloDocumento::TituloAusente)
+            );
+        }
+    }
+
+    #[test]
+    fn titulo_externo_em_fragmento_sem_head_eh_preservado() {
+        let html = "<title>SEI/UnB - 0007 - Ofício</title>\
+                    <body><svg><title>SEI/UnB - 9999 - Outro</title></svg></body>";
+        assert_eq!(identidade_do_titulo(html).unwrap().numero, "0007");
+    }
+
+    #[test]
+    fn dois_titulos_externos_sem_head_nao_escolhem_primeiro() {
+        let html = "<title>SEI/UnB - 0007 - Ofício</title>\
+                    <title>SEI/UnB - 0008 - Memorando</title>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+        );
+    }
 
     #[test]
     fn preserva_zeros_na_identidade_observada() {
