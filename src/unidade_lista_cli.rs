@@ -235,6 +235,36 @@ mod testes_exportacao {
     }
 
     #[test]
+    fn detalhada_de_um_get_exporta_sem_categorias_inferidas() {
+        let html = "<html><a id='lnkInfraUnidade'>PPI</a>\
+            <input id='hdnTipoVisualizacao' value='D'>\
+            <table id='tblProcessosDetalhado'>\
+            <caption>(1 registros - 1 a 1):</caption>\
+            <tr><th>Processo</th><th>Tipo</th></tr>\
+            <tr id='P42'><td><a class='processoVisualizado'\
+            href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
+            000042/2026</a></td><td>Ofício</td></tr></table></html>";
+        let caminho = std::env::temp_dir().join(format!(
+            "ies-detalhada-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        assert_eq!(
+            mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
+            ExitCode::SUCCESS
+        );
+        let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
+        assert_eq!(json["visualizacao"], "detalhada");
+        assert_eq!(json["processos"][0]["numero"], "000042/2026");
+        assert!(json.get("recebidos").is_none());
+        assert!(json.get("gerados").is_none());
+        fs::remove_file(caminho).unwrap();
+    }
+
+    #[test]
     fn caixa_observada_com_cobertura_total_pode_ser_exportada() {
         let pasta = std::env::temp_dir().join(format!("ies-caixa-saida-{}", std::process::id()));
         fs::create_dir_all(&pasta).unwrap();
