@@ -1,5 +1,5 @@
-use crate::documento_transporte::ErroDocumentoTransporte;
 use super::*;
+use crate::documento_transporte::ErroDocumentoTransporte;
 use clap::Parser;
 fn cli(args: &[&str]) -> crate::Documento {
     let parsed = Cli::try_parse_from(args).unwrap();
