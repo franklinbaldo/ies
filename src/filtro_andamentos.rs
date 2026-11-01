@@ -18,12 +18,13 @@ impl ErroFiltroAndamentos {
     }
 }
 fn validar_termo(termo: &str) -> Result<&str, ErroFiltroAndamentos> {
+    // A entrada original precede trim: CR/LF/tab externos nao sao espacos tolerados.
+    if termo.chars().any(char::is_control) {
+        return Err(ErroFiltroAndamentos::ContemControle);
+    }
     let termo = termo.trim();
     if termo.is_empty() {
         return Err(ErroFiltroAndamentos::Vazio);
-    }
-    if termo.chars().any(char::is_control) {
-        return Err(ErroFiltroAndamentos::ContemControle);
     }
     if termo.chars().count() > 100 {
         return Err(ErroFiltroAndamentos::AcimaDoLimite);
