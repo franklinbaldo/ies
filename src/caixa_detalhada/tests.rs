@@ -122,5 +122,10 @@ fn paginacao_detalhada_sem_intervalo_explicito_nao_prova_cobertura() {
             Err(ErroDetalhada::FaixaSemIntervaloComPaginacao)
         );
     }
-    assert_eq!(ler_paginas(&[sem_faixa], Some("PPI")).unwrap().total_declarado, 1);
+    assert_eq!(
+        ler_paginas(&[sem_faixa], Some("PPI"))
+            .unwrap()
+            .total_declarado,
+        1
+    );
 }
