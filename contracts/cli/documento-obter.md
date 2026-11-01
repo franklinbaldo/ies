@@ -102,8 +102,25 @@ com subcódigos próprios; falhas não expõem HTML nem tokens.
 A saída é `escopo: html_privado_offline`, `autenticacao_remota: false`
 e `versao_atual: null`. Não afirmar atualidade, assinatura, integridade
 criptográfica, identidade da sessão nem versão do documento. Opções
-remotas como `--versao`, `--saida` ou `--com-propriedades` são recusadas
+remotas como `--versao` ou `--com-propriedades` são recusadas
 no modo local, assim como vários DOCs (um arquivo só). O comando
 `ies documento DOC` sem `--html-privado` continua stub; a etapa
 de resolução da árvore e GET autenticado exige evidência e teste live
 independentes. Nenhum login, GET, POST nem escrita no SEI.
+
+
+## Exportação de texto do HTML privado (Refs #60)
+
+`ies documento DOC --html-privado ARQUIVO --saida DIR` extrai o texto
+somente depois de validar a identidade exata e o conteúdo offline.
+`DIR` deve existir e recebe `DOC.txt` criado com permissão privada
+0600 no Unix, sem sobrescrever arquivos nem seguir symlinks no destino.
+Não cria diretórios, não altera o HTML capturado e nunca faz requisições
+ao SEI. Um erro de gravação é tipado e não publica conteúdo.
+
+Na exportação, a saída JSON informa documento, escopo
+`html_privado_texto_exportado_offline`, bytes e
+`versao_atual: null`, mas **não** devolve o texto no terminal.
+Sem `--saida`, permanece a leitura offline de texto existente.
+Esta opção não equivale a `--saida DIR` da futura leitura Web;
+a capacidade remota de `documento.obter` continua stub.
