@@ -268,3 +268,41 @@ ou afirmar compatibilidade live sem prova. A correção protege contra
 **falso sucesso** no comando existente; a paginação ativa da issue #57
 continua **não implementada** e exige evidência de forma, efeito e sessão
 por instalação.
+
+
+## Visão detalhada do Controle existente, sem POST (Refs #57)
+
+O mesmo `ies unidade listar-processos` deve aceitar a página **já devolvida
+por seu único GET** quando ela apresenta uma tabela única
+`tblProcessosDetalhado` e `hdnTipoVisualizacao=D`. Não criar flag,
+subcomando ou inferir que esses processos pertençam à categoria
+`recebidos` ou `gerados`. A saída JSON diferente é explícita:
+`{unidade, origem, visualizacao:"detalhada", total_declarado, processos}`,
+com identidade de processo e estado `visualizado` somente quando observável.
+A saída resumida e seu golden permanecem inalterados.
+
+Para cada linha aceita, exigir identificador `tr id=P<dígitos>`, um
+cabeçalho `Processo` único, link dessa célula para uma ação de processo
+conhecida e NUP não vazio. Não executar links, JS nem criar IDs. Validar
+legenda única, total, faixa e não duplicidade, preservando zeros. Quando a
+página não cobre o total declarado, retornar erro e **não publicar nem
+exportar lista parcial**. Páginas privadas já fornecidas pela opção
+existente `--pagina-arquivo` podem ser reunidas se as faixas forem
+contíguas e o contexto da unidade e visualização permanecer idêntico.
+Não aceitar modo resumido e detalhado misturados.
+
+A leitura Web permanece **um GET, zero POST**, sem login ou troca de
+visualização. Uma sessão que chegou à tela detalhada pode ser interpretada,
+mas o comando não fabrica uma tela D a partir de R e não restaura estado
+do usuário. Esta fatia não conclui a paginação ativa da #57, que exige
+prova de payload/efeitos do formulário por instalação. Cassettes históricas
+e testes sintéticos são limites de validação, não equivalência live.
+
+
+Se uma tela detalhada publicar `hdnDetalhadoPaginaAtual` ou controles
+`lnkInfraProximaPagina*`, `lnkInfraPaginaAnterior*` ou
+`selInfraPaginacao*`, sua legenda deve declarar o **intervalo explícito**.
+Coincidência entre total e linhas sem faixa não comprova cobertura:
+falhar com `faixa_detalhada_sem_intervalo_com_paginacao`, sem exportação
+nem requests adicionais. Isso evita apresentar uma página posterior
+como primeira página completa.

@@ -6,8 +6,9 @@ description: Cruzamento dos comandos declarados, código executável, evidência
 
 # Matriz de derivação da CLI — implementar antes de ampliar
 
-**Base auditada:** `main` em `b896389ab145f02f4f969ea848e5a99a4e86aea5`,
-01/11/2026. Fontes: [superfície Clap e despacho](../src/main.rs),
+**Base de derivação:** `main` em `2870e5e70ebe20851a282c7d30de438f631acb74`,
+01/11/2026, mais a ampliação da PR #137; conferir o SHA pós-merge
+registrado na issue #56. Fontes: [superfície Clap e despacho](../src/main.rs),
 [contrato público](../contracts/cli.md), [matriz de evidências](../contracts/evidencias/README.md),
 [política de acesso](interfaces/acesso-por-instalacao.md) e
 [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
@@ -45,12 +46,18 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento salvar DOC` | **PARCIAL LOCAL**; `--confirmar` remoto bloqueado | Prévia, diff/cópias de trabalho locais e inventário versionado | Detectar versão/assinatura/conflitos no SEI; salvar com efeito e reconciliação; preservar rascunhos | [#89](https://github.com/franklinbaldo/ies/issues/89) |
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
-| `ies unidade listar-processos` | **PARCIAL WEB** | GET único de controle com sessão já fornecida; identidade e totais verificados, exportação e páginas privadas complementares | Paginação Web **ativa**, cobertura de recebidos/gerados, controle de contexto e efeitos do POST; sem aceitar lista parcial como total | [#57](https://github.com/franklinbaldo/ies/issues/57) |
+| `ies unidade listar-processos` | **PARCIAL WEB** | GET único da tela resumida **ou detalhada já exibida** (`D`), com identidade, total, faixa e exportação verificados; páginas privadas opcionais; recusa paginação sem intervalo | Paginação Web **ativa**, cobertura de recebidos/gerados, controle de contexto e efeitos do POST; visão D não inventa categorias ou snapshot | [#57](https://github.com/franklinbaldo/ies/issues/57) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
 | `ies esquema` | **PARCIAL LOCAL** | Lista nomes de comandos e versão | Entregar contrato/esquema útil se necessário, usando o comando existente; não criar outro inventário de comandos | [código](../src/main.rs) |
 | `ies replay CENARIO` | **LOCAL** no acervo suportado | Reproduz capturas/cassettes verificadas offline: caixa, pesquisa, documento e histórico | É oráculo de testes, não substitui implementação Web dos comandos acima | [guia](replay.md) |
+
+**Atualização #137:** a visão detalhada D do GET existente pode produzir
+lista completa apenas com cobertura declarada demonstrada; continua um GET,
+zero POST e **sem ensaio live autorizado**. Persistem 11 caminhos
+incompletos e 3 locais; nenhum virou capacidade Web integral. A #57 segue
+aberta para a paginação ativa.
 
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram

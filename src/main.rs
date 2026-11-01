@@ -2,6 +2,7 @@ mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_texto_documento;
 mod caixa;
+mod caixa_detalhada;
 mod caixa_local;
 mod cassette;
 mod configuracao;

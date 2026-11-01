@@ -10,6 +10,10 @@ pub(crate) struct ContextoPagina {
 }
 
 impl ContextoPagina {
+    pub(crate) fn eh_detalhada(&self) -> bool {
+        self.modo.as_deref() == Some("D")
+    }
+
     pub(crate) fn eh_resumida(&self) -> bool {
         self.modo.as_deref() == Some("R")
     }
