@@ -266,6 +266,9 @@ fn anexar_texto(
             if ignorar_subarvore_decorativa(nome.as_ref()) {
                 return Ok(());
             }
+            if matches!(nome.as_ref(), "script" | "style" | "iframe" | "noscript") {
+                return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
+            }
             let quebra = matches!(
                 nome.as_ref(),
                 "p" | "div"
@@ -319,14 +322,8 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let corpo = primeiro
         .get(parser)
         .ok_or(ErroCorpoDocumento::CorpoAusente)?;
-    let tag = corpo.as_tag().ok_or(ErroCorpoDocumento::CorpoAusente)?;
-    for nome in ["script", "style", "iframe", "noscript"] {
-        if tag
-            .query_selector(parser, nome)
-            .is_some_and(|mut nodes| nodes.next().is_some())
-        {
-            return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
-        }
+    if corpo.as_tag().is_none() {
+        return Err(ErroCorpoDocumento::CorpoAusente);
     }
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
@@ -342,6 +339,45 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
 #[cfg(test)]
 mod testes_texto {
     use super::*;
+
+    #[test]
+    fn elementos_executaveis_visiveis_continuam_recusados_por_tipo() {
+        for tag in ["script", "style", "iframe", "noscript"] {
+            let html = format!("<body><{tag}>oculto</{tag}><p>Visível</p></body>");
+            assert_eq!(
+                texto_do_corpo(&html),
+                Err(ErroCorpoDocumento::CorpoComConteudoExecutavel),
+                "{tag}"
+            );
+        }
+    }
+
+    #[test]
+    fn script_em_template_inerte_nao_impede_texto_do_documento() {
+        let html = "<body><template><script>nao_executado()</script></template>\
+                    <p>Texto visível legítimo.</p></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Ok("Texto visível legítimo.".to_owned())
+        );
+    }
+
+    #[test]
+    fn iframe_e_style_em_template_nao_substituem_texto_visivel() {
+        let html = "<body><template><style>.segredo{}</style>\
+                    <iframe src='about:blank'>oculto</iframe></template>\
+                    <p>Corpo exibido.</p></body>";
+        assert_eq!(texto_do_corpo(html), Ok("Corpo exibido.".to_owned()));
+    }
+
+    #[test]
+    fn template_com_script_sem_paragrafo_visivel_eh_corpo_vazio() {
+        assert_eq!(
+            texto_do_corpo("<body><template><script>inativo()</script></template></body>"),
+            Err(ErroCorpoDocumento::CorpoVazio)
+        );
+    }
+
     #[test]
     fn svg_de_icone_nao_entra_no_texto_do_documento() {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\

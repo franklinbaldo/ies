@@ -178,3 +178,17 @@ de declarar operação live multiplataforma.
 A opção `--categoria` é incompatível com `--pagina-arquivo`: a seleção
 considera exclusivamente a primeira página do GET e não ignora páginas
 privadas indicadas pelo operador.
+
+## Tipo de resposta HTML conferido sem equivalência por substring (Refs #57)
+
+O GET da caixa e o diagnóstico opt-in do Controle Web só aceitam
+`Content-Type` cujo **tipo de mídia principal**, anterior a eventuais
+parâmetros separados por `;`, seja exatamente `text/html`
+(sem distinguir maiúsculas/minúsculas e ignorando espaços externos).
+A presença de `text/html` dentro de um parâmetro de outro tipo,
+como `application/json; profile=text/html`, não certifica HTML.
+Tipo ausente, `text/plain`, `application/xhtml+xml` ou outros
+subtipos continuam recusados com a variante de transporte existente
+`FalhaTransporte::RespostaInesperada`. Não há retry nem GET adicional:
+o limite, o status e a verificação de login permanecem iguais. A
+regra é ensaiada offline; nenhum teste de produção é autorizado.
