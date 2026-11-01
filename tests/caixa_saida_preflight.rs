@@ -110,3 +110,38 @@ fn diretorio_simbolico_recusado_antes_da_configuracao() {
     assert!(!real.join("caixa.json").exists());
     fs::remove_dir_all(base).unwrap();
 }
+
+#[test]
+fn resumo_com_pagina_ausente_falha_antes_de_consultar_sessao() {
+    let base = raiz();
+    let pagina = base.join("pagina-inexistente.html");
+    let erro = comando(&[
+        "processo",
+        "000042/2026",
+        "--resumo",
+        "--pagina-arquivo",
+        caminho(&pagina),
+    ]);
+    assert_eq!(erro["subcodigo"], "arquivo_privado_ausente_ou_inacessivel");
+    fs::remove_dir_all(base).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn resumo_com_pagina_symlink_falha_antes_de_get() {
+    use std::os::unix::fs::symlink;
+    let base = raiz();
+    let alvo = base.join("pagina-original.html");
+    let pagina = base.join("pagina-link.html");
+    fs::write(&alvo, "<html>PRIVADO</html>").unwrap();
+    symlink(&alvo, &pagina).unwrap();
+    let erro = comando(&[
+        "processo",
+        "000042/2026",
+        "--resumo",
+        "--pagina-arquivo",
+        caminho(&pagina),
+    ]);
+    assert_eq!(erro["subcodigo"], "arquivo_privado_link_simbolico");
+    fs::remove_dir_all(base).unwrap();
+}
