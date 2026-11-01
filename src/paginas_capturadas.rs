@@ -49,6 +49,19 @@ fn conferir_orcamento(atual: usize, adicional: usize) -> Result<usize, FalhaPagi
         .ok_or(FalhaPaginaCapturada::BytesAcimaDoLimite)
 }
 
+/// Conferência após o GET: usa os complementos já lidos antes da rede,
+/// sem reabrir arquivos nem consumir requisições adicionais.
+pub(crate) fn conferir_orcamento_com_inicial(
+    paginas: &[String],
+    bytes_inicial: usize,
+) -> Result<(), FalhaPaginaCapturada> {
+    let mut total = conferir_orcamento(0, bytes_inicial)?;
+    for pagina in paginas {
+        total = conferir_orcamento(total, pagina.len())?;
+    }
+    Ok(())
+}
+
 /// Somente arquivos privados selecionados: nenhuma request HTTP adicional.
 pub(crate) fn ler_complementos(
     caminhos: &[PathBuf],
@@ -129,6 +142,20 @@ mod tests {
         assert_eq!(
             conferir_caminhos(&arquivos),
             Err(FalhaPaginaCapturada::QuantidadeAcimaDoLimite)
+        );
+    }
+
+    #[test]
+    fn orcamento_final_inclui_get_sem_reabrir_complementos() {
+        let paginas = vec![String::from("abc"), String::from("defg")];
+        assert_eq!(conferir_orcamento_com_inicial(&paginas, 48_000_000 - 7), Ok(()));
+        assert_eq!(
+            conferir_orcamento_com_inicial(&paginas, 48_000_000 - 6),
+            Err(FalhaPaginaCapturada::BytesAcimaDoLimite)
+        );
+        assert_eq!(
+            conferir_orcamento_com_inicial(&[], 48_000_001),
+            Err(FalhaPaginaCapturada::BytesAcimaDoLimite)
         );
     }
 
