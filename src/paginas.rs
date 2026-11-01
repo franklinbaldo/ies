@@ -1,6 +1,7 @@
 //! Junção de páginas por intervalos de posição, sem emitir requisições.
 //! A prova de cobertura vive somente aqui, não em Tabela nem em `CaixaDeEntrada`.
 use crate::controle_contexto::contexto_da_pagina;
+use crate::paginacao_controle::controles_de_paginacao;
 #[cfg(test)]
 use crate::controle_contexto::unidade_exibida_no_controle;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
@@ -212,6 +213,9 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(&paginas[0])?;
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(&paginas[0])? {
+        return Err(ErroCaixa::VisaoResumidaComPaginacao);
+    }
     if let Some(esperada) = unidade_esperada
         && contexto_inicial
             .unidade
@@ -230,6 +234,9 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             let contexto = contexto_da_pagina(html)?;
             if !contexto.verificavel() {
                 return Err(ErroCaixa::ContextoNaoVerificavel);
+            }
+            if contexto.eh_resumida() && controles_de_paginacao(html)? {
+                return Err(ErroCaixa::VisaoResumidaComPaginacao);
             }
             if contexto != contexto_inicial {
                 return Err(ErroCaixa::ContextoDaPaginaDiferenteDoAnterior);
