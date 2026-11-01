@@ -14,6 +14,7 @@ enum ErroDocumentoRemoto {
     QuantidadeDeDocumentos,
     OpcoesNaoComprovadas,
     EfeitoAdministrativoDaLeituraNaoAutorizado,
+    SaidaPrivadaObrigatoria,
     Configuracao(configuracao::ErroConfiguracao),
     Transporte(documento_transporte::ErroDocumentoTransporte),
     Titulo(documento_web::ErroTituloDocumento),
@@ -30,6 +31,7 @@ impl ErroDocumentoRemoto {
             Self::EfeitoAdministrativoDaLeituraNaoAutorizado => {
                 "efeito_administrativo_da_leitura_nao_autorizado"
             }
+            Self::SaidaPrivadaObrigatoria => "saida_privada_obrigatoria_para_documento_web",
             Self::Configuracao(e) => e.subcodigo(),
             Self::Transporte(e) => e.subcodigo(),
             Self::Titulo(e) => e.subcodigo(),
@@ -43,7 +45,8 @@ impl ErroDocumentoRemoto {
             Self::Numero(_)
             | Self::QuantidadeDeDocumentos
             | Self::OpcoesNaoComprovadas
-            | Self::EfeitoAdministrativoDaLeituraNaoAutorizado => 2,
+            | Self::EfeitoAdministrativoDaLeituraNaoAutorizado
+            | Self::SaidaPrivadaObrigatoria => 2,
             _ => 1,
         }
     }

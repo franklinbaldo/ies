@@ -36,6 +36,10 @@ status, login, título SEI, número visível exato e corpo antes de publicar.
 O link e a sessão pertencem à mesma geração; não confirmar frescura
 automaticamente, nem construir links por interpolação de hashes.
 
+A leitura de dados autenticados exige `--saida DIR` privado, sem texto de
+documento em stdout, para reduzir vazamento acidental em terminais e logs.
+A ausência gera erro tipado antes de ler URL/cookie e antes da rede.
+
 O GET pode registrar recebimento/visualização. A CLI exige também
 reconhecimento explícito `--autorizar-efeito-de-leitura` **antes** de ler
 arquivos da sessão ou executar a requisição, mas isso não comprova

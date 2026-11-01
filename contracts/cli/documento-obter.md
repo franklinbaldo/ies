@@ -186,7 +186,7 @@ sintaxe da CLI e não prova autenticidade do HTML previamente capturado.
 
 ## GET Web opt-in de documento com link assinado privado (Refs #60, #56)
 
-`ies documento DOC --url-documento-file ARQUIVO [--json] [--saida DIR]`
+`ies documento DOC --url-documento-file ARQUIVO --saida DIR [--json]`
 usa **um único GET** da ação `documento_visualizar` da sessão existente,
 **somente** quando acompanhado de `--autorizar-efeito-de-leitura`.
 Sem esse reconhecimento explícito, a CLI recusa a operação antes de abrir
@@ -206,8 +206,11 @@ GET pode causar efeito administrativo: executar apenas onde a leitura e seus
 efeitos estejam autorizados, em ambiente de treinamento/homologação.
 A resposta deve ter HTTP 200, MIME HTML, não ser login, conter título SEI
 único com número **igual ao DOC** (zeros preservados) e texto visível.
-Falhas são variantes/subcódigos Rust tipados. O operador pode exportar
-`DOC.txt` privado a diretório já existente sem sobrescrever o destino.
+Falhas são variantes/subcódigos Rust tipados. A opção `--saida DIR` é
+**obrigatória**: conteúdo autenticado nunca é enviado a stdout; gravar somente
+`DOC.txt` privado em diretório já existente sem sobrescrever. Sua ausência
+retorna `SaidaPrivadaObrigatoria`, subcódigo
+`saida_privada_obrigatoria_para_documento_web`, **antes de ler sessão ou URL**.
 
 Sem `--url-documento-file`, `ies documento DOC` permanece stub. O recorte
 não resolve árvore, histórico, versão, assinaturas nem acesso ao documento
