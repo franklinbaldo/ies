@@ -235,8 +235,15 @@ fn legenda_unica(
     tabela: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
 ) -> Result<String, ErroVersao> {
-    let _ = (tabela, parser);
-    Err(ErroVersao::ListaIncompleta)
+    let mut legendas = tabela.query_selector(parser, "caption").into_iter().flatten();
+    let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
+    if legendas.next().is_some() {
+        return Err(ErroVersao::LegendasDoHistoricoRepetidas);
+    }
+    primeira
+        .get(parser)
+        .map(|no| texto(no, parser))
+        .ok_or(ErroVersao::ListaIncompleta)
 }
 
 /// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
