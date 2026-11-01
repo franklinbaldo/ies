@@ -43,7 +43,7 @@ fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
 
 /// Prévia sem rede nem escrita: recusa um destino sabidamente inutilizável
 /// antes que o GET potencialmente registre recebimento no SEI.
-/// Não substitui O_EXCL/create_new nem elimina corridas concorrentes.
+/// Não substitui `O_EXCL/create_new` nem elimina corridas concorrentes.
 pub(crate) fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoTexto> {
     if destino.file_name().is_none() {
         return Err(ErroArquivoTexto::NomeAusente);
