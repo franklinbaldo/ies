@@ -29,8 +29,8 @@ fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
         if ancestral.as_os_str().is_empty() {
             continue;
         }
-        let metadados = std::fs::symlink_metadata(ancestral)
-            .map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
+        let metadados =
+            std::fs::symlink_metadata(ancestral).map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
         if metadados.file_type().is_symlink() {
             return Err(ErroArquivoTexto::DiretorioLinkSimbolico);
         }
