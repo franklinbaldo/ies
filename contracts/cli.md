@@ -105,3 +105,18 @@ Rust `ErroBuscaDocumento::TermoComControle`, subcódigo
 continuam tolerados; termo vazio continua tendo erro específico.
 Não alterar a busca por Unicode nem tratar ausência na cassette como
 inexistência no SEI. Sem GET, POST ou validação live.
+
+## Unidade esperada no diagnóstico Web (Refs #57, #56)
+
+`ies --unidade SIGLA status --verificar-controle-web --json` confere o
+rótulo da unidade **efetivamente publicado** no Controle de Processos
+antes de relatar sucesso. A opção global `--unidade` não pode ser
+ignorada por este diagnóstico com rede. Em caso de diferença literal,
+retornar `unidade_exibida_diferente_da_solicitada` sem imprimir o
+rótulo observado nem dados da sessão. Sem `--unidade`, conservar o
+resultado atual. A comparação é de igualdade exata, sem heurística
+para siglas, normalização ou troca automática de unidade.
+
+A operação continua limitada ao GET já solicitado (zero pedidos
+adicionais), sem login ou POST. Este teste de identidade da tela não
+comprova sessão autenticada, permissões ou cobertura de paginação.
