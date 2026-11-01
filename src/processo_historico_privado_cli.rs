@@ -57,8 +57,7 @@ fn selecionar(
     html: &str,
     numero: &processo::NumeroProcesso,
 ) -> Result<processo::DetalheProcesso, ErroHistoricoPrivado> {
-    let _ = (html, numero);
-    Err(ErroHistoricoPrivado::Historico(historico::ErroHistorico::HistoricoAusente))
+    historico::ler_historico(html, numero.as_str()).map_err(ErroHistoricoPrivado::Historico)
 }
 
 pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
