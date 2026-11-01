@@ -19,7 +19,9 @@ impl ErroHtmlPrivado {
     fn subcodigo(self) -> &'static str {
         match self {
             Self::QuantidadeDeDocumentos => "html_privado_exige_um_documento",
-            Self::OpcoesDeDocumentoSemEvidencia => "opcoes_de_documento_incompativeis_com_html_privado",
+            Self::OpcoesDeDocumentoSemEvidencia => {
+                "opcoes_de_documento_incompativeis_com_html_privado"
+            }
             Self::Numero(erro) => erro.subcodigo(),
             Self::Fonte(erro) => erro.subcodigo(),
             Self::Titulo(erro) => erro.subcodigo(),
@@ -75,40 +77,50 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(documento) = &cli.command else {
         return None;
     };
-    let Some(arquivo) = documento.html_privado.as_deref() else {
-        return None;
-    };
+    let arquivo = documento.html_privado.as_deref()?;
     let resultado = (|| {
         let numero = conferir_comando(documento, cli.unidade.as_deref())?;
-        let html = transporte::arquivo_privado(arquivo, 8_000_000)
-            .map_err(ErroHtmlPrivado::Fonte)?;
+        let html =
+            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
         selecionar(&html, &numero)
     })();
     Some(match resultado {
         Ok((identidade, texto)) => {
             if cli.json {
-                println!("{}", json!({
-                    "documento": identidade, "texto": texto,
-                    "escopo": "html_privado_offline",
-                    "autenticacao_remota": false,
-                    "versao_atual": null
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "documento": identidade, "texto": texto,
+                        "escopo": "html_privado_offline",
+                        "autenticacao_remota": false,
+                        "versao_atual": null
+                    })
+                );
             } else {
-                println!("IES: documento {} ({}) observado em HTML privado local; sessão e versão remotas não comprovadas.", identidade.numero, identidade.tipo);
+                println!(
+                    "IES: documento {} ({}) observado em HTML privado local; sessão e versão remotas não comprovadas.",
+                    identidade.numero, identidade.tipo
+                );
                 println!("{texto}");
             }
             ExitCode::SUCCESS
         }
         Err(erro) => {
             if cli.json {
-                println!("{}", json!({
-                    "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
-                    "subcodigo": erro.subcodigo(),
-                    "erro": "leitura de documento no HTML privado não comprovada",
-                    "retentavel": false
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": if erro.status() == 2 { "entrada_invalida" } else { "fonte_invalida" },
+                        "subcodigo": erro.subcodigo(),
+                        "erro": "leitura de documento no HTML privado não comprovada",
+                        "retentavel": false
+                    })
+                );
             } else {
-                eprintln!("IES: HTML privado de documento recusado [{}]", erro.subcodigo());
+                eprintln!(
+                    "IES: HTML privado de documento recusado [{}]",
+                    erro.subcodigo()
+                );
             }
             ExitCode::from(erro.status())
         }
@@ -150,7 +162,7 @@ mod tests {
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
         let suspeito = html("0007").replace(
             "<p>Texto preservado da captura.</p>",
-            "<script>valor_interno</script><p>Texto</p>"
+            "<script>valor_interno</script><p>Texto</p>",
         );
         assert_eq!(
             selecionar(&suspeito, &numero),
@@ -163,23 +175,47 @@ mod tests {
     #[test]
     fn contrato_cli_exige_um_documento_e_recusa_opcoes_sem_evidencia() {
         let cli = Cli::try_parse_from([
-            "ies", "documento", "0007", "--html-privado", "/tmp/privado.html"
-        ]).unwrap();
-        let Domain::Documento(documento) = cli.command else { panic!("tipo diferente") };
+            "ies",
+            "documento",
+            "0007",
+            "--html-privado",
+            "/tmp/privado.html",
+        ])
+        .unwrap();
+        let Domain::Documento(documento) = cli.command else {
+            panic!("tipo diferente")
+        };
         assert!(conferir_comando(&documento, None).is_ok());
 
         let cli = Cli::try_parse_from([
-            "ies", "documento", "0007", "0008", "--html-privado", "/tmp/privado.html"
-        ]).unwrap();
-        let Domain::Documento(documento) = cli.command else { panic!("tipo diferente") };
+            "ies",
+            "documento",
+            "0007",
+            "0008",
+            "--html-privado",
+            "/tmp/privado.html",
+        ])
+        .unwrap();
+        let Domain::Documento(documento) = cli.command else {
+            panic!("tipo diferente")
+        };
         assert_eq!(
             conferir_comando(&documento, None),
             Err(ErroHtmlPrivado::QuantidadeDeDocumentos)
         );
         let cli = Cli::try_parse_from([
-            "ies", "documento", "0007", "--html-privado", "/tmp/privado.html", "--versao", "2"
-        ]).unwrap();
-        let Domain::Documento(documento) = cli.command else { panic!("tipo diferente") };
+            "ies",
+            "documento",
+            "0007",
+            "--html-privado",
+            "/tmp/privado.html",
+            "--versao",
+            "2",
+        ])
+        .unwrap();
+        let Domain::Documento(documento) = cli.command else {
+            panic!("tipo diferente")
+        };
         assert_eq!(
             conferir_comando(&documento, None),
             Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia)
