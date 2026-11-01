@@ -1,6 +1,7 @@
 //! Leitura opt-in de HTML privado previamente obtido da interface Web.
 //! Nunca estabelece sessão nem executa GET, POST ou escrita no SEI.
-use crate::{Cli, Documento, Domain, documento, documento_web, transporte};
+use crate::{Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte};
+use std::path::Path;
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -13,6 +14,7 @@ enum ErroHtmlPrivado {
     Titulo(documento_web::ErroTituloDocumento),
     Corpo(documento_web::ErroCorpoDocumento),
     NumeroDiferenteDoSolicitado,
+    Exportacao(arquivo_texto_documento::ErroArquivoTexto),
 }
 
 impl ErroHtmlPrivado {
@@ -27,6 +29,7 @@ impl ErroHtmlPrivado {
             Self::Titulo(erro) => erro.subcodigo(),
             Self::Corpo(erro) => erro.subcodigo(),
             Self::NumeroDiferenteDoSolicitado => "numero_do_html_diferente_do_solicitado",
+            Self::Exportacao(erro) => erro.subcodigo(),
         }
     }
     fn status(self) -> u8 {
@@ -49,7 +52,6 @@ fn conferir_comando(
     if documento.processo.is_some()
         || documento.versao.is_some()
         || documento.sem_copia
-        || documento.saida.is_some()
         || documento.ocultar_inacessiveis
         || documento.com_propriedades
         || documento.acao.is_some()
@@ -71,6 +73,18 @@ fn selecionar(
     }
     let texto = documento_web::texto_do_corpo(html).map_err(ErroHtmlPrivado::Corpo)?;
     Ok((identidade, texto))
+}
+
+/// Exporta o texto para um nome derivado exclusivamente do DOC verificado.
+/// CONTRACT/RED: implementacao pendente; nunca grava no SEI.
+fn exportar(
+    _diretorio: &Path,
+    _identidade: &documento_web::IdentidadeDoDocumento,
+    _texto: &str,
+) -> Result<usize, ErroHtmlPrivado> {
+    Err(ErroHtmlPrivado::Exportacao(
+        arquivo_texto_documento::ErroArquivoTexto::EscritaFalhou,
+    ))
 }
 
 pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
@@ -137,6 +151,60 @@ mod tests {
             "<html><head><title>SEI/UnB - {numero} - Ofício</title></head>\
              <body><p>Texto preservado da captura.</p></body></html>"
         )
+    }
+
+    #[test]
+    fn contrato_aceita_saida_para_html_privado_e_recusa_versao_remota() {
+        let cli = Cli::try_parse_from([
+            "ies", "documento", "0007", "--html-privado", "/tmp/captura.html",
+            "--saida", "/tmp",
+        ])
+        .unwrap();
+        let Domain::Documento(comando) = cli.command else {
+            panic!("tipo diferente")
+        };
+        assert!(conferir_comando(&comando, None).is_ok());
+        let numero = documento::NumeroDocumento::novo("0007").unwrap();
+        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let inexistente = std::env::temp_dir().join(format!(
+            "ies-html-diretorio-ausente-{}", std::process::id()
+        )).join("nao-existe");
+        assert_eq!(
+            exportar(&inexistente, &identidade, &texto),
+            Err(ErroHtmlPrivado::Exportacao(
+                arquivo_texto_documento::ErroArquivoTexto::DiretorioAusente
+            ))
+        );
+    }
+
+    #[test]
+    fn exportacao_preserva_texto_privado_e_recusa_sobrescrita() {
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-html-texto-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&raiz).unwrap();
+        let numero = documento::NumeroDocumento::novo("0007").unwrap();
+        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        assert_eq!(exportar(&raiz, &identidade, &texto), Ok(texto.len()));
+        let destino = raiz.join("0007.txt");
+        assert_eq!(std::fs::read_to_string(&destino).unwrap(), texto);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&destino).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        assert_eq!(
+            exportar(&raiz, &identidade, "OUTRO"),
+            Err(ErroHtmlPrivado::Exportacao(
+                arquivo_texto_documento::ErroArquivoTexto::DestinoJaExiste
+            ))
+        );
+        std::fs::remove_dir_all(raiz).unwrap();
     }
 
     #[test]
