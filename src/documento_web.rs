@@ -268,7 +268,9 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let corpo = primeiro
         .get(parser)
         .ok_or(ErroCorpoDocumento::CorpoAusente)?;
-    let tag = corpo.as_tag().ok_or(ErroCorpoDocumento::CorpoAusente)?;
+    if corpo.as_tag().is_none() {
+        return Err(ErroCorpoDocumento::CorpoAusente);
+    }
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
