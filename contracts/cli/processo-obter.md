@@ -178,3 +178,13 @@ não são autenticados criptograficamente: selecionar páginas da mesma
 sessão e unidade é obrigação do operador, e o IES não pode certificar
 frescura nem snapshot da caixa. Testes em instalações externas seguem
 NOT_RUN, sem declarar capacidade live de paginação.
+
+## Identidade do título do histórico HTML (Refs #59)
+
+Ao interpretar replay, o `title` do `head` define o processo se houver
+cabeçalho. `title` de SVG no corpo não substitui a identidade. Dois
+`head` ou dois títulos no cabeçalho falham com subcódigos distintos
+`cabecalhos_html_do_historico_repetidos` e
+`titulos_do_historico_repetidos`. Fragmentos legados sem `head` podem
+ter um único título, apenas como compatibilidade offline. A operação
+não faz HTTP, não comprova identidade de sessão nem processo integral.
