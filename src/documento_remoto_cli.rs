@@ -98,21 +98,21 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     let url_file = comando.url_documento_file.as_deref()?;
     let resultado: Result<_, ErroDocumentoRemoto> = (|| {
         let numero = conferir(comando, cli.unidade.as_deref())?;
+        let dir = comando
+            .saida
+            .as_deref()
+            .ok_or(ErroDocumentoRemoto::SaidaPrivadaObrigatoria)?;
+        let destino = Path::new(dir).join(format!("{}.txt", numero.as_str()));
+        arquivo_texto_documento::conferir_destino(&destino)
+            .map_err(ErroDocumentoRemoto::Exportacao)?;
         let arquivos =
             configuracao::arquivos_de_acesso().map_err(ErroDocumentoRemoto::Configuracao)?;
         let html =
             documento_transporte::ler_de_arquivos(url_file, &arquivos.cookie, &arquivos.origem)
                 .map_err(ErroDocumentoRemoto::Transporte)?;
         let (identidade, texto) = selecionar(&html, &numero)?;
-        let dir = comando
-            .saida
-            .as_deref()
-            .ok_or(ErroDocumentoRemoto::SaidaPrivadaObrigatoria)?;
-        let bytes = arquivo_texto_documento::salvar(
-            &Path::new(dir).join(format!("{}.txt", identidade.numero)),
-            &texto,
-        )
-        .map_err(ErroDocumentoRemoto::Exportacao)?;
+        let bytes = arquivo_texto_documento::salvar(&destino, &texto)
+            .map_err(ErroDocumentoRemoto::Exportacao)?;
         Ok((identidade, bytes))
     })();
     Some(match resultado {
