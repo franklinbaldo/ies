@@ -168,4 +168,25 @@ mod tests {
             Err(ErroBuscaDocumento::NumeroDocumentoRepetido)
         );
     }
+
+    #[test]
+    fn controles_nas_extremidades_do_termo_falham_antes_do_trim() {
+        for termo in ["\nassunto", "assunto\n", "\tassunto", "assunto\r\n", "\u{0085}assunto"] {
+            assert_eq!(
+                validar_termo(termo),
+                Err(ErroBuscaDocumento::TermoComControle),
+                "entrada com controle deve ser recusada"
+            );
+        }
+        assert_eq!(
+            validar_termo("\n"),
+            Err(ErroBuscaDocumento::TermoComControle)
+        );
+    }
+
+    #[test]
+    fn espacos_comuns_externos_continuam_tolerados() {
+        assert_eq!(validar_termo("  assunto  "), Ok("assunto"));
+    }
+
 }
