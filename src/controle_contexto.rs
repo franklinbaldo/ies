@@ -38,7 +38,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Option<String> {
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
 #[cfg(test)]
-fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
+pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
