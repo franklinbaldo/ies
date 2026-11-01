@@ -12,7 +12,9 @@ mod copia_documento;
 mod copia_listagem;
 mod documento;
 mod documento_html_privado_cli;
+mod documento_remoto_cli;
 mod documento_salvar_cli;
+mod documento_transporte;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;
@@ -157,6 +159,8 @@ enum ProcessoAcao {
 }
 
 #[derive(Debug, Args)]
+// Flags do Clap são opções independentes, não um estado booleano de domínio.
+#[allow(clippy::struct_excessive_bools)]
 struct Documento {
     /// Números dos documentos SEI
     #[arg(num_args = 0..)]
@@ -173,6 +177,16 @@ struct Documento {
     /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
     html_privado: Option<PathBuf>,
+    /// Link assinado de visualização previamente fornecido em arquivo privado
+    #[arg(
+        long = "url-documento-file",
+        value_name = "ARQUIVO",
+        conflicts_with = "html_privado"
+    )]
+    url_documento_file: Option<PathBuf>,
+    /// Confirma ciência e autorização para possível efeito administrativo do GET
+    #[arg(long = "autorizar-efeito-de-leitura", requires = "url_documento_file")]
+    autorizar_efeito_de_leitura: bool,
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,
@@ -490,6 +504,7 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_pesquisa_privada_cli::tentar_consultar(cli)
+        .or_else(|| documento_remoto_cli::tentar_ler(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))

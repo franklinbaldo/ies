@@ -4,14 +4,15 @@ title: Ler documento SEI
 operation: documento.obter
 command: ies documento DOC
 effect: read
-implementation: stub
+implementation: partial
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
 # Ler documento SEI
 
 `ies documento DOC [DOC ...]` lê um ou mais documentos pelo número SEI
-visível. A implementação atual permanece um stub sem acesso à rede.
+visível. A consulta geral por número permanece stub. Um recorte opt-in faz GET
+somente do link assinado de documento fornecido pelo operador autorizado.
 
 ## Entradas
 
@@ -181,3 +182,67 @@ sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
 externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
 A regra não abre URLs, não consulta a instalação, não modifica a
 sintaxe da CLI e não prova autenticidade do HTML previamente capturado.
+
+
+## GET Web opt-in de documento com link assinado privado (Refs #60, #56)
+
+`ies documento DOC --url-documento-file ARQUIVO --saida DIR [--json]`
+usa **um único GET** da ação `documento_visualizar` da sessão existente,
+**somente** quando acompanhado de `--autorizar-efeito-de-leitura`.
+Sem esse reconhecimento explícito, a CLI recusa a operação antes de abrir
+arquivos de sessão ou iniciar conexão, com erro Rust tipado
+`EfeitoAdministrativoDaLeituraNaoAutorizado` e subcódigo estável
+`efeito_administrativo_da_leitura_nao_autorizado`. A opção declara ciência
+de possíveis efeitos administrativos, mas não substitui autorização da
+instituição, validação da instalação nem revisão de permissões.
+O arquivo (0600 em Unix) guarda a URL HTTPS assinada **fresca** oferecida
+pela interface da instalação autorizada, com ID interno de documento,
+`infra_hash` e ação explícita. O IES não calcula nem adivinha o link;
+cookie e origem autorizada continuam em arquivos privados da sessão.
+Validar a URL, ação, caminho-base e origem **antes de abrir o cookie**.
+
+Não faz login, POST, redirects, retries nem troca automática de backend.
+GET pode causar efeito administrativo: executar apenas onde a leitura e seus
+efeitos estejam autorizados, em ambiente de treinamento/homologação.
+A resposta deve ter HTTP 200, MIME HTML, não ser login, conter título SEI
+único com número **igual ao DOC** (zeros preservados) e texto visível.
+Falhas são variantes/subcódigos Rust tipados. A opção `--saida DIR` é
+**obrigatória**: conteúdo autenticado nunca é enviado a stdout; gravar somente
+`DOC.txt` privado em diretório já existente sem sobrescrever. Sua ausência
+retorna `SaidaPrivadaObrigatoria`, subcódigo
+`saida_privada_obrigatoria_para_documento_web`, **antes de ler sessão ou URL**.
+O caminho de destino `DIR/DOC.txt` é conferido **antes** de carregar
+configuração/cookie ou emitir GET: diretório inexistente, ancestral
+simbólico e arquivo já existente impedem a leitura com erros específicos.
+Após a resposta, `create_new` e a conferência do destino continuam
+obrigatórios. Essa prévia impede um GET evitável com potencial efeito
+administrativo, mas **não** elimina alterações concorrentes do caminho;
+se o destino mudar após a prévia, a exportação falha sem sobrescrever.
+
+Sem `--url-documento-file`, `ies documento DOC` permanece stub. O recorte
+não resolve árvore, histórico, versão, assinaturas nem acesso ao documento
+externo; múltiplos DOCs, `--versao`, `--processo`, unidade e propriedades
+são recusados. A saída indica `escopo: get_documento_assinado_opt_in`,
+`requisicoes: 1`, `versao_atual: null`, `autenticacao_remota: nao_auditada`.
+Não expor URL, cookie nem HTML autenticado em logs/commits/cassettes.
+Mocks Rust demonstram o transporte offline; compatibilidade live nas
+instalações UnB/UFRJ/Goiás/PEN permanece **NOT_RUN** sem autorização
+comprovada para o efeito da leitura e sessão funcional.
+
+## Gravação privada ancorada no diretório aberto (Refs #60)
+
+A exportação de `DOC.txt` deve impedir que uma troca concorrente de
+um ancestral por link simbólico **entre a conferência e o `create_new`**
+redirecione o conteúdo sigiloso. No Linux, abrir cada diretório da cadeia
+com descritor ancorado e sem seguir links; criar o arquivo em relação ao
+descritor final, com `create_new` e permissão 0600. O teste de regressão
+substitui deliberadamente o diretório por um link após a conferência:
+nenhum byte pode ser criado no alvo alternativo. Não remover por caminho
+potencialmente substituído um arquivo após falha de gravação; se a escrita
+falhar, deixar o arquivo parcial privado para inspeção controlada.
+
+Essa proteção do **destino local** não comprova frescor do link assinado,
+vínculo entre a geração da URL e o cookie, ausência de efeito do GET ou
+segurança do ambiente remoto. O teste é Linux/offline; nas demais
+plataformas permanece o contrato anterior, com avaliação de riscos.
+Nenhum novo comando, opção, GET ou POST é introduzido.
