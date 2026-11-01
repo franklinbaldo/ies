@@ -7,6 +7,8 @@ use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 pub enum ErroHistorico {
     HtmlInvalido,
     TituloAusente,
+    TitulosRepetidos,
+    CabecalhosHtmlRepetidos,
     TituloInvalido,
     NumeroInvalido,
     NumeroDoHistoricoDiferenteDoSolicitado,
@@ -22,6 +24,8 @@ impl ErroHistorico {
         match self {
             Self::HtmlInvalido => "html_invalido",
             Self::TituloAusente => "titulo_ausente",
+            Self::TitulosRepetidos => "titulos_do_historico_repetidos",
+            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_do_historico_repetidos",
             Self::TituloInvalido => "titulo_invalido",
             Self::NumeroInvalido => "numero_invalido",
             Self::NumeroDoHistoricoDiferenteDoSolicitado => {
@@ -39,6 +43,8 @@ impl ErroHistorico {
         match self {
             Self::HtmlInvalido => "HTML do histórico não pôde ser interpretado",
             Self::TituloAusente => "título do histórico ausente",
+            Self::TitulosRepetidos => "mais de um título de histórico na página",
+            Self::CabecalhosHtmlRepetidos => "mais de um cabeçalho HTML na página",
             Self::TituloInvalido => "o título não informa que esta é a página de histórico",
             Self::NumeroInvalido => "número de processo informado não é aceito",
             Self::NumeroDoHistoricoDiferenteDoSolicitado => {
@@ -64,16 +70,43 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
+/// O título do SVG não pode assumir a identidade do processo.
+fn titulo_do_historico(
+    dom: &tl::VDom<'_>,
+    parser: &tl::Parser<'_>,
+) -> Result<String, ErroHistorico> {
+    let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
+    let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
+        if cabecalhos.next().is_some() {
+            return Err(ErroHistorico::CabecalhosHtmlRepetidos);
+        }
+        let tag = cabecalho
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ErroHistorico::TituloAusente)?;
+        tag.query_selector(parser, "title")
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        dom.query_selector("title").into_iter().flatten().collect()
+    };
+    let mut titulos = titulos.into_iter();
+    let primeiro = titulos.next().ok_or(ErroHistorico::TituloAusente)?;
+    if titulos.next().is_some() {
+        return Err(ErroHistorico::TitulosRepetidos);
+    }
+    primeiro
+        .get(parser)
+        .map(|no| texto(no, parser))
+        .ok_or(ErroHistorico::TituloAusente)
+}
+
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
-    let titulo = dom
-        .query_selector("title")
-        .and_then(|mut nodes| nodes.next())
-        .and_then(|no| no.get(parser))
-        .map(|no| texto(no, parser))
-        .ok_or(ErroHistorico::TituloAusente)?;
+    let titulo = titulo_do_historico(&dom, parser)?;
     let (_, protocolo) = titulo
         .split_once("Histórico do Processo ")
         .ok_or(ErroHistorico::TituloInvalido)?;
@@ -86,12 +119,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
     let parser = dom.parser();
-    let titulo = dom
-        .query_selector("title")
-        .and_then(|mut nodes| nodes.next())
-        .and_then(|no| no.get(parser))
-        .map(|no| texto(no, parser))
-        .ok_or(ErroHistorico::TituloAusente)?;
+    let titulo = titulo_do_historico(&dom, parser)?;
     // O protocolo é opaco. Não fragmentar por pontuação nem remover zeros.
     let (_, mostrado) = titulo
         .split_once("Histórico do Processo ")
@@ -234,6 +262,55 @@ mod tests {
         assert_eq!(
             ler_historico(&html, numero).unwrap_err(),
             ErroHistorico::TabelasDoHistoricoRepetidas
+        );
+    }
+
+    #[test]
+    fn svg_no_body_nao_substitui_identidade_do_processo() {
+        let html = "<html><head><title>SEI - Histórico do Processo 000123</title></head>
+            <body><svg><title>Histórico do Processo INTRUSO</title></svg>
+            <table id='tblHistorico'>
+              <tr><td>12/07/2026</td><td>U</td><td>X</td><td>Movimento</td></tr>
+            </table></body></html>";
+        assert_eq!(numero_do_historico(html).unwrap(), "000123");
+        assert_eq!(ler_historico(html, "000123").unwrap().andamentos.len(), 1);
+    }
+
+    #[test]
+    fn svg_nao_corrige_head_sem_titulo() {
+        let html = "<html><head></head><body><svg>
+            <title>SEI - Histórico do Processo 000123</title>
+            </svg></body></html>";
+        assert_eq!(numero_do_historico(html), Err(ErroHistorico::TituloAusente));
+        assert_eq!(
+            ler_historico(html, "000123"),
+            Err(ErroHistorico::TituloAusente)
+        );
+    }
+
+    #[test]
+    fn recusa_titulos_ou_cabecalhos_html_repetidos() {
+        let titulos = "<html><head>
+            <title>SEI - Histórico do Processo 000123</title>
+            <title>SEI - Histórico do Processo 000124</title></head></html>";
+        assert_eq!(
+            numero_do_historico(titulos),
+            Err(ErroHistorico::TitulosRepetidos)
+        );
+        assert_eq!(
+            ler_historico(titulos, "000123"),
+            Err(ErroHistorico::TitulosRepetidos)
+        );
+        let cabecalhos = "<html>
+            <head><title>SEI - Histórico do Processo 000123</title></head>
+            <head><title>SEI - Histórico do Processo 000124</title></head></html>";
+        assert_eq!(
+            numero_do_historico(cabecalhos),
+            Err(ErroHistorico::CabecalhosHtmlRepetidos)
+        );
+        assert_eq!(
+            ler_historico(cabecalhos, "000123"),
+            Err(ErroHistorico::CabecalhosHtmlRepetidos)
         );
     }
 }

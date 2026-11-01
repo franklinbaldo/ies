@@ -78,6 +78,16 @@ O recorte não realiza leitura remota, não modifica o stub
 `ies documento DOC` e não substitui a verificação de número/ID,
 sessão, origem, MIME e versão antes de uma futura consulta live.
 
+## Legenda e cobertura do histórico Web (Refs #88 e #60)
+
+A tabela de versões só pode ter **uma legenda `caption`**. Mesmo que
+ambas declarem o mesmo total, duas legendas são ambíguas e o parser
+falha com a variante Rust `LegendasDoHistoricoRepetidas` e subcódigo
+`legendas_historico_versoes_repetidas`. Não escolher a primeira legenda
+para certificar cobertura, sobretudo se uma legenda externa preceder
+`Lista de Versões`. A contagem continua confrontada às linhas
+realmente observadas; isso é replay offline e não consulta live.
+
 ## Leitura opt-in de HTML privado já capturado (Refs #60)
 
 `ies documento DOC --html-privado ARQUIVO [--json]` interpreta **sem rede**
