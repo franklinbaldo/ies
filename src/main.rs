@@ -11,6 +11,7 @@ mod copia_documento;
 mod copia_listagem;
 mod documento;
 mod documento_salvar_cli;
+mod documento_html_privado_cli;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;
@@ -158,6 +159,9 @@ struct Documento {
     /// Não prepara cópia editável ao ler
     #[arg(long)]
     sem_copia: bool,
+    /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
+    #[arg(long = "html-privado", value_name = "ARQUIVO")]
+    html_privado: Option<PathBuf>,
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,
@@ -472,6 +476,9 @@ fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
 }
 
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = documento_html_privado_cli::tentar_ler(cli) {
+        return status;
+    }
     if let Some(status) = documento_salvar_cli::tentar_salvar_documento(cli) {
         return status;
     }
