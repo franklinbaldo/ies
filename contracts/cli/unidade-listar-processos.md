@@ -153,7 +153,7 @@ complementos privados antes de carregar a configuração ou emitir o GET**
 do Controle. Arquivo ausente, ilegível, simbólico, inseguro ou acima dos
 limites impede a consulta remota, pois a lista completa não seria
 entregável mesmo se o GET funcionasse. Manter os subcódigos tipados já
-existentes e não mascará-los com erro de sessão ausente.
+existentes, sem mascará-los com erro de sessão ausente.
 
 A primeira página continua vindo do único GET previsto. Após recebê-la,
 conferir novamente o orçamento combinado de até 48 MB usando os bytes
