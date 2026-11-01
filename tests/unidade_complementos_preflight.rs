@@ -1,8 +1,8 @@
 //! Regressões da ordem de pré-validação da leitura Web da caixa (#57).
 //! Não criam sessão, não acessam SEI e não introduzem opções novas.
 use serde_json::Value;
-use std::process::{Command, Output};
 use std::path::Path;
+use std::process::{Command, Output};
 
 fn executar_com_complemento(caminho: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -19,7 +19,7 @@ fn executar_com_complemento(caminho: &Path) -> Output {
 
 fn subcodigo(resultado: &Output) -> String {
     assert_eq!(resultado.status.code(), Some(1));
-    assert!(resultado.stderr.is_empty());
+    assert_eq!(resultado.stderr, Vec::<u8>::new());
     let valor: Value = serde_json::from_slice(&resultado.stdout).unwrap();
     valor["subcodigo"].as_str().unwrap().to_owned()
 }
