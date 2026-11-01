@@ -63,7 +63,8 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
                 let Some(tag) = area.get(parser).and_then(tl::Node::as_tag) else {
                     continue;
                 };
-                titulos_de_conteudo.extend(tag.query_selector(parser, "title").into_iter().flatten());
+                titulos_de_conteudo
+                    .extend(tag.query_selector(parser, "title").into_iter().flatten());
             }
         }
         dom.query_selector("title")
