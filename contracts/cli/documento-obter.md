@@ -125,6 +125,22 @@ Sem `--saida`, permanece a leitura offline de texto existente.
 Esta opção não equivale a `--saida DIR` da futura leitura Web;
 a capacidade remota de `documento.obter` continua stub.
 
+## Texto visível versus decoração HTML (Refs #60)
+
+Na extração de texto, a identidade do documento continua sendo lida
+exclusivamente do título HTML válido. No `body`, os conteúdos das
+subárvores `svg` (ícones e descrições gráficas) e `template`
+(fragmentos não renderizados) **não são texto do documento**.
+Seu `title` ou texto interno não pode contaminar a cópia `.txt`.
+O conteúdo de parágrafos visíveis mantém a ordem. Se restar apenas
+decoração, a extração recusa com `ErroCorpoDocumento::CorpoVazio`,
+sem emitir arquivo de saída.
+
+A regra se aplica tanto à leitura `--html-privado` quanto à
+exportação `--saida`, compartilhando o mesmo parser.
+É verificação estrutural offline de HTML privado, sem supor que
+a leitura Web autenticada esteja implementada ou validada.
+
 ## Destino privado sem diretórios simbólicos (Refs #60)
 
 O caminho de saída de `--html-privado ... --saida DIR` é
