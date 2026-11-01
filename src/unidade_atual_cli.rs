@@ -1,6 +1,6 @@
 //! Leitor do rótulo da unidade ativa, sem paginação nem mudança de sessão.
-use crate::{configuracao, erro_fonte, paginas, transporte};
 use crate::erro_web::ErroCaixa;
+use crate::{configuracao, erro_fonte, paginas, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -30,7 +30,7 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
             return erro_fonte(
                 json_mode,
                 erro.subcodigo(),
-                "identificação da unidade não aparece no Controle de Processos",
+                "resposta não contém Controle de Processos verificável",
             );
         }
     };
