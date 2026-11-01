@@ -41,12 +41,10 @@ fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
     Ok(())
 }
 
-pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
-    use std::fs::{self, OpenOptions};
-    use std::io::{ErrorKind, Write};
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
-
+/// Prévia sem rede nem escrita: recusa um destino sabidamente inutilizável
+/// antes que o GET potencialmente registre recebimento no SEI.
+/// Não substitui O_EXCL/create_new nem elimina corridas concorrentes.
+pub(crate) fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoTexto> {
     if destino.file_name().is_none() {
         return Err(ErroArquivoTexto::NomeAusente);
     }
@@ -54,6 +52,20 @@ pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
         return Err(ErroArquivoTexto::DiretorioAusente);
     }
     conferir_diretorios(destino)?;
+    match std::fs::symlink_metadata(destino) {
+        Ok(_) => Err(ErroArquivoTexto::DestinoJaExiste),
+        Err(erro) if erro.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err(ErroArquivoTexto::EscritaFalhou),
+    }
+}
+
+pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
+    use std::fs::{self, OpenOptions};
+    use std::io::{ErrorKind, Write};
+    #[cfg(unix)]
+    use std::os::unix::fs::OpenOptionsExt;
+
+    conferir_destino(destino)?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
