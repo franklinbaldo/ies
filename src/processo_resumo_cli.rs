@@ -73,18 +73,16 @@ fn mostrar_resumo_processo(
     }
     if json_mode {
         println!("{modelo}");
+    } else if observacao.pagina_parcial {
+        println!(
+            "IES: processo {numero} observado na página atual ({} ocorrência(s)); demais páginas não consultadas.",
+            observacao.ocorrencias.len()
+        );
     } else {
-        if observacao.pagina_parcial {
-            println!(
-                "IES: processo {numero} observado na página atual ({} ocorrência(s)); demais páginas não consultadas.",
-                observacao.ocorrencias.len()
-            );
-        } else {
-            println!(
-                "IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.",
-                observacao.ocorrencias.len()
-            );
-        }
+        println!(
+            "IES: processo {numero} observado na caixa da unidade ({} ocorrência(s)); detalhes não consultados.",
+            observacao.ocorrencias.len()
+        );
     }
     ExitCode::SUCCESS
 }
