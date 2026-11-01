@@ -92,3 +92,25 @@ com base na primeira página; preserva o orçamento atual de **um GET**
 e **nenhum POST**. A leitura Web ativa de múltiplas páginas permanece
 bloqueada até prova por instalação dos controles, payload, possíveis
 efeitos sobre a sessão e semântica das duas visões.
+
+## Leitura da tela detalhada no GET existente (Refs #57)
+
+A matriz de derivação mantém `ies unidade listar-processos` como um
+único comando. Quando a própria resposta de seu GET mostra
+`tblProcessosDetalhado` com modo `D`, um leitor dedicado interpreta
+a coluna `Processo`, o identificador técnico da linha e o link para
+`procedimento_trabalhar`/`procedimento_visualizar`; não faz POST nem
+inventaria categorias recebidos/gerados a partir desse layout distinto.
+A projeção detalhada é explicitamente identificada na saída, sem
+modificar o golden da visão resumida.
+
+As faixas devem começar em 1, ser contíguas, preservar unidade,
+visualização, critérios, total e NUPs únicos; falta de página é erro,
+não sucesso parcial. Arquivos HTML privados capturados podem complementar
+o GET pela opção já existente, sem alegar proveniência criptográfica.
+
+O orçamento de rede permanece **um GET e zero POST**. Não houve validação
+autenticada em UnB/UFRJ/Goiás/PEN. A estratégia não autoriza automaticamente
+mudar a visualização, navegar por links assinados ou enviar POST.
+Implantar paginação ativa só após observar payload integral, efeito
+administrativo e preservação da sessão em laboratório autorizado.
