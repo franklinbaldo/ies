@@ -147,3 +147,28 @@ offline não demonstra efeito da requisição.
 a observação usa a página do GET e não pode ignorar um arquivo local
 indicado pelo operador. Com `--saida`, o comprovante preserva o mesmo
 `escopo` da projeção gravada (inclusive `resumo_da_pagina`).
+
+## Busca de resumo nas páginas privadas já capturadas (Refs #59 e #57)
+
+`ies processo NUP --resumo --pagina-arquivo PAGINA [--pagina-arquivo OUTRA]`
+complementa o único GET já autorizado do Controle de Processos com
+HTML privado **previamente capturado** pela pessoa autorizada. É o
+mesmo parâmetro já disponível em `unidade listar-processos`, mas
+agora a identidade exata do NUP é consultada após reunir os intervalos.
+
+A opção exige `--resumo` e é incompatível com `--caixa-local` e
+`--observado-na-pagina`: não mistura fontes alternativas nem reduz
+silenciosamente o requisito de cobertura. Usa o mesmo leitor privado
+(arquivo regular 0600 no Unix, sem symlink final em Linux, UTF-8,
+8 MB por arquivo, até 199 complementos e 48 MB no conjunto),
+verifica unidade, visualização, hashes de critérios, intervalos,
+IDs e totais de ambas as tabelas. Uma página ausente, contraditória
+ou um NUP não observado produz erro sem sucesso parcial.
+
+A saída mantém o resumo conhecido e, somente quando páginas extras
+são utilizadas, informa `origem: web_com_paginas_privadas`. Zero
+requisições adicionais, sem POST de paginação ou login. Os arquivos
+não são autenticados criptograficamente: selecionar páginas da mesma
+sessão e unidade é obrigação do operador, e o IES não pode certificar
+frescura nem snapshot da caixa. Testes em instalações externas seguem
+NOT_RUN, sem declarar capacidade live de paginação.
