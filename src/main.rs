@@ -40,6 +40,7 @@ mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
+mod unidade_categoria;
 mod unidade_lista_cli;
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
@@ -199,6 +200,9 @@ enum UnidadeAcao {
         /// Complementa o GET com páginas HTML privadas já capturadas, sem fazer POST
         #[arg(long = "pagina-arquivo", value_name = "HTML_PRIVADO")]
         paginas_capturadas: Vec<PathBuf>,
+        /// Projeta somente categoria coberta no primeiro GET; não usa páginas privadas
+        #[arg(long, value_enum, conflicts_with = "paginas_capturadas")]
+        categoria: Option<unidade_categoria::CategoriaLista>,
     },
 }
 
@@ -481,8 +485,17 @@ fn run(cli: &Cli) -> ExitCode {
                 Some(UnidadeAcao::ListarProcessos {
                     saida,
                     paginas_capturadas,
+                    categoria,
                 }),
         }) => {
+            if let Some(categoria) = categoria {
+                return unidade_categoria::listar_categoria(
+                    cli.unidade.as_deref(),
+                    cli.json,
+                    saida.as_deref(),
+                    *categoria,
+                );
+            }
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,

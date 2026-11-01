@@ -145,3 +145,36 @@ ou snapshot do SEI. O IES não executa coleta autenticada, não
 pode provar a frescura dos arquivos e não afirma suporte live
 à paginação POST. O modo sem a opção e o golden JSON existente
 permanecem inalterados.
+
+## Consulta de apenas uma categoria verificada (Refs #57)
+
+`ies unidade listar-processos --categoria recebidos|gerados [--json]`
+é uma opção **aditiva** da consulta Web existente: permite devolver
+apenas a categoria pedida quando suas posições e total declarado
+estão inteiramente cobertos no GET inicial, **mesmo que a outra
+categoria exija páginas adicionais**. O orçamento permanece **um
+GET**, sem POST de paginação, mudança de unidade ou autenticação
+nova. A outra categoria continua sendo interpretada e verificada
+estruturalmente, mas não aparece na saída projetada.
+
+A projeção JSON opt-in é
+`{unidade, origem: "web", categoria, total_declarado, processos}`,
+sem campos de completude no domínio ou promessa de snapshot.
+`--saida` exporta essa mesma projeção para arquivo privado novo,
+sem sobrescrever nem expor processos no comprovante.
+Se a categoria **selecionada** não estiver integralmente coberta,
+falhar com `paginas_recebidos_nao_obtidas` ou
+`paginas_gerados_nao_obtidas` (erros Rust tipados), sem publicar
+lista parcial. Com `--categoria` ausente, contrato e golden de
+todas as categorias seguem inalterados.
+
+Exemplo empírico: numa instalação onde Gerados já tem todas as
+91 linhas declaradas mas Recebidos exibe 100 de 168, a opção
+`--categoria gerados` pode relatar somente Gerados sem afirmar
+a cobertura de Recebidos. Não se infere comportamento idêntico
+nas outras instalações; validar em treinamento autorizado antes
+de declarar operação live multiplataforma.
+
+A opção `--categoria` é incompatível com `--pagina-arquivo`: a seleção
+considera exclusivamente a primeira página do GET e não ignora páginas
+privadas indicadas pelo operador.
