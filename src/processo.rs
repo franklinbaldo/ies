@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn controles_no_inicio_ou_fim_nao_sao_apagados_pelo_trim() {
-        for entrada in ["\n000123/2026", "000123/2026\\n", "\\t000123/2026", "000123/2026\\r\\n"] {
+        for entrada in ["\n000123/2026", "000123/2026\n", "\t000123/2026", "000123/2026\r\n"] {
             assert_eq!(
                 NumeroProcesso::novo(entrada),
                 Err(NumeroProcessoInvalido::Controle)
