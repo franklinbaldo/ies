@@ -293,10 +293,7 @@ mod testes_texto {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
                     <body><svg><title>Abrir menu</title><text>Controle</text></svg>\
                     <p>Texto do documento.</p></body></html>";
-        assert_eq!(
-            texto_do_corpo(html),
-            Ok("Texto do documento.".to_owned())
-        );
+        assert_eq!(texto_do_corpo(html), Ok("Texto do documento.".to_owned()));
     }
 
     #[test]
@@ -313,10 +310,7 @@ mod testes_texto {
     fn corpo_apenas_com_decoracao_recusa_com_erro_tipado() {
         let html = "<body><svg><title>Ícone</title></svg>\
                     <template><p>Não renderizado</p></template></body>";
-        assert_eq!(
-            texto_do_corpo(html),
-            Err(ErroCorpoDocumento::CorpoVazio)
-        );
+        assert_eq!(texto_do_corpo(html), Err(ErroCorpoDocumento::CorpoVazio));
     }
 
     #[test]
