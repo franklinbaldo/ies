@@ -5,7 +5,10 @@ use serde_json::json;
 use std::process::ExitCode;
 
 fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
-    paginas::unidade_exibida_no_controle(html)
+    let leitura = paginas::juntar(&[html.to_owned()], None)?;
+    leitura
+        .unidade
+        .ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
 pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
