@@ -75,16 +75,15 @@ fn selecionar(
     Ok((identidade, texto))
 }
 
-/// Exporta o texto para um nome derivado exclusivamente do DOC verificado.
-/// CONTRACT/RED: implementacao pendente; nunca grava no SEI.
+/// Exporta o texto para nome derivado exclusivamente do DOC validado.
+/// O writer create_new mantém o arquivo privado e nunca substitui um existente.
 fn exportar(
-    _diretorio: &Path,
-    _identidade: &documento_web::IdentidadeDoDocumento,
-    _texto: &str,
+    diretorio: &Path,
+    identidade: &documento_web::IdentidadeDoDocumento,
+    texto: &str,
 ) -> Result<usize, ErroHtmlPrivado> {
-    Err(ErroHtmlPrivado::Exportacao(
-        arquivo_texto_documento::ErroArquivoTexto::EscritaFalhou,
-    ))
+    let destino = diretorio.join(format!("{}.txt", identidade.numero));
+    arquivo_texto_documento::salvar(&destino, texto).map_err(ErroHtmlPrivado::Exportacao)
 }
 
 pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
@@ -96,11 +95,34 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
         let numero = conferir_comando(documento, cli.unidade.as_deref())?;
         let html =
             transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
-        selecionar(&html, &numero)
+        let (identidade, texto) = selecionar(&html, &numero)?;
+        let exportado = documento
+            .saida
+            .as_deref()
+            .map(|diretorio| exportar(Path::new(diretorio), &identidade, &texto))
+            .transpose()?;
+        Ok((identidade, texto, exportado))
     })();
     Some(match resultado {
-        Ok((identidade, texto)) => {
-            if cli.json {
+        Ok((identidade, texto, exportado)) => {
+            if let Some(bytes) = exportado {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "documento": identidade, "bytes": bytes,
+                            "escopo": "html_privado_texto_exportado_offline",
+                            "autenticacao_remota": false,
+                            "versao_atual": null
+                        })
+                    );
+                } else {
+                    println!(
+                        "IES: texto privado do documento {} gravado em {}.txt sem rede.",
+                        identidade.numero, identidade.numero
+                    );
+                }
+            } else if cli.json {
                 println!(
                     "{}",
                     json!({
