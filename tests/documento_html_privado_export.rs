@@ -50,7 +50,7 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     assert!(resposta["versao_atual"].is_null());
     assert!(resposta.get("texto").is_none());
     assert!(!String::from_utf8_lossy(&primeiro.stdout).contains("Texto privado"));
-    assert!(primeiro.stderr.is_empty());
+    assert_eq!(primeiro.stderr, Vec::<u8>::new());
 
     let texto = fs::read_to_string(pasta.join("0007.txt")).unwrap();
     assert_eq!(texto, "Texto privado fictício.");
@@ -58,7 +58,11 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     {
         use std::os::unix::fs::PermissionsExt;
         assert_eq!(
-            fs::metadata(pasta.join("0007.txt")).unwrap().permissions().mode() & 0o777,
+            fs::metadata(pasta.join("0007.txt"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
             0o600
         );
     }
