@@ -282,7 +282,10 @@ mod tests {
             <title>SEI - Histórico do Processo 000123</title>
             </svg></body></html>";
         assert_eq!(numero_do_historico(html), Err(ErroHistorico::TituloAusente));
-        assert_eq!(ler_historico(html, "000123"), Err(ErroHistorico::TituloAusente));
+        assert_eq!(
+            ler_historico(html, "000123"),
+            Err(ErroHistorico::TituloAusente)
+        );
     }
 
     #[test]
@@ -290,13 +293,24 @@ mod tests {
         let titulos = "<html><head>
             <title>SEI - Histórico do Processo 000123</title>
             <title>SEI - Histórico do Processo 000124</title></head></html>";
-        assert_eq!(numero_do_historico(titulos), Err(ErroHistorico::TitulosRepetidos));
-        assert_eq!(ler_historico(titulos, "000123"), Err(ErroHistorico::TitulosRepetidos));
+        assert_eq!(
+            numero_do_historico(titulos),
+            Err(ErroHistorico::TitulosRepetidos)
+        );
+        assert_eq!(
+            ler_historico(titulos, "000123"),
+            Err(ErroHistorico::TitulosRepetidos)
+        );
         let cabecalhos = "<html>
             <head><title>SEI - Histórico do Processo 000123</title></head>
             <head><title>SEI - Histórico do Processo 000124</title></head></html>";
-        assert_eq!(numero_do_historico(cabecalhos), Err(ErroHistorico::CabecalhosHtmlRepetidos));
-        assert_eq!(ler_historico(cabecalhos, "000123"), Err(ErroHistorico::CabecalhosHtmlRepetidos));
+        assert_eq!(
+            numero_do_historico(cabecalhos),
+            Err(ErroHistorico::CabecalhosHtmlRepetidos)
+        );
+        assert_eq!(
+            ler_historico(cabecalhos, "000123"),
+            Err(ErroHistorico::CabecalhosHtmlRepetidos)
+        );
     }
-
 }
