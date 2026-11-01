@@ -76,6 +76,11 @@ pub(crate) fn listar_categoria(
     destino: Option<&Path>,
     categoria: CategoriaLista,
 ) -> ExitCode {
+    if let Some(caminho) = destino
+        && let Err(erro) = arquivo_caixa::conferir_destino(caminho)
+    {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
