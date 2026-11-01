@@ -132,7 +132,10 @@ pub(crate) fn interpretar(
 ) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
     let exportada: Exportacao =
         serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
-    if exportada.origem != "web" {
+    if !matches!(
+        exportada.origem.as_str(),
+        "web" | "web_com_paginas_privadas"
+    ) {
         return Err(ErroCaixaLocal::OrigemNaoWeb);
     }
     if exportada
@@ -224,6 +227,40 @@ mod tests {
             }
         );
     }
+    #[test]
+    fn aceita_exportacao_de_caixa_multipagina_gerada_pelo_ies() {
+        let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
+        exportada["origem"] = json!("web_com_paginas_privadas");
+        let observada = interpretar(&exportada.to_string(), Some("PPI")).unwrap();
+        assert_eq!(observada.caixa.recebidos.processos[0].numero, "000123/2026");
+        assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
+    }
+
+    #[test]
+    fn exportacao_multipagina_continua_exigindo_totais_comprovados() {
+        let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
+        exportada["origem"] = json!("web_com_paginas_privadas");
+        exportada["recebidos"]["total_declarado"] = json!(2);
+        assert_eq!(
+            interpretar(&exportada.to_string(), None).unwrap_err(),
+            ErroCaixaLocal::TotalNaoComprovado {
+                categoria: Categoria::Recebidos
+            }
+        );
+    }
+
+    #[test]
+    fn apenas_as_duas_origens_de_exportacao_reais_sao_aceitas() {
+        for origem in ["WEB", "web_replay", "web_com_paginas_privadas_fake"] {
+            let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
+            exportada["origem"] = json!(origem);
+            assert_eq!(
+                interpretar(&exportada.to_string(), None).unwrap_err(),
+                ErroCaixaLocal::OrigemNaoWeb
+            );
+        }
+    }
+
     #[test]
     fn recusa_origem_de_cassette_ou_json_nao_proveniente_de_exportacao() {
         let json = caixa().replace("\"origem\":\"web\"", "\"origem\":\"replay\"");
