@@ -33,7 +33,7 @@ impl ErroArquivoCaixa {
 }
 
 /// Pré-validação sem rede: evita GET administrativo quando o destino é inviável.
-/// A exclusividade final depende de create_new, não desta inspeção.
+/// A exclusividade final depende de `create_new`, não desta inspeção.
 pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
     use std::io::ErrorKind;
     if destino.file_name().is_none() {
@@ -128,8 +128,11 @@ fn gravar_com_intervalo(
     #[cfg(target_os = "linux")]
     let caminho = {
         use std::os::fd::AsRawFd;
-        std::path::PathBuf::from(format!("/proc/self/fd/{}", pai.as_raw_fd()))
-            .join(destino.file_name().ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?)
+        std::path::PathBuf::from(format!("/proc/self/fd/{}", pai.as_raw_fd())).join(
+            destino
+                .file_name()
+                .ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?,
+        )
     };
     #[cfg(not(target_os = "linux"))]
     let caminho = destino.to_path_buf();
@@ -252,7 +255,10 @@ mod tests {
         let raiz = pasta();
         let destino = raiz.join("caixa.json");
         symlink(raiz.join("ausente"), &destino).unwrap();
-        assert_eq!(conferir_destino(&destino), Err(ErroArquivoCaixa::DestinoJaExiste));
+        assert_eq!(
+            conferir_destino(&destino),
+            Err(ErroArquivoCaixa::DestinoJaExiste)
+        );
         fs::remove_file(&destino).unwrap();
         let real = raiz.join("real");
         fs::create_dir(&real).unwrap();
@@ -264,5 +270,4 @@ mod tests {
         );
         fs::remove_dir_all(raiz).unwrap();
     }
-
 }
