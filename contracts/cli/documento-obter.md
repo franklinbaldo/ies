@@ -53,3 +53,20 @@ efetivamente observada e metadados mínimos da versão selecionada;
 não comprovada e é exposta como `numero_documento_confirmado: false`.
 Links assinados não são publicados nem executados. Refs #88.
 
+
+## Identidade textual de HTML reproduzido offline (Refs #60)
+
+Nas respostas HTML com `head`, apenas o `title` dentro desse
+cabeçalho define a identidade `SEI/instalação - DOC - tipo`. O
+`title` de um SVG dentro do `body` descreve o gráfico e **não**
+deve substituir nem duplicar o título do documento. Mais de um
+cabeçalho HTML, ou mais de um título dentro do mesmo cabeçalho,
+recusa a interpretação com erro Rust tipado. Um cabeçalho sem título
+não é corrigido silenciosamente por um título encontrado no corpo.
+
+Para manter compatibilidade com fragmentos de cassette sem `head`,
+o parser offline conserva a aceitação explícita de um título único
+nesse caso, sem considerar isso prova de um documento Web completo.
+O recorte não realiza leitura remota, não modifica o stub
+`ies documento DOC` e não substitui a verificação de número/ID,
+sessão, origem, MIME e versão antes de uma futura consulta live.

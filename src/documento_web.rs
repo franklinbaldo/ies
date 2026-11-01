@@ -13,6 +13,7 @@ pub enum ErroTituloDocumento {
     HtmlNaoInterpretado,
     TituloAusente,
     TitulosDeDocumentoRepetidos,
+    CabecalhosHtmlRepetidos,
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
     IdentificacaoDaInstalacaoAusenteNoTitulo,
@@ -24,6 +25,7 @@ impl ErroTituloDocumento {
             Self::HtmlNaoInterpretado => "html_documento_nao_interpretado",
             Self::TituloAusente => "titulo_documento_ausente",
             Self::TitulosDeDocumentoRepetidos => "titulos_de_documento_repetidos",
+            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_repetidos",
             Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
             Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
             Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
@@ -37,9 +39,26 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroTituloDocumento::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut titulos = dom
-        .query_selector("title")
-        .ok_or(ErroTituloDocumento::TituloAusente)?;
+    // O <title> de SVG no corpo descreve um ícone, não um documento SEI.
+    // Em um HTML com <head>, é esse cabeçalho que define a identidade.
+    let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
+    let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
+        if cabecalhos.next().is_some() {
+            return Err(ErroTituloDocumento::CabecalhosHtmlRepetidos);
+        }
+        let tag = cabecalho
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ErroTituloDocumento::TituloAusente)?;
+        tag.query_selector(parser, "title")
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        // Fragmentos históricos sem head: preservar o contrato offline.
+        dom.query_selector("title").into_iter().flatten().collect()
+    };
+    let mut titulos = titulos.into_iter();
     let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
     if titulos.next().is_some() {
         return Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos);
@@ -98,6 +117,45 @@ mod tests {
             Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
         );
     }
+    #[test]
+    fn titulo_de_svg_no_corpo_nao_duplica_titulo_html_do_documento() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>
+                    <body><svg><title>Ícone de navegação</title></svg><p>Texto</p></body></html>";
+        let identidade = identidade_do_titulo(html).unwrap();
+        assert_eq!(identidade.numero, "0007");
+        assert_eq!(identidade.tipo, "Ofício");
+    }
+
+    #[test]
+    fn titulo_svg_nao_suprimenta_head_html_sem_titulo() {
+        let html = "<html><head><meta charset='utf-8'></head>
+                    <body><svg><title>SEI/UnB - 0007 - Ofício</title></svg></body></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TituloAusente)
+        );
+    }
+
+    #[test]
+    fn dois_heads_html_nao_podem_selecionar_o_primeiro_titulo() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>
+                    <head><title>SEI/UnB - 0008 - Memorando</title></head></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::CabecalhosHtmlRepetidos)
+        );
+    }
+
+    #[test]
+    fn dois_titulos_no_mesmo_head_permanecem_recusados() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title>
+                    <title>SEI/UnB - 0008 - Memorando</title></head></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+        );
+    }
+
     #[test]
     fn titulo_generico_com_digitos_nao_e_documento_sei() {
         assert_eq!(
