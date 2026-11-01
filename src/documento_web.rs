@@ -39,9 +39,26 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroTituloDocumento::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut titulos = dom
-        .query_selector("title")
-        .ok_or(ErroTituloDocumento::TituloAusente)?;
+    // O <title> de SVG no corpo descreve um ícone, não um documento SEI.
+    // Em um HTML com <head>, é esse cabeçalho que define a identidade.
+    let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
+    let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
+        if cabecalhos.next().is_some() {
+            return Err(ErroTituloDocumento::CabecalhosHtmlRepetidos);
+        }
+        let tag = cabecalho
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ErroTituloDocumento::TituloAusente)?;
+        tag.query_selector(parser, "title")
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        // Fragmentos históricos sem head: preservar o contrato offline.
+        dom.query_selector("title").into_iter().flatten().collect()
+    };
+    let mut titulos = titulos.into_iter();
     let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
     if titulos.next().is_some() {
         return Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos);
