@@ -21,6 +21,7 @@ mod filtro_andamentos;
 mod historico;
 mod historico_cli;
 mod instalacao;
+mod mime_web;
 mod paginas;
 mod paginas_capturadas;
 mod pesquisa_web;
