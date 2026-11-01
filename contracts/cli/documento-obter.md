@@ -228,3 +228,21 @@ Não expor URL, cookie nem HTML autenticado em logs/commits/cassettes.
 Mocks Rust demonstram o transporte offline; compatibilidade live nas
 instalações UnB/UFRJ/Goiás/PEN permanece **NOT_RUN** sem autorização
 comprovada para o efeito da leitura e sessão funcional.
+
+## Gravação privada ancorada no diretório aberto (Refs #60)
+
+A exportação de `DOC.txt` deve impedir que uma troca concorrente de
+um ancestral por link simbólico **entre a conferência e o `create_new`**
+redirecione o conteúdo sigiloso. No Linux, abrir cada diretório da cadeia
+com descritor ancorado e sem seguir links; criar o arquivo em relação ao
+descritor final, com `create_new` e permissão 0600. O teste de regressão
+substitui deliberadamente o diretório por um link após a conferência:
+nenhum byte pode ser criado no alvo alternativo. Não remover por caminho
+potencialmente substituído um arquivo após falha de gravação; se a escrita
+falhar, deixar o arquivo parcial privado para inspeção controlada.
+
+Essa proteção do **destino local** não comprova frescor do link assinado,
+vínculo entre a geração da URL e o cookie, ausência de efeito do GET ou
+segurança do ambiente remoto. O teste é Linux/offline; nas demais
+plataformas permanece o contrato anterior, com avaliação de riscos.
+Nenhum novo comando, opção, GET ou POST é introduzido.
