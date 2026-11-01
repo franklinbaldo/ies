@@ -219,3 +219,15 @@ como histórico atual, integral, autenticado ou snapshot do SEI.
 não podem ser combinadas ao modo de histórico privado, que continua
 separado da leitura live de `ies processo NUP` sem a nova opção.
 Nenhum login, efeito de GET, POST ou escrita é declarado ou realizado.
+
+## Filtro de andamentos capturados: controles na entrada original (Refs #59)
+
+Em `ies replay CENARIO --termo-andamento TERMO`, o filtro das descrições
+verificadas deve recusar caracteres de controle na entrada **bruta**,
+inclusive CR/LF/tab antes ou depois do texto. Eles não podem desaparecer
+com `trim`: a variante Rust `ErroFiltroAndamentos::ContemControle`,
+subcódigo `termo_de_andamento_contem_controle`, deve prevalecer sobre
+`Vazio` quando houver controle. Espaços simples ao redor do termo
+continuam tolerados, e termo inválido não pode descartar andamentos.
+A busca continua restrita à cassette hash-verificada, sem HTTP nem
+prova de histórico completo/live.

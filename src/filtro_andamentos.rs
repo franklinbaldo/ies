@@ -18,12 +18,13 @@ impl ErroFiltroAndamentos {
     }
 }
 fn validar_termo(termo: &str) -> Result<&str, ErroFiltroAndamentos> {
+    // A entrada original precede trim: CR/LF/tab externos nao sao espacos tolerados.
+    if termo.chars().any(char::is_control) {
+        return Err(ErroFiltroAndamentos::ContemControle);
+    }
     let termo = termo.trim();
     if termo.is_empty() {
         return Err(ErroFiltroAndamentos::Vazio);
-    }
-    if termo.chars().any(char::is_control) {
-        return Err(ErroFiltroAndamentos::ContemControle);
     }
     if termo.chars().count() > 100 {
         return Err(ErroFiltroAndamentos::AcimaDoLimite);
@@ -93,5 +94,25 @@ mod tests {
             Err(ErroFiltroAndamentos::AcimaDoLimite)
         );
         assert_eq!(detalhe.andamentos.len(), 3);
+    }
+
+    #[test]
+    fn controles_nas_extremidades_do_filtro_nao_podem_desaparecer_no_trim() {
+        for termo in [
+            "\nDECISÃO",
+            "DECISÃO\n",
+            "\tDECISÃO",
+            "DECISÃO\r\n",
+            "\u{0085}DECISÃO",
+            "\n",
+        ] {
+            let mut detalhe = historico();
+            let antes = detalhe.andamentos.clone();
+            assert_eq!(
+                filtrar(&mut detalhe, termo),
+                Err(ErroFiltroAndamentos::ContemControle)
+            );
+            assert_eq!(detalhe.andamentos, antes);
+        }
     }
 }
