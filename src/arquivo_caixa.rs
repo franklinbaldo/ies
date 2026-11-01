@@ -39,9 +39,12 @@ pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
     // Path::file_name ignora a barra terminal ("novo/" parece "novo").
     // Não transformar uma indicação explícita de diretório em arquivo JSON,
     // nem fazer GET administrativo para um destino sem nome de arquivo.
-    let ultimo = destino.as_os_str().as_encoded_bytes().last().copied();
+    let bytes = destino.as_os_str().as_encoded_bytes();
+    let ultimo = bytes.last().copied();
     if ultimo == Some(std::path::MAIN_SEPARATOR as u8)
         || (cfg!(windows) && ultimo == Some(b'/'))
+        || bytes.ends_with(b"/.")
+        || (cfg!(windows) && bytes.ends_with(b"\\."))
         || destino.file_name().is_none()
     {
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
