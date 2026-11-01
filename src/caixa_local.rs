@@ -132,7 +132,10 @@ pub(crate) fn interpretar(
 ) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
     let exportada: Exportacao =
         serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
-    if !matches!(exportada.origem.as_str(), "web" | "web_com_paginas_privadas") {
+    if !matches!(
+        exportada.origem.as_str(),
+        "web" | "web_com_paginas_privadas"
+    ) {
         return Err(ErroCaixaLocal::OrigemNaoWeb);
     }
     if exportada
