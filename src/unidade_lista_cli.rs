@@ -13,9 +13,12 @@ pub(super) fn listar_processos_da_unidade(
     destino: Option<&Path>,
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
-    if let Err(erro) = paginas_capturadas::conferir_caminhos(paginas_privadas) {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
-    }
+    // Arquivos locais inviáveis não podem provocar GET potencialmente
+    // administrativo: validar e ler complementos antes da sessão.
+    let paginas_adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
+        Ok(paginas) => paginas,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
@@ -28,11 +31,11 @@ pub(super) fn listar_processos_da_unidade(
         Ok(html) => html,
         Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
     };
-    let paginas_adicionais =
-        match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
-            Ok(paginas) => paginas,
-            Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-        };
+    if let Err(erro) =
+        paginas_capturadas::conferir_orcamento_com_inicial(&paginas_adicionais, html.len())
+    {
+        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+    }
     let mut paginas = Vec::with_capacity(paginas_adicionais.len() + 1);
     paginas.push(html);
     paginas.extend(paginas_adicionais);

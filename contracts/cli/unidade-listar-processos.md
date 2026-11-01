@@ -146,6 +146,24 @@ pode provar a frescura dos arquivos e não afirma suporte live
 à paginação POST. O modo sem a opção e o golden JSON existente
 permanecem inalterados.
 
+## Recusa de complementos locais antes do GET (Refs #57)
+
+Quando `--pagina-arquivo` é informado, **validar e ler todos os
+complementos privados antes de carregar a configuração ou emitir o GET**
+do Controle. Arquivo ausente, ilegível, simbólico, inseguro ou acima dos
+limites impede a consulta remota, pois a lista completa não seria
+entregável mesmo se o GET funcionasse. Manter os subcódigos tipados já
+existentes, sem mascará-los com erro de sessão ausente.
+
+A primeira página continua vindo do único GET previsto. Após recebê-la,
+conferir novamente o orçamento combinado de até 48 MB usando os bytes
+dos complementos já lidos, **sem reabrir arquivos**, sem POST e sem
+retries. Rejeitar a soma excessiva antes de publicar/exportar qualquer
+processo. Orçamento: entrada complementar inválida = **0 GET/0 POST**;
+complementos locais válidos = **até 1 GET/0 POST**. Essa ordem não
+atesta sessão autenticada, atualidade das capturas nem compatibilidade
+live e não substitui o bloqueio da paginação POST ainda não comprovada.
+
 ## Consulta de apenas uma categoria verificada (Refs #57)
 
 `ies unidade listar-processos --categoria recebidos|gerados [--json]`

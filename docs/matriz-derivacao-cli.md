@@ -6,9 +6,9 @@ description: Cruzamento dos comandos declarados, código executável, evidência
 
 # Matriz de derivação da CLI — implementar antes de ampliar
 
-**Base de derivação:** `main` em `2870e5e70ebe20851a282c7d30de438f631acb74`,
-01/11/2026, mais a ampliação da PR #137; conferir o SHA pós-merge
-registrado na issue #56. Fontes: [superfície Clap e despacho](../src/main.rs),
+**Base de derivação:** `main` auditada em 01/11/2026 após as PRs #137 e #138;
+revalidar o SHA, o despacho e os checks a cada rodada. Propostas fora da `main`
+não são capacidades aprovadas. Fontes: [superfície Clap e despacho](../src/main.rs),
 [contrato público](../contracts/cli.md), [matriz de evidências](../contracts/evidencias/README.md),
 [política de acesso](interfaces/acesso-por-instalacao.md) e
 [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
@@ -58,6 +58,15 @@ lista completa apenas com cobertura declarada demonstrada; continua um GET,
 zero POST e **sem ensaio live autorizado**. Persistem 11 caminhos
 incompletos e 3 locais; nenhum virou capacidade Web integral. A #57 segue
 aberta para a paginação ativa.
+
+**Atualização #138 (integrada após revisão):** `--pagina-arquivo` recusa
+complementos locais ausentes, inseguros ou acima do limite antes de acessar
+a sessão ou executar GET potencialmente administrativo. O teto agregado
+de 48 MB é conferido novamente após o GET, reutilizando os bytes já lidos.
+Para complemento inviável, elimina um GET evitável (até 1 → 0); com
+complementos válidos mantém até 1 GET e 0 POST. Os gates Rust/OKF/20 KB e
+GitGuardian passaram no HEAD revisado. Não habilita paginação ativa, não
+promove `PARCIAL WEB` e não equivale a validação live.
 
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
