@@ -72,6 +72,14 @@ O programa não expõe links assinados em JSON, nem executa escritas.
 O replay offline agora pode consolidar várias páginas já gravadas usando
 `--passo N` repetido, sem enviar POST ao SEI e sem inferir páginas ausentes.
 
+## Prioridade: completar a CLI existente
+
+A [matriz de derivação de capacidades](docs/matriz-derivacao-cli.md)
+identifica os comandos já declarados, o que funciona na main e as lacunas
+Web reais ainda abertas. O foco é implementar os caminhos existentes,
+sem multiplicar novos verbos, subcomandos e flags como substitutos de
+capacidades ainda incompletas.
+
 ## Desenvolvimento
 
 Os checkers de infraestrutura são um `xtask` Rust sem dependências
