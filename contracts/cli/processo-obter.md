@@ -231,3 +231,15 @@ subcódigo `termo_de_andamento_contem_controle`, deve prevalecer sobre
 continuam tolerados, e termo inválido não pode descartar andamentos.
 A busca continua restrita à cassette hash-verificada, sem HTTP nem
 prova de histórico completo/live.
+
+
+## Prévia do destino para resumo Web (Refs #59 e #57)
+
+`ies processo NUP --resumo --saida ARQUIVO` usa a mesma exportação
+privada da caixa. Recusa destino previamente inviável, inclusive symlink
+de ancestral, antes de ler arquivos de sessão ou fazer o GET.
+Uma tentativa sobre destino existente, ausente ou inseguro faz zero
+requisições; caminho válido conserva até um GET, zero POST. No Linux,
+a criação 0600 é ancorada em descritores de diretório abertos e não
+remove arquivo por caminho após erro de escrita. Isso não representa
+leitura integral do processo nem evidência live autenticada.
