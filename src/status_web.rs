@@ -55,8 +55,13 @@ fn projetar_com_unidade(
     html: &str,
     unidade_esperada: Option<&str>,
 ) -> Result<Value, FalhaControleWeb> {
-    let _ = unidade_esperada;
-    projetar(html)
+    let modelo = projetar(html)?;
+    if unidade_esperada.is_some_and(|esperada| {
+        modelo["unidade_exibida"].as_str() != Some(esperada)
+    }) {
+        return Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada);
+    }
+    Ok(modelo)
 }
 
 /// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
