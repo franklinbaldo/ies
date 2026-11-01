@@ -26,12 +26,13 @@ impl NumeroProcessoInvalido {
 
 impl NumeroProcesso {
     pub fn novo(valor: &str) -> Result<Self, NumeroProcessoInvalido> {
+        // Validar a entrada bruta: trim removeria CR/LF/tab das extremidades.
+        if valor.chars().any(char::is_control) {
+            return Err(NumeroProcessoInvalido::Controle);
+        }
         let valor = valor.trim();
         if valor.is_empty() {
             return Err(NumeroProcessoInvalido::Vazio);
-        }
-        if valor.chars().any(char::is_control) {
-            return Err(NumeroProcessoInvalido::Controle);
         }
         if valor
             .get(..6)
@@ -131,6 +132,33 @@ mod tests {
         let valor = serde_json::to_value(andamento).unwrap();
         assert!(valor.get("id").is_none());
         assert!(valor["ocorrido_em"].is_null());
+    }
+
+    #[test]
+    fn controles_no_inicio_ou_fim_nao_sao_apagados_pelo_trim() {
+        for entrada in [
+            "\n000123/2026",
+            "000123/2026\n",
+            "\t000123/2026",
+            "000123/2026\r\n",
+        ] {
+            assert_eq!(
+                NumeroProcesso::novo(entrada),
+                Err(NumeroProcessoInvalido::Controle)
+            );
+        }
+    }
+
+    #[test]
+    fn espacos_externos_sem_controles_continuam_aceitos() {
+        assert_eq!(
+            NumeroProcesso::novo(" 000123/2026 ").unwrap().as_str(),
+            "000123/2026"
+        );
+        assert_eq!(
+            NumeroProcesso::novo("  "),
+            Err(NumeroProcessoInvalido::Vazio)
+        );
     }
 
     #[test]
