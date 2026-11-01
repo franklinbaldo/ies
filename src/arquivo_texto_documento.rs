@@ -59,7 +59,11 @@ pub(crate) fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoTexto> {
     }
 }
 
-pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
+fn salvar_com_ponto_de_corrida(
+    destino: &Path,
+    texto: &str,
+    entre_inspecao_e_abertura: impl FnOnce(),
+) -> Result<usize, ErroArquivoTexto> {
     use std::fs::{self, OpenOptions};
     use std::io::{ErrorKind, Write};
     #[cfg(unix)]
@@ -70,6 +74,7 @@ pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
     options.write(true).create_new(true);
     #[cfg(unix)]
     options.mode(0o600);
+    entre_inspecao_e_abertura();
     let mut arquivo = options.open(destino).map_err(|erro| {
         if erro.kind() == ErrorKind::AlreadyExists {
             ErroArquivoTexto::DestinoJaExiste
@@ -87,6 +92,10 @@ pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
         return Err(ErroArquivoTexto::EscritaFalhou);
     }
     Ok(texto.len())
+}
+
+pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
+    salvar_com_ponto_de_corrida(destino, texto, || {})
 }
 
 #[cfg(test)]
@@ -179,6 +188,30 @@ mod tests {
         assert!(!subpasta.join("0007.txt").exists());
         assert_eq!(salvar(&subpasta.join("0007.txt"), "OK"), Ok(2));
         fs::remove_dir_all(raiz).unwrap();
+    }
+
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn troca_de_ancestral_apos_inspecao_nao_redireciona_texto_sigiloso() {
+        use std::os::unix::fs::symlink;
+        let raiz = pasta();
+        let saida = raiz.join("saida");
+        let antiga = raiz.join("saida-original");
+        let invasor = raiz.join("invasor");
+        fs::create_dir(&saida).unwrap();
+        fs::create_dir(&invasor).unwrap();
+        let destino = saida.join("0007.txt");
+        let resultado = salvar_com_ponto_de_corrida(&destino, "SEGREDO", || {
+            fs::rename(&saida, &antiga).unwrap();
+            symlink(&invasor, &saida).unwrap();
+        });
+        let texto_ancorado = fs::read_to_string(antiga.join("0007.txt")).ok();
+        let texto_desviado = invasor.join("0007.txt").exists();
+        fs::remove_dir_all(&raiz).unwrap();
+        assert_eq!(resultado, Ok("SEGREDO".len()));
+        assert_eq!(texto_ancorado.as_deref(), Some("SEGREDO"));
+        assert!(!texto_desviado, "texto nao pode seguir link concorrente");
     }
 
     #[cfg(unix)]
