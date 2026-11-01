@@ -103,9 +103,7 @@ fn mostrar_caixa_com_politica(
             return ExitCode::from(1);
         }
     };
-    if exigir_identidade_web
-        && let Err(erro) = conferir_identidade_web(&leitura)
-    {
+    if exigir_identidade_web && let Err(erro) = conferir_identidade_web(&leitura) {
         return erro_fonte(
             json_mode,
             erro.subcodigo(),
