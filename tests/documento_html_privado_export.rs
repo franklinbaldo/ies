@@ -6,7 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 fn arquivo_html_privado(destino: &Path) {
     let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
-                <body><p>Texto privado fictício.</p></body></html>";
+                <body><svg><title>Ícone do SEI</title></svg>\
+                <template><p>Texto de modelo oculto</p></template>\
+                <p>Texto privado fictício.</p></body></html>";
     fs::write(destino, html).unwrap();
     #[cfg(unix)]
     {
@@ -54,6 +56,8 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
 
     let texto = fs::read_to_string(pasta.join("0007.txt")).unwrap();
     assert_eq!(texto, "Texto privado fictício.");
+    assert!(!texto.contains("Ícone do SEI"));
+    assert!(!texto.contains("Texto de modelo oculto"));
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
