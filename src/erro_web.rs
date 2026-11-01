@@ -23,6 +23,7 @@ pub enum ErroCaixa {
     FaixaAlterada { categoria: Categoria },
     FaixaDescontinua { categoria: Categoria },
     LimitePaginas,
+    VisaoResumidaComPaginacao,
     UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
     IdentificacoesDaUnidadeRepetidasNoControle,
@@ -57,6 +58,7 @@ impl ErroCaixa {
             Self::FaixaAlterada { .. } => "faixa_alterada",
             Self::FaixaDescontinua { .. } => "faixa_descontinua",
             Self::LimitePaginas => "limite_paginas",
+            Self::VisaoResumidaComPaginacao => "visao_resumida_com_paginacao_nao_demonstrada",
             Self::UnidadeInesperada => "unidade_inesperada",
             Self::IdentificacaoDaUnidadeAusenteNoControle => {
                 "identificacao_da_unidade_ausente_no_controle"
