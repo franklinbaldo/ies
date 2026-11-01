@@ -141,13 +141,37 @@ mod tests {
 
     fn leitura(recebidos_total: usize) -> Leitura {
         let html = format!(
-            "<table id='tblProcessosRecebidos'>\
+            "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'>\
              <caption>{recebidos_total} registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
              <table id='tblProcessosGerados'><caption>1 registros - 1 a 1):</caption>\
              <tr id='P2'><td><a class='processoVisualizado'>G-0002</a></td></tr></table>"
         );
         paginas::juntar(&[html], None).unwrap()
+    }
+
+    #[test]
+    fn categoria_nao_publica_processos_sem_unidade_exibida() {
+        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        assert_eq!(leitura.unidade, None);
+        assert_eq!(
+            selecionar(&leitura, CategoriaLista::Gerados, "web"),
+            Err(FalhaCategoria::UnidadeNaoObservada)
+        );
+        assert_eq!(
+            FalhaCategoria::UnidadeNaoObservada.subcodigo(),
+            "identificacao_da_unidade_ausente_no_controle"
+        );
+    }
+
+    #[test]
+    fn categoria_coberta_preserva_unidade_observada() {
+        let modelo = selecionar(&leitura(1), CategoriaLista::Gerados, "web").unwrap();
+        assert_eq!(modelo["unidade"], "PPI");
+        assert_eq!(modelo["categoria"], "gerados");
     }
 
     #[test]
