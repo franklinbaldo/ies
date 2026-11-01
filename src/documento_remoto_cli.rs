@@ -66,6 +66,9 @@ fn conferir(
     {
         return Err(ErroDocumentoRemoto::OpcoesNaoComprovadas);
     }
+    if !comando.autorizar_efeito_de_leitura {
+        return Err(ErroDocumentoRemoto::EfeitoAdministrativoDaLeituraNaoAutorizado);
+    }
     documento::NumeroDocumento::novo(&comando.numeros[0]).map_err(ErroDocumentoRemoto::Numero)
 }
 
