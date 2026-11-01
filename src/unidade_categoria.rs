@@ -50,6 +50,9 @@ pub(crate) fn selecionar(
     categoria: CategoriaLista,
     origem: &str,
 ) -> Result<Value, FalhaCategoria> {
+    if leitura.unidade.is_none() {
+        return Err(FalhaCategoria::UnidadeNaoObservada);
+    }
     let (tabela, cobertura) = match categoria {
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
