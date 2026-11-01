@@ -15,9 +15,7 @@ impl FalhaControleWeb {
         match self {
             Self::ControleNaoReconhecido(_) => "controle_web_nao_reconhecido",
             Self::IdentidadeUnidadeNaoObservada => "identidade_unidade_nao_observada",
-            Self::UnidadeExibidaDiferenteDaSolicitada => {
-                "unidade_exibida_diferente_da_solicitada"
-            }
+            Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -56,9 +54,8 @@ fn projetar_com_unidade(
     unidade_esperada: Option<&str>,
 ) -> Result<Value, FalhaControleWeb> {
     let modelo = projetar(html)?;
-    if unidade_esperada.is_some_and(|esperada| {
-        modelo["unidade_exibida"].as_str() != Some(esperada)
-    }) {
+    if unidade_esperada.is_some_and(|esperada| modelo["unidade_exibida"].as_str() != Some(esperada))
+    {
         return Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada);
     }
     Ok(modelo)
@@ -159,7 +156,11 @@ mod testes {
             FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.subcodigo(),
             "unidade_exibida_diferente_da_solicitada"
         );
-        assert!(!FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.mensagem().contains("PPI"));
+        assert!(
+            !FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada
+                .mensagem()
+                .contains("PPI")
+        );
         assert_eq!(
             projetar_com_unidade(html, Some("ppi")),
             Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
