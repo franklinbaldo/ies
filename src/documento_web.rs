@@ -189,9 +189,9 @@ impl ErroCorpoDocumento {
         }
     }
 }
-/// Shim inicial do filtro de subárvores não renderizadas (fase RED).
-fn ignorar_subarvore_decorativa(_nome: &str) -> bool {
-    false
+/// Ícones SVG e templates não renderizados não compõem o texto do documento.
+fn ignorar_subarvore_decorativa(nome: &str) -> bool {
+    nome.eq_ignore_ascii_case("svg") || nome.eq_ignore_ascii_case("template")
 }
 
 /// Percorre nós do corpo sem executar scripts; separa blocos visíveis.
