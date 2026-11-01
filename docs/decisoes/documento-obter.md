@@ -36,8 +36,11 @@ status, login, título SEI, número visível exato e corpo antes de publicar.
 O link e a sessão pertencem à mesma geração; não confirmar frescura
 automaticamente, nem construir links por interpolação de hashes.
 
-O GET pode registrar recebimento/visualização; sua execução depende de
-autorização de efeitos na instalação de treinamento. Nenhum teste live,
+O GET pode registrar recebimento/visualização. A CLI exige também
+reconhecimento explícito `--autorizar-efeito-de-leitura` **antes** de ler
+arquivos da sessão ou executar a requisição, mas isso não comprova
+permissão institucional nem vincula automaticamente cookie e URL assinada.
+Sua execução depende de autorização de efeitos na instalação de treinamento. Nenhum teste live,
 login ou escrita SEI é autorizado por esta decisão isoladamente.
 
 ## Evidências verificáveis

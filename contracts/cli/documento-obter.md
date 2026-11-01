@@ -187,7 +187,14 @@ sintaxe da CLI e não prova autenticidade do HTML previamente capturado.
 ## GET Web opt-in de documento com link assinado privado (Refs #60, #56)
 
 `ies documento DOC --url-documento-file ARQUIVO [--json] [--saida DIR]`
-usa **um único GET** da ação `documento_visualizar` da sessão existente.
+usa **um único GET** da ação `documento_visualizar` da sessão existente,
+**somente** quando acompanhado de `--autorizar-efeito-de-leitura`.
+Sem esse reconhecimento explícito, a CLI recusa a operação antes de abrir
+arquivos de sessão ou iniciar conexão, com erro Rust tipado
+`EfeitoAdministrativoDaLeituraNaoAutorizado` e subcódigo estável
+`efeito_administrativo_da_leitura_nao_autorizado`. A opção declara ciência
+de possíveis efeitos administrativos, mas não substitui autorização da
+instituição, validação da instalação nem revisão de permissões.
 O arquivo (0600 em Unix) guarda a URL HTTPS assinada **fresca** oferecida
 pela interface da instalação autorizada, com ID interno de documento,
 `infra_hash` e ação explícita. O IES não calcula nem adivinha o link;

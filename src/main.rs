@@ -176,6 +176,9 @@ struct Documento {
         conflicts_with = "html_privado"
     )]
     url_documento_file: Option<PathBuf>,
+    /// Confirma ciência e autorização para possível efeito administrativo do GET
+    #[arg(long = "autorizar-efeito-de-leitura", requires = "url_documento_file")]
+    autorizar_efeito_de_leitura: bool,
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,

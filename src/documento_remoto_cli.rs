@@ -13,6 +13,7 @@ enum ErroDocumentoRemoto {
     Numero(documento::NumeroDocumentoInvalido),
     QuantidadeDeDocumentos,
     OpcoesNaoComprovadas,
+    EfeitoAdministrativoDaLeituraNaoAutorizado,
     Configuracao(configuracao::ErroConfiguracao),
     Transporte(documento_transporte::ErroDocumentoTransporte),
     Titulo(documento_web::ErroTituloDocumento),
@@ -26,6 +27,9 @@ impl ErroDocumentoRemoto {
             Self::Numero(e) => e.subcodigo(),
             Self::QuantidadeDeDocumentos => "get_documento_exige_um_numero",
             Self::OpcoesNaoComprovadas => "opcoes_incompativeis_com_documento_web",
+            Self::EfeitoAdministrativoDaLeituraNaoAutorizado => {
+                "efeito_administrativo_da_leitura_nao_autorizado"
+            }
             Self::Configuracao(e) => e.subcodigo(),
             Self::Transporte(e) => e.subcodigo(),
             Self::Titulo(e) => e.subcodigo(),
@@ -36,7 +40,10 @@ impl ErroDocumentoRemoto {
     }
     fn status(self) -> u8 {
         match self {
-            Self::Numero(_) | Self::QuantidadeDeDocumentos | Self::OpcoesNaoComprovadas => 2,
+            Self::Numero(_)
+            | Self::QuantidadeDeDocumentos
+            | Self::OpcoesNaoComprovadas
+            | Self::EfeitoAdministrativoDaLeituraNaoAutorizado => 2,
             _ => 1,
         }
     }
