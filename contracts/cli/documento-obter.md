@@ -77,3 +77,33 @@ nesse caso, sem considerar isso prova de um documento Web completo.
 O recorte não realiza leitura remota, não modifica o stub
 `ies documento DOC` e não substitui a verificação de número/ID,
 sessão, origem, MIME e versão antes de uma futura consulta live.
+
+## Legenda e cobertura do histórico Web (Refs #88 e #60)
+
+A tabela de versões só pode ter **uma legenda `caption`**. Mesmo que
+ambas declarem o mesmo total, duas legendas são ambíguas e o parser
+falha com a variante Rust `LegendasDoHistoricoRepetidas` e subcódigo
+`legendas_historico_versoes_repetidas`. Não escolher a primeira legenda
+para certificar cobertura, sobretudo se uma legenda externa preceder
+`Lista de Versões`. A contagem continua confrontada às linhas
+realmente observadas; isso é replay offline e não consulta live.
+
+## Leitura opt-in de HTML privado já capturado (Refs #60)
+
+`ies documento DOC --html-privado ARQUIVO [--json]` interpreta **sem rede**
+um único documento HTML obtido previamente pelo operador autorizado.
+Exige arquivo regular privado (0600 no Unix), não segue symlink final
+no Linux, limita a 8 MB e aplica o mesmo leitor seguro de arquivos
+da sessão. Exige número SEI exato, inclusive zeros à esquerda; título
+único SEI e texto visível do corpo, sem `script`, `style` ou `iframe`.
+Erros de fonte, título, conteúdo e número diferente são variantes Rust
+com subcódigos próprios; falhas não expõem HTML nem tokens.
+
+A saída é `escopo: html_privado_offline`, `autenticacao_remota: false`
+e `versao_atual: null`. Não afirmar atualidade, assinatura, integridade
+criptográfica, identidade da sessão nem versão do documento. Opções
+remotas como `--versao`, `--saida` ou `--com-propriedades` são recusadas
+no modo local, assim como vários DOCs (um arquivo só). O comando
+`ies documento DOC` sem `--html-privado` continua stub; a etapa
+de resolução da árvore e GET autenticado exige evidência e teste live
+independentes. Nenhum login, GET, POST nem escrita no SEI.
