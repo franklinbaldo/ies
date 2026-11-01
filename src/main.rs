@@ -25,8 +25,8 @@ mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
-mod processo_resumo_cli;
 mod processo_historico_privado_cli;
+mod processo_resumo_cli;
 mod replay_args;
 mod replay_busca_documento;
 mod replay_consulta;
