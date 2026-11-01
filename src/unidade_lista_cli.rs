@@ -61,11 +61,11 @@ fn mostrar_caixa_detalhada(
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "caixa detalhada não comprovada"),
     };
     let saida = json!({
-        "unidade": leitura.unidade,
+        "unidade": &leitura.unidade,
         "origem": origem,
         "visualizacao": "detalhada",
         "total_declarado": leitura.total_declarado,
-        "processos": leitura.processos
+        "processos": &leitura.processos
     });
     if let Some(caminho) = destino {
         return match arquivo_caixa::gravar(caminho, &saida) {
