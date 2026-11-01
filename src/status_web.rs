@@ -8,12 +8,16 @@ use std::process::ExitCode;
 pub(crate) enum FalhaControleWeb {
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,
+    UnidadeExibidaDiferenteDaSolicitada,
 }
 impl FalhaControleWeb {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::ControleNaoReconhecido(_) => "controle_web_nao_reconhecido",
             Self::IdentidadeUnidadeNaoObservada => "identidade_unidade_nao_observada",
+            Self::UnidadeExibidaDiferenteDaSolicitada => {
+                "unidade_exibida_diferente_da_solicitada"
+            }
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -23,6 +27,9 @@ impl FalhaControleWeb {
             }
             Self::IdentidadeUnidadeNaoObservada => {
                 "identidade da unidade não está publicada na resposta"
+            }
+            Self::UnidadeExibidaDiferenteDaSolicitada => {
+                "a unidade exibida pelo SEI não corresponde à solicitada"
             }
         }
     }
