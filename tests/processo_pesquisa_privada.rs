@@ -1,6 +1,11 @@
 //! CLI de domínio: NUP em resposta de pesquisa previamente capturada.
 //! Não estabelece sessão, não consulta o SEI e não segue links HTML.
-use std::{fs, path::PathBuf, process::Command, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    fs,
+    path::PathBuf,
+    process::Command,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 const HTML: &str = r#"<html><table class="pesquisaResultado">
 <tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal"
@@ -11,7 +16,10 @@ fn arquivo(corpo: &str) -> PathBuf {
     let caminho = std::env::temp_dir().join(format!(
         "ies-busca-privada-{}-{}.html",
         std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     fs::write(&caminho, corpo).unwrap();
     #[cfg(unix)]
@@ -53,7 +61,10 @@ fn nup_ausente_retorna_numero_nao_observado_sem_alegar_inexistencia() {
     assert_eq!(resposta.status.code(), Some(1));
     let saida: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(saida["codigo"], "numero_nao_observado");
-    assert_eq!(saida["subcodigo"], "numero_nao_observado_na_resposta_de_pesquisa");
+    assert_eq!(
+        saida["subcodigo"],
+        "numero_nao_observado_na_resposta_de_pesquisa"
+    );
     assert!(!String::from_utf8_lossy(&resposta.stdout).contains("processo_inexistente"));
 }
 

@@ -13,7 +13,7 @@ live_validation: nao-realizada
 
 # Decisão de implementação de processo.buscar
 
-## Alternativas
+## Alternativas consideradas
 
 - **web-captured-offline:** aceita resposta HTML já obtida pelo operador
   autorizado, com parser estrito e orçamento de zero requisições.
@@ -22,7 +22,14 @@ live_validation: nao-realizada
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.
 
-## Escolha e riscos
+## Comparação
+
+A alternativa offline evita qualquer acesso autenticado ou GET/POST, ao
+custo de não comprovar a presença atual nem a cobertura da busca.
+A rota Web POST pode ser mais útil, mas seus efeitos e sessão não foram
+validados no IES; REST e SOAP não têm disponibilidade comprovada.
+
+## Decisão
 
 A primeira fatia amplia a CLI de domínio para consultar NUP em uma
 resposta de pesquisa **externa à caixa** sem reutilizar links ou enviar
@@ -35,11 +42,12 @@ links e identificadores verificáveis, e número exato.
 
 - [Contrato](../../contracts/cli/processo-buscar.md)
 - [Matriz](../../contracts/evidencias/processo-buscar.md)
-- [Testes](../../src/processo_pesquisa_privada_cli/tests.rs)
+- [Testes de integração](../../tests/processo_pesquisa_privada.rs)
+- [Testes unitários](../../src/processo_pesquisa_privada_cli/tests.rs)
 - [Parser da resposta](../../src/pesquisa_web.rs)
 - [Política de acesso](../interfaces/acesso-por-instalacao.md)
 
-## Condição de revisão
+## Limitações e revisão
 
 Para Web live, identificar POST real, hiddens, efeitos, autorização de
 sessão e variações UnB/UFRJ/Goiás/PEN antes de implementar transporte.

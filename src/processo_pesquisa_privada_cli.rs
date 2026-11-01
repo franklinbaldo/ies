@@ -24,9 +24,7 @@ impl ErroPesquisaPrivada {
             }
             Self::Arquivo(erro) => erro.subcodigo(),
             Self::Resposta(erro) => erro.subcodigo(),
-            Self::NumeroNaoObservadoNaResposta => {
-                "numero_nao_observado_na_resposta_de_pesquisa"
-            }
+            Self::NumeroNaoObservadoNaResposta => "numero_nao_observado_na_resposta_de_pesquisa",
         }
     }
 
@@ -70,10 +68,7 @@ fn conferir(
 
 /// Apenas uma resposta; o total declarado não é cobertura nacional nem
 /// autorização para abrir o href do resultado.
-fn selecionar(
-    html: &str,
-    numero: &processo::NumeroProcesso,
-) -> Result<usize, ErroPesquisaPrivada> {
+fn selecionar(html: &str, numero: &processo::NumeroProcesso) -> Result<usize, ErroPesquisaPrivada> {
     let processos = pesquisa_web::ler_resultados(html).map_err(ErroPesquisaPrivada::Resposta)?;
     let total_observado = processos.len();
     processos
