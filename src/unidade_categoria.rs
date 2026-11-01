@@ -23,17 +23,20 @@ impl CategoriaLista {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FalhaCategoria {
+    UnidadeNaoObservada,
     PaginasNaoObtidas(CategoriaLista),
 }
 impl FalhaCategoria {
     pub(crate) fn subcodigo(self) -> &'static str {
         match self {
+            Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
             Self::PaginasNaoObtidas(CategoriaLista::Recebidos) => "paginas_recebidos_nao_obtidas",
             Self::PaginasNaoObtidas(CategoriaLista::Gerados) => "paginas_gerados_nao_obtidas",
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
+            Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
             Self::PaginasNaoObtidas(_) => {
                 "a categoria selecionada exige páginas que não foram obtidas"
             }
