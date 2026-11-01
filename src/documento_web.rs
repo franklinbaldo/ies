@@ -55,8 +55,22 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
             .flatten()
             .collect()
     } else {
-        // Fragmentos históricos sem head: preservar o contrato offline.
-        dom.query_selector("title").into_iter().flatten().collect()
+        // Fragmentos sem head admitem title externo, mas nunca aquele
+        // inserido no corpo, em ícones SVG ou em template inerte.
+        let mut titulos_de_conteudo = Vec::new();
+        for nome in ["body", "svg", "template"] {
+            for area in dom.query_selector(nome).into_iter().flatten() {
+                let Some(tag) = area.get(parser).and_then(tl::Node::as_tag) else {
+                    continue;
+                };
+                titulos_de_conteudo.extend(tag.query_selector(parser, "title").into_iter().flatten());
+            }
+        }
+        dom.query_selector("title")
+            .into_iter()
+            .flatten()
+            .filter(|titulo| !titulos_de_conteudo.contains(titulo))
+            .collect()
     };
     let mut titulos = titulos.into_iter();
     let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
