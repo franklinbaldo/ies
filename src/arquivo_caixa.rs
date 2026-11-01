@@ -112,7 +112,9 @@ pub(crate) fn preparar_destino(destino: &Path) -> Result<DestinoPreparado<'_>, E
     conferir_destino(destino)?;
     #[cfg(target_os = "linux")]
     let pai = diretorio_ancorado(
-        destino.parent().ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
+        destino
+            .parent()
+            .ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
     )?;
     Ok(DestinoPreparado {
         caminho: destino,
@@ -142,7 +144,10 @@ fn gravar_preparado_com_intervalo(
     let caminho = {
         use std::os::fd::AsRawFd;
         std::path::PathBuf::from(format!("/proc/self/fd/{}", destino.pai.as_raw_fd())).join(
-            destino.caminho.file_name().ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?,
+            destino
+                .caminho
+                .file_name()
+                .ok_or(ErroArquivoCaixa::DestinoSemNomeDeArquivo)?,
         )
     };
     #[cfg(not(target_os = "linux"))]
@@ -154,7 +159,11 @@ fn gravar_preparado_com_intervalo(
             ErroArquivoCaixa::EscritaDeArquivoFalhou
         }
     })?;
-    if arquivo.write_all(&bytes).and_then(|()| arquivo.sync_all()).is_err() {
+    if arquivo
+        .write_all(&bytes)
+        .and_then(|()| arquivo.sync_all())
+        .is_err()
+    {
         // Não remover por pathname após falha: diretório pode ter mudado.
         return Err(ErroArquivoCaixa::EscritaDeArquivoFalhou);
     }
@@ -284,7 +293,8 @@ mod tests {
         let valor = serde_json::json!({"conteudo": "CONFIDENCIAL"});
         assert!(gravar_preparado(&preparado, &valor).is_ok());
         assert_eq!(
-            serde_json::from_slice::<Value>(&fs::read(original.join("caixa.json")).unwrap()).unwrap(),
+            serde_json::from_slice::<Value>(&fs::read(original.join("caixa.json")).unwrap())
+                .unwrap(),
             valor
         );
         assert!(!saida.join("caixa.json").exists());
