@@ -25,6 +25,10 @@ impl NumeroDocumento {
     }
 
     pub fn novo(texto: &str) -> Result<Self, NumeroDocumentoInvalido> {
+        // Antes de trim: LF/tab/CR no começo ou fim não são espaços tolerados.
+        if texto.chars().any(char::is_control) {
+            return Err(NumeroDocumentoInvalido::Controle);
+        }
         let texto = texto.trim();
         if texto.is_empty() {
             return Err(NumeroDocumentoInvalido::Vazio);
