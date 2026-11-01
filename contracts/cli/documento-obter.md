@@ -140,3 +140,16 @@ A regra se aplica tanto à leitura `--html-privado` quanto à
 exportação `--saida`, compartilhando o mesmo parser.
 É verificação estrutural offline de HTML privado, sem supor que
 a leitura Web autenticada esteja implementada ou validada.
+
+## Fragmentos inertes com código não executado (Refs #60)
+
+Na leitura `--html-privado`, somente conteúdo executável presente na
+árvore **visível** do `body` (`script`, `style`, `iframe` ou `noscript`)
+recusa a extração com a variante Rust já tipada
+`ErroCorpoDocumento::CorpoComConteudoExecutavel`.
+Um `script` ou `iframe` alojado exclusivamente em `template`/`svg`
+ignorados não invalida um parágrafo visível legítimo nem vaza o
+conteúdo do fragmento: a subárvore toda é descartada antes da
+verificação de executáveis. A ausência de texto visível continua
+`ErroCorpoDocumento::CorpoVazio`. A regra é local/offline e não altera
+o número de requisições ao SEI (zero), identidade, MIME ou autorização.
