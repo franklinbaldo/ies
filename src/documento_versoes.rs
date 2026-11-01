@@ -11,6 +11,7 @@ pub enum ErroVersao {
     NumeroInvalido,
     HistoricoAusente,
     HistoricosDuplicados,
+    LegendasDoHistoricoRepetidas,
     ColunasInesperadas,
     LinhaIncompleta,
     LinkAusenteOuAmbiguo,
@@ -26,6 +27,7 @@ impl ErroVersao {
             Self::NumeroInvalido => "versao_documento_invalida",
             Self::HistoricoAusente => "historico_documento_ausente",
             Self::HistoricosDuplicados => "historicos_documento_duplicados",
+            Self::LegendasDoHistoricoRepetidas => "legendas_historico_versoes_repetidas",
             Self::ColunasInesperadas => "colunas_historico_inesperadas",
             Self::LinhaIncompleta => "linha_historico_incompleta",
             Self::LinkAusenteOuAmbiguo => "link_versao_ausente_ou_ambiguo",
@@ -228,6 +230,22 @@ fn linhas_do_historico(
     Ok(entradas)
 }
 
+/// Caption única é requisito de identidade e contagem da tabela Web.
+fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroVersao> {
+    let mut legendas = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten();
+    let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
+    if legendas.next().is_some() {
+        return Err(ErroVersao::LegendasDoHistoricoRepetidas);
+    }
+    primeira
+        .get(parser)
+        .map(|no| texto(no, parser))
+        .ok_or(ErroVersao::ListaIncompleta)
+}
+
 /// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
 /// disponível na tabela de origem, é obrigatório conferir a cobertura.
 pub fn interpretar_historico(
@@ -266,14 +284,7 @@ pub fn interpretar_historico(
         }
     }
     let tabela = tabela.ok_or(ErroVersao::HistoricoAusente)?;
-    let legenda = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser))
-        .map(|no| texto(no, parser))
-        .next()
-        .ok_or(ErroVersao::ListaIncompleta)?;
+    let legenda = legenda_unica(tabela, parser)?;
     let declaradas = legenda
         .rsplit_once('(')
         .and_then(|(_, resto)| resto.split_once(" registros"))
@@ -343,6 +354,32 @@ mod testes {
         assert_eq!(
             interpretar_historico(&html, &doc, "42", None),
             Err(ErroVersao::LinkInseguro)
+        );
+    }
+
+    #[test]
+    fn legendas_repetidas_nao_podem_confirmar_cobertura_de_versoes() {
+        let doc = NumeroDocumento::novo("0007").unwrap();
+        let pagina = pagina(&[1], &["42"]);
+        let duplicada = pagina.replacen(
+            "</caption>",
+            "</caption><caption>Lista de Versões (1 registros):</caption>",
+            1,
+        );
+        let extra = pagina.replacen(
+            "<caption>Lista de Versões (1 registros):</caption>",
+            "<caption>Outro inventário (1 registros):</caption><caption>Lista de Versões (1 registros):</caption>",
+            1,
+        );
+        for html in [duplicada, extra] {
+            assert_eq!(
+                interpretar_historico(&html, &doc, "42", None),
+                Err(ErroVersao::LegendasDoHistoricoRepetidas)
+            );
+        }
+        assert_eq!(
+            ErroVersao::LegendasDoHistoricoRepetidas.subcodigo(),
+            "legendas_historico_versoes_repetidas"
         );
     }
 }
