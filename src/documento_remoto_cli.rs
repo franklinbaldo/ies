@@ -72,6 +72,9 @@ fn conferir(
     if !comando.autorizar_efeito_de_leitura {
         return Err(ErroDocumentoRemoto::EfeitoAdministrativoDaLeituraNaoAutorizado);
     }
+    if comando.saida.is_none() {
+        return Err(ErroDocumentoRemoto::SaidaPrivadaObrigatoria);
+    }
     documento::NumeroDocumento::novo(&comando.numeros[0]).map_err(ErroDocumentoRemoto::Numero)
 }
 
@@ -101,46 +104,36 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
             documento_transporte::ler_de_arquivos(url_file, &arquivos.cookie, &arquivos.origem)
                 .map_err(ErroDocumentoRemoto::Transporte)?;
         let (identidade, texto) = selecionar(&html, &numero)?;
-        let bytes = comando
+        let dir = comando
             .saida
             .as_deref()
-            .map(|dir| {
-                arquivo_texto_documento::salvar(
-                    &Path::new(dir).join(format!("{}.txt", identidade.numero)),
-                    &texto,
-                )
-                .map_err(ErroDocumentoRemoto::Exportacao)
-            })
-            .transpose()?;
-        Ok((identidade, texto, bytes))
+            .ok_or(ErroDocumentoRemoto::SaidaPrivadaObrigatoria)?;
+        let bytes = arquivo_texto_documento::salvar(
+            &Path::new(dir).join(format!("{}.txt", identidade.numero)),
+            &texto,
+        )
+        .map_err(ErroDocumentoRemoto::Exportacao)?;
+        Ok((identidade, bytes))
     })();
     Some(match resultado {
-        Ok((identidade, texto, bytes)) => {
+        Ok((identidade, bytes)) => {
             if cli.json {
-                let mut modelo = json!({
-                    "documento": identidade,
-                    "escopo": "get_documento_assinado_opt_in",
-                    "requisicoes": 1,
-                    "autenticacao_remota": "nao_auditada",
-                    "versao_atual": null
-                });
-                if let Some(tamanho) = bytes {
-                    modelo["bytes"] = json!(tamanho);
-                } else {
-                    modelo["texto"] = json!(texto);
-                }
-                println!("{modelo}");
-            } else if bytes.is_some() {
+                println!(
+                    "{}",
+                    json!({
+                        "documento": identidade,
+                        "escopo": "get_documento_assinado_opt_in",
+                        "requisicoes": 1,
+                        "autenticacao_remota": "nao_auditada",
+                        "versao_atual": null,
+                        "bytes": bytes
+                    })
+                );
+            } else {
                 println!(
                     "IES: documento {} exportado em arquivo privado; sessão não auditada.",
                     identidade.numero
                 );
-            } else {
-                println!(
-                    "IES: documento {} observado via GET opt-in; sessão não auditada.",
-                    identidade.numero
-                );
-                println!("{texto}");
             }
             ExitCode::SUCCESS
         }
