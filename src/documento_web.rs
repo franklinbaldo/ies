@@ -288,6 +288,32 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
 #[cfg(test)]
 mod testes_texto {
     use super::*;
+
+    #[test]
+    fn script_em_template_inerte_nao_impede_texto_do_documento() {
+        let html = "<body><template><script>nao_executado()</script></template>\
+                    <p>Texto visível legítimo.</p></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Ok("Texto visível legítimo.".to_owned())
+        );
+    }
+
+    #[test]
+    fn iframe_e_style_em_template_nao_substituem_texto_visivel() {
+        let html = "<body><template><style>.segredo{}</style>\
+                    <iframe src='about:blank'>oculto</iframe></template>\
+                    <p>Corpo exibido.</p></body>";
+        assert_eq!(texto_do_corpo(html), Ok("Corpo exibido.".to_owned()));
+    }
+
+    #[test]
+    fn template_com_script_sem_paragrafo_visivel_eh_corpo_vazio() {
+        assert_eq!(
+            texto_do_corpo("<body><template><script>inativo()</script></template></body>"),
+            Err(ErroCorpoDocumento::CorpoVazio)
+        );
+    }
     #[test]
     fn svg_de_icone_nao_entra_no_texto_do_documento() {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
