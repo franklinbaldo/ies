@@ -155,3 +155,16 @@ regular continua com 0600 e sem sobrescrita. Essa verificação é
 estrutural, não uma garantia contra substituições concorrentes de
 componentes do caminho entre inspeção e criação. Nenhum acesso Web é
 acrescentado.
+
+## Cabeçalho sem `head` não aceita títulos dentro do conteúdo (Refs #60)
+
+Alguns fragmentos HTML históricos têm um `title` no nível externo,
+sem `head`; preservar essa possibilidade de replay local. Porém um
+`title` presente **somente** em `body`, `svg` ou `template` não
+identifica o documento SEI, ainda que seu texto pareça um título
+`SEI/instalação - DOC - Tipo`. Nessa situação a função de identidade
+falha com a variante tipada existente `ErroTituloDocumento::TituloAusente`,
+sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
+externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
+A regra não abre URLs, não consulta a instalação, não modifica a
+sintaxe da CLI e não prova autenticidade do HTML previamente capturado.
