@@ -4,14 +4,15 @@ title: Ler documento SEI
 operation: documento.obter
 command: ies documento DOC
 effect: read
-implementation: stub
+implementation: partial
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
 # Ler documento SEI
 
 `ies documento DOC [DOC ...]` lê um ou mais documentos pelo número SEI
-visível. A implementação atual permanece um stub sem acesso à rede.
+visível. A consulta geral por número permanece stub. Um recorte opt-in faz GET
+somente do link assinado de documento fornecido pelo operador autorizado.
 
 ## Entradas
 
@@ -181,3 +182,32 @@ sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
 externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
 A regra não abre URLs, não consulta a instalação, não modifica a
 sintaxe da CLI e não prova autenticidade do HTML previamente capturado.
+
+
+## GET Web opt-in de documento com link assinado privado (Refs #60, #56)
+
+`ies documento DOC --url-documento-file ARQUIVO [--json] [--saida DIR]`
+usa **um único GET** da ação `documento_visualizar` da sessão existente.
+O arquivo (0600 em Unix) guarda a URL HTTPS assinada **fresca** oferecida
+pela interface da instalação autorizada, com ID interno de documento,
+`infra_hash` e ação explícita. O IES não calcula nem adivinha o link;
+cookie e origem autorizada continuam em arquivos privados da sessão.
+Validar a URL, ação, caminho-base e origem **antes de abrir o cookie**.
+
+Não faz login, POST, redirects, retries nem troca automática de backend.
+GET pode causar efeito administrativo: executar apenas onde a leitura e seus
+efeitos estejam autorizados, em ambiente de treinamento/homologação.
+A resposta deve ter HTTP 200, MIME HTML, não ser login, conter título SEI
+único com número **igual ao DOC** (zeros preservados) e texto visível.
+Falhas são variantes/subcódigos Rust tipados. O operador pode exportar
+`DOC.txt` privado a diretório já existente sem sobrescrever o destino.
+
+Sem `--url-documento-file`, `ies documento DOC` permanece stub. O recorte
+não resolve árvore, histórico, versão, assinaturas nem acesso ao documento
+externo; múltiplos DOCs, `--versao`, `--processo`, unidade e propriedades
+são recusados. A saída indica `escopo: get_documento_assinado_opt_in`,
+`requisicoes: 1`, `versao_atual: null`, `autenticacao_remota: nao_auditada`.
+Não expor URL, cookie nem HTML autenticado em logs/commits/cassettes.
+Mocks Rust demonstram o transporte offline; compatibilidade live nas
+instalações UnB/UFRJ/Goiás/PEN permanece **NOT_RUN** sem autorização
+comprovada para o efeito da leitura e sessão funcional.
