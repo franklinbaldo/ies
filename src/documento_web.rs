@@ -101,6 +101,45 @@ mod tests {
         );
     }
     #[test]
+    fn titulo_de_svg_no_corpo_nao_duplica_titulo_html_do_documento() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>
+                    <body><svg><title>Ícone de navegação</title></svg><p>Texto</p></body></html>";
+        let identidade = identidade_do_titulo(html).unwrap();
+        assert_eq!(identidade.numero, "0007");
+        assert_eq!(identidade.tipo, "Ofício");
+    }
+
+    #[test]
+    fn titulo_svg_nao_suprimenta_head_html_sem_titulo() {
+        let html = "<html><head><meta charset='utf-8'></head>
+                    <body><svg><title>SEI/UnB - 0007 - Ofício</title></svg></body></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TituloAusente)
+        );
+    }
+
+    #[test]
+    fn dois_heads_html_nao_podem_selecionar_o_primeiro_titulo() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>
+                    <head><title>SEI/UnB - 0008 - Memorando</title></head></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::CabecalhosHtmlRepetidos)
+        );
+    }
+
+    #[test]
+    fn dois_titulos_no_mesmo_head_permanecem_recusados() {
+        let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title>
+                    <title>SEI/UnB - 0008 - Memorando</title></head></html>";
+        assert_eq!(
+            identidade_do_titulo(html),
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+        );
+    }
+
+    #[test]
     fn titulo_generico_com_digitos_nao_e_documento_sei() {
         assert_eq!(
             identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
