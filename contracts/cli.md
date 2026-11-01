@@ -47,6 +47,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 ## Contratos iniciais de leitura
 
 - [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
+- [processo.buscar](cli/processo-buscar.md): NUP exato em resposta de pesquisa HTML privada, somente offline.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos.
