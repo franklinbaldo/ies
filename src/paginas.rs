@@ -1,6 +1,8 @@
 //! Junção de páginas por intervalos de posição, sem emitir requisições.
 //! A prova de cobertura vive somente aqui, não em Tabela nem em `CaixaDeEntrada`.
 use crate::controle_contexto::contexto_da_pagina;
+#[cfg(test)]
+use crate::controle_contexto::unidade_exibida_no_controle;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use std::collections::BTreeMap;
