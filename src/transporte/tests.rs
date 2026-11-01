@@ -198,3 +198,37 @@ fn mesma_origem_em_outra_pasta_nao_recebe_cookie() {
         Ok(())
     );
 }
+
+
+#[test]
+fn nomes_que_php_normaliza_nao_podem_sobrescrever_acao_ou_hash() {
+    let legitima = url("sei.exemplo");
+    for alias in [
+        "a%63ao=procedimento_excluir",
+        "infra%5Fhash=token_falso",
+        "infra.hash=token_falso",
+        "infra+hash=token_falso",
+        "acao.ajax=excluir",
+    ] {
+        assert_eq!(
+            validar_url(&format!("{legitima}&{alias}")),
+            Err(FalhaTransporte::ChaveDeConsultaNaoCanonica),
+            "{alias}"
+        );
+    }
+}
+
+#[test]
+fn ponto_e_virgula_na_query_nao_muda_acao_apos_parse_php() {
+    let legitima = url("sei.exemplo");
+    assert_eq!(
+        validar_url(&format!("{legitima}&origem=publica;acao=procedimento_excluir")),
+        Err(FalhaTransporte::SeparadorDeConsultaAmbiguo)
+    );
+}
+
+#[test]
+fn parametros_auxiliares_canonicos_preservam_get_unico() {
+    let legitima = url("sei.exemplo");
+    assert!(validar_url(&format!("{legitima}&id_procedimento=42")).is_ok());
+}
