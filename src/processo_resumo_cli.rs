@@ -186,3 +186,78 @@ pub(super) fn validar_numero(cli: &Cli) -> Option<ExitCode> {
     }
     Some(ExitCode::from(2))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::erro_web::ErroCaixa;
+    use crate::resumo_pagina::FalhaResumoPagina;
+    use clap::Parser;
+
+    fn pagina(total: usize, inicio: usize, id: usize, numero: &str) -> String {
+        format!(
+            "<a id='lnkInfraUnidade'>PPI</a>
+             <input id='hdnTipoVisualizacao' value='R'>
+             <input id='hdnRecebidosHashCriterios' value='rec'>
+             <input id='hdnGeradosHashCriterios' value='ger'>
+             <table id='tblProcessosRecebidos'>
+               <caption>{total} registros - {inicio} a {inicio}):</caption>
+               <tr id='P{id}'><td><a class='processoVisualizado'>{numero}</a></td></tr>
+             </table>
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>"
+        )
+    }
+
+    #[test]
+    fn contrato_de_paginas_requer_resumo_e_recusa_fontes_concorrentes() {
+        assert!(Cli::try_parse_from([
+            "ies", "processo", "0002/2026", "--resumo",
+            "--pagina-arquivo", "segunda.html"
+        ]).is_ok());
+        for opcoes in [
+            vec!["--pagina-arquivo", "segunda.html"],
+            vec!["--resumo", "--pagina-arquivo", "segunda.html", "--caixa-local", "caixa.json"],
+            vec!["--resumo", "--pagina-arquivo", "segunda.html", "--observado-na-pagina"],
+        ] {
+            let mut args = vec!["ies", "processo", "0002/2026"];
+            args.extend(opcoes);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
+    fn nup_que_so_esta_na_pagina_complementar_requer_cobertura_total() {
+        let primeira = pagina(2, 1, 1, "0001/2026");
+        let segunda = pagina(2, 2, 2, "0002/2026");
+        let parcial = juntar_paginas_do_resumo(primeira.clone(), vec![], Some("PPI")).unwrap();
+        assert_eq!(
+            resumo_pagina::observar(&parcial, "0002/2026", false),
+            Err(FalhaResumoPagina::PaginasDoControleNaoObtidas)
+        );
+        let consolidada = juntar_paginas_do_resumo(primeira, vec![segunda], Some("PPI")).unwrap();
+        let achado = resumo_pagina::observar(&consolidada, "0002/2026", false).unwrap();
+        assert!(!achado.pagina_parcial);
+        assert_eq!(achado.ocorrencias.len(), 1);
+        assert_eq!(consolidada.caixa.recebidos.processos.len(), 2);
+    }
+
+    #[test]
+    fn paginas_de_outra_unidade_ou_com_intervalo_alterado_sao_recusadas() {
+        let primeira = pagina(2, 1, 1, "0001/2026");
+        let segunda = pagina(2, 2, 2, "0002/2026");
+        let outra = segunda.replace(">PPI</a>", ">OUTRA</a>");
+        assert_eq!(
+            juntar_paginas_do_resumo(primeira.clone(), vec![outra], Some("PPI"))
+                .unwrap_err(),
+            ErroCaixa::ContextoDaPaginaDiferenteDoAnterior
+        );
+        let alterada = pagina(2, 1, 99, "0009/2026");
+        assert_eq!(
+            juntar_paginas_do_resumo(primeira, vec![alterada], Some("PPI"))
+                .unwrap_err(),
+            ErroCaixa::FaixaAlterada {
+                categoria: crate::dominio::Categoria::Recebidos
+            }
+        );
+    }
+}
