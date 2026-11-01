@@ -1,7 +1,7 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
 use crate::{
-    arquivo_caixa, caixa_detalhada, configuracao, dominio, erro_fonte, paginas, paginas_capturadas, saida,
-    transporte,
+    arquivo_caixa, caixa_detalhada, configuracao, dominio, erro_fonte, paginas, paginas_capturadas,
+    saida, transporte,
 };
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -58,7 +58,13 @@ fn mostrar_caixa_detalhada(
 ) -> ExitCode {
     let leitura = match caixa_detalhada::ler_paginas(paginas, unidade) {
         Ok(leitura) => leitura,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), "caixa detalhada não comprovada"),
+        Err(erro) => {
+            return erro_fonte(
+                json_mode,
+                erro.subcodigo(),
+                "caixa detalhada não comprovada",
+            );
+        }
     };
     let saida = json!({
         "unidade": &leitura.unidade,
@@ -71,11 +77,14 @@ fn mostrar_caixa_detalhada(
         return match arquivo_caixa::gravar(caminho, &saida) {
             Ok(bytes) => {
                 if json_mode {
-                    println!("{}", json!({
-                        "arquivo": "gravado",
-                        "bytes": bytes,
-                        "escopo": "caixa_detalhada_verificada"
-                    }));
+                    println!(
+                        "{}",
+                        json!({
+                            "arquivo": "gravado",
+                            "bytes": bytes,
+                            "escopo": "caixa_detalhada_verificada"
+                        })
+                    );
                 } else {
                     println!("IES: caixa detalhada verificada gravada em arquivo privado.");
                 }
@@ -87,8 +96,10 @@ fn mostrar_caixa_detalhada(
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&saida).unwrap());
     } else {
-        println!("IES: {} processos da visão detalhada da unidade {}.", 
-            leitura.total_declarado, leitura.unidade);
+        println!(
+            "IES: {} processos da visão detalhada da unidade {}.",
+            leitura.total_declarado, leitura.unidade
+        );
         for processo in &leitura.processos {
             println!("{} ({})", processo.numero, processo.id.as_str());
         }
