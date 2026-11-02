@@ -48,7 +48,10 @@ antigo despachante `Action` removido do IES.
   `disabled`, que o navegador também omite.
 - Campos do usuário só entram se estiverem na lista da operação **e**
   publicados pelo formulário; nome fora da lista, não publicado ou
-  informado duas vezes tem recusa própria.
+  informado duas vezes tem recusa própria. A única exceção à repetição
+  é um `<select multiple>` servido: o navegador envia um par por opção
+  selecionada, e os pares saem juntos na posição do `select`. O
+  primitivo não escolhe as opções; quem as lê da tela é a operação.
 - O botão de envio efetivo (`type=submit` com o nome declarado) participa
   com nome e valor servidos; sem ele, recusa.
 - `hdnAcao` só seria preenchido por uma regra observada por operação.
@@ -165,6 +168,18 @@ descoberta de formulários na tela; mapa genérico de campos vindo de fora;
 **Desempate:** se uma segunda operação precisar de caso especial, duplicar
 o tratamento na operação em vez de parametrizar o primitivo.
 
+**Mudanças no primitivo nesta revisão, e por que não ficam na operação:**
+(1) o envio devolve o 302 como dado. O status e o `Location` só existem
+dentro de `enviar_submissao_via`, que antes os convertia em erro; a
+operação não teria como interpretá-los sem o primitivo entregá-los. O
+primitivo não interpreta nem segue, e a `OperacaoDeFormulario` não ganhou
+campo. (2) a repetição do nome de um `<select multiple>` é semântica do
+HTML, igual para qualquer formulário; a regra de quais opções enviar
+(`selected` servido do órgão) e as regras do `onsubmit` ficam na
+[decisão da operação](../decisoes/processo-buscar.md). Duas funções de
+leitura (`localizar_formulario`, `decodificar_atributo`) passam a
+`pub(crate)` para a operação reler a mesma tela, sem novo parâmetro.
+
 ## Evidências e lacunas
 
 Formulários inspecionados offline (só nomes e estrutura, sem valores):
@@ -186,9 +201,11 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
   resultado acrescenta `sbmPesquisarSalvar` e mais um botão.
 - `navegar(inicio)` reescreve `hdnInicio` via JavaScript (paginação);
   `onSubmitForm()` exige rádio marcado e órgão em `selOrgaoPesquisa[]`.
-  A derivação **não** executa JavaScript nem serializa controles visíveis
-  fora da lista (selects, checkboxes marcados): diferença conhecida em
-  relação ao navegador, a ser medida por ablação em treinamento.
+  As regras escritas à mão a partir desse código estão na
+  [decisão da operação](../decisoes/processo-buscar.md). A derivação
+  **não** executa JavaScript nem serializa outros controles visíveis
+  (selects, checkboxes marcados): diferença conhecida em relação ao
+  navegador, a ser medida por ablação em treinamento.
 - Nas duas instalações, dois POSTs responderam 200 com
   `table.pesquisaResultado` e dois responderam **302** para
   `procedimento_trabalhar` (interações 6 e 10), interpretado sem seguir

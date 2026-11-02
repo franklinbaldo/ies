@@ -47,6 +47,45 @@ links e identificadores verificáveis, e número exato.
 - [Parser da resposta](../../src/pesquisa_web.rs)
 - [Política de acesso](../interfaces/acesso-por-instalacao.md)
 
+## Regras do `onsubmit` para a derivação offline
+
+Fora da CLI: `derivar_pesquisa_de_protocolo` (em
+`src/pesquisa_web/formulario_pesquisa.rs`) prepara o POST da
+[decisão 0002](../arquitetura/0002-submeter-formulario-observado.md),
+sem rede. As regras foram escritas à mão a partir do JavaScript servido no
+GET de `protocolo_pesquisar` (interações 1, 3, 5 e 9) das cassettes
+`processo-busca-*` de UnB, PEN1, UFRJ e Goiás. O IES não executa nem
+interpreta JavaScript.
+
+- `onSubmitForm()` exige `#optProcessos` ou `#optDocumentos` marcado. A
+  tela vem com `optDocumentos` (`D`) marcado nas quatro instalações, e `D`
+  exige ainda `chkSinDocumentosGerados` ou `chkSinDocumentosRecebidos`,
+  checkboxes que a derivação não envia. Para buscar processo, a operação
+  envia o valor servido de `#optProcessos` (nome `rdoPesquisarEm`,
+  observado `P`), como o clique no rádio. Rádio ausente, repetido, sem
+  `value` ou com outro nome são recusas próprias.
+- Com `P`, `tratarCamposDocumento()` esvazia `hdnIdAssinante`, entre
+  outros campos que a derivação não envia. Como os ocultos saem como
+  servidos, `hdnIdAssinante` não vazio é recusado.
+- `onSubmitForm()` exige órgão em `selOrgaoPesquisa[]` (`multipleSelect`,
+  `getSelects`). A operação envia as opções com `selected` servidas, na
+  ordem do documento, e não inventa órgão. Seleção servida: 1 opção na
+  UnB, 2 na PEN1 e na UFRJ e 62 em Goiás. `select` ausente ou repetido,
+  sem `multiple`, sem seleção ou com opção selecionada sem `value` são
+  recusas próprias.
+- `navegar(inicio)` só reescreve `hdnInicio` na paginação; `sbmPesquisar`
+  não tem `onclick`. O valor servido foi `0` nos 16 GETs; outro valor
+  pediria página posterior e é recusado.
+- Contato, datas e, na UFRJ e em Goiás, faixa de valores só são conferidos
+  quando preenchidos; a derivação não os envia. `onSubmitForm()` é igual
+  na UnB e na PEN1, e na UFRJ e em Goiás tem essas conferências a mais. A
+  operação codifica a **interseção**.
+
+As checkboxes marcadas, os selects simples e os textos vazios que o
+navegador enviaria continuam fora do POST. Medir isso exige a
+[coleta do formato de POST](../coleta-formato-post.md) ou ablação em
+treinamento autorizado. Validação live: **NOT_RUN**.
+
 ## Limitações e revisão
 
 Para Web live, identificar POST real, hiddens, efeitos, autorização de
