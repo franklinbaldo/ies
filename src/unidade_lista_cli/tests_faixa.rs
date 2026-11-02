@@ -108,7 +108,11 @@ fn detalhada_parcial_exporta_faixa_observada() {
     fs::remove_file(&caminho).unwrap();
     // A visão D é uma lista própria do SEI, na mesma forma das outras.
     assert_eq!(valor.as_array().map(Vec::len), Some(1));
-    assert_eq!(valor[0]["categoria"], "detalhada");
+    // D é modo de exibição, não categoria: a chave existe e vale null.
+    assert_eq!(
+        valor[0].as_object().unwrap().get("categoria"),
+        Some(&serde_json::Value::Null)
+    );
     assert_eq!(valor[0]["unidade"], "PPI");
     assert_eq!(valor[0]["origem"], "web");
     assert_eq!(valor[0]["total_declarado"], 3);
@@ -125,5 +129,32 @@ fn exportacao_web_e_reimportada_pela_caixa_local() {
     let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
     assert_eq!(observada.caixa().recebidos.processos.len(), 2);
     assert_eq!(observada.caixa().recebidos.processos[1].numero, "NUP-2");
+    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
+}
+
+#[test]
+fn exportacao_detalhada_e_reimportada_sem_categoria() {
+    let html = "<html><a id='lnkInfraUnidade'>PPI</a>\
+        <input id='hdnTipoVisualizacao' value='D'>\
+        <table id='tblProcessosDetalhado'>\
+        <caption>(1 registros - 1 a 1):</caption>\
+        <tr><th>Processo</th><th>Tipo</th></tr>\
+        <tr id='P42'><td><a class='outraClasse'\
+        href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
+        000042/2026</a></td><td>Ofício</td></tr></table></html>";
+    let caminho = destino("detalhada-reimportada");
+    assert_eq!(
+        mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
+        ExitCode::SUCCESS
+    );
+    let texto = fs::read_to_string(&caminho).unwrap();
+    fs::remove_file(&caminho).unwrap();
+    let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
+    let crate::caixa_local::ListasLocais::SemCategoria(processos) = &observada.listas else {
+        panic!("a exportação D não tem recebidos/gerados");
+    };
+    assert_eq!(processos.len(), 1);
+    assert_eq!(processos[0].numero, "000042/2026");
+    assert_eq!(processos[0].visualizado, None);
     assert_eq!(observada.unidade.as_deref(), Some("PPI"));
 }

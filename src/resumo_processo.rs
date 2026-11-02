@@ -61,5 +61,28 @@ mod tests {
         };
         assert_eq!(ocorrencias(&caixa, "000123/2026").len(), 1);
         assert_eq!(ocorrencias(&caixa, "123/2026"), []);
+        let json = serde_json::to_value(ocorrencias(&caixa, "000123/2026")).unwrap();
+        assert_eq!(json[0]["categoria"], "recebidos");
+        assert_eq!(json[0]["processo"]["visualizado"], false);
+    }
+
+    #[test]
+    fn ocorrencia_na_lista_sem_categoria_publica_categoria_null() {
+        let processos = [ProcessoDetalhado {
+            id: IdProcedimento::novo("42").unwrap(),
+            numero: "000123/2026".into(),
+            visualizado: None,
+            sigiloso: Some(false),
+        }];
+        let achados = ocorrencias_sem_categoria(&processos, "000123/2026");
+        assert_eq!(achados.len(), 1);
+        assert_eq!(ocorrencias_sem_categoria(&processos, "123/2026"), []);
+        let json = serde_json::to_value(&achados).unwrap();
+        let ocorrencia = json[0].as_object().unwrap();
+        assert_eq!(ocorrencia.get("categoria"), Some(&serde_json::Value::Null));
+        assert_eq!(json[0]["processo"]["id"], "42");
+        assert_eq!(json[0]["processo"]["numero"], "000123/2026");
+        assert!(json[0]["processo"]["visualizado"].is_null());
+        assert_eq!(json[0]["processo"]["sigiloso"], false);
     }
 }

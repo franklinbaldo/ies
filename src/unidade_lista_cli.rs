@@ -311,7 +311,7 @@ mod testes_exportacao {
             ExitCode::SUCCESS
         );
         let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-        assert_eq!(json[0]["categoria"], "detalhada");
+        assert!(json[0]["categoria"].is_null());
         assert_eq!(json[0]["processos"][0]["numero"], "000042/2026");
         assert!(json[0].get("recebidos").is_none());
         assert!(json.get(1).is_none());

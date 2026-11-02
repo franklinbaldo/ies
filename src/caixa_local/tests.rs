@@ -155,6 +155,127 @@ fn exportacao_no_formato_anterior_e_recusada() {
     );
 }
 
+fn detalhada() -> serde_json::Value {
+    json!([{
+        "unidade": "PPI", "origem": "web", "categoria": null,
+        "total_declarado": 2, "faixa_observada": {"inicio": 1, "fim": 2},
+        "processos": [
+            {"id":"0042","numero":"000123/2026","visualizado":null,"sigiloso":null},
+            {"id":"43","numero":"000124/2026","visualizado":true,"sigiloso":false}
+        ]
+    }])
+}
+
+#[test]
+fn aceita_lista_unica_sem_categoria_da_visao_detalhada() {
+    let observada = interpretar(&detalhada().to_string(), Some("ppi")).unwrap();
+    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
+    let ListasLocais::SemCategoria(processos) = observada.listas else {
+        panic!("esperava a lista sem categoria");
+    };
+    assert_eq!(processos.len(), 2);
+    assert_eq!(processos[0].id.as_str(), "0042");
+    assert_eq!(processos[0].numero, "000123/2026");
+    assert_eq!(processos[0].visualizado, None);
+    assert_eq!(processos[0].sigiloso, None);
+    assert_eq!(processos[1].visualizado, Some(true));
+    assert_eq!(processos[1].sigiloso, Some(false));
+}
+
+#[test]
+fn recusa_lista_unica_detalhada_da_pr_146_como_formato_invalido() {
+    let mut antiga = detalhada();
+    antiga[0]["categoria"] = json!("detalhada");
+    assert_eq!(
+        interpretar(&antiga.to_string(), None).unwrap_err(),
+        ErroCaixaLocal::FormatoInvalido
+    );
+}
+
+#[test]
+fn lista_unica_com_categoria_ou_par_sem_categoria_nao_e_aceito() {
+    let mut recebidos = detalhada();
+    recebidos[0]["categoria"] = json!("recebidos");
+    let mut par: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
+    par[0]["categoria"] = json!(null);
+    par[1]["categoria"] = json!(null);
+    for valor in [recebidos, par] {
+        assert_eq!(
+            interpretar(&valor.to_string(), None).unwrap_err(),
+            ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados
+        );
+    }
+}
+
+#[test]
+fn lista_sem_categoria_exige_total_e_identidades_comprovados() {
+    let mut total = detalhada();
+    total[0]["total_declarado"] = json!(3);
+    let mut id = detalhada();
+    id[0]["processos"][1]["id"] = json!("x");
+    let mut repetido = detalhada();
+    repetido[0]["processos"][1]["id"] = json!("0042");
+    let mut numero = detalhada();
+    numero[0]["processos"][1]["numero"] = json!(" 000124/2026");
+    let casos = [
+        (
+            total,
+            ErroCaixaLocal::TotalNaoComprovado { categoria: None },
+        ),
+        (
+            id,
+            ErroCaixaLocal::IdentificadorInvalido { categoria: None },
+        ),
+        (
+            repetido,
+            ErroCaixaLocal::IdentificadorRepetido { categoria: None },
+        ),
+        (numero, ErroCaixaLocal::NumeroInvalido { categoria: None }),
+    ];
+    for (valor, esperado) in casos {
+        assert_eq!(interpretar(&valor.to_string(), None).unwrap_err(), esperado);
+    }
+}
+
+#[test]
+fn lista_sem_categoria_confere_origem_e_unidade() {
+    let mut origem = detalhada();
+    origem[0]["origem"] = json!("replay");
+    assert_eq!(
+        interpretar(&origem.to_string(), None).unwrap_err(),
+        ErroCaixaLocal::OrigemNaoWeb
+    );
+    assert_eq!(
+        interpretar(&detalhada().to_string(), Some("OUTRA")).unwrap_err(),
+        ErroCaixaLocal::UnidadeDiferenteDaSolicitada
+    );
+}
+
+#[test]
+fn subcodigos_da_lista_sem_categoria_sao_estaveis() {
+    let casos = [
+        (
+            ErroCaixaLocal::TotalNaoComprovado { categoria: None },
+            "total_da_lista_sem_categoria_do_arquivo_nao_comprovado",
+        ),
+        (
+            ErroCaixaLocal::IdentificadorInvalido { categoria: None },
+            "id_da_lista_sem_categoria_do_arquivo_invalido",
+        ),
+        (
+            ErroCaixaLocal::NumeroInvalido { categoria: None },
+            "numero_da_lista_sem_categoria_do_arquivo_invalido",
+        ),
+        (
+            ErroCaixaLocal::IdentificadorRepetido { categoria: None },
+            "id_da_lista_sem_categoria_do_arquivo_repetido",
+        ),
+    ];
+    for (erro, subcodigo) in casos {
+        assert_eq!(erro.subcodigo(), subcodigo);
+    }
+}
+
 impl CaixaObservadaLocal {
     /// As listas `[recebidos, gerados]`; outra forma é falha do teste.
     pub(crate) fn caixa(&self) -> &CaixaDeEntrada {
