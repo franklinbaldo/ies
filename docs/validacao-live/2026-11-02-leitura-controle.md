@@ -112,3 +112,22 @@ recusado **antes** de qualquer POST. Nenhuma escrita.
 a leitura padrão seguinte mostrou recebidos na faixa 101–114 — o
 servidor lembra a página, e a saída o declara pela faixa. `--pagina 1`
 em cada categoria restaurou 1–100 em todas as instalações paginadas.
+
+## Nova sintaxe: `unidade recebidos|gerados [--pagina N]`
+
+Mesmas sessões, sem login novo. Em PEN1, GO e UnB, `listar-processos`
+devolveu o array das duas listas e `recebidos`/`gerados` uma lista cada,
+com os mesmos totais e faixas das rodadas anteriores. PEN1:
+`recebidos --pagina 2` 101–114, `gerados --pagina 3` 201–218,
+`gerados --pagina 4` recusado sem POST, `--pagina 1` restaurou as duas.
+UnB: `gerados --pagina 2` recusado sem POST. `listar-processos
+--categoria` saiu com código 2.
+
+**GO — 5xx ao voltar de 799 para 1.** `gerados --pagina 799` devolveu
+7981–7990. Em seguida, `gerados --pagina 1` recebeu
+`status_http_de_erro_do_servidor` duas vezes (a 2ª, repetição manual
+única, após um GET que confirmou a página 799 lembrada). Na rodada
+anterior, a mesma volta, depois de um POST em recebidos, passou. Sem
+nova tentativa: a sessão de treinamento ficou com Gerados na página
+799, e a leitura seguinte o declara pela faixa. O subcódigo separado
+em #145 identificou a intermitência de GO como erro 5xx do servidor.
