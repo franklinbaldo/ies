@@ -322,6 +322,27 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    fn troca_de_pai_entre_previa_e_abertura_falha_fechada() {
+        let raiz = pasta();
+        let saida = raiz.join("saida");
+        let original = raiz.join("saida-original");
+        fs::create_dir(&saida).unwrap();
+        let destino = saida.join("caixa.json");
+        let resultado = preparar_destino_com_intervalo(&destino, || {
+            fs::rename(&saida, &original).unwrap();
+            fs::create_dir(&saida).unwrap();
+        });
+        assert!(matches!(
+            resultado,
+            Err(ErroArquivoCaixa::DiretorioTrocadoDurantePreparacao)
+        ));
+        assert!(!saida.join("caixa.json").exists());
+        assert!(!original.join("caixa.json").exists());
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
     fn troca_por_diretorio_regular_apos_preparacao_nao_desvia_json() {
         let raiz = pasta();
         let saida = raiz.join("saida");
