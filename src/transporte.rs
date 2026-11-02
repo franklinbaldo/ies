@@ -6,7 +6,25 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
+/// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusHttpRecusado {
+    pub status: u16,
+    /// `None` em 3xx (corpo não lido) ou quando o corpo não rendeu texto.
+    pub mensagem_do_servidor: Option<String>,
+}
+
+impl StatusHttpRecusado {
+    pub(crate) fn sem_mensagem(status: u16) -> Self {
+        Self {
+            status,
+            mensagem_do_servidor: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FalhaTransporte {
     UrlInvalida,
     ChaveDeConsultaNaoCanonica,
@@ -20,14 +38,16 @@ pub enum FalhaTransporte {
     ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
     CookieInvalido,
-    AcessoNegado,
-    Redirecionamento,
+    /// Status HTTP 401 ou 403.
+    AcessoNegado(StatusHttpRecusado),
+    /// Status HTTP 3xx; o corpo não é lido.
+    Redirecionamento(StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
-    StatusHttpDeErroDoServidor,
+    StatusHttpDeErroDoServidor(StatusHttpRecusado),
     /// Status HTTP 429.
-    StatusHttpDeLimiteDeRequisicoes,
+    StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado),
     /// Qualquer outro status diferente de 200.
-    StatusHttpDiferenteDe200,
+    StatusHttpDiferenteDe200(StatusHttpRecusado),
     /// `Content-Type` cujo tipo principal não é `text/html`.
     TipoDeConteudoNaoHtml,
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
@@ -38,7 +58,7 @@ pub enum FalhaTransporte {
 }
 
 impl FalhaTransporte {
-    pub fn subcodigo(self) -> &'static str {
+    pub fn subcodigo(&self) -> &'static str {
         match self {
             Self::UrlInvalida => "url_invalida",
             Self::ChaveDeConsultaNaoCanonica => "chave_de_consulta_do_controle_nao_canonica",
@@ -54,11 +74,11 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
             Self::CookieInvalido => "cookie_invalido",
-            Self::AcessoNegado => "sessao_nao_autorizada",
-            Self::Redirecionamento => "redirecionamento_recusado",
-            Self::StatusHttpDeErroDoServidor => "status_http_de_erro_do_servidor",
-            Self::StatusHttpDeLimiteDeRequisicoes => "status_http_de_limite_de_requisicoes",
-            Self::StatusHttpDiferenteDe200 => "status_http_diferente_de_200",
+            Self::AcessoNegado(_) => "sessao_nao_autorizada",
+            Self::Redirecionamento(_) => "redirecionamento_recusado",
+            Self::StatusHttpDeErroDoServidor(_) => "status_http_de_erro_do_servidor",
+            Self::StatusHttpDeLimiteDeRequisicoes(_) => "status_http_de_limite_de_requisicoes",
+            Self::StatusHttpDiferenteDe200(_) => "status_http_diferente_de_200",
             Self::TipoDeConteudoNaoHtml => "tipo_de_conteudo_nao_html",
             Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
                 "corpo_nao_decodificavel_no_charset_declarado"
@@ -68,7 +88,7 @@ impl FalhaTransporte {
             Self::Rede => "falha_de_rede",
         }
     }
-    pub fn mensagem(self) -> &'static str {
+    pub fn mensagem(&self) -> &'static str {
         match self {
             Self::UrlInvalida => "URL assinada da caixa inválida",
             Self::ChaveDeConsultaNaoCanonica => {
@@ -92,11 +112,13 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
             Self::CookieInvalido => "formato de cookie de sessão inválido",
-            Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
-            Self::Redirecionamento => "redirecionamento recusado; a sessão pode exigir novo login",
-            Self::StatusHttpDeErroDoServidor => "o SEI respondeu com erro do servidor (5xx)",
-            Self::StatusHttpDeLimiteDeRequisicoes => "o SEI limitou as requisições (429)",
-            Self::StatusHttpDiferenteDe200 => "o SEI respondeu com status HTTP diferente de 200",
+            Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
+            Self::Redirecionamento(_) => {
+                "redirecionamento recusado; a sessão pode exigir novo login"
+            }
+            Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
+            Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
+            Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
             Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
             Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
                 "o corpo da resposta não decodifica no charset declarado"
@@ -106,6 +128,20 @@ impl FalhaTransporte {
             }
             Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
             Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
+        }
+    }
+}
+
+impl FalhaTransporte {
+    /// Status e mensagem do SEI, só nas recusas por status HTTP.
+    pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::AcessoNegado(recusa)
+            | Self::Redirecionamento(recusa)
+            | Self::StatusHttpDeErroDoServidor(recusa)
+            | Self::StatusHttpDeLimiteDeRequisicoes(recusa)
+            | Self::StatusHttpDiferenteDe200(recusa) => Some(recusa),
+            _ => None,
         }
     }
 }
@@ -283,17 +319,8 @@ pub(crate) struct RespostaWeb<R: Read> {
 pub(crate) fn decodificar_resposta<R: Read>(
     mut resposta: RespostaWeb<R>,
 ) -> Result<String, FalhaTransporte> {
-    if (300..400).contains(&resposta.status_code) {
-        return Err(FalhaTransporte::Redirecionamento);
-    }
-    if resposta.status_code == 401 || resposta.status_code == 403 {
-        return Err(FalhaTransporte::AcessoNegado);
-    }
-    match resposta.status_code {
-        200 => {}
-        429 => return Err(FalhaTransporte::StatusHttpDeLimiteDeRequisicoes),
-        500..=599 => return Err(FalhaTransporte::StatusHttpDeErroDoServidor),
-        _ => return Err(FalhaTransporte::StatusHttpDiferenteDe200),
+    if resposta.status_code != 200 {
+        return Err(recusar_status(resposta));
     }
     if !crate::mime_web::e_html(&resposta.mime) {
         return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
@@ -312,6 +339,26 @@ pub(crate) fn decodificar_resposta<R: Read>(
         return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
     }
     Ok(html)
+}
+
+/// Status diferente de 200: a variante sai do status; o corpo (fora 3xx)
+/// é lido uma vez, até `corpo_de_recusa::LIMITE`, só para a mensagem.
+fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTransporte {
+    let codigo = resposta.status_code;
+    let status = u16::try_from(codigo).unwrap_or(0);
+    if (300..400).contains(&codigo) {
+        return FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(status));
+    }
+    let recusa = StatusHttpRecusado {
+        status,
+        mensagem_do_servidor: corpo_de_recusa::mensagem(resposta.corpo, &resposta.mime),
+    };
+    match codigo {
+        401 | 403 => FalhaTransporte::AcessoNegado(recusa),
+        429 => FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa),
+        500..=599 => FalhaTransporte::StatusHttpDeErroDoServidor(recusa),
+        _ => FalhaTransporte::StatusHttpDiferenteDe200(recusa),
+    }
 }
 
 /// A única chamada GET é injetável em testes; URL, origem e cookie passam
@@ -385,6 +432,15 @@ pub fn read_box_from_file(
     read_box(url.trim(), cookie_file, origem.trim())
 }
 
+#[path = "transporte/corpo_de_recusa.rs"]
+pub(crate) mod corpo_de_recusa;
+
+#[path = "transporte/texto_de_recusa.rs"]
+pub(crate) mod texto_de_recusa;
+
+#[path = "transporte/saneamento.rs"]
+pub(crate) mod saneamento;
+
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;
 
@@ -399,6 +455,10 @@ mod web_mock_tests;
 #[cfg(test)]
 #[path = "transporte/tests_resposta.rs"]
 mod tests_resposta;
+
+#[cfg(test)]
+#[path = "transporte/tests_recusa_http.rs"]
+mod tests_recusa_http;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]

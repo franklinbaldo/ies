@@ -49,6 +49,7 @@ mod resumo_exportacao;
 mod resumo_pagina;
 mod resumo_processo;
 mod saida;
+mod saida_erro;
 mod setup_cli;
 mod status_cli;
 mod status_web;
@@ -296,20 +297,7 @@ fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCo
 }
 
 fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "fonte_invalida",
-                "subcodigo": subcodigo,
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-    }
-    ExitCode::from(1)
+    saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
 }
 
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar

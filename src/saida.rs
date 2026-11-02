@@ -19,7 +19,8 @@ pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
 pub(crate) struct ListaObservada<'a, P: Serialize> {
     pub(crate) unidade: Option<&'a str>,
     pub(crate) origem: &'a str,
-    pub(crate) categoria: &'a str,
+    /// `None` (JSON `null`) na lista única da visão detalhada.
+    pub(crate) categoria: Option<&'a str>,
     pub(crate) total_declarado: Option<usize>,
     pub(crate) faixa_observada: Option<(usize, usize)>,
     pub(crate) processos: &'a [P],
@@ -47,7 +48,7 @@ pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem
     lista_json(&ListaObservada {
         unidade: leitura.unidade.as_deref(),
         origem,
-        categoria: categoria.rotulo(),
+        categoria: Some(categoria.rotulo()),
         total_declarado: tabela.total_declarado,
         faixa_observada: cobertura.faixa_observada(),
         processos: &tabela.processos,

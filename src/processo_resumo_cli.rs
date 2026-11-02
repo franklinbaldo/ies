@@ -45,7 +45,14 @@ fn mostrar_resumo_processo(
         &arquivos.origem,
     ) {
         Ok(html) => html,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => {
+            return crate::saida_erro::erro_fonte_http(
+                json_mode,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
     };
     let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
         Ok(paginas) => paginas,
@@ -130,7 +137,12 @@ fn mostrar_resumo_de_caixa_local(
         Ok(dados) => dados,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let achados = resumo_processo::ocorrencias(&observada.caixa, numero);
+    let achados = match &observada.listas {
+        caixa_local::ListasLocais::Categorias(caixa) => resumo_processo::ocorrencias(caixa, numero),
+        caixa_local::ListasLocais::SemCategoria(processos) => {
+            resumo_processo::ocorrencias_sem_categoria(processos, numero)
+        }
+    };
     if achados.is_empty() {
         return erro_fonte(
             json_mode,

@@ -29,7 +29,14 @@ pub(super) fn listar_processos_da_unidade(
         &arquivos.origem,
     ) {
         Ok(html) => html,
-        Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
+        Err(falha) => {
+            return crate::saida_erro::erro_fonte_http(
+                json_mode,
+                falha.subcodigo(),
+                falha.mensagem(),
+                falha.status_http(),
+            );
+        }
     };
     if let Err(erro) =
         paginas_capturadas::conferir_orcamento_com_inicial(&paginas_adicionais, html.len())
@@ -69,11 +76,11 @@ fn mostrar_caixa_detalhada(
             );
         }
     };
-    // A visão D é uma lista própria do SEI: array de uma lista, mesma forma.
+    // D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
     let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
-        categoria: "detalhada",
+        categoria: None,
         total_declarado: Some(leitura.total_declarado),
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,
@@ -311,7 +318,7 @@ mod testes_exportacao {
             ExitCode::SUCCESS
         );
         let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-        assert_eq!(json[0]["categoria"], "detalhada");
+        assert!(json[0]["categoria"].is_null());
         assert_eq!(json[0]["processos"][0]["numero"], "000042/2026");
         assert!(json[0].get("recebidos").is_none());
         assert!(json.get(1).is_none());

@@ -1,12 +1,14 @@
 //! Releitura offline de exportação privada da caixa; nunca infere sessão viva.
+use crate::caixa_detalhada::ProcessoDetalhado;
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::processo::NumeroProcesso;
 use crate::transporte::{self, FalhaTransporte};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCaixaLocal {
     Arquivo(FalhaTransporte),
     FormatoInvalido,
@@ -18,22 +20,23 @@ pub(crate) enum ErroCaixaLocal {
     UnidadeDasListasExportadasDiferente,
     /// As duas listas exportadas declaram origens diferentes.
     OrigemDasListasExportadasDiferente,
+    /// `categoria: None` é a lista única exportada da visão detalhada.
     TotalNaoComprovado {
-        categoria: Categoria,
+        categoria: Option<Categoria>,
     },
     IdentificadorInvalido {
-        categoria: Categoria,
+        categoria: Option<Categoria>,
     },
     NumeroInvalido {
-        categoria: Categoria,
+        categoria: Option<Categoria>,
     },
     IdentificadorRepetido {
-        categoria: Categoria,
+        categoria: Option<Categoria>,
     },
 }
 
 impl ErroCaixaLocal {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Arquivo(falha) => falha.subcodigo(),
             Self::FormatoInvalido => "formato_do_arquivo_da_caixa_invalido",
@@ -49,32 +52,44 @@ impl ErroCaixaLocal {
                 "origem_das_listas_do_arquivo_da_caixa_diferente"
             }
             Self::TotalNaoComprovado {
-                categoria: Categoria::Recebidos,
+                categoria: Some(Categoria::Recebidos),
             } => "total_recebidos_do_arquivo_nao_comprovado",
             Self::TotalNaoComprovado {
-                categoria: Categoria::Gerados,
+                categoria: Some(Categoria::Gerados),
             } => "total_gerados_do_arquivo_nao_comprovado",
+            Self::TotalNaoComprovado { categoria: None } => {
+                "total_da_lista_sem_categoria_do_arquivo_nao_comprovado"
+            }
             Self::IdentificadorInvalido {
-                categoria: Categoria::Recebidos,
+                categoria: Some(Categoria::Recebidos),
             } => "id_recebidos_do_arquivo_invalido",
             Self::IdentificadorInvalido {
-                categoria: Categoria::Gerados,
+                categoria: Some(Categoria::Gerados),
             } => "id_gerados_do_arquivo_invalido",
+            Self::IdentificadorInvalido { categoria: None } => {
+                "id_da_lista_sem_categoria_do_arquivo_invalido"
+            }
             Self::NumeroInvalido {
-                categoria: Categoria::Recebidos,
+                categoria: Some(Categoria::Recebidos),
             } => "numero_recebidos_do_arquivo_invalido",
             Self::NumeroInvalido {
-                categoria: Categoria::Gerados,
+                categoria: Some(Categoria::Gerados),
             } => "numero_gerados_do_arquivo_invalido",
+            Self::NumeroInvalido { categoria: None } => {
+                "numero_da_lista_sem_categoria_do_arquivo_invalido"
+            }
             Self::IdentificadorRepetido {
-                categoria: Categoria::Recebidos,
+                categoria: Some(Categoria::Recebidos),
             } => "id_recebidos_do_arquivo_repetido",
             Self::IdentificadorRepetido {
-                categoria: Categoria::Gerados,
+                categoria: Some(Categoria::Gerados),
             } => "id_gerados_do_arquivo_repetido",
+            Self::IdentificadorRepetido { categoria: None } => {
+                "id_da_lista_sem_categoria_do_arquivo_repetido"
+            }
         }
     }
-    pub(crate) fn mensagem(self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Arquivo(falha) => falha.mensagem(),
             Self::FormatoInvalido => "arquivo da caixa não tem a estrutura JSON esperada",
@@ -99,9 +114,18 @@ impl ErroCaixaLocal {
     }
 }
 
+/// As listas lidas do arquivo, na forma em que foram exportadas.
+#[derive(Debug)]
+pub(crate) enum ListasLocais {
+    /// `[recebidos, gerados]` da visão resumida.
+    Categorias(CaixaDeEntrada),
+    /// `[lista]` da visão detalhada: `categoria: null`, sem categoria por linha.
+    SemCategoria(Vec<ProcessoDetalhado>),
+}
+
 #[derive(Debug)]
 pub(crate) struct CaixaObservadaLocal {
-    pub(crate) caixa: CaixaDeEntrada,
+    pub(crate) listas: ListasLocais,
     pub(crate) unidade: Option<String>,
 }
 
@@ -111,7 +135,8 @@ pub(crate) struct CaixaObservadaLocal {
 struct ListaExportada {
     unidade: Option<String>,
     origem: String,
-    categoria: String,
+    /// `null` somente na lista única da visão detalhada.
+    categoria: Option<String>,
     total_declarado: Option<usize>,
     // A importação comprova cobertura pelo total igual às linhas; a faixa
     // é dado da leitura e não substitui essa prova.
@@ -120,16 +145,31 @@ struct ListaExportada {
     processos: Vec<Linha>,
 }
 
+/// `visualizado`/`sigiloso` são `null` na visão detalhada quando a classe
+/// do link não foi reconhecida; na resumida, `visualizado` é obrigatório.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Linha {
     id: String,
     numero: String,
-    visualizado: bool,
-    // Exportações anteriores não tinham o campo: aquelas versões recusavam
-    // qualquer linha sem as classes não sigilosas, logo a ausência é `false`.
+    visualizado: Option<bool>,
     #[serde(default)]
-    sigiloso: bool,
+    sigiloso: Option<bool>,
+}
+
+/// Identidade da linha preservada como exportada (NUP opaco, sem aparar).
+fn identidade(
+    linha: &Linha,
+    categoria: Option<Categoria>,
+) -> Result<IdProcedimento, ErroCaixaLocal> {
+    let id = IdProcedimento::novo(&linha.id)
+        .map_err(|_| ErroCaixaLocal::IdentificadorInvalido { categoria })?;
+    let numero = NumeroProcesso::novo(&linha.numero)
+        .map_err(|_| ErroCaixaLocal::NumeroInvalido { categoria })?;
+    if numero.as_str() != linha.numero {
+        return Err(ErroCaixaLocal::NumeroInvalido { categoria });
+    }
+    Ok(id)
 }
 
 fn converter(
@@ -139,53 +179,61 @@ fn converter(
     // Arquivo arbitrário não comprova cobertura por si só, mas totais divergentes
     // impedem até a interpretação interna como uma caixa integral exportada.
     if secao.total_declarado != Some(secao.processos.len()) {
-        return Err(ErroCaixaLocal::TotalNaoComprovado { categoria });
+        return Err(ErroCaixaLocal::TotalNaoComprovado {
+            categoria: Some(categoria),
+        });
     }
     let mut processos = Vec::with_capacity(secao.processos.len());
     for linha in secao.processos {
-        let id = IdProcedimento::novo(&linha.id)
-            .map_err(|_| ErroCaixaLocal::IdentificadorInvalido { categoria })?;
-        let numero = NumeroProcesso::novo(&linha.numero)
-            .map_err(|_| ErroCaixaLocal::NumeroInvalido { categoria })?;
-        // Não reescrever um NUP opaco nem aparar espaços no arquivo escolhido.
-        if numero.as_str() != linha.numero {
-            return Err(ErroCaixaLocal::NumeroInvalido { categoria });
-        }
+        let id = identidade(&linha, Some(categoria))?;
         processos.push(Processo {
+            id,
+            numero: linha.numero,
+            visualizado: linha.visualizado.ok_or(ErroCaixaLocal::FormatoInvalido)?,
+            // Exportações anteriores não tinham o campo: aquelas versões
+            // recusavam linhas sem as classes não sigilosas.
+            sigiloso: linha.sigiloso.unwrap_or(false),
+        });
+    }
+    Tabela::nova(categoria, secao.total_declarado, processos).map_err(|erro| match erro {
+        ErroCaixa::IdRepetido { .. } => ErroCaixaLocal::IdentificadorRepetido {
+            categoria: Some(categoria),
+        },
+        _ => ErroCaixaLocal::TotalNaoComprovado {
+            categoria: Some(categoria),
+        },
+    })
+}
+
+/// Lista única da visão detalhada: mesmas provas de total e identidade.
+fn converter_sem_categoria(
+    secao: ListaExportada,
+) -> Result<Vec<ProcessoDetalhado>, ErroCaixaLocal> {
+    if secao.total_declarado != Some(secao.processos.len()) {
+        return Err(ErroCaixaLocal::TotalNaoComprovado { categoria: None });
+    }
+    let mut vistos = HashSet::with_capacity(secao.processos.len());
+    let mut processos = Vec::with_capacity(secao.processos.len());
+    for linha in secao.processos {
+        let id = identidade(&linha, None)?;
+        if !vistos.insert(id.as_str().to_owned()) {
+            return Err(ErroCaixaLocal::IdentificadorRepetido { categoria: None });
+        }
+        processos.push(ProcessoDetalhado {
             id,
             numero: linha.numero,
             visualizado: linha.visualizado,
             sigiloso: linha.sigiloso,
         });
     }
-    Tabela::nova(categoria, secao.total_declarado, processos).map_err(|erro| match erro {
-        ErroCaixa::IdRepetido { .. } => ErroCaixaLocal::IdentificadorRepetido { categoria },
-        _ => ErroCaixaLocal::TotalNaoComprovado { categoria },
-    })
+    Ok(processos)
 }
 
-/// Interpreta somente exportações da CLI; consistência interna não autentica o SEI.
-pub(crate) fn interpretar(
-    json: &str,
+/// Origem e unidade valem para todas as listas do arquivo.
+fn conferir_contexto(
+    exportada: &ListaExportada,
     unidade: Option<&str>,
-) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
-    let listas: Vec<ListaExportada> =
-        serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
-    let [recebidos, gerados]: [ListaExportada; 2] = listas
-        .try_into()
-        .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
-    if recebidos.categoria != Categoria::Recebidos.rotulo()
-        || gerados.categoria != Categoria::Gerados.rotulo()
-    {
-        return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados);
-    }
-    if recebidos.unidade != gerados.unidade {
-        return Err(ErroCaixaLocal::UnidadeDasListasExportadasDiferente);
-    }
-    if recebidos.origem != gerados.origem {
-        return Err(ErroCaixaLocal::OrigemDasListasExportadasDiferente);
-    }
-    let exportada = &recebidos;
+) -> Result<(), ErroCaixaLocal> {
     if !matches!(
         exportada.origem.as_str(),
         "web" | "web_com_paginas_privadas"
@@ -207,12 +255,62 @@ pub(crate) fn interpretar(
     {
         return Err(ErroCaixaLocal::UnidadeDiferenteDaSolicitada);
     }
+    Ok(())
+}
+
+/// Interpreta somente exportações da CLI; consistência interna não autentica o SEI.
+pub(crate) fn interpretar(
+    json: &str,
+    unidade: Option<&str>,
+) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
+    let listas: Vec<ListaExportada> =
+        serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
+    if listas.len() == 1 {
+        return interpretar_sem_categoria(listas, unidade);
+    }
+    let [recebidos, gerados]: [ListaExportada; 2] = listas
+        .try_into()
+        .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
+    if recebidos.categoria.as_deref() != Some(Categoria::Recebidos.rotulo())
+        || gerados.categoria.as_deref() != Some(Categoria::Gerados.rotulo())
+    {
+        return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados);
+    }
+    if recebidos.unidade != gerados.unidade {
+        return Err(ErroCaixaLocal::UnidadeDasListasExportadasDiferente);
+    }
+    if recebidos.origem != gerados.origem {
+        return Err(ErroCaixaLocal::OrigemDasListasExportadasDiferente);
+    }
+    conferir_contexto(&recebidos, unidade)?;
     let unidade_exportada = recebidos.unidade.clone();
     Ok(CaixaObservadaLocal {
-        caixa: CaixaDeEntrada {
+        listas: ListasLocais::Categorias(CaixaDeEntrada {
             recebidos: converter(recebidos, Categoria::Recebidos)?,
             gerados: converter(gerados, Categoria::Gerados)?,
-        },
+        }),
+        unidade: unidade_exportada,
+    })
+}
+
+/// `[lista]` exportada da visão detalhada (`categoria: null`).
+fn interpretar_sem_categoria(
+    listas: Vec<ListaExportada>,
+    unidade: Option<&str>,
+) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
+    let [lista]: [ListaExportada; 1] = listas
+        .try_into()
+        .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
+    match lista.categoria.as_deref() {
+        None => {}
+        // Lista única gravada pela #146 (pré-1.0): formato anterior, sem alias.
+        Some("detalhada") => return Err(ErroCaixaLocal::FormatoInvalido),
+        Some(_) => return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados),
+    }
+    conferir_contexto(&lista, unidade)?;
+    let unidade_exportada = lista.unidade.clone();
+    Ok(CaixaObservadaLocal {
+        listas: ListasLocais::SemCategoria(converter_sem_categoria(lista)?),
         unidade: unidade_exportada,
     })
 }
@@ -227,161 +325,5 @@ pub(crate) fn ler(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    fn caixa() -> String {
-        json!([
-            {
-                "unidade": "PPI", "origem": "web", "categoria": "recebidos",
-                "total_declarado": 1, "faixa_observada": {"inicio": 1, "fim": 1},
-                "processos": [{"id":"0042","numero":"000123/2026","visualizado":false}]
-            },
-            {
-                "unidade": "PPI", "origem": "web", "categoria": "gerados",
-                "total_declarado": 0, "faixa_observada": null, "processos": []
-            }
-        ])
-        .to_string()
-    }
-    #[test]
-    fn encontra_nup_exato_de_arquivo_de_caixa_sem_rede() {
-        let observada = interpretar(&caixa(), Some("ppi")).unwrap();
-        assert_eq!(observada.unidade.as_deref(), Some("PPI"));
-        assert_eq!(observada.caixa.recebidos.processos[0].numero, "000123/2026");
-        assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
-    }
-    #[test]
-    fn sigiloso_exportado_e_preservado_e_ausencia_antiga_e_nao_sigiloso() {
-        let antiga = interpretar(&caixa(), None).unwrap();
-        assert!(!antiga.caixa.recebidos.processos[0].sigiloso);
-        let nova = caixa().replace(
-            "\"visualizado\":false",
-            "\"visualizado\":false,\"sigiloso\":true",
-        );
-        let observada = interpretar(&nova, None).unwrap();
-        assert!(observada.caixa.recebidos.processos[0].sigiloso);
-    }
-    #[test]
-    fn recusa_total_que_nao_comprova_todas_as_linhas_da_categoria() {
-        let json = caixa().replace("\"total_declarado\":1", "\"total_declarado\":2");
-        assert_eq!(
-            interpretar(&json, None).unwrap_err(),
-            ErroCaixaLocal::TotalNaoComprovado {
-                categoria: Categoria::Recebidos
-            }
-        );
-    }
-    #[test]
-    fn recusa_unidade_trocada_sem_abrir_sessao() {
-        assert_eq!(
-            interpretar(&caixa(), Some("OUTRA")).unwrap_err(),
-            ErroCaixaLocal::UnidadeDiferenteDaSolicitada
-        );
-    }
-    #[test]
-    fn recusa_identificador_repetido_sem_selecionar_a_primeira_linha() {
-        let mut objeto: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        objeto[0]["total_declarado"] = json!(2);
-        let repetido = objeto[0]["processos"][0].clone();
-        objeto[0]["processos"]
-            .as_array_mut()
-            .unwrap()
-            .push(repetido);
-        assert_eq!(
-            interpretar(&objeto.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::IdentificadorRepetido {
-                categoria: Categoria::Recebidos
-            }
-        );
-    }
-    #[test]
-    fn aceita_exportacao_de_caixa_multipagina_gerada_pelo_ies() {
-        let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        exportada[0]["origem"] = json!("web_com_paginas_privadas");
-        exportada[1]["origem"] = json!("web_com_paginas_privadas");
-        let observada = interpretar(&exportada.to_string(), Some("PPI")).unwrap();
-        assert_eq!(observada.caixa.recebidos.processos[0].numero, "000123/2026");
-        assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
-    }
-
-    #[test]
-    fn exportacao_multipagina_continua_exigindo_totais_comprovados() {
-        let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        exportada[0]["origem"] = json!("web_com_paginas_privadas");
-        exportada[1]["origem"] = json!("web_com_paginas_privadas");
-        exportada[0]["total_declarado"] = json!(2);
-        assert_eq!(
-            interpretar(&exportada.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::TotalNaoComprovado {
-                categoria: Categoria::Recebidos
-            }
-        );
-    }
-
-    #[test]
-    fn apenas_as_duas_origens_de_exportacao_reais_sao_aceitas() {
-        for origem in ["WEB", "web_replay", "web_com_paginas_privadas_fake"] {
-            let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-            exportada[0]["origem"] = json!(origem);
-            exportada[1]["origem"] = json!(origem);
-            assert_eq!(
-                interpretar(&exportada.to_string(), None).unwrap_err(),
-                ErroCaixaLocal::OrigemNaoWeb
-            );
-        }
-    }
-
-    #[test]
-    fn recusa_origem_de_cassette_ou_json_nao_proveniente_de_exportacao() {
-        let json = caixa().replace("\"origem\":\"web\"", "\"origem\":\"replay\"");
-        assert!(!json.contains("\"origem\":\"web\""));
-        assert_eq!(
-            interpretar(&json, None).unwrap_err(),
-            ErroCaixaLocal::OrigemNaoWeb
-        );
-    }
-
-    #[test]
-    fn recusa_listas_fora_da_forma_recebidos_gerados() {
-        let base: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        let mut trocada = base.clone();
-        trocada.as_array_mut().unwrap().reverse();
-        let mut uma = base.clone();
-        uma.as_array_mut().unwrap().pop();
-        let mut detalhada = base.clone();
-        detalhada[1]["categoria"] = json!("detalhada");
-        for valor in [trocada, uma, detalhada] {
-            assert_eq!(
-                interpretar(&valor.to_string(), None).unwrap_err(),
-                ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados
-            );
-        }
-        let mut unidades = base.clone();
-        unidades[1]["unidade"] = json!("OUTRA");
-        assert_eq!(
-            interpretar(&unidades.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::UnidadeDasListasExportadasDiferente
-        );
-        let mut origens = base.clone();
-        origens[1]["origem"] = json!("web_com_paginas_privadas");
-        assert_eq!(
-            interpretar(&origens.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::OrigemDasListasExportadasDiferente
-        );
-    }
-
-    #[test]
-    fn exportacao_no_formato_anterior_e_recusada() {
-        let antiga = json!({
-            "unidade": "PPI", "origem": "web",
-            "recebidos": {"total_declarado": 0, "processos": []},
-            "gerados": {"total_declarado": 0, "processos": []}
-        });
-        assert_eq!(
-            interpretar(&antiga.to_string(), None).unwrap_err(),
-            ErroCaixaLocal::FormatoInvalido
-        );
-    }
-}
+#[path = "caixa_local/tests.rs"]
+mod tests;

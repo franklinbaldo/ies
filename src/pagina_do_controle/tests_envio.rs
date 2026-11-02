@@ -108,13 +108,6 @@ fn falhas_da_resposta_sao_tipadas_e_sem_nova_tentativa() {
             login.to_owned(),
             E::Submissao(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio),
         ),
-        (
-            503,
-            segunda().html(),
-            E::Submissao(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::StatusHttpDeErroDoServidor,
-            )),
-        ),
         (302, String::new(), E::RedirecionamentoAposPaginar),
         (
             200,
@@ -178,4 +171,20 @@ fn erro_e_debug_nao_expoem_valores_servidos() {
     let erro = E::Submissao(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede));
     let texto = format!("{erro:?}");
     assert!(!texto.contains("cccc") && !texto.contains("PHPSESSID"));
+}
+
+#[test]
+fn erro_503_do_post_com_pagina_valida_e_recusa_com_status_e_mensagem() {
+    let chamadas = Cell::new(0);
+    let corpo = segunda().html().replace(
+        "<html>",
+        "<html><div id='divInfraExcecao'>Sobrecarga.</div>",
+    );
+    let erro = obter(2, 503, &corpo, &chamadas).unwrap_err();
+    assert_eq!(chamadas.get(), 1, "sem nova tentativa");
+    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
+    let http = erro.status_http().expect("status do POST");
+    assert_eq!(http.status, 503);
+    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("Sobrecarga."));
+    assert_eq!(E::RedirecionamentoAposPaginar.status_http(), None);
 }

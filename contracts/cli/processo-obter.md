@@ -105,7 +105,11 @@ tipos Rust com campos obrigatórios, origem `web` ou
 `web_com_paginas_privadas` (exportação verificada pela própria CLI
 após junção de páginas privadas), identidade de
 processo opaca, IDs numéricos, e totais declarados iguais ao número
-de linhas em **ambas** as categorias. IDs repetidos, unidade diferente,
+de linhas em **ambas** as categorias. A exportação da visão detalhada
+(array com uma lista `categoria: null`) também é aceita, com a mesma
+exigência de total na lista única; suas ocorrências saem com
+`categoria: null` e `visualizado`/`sigiloso` como exportados (podem ser
+`null`). IDs repetidos, unidade diferente,
 formato desconhecido ou totais não demonstrados produzem falhas
 tipadas e impedem emitir resultados. A ausência de NUP significa
 apenas que não foi observado no arquivo fornecido.

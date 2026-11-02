@@ -4,7 +4,7 @@ use crate::{Cli, Domain, Processo, historico, processo, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ErroHistoricoPrivado {
     NumeroAusente,
     OpcoesDeProcessoIncompativeis,
@@ -13,7 +13,7 @@ enum ErroHistoricoPrivado {
     Historico(historico::ErroHistorico),
 }
 impl ErroHistoricoPrivado {
-    fn subcodigo(self) -> &'static str {
+    fn subcodigo(&self) -> &'static str {
         match self {
             Self::NumeroAusente => "historico_privado_exige_nup",
             Self::OpcoesDeProcessoIncompativeis => {
@@ -24,7 +24,7 @@ impl ErroHistoricoPrivado {
             Self::Historico(erro) => erro.subcodigo(),
         }
     }
-    fn status(self) -> u8 {
+    fn status(&self) -> u8 {
         match self {
             Self::NumeroAusente | Self::OpcoesDeProcessoIncompativeis | Self::Numero(_) => 2,
             Self::Fonte(_) | Self::Historico(_) => 1,
