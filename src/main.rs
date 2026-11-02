@@ -228,23 +228,14 @@ struct Unidade {
 enum UnidadeAcao {
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
+    /// Lista Recebidos e Gerados da unidade: duas listas, um GET
     ListarProcessos {
+        /// Exporta as listas verificadas para novo arquivo privado
         #[arg(long)]
         saida: Option<PathBuf>,
         /// Complementa o GET com páginas HTML privadas já capturadas, sem fazer POST
         #[arg(long = "pagina-arquivo", value_name = "HTML_PRIVADO")]
         paginas_capturadas: Vec<PathBuf>,
-        /// Projeta somente categoria coberta no primeiro GET; não usa páginas privadas
-        #[arg(long, value_enum, conflicts_with = "paginas_capturadas")]
-        categoria: Option<unidade_categoria::CategoriaLista>,
-        /// Pede a página N da categoria: no máximo um POST que altera a página lembrada na sessão
-        #[arg(
-            long,
-            value_name = "N",
-            requires = "categoria",
-            value_parser = clap::value_parser!(u32).range(1..)
-        )]
-        pagina: Option<u32>,
     },
     /// Lista Recebidos da unidade: a página observada, com total e faixa
     Recebidos(ListaDaUnidade),
@@ -332,6 +323,21 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_resumo_cli::tentar_resumo(cli))
 }
 
+/// `ies unidade recebidos|gerados`: uma lista independente da caixa.
+fn listar(
+    cli: &Cli,
+    lista: &ListaDaUnidade,
+    categoria: unidade_categoria::CategoriaLista,
+) -> ExitCode {
+    unidade_categoria::listar_categoria(
+        cli.unidade.as_deref(),
+        cli.json,
+        lista.saida.as_deref(),
+        categoria,
+        lista.pagina.map(|n| n as usize),
+    )
+}
+
 fn run(cli: &Cli) -> ExitCode {
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
         return status;
@@ -349,23 +355,18 @@ fn run(cli: &Cli) -> ExitCode {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Recebidos(lista)),
+        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Gerados(lista)),
+        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
+        Domain::Unidade(Unidade {
             acao:
                 Some(UnidadeAcao::ListarProcessos {
                     saida,
                     paginas_capturadas,
-                    categoria,
-                    pagina,
                 }),
         }) => {
-            if let Some(categoria) = categoria {
-                return unidade_categoria::listar_categoria(
-                    cli.unidade.as_deref(),
-                    cli.json,
-                    saida.as_deref(),
-                    *categoria,
-                    pagina.map(|n| n as usize),
-                );
-            }
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,

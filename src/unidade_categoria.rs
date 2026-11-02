@@ -1,15 +1,15 @@
-//! Projeção Web de uma categoria: a página observada, com total e faixa;
-//! `--pagina N` acrescenta no máximo um POST (`pagina_web`).
+//! `ies unidade recebidos` e `ies unidade gerados`: uma lista independente
+//! da caixa, a página observada com total e faixa; `--pagina N` acrescenta
+//! no máximo um POST (`pagina_web`). Transporte compartilhado com a caixa.
 mod pagina_web;
 
 use crate::paginas::Leitura;
 use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
-use clap::ValueEnum;
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CategoriaLista {
     Recebidos,
     Gerados,
@@ -24,10 +24,7 @@ impl CategoriaLista {
     }
 
     pub(crate) fn rotulo(self) -> &'static str {
-        match self {
-            Self::Recebidos => "recebidos",
-            Self::Gerados => "gerados",
-        }
+        self.categoria().rotulo()
     }
 }
 
@@ -52,7 +49,7 @@ impl FalhaCategoria {
     }
 }
 
-/// Projeta a categoria com a página observada, o total e a faixa.
+/// A lista da categoria na forma única, com a página observada.
 pub(crate) fn selecionar(
     leitura: &Leitura,
     categoria: CategoriaLista,
@@ -67,55 +64,23 @@ pub(crate) fn selecionar(
     };
     paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
         .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
-    Ok(json!({
-        "unidade": leitura.unidade,
-        "origem": origem,
-        "categoria": categoria.rotulo(),
-        "total_declarado": tabela.total_declarado,
-        "faixa_observada": crate::saida::faixa_json(cobertura.faixa_observada()),
-        "processos": tabela.processos,
-    }))
+    Ok(crate::saida::lista_da_categoria(
+        leitura,
+        categoria.categoria(),
+        origem,
+    ))
 }
 
-/// Publica ou exporta a lista da categoria a partir do HTML obtido
-/// (shim do contrato; GREEN a seguir).
+/// Publica ou exporta a lista da categoria a partir do HTML obtido,
+/// com a conferência de `--unidade` da leitura da caixa.
 pub(crate) fn publicar_lista(
-    _html: &str,
-    _unidade: Option<&str>,
-    _categoria: CategoriaLista,
-    _json_mode: bool,
-    _destino: Option<&Path>,
-) -> ExitCode {
-    ExitCode::from(1)
-}
-
-/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
-pub(crate) fn listar_categoria(
+    html: &str,
     unidade: Option<&str>,
+    categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
-    categoria: CategoriaLista,
-    pagina: Option<usize>,
 ) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let obtida = match pagina {
-        None => transporte::read_box_from_file(
-            &arquivos.url_controle,
-            &arquivos.cookie,
-            &arquivos.origem,
-        )
-        .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
-        Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
-            .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
-    };
-    let html = match obtida {
-        Ok(html) => html,
-        Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
-    };
-    let leitura = match paginas::juntar(&[html], unidade) {
+    let leitura = match paginas::juntar(&[html.to_owned()], unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
             return erro_fonte(
@@ -167,6 +132,34 @@ pub(crate) fn listar_categoria(
         );
     }
     ExitCode::SUCCESS
+}
+
+/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
+pub(crate) fn listar_categoria(
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+    categoria: CategoriaLista,
+    pagina: Option<usize>,
+) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let obtida = match pagina {
+        None => transporte::read_box_from_file(
+            &arquivos.url_controle,
+            &arquivos.cookie,
+            &arquivos.origem,
+        )
+        .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+        Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
+            .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+    };
+    match obtida {
+        Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
+        Err((subcodigo, mensagem)) => erro_fonte(json_mode, subcodigo, mensagem),
+    }
 }
 
 #[cfg(test)]

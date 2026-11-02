@@ -1,7 +1,9 @@
 //! Apresentação da leitura: JSON v2 e formato humano são projeções,
-//! não campos persistidos em Caixa, Tabela ou Processo.
-use crate::dominio::{Processo, Tabela};
+//! não campos persistidos em Caixa, Tabela ou Processo. Recebidos e
+//! Gerados são listas independentes, publicadas na mesma forma.
+use crate::dominio::{Categoria, Processo, Tabela};
 use crate::paginas::{Cobertura, Leitura};
+use serde::Serialize;
 use serde_json::{Value, json};
 
 /// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
@@ -13,21 +15,51 @@ pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
     )
 }
 
-fn tabela_json(tabela: &Tabela<Processo>, cobertura: &Cobertura) -> Value {
+/// Os dados observados de uma lista da caixa.
+pub(crate) struct ListaObservada<'a, P: Serialize> {
+    pub(crate) unidade: Option<&'a str>,
+    pub(crate) origem: &'a str,
+    pub(crate) categoria: &'a str,
+    pub(crate) total_declarado: Option<usize>,
+    pub(crate) faixa_observada: Option<(usize, usize)>,
+    pub(crate) processos: &'a [P],
+}
+
+/// Forma única de toda lista da caixa
+/// (contracts/cli/unidade-recebidos-gerados.md).
+pub(crate) fn lista_json<P: Serialize>(lista: &ListaObservada<'_, P>) -> Value {
     json!({
-        "total_declarado": tabela.total_declarado,
-        "faixa_observada": faixa_json(cobertura.faixa_observada()),
-        "processos": tabela.processos,
+        "unidade": lista.unidade,
+        "origem": lista.origem,
+        "categoria": lista.categoria,
+        "total_declarado": lista.total_declarado,
+        "faixa_observada": faixa_json(lista.faixa_observada),
+        "processos": lista.processos,
     })
 }
 
-pub fn json(leitura: &Leitura, origem: &str) -> Value {
-    json!({
-        "unidade": leitura.unidade,
-        "origem": origem,
-        "recebidos": tabela_json(&leitura.caixa.recebidos, &leitura.recebidos),
-        "gerados": tabela_json(&leitura.caixa.gerados, &leitura.gerados),
+/// A lista de uma categoria da visão resumida.
+pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem: &str) -> Value {
+    let (tabela, cobertura) = match categoria {
+        Categoria::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
+        Categoria::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
+    };
+    lista_json(&ListaObservada {
+        unidade: leitura.unidade.as_deref(),
+        origem,
+        categoria: categoria.rotulo(),
+        total_declarado: tabela.total_declarado,
+        faixa_observada: cobertura.faixa_observada(),
+        processos: &tabela.processos,
     })
+}
+
+/// A caixa resumida: o array `[recebidos, gerados]`, nessa ordem.
+pub fn json(leitura: &Leitura, origem: &str) -> Value {
+    Value::Array(vec![
+        lista_da_categoria(leitura, Categoria::Recebidos, origem),
+        lista_da_categoria(leitura, Categoria::Gerados, origem),
+    ])
 }
 
 fn linha_humana(nome: &str, tabela: &Tabela<Processo>, cobertura: &Cobertura) -> String {
@@ -49,15 +81,6 @@ pub fn humano(leitura: &Leitura) -> String {
         linha_humana("recebidos", &leitura.caixa.recebidos, &leitura.recebidos),
         linha_humana("gerados", &leitura.caixa.gerados, &leitura.gerados)
     )
-}
-
-/// Uma lista da caixa na forma única (shim do contrato; GREEN a seguir).
-pub(crate) fn lista_da_categoria(
-    _leitura: &Leitura,
-    _categoria: crate::dominio::Categoria,
-    _origem: &str,
-) -> Value {
-    Value::Null
 }
 
 #[cfg(test)]

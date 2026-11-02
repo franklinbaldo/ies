@@ -105,19 +105,18 @@ pub(crate) struct CaixaObservadaLocal {
     pub(crate) unidade: Option<String>,
 }
 
+/// Uma lista do array exportado por `listar-processos --saida`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Exportacao {
+struct ListaExportada {
     unidade: Option<String>,
     origem: String,
-    recebidos: Secao,
-    gerados: Secao,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Secao {
+    categoria: String,
     total_declarado: Option<usize>,
+    // A importação comprova cobertura pelo total igual às linhas; a faixa
+    // é dado da leitura e não substitui essa prova.
+    #[serde(rename = "faixa_observada")]
+    _faixa_observada: serde::de::IgnoredAny,
     processos: Vec<Linha>,
 }
 
@@ -133,7 +132,10 @@ struct Linha {
     sigiloso: bool,
 }
 
-fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, ErroCaixaLocal> {
+fn converter(
+    secao: ListaExportada,
+    categoria: Categoria,
+) -> Result<Tabela<Processo>, ErroCaixaLocal> {
     // Arquivo arbitrário não comprova cobertura por si só, mas totais divergentes
     // impedem até a interpretação interna como uma caixa integral exportada.
     if secao.total_declarado != Some(secao.processos.len()) {
@@ -167,8 +169,23 @@ pub(crate) fn interpretar(
     json: &str,
     unidade: Option<&str>,
 ) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
-    let exportada: Exportacao =
+    let listas: Vec<ListaExportada> =
         serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
+    let [recebidos, gerados]: [ListaExportada; 2] = listas
+        .try_into()
+        .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
+    if recebidos.categoria != Categoria::Recebidos.rotulo()
+        || gerados.categoria != Categoria::Gerados.rotulo()
+    {
+        return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados);
+    }
+    if recebidos.unidade != gerados.unidade {
+        return Err(ErroCaixaLocal::UnidadeDasListasExportadasDiferente);
+    }
+    if recebidos.origem != gerados.origem {
+        return Err(ErroCaixaLocal::OrigemDasListasExportadasDiferente);
+    }
+    let exportada = &recebidos;
     if !matches!(
         exportada.origem.as_str(),
         "web" | "web_com_paginas_privadas"
@@ -190,12 +207,13 @@ pub(crate) fn interpretar(
     {
         return Err(ErroCaixaLocal::UnidadeDiferenteDaSolicitada);
     }
+    let unidade_exportada = recebidos.unidade.clone();
     Ok(CaixaObservadaLocal {
         caixa: CaixaDeEntrada {
-            recebidos: converter(exportada.recebidos, Categoria::Recebidos)?,
-            gerados: converter(exportada.gerados, Categoria::Gerados)?,
+            recebidos: converter(recebidos, Categoria::Recebidos)?,
+            gerados: converter(gerados, Categoria::Gerados)?,
         },
-        unidade: exportada.unidade,
+        unidade: unidade_exportada,
     })
 }
 

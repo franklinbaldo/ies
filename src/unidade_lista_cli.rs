@@ -69,14 +69,15 @@ fn mostrar_caixa_detalhada(
             );
         }
     };
-    let saida = json!({
-        "unidade": &leitura.unidade,
-        "origem": origem,
-        "visualizacao": "detalhada",
-        "total_declarado": leitura.total_declarado,
-        "faixa_observada": saida::faixa_json(leitura.faixa_observada),
-        "processos": &leitura.processos
-    });
+    // A visão D é uma lista própria do SEI: array de uma lista, mesma forma.
+    let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
+        unidade: Some(&leitura.unidade),
+        origem,
+        categoria: "detalhada",
+        total_declarado: Some(leitura.total_declarado),
+        faixa_observada: leitura.faixa_observada,
+        processos: &leitura.processos,
+    })]);
     if let Some(caminho) = destino {
         return match arquivo_caixa::gravar(caminho, &saida) {
             Ok(bytes) => {
