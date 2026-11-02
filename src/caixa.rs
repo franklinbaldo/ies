@@ -258,3 +258,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "caixa/tests_classes.rs"]
+mod tests_classes;

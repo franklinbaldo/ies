@@ -200,6 +200,17 @@ mod tests {
         assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
     }
     #[test]
+    fn sigiloso_exportado_e_preservado_e_ausencia_antiga_e_nao_sigiloso() {
+        let antiga = interpretar(&caixa(), None).unwrap();
+        assert!(!antiga.caixa.recebidos.processos[0].sigiloso);
+        let nova = caixa().replace(
+            "\"visualizado\":false",
+            "\"visualizado\":false,\"sigiloso\":true",
+        );
+        let observada = interpretar(&nova, None).unwrap();
+        assert!(observada.caixa.recebidos.processos[0].sigiloso);
+    }
+    #[test]
     fn recusa_total_que_nao_comprova_todas_as_linhas_da_categoria() {
         let json = caixa().replace("\"total_declarado\":1", "\"total_declarado\":2");
         assert_eq!(
