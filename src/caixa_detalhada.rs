@@ -12,6 +12,7 @@ pub(crate) struct ProcessoDetalhado {
     pub(crate) id: IdProcedimento,
     pub(crate) numero: String,
     pub(crate) visualizado: Option<bool>,
+    pub(crate) sigiloso: Option<bool>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -35,6 +36,7 @@ pub(crate) enum ErroDetalhada {
     ColunasDaLinhaDiferentes,
     LinkDoProcessoAusente,
     LinksDoProcessoRepetidos,
+    ClassesDeEstadoDiferentesNoLink,
     NumeroDoProcessoAusente,
     IdentificadorInvalido,
     IdentificadorRepetido,
@@ -65,6 +67,9 @@ impl ErroDetalhada {
             Self::ColunasDaLinhaDiferentes => "colunas_da_linha_detalhada_diferentes",
             Self::LinkDoProcessoAusente => "link_do_processo_detalhado_ausente",
             Self::LinksDoProcessoRepetidos => "links_do_processo_detalhado_repetidos",
+            Self::ClassesDeEstadoDiferentesNoLink => {
+                "classes_de_estado_diferentes_no_link_detalhado"
+            }
             Self::NumeroDoProcessoAusente => "numero_do_processo_detalhado_ausente",
             Self::IdentificadorInvalido => "identificador_detalhado_invalido",
             Self::IdentificadorRepetido => "identificador_detalhado_repetido",
@@ -213,25 +218,15 @@ fn ler_linha(
             return Err(ErroDetalhada::LinksDoProcessoRepetidos);
         }
         let classe = atributo(link, "class")?.unwrap_or_default();
-        let visualizado = if classe
-            .split_whitespace()
-            .any(|c| c == "processoNaoVisualizado")
-        {
-            Some(false)
-        } else if classe
-            .split_whitespace()
-            .any(|c| c == "processoVisualizado")
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let estado = crate::classe_link_processo::estado_do_link(&classe)
+            .map_err(|_| ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(|_| ErroDetalhada::NumeroDoProcessoAusente)?;
         escolhido = Some(ProcessoDetalhado {
             id: id.clone(),
             numero: numero.as_str().to_owned(),
-            visualizado,
+            visualizado: estado.map(|e| e.visualizado),
+            sigiloso: estado.map(|e| e.sigiloso),
         });
     }
     escolhido

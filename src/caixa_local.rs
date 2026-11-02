@@ -95,6 +95,10 @@ struct Linha {
     id: String,
     numero: String,
     visualizado: bool,
+    // Exportações anteriores não tinham o campo: aquelas versões recusavam
+    // qualquer linha sem as classes não sigilosas, logo a ausência é `false`.
+    #[serde(default)]
+    sigiloso: bool,
 }
 
 fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, ErroCaixaLocal> {
@@ -117,6 +121,7 @@ fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, Err
             id,
             numero: linha.numero,
             visualizado: linha.visualizado,
+            sigiloso: linha.sigiloso,
         });
     }
     Tabela::nova(categoria, secao.total_declarado, processos).map_err(|erro| match erro {

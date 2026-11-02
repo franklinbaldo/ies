@@ -34,6 +34,7 @@ mod tests {
             id: IdProcedimento::novo("42").unwrap(),
             numero: "000123/2026".into(),
             visualizado: false,
+            sigiloso: false,
         };
         let caixa = CaixaDeEntrada {
             recebidos: Tabela::nova(Categoria::Recebidos, Some(1), vec![processo]).unwrap(),

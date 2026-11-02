@@ -5,6 +5,7 @@ mod caixa;
 mod caixa_detalhada;
 mod caixa_local;
 mod cassette;
+mod classe_link_processo;
 mod configuracao;
 mod controle_contexto;
 #[allow(dead_code)] // A criação dependerá de editor Web validado.

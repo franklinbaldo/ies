@@ -61,7 +61,8 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 
 A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
 `unidade`, `origem`, `recebidos`, `gerados`; cada agrupamento tem
-`processos` e `total_declarado`, sem campo `completa`.
+`processos` e `total_declarado`, sem campo `completa`. Cada processo
+publica `id`, `numero` (opaco, sem máscara), `visualizado` e `sigiloso`.
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.
 
@@ -324,3 +325,41 @@ Coincidência entre total e linhas sem faixa não comprova cobertura:
 falhar com `faixa_detalhada_sem_intervalo_com_paginacao`, sem exportação
 nem requests adicionais. Isso evita apresentar uma página posterior
 como primeira página completa.
+
+
+## Link de processo sigiloso no Controle (Goiás 5.0.3)
+
+Em 02/11/2026, no SEI Goiás 5.0.3 de treinamento (conta pública,
+visão resumida), uma linha de `tblProcessosGerados` publicou o link
+`procedimento_trabalhar` com a classe `processoVisualizadoSigiloso`;
+as demais usavam `processoVisualizado`. O parser só conhecia duas
+classes e recusava a caixa inteira com
+`link_do_processo_nao_identificado_na_linha`. O acervo arquivado de
+Goiás (`unidade-listagens-go.json`, `acompanhamento_listar`) já
+continha a mesma classe em `tblAcompanhamentos`.
+
+O adaptador `web` reconhece, por **token inteiro** de `class`:
+
+| Classe | `visualizado` | `sigiloso` |
+| --- | --- | --- |
+| `processoVisualizado` | `true` | `false` |
+| `processoNaoVisualizado` | `false` | `false` |
+| `processoVisualizadoSigiloso` | `true` | `true` |
+| `processoNaoVisualizadoSigiloso` | `false` | `true` |
+
+A última é o par simétrico da nomenclatura e **não foi observada
+live**. Outros tokens, como `processoVisitado`, não alteram o estado.
+`sigiloso` é fato observado na classe do link, não nível de acesso,
+permissão ou propriedade imutável do processo. Um link com duas
+classes reconhecidas de estados diferentes falha com
+`classes_de_estado_diferentes_no_link_do_processo` (visão resumida)
+ou `classes_de_estado_diferentes_no_link_detalhado` (detalhada).
+Na visão detalhada, `visualizado` e `sigiloso` são `null` quando o
+link não traz classe reconhecida.
+
+A importação local aceita exportação anterior sem `sigiloso` como
+`false`: aquelas versões recusavam qualquer linha sem as duas classes
+não sigilosas. Com 131 recebidos e 7990 gerados em páginas de 10, a
+legenda `(N registros - 1 a 10)` mantém a recusa
+`paginas_do_controle_nao_obtidas`; sem POST, retry ou GET extra.
+Ensaio offline com HTML sintético; o reensaio live fica **NOT_RUN**.

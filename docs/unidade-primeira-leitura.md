@@ -147,8 +147,9 @@ A borda em `src/saida.rs` calcula o booleano de cobertura e formata
 JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
 
 O JSON contém `unidade`, `origem` e, para Recebidos e Gerados,
-`processos`, `total_declarado` e `completa`. A prova de cobertura
-não é exposta como estado mutável. O
+`processos` e `total_declarado`; cada processo tem `id`, `numero`,
+`visualizado` e `sigiloso`, lidos da classe do link. A prova de
+cobertura não é exposta como estado mutável. O
 [golden de saída](../tests/fixtures/caixa-v2.json)
 fixa esse contrato byte a byte num teste de integração.
 
