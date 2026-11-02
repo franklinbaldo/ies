@@ -170,3 +170,77 @@ restaurada para a página 1 e a tela para R, conferidas por GET.
 `chkSinUltimaMovimentacao`, `chkSinMarcadores`) e `sbmSalvar`. PEN1 tinha 3
 marcadas, GO todas; GO com 12 marcadas mostra 9 colunas além de Processo
 (prazo, devolver e aguardando não viram cabeçalho). Nada foi salvo.
+
+## Roteiro: visão detalhada por padrão (NOT_RUN)
+
+Para o operador, em treinamento, depois da PR da visão detalhada
+([contrato](../../contracts/cli/unidade-listar-processos-visao-detalhada.md)).
+Mesmas condições acima: arquivos `0600` em pasta `0700`, sessão da mesma
+geração, binário release. O script não põe cookie nem URL assinada em
+argumentos de processo (vão num arquivo de configuração do `curl` `0600`), e
+só imprime visão, índices de página, contagens e subcódigos. Cada `estado`
+é **1 GET** a mais, de conferência.
+
+```sh
+#!/bin/sh
+# uso: IES_ORIGEM_FILE=... IES_COOKIE_FILE=... IES_URL_CONTROLE_FILE=... sh roteiro.sh
+set -u
+umask 077
+T=$(mktemp -d) && trap 'rm -rf "$T"' EXIT
+printf 'url = "%s"\nheader = "Cookie: %s"\nproto = "=https"\nmax-redirs = 0\nsilent\n' \
+  "$(cat "$IES_URL_CONTROLE_FILE")" "$(cat "$IES_COOKIE_FILE")" > "$T/curl.cfg"
+estado() {  # 1 GET: só hdnTipoVisualizacao e os índices de página
+  curl -K "$T/curl.cfg" -o "$T/tela.html" || { echo "estado: GET falhou"; return; }
+  python3 -I -c '
+import sys
+t = open(sys.argv[1], encoding="latin-1").read()
+for c in ("hdnTipoVisualizacao", "hdnRecebidosPaginaAtual",
+          "hdnGeradosPaginaAtual", "hdnDetalhadoPaginaAtual"):
+    i = t.find("name=\"%s\" value=\"" % c)
+    print(c, t[i + len(c) + 15:].split("\"", 1)[0] if i >= 0 else "-", end="; ")
+print()' "$T/tela.html"
+}
+resumo() {  # contagens do JSON, sem valores de processos
+  python3 -I -c '
+import json, sys
+v = json.load(open(sys.argv[1]))
+if isinstance(v, dict) and "codigo" in v:
+    print("FALHA", v.get("subcodigo"), v.get("causa"), v.get("visao_deixada"), v.get("status_http"))
+elif isinstance(v, dict) and "opcoes" in v:
+    print("colunas marcadas:", [o["coluna"] for o in v["opcoes"] if o["marcada"]])
+else:
+    l = v[0] if isinstance(v, list) else v
+    ps = l["processos"]
+    cats = {}
+    for p in ps:
+        cats[p.get("categoria")] = cats.get(p.get("categoria"), 0) + 1
+    chaves = sorted({k for p in ps for k in p.get("colunas", {})})
+    print("total", l["total_declarado"], "faixa", l["faixa_observada"], "linhas", len(ps),
+          "categorias", cats, "colunas", chaves, "ausentes", l.get("colunas_ausentes"))' "$1"
+}
+passo() {  # passo NOME ARGS...: roda o ies, resume e confere o estado
+  nome=$1; shift
+  ies --json "$@" > "$T/$nome.json"; echo "$nome: saída $?"; resumo "$T/$nome.json"; estado
+}
+estado                                   # E0: visão e páginas encontradas
+passo lp unidade listar-processos        # R: 1 GET + 2 POST; D: 1 GET
+passo lp2 unidade listar-processos --pagina 2   # R: 1 GET + 3 POST (só se total > página)
+passo fora unidade listar-processos --pagina 99999  # pagina_fora_do_intervalo, sem POST
+passo col unidade colunas                # R: 2 GET + 2 POST; D: 2 GET
+passo rec unidade recebidos              # R: 1 GET; D: 1 GET + 2 POST
+passo ger2 unidade gerados --pagina 2    # muda a página lembrada de Gerados (efeito conhecido)
+passo ger1 unidade gerados --pagina 1    # volta Gerados à página 1
+```
+
+Critério: depois de cada `passo`, `estado` igual ao E0 (mesma visão; mesmas
+páginas de Recebidos/Gerados na R; mesma `hdnDetalhadoPaginaAtual` na D),
+exceto `ger2`, que muda só `hdnGeradosPaginaAtual` (desfeito por `ger1`).
+`lp`: categorias por processo somam o que a R mostrou; `colunas` iguais às
+marcadas em `col` (as de ícone podem faltar na PEN1, divergência a
+registrar). Repetir com a sessão **já na D** (PEN1 ou GO: ligar a
+Visualização detalhada pela interface ou pelo arnês), conferindo que
+`lp` não faz POST, que `lp2` volta a D à página exibida e que `rec`/`ger2`
+deixam a D como estava; no fim, voltar a sessão à R pela interface e
+conferir com `estado`. Qualquer `visao_do_controle_nao_restaurada` ou
+`pagina_da_visao_detalhada_nao_restaurada`: parar, registrar `causa` e
+`status_http`, restaurar manualmente e conferir com `estado`. Sem retry.

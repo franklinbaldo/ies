@@ -34,7 +34,7 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
-## Matriz: 16 caminhos principais já expostos
+## Matriz: 17 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -46,8 +46,9 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento salvar DOC` | **PARCIAL LOCAL**; `--confirmar` remoto bloqueado | Prévia, diff/cópias de trabalho locais e inventário versionado | Detectar versão/assinatura/conflitos no SEI; salvar com efeito e reconciliação; preservar rascunhos | [#89](https://github.com/franklinbaldo/ies/issues/89) |
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
-| `ies unidade listar-processos` | **PARCIAL WEB** | GET único da tela resumida **ou detalhada já exibida** (`D`), com identidade, total, faixa e exportação verificados; páginas privadas opcionais; recusa paginação sem intervalo | Paginação Web **ativa**, cobertura de recebidos/gerados, controle de contexto e efeitos do POST; visão D não inventa categorias ou snapshot | [#57](https://github.com/franklinbaldo/ies/issues/57) |
-| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
+| `ies unidade listar-processos [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Visão D com colunas, categoria observada na R do mesmo GET e `colunas_ausentes`; troca R→D→R ou D direta, tela restaurada; 1 GET + 0 a 3 POST | Ensaio live da troca e da restauração por instalação; efeito `PreferenciaDeVisualizacao`; colunas de ícone na PEN1 | [contrato](../contracts/cli/unidade-listar-processos-visao-detalhada.md) |
+| `ies unidade colunas` | **PARCIAL WEB** (PENDENTE PR) | 12 opções do Nível de detalhe e `marcada`, só leitura; D: 2 GET; R: 2 GET + 2 POST | Escrita (`--definir`, prévia e confirmação) em PR futura; ensaio live | [contrato](../contracts/cli/unidade-colunas.md) |
+| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e restaura a D (+2 POST) | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
@@ -122,7 +123,16 @@ operação `unidade.listar_processos`: mesmo GET, mesmo POST e mesmas
 recusas ([decisão](decisoes/unidade-listar-processos.md)). A exceção não
 autoriza outros verbos.
 
-**Critério de contagem:** 16 caminhos operacionais, desconsiderando
+**PENDENTE PR (visão detalhada por padrão, decisão do proprietário,
+02/11/2026):** `listar-processos` lê a visão D (uma lista com colunas e a
+categoria observada por processo), troca e restaura a visão encontrada, e
+volta a ter `--pagina N` (página da D); `--pagina-arquivo` sai. `unidade
+colunas` lê o Nível de detalhe sem salvar. A
+[decisão](decisoes/unidade-listar-processos.md) registra a exceção à regra
+de não criar verbos para `colunas`, que integra a mesma operação.
+Ensaio live **NOT_RUN**.
+
+**Critério de contagem:** 17 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
 capacidades independentes. As 129 operações do inventário do Todos são
