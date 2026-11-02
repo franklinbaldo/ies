@@ -456,6 +456,10 @@ mod web_mock_tests;
 #[path = "transporte/tests_resposta.rs"]
 mod tests_resposta;
 
+#[cfg(test)]
+#[path = "transporte/tests_recusa_http.rs"]
+mod tests_recusa_http;
+
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]
 mod paired_worker;

@@ -241,3 +241,21 @@ fn debug_do_302_nao_imprime_location_nem_url_assinada() {
     assert!(!texto.contains("procedimento_trabalhar"), "{texto}");
     assert!(texto.contains("<redigido>"), "{texto}");
 }
+
+#[test]
+fn erro_500_apos_envio_expoe_status_e_mensagem_pela_submissao() {
+    let (r, n) = enviar_com(
+        500,
+        "<html><div id='divInfraExcecao'>Falha ao paginar.</div></html>",
+    );
+    assert_eq!(n, 1);
+    let erro = r.unwrap_err();
+    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
+    let http = erro.status_http().expect("status do POST");
+    assert_eq!(http.status, 500);
+    assert_eq!(
+        http.mensagem_do_servidor.as_deref(),
+        Some("Falha ao paginar.")
+    );
+    assert_eq!(E::TelaDeLoginRecebidaAposEnvio.status_http(), None);
+}

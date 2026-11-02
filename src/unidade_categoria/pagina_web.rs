@@ -81,3 +81,30 @@ pub(super) fn obter(
     .map_err(ErroPaginaWeb::Pagina)?;
     Ok(obtida.unwrap_or(tela.html))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::formulario_web::ErroSubmissaoFormulario;
+    use crate::transporte::StatusHttpRecusado;
+
+    fn recusa(status: u16) -> FalhaTransporte {
+        FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+            status,
+            mensagem_do_servidor: Some("x".to_owned()),
+        })
+    }
+
+    #[test]
+    fn status_do_get_e_do_post_chegam_a_borda() {
+        let get = ErroPaginaWeb::Transporte(recusa(500));
+        assert_eq!(get.status_http().map(|h| h.status), Some(500));
+        let post = ErroPaginaWeb::Pagina(ErroPaginaDoControle::Submissao(
+            ErroSubmissaoFormulario::Transporte(recusa(502)),
+        ));
+        assert_eq!(post.status_http().map(|h| h.status), Some(502));
+        assert_eq!(post.subcodigo(), "status_http_de_erro_do_servidor");
+        let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
+        assert_eq!(local.status_http(), None);
+    }
+}
