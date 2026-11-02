@@ -172,7 +172,10 @@ impl ErroSubmissaoFormulario {
 
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        None
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            _ => None,
+        }
     }
 }
 

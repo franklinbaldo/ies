@@ -37,7 +37,11 @@ impl ErroPaginaWeb {
 
     /// Status e mensagem do SEI, do GET ou do POST do paginador.
     pub(super) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        None
+        match self {
+            Self::Transporte(erro) => erro.status_http(),
+            Self::Pagina(erro) => erro.status_http(),
+            Self::Caixa(_) => None,
+        }
     }
 }
 

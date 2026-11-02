@@ -126,7 +126,10 @@ impl ErroPaginaDoControle {
 
     /// Status e mensagem do SEI quando o POST foi recusado pelo status.
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        None
+        match self {
+            Self::Submissao(erro) => erro.status_http(),
+            _ => None,
+        }
     }
 }
 

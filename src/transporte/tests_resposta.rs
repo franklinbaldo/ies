@@ -78,7 +78,7 @@ fn subcodigos_das_recusas_de_resposta_sao_distintos() {
         FalhaTransporte::TipoDeConteudoNaoHtml,
         FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
     ];
-    let mut subcodigos: Vec<_> = variantes.iter().map(|v| v.subcodigo()).collect();
+    let mut subcodigos: Vec<_> = variantes.iter().map(FalhaTransporte::subcodigo).collect();
     subcodigos.sort_unstable();
     subcodigos.dedup();
     assert_eq!(subcodigos.len(), variantes.len());

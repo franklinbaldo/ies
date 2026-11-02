@@ -11,13 +11,19 @@ pub(crate) fn json_de_erro_fonte(
     mensagem: &str,
     http: Option<&StatusHttpRecusado>,
 ) -> Value {
-    let _ = http;
-    json!({
+    let mut valor = json!({
         "codigo": "fonte_invalida",
         "subcodigo": subcodigo,
         "erro": mensagem,
         "retentavel": false
-    })
+    });
+    if let (Some(http), Some(objeto)) = (http, valor.as_object_mut()) {
+        objeto.insert("status_http".to_owned(), json!(http.status));
+        if let Some(texto) = &http.mensagem_do_servidor {
+            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
+        }
+    }
+    valor
 }
 
 /// A linha de `stderr` sem `--json`.
@@ -26,8 +32,18 @@ pub(crate) fn linha_humana(
     mensagem: &str,
     http: Option<&StatusHttpRecusado>,
 ) -> String {
-    let _ = http;
-    format!("IES: {mensagem} [{subcodigo}]")
+    let linha = format!("IES: {mensagem} [{subcodigo}]");
+    match http {
+        None => linha,
+        Some(StatusHttpRecusado {
+            status,
+            mensagem_do_servidor: None,
+        }) => format!("{linha} (HTTP {status})"),
+        Some(StatusHttpRecusado {
+            status,
+            mensagem_do_servidor: Some(texto),
+        }) => format!("{linha} (HTTP {status}: {texto})"),
+    }
 }
 
 /// Imprime a falha e devolve a saída 1.

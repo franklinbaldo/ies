@@ -41,3 +41,12 @@ Testes comparam variantes, não mensagens. Nomes descrevem a condição\nobserva
 `ErroCaixa` e `FalhaTransporte` já utilizam variantes específicas.
 Revisões posteriores devem acrescentar dados úteis e padronizar
 categoria e apresentação, sem alterar códigos públicos desnecessariamente.
+
+## Dados de apresentação nas recusas HTTP
+
+`FalhaTransporte` carrega `StatusHttpRecusado` (status e mensagem
+saneada do SEI) em 3xx, 401/403, 429, 5xx e outro status; por isso
+deixou de ser `Copy`. A variante e o subcódigo continuam sendo a
+classificação: o status e a mensagem são só apresentação e nenhum
+código os inspeciona para decidir tratamento. Ver o
+[contrato da CLI](../contracts/cli.md).

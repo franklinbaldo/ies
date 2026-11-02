@@ -21,16 +21,35 @@ pub(crate) fn mensagem<R: Read>(corpo: R, mime: &str) -> Option<String> {
 
 /// Até `LIMITE` bytes, em fluxo; erro de leitura não mascara o status.
 pub(crate) fn ler_ate_o_limite<R: Read>(corpo: R) -> Option<Vec<u8>> {
-    let _ = corpo;
-    None
+    let mut bytes = Vec::new();
+    // `take` limita o que se pede ao leitor: nenhum byte além de `LIMITE`.
+    corpo.take(LIMITE as u64).read_to_end(&mut bytes).ok()?;
+    Some(bytes)
 }
 
 /// Charset ISO-8859-1 declarado vira ISO-8859-1; senão UTF-8, e bytes
 /// inválidos caem para ISO-8859-1. Um caractere UTF-8 cortado pelo limite
 /// no fim é descartado.
 pub(crate) fn decodificar(bytes: &[u8], mime: &str) -> String {
-    let _ = (bytes, mime);
-    String::new()
+    let declarado = mime.to_ascii_lowercase();
+    if ["8859-1", "latin1", "latin-1", "windows-1252", "cp1252"]
+        .iter()
+        .any(|nome| declarado.contains(nome))
+    {
+        return iso_8859_1(bytes);
+    }
+    match std::str::from_utf8(bytes) {
+        Ok(texto) => texto.to_owned(),
+        // Sequência incompleta só no fim: o corte do limite; o resto vale.
+        Err(erro) if erro.error_len().is_none() => {
+            String::from_utf8_lossy(&bytes[..erro.valid_up_to()]).into_owned()
+        }
+        Err(_) => iso_8859_1(bytes),
+    }
+}
+
+fn iso_8859_1(bytes: &[u8]) -> String {
+    bytes.iter().copied().map(char::from).collect()
 }
 
 #[cfg(test)]
