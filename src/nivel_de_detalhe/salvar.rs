@@ -11,8 +11,9 @@ use super::tela::{ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, FORMULARIO_DO_NI
 use super::{ColunaDoDetalhe, PlanoDasColunas};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
-    PreferenciaDoUsuario, ResultadoDoEnvio,
+    PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
 };
+use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 /// `name` das 12 caixas, na ordem de [`ColunaDoDetalhe::TODAS`].
 pub(crate) const CAMPOS_DAS_OPCOES: [&str; 12] = [
@@ -55,14 +56,61 @@ pub(crate) const VALOR_DA_CAIXA_MARCADA: &str = "on";
 
 /// Pares do usuário para o alvo: uma caixa `on` por coluna marcada.
 pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'static str)> {
-    let _ = plano;
-    todo!("RED: campos do envio")
+    plano
+        .alvo
+        .iter()
+        .map(|coluna| (coluna.campo(), VALOR_DA_CAIXA_MARCADA))
+        .collect()
 }
 
 /// Recusa, antes de qualquer POST, controle enviável que o formulário
 /// observado não tem: só `hdnInfraTipoPagina`, `sbmSalvar` e as caixas do
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
 pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
-    let _ = (html, ColunaDoDetalhe::TODAS);
-    todo!("RED: conferir controles")
+    use ErroNivelDeDetalhe as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let parser = dom.parser();
+    let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
+        .map_err(|_| E::FormularioDoNivelDeDetalheAusente)?;
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+        if !matches!(
+            elemento.as_str(),
+            "input" | "button" | "select" | "textarea"
+        ) || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        {
+            continue;
+        }
+        let Some(nome) = valor_do_atributo(tag, "name")
+            .map_err(E::AtributoHtml)?
+            .filter(|n| !n.is_empty())
+        else {
+            continue;
+        };
+        let padrao = if elemento == "button" {
+            "submit"
+        } else {
+            "text"
+        };
+        let tipo = valor_do_atributo(tag, "type")
+            .map_err(E::AtributoHtml)?
+            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let previsto = match (elemento.as_str(), tipo.as_str()) {
+            // Não participam do envio.
+            ("input" | "button", "button" | "reset") => true,
+            ("input", "hidden") => nome == OCULTO_DO_NIVEL_DE_DETALHE,
+            ("input" | "button", "submit") => nome == BOTAO_SALVAR,
+            ("input", "checkbox") => ColunaDoDetalhe::pelo_campo(&nome).is_some(),
+            _ => false,
+        };
+        if !previsto {
+            return Err(E::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe);
+        }
+    }
+    Ok(())
 }

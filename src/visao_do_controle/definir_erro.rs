@@ -64,20 +64,20 @@ pub(crate) enum ErroDefinirColunas {
     },
     /// A leitura de verificação mostrou as marcas de antes.
     ConfiguracaoDeColunasNaoAplicada {
-        plano: PlanoDasColunas,
+        plano: Box<PlanoDasColunas>,
         falha_do_salvar: Option<FalhaDoSalvar>,
     },
     /// Resposta esperada, mas a leitura mostrou outras marcas (nem o alvo
     /// nem as de antes).
     MarcasDiferentesDoAlvoAposSalvar {
-        plano: PlanoDasColunas,
+        plano: Box<PlanoDasColunas>,
         observadas: Vec<ColunaDoDetalhe>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
     EfeitoIncertoNaConfiguracaoDeColunas {
-        plano: PlanoDasColunas,
+        plano: Box<PlanoDasColunas>,
         falha_do_salvar: Option<FalhaDoSalvar>,
-        verificacao: VerificacaoDasColunas,
+        verificacao: Box<VerificacaoDasColunas>,
     },
 }
 
@@ -114,14 +114,6 @@ impl ErroDefinirColunas {
             Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => 3,
             _ => 1,
         }
-    }
-
-    /// O POST de salvar saiu (houve, ou pode ter havido, escrita).
-    pub(crate) fn houve_envio(&self) -> bool {
-        !matches!(
-            self,
-            Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. }
-        )
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

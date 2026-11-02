@@ -277,7 +277,14 @@ pub(crate) fn derivar_submissao(
         .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
-        ConferenciaDaUnidade::NaTelaDeOrigemDoLink => todo!("RED: unidade na tela de origem"),
+        ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
+            if !nos_com_id(&dom, "lnkInfraUnidade")
+                .map_err(E::AtributoHtml)?
+                .is_empty()
+            {
+                conferir_unidade(&dom, unidade_solicitada)?;
+            }
+        }
     }
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
@@ -391,9 +398,7 @@ where
         outra => E::Transporte(outra),
     })?;
     let marcado = match resultado {
-        ResultadoDoEnvio::ConferidoPorLeituraPosterior => {
-            todo!("RED: resposta conferida por leitura")
-        }
+        ResultadoDoEnvio::ConferidoPorLeituraPosterior => true,
         ResultadoDoEnvio::Marcador(MarcadorDeResultado { elemento, classe }) => {
             let dom = tl::parse(&html, tl::ParserOptions::default())
                 .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;

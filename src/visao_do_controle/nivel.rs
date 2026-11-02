@@ -54,17 +54,35 @@ fn ler_pelo_link<V: EnvioDoControle>(
     tela: &TelaAtual,
 ) -> Result<NivelDeDetalhe, E> {
     let url = link_do_nivel_de_detalhe(sessao.instalacao, tela)?;
+    let servida = obter_tela_do_nivel(sessao, &url)?;
+    ler_nivel_de_detalhe(&servida.html).map_err(E::NivelDeDetalhe)
+}
+
+/// Um GET da tela do Nível de detalhe já autorizada (link da D ou a mesma
+/// URL, na verificação da escrita), com URL e `Content-Type` da resposta.
+pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
+    sessao: &mut Sessao<'_, V>,
+    url: &str,
+) -> Result<TelaAtual, E> {
     let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(E::Transporte)?;
     let cookie = texto.trim();
     validar_cookie(cookie).map_err(E::Transporte)?;
-    let resposta = sessao.envio.get(&url, cookie).map_err(E::Transporte)?;
+    let resposta = sessao.envio.get(url, cookie).map_err(E::Transporte)?;
+    let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
-    ler_nivel_de_detalhe(&html).map_err(E::NivelDeDetalhe)
+    Ok(TelaAtual {
+        url: url.to_owned(),
+        html,
+        mime,
+    })
 }
 
 /// URL absoluta do `onclick="acaoConfigurarDetalhe('controlador.php?…')"`
 /// de `a#ancNivelDetalhe`, resolvida contra a URL da tela servida.
-fn link_do_nivel_de_detalhe(instalacao: &Instalacao, tela: &TelaAtual) -> Result<String, E> {
+pub(super) fn link_do_nivel_de_detalhe(
+    instalacao: &Instalacao,
+    tela: &TelaAtual,
+) -> Result<String, E> {
     let invalido = E::LinkDoNivelDeDetalheNaoReconhecido;
     let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
     let parser = dom.parser();

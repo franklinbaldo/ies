@@ -128,9 +128,9 @@ fn todas_sao_as_publicadas_nesta_instalacao() {
     let doze = planejar(&nivel(&C::TODAS, &atual), &AlvoDasColunas::Todas).unwrap();
     assert_eq!(doze.antes, atual);
     assert_eq!(doze.alvo, C::TODAS);
-    assert!(doze.indisponiveis.is_empty());
+    assert_eq!(doze.indisponiveis, []);
     assert_eq!(doze.marcar().len(), 9);
-    assert!(doze.desmarcar().is_empty());
+    assert_eq!(doze.desmarcar(), []);
     assert!(!doze.inalterado());
 
     let unb = planejar(&nivel(&onze(), &atual), &AlvoDasColunas::Todas).unwrap();
@@ -180,7 +180,7 @@ fn salvar_declara_os_campos_do_catalogo_e_o_efeito_persistente() {
     assert_eq!(op.campos_usuario, C::TODAS.map(C::campo));
     assert_eq!(op.envio, EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"));
     assert_eq!(op.campos_ocultos_exigidos, ["hdnInfraTipoPagina"]);
-    assert!(op.campos_ocultos_reescritos.is_empty());
+    assert_eq!(op.campos_ocultos_reescritos.len(), 0);
     assert_eq!(op.resultado, ResultadoDoEnvio::ConferidoPorLeituraPosterior);
     assert_eq!(op.unidade, ConferenciaDaUnidade::NaTelaDeOrigemDoLink);
     assert_eq!(

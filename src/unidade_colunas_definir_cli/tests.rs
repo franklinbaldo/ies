@@ -84,10 +84,10 @@ fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
 #[test]
 fn efeito_incerto_publica_codigo_causa_e_verificacao() {
     let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
-        plano: plano(),
+        plano: Box::new(plano()),
         falha_do_salvar: Some(erro_500()),
-        verificacao: VerificacaoDasColunas::LeituraFalhou(ErroVisaoDoControle::Transporte(
-            FalhaTransporte::Rede,
+        verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
+            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
         )),
     };
     let valor = json_de_falha(&erro, None);
@@ -112,7 +112,7 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
 #[test]
 fn falha_de_volta_a_r_acompanha_o_erro_da_escrita() {
     let erro = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
-        plano: plano(),
+        plano: Box::new(plano()),
         observadas: vec![C::Marcadores],
     };
     let volta = ErroVisaoDoControle::VisaoDoControleNaoRestaurada {

@@ -67,22 +67,51 @@ impl AlvoDasColunas {
     /// `todas` ou chaves estáveis separadas por vírgula (espaços em volta
     /// de cada chave são ignorados).
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroDaListaDeColunas> {
-        let _ = texto;
-        todo!("RED: interpretar --definir")
+        use ErroDaListaDeColunas as E;
+        if texto.trim().is_empty() {
+            return Err(E::ListaDeColunasVazia);
+        }
+        if texto.trim() == "todas" {
+            return Ok(Self::Todas);
+        }
+        let mut colunas = Vec::new();
+        for item in texto.split(',').map(str::trim) {
+            if item.is_empty() {
+                return Err(E::ItemVazioNaListaDeColunas);
+            }
+            let coluna =
+                ColunaDoDetalhe::pela_chave(item).ok_or_else(|| E::ColunaDesconhecida {
+                    chave: item.to_owned(),
+                })?;
+            if colunas.contains(&coluna) {
+                return Err(E::ColunaRepetidaNaLista { coluna });
+            }
+            colunas.push(coluna);
+        }
+        colunas.sort_unstable();
+        Ok(Self::Lista(colunas))
     }
 }
 
 impl PlanoDasColunas {
     pub(crate) fn marcar(&self) -> Vec<ColunaDoDetalhe> {
-        todo!("RED: marcar")
+        self.alvo
+            .iter()
+            .filter(|coluna| !self.antes.contains(coluna))
+            .copied()
+            .collect()
     }
 
     pub(crate) fn desmarcar(&self) -> Vec<ColunaDoDetalhe> {
-        todo!("RED: desmarcar")
+        self.antes
+            .iter()
+            .filter(|coluna| !self.alvo.contains(coluna))
+            .copied()
+            .collect()
     }
 
     pub(crate) fn inalterado(&self) -> bool {
-        todo!("RED: inalterado")
+        self.antes == self.alvo
     }
 }
 
@@ -91,6 +120,32 @@ pub(crate) fn planejar(
     nivel: &NivelDeDetalhe,
     alvo: &AlvoDasColunas,
 ) -> Result<PlanoDasColunas, ColunaIndisponivelNestaInstalacao> {
-    let _ = (nivel, alvo);
-    todo!("RED: planejar")
+    let disponiveis: Vec<_> = nivel
+        .opcoes
+        .iter()
+        .filter(|opcao| opcao.disponivel)
+        .map(|opcao| opcao.coluna)
+        .collect();
+    let alvo = match alvo {
+        AlvoDasColunas::Todas => disponiveis.clone(),
+        AlvoDasColunas::Lista(colunas) => {
+            if let Some(&coluna) = colunas.iter().find(|c| !disponiveis.contains(c)) {
+                return Err(ColunaIndisponivelNestaInstalacao { coluna });
+            }
+            // A ordem do catálogo é a de `ColunaDoDetalhe` (derive `Ord`).
+            let mut ordenadas = colunas.clone();
+            ordenadas.sort_unstable();
+            ordenadas
+        }
+    };
+    Ok(PlanoDasColunas {
+        antes: nivel.marcadas(),
+        alvo,
+        indisponiveis: nivel
+            .opcoes
+            .iter()
+            .filter(|opcao| !opcao.disponivel)
+            .map(|opcao| opcao.coluna)
+            .collect(),
+    })
 }

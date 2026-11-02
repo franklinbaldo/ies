@@ -197,7 +197,7 @@ fn previa_na_r_troca_le_e_restaura_sem_salvar() {
     let feito = ok(&rodada);
     assert_eq!(feito.plano.marcar(), [C::Marcadores]);
     assert_eq!(feito.plano.desmarcar(), ATUAL);
-    assert!(rodada.corpos.is_empty());
+    assert_eq!(rodada.corpos.len(), 0);
 }
 
 #[test]
@@ -215,7 +215,9 @@ fn todas_confirmado_na_unb_salva_as_onze_e_confere_por_leitura() {
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let mut corpo = "sbmSalvar=Salvar".to_owned();
     for coluna in onze() {
-        corpo.push_str(&format!("&{}=on", coluna.campo()));
+        corpo.push('&');
+        corpo.push_str(coluna.campo());
+        corpo.push_str("=on");
     }
     corpo.push_str("&hdnInfraTipoPagina=2");
     assert_eq!(rodada.corpos, [corpo]);
@@ -327,7 +329,6 @@ fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
                 erro(&rodada),
                 &ErroDefinirColunas::Leitura(esperado.clone())
             );
-            assert!(!erro(&rodada).houve_envio());
         }
     }
 }
@@ -435,9 +436,9 @@ fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
         falha,
         ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
             falha_do_salvar: Some(_),
-            verificacao: VerificacaoDasColunas::Marcadas(m),
+            verificacao,
             ..
-        } if m == &[C::Atribuicao]
+        } if **verificacao == VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])
     ));
     assert_eq!(
         (falha.subcodigo(), falha.codigo(), falha.saida()),
@@ -477,16 +478,16 @@ fn verificacao_impossivel_apos_5xx_e_efeito_incerto_e_a_r_e_restaurada() {
     assert_eq!(falha.saida(), 3);
     assert!(matches!(
         falha,
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
-            verificacao: VerificacaoDasColunas::LeituraFalhou(_),
-            ..
-        }
+        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas { verificacao, .. }
+            if matches!(**verificacao, VerificacaoDasColunas::LeituraFalhou(_))
     ));
 }
 
 #[test]
 fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
-    let login = "<html><form id='frmLogin' action='login.php'></form></html>".to_owned();
+    let login =
+        "<html><form id='frmLogin' action='login.php'><input name='txtUsuario'></form></html>"
+            .to_owned();
     for (passo, subcodigo) in [
         (
             Passo::Html(302, String::new()),
@@ -508,11 +509,11 @@ fn resposta_esperada_e_verificacao_impossivel_e_efeito_incerto() {
         erro(&rodada),
         ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
             falha_do_salvar: None,
-            verificacao: VerificacaoDasColunas::LeituraFalhou(ErroVisaoDoControle::Transporte(
-                FalhaTransporte::Rede
-            )),
+            verificacao,
             ..
-        }
+        } if **verificacao == VerificacaoDasColunas::LeituraFalhou(
+            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede)
+        )
     ));
 }
 

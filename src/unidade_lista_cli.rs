@@ -153,9 +153,10 @@ fn humano_da_detalhada(leitura: &LeituraDetalhada) -> String {
     if !ausentes.is_empty() {
         let _ = write!(
             texto,
-            "\nIES: colunas não exibidas na visão detalhada: {}. Para vê-las, marque-as no \
-             Nível de detalhe do Controle de Processos (`ies unidade colunas` mostra a configuração \
-             e quais opções existem nesta instalação).",
+            "\nIES: colunas não exibidas na visão detalhada: {}. Para vê-las, \
+             `ies unidade colunas --definir todas` mostra a prévia de marcar todas as opções \
+             desta instalação no Nível de detalhe (aplica com --confirmar); `ies unidade colunas` \
+             mostra a configuração atual.",
             ausentes.join(", ")
         );
     }
