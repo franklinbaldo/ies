@@ -59,6 +59,7 @@ mod transporte;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
+mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
 mod visao_do_controle;
 
@@ -245,8 +246,15 @@ enum UnidadeAcao {
         )]
         pagina: Option<u32>,
     },
-    /// Mostra as 12 opções do Nível de detalhe e quais estão marcadas (só leitura)
-    Colunas,
+    /// Mostra as 12 opções do Nível de detalhe; com --definir, prévia da escrita
+    Colunas {
+        /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
+        #[arg(long, value_name = "todas|LISTA")]
+        definir: Option<String>,
+        /// Salva a configuração pedida (um POST), confere por leitura e restaura a tela
+        #[arg(long, requires = "definir")]
+        confirmar: bool,
+    },
     /// Lista Recebidos da unidade: a página observada, com total e faixa
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
@@ -368,8 +376,26 @@ fn run(cli: &Cli) -> ExitCode {
             );
         }
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas),
+            acao:
+                Some(UnidadeAcao::Colunas {
+                    definir: None,
+                    confirmar: _,
+                }),
         }) => return unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
+        Domain::Unidade(Unidade {
+            acao:
+                Some(UnidadeAcao::Colunas {
+                    definir: Some(definir),
+                    confirmar,
+                }),
+        }) => {
+            return unidade_colunas_definir_cli::definir_colunas(
+                cli.unidade.as_deref(),
+                cli.json,
+                definir,
+                *confirmar,
+            );
+        }
         _ => {}
     }
     if let Domain::Documento(Documento {

@@ -13,10 +13,11 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnInicio"],
     campos_ocultos_reescritos: &[],
     campos_usuario: &["rdoPesquisarEm", "txtProtocoloPesquisa"],
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "pesquisaResultado",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },

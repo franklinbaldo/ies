@@ -10,8 +10,9 @@ Leitura da tela **Nível de detalhe** (`procedimento_configurar_detalhe`),
 que define as colunas da [visão detalhada](unidade-listar-processos-visao-detalhada.md).
 Faz parte da operação `unidade.listar_processos`: mesma sessão, mesma
 tela de origem e mesmas travas. **Não salva** nada: `sbmSalvar` nunca é
-enviado. Escrever a configuração é um comando futuro, com prévia e
-confirmação.
+enviado. Escrever a configuração é a operação `unidade.definir_colunas`,
+`ies unidade colunas --definir todas|LISTA [--confirmar]`, com prévia,
+confirmação e verificação ([contrato da escrita](unidade-definir-colunas.md)).
 
 ## Modelo `ColunaDoDetalhe`
 
@@ -94,7 +95,7 @@ mesmas recusas `visao_do_controle_nao_restaurada` e campos.
 Opção do catálogo **ausente** não é recusa: sai com `disponivel: false`.
 `opcao_do_nivel_de_detalhe_ausente` deixa de existir.
 
-## Evidência para a escrita futura (sem código nesta PR)
+## Evidência para a escrita ([`--definir`](unidade-definir-colunas.md))
 
 Ensaio do proprietário na PEN1 (02/11/2026, treinamento): o POST de salvar
 envia só `hdnInfraTipoPagina` (como servido), `sbmSalvar` com o valor

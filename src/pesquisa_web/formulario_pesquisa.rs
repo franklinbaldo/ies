@@ -5,9 +5,10 @@ use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, ler_regras_da_te
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::{
-    EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
-    MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada,
-    TelaServida, derivar_submissao, enviar_submissao_via, localizar_formulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost,
+    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
+    localizar_formulario,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -37,10 +38,11 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
         "selOrgaoPesquisa[]",
         "txtProtocoloPesquisa",
     ],
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "pesquisaResultado",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },

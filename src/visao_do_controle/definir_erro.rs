@@ -1,0 +1,152 @@
+//! Resultado e recusas de `ies unidade colunas --definir`
+//! (contracts/cli/unidade-definir-colunas.md). Uma variante por fato.
+use super::ErroVisaoDoControle;
+use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
+use crate::transporte::StatusHttpRecusado;
+
+/// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
+/// tela de login). O pedido saiu: o efeito é incerto até a leitura.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum FalhaDoSalvar {
+    /// Rede, tempo esgotado, 5xx, outro status, MIME, charset, tamanho, login.
+    Envio(ErroSubmissaoFormulario),
+    /// 302 recebido e não seguido.
+    Redirecionamento302,
+}
+
+impl FalhaDoSalvar {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Envio(erro) => erro.subcodigo(),
+            Self::Redirecionamento302 => "redirecionamento_ao_salvar_nivel_de_detalhe",
+        }
+    }
+
+    /// Status e mensagem do SEI, quando a resposta foi uma recusa HTTP.
+    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
+        match self {
+            Self::Envio(erro) => erro.status_http().cloned(),
+            Self::Redirecionamento302 => Some(StatusHttpRecusado::sem_mensagem(302)),
+        }
+    }
+}
+
+/// O que a leitura de verificação, feita uma vez, mostrou.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum VerificacaoDasColunas {
+    Marcadas(Vec<ColunaDoDetalhe>),
+    LeituraFalhou(ErroVisaoDoControle),
+}
+
+/// Sucesso: prévia, alvo igual ao atual, ou salvo e conferido.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ColunasDefinidas {
+    pub(crate) unidade: String,
+    pub(crate) plano: PlanoDasColunas,
+    pub(crate) confirmado: bool,
+    /// O POST de salvar foi enviado e a leitura mostrou o alvo.
+    pub(crate) alterado: bool,
+    /// Nomes dos campos do POST, previsto (prévia) ou enviado.
+    pub(crate) campos_do_envio: Option<Vec<String>>,
+    /// Marcas lidas na verificação (só depois de salvar).
+    pub(crate) depois: Option<Vec<ColunaDoDetalhe>>,
+    /// A resposta do salvar não foi a esperada, e a leitura mostrou o alvo.
+    pub(crate) reconciliado_por: Option<FalhaDoSalvar>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ErroDefinirColunas {
+    /// Falha antes do POST de salvar: nada foi salvo.
+    Leitura(ErroVisaoDoControle),
+    ColunaIndisponivelNestaInstalacao {
+        coluna: ColunaDoDetalhe,
+    },
+    /// A leitura de verificação mostrou as marcas de antes.
+    ConfiguracaoDeColunasNaoAplicada {
+        plano: PlanoDasColunas,
+        falha_do_salvar: Option<FalhaDoSalvar>,
+    },
+    /// Resposta esperada, mas a leitura mostrou outras marcas (nem o alvo
+    /// nem as de antes).
+    MarcasDiferentesDoAlvoAposSalvar {
+        plano: PlanoDasColunas,
+        observadas: Vec<ColunaDoDetalhe>,
+    },
+    /// Saída 3: o POST saiu e a leitura não decide o efeito.
+    EfeitoIncertoNaConfiguracaoDeColunas {
+        plano: PlanoDasColunas,
+        falha_do_salvar: Option<FalhaDoSalvar>,
+        verificacao: VerificacaoDasColunas,
+    },
+}
+
+impl ErroDefinirColunas {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Leitura(erro) => erro.subcodigo(),
+            Self::ColunaIndisponivelNestaInstalacao { .. } => {
+                "coluna_indisponivel_nesta_instalacao"
+            }
+            Self::ConfiguracaoDeColunasNaoAplicada { .. } => "configuracao_de_colunas_nao_aplicada",
+            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
+                "marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar"
+            }
+            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => {
+                "efeito_incerto_na_configuracao_de_colunas"
+            }
+        }
+    }
+
+    /// Categoria pública: o próximo passo de quem chama.
+    pub(crate) fn codigo(&self) -> &'static str {
+        match self {
+            Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. } => "fonte_invalida",
+            Self::ConfiguracaoDeColunasNaoAplicada { .. } => "escrita_nao_aplicada",
+            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => "escrita_diferente_da_solicitada",
+            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => "efeito_incerto",
+        }
+    }
+
+    /// 3 só para efeito incerto; as demais recusas saem com 1.
+    pub(crate) fn saida(&self) -> u8 {
+        match self {
+            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => 3,
+            _ => 1,
+        }
+    }
+
+    /// O POST de salvar saiu (houve, ou pode ter havido, escrita).
+    pub(crate) fn houve_envio(&self) -> bool {
+        !matches!(
+            self,
+            Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. }
+        )
+    }
+
+    pub(crate) fn mensagem(&self) -> &'static str {
+        match self {
+            Self::Leitura(erro) => erro.mensagem(),
+            Self::ColunaIndisponivelNestaInstalacao { .. } => {
+                "a coluna pedida não é publicada pelo Nível de detalhe desta instalação; nada foi salvo"
+            }
+            Self::ConfiguracaoDeColunasNaoAplicada { .. } => {
+                "a configuração lida depois de salvar é a de antes: as colunas não foram alteradas"
+            }
+            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
+                "a configuração lida depois de salvar não é a pedida nem a de antes"
+            }
+            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => {
+                "não se sabe se as colunas foram alteradas; confira com `ies unidade colunas` antes de repetir"
+            }
+        }
+    }
+}
+
+/// Desfecho do fluxo: o resultado e, se a sessão estava na R, a falha da
+/// volta à R (a tela ficou na D), à parte para não esconder uma escrita.
+#[derive(Debug)]
+pub(crate) struct DesfechoDasColunas {
+    pub(crate) resultado: Result<ColunasDefinidas, ErroDefinirColunas>,
+    pub(crate) visao_nao_restaurada: Option<ErroVisaoDoControle>,
+}
