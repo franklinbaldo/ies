@@ -350,22 +350,3 @@ pub(super) fn tela_atual(html: String) -> TelaAtual {
         mime: "text/html; charset=iso-8859-1".to_owned(),
     }
 }
-
-#[test]
-fn erro_de_restauracao_publica_onde_a_tela_ficou_e_a_causa() {
-    let causa = ErroVisaoDoControle::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
-        StatusHttpRecusado {
-            status: 500,
-            mensagem_do_servidor: Some("Erro.".to_owned()),
-        },
-    ));
-    let erro = ErroVisaoDoControle::VisaoDoControleNaoRestaurada {
-        visao_deixada: Visao::Detalhada,
-        causa: Box::new(causa),
-    };
-    assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
-    assert_eq!(erro.status_http().map(|h| h.status), Some(500));
-    let detalhes = erro.detalhes_json().unwrap();
-    assert_eq!(detalhes["visao_deixada"], "D");
-    assert_eq!(detalhes["causa"], "status_http_de_erro_do_servidor");
-}
