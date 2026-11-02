@@ -38,17 +38,21 @@ mod tests {
     #[test]
     fn processo_de_exportacao_multipagina_e_encontrado_sem_rede() {
         let caminho = arquivo_temporario();
-        let mut dados = json!({
-            "origem": "web_com_paginas_privadas",
-            "unidade": "PPI",
-            "recebidos": {
-                "total_declarado": 1,
+        let mut dados = json!([
+            {
+                "origem": "web_com_paginas_privadas", "unidade": "PPI",
+                "categoria": "recebidos", "total_declarado": 1,
+                "faixa_observada": {"inicio": 1, "fim": 1},
                 "processos": [
-                    {"id": "0042", "numero": "000123/2026", "visualizado": false}
+                    {"id": "0042", "numero": "000123/2026", "visualizado": false, "sigiloso": false}
                 ]
             },
-            "gerados": {"total_declarado": 0, "processos": []}
-        });
+            {
+                "origem": "web_com_paginas_privadas", "unidade": "PPI",
+                "categoria": "gerados", "total_declarado": 0,
+                "faixa_observada": null, "processos": []
+            }
+        ]);
         fs::write(&caminho, dados.to_string()).unwrap();
         fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
         let (codigo, resultado) = executar(&caminho);
@@ -58,14 +62,38 @@ mod tests {
         assert_eq!(resultado["autenticacao_remota"], false);
         assert_eq!(resultado["ocorrencias"][0]["processo"]["id"], "0042");
 
-        dados["recebidos"]["total_declarado"] = json!(2);
-        fs::write(&caminho, dados.to_string()).unwrap();
-        let (codigo, erro) = executar(&caminho);
-        assert_eq!(codigo, 1);
+        let recusa = |dados: &Value| {
+            fs::write(&caminho, dados.to_string()).unwrap();
+            let (codigo, erro) = executar(&caminho);
+            assert_eq!(codigo, 1, "{erro}");
+            erro["subcodigo"].as_str().unwrap().to_owned()
+        };
+        let mut trocadas = dados.clone();
+        trocadas.as_array_mut().unwrap().reverse();
         assert_eq!(
-            erro["subcodigo"],
-            "total_recebidos_do_arquivo_nao_comprovado"
+            recusa(&trocadas),
+            "listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados"
         );
+        let mut unidades = dados.clone();
+        unidades[1]["unidade"] = json!("OUTRA");
+        assert_eq!(
+            recusa(&unidades),
+            "unidade_das_listas_do_arquivo_da_caixa_diferente"
+        );
+        let mut origens = dados.clone();
+        origens[1]["origem"] = json!("web");
+        assert_eq!(
+            recusa(&origens),
+            "origem_das_listas_do_arquivo_da_caixa_diferente"
+        );
+        let antiga = json!({
+            "origem": "web", "unidade": "PPI",
+            "recebidos": {"total_declarado": 0, "processos": []},
+            "gerados": {"total_declarado": 0, "processos": []}
+        });
+        assert_eq!(recusa(&antiga), "formato_do_arquivo_da_caixa_invalido");
+        dados[0]["total_declarado"] = json!(2);
+        assert_eq!(recusa(&dados), "total_recebidos_do_arquivo_nao_comprovado");
         fs::remove_file(caminho).unwrap();
     }
 }

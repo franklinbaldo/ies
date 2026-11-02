@@ -51,24 +51,80 @@ pub fn humano(leitura: &Leitura) -> String {
     )
 }
 
+/// Uma lista da caixa na forma única (shim do contrato; GREEN a seguir).
+pub(crate) fn lista_da_categoria(
+    _leitura: &Leitura,
+    _categoria: crate::dominio::Categoria,
+    _origem: &str,
+) -> Value {
+    Value::Null
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::paginas::juntar;
+    use std::collections::BTreeSet;
+
+    fn chaves(valor: &Value) -> BTreeSet<&str> {
+        valor
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect()
+    }
 
     #[test]
     fn json_publica_somente_dados_sem_sinal_de_completude() {
         let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         let leitura = juntar(&[html.into()], None).unwrap();
-        let obj = json(&leitura, "unb");
-        assert!(obj["recebidos"].get("completa").is_none());
-        assert!(obj["gerados"].get("completa").is_none());
-        assert!(obj.get("completude").is_none());
-        assert!(obj["recebidos"].get("linhas_lidas").is_none());
-        assert!(obj["recebidos"].get("paginas_lidas").is_none());
-        assert!(obj["recebidos"]["faixa_observada"].is_null());
-        assert!(obj["recebidos"].get("faixa_observada").is_some());
+        let listas = json(&leitura, "unb");
+        for lista in listas.as_array().unwrap() {
+            assert!(lista.get("completa").is_none());
+            assert!(lista.get("linhas_lidas").is_none());
+            assert!(lista.get("paginas_lidas").is_none());
+            assert!(lista["faixa_observada"].is_null());
+            assert!(lista.get("faixa_observada").is_some());
+        }
+    }
+
+    #[test]
+    fn caixa_sao_duas_listas_independentes_na_ordem_recebidos_gerados() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>(5 registros - 1 a 1):</caption>\
+                    <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = juntar(&[html.into()], None).unwrap();
+        let listas = json(&leitura, "web");
+        let listas = listas.as_array().expect("array de listas");
+        assert_eq!(listas.len(), 2);
+        let forma = BTreeSet::from([
+            "categoria",
+            "faixa_observada",
+            "origem",
+            "processos",
+            "total_declarado",
+            "unidade",
+        ]);
+        for (lista, categoria) in listas.iter().zip(["recebidos", "gerados"]) {
+            assert_eq!(chaves(lista), forma);
+            assert_eq!(lista["categoria"], categoria);
+            assert_eq!(lista["unidade"], "PPI");
+            assert_eq!(lista["origem"], "web");
+        }
+        assert_eq!(listas[0]["total_declarado"], 5);
+        assert_eq!(listas[0]["faixa_observada"]["inicio"], 1);
+        assert_eq!(listas[0]["processos"][0]["numero"], "N-1");
+        assert_eq!(
+            listas[1],
+            lista_da_categoria(&leitura, crate::dominio::Categoria::Gerados, "web")
+        );
+        assert_eq!(
+            listas[0],
+            lista_da_categoria(&leitura, crate::dominio::Categoria::Recebidos, "web")
+        );
     }
 
     #[test]

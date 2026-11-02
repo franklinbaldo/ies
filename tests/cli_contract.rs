@@ -402,14 +402,17 @@ fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
             .unwrap()
             .as_nanos()
     ));
-    let dados = serde_json::json!({
-        "origem": "web", "unidade": "PPI",
-        "recebidos": {
-            "total_declarado": 1,
+    let dados = serde_json::json!([
+        {
+            "origem": "web", "unidade": "PPI", "categoria": "recebidos",
+            "total_declarado": 1, "faixa_observada": {"inicio": 1, "fim": 1},
             "processos": [{"id": "0042", "numero": "000123/2026", "visualizado": false}]
         },
-        "gerados": {"total_declarado": 0, "processos": []}
-    });
+        {
+            "origem": "web", "unidade": "PPI", "categoria": "gerados",
+            "total_declarado": 0, "faixa_observada": null, "processos": []
+        }
+    ]);
     fs::write(&arquivo, serde_json::to_vec(&dados).unwrap()).unwrap();
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
 
@@ -440,51 +443,4 @@ fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
         "numero_nao_observado_no_arquivo_da_caixa"
     );
     fs::remove_file(arquivo).unwrap();
-}
-
-#[test]
-fn pagina_da_caixa_sem_categoria_e_uso_invalido_sem_requisicoes() {
-    for args in [
-        &["unidade", "listar-processos", "--pagina", "2", "--json"][..],
-        &[
-            "unidade",
-            "listar-processos",
-            "--categoria",
-            "gerados",
-            "--pagina",
-            "0",
-        ][..],
-    ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(args)
-            .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
-            .env("IES_COOKIE_FILE", "/nao/existe/cookie")
-            .env("IES_ORIGEM_FILE", "/nao/existe/origem")
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(2), "{args:?}");
-        assert!(output.stdout.is_empty(), "{args:?}");
-    }
-}
-
-#[test]
-fn pagina_da_categoria_sem_sessao_falha_antes_de_qualquer_requisicao() {
-    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "unidade",
-            "listar-processos",
-            "--categoria",
-            "gerados",
-            "--pagina",
-            "2",
-            "--json",
-        ])
-        .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
-        .env("IES_COOKIE_FILE", "/nao/existe/cookie")
-        .env("IES_ORIGEM_FILE", "/nao/existe/origem")
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "arquivo_privado_ausente_ou_inacessivel");
 }

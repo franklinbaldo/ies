@@ -310,10 +310,10 @@ mod testes_exportacao {
             ExitCode::SUCCESS
         );
         let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-        assert_eq!(json["visualizacao"], "detalhada");
-        assert_eq!(json["processos"][0]["numero"], "000042/2026");
-        assert!(json.get("recebidos").is_none());
-        assert!(json.get("gerados").is_none());
+        assert_eq!(json[0]["categoria"], "detalhada");
+        assert_eq!(json[0]["processos"][0]["numero"], "000042/2026");
+        assert!(json[0].get("recebidos").is_none());
+        assert!(json.get(1).is_none());
         fs::remove_file(caminho).unwrap();
     }
 
@@ -341,8 +341,8 @@ mod testes_exportacao {
         assert_eq!(codigo, ExitCode::SUCCESS);
         let valor: serde_json::Value =
             serde_json::from_slice(&fs::read(&arquivo).unwrap()).unwrap();
-        assert_eq!(valor["recebidos"]["total_declarado"], 0);
-        assert_eq!(valor["gerados"]["total_declarado"], 0);
+        assert_eq!(valor[0]["total_declarado"], 0);
+        assert_eq!(valor[1]["total_declarado"], 0);
         assert!(valor.get("completa").is_none());
         fs::remove_file(arquivo).unwrap();
     }

@@ -77,6 +77,18 @@ pub(crate) fn selecionar(
     }))
 }
 
+/// Publica ou exporta a lista da categoria a partir do HTML obtido
+/// (shim do contrato; GREEN a seguir).
+pub(crate) fn publicar_lista(
+    _html: &str,
+    _unidade: Option<&str>,
+    _categoria: CategoriaLista,
+    _json_mode: bool,
+    _destino: Option<&Path>,
+) -> ExitCode {
+    ExitCode::from(1)
+}
+
 /// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
 pub(crate) fn listar_categoria(
     unidade: Option<&str>,
@@ -197,46 +209,23 @@ mod tests {
         assert_eq!(modelo["categoria"], "gerados");
     }
 
-    #[test]
-    fn tipo_de_categoria_da_cli_aceita_somente_valores_do_dominio() {
+    fn aceita(args: &[&str]) -> bool {
         use clap::Parser;
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "gerados"
-            ])
-            .is_ok()
-        );
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "desconhecida"
-            ])
-            .is_err()
-        );
+        let mut todos = vec!["ies", "unidade"];
+        todos.extend_from_slice(args);
+        crate::Cli::try_parse_from(todos).is_ok()
     }
 
     #[test]
-    fn categoria_e_paginas_privadas_nao_podem_ser_combinadas_silenciosamente() {
-        use clap::Parser;
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "gerados",
-                "--pagina-arquivo",
-                "pagina-2.html"
-            ])
-            .is_err()
-        );
+    fn listas_sao_subcomandos_e_listar_processos_perde_categoria_e_pagina() {
+        assert!(aceita(&["recebidos"]));
+        assert!(aceita(&["gerados"]));
+        assert!(aceita(&["gerados", "--saida", "lista.json"]));
+        assert!(aceita(&["listar-processos", "--pagina-arquivo", "p.html"]));
+        assert!(!aceita(&["listar-processos", "--categoria", "gerados"]));
+        assert!(!aceita(&["listar-processos", "--pagina", "2"]));
+        assert!(!aceita(&["gerados", "--pagina-arquivo", "pagina-2.html"]));
+        assert!(!aceita(&["gerados", "--categoria", "gerados"]));
     }
 
     #[test]
@@ -275,26 +264,91 @@ mod tests {
     }
 
     #[test]
-    fn pagina_exige_categoria_e_inteiro_positivo() {
-        use clap::Parser;
-        let tentar = |extra: &[&str]| {
-            let mut args = vec!["ies", "unidade", "listar-processos"];
-            args.extend_from_slice(extra);
-            crate::Cli::try_parse_from(args).is_ok()
-        };
-        assert!(tentar(&["--categoria", "gerados", "--pagina", "2"]));
-        assert!(!tentar(&["--pagina", "2"]));
-        assert!(!tentar(&["--categoria", "gerados", "--pagina", "0"]));
-        assert!(!tentar(&["--categoria", "gerados", "--pagina", "-1"]));
-        assert!(!tentar(&["--categoria", "gerados", "--pagina", "x"]));
-        assert!(!tentar(&[
-            "--categoria",
-            "gerados",
-            "--pagina",
-            "2",
-            "--pagina-arquivo",
-            "p.html"
-        ]));
+    fn pagina_das_listas_exige_inteiro_positivo() {
+        for lista in ["recebidos", "gerados"] {
+            assert!(aceita(&[lista, "--pagina", "2"]));
+            assert!(!aceita(&[lista, "--pagina", "0"]));
+            assert!(!aceita(&[lista, "--pagina", "-1"]));
+            assert!(!aceita(&[lista, "--pagina", "x"]));
+        }
+    }
+
+    #[test]
+    fn lista_tem_a_forma_unica_da_caixa() {
+        let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
+        let chaves: Vec<&str> = modelo
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            chaves,
+            [
+                "categoria",
+                "faixa_observada",
+                "origem",
+                "processos",
+                "total_declarado",
+                "unidade"
+            ]
+        );
+        assert_eq!(
+            modelo,
+            crate::saida::lista_da_categoria(
+                &leitura(200),
+                crate::dominio::Categoria::Recebidos,
+                "web"
+            )
+        );
+    }
+
+    fn exportar_lista(
+        unidade: Option<&str>,
+        categoria: CategoriaLista,
+    ) -> (ExitCode, Option<Value>) {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
+             <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let caminho = std::env::temp_dir().join(format!(
+            "ies-lista-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho));
+        let valor = std::fs::read(&caminho)
+            .ok()
+            .map(|bytes| serde_json::from_slice(&bytes).unwrap());
+        let _ = std::fs::remove_file(&caminho);
+        (codigo, valor)
+    }
+
+    #[test]
+    fn lista_confere_unidade_global_antes_de_publicar() {
+        let (codigo, valor) = exportar_lista(Some("OUTRA"), CategoriaLista::Recebidos);
+        assert_eq!(codigo, ExitCode::from(1));
+        assert!(valor.is_none());
+        let (codigo, valor) = exportar_lista(Some("PPI"), CategoriaLista::Gerados);
+        assert_eq!(codigo, ExitCode::SUCCESS);
+        let valor = valor.unwrap();
+        assert_eq!(valor["categoria"], "gerados");
+        assert_eq!(valor["total_declarado"], 0);
+        assert!(valor.as_object().unwrap().get("recebidos").is_none());
+    }
+
+    #[test]
+    fn lista_exportada_e_um_objeto_e_nao_um_array() {
+        let (codigo, valor) = exportar_lista(None, CategoriaLista::Recebidos);
+        assert_eq!(codigo, ExitCode::SUCCESS);
+        let valor = valor.unwrap();
+        assert!(valor.is_object());
+        assert_eq!(valor["categoria"], "recebidos");
+        assert_eq!(valor["faixa_observada"]["fim"], 1);
+        assert_eq!(valor["processos"][0]["numero"], "R-0001");
     }
 
     #[test]
