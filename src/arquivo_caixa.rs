@@ -8,6 +8,7 @@ pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
     DiretorioLinkSimbolico,
+    DiretorioTrocadoDurantePreparacao,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
@@ -17,6 +18,9 @@ impl ErroArquivoCaixa {
             Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
             Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
             Self::DiretorioLinkSimbolico => "diretorio_do_arquivo_da_caixa_link_simbolico",
+            Self::DiretorioTrocadoDurantePreparacao => {
+                "diretorio_do_arquivo_da_caixa_trocado_durante_preparacao"
+            },
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -26,6 +30,9 @@ impl ErroArquivoCaixa {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
             Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
             Self::DiretorioLinkSimbolico => "diretório de destino atravessa link simbólico",
+            Self::DiretorioTrocadoDurantePreparacao => {
+                "diretório de destino foi substituído durante a preparação"
+            },
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
         }
@@ -34,11 +41,10 @@ impl ErroArquivoCaixa {
 
 /// Pré-validação sem rede: evita GET administrativo quando o destino é inviável.
 /// A exclusividade final depende de `create_new`, não desta inspeção.
-pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
+fn conferir_destino_e_pai(destino: &Path) -> Result<std::fs::Metadata, ErroArquivoCaixa> {
     use std::io::ErrorKind;
     // Path::file_name ignora a barra terminal ("novo/" parece "novo").
-    // Não transformar uma indicação explícita de diretório em arquivo JSON,
-    // nem fazer GET administrativo para um destino sem nome de arquivo.
+    // Não transformar indicação explícita de diretório em arquivo JSON.
     let bytes = destino.as_os_str().as_encoded_bytes();
     let ultimo = bytes.last().copied();
     if ultimo == Some(std::path::MAIN_SEPARATOR as u8)
@@ -52,11 +58,16 @@ pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
     let pai = destino
         .parent()
         .ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
+    // Guardar a identidade do pai efetivamente conferido, inclusive para
+    // destinos relativos cuja pasta pai é o diretório de trabalho.
+    let mut pai_observado = None;
     for ancestral in pai.ancestors() {
-        if ancestral.as_os_str().is_empty() {
-            continue;
-        }
-        let meta = std::fs::symlink_metadata(ancestral)
+        let caminho = if ancestral.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            ancestral
+        };
+        let meta = std::fs::symlink_metadata(caminho)
             .map_err(|_| ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
         if meta.file_type().is_symlink() {
             return Err(ErroArquivoCaixa::DiretorioLinkSimbolico);
@@ -64,12 +75,22 @@ pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
         if !meta.is_dir() {
             return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
         }
+        if pai_observado.is_none() {
+            pai_observado = Some(meta);
+        }
     }
+    let pai_observado =
+        pai_observado.ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
     match std::fs::symlink_metadata(destino) {
         Ok(_) => Err(ErroArquivoCaixa::DestinoJaExiste),
-        Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(()),
+        Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(pai_observado),
         Err(_) => Err(ErroArquivoCaixa::EscritaDeArquivoFalhou),
     }
+}
+
+pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
+    conferir_destino_e_pai(destino)?;
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -118,19 +139,29 @@ pub(crate) struct DestinoPreparado<'a> {
     pai: std::fs::File,
 }
 
-pub(crate) fn preparar_destino(destino: &Path) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
-    conferir_destino(destino)?;
+fn preparar_destino_com_intervalo(
+    destino: &Path,
+    depois_da_conferencia: impl FnOnce(),
+) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
+    let pai_observado = conferir_destino_e_pai(destino)?;
+    depois_da_conferencia();
     #[cfg(target_os = "linux")]
     let pai = diretorio_ancorado(
         destino
             .parent()
             .ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
     )?;
+    #[cfg(not(target_os = "linux"))]
+    let _ = pai_observado;
     Ok(DestinoPreparado {
         caminho: destino,
         #[cfg(target_os = "linux")]
         pai,
     })
+}
+
+pub(crate) fn preparar_destino(destino: &Path) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
+    preparar_destino_com_intervalo(destino, || {})
 }
 
 fn gravar_preparado_com_intervalo(
