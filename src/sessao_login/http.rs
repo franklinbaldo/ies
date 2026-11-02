@@ -2,11 +2,13 @@
 //! conexão por pedido, `Connection: close`, sem redirecionamento, sem
 //! retry, 8 MB durante o recebimento. Existe porque o `minreq` 2.14.1 guarda
 //! um valor por nome de cabeçalho (`HashMap::insert` em `read_metadata`) e
-//! perderia todos os `Set-Cookie` de uma resposta menos o último.
+//! perderia todos os `Set-Cookie` de uma resposta menos o último. Com proxy
+//! no ambiente (`transporte::proxy`), um `CONNECT` por pedido e o TLS com o
+//! host do SEI (SNI e certificado) através do túnel.
 use super::{RespostaHttp, TransporteDeLogin};
 use crate::formulario_web::SubmissaoDerivada;
 use crate::instalacao::host_valido;
-use crate::transporte::{FalhaTransporte, ler_limitado};
+use crate::transporte::{FalhaTransporte, ler_limitado, proxy};
 use std::fmt::Write as _;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -110,8 +112,11 @@ fn ambiente_do_processo(nome: &str) -> Option<String> {
 /// declarar (`transporte::proxy`), já com os tempos limite.
 pub(crate) fn abrir_conexao(
     host: &str,
-    _ambiente: impl Fn(&str) -> Option<String>,
+    ambiente: impl Fn(&str) -> Option<String>,
 ) -> Result<TcpStream, FalhaTransporte> {
+    if let Some(proxy) = proxy::proxy_para(host, ambiente).map_err(FalhaTransporte::Proxy)? {
+        return proxy::conectar_via(&proxy, host, TEMPO_LIMITE).map_err(FalhaTransporte::Proxy);
+    }
     // Cada endereço resolvido é uma tentativa de conexão TCP, não de pedido:
     // nada foi enviado antes de uma delas abrir.
     let tcp = (host, 443)

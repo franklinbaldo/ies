@@ -22,8 +22,8 @@ pub(crate) fn json_do_resultado(resultado: &ResultadoDoLogin) -> Value {
     })
 }
 
-/// JSON da falha `fonte_invalida`, com `status_http` e
-/// `mensagem_do_servidor` quando houver.
+/// JSON da falha `fonte_invalida`, com `status_http`, `mensagem_do_servidor`
+/// e `status_do_proxy` quando houver.
 pub(crate) fn json_do_erro(erro: &ErroLogin) -> Value {
     let mut valor = json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http());
     if let (Some(texto), Some(objeto)) = (erro.mensagem_do_servidor(), valor.as_object_mut()) {
@@ -31,6 +31,9 @@ pub(crate) fn json_do_erro(erro: &ErroLogin) -> Value {
     }
     if let (Some(campo), Some(objeto)) = (erro.campo_das_credenciais(), valor.as_object_mut()) {
         objeto.insert("campo".to_owned(), json!(campo));
+    }
+    if let (Some(status), Some(objeto)) = (erro.status_do_proxy(), valor.as_object_mut()) {
+        objeto.insert("status_do_proxy".to_owned(), json!(status));
     }
     valor
 }
@@ -42,7 +45,10 @@ fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
         let linha = linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http());
         match (erro.status_http(), erro.mensagem_do_servidor()) {
             (None, Some(texto)) => eprintln!("{linha} ({texto})"),
-            _ => eprintln!("{linha}"),
+            _ => match erro.status_do_proxy() {
+                Some(status) => eprintln!("{linha} (proxy HTTP {status})"),
+                None => eprintln!("{linha}"),
+            },
         }
     }
     ExitCode::from(1)

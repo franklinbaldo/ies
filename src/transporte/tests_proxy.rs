@@ -17,14 +17,15 @@ fn ambiente<'a>(pares: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<Stri
     }
 }
 
-fn endereco(proxy: &Option<Proxy>) -> Option<(String, u16)> {
-    proxy.as_ref().map(|p| (p.host().to_owned(), p.porta()))
+fn endereco(proxy: Option<&Proxy>) -> Option<(String, u16)> {
+    proxy.map(|p| (p.host().to_owned(), p.porta()))
 }
 
 #[test]
 fn variaveis_seguem_a_ordem_e_ignoram_valor_vazio() {
     let par = |h: &str, p| Some((h.to_owned(), p));
-    let caso = |pares: &[(&str, &str)]| endereco(&proxy_para(SEI, ambiente(pares)).unwrap());
+    let caso =
+        |pares: &[(&str, &str)]| endereco(proxy_para(SEI, ambiente(pares)).unwrap().as_ref());
     assert_eq!(caso(&[]), None);
     assert_eq!(caso(&[("HTTPS_PROXY", "http://px:3128")]), par("px", 3128));
     assert_eq!(
@@ -46,7 +47,10 @@ fn variaveis_seguem_a_ordem_e_ignoram_valor_vazio() {
 #[test]
 fn excecoes_por_host_exato_sufixo_e_asterisco() {
     assert!(dispensado("sei.exemplo.invalid", "sei.exemplo.invalid"));
-    assert!(dispensado("SEI.Exemplo.Invalid", "x.invalid, sei.exemplo.invalid"));
+    assert!(dispensado(
+        "SEI.Exemplo.Invalid",
+        "x.invalid, sei.exemplo.invalid"
+    ));
     assert!(dispensado("sei.exemplo.invalid", ".exemplo.invalid"));
     assert!(dispensado("exemplo.invalid", ".exemplo.invalid"));
     assert!(dispensado("qualquer.invalid", "*"));
@@ -75,20 +79,44 @@ fn excecao_minuscula_vem_antes_e_dispensa_ate_proxy_invalido() {
 #[test]
 fn endereco_do_proxy_aceita_so_http_com_porta() {
     let ok = interpretar("http://usuario:p%40ss@proxy.local:3128/").unwrap();
-    assert_eq!((ok.host(), ok.porta(), ok.tem_autorizacao()), ("proxy.local", 3128, true));
+    assert_eq!(
+        (ok.host(), ok.porta(), ok.tem_autorizacao()),
+        ("proxy.local", 3128, true)
+    );
     let sem_esquema = interpretar("10.0.0.1:8080").unwrap();
-    assert_eq!((sem_esquema.host(), sem_esquema.tem_autorizacao()), ("10.0.0.1", false));
+    assert_eq!(
+        (sem_esquema.host(), sem_esquema.tem_autorizacao()),
+        ("10.0.0.1", false)
+    );
     let v6 = interpretar("http://[::1]:3128").unwrap();
     assert_eq!((v6.host(), v6.porta()), ("::1", 3128));
     for esquema in ["https://px:443", "socks5://px:1080", "HTTPS://px:1"] {
-        assert_eq!(interpretar(esquema), Err(FalhaDoProxy::EsquemaNaoSuportado), "{esquema}");
+        assert_eq!(
+            interpretar(esquema),
+            Err(FalhaDoProxy::EsquemaNaoSuportado),
+            "{esquema}"
+        );
     }
     for ruim in [
-        "", "http://", "http://px", "http://px:", "http://px:0", "http://px:65536", "http://px:3a",
-        "http://:3128", "http://px:3128/caminho", "http://p x:1", "http://u:%zz@px:1",
-        "http://px:1?x", "http://[::1:3128",
+        "",
+        "http://",
+        "http://px",
+        "http://px:",
+        "http://px:0",
+        "http://px:65536",
+        "http://px:3a",
+        "http://:3128",
+        "http://px:3128/caminho",
+        "http://p x:1",
+        "http://u:%zz@px:1",
+        "http://px:1?x",
+        "http://[::1:3128",
     ] {
-        assert_eq!(interpretar(ruim), Err(FalhaDoProxy::EnderecoInvalido), "{ruim}");
+        assert_eq!(
+            interpretar(ruim),
+            Err(FalhaDoProxy::EnderecoInvalido),
+            "{ruim}"
+        );
     }
 }
 
@@ -107,7 +135,10 @@ fn connect_leva_host_e_credencial_basic_decodificada() {
         "CONNECT sei.exemplo.invalid:443 HTTP/1.1\r\nHost: sei.exemplo.invalid:443\r\n\r\n"
     );
     let depuracao = format!("{proxy:?}");
-    assert!(!depuracao.contains("usuario") && !depuracao.contains("dXN1"), "{depuracao}");
+    assert!(
+        !depuracao.contains("usuario") && !depuracao.contains("dXN1"),
+        "{depuracao}"
+    );
 }
 
 /// Fluxo falso: lê de `entrada`, grava em `saida`.
@@ -145,7 +176,11 @@ fn tunel_aceito_nao_consome_bytes_depois_dos_cabecalhos() {
     let (resultado, fluxo) =
         tunel(b"HTTP/1.1 200 Connection established\r\nVia: px\r\n\r\nTLS-DEPOIS");
     assert_eq!(resultado, Ok(()));
-    assert!(fluxo.saida.starts_with(b"CONNECT sei.exemplo.invalid:443 HTTP/1.1\r\n"));
+    assert!(
+        fluxo
+            .saida
+            .starts_with(b"CONNECT sei.exemplo.invalid:443 HTTP/1.1\r\n")
+    );
     let mut resto = String::new();
     let mut entrada = fluxo.entrada;
     entrada.read_to_string(&mut resto).unwrap();
@@ -217,7 +252,10 @@ fn proxy_local_abre_o_tunel_e_repassa_os_bytes() {
     BufReader::new(fluxo).read_line(&mut eco).unwrap();
     assert_eq!(eco, "ping\n");
     let pedido = tarefa.join().unwrap();
-    assert!(pedido.starts_with("CONNECT sei.exemplo.invalid:443 HTTP/1.1\r\n"), "{pedido}");
+    assert!(
+        pedido.starts_with("CONNECT sei.exemplo.invalid:443 HTTP/1.1\r\n"),
+        "{pedido}"
+    );
 }
 
 #[test]
@@ -243,10 +281,19 @@ fn proxy_local_que_recusa_ou_nao_atende() {
 fn subcodigos_nomeiam_o_fato() {
     let casos = [
         (FalhaDoProxy::EnderecoInvalido, "endereco_de_proxy_invalido"),
-        (FalhaDoProxy::EsquemaNaoSuportado, "proxy_com_esquema_nao_suportado"),
+        (
+            FalhaDoProxy::EsquemaNaoSuportado,
+            "proxy_com_esquema_nao_suportado",
+        ),
         (FalhaDoProxy::Inacessivel, "proxy_inacessivel"),
-        (FalhaDoProxy::RespostaNaoInterpretavel, "resposta_do_proxy_nao_interpretavel"),
-        (FalhaDoProxy::RecusouOTunel { status: 407 }, "proxy_recusou_o_tunel"),
+        (
+            FalhaDoProxy::RespostaNaoInterpretavel,
+            "resposta_do_proxy_nao_interpretavel",
+        ),
+        (
+            FalhaDoProxy::RecusouOTunel { status: 407 },
+            "proxy_recusou_o_tunel",
+        ),
     ];
     for (falha, subcodigo) in casos {
         assert_eq!(falha.subcodigo(), subcodigo);

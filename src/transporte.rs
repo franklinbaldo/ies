@@ -151,7 +151,10 @@ impl FalhaTransporte {
 
     /// Status com que o proxy recusou o `CONNECT`.
     pub fn status_do_proxy(&self) -> Option<u16> {
-        None
+        match self {
+            Self::Proxy(proxy::FalhaDoProxy::RecusouOTunel { status }) => Some(*status),
+            _ => None,
+        }
     }
 }
 

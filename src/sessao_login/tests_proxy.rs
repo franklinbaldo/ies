@@ -11,7 +11,12 @@ use std::net::TcpListener;
 const SEI: &str = "sei.exemplo.invalid";
 
 fn ambiente(pares: Vec<(&'static str, String)>) -> impl Fn(&str) -> Option<String> {
-    move |nome| pares.iter().find(|(c, _)| *c == nome).map(|(_, v)| v.clone())
+    move |nome| {
+        pares
+            .iter()
+            .find(|(c, _)| *c == nome)
+            .map(|(_, v)| v.clone())
+    }
 }
 
 #[test]
@@ -51,7 +56,10 @@ fn excecao_conecta_direto_e_proxy_invalido_e_recusado() {
     let proxy = ("HTTPS_PROXY", "http://127.0.0.1:9".to_owned());
     let direto = abrir_conexao(SEI, ambiente(vec![proxy, ("NO_PROXY", SEI.to_owned())]));
     assert_eq!(direto.err(), Some(FalhaTransporte::Rede));
-    let invalido = abrir_conexao(SEI, ambiente(vec![("https_proxy", "https://px:1".to_owned())]));
+    let invalido = abrir_conexao(
+        SEI,
+        ambiente(vec![("https_proxy", "https://px:1".to_owned())]),
+    );
     assert_eq!(
         invalido.err(),
         Some(FalhaTransporte::Proxy(FalhaDoProxy::EsquemaNaoSuportado))
