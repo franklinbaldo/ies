@@ -85,3 +85,21 @@ mesma `unidade_exibida`; passo 3 `sessao_existente_valida` com
 versão observada, `requisicoes` de cada passo, tempo, se a conta abriu no
 Painel e qualquer subcódigo. Falha: registrar o subcódigo, `status_http` e
 a mensagem, sem repetir o passo. Sem acesso ou autorização: `NOT_RUN`.
+
+## Resultado live (02/11/2026, treinamento)
+
+Roteiro executado uma vez por instalação, com o binário release.
+
+| Instalação | Família | 1 login | 3 sessão existente | 4 `--forcar` | 6 lock (2 processos) | Unidade |
+| --- | --- | --- | --- | --- | --- | --- |
+| UnB 4.0.9 | SIP pela raiz | `login_realizado`, 6 requisições, arquivos 0600, geração 1 | `sessao_existente_valida`, 1 | `login_realizado`, 6, geração 2 | ambos `sessao_existente_valida`, 1 cada | Unidade1 |
+| PEN1 5.0.4 | SIP via `/sei/` | idem, 6 | idem, 1 | idem, 6 | idem | TESTE |
+| UFRJ 4.1.5 | SIP via `http://` promovido | idem, 6 | idem, 1 | idem, 6 | idem | PR-P |
+| GO 5.0.3 | módulo próprio | idem, 6 | idem, 1 | idem, 6 | idem | SEAD/CDE-09516 |
+
+`unidade atual` após cada login confirmou a sessão. O SIP aceitou o POST
+sem `sbmAcessar` em PEN1, UFRJ e GO (como o navegador).
+
+Senha errada (uma tentativa, UnB): `credencial_recusada`, saída 1,
+nenhum arquivo de sessão gravado; `mensagem_do_servidor` ausente — o
+contêiner da mensagem do SIP ainda não é reconhecido (lacuna).
