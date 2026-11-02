@@ -131,3 +131,21 @@ anterior, a mesma volta, depois de um POST em recebidos, passou. Sem
 nova tentativa: a sessão de treinamento ficou com Gerados na página
 799, e a leitura seguinte o declara pela faixa. O subcódigo separado
 em #145 identificou a intermitência de GO como erro 5xx do servidor.
+
+## Visão detalhada e mensagem do SEI nas recusas
+
+**Visão detalhada (experimento, arnês privado, treinamento).** A troca
+`hdnTipoVisualizacao=D` pelo formulário da caixa devolveu
+`tblProcessosDetalhado` com total = recebidos + gerados (UnB 59, PEN1
+332, GO 8121), **sem coluna de categoria** (na PEN1, ícones de status do
+Tramita GOV.BR, não Recebidos/Gerados). Colunas variam: UnB 5, PEN1 4,
+GO 10. Página: igual à resumida (PEN1 100, GO 10; UnB sem paginação).
+**Persistência:** UnB 4.0.9 volta à resumida no GET seguinte; PEN1 5.0.4
+e GO 5.0.3 mantêm a detalhada na sessão, e na PEN1 um **login novo** da
+mesma conta abriu na detalhada. Todas as contas foram restauradas para a
+resumida (POST `R`) e conferidas por GET; GO voltou à página 1 de Gerados.
+
+**Mensagem do SEI nas recusas HTTP.** Com o binário que expõe
+`status_http` e `mensagem_do_servidor`, a sequência que antes deu 5xx em
+GO (`gerados --pagina 799` → `--pagina 1`) passou nas duas: validação
+live da mensagem **NOT_RUN** (falha intermitente não recorreu).
