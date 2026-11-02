@@ -1,10 +1,10 @@
 ---
 type: ImplementationDecision
-title: Leitura parcial da caixa da unidade por sessão Web existente
+title: Leitura da caixa da unidade por sessão Web existente
 operation: unidade.listar_processos
 implementation: partial
 status: adopted-for-scope
-scope: GET HTTPS autorizado da primeira tela do Controle de Processos com cobertura total verificada
+scope: GET HTTPS autorizado do Controle de Processos com total e faixa observados; um POST opcional por --categoria T --pagina N
 selected_strategy: web-session-readonly
 alternatives: web-session-readonly,rest-wssei,soap-official
 evidence_level: replays-offline-e-contratos-documentados
@@ -37,11 +37,12 @@ comando de domínio. Arquivos de URL, cookie e origem são privados
 e referenciados por variáveis de ambiente contendo apenas caminhos.
 Rejeitar origem diferente antes de ler cookies, não seguir redirects,
 não efetuar POST ou login e não realizar troca automática de backend.
-Quando o total declarado exigir outras páginas, falhar explicitamente
-em vez de responder como se todos os processos tivessem sido obtidos.
+Quando o total declarado exigir outras páginas, devolver a página
+observada com `total_declarado` e `faixa_observada`, sem afirmar lista
+integral (decisão do proprietário, 02/11/2026; seção final).
 
 A opção local `--saida ARQUIVO` usa somente o resultado da mesma leitura
-já aprovada, depois da verificação de cobertura, sem GET/POST adicional.
+já aprovada, depois da verificação de total e faixa, sem GET/POST adicional.
 A exportação não deve sobrescrever arquivo existente nem publicar dados
 dos processos no comprovante; testes cobrem confidencialidade no Unix
 e falha segura de gravação.
@@ -49,6 +50,7 @@ e falha segura de gravação.
 ## Evidências verificáveis
 
 - [Contrato da operação](../../contracts/cli/unidade-listar-processos.md)
+- [Páginas da caixa](../../contracts/cli/unidade-listar-processos-paginas.md)
 - [Matriz de evidências](../../contracts/evidencias/unidade-listar_processos.md)
 - [Testes de autenticação e replay](../../tests/replay_unidade.rs)
 - [Comparação experimental](../experimentos/comparar-acessos-sei.md)
@@ -69,7 +71,7 @@ conferir as duas ocorrências distintas, sem assumir árvores disjuntas.
 Evidência e medições: [ensaio pareado](../performance/paired-unit.md).
 
 O recorte não valida sessão live, não estabelece login persistente,
-não implementa POST de paginação e não garante snapshot transacional.
+não percorre todas as páginas e não garante snapshot transacional.
 Revisar a estratégia quando houver evidência autorizada de paginação
 Web segura ou comprovação funcional de REST/SOAP por instalação.
 A mudança de categoria de processos entre páginas impede inferir
@@ -89,9 +91,8 @@ Como recorte de integridade, o adaptador recusa controles explícitos
 de paginação presentes em uma página `R` mesmo que a legenda
 coincida com o número de linhas. A decisão evita afirmar cobertura
 com base na primeira página; preserva o orçamento atual de **um GET**
-e **nenhum POST**. A leitura Web ativa de múltiplas páginas permanece
-bloqueada até prova por instalação dos controles, payload, possíveis
-efeitos sobre a sessão e semântica das duas visões.
+e **nenhum POST**. Esses controles `lnkInfra*` não são os paginadores por
+tabela da visão `R` (`lnk{T}*`, `sel{T}Paginacao*`), tratados na seção final.
 
 ## Leitura da tela detalhada no GET existente (Refs #57)
 
@@ -105,8 +106,8 @@ A projeção detalhada é explicitamente identificada na saída, sem
 modificar o golden da visão resumida.
 
 As faixas devem começar em 1, ser contíguas, preservar unidade,
-visualização, critérios, total e NUPs únicos; falta de página é erro,
-não sucesso parcial. Arquivos HTML privados capturados podem complementar
+visualização, critérios, total e NUPs únicos; página parcial publica
+a faixa observada (seção final), sem afirmar lista integral. Arquivos HTML privados capturados podem complementar
 o GET pela opção já existente, sem alegar proveniência criptográfica.
 
 O orçamento de rede permanece **um GET e zero POST**. Não houve validação
@@ -114,3 +115,38 @@ autenticada em UnB/UFRJ/Goiás/PEN. A estratégia não autoriza automaticamente
 mudar a visualização, navegar por links assinados ou enviar POST.
 Implantar paginação ativa só após observar payload integral, efeito
 administrativo e preservação da sessão em laboratório autorizado.
+
+## Página observada e `--pagina N` (Refs #57, 02/11/2026)
+
+Alternativas avaliadas para a caixa paginada: (a) recusar sempre
+(`paginas_do_controle_nao_obtidas`, comportamento anterior); (b) percorrer
+todas as páginas por POST, com teto e restauração; (c) devolver a página
+observada com total e faixa, e pedir uma página específica por opt-in.
+O proprietário escolheu (c), como [invariante geral](../../contracts/cli.md)
+de leituras paginadas. (a) impedia qualquer leitura em PEN1/PEN3/PEN4 e
+Goiás; (b) multiplicava requisições com efeito de sessão (Goiás exigiria
+813 POSTs) e precisava de restauração, que também altera estado.
+
+`--pagina N` não é flag substituta no sentido da
+[matriz](../matriz-derivacao-cli.md): o comando existente não ganha outra
+capacidade, só a autorização explícita para um POST com efeito
+`PaginaOuFiltroLembrado`. Exige `--categoria` porque Recebidos e Gerados
+têm paginadores independentes (`hdn{T}PaginaAtual`, `lnk{T}*`,
+`sel{T}Paginacao*`) e cada ação do navegador muda só um deles.
+
+Evidência estrutural (capturas privadas de 02/11/2026, só estrutura):
+PEN1, PEN3 e PEN4 (5.0.4) e Goiás (5.0.3) chamam
+`infraAcaoPaginar('+', 0, 'T', null)` em `lnk{T}ProximaPagina*` e
+`infraAcaoPaginar('=', i, 'T', null)` em `lnk{T}UltimaPagina*` e no
+`onchange` de `sel{T}Paginacao*`; o índice começa em 0 (Goiás: último
+índice 798 para 7990 registros em páginas de 10). O formulário
+`frmProcedimentoControlar` não tem botão de envio. O `InfraUtil.js` que
+define `infraAcaoPaginar` **não** foi capturado: que a função só grava
+`hdn{T}PaginaAtual` e chama `submit()` vem do oráculo Todos (listas comuns),
+não da caixa. Ensaio offline do plano e da derivação nas capturas: PASS
+(PEN1, PEN3, PEN4, Goiás; UnB e UFRJ sem paginação). Ensaio live: **NOT_RUN**.
+
+Sem restauração da página 1: a faixa publicada mostra qual página a tela
+traz, e a restauração seria outro POST com o mesmo efeito. Revisar se o
+ensaio live mostrar critério ou unidade alterados após o POST, resposta
+302, ou campo de página diferente do previsto.

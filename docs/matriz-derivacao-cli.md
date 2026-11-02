@@ -95,6 +95,20 @@ com recusa correta da caixa paginada, mas com `resposta_inesperada`
 intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; os estados da matriz
 não mudam, porque a paginação ativa (#57) continua ausente.
 
+**PENDENTE PR #57 (página observada e `--pagina N`):** `unidade
+listar-processos` deixa de recusar caixa paginada: devolve a página que a
+tela mostra com `total_declarado` e `faixa_observada` por tabela, zero POST;
+`--categoria T --pagina N` faz no máximo um POST do paginador da tabela,
+com efeito `PaginaOuFiltroLembrado` e sem restauração. Ensaio live
+**NOT_RUN**. Inventário das outras leituras paginadas, ainda fora da
+[regra geral](../contracts/cli.md): `processo NUP --resumo` e
+`replay --numero-processo` recusam página parcial
+(`paginas_do_controle_nao_obtidas`) porque ausência numa página não prova
+ausência na caixa; `--resultado-pesquisa-file` e `--historico-privado` não
+leem total nem faixa da resposta; a lista de versões de documento só
+aceita legenda igual às linhas. Alinhar cada uma exige evidência da
+legenda e, para `--pagina N`, do paginador daquela tela.
+
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas

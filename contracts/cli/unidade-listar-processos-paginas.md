@@ -82,12 +82,15 @@ Usar só em instalação de treinamento autorizada.
 | Visão diferente da resumida | `pagina_do_controle_exige_visao_resumida` |
 | Charset da resposta sem codificação suportada | `charset_da_tela_do_controle_nao_suportado` |
 | `hdn{T}PaginaAtual` ausente ou não decimal | `pagina_atual_da_tabela_ilegivel` |
+| `hdn{T}PaginaAtual` repetido | `campos_de_pagina_atual_da_tabela_repetidos` |
 | Índice incompatível com a faixa | `pagina_atual_da_tabela_incompativel_com_a_faixa` |
 | N maior que o número de páginas | `pagina_fora_do_intervalo` |
 | Tabela com mais de uma página sem paginador publicado | `paginador_da_tabela_nao_publicado` |
 | Controle do formulário fora dos previstos | `controle_nao_previsto_no_formulario_do_controle` |
 | Caixa de seleção marcada na tela | `caixa_de_selecao_marcada_no_formulario_do_controle` |
 | Paginador sem opção selecionada | `paginador_sem_opcao_selecionada` |
+| Paginador com mais de uma opção selecionada | `paginador_com_mais_de_uma_opcao_selecionada` |
+| Opção selecionada sem `value` | `opcao_selecionada_do_paginador_sem_valor` |
 | Controle previsto repetido | `controle_repetido_no_formulario_do_controle` |
 
 | Recusa após o POST | Subcódigo |
