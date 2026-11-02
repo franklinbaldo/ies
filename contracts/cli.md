@@ -36,7 +36,9 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 - `ies processo NUP`
 - `ies documento NUMERO`
-- `ies unidade listar-processos`
+- `ies unidade listar-processos` (as duas listas, 1 GET)
+- `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
+  (uma lista; decisão do proprietário, 02/11/2026)
 - `ies processo enviar NUP --para SIGLA`
 - `ies documento assinar NUMERO`
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
@@ -50,11 +52,12 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [processo.buscar](cli/processo-buscar.md): NUP exato em resposta de pesquisa HTML privada, somente offline.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
-- [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos.
+- [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
+  [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única.
 
-O comando `ies unidade listar-processos` possui **leitura HTTP GET
-restrita da caixa Web**, com sessão já existente e origem HTTPS
-explicitamente autorizada, ou replay offline verificado. Não faz
+Os comandos `ies unidade listar-processos`, `recebidos` e `gerados`
+têm **leitura HTTP GET restrita da caixa Web**, com sessão já existente e origem HTTPS
+explicitamente autorizada, ou replay offline verificado. Não fazem
 login. O único POST previsto é o da opção `--pagina N` (abaixo).
 Sem esses insumos retorna `nao_implementado`.
 

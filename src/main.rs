@@ -246,6 +246,25 @@ enum UnidadeAcao {
         )]
         pagina: Option<u32>,
     },
+    /// Lista Recebidos da unidade: a página observada, com total e faixa
+    Recebidos(ListaDaUnidade),
+    /// Lista Gerados da unidade: a página observada, com total e faixa
+    Gerados(ListaDaUnidade),
+}
+
+/// Opções de uma lista independente da caixa (Recebidos ou Gerados).
+#[derive(Debug, Args)]
+struct ListaDaUnidade {
+    /// Exporta a lista verificada para novo arquivo privado
+    #[arg(long)]
+    saida: Option<PathBuf>,
+    /// Pede a página N da lista: no máximo um POST que altera a página lembrada na sessão
+    #[arg(
+        long,
+        value_name = "N",
+        value_parser = clap::value_parser!(u32).range(1..)
+    )]
+    pagina: Option<u32>,
 }
 
 #[derive(Debug, Args)]

@@ -12,10 +12,24 @@ pub(crate) enum ErroCaixaLocal {
     FormatoInvalido,
     OrigemNaoWeb,
     UnidadeDiferenteDaSolicitada,
-    TotalNaoComprovado { categoria: Categoria },
-    IdentificadorInvalido { categoria: Categoria },
-    NumeroInvalido { categoria: Categoria },
-    IdentificadorRepetido { categoria: Categoria },
+    /// O array exportado não é exatamente `[recebidos, gerados]`.
+    ListasExportadasNaoSaoRecebidosEGerados,
+    /// As duas listas exportadas declaram rótulos de unidade diferentes.
+    UnidadeDasListasExportadasDiferente,
+    /// As duas listas exportadas declaram origens diferentes.
+    OrigemDasListasExportadasDiferente,
+    TotalNaoComprovado {
+        categoria: Categoria,
+    },
+    IdentificadorInvalido {
+        categoria: Categoria,
+    },
+    NumeroInvalido {
+        categoria: Categoria,
+    },
+    IdentificadorRepetido {
+        categoria: Categoria,
+    },
 }
 
 impl ErroCaixaLocal {
@@ -25,6 +39,15 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "formato_do_arquivo_da_caixa_invalido",
             Self::OrigemNaoWeb => "origem_do_arquivo_da_caixa_nao_web",
             Self::UnidadeDiferenteDaSolicitada => "unidade_do_arquivo_da_caixa_diferente",
+            Self::ListasExportadasNaoSaoRecebidosEGerados => {
+                "listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados"
+            }
+            Self::UnidadeDasListasExportadasDiferente => {
+                "unidade_das_listas_do_arquivo_da_caixa_diferente"
+            }
+            Self::OrigemDasListasExportadasDiferente => {
+                "origem_das_listas_do_arquivo_da_caixa_diferente"
+            }
             Self::TotalNaoComprovado {
                 categoria: Categoria::Recebidos,
             } => "total_recebidos_do_arquivo_nao_comprovado",
@@ -57,6 +80,15 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "arquivo da caixa não tem a estrutura JSON esperada",
             Self::OrigemNaoWeb => "arquivo não declara a origem de exportação Web",
             Self::UnidadeDiferenteDaSolicitada => "unidade do arquivo da caixa não é a solicitada",
+            Self::ListasExportadasNaoSaoRecebidosEGerados => {
+                "arquivo da caixa não traz as listas recebidos e gerados, nessa ordem"
+            }
+            Self::UnidadeDasListasExportadasDiferente => {
+                "as listas do arquivo da caixa declaram unidades diferentes"
+            }
+            Self::OrigemDasListasExportadasDiferente => {
+                "as listas do arquivo da caixa declaram origens diferentes"
+            }
             Self::TotalNaoComprovado { .. } => {
                 "total da categoria não confere com as linhas exportadas"
             }

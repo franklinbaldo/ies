@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Páginas da caixa da unidade
-description: Página observada por padrão e opção --pagina N em ies unidade listar-processos
+description: Página observada por padrão e opção --pagina N em ies unidade recebidos e gerados
 ---
 
 # Páginas da caixa da unidade (Refs #57)
@@ -11,12 +11,13 @@ e aplica a [regra geral de leituras paginadas](../cli.md) à caixa.
 
 ## Página observada, sem POST
 
-Sem `--pagina`, `ies unidade listar-processos` faz só o GET existente e
-devolve, por tabela (Recebidos e Gerados), os processos que a tela mostra,
-o `total_declarado` e a `faixa_observada`:
+Sem `--pagina`, `ies unidade listar-processos`, `recebidos` e `gerados`
+fazem só o GET existente e devolvem, por lista (Recebidos e Gerados), os
+processos que a tela mostra, o `total_declarado` e a `faixa_observada`,
+na [forma única](unidade-recebidos-gerados.md):
 
 ```json
-"recebidos": {"total_declarado": 114, "faixa_observada": {"inicio": 1, "fim": 100}, "processos": [...]}
+{"categoria": "recebidos", "total_declarado": 114, "faixa_observada": {"inicio": 1, "fim": 100}, "processos": [...]}
 ```
 
 - A faixa vem da legenda (`(114 registros - 1 a 100):`). Com legenda sem
@@ -45,12 +46,12 @@ de uma página (UnB e UFRJ, 02/11/2026).
 
 ## Opção `--pagina N`
 
-`ies unidade listar-processos --categoria recebidos|gerados --pagina N`
-pede a página N (inteiro ≥ 1) de **uma** tabela. Recebidos e Gerados têm
+`ies unidade recebidos --pagina N` e `ies unidade gerados --pagina N`
+pedem a página N (inteiro ≥ 1) de **uma** lista. Recebidos e Gerados têm
 paginadores independentes, e cada ação de página do navegador altera só
-um deles; por isso `--pagina` exige `--categoria` (erro de uso do Clap,
-saída 2) e é incompatível com `--pagina-arquivo`. A saída é a projeção
-da categoria, com a faixa da página obtida.
+um deles; por isso `--pagina` só existe nesses subcomandos
+(`listar-processos --pagina` é erro de uso do Clap, saída 2), que não
+aceitam `--pagina-arquivo`. A saída é a lista, com a faixa da página obtida.
 
 Sequência e orçamento:
 

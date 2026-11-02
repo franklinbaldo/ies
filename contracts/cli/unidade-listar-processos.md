@@ -10,8 +10,10 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 
 # Listar processos da unidade
 
-Lê os processos recebidos e gerados da unidade ativa na tela
-**Controle de Processos** do SEI Web. A CaixaDeEntrada é da unidade;
+Lê as listas Recebidos e Gerados da unidade ativa na tela
+**Controle de Processos** do SEI Web, como duas
+[listas independentes](unidade-recebidos-gerados.md); `ies unidade
+recebidos` e `ies unidade gerados` leem uma delas pela mesma operação. A CaixaDeEntrada é da unidade;
 sessão e credenciais são meios de acesso, não entidades proprietárias.
 
 ## Configuração e limites
@@ -30,12 +32,12 @@ para URL assinada, origem autorizada e cookie, distinguindo-os de arquivo
 regular: metadados de links não provam posse segura do arquivo alvo.
 Esta validação deve ocorrer antes de qualquer envio de cookie por rede. O IES confere a origem antes de ler cookies e
 não segue redirects, não executa login, escritas ou tentativa de outro
-backend. O único POST é o de `--pagina N`, descrito nas
-[páginas da caixa](unidade-listar-processos-paginas.md). Não há
+backend. O único POST é o de `ies unidade recebidos|gerados --pagina N`,
+descrito nas [páginas da caixa](unidade-listar-processos-paginas.md). Não há
 configuração persistente nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
-`--saida ARQUIVO` exporta a mesma projeção JSON da caixa **somente depois**
+`--saida ARQUIVO` exporta o mesmo array JSON da caixa **somente depois**
 de verificar total e faixa observada de recebidos e gerados. O arquivo novo é criado sem
 sobrescrever destinos existentes; em Unix recebe modo privado 0600.
 Sem essa opção, a saída de terminal é preservada. O comprovante não
@@ -61,9 +63,10 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 ## Resultado e alcance
 
 A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
-`unidade`, `origem`, `recebidos`, `gerados`; cada agrupamento tem
-`processos`, `total_declarado` e `faixa_observada` (`{inicio, fim}` ou
-`null`), sem campo `completa`. Cada processo
+um **array** de duas listas na ordem recebidos, gerados, cada uma na
+[forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
+total_declarado, faixa_observada, processos}` (`faixa_observada` é
+`{inicio, fim}` ou `null`), sem campo `completa`. Cada processo
 publica `id`, `numero` (opaco, sem máscara), `visualizado` e `sigiloso`.
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.
@@ -165,19 +168,18 @@ complementos locais válidos = **até 1 GET/0 POST**. Essa ordem não
 atesta sessão autenticada, atualidade das capturas nem compatibilidade
 live.
 
-## Consulta de apenas uma categoria (Refs #57)
+## Consulta de apenas uma lista (Refs #57)
 
-`ies unidade listar-processos --categoria recebidos|gerados [--json]`
-projeta só a categoria pedida, com a mesma regra da caixa: a página
+`ies unidade recebidos [--json]` e `ies unidade gerados [--json]`
+devolvem só a lista pedida, com a mesma regra da caixa: a página
 observada, `total_declarado` e `faixa_observada`, sem recusar por
-haver outras páginas. A outra categoria continua interpretada e
-verificada estruturalmente, mas não aparece na saída. A projeção é
-`{unidade, origem: "web", categoria, total_declarado, faixa_observada,
-processos}`; `--saida` exporta a mesma projeção para arquivo privado
-novo. Os antigos `paginas_recebidos_nao_obtidas` e
-`paginas_gerados_nao_obtidas` deixam de existir. É a única forma de
-combinar `--pagina N` (uma tabela por POST). `--categoria` é
-incompatível com `--pagina-arquivo`.
+haver outras páginas. A outra tabela continua interpretada e
+verificada estruturalmente, mas não aparece na saída. `--saida` exporta
+a mesma lista para arquivo privado novo. São os únicos comandos com
+`--pagina N` (uma tabela por POST) e não aceitam `--pagina-arquivo`.
+As opções `--categoria` e `--pagina` de `listar-processos` foram
+**removidas** (erro de uso, saída 2), sem alias; ver as
+[listas Recebidos e Gerados](unidade-recebidos-gerados.md).
 
 ## Tipo de resposta HTML conferido sem equivalência por substring (Refs #57)
 
@@ -195,7 +197,7 @@ regra é ensaiada offline; nenhum teste de produção é autorizado.
 
 ## Categoria sem identificação da unidade no Controle (Refs #57, #56)
 
-No recorte `--categoria recebidos|gerados`, a resposta precisa publicar
+Em `ies unidade recebidos|gerados`, a resposta precisa publicar
 a identidade da unidade em `lnkInfraUnidade`, além de demonstrar
 cobertura da categoria. Sem esse rótulo, não se deve retornar sucesso
 com `unidade: null` nem exportar uma lista de processos que não foi
@@ -275,10 +277,9 @@ O mesmo `ies unidade listar-processos` deve aceitar a página **já devolvida
 por seu único GET** quando ela apresenta uma tabela única
 `tblProcessosDetalhado` e `hdnTipoVisualizacao=D`. Não criar flag,
 subcomando ou inferir que esses processos pertençam à categoria
-`recebidos` ou `gerados`. A saída JSON diferente é explícita:
-`{unidade, origem, visualizacao:"detalhada", total_declarado, processos}`,
-com identidade de processo e estado `visualizado` somente quando observável.
-A saída resumida e seu golden permanecem inalterados.
+`recebidos` ou `gerados`. A saída é um array com **uma** lista na
+[forma única](unidade-recebidos-gerados.md), `categoria: "detalhada"`,
+com `visualizado`/`sigiloso` somente quando observáveis.
 
 Para cada linha aceita, exigir identificador `tr id=P<dígitos>`, um
 cabeçalho `Processo` único, link dessa célula para uma ação de processo
@@ -291,7 +292,7 @@ contíguas e o contexto da unidade e visualização permanecer idêntico.
 Não aceitar modo resumido e detalhado misturados.
 
 A leitura Web permanece **um GET, zero POST**, sem login ou troca de
-visualização; `--pagina N` não se aplica à visão D (exige `--categoria`).
+visualização; `--pagina N` não se aplica à visão D.
 O comando não fabrica uma tela D a partir de R. Cassettes históricas
 e testes sintéticos são limites de validação, não equivalência live.
 
@@ -339,5 +340,5 @@ A importação local aceita exportação anterior sem `sigiloso` como
 `false`: aquelas versões recusavam qualquer linha sem as duas classes
 não sigilosas. Com 131 recebidos e 7990 gerados em páginas de 10, a
 legenda `(N registros - 1 a 10)` passa a ser devolvida como faixa
-1–10 de cada tabela; outras páginas só com `--pagina N`.
+1–10 de cada tabela; outras páginas só com `recebidos|gerados --pagina N`.
 Ensaio offline com HTML sintético; o reensaio live fica **NOT_RUN**.
