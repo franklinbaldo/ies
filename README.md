@@ -14,7 +14,8 @@ com instalação HTTPS autorizada (host e caminho-base) antes de
 enviar cookies e leitura HTTP limitada em fluxo.
 Outras operações permanecem não implementadas. O replay independente aceita cassette pública verificada;
 a consulta experimental de sessão aceita URL HTTPS assinada já autenticada;
-não implementa login nem paginação.
+`ies login` autentica pela tela Web de login e grava a sessão nos mesmos
+arquivos privados; os outros comandos não fazem login automático.
 
 Não há compatibilidade com o antigo `agir`, `Action` ou `PageModel` público.
 O IES Python histórico está preservado no cofre privado
@@ -118,6 +119,26 @@ A leitura continua limitada a GET HTTPS da página autorizada e aos POSTs
 de troca de visão (sempre restaurada) e de `--pagina N`, sem login, percurso de todas
 as páginas nem reutilização automática de credenciais
 para outras interfaces. `status` não testa rede nem declara autenticação.
+
+### Login: `ies login`
+
+`ies login` preenche os arquivos de cookie e de URL do Controle a partir
+da origem configurada (os dois podem começar vazios, `0600`). As
+credenciais ficam só num arquivo privado `0600` apontado por
+`IES_CREDENCIAIS_FILE`, nunca em argumentos:
+
+```sh
+umask 077
+printf 'usuario=%s\nsenha=%s\norgao=%s\n' "$USUARIO" "$SENHA" SIGLA > /privado/credenciais
+IES_CREDENCIAIS_FILE=/privado/credenciais IES_CONFIG_FILE=/privado/ies-config.json \
+  ies --json login            # login_realizado, ou sessao_existente_valida (1 GET)
+IES_CONFIG_FILE=/privado/ies-config.json ies --json unidade atual
+```
+
+`orgao` é a sigla exatamente como a tela de login a mostra em `selOrgao`.
+Sem `--forcar`, o comando confere a sessão gravada com um GET e não loga se
+ela valer. Captcha, segundo fator e credencial recusada são falhas tipadas,
+sem nova tentativa ([contrato](contracts/cli/sessao-login.md)).
 
 ## Entradas de execução
 

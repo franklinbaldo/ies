@@ -34,7 +34,7 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
-## Matriz: 17 caminhos principais já expostos
+## Matriz: 18 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -53,6 +53,7 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
+| `ies login [--forcar]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Login pela tela servida da raiz (SIP e módulo de Goiás), credenciais em arquivo `0600`, órgão exato, `hdnAcao` e botão observados, Painel pelo link do menu, gravação atômica por geração sob lock; sessão válida: 1 GET | Ensaio live por instalação (UnB, PEN1, UFRJ, GO); mensagem real de credencial recusada; relogin nos outros comandos só depois de falha tipada de sessão vencida (futuro) | [contrato](../contracts/cli/sessao-login.md) |
 | `ies esquema` | **PARCIAL LOCAL** | Lista nomes de comandos e versão | Entregar contrato/esquema útil se necessário, usando o comando existente; não criar outro inventário de comandos | [código](../src/esquema_cli.rs) |
 | `ies replay CENARIO` | **LOCAL** no acervo suportado | Reproduz capturas/cassettes verificadas offline: caixa, pesquisa, documento e histórico | É oráculo de testes, não substitui implementação Web dos comandos acima | [guia](replay.md) |
 
@@ -145,7 +146,17 @@ Offline com telas sintéticas de 12 e 11 opções; ensaio live **NOT_RUN**
 ([decisão](decisoes/unidade-definir-colunas.md),
 [roteiro](validacao-live/roteiro-definir-colunas.md)).
 
-**Critério de contagem:** 17 caminhos operacionais, desconsiderando
+**PENDENTE PR (login nativo, decisão do proprietário, 02/11/2026):** `ies
+login [--forcar]` é a operação `sessao.login`, um comando novo por decisão
+do proprietário: até aqui a sessão vinha do Todos ou do navegador, copiada
+à mão. Lê a origem, confere a sessão gravada com 1 GET (válida: sem login),
+loga pela raiz (2 ou 3 GETs, 1 POST e os saltos até o Controle) e grava
+cookie e URL de forma atômica, com marcador de geração e lock. Os outros
+comandos continuam sem login automático. Offline com telas sintéticas das
+quatro famílias; ensaio live **NOT_RUN**
+([decisão](decisoes/sessao-login.md), [roteiro](validacao-live/roteiro-login.md)).
+
+**Critério de contagem:** 18 caminhos operacionais (o 18º é `ies login`, PENDENTE PR), desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
 capacidades independentes. As 129 operações do inventário do Todos são

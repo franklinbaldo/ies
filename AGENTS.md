@@ -182,7 +182,9 @@ não comprova um efeito nem autoriza escrita live.
 
 Antes de alterar um comando de leitura, consulte seus [contratos OKF](contracts/cli.md)
 e as cassettes da operação. A [leitura da caixa](docs/unidade-primeira-leitura.md)
-usa replay offline ou sessão existente; **não faz login**. POSTs de
+usa replay offline ou sessão existente; **não faz login** por conta própria:
+quem autentica é só o [`ies login`](contracts/cli/sessao-login.md), que grava a
+sessão nos mesmos arquivos `0600` (sem relogin automático). POSTs de
 leitura só nos fluxos observados e contratados: troca de visão, página
 por `--pagina N` (nunca percorrer todas as páginas) e pesquisa. Toda
 leitura que muda estado da sessão **deixa a tela como encontrou**
@@ -198,7 +200,8 @@ corresponder à URL **antes** de ler/enviar cookies.
 `VersaoSei` é metadado declarado opcional, não autorização nem
 predição de compatibilidade. Toda
 resposta HTTP tem limite de 8 MB durante o recebimento, não apenas
-depois de receber o corpo inteiro. Não seguir redirects.
+depois de receber o corpo inteiro. Não seguir redirects (exceção única: o
+interpretador do `ies login`, limitado ao host da instalação).
 
 Em replay multipágina, conferir `lnkInfraUnidade`,
 `hdnTipoVisualizacao` e hashes de critérios das duas tabelas.

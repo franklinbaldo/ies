@@ -16,7 +16,8 @@ conferida, jamais armazenado no domínio.
 offline, o IES agora aceita uma seleção explícita de páginas de uma
 cassette já verificada, consolida as duas tabelas separadamente e recusa
 lacunas, sobreposições, totais divergentes e processos repetidos.
-Não inclui login, troca de unidade, POST ou escrita no SEI.
+Não inclui troca de unidade, POST ou escrita no SEI; o login é o comando
+à parte [`ies login`](../contracts/cli/sessao-login.md).
 
 ## Replay offline de cassette do Internet Archive
 
@@ -111,7 +112,7 @@ ies unidade listar-processos --json
 
 O exemplo de URL é ilustrativo: **não construa nem adivinhe o hash**.
 Obtenha-o intacto no navegador ou cliente autorizado. O programa
-não segue redirects, não cria login e não repete pedidos
+não segue redirects, não cria login (isso é o `ies login`) e não repete pedidos
 automaticamente; só `ies unidade recebidos|gerados --pagina N` faz POST. Falhas não imprimem cookies ou URL assinada.
 
 O `lnkInfraUnidade` no HTML é o rótulo exibido pela sessão,

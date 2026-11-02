@@ -48,6 +48,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
+- `ies login [--forcar]` (login Web na instalação configurada; grava a sessão
+  nos arquivos privados)
 - `ies esquema`
 
 ## Contratos iniciais de leitura
@@ -62,11 +64,15 @@ legado do Todos faz parte do contrato público por pressuposição.
   e [colunas do Nível de detalhe](cli/unidade-colunas.md).
 - [unidade.definir_colunas](cli/unidade-definir-colunas.md): escrita do Nível de
   detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
+- [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
+  `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
+  host da instalação e gravação atômica por geração, sob lock.
 
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
 `colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
-e origem HTTPS explicitamente autorizada, ou replay offline verificado. Não
-fazem login nem escrita; a única escrita é `colunas --definir … --confirmar`. Os POSTs previstos são os de `--pagina N` (abaixo)
+(gravada por `ies login` ou à mão) e origem HTTPS explicitamente autorizada,
+ou replay offline verificado. Não fazem login automático (sessão vencida é
+falha tipada; relogar é `ies login`) nem escrita; a única escrita é `colunas --definir … --confirmar`. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sempre seguida da restauração da visão
 encontrada ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.

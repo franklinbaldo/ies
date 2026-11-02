@@ -4,7 +4,7 @@ title: Login Web na instalação configurada
 operation: sessao.login
 command: ies login [--forcar]
 effect: read
-implementation: stub
+implementation: partial
 source_commit: 6127bd38b9182108c9b0922d6796493e338e5f05
 ---
 
@@ -49,8 +49,9 @@ reescrita.
    Controle (mesmas travas do GET da caixa). Controle reconhecido →
    `sessao_existente_valida`, sem login (orçamento: 1). Tela de login,
    3xx ou 401/403 → segue para o login. Outra falha (5xx, rede, MIME,
-   Controle irreconhecível) sai tipada, sem login. Arquivos ausentes,
-   ou de outra geração (abaixo), vão ao login sem esse GET.
+   Controle irreconhecível) sai tipada, sem login. Arquivos ausentes ou
+   vazios (os que o `ies setup` exige antes do primeiro login), ou de
+   outra geração (abaixo), vão ao login sem esse GET.
 3. GET da raiz `https://host/` e redirecionamentos até a tela de login.
 4. Um POST derivado do formulário servido.
 5. Redirecionamentos até `acao=procedimento_controlar` com `infra_hash`
@@ -153,12 +154,17 @@ a declara), `tela_apos_o_login_nao_reconhecida`,
 (`status_http_*` com `status_http` e `mensagem_do_servidor`,
 `falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
-terminam o comando.
+terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
+`status_http` e `mensagem_do_servidor` nas recusas HTTP, só
+`mensagem_do_servidor` em `credencial_recusada` e `campo` (a chave, nunca
+o valor) nas falhas do arquivo de credenciais. Saída 1.
 
 ## Fora do escopo
 
 Outros comandos **não** fazem login automático nesta fase. Futuro:
 relogar só depois de uma falha tipada de sessão vencida, uma vez, nunca
 em laço. Captcha e 2FA não são resolvidos. REST e SOAP não são usados.
-[Evidência](../evidencias/sessao-login.md) e
-[observações](../../docs/como-o-sei-funciona/sessao-login.md).
+[Decisão](../../docs/decisoes/sessao-login.md),
+[evidência](../evidencias/sessao-login.md),
+[observações](../../docs/como-o-sei-funciona/sessao-login.md) e
+[roteiro live](../../docs/validacao-live/roteiro-login.md).
