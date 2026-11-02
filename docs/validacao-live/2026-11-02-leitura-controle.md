@@ -84,3 +84,24 @@ coincidem com as legendas `N registros` das duas tabelas.
 - Não valida login do IES, paginação, pesquisa, POST nem escrita.
 - O HTML de Goiás foi inspecionado só estruturalmente (nomes de
   atributos, classes e forma dos textos), sem copiar valores.
+
+## Página observada e `--categoria T --pagina N` (#57)
+
+Mesmo dia, mesmas sessões reaproveitadas (nenhum login novo), binário
+com a página observada por padrão e `--pagina N` por categoria. Cada
+`--pagina N` custou 1 GET + no máximo 1 POST; `N` fora do intervalo foi
+recusado **antes** de qualquer POST. Nenhuma escrita.
+
+| Instalação | Padrão (1 GET) | `--pagina N` | Fora do intervalo |
+| --- | --- | --- | --- |
+| UnB | 12/12 e 47/47, faixa 1–total | — | `gerados --pagina 2` → `pagina_fora_do_intervalo` |
+| UFRJ | 2/2 e 7/7, faixa 1–total | — | idem |
+| PEN1 | 100 de 114 e 100 de 218, faixa 1–100 | recebidos p2: 14 itens, 101–114; gerados p3: 18 itens, 201–218 | gerados p4 |
+| PEN3 | 100 de 171 e 100 de 123 | recebidos p2: 71 itens, 101–171; gerados p2: 23 itens, 101–123 | gerados p3 |
+| PEN4 | 100 de 157 e 100 de 103 | recebidos p2: 57 itens, 101–157; gerados p2: 3 itens, 101–103 | gerados p3 |
+| GO | 10 de 131 e 10 de 7990, faixa 1–10 | gerados p799: 10 itens, 7981–7990; recebidos p14: 1 item, 131–131 | gerados p800 |
+
+**Efeito de sessão observado (PEN1):** depois de `recebidos --pagina 2`,
+a leitura padrão seguinte mostrou recebidos na faixa 101–114 — o
+servidor lembra a página, e a saída o declara pela faixa. `--pagina 1`
+em cada categoria restaurou 1–100 em todas as instalações paginadas.
