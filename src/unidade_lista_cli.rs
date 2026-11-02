@@ -69,11 +69,11 @@ fn mostrar_caixa_detalhada(
             );
         }
     };
-    // A visão D é uma lista própria do SEI: array de uma lista, mesma forma.
+    // D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
     let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
-        categoria: Some("detalhada"),
+        categoria: None,
         total_declarado: Some(leitura.total_declarado),
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,

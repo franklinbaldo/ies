@@ -19,7 +19,10 @@ fn caixa() -> String {
 fn encontra_nup_exato_de_arquivo_de_caixa_sem_rede() {
     let observada = interpretar(&caixa(), Some("ppi")).unwrap();
     assert_eq!(observada.unidade.as_deref(), Some("PPI"));
-    assert_eq!(observada.caixa().recebidos.processos[0].numero, "000123/2026");
+    assert_eq!(
+        observada.caixa().recebidos.processos[0].numero,
+        "000123/2026"
+    );
     assert_eq!(observada.caixa().recebidos.processos[0].id.as_str(), "0042");
 }
 #[test]
@@ -72,7 +75,10 @@ fn aceita_exportacao_de_caixa_multipagina_gerada_pelo_ies() {
     exportada[0]["origem"] = json!("web_com_paginas_privadas");
     exportada[1]["origem"] = json!("web_com_paginas_privadas");
     let observada = interpretar(&exportada.to_string(), Some("PPI")).unwrap();
-    assert_eq!(observada.caixa().recebidos.processos[0].numero, "000123/2026");
+    assert_eq!(
+        observada.caixa().recebidos.processos[0].numero,
+        "000123/2026"
+    );
     assert_eq!(observada.caixa().recebidos.processos[0].id.as_str(), "0042");
 }
 

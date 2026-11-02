@@ -5,6 +5,7 @@ use crate::erro_web::ErroCaixa;
 use crate::processo::NumeroProcesso;
 use crate::transporte::{self, FalhaTransporte};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,28 +57,36 @@ impl ErroCaixaLocal {
             Self::TotalNaoComprovado {
                 categoria: Some(Categoria::Gerados),
             } => "total_gerados_do_arquivo_nao_comprovado",
-            Self::TotalNaoComprovado { categoria: None } => "total_da_lista_sem_categoria_do_arquivo_nao_comprovado",
+            Self::TotalNaoComprovado { categoria: None } => {
+                "total_da_lista_sem_categoria_do_arquivo_nao_comprovado"
+            }
             Self::IdentificadorInvalido {
                 categoria: Some(Categoria::Recebidos),
             } => "id_recebidos_do_arquivo_invalido",
             Self::IdentificadorInvalido {
                 categoria: Some(Categoria::Gerados),
             } => "id_gerados_do_arquivo_invalido",
-            Self::IdentificadorInvalido { categoria: None } => "id_da_lista_sem_categoria_do_arquivo_invalido",
+            Self::IdentificadorInvalido { categoria: None } => {
+                "id_da_lista_sem_categoria_do_arquivo_invalido"
+            }
             Self::NumeroInvalido {
                 categoria: Some(Categoria::Recebidos),
             } => "numero_recebidos_do_arquivo_invalido",
             Self::NumeroInvalido {
                 categoria: Some(Categoria::Gerados),
             } => "numero_gerados_do_arquivo_invalido",
-            Self::NumeroInvalido { categoria: None } => "numero_da_lista_sem_categoria_do_arquivo_invalido",
+            Self::NumeroInvalido { categoria: None } => {
+                "numero_da_lista_sem_categoria_do_arquivo_invalido"
+            }
             Self::IdentificadorRepetido {
                 categoria: Some(Categoria::Recebidos),
             } => "id_recebidos_do_arquivo_repetido",
             Self::IdentificadorRepetido {
                 categoria: Some(Categoria::Gerados),
             } => "id_gerados_do_arquivo_repetido",
-            Self::IdentificadorRepetido { categoria: None } => "id_da_lista_sem_categoria_do_arquivo_repetido",
+            Self::IdentificadorRepetido { categoria: None } => {
+                "id_da_lista_sem_categoria_do_arquivo_repetido"
+            }
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
@@ -198,9 +207,26 @@ fn converter(
 
 /// Lista única da visão detalhada: mesmas provas de total e identidade.
 fn converter_sem_categoria(
-    _secao: ListaExportada,
+    secao: ListaExportada,
 ) -> Result<Vec<ProcessoDetalhado>, ErroCaixaLocal> {
-    Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)
+    if secao.total_declarado != Some(secao.processos.len()) {
+        return Err(ErroCaixaLocal::TotalNaoComprovado { categoria: None });
+    }
+    let mut vistos = HashSet::with_capacity(secao.processos.len());
+    let mut processos = Vec::with_capacity(secao.processos.len());
+    for linha in secao.processos {
+        let id = identidade(&linha, None)?;
+        if !vistos.insert(id.as_str().to_owned()) {
+            return Err(ErroCaixaLocal::IdentificadorRepetido { categoria: None });
+        }
+        processos.push(ProcessoDetalhado {
+            id,
+            numero: linha.numero,
+            visualizado: linha.visualizado,
+            sigiloso: linha.sigiloso,
+        });
+    }
+    Ok(processos)
 }
 
 /// Origem e unidade valem para todas as listas do arquivo.
@@ -275,6 +301,12 @@ fn interpretar_sem_categoria(
     let [lista]: [ListaExportada; 1] = listas
         .try_into()
         .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
+    match lista.categoria.as_deref() {
+        None => {}
+        // Lista única gravada pela #146 (pré-1.0): formato anterior, sem alias.
+        Some("detalhada") => return Err(ErroCaixaLocal::FormatoInvalido),
+        Some(_) => return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados),
+    }
     conferir_contexto(&lista, unidade)?;
     let unidade_exportada = lista.unidade.clone();
     Ok(CaixaObservadaLocal {

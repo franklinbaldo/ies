@@ -36,10 +36,17 @@ pub fn ocorrencias(caixa: &CaixaDeEntrada, numero: &str) -> Vec<Ocorrencia> {
 
 /// Ocorrências na lista única da visão detalhada, sem categoria inferida.
 pub(crate) fn ocorrencias_sem_categoria(
-    _processos: &[ProcessoDetalhado],
-    _numero: &str,
+    processos: &[ProcessoDetalhado],
+    numero: &str,
 ) -> Vec<Ocorrencia> {
-    Vec::new()
+    processos
+        .iter()
+        .filter(|processo| processo.numero == numero)
+        .map(|processo| Ocorrencia {
+            categoria: None,
+            processo: ProcessoObservado::SemCategoria(processo.clone()),
+        })
+        .collect()
 }
 
 #[cfg(test)]
