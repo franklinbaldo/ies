@@ -28,9 +28,7 @@ impl ErroArquivoCaixa {
                 "diretorio_do_arquivo_da_caixa_trocado_durante_gravacao"
             }
             #[cfg(not(target_os = "linux"))]
-            Self::ExportacaoWebSemAncoragemSegura => {
-                "exportacao_web_da_caixa_sem_ancoragem_segura"
-            }
+            Self::ExportacaoWebSemAncoragemSegura => "exportacao_web_da_caixa_sem_ancoragem_segura",
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -207,9 +205,7 @@ pub(crate) fn preparar_destino_web(
 }
 
 #[cfg(target_os = "linux")]
-fn conferir_pai_ancorado_visivel(
-    preparado: &DestinoPreparado<'_>,
-) -> Result<(), ErroArquivoCaixa> {
+fn conferir_pai_ancorado_visivel(preparado: &DestinoPreparado<'_>) -> Result<(), ErroArquivoCaixa> {
     use std::os::unix::fs::MetadataExt;
     let pai = preparado
         .caminho
