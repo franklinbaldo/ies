@@ -52,3 +52,9 @@ não executa POST de pesquisa nem obtém árvore/histórico do processo.
 - CONTRACT → RED compilável antes de GREEN; validar offline pela CI.
 - UnB/UFRJ/Goiás/PEN live: **NOT_RUN**. O operador deverá confirmar
   autorização/efeitos do POST antes de qualquer busca Web real.
+
+## Próximo passo (sem nova capacidade)
+
+A derivação offline do POST a partir do formulário servido está descrita
+em [0002](../../docs/arquitetura/0002-submeter-formulario-observado.md).
+Ela ainda não é usada por este comando e não habilita caminho live.
