@@ -290,7 +290,7 @@ headers ... connection timeout`, texto de proxy reverso, não do SEI. Um
 503 caiu no POST de volta à página encontrada: o IES devolveu
 `pagina_da_visao_detalhada_nao_restaurada` com `visao_deixada: "R"`,
 causa, status e mensagem; a tela ficou R/0/0 (conferida por GET), e a
-página lembrada da D de GO ficou em 2, a limpar quando GO estabilizar.
+página lembrada da D de GO ficou em 2; limpa às 18:53 pelo arnês (D → página 1 → R), conferida por GET.
 Sem novas tentativas.
 
 ## `unidade colunas --definir` (escrita do Nível de detalhe)
