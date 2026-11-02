@@ -29,12 +29,45 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
 }
 
 /// Paginador próprio de Recebidos ou Gerados (`lnk{T}ProximaPagina*`,
-/// `sel{T}Paginacao*` etc.). `hdn{T}PaginaAtual` não conta: aparece em telas
-/// sem paginação. Shim CONTRACT.
+/// `sel{T}Paginacao*` etc.), observado em PEN1, PEN3, PEN4 e Goiás
+/// (02/11/2026). `hdn{T}PaginaAtual` não conta: as telas `UnB` e `UFRJ` o publicam em
+/// telas de uma página.
 pub(crate) fn paginador_da_tabela(
-    _html: &str,
-    _categoria: crate::dominio::Categoria,
+    html: &str,
+    categoria: crate::dominio::Categoria,
 ) -> Result<bool, ErroCaixa> {
+    let prefixo = match categoria {
+        crate::dominio::Categoria::Recebidos => "Recebidos",
+        crate::dominio::Categoria::Gerados => "Gerados",
+    };
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let parser = dom.parser();
+    for (seletor, marcas) in [
+        (
+            "a",
+            &[
+                "ProximaPagina",
+                "PaginaAnterior",
+                "PrimeiraPagina",
+                "UltimaPagina",
+            ][..],
+        ),
+        ("select", &["Paginacao"][..]),
+    ] {
+        for elemento in dom.query_selector(seletor).into_iter().flatten() {
+            let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            let id = valor_do_atributo(tag, "id").map_err(|_| ErroCaixa::HtmlInvalido)?;
+            let resto = id.as_deref().and_then(|nome| {
+                nome.strip_prefix(if seletor == "a" { "lnk" } else { "sel" })?
+                    .strip_prefix(prefixo)
+            });
+            if resto.is_some_and(|r| marcas.iter().any(|m| r.starts_with(m))) {
+                return Ok(true);
+            }
+        }
+    }
     Ok(false)
 }
 

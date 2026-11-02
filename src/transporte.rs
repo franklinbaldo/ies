@@ -1,5 +1,6 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
-//! Sem login, redirects, POST ou tentativa de outro backend.
+//! Sem login, redirects ou tentativa de outro backend; o único POST é o de
+//! `envio_post`, usado por `--pagina N`.
 use crate::instalacao::{Instalacao, host_valido};
 use std::fs;
 use std::io::Read;
@@ -338,29 +339,40 @@ pub fn read_box(
     cookie_file: &Path,
     origem_autorizada: &str,
 ) -> Result<String, FalhaTransporte> {
-    read_box_via(url, cookie_file, origem_autorizada, |destino, cookie| {
-        let resposta = minreq::get(destino)
-            .with_timeout(30)
-            .with_follow_redirects(false)
-            .with_header("Cookie", cookie)
-            .send_lazy()
-            .map_err(|_| FalhaTransporte::Rede)?;
-        let mime = resposta
-            .headers
-            .get("content-type")
-            .cloned()
-            .unwrap_or_default();
-        let content_length = resposta
-            .headers
-            .get("content-length")
-            .and_then(|n| n.trim().parse::<usize>().ok());
-        Ok(RespostaWeb {
-            status_code: resposta.status_code,
-            mime,
-            content_length,
-            corpo: resposta,
-        })
-    })
+    read_box_via(url, cookie_file, origem_autorizada, get_https)
+}
+
+/// Resposta `minreq` como `RespostaWeb`, sem ler o corpo.
+fn resposta_web(resposta: minreq::ResponseLazy) -> RespostaWeb<minreq::ResponseLazy> {
+    let mime = resposta
+        .headers
+        .get("content-type")
+        .cloned()
+        .unwrap_or_default();
+    let content_length = resposta
+        .headers
+        .get("content-length")
+        .and_then(|n| n.trim().parse::<usize>().ok());
+    RespostaWeb {
+        status_code: resposta.status_code,
+        mime,
+        content_length,
+        corpo: resposta,
+    }
+}
+
+/// GET real único, sem seguir redirects; o corpo é lido depois, limitado.
+fn get_https(
+    destino: &str,
+    cookie: &str,
+) -> Result<RespostaWeb<minreq::ResponseLazy>, FalhaTransporte> {
+    let resposta = minreq::get(destino)
+        .with_timeout(30)
+        .with_follow_redirects(false)
+        .with_header("Cookie", cookie)
+        .send_lazy()
+        .map_err(|_| FalhaTransporte::Rede)?;
+    Ok(resposta_web(resposta))
 }
 
 pub fn read_box_from_file(

@@ -188,7 +188,7 @@ fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
     })
 }
 
-fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E> {
+fn classificar(tag: &tl::HTMLTag<'_>, botao: Option<&str>) -> Result<Option<Controle>, E> {
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea")
         // Navegadores não enviam controles desabilitados (com ou sem valor).
@@ -217,7 +217,7 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
             let valor = valor_decodificado(tag, &nome)?;
             Some(Controle::Oculto { nome, valor })
         }
-        ("input" | "button", "submit") if nome == botao => {
+        ("input" | "button", "submit") if botao == Some(nome.as_str()) => {
             let valor = valor_decodificado(tag, &nome)?;
             Some(Controle::Botao { nome, valor })
         }
@@ -229,12 +229,11 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
     })
 }
 
-/// Nome do botão que participa do envio. Shim CONTRACT: o envio por script
-/// ainda exige botão (RED).
-fn botao_do_envio(envio: EnvioDoFormulario) -> &'static str {
+/// Nome do botão que participa do envio; `submit()` por script não envia botão.
+fn botao_do_envio(envio: EnvioDoFormulario) -> Option<&'static str> {
     match envio {
-        EnvioDoFormulario::BotaoDeEnvio(nome) => nome,
-        EnvioDoFormulario::SubmitPorScript => "",
+        EnvioDoFormulario::BotaoDeEnvio(nome) => Some(nome),
+        EnvioDoFormulario::SubmitPorScript => None,
     }
 }
 
@@ -267,10 +266,12 @@ pub(super) fn ler_controles(
         }
         controles.push(controle);
     }
-    match botoes {
-        0 => return Err(E::BotaoDeEnvioAusenteNoFormulario),
-        1 => {}
-        _ => return Err(E::BotoesDeEnvioRepetidosNoFormulario),
+    match (operacao.envio, botoes) {
+        (EnvioDoFormulario::SubmitPorScript, _) | (EnvioDoFormulario::BotaoDeEnvio(_), 1) => {}
+        (EnvioDoFormulario::BotaoDeEnvio(_), 0) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
+        (EnvioDoFormulario::BotaoDeEnvio(_), _) => {
+            return Err(E::BotoesDeEnvioRepetidosNoFormulario);
+        }
     }
     if let Some(ausente) = operacao
         .campos_ocultos_exigidos

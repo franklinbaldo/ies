@@ -14,12 +14,15 @@ fn destino(nome: &str) -> PathBuf {
 }
 
 fn controle(legenda_recebidos: &str, ids: &[u32]) -> String {
-    let linhas: String = ids
-        .iter()
-        .map(|id| {
-            format!("<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>")
-        })
-        .collect();
+    let linhas = ids.iter().fold(String::new(), |mut linhas, id| {
+        use std::fmt::Write as _;
+        write!(
+            linhas,
+            "<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>"
+        )
+        .unwrap();
+        linhas
+    });
     format!(
         "<a id='lnkInfraUnidade'>PPI</a>\
          <input id='hdnTipoVisualizacao' value='R'>\

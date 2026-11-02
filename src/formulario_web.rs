@@ -249,14 +249,17 @@ fn ordenar_campos<'c>(
     use ErroSubmissaoFormulario as E;
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
-        if !operacao.campos_usuario.contains(nome) {
+        let oculto = operacao.campos_ocultos_reescritos.contains(nome);
+        if !oculto && !operacao.campos_usuario.contains(nome) {
             return Err(E::CampoForaDaListaDaOperacao { campo });
         }
         let publicados: Vec<_> = controles
             .iter()
-            .filter(
-                |c| matches!(c, Controle::Usuario(n) | Controle::SelecaoMultipla(n) if n == nome),
-            )
+            .filter(|c| match c {
+                Controle::Oculto { nome: n, .. } => oculto && n == nome,
+                Controle::Usuario(n) | Controle::SelecaoMultipla(n) => !oculto && n == nome,
+                Controle::Botao { .. } => false,
+            })
             .collect();
         if publicados.is_empty() {
             return Err(E::CampoNaoPublicadoPeloFormulario { campo });
@@ -276,9 +279,20 @@ fn ordenar_campos<'c>(
     let mut ordenados = Vec::new();
     for controle in controles {
         match controle {
-            Controle::Oculto { nome, valor } | Controle::Botao { nome, valor } => {
-                ordenados.push((nome.as_str(), valor.as_str()));
+            Controle::Oculto { nome, valor } => {
+                // O valor reescrito pela regra da operação ocupa a posição servida.
+                let reescrito = operacao
+                    .campos_ocultos_reescritos
+                    .contains(&nome.as_str())
+                    .then(|| campos.iter().find(|(n, _)| n == nome))
+                    .flatten();
+                ordenados.push(
+                    reescrito
+                        .copied()
+                        .unwrap_or((nome.as_str(), valor.as_str())),
+                );
             }
+            Controle::Botao { nome, valor } => ordenados.push((nome.as_str(), valor.as_str())),
             Controle::Usuario(nome) | Controle::SelecaoMultipla(nome)
                 if !emitidos.contains(&nome.as_str()) =>
             {

@@ -20,9 +20,18 @@ pub(crate) enum DiferencaDeContexto {
 }
 
 impl ContextoPagina {
-    /// Shim CONTRACT: ainda não compara.
-    pub(crate) fn diferenca(&self, _outro: &Self) -> Option<DiferencaDeContexto> {
-        None
+    pub(crate) fn diferenca(&self, outro: &Self) -> Option<DiferencaDeContexto> {
+        if self.unidade != outro.unidade {
+            Some(DiferencaDeContexto::Unidade)
+        } else if self.modo != outro.modo {
+            Some(DiferencaDeContexto::Visualizacao)
+        } else if self.criterios_recebidos != outro.criterios_recebidos {
+            Some(DiferencaDeContexto::CriteriosRecebidos)
+        } else if self.criterios_gerados != outro.criterios_gerados {
+            Some(DiferencaDeContexto::CriteriosGerados)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn eh_detalhada(&self) -> bool {

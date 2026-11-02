@@ -69,16 +69,18 @@ impl Tela {
         let linhas: String = if t.total == 0 {
             String::new()
         } else {
-            (t.inicio..=t.fim)
-                .map(|p| {
-                    let id = base + p;
-                    format!(
-                        "<tr id='P{id}'><td><input type='checkbox' id='chk{nome}Item{p}' \
-                         name='chk{nome}Item{p}' value='{id}'></td><td><a class='processoVisualizado' \
-                         href='controlador.php?acao=procedimento_trabalhar'>NUP-{id}</a></td></tr>"
-                    )
-                })
-                .collect()
+            (t.inicio..=t.fim).fold(String::new(), |mut linhas, p| {
+                use std::fmt::Write as _;
+                let id = base + p;
+                write!(
+                    linhas,
+                    "<tr id='P{id}'><td><input type='checkbox' id='chk{nome}Item{p}' \
+                     name='chk{nome}Item{p}' value='{id}'></td><td><a class='processoVisualizado' \
+                     href='controlador.php?acao=procedimento_trabalhar'>NUP-{id}</a></td></tr>"
+                )
+                .unwrap();
+                linhas
+            })
         };
         let paginador = if t.paginador {
             format!(

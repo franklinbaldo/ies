@@ -1,12 +1,22 @@
-//! Apresentação da leitura: JSON v1 e formato humano são projeções,
+//! Apresentação da leitura: JSON v2 e formato humano são projeções,
 //! não campos persistidos em Caixa, Tabela ou Processo.
 use crate::dominio::{Processo, Tabela};
-use crate::paginas::Leitura;
+use crate::paginas::{Cobertura, Leitura};
 use serde_json::{Value, json};
 
-fn tabela_json(tabela: &Tabela<Processo>) -> Value {
+/// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
+/// da legenda, nunca afirmação de lista integral.
+pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
+    faixa.map_or(
+        Value::Null,
+        |(inicio, fim)| json!({"inicio": inicio, "fim": fim}),
+    )
+}
+
+fn tabela_json(tabela: &Tabela<Processo>, cobertura: &Cobertura) -> Value {
     json!({
         "total_declarado": tabela.total_declarado,
+        "faixa_observada": faixa_json(cobertura.faixa_observada()),
         "processos": tabela.processos,
     })
 }
@@ -15,17 +25,20 @@ pub fn json(leitura: &Leitura, origem: &str) -> Value {
     json!({
         "unidade": leitura.unidade,
         "origem": origem,
-        "recebidos": tabela_json(&leitura.caixa.recebidos),
-        "gerados": tabela_json(&leitura.caixa.gerados),
+        "recebidos": tabela_json(&leitura.caixa.recebidos, &leitura.recebidos),
+        "gerados": tabela_json(&leitura.caixa.gerados, &leitura.gerados),
     })
 }
 
-fn linha_humana(nome: &str, tabela: &Tabela<Processo>) -> String {
+fn linha_humana(nome: &str, tabela: &Tabela<Processo>, cobertura: &Cobertura) -> String {
     let total = tabela
         .total_declarado
         .map_or_else(|| "desconhecido".to_owned(), |n| n.to_string());
+    let faixa = cobertura
+        .faixa_observada()
+        .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
     format!(
-        "{nome}: {} processo(s) observado(s); total declarado pelo SEI: {total}",
+        "{nome}: {} processo(s) observado(s); total declarado pelo SEI: {total}; faixa observada: {faixa}",
         tabela.processos.len()
     )
 }
@@ -33,8 +46,8 @@ fn linha_humana(nome: &str, tabela: &Tabela<Processo>) -> String {
 pub fn humano(leitura: &Leitura) -> String {
     format!(
         "{}\n{}",
-        linha_humana("recebidos", &leitura.caixa.recebidos),
-        linha_humana("gerados", &leitura.caixa.gerados)
+        linha_humana("recebidos", &leitura.caixa.recebidos, &leitura.recebidos),
+        linha_humana("gerados", &leitura.caixa.gerados, &leitura.gerados)
     )
 }
 

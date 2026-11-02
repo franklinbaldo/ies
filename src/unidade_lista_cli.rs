@@ -47,7 +47,7 @@ pub(super) fn listar_processos_da_unidade(
     if caixa_detalhada::possui_tabela(&paginas[0]) {
         return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, destino);
     }
-    mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
+    mostrar_caixa_web(&paginas, origem, unidade, json_mode, destino)
 }
 
 /// A visão detalhada não inventa as categorias recebidos/gerados.
@@ -74,6 +74,7 @@ fn mostrar_caixa_detalhada(
         "origem": origem,
         "visualizacao": "detalhada",
         "total_declarado": leitura.total_declarado,
+        "faixa_observada": saida::faixa_json(leitura.faixa_observada),
         "processos": &leitura.processos
     });
     if let Some(caminho) = destino {
@@ -99,9 +100,14 @@ fn mostrar_caixa_detalhada(
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&saida).unwrap());
     } else {
+        let faixa = leitura
+            .faixa_observada
+            .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
         println!(
-            "IES: {} processos da visão detalhada da unidade {}.",
-            leitura.total_declarado, leitura.unidade
+            "IES: visão detalhada da unidade {}: {} processo(s) observado(s); total declarado: {}; faixa observada: {faixa}.",
+            leitura.unidade,
+            leitura.processos.len(),
+            leitura.total_declarado
         );
         for processo in &leitura.processos {
             println!("{} ({})", processo.numero, processo.id.as_str());
@@ -130,7 +136,7 @@ pub(super) fn mostrar_caixa(
 }
 
 /// Caixa Web: a página observada com total e faixa por tabela, sem exigir
-/// as demais páginas. Shim CONTRACT: ainda exige cobertura integral.
+/// as demais páginas (contracts/cli/unidade-listar-processos-paginas.md).
 pub(super) fn mostrar_caixa_web(
     htmls: &[String],
     origem: &str,
@@ -138,7 +144,7 @@ pub(super) fn mostrar_caixa_web(
     json_mode: bool,
     destino: Option<&Path>,
 ) -> ExitCode {
-    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, true, destino, true)
+    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, false, destino, true)
 }
 
 /// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
@@ -188,8 +194,29 @@ fn mostrar_caixa_com_politica(
             "unidade não identificada no Controle Web",
         );
     }
-    // Consulta de sessão promete a caixa inteira; replay offline só relata
-    // as páginas selecionadas, sem alegar que representam toda a unidade.
+    // A Web publica a página observada; total e faixa precisam ser legíveis.
+    if exigir_identidade_web
+        && let Err(erro) = paginas::conferir_faixa_publicavel(
+            dominio::Categoria::Recebidos,
+            &leitura.caixa.recebidos,
+            &leitura.recebidos,
+        )
+        .and_then(|()| {
+            paginas::conferir_faixa_publicavel(
+                dominio::Categoria::Gerados,
+                &leitura.caixa.gerados,
+                &leitura.gerados,
+            )
+        })
+    {
+        return erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "a legenda do Controle não comprova total e faixa",
+        );
+    }
+    // Só o replay `--todas-paginas` promete todas as posições; a Web e o
+    // replay seletivo publicam a faixa observada.
     if exigir_todas_paginas
         && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
             || !leitura.gerados.completa(&leitura.caixa.gerados))

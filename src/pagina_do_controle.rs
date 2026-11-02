@@ -5,20 +5,28 @@
 //! 5.0.4) e Goiás (5.0.3) publicam `infraAcaoPaginar('+'|'=', i, 'T', null)`
 //! em `lnk{T}ProximaPagina*`, `lnk{T}UltimaPagina*` e `sel{T}Paginacao*`,
 //! com índice a partir de 0 gravado em `hdn{T}PaginaAtual`.
+mod envio;
+mod plano;
 mod regras;
 
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
-    CodificacaoDaTela, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
-    MarcadorDeResultado, OperacaoDeFormulario, RespostaDoPost, SubmissaoDerivada, TelaServida,
+    EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
+    MarcadorDeResultado, OperacaoDeFormulario,
 };
-use crate::instalacao::Instalacao;
 use crate::paginas::FaixaNaPagina;
-use crate::transporte::FalhaTransporte;
+#[cfg(test)]
+use crate::{
+    formulario_web::{RespostaDoPost, SubmissaoDerivada, TelaServida},
+    instalacao::Instalacao,
+    transporte::FalhaTransporte,
+};
+#[cfg(test)]
+pub(crate) use envio::derivar_pagina;
+pub(crate) use envio::obter_pagina_via;
+pub(crate) use plano::{codificacao_da_tela, planejar};
 pub(crate) use regras::ErroControleDoFormulario;
-use std::io::Read;
-use std::path::Path;
 
 /// O servidor lembra a página de cada tabela na sessão.
 pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -49,6 +57,9 @@ pub(crate) enum ErroPaginaDoControle {
     PaginaExigeVisaoResumida,
     CharsetDaTelaNaoSuportado,
     PaginaAtualDaTabelaIlegivel {
+        categoria: Categoria,
+    },
+    CamposDePaginaAtualDaTabelaRepetidos {
         categoria: Categoria,
     },
     PaginaAtualDaTabelaIncompativelComAFaixa {
@@ -84,6 +95,9 @@ impl ErroPaginaDoControle {
             Self::PaginaExigeVisaoResumida => "pagina_do_controle_exige_visao_resumida",
             Self::CharsetDaTelaNaoSuportado => "charset_da_tela_do_controle_nao_suportado",
             Self::PaginaAtualDaTabelaIlegivel { .. } => "pagina_atual_da_tabela_ilegivel",
+            Self::CamposDePaginaAtualDaTabelaRepetidos { .. } => {
+                "campos_de_pagina_atual_da_tabela_repetidos"
+            }
             Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. } => {
                 "pagina_atual_da_tabela_incompativel_com_a_faixa"
             }
@@ -121,49 +135,6 @@ pub(crate) enum PlanoDaPagina {
         indice: usize,
         esperada: FaixaNaPagina,
     },
-}
-
-/// Charset do `Content-Type` da tela, para codificar o corpo do POST.
-/// Shim CONTRACT.
-pub(crate) fn codificacao_da_tela(_mime: &str) -> Option<CodificacaoDaTela> {
-    None
-}
-
-/// Calcula, sem rede, se e como pedir a página `pagina` (≥ 1). Shim CONTRACT.
-pub(crate) fn planejar(
-    _html: &str,
-    _categoria: Categoria,
-    _pagina: usize,
-) -> Result<PlanoDaPagina, ErroPaginaDoControle> {
-    Err(ErroPaginaDoControle::PaginaExigeVisaoResumida)
-}
-
-/// Deriva o POST do paginador, sem rede. Shim CONTRACT.
-pub(crate) fn derivar_pagina(
-    _instalacao: &Instalacao,
-    _tela: &TelaServida<'_>,
-    _unidade: &str,
-    _categoria: Categoria,
-    _indice: usize,
-) -> Result<SubmissaoDerivada, ErroPaginaDoControle> {
-    Err(ErroPaginaDoControle::PaginaExigeVisaoResumida)
-}
-
-/// Obtém a página: `Ok(None)` se a tela já a mostra (zero POST), senão
-/// envia uma vez (`FnOnce`, sem retry) e confere a resposta. Shim CONTRACT.
-pub(crate) fn obter_pagina_via<R: Read, F>(
-    _instalacao: &Instalacao,
-    _tela: &TelaServida<'_>,
-    _unidade: &str,
-    _categoria: Categoria,
-    _pagina: usize,
-    _cookie_file: &Path,
-    _enviar: F,
-) -> Result<Option<String>, ErroPaginaDoControle>
-where
-    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
-{
-    Err(ErroPaginaDoControle::PaginaExigeVisaoResumida)
 }
 
 #[cfg(test)]

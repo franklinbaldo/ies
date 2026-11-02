@@ -1,4 +1,7 @@
-//! Projeção Web de uma categoria integralmente observada, sem POST.
+//! Projeção Web de uma categoria: a página observada, com total e faixa;
+//! `--pagina N` acrescenta no máximo um POST (`pagina_web`).
+mod pagina_web;
+
 use crate::paginas::Leitura;
 use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
 use clap::ValueEnum;
@@ -31,7 +34,6 @@ impl CategoriaLista {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
-    PaginasNaoObtidas(CategoriaLista),
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
     FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
 }
@@ -40,22 +42,17 @@ impl FalhaCategoria {
         match self {
             Self::FaixaNaoPublicavel(erro) => erro.subcodigo(),
             Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
-            Self::PaginasNaoObtidas(CategoriaLista::Recebidos) => "paginas_recebidos_nao_obtidas",
-            Self::PaginasNaoObtidas(CategoriaLista::Gerados) => "paginas_gerados_nao_obtidas",
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
             Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
-            Self::PaginasNaoObtidas(_) => {
-                "a categoria selecionada exige páginas que não foram obtidas"
-            }
         }
     }
 }
 
-/// Projeta apenas a categoria com posições inteiramente observadas no GET.
+/// Projeta a categoria com a página observada, o total e a faixa.
 pub(crate) fn selecionar(
     leitura: &Leitura,
     categoria: CategoriaLista,
@@ -68,19 +65,19 @@ pub(crate) fn selecionar(
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
     };
-    if !cobertura.completa(tabela) {
-        return Err(FalhaCategoria::PaginasNaoObtidas(categoria));
-    }
+    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
+        .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
     Ok(json!({
         "unidade": leitura.unidade,
         "origem": origem,
         "categoria": categoria.rotulo(),
         "total_declarado": tabela.total_declarado,
+        "faixa_observada": crate::saida::faixa_json(cobertura.faixa_observada()),
         "processos": tabela.processos,
     }))
 }
 
-/// Uma consulta HTTPS já existente; sem POST nem busca especulativa.
+/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
 pub(crate) fn listar_categoria(
     unidade: Option<&str>,
     json_mode: bool,
@@ -88,25 +85,23 @@ pub(crate) fn listar_categoria(
     categoria: CategoriaLista,
     pagina: Option<usize>,
 ) -> ExitCode {
-    if pagina.is_some() {
-        // Shim CONTRACT: `--pagina N` ainda não envia o POST.
-        return erro_fonte(
-            json_mode,
-            "nao_implementado",
-            "a opção --pagina ainda não está implementada",
-        );
-    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let html = match transporte::read_box_from_file(
-        &arquivos.url_controle,
-        &arquivos.cookie,
-        &arquivos.origem,
-    ) {
+    let obtida = match pagina {
+        None => transporte::read_box_from_file(
+            &arquivos.url_controle,
+            &arquivos.cookie,
+            &arquivos.origem,
+        )
+        .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+        Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
+            .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+    };
+    let html = match obtida {
         Ok(html) => html,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
     };
     let leitura = match paginas::juntar(&[html], unidade) {
         Ok(leitura) => leitura,
@@ -150,8 +145,13 @@ pub(crate) fn listar_categoria(
     } else {
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
         println!(
-            "IES: {}: {quantidade} processo(s) observados e cobertos na categoria; demais categorias não consultadas integralmente.",
-            categoria.rotulo()
+            "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
+            categoria.rotulo(),
+            modelo["total_declarado"],
+            match &modelo["faixa_observada"] {
+                Value::Null => "nenhuma".to_owned(),
+                faixa => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+            }
         );
     }
     ExitCode::SUCCESS
