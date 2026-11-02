@@ -7,6 +7,7 @@ use crate::dominio::IdProcedimento;
 use crate::formulario_web::{
     EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio,
     RespostaDoPost, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
+    localizar_formulario,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -76,9 +77,38 @@ pub(crate) fn derivar_pesquisa_de_protocolo(
     unidade_solicitada: &str,
     protocolo: &str,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
-    let _ = (instalacao, tela, unidade_solicitada, protocolo);
-    let _ = (ler_regras_da_tela, derivar_submissao);
-    unimplemented!("CONTRACT shim: regras do onsubmit")
+    use ErroPesquisaProtocolo as E;
+    let excessiva = || {
+        E::Submissao(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::RespostaExcessiva,
+        ))
+    };
+    if tela.html.len() > crate::MAX_HTML_BYTES {
+        return Err(excessiva());
+    }
+    // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
+    // destas regras; ler a tela em memória não tem efeito.
+    let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
+    let form = localizar_formulario(&dom, PESQUISAR_PROTOCOLO.formulario).map_err(E::Submissao)?;
+    let regras = ler_regras_da_tela(form, dom.parser()).map_err(E::RegraDoFormulario)?;
+    let mut campos = vec![
+        ("rdoPesquisarEm", regras.opcao_de_processos.as_str()),
+        ("txtProtocoloPesquisa", protocolo),
+    ];
+    campos.extend(
+        regras
+            .orgaos_selecionados
+            .iter()
+            .map(|valor| ("selOrgaoPesquisa[]", valor.as_str())),
+    );
+    derivar_submissao(
+        &PESQUISAR_PROTOCOLO,
+        instalacao,
+        tela,
+        unidade_solicitada,
+        &campos,
+    )
+    .map_err(E::Submissao)
 }
 
 /// Envia uma vez e interpreta a resposta; o 302 nunca é seguido.

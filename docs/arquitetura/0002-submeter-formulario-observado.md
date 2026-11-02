@@ -218,6 +218,10 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
 - A paginação POST do Controle de Processos nunca foi capturada.
 - Resposta de pesquisa sem resultados não foi observada; o marcador
   pode faltar nesse caso e a recusa seria falso-negativo.
+- O `tl` 0.7.8 perde o primeiro caractere do atributo que segue um
+  booleano sem valor (`multiple disabled` é lido como `isabled`). Um
+  controle servido assim seria tratado como habilitado. Não observado
+  nos `disabled` destas telas; corrigir ou falhar fechado é pendência.
 - Validação live: **NOT_RUN** (sem instalação autorizada nesta fatia).
 
 ## Alternativas

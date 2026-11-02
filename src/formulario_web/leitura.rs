@@ -164,9 +164,17 @@ fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
 
 /// Controle bem-sucedido do formulário, na ordem do documento.
 pub(super) enum Controle {
-    Oculto { nome: String, valor: String },
+    Oculto {
+        nome: String,
+        valor: String,
+    },
     Usuario(String),
-    Botao { nome: String, valor: String },
+    /// `<select multiple>`: o navegador envia um par por opção selecionada.
+    SelecaoMultipla(String),
+    Botao {
+        nome: String,
+        valor: String,
+    },
 }
 
 fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
@@ -211,6 +219,9 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
             Some(Controle::Botao { nome, valor })
         }
         ("input" | "button", "submit" | "button" | "reset" | "image") | ("button", _) => None,
+        ("select", _) if tag.attributes().get("multiple").is_some() => {
+            Some(Controle::SelecaoMultipla(nome))
+        }
         _ => Some(Controle::Usuario(nome)),
     })
 }

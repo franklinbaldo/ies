@@ -207,24 +207,31 @@ fn ordenar_campos<'c>(
     campos: &'c [(&'c str, &'c str)],
 ) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
     use ErroSubmissaoFormulario as E;
-    let publicado = |nome: &str| {
-        controles
-            .iter()
-            .any(|c| matches!(c, Controle::Usuario(n) if n == nome))
-    };
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
         if !operacao.campos_usuario.contains(nome) {
             return Err(E::CampoForaDaListaDaOperacao { campo });
         }
-        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
-            return Err(E::CampoInformadoMaisDeUmaVez { campo });
-        }
-        if !publicado(nome) {
+        let publicados: Vec<_> = controles
+            .iter()
+            .filter(
+                |c| matches!(c, Controle::Usuario(n) | Controle::SelecaoMultipla(n) if n == nome),
+            )
+            .collect();
+        if publicados.is_empty() {
             return Err(E::CampoNaoPublicadoPeloFormulario { campo });
         }
+        // Só um `<select multiple>` (e nenhum outro controle de mesmo nome)
+        // admite o nome repetido; os valores vêm da operação.
+        let multipla = publicados
+            .iter()
+            .all(|c| matches!(c, Controle::SelecaoMultipla(_)));
+        if !multipla && campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        }
     }
-    // Ordem do documento; um rádio com vários controles é emitido uma vez.
+    // Ordem do documento; um rádio com vários controles é emitido uma vez,
+    // e os pares de um `select multiple` saem juntos na posição dele.
     let mut emitidos: Vec<&str> = Vec::new();
     let mut ordenados = Vec::new();
     for controle in controles {
@@ -232,13 +239,13 @@ fn ordenar_campos<'c>(
             Controle::Oculto { nome, valor } | Controle::Botao { nome, valor } => {
                 ordenados.push((nome.as_str(), valor.as_str()));
             }
-            Controle::Usuario(nome) if !emitidos.contains(&nome.as_str()) => {
-                if let Some((n, v)) = campos.iter().find(|(n, _)| n == nome) {
-                    emitidos.push(n);
-                    ordenados.push((*n, *v));
-                }
+            Controle::Usuario(nome) | Controle::SelecaoMultipla(nome)
+                if !emitidos.contains(&nome.as_str()) =>
+            {
+                emitidos.push(nome);
+                ordenados.extend(campos.iter().filter(|(n, _)| n == nome).copied());
             }
-            Controle::Usuario(_) => {}
+            Controle::Usuario(_) | Controle::SelecaoMultipla(_) => {}
         }
     }
     Ok(ordenados)

@@ -174,6 +174,20 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     );
 }
 
+/// Forma bruta servida nas quatro instalações: `multiple` sem valor antes
+/// de `id`. O tl 0.7.8 lê o atributo seguinte sem o 1º caractere (`d`), por
+/// isso o `select` é localizado pelo `name`, não pelo `id`.
+#[test]
+fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
+    let bruto = "<select style=\"display: none\" multiple id=\"selOrgaoPesquisa\" \
+                 name=\"selOrgaoPesquisa[]\" onchange=\"tratarSelecaoOrgao()\" \
+                 class=\"infraSelect multipleSelect\" tabindex=\"509\">\
+                 <option value=\"4\" selected=\"selected\">A</option></select>";
+    let submissao = derivar(&pagina(&interior(bruto))).unwrap();
+    let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
+    assert!(corpo.contains("&selOrgaoPesquisa%5B%5D=4&"), "{corpo}");
+}
+
 #[test]
 fn seletor_de_orgao_desabilitado_nao_e_publicado_como_no_navegador() {
     let html = observado().replace(" multiple='multiple'", " multiple='multiple' disabled");

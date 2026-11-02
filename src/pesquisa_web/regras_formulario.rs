@@ -2,6 +2,8 @@
 //! JavaScript servido em `unb`, `pen1`, `ufrj` e `go` (GET de
 //! `protocolo_pesquisar` das cassettes `processo-busca-*`). Nada de JS é
 //! executado ou interpretado aqui. Evidência: docs/decisoes/processo-buscar.md.
+use crate::formulario_web::decodificar_atributo;
+use ErroRegraDoFormularioDePesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroRegraDoFormularioDePesquisa {
@@ -61,10 +63,112 @@ pub(crate) struct RegrasDaTela {
     pub(crate) orgaos_selecionados: Vec<String>,
 }
 
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<Option<String>, E> {
+    tag.attributes()
+        .get(nome)
+        .flatten()
+        .map(|bruto| {
+            decodificar_atributo(&bruto.as_utf8_str()).ok_or(E::EntidadeHtmlDesconhecidaNaRegra)
+        })
+        .transpose()
+}
+
+fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
+    tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
+}
+
+/// `onSubmitForm()` exige rádio marcado; `D` exigiria checkboxes que a
+/// derivação não envia, então a operação usa `#optProcessos` como servido.
+fn opcao_de_processos(tags: &[&tl::HTMLTag<'_>]) -> Result<String, E> {
+    let mut achadas = Vec::new();
+    for tag in tags.iter().filter(|t| eh(t, "input")) {
+        if atributo(tag, "id")?.as_deref() == Some("optProcessos") {
+            achadas.push(*tag);
+        }
+    }
+    let radio = match achadas.as_slice() {
+        [] => return Err(E::OpcaoDeProcessosAusenteNaTela),
+        [radio] => *radio,
+        _ => return Err(E::OpcoesDeProcessosRepetidasNaTela),
+    };
+    if atributo(radio, "name")?.as_deref() != Some("rdoPesquisarEm") {
+        return Err(E::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm);
+    }
+    atributo(radio, "value")?.ok_or(E::OpcaoDeProcessosSemValorNaTela)
+}
+
+/// Com `P`, `tratarCamposDocumento()` esvazia `hdnIdAssinante`; `navegar()`
+/// só reescreve `hdnInicio` na paginação. Ocultos saem como servidos.
+fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>]) -> Result<(), E> {
+    for tag in tags.iter().filter(|t| eh(t, "input")) {
+        let valor = || atributo(tag, "value").map(Option::unwrap_or_default);
+        match atributo(tag, "name")?.as_deref() {
+            Some("hdnIdAssinante") if !valor()?.is_empty() => {
+                return Err(E::AssinanteOcultoPreenchidoNaPesquisaEmProcessos);
+            }
+            Some("hdnInicio") if valor()? != "0" => {
+                return Err(E::InicioDaPaginacaoDiferenteDeZeroNaTela);
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// `onSubmitForm()` exige órgão em `selOrgaoPesquisa[]`: as opções com
+/// `selected` servidas, na ordem do documento; nenhuma é inventada.
+fn orgaos_selecionados(
+    tags: &[&tl::HTMLTag<'_>],
+    parser: &tl::Parser<'_>,
+) -> Result<Vec<String>, E> {
+    let mut achados = Vec::new();
+    for tag in tags.iter().filter(|t| eh(t, "select")) {
+        if atributo(tag, "name")?.as_deref() == Some("selOrgaoPesquisa[]") {
+            achados.push(*tag);
+        }
+    }
+    let select = match achados.as_slice() {
+        [] => return Err(E::SeletorDeOrgaoDePesquisaAusenteNaTela),
+        [select] => *select,
+        _ => return Err(E::SeletoresDeOrgaoDePesquisaRepetidosNaTela),
+    };
+    if select.attributes().get("multiple").is_none() {
+        return Err(E::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
+    }
+    let mut valores = Vec::new();
+    for opcao in select
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        if eh(opcao, "option") && opcao.attributes().get("selected").is_some() {
+            valores
+                .push(atributo(opcao, "value")?.ok_or(E::OpcaoDeOrgaoSelecionadaSemValorNaTela)?);
+        }
+    }
+    if valores.is_empty() {
+        return Err(E::OrgaoDePesquisaSemOpcaoSelecionadaNaTela);
+    }
+    Ok(valores)
+}
+
+/// Lê, do `<form>` já localizado, os valores que o `onsubmit` exige.
 pub(crate) fn ler_regras_da_tela(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
 ) -> Result<RegrasDaTela, ErroRegraDoFormularioDePesquisa> {
-    let _ = (form, parser);
-    unimplemented!("CONTRACT shim: regras do onsubmit")
+    let tags: Vec<_> = form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .collect();
+    let opcao_de_processos = opcao_de_processos(&tags)?;
+    conferir_ocultos(&tags)?;
+    let orgaos_selecionados = orgaos_selecionados(&tags, parser)?;
+    Ok(RegrasDaTela {
+        opcao_de_processos,
+        orgaos_selecionados,
+    })
 }
