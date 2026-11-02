@@ -120,3 +120,11 @@ não lia.
   um `proxy_*` registra o subcódigo e `status_do_proxy`. Os outros
   comandos (`unidade atual`) **não** usam proxy: numa rede sem saída
   direta, o passo 2 falhará com `falha_de_rede`. `NOT_RUN`.
+
+**Reensaio das lacunas (02/11/2026, UnB).** Com o binário que lê
+`txaInfraValidacao` e atravessa proxy: senha errada (1 tentativa) →
+`credencial_recusada` com `mensagem_do_servidor: "Usuário ou Senha
+Inválida."`; login correto **pelo proxy HTTPS do ambiente** (túnel
+CONNECT) → `login_realizado`, 6 requisições; o mesmo com `NO_PROXY='*'`
+→ conexão direta, `login_realizado`, 6. Os demais comandos (minreq sem a
+feature `proxy`) continuam conectando direto.
