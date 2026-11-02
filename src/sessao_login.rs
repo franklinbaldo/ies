@@ -123,3 +123,7 @@ mod tests_recusas;
 #[cfg(test)]
 #[path = "sessao_login/tests_sessao.rs"]
 mod tests_sessao;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_proxy.rs"]
+mod tests_proxy;
