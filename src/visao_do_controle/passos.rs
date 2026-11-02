@@ -1,13 +1,13 @@
-//! Passos compartilhados pelos fluxos: troca de visão, página da D e a
-//! conferência da tela restaurada. Cada passo é no máximo um POST.
+//! Passos compartilhados pelos fluxos: troca de visão e página da D. Cada
+//! passo é no máximo um POST.
 use super::envio::{EnvioDoControle, Redirecionado, Sessao, TelaAtual};
-use super::plano::{PedidoDePagina, PosicaoDetalhada, pedido_de_volta, valores_ocultos};
+use super::plano::{PedidoDePagina, valores_ocultos};
 use super::{
     CAMPOS_USUARIO, ErroVisaoDoControle as E, PAGINAR_VISAO_DETALHADA, TROCAR_VISAO_DO_CONTROLE,
     Visao,
 };
 use crate::caixa_detalhada::{LeituraDetalhada, ler_paginas};
-use crate::controle_contexto::{ContextoPagina, DiferencaDeContexto, contexto_da_pagina};
+use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::formulario_web::localizar_formulario;
 use crate::pagina_do_controle::{ErroPaginaDoControle, campos_do_usuario};
 
@@ -121,51 +121,4 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
         return Err(E::FaixaDaRespostaDiferenteDaPaginaSolicitada);
     }
     Ok((nova, leitura))
-}
-
-/// Volta da tela da página N à página encontrada (`encontrada`, lida de
-/// `html_encontrado`): um POST; a resposta precisa trazer a faixa e o
-/// `hdnDetalhadoPaginaAtual` da tela encontrada.
-pub(super) fn voltar_a_pagina_encontrada<V: EnvioDoControle>(
-    sessao: &mut Sessao<'_, V>,
-    tela_n: &TelaAtual,
-    html_encontrado: &str,
-    encontrada: &PosicaoDetalhada,
-) -> Result<TelaAtual, E> {
-    let pedido = pedido_de_volta(encontrada);
-    let (volta, _) = paginar_detalhada(sessao, tela_n, pedido, encontrada.criterio.as_deref())?;
-    conferir_detalhada_restaurada(html_encontrado, &volta.html)?;
-    Ok(volta)
-}
-
-/// A R restaurada precisa ter os critérios e as páginas da R do GET.
-pub(super) fn conferir_resumida_restaurada(original: &str, restaurada: &str) -> Result<(), E> {
-    match contexto(original)?.diferenca(&contexto(restaurada)?) {
-        None => {}
-        Some(DiferencaDeContexto::Unidade) => return Err(E::UnidadeAlteradaAoTrocarVisao),
-        Some(DiferencaDeContexto::Visualizacao) => {
-            return Err(E::VisaoNaoTrocadaAposEnvio {
-                esperada: Visao::Resumida,
-            });
-        }
-        Some(DiferencaDeContexto::CriteriosRecebidos | DiferencaDeContexto::CriteriosGerados) => {
-            return Err(E::CriteriosDaVisaoResumidaAlteradosAposRestaurar);
-        }
-    }
-    for campo in ["hdnRecebidosPaginaAtual", "hdnGeradosPaginaAtual"] {
-        if valores_ocultos(original, campo)? != valores_ocultos(restaurada, campo)? {
-            return Err(E::PaginasDaVisaoResumidaAlteradasAposRestaurar);
-        }
-    }
-    Ok(())
-}
-
-/// A D restaurada precisa estar na página lembrada antes (`hdnDetalhadoPaginaAtual`).
-pub(super) fn conferir_detalhada_restaurada(original: &str, restaurada: &str) -> Result<(), E> {
-    if valores_ocultos(original, "hdnDetalhadoPaginaAtual")?
-        != valores_ocultos(restaurada, "hdnDetalhadoPaginaAtual")?
-    {
-        return Err(E::PaginaDaVisaoDetalhadaAlteradaAposRestaurar);
-    }
-    Ok(())
 }

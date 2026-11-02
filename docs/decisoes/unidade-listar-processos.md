@@ -4,7 +4,7 @@ title: Leitura da caixa da unidade por sessão Web existente
 operation: unidade.listar_processos
 implementation: partial
 status: adopted-for-scope
-scope: Controle de Processos Web com sessão existente; listar-processos pela visão detalhada com troca e restauração da visão encontrada, colunas do Nível de detalhe (só leitura) e recebidos/gerados com --pagina N
+scope: Controle de Processos Web com sessão existente; listar-processos pela visão detalhada com troca de visão sem restauração, colunas do Nível de detalhe (só leitura) e recebidos/gerados com --pagina N
 selected_strategy: web-session-readonly
 alternatives: web-session-readonly,rest-wssei,soap-official
 evidence_level: replays-offline-e-contratos-documentados
@@ -174,7 +174,7 @@ mesma leitura. A exportação `--saida` e a importação `--caixa-local`
 passam ao array; o formato anterior é recusado. Ensaio live da nova
 sintaxe: **NOT_RUN** (o ensaio de 02/11/2026 usou `--categoria`).
 
-## Visão detalhada por padrão e tela restaurada (decisão do proprietário, 02/11/2026)
+## Visão detalhada por padrão (decisão do proprietário, 02/11/2026)
 
 Revê as seções anteriores sobre a visão D ("um GET, zero POST", "não muda a
 visualização"): `listar-processos` passa a **trocar** de visão, com a
@@ -182,11 +182,11 @@ visualização"): `listar-processos` passa a **trocar** de visão, com a
 como contrato. Alternativas: (a) manter `listar-processos` na R, com o array
 `[recebidos, gerados]` da página observada; (b) ler a D, que publica numa só
 tabela os processos das duas listas e as colunas configuradas (atribuição,
-tipo, interessados etc.), trocando de visão e restaurando a encontrada.
-O proprietário escolheu (b). Trade-offs: (b) custa 2 POSTs a mais com a
-sessão em R e tem efeito `PreferenciaDeVisualizacao` (na PEN1 a D sobreviveu
-a um login novo), por isso a restauração é parte da operação; em troca, uma
-lista e as colunas. A D não marca a categoria por linha (verificado em UnB,
+tipo, interessados etc.), trocando de visão. O proprietário escolheu (b).
+Trade-offs: (b) troca de visão com a sessão em R e tem efeito
+`PreferenciaDeVisualizacao` (na PEN1 a D sobreviveu a um login novo); em
+troca, uma lista e as colunas. A primeira versão restaurava a visão e as
+páginas; a revisão seguinte (seção "Sem restauração", abaixo) a removeu. A D não marca a categoria por linha (verificado em UnB,
 PEN1 e GO): a categoria por processo só sai da R do mesmo GET, e `null`
 quer dizer "não observada". As listas completas por categoria continuam em
 `recebidos`/`gerados`.
@@ -203,34 +203,9 @@ as capturas: PASS (UnB, PEN1 p1 e p2, GO; Nível de detalhe de PEN1 e GO).
 
 Decisões de implementação:
 
-- **Falha da restauração: fechada, sem lista.** Alternativa descartada:
-  publicar a lista com um aviso. A lista estaria correta, mas um consumidor
-  automático poderia ignorar o aviso e seguir com a sessão na D (que quebra
-  `recebidos`/`gerados` sem troca e muda a tela do usuário). O erro diz onde
-  a tela ficou (`visao_deixada`, `pagina_deixada`), a `causa` e o status e a
-  mensagem do SEI. Sem retry. Se o próprio POST de troca falha, não há
-  formulário de onde restaurar; o estado fica por conferir.
-- **Restauração tentada também após falha** de um passo posterior à troca
-  (leitura da D, página fora do intervalo, POST de página); se passa, o erro
-  publicado é o do passo.
 - **Fora do intervalo:** vindo da R, só o limite seguro `N > max(1, recebidos
   + gerados)` é recusado sem POST; o exato depende do tamanho da página da D,
-  conhecido depois da troca (e então restaurado).
-- **Página lembrada da D:** restaurada também vinda da R (revisão após o
-  ensaio live de 02/11/2026). A escolha inicial (não restaurar, poupando um
-  POST, porque a página da D não aparece na R) falhou o critério "deixar
-  como encontrou": na PEN1, `--pagina 2` deixou a D na página 2, e o
-  `listar-processos` seguinte (e a D do navegador) abriu nela. Agora, com N
-  diferente da página encontrada (o `hdnDetalhadoPaginaAtual` da resposta
-  do POST D), um POST volta a ela antes do POST R: R→página N custa 1 GET +
-  4 POST. Pelo mesmo princípio, `recebidos`/`gerados --pagina N` com a
-  sessão na D restauram a página da R (a da resposta do POST R) antes do
-  POST D: 1 GET + 4 POST. Só com a sessão já na R a página N da categoria
-  fica lembrada (não houve troca, e a lista pedida é a da tela). Falha da
-  volta: `pagina_da_visao_detalhada_nao_restaurada` (`visao_deixada: "R"`
-  vindo da R) ou `pagina_da_visao_resumida_nao_restaurada`, depois de
-  tentar a restauração da visão; um POST de página que falhou não dispara
-  a volta (destino não comprovado).
+  conhecido depois da troca (a sessão fica na D).
 - **Células com vários valores:** só Interessados, cujos itens o HTML separa
   em `div.divRotuloItemCelula` (PEN1, até 6), vira array; Marcadores fica
   texto até haver evidência, e itens inesperados numa coluna de texto são
@@ -252,24 +227,57 @@ Decisões de implementação:
   `colunas_ausentes` de `listar-processos` não muda (sem GET da
   configuração) e é documentada como "do catálogo, não observadas".
 - **`ies unidade colunas`**: só leitura, pelo link da D; com a sessão em R,
-  1 GET + POST D + GET + POST R. A escrita (padrão "máximo de colunas", por
+  1 GET + POST D + GET, e a sessão fica na D. A escrita (padrão "máximo de colunas", por
   comando explícito com prévia e confirmação) é a operação própria
   `unidade.definir_colunas` ([decisão](unidade-definir-colunas.md)); a
   evidência do POST de salvar está no [contrato](../../contracts/cli/unidade-colunas.md).
-- **`recebidos`/`gerados` com a sessão na D:** trocar para R e restaurar a D
-  (utilidade, escolha do proprietário) em vez de recusar
-  (`controle_em_visao_detalhada_sem_categorias`, descartado).
+- **`recebidos`/`gerados` com a sessão na D:** trocar para R (utilidade,
+  escolha do proprietário) em vez de recusar
+  (`controle_em_visao_detalhada_sem_categorias`, descartado); a sessão fica
+  na R.
 - **`--pagina-arquivo` removida** de `listar-processos`: as capturas são de
   outra geração que as telas da troca; `ies replay` continua para capturas.
 
-Testes: [visão e restauração](../../src/visao_do_controle/tests_fluxo.rs),
+Testes: [visão e sequência](../../src/visao_do_controle/tests_fluxo.rs),
 [recebidos/gerados e colunas](../../src/visao_do_controle/tests_resumida.rs),
 [colunas da D](../../src/caixa_detalhada/tests_colunas.rs) e
 [superfície](../../tests/cli_unidade_listas.rs) e
 [Nível de detalhe](../../src/nivel_de_detalhe/tests.rs). Ensaio live de
 02/11/2026 em PEN1, UnB e GO
-([relato](../validacao-live/2026-11-02-leitura-controle.md)): troca e
-restauração da visão PASS; página lembrada da D vinda da R e `colunas` na
-UnB FAIL, corrigidos nesta revisão; reensaio **NOT_RUN**.
-Revisar se o live mostrar a R restaurada com outra página ou critério, a D
-lembrada fora do previsto, 302 na troca ou colunas de ícone ausentes.
+([relato](../validacao-live/2026-11-02-leitura-controle.md)), com a versão
+que restaurava: troca e restauração da visão PASS; `colunas` na UnB FAIL,
+corrigido. Fluxo sem restauração: **NOT_RUN**. Revisar se o live mostrar 302
+na troca ou colunas de ícone ausentes.
+
+## Sem restauração (decisão do proprietário, 02/11/2026)
+
+Revê a regra "deixar a tela como encontrou" desta operação. Alternativas:
+(a) restaurar visão e páginas lembradas depois de cada leitura, conferindo
+por leitura e falhando fechado (a versão anterior, até 1 GET + 4 POST);
+(b) não restaurar: a sessão fica na visão e na página para as quais o
+comando foi. O proprietário escolheu (b): restaurar é desperdício de
+requisições.
+
+Evidência de persistência (ensaio de 02/11/2026, treinamento): a UnB 4.0.9
+volta à R no GET seguinte; PEN1 5.0.4 e GO 5.0.3 mantêm a D na sessão; na
+PEN1 um login novo da mesma conta abriu na D. No reensaio, um 503 do proxy
+de GO caiu justamente no POST de volta à página da D, e a recusa
+`pagina_da_visao_detalhada_nao_restaurada` escondeu uma lista correta.
+
+Trade-offs. Ganho: `listar-processos` em regime estável custa 1 GET (a
+sessão já está na D), `--pagina N` 1 GET + 1 POST, `recebidos|gerados`
+vindo da D 1 GET + 1 POST; menos POSTs com efeito de sessão, menos pontos de
+falha e três recusas a menos (`visao_do_controle_nao_restaurada`,
+`pagina_da_visao_detalhada_nao_restaurada`,
+`pagina_da_visao_resumida_nao_restaurada`). Custo: com o IES usando sessão
+própria (um `ies login` está em preparação), o efeito residual é que, num SEI
+5.x, um login novo da mesma conta herda a última visão escolhida (cosmético,
+nenhum dado muda); a página lembrada fica, mas toda saída publica
+`faixa_observada`, então ela é visível e honesta. Na D, `listar-processos`
+não observa a categoria por processo (`null`); as listas por categoria são
+`recebidos|gerados`. Continuam todas as conferências da página obtida
+(unidade, visão, critérios, faixa, total).
+
+Revisar se um usuário compartilhar a sessão com o IES (navegador e CLI ao
+mesmo tempo) e a troca de visão atrapalhar, ou se uma instalação passar a
+exigir a visão encontrada para outra operação.

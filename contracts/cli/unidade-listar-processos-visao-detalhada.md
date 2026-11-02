@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Listar processos na visão detalhada
-description: ies unidade listar-processos [--pagina N] lê a visão D, publica colunas e categoria observada e deixa a tela como foi encontrada
+description: ies unidade listar-processos [--pagina N] lê a visão D, publica colunas e categoria observada e deixa a sessão na D, sem restaurar
 ---
 
 # `ies unidade listar-processos` na visão detalhada (Refs #57)
@@ -37,7 +37,9 @@ mais `colunas_ausentes`:
   dizer **"não observada"**, nunca "não tem". A D não traz marcador de
   categoria por linha (verificado nas capturas de UnB, PEN1 e GO); a
   informação só existe porque a R foi lida antes, sem requisição a mais.
-  Sessão já na D: todos `null`.
+  Sessão já na D: todos `null`. Como o comando deixa a sessão na D, as
+  leituras seguintes (PEN1, GO) saem com `null` até algo voltar à R; as
+  listas por categoria são `ies unidade recebidos|gerados`.
 - `colunas`: objeto com as chaves estáveis das colunas **presentes no
   cabeçalho** (`atribuicao`, `anotacao`, `tipo`,
   `especificacao`, `prioridade`, `interessados`, `observacao`,
@@ -76,16 +78,25 @@ sem texto, o `aria-label` do ícone (SEI 5.0.x) ou o argumento de
 `infraDivRotuloOrdenacao` é coluna sem rótulo; com o `div` e sem rótulo,
 recusa.
 
-## Sequência, orçamento e restauração
+## Sequência e orçamento: a tela fica onde o comando a deixou
 
-O comando **deixa a tela como a encontrou**. Requisições, sem retry:
+O comando **não restaura** a visão nem a página que moveu (decisão do
+proprietário, 02/11/2026, na
+[decisão da operação](../../docs/decisoes/unidade-listar-processos.md)):
+vindo da R, a sessão fica na D; com `--pagina N`, a D fica lembrando a
+página N. Toda saída publica `faixa_observada`, então a página lembrada é
+visível na próxima leitura. Requisições, sem retry:
 
 | Tela no GET | `--pagina` | Requisições |
 | --- | --- | --- |
-| R | ausente ou igual à página lembrada da D | 1 GET + 2 POST (D, R) |
-| R | N diferente da página lembrada da D | 1 GET + 4 POST (D, página N, página encontrada da D, R) |
 | D | ausente ou igual à página exibida | 1 GET |
-| D | N diferente da página exibida | 1 GET + 2 POST (página N, volta à página exibida) |
+| D | N diferente da página exibida | 1 GET + 1 POST (página N) |
+| R | ausente ou igual à página lembrada da D | 1 GET + 1 POST (D) |
+| R | N diferente da página lembrada da D | 1 GET + 2 POST (D, página N) |
+
+Regime estável: depois da primeira troca a sessão está na D (PEN1 e GO
+lembram a D; a UnB 4.0.9 volta à R no GET seguinte), e
+`listar-processos` custa **1 GET**.
 
 1. **GET** do Controle (travas existentes). Visão nem R nem D:
    `visao_do_controle_nao_reconhecida`.
@@ -98,68 +109,24 @@ O comando **deixa a tela como a encontrou**. Requisições, sem retry:
 3. A D mostra a **sua** página lembrada (independente das páginas da R).
    Tamanho e número de páginas vêm de `hdnDetalhadoPaginaAtual` e da faixa,
    como em `--pagina N` da R. N fora do intervalo: `pagina_fora_do_intervalo`
-   antes do POST de página (vindo da R, já depois do POST D, que é
-   restaurado). D sem `hdnDetalhadoPaginaAtual` (UnB 4.0.9, sem paginação)
-   só aceita a página 1, e só se a faixa cobre o total.
+   antes do POST de página (vindo da R, já depois do POST D; a sessão fica
+   na D). D sem `hdnDetalhadoPaginaAtual` (UnB 4.0.9, sem paginação) só
+   aceita a página 1, e só se a faixa cobre o total.
 4. **POST página N** a partir do formulário da D, com
    `hdnDetalhadoPaginaAtual = N-1` (a R não publica esse campo; não é
    inventado). A resposta precisa manter unidade, visão D, total e
    `hdnDetalhadoHashCriterios`, e trazer exatamente a faixa da página N.
-5. **Restauração.** Vindo da R: **POST R** a partir do formulário da última
-   D obtida; a resposta precisa ser R com a mesma unidade, os mesmos
-   critérios (`hdnRecebidosHashCriterios`, `hdnGeradosHashCriterios`) e as
-   mesmas páginas (`hdnRecebidosPaginaAtual`, `hdnGeradosPaginaAtual`) do
-   GET. Sessão já na D e página movida: POST da página exibida antes
-   (`hdnDetalhadoPaginaAtual` original), com a faixa original.
-   Vindo da R e com a página N diferente da encontrada, **antes** do POST R
-   a página lembrada da D é restaurada: POST da página que a D mostrou na
-   resposta do POST D (a **página encontrada** da D, o
-   `hdnDetalhadoPaginaAtual` dessa resposta), a partir da tela da página N.
-   A resposta precisa trazer a faixa da página encontrada (mesmas travas do
-   passo 4) e o mesmo `hdnDetalhadoPaginaAtual` da resposta do POST D.
-   Correção do ensaio live de 02/11/2026 (PEN1): sem esse POST, `--pagina 2`
-   deixava a D lembrando a página 2, e o `listar-processos` seguinte (e a
-   tela D do navegador) abria nela. N igual à página encontrada não faz
-   nem o POST de página nem o de volta.
+   N igual à página que a D mostra não faz POST de página.
 
-A restauração é tentada também quando um passo depois da troca falha
-(leitura da D, N fora do intervalo, POST de página); se ela passa, o erro
-publicado é o do passo. Um POST de página que falhou não dispara a volta à
-página encontrada (a resposta não comprovou para onde a D foi): o erro é o
-do POST e a página lembrada da D fica por conferir. Se a volta à página
-encontrada falha, o POST R ainda é tentado, a partir da última D válida.
-Se o próprio POST D falha, não há formulário D de
-onde restaurar: o erro é o do POST e o estado da sessão fica por conferir
-(GET manual).
+Uma falha em qualquer passo é publicada como está, sem lista e sem
+requisição a mais; a tela fica onde o último POST aceito a deixou (vindo
+da R, na D, se o POST D passou). Se o próprio POST D ou o de página falha,
+a resposta não comprova onde a sessão ficou: o próximo GET mostra.
 
-## Falha da restauração: fechado, sem lista
-
-Se a restauração falha, o comando **não publica a lista** (falha fechada,
-escolha documentada na [decisão](../../docs/decisoes/unidade-listar-processos.md)):
-
-| Fato | Subcódigo | Campos a mais |
-| --- | --- | --- |
-| POST R falhou ou a resposta não confere | `visao_do_controle_nao_restaurada` | `visao_deixada: "D"`, `causa` |
-| Volta à página da D falhou ou não confere | `pagina_da_visao_detalhada_nao_restaurada` | `visao_deixada` (`"D"` com a sessão já na D; `"R"` vindo da R, com a R restaurada), `pagina_deixada` (N), `causa` |
-
-Vindo da R, se a volta à página da D falha **e** o POST R também, o erro é
-`visao_do_controle_nao_restaurada` (`visao_deixada: "D"`, `causa` do POST R):
-a tela ficou na D, e a página lembrada da D fica por conferir.
-
-`causa` é o subcódigo da falha da restauração (por exemplo
-`status_http_de_erro_do_servidor`, `visao_do_controle_nao_trocada_apos_envio`,
-`paginas_da_visao_resumida_alteradas_apos_restaurar`,
-`criterios_da_visao_resumida_alterados_apos_restaurar`,
-`pagina_da_visao_detalhada_alterada_apos_restaurar`). Recusa HTTP publica
-`status_http` e `mensagem_do_servidor`, como no [contrato da CLI](../cli.md).
-Sem retry.
-
-```json
-{"codigo":"fonte_invalida","subcodigo":"visao_do_controle_nao_restaurada",
- "erro":"a tela do Controle ficou na visão detalhada: a restauração da resumida falhou",
- "retentavel":false,"visao_deixada":"D","causa":"status_http_de_erro_do_servidor",
- "status_http":500,"mensagem_do_servidor":"Erro."}
-```
+Histórico: até 02/11/2026 o comando restaurava a R (e a página encontrada
+da D) depois de ler, com até 1 GET + 4 POST e as recusas
+`visao_do_controle_nao_restaurada` e
+`pagina_da_visao_detalhada_nao_restaurada`, que deixaram de existir.
 
 ## Demais recusas da troca
 
@@ -176,14 +143,14 @@ Sem retry.
 
 Derivação, envio, login, MIME, charset e status seguem a
 [submissão derivada](../../docs/arquitetura/0002-submeter-formulario-observado.md)
-e o [transporte](../cli.md). Efeitos avaliados:
+e o [transporte](../cli.md). Efeitos avaliados, não desfeitos:
 `AlteraEstadoDaSessao::PreferenciaDeVisualizacao` (troca; na PEN1 um login
-novo abriu na D) e `PaginaOuFiltroLembrado` (página da D).
+novo da mesma conta abriu na D, efeito cosmético) e
+`PaginaOuFiltroLembrado` (página da D, visível em `faixa_observada`).
 
 ## Opções
 
-`--saida ARQUIVO` exporta o mesmo array, depois das verificações e da
-restauração; `processo NUP --resumo --caixa-local` o lê (categoria por
+`--saida ARQUIVO` exporta o mesmo array, depois das verificações; `processo NUP --resumo --caixa-local` o lê (categoria por
 processo preservada, `colunas` ignoradas). `--pagina-arquivo` foi
 **removida** (erro de uso, saída 2): unia capturas privadas sem POST e não
 tem semântica junto da troca de visão, cujas telas são de outra geração.
@@ -196,5 +163,5 @@ D da UnB (59 linhas, ícones pelo tooltip), PEN1 (páginas 1 e 2, Interessados
 até 6 itens) e GO (12 colunas, `colunas_ausentes: []`); derivação da troca
 nos formulários R e D das três.
 Ensaio live de 02/11/2026 (PEN1, UnB, GO; [validação](../../docs/validacao-live/2026-11-02-leitura-controle.md)):
-troca, leitura e restauração da visão PASS; página lembrada da D vinda da R
-FAIL na PEN1, corrigida acima; reensaio **NOT_RUN**.
+troca, leitura e restauração da visão PASS, com a versão que restaurava;
+o fluxo sem restauração acima: reensaio **NOT_RUN**.

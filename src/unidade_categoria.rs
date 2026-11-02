@@ -1,6 +1,6 @@
 //! `ies unidade recebidos` e `ies unidade gerados`: uma lista independente
 //! da caixa, a página observada com total e faixa; `--pagina N` acrescenta
-//! no máximo um POST (`pagina_web`). Na visão D, troca para R e restaura a D.
+//! no máximo um POST (`pagina_web`). Na visão D, troca para R e fica nela.
 mod pagina_web;
 
 use crate::paginas::Leitura;
@@ -135,7 +135,7 @@ pub(crate) fn publicar_lista(
 }
 
 /// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria;
-/// sessão na visão D: mais a troca para R e a volta à D.
+/// sessão na visão D: mais a troca para R, sem volta.
 pub(crate) fn listar_categoria(
     unidade: Option<&str>,
     json_mode: bool,
@@ -150,16 +150,11 @@ pub(crate) fn listar_categoria(
     match pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina) {
         Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
         Err(erro) => {
-            let mut valor = crate::saida_erro::json_de_erro_fonte(
+            let valor = crate::saida_erro::json_de_erro_fonte(
                 erro.subcodigo(),
                 erro.mensagem(),
                 erro.status_http(),
             );
-            if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
-                && let Some(extra) = detalhes.as_object()
-            {
-                objeto.extend(extra.clone());
-            }
             if json_mode {
                 println!("{valor}");
             } else {

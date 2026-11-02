@@ -1,6 +1,6 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
-//! `ies unidade listar-processos` lê a visão detalhada e deixa a tela como a
-//! encontrou (contracts/cli/unidade-listar-processos-visao-detalhada.md).
+//! `ies unidade listar-processos` lê a visão detalhada; vinda da R, a sessão
+//! fica na D (contracts/cli/unidade-listar-processos-visao-detalhada.md).
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::visao_do_controle::{self, EnvioHttps, ErroVisaoDoControle, TelaAtual};
@@ -49,18 +49,13 @@ pub(super) fn listar_processos_da_unidade(
     }
 }
 
-/// Falha `fonte_invalida` da troca de visão; a de restauração diz onde a tela ficou.
+/// Falha `fonte_invalida` da troca de visão ou da leitura da D.
 pub(crate) fn erro_da_visao(json_mode: bool, erro: &ErroVisaoDoControle) -> ExitCode {
-    let mut valor = crate::saida_erro::json_de_erro_fonte(
+    let valor = crate::saida_erro::json_de_erro_fonte(
         erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     );
-    if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
-        && let Some(extra) = detalhes.as_object()
-    {
-        objeto.extend(extra.clone());
-    }
     if json_mode {
         println!("{valor}");
     } else {

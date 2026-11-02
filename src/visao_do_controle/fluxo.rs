@@ -1,12 +1,10 @@
-//! `ies unidade listar-processos [--pagina N]` na visão D, deixando a tela
-//! como foi encontrada. Orçamentos no contrato da visão detalhada.
+//! `ies unidade listar-processos [--pagina N]` na visão D; vinda da R, a
+//! sessão fica na D, e a página N fica lembrada (sem restaurar). Orçamentos
+//! no contrato da visão detalhada.
 use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
-use super::passos::{
-    conferir_resumida_restaurada, contexto, ler_detalhada, paginar_detalhada, trocar,
-    unidade_da_tela, voltar_a_pagina_encontrada,
-};
+use super::passos::{contexto, ler_detalhada, paginar_detalhada, trocar, unidade_da_tela};
 use super::plano::{planejar, posicao};
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
@@ -41,7 +39,7 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
     vindo_da_resumida(&mut sessao, tela, pagina)
 }
 
-/// Sessão já na D: 0 POST, ou página N e volta à página exibida (2 POST).
+/// A partir de uma tela D: 0 POST, ou o POST da página N.
 fn na_detalhada<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
@@ -55,20 +53,11 @@ fn na_detalhada<V: EnvioDoControle>(
     let Some(pedido) = planejar(&encontrada, numero)? else {
         return Ok(leitura);
     };
-    let criterio = encontrada.criterio.as_deref();
-    let (tela_n, leitura_n) = paginar_detalhada(sessao, tela, pedido, criterio)?;
-    voltar_a_pagina_encontrada(sessao, &tela_n, &tela.html, &encontrada).map_err(|causa| {
-        E::PaginaDaVisaoDetalhadaNaoRestaurada {
-            visao_deixada: Visao::Detalhada,
-            pagina_deixada: numero,
-            causa: Box::new(causa),
-        }
-    })?;
+    let (_, leitura_n) = paginar_detalhada(sessao, tela, pedido, encontrada.criterio.as_deref())?;
     Ok(leitura_n)
 }
 
-/// Sessão na R: POST D, página N e volta à página encontrada se preciso,
-/// POST R; categorias das tabelas R.
+/// Sessão na R: categorias das tabelas R, POST D e, se pedido, a página N.
 fn vindo_da_resumida<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
@@ -94,56 +83,9 @@ fn vindo_da_resumida<V: EnvioDoControle>(
         return Err(E::PaginaForaDoIntervalo { solicitada: numero });
     }
     let detalhada = trocar(sessao, tela, Visao::Detalhada)?;
-    let (ultima, lido) = ler_depois_da_troca(sessao, detalhada, pagina);
-    trocar(sessao, &ultima, Visao::Resumida)
-        .and_then(|restaurada| conferir_resumida_restaurada(&tela.html, &restaurada.html))
-        .map_err(|causa| E::VisaoDoControleNaoRestaurada {
-            visao_deixada: Visao::Detalhada,
-            causa: Box::new(causa),
-        })?;
-    let mut leitura = lido?;
+    let mut leitura = na_detalhada(sessao, &detalhada, pagina)?;
     for processo in &mut leitura.processos {
         processo.categoria = categorias.get(processo.id.as_str()).copied();
     }
     Ok(leitura)
-}
-
-/// Lê a D obtida e, se pedido, a página N e volta à página encontrada (a da
-/// resposta do POST D); devolve a última D válida (de onde se restaura a R)
-/// e o resultado, mesmo em falha.
-fn ler_depois_da_troca<V: EnvioDoControle>(
-    sessao: &mut Sessao<'_, V>,
-    detalhada: TelaAtual,
-    pagina: Option<usize>,
-) -> (TelaAtual, Result<LeituraDetalhada, E>) {
-    let leitura = match ler_detalhada(&detalhada.html, sessao.unidade) {
-        Ok(leitura) => leitura,
-        Err(erro) => return (detalhada, Err(erro)),
-    };
-    let Some(numero) = pagina else {
-        return (detalhada, Ok(leitura));
-    };
-    let (encontrada, pedido) = match posicao(&detalhada.html, &leitura)
-        .and_then(|p| planejar(&p, numero).map(|pedido| (p, pedido)))
-    {
-        Ok((_, None)) => return (detalhada, Ok(leitura)),
-        Ok((encontrada, Some(pedido))) => (encontrada, pedido),
-        Err(erro) => return (detalhada, Err(erro)),
-    };
-    let criterio = encontrada.criterio.as_deref();
-    let (tela_n, leitura_n) = match paginar_detalhada(sessao, &detalhada, pedido, criterio) {
-        Ok(lido) => lido,
-        Err(erro) => return (detalhada, Err(erro)),
-    };
-    match voltar_a_pagina_encontrada(sessao, &tela_n, &detalhada.html, &encontrada) {
-        Ok(volta) => (volta, Ok(leitura_n)),
-        Err(causa) => (
-            tela_n,
-            Err(E::PaginaDaVisaoDetalhadaNaoRestaurada {
-                visao_deixada: Visao::Resumida,
-                pagina_deixada: numero,
-                causa: Box::new(causa),
-            }),
-        ),
-    }
 }

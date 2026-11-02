@@ -1,5 +1,5 @@
 //! Posição e plano de página da visão D e leitura dos ocultos que a
-//! restauração confere, sem rede.
+//! paginação confere, sem rede.
 use super::ErroVisaoDoControle as E;
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::erro_web::ErroCaixa;
@@ -124,13 +124,4 @@ pub(super) fn planejar(
         esperada: Some((indice * tamanho + 1, posicao.total.min(pagina * tamanho))),
         total: posicao.total,
     }))
-}
-
-/// Volta à página que a tela exibia antes.
-pub(super) fn pedido_de_volta(posicao: &PosicaoDetalhada) -> PedidoDePagina {
-    PedidoDePagina {
-        indice: posicao.indice,
-        esperada: posicao.faixa,
-        total: posicao.total,
-    }
 }

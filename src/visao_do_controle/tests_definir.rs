@@ -1,7 +1,7 @@
 //! RED/GREEN do fluxo de `--definir` (contracts/cli/unidade-definir-colunas.md):
 //! sequência de requisições pelo envio injetável, prévia sem escrita, um
 //! único POST de salvar, verificação por um GET, reconciliação do efeito
-//! incerto e tela do Controle restaurada.
+//! incerto; vinda da R, a sessão fica na D.
 use super::envio::EnvioDoControle;
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual};
 use super::*;
@@ -116,7 +116,7 @@ fn fecha_modal() -> Passo {
 }
 
 struct Rodada {
-    desfecho: DesfechoDasColunas,
+    resultado: Result<ColunasDefinidas, ErroDefinirColunas>,
     registro: Vec<String>,
     corpos: Vec<String>,
 }
@@ -128,7 +128,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
         registro: Vec::new(),
         corpos_do_salvar: Vec::new(),
     };
-    let desfecho = definir_colunas(
+    let resultado = definir_colunas(
         &instalacao(),
         &tela_atual(tela),
         Some("TESTE"),
@@ -139,7 +139,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
     );
     assert!(envio.roteiro.is_empty(), "respostas não consumidas");
     Rodada {
-        desfecho,
+        resultado,
         registro: envio.registro,
         corpos: envio.corpos_do_salvar,
     }
@@ -150,13 +150,11 @@ fn lista(colunas: &[C]) -> AlvoDasColunas {
 }
 
 fn ok(rodada: &Rodada) -> &ColunasDefinidas {
-    assert!(rodada.desfecho.visao_nao_restaurada.is_none());
-    rodada.desfecho.resultado.as_ref().unwrap()
+    rodada.resultado.as_ref().unwrap()
 }
 
 fn erro(rodada: &Rodada) -> &ErroDefinirColunas {
-    assert!(rodada.desfecho.visao_nao_restaurada.is_none());
-    rodada.desfecho.resultado.as_ref().unwrap_err()
+    rodada.resultado.as_ref().unwrap_err()
 }
 
 #[test]
@@ -182,18 +180,14 @@ fn previa_na_d_le_planeja_e_nao_salva() {
 }
 
 #[test]
-fn previa_na_r_troca_le_e_restaura_sem_salvar() {
+fn previa_na_r_troca_le_e_fica_na_d_sem_salvar() {
     let rodada = rodar(
         r().html(),
         &lista(&[C::Marcadores]),
         false,
-        vec![
-            Passo::Html(200, d().html()),
-            nivel(&C::TODAS, &ATUAL),
-            Passo::Html(200, r().html()),
-        ],
+        vec![Passo::Html(200, d().html()), nivel(&C::TODAS, &ATUAL)],
     );
-    assert_eq!(rodada.registro, ["POST visao=D", GET_NIVEL, "POST visao=R"]);
+    assert_eq!(rodada.registro, ["POST visao=D", GET_NIVEL]);
     let feito = ok(&rodada);
     assert_eq!(feito.plano.marcar(), [C::Marcadores]);
     assert_eq!(feito.plano.desmarcar(), ATUAL);
@@ -228,7 +222,7 @@ fn todas_confirmado_na_unb_salva_as_onze_e_confere_por_leitura() {
 }
 
 #[test]
-fn lista_confirmada_na_r_salva_confere_e_restaura_a_r() {
+fn lista_confirmada_na_r_salva_confere_e_fica_na_d() {
     let alvo = [C::Anotacao, C::Marcadores];
     let rodada = rodar(
         r().html(),
@@ -239,18 +233,11 @@ fn lista_confirmada_na_r_salva_confere_e_restaura_a_r() {
             nivel(&C::TODAS, &ATUAL),
             fecha_modal(),
             nivel(&C::TODAS, &alvo),
-            Passo::Html(200, r().html()),
         ],
     );
     assert_eq!(
         rodada.registro,
-        [
-            "POST visao=D",
-            GET_NIVEL,
-            "POST salvar",
-            GET_NIVEL,
-            "POST visao=R"
-        ]
+        ["POST visao=D", GET_NIVEL, "POST salvar", GET_NIVEL]
     );
     assert_eq!(
         rodada.corpos,
@@ -274,18 +261,14 @@ fn alvo_igual_ao_atual_confirmado_nao_envia_post() {
 }
 
 #[test]
-fn coluna_indisponivel_recusa_sem_salvar_e_restaura_a_r() {
+fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
     let rodada = rodar(
         r().html(),
         &lista(&[C::Prioridade]),
         true,
-        vec![
-            Passo::Html(200, d().html()),
-            nivel(&onze(), &ATUAL),
-            Passo::Html(200, r().html()),
-        ],
+        vec![Passo::Html(200, d().html()), nivel(&onze(), &ATUAL)],
     );
-    assert_eq!(rodada.registro, ["POST visao=D", GET_NIVEL, "POST visao=R"]);
+    assert_eq!(rodada.registro, ["POST visao=D", GET_NIVEL]);
     let falha = erro(&rodada);
     assert_eq!(
         falha,
@@ -451,7 +434,7 @@ fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
 }
 
 #[test]
-fn verificacao_impossivel_apos_5xx_e_efeito_incerto_e_a_r_e_restaurada() {
+fn verificacao_impossivel_apos_5xx_vinda_da_r_e_efeito_incerto_sem_post_de_volta() {
     let rodada = rodar(
         r().html(),
         &AlvoDasColunas::Todas,
@@ -461,18 +444,11 @@ fn verificacao_impossivel_apos_5xx_e_efeito_incerto_e_a_r_e_restaurada() {
             nivel(&C::TODAS, &ATUAL),
             Passo::Falha(erro_500()),
             Passo::Falha(FalhaTransporte::Rede),
-            Passo::Html(200, r().html()),
         ],
     );
     assert_eq!(
         rodada.registro,
-        [
-            "POST visao=D",
-            GET_NIVEL,
-            "POST salvar",
-            GET_NIVEL,
-            "POST visao=R"
-        ]
+        ["POST visao=D", GET_NIVEL, "POST salvar", GET_NIVEL]
     );
     let falha = erro(&rodada);
     assert_eq!(falha.saida(), 3);
@@ -515,25 +491,4 @@ fn resposta_esperada_e_verificacao_impossivel_e_efeito_incerto() {
             ErroVisaoDoControle::Transporte(FalhaTransporte::Rede)
         )
     ));
-}
-
-#[test]
-fn falha_da_volta_a_r_depois_de_salvar_nao_esconde_a_escrita() {
-    let rodada = rodar(
-        r().html(),
-        &AlvoDasColunas::Todas,
-        true,
-        vec![
-            Passo::Html(200, d().html()),
-            nivel(&C::TODAS, &ATUAL),
-            fecha_modal(),
-            nivel(&C::TODAS, &C::TODAS),
-            Passo::Falha(erro_500()),
-        ],
-    );
-    let feito = rodada.desfecho.resultado.as_ref().unwrap();
-    assert!(feito.alterado);
-    let volta = rodada.desfecho.visao_nao_restaurada.as_ref().unwrap();
-    assert_eq!(volta.subcodigo(), "visao_do_controle_nao_restaurada");
-    assert_eq!(volta.status_http().map(|h| h.status), Some(500));
 }

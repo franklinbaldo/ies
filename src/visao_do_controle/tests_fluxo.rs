@@ -1,5 +1,5 @@
 //! RED/GREEN de `listar-processos [--pagina N]`: sequência de requisições,
-//! orçamento, categoria observada e restauração da tela encontrada.
+//! orçamento e categoria observada; a sessão fica na D, sem restaurar.
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual};
 use super::*;
 use crate::caixa_detalhada::LeituraDetalhada;
@@ -31,16 +31,10 @@ fn listar(
 }
 
 #[test]
-fn sessao_em_r_troca_para_d_le_e_restaura_r() {
+fn sessao_em_r_troca_para_d_le_e_fica_na_d() {
     let d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
-    let (resultado, registro) = listar(r().html(), None, vec![(200, d.html()), (200, r().html())]);
-    assert_eq!(
-        registro,
-        [
-            "POST visao=D recebidos=0 gerados=0",
-            "POST visao=R pagina=0"
-        ]
-    );
+    let (resultado, registro) = listar(r().html(), None, vec![(200, d.html())]);
+    assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     let leitura = resultado.unwrap();
     assert_eq!(leitura.unidade, "TESTE");
     assert_eq!(leitura.total_declarado, 5);
@@ -68,7 +62,7 @@ fn sessao_em_r_troca_para_d_le_e_restaura_r() {
 }
 
 #[test]
-fn sessao_ja_em_d_nao_troca_nem_restaura() {
+fn sessao_ja_em_d_le_sem_post() {
     let d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
     let (resultado, registro) = listar(d.html(), None, vec![]);
     assert_eq!(registro.len(), 0);
@@ -77,29 +71,21 @@ fn sessao_ja_em_d_nao_troca_nem_restaura() {
     assert_eq!(leitura.processos.len(), 5);
 }
 
-/// Ensaio live PEN1 (02/11/2026): sem a volta à página encontrada, a D
-/// ficava lembrando a página N.
+/// Decisão do proprietário (02/11/2026): a D fica lembrando a página N.
 #[test]
-fn pagina_n_a_partir_da_r_volta_a_pagina_encontrada_da_d_antes_da_r() {
+fn pagina_n_a_partir_da_r_fica_na_pagina_n_da_d() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
     let (resultado, registro) = listar(
         r().html(),
         Some(2),
-        vec![
-            (200, d1.html()),
-            (200, d2.html()),
-            (200, d1.html()),
-            (200, r().html()),
-        ],
+        vec![(200, d1.html()), (200, d2.html())],
     );
     assert_eq!(
         registro,
         [
             "POST visao=D recebidos=0 gerados=0",
-            "POST visao=D pagina=1",
-            "POST visao=D pagina=0",
-            "POST visao=R pagina=0"
+            "POST visao=D pagina=1"
         ]
     );
     let leitura = resultado.unwrap();
@@ -110,115 +96,75 @@ fn pagina_n_a_partir_da_r_volta_a_pagina_encontrada_da_d_antes_da_r() {
 
 #[test]
 fn pagina_encontrada_da_d_e_a_da_resposta_da_troca() {
-    // A D lembrava a página 2; `--pagina 1` volta a ela antes da R.
+    // A D lembrava a página 2; `--pagina 1` pede a página 1 e fica nela.
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
     let (resultado, registro) = listar(
         r().html(),
         Some(1),
-        vec![
-            (200, d2.html()),
-            (200, d1.html()),
-            (200, d2.html()),
-            (200, r().html()),
-        ],
+        vec![(200, d2.html()), (200, d1.html())],
     );
     assert_eq!(
         registro,
         [
             "POST visao=D recebidos=0 gerados=0",
-            "POST visao=D pagina=0",
-            "POST visao=D pagina=1",
-            "POST visao=R pagina=1"
+            "POST visao=D pagina=0"
         ]
     );
     assert_eq!(resultado.unwrap().faixa_observada, Some((1, 2)));
 }
 
 #[test]
-fn volta_a_pagina_da_d_vinda_da_r_que_falha_restaura_a_r_e_diz_onde_a_d_ficou() {
+fn falha_do_post_de_pagina_vindo_da_r_e_publicada_sem_post_de_volta() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
-    let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
-    let mut sem_campo = d1.clone();
-    sem_campo.indice = None;
-    for (volta, causa) in [
+    let d3 = TelaD::nova(5, 2, 2, vec![10]);
+    let erro_500 = "<html><div id='divInfraExcecao'>Erro.</div></html>".to_owned();
+    for (resposta, subcodigo) in [
+        ((500, erro_500), "status_http_de_erro_do_servidor"),
         (
-            d2.html(),
+            (200, d3.html()),
             "faixa_da_resposta_diferente_da_pagina_solicitada",
         ),
-        (
-            sem_campo.html(),
-            "pagina_da_visao_detalhada_alterada_apos_restaurar",
-        ),
     ] {
-        let (resultado, registro) = listar(
-            r().html(),
-            Some(2),
-            vec![
-                (200, d1.html()),
-                (200, d2.html()),
-                (200, volta),
-                (200, r().html()),
-            ],
+        let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d1.html()), resposta]);
+        assert_eq!(
+            registro,
+            [
+                "POST visao=D recebidos=0 gerados=0",
+                "POST visao=D pagina=1"
+            ]
         );
-        assert_eq!(registro.len(), 4);
-        assert_eq!(registro[3], "POST visao=R pagina=1");
-        let erro = resultado.unwrap_err();
-        assert_eq!(erro.subcodigo(), "pagina_da_visao_detalhada_nao_restaurada");
-        let detalhes = erro.detalhes_json().unwrap();
-        assert_eq!(detalhes["visao_deixada"], "R");
-        assert_eq!(detalhes["pagina_deixada"], 2);
-        assert_eq!(detalhes["causa"], causa);
+        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
-}
-
-#[test]
-fn volta_a_pagina_e_a_r_falhando_a_tela_fica_na_d() {
-    let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
-    let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
-    let erro_500 = "<html><div id='divInfraExcecao'>Erro.</div></html>".to_owned();
-    let (resultado, registro) = listar(
-        r().html(),
-        Some(2),
-        vec![
-            (200, d1.html()),
-            (200, d2.html()),
-            (500, erro_500.clone()),
-            (500, erro_500),
-        ],
-    );
-    assert_eq!(registro.len(), 4);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
-    assert_eq!(erro.detalhes_json().unwrap()["visao_deixada"], "D");
 }
 
 #[test]
 fn pagina_ja_lembrada_pela_d_nao_pede_pagina() {
     let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
-    let (resultado, registro) = listar(
-        r().html(),
-        Some(2),
-        vec![(200, d2.html()), (200, r().html())],
-    );
-    assert_eq!(
-        registro,
-        [
-            "POST visao=D recebidos=0 gerados=0",
-            "POST visao=R pagina=1"
-        ]
-    );
+    let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d2.html())]);
+    assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(resultado.unwrap().faixa_observada, Some((3, 4)));
 }
 
 #[test]
-fn sessao_em_d_pagina_n_volta_a_pagina_exibida() {
+fn sessao_em_d_pagina_n_fica_na_pagina_n() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let d3 = TelaD::nova(5, 2, 2, vec![10]);
-    let (resultado, registro) =
-        listar(d1.html(), Some(3), vec![(200, d3.html()), (200, d1.html())]);
-    assert_eq!(registro, ["POST visao=D pagina=2", "POST visao=D pagina=0"]);
+    let (resultado, registro) = listar(d1.html(), Some(3), vec![(200, d3.html())]);
+    assert_eq!(registro, ["POST visao=D pagina=2"]);
     assert_eq!(resultado.unwrap().faixa_observada, Some((5, 5)));
+}
+
+#[test]
+fn sessao_em_d_pagina_n_com_faixa_errada_falha_sem_post_de_volta() {
+    let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
+    let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
+    let (resultado, registro) = listar(d1.html(), Some(3), vec![(200, d2.html())]);
+    assert_eq!(registro, ["POST visao=D pagina=2"]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada
+    );
 }
 
 #[test]
@@ -241,20 +187,10 @@ fn pagina_fora_do_intervalo_antes_de_qualquer_post_quando_calculavel() {
 }
 
 #[test]
-fn pagina_fora_do_intervalo_vista_so_na_d_restaura_a_r() {
+fn pagina_fora_do_intervalo_vista_so_na_d_fica_na_d() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
-    let (resultado, registro) = listar(
-        r().html(),
-        Some(4),
-        vec![(200, d1.html()), (200, r().html())],
-    );
-    assert_eq!(
-        registro,
-        [
-            "POST visao=D recebidos=0 gerados=0",
-            "POST visao=R pagina=0"
-        ]
-    );
+    let (resultado, registro) = listar(r().html(), Some(4), vec![(200, d1.html())]);
+    assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: 4 }
@@ -262,17 +198,11 @@ fn pagina_fora_do_intervalo_vista_so_na_d_restaura_a_r() {
 }
 
 #[test]
-fn cabecalho_desconhecido_na_d_falha_fechado_e_restaura_a_r() {
+fn cabecalho_desconhecido_na_d_falha_fechado_sem_post_de_volta() {
     let mut d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
     d.cabecalho = d.cabecalho.replacen("Atribuição", "Situação", 1);
-    let (resultado, registro) = listar(r().html(), None, vec![(200, d.html()), (200, r().html())]);
-    assert_eq!(
-        registro,
-        [
-            "POST visao=D recebidos=0 gerados=0",
-            "POST visao=R pagina=0"
-        ]
-    );
+    let (resultado, registro) = listar(r().html(), None, vec![(200, d.html())]);
+    assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::Detalhada(
@@ -282,89 +212,7 @@ fn cabecalho_desconhecido_na_d_falha_fechado_e_restaura_a_r() {
 }
 
 #[test]
-fn restauracao_recusada_pelo_servidor_e_erro_tipado_sem_lista() {
-    let d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
-    let (resultado, registro) = listar(
-        r().html(),
-        None,
-        vec![
-            (200, d.html()),
-            (
-                500,
-                "<html><div id='divInfraExcecao'>Erro de banco.</div></html>".to_owned(),
-            ),
-        ],
-    );
-    assert_eq!(
-        registro,
-        [
-            "POST visao=D recebidos=0 gerados=0",
-            "POST visao=R pagina=0"
-        ]
-    );
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
-    let http = erro.status_http().unwrap();
-    assert_eq!(http.status, 500);
-    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("Erro de banco."));
-    let detalhes = erro.detalhes_json().unwrap();
-    assert_eq!(detalhes["visao_deixada"], "D");
-    assert_eq!(detalhes["causa"], "status_http_de_erro_do_servidor");
-}
-
-#[test]
-fn restauracao_que_nao_devolve_a_r_como_estava_e_recusada() {
-    let d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
-    let mut outra_pagina = r();
-    outra_pagina.pagina_g = "1";
-    outra_pagina.gerados.1 = 2;
-    let mut outro_criterio = r();
-    outro_criterio.hash_r = "9999";
-    for (volta, causa) in [
-        (d.html(), "visao_do_controle_nao_trocada_apos_envio"),
-        (
-            outra_pagina.html(),
-            "paginas_da_visao_resumida_alteradas_apos_restaurar",
-        ),
-        (
-            outro_criterio.html(),
-            "criterios_da_visao_resumida_alterados_apos_restaurar",
-        ),
-    ] {
-        let (resultado, registro) = listar(r().html(), None, vec![(200, d.html()), (200, volta)]);
-        assert_eq!(
-            registro,
-            [
-                "POST visao=D recebidos=0 gerados=0",
-                "POST visao=R pagina=0"
-            ]
-        );
-        let erro = resultado.unwrap_err();
-        assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
-        assert_eq!(erro.detalhes_json().unwrap()["causa"], causa);
-    }
-}
-
-#[test]
-fn volta_a_pagina_exibida_da_d_que_falha_diz_onde_a_d_ficou() {
-    let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
-    let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
-    let (resultado, registro) =
-        listar(d1.html(), Some(2), vec![(200, d2.html()), (200, d2.html())]);
-    assert_eq!(registro.len(), 2);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pagina_da_visao_detalhada_nao_restaurada");
-    let detalhes = erro.detalhes_json().unwrap();
-    assert_eq!(detalhes["visao_deixada"], "D");
-    assert_eq!(detalhes["pagina_deixada"], 2);
-    assert_eq!(
-        detalhes["causa"],
-        "faixa_da_resposta_diferente_da_pagina_solicitada"
-    );
-}
-
-#[test]
-fn troca_sem_d_na_resposta_nao_tem_de_onde_restaurar() {
+fn troca_sem_d_na_resposta_e_recusada() {
     let (resultado, registro) = listar(r().html(), None, vec![(200, r().html())]);
     assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(
@@ -417,7 +265,7 @@ fn d_sem_campo_de_pagina_como_a_unb_so_tem_a_pagina_um() {
 #[test]
 fn saida_da_lista_detalhada_segue_o_golden() {
     let d = TelaD::nova(5, 0, 2, vec![1, 9]);
-    let (resultado, _) = listar(r().html(), None, vec![(200, d.html()), (200, r().html())]);
+    let (resultado, _) = listar(r().html(), None, vec![(200, d.html())]);
     let valor = crate::unidade_lista_cli::json_da_detalhada(&resultado.unwrap(), "web");
     let texto = format!("{}\n", serde_json::to_string_pretty(&valor).unwrap());
     assert_eq!(

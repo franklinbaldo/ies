@@ -1,7 +1,7 @@
 ---
 type: Guide
 title: Roteiro live de ies unidade colunas --definir
-description: Registrar a configuração encontrada, aplicar todas com --confirmar, verificar e restaurar a original, conferindo a tela do Controle
+description: Registrar a configuração encontrada, aplicar todas com --confirmar, verificar e restaurar a configuração original, conferindo a visão em que a sessão fica
 ---
 
 # Roteiro live: `ies unidade colunas --definir` (Refs #57)
@@ -14,7 +14,11 @@ UnB 4.0.9, que publica 11 opções), depois da PR da escrita
 `0700`, sessão da mesma geração, binário release. O script não põe cookie nem
 URL assinada em argumentos de processo e só imprime visão, índices de página,
 chaves de colunas, contagens e subcódigos. **Duas escritas** de preferência:
-aplicar `todas` e restaurar a original.
+aplicar `todas` e restaurar a configuração original. A tela do Controle
+**não** é restaurada (decisão do proprietário, 02/11/2026,
+[decisão](../decisoes/unidade-listar-processos.md)): vinda da R, a sessão
+fica na D depois do primeiro `colunas`; o ensaio de 02/11/2026 usou a versão
+que restaurava a R.
 
 ```sh
 #!/bin/sh
@@ -48,19 +52,18 @@ v = json.load(open(sys.argv[1]))
 if "codigo" in v:
     print("FALHA", v.get("codigo"), v.get("subcodigo"), "status", v.get("status_http"),
           "salvar", (v.get("falha_do_salvar") or {}).get("subcodigo"),
-          "verificacao", v.get("verificacao"), "observadas", v.get("observadas"),
-          "restauracao", v.get("restauracao"), "visao_deixada", v.get("visao_deixada"))
+          "verificacao", v.get("verificacao"), "observadas", v.get("observadas"))
 else:
     print("confirmado", v["confirmado"], "alterado", v["alterado"],
           "reconciliado", v["reconciliado_por_leitura"], "marcar", v["marcar"],
           "desmarcar", v["desmarcar"], "indisponiveis", v["indisponiveis"],
           "campos", (v.get("envio") or {}).get("campos"), "depois", v.get("depois"))' "$1"
 }
-colunas() {  # colunas NOME: ies unidade colunas (2 GET; vinda da R, + 2 POST)
+colunas() {  # colunas NOME: ies unidade colunas (2 GET; vinda da R, + 1 POST D)
   ies --json unidade colunas > "$T/$1.json"; echo "$1: saída $?"
 }
-confere() {  # confere ROTULO: tela do Controle igual à encontrada
-  estado > "$T/e"; if cmp -s "$T/e0" "$T/e"; then echo "$1: tela como encontrada"
+confere() {  # confere ROTULO: tela do Controle igual à de depois de c0 (na D)
+  estado > "$T/e"; if cmp -s "$T/e1" "$T/e"; then echo "$1: sessão onde c0 a deixou"
   else echo "$1: TELA DIFERENTE"; cat "$T/e"; fi
 }
 
@@ -69,15 +72,15 @@ colunas c0
 ORIGINAL=$(lista marcada "$T/c0.json"); TODAS=$(lista disponivel "$T/c0.json")
 echo "original: $ORIGINAL"; echo "disponíveis: $TODAS"
 [ -n "$ORIGINAL" ] || { echo "PARAR: nenhuma marcada; --definir não aceita lista vazia"; exit 1; }
-confere c0
+estado > "$T/e1"; cat "$T/e1"                       # E1: visão D (UnB 4.0.9: volta à R)
 
-# 1. Prévia: zero POST de salvar (D: 2 GET; R: 2 GET + 2 POST).
+# 1. Prévia: zero POST de salvar (D: 2 GET; R: 2 GET + 1 POST D).
 ies --json unidade colunas --definir todas > "$T/p.json"; echo "previa: saída $?"
 resumo "$T/p.json"; confere previa
 colunas c1; [ "$(lista marcada "$T/c1.json")" = "$ORIGINAL" ] && echo "prévia: configuração intacta" \
   || echo "PRÉVIA ALTEROU A CONFIGURAÇÃO"
 
-# 2. Aplicar todas (D: 3 GET + 1 POST; R: 3 GET + 3 POST).
+# 2. Aplicar todas (D: 3 GET + 1 POST; R: 3 GET + 2 POST).
 ies --json unidade colunas --definir todas --confirmar > "$T/a.json"; rc=$?
 echo "aplicar: saída $rc"; resumo "$T/a.json"; confere aplicar
 colunas c2; AGORA=$(lista marcada "$T/c2.json"); echo "lido depois: $AGORA"
@@ -111,13 +114,15 @@ documento) e configuração intacta; `aplicar` com saída 0, `alterado true`,
 `depois` = `TODAS` e `reconciliado false`; `c2` = `TODAS`;
 `colunas_ausentes` vazia em `listar` (as de ícone podem faltar, divergência
 já registrada); `restaurar` com saída 0 e `c3` = `ORIGINAL`; todo `confere`
-igual ao E0. Repetir com a sessão **já na D** (PEN1 ou GO), conferindo que
-nenhum `POST visao` acontece. Registrar, além do PASS/FAIL, se a janela
+igual ao E1 (PEN1 e GO: a sessão fica na D desde `c0`; na UnB 4.0.9, cada
+comando volta a encontrar a R e repete o POST D). Repetir com a sessão
+**já na D** (PEN1 ou GO), conferindo que nenhum `POST visao` acontece. Registrar, além do PASS/FAIL, se a janela
 publica `lnkInfraUnidade`, a estrutura (não o conteúdo) da resposta do
 salvar e qualquer subcódigo. Saída 3: parar, sem retry; registrar `status`,
 `salvar` e `verificacao`, e restaurar à mão conferindo com `colunas`.
 
-Orçamento total por instalação (sessão em R): 6 GETs de `estado`, 4
-`colunas` (2 GET + 2 POST cada), prévia (2 GET + 2 POST), duas escritas
-(3 GET + 3 POST cada) e `listar-processos` (1 GET + 2 POST). Na D, sem os
-POSTs de troca. Resultado: **NOT_RUN** até o ensaio.
+Orçamento total por instalação partindo da R (PEN1, GO): 6 GETs de
+`estado`, o POST D só no `c0` (2 GET + 1 POST), depois 3 `colunas` (2 GET
+cada), prévia (2 GET), duas escritas (3 GET + 1 POST cada) e
+`listar-processos` (1 GET). Na UnB 4.0.9, que volta à R a cada GET, um
+POST D a mais por comando. Resultado: **NOT_RUN** até o ensaio.

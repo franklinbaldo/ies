@@ -46,8 +46,8 @@ saída 2 e `codigo: entrada_invalida`:
 ## Comportamento
 
 1. Lê a configuração pelo mesmo fluxo de `ies unidade colunas` (link
-   `ancNivelDetalhe` da D; vinda da R, troca para D e restaura a R depois),
-   com as mesmas recusas.
+   `ancNivelDetalhe` da D; vinda da R, troca para D e **fica na D**), com
+   as mesmas recusas.
 2. Confere o formulário servido, **mesmo na prévia**: além da leitura,
    recusa controle enviável fora de `hdnInfraTipoPagina`, `sbmSalvar` e das
    caixas do catálogo (`campo_nao_previsto_no_formulario_do_nivel_de_detalhe`).
@@ -67,8 +67,6 @@ saída 2 e `codigo: entrada_invalida`:
 6. **Com `--confirmar`**: um POST de salvar (sem retry) e **um** GET da
    mesma URL do Nível de detalhe para verificar. Sucesso só se as marcas
    lidas forem exatamente o alvo.
-7. Restaura a visão encontrada (vinda da R, POST R da D obtida), como em
-   `ies unidade colunas`, também depois de uma falha.
 
 A tela do Nível de detalhe é uma janela sem `lnkInfraUnidade` (ensaio da
 PEN1): a unidade é a conferida na D que publicou o link, na mesma sessão
@@ -109,7 +107,7 @@ saída 1, `fonte_invalida`.
 preferência persistente do usuário, que vale na próxima leitura da D e não
 volta sozinha (diferente de `AlteraEstadoDaSessao`). O IES não a desfaz:
 para voltar, `--definir <antes> --confirmar` com o `antes` da saída. A
-troca de visão vinda da R continua `PreferenciaDeVisualizacao`, restaurada.
+troca de visão vinda da R continua `PreferenciaDeVisualizacao`, não desfeita.
 
 ## Saída
 
@@ -133,11 +131,6 @@ as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas:
 linha por lista e termina com "Para aplicar, repita com --confirmar" na
 prévia.
 
-Se a volta à R falhar **depois** de salvar, a escrita não é escondida: saída
-1 com `visao_do_controle_nao_restaurada`, `visao_deixada: "D"`, `alterado` e
-`depois` (ou, no efeito incerto, saída 3 com `restauracao` e
-`visao_deixada`).
-
 ## Sequência e orçamento
 
 Contando o GET do Controle. Sem rede para erro de uso.
@@ -145,10 +138,13 @@ Contando o GET do Controle. Sem rede para erro de uso.
 | Caso | Sessão em D | Sessão em R |
 | --- | --- | --- |
 | Uso inválido | 0 | 0 |
-| Prévia, alvo igual ao atual, coluna indisponível ou formulário recusado | 2 GET | 2 GET + 2 POST (D, R) |
-| `--confirmar` que salva (inclusive reconciliado ou não aplicado) | 3 GET + 1 POST | 3 GET + 3 POST (D, salvar, R) |
+| Prévia, alvo igual ao atual, coluna indisponível ou formulário recusado | 2 GET | 2 GET + 1 POST (D) |
+| `--confirmar` que salva (inclusive reconciliado ou não aplicado) | 3 GET + 1 POST | 3 GET + 2 POST (D, salvar) |
 
-O GET de verificação é sempre um só; não há segundo POST de salvar.
+O GET de verificação é sempre um só; não há segundo POST de salvar. Vinda
+da R, a sessão fica na D (sem POST R de volta, decisão do proprietário,
+02/11/2026); a recusa `visao_do_controle_nao_restaurada` e os campos
+`restauracao`/`visao_deixada` da falha deixaram de existir.
 
 ## Fora do escopo
 
