@@ -90,8 +90,9 @@ primeira validação autenticada, com login pelo Todos e 3 GETs do IES por
 instalação, sem POST. `status --verificar-controle-web` e `unidade atual`
 deram PASS em UnB, UFRJ, PEN1, PEN3 e PEN4. `unidade listar-processos`
 deu PASS em UnB e UFRJ, e recusa correta de caixa paginada em PEN1, PEN3
-e PEN4. GO falhou pelo link sigiloso não reconhecido; PEN2 ficou NOT_RUN
-(503). `unidade atual` passa a ter validação live; os estados da matriz
+e PEN4. GO falhou pelo link sigiloso não reconhecido; corrigido, passou
+com recusa correta da caixa paginada, mas com `resposta_inesperada`
+intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; os estados da matriz
 não mudam, porque a paginação ativa (#57) continua ausente.
 
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
