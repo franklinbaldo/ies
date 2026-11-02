@@ -2,7 +2,7 @@ use super::nome_cenario_aceito;
 
 #[test]
 fn replay_pesquisa_aceita_filtro_nup_ja_previsto_para_replay() {
-    use super::{Cli, Domain};
+    use crate::{Cli, Domain};
     use clap::Parser;
     let cli = Cli::try_parse_from([
         "ies",
