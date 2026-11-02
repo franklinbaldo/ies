@@ -93,7 +93,11 @@ Além disso, a resposta 302 observada (abaixo) aponta para
 
 ## Invariantes
 
-- Sem redirects: 3xx após o envio é `Transporte(Redirecionamento)`;
+- Sem redirects: nenhum 3xx é seguido. Após o envio, só o **302** volta
+  como dado (`RespostaDoEnvio::Redirecionamento`), com o `Location` cru
+  numa estrutura de `Debug` redigido e sem ler o corpo; os outros 3xx
+  continuam `Transporte(Redirecionamento)`. A interpretação é da operação
+  (seção abaixo). O GET do Controle não muda: 3xx segue como erro.
   401/403 é `Transporte(AcessoNegado)`.
 - Limite de 8 MB durante o recebimento (reuso de `decodificar_resposta`);
   tela de entrada acima do limite também é recusada.
@@ -104,6 +108,38 @@ Além disso, a resposta 302 observada (abaixo) aponta para
   (`table.pesquisaResultado`) é recusa: o IES não sabe qual marcação
   o SEI usa para recusas de pesquisa e não inventa uma.
 - Arquivos de cookie seguem `0600`, sem symlink.
+
+## Redirecionamento 302 da pesquisa exata
+
+Nas quatro cassettes inspecionadas (UnB, PEN1, UFRJ e Goiás, interações
+POST 6 e 10 de `processo-busca-*`), o 302 tem corpo vazio e cabeçalho
+`location` **relativo**, sem fragmento e com `&` literal:
+`controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisar&id_procedimento=<decimal>&id_documento=&infra_sistema=<decimal>&infra_unidade_atual=<decimal>&infra_hash=<64 hex>`.
+Nas oito respostas, `infra_unidade_atual` do `Location` é igual ao da URL
+do POST. O Todos seguiu o `Location` (GET `procedimento_trabalhar` na
+interação seguinte); o IES **não segue**. As cassettes não gravam o corpo
+do POST: que o 302 corresponda a protocolo exato com um único processo
+é a intenção do cenário, não fato comprovado. Os POSTs 2 e 4, com 200,
+traziam tabela de resultados com vários links de processo.
+
+`ResultadoPesquisaProtocolo` (código da operação, em
+`src/pesquisa_web/redirecionamento.rs`) tem duas variantes:
+`Tabela(Vec<ResultadoPesquisa>)` e
+`RedirecionadoParaProcessoUnico { id: IdProcedimento }`. O `Location`
+precisa, nesta ordem: existir; resolver contra a URL do POST para uma URL
+HTTPS sem fragmento; pertencer à mesma `Instalacao`
+(`autoriza_controlador`); ter nomes de parâmetro canônicos e nenhum `;`;
+um único `acao=procedimento_trabalhar`; um único `id_procedimento`
+decimal; um único `infra_hash` de 64 hexadecimais; e um único
+`infra_unidade_atual` igual ao da URL do POST. Cada falha tem variante
+própria em `ErroRedirecionamentoDaPesquisa`.
+
+Abrir `procedimento_trabalhar` pode registrar recebimento
+([efeitos](../como-o-sei-funciona/efeitos-e-verificacao.md)): o
+redirecionamento é **interpretado, não seguido**. A URL assinada é
+descartada depois de extrair o identificador, que é interno e não entra
+na saída da CLI. Sessão vencida que redirecione para o login cai em
+`LocalizacaoDoRedirecionamentoForaDaInstalacao` ou em ação diferente.
 
 ## Fronteira com o despachante proibido
 
@@ -148,8 +184,8 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
   relação ao navegador, a ser medida por ablação em treinamento.
 - Nas duas instalações, dois POSTs responderam 200 com
   `table.pesquisaResultado` e dois responderam **302** para
-  `procedimento_trabalhar` (interações 6 e 10). Esta fatia recusa o 302;
-  tratar o `Location` exige decisão própria, sem segui-lo.
+  `procedimento_trabalhar` (interações 6 e 10), interpretado sem seguir
+  conforme a seção acima.
 - As cassettes públicas (`schema_version: 1`) registram para POST só
   `method`, `operation`, `operation_parameter` e `pathname`: **não há
   corpo nem cabeçalhos** da requisição (verificado em
