@@ -1,0 +1,115 @@
+//! RED/GREEN do `<select multiple>`: um par por opção, na posição do `select`.
+//! O primitivo não escolhe opções; só aceita a repetição que o HTML permite.
+use super::tests::{instalacao, tela_iso, url_servida};
+use super::*;
+use ErroSubmissaoFormulario as E;
+
+const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "protocolo_pesquisar",
+    formulario: "frmPesquisaProtocolo",
+    botao_de_envio: "sbmPesquisar",
+    campos_ocultos_exigidos: &["hdnInicio"],
+    campos_usuario: &["selOrgaoPesquisa[]", "txtProtocoloPesquisa"],
+    marcador_de_resultado: "table.pesquisaResultado",
+    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
+        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
+    },
+};
+
+fn pagina(select: &str) -> String {
+    format!(
+        "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>\
+         <form id='frmPesquisaProtocolo' method='post' \
+         action='controlador.php?acao=protocolo_pesquisar&amp;infra_hash={}'>\
+         <button type='submit' name='sbmPesquisar' value='Pesquisar'>Pesquisar</button>\
+         {select}\
+         <input type='text' name='txtProtocoloPesquisa' value=''>\
+         <input type='hidden' name='hdnInicio' value='0'></form></html>",
+        "c".repeat(64)
+    )
+}
+
+fn derivar(html: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+    let url = url_servida();
+    derivar_submissao(
+        &OPERACAO_COM_SELECAO,
+        &instalacao(),
+        &tela_iso(&url, html),
+        "UNIDADE TESTE",
+        campos,
+    )
+}
+
+const MULTIPLO: &str = "<select name='selOrgaoPesquisa[]' multiple>\
+    <option value='1' selected>A</option><option value='2' selected>B</option></select>";
+
+#[test]
+fn select_multiple_emite_um_par_por_valor_na_posicao_do_select() {
+    let submissao = derivar(
+        &pagina(MULTIPLO),
+        &[
+            ("txtProtocoloPesquisa", "0001"),
+            ("selOrgaoPesquisa[]", "1"),
+            ("selOrgaoPesquisa[]", "2"),
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        submissao.corpo(),
+        b"sbmPesquisar=Pesquisar&selOrgaoPesquisa%5B%5D=1&selOrgaoPesquisa%5B%5D=2\
+          &txtProtocoloPesquisa=0001&hdnInicio=0"
+    );
+    assert_eq!(
+        submissao.nomes_dos_campos(),
+        [
+            "sbmPesquisar",
+            "selOrgaoPesquisa[]",
+            "selOrgaoPesquisa[]",
+            "txtProtocoloPesquisa",
+            "hdnInicio"
+        ]
+    );
+}
+
+#[test]
+fn select_sem_multiple_continua_recusando_repeticao() {
+    let simples = MULTIPLO.replace(" multiple", "");
+    assert_eq!(
+        derivar(
+            &pagina(&simples),
+            &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")],
+        )
+        .unwrap_err(),
+        E::CampoInformadoMaisDeUmaVez {
+            campo: "selOrgaoPesquisa[]".to_owned()
+        }
+    );
+}
+
+#[test]
+fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
+    let html = pagina("<input type='text' name='selOrgaoPesquisa[]' value=''>");
+    assert_eq!(
+        derivar(
+            &html,
+            &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")]
+        )
+        .unwrap_err(),
+        E::CampoInformadoMaisDeUmaVez {
+            campo: "selOrgaoPesquisa[]".to_owned()
+        }
+    );
+}
+
+#[test]
+fn select_multiple_desabilitado_nao_e_publicado() {
+    // tl 0.7.8 perde o 1º caractere do atributo seguinte a um booleano sem
+    // valor (`multiple disabled` vira `isabled`); aqui `disabled` vem por último.
+    let desabilitado = MULTIPLO.replace(" multiple>", " multiple='multiple' disabled>");
+    assert_eq!(
+        derivar(&pagina(&desabilitado), &[("selOrgaoPesquisa[]", "1")]).unwrap_err(),
+        E::CampoNaoPublicadoPeloFormulario {
+            campo: "selOrgaoPesquisa[]".to_owned()
+        }
+    );
+}

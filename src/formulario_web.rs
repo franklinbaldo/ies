@@ -9,10 +9,9 @@ use crate::transporte::{
     FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
 };
 use codificacao::codificar;
-use leitura::{
-    Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, localizar_formulario,
-    resolver_action,
-};
+pub(crate) use codificacao::decodificar_atributo;
+pub(crate) use leitura::localizar_formulario;
+use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -208,24 +207,31 @@ fn ordenar_campos<'c>(
     campos: &'c [(&'c str, &'c str)],
 ) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
     use ErroSubmissaoFormulario as E;
-    let publicado = |nome: &str| {
-        controles
-            .iter()
-            .any(|c| matches!(c, Controle::Usuario(n) if n == nome))
-    };
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
         if !operacao.campos_usuario.contains(nome) {
             return Err(E::CampoForaDaListaDaOperacao { campo });
         }
-        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
-            return Err(E::CampoInformadoMaisDeUmaVez { campo });
-        }
-        if !publicado(nome) {
+        let publicados: Vec<_> = controles
+            .iter()
+            .filter(
+                |c| matches!(c, Controle::Usuario(n) | Controle::SelecaoMultipla(n) if n == nome),
+            )
+            .collect();
+        if publicados.is_empty() {
             return Err(E::CampoNaoPublicadoPeloFormulario { campo });
         }
+        // Só um `<select multiple>` (e nenhum outro controle de mesmo nome)
+        // admite o nome repetido; os valores vêm da operação.
+        let multipla = publicados
+            .iter()
+            .all(|c| matches!(c, Controle::SelecaoMultipla(_)));
+        if !multipla && campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        }
     }
-    // Ordem do documento; um rádio com vários controles é emitido uma vez.
+    // Ordem do documento; um rádio com vários controles é emitido uma vez,
+    // e os pares de um `select multiple` saem juntos na posição dele.
     let mut emitidos: Vec<&str> = Vec::new();
     let mut ordenados = Vec::new();
     for controle in controles {
@@ -233,13 +239,13 @@ fn ordenar_campos<'c>(
             Controle::Oculto { nome, valor } | Controle::Botao { nome, valor } => {
                 ordenados.push((nome.as_str(), valor.as_str()));
             }
-            Controle::Usuario(nome) if !emitidos.contains(&nome.as_str()) => {
-                if let Some((n, v)) = campos.iter().find(|(n, _)| n == nome) {
-                    emitidos.push(n);
-                    ordenados.push((*n, *v));
-                }
+            Controle::Usuario(nome) | Controle::SelecaoMultipla(nome)
+                if !emitidos.contains(&nome.as_str()) =>
+            {
+                emitidos.push(nome);
+                ordenados.extend(campos.iter().filter(|(n, _)| n == nome).copied());
             }
-            Controle::Usuario(_) => {}
+            Controle::Usuario(_) | Controle::SelecaoMultipla(_) => {}
         }
     }
     Ok(ordenados)
@@ -299,22 +305,83 @@ pub(crate) fn derivar_submissao(
     })
 }
 
+/// Resposta do POST: a mesma `RespostaWeb` do GET mais o cabeçalho
+/// `location`, que só o envio de formulário lê. O GET do Controle não muda.
+pub(crate) struct RespostaDoPost<R: Read> {
+    pub(crate) resposta: RespostaWeb<R>,
+    pub(crate) localizacao: Option<String>,
+}
+
+/// 302 recebido e **não seguido**; o corpo não é lido. `Location` e URL do
+/// POST são assinados: sem `Clone`, e o `Debug` os redige.
+pub(crate) struct Redirecionamento302 {
+    localizacao: Option<String>,
+    url_do_envio: String,
+}
+
+impl Redirecionamento302 {
+    pub(crate) fn localizacao(&self) -> Option<&str> {
+        self.localizacao.as_deref()
+    }
+    pub(crate) fn url_do_envio(&self) -> &str {
+        &self.url_do_envio
+    }
+    #[cfg(test)]
+    pub(crate) fn sintetico(localizacao: Option<&str>, url_do_envio: &str) -> Self {
+        Self {
+            localizacao: localizacao.map(str::to_owned),
+            url_do_envio: url_do_envio.to_owned(),
+        }
+    }
+}
+
+impl fmt::Debug for Redirecionamento302 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Redirecionamento302")
+            .field(
+                "localizacao",
+                &self.localizacao.as_ref().map(|_| "<redigido>"),
+            )
+            .field("url_do_envio", &"<redigido>")
+            .finish()
+    }
+}
+
+/// HTML com o marcador da operação, ou 302 entregue à operação como dado.
+#[derive(Debug)]
+pub(crate) enum RespostaDoEnvio {
+    Html(String),
+    Redirecionamento(Redirecionamento302),
+}
+
 /// Envio injetável: `FnOnce` recebe (e consome) a submissão e o cookie,
 /// uma única vez. O cookie é lido do arquivo privado só depois da derivação.
+/// Nenhum 3xx é seguido; só o 302 volta como dado, para a operação interpretar.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,
     cookie_file: &Path,
     enviar: F,
-) -> Result<String, ErroSubmissaoFormulario>
+) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>
 where
-    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
+    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     use ErroSubmissaoFormulario as E;
     let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
     let cookie = texto.trim();
     validar_cookie(cookie).map_err(E::Transporte)?;
     let marcador_de_resultado = submissao.marcador_de_resultado;
-    let resposta = enviar(submissao, cookie).map_err(E::Transporte)?;
+    let url_do_envio = submissao.url.clone();
+    let RespostaDoPost {
+        resposta,
+        localizacao,
+    } = enviar(submissao, cookie).map_err(E::Transporte)?;
+    if resposta.status_code == 302 {
+        // Corpo descartado sem leitura; a operação decide o que o 302 significa.
+        return Ok(RespostaDoEnvio::Redirecionamento(Redirecionamento302 {
+            localizacao,
+            url_do_envio,
+        }));
+    }
     let html = decodificar_resposta(resposta).map_err(|falha| match falha {
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
         outra => E::Transporte(outra),
@@ -326,7 +393,7 @@ where
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
     }
-    Ok(html)
+    Ok(RespostaDoEnvio::Html(html))
 }
 
 #[cfg(test)]
@@ -336,3 +403,7 @@ pub(crate) mod tests;
 #[cfg(test)]
 #[path = "formulario_web/tests_envio.rs"]
 mod tests_envio;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_selecao.rs"]
+mod tests_selecao;

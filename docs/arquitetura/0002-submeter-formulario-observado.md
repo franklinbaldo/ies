@@ -48,7 +48,10 @@ antigo despachante `Action` removido do IES.
   `disabled`, que o navegador também omite.
 - Campos do usuário só entram se estiverem na lista da operação **e**
   publicados pelo formulário; nome fora da lista, não publicado ou
-  informado duas vezes tem recusa própria.
+  informado duas vezes tem recusa própria. A única exceção à repetição
+  é um `<select multiple>` servido: o navegador envia um par por opção
+  selecionada, e os pares saem juntos na posição do `select`. O
+  primitivo não escolhe as opções; quem as lê da tela é a operação.
 - O botão de envio efetivo (`type=submit` com o nome declarado) participa
   com nome e valor servidos; sem ele, recusa.
 - `hdnAcao` só seria preenchido por uma regra observada por operação.
@@ -93,7 +96,11 @@ Além disso, a resposta 302 observada (abaixo) aponta para
 
 ## Invariantes
 
-- Sem redirects: 3xx após o envio é `Transporte(Redirecionamento)`;
+- Sem redirects: nenhum 3xx é seguido. Após o envio, só o **302** volta
+  como dado (`RespostaDoEnvio::Redirecionamento`), com o `Location` cru
+  numa estrutura de `Debug` redigido e sem ler o corpo; os outros 3xx
+  continuam `Transporte(Redirecionamento)`. A interpretação é da operação
+  (seção abaixo). O GET do Controle não muda: 3xx segue como erro.
   401/403 é `Transporte(AcessoNegado)`.
 - Limite de 8 MB durante o recebimento (reuso de `decodificar_resposta`);
   tela de entrada acima do limite também é recusada.
@@ -104,6 +111,45 @@ Além disso, a resposta 302 observada (abaixo) aponta para
   (`table.pesquisaResultado`) é recusa: o IES não sabe qual marcação
   o SEI usa para recusas de pesquisa e não inventa uma.
 - Arquivos de cookie seguem `0600`, sem symlink.
+
+## Redirecionamento 302 da pesquisa exata
+
+Nas quatro cassettes inspecionadas (UnB, PEN1, UFRJ e Goiás, interações
+POST 6 e 10 de `processo-busca-*`), o 302 tem corpo vazio e cabeçalho
+`location` **relativo**, sem fragmento e com `&` literal:
+`controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisar&id_procedimento=<decimal>&id_documento=&infra_sistema=<decimal>&infra_unidade_atual=<decimal>&infra_hash=<64 hex>`.
+Nas oito respostas, `infra_unidade_atual` do `Location` é igual ao da URL
+do POST. O Todos seguiu o `Location` (GET `procedimento_trabalhar` na
+interação seguinte); o IES **não segue**. As cassettes não gravam o corpo
+do POST: que o 302 corresponda a protocolo exato com um único processo
+é a intenção do cenário, não fato comprovado. Os POSTs 2 e 4, com 200,
+traziam tabela de resultados com vários links de processo.
+
+`ResultadoPesquisaProtocolo` (código da operação, em
+`src/pesquisa_web/formulario_pesquisa.rs`) tem duas variantes:
+`Tabela(Vec<ResultadoPesquisa>)` e
+`RedirecionadoParaProcessoUnico { id: IdProcedimento }`. O `Location`
+(regras em `src/pesquisa_web/redirecionamento.rs`) precisa, nesta ordem:
+existir com até 8 KiB; resolver contra a URL do POST para uma URL
+HTTPS sem fragmento; pertencer à mesma `Instalacao`
+(`autoriza_controlador`); ter nomes de parâmetro canônicos e nenhum `;`;
+um único `acao=procedimento_trabalhar`; um único `id_procedimento`
+decimal; um único `infra_hash` de 64 hexadecimais; e um único
+`infra_unidade_atual` igual ao da URL do POST. Cada falha tem variante
+própria em `ErroRedirecionamentoDaPesquisa`.
+
+Ensaio offline: os oito `Location` reais (UnB, PEN1, UFRJ, Goiás;
+interações 6 e 10), com a URL do POST da mesma resposta, passaram pela
+interpretação e devolveram `id_procedimento` decimal (**PASS**, teste
+local temporário lendo arquivo `0600` fora do repositório, não versionado).
+Os testes versionados usam só valores sintéticos.
+
+Abrir `procedimento_trabalhar` pode registrar recebimento
+([efeitos](../como-o-sei-funciona/efeitos-e-verificacao.md)): o
+redirecionamento é **interpretado, não seguido**. A URL assinada é
+descartada depois de extrair o identificador, que é interno e não entra
+na saída da CLI. Sessão vencida que redirecione para o login cai em
+`LocalizacaoDoRedirecionamentoForaDaInstalacao` ou em ação diferente.
 
 ## Fronteira com o despachante proibido
 
@@ -121,6 +167,18 @@ descoberta de formulários na tela; mapa genérico de campos vindo de fora;
 
 **Desempate:** se uma segunda operação precisar de caso especial, duplicar
 o tratamento na operação em vez de parametrizar o primitivo.
+
+**Mudanças no primitivo nesta revisão, e por que não ficam na operação:**
+(1) o envio devolve o 302 como dado. O status e o `Location` só existem
+dentro de `enviar_submissao_via`, que antes os convertia em erro; a
+operação não teria como interpretá-los sem o primitivo entregá-los. O
+primitivo não interpreta nem segue, e a `OperacaoDeFormulario` não ganhou
+campo. (2) a repetição do nome de um `<select multiple>` é semântica do
+HTML, igual para qualquer formulário; a regra de quais opções enviar
+(`selected` servido do órgão) e as regras do `onsubmit` ficam na
+[decisão da operação](../decisoes/processo-buscar.md). Duas funções de
+leitura (`localizar_formulario`, `decodificar_atributo`) passam a
+`pub(crate)` para a operação reler a mesma tela, sem novo parâmetro.
 
 ## Evidências e lacunas
 
@@ -143,13 +201,15 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
   resultado acrescenta `sbmPesquisarSalvar` e mais um botão.
 - `navegar(inicio)` reescreve `hdnInicio` via JavaScript (paginação);
   `onSubmitForm()` exige rádio marcado e órgão em `selOrgaoPesquisa[]`.
-  A derivação **não** executa JavaScript nem serializa controles visíveis
-  fora da lista (selects, checkboxes marcados): diferença conhecida em
-  relação ao navegador, a ser medida por ablação em treinamento.
+  As regras escritas à mão a partir desse código estão na
+  [decisão da operação](../decisoes/processo-buscar.md). A derivação
+  **não** executa JavaScript nem serializa outros controles visíveis
+  (selects, checkboxes marcados): diferença conhecida em relação ao
+  navegador, a ser medida por ablação em treinamento.
 - Nas duas instalações, dois POSTs responderam 200 com
   `table.pesquisaResultado` e dois responderam **302** para
-  `procedimento_trabalhar` (interações 6 e 10). Esta fatia recusa o 302;
-  tratar o `Location` exige decisão própria, sem segui-lo.
+  `procedimento_trabalhar` (interações 6 e 10), interpretado sem seguir
+  conforme a seção acima.
 - As cassettes públicas (`schema_version: 1`) registram para POST só
   `method`, `operation`, `operation_parameter` e `pathname`: **não há
   corpo nem cabeçalhos** da requisição (verificado em
@@ -158,6 +218,10 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
 - A paginação POST do Controle de Processos nunca foi capturada.
 - Resposta de pesquisa sem resultados não foi observada; o marcador
   pode faltar nesse caso e a recusa seria falso-negativo.
+- O `tl` 0.7.8 perde o primeiro caractere do atributo que segue um
+  booleano sem valor (`multiple disabled` é lido como `isabled`). Um
+  controle servido assim seria tratado como habilitado. Não observado
+  nos `disabled` destas telas; corrigir ou falhar fechado é pendência.
 - Validação live: **NOT_RUN** (sem instalação autorizada nesta fatia).
 
 ## Alternativas

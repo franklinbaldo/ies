@@ -68,6 +68,23 @@ complementos válidos mantém até 1 GET e 0 POST. Os gates Rust/OKF/20 KB e
 GitGuardian passaram no HEAD revisado. Não habilita paginação ativa, não
 promove `PARCIAL WEB` e não equivale a validação live.
 
+**Atualização #141 (integrada):** existe, só offline, o primitivo que deriva
+o POST de um formulário servido ([decisão 0002](arquitetura/0002-submeter-formulario-observado.md)),
+com envio injetável e sem cliente HTTP real. Nenhum comando o usa:
+`processo buscar` segue **STUB** e `--resultado-pesquisa-file`, **PARCIAL
+LOCAL**. Validação live: **NOT_RUN**.
+
+**Atualização #58 (PENDENTE PR, não computar):** a pesquisa de protocolo
+interpreta o 302 da busca exata, com o `Location` relativo para
+`procedimento_trabalhar` gravado nas cassettes de UnB, PEN1, UFRJ e
+Goiás, como `IdProcedimento`, **sem segui-lo**. Também aplica as regras
+do `onsubmit` lidas do JavaScript servido. O ensaio offline passou nos
+8 redirecionamentos e nos 16 formulários reais. Ainda sem CLI e sem
+mudança de estado; o orçamento previsto é 1 GET da tela e 1 POST, com 0
+GET ao destino. Lacunas: corpo real do POST (via
+[coleta do formato](coleta-formato-post.md)), página "sem resultados"
+não observada e controles que o navegador enviaria e a derivação omite.
+
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas

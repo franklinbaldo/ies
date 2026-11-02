@@ -28,3 +28,10 @@ Uma tela de formulário desconhecida deve ser recusada sem agir.
 **Regra empírica:** observar formulário fresco, reproduzir
 o gesto efetivo conhecido e conferir o resultado do servidor.
 GET/POST, isoladamente, não indicam leitura ou escrita.
+
+Um POST pode responder **302** em vez de HTML: na pesquisa de protocolo
+(`processo-busca-*` de UnB, PEN1, UFRJ e Goiás), o `Location` relativo
+leva a `procedimento_trabalhar` com `id_procedimento` e `infra_hash`
+novos. Seguir esse destino abre o processo, o que pode registrar
+recebimento; ler o `Location` não exige segui-lo. Estrutura detalhada em
+[0002](../arquitetura/0002-submeter-formulario-observado.md).
