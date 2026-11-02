@@ -68,6 +68,9 @@ diagnóstico logo depois devolveram 200 com `text/html; charset=iso-8859-1`,
 e a repetição do comando passou. O subcódigo atual não distingue status
 HTTP, `Content-Type` ou decodificação; a causa fica indeterminada. Não
 houve nova tentativa automática: a repetição foi manual e única.
+O subcódigo foi então separado em status 5xx, 429, outro status, tipo
+não HTML e corpo não decodificável. Numa 3ª rodada com esse binário
+(login + 3 GETs), os três comandos passaram sem recorrência.
 
 **Lista igual à tela.** Na UnB e na UFRJ, os totais devolvidos
 coincidem com as legendas `N registros` das duas tabelas.
