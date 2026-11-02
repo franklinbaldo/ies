@@ -151,6 +151,16 @@ fn preparar_destino_com_intervalo(
             .parent()
             .ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?,
     )?;
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let pai_aberto = pai
+            .metadata()
+            .map_err(|_| ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
+        if pai_observado.dev() != pai_aberto.dev() || pai_observado.ino() != pai_aberto.ino() {
+            return Err(ErroArquivoCaixa::DiretorioTrocadoDurantePreparacao);
+        }
+    }
     #[cfg(not(target_os = "linux"))]
     let _ = pai_observado;
     Ok(DestinoPreparado {
