@@ -1,6 +1,6 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::codificacao::decodificar_atributo;
-use super::{ErroSubmissaoFormulario as E, OperacaoDeFormulario};
+use super::{EnvioDoFormulario, ErroSubmissaoFormulario as E, OperacaoDeFormulario};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::{Instalacao, host_valido};
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
@@ -229,6 +229,15 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
     })
 }
 
+/// Nome do botão que participa do envio. Shim CONTRACT: o envio por script
+/// ainda exige botão (RED).
+fn botao_do_envio(envio: EnvioDoFormulario) -> &'static str {
+    match envio {
+        EnvioDoFormulario::BotaoDeEnvio(nome) => nome,
+        EnvioDoFormulario::SubmitPorScript => "",
+    }
+}
+
 /// Lê os controles do formulário e aplica as recusas estruturais.
 pub(super) fn ler_controles(
     form: &tl::HTMLTag<'_>,
@@ -244,7 +253,7 @@ pub(super) fn ler_controles(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        let Some(controle) = classificar(tag, operacao.botao_de_envio)? else {
+        let Some(controle) = classificar(tag, botao_do_envio(operacao.envio))? else {
             continue;
         };
         match &controle {

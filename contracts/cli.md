@@ -55,8 +55,31 @@ legado do Todos faz parte do contrato público por pressuposição.
 O comando `ies unidade listar-processos` possui **leitura HTTP GET
 restrita da caixa Web**, com sessão já existente e origem HTTPS
 explicitamente autorizada, ou replay offline verificado. Não faz
-login, POST ou paginação HTTP. Sem esses insumos retorna
-`nao_implementado`.
+login. O único POST previsto é o da opção `--pagina N` (abaixo).
+Sem esses insumos retorna `nao_implementado`.
+
+## Leituras paginadas: página observada por padrão (Refs #57)
+
+Invariante de **toda** leitura paginada da CLI:
+
+- **Sem opção**, a leitura usa só a tela já obtida (GET ou arquivo),
+  sem POST de paginação, e devolve a página que a tela mostra com o
+  `total_declarado` e a `faixa_observada` (`inicio`/`fim` das posições
+  lidas) de cada lista. A faixa não diz "primeira página": o servidor
+  pode lembrar a última página pedida na sessão.
+- A saída **nunca** publica `completa`, `completude` ou afirma lista
+  integral ou snapshot; quem consome compara faixa e total.
+- O opt-in é único e tem o mesmo nome em todos os comandos:
+  **`--pagina N`** (inteiro ≥ 1), que pede exatamente a página N com
+  o mínimo de requisições. Não há "todas as páginas".
+- N fora do intervalo calculável pelo total e pelo tamanho de página
+  observados é erro tipado **antes** de qualquer envio. A página obtida
+  confere unidade, visualização e critérios da tela de origem; não há
+  retry nem restauração. O efeito é `PaginaOuFiltroLembrado`: a leitura
+  seguinte pode mostrar a página N, e a faixa publicada diz qual é.
+
+Contradições reais (faixa inválida ou não contígua, total ausente,
+unidade ou contexto divergente) continuam recusas tipadas.
 
 `processo NUP`, `documento NUMERO` e a escrita remota continuam
 como stubs. A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem

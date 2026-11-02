@@ -6,23 +6,72 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErroCaixa {
     HtmlInvalido,
-    TabelaAusente { categoria: Categoria },
-    TabelasDaCategoriaRepetidas { categoria: Categoria },
-    TabelaInvalida { categoria: Categoria },
-    LegendaAusente { categoria: Categoria },
-    LegendasDaTabelaRepetidas { categoria: Categoria },
+    TabelaAusente {
+        categoria: Categoria,
+    },
+    TabelasDaCategoriaRepetidas {
+        categoria: Categoria,
+    },
+    TabelaInvalida {
+        categoria: Categoria,
+    },
+    LegendaAusente {
+        categoria: Categoria,
+    },
+    LegendasDaTabelaRepetidas {
+        categoria: Categoria,
+    },
     IdInvalido,
-    IdRepetido { categoria: Categoria, id: String },
-    NumeroInvalido { categoria: Categoria, id: String },
-    MaisDeUmNumeroNaLinhaDoProcesso { categoria: Categoria, id: String },
-    LinkDoProcessoNaoIdentificadoNaLinha { categoria: Categoria, id: String },
-    ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria: Categoria, id: String },
-    TotalExcedido { categoria: Categoria },
-    TotaisDeclaradosDiferentesEntrePaginas { categoria: Categoria },
-    FaixaInvalida { categoria: Categoria },
-    FaixaDesconhecida { categoria: Categoria },
-    FaixaAlterada { categoria: Categoria },
-    FaixaDescontinua { categoria: Categoria },
+    IdRepetido {
+        categoria: Categoria,
+        id: String,
+    },
+    NumeroInvalido {
+        categoria: Categoria,
+        id: String,
+    },
+    MaisDeUmNumeroNaLinhaDoProcesso {
+        categoria: Categoria,
+        id: String,
+    },
+    LinkDoProcessoNaoIdentificadoNaLinha {
+        categoria: Categoria,
+        id: String,
+    },
+    ClassesDeEstadoDiferentesNoLinkDoProcesso {
+        categoria: Categoria,
+        id: String,
+    },
+    TotalExcedido {
+        categoria: Categoria,
+    },
+    TotaisDeclaradosDiferentesEntrePaginas {
+        categoria: Categoria,
+    },
+    FaixaInvalida {
+        categoria: Categoria,
+    },
+    FaixaDesconhecida {
+        categoria: Categoria,
+    },
+    FaixaAlterada {
+        categoria: Categoria,
+    },
+    FaixaDescontinua {
+        categoria: Categoria,
+    },
+    /// Legenda sem `registros`: a página não declara o total da tabela.
+    TotalNaoDeclaradoNaLegenda {
+        categoria: Categoria,
+    },
+    /// Legenda sem intervalo e total diferente do número de linhas.
+    LegendaSemFaixaComTotalDiferenteDasLinhas {
+        categoria: Categoria,
+    },
+    /// Paginador próprio da tabela publicado com legenda sem intervalo.
+    PaginadorDaTabelaSemFaixaNaLegenda {
+        categoria: Categoria,
+    },
     LimitePaginas,
     VisaoResumidaComPaginacao,
     UnidadeInesperada,
@@ -61,6 +110,13 @@ impl ErroCaixa {
             Self::FaixaDesconhecida { .. } => "faixa_desconhecida",
             Self::FaixaAlterada { .. } => "faixa_alterada",
             Self::FaixaDescontinua { .. } => "faixa_descontinua",
+            Self::TotalNaoDeclaradoNaLegenda { .. } => "total_nao_declarado_na_legenda",
+            Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. } => {
+                "legenda_sem_faixa_com_total_diferente_das_linhas"
+            }
+            Self::PaginadorDaTabelaSemFaixaNaLegenda { .. } => {
+                "paginador_da_tabela_sem_faixa_na_legenda"
+            }
             Self::LimitePaginas => "limite_paginas",
             Self::VisaoResumidaComPaginacao => "visao_resumida_com_paginacao_nao_demonstrada",
             Self::UnidadeInesperada => "unidade_inesperada",
@@ -101,7 +157,10 @@ impl ErroCaixa {
             | Self::FaixaInvalida { categoria }
             | Self::FaixaDesconhecida { categoria }
             | Self::FaixaAlterada { categoria }
-            | Self::FaixaDescontinua { categoria } => Some(*categoria),
+            | Self::FaixaDescontinua { categoria }
+            | Self::TotalNaoDeclaradoNaLegenda { categoria }
+            | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
+            | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
             _ => None,
         }
     }

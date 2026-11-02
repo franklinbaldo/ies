@@ -28,6 +28,16 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
     Ok(false)
 }
 
+/// Paginador próprio de Recebidos ou Gerados (`lnk{T}ProximaPagina*`,
+/// `sel{T}Paginacao*` etc.). `hdn{T}PaginaAtual` não conta: aparece em telas
+/// sem paginação. Shim CONTRACT.
+pub(crate) fn paginador_da_tabela(
+    _html: &str,
+    _categoria: crate::dominio::Categoria,
+) -> Result<bool, ErroCaixa> {
+    Ok(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::controles_de_paginacao;

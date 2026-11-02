@@ -5,9 +5,9 @@ use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, ler_regras_da_te
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::{
-    EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, MarcadorDeResultado,
-    OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida,
-    derivar_submissao, enviar_submissao_via, localizar_formulario,
+    EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
+    MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada,
+    TelaServida, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -19,7 +19,7 @@ use std::path::Path;
 pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "protocolo_pesquisar",
     formulario: "frmPesquisaProtocolo",
-    botao_de_envio: "sbmPesquisar",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &[
         "hdnInfraTipoPagina",
         "hdnIdUnidade",
@@ -31,6 +31,7 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
         "hdnIdUsuarioGerador3",
         "hdnInicio",
     ],
+    campos_ocultos_reescritos: &[],
     campos_usuario: &[
         "rdoPesquisarEm",
         "selOrgaoPesquisa[]",

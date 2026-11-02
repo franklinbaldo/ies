@@ -373,6 +373,9 @@ pub fn read_box_from_file(
     read_box(url.trim(), cookie_file, origem.trim())
 }
 
+#[path = "transporte/envio_post.rs"]
+pub(crate) mod envio_post;
+
 #[cfg(test)]
 #[path = "transporte/tests.rs"]
 mod tests;

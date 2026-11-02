@@ -28,6 +28,7 @@ mod historico_cli;
 mod html_atributos;
 mod instalacao;
 mod mime_web;
+mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
 mod paginas_capturadas;
@@ -236,6 +237,14 @@ enum UnidadeAcao {
         /// Projeta somente categoria coberta no primeiro GET; não usa páginas privadas
         #[arg(long, value_enum, conflicts_with = "paginas_capturadas")]
         categoria: Option<unidade_categoria::CategoriaLista>,
+        /// Pede a página N da categoria: no máximo um POST que altera a página lembrada na sessão
+        #[arg(
+            long,
+            value_name = "N",
+            requires = "categoria",
+            value_parser = clap::value_parser!(u32).range(1..)
+        )]
+        pagina: Option<u32>,
     },
 }
 
@@ -326,6 +335,7 @@ fn run(cli: &Cli) -> ExitCode {
                     saida,
                     paginas_capturadas,
                     categoria,
+                    pagina,
                 }),
         }) => {
             if let Some(categoria) = categoria {
@@ -334,6 +344,7 @@ fn run(cli: &Cli) -> ExitCode {
                     cli.json,
                     saida.as_deref(),
                     *categoria,
+                    pagina.map(|n| n as usize),
                 );
             }
             return unidade_lista_cli::listar_processos_da_unidade(

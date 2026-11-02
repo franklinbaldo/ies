@@ -13,6 +13,13 @@ pub(crate) enum CategoriaLista {
 }
 
 impl CategoriaLista {
+    pub(crate) fn categoria(self) -> crate::dominio::Categoria {
+        match self {
+            Self::Recebidos => crate::dominio::Categoria::Recebidos,
+            Self::Gerados => crate::dominio::Categoria::Gerados,
+        }
+    }
+
     pub(crate) fn rotulo(self) -> &'static str {
         match self {
             Self::Recebidos => "recebidos",
@@ -75,7 +82,16 @@ pub(crate) fn listar_categoria(
     json_mode: bool,
     destino: Option<&Path>,
     categoria: CategoriaLista,
+    pagina: Option<usize>,
 ) -> ExitCode {
+    if pagina.is_some() {
+        // Shim CONTRACT: `--pagina N` ainda não envia o POST.
+        return erro_fonte(
+            json_mode,
+            "nao_implementado",
+            "a opção --pagina ainda não está implementada",
+        );
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),

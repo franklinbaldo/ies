@@ -19,6 +19,8 @@ pub(crate) struct ProcessoDetalhado {
 pub(crate) struct LeituraDetalhada {
     pub(crate) unidade: String,
     pub(crate) total_declarado: usize,
+    /// Posições lidas (`inicio`, `fim`); `None` sem linhas.
+    pub(crate) faixa_observada: Option<(usize, usize)>,
     pub(crate) processos: Vec<ProcessoDetalhado>,
 }
 
@@ -373,6 +375,8 @@ pub(crate) fn ler_paginas(
     Ok(LeituraDetalhada {
         unidade,
         total_declarado: total,
+        // Shim CONTRACT: a faixa ainda não é publicada.
+        faixa_observada: None,
         processos,
     })
 }

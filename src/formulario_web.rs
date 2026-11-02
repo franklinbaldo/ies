@@ -33,13 +33,25 @@ pub(crate) enum EfeitoAvaliado {
     Desconhecido,
 }
 
+/// Como o navegador envia o formulário, segundo a tela observada.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EnvioDoFormulario {
+    /// Botão `type=submit` com este nome participa do corpo.
+    BotaoDeEnvio(&'static str),
+    /// O JavaScript observado chama `submit()`: nenhum botão participa.
+    SubmitPorScript,
+}
+
 /// Declaração `const` feita pela própria operação; não há catálogo central.
 #[derive(Debug)]
 pub(crate) struct OperacaoDeFormulario {
     pub(crate) acao: &'static str,
     pub(crate) formulario: &'static str,
-    pub(crate) botao_de_envio: &'static str,
+    pub(crate) envio: EnvioDoFormulario,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
+    /// Ocultos que o JavaScript observado da operação reescreve; os demais
+    /// saem exatamente como servidos.
+    pub(crate) campos_ocultos_reescritos: &'static [&'static str],
     pub(crate) campos_usuario: &'static [&'static str],
     pub(crate) marcador_de_resultado: MarcadorDeResultado,
     pub(crate) efeito: EfeitoAvaliado,

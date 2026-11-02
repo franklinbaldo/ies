@@ -202,6 +202,39 @@ impl Cobertura {
         }
         proximo == total.saturating_add(1)
     }
+
+    /// Posições lidas (`inicio`, `fim`), contíguas; `None` sem linhas ou
+    /// sem faixa comprovada pela legenda. Shim CONTRACT.
+    pub fn faixa_observada(&self) -> Option<(usize, usize)> {
+        None
+    }
+}
+
+/// Total e posições de uma tabela numa única página, lidos da legenda.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FaixaNaPagina {
+    pub(crate) total: usize,
+    pub(crate) inicio: usize,
+    pub(crate) fim: usize,
+}
+
+/// Faixa de uma tabela numa página isolada; `None` se a legenda não a
+/// comprova. Shim CONTRACT.
+pub(crate) fn faixa_na_pagina(
+    _html: &str,
+    _categoria: Categoria,
+) -> Result<Option<FaixaNaPagina>, ErroCaixa> {
+    Ok(None)
+}
+
+/// Recusa tabela cuja faixa observada não pode ser publicada com o total.
+/// Shim CONTRACT: ainda não recusa.
+pub(crate) fn conferir_faixa_publicavel(
+    _categoria: Categoria,
+    _tabela: &Tabela<Processo>,
+    _cobertura: &Cobertura,
+) -> Result<(), ErroCaixa> {
+    Ok(())
 }
 
 pub struct Leitura {

@@ -10,7 +10,21 @@ pub(crate) struct ContextoPagina {
     criterios_gerados: Option<String>,
 }
 
+/// Primeiro campo de contexto que difere entre duas páginas.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DiferencaDeContexto {
+    Unidade,
+    Visualizacao,
+    CriteriosRecebidos,
+    CriteriosGerados,
+}
+
 impl ContextoPagina {
+    /// Shim CONTRACT: ainda não compara.
+    pub(crate) fn diferenca(&self, _outro: &Self) -> Option<DiferencaDeContexto> {
+        None
+    }
+
     pub(crate) fn eh_detalhada(&self) -> bool {
         self.modo.as_deref() == Some("D")
     }

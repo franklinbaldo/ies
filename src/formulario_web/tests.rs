@@ -9,8 +9,9 @@ const HASH_FORM: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "protocolo_pesquisar",
     formulario: "frmPesquisaProtocolo",
-    botao_de_envio: "sbmPesquisar",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnInicio"],
+    campos_ocultos_reescritos: &[],
     campos_usuario: &["rdoPesquisarEm", "txtProtocoloPesquisa"],
     marcador_de_resultado: MarcadorDeResultado {
         elemento: "table",
