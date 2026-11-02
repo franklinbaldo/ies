@@ -133,15 +133,23 @@ traziam tabela de resultados com vários links de processo.
 existir com até 8 KiB; resolver contra a URL do POST para uma URL
 HTTPS sem fragmento; pertencer à mesma `Instalacao`
 (`autoriza_controlador`); ter nomes de parâmetro canônicos e nenhum `;`;
-um único `acao=procedimento_trabalhar`; um único `id_procedimento`
-decimal; um único `infra_hash` de 64 hexadecimais; e um único
-`infra_unidade_atual` igual ao da URL do POST. Cada falha tem variante
-própria em `ErroRedirecionamentoDaPesquisa`.
+um único `acao=procedimento_trabalhar`; um único
+`acao_origem=protocolo_pesquisar`; um único `id_procedimento`
+decimal; um único `infra_hash` de 64 hexadecimais; um único
+`infra_unidade_atual` igual ao da URL do POST; e um único
+`infra_sistema` decimal igual, sem normalizar zeros, ao da URL do POST.
+A URL do POST é o `action` assinado do formulário; sem `infra_sistema`
+nela, a interpretação falha fechada (`InfraSistemaAusenteNaUrlDoEnvio`).
+Cada falha tem variante própria em `ErroRedirecionamentoDaPesquisa`.
 
 Ensaio offline: os oito `Location` reais (UnB, PEN1, UFRJ, Goiás;
 interações 6 e 10), com a URL do POST da mesma resposta, passaram pela
 interpretação e devolveram `id_procedimento` decimal (**PASS**, teste
 local temporário lendo arquivo `0600` fora do repositório, não versionado).
+As exigências de `acao_origem` e `infra_sistema` (#58) vieram depois desse
+ensaio: o `Location` observado traz ambos, mas a igualdade de
+`infra_sistema` com a URL do POST real **não foi reensaiada**
+(**NOT_RUN** nesta revisão, sem cassettes locais).
 Os testes versionados usam só valores sintéticos.
 
 Abrir `procedimento_trabalhar` pode registrar recebimento
@@ -219,9 +227,15 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
 - Resposta de pesquisa sem resultados não foi observada; o marcador
   pode faltar nesse caso e a recusa seria falso-negativo.
 - O `tl` 0.7.8 perde o primeiro caractere do atributo que segue um
-  booleano sem valor (`multiple disabled` é lido como `isabled`). Um
-  controle servido assim seria tratado como habilitado. Não observado
-  nos `disabled` destas telas; corrigir ou falhar fechado é pendência.
+  booleano sem valor (`multiple disabled` é lido como `isabled`) e monta
+  com essa chave os índices de `id`/classe e o `inner_html`.
+  **Corrigido** em `src/html_atributos.rs`: tokenizador próprio da tag
+  de abertura (`HTMLTag::raw()`), com nomes em minúsculas, valores
+  brutos, atributo repetido recusado (`AtributoRepetidoNaTag`) e tag
+  ilegível como `AtributoHtml(_)`. O `tl` segue dono da árvore. Testes:
+  `formulario_web/tests_atributos.rs`, regressões por leitor (booleano
+  `itemscope` antes de cada atributo) e a guarda
+  `tests/atributos_html_pelo_tokenizador.rs`.
 - Validação live: **NOT_RUN** (sem instalação autorizada nesta fatia).
 
 ## Alternativas

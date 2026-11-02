@@ -85,11 +85,15 @@ Ensaio offline: a derivação passou nos 16 formulários reais (4 GETs por
 instalação), com 1, 2, 2 e 62 órgãos enviados (**PASS**, teste local
 temporário com arquivos `0600` fora do repositório, não versionado).
 
-O `select` real tem `multiple` sem valor antes de `id`, e o `tl` 0.7.8
+O `select` real tem `multiple` sem valor antes de `id`. O `tl` 0.7.8
 perde o primeiro caractere do atributo seguinte a um booleano sem valor
-(`id` vira `d`; `multiple disabled` vira `isabled`). Por isso o órgão é
-localizado pelo `name`. O mesmo defeito pode esconder um `disabled` do
-primitivo: questão aberta, sem correção nesta fatia.
+(`id` vira `d`; `multiple disabled` vira `isabled`). **Corrigido**: todo
+atributo lido fora dos testes passa por `src/html_atributos.rs`, que
+tokeniza a fonte da tag de abertura com os estados WHATWG; `selected`,
+`multiple` e `disabled` são detectados em qualquer forma de valor. O
+órgão continua localizado pelo `name`, que é o nome serializado no POST
+e, por isso, a regra mais precisa. Testes: `tests_formulario_pesquisa.rs`
+(booleano antes de cada atributo e `multiple disabled` bruto).
 
 As checkboxes marcadas, os selects simples e os textos vazios que o
 navegador enviaria continuam fora do POST. Medir isso exige a
