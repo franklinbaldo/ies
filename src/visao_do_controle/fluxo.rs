@@ -59,6 +59,7 @@ fn na_detalhada<V: EnvioDoControle>(
     let (tela_n, leitura_n) = paginar_detalhada(sessao, tela, pedido, criterio)?;
     paginar_detalhada(sessao, &tela_n, pedido_de_volta(&encontrada), criterio).map_err(
         |causa| E::PaginaDaVisaoDetalhadaNaoRestaurada {
+            visao_deixada: Visao::Detalhada,
             pagina_deixada: numero,
             causa: Box::new(causa),
         },

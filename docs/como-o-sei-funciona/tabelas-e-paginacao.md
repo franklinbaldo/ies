@@ -113,3 +113,9 @@ Observações estruturais de UnB 4.0.9, PEN1 5.0.4 e GO 5.0.3, sem valores
   `div.divItemCelula`/`div.divRotuloItemCelula`. Cabeçalhos usam `&nbsp;`
   (`Última&nbsp;Mov.`).
 - Colunas sem rótulo: seleção (`lnkInfraCheck`), ícones de estado e ações.
+- O **catálogo do Nível de detalhe varia por versão**: PEN1 5.0.4 e GO
+  5.0.3 publicam 12 caixas `chkSin*`; a UnB 4.0.9 publica 11, sem
+  `chkSinNivelPrioritarios` (Prioridade). Ensaio live de 02/11/2026.
+- A página lembrada da D é estado da sessão independente da visão exibida:
+  na PEN1, paginar a D vinda da R e voltar à R deixou a D na página pedida,
+  e a D seguinte abriu nela (ensaio live de 02/11/2026).

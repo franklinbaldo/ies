@@ -16,6 +16,7 @@ mod plano;
 mod resumida;
 
 use crate::caixa_detalhada::ErroDetalhada;
+use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
     EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
@@ -125,8 +126,16 @@ pub(crate) enum ErroVisaoDoControle {
         visao_deixada: Visao,
         causa: Box<ErroVisaoDoControle>,
     },
-    /// A D ficou na página `pagina_deixada` (≥ 1).
+    /// A D lembra a página `pagina_deixada` (≥ 1); a tela ficou em `visao_deixada`.
     PaginaDaVisaoDetalhadaNaoRestaurada {
+        visao_deixada: Visao,
+        pagina_deixada: usize,
+        causa: Box<ErroVisaoDoControle>,
+    },
+    /// A tabela `categoria` da R lembra a página `pagina_deixada` (≥ 1);
+    /// a tela ficou na D.
+    PaginaDaVisaoResumidaNaoRestaurada {
+        categoria: Categoria,
         pagina_deixada: usize,
         causa: Box<ErroVisaoDoControle>,
     },
@@ -181,6 +190,9 @@ impl ErroVisaoDoControle {
             Self::PaginaDaVisaoDetalhadaNaoRestaurada { .. } => {
                 "pagina_da_visao_detalhada_nao_restaurada"
             }
+            Self::PaginaDaVisaoResumidaNaoRestaurada { .. } => {
+                "pagina_da_visao_resumida_nao_restaurada"
+            }
             Self::Caixa(erro) => erro.subcodigo(),
             Self::Detalhada(erro) => erro.subcodigo(),
             Self::NivelDeDetalhe(erro) => erro.subcodigo(),
@@ -204,6 +216,9 @@ impl ErroVisaoDoControle {
             Self::PaginaDaVisaoDetalhadaNaoRestaurada { .. } => {
                 "a visão detalhada ficou na página pedida: a restauração da página falhou"
             }
+            Self::PaginaDaVisaoResumidaNaoRestaurada { .. } => {
+                "a lista da visão resumida ficou na página pedida: a restauração da página falhou"
+            }
             Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
             Self::Transporte(erro) => erro.mensagem(),
             _ => "a visão do Controle de Processos não foi obtida como esperado",
@@ -214,7 +229,8 @@ impl ErroVisaoDoControle {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::VisaoDoControleNaoRestaurada { causa, .. }
-            | Self::PaginaDaVisaoDetalhadaNaoRestaurada { causa, .. } => causa.status_http(),
+            | Self::PaginaDaVisaoDetalhadaNaoRestaurada { causa, .. }
+            | Self::PaginaDaVisaoResumidaNaoRestaurada { causa, .. } => causa.status_http(),
             Self::Submissao(erro) => erro.status_http(),
             Self::Pagina(erro) => erro.status_http(),
             Self::Transporte(erro) => erro.status_http(),
@@ -233,10 +249,21 @@ impl ErroVisaoDoControle {
                 "causa": causa.subcodigo(),
             })),
             Self::PaginaDaVisaoDetalhadaNaoRestaurada {
+                visao_deixada,
+                pagina_deixada,
+                causa,
+            } => Some(serde_json::json!({
+                "visao_deixada": visao_deixada.valor(),
+                "pagina_deixada": pagina_deixada,
+                "causa": causa.subcodigo(),
+            })),
+            Self::PaginaDaVisaoResumidaNaoRestaurada {
+                categoria,
                 pagina_deixada,
                 causa,
             } => Some(serde_json::json!({
                 "visao_deixada": "D",
+                "categoria": categoria.rotulo(),
                 "pagina_deixada": pagina_deixada,
                 "causa": causa.subcodigo(),
             })),

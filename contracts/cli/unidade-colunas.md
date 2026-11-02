@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Colunas do Nível de detalhe da unidade
-description: ies unidade colunas lê, sem salvar, as 12 opções do Nível de detalhe da visão detalhada e quais estão marcadas
+description: ies unidade colunas lê, sem salvar, as opções do Nível de detalhe da visão detalhada, quais a instalação publica e quais estão marcadas
 ---
 
 # `ies unidade colunas` (Refs #57)
@@ -15,7 +15,12 @@ confirmação.
 
 ## Modelo `ColunaDoDetalhe`
 
-As 12 opções fixas observadas (PEN1 5.0.4 e GO 5.0.3, 02/11/2026):
+O **catálogo** são as 12 opções conhecidas, observadas na PEN1 5.0.4 e em
+GO 5.0.3 (02/11/2026), que publicam todas. A tela de uma instalação pode
+publicar um **subconjunto**: a UnB 4.0.9 publica 11, sem
+`chkSinNivelPrioritarios` (Prioridade), observado no ensaio live de
+02/11/2026, em que a versão anterior deste comando falhou com
+`opcao_do_nivel_de_detalhe_ausente`.
 
 | Chave | Campo | Rótulo da opção | Cabeçalho na D |
 | --- | --- | --- | --- |
@@ -45,11 +50,16 @@ de texto em `colunas_ausentes` e lê as de ícone quando aparecem.
 {"unidade": "TESTE", "origem": "web",
  "opcoes": [{"coluna": "atribuicao", "campo": "chkSinAtribuicao",
              "rotulo": "Atribuição", "cabecalho": "Atribuição",
-             "cabecalho_tipo": "texto", "marcada": true}, ...]}
+             "cabecalho_tipo": "texto", "disponivel": true,
+             "marcada": true}, ...]}
 ```
 
-Sempre as 12, na ordem da tabela acima; `marcada` é a presença de
-`checked` na caixa. Saída humana: uma linha `[x]`/`[ ]` por opção.
+Sempre as 12 do catálogo, na ordem da tabela acima. `disponivel` diz se a
+tela publicou a caixa (escolha: um campo por opção, em vez de uma lista
+`indisponiveis` à parte, para a forma de cada opção não variar); `marcada`
+é a presença de `checked` na caixa, e é `false` quando `disponivel` é
+`false`. Saída humana: uma linha `[x]`/`[ ]` por opção publicada e `[-]`,
+com a indicação "indisponível nesta instalação", para as demais.
 
 ## Sequência e orçamento
 
@@ -76,9 +86,13 @@ mesmas recusas `visao_do_controle_nao_restaurada` e campos.
 | `onclick` fora da forma observada ou URL não autorizada | `link_do_nivel_de_detalhe_nao_reconhecido` |
 | Formulário `frmAcessoExternoCancelar` ausente ou repetido | `formulario_do_nivel_de_detalhe_ausente`, `formularios_do_nivel_de_detalhe_repetidos` |
 | `action` do formulário sem `acao=procedimento_configurar_detalhe` | `acao_do_formulario_do_nivel_de_detalhe_diferente` |
-| Uma das 12 caixas ausente ou repetida | `opcao_do_nivel_de_detalhe_ausente`, `opcao_do_nivel_de_detalhe_repetida` |
-| Caixa `chkSin*` fora das 12 | `opcao_do_nivel_de_detalhe_nao_prevista` |
-| `label for=` ausente ou com outro texto | `rotulo_da_opcao_do_nivel_de_detalhe_diferente` |
+| Nenhuma das 12 caixas publicada | `nenhuma_opcao_do_nivel_de_detalhe_publicada` |
+| Uma caixa do catálogo publicada duas vezes | `opcao_do_nivel_de_detalhe_repetida` |
+| Caixa `chkSin*` fora do catálogo (falha fechada) | `opcao_do_nivel_de_detalhe_nao_prevista` |
+| Caixa publicada com `label for=` ausente ou com outro texto | `rotulo_da_opcao_do_nivel_de_detalhe_diferente` |
+
+Opção do catálogo **ausente** não é recusa: sai com `disponivel: false`.
+`opcao_do_nivel_de_detalhe_ausente` deixa de existir.
 
 ## Evidência para a escrita futura (sem código nesta PR)
 
@@ -90,4 +104,7 @@ imediatamente na D. A configuração original foi restaurada e conferida por
 GET. Padrão desejado pelo proprietário: máximo de colunas, aplicado por
 escrita explícita feita uma vez.
 
-Ensaio offline com HTML sintético; live **NOT_RUN**.
+Ensaio offline com HTML sintético, inclusive uma tela de 11 opções na
+estrutura da UnB 4.0.9. Live (02/11/2026): PEN1 PASS (3 marcadas); UnB
+FAIL na versão anterior (Prioridade ausente), corrigido aqui, reensaio
+**NOT_RUN** ([validação](../../docs/validacao-live/2026-11-02-leitura-controle.md)).

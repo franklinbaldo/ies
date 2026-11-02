@@ -49,8 +49,13 @@ mais `colunas_ausentes`:
   texto único: `marcadores` não teve item observado (texto, até haver
   evidência). Colunas sem rótulo (seleção, ícones, ações) não entram.
 - `colunas_ausentes`: chaves das **nove** colunas configuráveis de
-  cabeçalho de texto que não vieram no cabeçalho; `[]` quando todas
-  estão presentes (máximo = 9 + Processo, decisão do proprietário).
+  cabeçalho de texto do catálogo que não vieram no cabeçalho; `[]` quando
+  todas estão presentes (máximo = 9 + Processo, decisão do proprietário).
+  Sem o GET da configuração (que este comando não faz), não diz se a
+  coluna **existe** na instalação: o catálogo do Nível de detalhe varia
+  por versão (a UnB 4.0.9 não publica Prioridade), então uma chave
+  ausente pode não ser marcável ali. `ies unidade colunas` publica a
+  disponibilidade (`disponivel`) de cada opção.
   Prazo, devolver e aguardando têm cabeçalho só de ícone e não contam
   aqui. A saída humana sugere marcá-las no Nível de detalhe; `ies unidade
   colunas` mostra a configuração (não há comando de escrita).
@@ -78,7 +83,7 @@ O comando **deixa a tela como a encontrou**. Requisições, sem retry:
 | Tela no GET | `--pagina` | Requisições |
 | --- | --- | --- |
 | R | ausente ou igual à página lembrada da D | 1 GET + 2 POST (D, R) |
-| R | N diferente da página lembrada da D | 1 GET + 3 POST (D, página N, R) |
+| R | N diferente da página lembrada da D | 1 GET + 4 POST (D, página N, página encontrada da D, R) |
 | D | ausente ou igual à página exibida | 1 GET |
 | D | N diferente da página exibida | 1 GET + 2 POST (página N, volta à página exibida) |
 
@@ -106,12 +111,24 @@ O comando **deixa a tela como a encontrou**. Requisições, sem retry:
    mesmas páginas (`hdnRecebidosPaginaAtual`, `hdnGeradosPaginaAtual`) do
    GET. Sessão já na D e página movida: POST da página exibida antes
    (`hdnDetalhadoPaginaAtual` original), com a faixa original.
-   Vindo da R, a página lembrada da D **não** é restaurada (custaria mais
-   um POST, e não é visível na R): fica na página N.
+   Vindo da R e com a página N diferente da encontrada, **antes** do POST R
+   a página lembrada da D é restaurada: POST da página que a D mostrou na
+   resposta do POST D (a **página encontrada** da D, o
+   `hdnDetalhadoPaginaAtual` dessa resposta), a partir da tela da página N.
+   A resposta precisa trazer a faixa da página encontrada (mesmas travas do
+   passo 4) e o mesmo `hdnDetalhadoPaginaAtual` da resposta do POST D.
+   Correção do ensaio live de 02/11/2026 (PEN1): sem esse POST, `--pagina 2`
+   deixava a D lembrando a página 2, e o `listar-processos` seguinte (e a
+   tela D do navegador) abria nela. N igual à página encontrada não faz
+   nem o POST de página nem o de volta.
 
 A restauração é tentada também quando um passo depois da troca falha
 (leitura da D, N fora do intervalo, POST de página); se ela passa, o erro
-publicado é o do passo. Se o próprio POST D falha, não há formulário D de
+publicado é o do passo. Um POST de página que falhou não dispara a volta à
+página encontrada (a resposta não comprovou para onde a D foi): o erro é o
+do POST e a página lembrada da D fica por conferir. Se a volta à página
+encontrada falha, o POST R ainda é tentado, a partir da última D válida.
+Se o próprio POST D falha, não há formulário D de
 onde restaurar: o erro é o do POST e o estado da sessão fica por conferir
 (GET manual).
 
@@ -123,7 +140,11 @@ escolha documentada na [decisão](../../docs/decisoes/unidade-listar-processos.m
 | Fato | Subcódigo | Campos a mais |
 | --- | --- | --- |
 | POST R falhou ou a resposta não confere | `visao_do_controle_nao_restaurada` | `visao_deixada: "D"`, `causa` |
-| Volta à página da D falhou ou não confere | `pagina_da_visao_detalhada_nao_restaurada` | `visao_deixada: "D"`, `pagina_deixada`, `causa` |
+| Volta à página da D falhou ou não confere | `pagina_da_visao_detalhada_nao_restaurada` | `visao_deixada` (`"D"` com a sessão já na D; `"R"` vindo da R, com a R restaurada), `pagina_deixada` (N), `causa` |
+
+Vindo da R, se a volta à página da D falha **e** o POST R também, o erro é
+`visao_do_controle_nao_restaurada` (`visao_deixada: "D"`, `causa` do POST R):
+a tela ficou na D, e a página lembrada da D fica por conferir.
 
 `causa` é o subcódigo da falha da restauração (por exemplo
 `status_http_de_erro_do_servidor`, `visao_do_controle_nao_trocada_apos_envio`,

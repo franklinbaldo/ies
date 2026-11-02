@@ -49,10 +49,10 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
 
 | Comando | Saída | Requisições |
 | --- | --- | --- |
-| `ies unidade listar-processos [--pagina N]` | **array** `[lista D]`, `categoria: null` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)) | 1 GET + 0 a 3 POST |
+| `ies unidade listar-processos [--pagina N]` | **array** `[lista D]`, `categoria: null` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)) | 1 GET + 0 a 4 POST |
 | `ies unidade recebidos` | **uma** lista, `categoria: "recebidos"` | 1 GET (sessão na D: + 2 POST) |
 | `ies unidade gerados` | **uma** lista, `categoria: "gerados"` | 1 GET (sessão na D: + 2 POST) |
-| `ies unidade recebidos\|gerados --pagina N` | uma lista, faixa da página N | 1 GET + 0 ou 1 POST (sessão na D: + 2 POST) |
+| `ies unidade recebidos\|gerados --pagina N` | uma lista, faixa da página N | 1 GET + 0 ou 1 POST (sessão na D: + 2 POST, e + 1 POST de volta à página encontrada se houve POST de página) |
 
 Com `--pagina N`, N fora do intervalo é `pagina_fora_do_intervalo`
 **antes** de qualquer POST; N igual à página mostrada não faz POST. A
@@ -72,14 +72,32 @@ troca para R e **deixa a tela como a encontrou** (decisão do proprietário,
    [páginas da caixa](unidade-listar-processos-paginas.md), a partir da R
    obtida. N fora do intervalo é recusado antes desse POST, mas depois do
    POST R (que é restaurado).
-4. **POST D** a partir do formulário da última R obtida; a resposta precisa
+4. Com a página N obtida: **POST da página encontrada** da categoria, a
+   partir da tela da página N. A página encontrada é a que a R mostrou na
+   resposta do POST R (`hdn{T}PaginaAtual` dessa resposta); o POST segue o
+   mesmo plano e as mesmas travas do passo 3, e a resposta precisa ter as
+   mesmas páginas (`hdnRecebidosPaginaAtual`, `hdnGeradosPaginaAtual`) e
+   os mesmos critérios da resposta do POST R.
+5. **POST D** a partir do formulário da última R obtida; a resposta precisa
    ser D da mesma unidade, com a mesma `hdnDetalhadoPaginaAtual` da tela do
    GET (a página lembrada da D não muda).
 
 Orçamento: 1 GET + 2 POST (R, D); com `--pagina N` diferente da página
-mostrada, 1 GET + 3 POST (R, página, D). A página da categoria pedida fica
-lembrada, como na sessão R. A restauração é tentada também se um passo
-depois do POST R falha. Falha da restauração: `visao_do_controle_nao_restaurada`,
+mostrada, 1 GET + 4 POST (R, página N, página encontrada, D). Pelo mesmo
+princípio da [visão detalhada](unidade-listar-processos-visao-detalhada.md)
+("deixar como encontrou"), a página que o comando moveu numa visão para a
+qual trocou é restaurada; só com a sessão **já na R** a página N da
+categoria fica lembrada, como nas [páginas da caixa](unidade-listar-processos-paginas.md).
+Um POST de página que falhou não dispara a volta (a página lembrada fica
+por conferir). A restauração da D é tentada também se um passo depois do
+POST R falha, inclusive a volta à página encontrada.
+
+| Fato | Subcódigo | Campos a mais |
+| --- | --- | --- |
+| Volta à página encontrada da R falhou ou não confere; a D foi restaurada | `pagina_da_visao_resumida_nao_restaurada` | `visao_deixada: "D"`, `categoria`, `pagina_deixada` (N), `causa` |
+
+Se a D também não é restaurada, o erro é `visao_do_controle_nao_restaurada`
+(`visao_deixada: "R"`), e a página da categoria fica por conferir. Falha da restauração: `visao_do_controle_nao_restaurada`,
 com `visao_deixada: "R"`, `causa`, `status_http` e `mensagem_do_servidor`
 quando houver, **sem lista** (as mesmas regras da
 [visão detalhada](unidade-listar-processos-visao-detalhada.md)).

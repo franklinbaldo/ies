@@ -216,8 +216,21 @@ Decisões de implementação:
 - **Fora do intervalo:** vindo da R, só o limite seguro `N > max(1, recebidos
   + gerados)` é recusado sem POST; o exato depende do tamanho da página da D,
   conhecido depois da troca (e então restaurado).
-- **Página lembrada da D:** vinda da R, não é restaurada (custaria mais um
-  POST e não aparece na R); com a sessão já na D, é.
+- **Página lembrada da D:** restaurada também vinda da R (revisão após o
+  ensaio live de 02/11/2026). A escolha inicial (não restaurar, poupando um
+  POST, porque a página da D não aparece na R) falhou o critério "deixar
+  como encontrou": na PEN1, `--pagina 2` deixou a D na página 2, e o
+  `listar-processos` seguinte (e a D do navegador) abriu nela. Agora, com N
+  diferente da página encontrada (o `hdnDetalhadoPaginaAtual` da resposta
+  do POST D), um POST volta a ela antes do POST R: R→página N custa 1 GET +
+  4 POST. Pelo mesmo princípio, `recebidos`/`gerados --pagina N` com a
+  sessão na D restauram a página da R (a da resposta do POST R) antes do
+  POST D: 1 GET + 4 POST. Só com a sessão já na R a página N da categoria
+  fica lembrada (não houve troca, e a lista pedida é a da tela). Falha da
+  volta: `pagina_da_visao_detalhada_nao_restaurada` (`visao_deixada: "R"`
+  vindo da R) ou `pagina_da_visao_resumida_nao_restaurada`, depois de
+  tentar a restauração da visão; um POST de página que falhou não dispara
+  a volta (destino não comprovado).
 - **Células com vários valores:** só Interessados, cujos itens o HTML separa
   em `div.divRotuloItemCelula` (PEN1, até 6), vira array; Marcadores fica
   texto até haver evidência, e itens inesperados numa coluna de texto são
@@ -227,6 +240,17 @@ Decisões de implementação:
   com as 12 marcadas na PEN1, as de ícone não viraram coluna; a captura de GO
   (12 marcadas) e a da UnB mostram-nas como colunas de ícone, lidas quando
   aparecem. Divergência a conferir no ensaio live.
+- **Catálogo do Nível de detalhe por versão:** as 12 opções são o catálogo
+  conhecido; a tela pode publicar um subconjunto (UnB 4.0.9: 11, sem
+  Prioridade; ensaio live de 02/11/2026, que falhou com
+  `opcao_do_nivel_de_detalhe_ausente`). Alternativas: (a) catálogo por
+  versão declarada (descartada: `VersaoSei` é metadado opcional, não
+  predição); (b) aceitar o subconjunto publicado e marcar cada opção com
+  `disponivel` (escolhida); (c) uma lista `indisponiveis` à parte
+  (descartada: duas formas para o mesmo fato). Caixa fora do catálogo,
+  repetida, com rótulo trocado ou nenhuma publicada continuam recusas.
+  `colunas_ausentes` de `listar-processos` não muda (sem GET da
+  configuração) e é documentada como "do catálogo, não observadas".
 - **`ies unidade colunas`**: só leitura, pelo link da D; com a sessão em R,
   1 GET + POST D + GET + POST R. A escrita (padrão "máximo de colunas", por
   comando explícito com prévia e confirmação) fica para PR futura; a
@@ -240,6 +264,11 @@ Decisões de implementação:
 Testes: [visão e restauração](../../src/visao_do_controle/tests_fluxo.rs),
 [recebidos/gerados e colunas](../../src/visao_do_controle/tests_resumida.rs),
 [colunas da D](../../src/caixa_detalhada/tests_colunas.rs) e
-[superfície](../../tests/cli_unidade_listas.rs). Ensaio live: **NOT_RUN**.
+[superfície](../../tests/cli_unidade_listas.rs) e
+[Nível de detalhe](../../src/nivel_de_detalhe/tests.rs). Ensaio live de
+02/11/2026 em PEN1, UnB e GO
+([relato](../validacao-live/2026-11-02-leitura-controle.md)): troca e
+restauração da visão PASS; página lembrada da D vinda da R e `colunas` na
+UnB FAIL, corrigidos nesta revisão; reensaio **NOT_RUN**.
 Revisar se o live mostrar a R restaurada com outra página ou critério, a D
 lembrada fora do previsto, 302 na troca ou colunas de ícone ausentes.

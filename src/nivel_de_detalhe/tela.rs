@@ -16,10 +16,18 @@ pub(crate) enum ErroNivelDeDetalhe {
     FormularioDoNivelDeDetalheAusente,
     FormulariosDoNivelDeDetalheRepetidos,
     AcaoDoFormularioDoNivelDeDetalheDiferente,
-    OpcaoDoDetalheAusente { coluna: ColunaDoDetalhe },
-    OpcaoDoDetalheRepetida { coluna: ColunaDoDetalhe },
+    OpcaoDoDetalheAusente {
+        coluna: ColunaDoDetalhe,
+    },
+    /// O formulário não publica nenhuma das 12 caixas do catálogo.
+    NenhumaOpcaoDoDetalhePublicada,
+    OpcaoDoDetalheRepetida {
+        coluna: ColunaDoDetalhe,
+    },
     OpcaoDoDetalheNaoPrevista,
-    RotuloDaOpcaoDoDetalheDiferente { coluna: ColunaDoDetalhe },
+    RotuloDaOpcaoDoDetalheDiferente {
+        coluna: ColunaDoDetalhe,
+    },
     AtributoHtml(ErroAtributoHtml),
 }
 
@@ -35,6 +43,7 @@ impl ErroNivelDeDetalhe {
                 "acao_do_formulario_do_nivel_de_detalhe_diferente"
             }
             Self::OpcaoDoDetalheAusente { .. } => "opcao_do_nivel_de_detalhe_ausente",
+            Self::NenhumaOpcaoDoDetalhePublicada => "nenhuma_opcao_do_nivel_de_detalhe_publicada",
             Self::OpcaoDoDetalheRepetida { .. } => "opcao_do_nivel_de_detalhe_repetida",
             Self::OpcaoDoDetalheNaoPrevista => "opcao_do_nivel_de_detalhe_nao_prevista",
             Self::RotuloDaOpcaoDoDetalheDiferente { .. } => {
@@ -126,7 +135,11 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
         if rotulos.get(coluna.campo()).map(String::as_str) != Some(coluna.rotulo()) {
             return Err(E::RotuloDaOpcaoDoDetalheDiferente { coluna });
         }
-        opcoes.push(OpcaoDoDetalhe { coluna, marcada });
+        opcoes.push(OpcaoDoDetalhe {
+            coluna,
+            disponivel: true,
+            marcada,
+        });
     }
     Ok(NivelDeDetalhe { opcoes })
 }

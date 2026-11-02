@@ -161,14 +161,17 @@ impl ColunaDoDetalhe {
     }
 }
 
-/// Uma opção da tela e se está marcada (`checked`).
+/// Uma opção do catálogo: se a tela a publica e se está marcada (`checked`).
+/// Opção não publicada (`disponivel: false`, como Prioridade na `UnB` 4.0.9)
+/// tem `marcada: false`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct OpcaoDoDetalhe {
     pub(crate) coluna: ColunaDoDetalhe,
+    pub(crate) disponivel: bool,
     pub(crate) marcada: bool,
 }
 
-/// As 12 opções, na ordem de [`ColunaDoDetalhe::TODAS`].
+/// As 12 opções do catálogo, na ordem de [`ColunaDoDetalhe::TODAS`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NivelDeDetalhe {
     pub(crate) opcoes: Vec<OpcaoDoDetalhe>,
@@ -190,6 +193,7 @@ impl NivelDeDetalhe {
                     "rotulo": opcao.coluna.rotulo(),
                     "cabecalho": cabecalho,
                     "cabecalho_tipo": tipo,
+                    "disponivel": opcao.disponivel,
                     "marcada": opcao.marcada,
                 })
             })

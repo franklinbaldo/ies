@@ -129,7 +129,7 @@ para outras interfaces. `status` não testa rede nem declara autenticação.
   caminhos de arquivos privados definidos em variáveis de ambiente, pela
   visão detalhada: um array com uma lista `categoria: null`, a categoria
   observada e as colunas de cada processo, e `colunas_ausentes`; troca de
-  visão e restaura a encontrada (1 GET + 0 a 3 POST). `ies unidade
+  visão e restaura a encontrada (1 GET + 0 a 4 POST). `ies unidade
   recebidos` e `ies unidade gerados` devolvem uma lista da visão resumida,
   com `--pagina N`. Ver a [visão detalhada](contracts/cli/unidade-listar-processos-visao-detalhada.md)
   e as [listas](contracts/cli/unidade-recebidos-gerados.md).

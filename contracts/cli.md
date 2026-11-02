@@ -87,10 +87,12 @@ Invariante de **toda** leitura paginada da CLI:
   troca restaurada). A página obtida confere unidade, visualização e
   critérios da tela de origem; não há retry. O efeito é
   `PaginaOuFiltroLembrado`: a leitura seguinte pode mostrar a página N, e a
-  faixa publicada diz qual é. A página lembrada só é restaurada quando a
-  própria lista pedida já estava na tela (sessão já na D em
-  `listar-processos`); toda troca de visão é restaurada, e a falha da
-  restauração é erro tipado que diz onde a tela ficou, sem lista.
+  faixa publicada diz qual é. Só `recebidos`/`gerados --pagina N` com a
+  sessão já na R deixam a página N lembrada; quando o comando troca de
+  visão, ou lê a D já exibida, a página que moveu é restaurada à
+  **página encontrada** (a da tela do GET ou da resposta da troca) antes
+  da volta. Toda troca de visão é restaurada, e a falha da restauração é
+  erro tipado que diz onde a tela ficou, sem lista.
 
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
