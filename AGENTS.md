@@ -186,10 +186,10 @@ usa replay offline ou sessão existente; **não faz login** por conta própria:
 quem autentica é só o [`ies login`](contracts/cli/sessao-login.md), que grava a
 sessão nos mesmos arquivos `0600` (sem relogin automático). POSTs de
 leitura só nos fluxos observados e contratados: troca de visão, página
-por `--pagina N` (nunca percorrer todas as páginas) e pesquisa. Leituras
-**não restauram** a visão nem a página lembrada (decisão do proprietário:
-restaurar gasta requests); a sessão fica onde o comando a deixou, e toda
-saída publica `faixa_observada`. Escrita só com prévia, `--confirmar` e
+por `--pagina N` (nunca percorrer todas as páginas) e pesquisa. Toda
+leitura que muda estado da sessão **deixa a tela como encontrou**
+(visão e páginas restauradas e conferidas por leitura); falha na
+restauração é erro tipado. Escrita só com prévia, `--confirmar` e
 verificação por leitura; efeito incerto sai com código 3, sem retry.
 Recusas HTTP expõem `status_http` e a mensagem saneada do SEI.
 Nunca passe URLs assinadas ou cookies como argumentos de processo:
