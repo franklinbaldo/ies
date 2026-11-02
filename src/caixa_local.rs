@@ -95,6 +95,10 @@ struct Linha {
     id: String,
     numero: String,
     visualizado: bool,
+    // Exportações anteriores não tinham o campo: aquelas versões recusavam
+    // qualquer linha sem as classes não sigilosas, logo a ausência é `false`.
+    #[serde(default)]
+    sigiloso: bool,
 }
 
 fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, ErroCaixaLocal> {
@@ -117,6 +121,7 @@ fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, Err
             id,
             numero: linha.numero,
             visualizado: linha.visualizado,
+            sigiloso: linha.sigiloso,
         });
     }
     Tabela::nova(categoria, secao.total_declarado, processos).map_err(|erro| match erro {
@@ -193,6 +198,17 @@ mod tests {
         assert_eq!(observada.unidade.as_deref(), Some("PPI"));
         assert_eq!(observada.caixa.recebidos.processos[0].numero, "000123/2026");
         assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
+    }
+    #[test]
+    fn sigiloso_exportado_e_preservado_e_ausencia_antiga_e_nao_sigiloso() {
+        let antiga = interpretar(&caixa(), None).unwrap();
+        assert!(!antiga.caixa.recebidos.processos[0].sigiloso);
+        let nova = caixa().replace(
+            "\"visualizado\":false",
+            "\"visualizado\":false,\"sigiloso\":true",
+        );
+        let observada = interpretar(&nova, None).unwrap();
+        assert!(observada.caixa.recebidos.processos[0].sigiloso);
     }
     #[test]
     fn recusa_total_que_nao_comprova_todas_as_linhas_da_categoria() {

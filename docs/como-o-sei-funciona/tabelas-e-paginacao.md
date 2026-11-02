@@ -56,3 +56,17 @@ anotação, sinalizações e ações disponíveis na linha.
 total de registros, intervalos, número de linhas e transições.
 Ausência de cursor não prova universalmente fim dos dados.
 Uma listagem incompleta/indeterminada precisa informar isso.
+
+## Classes do link de processo no Controle
+
+SEI Goiás 5.0.3 treinamento, 02/11/2026: link de processo sigiloso
+com classe `processoVisualizadoSigiloso` em `tblProcessosGerados`,
+ao lado de `processoVisualizado` nas demais linhas. O acervo de
+Goiás já tinha a classe em `tblAcompanhamentos`. O par
+`processoNaoVisualizadoSigiloso` decorre da nomenclatura e não foi
+observado. O número de processo em Goiás tem 15 dígitos sem pontuação
+e permanece opaco.
+
+No acervo arquivado de Goiás, a visão resumida pagina com
+`lnkRecebidosProximaPagina*`, `selRecebidosPaginacao*` e
+`hdnRecebidosPaginaAtual` (idem Gerados), não `lnkInfra*`; a legenda `(N registros - 1 a 10):` declara a faixa.

@@ -16,6 +16,7 @@ pub enum ErroCaixa {
     NumeroInvalido { categoria: Categoria, id: String },
     MaisDeUmNumeroNaLinhaDoProcesso { categoria: Categoria, id: String },
     LinkDoProcessoNaoIdentificadoNaLinha { categoria: Categoria, id: String },
+    ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria: Categoria, id: String },
     TotalExcedido { categoria: Categoria },
     TotaisDeclaradosDiferentesEntrePaginas { categoria: Categoria },
     FaixaInvalida { categoria: Categoria },
@@ -50,6 +51,9 @@ impl ErroCaixa {
             Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
             Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => {
                 "link_do_processo_nao_identificado_na_linha"
+            }
+            Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { .. } => {
+                "classes_de_estado_diferentes_no_link_do_processo"
             }
             Self::TotalExcedido { .. } => "total_excedido",
             Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
@@ -91,6 +95,7 @@ impl ErroCaixa {
             | Self::NumeroInvalido { categoria, .. }
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { categoria, .. }
             | Self::LinkDoProcessoNaoIdentificadoNaLinha { categoria, .. }
+            | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria, .. }
             | Self::TotalExcedido { categoria }
             | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
             | Self::FaixaInvalida { categoria }
@@ -105,7 +110,8 @@ impl ErroCaixa {
             Self::IdRepetido { id, .. }
             | Self::NumeroInvalido { id, .. }
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. }
-            | Self::LinkDoProcessoNaoIdentificadoNaLinha { id, .. } => Some(id),
+            | Self::LinkDoProcessoNaoIdentificadoNaLinha { id, .. }
+            | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { id, .. } => Some(id),
             _ => None,
         }
     }

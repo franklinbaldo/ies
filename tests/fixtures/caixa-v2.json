@@ -9,15 +9,23 @@
       {
         "id": "42",
         "numero": "23106.000001/2026-01",
+        "sigiloso": false,
         "visualizado": true
       },
       {
         "id": "43",
         "numero": "23106.000002/2026-02",
+        "sigiloso": false,
         "visualizado": false
+      },
+      {
+        "id": "44",
+        "numero": "001234500000015",
+        "sigiloso": true,
+        "visualizado": true
       }
     ],
-    "total_declarado": 2
+    "total_declarado": 3
   },
   "unidade": "TESTE"
 }

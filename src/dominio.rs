@@ -25,6 +25,8 @@ pub struct Processo {
     pub id: IdProcedimento,
     pub numero: String,
     pub visualizado: bool,
+    /// Observado pela classe `processo*Sigiloso` do link; não inferido.
+    pub sigiloso: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,10 +92,11 @@ mod tests {
             id: IdProcedimento::novo("0042").unwrap(),
             numero: "23106.000001/2026-01".into(),
             visualizado: true,
+            sigiloso: false,
         };
         assert_eq!(
             serde_json::to_string(&p).unwrap(),
-            r#"{"id":"0042","numero":"23106.000001/2026-01","visualizado":true}"#
+            r#"{"id":"0042","numero":"23106.000001/2026-01","visualizado":true,"sigiloso":false}"#
         );
     }
     #[test]

@@ -8,10 +8,11 @@ use std::process::Command;
 
 const HTML: &str = r#"<html><body>
 <a id="lnkInfraUnidade">TESTE</a>
-<table id="tblProcessosRecebidos"><caption>2 registros:</caption>
+<table id="tblProcessosRecebidos"><caption>3 registros:</caption>
 <tr><th>Número</th></tr>
 <tr id="P42"><td><a class="processoVisualizado" href="controlador.php?acao=procedimento_trabalhar&amp;infra_hash=SEGREDO">23106.000001/2026-01</a></td></tr>
 <tr id="P43"><td><a class="processoNaoVisualizado" href="controlador.php?acao=procedimento_trabalhar">23106.000002/2026-02</a></td></tr>
+<tr id="P44"><td><a class="processoVisualizadoSigiloso" href="controlador.php?acao=procedimento_trabalhar">001234500000015</a></td></tr>
 </table>
 <table id="tblProcessosGerados"><caption>0 registros:</caption></table>
 </body></html>"#;
@@ -85,10 +86,15 @@ fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(result["recebidos"].get("completa").is_none());
     assert!(result["gerados"].get("completa").is_none());
-    assert_eq!(result["recebidos"]["total_declarado"], 2);
+    assert_eq!(result["recebidos"]["total_declarado"], 3);
     assert_eq!(result["gerados"]["total_declarado"], 0);
     assert_eq!(result["recebidos"]["processos"][0]["id"], "42");
     assert_eq!(result["recebidos"]["processos"][1]["visualizado"], false);
+    assert_eq!(result["recebidos"]["processos"][2]["sigiloso"], true);
+    assert_eq!(
+        result["recebidos"]["processos"][2]["numero"],
+        "001234500000015"
+    );
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(!stdout.contains("SEGREDO"));
     assert!(!stdout.contains("infra_hash"));
