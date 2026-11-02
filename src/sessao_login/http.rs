@@ -90,13 +90,13 @@ fn requisitar(
         );
     }
     pedido.push_str("\r\n");
-    let endereco = (host, 443)
+    // Cada endereço resolvido é uma tentativa de conexão TCP, não de pedido:
+    // nada foi enviado antes de uma delas abrir.
+    let tcp = (host, 443)
         .to_socket_addrs()
         .map_err(|_| FalhaTransporte::Rede)?
-        .next()
+        .find_map(|endereco| TcpStream::connect_timeout(&endereco, TEMPO_LIMITE).ok())
         .ok_or(FalhaTransporte::Rede)?;
-    let tcp =
-        TcpStream::connect_timeout(&endereco, TEMPO_LIMITE).map_err(|_| FalhaTransporte::Rede)?;
     tcp.set_read_timeout(Some(TEMPO_LIMITE))
         .and_then(|()| tcp.set_write_timeout(Some(TEMPO_LIMITE)))
         .map_err(|_| FalhaTransporte::Rede)?;
