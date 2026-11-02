@@ -4,6 +4,7 @@
 mod codificacao;
 mod erro;
 mod leitura;
+mod login;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
@@ -15,6 +16,7 @@ pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
+pub(crate) use login::derivar_submissao_de_login;
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -25,6 +27,8 @@ pub(crate) enum EstadoDeSessao {
     PaginaOuFiltroLembrado,
     UnidadeAtual,
     PreferenciaDeVisualizacao,
+    /// O login cria a sessão autenticada (cookies) no servidor.
+    SessaoAutenticada,
 }
 
 /// Preferência persistente do usuário, que sobrevive à sessão.
@@ -58,6 +62,10 @@ pub(crate) enum EnvioDoFormulario {
     BotaoDeEnvio(&'static str),
     /// O JavaScript observado chama `submit()`: nenhum botão participa.
     SubmitPorScript,
+    /// Botão `type=submit` com este nome é servido (exatamente um), mas o
+    /// `onsubmit` observado o desabilita antes de o navegador montar o
+    /// corpo: ele não participa.
+    BotaoDesabilitadoPeloOnsubmit(&'static str),
 }
 
 /// Declaração `const` feita pela própria operação; não há catálogo central.
@@ -252,6 +260,26 @@ fn ordenar_campos<'c>(
     Ok(ordenados)
 }
 
+/// Corpo `application/x-www-form-urlencoded` no charset da tela.
+fn codificar_corpo(
+    ordenados: &[(&str, &str)],
+    codificacao: CodificacaoDaTela,
+) -> Result<String, ErroSubmissaoFormulario> {
+    let mut corpo = String::new();
+    for (i, (nome, valor)) in ordenados.iter().enumerate() {
+        if i > 0 {
+            corpo.push('&');
+        }
+        let nao_representavel = || ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao {
+            campo: (*nome).to_owned(),
+        };
+        codificar(nome, codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+        corpo.push('=');
+        codificar(valor, codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+    }
+    Ok(corpo)
+}
+
 /// Deriva a submissão do formulário servido, sem rede.
 pub(crate) fn derivar_submissao(
     operacao: &OperacaoDeFormulario,
@@ -291,18 +319,7 @@ pub(crate) fn derivar_submissao(
     let url = resolver_action(form, &servida, instalacao, operacao)?;
     let controles = ler_controles(form, dom.parser(), operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
-    let mut corpo = String::new();
-    for (i, (nome, valor)) in ordenados.iter().enumerate() {
-        if i > 0 {
-            corpo.push('&');
-        }
-        let nao_representavel = || E::ValorNaoRepresentavelNaCodificacao {
-            campo: (*nome).to_owned(),
-        };
-        codificar(nome, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
-        corpo.push('=');
-        codificar(valor, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
-    }
+    let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {
         url,
         host: servida.host.to_owned(),
@@ -436,3 +453,7 @@ mod tests_reescrita;
 #[cfg(test)]
 #[path = "formulario_web/tests_conferencia.rs"]
 mod tests_conferencia;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_login.rs"]
+mod tests_login;

@@ -2,6 +2,7 @@
 //! (contracts/cli/unidade-definir-colunas.md): prévia sem escrita; com
 //! `--confirmar`, um POST de salvar, conferido por leitura. Erro de uso sai
 //! com 2 antes de ler a configuração (sem requisição); efeito incerto, com 3.
+//! Vinda da R, a sessão fica na D.
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroDaListaDeColunas};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::visao_do_controle::{
@@ -43,7 +44,7 @@ pub(crate) fn definir_colunas(
         html: tela.html,
         mime: tela.mime,
     };
-    let desfecho: visao_do_controle::DesfechoDasColunas = visao_do_controle::definir_colunas(
+    match visao_do_controle::definir_colunas(
         &tela.instalacao,
         &atual,
         unidade,
@@ -51,9 +52,8 @@ pub(crate) fn definir_colunas(
         confirmar,
         &arquivos.cookie,
         &mut EnvioHttps,
-    );
-    match (desfecho.resultado, desfecho.visao_nao_restaurada) {
-        (Ok(feito), None) => {
+    ) {
+        Ok(feito) => {
             if json_mode {
                 println!(
                     "{}",
@@ -64,21 +64,12 @@ pub(crate) fn definir_colunas(
             }
             ExitCode::SUCCESS
         }
-        // A escrita (se houve) não é escondida pela falha da volta à R.
-        (Ok(feito), Some(volta)) => {
-            let mut valor = json_da_visao(&volta);
-            if let Some(objeto) = valor.as_object_mut() {
-                objeto.insert("alterado".to_owned(), json!(feito.alterado));
-                objeto.insert("depois".to_owned(), opcional(feito.depois.as_deref()));
-            }
-            publicar_falha(json_mode, &valor, volta.mensagem(), 1)
-        }
         // Nada foi salvo: a mesma falha de `ies unidade colunas`.
-        (Err(ErroDefinirColunas::Leitura(erro)), None) => {
+        Err(ErroDefinirColunas::Leitura(erro)) => {
             crate::unidade_lista_cli::erro_da_visao(json_mode, &erro)
         }
-        (Err(erro), volta) => {
-            let valor = json_de_falha(&erro, volta.as_ref());
+        Err(erro) => {
+            let valor = json_de_falha(&erro);
             publicar_falha(json_mode, &valor, erro.mensagem(), erro.saida())
         }
     }
@@ -161,21 +152,11 @@ pub(crate) fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
 }
 
 fn json_da_visao(erro: &ErroVisaoDoControle) -> Value {
-    let mut valor =
-        saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http());
-    if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
-        && let Some(extra) = detalhes.as_object()
-    {
-        objeto.extend(extra.clone());
-    }
-    valor
+    saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http())
 }
 
-/// JSON da falha; `volta` é a falha da restauração da R, se houve.
-pub(crate) fn json_de_falha(
-    erro: &ErroDefinirColunas,
-    volta: Option<&ErroVisaoDoControle>,
-) -> Value {
+/// JSON da falha.
+pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
     let mut valor = match erro {
         ErroDefinirColunas::Leitura(leitura) => json_da_visao(leitura),
         _ => json!({
@@ -222,14 +203,6 @@ pub(crate) fn json_de_falha(
             };
             objeto.insert("observadas".to_owned(), observadas);
             objeto.insert("verificacao".to_owned(), lida);
-        }
-    }
-    if let Some(volta) = volta {
-        objeto.insert("restauracao".to_owned(), json!(volta.subcodigo()));
-        if let Some(Value::Object(extra)) = volta.detalhes_json()
-            && let Some(deixada) = extra.get("visao_deixada")
-        {
-            objeto.insert("visao_deixada".to_owned(), deixada.clone());
         }
     }
     valor

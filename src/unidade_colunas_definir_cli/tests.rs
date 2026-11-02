@@ -3,7 +3,7 @@ use super::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
-use crate::visao_do_controle::{FalhaDoSalvar, VerificacaoDasColunas, Visao};
+use crate::visao_do_controle::{FalhaDoSalvar, VerificacaoDasColunas};
 
 fn plano() -> PlanoDasColunas {
     PlanoDasColunas {
@@ -90,7 +90,7 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
             ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
         )),
     };
-    let valor = json_de_falha(&erro, None);
+    let valor = json_de_falha(&erro);
     assert_eq!(valor["codigo"], "efeito_incerto");
     assert_eq!(
         valor["subcodigo"],
@@ -110,28 +110,11 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
 }
 
 #[test]
-fn falha_de_volta_a_r_acompanha_o_erro_da_escrita() {
-    let erro = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
-        plano: Box::new(plano()),
-        observadas: vec![C::Marcadores],
-    };
-    let volta = ErroVisaoDoControle::VisaoDoControleNaoRestaurada {
-        visao_deixada: Visao::Detalhada,
-        causa: Box::new(ErroVisaoDoControle::Transporte(FalhaTransporte::Rede)),
-    };
-    let valor = json_de_falha(&erro, Some(&volta));
-    assert_eq!(valor["codigo"], "escrita_diferente_da_solicitada");
-    assert_eq!(valor["observadas"], json!(["marcadores"]));
-    assert_eq!(valor["visao_deixada"], "D");
-    assert_eq!(valor["restauracao"], "visao_do_controle_nao_restaurada");
-}
-
-#[test]
 fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
     let erro = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
         coluna: C::Prioridade,
     };
-    let valor = json_de_falha(&erro, None);
+    let valor = json_de_falha(&erro);
     assert_eq!(valor["codigo"], "fonte_invalida");
     assert_eq!(valor["subcodigo"], "coluna_indisponivel_nesta_instalacao");
     assert_eq!(valor["coluna"], "prioridade");

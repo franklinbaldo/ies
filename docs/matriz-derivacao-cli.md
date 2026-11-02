@@ -34,7 +34,7 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
-## Matriz: 17 caminhos principais já expostos
+## Matriz: 18 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -46,13 +46,14 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento salvar DOC` | **PARCIAL LOCAL**; `--confirmar` remoto bloqueado | Prévia, diff/cópias de trabalho locais e inventário versionado | Detectar versão/assinatura/conflitos no SEI; salvar com efeito e reconciliação; preservar rascunhos | [#89](https://github.com/franklinbaldo/ies/issues/89) |
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
-| `ies unidade listar-processos [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Visão D com colunas, categoria observada na R do mesmo GET e `colunas_ausentes`; troca R→D→R ou D direta, tela restaurada, inclusive a página lembrada da D; 1 GET + 0 a 4 POST | Ensaio live da troca e da restauração por instalação; efeito `PreferenciaDeVisualizacao`; colunas de ícone na PEN1 | [contrato](../contracts/cli/unidade-listar-processos-visao-detalhada.md) |
-| `ies unidade colunas [--definir todas\|LISTA [--confirmar]]` | **PARCIAL WEB** (`--definir`: PENDENTE PR) | 12 opções do catálogo do Nível de detalhe com `disponivel` (a UnB 4.0.9 publica 11) e `marcada`; D: 2 GET; R: 2 GET + 2 POST. `--definir`: prévia sem salvar; `--confirmar`: 1 POST de salvar + 1 GET de verificação, reconciliação e saída 3 | Ensaio live da leitura e da escrita | [leitura](../contracts/cli/unidade-colunas.md), [escrita](../contracts/cli/unidade-definir-colunas.md) |
-| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e restaura a D (+2 POST; com página N, +1 POST que restaura a página da R) | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
+| `ies unidade listar-processos [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Visão D com colunas, categoria observada na R do mesmo GET e `colunas_ausentes`; troca R→D sem volta ou D direta, sem restaurar visão nem página (a sessão fica na D); 1 GET + 0 a 2 POST, 1 GET em regime estável | Ensaio live da troca sem restauração por instalação; efeito `PreferenciaDeVisualizacao`; colunas de ícone na PEN1 | [contrato](../contracts/cli/unidade-listar-processos-visao-detalhada.md) |
+| `ies unidade colunas [--definir todas\|LISTA [--confirmar]]` | **PARCIAL WEB** (`--definir`: PENDENTE PR) | 12 opções do catálogo do Nível de detalhe com `disponivel` (a UnB 4.0.9 publica 11) e `marcada`; D: 2 GET; R: 2 GET + 1 POST D, e a sessão fica na D. `--definir`: prévia sem salvar; `--confirmar`: 1 POST de salvar + 1 GET de verificação, reconciliação e saída 3 | Ensaio live da leitura e da escrita | [leitura](../contracts/cli/unidade-colunas.md), [escrita](../contracts/cli/unidade-definir-colunas.md) |
+| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e fica nela (+1 POST) | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
+| `ies login [--forcar]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Login pela tela servida da raiz (SIP e módulo de Goiás), credenciais em arquivo `0600`, órgão exato, `hdnAcao` e botão observados, Painel pelo link do menu, gravação atômica por geração sob lock; sessão válida: 1 GET | Ensaio live por instalação (UnB, PEN1, UFRJ, GO); mensagem real de credencial recusada; relogin nos outros comandos só depois de falha tipada de sessão vencida (futuro) | [contrato](../contracts/cli/sessao-login.md) |
 | `ies esquema` | **PARCIAL LOCAL** | Lista nomes de comandos e versão | Entregar contrato/esquema útil se necessário, usando o comando existente; não criar outro inventário de comandos | [código](../src/esquema_cli.rs) |
 | `ies replay CENARIO` | **LOCAL** no acervo suportado | Reproduz capturas/cassettes verificadas offline: caixa, pesquisa, documento e histórico | É oráculo de testes, não substitui implementação Web dos comandos acima | [guia](replay.md) |
 
@@ -125,8 +126,9 @@ autoriza outros verbos.
 
 **PENDENTE PR (visão detalhada por padrão, decisão do proprietário,
 02/11/2026):** `listar-processos` lê a visão D (uma lista com colunas e a
-categoria observada por processo), troca e restaura a visão encontrada, e
-volta a ter `--pagina N` (página da D); `--pagina-arquivo` sai. `unidade
+categoria observada por processo), troca de visão sem restaurar (a sessão
+fica na D; decisão do proprietário, 02/11/2026: restaurar desperdiçava
+requisições), e volta a ter `--pagina N` (página da D, que fica lembrada); `--pagina-arquivo` sai. `unidade
 colunas` lê o Nível de detalhe sem salvar. A
 [decisão](decisoes/unidade-listar-processos.md) registra a exceção à regra
 de não criar verbos para `colunas`, que integra a mesma operação.
@@ -138,14 +140,24 @@ operação `unidade.definir_colunas`, a primeira **escrita** remota do IES: a
 opção pertence ao comando já exposto (não é verbo novo) e substitui a
 alternativa de salvar e restaurar a cada listagem. Sem `--confirmar`, prévia
 com os campos do POST e zero escrita; com ele, um POST de salvar e um GET de
-verificação, reconciliação por leitura e saída 3 para efeito incerto; a tela
-do Controle volta como foi encontrada. `listar-processos` passa a sugerir
+verificação, reconciliação por leitura e saída 3 para efeito incerto; vinda
+da R, a sessão fica na D. `listar-processos` passa a sugerir
 `--definir todas` para as `colunas_ausentes`; `ies setup` não aplica nada.
 Offline com telas sintéticas de 12 e 11 opções; ensaio live **NOT_RUN**
 ([decisão](decisoes/unidade-definir-colunas.md),
 [roteiro](validacao-live/roteiro-definir-colunas.md)).
 
-**Critério de contagem:** 17 caminhos operacionais, desconsiderando
+**PENDENTE PR (login nativo, decisão do proprietário, 02/11/2026):** `ies
+login [--forcar]` é a operação `sessao.login`, um comando novo por decisão
+do proprietário: até aqui a sessão vinha do Todos ou do navegador, copiada
+à mão. Lê a origem, confere a sessão gravada com 1 GET (válida: sem login),
+loga pela raiz (2 ou 3 GETs, 1 POST e os saltos até o Controle) e grava
+cookie e URL de forma atômica, com marcador de geração e lock. Os outros
+comandos continuam sem login automático. Offline com telas sintéticas das
+quatro famílias; ensaio live **NOT_RUN**
+([decisão](decisoes/sessao-login.md), [roteiro](validacao-live/roteiro-login.md)).
+
+**Critério de contagem:** 18 caminhos operacionais (o 18º é `ies login`, PENDENTE PR), desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
 capacidades independentes. As 129 operações do inventário do Todos são

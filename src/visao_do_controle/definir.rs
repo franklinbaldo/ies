@@ -1,16 +1,15 @@
 //! `ies unidade colunas --definir todas|LISTA [--confirmar]`: lê o Nível de
 //! detalhe pelo link da D, planeja, e só com `--confirmar` salva uma vez e
-//! confere por um GET da mesma tela. A tela do Controle fica como foi
-//! encontrada. Orçamentos em contracts/cli/unidade-definir-colunas.md.
+//! confere por um GET da mesma tela. Vinda da R, a sessão fica na D.
+//! Orçamentos em contracts/cli/unidade-definir-colunas.md.
 use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::definir_erro::{
-    ColunasDefinidas, DesfechoDasColunas, ErroDefinirColunas as D, FalhaDoSalvar,
-    VerificacaoDasColunas,
+    ColunasDefinidas, ErroDefinirColunas as D, FalhaDoSalvar, VerificacaoDasColunas,
 };
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::nivel::{link_do_nivel_de_detalhe, obter_tela_do_nivel};
-use super::passos::{conferir_resumida_restaurada, contexto, trocar, unidade_da_tela};
+use super::passos::{contexto, trocar, unidade_da_tela};
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
@@ -24,6 +23,7 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use std::path::Path;
 
 /// Sem rede antes da tela do Controle já obtida; nenhum envio é repetido.
+/// Vinda da R, troca para D e fica nela.
 pub(crate) fn definir_colunas<V: EnvioDoControle>(
     instalacao: &Instalacao,
     tela: &TelaAtual,
@@ -32,19 +32,9 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     confirmar: bool,
     cookie_file: &Path,
     envio: &mut V,
-) -> DesfechoDasColunas {
-    let sem_volta = |resultado| DesfechoDasColunas {
-        resultado,
-        visao_nao_restaurada: None,
-    };
-    let encontrado = match contexto(&tela.html) {
-        Ok(encontrado) => encontrado,
-        Err(erro) => return sem_volta(Err(D::Leitura(erro))),
-    };
-    let unidade = match unidade_da_tela(&encontrado, unidade_solicitada) {
-        Ok(unidade) => unidade,
-        Err(erro) => return sem_volta(Err(D::Leitura(erro))),
-    };
+) -> Result<ColunasDefinidas, D> {
+    let encontrado = contexto(&tela.html).map_err(D::Leitura)?;
+    let unidade = unidade_da_tela(&encontrado, unidade_solicitada).map_err(D::Leitura)?;
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
@@ -53,27 +43,13 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     };
     let pedido = Pedido { alvo, confirmar };
     if encontrado.eh_detalhada() {
-        return sem_volta(na_detalhada(&mut sessao, tela, &pedido));
+        return na_detalhada(&mut sessao, tela, &pedido);
     }
     if !encontrado.eh_resumida() {
-        return sem_volta(Err(D::Leitura(E::VisaoDoControleNaoReconhecida)));
+        return Err(D::Leitura(E::VisaoDoControleNaoReconhecida));
     }
-    let detalhada = match trocar(&mut sessao, tela, Visao::Detalhada) {
-        Ok(detalhada) => detalhada,
-        Err(erro) => return sem_volta(Err(D::Leitura(erro))),
-    };
-    let resultado = na_detalhada(&mut sessao, &detalhada, &pedido);
-    let volta = trocar(&mut sessao, &detalhada, Visao::Resumida)
-        .and_then(|restaurada| conferir_resumida_restaurada(&tela.html, &restaurada.html))
-        .err()
-        .map(|causa| E::VisaoDoControleNaoRestaurada {
-            visao_deixada: Visao::Detalhada,
-            causa: Box::new(causa),
-        });
-    DesfechoDasColunas {
-        resultado,
-        visao_nao_restaurada: volta,
-    }
+    let detalhada = trocar(&mut sessao, tela, Visao::Detalhada).map_err(D::Leitura)?;
+    na_detalhada(&mut sessao, &detalhada, &pedido)
 }
 
 struct Pedido<'a> {

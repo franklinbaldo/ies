@@ -1,5 +1,6 @@
 //! Troca entre as visões resumida (`R`) e detalhada (`D`) do Controle de
-//! Processos e paginação da D, deixando a tela **como foi encontrada**.
+//! Processos e paginação da D. A sessão fica na visão e na página para as
+//! quais o comando foi (decisão do proprietário, 02/11/2026): sem restaurar.
 //! Contratos: contracts/cli/unidade-listar-processos-visao-detalhada.md,
 //! contracts/cli/unidade-recebidos-gerados.md, contracts/cli/unidade-colunas.md e
 //! contracts/cli/unidade-definir-colunas.md.
@@ -19,7 +20,6 @@ mod plano;
 mod resumida;
 
 use crate::caixa_detalhada::ErroDetalhada;
-use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -31,7 +31,7 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::{
-    ColunasDefinidas, DesfechoDasColunas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
+    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
 pub(crate) use envio::{EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
@@ -110,44 +110,19 @@ pub(crate) enum ErroVisaoDoControle {
     IdentificacaoDaUnidadeAusente,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
-    VisaoNaoTrocadaAposEnvio {
-        esperada: Visao,
-    },
+    VisaoNaoTrocadaAposEnvio { esperada: Visao },
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    PaginaForaDoIntervalo {
-        solicitada: usize,
-    },
+    PaginaForaDoIntervalo { solicitada: usize },
     PaginadorDaVisaoDetalhadaNaoPublicado,
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
     RedirecionamentoAposPaginar,
-    PaginasDaVisaoResumidaAlteradasAposRestaurar,
-    CriteriosDaVisaoResumidaAlteradosAposRestaurar,
-    PaginaDaVisaoDetalhadaAlteradaAposRestaurar,
     LinkDoNivelDeDetalheAusente,
     LinksDoNivelDeDetalheRepetidos,
     LinkDoNivelDeDetalheNaoReconhecido,
-    /// A tela ficou em `visao_deixada`; a causa é a falha da restauração.
-    VisaoDoControleNaoRestaurada {
-        visao_deixada: Visao,
-        causa: Box<ErroVisaoDoControle>,
-    },
-    /// A D lembra a página `pagina_deixada` (≥ 1); a tela ficou em `visao_deixada`.
-    PaginaDaVisaoDetalhadaNaoRestaurada {
-        visao_deixada: Visao,
-        pagina_deixada: usize,
-        causa: Box<ErroVisaoDoControle>,
-    },
-    /// A tabela `categoria` da R lembra a página `pagina_deixada` (≥ 1);
-    /// a tela ficou na D.
-    PaginaDaVisaoResumidaNaoRestaurada {
-        categoria: Categoria,
-        pagina_deixada: usize,
-        causa: Box<ErroVisaoDoControle>,
-    },
     Caixa(ErroCaixa),
     Detalhada(ErroDetalhada),
     NivelDeDetalhe(ErroNivelDeDetalhe),
@@ -183,25 +158,9 @@ impl ErroVisaoDoControle {
                 "faixa_da_resposta_diferente_da_pagina_solicitada"
             }
             Self::RedirecionamentoAposPaginar => "redirecionamento_apos_paginar_controle",
-            Self::PaginasDaVisaoResumidaAlteradasAposRestaurar => {
-                "paginas_da_visao_resumida_alteradas_apos_restaurar"
-            }
-            Self::CriteriosDaVisaoResumidaAlteradosAposRestaurar => {
-                "criterios_da_visao_resumida_alterados_apos_restaurar"
-            }
-            Self::PaginaDaVisaoDetalhadaAlteradaAposRestaurar => {
-                "pagina_da_visao_detalhada_alterada_apos_restaurar"
-            }
             Self::LinkDoNivelDeDetalheAusente => "link_do_nivel_de_detalhe_ausente",
             Self::LinksDoNivelDeDetalheRepetidos => "links_do_nivel_de_detalhe_repetidos",
             Self::LinkDoNivelDeDetalheNaoReconhecido => "link_do_nivel_de_detalhe_nao_reconhecido",
-            Self::VisaoDoControleNaoRestaurada { .. } => "visao_do_controle_nao_restaurada",
-            Self::PaginaDaVisaoDetalhadaNaoRestaurada { .. } => {
-                "pagina_da_visao_detalhada_nao_restaurada"
-            }
-            Self::PaginaDaVisaoResumidaNaoRestaurada { .. } => {
-                "pagina_da_visao_resumida_nao_restaurada"
-            }
             Self::Caixa(erro) => erro.subcodigo(),
             Self::Detalhada(erro) => erro.subcodigo(),
             Self::NivelDeDetalhe(erro) => erro.subcodigo(),
@@ -214,68 +173,18 @@ impl ErroVisaoDoControle {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::VisaoDoControleNaoRestaurada {
-                visao_deixada: Visao::Detalhada,
-                ..
-            } => "a tela do Controle ficou na visão detalhada: a restauração da resumida falhou",
-            Self::VisaoDoControleNaoRestaurada {
-                visao_deixada: Visao::Resumida,
-                ..
-            } => "a tela do Controle ficou na visão resumida: a restauração da detalhada falhou",
-            Self::PaginaDaVisaoDetalhadaNaoRestaurada { .. } => {
-                "a visão detalhada ficou na página pedida: a restauração da página falhou"
-            }
-            Self::PaginaDaVisaoResumidaNaoRestaurada { .. } => {
-                "a lista da visão resumida ficou na página pedida: a restauração da página falhou"
-            }
             Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
             Self::Transporte(erro) => erro.mensagem(),
             _ => "a visão do Controle de Processos não foi obtida como esperado",
         }
     }
 
-    /// Status e mensagem do SEI, da requisição recusada (inclusive na restauração).
+    /// Status e mensagem do SEI, da requisição recusada.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
-            Self::VisaoDoControleNaoRestaurada { causa, .. }
-            | Self::PaginaDaVisaoDetalhadaNaoRestaurada { causa, .. }
-            | Self::PaginaDaVisaoResumidaNaoRestaurada { causa, .. } => causa.status_http(),
             Self::Submissao(erro) => erro.status_http(),
             Self::Pagina(erro) => erro.status_http(),
             Self::Transporte(erro) => erro.status_http(),
-            _ => None,
-        }
-    }
-
-    /// Campos a mais no JSON da falha de restauração.
-    pub(crate) fn detalhes_json(&self) -> Option<serde_json::Value> {
-        match self {
-            Self::VisaoDoControleNaoRestaurada {
-                visao_deixada,
-                causa,
-            } => Some(serde_json::json!({
-                "visao_deixada": visao_deixada.valor(),
-                "causa": causa.subcodigo(),
-            })),
-            Self::PaginaDaVisaoDetalhadaNaoRestaurada {
-                visao_deixada,
-                pagina_deixada,
-                causa,
-            } => Some(serde_json::json!({
-                "visao_deixada": visao_deixada.valor(),
-                "pagina_deixada": pagina_deixada,
-                "causa": causa.subcodigo(),
-            })),
-            Self::PaginaDaVisaoResumidaNaoRestaurada {
-                categoria,
-                pagina_deixada,
-                causa,
-            } => Some(serde_json::json!({
-                "visao_deixada": "D",
-                "categoria": categoria.rotulo(),
-                "pagina_deixada": pagina_deixada,
-                "causa": causa.subcodigo(),
-            })),
             _ => None,
         }
     }

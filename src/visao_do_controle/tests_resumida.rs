@@ -33,20 +33,14 @@ fn resumida(
 }
 
 #[test]
-fn sessao_em_d_troca_para_r_le_a_lista_e_restaura_a_d() {
+fn sessao_em_d_troca_para_r_le_a_lista_e_fica_na_r() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Gerados,
         None,
-        vec![(200, r().html()), (200, d().html())],
+        vec![(200, r().html())],
     );
-    assert_eq!(
-        registro,
-        [
-            "POST visao=R pagina=0",
-            "POST visao=D recebidos=0 gerados=0"
-        ]
-    );
+    assert_eq!(registro, ["POST visao=R pagina=0"]);
     let html = resultado.unwrap();
     assert!(html.contains("tblProcessosGerados"));
     assert!(html.contains("N-3"));
@@ -59,26 +53,20 @@ fn segunda() -> TelaR {
     segunda
 }
 
+/// Decisão do proprietário (02/11/2026): a R fica lembrando a página N.
 #[test]
-fn sessao_em_d_com_pagina_n_volta_a_pagina_encontrada_da_r_antes_da_d() {
+fn sessao_em_d_com_pagina_n_fica_na_pagina_n_da_r() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,
         Some(2),
-        vec![
-            (200, r().html()),
-            (200, segunda().html()),
-            (200, r().html()),
-            (200, d().html()),
-        ],
+        vec![(200, r().html()), (200, segunda().html())],
     );
     assert_eq!(
         registro,
         [
             "POST visao=R pagina=0",
-            "POST visao=R recebidos=1 gerados=0",
-            "POST visao=R recebidos=0 gerados=0",
-            "POST visao=D recebidos=0 gerados=0"
+            "POST visao=R recebidos=1 gerados=0"
         ]
     );
     let html = resultado.unwrap();
@@ -92,32 +80,25 @@ fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
         d().html(),
         Categoria::Recebidos,
         Some(1),
-        vec![
-            (200, segunda().html()),
-            (200, r().html()),
-            (200, segunda().html()),
-            (200, d().html()),
-        ],
+        vec![(200, segunda().html()), (200, r().html())],
     );
     assert_eq!(
         registro,
         [
             "POST visao=R pagina=0",
-            "POST visao=R recebidos=0 gerados=0",
-            "POST visao=R recebidos=1 gerados=0",
-            "POST visao=D recebidos=1 gerados=0"
+            "POST visao=R recebidos=0 gerados=0"
         ]
     );
     assert!(resultado.unwrap().contains("N-1"));
 }
 
 #[test]
-fn volta_a_pagina_da_r_que_falha_restaura_a_d_e_diz_onde_a_r_ficou() {
-    let mut outro_criterio = r();
+fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
+    let mut outro_criterio = segunda();
     outro_criterio.hash_r = "9999";
-    for (volta, causa) in [
+    for (resposta, subcodigo) in [
         (
-            segunda().html(),
+            r().html(),
             "faixa_da_resposta_diferente_da_pagina_solicitada",
         ),
         (
@@ -129,77 +110,41 @@ fn volta_a_pagina_da_r_que_falha_restaura_a_d_e_diz_onde_a_r_ficou() {
             d().html(),
             Categoria::Recebidos,
             Some(2),
-            vec![
-                (200, r().html()),
-                (200, segunda().html()),
-                (200, volta),
-                (200, d().html()),
-            ],
+            vec![(200, r().html()), (200, resposta)],
         );
-        assert_eq!(registro.len(), 4);
-        assert_eq!(registro[3], "POST visao=D recebidos=1 gerados=0");
-        let erro = resultado.unwrap_err();
-        assert_eq!(erro.subcodigo(), "pagina_da_visao_resumida_nao_restaurada");
-        let detalhes = erro.detalhes_json().unwrap();
-        assert_eq!(detalhes["visao_deixada"], "D");
-        assert_eq!(detalhes["categoria"], "recebidos");
-        assert_eq!(detalhes["pagina_deixada"], 2);
-        assert_eq!(detalhes["causa"], causa);
+        assert_eq!(
+            registro,
+            [
+                "POST visao=R pagina=0",
+                "POST visao=R recebidos=1 gerados=0"
+            ]
+        );
+        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
 }
 
 #[test]
-fn falha_ao_restaurar_a_d_diz_que_a_tela_ficou_em_r() {
+fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,
         None,
-        vec![
-            (200, r().html()),
-            (503, "<html><title>Indisponível</title></html>".to_owned()),
-        ],
+        vec![(503, "<html><title>Indisponível</title></html>".to_owned())],
     );
-    assert_eq!(registro.len(), 2);
+    assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
-    assert_eq!(erro.detalhes_json().unwrap()["visao_deixada"], "R");
     assert_eq!(erro.status_http().map(|h| h.status), Some(503));
 }
 
 #[test]
-fn d_restaurada_em_outra_pagina_e_recusada() {
-    let mut outra = d();
-    outra.indice = Some(1);
-    outra.tamanho = 2;
-    outra.ids = vec![3, 9];
-    let (resultado, _) = resumida(
-        d().html(),
-        Categoria::Recebidos,
-        None,
-        vec![(200, r().html()), (200, outra.html())],
-    );
-    let erro = resultado.unwrap_err();
-    assert_eq!(
-        erro.detalhes_json().unwrap()["causa"],
-        "pagina_da_visao_detalhada_alterada_apos_restaurar"
-    );
-}
-
-#[test]
-fn pagina_fora_do_intervalo_vista_na_r_restaura_a_d() {
+fn pagina_fora_do_intervalo_vista_na_r_fica_na_r() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Gerados,
         Some(2),
-        vec![(200, r().html()), (200, d().html())],
+        vec![(200, r().html())],
     );
-    assert_eq!(
-        registro,
-        [
-            "POST visao=R pagina=0",
-            "POST visao=D recebidos=0 gerados=0"
-        ]
-    );
+    assert_eq!(registro, ["POST visao=R pagina=0"]);
     assert_eq!(
         resultado.unwrap_err().subcodigo(),
         "pagina_fora_do_intervalo"
@@ -241,18 +186,14 @@ fn colunas_com_sessao_em_d_custam_um_get_a_mais() {
 }
 
 #[test]
-fn colunas_com_sessao_em_r_trocam_leem_e_restauram() {
+fn colunas_com_sessao_em_r_trocam_leem_e_ficam_na_d() {
     let r = TelaR::nova((2, vec![1, 2]), (2, vec![3, 9]));
-    let (resultado, registro) = colunas(
-        r.html(),
-        vec![(200, d().html()), (200, tela_nivel(&[])), (200, r.html())],
-    );
+    let (resultado, registro) = colunas(r.html(), vec![(200, d().html()), (200, tela_nivel(&[]))]);
     assert_eq!(
         registro,
         [
             "POST visao=D recebidos=0 gerados=0",
-            "GET procedimento_configurar_detalhe",
-            "POST visao=R pagina=0"
+            "GET procedimento_configurar_detalhe"
         ]
     );
     assert!(resultado.unwrap().1.opcoes.iter().all(|o| !o.marcada));

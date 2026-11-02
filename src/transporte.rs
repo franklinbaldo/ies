@@ -202,7 +202,7 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     Ok((authority, route))
 }
 
-fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
+pub(crate) fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTransporte> {
     let (host, rota) = validar_url(url)?;
     let instalacao = Instalacao::interpretar(origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
     if !instalacao.autoriza_controlador(host, rota) {
@@ -343,7 +343,7 @@ pub(crate) fn decodificar_resposta<R: Read>(
 
 /// Status diferente de 200: a variante sai do status; o corpo (fora 3xx)
 /// é lido uma vez, até `corpo_de_recusa::LIMITE`, só para a mensagem.
-fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTransporte {
+pub(crate) fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTransporte {
     let codigo = resposta.status_code;
     let status = u16::try_from(codigo).unwrap_or(0);
     if (300..400).contains(&codigo) {

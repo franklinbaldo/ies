@@ -93,7 +93,7 @@ enum Passo {
 
 /// Texto dos nós de texto sob `raiz` (que é sempre lida), sem subárvores
 /// invisíveis; elementos de bloco separam palavras. Percurso iterativo.
-fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> String {
+pub(crate) fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> String {
     let mut saida = String::new();
     let mut pilha = vec![Passo::No(raiz, 0)];
     while let Some(passo) = pilha.pop() {

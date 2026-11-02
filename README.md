@@ -14,7 +14,8 @@ com instalação HTTPS autorizada (host e caminho-base) antes de
 enviar cookies e leitura HTTP limitada em fluxo.
 Outras operações permanecem não implementadas. O replay independente aceita cassette pública verificada;
 a consulta experimental de sessão aceita URL HTTPS assinada já autenticada;
-não implementa login nem paginação.
+`ies login` autentica pela tela Web de login e grava a sessão nos mesmos
+arquivos privados; os outros comandos não fazem login automático.
 
 Não há compatibilidade com o antigo `agir`, `Action` ou `PageModel` público.
 O IES Python histórico está preservado no cofre privado
@@ -64,7 +65,7 @@ compatibilidade nem uma confiança percentual inventada.
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
 `ies unidade listar-processos [--pagina N]` (a visão detalhada, com
-colunas e a tela deixada como foi encontrada), `ies unidade
+colunas; a sessão fica na D), `ies unidade
 recebidos|gerados [--pagina N]` ou `ies unidade colunas`.
 O domínio usa tipos Rust (`Processo`, `IdProcedimento`,
 `Tabela<T>` e `Caixa`). A cobertura é validada na paginação;
@@ -115,9 +116,29 @@ IES_CONFIG_FILE=/privado/ies-config.json ies unidade listar-processos --json
 ```
 
 A leitura continua limitada a GET HTTPS da página autorizada e aos POSTs
-de troca de visão (sempre restaurada) e de `--pagina N`, sem login, percurso de todas
+de troca de visão (sem restaurar) e de `--pagina N`, sem login, percurso de todas
 as páginas nem reutilização automática de credenciais
 para outras interfaces. `status` não testa rede nem declara autenticação.
+
+### Login: `ies login`
+
+`ies login` preenche os arquivos de cookie e de URL do Controle a partir
+da origem configurada (os dois podem começar vazios, `0600`). As
+credenciais ficam só num arquivo privado `0600` apontado por
+`IES_CREDENCIAIS_FILE`, nunca em argumentos:
+
+```sh
+umask 077
+printf 'usuario=%s\nsenha=%s\norgao=%s\n' "$USUARIO" "$SENHA" SIGLA > /privado/credenciais
+IES_CREDENCIAIS_FILE=/privado/credenciais IES_CONFIG_FILE=/privado/ies-config.json \
+  ies --json login            # login_realizado, ou sessao_existente_valida (1 GET)
+IES_CONFIG_FILE=/privado/ies-config.json ies --json unidade atual
+```
+
+`orgao` é a sigla exatamente como a tela de login a mostra em `selOrgao`.
+Sem `--forcar`, o comando confere a sessão gravada com um GET e não loga se
+ela valer. Captcha, segundo fator e credencial recusada são falhas tipadas,
+sem nova tentativa ([contrato](contracts/cli/sessao-login.md)).
 
 ## Entradas de execução
 
@@ -128,8 +149,8 @@ para outras interfaces. `status` não testa rede nem declara autenticação.
 - `ies unidade listar-processos` lê uma sessão Web já autenticada, com
   caminhos de arquivos privados definidos em variáveis de ambiente, pela
   visão detalhada: um array com uma lista `categoria: null`, a categoria
-  observada e as colunas de cada processo, e `colunas_ausentes`; troca de
-  visão e restaura a encontrada (1 GET + 0 a 4 POST). `ies unidade
+  observada e as colunas de cada processo, e `colunas_ausentes`; vinda da
+  R, troca para a D e fica nela (1 GET + 0 a 2 POST; 1 GET em regime estável). `ies unidade
   recebidos` e `ies unidade gerados` devolvem uma lista da visão resumida,
   com `--pagina N`. Ver a [visão detalhada](contracts/cli/unidade-listar-processos-visao-detalhada.md)
   e as [listas](contracts/cli/unidade-recebidos-gerados.md).

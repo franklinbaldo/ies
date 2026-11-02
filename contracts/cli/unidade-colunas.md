@@ -70,15 +70,15 @@ a R não o publica (capturas de UnB, PEN1, GO).
 | Tela no GET | Requisições |
 | --- | --- |
 | D | 1 GET (Controle) + 1 GET (Nível de detalhe) |
-| R | 1 GET + POST D + 1 GET (Nível de detalhe) + POST R |
+| R | 1 GET + POST D + 1 GET (Nível de detalhe); a sessão fica na D |
 
 O link precisa ser relativo `controlador.php?…`, resolvido contra a URL da
 tela D servida, na instalação autorizada, com `acao` única igual a
 `procedimento_configurar_detalhe` e `infra_hash` único de 64 hexadecimais.
 O GET segue as travas do transporte (sem redirect, 8 MB, tela de login).
-Vindo da R, a volta à R segue a restauração da
-[visão detalhada](unidade-listar-processos-visao-detalhada.md), com as
-mesmas recusas `visao_do_controle_nao_restaurada` e campos.
+Vindo da R, o comando **não volta** à R: a sessão fica na D, como em
+[`listar-processos`](unidade-listar-processos-visao-detalhada.md) (decisão
+do proprietário, 02/11/2026). Regime estável: 2 GET.
 
 | Fato | Subcódigo |
 | --- | --- |

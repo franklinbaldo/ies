@@ -1,7 +1,7 @@
 //! `recebidos|gerados [--pagina N]`: um GET e, se a tela não mostra a página
 //! N, um POST do paginador de T. Sem retry, sem outras páginas, sem restaurar
-//! a página da categoria. Se a sessão está na visão D, a troca para R e a
-//! restauração da D ficam com `visao_do_controle`.
+//! a página da categoria. Se a sessão está na visão D, a troca para R (sem
+//! volta) fica com `visao_do_controle`.
 use crate::configuracao::ArquivosDeAcesso;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
@@ -50,18 +50,10 @@ impl ErroPaginaWeb {
             Self::Caixa(_) => None,
         }
     }
-
-    /// Onde a tela ficou, quando a restauração da visão D falhou.
-    pub(super) fn detalhes_json(&self) -> Option<serde_json::Value> {
-        match self {
-            Self::Visao(erro) => erro.detalhes_json(),
-            _ => None,
-        }
-    }
 }
 
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
-/// na visão D, a troca para R e a volta à D (orçamento no contrato).
+/// na visão D, a troca para R, que fica (orçamento no contrato).
 pub(super) fn obter(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,

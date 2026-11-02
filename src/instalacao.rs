@@ -105,6 +105,20 @@ impl Instalacao {
         })
     }
 
+    /// Host (em minúsculas) da instalação.
+    pub(crate) fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// `https://host[/base]`, sem a versão declarada: a identidade publicada.
+    pub(crate) fn url_base(&self) -> String {
+        if self.base.is_empty() {
+            format!("https://{}", self.host)
+        } else {
+            format!("https://{}/{}", self.host, self.base)
+        }
+    }
+
     /// Mesmo host não é suficiente: caminhos distintos podem ser
     /// instalações distintas. Nenhuma versão concede capacidades.
     pub fn autoriza_controlador(&self, host: &str, caminho: &str) -> bool {

@@ -13,7 +13,8 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 Lê os processos da unidade ativa na tela **Controle de Processos** do SEI
 Web pela [visão detalhada](unidade-listar-processos-visao-detalhada.md)
 (decisão do proprietário, 02/11/2026), com as colunas do
-[Nível de detalhe](unidade-colunas.md), e deixa a tela como a encontrou.
+[Nível de detalhe](unidade-colunas.md); vinda da R, a sessão fica na D,
+sem restaurar (decisão do proprietário, 02/11/2026).
 `ies unidade recebidos` e `ies unidade gerados` leem uma das
 [listas independentes](unidade-recebidos-gerados.md) pela mesma operação. A CaixaDeEntrada é da unidade;
 sessão e credenciais são meios de acesso, não entidades proprietárias.
@@ -42,7 +43,7 @@ configuração persistente nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
 `--saida ARQUIVO` exporta o mesmo array JSON da saída **somente depois**
-de verificar total, faixa observada e a restauração da tela. O arquivo novo é criado sem
+de verificar total e faixa observada. O arquivo novo é criado sem
 sobrescrever destinos existentes; em Unix recebe modo privado 0600.
 Sem essa opção, a saída de terminal é preservada. O comprovante não
 exibe dados dos processos ou caminhos de credenciais. Não declara
@@ -241,7 +242,7 @@ ou afirmar compatibilidade live sem prova. Os paginadores **por tabela**
 
 ## Visão detalhada (Refs #57)
 
-A leitura da D, a troca de visão, `--pagina N`, a restauração e as recusas
+A leitura da D, a troca de visão (sem volta), `--pagina N` e as recusas
 estão no [contrato da visão detalhada](unidade-listar-processos-visao-detalhada.md).
 Para cada linha aceita, exigir `tr id=P<dígitos>`, um cabeçalho `Processo`
 único, link dessa célula para `procedimento_trabalhar` ou

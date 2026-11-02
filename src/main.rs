@@ -51,6 +51,8 @@ mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod saida_erro;
+mod sessao_login;
+mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
@@ -96,6 +98,13 @@ enum Domain {
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
     Setup(SetupArgs),
+    /// Autentica na instalação configurada e grava a sessão nos arquivos privados
+    ///
+    /// Credenciais só no arquivo privado 0600 de `IES_CREDENCIAIS_FILE`, com as
+    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao). Sem
+    /// --forcar, confere antes a sessão gravada com um GET e não loga se ela
+    /// valer.
+    Login(LoginArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
 }
@@ -233,12 +242,12 @@ struct Unidade {
 enum UnidadeAcao {
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
-    /// Lista os processos da unidade na visão detalhada, com colunas e a tela restaurada
+    /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
     ListarProcessos {
         /// Exporta a lista verificada para novo arquivo privado
         #[arg(long)]
         saida: Option<PathBuf>,
-        /// Pede a página N da visão detalhada (POSTs com efeito de sessão, restaurados)
+        /// Pede a página N da visão detalhada (um POST que altera a página lembrada)
         #[arg(
             long,
             value_name = "N",
@@ -251,7 +260,7 @@ enum UnidadeAcao {
         /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
         #[arg(long, value_name = "todas|LISTA")]
         definir: Option<String>,
-        /// Salva a configuração pedida (um POST), confere por leitura e restaura a tela
+        /// Salva a configuração pedida (um POST) e confere por leitura
         #[arg(long, requires = "definir")]
         confirmar: bool,
     },
@@ -267,7 +276,7 @@ struct ListaDaUnidade {
     /// Exporta a lista verificada para novo arquivo privado
     #[arg(long)]
     saida: Option<PathBuf>,
-    /// Pede a página N da lista: um POST que altera a página lembrada (na visão detalhada, troca e restaura)
+    /// Pede a página N da lista: um POST que altera a página lembrada (na visão detalhada, troca para a resumida)
     #[arg(
         long,
         value_name = "N",
@@ -287,6 +296,14 @@ struct StatusArgs {
     /// Consulta o Controle Web autenticado configurado: um GET com possíveis efeitos
     #[arg(long, conflicts_with_all = ["verificar_arquivos", "verificar_sessao_local"])]
     verificar_controle_web: bool,
+}
+
+/// Credenciais só por arquivo privado `0600` em `IES_CREDENCIAIS_FILE`.
+#[derive(Debug, Args)]
+struct LoginArgs {
+    /// Faz novo login mesmo com a sessão gravada válida
+    #[arg(long)]
+    forcar: bool,
 }
 
 #[derive(Debug, Args)]
@@ -366,6 +383,9 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
+        Domain::Login(LoginArgs { forcar }) => {
+            return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
+        }
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
