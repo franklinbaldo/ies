@@ -16,6 +16,13 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
     cookie_file: &Path,
     envio: &mut V,
 ) -> Result<LeituraDetalhada, E> {
-    let _ = (instalacao, tela, unidade_solicitada, pagina, cookie_file, envio);
+    let _ = (
+        instalacao,
+        tela,
+        unidade_solicitada,
+        pagina,
+        cookie_file,
+        envio,
+    );
     Err(E::VisaoDoControleNaoReconhecida)
 }

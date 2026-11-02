@@ -2,12 +2,12 @@
 //! Não executa paginação POST, comandos JS nem atribui categorias fictícias.
 mod colunas;
 
-pub(crate) use colunas::{ColunasDaLinha, ValorDaColuna};
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
-use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
+pub(crate) use colunas::{ColunasDaLinha, ValorDaColuna};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -433,3 +433,6 @@ pub(crate) fn possui_tabela(html: &str) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_colunas;

@@ -225,13 +225,14 @@ mod tests {
     }
 
     #[test]
-    fn listas_sao_subcomandos_e_listar_processos_perde_categoria_e_pagina() {
+    fn listas_sao_subcomandos_e_listar_processos_pagina_a_visao_detalhada() {
         assert!(aceita(&["recebidos"]));
         assert!(aceita(&["gerados"]));
         assert!(aceita(&["gerados", "--saida", "lista.json"]));
-        assert!(aceita(&["listar-processos", "--pagina-arquivo", "p.html"]));
+        assert!(aceita(&["colunas"]));
+        assert!(!aceita(&["listar-processos", "--pagina-arquivo", "p.html"]));
         assert!(!aceita(&["listar-processos", "--categoria", "gerados"]));
-        assert!(!aceita(&["listar-processos", "--pagina", "2"]));
+        assert!(aceita(&["listar-processos", "--pagina", "2"]));
         assert!(!aceita(&["gerados", "--pagina-arquivo", "pagina-2.html"]));
         assert!(!aceita(&["gerados", "--categoria", "gerados"]));
     }

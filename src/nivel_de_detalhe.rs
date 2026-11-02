@@ -143,13 +143,19 @@ impl ColunaDoDetalhe {
 
     /// Coluna pelo rótulo do cabeçalho (texto colapsado ou rótulo do ícone).
     pub(crate) fn pelo_cabecalho(rotulo: &str) -> Option<Self> {
-        Self::TODAS.into_iter().find(|coluna| match coluna.cabecalho() {
-            CabecalhoDaColuna::Texto(texto) | CabecalhoDaColuna::Icone(texto) => texto == rotulo,
-        })
+        Self::TODAS
+            .into_iter()
+            .find(|coluna| match coluna.cabecalho() {
+                CabecalhoDaColuna::Texto(texto) | CabecalhoDaColuna::Icone(texto) => {
+                    texto == rotulo
+                }
+            })
     }
 
     pub(crate) fn pelo_campo(nome: &str) -> Option<Self> {
-        Self::TODAS.into_iter().find(|coluna| coluna.campo() == nome)
+        Self::TODAS
+            .into_iter()
+            .find(|coluna| coluna.campo() == nome)
     }
 }
 
@@ -191,4 +197,4 @@ impl NivelDeDetalhe {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

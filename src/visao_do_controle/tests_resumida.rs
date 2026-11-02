@@ -1,0 +1,221 @@
+//! RED/GREEN de `recebidos|gerados` com a sessão na D e de `unidade colunas`.
+use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
+use super::*;
+use crate::dominio::Categoria;
+
+fn r() -> TelaR {
+    TelaR::nova((3, vec![1, 2]), (1, vec![3]))
+}
+
+fn d() -> TelaD {
+    TelaD::nova(4, 0, 10, vec![1, 2, 3, 9])
+}
+
+fn resumida(
+    tela: String,
+    categoria: Categoria,
+    pagina: Option<usize>,
+    respostas: Vec<(i32, String)>,
+) -> (Result<String, ErroVisaoDoControle>, Vec<String>) {
+    let (_pasta, arquivo) = cookie();
+    let mut envio = EnvioRoteirizado::novo(respostas);
+    let resultado = obter_na_visao_resumida(
+        &instalacao(),
+        tela_atual(tela),
+        Some("TESTE"),
+        categoria,
+        pagina,
+        &arquivo,
+        &mut envio,
+    );
+    assert!(envio.respostas.is_empty(), "respostas não consumidas");
+    (resultado, envio.registro)
+}
+
+#[test]
+fn sessao_em_d_troca_para_r_le_a_lista_e_restaura_a_d() {
+    let (resultado, registro) = resumida(
+        d().html(),
+        Categoria::Gerados,
+        None,
+        vec![(200, r().html()), (200, d().html())],
+    );
+    assert_eq!(
+        registro,
+        [
+            "POST visao=R pagina=0",
+            "POST visao=D recebidos=0 gerados=0"
+        ]
+    );
+    let html = resultado.unwrap();
+    assert!(html.contains("tblProcessosGerados"));
+    assert!(html.contains("N-3"));
+}
+
+#[test]
+fn sessao_em_d_com_pagina_n_custa_tres_posts() {
+    let mut segunda = r();
+    segunda.pagina_r = "1";
+    segunda.recebidos = (3, 3, vec![4]);
+    let (resultado, registro) = resumida(
+        d().html(),
+        Categoria::Recebidos,
+        Some(2),
+        vec![(200, r().html()), (200, segunda.html()), (200, d().html())],
+    );
+    assert_eq!(
+        registro,
+        [
+            "POST visao=R pagina=0",
+            "POST visao=R recebidos=1 gerados=0",
+            "POST visao=D recebidos=1 gerados=0"
+        ]
+    );
+    assert!(resultado.unwrap().contains("N-4"));
+}
+
+#[test]
+fn falha_ao_restaurar_a_d_diz_que_a_tela_ficou_em_r() {
+    let (resultado, registro) = resumida(
+        d().html(),
+        Categoria::Recebidos,
+        None,
+        vec![
+            (200, r().html()),
+            (503, "<html><title>Indisponível</title></html>".to_owned()),
+        ],
+    );
+    assert_eq!(registro.len(), 2);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "visao_do_controle_nao_restaurada");
+    assert_eq!(erro.detalhes_json().unwrap()["visao_deixada"], "R");
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+}
+
+#[test]
+fn d_restaurada_em_outra_pagina_e_recusada() {
+    let mut outra = d();
+    outra.indice = Some(1);
+    outra.tamanho = 2;
+    outra.ids = vec![3, 9];
+    let (resultado, _) = resumida(
+        d().html(),
+        Categoria::Recebidos,
+        None,
+        vec![(200, r().html()), (200, outra.html())],
+    );
+    let erro = resultado.unwrap_err();
+    assert_eq!(
+        erro.detalhes_json().unwrap()["causa"],
+        "pagina_da_visao_detalhada_alterada_apos_restaurar"
+    );
+}
+
+#[test]
+fn pagina_fora_do_intervalo_vista_na_r_restaura_a_d() {
+    let (resultado, registro) = resumida(
+        d().html(),
+        Categoria::Gerados,
+        Some(2),
+        vec![(200, r().html()), (200, d().html())],
+    );
+    assert_eq!(
+        registro,
+        [
+            "POST visao=R pagina=0",
+            "POST visao=D recebidos=0 gerados=0"
+        ]
+    );
+    assert_eq!(
+        resultado.unwrap_err().subcodigo(),
+        "pagina_fora_do_intervalo"
+    );
+}
+
+fn colunas(
+    tela: String,
+    respostas: Vec<(i32, String)>,
+) -> (
+    Result<(String, crate::nivel_de_detalhe::NivelDeDetalhe), ErroVisaoDoControle>,
+    Vec<String>,
+) {
+    let (_pasta, arquivo) = cookie();
+    let mut envio = EnvioRoteirizado::novo(respostas);
+    let resultado = ler_colunas(
+        &instalacao(),
+        tela_atual(tela),
+        Some("TESTE"),
+        &arquivo,
+        &mut envio,
+    );
+    assert!(envio.respostas.is_empty(), "respostas não consumidas");
+    (resultado, envio.registro)
+}
+
+#[test]
+fn colunas_com_sessao_em_d_custam_um_get_a_mais() {
+    let nivel = tela_nivel(&[
+        "chkSinAtribuicao",
+        "chkSinTipoProcesso",
+        "chkSinInteressados",
+    ]);
+    let (resultado, registro) = colunas(d().html(), vec![(200, nivel)]);
+    assert_eq!(registro, ["GET procedimento_configurar_detalhe"]);
+    let (unidade, nivel) = resultado.unwrap();
+    assert_eq!(unidade, "TESTE");
+    assert_eq!(nivel.opcoes.iter().filter(|o| o.marcada).count(), 3);
+}
+
+#[test]
+fn colunas_com_sessao_em_r_trocam_leem_e_restauram() {
+    let r = TelaR::nova((2, vec![1, 2]), (2, vec![3, 9]));
+    let (resultado, registro) = colunas(
+        r.html(),
+        vec![(200, d().html()), (200, tela_nivel(&[])), (200, r.html())],
+    );
+    assert_eq!(
+        registro,
+        [
+            "POST visao=D recebidos=0 gerados=0",
+            "GET procedimento_configurar_detalhe",
+            "POST visao=R pagina=0"
+        ]
+    );
+    assert!(resultado.unwrap().1.opcoes.iter().all(|o| !o.marcada));
+}
+
+#[test]
+fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
+    let mut sem = d();
+    sem.link_nivel = false;
+    let (resultado, registro) = colunas(sem.html(), vec![]);
+    assert!(registro.is_empty());
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::LinkDoNivelDeDetalheAusente
+    );
+}
+
+#[test]
+fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
+    for troca in [
+        (
+            "acaoConfigurarDetalhe('controlador.php?",
+            "acaoConfigurarDetalhe('https://outro.gov.br/controlador.php?",
+        ),
+        (
+            "acao=procedimento_configurar_detalhe&amp;",
+            "acao=procedimento_excluir&amp;",
+        ),
+        ("infra_hash=eeee", "infra_hash=zzzz"),
+    ] {
+        let html = d().html().replacen(troca.0, troca.1, 1);
+        let (resultado, registro) = colunas(html, vec![]);
+        assert!(registro.is_empty(), "{troca:?}");
+        assert_eq!(
+            resultado.unwrap_err(),
+            ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido,
+            "{troca:?}"
+        );
+    }
+}

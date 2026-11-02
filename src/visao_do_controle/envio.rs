@@ -38,7 +38,8 @@ pub(crate) trait EnvioDoControle {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
-    fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte>;
+    fn get(&mut self, url: &str, cookie: &str)
+    -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte>;
 }
 
 /// Transporte real: os mesmos POST e GET HTTPS das demais leituras.
@@ -53,7 +54,11 @@ impl EnvioDoControle for EnvioHttps {
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         crate::transporte::envio_post::enviar_post(submissao, cookie)
     }
-    fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+    fn get(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
         crate::transporte::get_https(url, cookie)
     }
 }
@@ -88,8 +93,9 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             html: &tela.html,
             codificacao,
         };
-        let submissao = derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)
-            .map_err(E::Submissao)?;
+        let submissao =
+            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)
+                .map_err(E::Submissao)?;
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;

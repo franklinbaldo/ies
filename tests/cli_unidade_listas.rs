@@ -1,5 +1,5 @@
 //! Superfície das listas independentes da caixa (Refs #57):
-//! `listar-processos` sem `--categoria`/`--pagina`, e `recebidos`/`gerados`.
+//! `listar-processos [--pagina N]` (visão D), `recebidos`/`gerados` e `colunas`.
 //! Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
 
@@ -31,7 +31,6 @@ fn opcoes_removidas_de_listar_processos_sao_erro_de_uso() {
             "recebidos",
             "--json",
         ][..],
-        &["unidade", "listar-processos", "--pagina", "2", "--json"][..],
         &[
             "unidade",
             "listar-processos",
@@ -40,6 +39,12 @@ fn opcoes_removidas_de_listar_processos_sao_erro_de_uso() {
             "--pagina",
             "2",
         ][..],
+        // Removida: as capturas não se juntam à troca de visão.
+        &["unidade", "listar-processos", "--pagina-arquivo", "p.html"][..],
+        &["unidade", "listar-processos", "--pagina", "0"][..],
+        &["unidade", "listar-processos", "--pagina", "x"][..],
+        &["unidade", "colunas", "--pagina", "2"][..],
+        &["unidade", "colunas", "--definir", "todas"][..],
     ] {
         uso_invalido(args);
     }
@@ -76,6 +81,9 @@ fn listas_sem_sessao_falham_antes_de_qualquer_requisicao() {
         &["unidade", "recebidos", "--json"][..],
         &["unidade", "gerados", "--json"][..],
         &["unidade", "recebidos", "--pagina", "2", "--json"][..],
+        &["unidade", "listar-processos", "--json"][..],
+        &["unidade", "listar-processos", "--pagina", "2", "--json"][..],
+        &["unidade", "colunas", "--json"][..],
         &[
             "--unidade",
             "PPI",
@@ -99,15 +107,21 @@ fn ajuda_da_unidade_lista_os_tres_comandos_da_caixa() {
     let saida = sem_sessao(&["unidade", "--help"]);
     assert_eq!(saida.status.code(), Some(0));
     let texto = String::from_utf8(saida.stdout).unwrap();
-    for comando in ["listar-processos", "recebidos", "gerados", "atual"] {
+    for comando in [
+        "listar-processos",
+        "recebidos",
+        "gerados",
+        "atual",
+        "colunas",
+    ] {
         assert!(texto.contains(comando), "{comando}: {texto}");
     }
     let listar = sem_sessao(&["unidade", "listar-processos", "--help"]);
     let texto = String::from_utf8(listar.stdout).unwrap();
-    assert!(texto.contains("--pagina-arquivo"), "{texto}");
+    assert!(!texto.contains("--pagina-arquivo"), "{texto}");
     assert!(texto.contains("--saida"), "{texto}");
     assert!(!texto.contains("--categoria"), "{texto}");
-    assert!(!texto.contains("--pagina <N>"), "{texto}");
+    assert!(texto.contains("--pagina <N>"), "{texto}");
     for lista in ["recebidos", "gerados"] {
         let ajuda = sem_sessao(&["unidade", lista, "--help"]);
         let texto = String::from_utf8(ajuda.stdout).unwrap();

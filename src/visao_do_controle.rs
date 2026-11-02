@@ -99,11 +99,15 @@ pub(crate) enum ErroVisaoDoControle {
     IdentificacaoDaUnidadeAusente,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
-    VisaoNaoTrocadaAposEnvio { esperada: Visao },
+    VisaoNaoTrocadaAposEnvio {
+        esperada: Visao,
+    },
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    PaginaForaDoIntervalo { solicitada: usize },
+    PaginaForaDoIntervalo {
+        solicitada: usize,
+    },
     PaginadorDaVisaoDetalhadaNaoPublicado,
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
@@ -242,3 +246,9 @@ impl ErroVisaoDoControle {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_fluxo;
+
+#[cfg(test)]
+mod tests_resumida;

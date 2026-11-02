@@ -4,8 +4,8 @@
 use super::ErroDetalhada;
 use crate::dominio::Categoria;
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
-use serde::ser::{SerializeMap, Serializer};
 use serde::Serialize;
+use serde::ser::{SerializeMap, Serializer};
 
 /// Papel de uma coluna da tabela D, pelo rótulo do cabeçalho.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -19,18 +19,18 @@ pub(super) fn listar_processos_da_unidade(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let tela = match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
-    {
-        Ok(tela) => tela,
-        Err(falha) => {
-            return crate::saida_erro::erro_fonte_http(
-                json_mode,
-                falha.subcodigo(),
-                falha.mensagem(),
-                falha.status_http(),
-            );
-        }
-    };
+    let tela =
+        match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
+            Ok(tela) => tela,
+            Err(falha) => {
+                return crate::saida_erro::erro_fonte_http(
+                    json_mode,
+                    falha.subcodigo(),
+                    falha.mensagem(),
+                    falha.status_http(),
+                );
+            }
+        };
     let atual = TelaAtual {
         url: tela.url,
         html: tela.html,
@@ -51,8 +51,11 @@ pub(super) fn listar_processos_da_unidade(
 
 /// Falha `fonte_invalida` da troca de visão; a de restauração diz onde a tela ficou.
 pub(crate) fn erro_da_visao(json_mode: bool, erro: &ErroVisaoDoControle) -> ExitCode {
-    let mut valor =
-        crate::saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http());
+    let mut valor = crate::saida_erro::json_de_erro_fonte(
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    );
     if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
         && let Some(extra) = detalhes.as_object()
     {
