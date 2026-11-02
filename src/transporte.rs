@@ -409,7 +409,7 @@ fn resposta_web(resposta: minreq::ResponseLazy) -> RespostaWeb<minreq::ResponseL
 }
 
 /// GET real único, sem seguir redirects; o corpo é lido depois, limitado.
-fn get_https(
+pub(crate) fn get_https(
     destino: &str,
     cookie: &str,
 ) -> Result<RespostaWeb<minreq::ResponseLazy>, FalhaTransporte> {

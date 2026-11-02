@@ -4,7 +4,7 @@ title: Leitura da caixa da unidade por sessão Web existente
 operation: unidade.listar_processos
 implementation: partial
 status: adopted-for-scope
-scope: GET HTTPS autorizado do Controle de Processos com Recebidos e Gerados como listas independentes, total e faixa observados; um POST opcional por ies unidade recebidos|gerados --pagina N
+scope: Controle de Processos Web com sessão existente; listar-processos pela visão detalhada com troca e restauração da visão encontrada, colunas do Nível de detalhe (só leitura) e recebidos/gerados com --pagina N
 selected_strategy: web-session-readonly
 alternatives: web-session-readonly,rest-wssei,soap-official
 evidence_level: replays-offline-e-contratos-documentados
@@ -173,3 +173,73 @@ GET, mesmo POST da #146, mesmas recusas; `--unidade` é conferido pela
 mesma leitura. A exportação `--saida` e a importação `--caixa-local`
 passam ao array; o formato anterior é recusado. Ensaio live da nova
 sintaxe: **NOT_RUN** (o ensaio de 02/11/2026 usou `--categoria`).
+
+## Visão detalhada por padrão e tela restaurada (decisão do proprietário, 02/11/2026)
+
+Revê as seções anteriores sobre a visão D ("um GET, zero POST", "não muda a
+visualização"): `listar-processos` passa a **trocar** de visão, com a
+[visão detalhada](../../contracts/cli/unidade-listar-processos-visao-detalhada.md)
+como contrato. Alternativas: (a) manter `listar-processos` na R, com o array
+`[recebidos, gerados]` da página observada; (b) ler a D, que publica numa só
+tabela os processos das duas listas e as colunas configuradas (atribuição,
+tipo, interessados etc.), trocando de visão e restaurando a encontrada.
+O proprietário escolheu (b). Trade-offs: (b) custa 2 POSTs a mais com a
+sessão em R e tem efeito `PreferenciaDeVisualizacao` (na PEN1 a D sobreviveu
+a um login novo), por isso a restauração é parte da operação; em troca, uma
+lista e as colunas. A D não marca a categoria por linha (verificado em UnB,
+PEN1 e GO): a categoria por processo só sai da R do mesmo GET, e `null`
+quer dizer "não observada". As listas completas por categoria continuam em
+`recebidos`/`gerados`.
+
+Evidência (capturas privadas de 02/11/2026, só estrutura; [ensaio](../validacao-live/2026-11-02-leitura-controle.md)):
+`trocarVisualizacao(v)` grava `hdnTipoVisualizacao` e chama `submit()` nas
+três instalações; a D publica `hdnDetalhadoPaginaAtual` e o paginador
+`Detalhado` (PEN1, GO; a UnB 4.0.9 publica a D inteira, sem o campo); a R
+**não** publica `hdnDetalhadoPaginaAtual`, logo a página N vinda da R custa
+dois POSTs (D, página). A R não publica `ancNivelDetalhe`. Os cabeçalhos de
+prazo, devolver e aguardando são só ícone, rotulados por `aria-label` (GO) ou
+`infraTooltipMostrar` (UnB). Ensaio offline do leitor e da derivação sobre
+as capturas: PASS (UnB, PEN1 p1 e p2, GO; Nível de detalhe de PEN1 e GO).
+
+Decisões de implementação:
+
+- **Falha da restauração: fechada, sem lista.** Alternativa descartada:
+  publicar a lista com um aviso. A lista estaria correta, mas um consumidor
+  automático poderia ignorar o aviso e seguir com a sessão na D (que quebra
+  `recebidos`/`gerados` sem troca e muda a tela do usuário). O erro diz onde
+  a tela ficou (`visao_deixada`, `pagina_deixada`), a `causa` e o status e a
+  mensagem do SEI. Sem retry. Se o próprio POST de troca falha, não há
+  formulário de onde restaurar; o estado fica por conferir.
+- **Restauração tentada também após falha** de um passo posterior à troca
+  (leitura da D, página fora do intervalo, POST de página); se passa, o erro
+  publicado é o do passo.
+- **Fora do intervalo:** vindo da R, só o limite seguro `N > max(1, recebidos
+  + gerados)` é recusado sem POST; o exato depende do tamanho da página da D,
+  conhecido depois da troca (e então restaurado).
+- **Página lembrada da D:** vinda da R, não é restaurada (custaria mais um
+  POST e não aparece na R); com a sessão já na D, é.
+- **Células com vários valores:** só Interessados, cujos itens o HTML separa
+  em `div.divRotuloItemCelula` (PEN1, até 6), vira array; Marcadores fica
+  texto até haver evidência, e itens inesperados numa coluna de texto são
+  recusa. Cabeçalho desconhecido é recusa (fail closed).
+- **`colunas_ausentes`** conta as nove colunas de texto (máximo = 9 +
+  Processo, decisão do proprietário). O registro do proprietário diz que,
+  com as 12 marcadas na PEN1, as de ícone não viraram coluna; a captura de GO
+  (12 marcadas) e a da UnB mostram-nas como colunas de ícone, lidas quando
+  aparecem. Divergência a conferir no ensaio live.
+- **`ies unidade colunas`**: só leitura, pelo link da D; com a sessão em R,
+  1 GET + POST D + GET + POST R. A escrita (padrão "máximo de colunas", por
+  comando explícito com prévia e confirmação) fica para PR futura; a
+  evidência do POST de salvar está no [contrato](../../contracts/cli/unidade-colunas.md).
+- **`recebidos`/`gerados` com a sessão na D:** trocar para R e restaurar a D
+  (utilidade, escolha do proprietário) em vez de recusar
+  (`controle_em_visao_detalhada_sem_categorias`, descartado).
+- **`--pagina-arquivo` removida** de `listar-processos`: as capturas são de
+  outra geração que as telas da troca; `ies replay` continua para capturas.
+
+Testes: [visão e restauração](../../src/visao_do_controle/tests_fluxo.rs),
+[recebidos/gerados e colunas](../../src/visao_do_controle/tests_resumida.rs),
+[colunas da D](../../src/caixa_detalhada/tests_colunas.rs) e
+[superfície](../../tests/cli_unidade_listas.rs). Ensaio live: **NOT_RUN**.
+Revisar se o live mostrar a R restaurada com outra página ou critério, a D
+lembrada fora do previsto, 302 na troca ou colunas de ícone ausentes.

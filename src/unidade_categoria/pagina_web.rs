@@ -1,5 +1,7 @@
-//! `--categoria T --pagina N`: um GET e, se a tela não mostra a página N,
-//! um POST do paginador de T. Sem retry, sem outras páginas, sem restaurar.
+//! `recebidos|gerados [--pagina N]`: um GET e, se a tela não mostra a página
+//! N, um POST do paginador de T. Sem retry, sem outras páginas, sem restaurar
+//! a página da categoria. Se a sessão está na visão D, a troca para R e a
+//! restauração da D ficam com `visao_do_controle`.
 use crate::configuracao::ArquivosDeAcesso;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
@@ -9,13 +11,15 @@ use crate::pagina_do_controle::{
 };
 use crate::paginas;
 use crate::transporte::FalhaTransporte;
-use crate::transporte::envio_post::{enviar_post, ler_tela_do_controle};
+use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_controle};
+use crate::visao_do_controle::{self, EnvioHttps, ErroVisaoDoControle, TelaAtual};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum ErroPaginaWeb {
     Transporte(FalhaTransporte),
     Caixa(ErroCaixa),
     Pagina(ErroPaginaDoControle),
+    Visao(ErroVisaoDoControle),
 }
 
 impl ErroPaginaWeb {
@@ -24,6 +28,7 @@ impl ErroPaginaWeb {
             Self::Transporte(erro) => erro.subcodigo(),
             Self::Caixa(erro) => erro.subcodigo(),
             Self::Pagina(erro) => erro.subcodigo(),
+            Self::Visao(erro) => erro.subcodigo(),
         }
     }
 
@@ -32,6 +37,7 @@ impl ErroPaginaWeb {
             Self::Transporte(erro) => erro.mensagem(),
             Self::Caixa(_) => "Controle de Processos não reconhecido",
             Self::Pagina(_) => "a página pedida do Controle não foi obtida",
+            Self::Visao(erro) => erro.mensagem(),
         }
     }
 
@@ -40,20 +46,63 @@ impl ErroPaginaWeb {
         match self {
             Self::Transporte(erro) => erro.status_http(),
             Self::Pagina(erro) => erro.status_http(),
+            Self::Visao(erro) => erro.status_http(),
             Self::Caixa(_) => None,
+        }
+    }
+
+    /// Onde a tela ficou, quando a restauração da visão D falhou.
+    pub(super) fn detalhes_json(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::Visao(erro) => erro.detalhes_json(),
+            _ => None,
         }
     }
 }
 
-/// HTML da página N da categoria, conferido contra a tela de origem.
+/// HTML da visão R com a página observada ou a N da categoria: um GET e,
+/// na visão D, a troca para R e a volta à D (orçamento no contrato).
 pub(super) fn obter(
+    arquivos: &ArquivosDeAcesso,
+    unidade: Option<&str>,
+    categoria: Categoria,
+    pagina: Option<usize>,
+) -> Result<String, ErroPaginaWeb> {
+    let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
+        .map_err(ErroPaginaWeb::Transporte)?;
+    let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
+        .is_ok_and(|contexto| contexto.eh_detalhada());
+    if detalhada {
+        let atual = TelaAtual {
+            url: tela.url,
+            html: tela.html,
+            mime: tela.mime,
+        };
+        return visao_do_controle::obter_na_visao_resumida(
+            &tela.instalacao,
+            &atual,
+            unidade,
+            categoria,
+            pagina,
+            &arquivos.cookie,
+            &mut EnvioHttps,
+        )
+        .map_err(ErroPaginaWeb::Visao);
+    }
+    match pagina {
+        None => Ok(tela.html),
+        Some(numero) => obter_da_tela(tela, arquivos, unidade, categoria, numero),
+    }
+}
+
+/// A página N a partir da tela R já obtida: zero ou um POST.
+fn obter_da_tela(
+    tela: TelaDoControle,
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
     categoria: Categoria,
     numero: usize,
 ) -> Result<String, ErroPaginaWeb> {
-    let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
-        .map_err(ErroPaginaWeb::Transporte)?;
     // A tela de origem passa pelas mesmas recusas da leitura sem opção.
     let leitura =
         paginas::juntar(std::slice::from_ref(&tela.html), unidade).map_err(ErroPaginaWeb::Caixa)?;

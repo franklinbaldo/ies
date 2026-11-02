@@ -90,3 +90,26 @@ efeito "grava o campo da página e envia o formulário" vem do oráculo
 Todos para listas comuns. O IES lê a página que a tela mostra e só
 envia um POST com `ies unidade recebidos|gerados --pagina N`
 ([contrato](../../contracts/cli/unidade-listar-processos-paginas.md)).
+
+## Visão detalhada do Controle (02/11/2026, treinamento)
+
+Observações estruturais de UnB 4.0.9, PEN1 5.0.4 e GO 5.0.3, sem valores
+([ensaio](../validacao-live/2026-11-02-leitura-controle.md)):
+
+- `hdnTipoVisualizacao` alterna `R`/`D` pelo mesmo `frmProcedimentoControlar`
+  (`trocarVisualizacao`). A D tem uma tabela, `tblProcessosDetalhado`, com
+  total = Recebidos + Gerados e **nenhum** marcador de categoria por linha.
+- A D tem página lembrada própria (`hdnDetalhadoPaginaAtual`, paginador
+  `lnkDetalhado*`/`selDetalhadoPaginacao*`), do tamanho da página da R
+  (PEN1 100, GO 10). A UnB publica a D inteira, sem o campo. A R não publica
+  `hdnDetalhadoPaginaAtual`.
+- PEN1 e GO lembram a D na sessão (na PEN1, até num login novo); a UnB
+  volta à R no GET seguinte.
+- Colunas configuráveis pelo Nível de detalhe (`procedimento_configurar_detalhe`,
+  link `ancNivelDetalhe` só na D): rótulo em `div.infraDivRotuloOrdenacao`;
+  prazo, devolver e aguardando têm cabeçalho só de ícone (`aria-label` na
+  5.0.x, `infraTooltipMostrar` na 4.0.9). Células trazem `data-label` igual
+  ao cabeçalho na 5.0.x; a 4.0.9 não. Interessados separa itens em
+  `div.divItemCelula`/`div.divRotuloItemCelula`. Cabeçalhos usam `&nbsp;`
+  (`Última&nbsp;Mov.`).
+- Colunas sem rótulo: seleção (`lnkInfraCheck`), ícones de estado e ações.

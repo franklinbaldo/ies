@@ -10,10 +10,12 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 
 # Listar processos da unidade
 
-Lê as listas Recebidos e Gerados da unidade ativa na tela
-**Controle de Processos** do SEI Web, como duas
-[listas independentes](unidade-recebidos-gerados.md); `ies unidade
-recebidos` e `ies unidade gerados` leem uma delas pela mesma operação. A CaixaDeEntrada é da unidade;
+Lê os processos da unidade ativa na tela **Controle de Processos** do SEI
+Web pela [visão detalhada](unidade-listar-processos-visao-detalhada.md)
+(decisão do proprietário, 02/11/2026), com as colunas do
+[Nível de detalhe](unidade-colunas.md), e deixa a tela como a encontrou.
+`ies unidade recebidos` e `ies unidade gerados` leem uma das
+[listas independentes](unidade-recebidos-gerados.md) pela mesma operação. A CaixaDeEntrada é da unidade;
 sessão e credenciais são meios de acesso, não entidades proprietárias.
 
 ## Configuração e limites
@@ -32,13 +34,15 @@ para URL assinada, origem autorizada e cookie, distinguindo-os de arquivo
 regular: metadados de links não provam posse segura do arquivo alvo.
 Esta validação deve ocorrer antes de qualquer envio de cookie por rede. O IES confere a origem antes de ler cookies e
 não segue redirects, não executa login, escritas ou tentativa de outro
-backend. O único POST é o de `ies unidade recebidos|gerados --pagina N`,
-descrito nas [páginas da caixa](unidade-listar-processos-paginas.md). Não há
+backend. Os POSTs são os da troca de visão e da página da D
+([visão detalhada](unidade-listar-processos-visao-detalhada.md)) e o de
+`ies unidade recebidos|gerados --pagina N`
+([páginas da caixa](unidade-listar-processos-paginas.md)). Não há
 configuração persistente nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
-`--saida ARQUIVO` exporta o mesmo array JSON da caixa **somente depois**
-de verificar total e faixa observada de recebidos e gerados. O arquivo novo é criado sem
+`--saida ARQUIVO` exporta o mesmo array JSON da saída **somente depois**
+de verificar total, faixa observada e a restauração da tela. O arquivo novo é criado sem
 sobrescrever destinos existentes; em Unix recebe modo privado 0600.
 Sem essa opção, a saída de terminal é preservada. O comprovante não
 exibe dados dos processos ou caminhos de credenciais. Não declara
@@ -62,7 +66,10 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 
 ## Resultado e alcance
 
-A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
+`ies unidade listar-processos` devolve um **array com uma lista** D
+`categoria: null`, `colunas_ausentes` e, por processo, `categoria`
+observada e `colunas` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)).
+O replay da caixa resumida segue o [golden v2](../../tests/fixtures/caixa-v2.json):
 um **array** de duas listas na ordem recebidos, gerados, cada uma na
 [forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
 total_declarado, faixa_observada, processos}` (`faixa_observada` é
@@ -121,52 +128,14 @@ a primeira legenda. Um `caption` válido único preserva o comportamento.
 Não há mudança de requests ou promessa de snapshot transacional.
 
 
-## Complemento com páginas HTML privadas previamente capturadas (Refs #57)
+## Complemento com páginas HTML privadas: removido (Refs #57)
 
-A opção aditiva `ies unidade listar-processos --pagina-arquivo ARQUIVO`
-pode ser repetida para acrescentar **páginas HTML já capturadas**
-ao GET autorizado da tela inicial. O IES não produz nem repete
-POST de paginação: orçamento de rede permanece **um GET**.
-Cada arquivo precisa ser regular, privado (0600 no Unix), não pode
-ser link simbólico final no Linux, tem limite de 8 MB e deve
-conter HTML UTF-8 previamente normalizado. Recusam-se caminhos
-duplicados, mais de 199 complementos ou mais de 48 MB de HTML
-total. A CLI não publica HTML nem URLs assinadas ou cookies.
-
-A união utiliza as verificações existentes de
-`paginas::juntar`: rótulo de unidade, visualização, hashes de
-critérios, faixas contíguas, IDs e totais de ambas as tabelas.
-Um complemento ausente ou divergente deve produzir erro; páginas
-contíguas mas insuficientes devolvem a faixa coberta, sem afirmar
-lista integral. Quando complementos são
-usados, a saída JSON declara `origem: web_com_paginas_privadas`,
-distinguindo da consulta baseada apenas no GET atual.
-
-As páginas extras precisam ter sido capturadas legitimamente
-pela própria pessoa autorizada na **mesma sessão, unidade e
-configuração**; os hashes de critério são apenas marcadores
-opacos, **não** provas criptográficas de origem, atualidade
-ou snapshot do SEI. O IES não executa coleta autenticada, não
-pode provar a frescura dos arquivos e não afirma suporte live
-à paginação de todas as páginas. O modo sem a opção segue o golden.
-
-## Recusa de complementos locais antes do GET (Refs #57)
-
-Quando `--pagina-arquivo` é informado, **validar e ler todos os
-complementos privados antes de carregar a configuração ou emitir o GET**
-do Controle. Arquivo ausente, ilegível, simbólico, inseguro ou acima dos
-limites impede a consulta remota, pois a lista completa não seria
-entregável mesmo se o GET funcionasse. Manter os subcódigos tipados já
-existentes, sem mascará-los com erro de sessão ausente.
-
-A primeira página continua vindo do único GET previsto. Após recebê-la,
-conferir novamente o orçamento combinado de até 48 MB usando os bytes
-dos complementos já lidos, **sem reabrir arquivos**, sem POST e sem
-retries. Rejeitar a soma excessiva antes de publicar/exportar qualquer
-processo. Orçamento: entrada complementar inválida = **0 GET/0 POST**;
-complementos locais válidos = **até 1 GET/0 POST**. Essa ordem não
-atesta sessão autenticada, atualidade das capturas nem compatibilidade
-live.
+`--pagina-arquivo` unia ao GET páginas HTML privadas já capturadas, sem
+POST. Com a leitura pela visão D e `--pagina N`, a opção foi **removida**
+de `listar-processos` (erro de uso, saída 2, sem alias pré-1.0): as telas
+da troca de visão são de outra geração que as capturas, e juntá-las não
+tem semântica verificável. Capturas continuam legíveis por `ies replay`;
+`processo NUP --resumo --pagina-arquivo` não muda.
 
 ## Consulta de apenas uma lista (Refs #57)
 
@@ -175,11 +144,10 @@ devolvem só a lista pedida, com a mesma regra da caixa: a página
 observada, `total_declarado` e `faixa_observada`, sem recusar por
 haver outras páginas. A outra tabela continua interpretada e
 verificada estruturalmente, mas não aparece na saída. `--saida` exporta
-a mesma lista para arquivo privado novo. São os únicos comandos com
-`--pagina N` (uma tabela por POST) e não aceitam `--pagina-arquivo`.
-As opções `--categoria` e `--pagina` de `listar-processos` foram
-**removidas** (erro de uso, saída 2), sem alias; ver as
-[listas Recebidos e Gerados](unidade-recebidos-gerados.md).
+a mesma lista para arquivo privado novo. Seu `--pagina N` pede uma página
+de **uma** tabela R e não aceitam `--pagina-arquivo`. Em `listar-processos`,
+`--categoria` segue removida (erro de uso, saída 2) e `--pagina N` pede a
+página da visão D; ver as [listas Recebidos e Gerados](unidade-recebidos-gerados.md).
 
 ## Tipo de resposta HTML conferido sem equivalência por substring (Refs #57)
 
@@ -216,7 +184,7 @@ não prova o resultado live em instalações de treinamento.
 
 O comando live `ies unidade listar-processos`, inclusive quando salva
 `--saida`, precisa de rótulo inequívoco de unidade publicado pelo Controle
-Web antes de devolver processos. Mesmo que ambos os totais e faixas estejam
+Web (nas telas R e D) antes de devolver processos. Mesmo com total e faixa
 cobertos, `unidade: null` **não** comprova a origem dos dados e deve falhar
 com `ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle` e o subcódigo
 `identificacao_da_unidade_ausente_no_controle`. Não gravar exportação
@@ -271,43 +239,21 @@ ou afirmar compatibilidade live sem prova. Os paginadores **por tabela**
 `R` e seguem a regra das [páginas da caixa](unidade-listar-processos-paginas.md).
 
 
-## Visão detalhada do Controle existente, sem POST (Refs #57)
+## Visão detalhada (Refs #57)
 
-O mesmo `ies unidade listar-processos` deve aceitar a página **já devolvida
-por seu único GET** quando ela apresenta uma tabela única
-`tblProcessosDetalhado` e `hdnTipoVisualizacao=D`. Não criar flag,
-subcomando ou inferir que esses processos pertençam à categoria
-`recebidos` ou `gerados`. A saída é um array com **uma** lista na
-[forma única](unidade-recebidos-gerados.md), `categoria: null`,
-com `visualizado`/`sigiloso` somente quando observáveis. `null` porque
-`D` é modo de exibição da sessão, não categoria do SEI; a saída não
-ganha campo `visualizacao`: lista única com `categoria: null` só ocorre
-na visão D.
-
-Para cada linha aceita, exigir identificador `tr id=P<dígitos>`, um
-cabeçalho `Processo` único, link dessa célula para uma ação de processo
-conhecida e NUP não vazio. Não executar links, JS nem criar IDs. Validar
-legenda única, total, faixa e não duplicidade, preservando zeros. Quando a
-página não cobre o total, publicar `faixa_observada` com o total, sem
-afirmar lista integral. Páginas privadas já fornecidas pela opção
-existente `--pagina-arquivo` podem ser reunidas se as faixas forem
-contíguas e o contexto da unidade e visualização permanecer idêntico.
-Não aceitar modo resumido e detalhado misturados.
-
-A leitura Web permanece **um GET, zero POST**, sem login ou troca de
-visualização; `--pagina N` não se aplica à visão D.
-O comando não fabrica uma tela D a partir de R. Cassettes históricas
-e testes sintéticos são limites de validação, não equivalência live.
-
+A leitura da D, a troca de visão, `--pagina N`, a restauração e as recusas
+estão no [contrato da visão detalhada](unidade-listar-processos-visao-detalhada.md).
+Para cada linha aceita, exigir `tr id=P<dígitos>`, um cabeçalho `Processo`
+único, link dessa célula para `procedimento_trabalhar` ou
+`procedimento_visualizar` e NUP não vazio; legenda única, total, faixa e não
+duplicidade, preservando zeros. A página que não cobre o total publica a
+`faixa_observada`, sem afirmar lista integral. Não executar links nem JS.
 
 Se uma tela detalhada publicar `hdnDetalhadoPaginaAtual` ou controles
 `lnkInfraProximaPagina*`, `lnkInfraPaginaAnterior*` ou
-`selInfraPaginacao*`, sua legenda deve declarar o **intervalo explícito**.
-Coincidência entre total e linhas sem faixa não comprova cobertura:
-falhar com `faixa_detalhada_sem_intervalo_com_paginacao`, sem exportação
-nem requests adicionais. Isso evita apresentar uma página posterior
-como primeira página completa.
-
+`selInfraPaginacao*`, sua legenda deve declarar o **intervalo explícito**:
+coincidência entre total e linhas sem faixa não comprova cobertura e falha
+com `faixa_detalhada_sem_intervalo_com_paginacao`.
 
 ## Link de processo sigiloso no Controle (Goiás 5.0.3)
 

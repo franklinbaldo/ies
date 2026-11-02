@@ -40,6 +40,12 @@ pub(crate) fn paginador_da_tabela(
         crate::dominio::Categoria::Recebidos => "Recebidos",
         crate::dominio::Categoria::Gerados => "Gerados",
     };
+    paginador_com_prefixo(html, prefixo)
+}
+
+/// Paginador `lnk{prefixo}*`/`sel{prefixo}Paginacao*`; `Detalhado` na visão D
+/// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
+pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
     let parser = dom.parser();
     for (seletor, marcas) in [

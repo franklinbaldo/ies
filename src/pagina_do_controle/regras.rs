@@ -102,9 +102,11 @@ fn opcao_selecionada(
 /// Pares (nome, valor) dos controles de usuário, na ordem do documento.
 /// Ocultos ficam com o primitivo; botões não participam de `submit()`;
 /// caixas desmarcadas não são enviadas; qualquer outro controle recusa.
-pub(super) fn campos_do_usuario(
+/// `permitidos` são os `select` que a operação repete (seus `CAMPOS_USUARIO`).
+pub(crate) fn campos_do_usuario(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
+    permitidos: &[&str],
 ) -> Result<Vec<(String, String)>, E> {
     let mut campos: Vec<(String, String)> = Vec::new();
     for tag in form
@@ -141,7 +143,7 @@ pub(super) fn campos_do_usuario(
                 decodificado(&atributo(tag, "value")?.unwrap_or_default(), &nome)?
             }
             ("select", _)
-                if CAMPOS_USUARIO.contains(&nome.as_str())
+                if permitidos.contains(&nome.as_str())
                     && !atributo_presente(tag, "multiple").map_err(E::AtributoHtml)? =>
             {
                 opcao_selecionada(tag, parser, &nome)?

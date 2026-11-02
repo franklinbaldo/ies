@@ -35,7 +35,8 @@ pub(crate) fn derivar_pagina(
         let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
         let form = localizar_formulario(&dom, OBTER_PAGINA_DO_CONTROLE.formulario)
             .map_err(E::Submissao)?;
-        regras::campos_do_usuario(form, dom.parser()).map_err(E::Formulario)?
+        regras::campos_do_usuario(form, dom.parser(), regras::CAMPOS_USUARIO)
+            .map_err(E::Formulario)?
     };
     let indice = indice.to_string();
     let mut campos: Vec<(&str, &str)> = usuario
