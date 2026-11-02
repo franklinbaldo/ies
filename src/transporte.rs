@@ -453,6 +453,9 @@ pub(crate) mod texto_de_recusa;
 #[path = "transporte/saneamento.rs"]
 pub(crate) mod saneamento;
 
+#[path = "transporte/validacao_da_infra.rs"]
+pub(crate) mod validacao_da_infra;
+
 #[path = "transporte/proxy.rs"]
 pub(crate) mod proxy;
 

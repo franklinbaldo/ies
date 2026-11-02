@@ -259,3 +259,39 @@ fn erro_500_apos_envio_expoe_status_e_mensagem_pela_submissao() {
     );
     assert_eq!(E::TelaDeLoginRecebidaAposEnvio.status_http(), None);
 }
+
+/// Validação da Infra na estrutura observada (textarea oculto + `alert`).
+fn com_validacao(corpo: &str, texto: &str) -> String {
+    format!(
+        "<html><body>{corpo}<textarea id=\"txaInfraValidacao\" name=\"txaInfraValidacao\" \
+         style=\"display:none\">{texto}</textarea><script>self.setTimeout(\
+         'alert(document.getElementById(\\'txaInfraValidacao\\').value)',300);</script>\
+         </body></html>"
+    )
+}
+
+#[test]
+fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
+    let formulario_de_volta = "<form id='frmPesquisaProtocolo'></form>";
+    let marcador = "<table class='pesquisaResultado'><tr><td>x</td></tr></table>";
+    for corpo in [formulario_de_volta, marcador] {
+        let (r, n) = enviar_com(200, &com_validacao(corpo, "Protocolo inv&aacute;lido."));
+        let erro = r.unwrap_err();
+        assert_eq!(n, 1);
+        assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei", "{corpo}");
+        let http = erro.status_http().expect("mensagem do SEI");
+        assert_eq!(http.status, 200);
+        assert_eq!(
+            http.mensagem_do_servidor.as_deref(),
+            Some("Protocolo inválido.")
+        );
+    }
+    // Textarea vazio não é recusa: vale o marcador, como antes.
+    let vazio = com_validacao(marcador, "");
+    assert_eq!(enviar_com(200, &vazio).0.unwrap(), vazio);
+    let sem_marcador = com_validacao(formulario_de_volta, "");
+    assert_eq!(
+        enviar_com(200, &sem_marcador).0.unwrap_err(),
+        E::MarcadorDeResultadoAusenteNaResposta
+    );
+}
