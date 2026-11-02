@@ -221,6 +221,75 @@ fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
 }
 
 #[test]
+fn acao_de_origem_ausente_repetida_ou_diferente_da_pesquisa_e_recusada() {
+    let sem = observado().replace("&acao_origem=protocolo_pesquisar", "");
+    assert_eq!(erro(&sem), E::AcaoDeOrigemAusenteNoRedirecionamento);
+    let repetida = format!("{}&acao_origem=protocolo_pesquisar", observado());
+    assert_eq!(erro(&repetida), E::AcaoDeOrigemRepetidaNoRedirecionamento);
+    for origem in ["procedimento_controlar", "", "PROTOCOLO_PESQUISAR"] {
+        let outra = observado().replace(
+            "acao_origem=protocolo_pesquisar",
+            &format!("acao_origem={origem}"),
+        );
+        assert_eq!(
+            erro(&outra),
+            E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
+            "{origem}"
+        );
+    }
+}
+
+#[test]
+fn infra_sistema_do_redirecionamento_precisa_ser_decimal_e_o_do_envio() {
+    let sem = observado().replace("&infra_sistema=1", "");
+    assert_eq!(erro(&sem), E::InfraSistemaAusenteNoRedirecionamento);
+    let repetido = format!("{}&infra_sistema=1", observado());
+    assert_eq!(erro(&repetido), E::InfraSistemaRepetidoNoRedirecionamento);
+    for valor in ["", "1a", "-1", "%31", "+1"] {
+        let alterado = observado().replace("infra_sistema=1", &format!("infra_sistema={valor}"));
+        assert_eq!(
+            erro(&alterado),
+            E::InfraSistemaNaoDecimalNoRedirecionamento,
+            "{valor}"
+        );
+    }
+    // Comparação exata: `01` não é normalizado para `1`.
+    for valor in ["2", "01"] {
+        let outro = observado().replace("infra_sistema=1", &format!("infra_sistema={valor}"));
+        assert_eq!(
+            erro(&outro),
+            E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
+            "{valor}"
+        );
+    }
+}
+
+#[test]
+fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado() {
+    let casos = [
+        (
+            url_do_envio().replace("&infra_sistema=1", ""),
+            E::InfraSistemaAusenteNaUrlDoEnvio,
+        ),
+        (
+            format!("{}&infra_sistema=1", url_do_envio()),
+            E::InfraSistemaRepetidoNaUrlDoEnvio,
+        ),
+        (
+            url_do_envio().replace("infra_sistema=1", "infra_sistema=x"),
+            E::InfraSistemaNaoDecimalNaUrlDoEnvio,
+        ),
+    ];
+    for (envio, esperado) in casos {
+        assert_eq!(
+            interpretar_com_envio(Some(&observado()), &envio).unwrap_err(),
+            esperado,
+            "{envio}"
+        );
+    }
+}
+
+#[test]
 fn subcodigos_sao_estaveis_e_distintos() {
     let todos = [
         E::LocalizacaoDoRedirecionamentoAusente,
@@ -240,6 +309,16 @@ fn subcodigos_sao_estaveis_e_distintos() {
         E::UnidadeAtualAusenteNaUrlDoEnvio,
         E::UnidadeAtualRepetidaNaUrlDoEnvio,
         E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
+        E::AcaoDeOrigemAusenteNoRedirecionamento,
+        E::AcaoDeOrigemRepetidaNoRedirecionamento,
+        E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
+        E::InfraSistemaAusenteNoRedirecionamento,
+        E::InfraSistemaRepetidoNoRedirecionamento,
+        E::InfraSistemaNaoDecimalNoRedirecionamento,
+        E::InfraSistemaAusenteNaUrlDoEnvio,
+        E::InfraSistemaRepetidoNaUrlDoEnvio,
+        E::InfraSistemaNaoDecimalNaUrlDoEnvio,
+        E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
     ];
     let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
     assert_eq!(unicos.len(), todos.len());

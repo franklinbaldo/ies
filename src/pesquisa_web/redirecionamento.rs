@@ -16,6 +16,9 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
+    AcaoDeOrigemAusenteNoRedirecionamento,
+    AcaoDeOrigemRepetidaNoRedirecionamento,
+    AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
     IdProcedimentoAusenteNoRedirecionamento,
     IdProcedimentoRepetidoNoRedirecionamento,
     IdProcedimentoNaoDecimalNoRedirecionamento,
@@ -27,6 +30,13 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     UnidadeAtualAusenteNaUrlDoEnvio,
     UnidadeAtualRepetidaNaUrlDoEnvio,
     UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
+    InfraSistemaAusenteNoRedirecionamento,
+    InfraSistemaRepetidoNoRedirecionamento,
+    InfraSistemaNaoDecimalNoRedirecionamento,
+    InfraSistemaAusenteNaUrlDoEnvio,
+    InfraSistemaRepetidoNaUrlDoEnvio,
+    InfraSistemaNaoDecimalNaUrlDoEnvio,
+    InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
 }
 
 impl ErroRedirecionamentoDaPesquisa {
@@ -47,6 +57,15 @@ impl ErroRedirecionamentoDaPesquisa {
             }
             Self::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar => {
                 "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
+            }
+            Self::AcaoDeOrigemAusenteNoRedirecionamento => {
+                "acao_de_origem_ausente_no_redirecionamento"
+            }
+            Self::AcaoDeOrigemRepetidaNoRedirecionamento => {
+                "acao_de_origem_repetida_no_redirecionamento"
+            }
+            Self::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa => {
+                "acao_de_origem_do_redirecionamento_diferente_da_pesquisa"
             }
             Self::IdProcedimentoAusenteNoRedirecionamento => {
                 "id_procedimento_ausente_no_redirecionamento"
@@ -72,6 +91,21 @@ impl ErroRedirecionamentoDaPesquisa {
             Self::UnidadeAtualRepetidaNaUrlDoEnvio => "unidade_atual_repetida_na_url_do_envio",
             Self::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio => {
                 "unidade_atual_do_redirecionamento_diferente_da_do_envio"
+            }
+            Self::InfraSistemaAusenteNoRedirecionamento => {
+                "infra_sistema_ausente_no_redirecionamento"
+            }
+            Self::InfraSistemaRepetidoNoRedirecionamento => {
+                "infra_sistema_repetido_no_redirecionamento"
+            }
+            Self::InfraSistemaNaoDecimalNoRedirecionamento => {
+                "infra_sistema_nao_decimal_no_redirecionamento"
+            }
+            Self::InfraSistemaAusenteNaUrlDoEnvio => "infra_sistema_ausente_na_url_do_envio",
+            Self::InfraSistemaRepetidoNaUrlDoEnvio => "infra_sistema_repetido_na_url_do_envio",
+            Self::InfraSistemaNaoDecimalNaUrlDoEnvio => "infra_sistema_nao_decimal_na_url_do_envio",
+            Self::InfraSistemaDoRedirecionamentoDiferenteDoEnvio => {
+                "infra_sistema_do_redirecionamento_diferente_do_envio"
             }
         }
     }
