@@ -88,7 +88,7 @@ fn resposta_com_marcador_de_resultado_e_aceita_com_uma_chamada() {
 fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
     let (_pasta, arquivo) = cookie(0o600);
     let r = enviar_submissao_via(submissao(), &arquivo, |s, cookie| {
-        assert_eq!(s.metodo(), "POST");
+        assert_eq!(SubmissaoDerivada::METODO, "POST");
         assert_eq!(s.origem(), "https://sei.exemplo.gov.br");
         assert_eq!(s.referer(), url_servida());
         assert_eq!(

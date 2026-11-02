@@ -1,4 +1,4 @@
-//! Formulário `frmPesquisaProtocolo` observado offline na UnB e na PEN1
+//! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
 use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao, OperacaoDeFormulario};
 
@@ -36,11 +36,15 @@ mod tests {
 
     // Estrutura sintética com os nomes observados; nenhum valor real.
     fn formulario_observado() -> String {
-        let ocultos: String = PESQUISAR_PROTOCOLO
-            .campos_ocultos_exigidos
-            .iter()
-            .map(|nome| format!("<input type='hidden' id='{nome}' name='{nome}' value=''>"))
-            .collect();
+        use std::fmt::Write as _;
+        let mut ocultos = String::new();
+        for nome in PESQUISAR_PROTOCOLO.campos_ocultos_exigidos {
+            write!(
+                ocultos,
+                "<input type='hidden' id='{nome}' name='{nome}' value=''>"
+            )
+            .unwrap();
+        }
         format!(
             "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>\
              <form id='frmPesquisaProtocolo' name='frmPesquisaProtocolo' method='post' \

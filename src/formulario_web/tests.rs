@@ -94,7 +94,7 @@ fn deriva_ocultos_exatos_campos_e_botao_na_ordem_do_documento() {
         &[("txtProtocoloPesquisa", "0001"), ("rdoPesquisarEm", "P")],
     )
     .unwrap();
-    assert_eq!(s.metodo(), "POST");
+    assert_eq!(SubmissaoDerivada::METODO, "POST");
     assert_eq!(
         s.url(),
         format!(
@@ -103,7 +103,10 @@ fn deriva_ocultos_exatos_campos_e_botao_na_ordem_do_documento() {
     );
     assert_eq!(s.origem(), "https://sei.exemplo.gov.br");
     assert_eq!(s.referer(), url_servida());
-    assert_eq!(s.tipo_de_conteudo(), "application/x-www-form-urlencoded");
+    assert_eq!(
+        SubmissaoDerivada::TIPO_DE_CONTEUDO,
+        "application/x-www-form-urlencoded"
+    );
     assert_eq!(
         s.nomes_dos_campos(),
         [
@@ -129,6 +132,16 @@ fn oculto_fora_do_formulario_nao_participa() {
             .iter()
             .any(|n| n == "hdnInfraPrefixoCookie")
     );
+}
+
+#[test]
+fn controle_desabilitado_nao_e_enviado_como_no_navegador() {
+    let html = padrao().replace(
+        "</form>",
+        "<input type='hidden' name='hdnExtra' value='1' disabled></form>",
+    );
+    let s = derivar_html(&html, &[]).unwrap();
+    assert!(!s.nomes_dos_campos().iter().any(|n| n == "hdnExtra"));
 }
 
 #[test]

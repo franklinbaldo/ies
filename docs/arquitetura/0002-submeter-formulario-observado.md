@@ -44,7 +44,8 @@ antigo despachante `Action` removido do IES.
 - Campos `hidden` do formulário entram **exatamente como servidos**, na
   ordem do documento; campos ocultos exigidos pela operação ausentes,
   ou nomes ocultos repetidos, são recusados. Ocultos fora do `<form>`
-  (por exemplo `hdnInfraPrefixoCookie`) não participam.
+  (por exemplo `hdnInfraPrefixoCookie`) não participam, nem controles
+  `disabled`, que o navegador também omite.
 - Campos do usuário só entram se estiverem na lista da operação **e**
   publicados pelo formulário; nome fora da lista, não publicado ou
   informado duas vezes tem recusa própria.
@@ -152,7 +153,7 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
 - As cassettes públicas (`schema_version: 1`) registram para POST só
   `method`, `operation`, `operation_parameter` e `pathname`: **não há
   corpo nem cabeçalhos** da requisição (verificado em
-  `processo-busca-unb.json`). Os testes provam coerência interna com o
+  `processo-busca-unb.json` e `processo-busca-pen1.json`). Os testes provam coerência interna com o
   formulário servido, **não** que o SEI aceita o payload.
 - A paginação POST do Controle de Processos nunca foi capturada.
 - Resposta de pesquisa sem resultados não foi observada; o marcador

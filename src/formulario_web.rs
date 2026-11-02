@@ -1,8 +1,18 @@
 //! Submissão derivada de formulário HTML servido pelo SEI, sem rede.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
+mod codificacao;
+mod leitura;
+
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, RespostaWeb};
+use crate::transporte::{
+    FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
+};
+use codificacao::codificar;
+use leitura::{
+    Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, localizar_formulario,
+    resolver_action,
+};
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -128,6 +138,8 @@ impl ErroSubmissaoFormulario {
 pub(crate) struct SubmissaoDerivada {
     url: String,
     host: String,
+    caminho: String,
+    acao: &'static str,
     referer: String,
     nomes: Vec<String>,
     corpo: Vec<u8>,
@@ -136,9 +148,8 @@ pub(crate) struct SubmissaoDerivada {
 }
 
 impl SubmissaoDerivada {
-    pub(crate) fn metodo(&self) -> &'static str {
-        "POST"
-    }
+    pub(crate) const METODO: &'static str = "POST";
+    pub(crate) const TIPO_DE_CONTEUDO: &'static str = "application/x-www-form-urlencoded";
     pub(crate) fn url(&self) -> &str {
         &self.url
     }
@@ -147,9 +158,6 @@ impl SubmissaoDerivada {
     }
     pub(crate) fn referer(&self) -> &str {
         &self.referer
-    }
-    pub(crate) fn tipo_de_conteudo(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
     }
     pub(crate) fn nomes_dos_campos(&self) -> &[String] {
         &self.nomes
@@ -162,16 +170,79 @@ impl SubmissaoDerivada {
     }
 }
 
+/// Só nomes e destino sem consulta: `infra_hash`, `Referer` e valores
+/// nunca aparecem em logs ou mensagens de teste.
 impl fmt::Debug for SubmissaoDerivada {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _ = (
-            &self.url,
-            &self.referer,
-            &self.corpo,
-            self.marcador_de_resultado,
-        );
-        unimplemented!("CONTRACT shim: redação do Debug")
+        f.debug_struct("SubmissaoDerivada")
+            .field("metodo", &Self::METODO)
+            .field(
+                "destino",
+                &format_args!("https://{}/{}", self.host, self.caminho),
+            )
+            .field("acao", &self.acao)
+            .field("campos", &self.nomes)
+            .field("valores", &"<redigido>")
+            .field("referer", &"<redigido>")
+            .field("efeito", &self.efeito)
+            .finish_non_exhaustive()
     }
+}
+
+fn conferir_unidade(dom: &tl::VDom<'_>, solicitada: &str) -> Result<(), ErroSubmissaoFormulario> {
+    use ErroSubmissaoFormulario as E;
+    // `unidade_html` só falha por identificações repetidas fora do par móvel/desktop.
+    let publicada = crate::controle_contexto::unidade_html(dom)
+        .map_err(|_| E::IdentificacoesDaUnidadeRepetidasNaTela)?
+        .ok_or(E::IdentificacaoDaUnidadeAusenteNaTela)?;
+    let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
+    if publicada != solicitada {
+        return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
+    }
+    Ok(())
+}
+
+fn ordenar_campos<'c>(
+    controles: &'c [Controle],
+    operacao: &OperacaoDeFormulario,
+    campos: &'c [(&'c str, &'c str)],
+) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
+    use ErroSubmissaoFormulario as E;
+    let publicado = |nome: &str| {
+        controles
+            .iter()
+            .any(|c| matches!(c, Controle::Usuario(n) if n == nome))
+    };
+    for (i, (nome, _)) in campos.iter().enumerate() {
+        let campo = (*nome).to_owned();
+        if !operacao.campos_usuario.contains(nome) {
+            return Err(E::CampoForaDaListaDaOperacao { campo });
+        }
+        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        }
+        if !publicado(nome) {
+            return Err(E::CampoNaoPublicadoPeloFormulario { campo });
+        }
+    }
+    // Ordem do documento; um rádio com vários controles é emitido uma vez.
+    let mut emitidos: Vec<&str> = Vec::new();
+    let mut ordenados = Vec::new();
+    for controle in controles {
+        match controle {
+            Controle::Oculto { nome, valor } | Controle::Botao { nome, valor } => {
+                ordenados.push((nome.as_str(), valor.as_str()));
+            }
+            Controle::Usuario(nome) if !emitidos.contains(&nome.as_str()) => {
+                if let Some((n, v)) = campos.iter().find(|(n, _)| n == nome) {
+                    emitidos.push(n);
+                    ordenados.push((*n, *v));
+                }
+            }
+            Controle::Usuario(_) => {}
+        }
+    }
+    Ok(ordenados)
 }
 
 /// Deriva a submissão do formulário servido, sem rede.
@@ -182,21 +253,80 @@ pub(crate) fn derivar_submissao(
     unidade_solicitada: &str,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
-    let _ = (operacao, instalacao, tela, unidade_solicitada, campos);
-    unimplemented!("CONTRACT shim: derivação")
+    use ErroSubmissaoFormulario as E;
+    if operacao.efeito == EfeitoAvaliado::Desconhecido {
+        return Err(E::EfeitoDaOperacaoNaoAvaliado);
+    }
+    if tela.html.len() > crate::MAX_HTML_BYTES {
+        return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
+    }
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
+        return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
+    }
+    // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
+    let dom = tl::parse(tela.html, tl::ParserOptions::default())
+        .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+    conferir_unidade(&dom, unidade_solicitada)?;
+    let form = localizar_formulario(&dom, operacao.formulario)?;
+    conferir_metodo_e_codificacao(form)?;
+    let url = resolver_action(form, &servida, instalacao, operacao)?;
+    let controles = ler_controles(form, dom.parser(), operacao)?;
+    let ordenados = ordenar_campos(&controles, operacao, campos)?;
+    let mut corpo = String::new();
+    for (i, (nome, valor)) in ordenados.iter().enumerate() {
+        if i > 0 {
+            corpo.push('&');
+        }
+        let nao_representavel = || E::ValorNaoRepresentavelNaCodificacao {
+            campo: (*nome).to_owned(),
+        };
+        codificar(nome, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+        corpo.push('=');
+        codificar(valor, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+    }
+    Ok(SubmissaoDerivada {
+        url,
+        host: servida.host.to_owned(),
+        caminho: servida.caminho.to_owned(),
+        acao: operacao.acao,
+        referer: tela.url.to_owned(),
+        nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
+        corpo: corpo.into_bytes(),
+        efeito: operacao.efeito,
+        marcador_de_resultado: operacao.marcador_de_resultado,
+    })
 }
 
-/// Envio injetável: `FnOnce` recebe a submissão e o cookie, uma vez.
+/// Envio injetável: `FnOnce` recebe (e consome) a submissão e o cookie,
+/// uma única vez. O cookie é lido do arquivo privado só depois da derivação.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,
     cookie_file: &Path,
     enviar: F,
 ) -> Result<String, ErroSubmissaoFormulario>
 where
-    F: FnOnce(&SubmissaoDerivada, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
+    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
 {
-    let _ = (submissao, cookie_file, enviar);
-    unimplemented!("CONTRACT shim: envio")
+    use ErroSubmissaoFormulario as E;
+    let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
+    let cookie = texto.trim();
+    validar_cookie(cookie).map_err(E::Transporte)?;
+    let marcador_de_resultado = submissao.marcador_de_resultado;
+    let resposta = enviar(submissao, cookie).map_err(E::Transporte)?;
+    let html = decodificar_resposta(resposta).map_err(|falha| match falha {
+        FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
+        outra => E::Transporte(outra),
+    })?;
+    let marcado = tl::parse(&html, tl::ParserOptions::default())
+        .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?
+        .query_selector(marcador_de_resultado)
+        .is_some_and(|mut achados| achados.next().is_some());
+    if !marcado {
+        return Err(E::MarcadorDeResultadoAusenteNaResposta);
+    }
+    Ok(html)
 }
 
 #[cfg(test)]
