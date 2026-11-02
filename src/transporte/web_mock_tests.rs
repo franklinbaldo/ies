@@ -116,7 +116,7 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
             200,
             "application/json",
             Some(5),
-            FalhaTransporte::RespostaInesperada,
+            FalhaTransporte::TipoDeConteudoNaoHtml,
         ),
         (
             200,

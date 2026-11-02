@@ -207,8 +207,8 @@ parâmetros separados por `;`, seja exatamente `text/html`
 A presença de `text/html` dentro de um parâmetro de outro tipo,
 como `application/json; profile=text/html`, não certifica HTML.
 Tipo ausente, `text/plain`, `application/xhtml+xml` ou outros
-subtipos continuam recusados com a variante de transporte existente
-`FalhaTransporte::RespostaInesperada`. Não há retry nem GET adicional:
+subtipos são recusados com a variante de transporte
+`FalhaTransporte::TipoDeConteudoNaoHtml`. Não há retry nem GET adicional:
 o limite, o status e a verificação de login permanecem iguais. A
 regra é ensaiada offline; nenhum teste de produção é autorizado.
 

@@ -121,3 +121,21 @@ para siglas, normalização ou troca automática de unidade.
 A operação continua limitada ao GET já solicitado (zero pedidos
 adicionais), sem login ou POST. Este teste de identidade da tela não
 comprova sessão autenticada, permissões ou cobertura de paginação.
+
+## Recusas de resposta do GET com variante por fato (Refs #57)
+
+O antigo subcódigo único `resposta_inesperada` foi separado, porque o
+ensaio live em Goiás (02/11/2026) não pôde dizer qual verificação
+falhou. Toda resposta do GET Web passa pelas mesmas checagens, na ordem:
+
+| Fato observado | Variante Rust | Subcódigo |
+| --- | --- | --- |
+| Status HTTP 5xx | `StatusHttpDeErroDoServidor` | `status_http_de_erro_do_servidor` |
+| Status HTTP 429 | `StatusHttpDeLimiteDeRequisicoes` | `status_http_de_limite_de_requisicoes` |
+| Outro status diferente de 200 (fora 3xx/401/403) | `StatusHttpDiferenteDe200` | `status_http_diferente_de_200` |
+| `Content-Type` principal diferente de `text/html` | `TipoDeConteudoNaoHtml` | `tipo_de_conteudo_nao_html` |
+| Corpo não decodifica no charset declarado (ou UTF-8) | `CorpoNaoDecodificavelNoCharsetDeclarado` | `corpo_nao_decodificavel_no_charset_declarado` |
+
+3xx, 401/403, limite de tamanho e tela de login mantêm as variantes
+existentes. Nenhuma das recusas autoriza nova tentativa automática;
+o número do status não é publicado na saída.

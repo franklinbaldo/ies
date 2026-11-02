@@ -21,7 +21,16 @@ pub enum FalhaTransporte {
     CookieInvalido,
     AcessoNegado,
     Redirecionamento,
-    RespostaInesperada,
+    /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
+    StatusHttpDeErroDoServidor,
+    /// Status HTTP 429.
+    StatusHttpDeLimiteDeRequisicoes,
+    /// Qualquer outro status diferente de 200.
+    StatusHttpDiferenteDe200,
+    /// `Content-Type` cujo tipo principal não é `text/html`.
+    TipoDeConteudoNaoHtml,
+    /// Corpo que não decodifica no charset declarado (ou UTF-8).
+    CorpoNaoDecodificavelNoCharsetDeclarado,
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
@@ -46,7 +55,13 @@ impl FalhaTransporte {
             Self::CookieInvalido => "cookie_invalido",
             Self::AcessoNegado => "sessao_nao_autorizada",
             Self::Redirecionamento => "redirecionamento_recusado",
-            Self::RespostaInesperada => "resposta_inesperada",
+            Self::StatusHttpDeErroDoServidor => "status_http_de_erro_do_servidor",
+            Self::StatusHttpDeLimiteDeRequisicoes => "status_http_de_limite_de_requisicoes",
+            Self::StatusHttpDiferenteDe200 => "status_http_diferente_de_200",
+            Self::TipoDeConteudoNaoHtml => "tipo_de_conteudo_nao_html",
+            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
+                "corpo_nao_decodificavel_no_charset_declarado"
+            }
             Self::PaginaDeLoginRecebidaNoControle => "pagina_de_login_recebida_no_controle",
             Self::RespostaExcessiva => "resposta_excessiva",
             Self::Rede => "falha_de_rede",
@@ -78,7 +93,13 @@ impl FalhaTransporte {
             Self::CookieInvalido => "formato de cookie de sessão inválido",
             Self::AcessoNegado => "SEI negou acesso; a sessão pode estar vencida",
             Self::Redirecionamento => "redirecionamento recusado; a sessão pode exigir novo login",
-            Self::RespostaInesperada => "servidor não retornou a caixa HTML esperada",
+            Self::StatusHttpDeErroDoServidor => "o SEI respondeu com erro do servidor (5xx)",
+            Self::StatusHttpDeLimiteDeRequisicoes => "o SEI limitou as requisições (429)",
+            Self::StatusHttpDiferenteDe200 => "o SEI respondeu com status HTTP diferente de 200",
+            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
+            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
+                "o corpo da resposta não decodifica no charset declarado"
+            }
             Self::PaginaDeLoginRecebidaNoControle => {
                 "o SEI devolveu formulário de login em vez da caixa"
             }
@@ -267,11 +288,14 @@ pub(crate) fn decodificar_resposta<R: Read>(
     if resposta.status_code == 401 || resposta.status_code == 403 {
         return Err(FalhaTransporte::AcessoNegado);
     }
-    if resposta.status_code != 200 {
-        return Err(FalhaTransporte::RespostaInesperada);
+    match resposta.status_code {
+        200 => {}
+        429 => return Err(FalhaTransporte::StatusHttpDeLimiteDeRequisicoes),
+        500..=599 => return Err(FalhaTransporte::StatusHttpDeErroDoServidor),
+        _ => return Err(FalhaTransporte::StatusHttpDiferenteDe200),
     }
     if !crate::mime_web::e_html(&resposta.mime) {
-        return Err(FalhaTransporte::RespostaInesperada);
+        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
     }
     if resposta
         .content_length
@@ -282,7 +306,7 @@ pub(crate) fn decodificar_resposta<R: Read>(
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
     let html = crate::cassette::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::RespostaInesperada)?;
+        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)?;
     if crate::tela_login::e_tela_login(&html) {
         return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
     }
@@ -356,6 +380,10 @@ mod tests;
 #[cfg(test)]
 #[path = "transporte/web_mock_tests.rs"]
 mod web_mock_tests;
+
+#[cfg(test)]
+#[path = "transporte/tests_resposta.rs"]
+mod tests_resposta;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]
