@@ -182,8 +182,14 @@ não comprova um efeito nem autoriza escrita live.
 
 Antes de alterar um comando de leitura, consulte seus [contratos OKF](contracts/cli.md)
 e as cassettes da operação. A [leitura da caixa](docs/unidade-primeira-leitura.md)
-usa replay offline (inclusive páginas já capturadas) ou GET com sessão
-existente; **não automatiza POST de paginação**, login nem escrita.
+usa replay offline ou sessão existente; **não faz login**. POSTs de
+leitura só nos fluxos observados e contratados: troca de visão, página
+por `--pagina N` (nunca percorrer todas as páginas) e pesquisa. Toda
+leitura que muda estado da sessão **deixa a tela como encontrou**
+(visão e páginas restauradas e conferidas por leitura); falha na
+restauração é erro tipado. Escrita só com prévia, `--confirmar` e
+verificação por leitura; efeito incerto sai com código 3, sem retry.
+Recusas HTTP expõem `status_http` e a mensagem saneada do SEI.
 Nunca passe URLs assinadas ou cookies como argumentos de processo:
 use arquivos privados `0600` e nunca os inclua em logs, commits ou
 capturas. O GET exige `--origem-file` independente, identificado
@@ -227,8 +233,14 @@ O Web parser devolve `CaixaDeEntrada` tipada e não recebe unidade nem origem.
 são transitórios da paginação. Não introduza `Completude` ou
 `completa: bool` como campos persistidos. A borda de apresentação não publica `completa` nem afirma que os dados\nrepresentam um snapshot da unidade. A verificação de intervalos é técnica.
 
-O contrato JSON v2 é verificado por
-[golden test](tests/fixtures/caixa-v2.json). Alterações intencionais
+Listas paginadas publicam `total_declarado` e `faixa_observada`;
+a categoria Recebidos/Gerados só existe na visão resumida, e `null`
+significa "não observada", nunca "não tem". Colunas da visão
+detalhada usam chaves estáveis do Nível de detalhe.
+
+O contrato JSON v2 é verificado pelos goldens
+[da resumida](tests/fixtures/caixa-v2.json) e
+[da detalhada](tests/fixtures/caixa-detalhada-v2.json). Alterações intencionais
 de saída exigem atualizar o golden e o contrato OKF na mesma PR.
 
 Não registre segredos, HTML autenticado ou URLs assinadas em commits ou logs.
