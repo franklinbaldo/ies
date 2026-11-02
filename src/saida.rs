@@ -54,5 +54,21 @@ mod tests {
         assert!(obj.get("completude").is_none());
         assert!(obj["recebidos"].get("linhas_lidas").is_none());
         assert!(obj["recebidos"].get("paginas_lidas").is_none());
+        assert!(obj["recebidos"]["faixa_observada"].is_null());
+        assert!(obj["recebidos"].get("faixa_observada").is_some());
+    }
+
+    #[test]
+    fn humano_informa_faixa_observada_e_total() {
+        let html = "<table id='tblProcessosRecebidos'><caption>(5 registros - 1 a 1):</caption>\
+                    <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = juntar(&[html.into()], None).unwrap();
+        let texto = humano(&leitura);
+        assert!(
+            texto.contains("total declarado pelo SEI: 5; faixa observada: 1 a 1"),
+            "{texto}"
+        );
+        assert!(texto.contains("gerados: 0 processo(s) observado(s); total declarado pelo SEI: 0; faixa observada: nenhuma"), "{texto}");
     }
 }

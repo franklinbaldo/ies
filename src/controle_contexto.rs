@@ -198,6 +198,29 @@ mod tests {
     }
 
     #[test]
+    fn diferenca_aponta_o_primeiro_campo_alterado() {
+        let base = contexto_da_pagina(&controle()).unwrap();
+        assert_eq!(base.diferenca(&base.clone()), None);
+        for (de, para, esperada) in [
+            ("UNIDADE A", "UNIDADE B", DiferencaDeContexto::Unidade),
+            ("value='R'", "value='D'", DiferencaDeContexto::Visualizacao),
+            (
+                "'recebidos'",
+                "'outro'",
+                DiferencaDeContexto::CriteriosRecebidos,
+            ),
+            (
+                "'gerados'",
+                "'outro'",
+                DiferencaDeContexto::CriteriosGerados,
+            ),
+        ] {
+            let outra = contexto_da_pagina(&controle().replace(de, para)).unwrap();
+            assert_eq!(base.diferenca(&outra), Some(esperada), "{para}");
+        }
+    }
+
+    #[test]
     fn booleano_antes_do_id_e_do_value_nao_apaga_o_contexto() {
         let html = crate::html_atributos::com_booleano_antes_dos_atributos(&controle());
         let contexto = contexto_da_pagina(&html).unwrap();

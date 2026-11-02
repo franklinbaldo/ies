@@ -1,10 +1,15 @@
 {
   "gerados": {
+    "faixa_observada": null,
     "processos": [],
     "total_declarado": 0
   },
   "origem": "unb",
   "recebidos": {
+    "faixa_observada": {
+      "fim": 3,
+      "inicio": 1
+    },
     "processos": [
       {
         "id": "42",

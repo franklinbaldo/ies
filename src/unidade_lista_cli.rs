@@ -129,6 +129,18 @@ pub(super) fn mostrar_caixa(
     )
 }
 
+/// Caixa Web: a página observada com total e faixa por tabela, sem exigir
+/// as demais páginas. Shim CONTRACT: ainda exige cobertura integral.
+pub(super) fn mostrar_caixa_web(
+    htmls: &[String],
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+) -> ExitCode {
+    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, true, destino, true)
+}
+
 /// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
 fn conferir_identidade_web(leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
     leitura
@@ -354,3 +366,7 @@ mod testes_exportacao {
         assert_eq!(conferir_identidade_web(&leitura), Ok(()));
     }
 }
+
+#[cfg(test)]
+#[path = "unidade_lista_cli/tests_faixa.rs"]
+mod tests_faixa;

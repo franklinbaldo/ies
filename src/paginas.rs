@@ -315,3 +315,6 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_faixa;

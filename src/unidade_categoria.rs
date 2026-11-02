@@ -28,21 +28,25 @@ impl CategoriaLista {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
     PaginasNaoObtidas(CategoriaLista),
+    /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
+    FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
 }
 impl FalhaCategoria {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
+            Self::FaixaNaoPublicavel(erro) => erro.subcodigo(),
             Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
             Self::PaginasNaoObtidas(CategoriaLista::Recebidos) => "paginas_recebidos_nao_obtidas",
             Self::PaginasNaoObtidas(CategoriaLista::Gerados) => "paginas_gerados_nao_obtidas",
         }
     }
-    pub(crate) fn mensagem(self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
             Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
             Self::PaginasNaoObtidas(_) => {
                 "a categoria selecionada exige páginas que não foram obtidas"
@@ -246,11 +250,51 @@ mod tests {
     }
 
     #[test]
-    fn categoria_requerida_ainda_incompleta_falha_sem_publicar_resultado() {
+    fn categoria_paginada_publica_a_pagina_com_total_e_faixa() {
+        let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
+        assert_eq!(modelo["total_declarado"], 200);
+        assert_eq!(modelo["faixa_observada"]["inicio"], 1);
+        assert_eq!(modelo["faixa_observada"]["fim"], 1);
+        assert_eq!(modelo["processos"][0]["numero"], "R-0001");
+        assert!(modelo.get("completa").is_none());
+    }
+
+    #[test]
+    fn categoria_com_legenda_sem_faixa_e_total_maior_e_recusada() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
+             <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        let erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
         assert_eq!(
-            selecionar(&leitura(200), CategoriaLista::Recebidos, "web"),
-            Err(FalhaCategoria::PaginasNaoObtidas(CategoriaLista::Recebidos))
+            erro.subcodigo(),
+            "legenda_sem_faixa_com_total_diferente_das_linhas"
         );
+        assert!(selecionar(&leitura, CategoriaLista::Gerados, "web").is_ok());
+    }
+
+    #[test]
+    fn pagina_exige_categoria_e_inteiro_positivo() {
+        use clap::Parser;
+        let tentar = |extra: &[&str]| {
+            let mut args = vec!["ies", "unidade", "listar-processos"];
+            args.extend_from_slice(extra);
+            crate::Cli::try_parse_from(args).is_ok()
+        };
+        assert!(tentar(&["--categoria", "gerados", "--pagina", "2"]));
+        assert!(!tentar(&["--pagina", "2"]));
+        assert!(!tentar(&["--categoria", "gerados", "--pagina", "0"]));
+        assert!(!tentar(&["--categoria", "gerados", "--pagina", "-1"]));
+        assert!(!tentar(&["--categoria", "gerados", "--pagina", "x"]));
+        assert!(!tentar(&[
+            "--categoria",
+            "gerados",
+            "--pagina",
+            "2",
+            "--pagina-arquivo",
+            "p.html"
+        ]));
     }
 
     #[test]

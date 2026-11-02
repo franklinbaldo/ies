@@ -40,7 +40,38 @@ pub(crate) fn paginador_da_tabela(
 
 #[cfg(test)]
 mod tests {
-    use super::controles_de_paginacao;
+    use super::{controles_de_paginacao, paginador_da_tabela};
+    use crate::dominio::Categoria;
+
+    #[test]
+    fn paginador_da_tabela_e_reconhecido_pelo_prefixo_da_propria_tabela() {
+        for controle in [
+            "<a id='lnkRecebidosProximaPaginaSuperior'>»</a>",
+            "<a hidden id='lnkRecebidosUltimaPaginaInferior'>»|</a>",
+            "<a id='lnkRecebidosPaginaAnteriorSuperior'>«</a>",
+            "<a id='lnkRecebidosPrimeiraPaginaSuperior'>|«</a>",
+            "<select id='selRecebidosPaginacaoInferior'><option>1</option></select>",
+        ] {
+            assert_eq!(
+                paginador_da_tabela(controle, Categoria::Recebidos),
+                Ok(true),
+                "{controle}"
+            );
+            assert_eq!(
+                paginador_da_tabela(controle, Categoria::Gerados),
+                Ok(false),
+                "{controle}"
+            );
+        }
+    }
+
+    #[test]
+    fn campo_de_pagina_atual_nao_indica_paginacao() {
+        // UnB e UFRJ publicam o campo em telas de uma página.
+        let html = "<input type='hidden' id='hdnGeradosPaginaAtual' value='0'>\
+                    <div id='divGeradosAreaPaginacaoSuperior'></div>";
+        assert_eq!(paginador_da_tabela(html, Categoria::Gerados), Ok(false));
+    }
 
     #[test]
     fn booleano_antes_do_id_nao_esconde_o_paginador() {
