@@ -95,6 +95,13 @@ tokeniza a fonte da tag de abertura com os estados WHATWG; `selected`,
 e, por isso, a regra mais precisa. Testes: `tests_formulario_pesquisa.rs`
 (booleano antes de cada atributo e `multiple disabled` bruto).
 
+Como no navegador, uma opção de órgão `selected` mas desabilitada, por
+`disabled` próprio ou de um `optgroup` ancestral, **não** é enviada;
+nenhuma outra é posta no lugar. Se todas as selecionadas estiverem
+desabilitadas, a recusa é `orgao_de_pesquisa_sem_opcao_selecionada_na_tela`.
+Regra do HTML, não observada nas cassettes; teste:
+`opcao_de_orgao_selecionada_mas_desabilitada_nao_e_publicada`.
+
 As checkboxes marcadas, os selects simples e os textos vazios que o
 navegador enviaria continuam fora do POST. Medir isso exige a
 [coleta do formato de POST](../coleta-formato-post.md) ou ablação em

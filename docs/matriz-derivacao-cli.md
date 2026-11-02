@@ -74,7 +74,7 @@ com envio injetável e sem cliente HTTP real. Nenhum comando o usa:
 `processo buscar` segue **STUB** e `--resultado-pesquisa-file`, **PARCIAL
 LOCAL**. Validação live: **NOT_RUN**.
 
-**Atualização #58 (PENDENTE PR, não computar):** a pesquisa de protocolo
+**Atualização #58 (integrada em #142/#143):** a pesquisa de protocolo
 interpreta o 302 da busca exata, com o `Location` relativo para
 `procedimento_trabalhar` gravado nas cassettes de UnB, PEN1, UFRJ e
 Goiás, como `IdProcedimento`, **sem segui-lo**. Também aplica as regras
@@ -84,6 +84,16 @@ mudança de estado; o orçamento previsto é 1 GET da tela e 1 POST, com 0
 GET ao destino. Lacunas: corpo real do POST (via
 [coleta do formato](coleta-formato-post.md)), página "sem resultados"
 não observada e controles que o navegador enviaria e a derivação omite.
+
+**Ensaio live de 02/11/2026** ([relatório](validacao-live/2026-11-02-leitura-controle.md)):
+primeira validação autenticada, com login pelo Todos e 3 GETs do IES por
+instalação, sem POST. `status --verificar-controle-web` e `unidade atual`
+deram PASS em UnB, UFRJ, PEN1, PEN3 e PEN4. `unidade listar-processos`
+deu PASS em UnB e UFRJ, e recusa correta de caixa paginada em PEN1, PEN3
+e PEN4. GO falhou pelo link sigiloso não reconhecido; corrigido, passou
+com recusa correta da caixa paginada, mas com `resposta_inesperada`
+intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; os estados da matriz
+não mudam, porque a paginação ativa (#57) continua ausente.
 
 **Critério de contagem:** 14 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram

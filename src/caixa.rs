@@ -1,4 +1,5 @@
 //! Parser Web puro: HTML -> `CaixaDeEntrada` tipada; sem estado de sessão ou JSON.
+use crate::classe_link_processo::{ClassesDeEstadoDiferentesNoLink, estado_do_link};
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -81,20 +82,13 @@ fn ler_tabela(
                 continue;
             };
             let classes = atributo(a, "class")?.unwrap_or_default();
-            let visualizado = if classes
-                .split_whitespace()
-                .any(|x| x == "processoVisualizado")
-            {
-                Some(true)
-            } else if classes
-                .split_whitespace()
-                .any(|x| x == "processoNaoVisualizado")
-            {
-                Some(false)
-            } else {
-                None
-            };
-            if let Some(visualizado) = visualizado {
+            let estado = estado_do_link(&classes).map_err(|ClassesDeEstadoDiferentesNoLink| {
+                ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
+                    categoria,
+                    id: id.as_str().to_owned(),
+                }
+            })?;
+            if let Some(estado) = estado {
                 let numero = a.inner_text(parser).trim().to_owned();
                 if numero.is_empty() || numero.len() > 100 {
                     return Err(ErroCaixa::NumeroInvalido {
@@ -111,7 +105,8 @@ fn ler_tabela(
                 encontrado = Some(Processo {
                     id: id.clone(),
                     numero,
-                    visualizado,
+                    visualizado: estado.visualizado,
+                    sigiloso: estado.sigiloso,
                 });
             }
         }
@@ -263,3 +258,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "caixa/tests_classes.rs"]
+mod tests_classes;

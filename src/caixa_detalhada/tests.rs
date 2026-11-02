@@ -140,3 +140,49 @@ fn paginacao_detalhada_sem_intervalo_explicito_nao_prova_cobertura() {
         1
     );
 }
+
+fn com_classe(classe: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
+    let original = pagina(1, 1, &[(1, "001234500000015")]);
+    ler_paginas(
+        &[original.replace("class='processoVisualizado'", &format!("class='{classe}'"))],
+        Some("PPI"),
+    )
+}
+
+#[test]
+fn detalhada_le_sigilo_da_classe_e_preserva_numero_opaco() {
+    for (classe, visualizado, sigiloso) in [
+        ("processoVisualizado", true, false),
+        ("processoNaoVisualizado", false, false),
+        ("processoVisualizadoSigiloso", true, true),
+        ("processoNaoVisualizadoSigiloso", false, true),
+    ] {
+        let leitura = com_classe(classe).unwrap();
+        let processo = &leitura.processos[0];
+        assert_eq!(processo.visualizado, Some(visualizado), "{classe}");
+        assert_eq!(processo.sigiloso, Some(sigiloso), "{classe}");
+        assert_eq!(processo.numero, "001234500000015");
+    }
+}
+
+#[test]
+fn detalhada_sem_classe_reconhecida_nao_inventa_estado() {
+    let leitura = com_classe("outraClasse").unwrap();
+    assert_eq!(leitura.processos[0].visualizado, None);
+    assert_eq!(leitura.processos[0].sigiloso, None);
+}
+
+#[test]
+fn detalhada_recusa_classes_de_estado_diferentes_no_link() {
+    for classe in [
+        "processoVisualizado processoNaoVisualizado",
+        "processoNaoVisualizado processoNaoVisualizadoSigiloso",
+    ] {
+        let erro = com_classe(classe).unwrap_err();
+        assert_eq!(erro, ErroDetalhada::ClassesDeEstadoDiferentesNoLink);
+        assert_eq!(
+            erro.subcodigo(),
+            "classes_de_estado_diferentes_no_link_detalhado"
+        );
+    }
+}
