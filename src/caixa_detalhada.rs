@@ -2,6 +2,7 @@
 //! Não executa paginação POST, comandos JS nem atribui categorias fictícias.
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::IdProcedimento;
+use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo::NumeroProcesso;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -166,16 +167,20 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         && ids == [id]
 }
 
+/// Lido da fonte da tag; tag ilegível não vira atributo ausente.
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
+    valor_do_atributo(tag, nome).map_err(|_| ErroDetalhada::HtmlNaoInterpretado)
+}
+
 fn ler_linha(
     tag: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     coluna: usize,
     total_colunas: usize,
 ) -> Result<Option<ProcessoDetalhado>, ErroDetalhada> {
-    let Some(raw) = tag.attributes().get("id").flatten() else {
+    let Some(id) = atributo(tag, "id")? else {
         return Ok(None);
     };
-    let id = raw.as_utf8_str();
     let Some(id) = id.strip_prefix('P') else {
         return Ok(None);
     };
@@ -200,19 +205,14 @@ fn ler_linha(
         let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let href = link.attributes().get("href").flatten();
-        if href.is_none_or(|href| !eh_link_do_processo(&href.as_utf8_str(), id.as_str())) {
+        let href = atributo(link, "href")?;
+        if href.is_none_or(|href| !eh_link_do_processo(&href, id.as_str())) {
             continue;
         }
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoRepetidos);
         }
-        let classe = link
-            .attributes()
-            .get("class")
-            .flatten()
-            .map(|v| v.as_utf8_str().into_owned())
-            .unwrap_or_default();
+        let classe = atributo(link, "class")?.unwrap_or_default();
         let visualizado = if classe
             .split_whitespace()
             .any(|c| c == "processoNaoVisualizado")
@@ -250,13 +250,13 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let mut tabelas = dom
-        .query_selector("#tblProcessosDetalhado")
-        .ok_or(ErroDetalhada::TabelaAusente)?;
-    let tabela = tabelas.next().ok_or(ErroDetalhada::TabelaAusente)?;
-    if tabelas.next().is_some() {
-        return Err(ErroDetalhada::TabelasRepetidas);
-    }
+    let tabelas = nos_com_id(&dom, "tblProcessosDetalhado")
+        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+    let tabela = match tabelas.as_slice() {
+        [] => return Err(ErroDetalhada::TabelaAusente),
+        [tabela] => *tabela,
+        _ => return Err(ErroDetalhada::TabelasRepetidas),
+    };
     let tabela = tabela
         .get(parser)
         .and_then(tl::Node::as_tag)
@@ -304,7 +304,9 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         }
     }
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
-    let paginacao_visivel = dom.get_element_by_id("hdnDetalhadoPaginaAtual").is_some()
+    let paginacao_visivel = !nos_com_id(&dom, "hdnDetalhadoPaginaAtual")
+        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        .is_empty()
         || crate::paginacao_controle::controles_de_paginacao(html)
             .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
@@ -382,8 +384,8 @@ pub(crate) fn ler_paginas(
 
 pub(crate) fn possui_tabela(html: &str) -> bool {
     tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| {
-        dom.query_selector("#tblProcessosDetalhado")
-            .is_some_and(|mut tabelas| tabelas.next().is_some())
+        // Tag ilegível conta como possível tabela: a leitura falhará tipada.
+        !nos_com_id(&dom, "tblProcessosDetalhado").is_ok_and(|tabelas| tabelas.is_empty())
     })
 }
 

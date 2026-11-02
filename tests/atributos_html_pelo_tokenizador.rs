@@ -4,9 +4,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const PROIBIDOS: [&str; 5] = [
+/// `inner_html`/`outer_html` do `tl` reserializam a partir do mesmo mapa.
+const PROIBIDOS: [&str; 7] = [
     ".attributes()",
     ".attributes_mut()",
+    ".inner_html(",
+    ".outer_html(",
     "get_element_by_id(",
     "get_elements_by_class_name(",
     "is_class_member(",

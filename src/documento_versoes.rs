@@ -1,5 +1,6 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
 use crate::documento::NumeroDocumento;
+use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 
@@ -196,15 +197,19 @@ fn linhas_do_historico(
             return Err(ErroVersao::VersaoDuplicada);
         }
         let td = celulas[5].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
-        let mut links: Vec<_> = td
+        let mut links = Vec::new();
+        for a in td
             .query_selector(parser, "a")
             .into_iter()
             .flatten()
             .filter_map(|h| h.get(parser))
             .filter_map(tl::Node::as_tag)
-            .filter_map(|a| a.attributes().get("href").flatten())
-            .map(|v| v.as_utf8_str().into_owned())
-            .collect();
+        {
+            // `href` lido da fonte da tag; tag ilegível não some da contagem.
+            let href =
+                valor_do_atributo(a, "href").map_err(|_| ErroVersao::LinkAusenteOuAmbiguo)?;
+            links.extend(href);
+        }
         if links.len() != 1 {
             return Err(ErroVersao::LinkAusenteOuAmbiguo);
         }
@@ -261,9 +266,8 @@ pub fn interpretar_historico(
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroVersao::HistoricoAusente)?;
     let parser = dom.parser();
     let mut tabela = None;
-    for handle in dom
-        .query_selector("table.infraTable")
-        .ok_or(ErroVersao::HistoricoAusente)?
+    for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")
+        .map_err(|_| ErroVersao::HistoricoAusente)?
     {
         let no = handle.get(parser).ok_or(ErroVersao::HistoricoAusente)?;
         let tag = no.as_tag().ok_or(ErroVersao::HistoricoAusente)?;

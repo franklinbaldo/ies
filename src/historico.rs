@@ -1,5 +1,6 @@
 //! Leitura estritamente offline do histórico Web de um processo.
 //! Não confundir histórico parcial com a representação integral do processo.
+use crate::html_atributos::nos_com_id;
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
 /// Condições específicas do parser, independentes de mensagens.
@@ -128,13 +129,12 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
         return Err(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado);
     }
     // O primeiro ID não é suficiente: tabelas duplicadas podem ocultar andamentos.
-    let mut candidatas = dom
-        .query_selector("#tblHistorico")
-        .ok_or(ErroHistorico::HistoricoAusente)?;
-    let primeira = candidatas.next().ok_or(ErroHistorico::HistoricoAusente)?;
-    if candidatas.next().is_some() {
-        return Err(ErroHistorico::TabelasDoHistoricoRepetidas);
-    }
+    let candidatas = nos_com_id(&dom, "tblHistorico").map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let primeira = match candidatas.as_slice() {
+        [] => return Err(ErroHistorico::HistoricoAusente),
+        [primeira] => *primeira,
+        _ => return Err(ErroHistorico::TabelasDoHistoricoRepetidas),
+    };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)

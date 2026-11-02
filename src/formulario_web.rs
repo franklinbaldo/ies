@@ -4,7 +4,7 @@
 mod codificacao;
 mod leitura;
 
-use crate::html_atributos::ErroAtributoHtml;
+use crate::html_atributos::{ErroAtributoHtml, nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::{
     FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
@@ -41,8 +41,16 @@ pub(crate) struct OperacaoDeFormulario {
     pub(crate) botao_de_envio: &'static str,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
     pub(crate) campos_usuario: &'static [&'static str],
-    pub(crate) marcador_de_resultado: &'static str,
+    pub(crate) marcador_de_resultado: MarcadorDeResultado,
     pub(crate) efeito: EfeitoAvaliado,
+}
+
+/// Elemento com classe que marca a resposta de sucesso da operação
+/// (`<table class="pesquisaResultado">`), lido pelo tokenizador de atributos.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct MarcadorDeResultado {
+    pub(crate) elemento: &'static str,
+    pub(crate) classe: &'static str,
 }
 
 /// Charset declarado pela resposta que serviu a tela.
@@ -161,7 +169,7 @@ pub(crate) struct SubmissaoDerivada {
     nomes: Vec<String>,
     corpo: Vec<u8>,
     efeito: EfeitoAvaliado,
-    marcador_de_resultado: &'static str,
+    marcador_de_resultado: MarcadorDeResultado,
 }
 
 impl SubmissaoDerivada {
@@ -208,7 +216,9 @@ impl fmt::Debug for SubmissaoDerivada {
 
 fn conferir_unidade(dom: &tl::VDom<'_>, solicitada: &str) -> Result<(), ErroSubmissaoFormulario> {
     use ErroSubmissaoFormulario as E;
-    // `unidade_html` só falha por identificações repetidas fora do par móvel/desktop.
+    // Tag ilegível sai com o erro do tokenizador; depois disso `unidade_html`
+    // só falha por identificações repetidas fora do par móvel/desktop.
+    nos_com_id(dom, "lnkInfraUnidade").map_err(E::AtributoHtml)?;
     let publicada = crate::controle_contexto::unidade_html(dom)
         .map_err(|_| E::IdentificacoesDaUnidadeRepetidasNaTela)?
         .ok_or(E::IdentificacaoDaUnidadeAusenteNaTela)?;
@@ -404,10 +414,14 @@ where
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
         outra => E::Transporte(outra),
     })?;
-    let marcado = tl::parse(&html, tl::ParserOptions::default())
-        .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?
-        .query_selector(marcador_de_resultado)
-        .is_some_and(|mut achados| achados.next().is_some());
+    let marcado = {
+        let dom = tl::parse(&html, tl::ParserOptions::default())
+            .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        let MarcadorDeResultado { elemento, classe } = marcador_de_resultado;
+        !nos_por_elemento_e_classe(&dom, None, elemento, classe)
+            .map_err(E::AtributoHtml)?
+            .is_empty()
+    };
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
     }

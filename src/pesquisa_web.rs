@@ -1,5 +1,6 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
+use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe, valor_do_atributo};
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -154,22 +155,22 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     let parser = dom.parser();
-    let mut tabelas = dom
-        .query_selector("table.pesquisaResultado")
-        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
-    let primeira = tabelas
-        .next()
-        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
-    if tabelas.next().is_some() {
-        return Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas);
-    }
+    // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
+    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
+    let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
+        .map_err(ilegivel)?
+        .as_slice()
+    {
+        [] => return Err(ErroResultadoPesquisa::TabelaDePesquisaAusente),
+        [primeira] => *primeira,
+        _ => return Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas),
+    };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
-    let linhas = tabela
-        .query_selector(parser, "tr.pesquisaTituloRegistro")
-        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
+    let linhas = nos_por_elemento_e_classe(&dom, Some(tabela), "tr", "pesquisaTituloRegistro")
+        .map_err(ilegivel)?;
     let mut observados = HashSet::new();
     let mut ids_observados = HashSet::new();
     let mut resultados = Vec::new();
@@ -178,25 +179,20 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let mut links = tag
-            .query_selector(parser, "a.protocoloNormal")
-            .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let link_no = links
-            .next()
-            .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        if links.next().is_some() {
-            return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso);
-        }
+        let links =
+            nos_por_elemento_e_classe(&dom, Some(tag), "a", "protocoloNormal").map_err(ilegivel)?;
+        let link_no = match links.as_slice() {
+            [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
+            [link] => *link,
+            _ => return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso),
+        };
         let link = link_no
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let href = link
-            .attributes()
-            .get("href")
-            .flatten()
-            .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?
-            .as_utf8_str();
+        let href = valor_do_atributo(link, "href")
+            .map_err(ilegivel)?
+            .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
         let primeiro_id = validar_href_de_processo(&href)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
@@ -213,35 +209,32 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     // A seleção por classe das linhas pode omitir links reais se a versão
     // do SEI mudar o HTML. Nunca devolver subconjunto silencioso como se
     // representasse todos os links observáveis da tabela de resultados.
-    let links_da_tabela = tabela
-        .query_selector(parser, "a.protocoloNormal")
-        .map_or(0, Iterator::count);
+    let links_da_tabela = nos_por_elemento_e_classe(&dom, Some(tabela), "a", "protocoloNormal")
+        .map_err(ilegivel)?
+        .len();
     if links_da_tabela != resultados.len() {
         return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }
     // A classe CSS do link não é garantia de que ele seja o único link
     // de trabalho na tabela. Uma versão diferente do SEI pode perder
     // essa classe e ocultar processos na projeção: falhar fechado.
-    let links_de_trabalho = tabela.query_selector(parser, "a").map_or(0, |links| {
-        links
-            .filter(|no| {
-                no.get(parser)
-                    .and_then(tl::Node::as_tag)
-                    .and_then(|tag| tag.attributes().get("href").flatten())
-                    .is_some_and(|href| {
-                        href.as_utf8_str()
-                            .strip_prefix("controlador.php?")
-                            .is_some_and(|query| {
-                                query.split('&').enumerate().any(|(indice, campo)| {
-                                    campo == "acao=procedimento_trabalhar"
-                                        || (indice > 0
-                                            && campo == "amp;acao=procedimento_trabalhar")
-                                })
-                            })
+    let mut links_de_trabalho = 0;
+    for no in tabela.query_selector(parser, "a").into_iter().flatten() {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let abre_processo = valor_do_atributo(tag, "href")
+            .map_err(ilegivel)?
+            .is_some_and(|href| {
+                href.strip_prefix("controlador.php?").is_some_and(|query| {
+                    query.split('&').enumerate().any(|(indice, campo)| {
+                        campo == "acao=procedimento_trabalhar"
+                            || (indice > 0 && campo == "amp;acao=procedimento_trabalhar")
                     })
-            })
-            .count()
-    });
+                })
+            });
+        links_de_trabalho += usize::from(abre_processo);
+    }
     if links_de_trabalho != resultados.len() {
         return Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida);
     }

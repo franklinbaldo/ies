@@ -10,7 +10,10 @@ const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
     botao_de_envio: "sbmPesquisar",
     campos_ocultos_exigidos: &["hdnInicio"],
     campos_usuario: &["selOrgaoPesquisa[]", "txtProtocoloPesquisa"],
-    marcador_de_resultado: "table.pesquisaResultado",
+    marcador_de_resultado: MarcadorDeResultado {
+        elemento: "table",
+        classe: "pesquisaResultado",
+    },
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },
@@ -103,8 +106,8 @@ fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
 
 #[test]
 fn select_multiple_desabilitado_nao_e_publicado() {
-    // tl 0.7.8 perde o 1º caractere do atributo seguinte a um booleano sem
-    // valor (`multiple disabled` vira `isabled`); aqui `disabled` vem por último.
+    // A forma `multiple disabled` (corrompida pelo mapa do tl 0.7.8) está
+    // coberta em `tests_atributos`; aqui `disabled` vem por último.
     let desabilitado = MULTIPLO.replace(" multiple>", " multiple='multiple' disabled>");
     assert_eq!(
         derivar(&pagina(&desabilitado), &[("selOrgaoPesquisa[]", "1")]).unwrap_err(),

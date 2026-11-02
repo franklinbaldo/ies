@@ -1,5 +1,6 @@
 //! Identidade e critérios Web do Controle de Processos. Sem rede ou persistência.
 use crate::erro_web::ErroCaixa;
+use crate::html_atributos::{ErroAtributoHtml, nos_com_id, nos_com_id_em, valor_do_atributo};
 /// Contexto da página HTML: só é usado para conferir a junção.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContextoPagina {
@@ -26,14 +27,31 @@ impl ContextoPagina {
     }
 }
 
-fn unidade_html_original(dom: &tl::VDom<'_>) -> Option<String> {
+// `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
+// usa a chave corrompida após atributo booleano sem valor.
+fn ilegivel(_: ErroAtributoHtml) -> ErroCaixa {
+    ErroCaixa::HtmlInvalido
+}
+
+fn primeiro_com_id<'d>(
+    dom: &'d tl::VDom<'_>,
+    id: &str,
+) -> Result<Option<&'d tl::HTMLTag<'d>>, ErroCaixa> {
     let parser = dom.parser();
-    let link = dom
-        .get_element_by_id("lnkInfraUnidade")
+    Ok(nos_com_id(dom, id)
+        .map_err(ilegivel)?
+        .first()
         .and_then(|n| n.get(parser))
-        .and_then(tl::Node::as_tag)?;
+        .and_then(tl::Node::as_tag))
+}
+
+fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
+    let parser = dom.parser();
+    let Some(link) = primeiro_com_id(dom, "lnkInfraUnidade")? else {
+        return Ok(None);
+    };
     if link.name() != "a" {
-        return None;
+        return Ok(None);
     }
     let texto = link
         .inner_text(parser)
@@ -41,7 +59,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Option<String> {
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
     let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
-    (!unidade.is_empty() && unidade.len() <= 128).then_some(unidade)
+    Ok((!unidade.is_empty() && unidade.len() <= 128).then_some(unidade))
 }
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
@@ -51,23 +69,18 @@ pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaix
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
-fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Option<String> {
-    let parser = dom.parser();
-    let elemento = dom
-        .get_element_by_id(id)
-        .and_then(|n| n.get(parser))
-        .and_then(tl::Node::as_tag)?;
+fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
+    let Some(elemento) = primeiro_com_id(dom, id)? else {
+        return Ok(None);
+    };
     if elemento.name() != "input" {
-        return None;
+        return Ok(None);
     }
-    let valor = elemento
-        .attributes()
-        .get("value")
-        .flatten()?
-        .as_utf8_str()
-        .trim()
-        .to_owned();
-    (!valor.is_empty() && valor.len() <= 128).then_some(valor)
+    let Some(valor) = valor_do_atributo(elemento, "value").map_err(ilegivel)? else {
+        return Ok(None);
+    };
+    let valor = valor.trim().to_owned();
+    Ok((!valor.is_empty() && valor.len() <= 128).then_some(valor))
 }
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
@@ -81,49 +94,43 @@ pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa
 }
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
-fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> bool {
-    dom.query_selector(&format!("#{id}"))
-        .is_some_and(|mut encontrados| encontrados.next().is_some() && encontrados.next().is_some())
+fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
+    Ok(nos_com_id(dom, id).map_err(ilegivel)?.len() >= 2)
 }
 
+/// Falha só por tag ilegível (`HtmlInvalido`) ou por identificações
+/// repetidas fora do par móvel/desktop equivalente.
 pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
-    if id_repetido(dom, "lnkInfraUnidade") && !par_de_barras_equivalentes(dom) {
+    if id_repetido(dom, "lnkInfraUnidade")? && !par_de_barras_equivalentes(dom)? {
         return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
     }
-    Ok(unidade_html_original(dom))
+    unidade_html_original(dom)
 }
 
-fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> bool {
+fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
     let parser = dom.parser();
-    let Some(todos) = dom.query_selector("#lnkInfraUnidade") else {
-        return false;
-    };
-    if todos.count() != 2 {
-        return false;
+    if nos_com_id(dom, "lnkInfraUnidade").map_err(ilegivel)?.len() != 2 {
+        return Ok(false);
     }
     let mut links = Vec::new();
     for id in ["divInfraBarraSistemaMovel", "divInfraBarraSistemaPadrao"] {
-        if id_repetido(dom, id) {
-            return false;
+        if id_repetido(dom, id)? {
+            return Ok(false);
         }
-        let Some(barra) = dom
-            .get_element_by_id(id)
-            .and_then(|n| n.get(parser))
-            .and_then(tl::Node::as_tag)
-        else {
-            return false;
+        let Some(barra) = primeiro_com_id(dom, id)? else {
+            return Ok(false);
         };
-        let Some(mut achados) = barra.query_selector(parser, "#lnkInfraUnidade") else {
-            return false;
-        };
+        let mut achados = nos_com_id_em(barra, parser, "lnkInfraUnidade")
+            .map_err(ilegivel)?
+            .into_iter();
         let Some(link) = achados.next() else {
-            return false;
+            return Ok(false);
         };
         // tl mantém a barra desktop dentro da móvel neste HTML observado;
         // ambas as ocorrências precisam pertencer ao par, sem terceiro link.
         if let Some(outro) = achados.next() {
             if id != "divInfraBarraSistemaMovel" || achados.next().is_some() {
-                return false;
+                return Ok(false);
             }
             if !links.contains(&outro) {
                 links.push(outro);
@@ -134,22 +141,26 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> bool {
         }
     }
     if links.len() != 2 {
-        return false;
+        return Ok(false);
     }
     let tags: Vec<_> = links
         .iter()
         .filter_map(|n| n.get(parser))
         .filter_map(tl::Node::as_tag)
         .collect();
-    tags.len() == 2
-        && tags.iter().all(|tag| tag.name() == "a")
-        && tags[0].inner_text(parser) == tags[1].inner_text(parser)
-        && tags[0].attributes().get("href").flatten().is_some()
-        && tags[0].attributes().get("href") == tags[1].attributes().get("href")
+    if tags.len() != 2
+        || !tags.iter().all(|tag| tag.name() == "a")
+        || tags[0].inner_text(parser) != tags[1].inner_text(parser)
+    {
+        return Ok(false);
+    }
+    // `href` repetido numa das tags não comprova o par: não equivalente.
+    let href = |tag: &tl::HTMLTag<'_>| valor_do_atributo(tag, "href").ok().flatten();
+    Ok(href(tags[0]).is_some_and(|primeiro| href(tags[1]).is_some_and(|h| h == primeiro)))
 }
 
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
-    if id_repetido(dom, id) {
+    if id_repetido(dom, id)? {
         return Err(match id {
             "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
             "hdnRecebidosHashCriterios" => ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
@@ -157,7 +168,7 @@ fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaix
             _ => ErroCaixa::ContextoNaoVerificavel,
         });
     }
-    Ok(valor_oculto_original(dom, id))
+    valor_oculto_original(dom, id)
 }
 
 #[cfg(test)]

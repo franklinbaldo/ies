@@ -51,6 +51,7 @@ impl<'a> AtributosDaTag<'a> {
     }
 
     /// Nomes na ordem da fonte, inclusive repetidos.
+    #[cfg(test)]
     pub(crate) fn nomes(&self) -> impl Iterator<Item = &str> {
         self.pares.iter().map(|(nome, _)| nome.as_str())
     }
@@ -69,6 +70,15 @@ impl<'a> AtributosDaTag<'a> {
             return Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: nome });
         }
         Ok(primeiro.and_then(|(_, valor)| *valor))
+    }
+
+    /// Todos os valores de `nome`, inclusive repetidos, para regras que
+    /// recusam quando **qualquer** ocorrência casa (detecção de login).
+    pub(crate) fn valores(&self, nome: &str) -> impl Iterator<Item = &'a str> {
+        self.pares
+            .iter()
+            .filter(move |(chave, _)| chave == nome)
+            .filter_map(|(_, valor)| *valor)
     }
 
     /// Presença de atributo booleano, qualquer que seja a forma do valor

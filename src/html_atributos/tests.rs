@@ -226,9 +226,8 @@ fn busca_por_id_e_classe_apos_booleano() {
             .len(),
         1
     );
-    assert!(
-        nos_por_elemento_e_classe(&dom, None, "p", "protocoloNormal")
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        nos_por_elemento_e_classe(&dom, None, "p", "protocoloNormal").unwrap(),
+        []
     );
 }

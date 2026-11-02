@@ -1,12 +1,11 @@
 //! Parser Web puro: HTML -> `CaixaDeEntrada` tipada; sem estado de sessão ou JSON.
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
+use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
-    tag.attributes()
-        .get(nome)
-        .flatten()
-        .map(|v| v.as_utf8_str().into_owned())
+/// Lido da fonte da tag; tag ilegível não vira atributo ausente.
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroCaixa> {
+    valor_do_atributo(tag, nome).map_err(|_| ErroCaixa::HtmlInvalido)
 }
 
 pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
@@ -30,16 +29,12 @@ fn ler_tabela(
     let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
-    let seletor = format!("#{table_id}");
-    let mut candidatas = dom
-        .query_selector(&seletor)
-        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    let primeira = candidatas
-        .next()
-        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    if candidatas.next().is_some() {
-        return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria });
-    }
+    let candidatas = nos_com_id(dom, table_id).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let primeira = match candidatas.as_slice() {
+        [] => return Err(ErroCaixa::TabelaAusente { categoria }),
+        [primeira] => *primeira,
+        _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
+    };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
@@ -69,7 +64,7 @@ fn ler_tabela(
         let Some(tag) = linha.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(id) = atributo(tag, "id") else {
+        let Some(id) = atributo(tag, "id")? else {
             // Cabeçalhos e avisos podem aparecer entre as linhas.
             continue;
         };
@@ -85,7 +80,7 @@ fn ler_tabela(
             let Some(a) = link.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let classes = atributo(a, "class").unwrap_or_default();
+            let classes = atributo(a, "class")?.unwrap_or_default();
             let visualizado = if classes
                 .split_whitespace()
                 .any(|x| x == "processoVisualizado")
