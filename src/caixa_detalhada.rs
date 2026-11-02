@@ -1,7 +1,11 @@
 //! Leitura da visão detalhada já retornada pelo Controle Web.
 //! Não executa paginação POST, comandos JS nem atribui categorias fictícias.
+mod colunas;
+
+pub(crate) use colunas::{ColunasDaLinha, ValorDaColuna};
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
-use crate::dominio::IdProcedimento;
+use crate::dominio::{Categoria, IdProcedimento};
+use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo::NumeroProcesso;
 use serde::Serialize;
@@ -13,6 +17,11 @@ pub(crate) struct ProcessoDetalhado {
     pub(crate) numero: String,
     pub(crate) visualizado: Option<bool>,
     pub(crate) sigiloso: Option<bool>,
+    /// Categoria observada nas tabelas R do mesmo GET; `null` = não observada.
+    #[serde(serialize_with = "colunas::serializar_categoria")]
+    pub(crate) categoria: Option<Categoria>,
+    /// Colunas configuradas do cabeçalho, por chave estável.
+    pub(crate) colunas: ColunasDaLinha,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,6 +31,19 @@ pub(crate) struct LeituraDetalhada {
     /// Posições lidas (`inicio`, `fim`); `None` sem linhas.
     pub(crate) faixa_observada: Option<(usize, usize)>,
     pub(crate) processos: Vec<ProcessoDetalhado>,
+    /// Colunas configuradas presentes no cabeçalho, na ordem da tabela.
+    pub(crate) colunas: Vec<ColunaDoDetalhe>,
+}
+
+impl LeituraDetalhada {
+    /// Chaves das nove colunas de texto que não vieram no cabeçalho.
+    pub(crate) fn colunas_ausentes(&self) -> Vec<&'static str> {
+        ColunaDoDetalhe::TODAS
+            .into_iter()
+            .filter(|c| c.tem_cabecalho_de_texto() && !self.colunas.contains(c))
+            .map(ColunaDoDetalhe::chave)
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +73,12 @@ pub(crate) enum ErroDetalhada {
     FaixaDescontinua,
     TotalAlterado,
     LimitePaginas,
+    CabecalhoNaoReconhecido,
+    ColunaRepetida,
+    RotuloDaCelulaDiferenteDoCabecalho,
+    ItensDaCelulaNaoSeparados,
+    ItensNaoPrevistosNaCelula,
+    CabecalhoDiferenteEntrePaginas,
 }
 
 impl ErroDetalhada {
@@ -83,6 +111,14 @@ impl ErroDetalhada {
             Self::FaixaDescontinua => "faixa_detalhada_descontinua",
             Self::TotalAlterado => "total_detalhado_alterado",
             Self::LimitePaginas => "limite_paginas_detalhadas",
+            Self::CabecalhoNaoReconhecido => "cabecalho_da_visao_detalhada_nao_reconhecido",
+            Self::ColunaRepetida => "coluna_da_visao_detalhada_repetida",
+            Self::RotuloDaCelulaDiferenteDoCabecalho => {
+                "rotulo_da_celula_detalhada_diferente_do_cabecalho"
+            }
+            Self::ItensDaCelulaNaoSeparados => "itens_da_celula_detalhada_nao_separados",
+            Self::ItensNaoPrevistosNaCelula => "itens_nao_previstos_na_celula_detalhada",
+            Self::CabecalhoDiferenteEntrePaginas => "cabecalho_detalhado_diferente_entre_paginas",
         }
     }
 }
@@ -227,6 +263,8 @@ fn ler_linha(
             numero: numero.as_str().to_owned(),
             visualizado: estado.map(|e| e.visualizado),
             sigiloso: estado.map(|e| e.sigiloso),
+            categoria: None,
+            colunas: ColunasDaLinha::default(),
         });
     }
     escolhido
@@ -382,6 +420,7 @@ pub(crate) fn ler_paginas(
         total_declarado: total,
         faixa_observada,
         processos,
+        colunas: Vec::new(),
     })
 }
 

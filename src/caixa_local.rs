@@ -155,6 +155,12 @@ struct Linha {
     visualizado: Option<bool>,
     #[serde(default)]
     sigiloso: Option<bool>,
+    /// Lista D: categoria observada nas tabelas R do mesmo GET, ou `null`.
+    #[serde(default)]
+    categoria: Option<String>,
+    /// Lista D: colunas configuradas; não participam do resumo.
+    #[serde(default, rename = "colunas")]
+    _colunas: Option<serde::de::IgnoredAny>,
 }
 
 /// Identidade da linha preservada como exportada (NUP opaco, sem aparar).
@@ -219,11 +225,19 @@ fn converter_sem_categoria(
         if !vistos.insert(id.as_str().to_owned()) {
             return Err(ErroCaixaLocal::IdentificadorRepetido { categoria: None });
         }
+        let categoria = match linha.categoria.as_deref() {
+            None => None,
+            Some("recebidos") => Some(Categoria::Recebidos),
+            Some("gerados") => Some(Categoria::Gerados),
+            Some(_) => return Err(ErroCaixaLocal::FormatoInvalido),
+        };
         processos.push(ProcessoDetalhado {
             id,
             numero: linha.numero,
             visualizado: linha.visualizado,
             sigiloso: linha.sigiloso,
+            categoria,
+            colunas: crate::caixa_detalhada::ColunasDaLinha::default(),
         });
     }
     Ok(processos)

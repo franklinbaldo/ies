@@ -1,10 +1,10 @@
 //! `ies unidade recebidos` e `ies unidade gerados`: uma lista independente
 //! da caixa, a página observada com total e faixa; `--pagina N` acrescenta
-//! no máximo um POST (`pagina_web`). Transporte compartilhado com a caixa.
+//! no máximo um POST (`pagina_web`). Na visão D, troca para R e restaura a D.
 mod pagina_web;
 
 use crate::paginas::Leitura;
-use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
+use crate::{arquivo_caixa, configuracao, erro_fonte, paginas};
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::ExitCode;
@@ -134,7 +134,8 @@ pub(crate) fn publicar_lista(
     ExitCode::SUCCESS
 }
 
-/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
+/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria;
+/// sessão na visão D: mais a troca para R e a volta à D.
 pub(crate) fn listar_categoria(
     unidade: Option<&str>,
     json_mode: bool,
@@ -146,32 +147,32 @@ pub(crate) fn listar_categoria(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let obtida = match pagina {
-        None => transporte::read_box_from_file(
-            &arquivos.url_controle,
-            &arquivos.cookie,
-            &arquivos.origem,
-        )
-        .map_err(|erro| {
-            (
+    match pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina) {
+        Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
+        Err(erro) => {
+            let mut valor = crate::saida_erro::json_de_erro_fonte(
                 erro.subcodigo(),
                 erro.mensagem(),
-                erro.status_http().cloned(),
-            )
-        }),
-        Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
-            .map_err(|erro| {
-                (
-                    erro.subcodigo(),
-                    erro.mensagem(),
-                    erro.status_http().cloned(),
-                )
-            }),
-    };
-    match obtida {
-        Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
-        Err((subcodigo, mensagem, http)) => {
-            crate::saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, http.as_ref())
+                erro.status_http(),
+            );
+            if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
+                && let Some(extra) = detalhes.as_object()
+            {
+                objeto.extend(extra.clone());
+            }
+            if json_mode {
+                println!("{valor}");
+            } else {
+                eprintln!(
+                    "{}",
+                    crate::saida_erro::linha_humana(
+                        erro.subcodigo(),
+                        erro.mensagem(),
+                        erro.status_http()
+                    )
+                );
+            }
+            ExitCode::from(1)
         }
     }
 }

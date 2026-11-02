@@ -1,6 +1,8 @@
-//! RED/GREEN da caixa Web paginada: página observada, total e faixa.
+//! Exportação da lista D e da caixa do replay: página observada, total e faixa.
 use super::*;
+use crate::caixa_detalhada::ler_paginas;
 use std::fs;
+use std::path::PathBuf;
 
 fn destino(nome: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -11,6 +13,70 @@ fn destino(nome: &str) -> PathBuf {
             .unwrap()
             .as_nanos()
     ))
+}
+
+fn detalhada(legenda: &str, classe: &str) -> String {
+    format!(
+        "<html><a id='lnkInfraUnidade'>PPI</a>\
+        <input id='hdnTipoVisualizacao' value='D'>\
+        <table id='tblProcessosDetalhado'>\
+        <caption>{legenda}</caption>\
+        <tr><th>Processo</th><th>Tipo</th></tr>\
+        <tr id='P42'><td><a class='{classe}'\
+        href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
+        000042/2026</a></td><td>Ofício</td></tr></table></html>"
+    )
+}
+
+fn exportar_detalhada(html: &str, nome: &str) -> String {
+    let leitura = ler_paginas(&[html.to_owned()], Some("PPI")).unwrap();
+    let caminho = destino(nome);
+    assert_eq!(
+        mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho)),
+        ExitCode::SUCCESS
+    );
+    let texto = fs::read_to_string(&caminho).unwrap();
+    fs::remove_file(&caminho).unwrap();
+    texto
+}
+
+#[test]
+fn detalhada_parcial_exporta_faixa_observada() {
+    let texto = exportar_detalhada(
+        &detalhada("(3 registros - 1 a 1):", "processoVisualizado"),
+        "detalhada-faixa",
+    );
+    let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
+    // A visão D é uma lista própria do SEI, na mesma forma das outras.
+    assert_eq!(valor.as_array().map(Vec::len), Some(1));
+    // D é modo de exibição, não categoria: a chave existe e vale null.
+    assert_eq!(
+        valor[0].as_object().unwrap().get("categoria"),
+        Some(&serde_json::Value::Null)
+    );
+    assert_eq!(valor[0]["unidade"], "PPI");
+    assert_eq!(valor[0]["origem"], "web");
+    assert_eq!(valor[0]["total_declarado"], 3);
+    assert_eq!(valor[0]["faixa_observada"]["inicio"], 1);
+    assert_eq!(valor[0]["faixa_observada"]["fim"], 1);
+    assert!(valor[0].get("visualizacao").is_none());
+    assert!(valor[0].get("recebidos").is_none());
+}
+
+#[test]
+fn exportacao_detalhada_e_reimportada_sem_categoria() {
+    let texto = exportar_detalhada(
+        &detalhada("(1 registros - 1 a 1):", "outraClasse"),
+        "detalhada-reimportada",
+    );
+    let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
+    let crate::caixa_local::ListasLocais::SemCategoria(processos) = &observada.listas else {
+        panic!("a exportação D não tem recebidos/gerados");
+    };
+    assert_eq!(processos.len(), 1);
+    assert_eq!(processos[0].numero, "000042/2026");
+    assert_eq!(processos[0].visualizado, None);
+    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
 }
 
 fn controle(legenda_recebidos: &str, ids: &[u32]) -> String {
@@ -28,133 +94,29 @@ fn controle(legenda_recebidos: &str, ids: &[u32]) -> String {
          <input id='hdnTipoVisualizacao' value='R'>\
          <input id='hdnRecebidosHashCriterios' value='aaaa'>\
          <input id='hdnGeradosHashCriterios' value='bbbb'>\
-         <a id='lnkRecebidosProximaPaginaSuperior'>»</a>\
          <table id='tblProcessosRecebidos'><caption>{legenda_recebidos}</caption>{linhas}</table>\
          <table id='tblProcessosGerados'><caption>0 registros:</caption></table>"
     )
 }
 
-fn exportar(html: &str) -> (ExitCode, Option<serde_json::Value>) {
-    let caminho = destino("caixa-web-faixa");
-    let codigo = mostrar_caixa_web(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho));
-    let valor = fs::read(&caminho)
-        .ok()
-        .map(|bytes| serde_json::from_slice(&bytes).unwrap());
-    let _ = fs::remove_file(&caminho);
-    (codigo, valor)
-}
-
 #[test]
-fn caixa_paginada_devolve_a_pagina_observada_com_total_e_faixa() {
-    let (codigo, valor) = exportar(&controle(
-        "Processos recebidos (4 registros - 1 a 2):",
-        &[1, 2],
-    ));
+fn exportacao_do_replay_e_reimportada_pela_caixa_local() {
+    let caminho = destino("caixa-replay");
+    let html = controle("(2 registros - 1 a 2):", &[1, 2]);
+    let codigo = mostrar_caixa(&[html], "web", Some("PPI"), true, true, Some(&caminho));
     assert_eq!(codigo, ExitCode::SUCCESS);
-    let valor = valor.unwrap();
-    assert_eq!(valor.as_array().map(Vec::len), Some(2));
-    assert_eq!(valor[0]["categoria"], "recebidos");
-    assert_eq!(valor[1]["categoria"], "gerados");
-    assert_eq!(valor[0]["total_declarado"], 4);
-    assert_eq!(valor[0]["faixa_observada"]["inicio"], 1);
-    assert_eq!(valor[0]["faixa_observada"]["fim"], 2);
-    assert_eq!(valor[0]["processos"].as_array().unwrap().len(), 2);
-    assert!(valor[1]["faixa_observada"].is_null());
-    assert!(valor[0].get("completa").is_none());
-    assert!(valor.get("completude").is_none());
-}
-
-#[test]
-fn pagina_lembrada_pelo_servidor_aparece_com_a_propria_faixa() {
-    let (codigo, valor) = exportar(&controle("(4 registros - 3 a 4):", &[3, 4]));
-    assert_eq!(codigo, ExitCode::SUCCESS);
-    let valor = valor.unwrap();
-    assert_eq!(valor[0]["faixa_observada"]["inicio"], 3);
-    assert_eq!(valor[0]["faixa_observada"]["fim"], 4);
-}
-
-#[test]
-fn legenda_sem_faixa_com_total_maior_que_as_linhas_continua_recusada() {
-    let sem_paginador = controle("5 registros:", &[1, 2])
-        .replace("<a id='lnkRecebidosProximaPaginaSuperior'>»</a>", "");
-    let (codigo, valor) = exportar(&sem_paginador);
-    assert_eq!(codigo, ExitCode::from(1));
-    assert!(valor.is_none());
-}
-
-#[test]
-fn paginador_da_tabela_sem_intervalo_na_legenda_continua_recusado() {
-    let (codigo, valor) = exportar(&controle("2 registros:", &[1, 2]));
-    assert_eq!(codigo, ExitCode::from(1));
-    assert!(valor.is_none());
-}
-
-#[test]
-fn detalhada_parcial_exporta_faixa_observada() {
-    let html = "<html><a id='lnkInfraUnidade'>PPI</a>\
-        <input id='hdnTipoVisualizacao' value='D'>\
-        <table id='tblProcessosDetalhado'>\
-        <caption>(3 registros - 1 a 1):</caption>\
-        <tr><th>Processo</th><th>Tipo</th></tr>\
-        <tr id='P42'><td><a class='processoVisualizado'\
-        href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
-        000042/2026</a></td><td>Ofício</td></tr></table></html>";
-    let caminho = destino("detalhada-faixa");
-    assert_eq!(
-        mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
-        ExitCode::SUCCESS
-    );
-    let valor: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-    fs::remove_file(&caminho).unwrap();
-    // A visão D é uma lista própria do SEI, na mesma forma das outras.
-    assert_eq!(valor.as_array().map(Vec::len), Some(1));
-    // D é modo de exibição, não categoria: a chave existe e vale null.
-    assert_eq!(
-        valor[0].as_object().unwrap().get("categoria"),
-        Some(&serde_json::Value::Null)
-    );
-    assert_eq!(valor[0]["unidade"], "PPI");
-    assert_eq!(valor[0]["origem"], "web");
-    assert_eq!(valor[0]["total_declarado"], 3);
-    assert_eq!(valor[0]["faixa_observada"]["inicio"], 1);
-    assert_eq!(valor[0]["faixa_observada"]["fim"], 1);
-    assert!(valor[0].get("visualizacao").is_none());
-}
-
-#[test]
-fn exportacao_web_e_reimportada_pela_caixa_local() {
-    let (codigo, valor) = exportar(&controle("(2 registros - 1 a 2):", &[1, 2]));
-    assert_eq!(codigo, ExitCode::SUCCESS);
-    let texto = serde_json::to_string(&valor.unwrap()).unwrap();
-    let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
-    assert_eq!(observada.caixa().recebidos.processos.len(), 2);
-    assert_eq!(observada.caixa().recebidos.processos[1].numero, "NUP-2");
-    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
-}
-
-#[test]
-fn exportacao_detalhada_e_reimportada_sem_categoria() {
-    let html = "<html><a id='lnkInfraUnidade'>PPI</a>\
-        <input id='hdnTipoVisualizacao' value='D'>\
-        <table id='tblProcessosDetalhado'>\
-        <caption>(1 registros - 1 a 1):</caption>\
-        <tr><th>Processo</th><th>Tipo</th></tr>\
-        <tr id='P42'><td><a class='outraClasse'\
-        href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
-        000042/2026</a></td><td>Ofício</td></tr></table></html>";
-    let caminho = destino("detalhada-reimportada");
-    assert_eq!(
-        mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
-        ExitCode::SUCCESS
-    );
     let texto = fs::read_to_string(&caminho).unwrap();
     fs::remove_file(&caminho).unwrap();
     let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
-    let crate::caixa_local::ListasLocais::SemCategoria(processos) = &observada.listas else {
-        panic!("a exportação D não tem recebidos/gerados");
-    };
-    assert_eq!(processos.len(), 1);
-    assert_eq!(processos[0].numero, "000042/2026");
-    assert_eq!(processos[0].visualizado, None);
-    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
+    assert_eq!(observada.caixa().recebidos.processos.len(), 2);
+    assert_eq!(observada.caixa().recebidos.processos[1].numero, "NUP-2");
+}
+
+#[test]
+fn replay_com_todas_as_paginas_nao_exporta_falso_total() {
+    let caminho = destino("caixa-replay-parcial");
+    let html = controle("(4 registros - 1 a 2):", &[1, 2]);
+    let codigo = mostrar_caixa(&[html], "web", Some("PPI"), true, true, Some(&caminho));
+    assert_eq!(codigo, ExitCode::from(1));
+    assert!(!caminho.exists());
 }
