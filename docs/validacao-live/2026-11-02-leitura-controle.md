@@ -280,3 +280,15 @@ subconjunto, e cada opção sai com `disponivel`
 503 intermitente no GET de conferência do operador (fora do IES).
 
 Reensaio das duas correções: **NOT_RUN**.
+
+**Reensaio com as correções (mesmas sessões).** PEN1: `listar-processos
+--pagina 2` (101–200) seguido do padrão devolveu 1–100, tela R/0/0 — a
+página da D voltou à encontrada. UnB: `unidade colunas` com 11 opções
+(sem Prioridade) passou. GO: a mensagem dos 5xx intermitentes ficou
+visível — `HTTP 503: upstream connect error or disconnect/reset before
+headers ... connection timeout`, texto de proxy reverso, não do SEI. Um
+503 caiu no POST de volta à página encontrada: o IES devolveu
+`pagina_da_visao_detalhada_nao_restaurada` com `visao_deixada: "R"`,
+causa, status e mensagem; a tela ficou R/0/0 (conferida por GET), e a
+página lembrada da D de GO ficou em 2, a limpar quando GO estabilizar.
+Sem novas tentativas.
