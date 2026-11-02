@@ -250,3 +250,8 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
 
 #[cfg(test)]
 mod tests;
+
+// A declaração do formulário fica com a pesquisa, não num catálogo do primitivo.
+// Nenhum comando a usa nesta fatia (docs/arquitetura/0002).
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod formulario_pesquisa;

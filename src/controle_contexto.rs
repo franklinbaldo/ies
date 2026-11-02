@@ -86,7 +86,7 @@ fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> bool {
         .is_some_and(|mut encontrados| encontrados.next().is_some() && encontrados.next().is_some())
 }
 
-fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
+pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
     if id_repetido(dom, "lnkInfraUnidade") && !par_de_barras_equivalentes(dom) {
         return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
     }

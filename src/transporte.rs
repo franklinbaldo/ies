@@ -90,7 +90,7 @@ impl FalhaTransporte {
 
 // PHP decodifica percent/plus e converte pontos/espaços em underscores;
 // preservar a rejeição de nomes não literais já exigida pelo transporte.
-fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
+pub(crate) fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
     if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
         return Err(FalhaTransporte::ChaveDeConsultaNaoCanonica);
     }
@@ -98,7 +98,7 @@ fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
 }
 
 // Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
-fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTransporte> {
+pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTransporte> {
     if valor.contains(';') {
         return Err(FalhaTransporte::SeparadorDeConsultaAmbiguo);
     }
@@ -214,7 +214,7 @@ pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaT
     String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
 }
 
-fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
+pub(crate) fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
     if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
     {
         return Err(FalhaTransporte::CookieInvalido);
@@ -251,14 +251,16 @@ pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>,
 
 /// Resposta HTTP separada do transporte para ensaiar a mesma verificação
 /// de status, MIME e limite com um leitor sintético, sem acesso ao SEI.
-struct RespostaWeb<R: Read> {
-    status_code: i32,
-    mime: String,
-    content_length: Option<usize>,
-    corpo: R,
+pub(crate) struct RespostaWeb<R: Read> {
+    pub(crate) status_code: i32,
+    pub(crate) mime: String,
+    pub(crate) content_length: Option<usize>,
+    pub(crate) corpo: R,
 }
 
-fn decodificar_resposta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
+pub(crate) fn decodificar_resposta<R: Read>(
+    mut resposta: RespostaWeb<R>,
+) -> Result<String, FalhaTransporte> {
     if (300..400).contains(&resposta.status_code) {
         return Err(FalhaTransporte::Redirecionamento);
     }
