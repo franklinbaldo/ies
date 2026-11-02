@@ -9,6 +9,9 @@ pub enum ErroArquivoCaixa {
     DiretorioDeDestinoAusente,
     DiretorioLinkSimbolico,
     DiretorioTrocadoDurantePreparacao,
+    DiretorioTrocadoDuranteGravacao,
+    #[cfg(not(target_os = "linux"))]
+    ExportacaoWebSemAncoragemSegura,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
@@ -21,6 +24,13 @@ impl ErroArquivoCaixa {
             Self::DiretorioTrocadoDurantePreparacao => {
                 "diretorio_do_arquivo_da_caixa_trocado_durante_preparacao"
             }
+            Self::DiretorioTrocadoDuranteGravacao => {
+                "diretorio_do_arquivo_da_caixa_trocado_durante_gravacao"
+            }
+            #[cfg(not(target_os = "linux"))]
+            Self::ExportacaoWebSemAncoragemSegura => {
+                "exportacao_web_da_caixa_sem_ancoragem_segura"
+            }
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -32,6 +42,13 @@ impl ErroArquivoCaixa {
             Self::DiretorioLinkSimbolico => "diretório de destino atravessa link simbólico",
             Self::DiretorioTrocadoDurantePreparacao => {
                 "diretório de destino foi substituído durante a preparação"
+            }
+            Self::DiretorioTrocadoDuranteGravacao => {
+                "diretório de destino foi substituído durante a gravação"
+            }
+            #[cfg(not(target_os = "linux"))]
+            Self::ExportacaoWebSemAncoragemSegura => {
+                "exportação Web privada sem ancoragem segura nesta plataforma"
             }
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
@@ -172,6 +189,21 @@ fn preparar_destino_com_intervalo(
 
 pub(crate) fn preparar_destino(destino: &Path) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
     preparar_destino_com_intervalo(destino, || {})
+}
+
+/// Exportação Web confidencial requer ancoragem do pai por FD.
+pub(crate) fn preparar_destino_web(
+    destino: &Path,
+) -> Result<DestinoPreparado<'_>, ErroArquivoCaixa> {
+    #[cfg(target_os = "linux")]
+    {
+        preparar_destino(destino)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = destino;
+        Err(ErroArquivoCaixa::ExportacaoWebSemAncoragemSegura)
+    }
 }
 
 fn gravar_preparado_com_intervalo(

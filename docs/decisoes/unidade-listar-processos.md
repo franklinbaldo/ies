@@ -146,6 +146,13 @@ se `diretorio_ancorado` só abre o ancestral depois do GET, uma troca por
 outro diretório regular é aceita, pois `O_NOFOLLOW` só bloqueia links.
 A solução é manter o descritor aberto antes do GET e criar nele, sem
 reabrir o ancestral, com `create_new` e 0600. Teste determinístico
-substitui a pasta por outro diretório comum entre preparação e escrita.
-Fora do Linux não se afirma isolamento equivalente; não há POST nem
-validade live presumida.
+substitui o pai e exige recusa. Fora do Linux, a exportação Web
+fica bloqueada sem ancoragem equivalente; POST não habilitado.
+
+## Não anunciar gravação fora do destino (Refs #57, #59)
+
+FD fixo evita desvio, mas diretório renomeado pode receber arquivo
+inacessível pelo `--saida` original, gerando sucesso falso. Conferir
+o pai via caminho antes/depois de gravar e recusar troca com erro
+tipado, sem excluir por pathname. Verificação pontual, não impede
+renomeação posterior. Web não Linux falha fechado; offline permanece.

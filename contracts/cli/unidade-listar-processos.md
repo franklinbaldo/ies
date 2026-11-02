@@ -356,20 +356,16 @@ requisição: um concorrente pode substituir o ancestral por outro diretório
 **regular**, não apenas por symlink. No Linux, preparar o destino antes
 da leitura Web, manter aberto o descritor do pai até a gravação e criar
 o arquivo 0600 exclusivamente nesse mesmo diretório; `O_NOFOLLOW`
-isoladamente não impede a substituição por diretório comum. Teste
-reproduzível renomeia o pai original, cria outra pasta comum no pathname
-e comprova que somente o pai inicialmente ancorado contém o JSON.
-Fora do Linux não há garantia de concorrência equivalente. Continua até
-1 GET válido e 0 POST, sem certificar efeito do GET nem sessão live.
+isoladamente não impede a substituição por diretório comum. Teste renomeia o pai e exige recusa; não anunciar sucesso falso.
+Web não Linux recusa sem ancoragem. Linux: até 1 GET/0 POST.
 
 
-## Mesmo diretório entre prévia e abertura (Refs #57 e #59)
+## Identidade do pai (Refs #57 e #59)
 
-No Linux, a exportação compara dispositivo e inode do pai verificado
-com os do descritor aberto antes do GET. Troca por outra pasta comum
-nesse intervalo retorna
-`diretorio_do_arquivo_da_caixa_trocado_durante_preparacao`, sem
-requisição nem escrita na pasta substituta. A regressão troca o pai
-nesse intervalo. Pai relativo vazio corresponde a `.`.
-Destino recusado: 0 GET/POST; válido: até 1 GET, 0 POST.
-Não comprova paginação, sessão live ou efeitos administrativos.
+Linux: conferir `dev`/`ino` do pai pelo caminho e FD antes do GET;
+troca: `diretorio_do_arquivo_da_caixa_trocado_durante_preparacao`.
+Conferir antes/depois de gravar; troca:
+`diretorio_do_arquivo_da_caixa_trocado_durante_gravacao`, sem sucesso
+falso. Verificação pontual, não impede renomeação posterior.
+Web não Linux falha fechado sem ancoragem. Recusa pré-GET: 0 pedidos;
+Linux válido: até 1 GET/0 POST. Não certifica paginação ou live.

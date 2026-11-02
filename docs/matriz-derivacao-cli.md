@@ -154,3 +154,7 @@ contra substituição por outro diretório regular na janela de rede.
 Teste determinístico de troca de pasta sem symlink; nenhum novo comando,
 GET ou POST. A matriz da main continua 14 caminhos, 11 incompletos,
 3 locais; nenhuma capacidade validada live.
+
+**Pendente na PR #139:** conferir identidade do destino Web antes e
+após a escrita e recusar plataforma sem ancoragem equivalente.
+Não promove estados: 14 caminhos, 11 incompletos, 3 locais.

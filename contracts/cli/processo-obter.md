@@ -267,3 +267,10 @@ Nenhuma flag ou requisição adicional; não habilita leitura integral do NUP.
 O destino `--saida DIR/` ou `--saida DIR/.` não é nome de arquivo: falha tipada
 `destino_da_caixa_sem_nome_de_arquivo` antes da configuração/GET, sem
 normalizar a barra e criar arquivo `DIR`.
+
+## Confirmar o destino do resumo Web (Refs #59)
+
+Linux confere o pai ancorado antes/depois da escrita. Se mudou, erro
+`diretorio_do_arquivo_da_caixa_trocado_durante_gravacao`, nunca sucesso
+falso para `--saida`. Checagem pontual; Web não Linux recusa antes
+do GET sem ancoragem equivalente, preservando replay local.
