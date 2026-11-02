@@ -12,7 +12,7 @@ mod fluxo;
 mod gravacao;
 pub(crate) mod http;
 mod redirecionamento;
-mod tela;
+pub(crate) mod tela;
 
 pub(crate) use credenciais::Credenciais;
 pub(crate) use erro::{CampoDasCredenciais, ErroLogin};
@@ -107,3 +107,19 @@ pub(crate) struct PedidoDeLogin<'a> {
     pub(crate) unidade_esperada: Option<&'a str>,
     pub(crate) espera_do_lock: Duration,
 }
+
+#[cfg(test)]
+#[path = "sessao_login/tests_apoio.rs"]
+mod tests_apoio;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_fluxo.rs"]
+mod tests_fluxo;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_recusas.rs"]
+mod tests_recusas;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_sessao.rs"]
+mod tests_sessao;

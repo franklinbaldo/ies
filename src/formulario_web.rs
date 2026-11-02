@@ -444,3 +444,7 @@ mod tests_reescrita;
 #[cfg(test)]
 #[path = "formulario_web/tests_conferencia.rs"]
 mod tests_conferencia;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_login.rs"]
+mod tests_login;
