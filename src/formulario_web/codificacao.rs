@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 /// Decodifica entidades conhecidas; `None` para entidade terminada em `;`
 /// que o IES não reconhece (o navegador poderia produzir outro valor).
 /// `&` sem `;` subsequente é literal, como `&acao_origem=` no `action`.
-pub(super) fn decodificar_atributo(bruto: &str) -> Option<String> {
+pub(crate) fn decodificar_atributo(bruto: &str) -> Option<String> {
     let mut saida = String::with_capacity(bruto.len());
     let mut resto = bruto;
     while let Some(pos) = resto.find('&') {

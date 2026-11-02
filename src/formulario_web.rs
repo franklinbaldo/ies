@@ -9,10 +9,9 @@ use crate::transporte::{
     FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
 };
 use codificacao::codificar;
-use leitura::{
-    Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, localizar_formulario,
-    resolver_action,
-};
+pub(crate) use codificacao::decodificar_atributo;
+pub(crate) use leitura::localizar_formulario;
+use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -397,3 +396,7 @@ pub(crate) mod tests;
 #[cfg(test)]
 #[path = "formulario_web/tests_envio.rs"]
 mod tests_envio;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_selecao.rs"]
+mod tests_selecao;

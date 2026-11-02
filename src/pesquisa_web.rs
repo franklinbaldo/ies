@@ -259,3 +259,7 @@ pub(crate) mod formulario_pesquisa;
 // O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
 #[cfg_attr(not(test), allow(dead_code))]
 mod redirecionamento;
+
+// Regras do `onsubmit` da pesquisa, lidas do JS servido e escritas à mão.
+#[cfg_attr(not(test), allow(dead_code))]
+mod regras_formulario;

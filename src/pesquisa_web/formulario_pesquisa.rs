@@ -1,11 +1,12 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
 use super::redirecionamento::{ErroRedirecionamentoDaPesquisa, interpretar_redirecionamento};
+use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, ler_regras_da_tela};
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::{
     EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio,
-    RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
+    RespostaDoPost, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -29,7 +30,11 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
         "hdnIdUsuarioGerador3",
         "hdnInicio",
     ],
-    campos_usuario: &["rdoPesquisarEm", "txtProtocoloPesquisa"],
+    campos_usuario: &[
+        "rdoPesquisarEm",
+        "selOrgaoPesquisa[]",
+        "txtProtocoloPesquisa",
+    ],
     marcador_de_resultado: "table.pesquisaResultado",
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
@@ -45,6 +50,7 @@ pub(crate) enum ResultadoPesquisaProtocolo {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ErroPesquisaProtocolo {
+    RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
     Submissao(ErroSubmissaoFormulario),
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
     Resultado(ErroResultadoPesquisa),
@@ -53,11 +59,26 @@ pub(crate) enum ErroPesquisaProtocolo {
 impl ErroPesquisaProtocolo {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
+            Self::RegraDoFormulario(erro) => erro.subcodigo(),
             Self::Submissao(erro) => erro.subcodigo(),
             Self::Redirecionamento(erro) => erro.subcodigo(),
             Self::Resultado(erro) => erro.subcodigo(),
         }
     }
+}
+
+/// Deriva o POST da pesquisa por protocolo, sem rede. O rádio e os órgãos
+/// vêm da tela servida pelas regras de `regras_formulario`; o chamador só
+/// informa o protocolo.
+pub(crate) fn derivar_pesquisa_de_protocolo(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade_solicitada: &str,
+    protocolo: &str,
+) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    let _ = (instalacao, tela, unidade_solicitada, protocolo);
+    let _ = (ler_regras_da_tela, derivar_submissao);
+    unimplemented!("CONTRACT shim: regras do onsubmit")
 }
 
 /// Envia uma vez e interpreta a resposta; o 302 nunca é seguido.

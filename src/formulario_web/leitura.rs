@@ -42,7 +42,7 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
 }
 
 /// Exatamente um `<form>` com o `id` ou `name` da operação.
-pub(super) fn localizar_formulario<'d>(
+pub(crate) fn localizar_formulario<'d>(
     dom: &'d tl::VDom<'d>,
     identificador: &str,
 ) -> Result<&'d tl::HTMLTag<'d>, E> {
