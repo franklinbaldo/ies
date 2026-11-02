@@ -5,7 +5,7 @@ use super::*;
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
 
-/// R da UnB/PEN1 em miniatura: Recebidos P1, P2 (completos); Gerados com
+/// R da `UnB`/PEN1 em miniatura: Recebidos P1, P2 (completos); Gerados com
 /// 3 registros, página 1 mostra P3.
 fn r() -> TelaR {
     TelaR::nova((2, vec![1, 2]), (3, vec![3]))
@@ -20,7 +20,7 @@ fn listar(
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = listar_na_visao_detalhada(
         &instalacao(),
-        tela_atual(tela),
+        &tela_atual(tela),
         Some("TESTE"),
         pagina,
         &arquivo,
@@ -71,7 +71,7 @@ fn sessao_em_r_troca_para_d_le_e_restaura_r() {
 fn sessao_ja_em_d_nao_troca_nem_restaura() {
     let d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
     let (resultado, registro) = listar(d.html(), None, vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     let leitura = resultado.unwrap();
     assert!(leitura.processos.iter().all(|p| p.categoria.is_none()));
     assert_eq!(leitura.processos.len(), 5);
@@ -132,7 +132,7 @@ fn sessao_em_d_pagina_n_volta_a_pagina_exibida() {
 fn pagina_fora_do_intervalo_antes_de_qualquer_post_quando_calculavel() {
     // R: 2 + 3 = 5 registros, no máximo 5 páginas.
     let (resultado, registro) = listar(r().html(), Some(6), vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: 6 }
@@ -140,7 +140,7 @@ fn pagina_fora_do_intervalo_antes_de_qualquer_post_quando_calculavel() {
     // D já exibida: 5 registros em páginas de 2.
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let (resultado, registro) = listar(d1.html(), Some(4), vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: 4 }
@@ -294,13 +294,13 @@ fn unidade_solicitada_diferente_falha_antes_de_qualquer_post() {
     let mut envio = EnvioRoteirizado::novo(vec![]);
     let resultado = listar_na_visao_detalhada(
         &instalacao(),
-        tela_atual(r().html()),
+        &tela_atual(r().html()),
         Some("OUTRA"),
         None,
         &arquivo,
         &mut envio,
     );
-    assert!(envio.registro.is_empty());
+    assert_eq!(envio.registro.len(), 0);
     assert!(resultado.is_err());
 }
 
@@ -309,10 +309,10 @@ fn d_sem_campo_de_pagina_como_a_unb_so_tem_a_pagina_um() {
     let mut d = TelaD::nova(5, 0, 10, vec![1, 2, 3, 9, 10]);
     d.indice = None;
     let (resultado, registro) = listar(d.html(), Some(1), vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     assert_eq!(resultado.unwrap().processos.len(), 5);
     let (resultado, registro) = listar(d.html(), Some(2), vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: 2 }

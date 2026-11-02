@@ -80,7 +80,7 @@ pub(super) fn obter(
         };
         return visao_do_controle::obter_na_visao_resumida(
             &tela.instalacao,
-            atual,
+            &atual,
             unidade,
             categoria,
             pagina,

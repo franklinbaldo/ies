@@ -142,6 +142,9 @@ struct ListaExportada {
     // é dado da leitura e não substitui essa prova.
     #[serde(rename = "faixa_observada")]
     _faixa_observada: serde::de::IgnoredAny,
+    /// Lista D: colunas configuráveis fora do cabeçalho; não participa do resumo.
+    #[serde(default, rename = "colunas_ausentes")]
+    _colunas_ausentes: Option<serde::de::IgnoredAny>,
     processos: Vec<Linha>,
 }
 

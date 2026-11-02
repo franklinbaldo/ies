@@ -1,7 +1,8 @@
 //! Telas sintéticas R, D e do Nível de detalhe, modeladas na estrutura das
-//! capturas privadas de UnB, PEN1 e GO (02/11/2026), com unidade, ids,
+//! capturas privadas de `UnB`, PEN1 e GO (02/11/2026), com unidade, ids,
 //! números, nomes e hashes fictícios, e um envio injetável que registra a
 //! sequência de requisições.
+use super::envio::EnvioDoControle;
 use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
@@ -147,7 +148,7 @@ pub(super) fn linha_d(id: u32) -> String {
 }
 
 /// Tela D: total, índice da página (`None`: sem `hdnDetalhadoPaginaAtual`,
-/// como a UnB) e ids exibidos.
+/// como a `UnB`) e ids exibidos.
 #[derive(Clone)]
 pub(super) struct TelaD {
     pub(super) unidade: &'static str,
@@ -279,7 +280,12 @@ impl EnvioRoteirizado {
             status_code,
             mime: "text/html; charset=iso-8859-1".to_owned(),
             content_length: None,
-            corpo: Cursor::new(html.into_bytes()),
+            // O corpo vai em ISO-8859-1, como o `Content-Type` declara.
+            corpo: Cursor::new(
+                html.chars()
+                    .map(|c| u8::try_from(u32::from(c)).expect("ISO-8859-1"))
+                    .collect(),
+            ),
         }
     }
 }

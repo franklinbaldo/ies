@@ -31,7 +31,7 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
     };
     let (rotulo, nivel) = match visao_do_controle::ler_colunas(
         &tela.instalacao,
-        atual,
+        &atual,
         unidade,
         &arquivos.cookie,
         &mut EnvioHttps,

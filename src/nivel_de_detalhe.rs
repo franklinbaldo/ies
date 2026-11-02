@@ -8,10 +8,12 @@
 //! `frmAcessoExternoCancelar` com 12 caixas `chkSin*` e `label for=`; na D,
 //! nove opções viram cabeçalho de texto e três (prazo, devolver, aguardando)
 //! viram cabeçalho só de ícone, rotulado por `aria-label` (5.0.x) ou pelo
-//! argumento de `infraTooltipMostrar` (UnB 4.0.9).
+//! argumento de `infraTooltipMostrar` (`UnB` 4.0.9).
 mod tela;
 
-pub(crate) use tela::{ErroNivelDeDetalhe, ler_nivel_de_detalhe};
+pub(crate) use tela::{
+    ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, ler_nivel_de_detalhe, texto_colapsado,
+};
 
 /// Como a coluna aparece no cabeçalho da tabela D.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

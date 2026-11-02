@@ -21,7 +21,7 @@ fn resumida(
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = obter_na_visao_resumida(
         &instalacao(),
-        tela_atual(tela),
+        &tela_atual(tela),
         Some("TESTE"),
         categoria,
         pagina,
@@ -143,7 +143,7 @@ fn colunas(
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = ler_colunas(
         &instalacao(),
-        tela_atual(tela),
+        &tela_atual(tela),
         Some("TESTE"),
         &arquivo,
         &mut envio,
@@ -189,7 +189,7 @@ fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
     let mut sem = d();
     sem.link_nivel = false;
     let (resultado, registro) = colunas(sem.html(), vec![]);
-    assert!(registro.is_empty());
+    assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::LinkDoNivelDeDetalheAusente
@@ -211,7 +211,7 @@ fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
     ] {
         let html = d().html().replacen(troca.0, troca.1, 1);
         let (resultado, registro) = colunas(html, vec![]);
-        assert!(registro.is_empty(), "{troca:?}");
+        assert_eq!(registro.len(), 0, "{troca:?}");
         assert_eq!(
             resultado.unwrap_err(),
             ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido,

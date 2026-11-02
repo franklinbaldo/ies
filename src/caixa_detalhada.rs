@@ -7,7 +7,7 @@ use crate::dominio::{Categoria, IdProcedimento};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
-pub(crate) use colunas::{ColunasDaLinha, ValorDaColuna};
+pub(crate) use colunas::ColunasDaLinha;
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -130,6 +130,7 @@ struct Pagina {
     inicio: usize,
     fim: usize,
     processos: Vec<ProcessoDetalhado>,
+    colunas: Vec<ColunaDoDetalhe>,
 }
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
@@ -214,11 +215,11 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
 }
 
 fn ler_linha(
+    dom: &tl::VDom<'_>,
     tag: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    coluna: usize,
-    total_colunas: usize,
+    papeis: &[colunas::PapelDaColuna],
 ) -> Result<Option<ProcessoDetalhado>, ErroDetalhada> {
+    let parser = dom.parser();
     let Some(id) = atributo(tag, "id")? else {
         return Ok(None);
     };
@@ -234,10 +235,21 @@ fn ler_linha(
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name() == "td")
         .collect();
-    if celulas.len() != total_colunas {
+    if celulas.len() != papeis.len() {
         return Err(ErroDetalhada::ColunasDaLinhaDiferentes);
     }
-    let celula = celulas[coluna];
+    let mut configuradas = Vec::new();
+    let mut celula = None;
+    for (papel, td) in papeis.iter().zip(&celulas) {
+        match papel {
+            colunas::PapelDaColuna::Processo => celula = Some(*td),
+            colunas::PapelDaColuna::Configurada(coluna) => {
+                configuradas.push((*coluna, colunas::valor_da_celula(dom, td, *coluna)?));
+            }
+            colunas::PapelDaColuna::SemRotulo => {}
+        }
+    }
+    let celula = celula.ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
     let links = celula
         .query_selector(parser, "a")
         .ok_or(ErroDetalhada::LinkDoProcessoAusente)?;
@@ -264,7 +276,7 @@ fn ler_linha(
             visualizado: estado.map(|e| e.visualizado),
             sigiloso: estado.map(|e| e.sigiloso),
             categoria: None,
-            colunas: ColunasDaLinha::default(),
+            colunas: ColunasDaLinha(configuradas.clone()),
         });
     }
     escolhido
@@ -309,21 +321,14 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         return Err(ErroDetalhada::LegendasRepetidas);
     }
     let legenda = legenda.get(parser).ok_or(ErroDetalhada::LegendaAusente)?;
-    let mut coluna = None;
-    let mut colunas = 0usize;
-    let ths = tabela
-        .query_selector(parser, "th")
-        .ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
-    for th in ths {
-        let th = th
-            .get(parser)
-            .ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
-        if texto(th, parser) == "Processo" && coluna.replace(colunas).is_some() {
-            return Err(ErroDetalhada::CabecalhoProcessoRepetido);
-        }
-        colunas += 1;
-    }
-    let coluna = coluna.ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
+    let papeis = colunas::papeis_do_cabecalho(&dom, tabela)?;
+    let configuradas: Vec<ColunaDoDetalhe> = papeis
+        .iter()
+        .filter_map(|papel| match papel {
+            colunas::PapelDaColuna::Configurada(coluna) => Some(*coluna),
+            _ => None,
+        })
+        .collect();
     let mut processos = Vec::new();
     if let Some(linhas) = tabela.query_selector(parser, "tr") {
         for linha in linhas {
@@ -331,7 +336,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
                 .get(parser)
                 .and_then(tl::Node::as_tag)
                 .ok_or(ErroDetalhada::ColunasDaLinhaDiferentes)?;
-            if let Some(processo) = ler_linha(tag, parser, coluna, colunas)? {
+            if let Some(processo) = ler_linha(&dom, tag, &papeis)? {
                 processos.push(processo);
             }
         }
@@ -349,6 +354,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         inicio,
         fim,
         processos,
+        colunas: configuradas,
     })
 }
 
@@ -370,6 +376,7 @@ pub(crate) fn ler_paginas(
     let mut processos = Vec::new();
     let mut ids = HashSet::new();
     let mut numeros = HashSet::new();
+    let mut colunas_vistas: Option<Vec<ColunaDoDetalhe>> = None;
     for html in paginas {
         let pagina = ler_pagina(html)?;
         if let Some(ref inicial) = contexto {
@@ -388,6 +395,13 @@ pub(crate) fn ler_paginas(
             return Err(ErroDetalhada::TotalAlterado);
         }
         total = Some(pagina.total);
+        if colunas_vistas
+            .as_ref()
+            .is_some_and(|vistas| *vistas != pagina.colunas)
+        {
+            return Err(ErroDetalhada::CabecalhoDiferenteEntrePaginas);
+        }
+        colunas_vistas = Some(pagina.colunas.clone());
         // A primeira página pode não ser a 1 (página lembrada na sessão);
         // as seguintes continuam a anterior.
         if faixa_inicio.is_none() {
@@ -420,10 +434,11 @@ pub(crate) fn ler_paginas(
         total_declarado: total,
         faixa_observada,
         processos,
-        colunas: Vec::new(),
+        colunas: colunas_vistas.unwrap_or_default(),
     })
 }
 
+#[cfg(test)]
 pub(crate) fn possui_tabela(html: &str) -> bool {
     tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| {
         // Tag ilegível conta como possível tabela: a leitura falhará tipada.

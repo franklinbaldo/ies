@@ -5,12 +5,13 @@
 //!
 //! Evidência (02/11/2026, treinamento; capturas privadas só estruturais):
 //! `trocarVisualizacao(v)` grava `hdnTipoVisualizacao` e chama `submit()` de
-//! `frmProcedimentoControlar` (UnB, PEN1, GO); a D publica
+//! `frmProcedimentoControlar` (`UnB`, PEN1, GO); a D publica
 //! `hdnDetalhadoPaginaAtual` e `infraAcaoPaginar('=', i, 'Detalhado', null)`
 //! (PEN1, GO); a R não publica `hdnDetalhadoPaginaAtual`.
 mod envio;
 mod fluxo;
 mod nivel;
+mod passos;
 mod plano;
 mod resumida;
 
@@ -24,7 +25,7 @@ use crate::nivel_de_detalhe::ErroNivelDeDetalhe;
 use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-pub(crate) use envio::{EnvioDoControle, EnvioHttps, TelaAtual};
+pub(crate) use envio::{EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
 pub(crate) use resumida::obter_na_visao_resumida;

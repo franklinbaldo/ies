@@ -1,6 +1,6 @@
 //! RED/GREEN das colunas configuradas da tabela D. Cabeçalhos e células
 //! sintéticos na estrutura de GO/PEN1 (5.0.x, `aria-label`, `data-label`)
-//! e da UnB (4.0.9, tooltip, sem `data-label`).
+//! e da `UnB` (4.0.9, tooltip, sem `data-label`).
 use super::*;
 
 fn rotulo(texto: &str) -> String {
@@ -148,7 +148,7 @@ fn as_nove_colunas_de_texto_presentes_nao_deixam_ausentes() {
     let cabecalhos: Vec<_> = rotulos.iter().map(|r| rotulo(r)).collect();
     let celulas = vec!["<td></td>"; rotulos.len()];
     let leitura = ler(&tabela(&cabecalhos, &celulas)).unwrap();
-    assert!(leitura.colunas_ausentes().is_empty());
+    assert_eq!(leitura.colunas_ausentes().len(), 0);
     let json = serde_json::to_value(&leitura.processos[0]).unwrap();
     assert_eq!(json["colunas"]["interessados"], serde_json::json!([]));
     assert!(json["colunas"]["marcadores"].is_null());

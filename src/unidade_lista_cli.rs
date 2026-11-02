@@ -38,7 +38,7 @@ pub(super) fn listar_processos_da_unidade(
     };
     match visao_do_controle::listar_na_visao_detalhada(
         &tela.instalacao,
-        atual,
+        &atual,
         unidade,
         pagina,
         &arquivos.cookie,
