@@ -12,20 +12,35 @@ pub(crate) struct EstadoDoLink {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ClassesDeEstadoDiferentesNoLink;
 
-/// SHIM (CONTRACT): ainda reconhece só as duas classes antigas.
+const fn estado(visualizado: bool, sigiloso: bool) -> EstadoDoLink {
+    EstadoDoLink {
+        visualizado,
+        sigiloso,
+    }
+}
+
+/// `processoVisualizadoSigiloso` observado em Goiás 5.0.3 (02/11/2026);
+/// `processoNaoVisualizadoSigiloso` é o par simétrico, não observado live.
+const CLASSES: [(&str, EstadoDoLink); 4] = [
+    ("processoVisualizado", estado(true, false)),
+    ("processoNaoVisualizado", estado(false, false)),
+    ("processoVisualizadoSigiloso", estado(true, true)),
+    ("processoNaoVisualizadoSigiloso", estado(false, true)),
+];
+
+/// `None` quando nenhum token reconhecido aparece (ícones e outros links).
 pub(crate) fn estado_do_link(
     classes: &str,
 ) -> Result<Option<EstadoDoLink>, ClassesDeEstadoDiferentesNoLink> {
-    let tokens: Vec<&str> = classes.split_whitespace().collect();
-    let visualizado = if tokens.contains(&"processoVisualizado") {
-        Some(true)
-    } else if tokens.contains(&"processoNaoVisualizado") {
-        Some(false)
-    } else {
-        None
-    };
-    Ok(visualizado.map(|visualizado| EstadoDoLink {
-        visualizado,
-        sigiloso: false,
-    }))
+    let mut achado = None;
+    for token in classes.split_whitespace() {
+        let Some(&(_, atual)) = CLASSES.iter().find(|(nome, _)| *nome == token) else {
+            continue;
+        };
+        if achado.is_some_and(|anterior| anterior != atual) {
+            return Err(ClassesDeEstadoDiferentesNoLink);
+        }
+        achado = Some(atual);
+    }
+    Ok(achado)
 }
