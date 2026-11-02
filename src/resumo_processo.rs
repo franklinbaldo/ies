@@ -1,11 +1,22 @@
 //! Consulta mínima de identidade: só reutiliza os dados da Caixa de Entrada.
+use crate::caixa_detalhada::ProcessoDetalhado;
 use crate::dominio::{CaixaDeEntrada, Processo};
 use serde::Serialize;
 
+/// O processo como a lista o publicou; mesma forma JSON nas duas visões.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub(crate) enum ProcessoObservado {
+    Categoria(Processo),
+    /// Visão detalhada: `visualizado`/`sigiloso` podem não ser observáveis.
+    SemCategoria(ProcessoDetalhado),
+}
+
+/// `categoria: None` (JSON `null`) na lista única da visão detalhada.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Ocorrencia {
-    categoria: &'static str,
-    processo: Processo,
+    categoria: Option<&'static str>,
+    processo: ProcessoObservado,
 }
 
 pub fn ocorrencias(caixa: &CaixaDeEntrada, numero: &str) -> Vec<Ocorrencia> {
@@ -14,13 +25,21 @@ pub fn ocorrencias(caixa: &CaixaDeEntrada, numero: &str) -> Vec<Ocorrencia> {
         for processo in &tabela.processos {
             if processo.numero == numero {
                 achados.push(Ocorrencia {
-                    categoria,
-                    processo: processo.clone(),
+                    categoria: Some(categoria),
+                    processo: ProcessoObservado::Categoria(processo.clone()),
                 });
             }
         }
     }
     achados
+}
+
+/// Ocorrências na lista única da visão detalhada, sem categoria inferida.
+pub(crate) fn ocorrencias_sem_categoria(
+    _processos: &[ProcessoDetalhado],
+    _numero: &str,
+) -> Vec<Ocorrencia> {
+    Vec::new()
 }
 
 #[cfg(test)]

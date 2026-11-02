@@ -165,7 +165,10 @@ regra da [matriz](../matriz-derivacao-cli.md) de não criar verbos: cada
 lista vira um comando com `--pagina N`, e `listar-processos` devolve o
 array `[recebidos, gerados]` com 1 GET, sem `--categoria` nem `--pagina`
 (contrato pré-1.0, sem alias). A visão D devolve uma lista
-`categoria: "detalhada"`. A operação e a estratégia não mudam: mesmo
+`categoria: null` (correção de 02/11/2026: a #146 publicava
+`"detalhada"`, confundindo o modo de exibição `hdnTipoVisualizacao`
+com uma categoria inexistente no SEI; descartado também um campo
+`visualizacao`, pois a lista única sem categoria já identifica o caso). A operação e a estratégia não mudam: mesmo
 GET, mesmo POST da #146, mesmas recusas; `--unidade` é conferido pela
 mesma leitura. A exportação `--saida` e a importação `--caixa-local`
 passam ao array; o formato anterior é recusado. Ensaio live da nova

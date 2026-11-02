@@ -32,7 +32,10 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
                 "visualizado": true, "sigiloso": false}]}
 ```
 
-- `categoria`: `recebidos`, `gerados` ou, na visão detalhada, `detalhada`.
+- `categoria`: `recebidos` ou `gerados`; na visão detalhada, `null`.
+  A visão detalhada (`hdnTipoVisualizacao=D`) é um **modo de exibição**
+  da sessão, não uma categoria do SEI: sua tabela única mistura as duas
+  listas sem indicar a categoria de cada linha, e o IES não a infere.
 - `total_declarado`: total da legenda; `faixa_observada`: `{inicio, fim}`
   das posições lidas, ou `null` sem linhas. Nunca `completa`.
 - `unidade`: rótulo publicado em `lnkInfraUnidade` (contexto observado,
@@ -56,18 +59,24 @@ Com `--pagina N`, N fora do intervalo é `pagina_fora_do_intervalo`
 sequência e as recusas estão nas [páginas da caixa](unidade-listar-processos-paginas.md).
 
 Na visão detalhada (`hdnTipoVisualizacao=D`), `listar-processos` devolve
-um array com **uma** lista `categoria: "detalhada"`; `recebidos` e
+um array com **uma** lista `categoria: null`; `recebidos` e
 `gerados` falham com `tabela_ausente` e a categoria pedida, porque a tela
 não publica a tabela da categoria. `--pagina N` não se aplica à visão D.
 
 `ies replay CENARIO` (caixa) e a exportação `--saida` usam o mesmo array.
-`processo NUP --resumo --caixa-local` lê esse array; uma exportação no
-formato anterior (objeto com `recebidos`/`gerados`) é recusada com
+`processo NUP --resumo --caixa-local` lê esse array: `[recebidos, gerados]`
+ou, exportado da visão D, `[lista com categoria null]`, cujas ocorrências
+saem com `categoria: null`. Uma exportação no formato anterior (objeto
+com `recebidos`/`gerados`) ou a lista única `categoria: "detalhada"`
+gravada pela `main` da PR #146 (pré-1.0, sem alias) é recusada com
 `formato_do_arquivo_da_caixa_invalido`. Recusas novas da importação:
 
 | Fato no arquivo | Subcódigo |
 | --- | --- |
-| Array diferente de `[recebidos, gerados]` | `listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados` |
+| Array diferente de `[recebidos, gerados]` e de `[null]` | `listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados` |
+| Lista sem categoria: total diferente das linhas | `total_da_lista_sem_categoria_do_arquivo_nao_comprovado` |
+| Lista sem categoria: `id` inválido ou repetido | `id_da_lista_sem_categoria_do_arquivo_invalido`, `id_da_lista_sem_categoria_do_arquivo_repetido` |
+| Lista sem categoria: `numero` inválido | `numero_da_lista_sem_categoria_do_arquivo_invalido` |
 | Listas com `unidade` diferentes | `unidade_das_listas_do_arquivo_da_caixa_diferente` |
 | Listas com `origem` diferentes | `origem_das_listas_do_arquivo_da_caixa_diferente` |
 

@@ -73,7 +73,7 @@ fn mostrar_caixa_detalhada(
     let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
-        categoria: "detalhada",
+        categoria: Some("detalhada"),
         total_declarado: Some(leitura.total_declarado),
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,

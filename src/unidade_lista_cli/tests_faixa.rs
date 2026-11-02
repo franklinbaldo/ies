@@ -123,7 +123,7 @@ fn exportacao_web_e_reimportada_pela_caixa_local() {
     assert_eq!(codigo, ExitCode::SUCCESS);
     let texto = serde_json::to_string(&valor.unwrap()).unwrap();
     let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
-    assert_eq!(observada.caixa.recebidos.processos.len(), 2);
-    assert_eq!(observada.caixa.recebidos.processos[1].numero, "NUP-2");
+    assert_eq!(observada.caixa().recebidos.processos.len(), 2);
+    assert_eq!(observada.caixa().recebidos.processos[1].numero, "NUP-2");
     assert_eq!(observada.unidade.as_deref(), Some("PPI"));
 }

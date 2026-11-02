@@ -278,8 +278,11 @@ por seu único GET** quando ela apresenta uma tabela única
 `tblProcessosDetalhado` e `hdnTipoVisualizacao=D`. Não criar flag,
 subcomando ou inferir que esses processos pertençam à categoria
 `recebidos` ou `gerados`. A saída é um array com **uma** lista na
-[forma única](unidade-recebidos-gerados.md), `categoria: "detalhada"`,
-com `visualizado`/`sigiloso` somente quando observáveis.
+[forma única](unidade-recebidos-gerados.md), `categoria: null`,
+com `visualizado`/`sigiloso` somente quando observáveis. `null` porque
+`D` é modo de exibição da sessão, não categoria do SEI; a saída não
+ganha campo `visualizacao`: lista única com `categoria: null` só ocorre
+na visão D.
 
 Para cada linha aceita, exigir identificador `tr id=P<dígitos>`, um
 cabeçalho `Processo` único, link dessa célula para uma ação de processo
