@@ -149,3 +149,24 @@ resumida (POST `R`) e conferidas por GET; GO voltou à página 1 de Gerados.
 `status_http` e `mensagem_do_servidor`, a sequência que antes deu 5xx em
 GO (`gerados --pagina 799` → `--pagina 1`) passou nas duas: validação
 live da mensagem **NOT_RUN** (falha intermitente não recorreu).
+
+**Categoria na visão D — não há.** Cruzando, na mesma sessão, cada linha
+D com a categoria da resumida (UnB: 59/59 linhas, a caixa inteira; PEN1:
+100 linhas), nenhum traço HTML (classes, atributos, ícones, `data-label`,
+argumentos de tooltip, ocultos) separa Recebidos de Gerados. Os mais
+correlatos são status alheios à categoria (ícone de trâmite recebido do
+Tramita GOV.BR na PEN1; retorno programado na UnB). `hdnExibirRecebidos`/
+`hdnExibirGerados` são os alternadores da resumida em tela pequena
+(`alterarVisualizacaoTabela`, `d-md-none`): enviados com
+`hdnTipoVisualizacao=D`, **não filtram** a D (UnB 59 e PEN1 332 em ambos).
+A página da D fica lembrada à parte da resumida (PEN1 voltou em 101–200);
+restaurada para a página 1 e a tela para R, conferidas por GET.
+
+**Nível de detalhe.** A D publica `procedimento_configurar_detalhe`
+(GET somente leitura): 12 opções fixas (`chkSinAtribuicao`, `chkSinAnotacao`,
+`chkSinTipoProcesso`, `chkSinEspecificacao`, `chkSinNivelPrioritarios`,
+`chkSinInteressados`, `chkSinObservacao`, `chkSinControlePrazo`,
+`chkSinRetornoDevolver`, `chkSinRetornoAguardando`,
+`chkSinUltimaMovimentacao`, `chkSinMarcadores`) e `sbmSalvar`. PEN1 tinha 3
+marcadas, GO todas; GO com 12 marcadas mostra 9 colunas além de Processo
+(prazo, devolver e aguardando não viram cabeçalho). Nada foi salvo.
