@@ -1,6 +1,8 @@
 //! Detecção estrutural de formulário de autenticação no HTML recebido.
 //! Não faz login, não interpreta senhas e não inicia novas requisições.
 
+use crate::html_atributos::atributos;
+
 /// Shim do contrato. A implementação reconhece formulário SIP ou módulo próprio.
 pub(crate) fn e_tela_login(html: &str) -> bool {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
@@ -14,46 +16,45 @@ pub(crate) fn e_tela_login(html: &str) -> bool {
         let Some(tag) = form.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let attrs = tag.attributes();
+        // Atributos lidos da fonte da tag (o mapa do tl 0.7.8 perde o 1º
+        // caractere após booleano). Tag ilegível não identifica formulário;
+        // atributo repetido identifica se qualquer ocorrência casar.
+        let Ok(attrs) = atributos(tag) else {
+            continue;
+        };
         let identificador = |chave| {
             attrs
-                .get(chave)
-                .flatten()
-                .is_some_and(|valor| valor.as_utf8_str().eq_ignore_ascii_case("frmLogin"))
+                .valores(chave)
+                .any(|valor| valor.eq_ignore_ascii_case("frmLogin"))
         };
-        let action_login = attrs.get("action").flatten().is_some_and(|valor| {
-            valor
-                .as_utf8_str()
-                .to_ascii_lowercase()
-                .contains("login.php")
-        });
+        let action_login = attrs
+            .valores("action")
+            .any(|valor| valor.to_ascii_lowercase().contains("login.php"));
         if !identificador("id") && !identificador("name") && !action_login {
             continue;
         }
         // Analisa só filhos do formulário identificado: campos de outro
         // form ou do restante da página não comprovam autenticação.
-        let interior = tag.inner_html(parser);
-        let Ok(filhos) = tl::parse(&interior, tl::ParserOptions::default()) else {
-            continue;
-        };
-        let filhos_parser = filhos.parser();
-        if filhos.query_selector("input").is_some_and(|mut inputs| {
-            inputs.any(|item| {
-                item.get(filhos_parser)
-                    .and_then(tl::Node::as_tag)
-                    .is_some_and(|input| {
-                        ["name", "id"].into_iter().any(|campo| {
-                            input
-                                .attributes()
-                                .get(campo)
-                                .flatten()
-                                .is_some_and(|valor| {
-                                    valor.as_utf8_str().eq_ignore_ascii_case("txtUsuario")
+        // Sem reserializar com `inner_html`: o tl o monta a partir do mapa de
+        // atributos corrompido. A busca fica restrita aos descendentes.
+        if tag
+            .query_selector(parser, "input")
+            .is_some_and(|mut inputs| {
+                inputs.any(|item| {
+                    item.get(parser)
+                        .and_then(tl::Node::as_tag)
+                        .is_some_and(|input| {
+                            atributos(input).is_ok_and(|attrs| {
+                                ["name", "id"].into_iter().any(|campo| {
+                                    attrs
+                                        .valores(campo)
+                                        .any(|valor| valor.eq_ignore_ascii_case("txtUsuario"))
                                 })
+                            })
                         })
-                    })
+                })
             })
-        }) {
+        {
             return true;
         }
     }
@@ -68,6 +69,17 @@ mod tests {
     fn sip_com_usuario_e_form_identificado_eh_login() {
         let html = "<form id='frmLogin'><input name='txtUsuario'></form>";
         assert!(e_tela_login(html));
+    }
+
+    #[test]
+    fn booleano_antes_do_id_e_do_name_nao_esconde_o_login() {
+        for html in [
+            "<form novalidate id='frmLogin'><input required name='txtUsuario'></form>",
+            "<form novalidate name='frmLogin'><input autofocus id='txtUsuario'></form>",
+            "<form novalidate action='login.php'><input required name='txtUsuario'></form>",
+        ] {
+            assert!(e_tela_login(html), "{html}");
+        }
     }
 
     #[test]

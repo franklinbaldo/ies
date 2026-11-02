@@ -175,8 +175,9 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
 }
 
 /// Forma bruta servida nas quatro instalações: `multiple` sem valor antes
-/// de `id`. O tl 0.7.8 lê o atributo seguinte sem o 1º caractere (`d`), por
-/// isso o `select` é localizado pelo `name`, não pelo `id`.
+/// de `id`. O defeito do tl 0.7.8 (`id` lido como `d`) foi corrigido pelo
+/// tokenizador `html_atributos`; o `select` continua localizado pelo
+/// `name`, que é o nome efetivamente serializado no POST.
 #[test]
 fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
     let bruto = "<select style=\"display: none\" multiple id=\"selOrgaoPesquisa\" \
@@ -186,6 +187,37 @@ fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
     let submissao = derivar(&pagina(&interior(bruto))).unwrap();
     let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
     assert!(corpo.contains("&selOrgaoPesquisa%5B%5D=4&"), "{corpo}");
+}
+
+#[test]
+fn booleano_antes_de_cada_atributo_preserva_regras_e_corpo() {
+    let esperado = derivar(&observado()).unwrap();
+    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&observado());
+    let obtido = derivar(&html).unwrap();
+    assert_eq!(obtido.corpo(), esperado.corpo());
+    assert_eq!(obtido.url(), esperado.url());
+    let opcoes =
+        "<option selected value='4'>A</option><option hidden selected value='5'>B</option>";
+    let corpo = derivar(&pagina(&interior(&select_de_orgao(opcoes)))).unwrap();
+    let corpo = String::from_utf8(corpo.corpo().to_vec()).unwrap();
+    assert!(
+        corpo.contains("&selOrgaoPesquisa%5B%5D=4&selOrgaoPesquisa%5B%5D=5&"),
+        "{corpo}"
+    );
+}
+
+#[test]
+fn seletor_de_orgao_bruto_com_multiple_disabled_nao_e_publicado() {
+    let bruto = "<select multiple disabled id=\"selOrgaoPesquisa\" name=\"selOrgaoPesquisa[]\">\
+                 <option value=\"4\" selected=\"selected\">A</option></select>";
+    assert_eq!(
+        derivar(&pagina(&interior(bruto))).unwrap_err(),
+        ErroPesquisaProtocolo::Submissao(
+            ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
+                campo: "selOrgaoPesquisa[]".to_owned()
+            }
+        )
+    );
 }
 
 #[test]

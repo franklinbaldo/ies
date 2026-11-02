@@ -38,6 +38,17 @@ fn pagina_detalhada_completa_de_um_get_vira_lista_sem_categorias_inventadas() {
 }
 
 #[test]
+fn booleano_antes_de_id_href_e_class_nao_altera_a_leitura() {
+    let original = pagina(2, 1, &[(1, "000001/2026"), (2, "000002/2026")]);
+    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&original);
+    assert!(possui_tabela(&html));
+    let resposta = ler_paginas(&[html], Some("PPI")).unwrap();
+    assert_eq!(resposta.processos.len(), 2);
+    assert_eq!(resposta.processos[0].visualizado, Some(true));
+    assert_eq!(resposta.processos[1].numero, "000002/2026");
+}
+
+#[test]
 fn duas_paginas_detalhadas_capturadas_unem_intervalos_sem_post() {
     let primeira = pagina(3, 1, &[(1, "000001/2026"), (2, "000002/2026")]);
     let segunda = pagina(3, 3, &[(3, "000003/2026")]);

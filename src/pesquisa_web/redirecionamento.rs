@@ -16,6 +16,9 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
+    AcaoDeOrigemAusenteNoRedirecionamento,
+    AcaoDeOrigemRepetidaNoRedirecionamento,
+    AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
     IdProcedimentoAusenteNoRedirecionamento,
     IdProcedimentoRepetidoNoRedirecionamento,
     IdProcedimentoNaoDecimalNoRedirecionamento,
@@ -27,6 +30,13 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     UnidadeAtualAusenteNaUrlDoEnvio,
     UnidadeAtualRepetidaNaUrlDoEnvio,
     UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
+    InfraSistemaAusenteNoRedirecionamento,
+    InfraSistemaRepetidoNoRedirecionamento,
+    InfraSistemaNaoDecimalNoRedirecionamento,
+    InfraSistemaAusenteNaUrlDoEnvio,
+    InfraSistemaRepetidoNaUrlDoEnvio,
+    InfraSistemaNaoDecimalNaUrlDoEnvio,
+    InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
 }
 
 impl ErroRedirecionamentoDaPesquisa {
@@ -47,6 +57,15 @@ impl ErroRedirecionamentoDaPesquisa {
             }
             Self::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar => {
                 "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
+            }
+            Self::AcaoDeOrigemAusenteNoRedirecionamento => {
+                "acao_de_origem_ausente_no_redirecionamento"
+            }
+            Self::AcaoDeOrigemRepetidaNoRedirecionamento => {
+                "acao_de_origem_repetida_no_redirecionamento"
+            }
+            Self::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa => {
+                "acao_de_origem_do_redirecionamento_diferente_da_pesquisa"
             }
             Self::IdProcedimentoAusenteNoRedirecionamento => {
                 "id_procedimento_ausente_no_redirecionamento"
@@ -72,6 +91,21 @@ impl ErroRedirecionamentoDaPesquisa {
             Self::UnidadeAtualRepetidaNaUrlDoEnvio => "unidade_atual_repetida_na_url_do_envio",
             Self::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio => {
                 "unidade_atual_do_redirecionamento_diferente_da_do_envio"
+            }
+            Self::InfraSistemaAusenteNoRedirecionamento => {
+                "infra_sistema_ausente_no_redirecionamento"
+            }
+            Self::InfraSistemaRepetidoNoRedirecionamento => {
+                "infra_sistema_repetido_no_redirecionamento"
+            }
+            Self::InfraSistemaNaoDecimalNoRedirecionamento => {
+                "infra_sistema_nao_decimal_no_redirecionamento"
+            }
+            Self::InfraSistemaAusenteNaUrlDoEnvio => "infra_sistema_ausente_na_url_do_envio",
+            Self::InfraSistemaRepetidoNaUrlDoEnvio => "infra_sistema_repetido_na_url_do_envio",
+            Self::InfraSistemaNaoDecimalNaUrlDoEnvio => "infra_sistema_nao_decimal_na_url_do_envio",
+            Self::InfraSistemaDoRedirecionamentoDiferenteDoEnvio => {
+                "infra_sistema_do_redirecionamento_diferente_do_envio"
             }
         }
     }
@@ -151,16 +185,34 @@ fn valores<'a>(parametros: &[(&str, &'a str)], nome: &str) -> Vec<&'a str> {
         .collect()
 }
 
-fn unidade_do_envio(url_do_envio: &str) -> Result<String, E> {
+fn parametros_do_envio(url_do_envio: &str) -> Vec<(&str, &str)> {
     let consulta = partir_https(url_do_envio).map_or("", |(_, _, consulta)| consulta);
-    let pares: Vec<_> = consulta
+    consulta
         .split('&')
         .filter_map(|i| i.split_once('='))
-        .collect();
-    match valores(&pares, "infra_unidade_atual").as_slice() {
+        .collect()
+}
+
+fn unidade_do_envio(url_do_envio: &str) -> Result<String, E> {
+    match valores(&parametros_do_envio(url_do_envio), "infra_unidade_atual").as_slice() {
         [] => Err(E::UnidadeAtualAusenteNaUrlDoEnvio),
         [unidade] => Ok((*unidade).to_owned()),
         _ => Err(E::UnidadeAtualRepetidaNaUrlDoEnvio),
+    }
+}
+
+fn decimal(valor: &str) -> bool {
+    !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// O POST observado é o `action` assinado do formulário, que traz
+/// `infra_sistema`; sem ele não há com o que comparar: falha fechada.
+fn sistema_do_envio(url_do_envio: &str) -> Result<String, E> {
+    match valores(&parametros_do_envio(url_do_envio), "infra_sistema").as_slice() {
+        [] => Err(E::InfraSistemaAusenteNaUrlDoEnvio),
+        [sistema] if decimal(sistema) => Ok((*sistema).to_owned()),
+        [_] => Err(E::InfraSistemaNaoDecimalNaUrlDoEnvio),
+        _ => Err(E::InfraSistemaRepetidoNaUrlDoEnvio),
     }
 }
 
@@ -187,6 +239,12 @@ pub(crate) fn interpretar_redirecionamento(
     if valores(&pares, "acao") != ["procedimento_trabalhar"] {
         return Err(E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
+    match valores(&pares, "acao_origem").as_slice() {
+        [] => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
+        ["protocolo_pesquisar"] => {}
+        [_] => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
+        _ => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
+    }
     let id = match valores(&pares, "id_procedimento").as_slice() {
         [] | [""] => return Err(E::IdProcedimentoAusenteNoRedirecionamento),
         [id] => {
@@ -207,6 +265,16 @@ pub(crate) fn interpretar_redirecionamento(
     };
     if unidade != unidade_do_envio(redirecionamento.url_do_envio())? {
         return Err(E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio);
+    }
+    let sistema = match valores(&pares, "infra_sistema").as_slice() {
+        [] => return Err(E::InfraSistemaAusenteNoRedirecionamento),
+        [sistema] if decimal(sistema) => *sistema,
+        [_] => return Err(E::InfraSistemaNaoDecimalNoRedirecionamento),
+        _ => return Err(E::InfraSistemaRepetidoNoRedirecionamento),
+    };
+    // Comparação exata, sem normalizar zeros à esquerda.
+    if sistema != sistema_do_envio(redirecionamento.url_do_envio())? {
+        return Err(E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio);
     }
     // Location e URL assinados descartados aqui, antes de devolver o id.
     drop(redirecionamento);

@@ -1,6 +1,7 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::codificacao::decodificar_atributo;
 use super::{ErroSubmissaoFormulario as E, OperacaoDeFormulario};
+use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::{Instalacao, host_valido};
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 use std::collections::HashSet;
@@ -34,11 +35,9 @@ impl<'a> UrlHttps<'a> {
     }
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
-    tag.attributes()
-        .get(nome)
-        .flatten()
-        .map(|valor| valor.as_utf8_str().into_owned())
+/// Valor bruto lido da fonte da tag (não do mapa do `tl`, defeituoso).
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+    valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
 }
 
 /// Exatamente um `<form>` com o `id` ou `name` da operação.
@@ -47,33 +46,37 @@ pub(crate) fn localizar_formulario<'d>(
     identificador: &str,
 ) -> Result<&'d tl::HTMLTag<'d>, E> {
     let parser = dom.parser();
-    let mut achados = dom
+    let mut achados = Vec::new();
+    for form in dom
         .query_selector("form")
         .into_iter()
         .flatten()
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .filter(|form| {
-            ["id", "name"]
-                .iter()
-                .any(|chave| atributo(form, chave).is_some_and(|v| v == identificador))
-        });
-    let form = achados.next().ok_or(E::FormularioAusenteNaTela)?;
-    if achados.next().is_some() {
-        return Err(E::FormulariosComMesmoIdentificadorNaTela);
+    {
+        for chave in ["id", "name"] {
+            if atributo(form, chave)?.is_some_and(|v| v == identificador) {
+                achados.push(form);
+                break;
+            }
+        }
     }
-    Ok(form)
+    match achados.as_slice() {
+        [] => Err(E::FormularioAusenteNaTela),
+        [form] => Ok(form),
+        _ => Err(E::FormulariosComMesmoIdentificadorNaTela),
+    }
 }
 
 pub(super) fn conferir_metodo_e_codificacao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
-    if !atributo(form, "method").is_some_and(|m| m.eq_ignore_ascii_case("post")) {
+    if !atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
         return Err(E::MetodoDoFormularioDiferenteDePost);
     }
-    if atributo(form, "enctype")
+    if atributo(form, "enctype")?
         .is_some_and(|v| !v.eq_ignore_ascii_case("application/x-www-form-urlencoded"))
     {
         return Err(E::EnctypeDoFormularioNaoUrlencoded);
     }
-    if atributo(form, "accept-charset").is_some() {
+    if atributo(form, "accept-charset")?.is_some() {
         return Err(E::AcceptCharsetPublicadoNoFormulario);
     }
     Ok(())
@@ -99,7 +102,7 @@ pub(super) fn resolver_action(
     instalacao: &Instalacao,
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
-    let bruto = atributo(form, "action").ok_or(E::AcaoDoFormularioAusente)?;
+    let bruto = atributo(form, "action")?.ok_or(E::AcaoDoFormularioAusente)?;
     let decodificado =
         decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
@@ -178,7 +181,7 @@ pub(super) enum Controle {
 }
 
 fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
-    decodificar_atributo(&atributo(tag, "value").unwrap_or_default()).ok_or_else(|| {
+    decodificar_atributo(&atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
         E::EntidadeHtmlDesconhecidaNoAtributo {
             campo: nome.to_owned(),
         }
@@ -189,11 +192,11 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea")
         // Navegadores não enviam controles desabilitados (com ou sem valor).
-        || tag.attributes().get("disabled").is_some()
+        || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
     {
         return Ok(None);
     }
-    let Some(bruto) = atributo(tag, "name").filter(|n| !n.is_empty()) else {
+    let Some(bruto) = atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
         return Ok(None);
     };
     let nome =
@@ -208,7 +211,7 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
     } else {
         "text"
     };
-    let tipo = atributo(tag, "type").map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+    let tipo = atributo(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
     Ok(match (elemento.as_str(), tipo.as_str()) {
         ("input", "hidden") => {
             let valor = valor_decodificado(tag, &nome)?;
@@ -219,7 +222,7 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: &str) -> Result<Option<Controle>, E
             Some(Controle::Botao { nome, valor })
         }
         ("input" | "button", "submit" | "button" | "reset" | "image") | ("button", _) => None,
-        ("select", _) if tag.attributes().get("multiple").is_some() => {
+        ("select", _) if atributo_presente(tag, "multiple").map_err(E::AtributoHtml)? => {
             Some(Controle::SelecaoMultipla(nome))
         }
         _ => Some(Controle::Usuario(nome)),

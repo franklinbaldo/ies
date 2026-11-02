@@ -12,7 +12,10 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     botao_de_envio: "sbmPesquisar",
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnInicio"],
     campos_usuario: &["rdoPesquisarEm", "txtProtocoloPesquisa"],
-    marcador_de_resultado: "table.pesquisaResultado",
+    marcador_de_resultado: MarcadorDeResultado {
+        elemento: "table",
+        classe: "pesquisaResultado",
+    },
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },

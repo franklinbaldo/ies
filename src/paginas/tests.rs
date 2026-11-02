@@ -72,6 +72,16 @@ fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
 }
 
 #[test]
+fn booleano_antes_dos_ids_preserva_faixas_das_duas_paginas() {
+    let com = crate::html_atributos::com_booleano_antes_dos_atributos;
+    let primeira = com(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
+    let segunda = com(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11])));
+    let leitura = juntar(&[primeira, segunda], Some("TESTE")).unwrap();
+    assert_eq!(leitura.caixa.recebidos.processos.len(), 4);
+    assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
+}
+
+#[test]
 fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
     let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
     let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));

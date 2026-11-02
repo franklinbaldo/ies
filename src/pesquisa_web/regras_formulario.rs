@@ -3,6 +3,7 @@
 //! `protocolo_pesquisar` das cassettes `processo-busca-*`). Nada de JS é
 //! executado ou interpretado aqui. Evidência: docs/decisoes/processo-buscar.md.
 use crate::formulario_web::decodificar_atributo;
+use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use ErroRegraDoFormularioDePesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,6 +20,8 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     OpcaoDeOrgaoSelecionadaSemValorNaTela,
     InicioDaPaginacaoDiferenteDeZeroNaTela,
     EntidadeHtmlDesconhecidaNaRegra,
+    /// Tag de abertura que o tokenizador de atributos recusou.
+    AtributoHtml(ErroAtributoHtml),
 }
 
 impl ErroRegraDoFormularioDePesquisa {
@@ -52,6 +55,7 @@ impl ErroRegraDoFormularioDePesquisa {
                 "inicio_da_paginacao_diferente_de_zero_na_tela"
             }
             Self::EntidadeHtmlDesconhecidaNaRegra => "entidade_html_desconhecida_na_regra",
+            Self::AtributoHtml(falha) => falha.subcodigo(),
         }
     }
 }
@@ -63,14 +67,15 @@ pub(crate) struct RegrasDaTela {
     pub(crate) orgaos_selecionados: Vec<String>,
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<Option<String>, E> {
-    tag.attributes()
-        .get(nome)
-        .flatten()
-        .map(|bruto| {
-            decodificar_atributo(&bruto.as_utf8_str()).ok_or(E::EntidadeHtmlDesconhecidaNaRegra)
-        })
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+    valor_do_atributo(tag, nome)
+        .map_err(E::AtributoHtml)?
+        .map(|bruto| decodificar_atributo(&bruto).ok_or(E::EntidadeHtmlDesconhecidaNaRegra))
         .transpose()
+}
+
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
+    atributo_presente(tag, nome).map_err(E::AtributoHtml)
 }
 
 fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
@@ -117,6 +122,8 @@ fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>]) -> Result<(), E> {
 
 /// `onSubmitForm()` exige órgão em `selOrgaoPesquisa[]`: as opções com
 /// `selected` servidas, na ordem do documento; nenhuma é inventada.
+/// O `select` é achado pelo `name` (o nome serializado no POST), não pelo
+/// `id`: a regra continua mais precisa mesmo sem o defeito do tl 0.7.8.
 fn orgaos_selecionados(
     tags: &[&tl::HTMLTag<'_>],
     parser: &tl::Parser<'_>,
@@ -132,7 +139,7 @@ fn orgaos_selecionados(
         [select] => *select,
         _ => return Err(E::SeletoresDeOrgaoDePesquisaRepetidosNaTela),
     };
-    if select.attributes().get("multiple").is_none() {
+    if !presente(select, "multiple")? {
         return Err(E::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
     }
     let mut valores = Vec::new();
@@ -142,7 +149,7 @@ fn orgaos_selecionados(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        if eh(opcao, "option") && opcao.attributes().get("selected").is_some() {
+        if eh(opcao, "option") && presente(opcao, "selected")? {
             valores
                 .push(atributo(opcao, "value")?.ok_or(E::OpcaoDeOrgaoSelecionadaSemValorNaTela)?);
         }

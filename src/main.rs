@@ -24,6 +24,7 @@ mod filtro_andamentos;
 mod formulario_web;
 mod historico;
 mod historico_cli;
+mod html_atributos;
 mod instalacao;
 mod mime_web;
 mod paginacao_controle;

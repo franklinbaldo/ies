@@ -15,6 +15,13 @@ fn numero_encontrado_na_pesquisa_preserva_zeros_e_nao_link_assinado() {
 }
 
 #[test]
+fn booleano_antes_de_class_e_href_nao_omite_resultado() {
+    let html = crate::html_atributos::com_booleano_antes_dos_atributos(RESULTADO);
+    assert_eq!(ler_resultados(&html), ler_resultados(RESULTADO));
+    assert_eq!(ler_resultados(&html).unwrap().len(), 1);
+}
+
+#[test]
 fn nao_converte_formulario_vazio_em_resultado_de_busca() {
     assert_eq!(
         ler_resultados("<form id='frmPesquisaProtocolo'></form>"),
