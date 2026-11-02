@@ -427,3 +427,7 @@ mod tests_atributos;
 #[cfg(test)]
 #[path = "formulario_web/tests_reescrita.rs"]
 mod tests_reescrita;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_conferencia.rs"]
+mod tests_conferencia;

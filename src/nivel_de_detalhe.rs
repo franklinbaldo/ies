@@ -232,4 +232,4 @@ impl NivelDeDetalhe {
 pub(crate) mod tests;
 
 #[cfg(test)]
-mod tests_alvo;
+pub(crate) mod tests_alvo;
