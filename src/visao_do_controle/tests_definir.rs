@@ -116,7 +116,7 @@ fn fecha_modal() -> Passo {
 }
 
 struct Rodada {
-    desfecho: DesfechoDasColunas,
+    resultado: Result<ColunasDefinidas, ErroDefinirColunas>,
     registro: Vec<String>,
     corpos: Vec<String>,
 }
@@ -128,7 +128,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
         registro: Vec::new(),
         corpos_do_salvar: Vec::new(),
     };
-    let desfecho = definir_colunas(
+    let resultado = definir_colunas(
         &instalacao(),
         &tela_atual(tela),
         Some("TESTE"),
@@ -139,7 +139,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
     );
     assert!(envio.roteiro.is_empty(), "respostas não consumidas");
     Rodada {
-        desfecho,
+        resultado,
         registro: envio.registro,
         corpos: envio.corpos_do_salvar,
     }
@@ -150,13 +150,11 @@ fn lista(colunas: &[C]) -> AlvoDasColunas {
 }
 
 fn ok(rodada: &Rodada) -> &ColunasDefinidas {
-    assert!(rodada.desfecho.visao_nao_restaurada.is_none());
-    rodada.desfecho.resultado.as_ref().unwrap()
+    rodada.resultado.as_ref().unwrap()
 }
 
 fn erro(rodada: &Rodada) -> &ErroDefinirColunas {
-    assert!(rodada.desfecho.visao_nao_restaurada.is_none());
-    rodada.desfecho.resultado.as_ref().unwrap_err()
+    rodada.resultado.as_ref().unwrap_err()
 }
 
 #[test]

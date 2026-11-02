@@ -233,12 +233,12 @@ struct Unidade {
 enum UnidadeAcao {
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
-    /// Lista os processos da unidade na visão detalhada, com colunas e a tela restaurada
+    /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
     ListarProcessos {
         /// Exporta a lista verificada para novo arquivo privado
         #[arg(long)]
         saida: Option<PathBuf>,
-        /// Pede a página N da visão detalhada (POSTs com efeito de sessão, restaurados)
+        /// Pede a página N da visão detalhada (um POST que altera a página lembrada)
         #[arg(
             long,
             value_name = "N",
@@ -251,7 +251,7 @@ enum UnidadeAcao {
         /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
         #[arg(long, value_name = "todas|LISTA")]
         definir: Option<String>,
-        /// Salva a configuração pedida (um POST), confere por leitura e restaura a tela
+        /// Salva a configuração pedida (um POST) e confere por leitura
         #[arg(long, requires = "definir")]
         confirmar: bool,
     },
@@ -267,7 +267,7 @@ struct ListaDaUnidade {
     /// Exporta a lista verificada para novo arquivo privado
     #[arg(long)]
     saida: Option<PathBuf>,
-    /// Pede a página N da lista: um POST que altera a página lembrada (na visão detalhada, troca e restaura)
+    /// Pede a página N da lista: um POST que altera a página lembrada (na visão detalhada, troca para a resumida)
     #[arg(
         long,
         value_name = "N",

@@ -134,11 +134,3 @@ impl ErroDefinirColunas {
         }
     }
 }
-
-/// Desfecho do fluxo: o resultado e, se a sessão estava na R, a falha da
-/// volta à R (a tela ficou na D), à parte para não esconder uma escrita.
-#[derive(Debug)]
-pub(crate) struct DesfechoDasColunas {
-    pub(crate) resultado: Result<ColunasDefinidas, ErroDefinirColunas>,
-    pub(crate) visao_nao_restaurada: Option<ErroVisaoDoControle>,
-}

@@ -90,7 +90,7 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
             ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
         )),
     };
-    let valor = json_de_falha(&erro, None);
+    let valor = json_de_falha(&erro);
     assert_eq!(valor["codigo"], "efeito_incerto");
     assert_eq!(
         valor["subcodigo"],
@@ -114,7 +114,7 @@ fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
     let erro = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
         coluna: C::Prioridade,
     };
-    let valor = json_de_falha(&erro, None);
+    let valor = json_de_falha(&erro);
     assert_eq!(valor["codigo"], "fonte_invalida");
     assert_eq!(valor["subcodigo"], "coluna_indisponivel_nesta_instalacao");
     assert_eq!(valor["coluna"], "prioridade");

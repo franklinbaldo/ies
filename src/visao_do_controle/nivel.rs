@@ -1,9 +1,9 @@
 //! `ies unidade colunas`: GET da tela do Nível de detalhe pelo link que a D
-//! publica (`ancNivelDetalhe`). A R não o publica: troca para D e restaura R.
+//! publica (`ancNivelDetalhe`). A R não o publica: troca para D e fica nela.
 use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
-use super::passos::{conferir_resumida_restaurada, contexto, trocar, unidade_da_tela};
+use super::passos::{contexto, trocar, unidade_da_tela};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -15,7 +15,7 @@ use crate::transporte::{
 use std::path::Path;
 
 /// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
-/// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET + POST R.
+/// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET.
 pub(crate) fn ler_colunas<V: EnvioDoControle>(
     instalacao: &Instalacao,
     tela: &TelaAtual,
@@ -39,14 +39,8 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
         return Err(E::VisaoDoControleNaoReconhecida);
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
-    let lido = ler_pelo_link(&mut sessao, &detalhada);
-    trocar(&mut sessao, &detalhada, Visao::Resumida)
-        .and_then(|restaurada| conferir_resumida_restaurada(&tela.html, &restaurada.html))
-        .map_err(|causa| E::VisaoDoControleNaoRestaurada {
-            visao_deixada: Visao::Detalhada,
-            causa: Box::new(causa),
-        })?;
-    Ok((unidade.clone(), lido?))
+    let nivel = ler_pelo_link(&mut sessao, &detalhada)?;
+    Ok((unidade.clone(), nivel))
 }
 
 fn ler_pelo_link<V: EnvioDoControle>(
