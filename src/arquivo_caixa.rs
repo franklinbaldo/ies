@@ -355,9 +355,11 @@ mod tests {
             fs::rename(&saida, &antiga).unwrap();
             symlink(&invasor, &saida).unwrap();
         });
-        let texto = fs::read_to_string(antiga.join("caixa.json")).unwrap();
-        assert!(resultado.is_ok());
-        assert_eq!(serde_json::from_str::<Value>(&texto).unwrap(), esperado);
+        assert_eq!(
+            resultado,
+            Err(ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao)
+        );
+        assert!(!antiga.join("caixa.json").exists());
         assert!(!invasor.join("caixa.json").exists());
         fs::remove_dir_all(raiz).unwrap();
     }
@@ -395,15 +397,27 @@ mod tests {
         fs::rename(&saida, &original).unwrap();
         fs::create_dir(&saida).unwrap();
         let valor = serde_json::json!({"conteudo": "CONFIDENCIAL"});
-        assert!(gravar_preparado(&preparado, &valor).is_ok());
         assert_eq!(
-            serde_json::from_slice::<Value>(&fs::read(original.join("caixa.json")).unwrap())
-                .unwrap(),
-            valor
+            gravar_preparado(&preparado, &valor),
+            Err(ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao)
         );
+        assert!(!original.join("caixa.json").exists());
         assert!(!saida.join("caixa.json").exists());
         drop(preparado);
         fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn web_sem_ancoragem_equivalente_recusa_antes_de_get() {
+        let dir = pasta();
+        let destino = dir.join("caixa.json");
+        assert!(matches!(
+            preparar_destino_web(&destino),
+            Err(ErroArquivoCaixa::ExportacaoWebSemAncoragemSegura)
+        ));
+        assert!(!destino.exists());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[cfg(unix)]
