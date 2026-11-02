@@ -1,6 +1,16 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
-use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao, OperacaoDeFormulario};
+use super::redirecionamento::{ErroRedirecionamentoDaPesquisa, interpretar_redirecionamento};
+use super::{ErroResultadoPesquisa, ResultadoPesquisa};
+use crate::dominio::IdProcedimento;
+use crate::formulario_web::{
+    EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoPost,
+    SubmissaoDerivada,
+};
+use crate::instalacao::Instalacao;
+use crate::transporte::FalhaTransporte;
+use std::io::Read;
+use std::path::Path;
 
 /// O servidor pode lembrar página/filtro da sessão
 /// (docs/como-o-sei-funciona/tabelas-e-paginacao.md): não é consulta pura.
@@ -26,84 +36,49 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[cfg(test)]
-mod tests {
-    use super::PESQUISAR_PROTOCOLO;
-    use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
-    use crate::formulario_web::{
-        EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, derivar_submissao,
-    };
+/// Resultado tipado do POST de pesquisa: tabela de um 200 ou 302 interpretado.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoPesquisaProtocolo {
+    Tabela(Vec<ResultadoPesquisa>),
+    RedirecionadoParaProcessoUnico { id: IdProcedimento },
+}
 
-    // Estrutura sintética com os nomes observados; nenhum valor real.
-    fn formulario_observado() -> String {
-        use std::fmt::Write as _;
-        let mut ocultos = String::new();
-        for nome in PESQUISAR_PROTOCOLO.campos_ocultos_exigidos {
-            write!(
-                ocultos,
-                "<input type='hidden' id='{nome}' name='{nome}' value=''>"
-            )
-            .unwrap();
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ErroPesquisaProtocolo {
+    Submissao(ErroSubmissaoFormulario),
+    Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    Resultado(ErroResultadoPesquisa),
+}
+
+impl ErroPesquisaProtocolo {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Submissao(erro) => erro.subcodigo(),
+            Self::Redirecionamento(erro) => erro.subcodigo(),
+            Self::Resultado(erro) => erro.subcodigo(),
         }
-        format!(
-            "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>\
-             <form id='frmPesquisaProtocolo' name='frmPesquisaProtocolo' method='post' \
-             onsubmit='return onSubmitForm();' \
-             action='controlador.php?acao=protocolo_pesquisar&amp;acao_origem=protocolo_pesquisar&amp;infra_hash={}#ancoraBarraPesquisa'>\
-             <button type='submit' id='sbmPesquisar' name='sbmPesquisar' value='Pesquisar'>Pesquisar</button>\
-             <button type='button' id='sbmReset' name='sbmReset' value='Limpar'>Limpar</button>\
-             <input type='radio' id='optProcessos' name='rdoPesquisarEm' value='P'>\
-             <input type='radio' id='optDocumentos' name='rdoPesquisarEm' value='D'>\
-             <input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>\
-             {ocultos}</form>\
-             <input type='hidden' id='hdnInfraPrefixoCookie' name='hdnInfraPrefixoCookie' value='x'></html>",
-            "b".repeat(64)
-        )
-    }
-
-    #[test]
-    fn pesquisa_de_protocolo_declara_estado_de_sessao_lembrado() {
-        assert_eq!(
-            PESQUISAR_PROTOCOLO.efeito,
-            EfeitoAvaliado::AlteraEstadoDaSessao {
-                o_que: EstadoDeSessao::PaginaOuFiltroLembrado
-            }
-        );
-    }
-
-    #[test]
-    fn formulario_com_nomes_observados_deriva_ocultos_campos_e_botao() {
-        let html = formulario_observado();
-        let url = url_servida();
-        let submissao = derivar_submissao(
-            &PESQUISAR_PROTOCOLO,
-            &instalacao(),
-            &tela_iso(&url, &html),
-            "UNIDADE TESTE",
-            &[("rdoPesquisarEm", "P"), ("txtProtocoloPesquisa", "0001")],
-        )
-        .unwrap();
-        let mut esperados = vec!["sbmPesquisar", "rdoPesquisarEm", "txtProtocoloPesquisa"];
-        esperados.extend(PESQUISAR_PROTOCOLO.campos_ocultos_exigidos);
-        assert_eq!(submissao.nomes_dos_campos(), esperados);
-    }
-
-    #[test]
-    fn formulario_sem_um_oculto_observado_e_recusado() {
-        let html = formulario_observado().replace("name='hdnInicio'", "name='outro'");
-        let url = url_servida();
-        assert_eq!(
-            derivar_submissao(
-                &PESQUISAR_PROTOCOLO,
-                &instalacao(),
-                &tela_iso(&url, &html),
-                "UNIDADE TESTE",
-                &[],
-            )
-            .unwrap_err(),
-            ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario {
-                campo: "hdnInicio".to_owned()
-            }
-        );
     }
 }
+
+/// Envia uma vez e interpreta a resposta; o 302 nunca é seguido.
+pub(crate) fn pesquisar_protocolo_via<R: Read, F>(
+    submissao: SubmissaoDerivada,
+    instalacao: &Instalacao,
+    cookie_file: &Path,
+    enviar: F,
+) -> Result<ResultadoPesquisaProtocolo, ErroPesquisaProtocolo>
+where
+    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
+{
+    let _ = (submissao, instalacao, cookie_file, enviar);
+    let _ = interpretar_redirecionamento;
+    unimplemented!("CONTRACT shim: pesquisa de protocolo")
+}
+
+#[cfg(test)]
+#[path = "tests_formulario_pesquisa.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "tests_pesquisa_envio.rs"]
+mod tests_envio;

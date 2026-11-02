@@ -1,0 +1,233 @@
+//! RED/GREEN do 302 da pesquisa: `Location` sintético com a forma observada
+//! (relativo, `acao=procedimento_trabalhar`), hashes e IDs fictícios.
+use super::*;
+use ErroRedirecionamentoDaPesquisa as E;
+
+const HASH_ENVIO: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const HASH_DESTINO: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+fn instalacao() -> Instalacao {
+    Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap()
+}
+
+fn url_do_envio() -> String {
+    format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=protocolo_pesquisar&acao_origem=protocolo_pesquisar&infra_sistema=1&infra_unidade_atual=5&infra_hash={HASH_ENVIO}"
+    )
+}
+
+fn consulta(id: &str) -> String {
+    format!(
+        "acao=procedimento_trabalhar&acao_origem=protocolo_pesquisar&id_procedimento={id}&id_documento=&infra_sistema=1&infra_unidade_atual=5&infra_hash={HASH_DESTINO}"
+    )
+}
+
+fn observado() -> String {
+    format!("controlador.php?{}", consulta("7"))
+}
+
+fn interpretar(localizacao: Option<&str>) -> Result<IdProcedimento, E> {
+    interpretar_com_envio(localizacao, &url_do_envio())
+}
+
+fn interpretar_com_envio(localizacao: Option<&str>, envio: &str) -> Result<IdProcedimento, E> {
+    interpretar_redirecionamento(
+        Redirecionamento302::sintetico(localizacao, envio),
+        &instalacao(),
+    )
+}
+
+fn erro(localizacao: &str) -> E {
+    interpretar(Some(localizacao)).unwrap_err()
+}
+
+#[test]
+fn location_relativo_observado_resolve_contra_a_url_do_post_e_devolve_o_id() {
+    assert_eq!(interpretar(Some(&observado())).unwrap().as_str(), "7");
+}
+
+#[test]
+fn location_absoluto_ou_de_raiz_na_mesma_instalacao_e_aceito() {
+    for prefixo in [
+        "https://sei.exemplo.gov.br/sei/controlador.php?",
+        "https://SEI.exemplo.gov.br/sei/controlador.php?",
+        "//sei.exemplo.gov.br/sei/controlador.php?",
+        "/sei/controlador.php?",
+    ] {
+        let localizacao = format!("{prefixo}{}", consulta("42"));
+        assert_eq!(
+            interpretar(Some(&localizacao)).unwrap().as_str(),
+            "42",
+            "{prefixo}"
+        );
+    }
+}
+
+#[test]
+fn location_ausente_ou_vazio_e_recusado() {
+    assert_eq!(
+        interpretar(None).unwrap_err(),
+        E::LocalizacaoDoRedirecionamentoAusente
+    );
+    assert_eq!(erro(""), E::LocalizacaoDoRedirecionamentoAusente);
+}
+
+#[test]
+fn location_acima_do_limite_e_recusado_antes_de_interpretar() {
+    let longo = format!("{}&x={}", observado(), "a".repeat(8_192));
+    assert_eq!(erro(&longo), E::LocalizacaoDoRedirecionamentoAcimaDoLimite);
+}
+
+#[test]
+fn location_para_outro_host_ou_outro_caminho_e_recusado() {
+    for prefixo in [
+        "https://outro.gov.br/sei/controlador.php?",
+        "//outro.gov.br/sei/controlador.php?",
+        "https://sei.exemplo.gov.br.outro.gov.br/sei/controlador.php?",
+        "/sip/controlador.php?",
+        "/sei/modulos/controlador.php?",
+        "../controlador.php?",
+        "/controlador.php?",
+        "outra/controlador.php?",
+        "login.php?",
+    ] {
+        let localizacao = format!("{prefixo}{}", consulta("7"));
+        assert_eq!(
+            erro(&localizacao),
+            E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+            "{prefixo}"
+        );
+    }
+}
+
+#[test]
+fn location_sem_https_com_fragmento_ou_caracteres_de_controle_e_recusado() {
+    for localizacao in [
+        format!("http://sei.exemplo.gov.br/sei/controlador.php?{}", consulta("7")),
+        format!("javascript:controlador.php?{}", consulta("7")),
+        format!("{}#ancora", observado()),
+        format!("{} ", observado()),
+        format!("controlador.php?{}\\", consulta("7")),
+        "https://".to_owned(),
+    ] {
+        assert_eq!(
+            erro(&localizacao),
+            E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
+            "{localizacao}"
+        );
+    }
+}
+
+#[test]
+fn nomes_de_parametro_nao_canonicos_ou_ponto_e_virgula_sao_recusados() {
+    for alterado in [
+        observado().replace("id_documento=", "id%5Fdocumento="),
+        observado().replace("id_documento=", "ID_documento="),
+        observado().replace("id_documento=", "id_documento"),
+        observado().replace("id_documento=", "id_documento=1;acao=x"),
+        format!("{}&&", observado()),
+    ] {
+        assert_eq!(
+            erro(&alterado),
+            E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+            "{alterado}"
+        );
+    }
+}
+
+#[test]
+fn acao_diferente_ausente_ou_repetida_e_recusada() {
+    for alterado in [
+        observado().replace("acao=procedimento_trabalhar", "acao=procedimento_visualizar"),
+        observado().replace("acao=procedimento_trabalhar&", ""),
+        format!("{}&acao=procedimento_trabalhar", observado()),
+        format!("{}&acao=procedimento_excluir", observado()),
+    ] {
+        assert_eq!(
+            erro(&alterado),
+            E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
+            "{alterado}"
+        );
+    }
+}
+
+#[test]
+fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
+    let sem_id = observado().replace("id_procedimento=7&", "");
+    assert_eq!(erro(&sem_id), E::IdProcedimentoAusenteNoRedirecionamento);
+    let vazio = format!("controlador.php?{}", consulta(""));
+    assert_eq!(erro(&vazio), E::IdProcedimentoAusenteNoRedirecionamento);
+    let repetido = format!("{}&id_procedimento=7", observado());
+    assert_eq!(erro(&repetido), E::IdProcedimentoRepetidoNoRedirecionamento);
+    for id in ["7a", "-7", "+7", "%37", "0x7"] {
+        let alterado = format!("controlador.php?{}", consulta(id));
+        assert_eq!(
+            erro(&alterado),
+            E::IdProcedimentoNaoDecimalNoRedirecionamento,
+            "{id}"
+        );
+    }
+}
+
+#[test]
+fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
+    let sem_hash = observado().replace(&format!("&infra_hash={HASH_DESTINO}"), "");
+    assert_eq!(erro(&sem_hash), E::InfraHashAusenteNoRedirecionamento);
+    let repetido = format!("{}&infra_hash={HASH_DESTINO}", observado());
+    assert_eq!(erro(&repetido), E::InfraHashRepetidoNoRedirecionamento);
+    for hash in ["e".repeat(63), "e".repeat(65), "g".repeat(64), String::new()] {
+        let alterado = observado().replace(HASH_DESTINO, &hash);
+        assert_eq!(
+            erro(&alterado),
+            E::InfraHashForaDoFormatoNoRedirecionamento,
+            "{}",
+            hash.len()
+        );
+    }
+}
+
+#[test]
+fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
+    let sem = observado().replace("&infra_unidade_atual=5", "");
+    assert_eq!(erro(&sem), E::UnidadeAtualAusenteNoRedirecionamento);
+    let repetida = format!("{}&infra_unidade_atual=5", observado());
+    assert_eq!(erro(&repetida), E::UnidadeAtualRepetidaNoRedirecionamento);
+    let outra = observado().replace("infra_unidade_atual=5", "infra_unidade_atual=6");
+    assert_eq!(
+        erro(&outra),
+        E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio
+    );
+    let envio_sem = url_do_envio().replace("&infra_unidade_atual=5", "");
+    assert_eq!(
+        interpretar_com_envio(Some(&observado()), &envio_sem).unwrap_err(),
+        E::UnidadeAtualAusenteNaUrlDoEnvio
+    );
+}
+
+#[test]
+fn subcodigos_sao_estaveis_e_distintos() {
+    let todos = [
+        E::LocalizacaoDoRedirecionamentoAusente,
+        E::LocalizacaoDoRedirecionamentoAcimaDoLimite,
+        E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
+        E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+        E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+        E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
+        E::IdProcedimentoAusenteNoRedirecionamento,
+        E::IdProcedimentoRepetidoNoRedirecionamento,
+        E::IdProcedimentoNaoDecimalNoRedirecionamento,
+        E::InfraHashAusenteNoRedirecionamento,
+        E::InfraHashRepetidoNoRedirecionamento,
+        E::InfraHashForaDoFormatoNoRedirecionamento,
+        E::UnidadeAtualAusenteNoRedirecionamento,
+        E::UnidadeAtualRepetidaNoRedirecionamento,
+        E::UnidadeAtualAusenteNaUrlDoEnvio,
+        E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
+    ];
+    let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
+    assert_eq!(unicos.len(), todos.len());
+    assert_eq!(
+        E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar.subcodigo(),
+        "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
+    );
+}

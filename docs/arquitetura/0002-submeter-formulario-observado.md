@@ -123,10 +123,11 @@ do POST: que o 302 corresponda a protocolo exato com um único processo
 traziam tabela de resultados com vários links de processo.
 
 `ResultadoPesquisaProtocolo` (código da operação, em
-`src/pesquisa_web/redirecionamento.rs`) tem duas variantes:
+`src/pesquisa_web/formulario_pesquisa.rs`) tem duas variantes:
 `Tabela(Vec<ResultadoPesquisa>)` e
 `RedirecionadoParaProcessoUnico { id: IdProcedimento }`. O `Location`
-precisa, nesta ordem: existir; resolver contra a URL do POST para uma URL
+(regras em `src/pesquisa_web/redirecionamento.rs`) precisa, nesta ordem:
+existir com até 8 KiB; resolver contra a URL do POST para uma URL
 HTTPS sem fragmento; pertencer à mesma `Instalacao`
 (`autoriza_controlador`); ter nomes de parâmetro canônicos e nenhum `;`;
 um único `acao=procedimento_trabalhar`; um único `id_procedimento`

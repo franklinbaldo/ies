@@ -255,3 +255,7 @@ mod tests;
 // Nenhum comando a usa nesta fatia (docs/arquitetura/0002).
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) mod formulario_pesquisa;
+
+// O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
+#[cfg_attr(not(test), allow(dead_code))]
+mod redirecionamento;

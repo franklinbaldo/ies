@@ -56,23 +56,33 @@ fn cookie(modo: u32) -> (Pasta, PathBuf) {
     (Pasta(pasta), arquivo)
 }
 
-fn resposta(status_code: i32, html: &str) -> RespostaWeb<Cursor<Vec<u8>>> {
-    RespostaWeb {
-        status_code,
-        mime: "text/html; charset=iso-8859-1".to_owned(),
-        content_length: Some(html.len()),
-        corpo: Cursor::new(html.as_bytes().to_vec()),
+fn resposta(status_code: i32, html: &str) -> RespostaDoPost<Cursor<Vec<u8>>> {
+    RespostaDoPost {
+        resposta: RespostaWeb {
+            status_code,
+            mime: "text/html; charset=iso-8859-1".to_owned(),
+            content_length: Some(html.len()),
+            corpo: Cursor::new(html.as_bytes().to_vec()),
+        },
+        localizacao: None,
     }
 }
 
-fn enviar_com(status_code: i32, html: &str) -> (Result<String, E>, usize) {
+fn html(r: Result<RespostaDoEnvio, E>) -> Result<String, E> {
+    r.map(|resposta| match resposta {
+        RespostaDoEnvio::Html(html) => html,
+        RespostaDoEnvio::Redirecionamento(_) => panic!("302 inesperado"),
+    })
+}
+
+fn enviar_com(status_code: i32, html_: &str) -> (Result<String, E>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
         chamadas.set(chamadas.get() + 1);
-        Ok(resposta(status_code, html))
+        Ok(resposta(status_code, html_))
     });
-    (r, chamadas.get())
+    (html(r), chamadas.get())
 }
 
 const RESULTADO: &str = "<html><table class='pesquisaResultado'><tr><td>x</td></tr></table></html>";
@@ -102,10 +112,11 @@ fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
 }
 
 #[test]
-fn redirecionamento_e_negacao_apos_envio_sao_falhas_de_transporte() {
+fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
     for (status, falha) in [
-        (302, FalhaTransporte::Redirecionamento),
+        (301, FalhaTransporte::Redirecionamento),
         (303, FalhaTransporte::Redirecionamento),
+        (307, FalhaTransporte::Redirecionamento),
         (401, FalhaTransporte::AcessoNegado),
         (403, FalhaTransporte::AcessoNegado),
     ] {
@@ -155,4 +166,63 @@ fn cookie_com_permissao_insegura_impede_qualquer_envio() {
         E::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
     );
     assert_eq!(chamadas.get(), 0);
+}
+
+/// Leitor que acusa qualquer leitura: o corpo do 302 não deve ser lido.
+struct CorpoQueNaoDeveSerLido;
+
+impl std::io::Read for CorpoQueNaoDeveSerLido {
+    fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+        panic!("corpo do 302 lido")
+    }
+}
+
+fn enviar_302(localizacao: Option<&str>) -> (Result<RespostaDoEnvio, E>, usize) {
+    let (_pasta, arquivo) = cookie(0o600);
+    let chamadas = Cell::new(0);
+    let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
+        chamadas.set(chamadas.get() + 1);
+        Ok(RespostaDoPost {
+            resposta: RespostaWeb {
+                status_code: 302,
+                mime: "text/html; charset=ISO-8859-1".to_owned(),
+                content_length: Some(0),
+                corpo: CorpoQueNaoDeveSerLido,
+            },
+            localizacao: localizacao.map(str::to_owned),
+        })
+    });
+    (r, chamadas.get())
+}
+
+const LOCALIZACAO: &str = "controlador.php?acao=procedimento_trabalhar&id_procedimento=7&infra_hash=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+
+#[test]
+fn resposta_302_volta_como_dado_sem_seguir_nem_ler_o_corpo() {
+    let (r, n) = enviar_302(Some(LOCALIZACAO));
+    let RespostaDoEnvio::Redirecionamento(redirecionamento) = r.unwrap() else {
+        panic!("esperado 302 como dado");
+    };
+    assert_eq!(n, 1);
+    assert_eq!(redirecionamento.localizacao(), Some(LOCALIZACAO));
+    assert_eq!(redirecionamento.url_do_envio(), submissao().url());
+}
+
+#[test]
+fn resposta_302_sem_location_volta_para_a_operacao_decidir() {
+    let (r, _) = enviar_302(None);
+    let RespostaDoEnvio::Redirecionamento(redirecionamento) = r.unwrap() else {
+        panic!("esperado 302 como dado");
+    };
+    assert_eq!(redirecionamento.localizacao(), None);
+}
+
+#[test]
+fn debug_do_302_nao_imprime_location_nem_url_assinada() {
+    let (r, _) = enviar_302(Some(LOCALIZACAO));
+    let texto = format!("{:?}", r.unwrap());
+    assert!(!texto.contains("dddd"), "{texto}");
+    assert!(!texto.contains("cccc"), "{texto}");
+    assert!(!texto.contains("procedimento_trabalhar"), "{texto}");
+    assert!(texto.contains("<redigido>"), "{texto}");
 }

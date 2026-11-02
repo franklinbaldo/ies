@@ -299,22 +299,79 @@ pub(crate) fn derivar_submissao(
     })
 }
 
+/// Resposta do POST: a mesma `RespostaWeb` do GET mais o cabeçalho
+/// `location`, que só o envio de formulário lê. O GET do Controle não muda.
+pub(crate) struct RespostaDoPost<R: Read> {
+    pub(crate) resposta: RespostaWeb<R>,
+    pub(crate) localizacao: Option<String>,
+}
+
+/// 302 recebido e **não seguido**; o corpo não é lido. `Location` e URL do
+/// POST são assinados: sem `Clone`, e o `Debug` os redige.
+pub(crate) struct Redirecionamento302 {
+    localizacao: Option<String>,
+    url_do_envio: String,
+}
+
+impl Redirecionamento302 {
+    pub(crate) fn localizacao(&self) -> Option<&str> {
+        self.localizacao.as_deref()
+    }
+    pub(crate) fn url_do_envio(&self) -> &str {
+        &self.url_do_envio
+    }
+    #[cfg(test)]
+    pub(crate) fn sintetico(localizacao: Option<&str>, url_do_envio: &str) -> Self {
+        Self {
+            localizacao: localizacao.map(str::to_owned),
+            url_do_envio: url_do_envio.to_owned(),
+        }
+    }
+}
+
+impl fmt::Debug for Redirecionamento302 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Redirecionamento302")
+            .field(
+                "localizacao",
+                &self.localizacao.as_ref().map(|_| "<redigido>"),
+            )
+            .field("url_do_envio", &"<redigido>")
+            .finish()
+    }
+}
+
+/// HTML com o marcador da operação, ou 302 entregue à operação como dado.
+#[derive(Debug)]
+pub(crate) enum RespostaDoEnvio {
+    Html(String),
+    Redirecionamento(Redirecionamento302),
+}
+
 /// Envio injetável: `FnOnce` recebe (e consome) a submissão e o cookie,
 /// uma única vez. O cookie é lido do arquivo privado só depois da derivação.
+/// Nenhum 3xx é seguido; só o 302 volta como dado, para a operação interpretar.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,
     cookie_file: &Path,
     enviar: F,
-) -> Result<String, ErroSubmissaoFormulario>
+) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>
 where
-    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
+    F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     use ErroSubmissaoFormulario as E;
     let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
     let cookie = texto.trim();
     validar_cookie(cookie).map_err(E::Transporte)?;
     let marcador_de_resultado = submissao.marcador_de_resultado;
-    let resposta = enviar(submissao, cookie).map_err(E::Transporte)?;
+    let RespostaDoPost {
+        resposta,
+        localizacao,
+    } = enviar(submissao, cookie).map_err(E::Transporte)?;
+    if resposta.status_code == 302 {
+        let _ = localizacao;
+        unimplemented!("CONTRACT shim: 302 como dado");
+    }
     let html = decodificar_resposta(resposta).map_err(|falha| match falha {
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
         outra => E::Transporte(outra),
@@ -326,7 +383,7 @@ where
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
     }
-    Ok(html)
+    Ok(RespostaDoEnvio::Html(html))
 }
 
 #[cfg(test)]
