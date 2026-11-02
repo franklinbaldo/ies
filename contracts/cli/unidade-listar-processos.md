@@ -42,7 +42,7 @@ configuração persistente nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
 `--saida ARQUIVO` exporta o mesmo array JSON da saída **somente depois**
-de verificar total, faixa observada e a restauração da tela. O arquivo novo é criado sem
+de verificar total e faixa observada. O arquivo novo é criado sem
 sobrescrever destinos existentes; em Unix recebe modo privado 0600.
 Sem essa opção, a saída de terminal é preservada. O comprovante não
 exibe dados dos processos ou caminhos de credenciais. Não declara
@@ -241,7 +241,7 @@ ou afirmar compatibilidade live sem prova. Os paginadores **por tabela**
 
 ## Visão detalhada (Refs #57)
 
-A leitura da D, a troca de visão, `--pagina N`, a restauração e as recusas
+A leitura da D, a troca de visão (sem volta), `--pagina N` e as recusas
 estão no [contrato da visão detalhada](unidade-listar-processos-visao-detalhada.md).
 Para cada linha aceita, exigir `tr id=P<dígitos>`, um cabeçalho `Processo`
 único, link dessa célula para `procedimento_trabalhar` ou

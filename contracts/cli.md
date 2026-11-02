@@ -36,8 +36,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 - `ies processo NUP`
 - `ies documento NUMERO`
-- `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas,
-  tela restaurada; decisão do proprietário, 02/11/2026)
+- `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
+  a sessão fica na D, sem restaurar; decisões do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
   (uma lista; decisão do proprietário, 02/11/2026)
 - `ies unidade colunas` (Nível de detalhe, só leitura) e
@@ -67,8 +67,8 @@ Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
 `colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
 e origem HTTPS explicitamente autorizada, ou replay offline verificado. Não
 fazem login nem escrita; a única escrita é `colunas --definir … --confirmar`. Os POSTs previstos são os de `--pagina N` (abaixo)
-e os da **troca de visão** R↔D, sempre seguida da restauração da visão
-encontrada ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
+e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
+comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.
 
 ## Leituras paginadas: página observada por padrão (Refs #57)
@@ -87,16 +87,16 @@ Invariante de **toda** leitura paginada da CLI:
   o mínimo de requisições. Não há "todas as páginas".
 - N fora do intervalo calculável pelo total e pelo tamanho de página
   observados é erro tipado **antes** do envio da página (se o tamanho da
-  página só aparece depois de uma troca de visão, depois dela, com a
-  troca restaurada). A página obtida confere unidade, visualização e
+  página só aparece depois de uma troca de visão, depois dela; a sessão
+  fica na visão trocada). A página obtida confere unidade, visualização e
   critérios da tela de origem; não há retry. O efeito é
   `PaginaOuFiltroLembrado`: a leitura seguinte pode mostrar a página N, e a
-  faixa publicada diz qual é. Só `recebidos`/`gerados --pagina N` com a
-  sessão já na R deixam a página N lembrada; quando o comando troca de
-  visão, ou lê a D já exibida, a página que moveu é restaurada à
-  **página encontrada** (a da tela do GET ou da resposta da troca) antes
-  da volta. Toda troca de visão é restaurada, e a falha da restauração é
-  erro tipado que diz onde a tela ficou, sem lista.
+  faixa publicada diz qual é. **Nenhuma leitura restaura** a visão ou a
+  página que moveu (decisão do proprietário, 02/11/2026, na
+  [decisão da operação](../docs/decisoes/unidade-listar-processos.md)):
+  com a sessão própria do IES, o efeito residual é cosmético (num SEI 5.x
+  um login novo da mesma conta herda a última visão) e a página lembrada
+  aparece em `faixa_observada` da leitura seguinte.
 
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
