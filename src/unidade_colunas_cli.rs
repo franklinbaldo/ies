@@ -1,5 +1,6 @@
-//! `ies unidade colunas`: as 12 opções do Nível de detalhe e quais estão
-//! marcadas, só leitura (contracts/cli/unidade-colunas.md). Nada é salvo.
+//! `ies unidade colunas`: as 12 opções do catálogo do Nível de detalhe, quais
+//! a tela publica e quais estão marcadas, só leitura
+//! (contracts/cli/unidade-colunas.md). Nada é salvo.
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::unidade_lista_cli::erro_da_visao;
 use crate::visao_do_controle::{self, EnvioHttps, TelaAtual};
@@ -45,9 +46,13 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
     } else {
         println!("IES: Nível de detalhe da unidade {rotulo}:");
         for opcao in &nivel.opcoes {
-            let marca = if opcao.marcada { "[x]" } else { "[ ]" };
+            let (marca, nota) = match (opcao.disponivel, opcao.marcada) {
+                (false, _) => ("[-]", " indisponível nesta instalação"),
+                (true, true) => ("[x]", ""),
+                (true, false) => ("[ ]", ""),
+            };
             println!(
-                "{marca} {} ({})",
+                "{marca} {} ({}){nota}",
                 opcao.coluna.rotulo(),
                 opcao.coluna.chave()
             );

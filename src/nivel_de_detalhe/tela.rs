@@ -16,10 +16,8 @@ pub(crate) enum ErroNivelDeDetalhe {
     FormularioDoNivelDeDetalheAusente,
     FormulariosDoNivelDeDetalheRepetidos,
     AcaoDoFormularioDoNivelDeDetalheDiferente,
-    OpcaoDoDetalheAusente {
-        coluna: ColunaDoDetalhe,
-    },
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
+    /// Uma caixa do catálogo ausente não é erro: sai com `disponivel: false`.
     NenhumaOpcaoDoDetalhePublicada,
     OpcaoDoDetalheRepetida {
         coluna: ColunaDoDetalhe,
@@ -42,7 +40,6 @@ impl ErroNivelDeDetalhe {
             Self::AcaoDoFormularioDoNivelDeDetalheDiferente => {
                 "acao_do_formulario_do_nivel_de_detalhe_diferente"
             }
-            Self::OpcaoDoDetalheAusente { .. } => "opcao_do_nivel_de_detalhe_ausente",
             Self::NenhumaOpcaoDoDetalhePublicada => "nenhuma_opcao_do_nivel_de_detalhe_publicada",
             Self::OpcaoDoDetalheRepetida { .. } => "opcao_do_nivel_de_detalhe_repetida",
             Self::OpcaoDoDetalheNaoPrevista => "opcao_do_nivel_de_detalhe_nao_prevista",
@@ -88,7 +85,9 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
     }
 }
 
-/// As 12 opções e as marcadas, exatamente como a tela as publica.
+/// As 12 opções do catálogo: as que a tela publica (`disponivel`) e as
+/// marcadas. A tela pode publicar um subconjunto (`UnB` 4.0.9: 11, sem
+/// Prioridade); caixa `chkSin*` fora do catálogo é recusa.
 pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNivelDeDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
     let parser = dom.parser();
@@ -127,11 +126,19 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
             return Err(E::OpcaoDoDetalheRepetida { coluna });
         }
     }
+    if marcadas.is_empty() {
+        return Err(E::NenhumaOpcaoDoDetalhePublicada);
+    }
     let mut opcoes = Vec::with_capacity(ColunaDoDetalhe::TODAS.len());
     for coluna in ColunaDoDetalhe::TODAS {
-        let marcada = *marcadas
-            .get(&coluna)
-            .ok_or(E::OpcaoDoDetalheAusente { coluna })?;
+        let Some(&marcada) = marcadas.get(&coluna) else {
+            opcoes.push(OpcaoDoDetalhe {
+                coluna,
+                disponivel: false,
+                marcada: false,
+            });
+            continue;
+        };
         if rotulos.get(coluna.campo()).map(String::as_str) != Some(coluna.rotulo()) {
             return Err(E::RotuloDaOpcaoDoDetalheDiferente { coluna });
         }

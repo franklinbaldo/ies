@@ -1,7 +1,7 @@
 //! Passos compartilhados pelos fluxos: troca de visão, página da D e a
 //! conferência da tela restaurada. Cada passo é no máximo um POST.
 use super::envio::{EnvioDoControle, Redirecionado, Sessao, TelaAtual};
-use super::plano::{PedidoDePagina, valores_ocultos};
+use super::plano::{PedidoDePagina, PosicaoDetalhada, pedido_de_volta, valores_ocultos};
 use super::{
     CAMPOS_USUARIO, ErroVisaoDoControle as E, PAGINAR_VISAO_DETALHADA, TROCAR_VISAO_DO_CONTROLE,
     Visao,
@@ -121,6 +121,21 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
         return Err(E::FaixaDaRespostaDiferenteDaPaginaSolicitada);
     }
     Ok((nova, leitura))
+}
+
+/// Volta da tela da página N à página encontrada (`encontrada`, lida de
+/// `html_encontrado`): um POST; a resposta precisa trazer a faixa e o
+/// `hdnDetalhadoPaginaAtual` da tela encontrada.
+pub(super) fn voltar_a_pagina_encontrada<V: EnvioDoControle>(
+    sessao: &mut Sessao<'_, V>,
+    tela_n: &TelaAtual,
+    html_encontrado: &str,
+    encontrada: &PosicaoDetalhada,
+) -> Result<TelaAtual, E> {
+    let pedido = pedido_de_volta(encontrada);
+    let (volta, _) = paginar_detalhada(sessao, tela_n, pedido, encontrada.criterio.as_deref())?;
+    conferir_detalhada_restaurada(html_encontrado, &volta.html)?;
+    Ok(volta)
 }
 
 /// A R restaurada precisa ter os critérios e as páginas da R do GET.

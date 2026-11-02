@@ -1,6 +1,7 @@
 //! Nível de detalhe da visão detalhada (`D`) do Controle de Processos:
-//! as 12 opções fixas da tela `procedimento_configurar_detalhe` e a coluna
-//! que cada uma produz em `tblProcessosDetalhado`.
+//! o catálogo das 12 opções conhecidas da tela `procedimento_configurar_detalhe`
+//! e a coluna que cada uma produz em `tblProcessosDetalhado`. A tela pode
+//! publicar um subconjunto (`UnB` 4.0.9: 11, sem Prioridade; live 02/11/2026).
 //! Contrato: contracts/cli/unidade-colunas.md.
 //!
 //! Evidência estrutural (capturas privadas de 02/11/2026, treinamento): a

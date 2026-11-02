@@ -39,7 +39,7 @@ fn html_invalido(_: impl Sized) -> E {
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
-fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
+pub(crate) fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
     let ilegivel = || E::PaginaAtualDaTabelaIlegivel { categoria };
     let nos = nos_com_id(&dom, campo_da_pagina(categoria)).map_err(html_invalido)?;

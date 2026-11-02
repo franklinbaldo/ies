@@ -14,7 +14,7 @@ use crate::transporte::{
 };
 use std::path::Path;
 
-/// Unidade exibida e as 12 opções com `marcada`.
+/// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
 /// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET + POST R.
 pub(crate) fn ler_colunas<V: EnvioDoControle>(
     instalacao: &Instalacao,

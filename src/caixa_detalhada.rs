@@ -36,7 +36,9 @@ pub(crate) struct LeituraDetalhada {
 }
 
 impl LeituraDetalhada {
-    /// Chaves das nove colunas de texto que não vieram no cabeçalho.
+    /// Chaves das nove colunas de texto do catálogo que não vieram no
+    /// cabeçalho. Sem o GET da configuração, não diz se a opção existe na
+    /// instalação (Prioridade falta na `UnB` 4.0.9); `ies unidade colunas` diz.
     pub(crate) fn colunas_ausentes(&self) -> Vec<&'static str> {
         ColunaDoDetalhe::TODAS
             .into_iter()

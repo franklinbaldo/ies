@@ -5,9 +5,9 @@ use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{
     conferir_resumida_restaurada, contexto, ler_detalhada, paginar_detalhada, trocar,
-    unidade_da_tela,
+    unidade_da_tela, voltar_a_pagina_encontrada,
 };
-use super::plano::{pedido_de_volta, planejar, posicao};
+use super::plano::{planejar, posicao};
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
 use crate::instalacao::Instalacao;
@@ -57,17 +57,18 @@ fn na_detalhada<V: EnvioDoControle>(
     };
     let criterio = encontrada.criterio.as_deref();
     let (tela_n, leitura_n) = paginar_detalhada(sessao, tela, pedido, criterio)?;
-    paginar_detalhada(sessao, &tela_n, pedido_de_volta(&encontrada), criterio).map_err(
-        |causa| E::PaginaDaVisaoDetalhadaNaoRestaurada {
+    voltar_a_pagina_encontrada(sessao, &tela_n, &tela.html, &encontrada).map_err(|causa| {
+        E::PaginaDaVisaoDetalhadaNaoRestaurada {
             visao_deixada: Visao::Detalhada,
             pagina_deixada: numero,
             causa: Box::new(causa),
-        },
-    )?;
+        }
+    })?;
     Ok(leitura_n)
 }
 
-/// Sessão na R: POST D, página N se preciso, POST R; categorias das tabelas R.
+/// Sessão na R: POST D, página N e volta à página encontrada se preciso,
+/// POST R; categorias das tabelas R.
 fn vindo_da_resumida<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
@@ -107,8 +108,9 @@ fn vindo_da_resumida<V: EnvioDoControle>(
     Ok(leitura)
 }
 
-/// Lê a D obtida e, se pedido, a página N; devolve a última D (de onde se
-/// restaura) e o resultado, mesmo em falha.
+/// Lê a D obtida e, se pedido, a página N e volta à página encontrada (a da
+/// resposta do POST D); devolve a última D válida (de onde se restaura a R)
+/// e o resultado, mesmo em falha.
 fn ler_depois_da_troca<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     detalhada: TelaAtual,
@@ -121,16 +123,27 @@ fn ler_depois_da_troca<V: EnvioDoControle>(
     let Some(numero) = pagina else {
         return (detalhada, Ok(leitura));
     };
-    let pedido = match posicao(&detalhada.html, &leitura).and_then(|p| {
-        let criterio = p.criterio.clone();
-        planejar(&p, numero).map(|pedido| (pedido, criterio))
-    }) {
-        Ok((None, _)) => return (detalhada, Ok(leitura)),
-        Ok((Some(pedido), criterio)) => (pedido, criterio),
+    let (encontrada, pedido) = match posicao(&detalhada.html, &leitura)
+        .and_then(|p| planejar(&p, numero).map(|pedido| (p, pedido)))
+    {
+        Ok((_, None)) => return (detalhada, Ok(leitura)),
+        Ok((encontrada, Some(pedido))) => (encontrada, pedido),
         Err(erro) => return (detalhada, Err(erro)),
     };
-    match paginar_detalhada(sessao, &detalhada, pedido.0, pedido.1.as_deref()) {
-        Ok((tela_n, leitura_n)) => (tela_n, Ok(leitura_n)),
-        Err(erro) => (detalhada, Err(erro)),
+    let criterio = encontrada.criterio.as_deref();
+    let (tela_n, leitura_n) = match paginar_detalhada(sessao, &detalhada, pedido, criterio) {
+        Ok(lido) => lido,
+        Err(erro) => return (detalhada, Err(erro)),
+    };
+    match voltar_a_pagina_encontrada(sessao, &tela_n, &detalhada.html, &encontrada) {
+        Ok(volta) => (volta, Ok(leitura_n)),
+        Err(causa) => (
+            tela_n,
+            Err(E::PaginaDaVisaoDetalhadaNaoRestaurada {
+                visao_deixada: Visao::Resumida,
+                pagina_deixada: numero,
+                causa: Box::new(causa),
+            }),
+        ),
     }
 }
