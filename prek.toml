@@ -58,9 +58,9 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "comparador-performance"
-name = "Contrato do benchmark pareado (sem Todos privado)"
-entry = "python3 -m unittest discover -s scripts -p test_perf_pair.py"
+id = "scripts-python"
+name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR)"
+entry = "python3 -I -m unittest discover -s scripts -p test_*.py"
 language = "system"
 pass_filenames = false
 always_run = true

@@ -49,3 +49,7 @@ Validação multi-instalação de replays existentes continua em
 [`validar-cassettes.sh`](../scripts/validar-cassettes.sh); para acesso live,
 executar só cenários independentes com permissões e efeitos avaliados.
 Teste local sintético: `bash tests/coleta_privada.sh`, sem rede.
+
+Para o **formato do POST** de pesquisa e paginação, que as cassettes
+públicas não registram, usar o [roteiro de HAR saneado](coleta-formato-post.md):
+o operador captura no navegador e o saneador roda offline, sem requisição do IES.
