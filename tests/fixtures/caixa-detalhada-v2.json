@@ -1,0 +1,55 @@
+[
+  {
+    "categoria": null,
+    "colunas_ausentes": [
+      "anotacao",
+      "especificacao",
+      "prioridade",
+      "observacao",
+      "marcadores"
+    ],
+    "faixa_observada": {
+      "fim": 2,
+      "inicio": 1
+    },
+    "origem": "web",
+    "processos": [
+      {
+        "categoria": "recebidos",
+        "colunas": {
+          "atribuicao": "pessoa1",
+          "controle_de_prazo": null,
+          "interessados": [
+            "Interessado A",
+            "Interessado B"
+          ],
+          "tipo": "Tipo sintético",
+          "ultima_movimentacao": "3"
+        },
+        "id": "1",
+        "numero": "N-1",
+        "sigiloso": false,
+        "visualizado": true
+      },
+      {
+        "categoria": null,
+        "colunas": {
+          "atribuicao": "pessoa9",
+          "controle_de_prazo": null,
+          "interessados": [
+            "Interessado A",
+            "Interessado B"
+          ],
+          "tipo": "Tipo sintético",
+          "ultima_movimentacao": "3"
+        },
+        "id": "9",
+        "numero": "N-9",
+        "sigiloso": false,
+        "visualizado": true
+      }
+    ],
+    "total_declarado": 5,
+    "unidade": "TESTE"
+  }
+]

@@ -39,10 +39,10 @@ mais `colunas_ausentes`:
   informação só existe porque a R foi lida antes, sem requisição a mais.
   Sessão já na D: todos `null`.
 - `colunas`: objeto com as chaves estáveis das colunas **presentes no
-  cabeçalho**, na ordem da tabela (`atribuicao`, `anotacao`, `tipo`,
+  cabeçalho** (`atribuicao`, `anotacao`, `tipo`,
   `especificacao`, `prioridade`, `interessados`, `observacao`,
   `controle_de_prazo`, `para_devolver`, `aguardando_retorno`,
-  `ultima_movimentacao`, `marcadores`). Texto da célula com espaços
+  `ultima_movimentacao`, `marcadores`; ordem alfabética no JSON). Texto da célula com espaços
   colapsados (inclusive `&nbsp;`); célula vazia é `null`. `interessados` é
   um **array** com o texto de cada `div.divRotuloItemCelula` (itens
   separados pelo HTML, PEN1); célula vazia é `[]`. As demais colunas são
@@ -168,5 +168,10 @@ processo preservada, `colunas` ignoradas). `--pagina-arquivo` foi
 tem semântica junto da troca de visão, cujas telas são de outra geração.
 Capturas continuam legíveis offline por `ies replay`.
 
-Ensaio offline com HTML sintético modelado nas capturas de UnB, PEN1 e GO.
+Golden: [`caixa-detalhada-v2.json`](../../tests/fixtures/caixa-detalhada-v2.json) (chaves em ordem alfabética).
+Ensaio offline com HTML sintético modelado nas capturas de UnB, PEN1 e GO,
+e leitura estrutural das próprias capturas privadas (sem copiar valores):
+D da UnB (59 linhas, ícones pelo tooltip), PEN1 (páginas 1 e 2, Interessados
+até 6 itens) e GO (12 colunas, `colunas_ausentes: []`); derivação da troca
+nos formulários R e D das três.
 Ensaio live: **NOT_RUN** (roteiro na [validação de 02/11/2026](../../docs/validacao-live/2026-11-02-leitura-controle.md)).

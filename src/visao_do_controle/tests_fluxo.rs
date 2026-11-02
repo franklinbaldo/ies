@@ -318,3 +318,16 @@ fn d_sem_campo_de_pagina_como_a_unb_so_tem_a_pagina_um() {
         ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: 2 }
     );
 }
+
+/// Golden da saída de `listar-processos` (contrato da visão detalhada).
+#[test]
+fn saida_da_lista_detalhada_segue_o_golden() {
+    let d = TelaD::nova(5, 0, 2, vec![1, 9]);
+    let (resultado, _) = listar(r().html(), None, vec![(200, d.html()), (200, r().html())]);
+    let valor = crate::unidade_lista_cli::json_da_detalhada(&resultado.unwrap(), "web");
+    let texto = format!("{}\n", serde_json::to_string_pretty(&valor).unwrap());
+    assert_eq!(
+        texto,
+        include_str!("../../tests/fixtures/caixa-detalhada-v2.json")
+    );
+}
