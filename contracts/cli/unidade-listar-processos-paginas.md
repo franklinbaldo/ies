@@ -104,6 +104,12 @@ Usar só em instalação de treinamento autorizada.
 | 302 | `redirecionamento_apos_paginar_controle` |
 | Login, 5xx, 429, MIME, charset, tamanho | subcódigos do transporte e do envio |
 
+Um 3xx (fora 302), 401/403, 429, 5xx ou outro status no GET ou no POST
+publica também `status_http` e, quando o corpo rendeu texto,
+`mensagem_do_servidor` saneada, como no
+[contrato da CLI](../cli.md).
+Nenhum deles autoriza repetir o POST.
+
 Recusas de derivação do primitivo (formulário, `action`, `infra_hash`,
 unidade) mantêm os subcódigos da
 [submissão derivada](../../docs/arquitetura/0002-submeter-formulario-observado.md).

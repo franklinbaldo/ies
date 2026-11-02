@@ -108,7 +108,12 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
     let (pasta, cookie) = arquivo_privado_temporario();
     let url = url_controle();
     for (status_code, mime, size, esperado) in [
-        (302, "text/html", Some(5), FalhaTransporte::Redirecionamento),
+        (
+            302,
+            "text/html",
+            Some(5),
+            FalhaTransporte::Redirecionamento(super::StatusHttpRecusado::sem_mensagem(302)),
+        ),
         (
             200,
             "application/json",

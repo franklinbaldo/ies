@@ -4,7 +4,7 @@ use crate::{Cli, Domain, Processo, pesquisa_web, processo, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ErroPesquisaPrivada {
     NumeroNaoInformado,
     Numero(processo::NumeroProcessoInvalido),
@@ -15,7 +15,7 @@ enum ErroPesquisaPrivada {
 }
 
 impl ErroPesquisaPrivada {
-    fn subcodigo(self) -> &'static str {
+    fn subcodigo(&self) -> &'static str {
         match self {
             Self::NumeroNaoInformado => "numero_de_processo_nao_informado",
             Self::Numero(erro) => erro.subcodigo(),
@@ -28,7 +28,7 @@ impl ErroPesquisaPrivada {
         }
     }
 
-    fn codigo(self) -> (&'static str, u8) {
+    fn codigo(&self) -> (&'static str, u8) {
         match self {
             Self::NumeroNaoInformado
             | Self::Numero(_)

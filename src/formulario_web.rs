@@ -169,6 +169,14 @@ impl ErroSubmissaoFormulario {
             Self::Transporte(falha) => falha.subcodigo(),
         }
     }
+
+    /// Status e mensagem do SEI quando a recusa veio do status HTTP.
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            _ => None,
+        }
+    }
 }
 
 /// POST derivado; não é `Clone`, e o envio o consome (sem retry).

@@ -73,7 +73,14 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
         &arquivos.origem,
     ) {
         Ok(html) => html,
-        Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => {
+            return crate::saida_erro::erro_fonte_http(
+                json_mode,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
     };
     let modelo = match projetar_com_unidade(&html, unidade_esperada) {
         Ok(modelo) => modelo,

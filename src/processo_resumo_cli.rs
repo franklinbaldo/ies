@@ -45,7 +45,14 @@ fn mostrar_resumo_processo(
         &arquivos.origem,
     ) {
         Ok(html) => html,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => {
+            return crate::saida_erro::erro_fonte_http(
+                json_mode,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
     };
     let adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, html.len()) {
         Ok(paginas) => paginas,
