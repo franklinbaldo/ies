@@ -58,12 +58,19 @@ fn duas_paginas_detalhadas_capturadas_unem_intervalos_sem_post() {
 }
 
 #[test]
-fn nao_aceita_pagina_inicial_parcial_como_total() {
+fn pagina_parcial_publica_faixa_observada_sem_afirmar_total_lido() {
     let pagina = pagina(3, 1, &[(1, "000001/2026"), (2, "000002/2026")]);
-    assert_eq!(
-        ler_paginas(&[pagina], Some("PPI")),
-        Err(ErroDetalhada::PaginasNaoObtidas)
-    );
+    let leitura = ler_paginas(&[pagina], Some("PPI")).unwrap();
+    assert_eq!(leitura.total_declarado, 3);
+    assert_eq!(leitura.faixa_observada, Some((1, 2)));
+    assert_eq!(leitura.processos.len(), 2);
+}
+
+#[test]
+fn pagina_lembrada_fora_do_inicio_publica_sua_faixa() {
+    let pagina = pagina(3, 3, &[(3, "000003/2026")]);
+    let leitura = ler_paginas(&[pagina], Some("PPI")).unwrap();
+    assert_eq!(leitura.faixa_observada, Some((3, 3)));
 }
 
 #[test]

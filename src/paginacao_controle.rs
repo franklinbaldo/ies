@@ -28,9 +28,83 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
     Ok(false)
 }
 
+/// Paginador próprio de Recebidos ou Gerados (`lnk{T}ProximaPagina*`,
+/// `sel{T}Paginacao*` etc.), observado em PEN1, PEN3, PEN4 e Goiás
+/// (02/11/2026). `hdn{T}PaginaAtual` não conta: as telas `UnB` e `UFRJ` o publicam em
+/// telas de uma página.
+pub(crate) fn paginador_da_tabela(
+    html: &str,
+    categoria: crate::dominio::Categoria,
+) -> Result<bool, ErroCaixa> {
+    let prefixo = match categoria {
+        crate::dominio::Categoria::Recebidos => "Recebidos",
+        crate::dominio::Categoria::Gerados => "Gerados",
+    };
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let parser = dom.parser();
+    for (seletor, marcas) in [
+        (
+            "a",
+            &[
+                "ProximaPagina",
+                "PaginaAnterior",
+                "PrimeiraPagina",
+                "UltimaPagina",
+            ][..],
+        ),
+        ("select", &["Paginacao"][..]),
+    ] {
+        for elemento in dom.query_selector(seletor).into_iter().flatten() {
+            let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            let id = valor_do_atributo(tag, "id").map_err(|_| ErroCaixa::HtmlInvalido)?;
+            let resto = id.as_deref().and_then(|nome| {
+                nome.strip_prefix(if seletor == "a" { "lnk" } else { "sel" })?
+                    .strip_prefix(prefixo)
+            });
+            if resto.is_some_and(|r| marcas.iter().any(|m| r.starts_with(m))) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::controles_de_paginacao;
+    use super::{controles_de_paginacao, paginador_da_tabela};
+    use crate::dominio::Categoria;
+
+    #[test]
+    fn paginador_da_tabela_e_reconhecido_pelo_prefixo_da_propria_tabela() {
+        for controle in [
+            "<a id='lnkRecebidosProximaPaginaSuperior'>»</a>",
+            "<a hidden id='lnkRecebidosUltimaPaginaInferior'>»|</a>",
+            "<a id='lnkRecebidosPaginaAnteriorSuperior'>«</a>",
+            "<a id='lnkRecebidosPrimeiraPaginaSuperior'>|«</a>",
+            "<select id='selRecebidosPaginacaoInferior'><option>1</option></select>",
+        ] {
+            assert_eq!(
+                paginador_da_tabela(controle, Categoria::Recebidos),
+                Ok(true),
+                "{controle}"
+            );
+            assert_eq!(
+                paginador_da_tabela(controle, Categoria::Gerados),
+                Ok(false),
+                "{controle}"
+            );
+        }
+    }
+
+    #[test]
+    fn campo_de_pagina_atual_nao_indica_paginacao() {
+        // UnB e UFRJ publicam o campo em telas de uma página.
+        let html = "<input type='hidden' id='hdnGeradosPaginaAtual' value='0'>\
+                    <div id='divGeradosAreaPaginacaoSuperior'></div>";
+        assert_eq!(paginador_da_tabela(html, Categoria::Gerados), Ok(false));
+    }
 
     #[test]
     fn booleano_antes_do_id_nao_esconde_o_paginador() {

@@ -63,7 +63,8 @@ compatibilidade nem uma confiança percentual inventada.
 
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
-`ies unidade listar-processos` com estado de completude explícito.
+`ies unidade listar-processos` (as listas Recebidos e Gerados, com total
+e faixa observada) ou `ies unidade recebidos|gerados [--pagina N]`.
 O domínio usa tipos Rust (`Processo`, `IdProcedimento`,
 `Tabela<T>` e `Caixa`). A cobertura é validada na paginação;
 `completa: bool` é **derivação da borda**, não estado duplicado.
@@ -112,8 +113,9 @@ IES_CONFIG_FILE=/privado/ies-config.json ies status --json
 IES_CONFIG_FILE=/privado/ies-config.json ies unidade listar-processos --json
 ```
 
-A leitura continua limitada a GET HTTPS da página autorizada, sem
-login, POST, paginação ativa nem reutilização automática de credenciais
+A leitura continua limitada a GET HTTPS da página autorizada (mais um
+POST só em `recebidos|gerados --pagina N`), sem login, percurso de todas
+as páginas nem reutilização automática de credenciais
 para outras interfaces. `status` não testa rede nem declara autenticação.
 
 ## Entradas de execução
@@ -123,5 +125,8 @@ para outras interfaces. `status` não testa rede nem declara autenticação.
 - `ies replay CENARIO` reproduz uma captura verificada do catálogo OKF
   sem abrir conexão com o SEI; [guia de replay](docs/replay.md).
 - `ies unidade listar-processos` lê por GET uma sessão Web já autenticada,
-  com caminhos de arquivos privados definidos em variáveis de ambiente.
-  Falha quando precisa de páginas ainda não obtidas.
+  com caminhos de arquivos privados definidos em variáveis de ambiente,
+  e devolve o array `[recebidos, gerados]`, cada lista com a página
+  observada, total e faixa. `ies unidade recebidos` e `ies unidade
+  gerados` devolvem uma lista; só eles aceitam `--pagina N` (1 GET +
+  até 1 POST). Ver as [listas](contracts/cli/unidade-recebidos-gerados.md).

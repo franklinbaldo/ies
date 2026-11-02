@@ -34,7 +34,7 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
-## Matriz: 14 caminhos principais já expostos
+## Matriz: 16 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -47,6 +47,8 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
 | `ies unidade listar-processos` | **PARCIAL WEB** | GET único da tela resumida **ou detalhada já exibida** (`D`), com identidade, total, faixa e exportação verificados; páginas privadas opcionais; recusa paginação sem intervalo | Paginação Web **ativa**, cobertura de recebidos/gerados, controle de contexto e efeitos do POST; visão D não inventa categorias ou snapshot | [#57](https://github.com/franklinbaldo/ies/issues/57) |
+| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
+| `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
@@ -95,7 +97,32 @@ com recusa correta da caixa paginada, mas com `resposta_inesperada`
 intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; os estados da matriz
 não mudam, porque a paginação ativa (#57) continua ausente.
 
-**Critério de contagem:** 14 caminhos operacionais, desconsiderando
+**PENDENTE PR #57 (página observada e `--pagina N`):** `unidade
+listar-processos` deixa de recusar caixa paginada: devolve a página que a
+tela mostra com `total_declarado` e `faixa_observada` por tabela, zero POST;
+`unidade recebidos|gerados --pagina N` (antes `--categoria T --pagina N`)
+faz no máximo um POST do paginador da tabela,
+com efeito `PaginaOuFiltroLembrado` e sem restauração. Ensaio live
+**NOT_RUN**. Inventário das outras leituras paginadas, ainda fora da
+[regra geral](../contracts/cli.md): `processo NUP --resumo` e
+`replay --numero-processo` recusam página parcial
+(`paginas_do_controle_nao_obtidas`) porque ausência numa página não prova
+ausência na caixa; `--resultado-pesquisa-file` e `--historico-privado` não
+leem total nem faixa da resposta; a lista de versões de documento só
+aceita legenda igual às linhas. Alinhar cada uma exige evidência da
+legenda e, para `--pagina N`, do paginador daquela tela.
+
+**Decisão do proprietário (02/11/2026), exceção explícita à regra de
+priorização:** Recebidos e Gerados são listas independentes do SEI
+(paginador, total, faixa e página lembrada próprios). Por isso ganham
+os subcomandos `ies unidade recebidos` e `ies unidade gerados`, os únicos
+com `--pagina N`; `listar-processos` devolve o array das duas listas e
+perde `--categoria` e `--pagina`, sem alias. Não é capacidade nova da
+operação `unidade.listar_processos`: mesmo GET, mesmo POST e mesmas
+recusas ([decisão](decisoes/unidade-listar-processos.md)). A exceção não
+autoriza outros verbos.
+
+**Critério de contagem:** 16 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
 ajuda. Flags e projeções pertencem ao comando existente e não são novas
 capacidades independentes. As 129 operações do inventário do Todos são

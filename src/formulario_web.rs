@@ -33,13 +33,25 @@ pub(crate) enum EfeitoAvaliado {
     Desconhecido,
 }
 
+/// Como o navegador envia o formulário, segundo a tela observada.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EnvioDoFormulario {
+    /// Botão `type=submit` com este nome participa do corpo.
+    BotaoDeEnvio(&'static str),
+    /// O JavaScript observado chama `submit()`: nenhum botão participa.
+    SubmitPorScript,
+}
+
 /// Declaração `const` feita pela própria operação; não há catálogo central.
 #[derive(Debug)]
 pub(crate) struct OperacaoDeFormulario {
     pub(crate) acao: &'static str,
     pub(crate) formulario: &'static str,
-    pub(crate) botao_de_envio: &'static str,
+    pub(crate) envio: EnvioDoFormulario,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
+    /// Ocultos que o JavaScript observado da operação reescreve; os demais
+    /// saem exatamente como servidos.
+    pub(crate) campos_ocultos_reescritos: &'static [&'static str],
     pub(crate) campos_usuario: &'static [&'static str],
     pub(crate) marcador_de_resultado: MarcadorDeResultado,
     pub(crate) efeito: EfeitoAvaliado,
@@ -237,14 +249,17 @@ fn ordenar_campos<'c>(
     use ErroSubmissaoFormulario as E;
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
-        if !operacao.campos_usuario.contains(nome) {
+        let oculto = operacao.campos_ocultos_reescritos.contains(nome);
+        if !oculto && !operacao.campos_usuario.contains(nome) {
             return Err(E::CampoForaDaListaDaOperacao { campo });
         }
         let publicados: Vec<_> = controles
             .iter()
-            .filter(
-                |c| matches!(c, Controle::Usuario(n) | Controle::SelecaoMultipla(n) if n == nome),
-            )
+            .filter(|c| match c {
+                Controle::Oculto { nome: n, .. } => oculto && n == nome,
+                Controle::Usuario(n) | Controle::SelecaoMultipla(n) => !oculto && n == nome,
+                Controle::Botao { .. } => false,
+            })
             .collect();
         if publicados.is_empty() {
             return Err(E::CampoNaoPublicadoPeloFormulario { campo });
@@ -264,9 +279,20 @@ fn ordenar_campos<'c>(
     let mut ordenados = Vec::new();
     for controle in controles {
         match controle {
-            Controle::Oculto { nome, valor } | Controle::Botao { nome, valor } => {
-                ordenados.push((nome.as_str(), valor.as_str()));
+            Controle::Oculto { nome, valor } => {
+                // O valor reescrito pela regra da operação ocupa a posição servida.
+                let reescrito = operacao
+                    .campos_ocultos_reescritos
+                    .contains(&nome.as_str())
+                    .then(|| campos.iter().find(|(n, _)| n == nome))
+                    .flatten();
+                ordenados.push(
+                    reescrito
+                        .copied()
+                        .unwrap_or((nome.as_str(), valor.as_str())),
+                );
             }
+            Controle::Botao { nome, valor } => ordenados.push((nome.as_str(), valor.as_str())),
             Controle::Usuario(nome) | Controle::SelecaoMultipla(nome)
                 if !emitidos.contains(&nome.as_str()) =>
             {
@@ -443,3 +469,7 @@ mod tests_selecao;
 #[cfg(test)]
 #[path = "formulario_web/tests_atributos.rs"]
 mod tests_atributos;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_reescrita.rs"]
+mod tests_reescrita;

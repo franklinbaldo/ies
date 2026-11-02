@@ -10,8 +10,10 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 
 # Listar processos da unidade
 
-Lê os processos recebidos e gerados da unidade ativa na tela
-**Controle de Processos** do SEI Web. A CaixaDeEntrada é da unidade;
+Lê as listas Recebidos e Gerados da unidade ativa na tela
+**Controle de Processos** do SEI Web, como duas
+[listas independentes](unidade-recebidos-gerados.md); `ies unidade
+recebidos` e `ies unidade gerados` leem uma delas pela mesma operação. A CaixaDeEntrada é da unidade;
 sessão e credenciais são meios de acesso, não entidades proprietárias.
 
 ## Configuração e limites
@@ -29,17 +31,18 @@ Os arquivos devem respeitar as regras de privacidade do adaptador
 para URL assinada, origem autorizada e cookie, distinguindo-os de arquivo
 regular: metadados de links não provam posse segura do arquivo alvo.
 Esta validação deve ocorrer antes de qualquer envio de cookie por rede. O IES confere a origem antes de ler cookies e
-não segue redirects, não executa login, POST de paginação, nem realiza
-escritas ou tentativa de outro backend. Não há configuração persistente
-nem automação de autenticação.
+não segue redirects, não executa login, escritas ou tentativa de outro
+backend. O único POST é o de `ies unidade recebidos|gerados --pagina N`,
+descrito nas [páginas da caixa](unidade-listar-processos-paginas.md). Não há
+configuração persistente nem automação de autenticação.
 
 `--unidade SIGLA` exige que a página identifique a unidade esperada.
-`--saida ARQUIVO` exporta a mesma projeção JSON da caixa **somente depois**
-de verificar cobertura de recebidos e gerados. O arquivo novo é criado sem
+`--saida ARQUIVO` exporta o mesmo array JSON da caixa **somente depois**
+de verificar total e faixa observada de recebidos e gerados. O arquivo novo é criado sem
 sobrescrever destinos existentes; em Unix recebe modo privado 0600.
 Sem essa opção, a saída de terminal é preservada. O comprovante não
-exibe dados dos processos ou caminhos de credenciais. Não implementa
-paginação adicional nem declara snapshot transacional.
+exibe dados dos processos ou caminhos de credenciais. Não declara
+snapshot transacional.
 
 ## Pré-validação da sessão local, sem rede
 
@@ -60,8 +63,10 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 ## Resultado e alcance
 
 A resposta JSON segue o [golden v2](../../tests/fixtures/caixa-v2.json):
-`unidade`, `origem`, `recebidos`, `gerados`; cada agrupamento tem
-`processos` e `total_declarado`, sem campo `completa`. Cada processo
+um **array** de duas listas na ordem recebidos, gerados, cada uma na
+[forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
+total_declarado, faixa_observada, processos}` (`faixa_observada` é
+`{inicio, fim}` ou `null`), sem campo `completa`. Cada processo
 publica `id`, `numero` (opaco, sem máscara), `visualizado` e `sigiloso`.
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.
@@ -74,15 +79,13 @@ devem ser recusados por erros tipados específicos antes de aceitar
 cobertura de páginas ou o rótulo da unidade (refs #57).
 Não selecionar o primeiro controle e ocultar o segundo.
 
-O comando de domínio só retorna sucesso quando as tabelas disponíveis
-cobrem os totais declarados. A resposta que contenha mais de uma ocorrência
-do mesmo ID estrutural `tblProcessosRecebidos` ou `tblProcessosGerados`
-deve falhar com `tabelas_da_categoria_repetidas` e categoria tipada:
-escolher só a primeira permitiria ocultar processos sem erro. Se a tela exige outras páginas, ele
-retorna `paginas_do_controle_nao_obtidas` e **não publica um resultado
-parcial como se fosse toda a caixa**. Este recorte não implementa o
-POST de paginação; portanto, algumas unidades ainda não podem ser
-consultadas integralmente.
+Caixa paginada **não** é recusa: o comando devolve a página que a
+tela mostra, com total e faixa por tabela (regra em
+[páginas da caixa](unidade-listar-processos-paginas.md)). A resposta que
+contenha mais de uma ocorrência do mesmo ID estrutural
+`tblProcessosRecebidos` ou `tblProcessosGerados` falha com
+`tabelas_da_categoria_repetidas` e categoria tipada: escolher só a
+primeira permitiria ocultar processos sem erro.
 
 O replay de [evidências offline](../../docs/replay.md) continua em
 `ies replay CENARIO`, independente de sessão e sem afirmar snapshot
@@ -133,8 +136,9 @@ total. A CLI não publica HTML nem URLs assinadas ou cookies.
 A união utiliza as verificações existentes de
 `paginas::juntar`: rótulo de unidade, visualização, hashes de
 critérios, faixas contíguas, IDs e totais de ambas as tabelas.
-Um complemento ausente, divergente ou insuficiente deve produzir
-erro e **não** devolver caixa parcial. Quando complementos são
+Um complemento ausente ou divergente deve produzir erro; páginas
+contíguas mas insuficientes devolvem a faixa coberta, sem afirmar
+lista integral. Quando complementos são
 usados, a saída JSON declara `origem: web_com_paginas_privadas`,
 distinguindo da consulta baseada apenas no GET atual.
 
@@ -144,8 +148,7 @@ configuração**; os hashes de critério são apenas marcadores
 opacos, **não** provas criptográficas de origem, atualidade
 ou snapshot do SEI. O IES não executa coleta autenticada, não
 pode provar a frescura dos arquivos e não afirma suporte live
-à paginação POST. O modo sem a opção e o golden JSON existente
-permanecem inalterados.
+à paginação de todas as páginas. O modo sem a opção segue o golden.
 
 ## Recusa de complementos locais antes do GET (Refs #57)
 
@@ -163,40 +166,20 @@ retries. Rejeitar a soma excessiva antes de publicar/exportar qualquer
 processo. Orçamento: entrada complementar inválida = **0 GET/0 POST**;
 complementos locais válidos = **até 1 GET/0 POST**. Essa ordem não
 atesta sessão autenticada, atualidade das capturas nem compatibilidade
-live e não substitui o bloqueio da paginação POST ainda não comprovada.
+live.
 
-## Consulta de apenas uma categoria verificada (Refs #57)
+## Consulta de apenas uma lista (Refs #57)
 
-`ies unidade listar-processos --categoria recebidos|gerados [--json]`
-é uma opção **aditiva** da consulta Web existente: permite devolver
-apenas a categoria pedida quando suas posições e total declarado
-estão inteiramente cobertos no GET inicial, **mesmo que a outra
-categoria exija páginas adicionais**. O orçamento permanece **um
-GET**, sem POST de paginação, mudança de unidade ou autenticação
-nova. A outra categoria continua sendo interpretada e verificada
-estruturalmente, mas não aparece na saída projetada.
-
-A projeção JSON opt-in é
-`{unidade, origem: "web", categoria, total_declarado, processos}`,
-sem campos de completude no domínio ou promessa de snapshot.
-`--saida` exporta essa mesma projeção para arquivo privado novo,
-sem sobrescrever nem expor processos no comprovante.
-Se a categoria **selecionada** não estiver integralmente coberta,
-falhar com `paginas_recebidos_nao_obtidas` ou
-`paginas_gerados_nao_obtidas` (erros Rust tipados), sem publicar
-lista parcial. Com `--categoria` ausente, contrato e golden de
-todas as categorias seguem inalterados.
-
-Exemplo empírico: numa instalação onde Gerados já tem todas as
-91 linhas declaradas mas Recebidos exibe 100 de 168, a opção
-`--categoria gerados` pode relatar somente Gerados sem afirmar
-a cobertura de Recebidos. Não se infere comportamento idêntico
-nas outras instalações; validar em treinamento autorizado antes
-de declarar operação live multiplataforma.
-
-A opção `--categoria` é incompatível com `--pagina-arquivo`: a seleção
-considera exclusivamente a primeira página do GET e não ignora páginas
-privadas indicadas pelo operador.
+`ies unidade recebidos [--json]` e `ies unidade gerados [--json]`
+devolvem só a lista pedida, com a mesma regra da caixa: a página
+observada, `total_declarado` e `faixa_observada`, sem recusar por
+haver outras páginas. A outra tabela continua interpretada e
+verificada estruturalmente, mas não aparece na saída. `--saida` exporta
+a mesma lista para arquivo privado novo. São os únicos comandos com
+`--pagina N` (uma tabela por POST) e não aceitam `--pagina-arquivo`.
+As opções `--categoria` e `--pagina` de `listar-processos` foram
+**removidas** (erro de uso, saída 2), sem alias; ver as
+[listas Recebidos e Gerados](unidade-recebidos-gerados.md).
 
 ## Tipo de resposta HTML conferido sem equivalência por substring (Refs #57)
 
@@ -214,7 +197,7 @@ regra é ensaiada offline; nenhum teste de produção é autorizado.
 
 ## Categoria sem identificação da unidade no Controle (Refs #57, #56)
 
-No recorte `--categoria recebidos|gerados`, a resposta precisa publicar
+Em `ies unidade recebidos|gerados`, a resposta precisa publicar
 a identidade da unidade em `lnkInfraUnidade`, além de demonstrar
 cobertura da categoria. Sem esse rótulo, não se deve retornar sucesso
 com `unidade: null` nem exportar uma lista de processos que não foi
@@ -223,7 +206,7 @@ atribuída a contexto observável. Retornar falha Rust tipada
 `identificacao_da_unidade_ausente_no_controle`. A ausência na página
 não demonstra falta de permissão ou inexistência da unidade.
 
-Permanecem os mesmos **um GET autorizado, zero POST**, a mesma CLI,
+Sem `--pagina`, permanecem **um GET autorizado, zero POST**, a mesma CLI,
 a validação de tabelas/intervalos e a exigência de autorização da
 leitura com possíveis efeitos. Essa restrição foi testada offline,
 não prova o resultado live em instalações de treinamento.
@@ -283,10 +266,9 @@ A observação do Todos distingue visão resumida (sem paginação comprovada)
 e detalhada (`tblProcessosDetalhado`, página em
 `hdnDetalhadoPaginaAtual`). **Não** enviar campo de página de outro
 formulário, inventar POST, converter a visão detalhada em recebidos/gerados
-ou afirmar compatibilidade live sem prova. A correção protege contra
-**falso sucesso** no comando existente; a paginação ativa da issue #57
-continua **não implementada** e exige evidência de forma, efeito e sessão
-por instalação.
+ou afirmar compatibilidade live sem prova. Os paginadores **por tabela**
+(`lnkRecebidos*`, `selGerados*` etc.) são a paginação normal da visão
+`R` e seguem a regra das [páginas da caixa](unidade-listar-processos-paginas.md).
 
 
 ## Visão detalhada do Controle existente, sem POST (Refs #57)
@@ -295,26 +277,23 @@ O mesmo `ies unidade listar-processos` deve aceitar a página **já devolvida
 por seu único GET** quando ela apresenta uma tabela única
 `tblProcessosDetalhado` e `hdnTipoVisualizacao=D`. Não criar flag,
 subcomando ou inferir que esses processos pertençam à categoria
-`recebidos` ou `gerados`. A saída JSON diferente é explícita:
-`{unidade, origem, visualizacao:"detalhada", total_declarado, processos}`,
-com identidade de processo e estado `visualizado` somente quando observável.
-A saída resumida e seu golden permanecem inalterados.
+`recebidos` ou `gerados`. A saída é um array com **uma** lista na
+[forma única](unidade-recebidos-gerados.md), `categoria: "detalhada"`,
+com `visualizado`/`sigiloso` somente quando observáveis.
 
 Para cada linha aceita, exigir identificador `tr id=P<dígitos>`, um
 cabeçalho `Processo` único, link dessa célula para uma ação de processo
 conhecida e NUP não vazio. Não executar links, JS nem criar IDs. Validar
 legenda única, total, faixa e não duplicidade, preservando zeros. Quando a
-página não cobre o total declarado, retornar erro e **não publicar nem
-exportar lista parcial**. Páginas privadas já fornecidas pela opção
+página não cobre o total, publicar `faixa_observada` com o total, sem
+afirmar lista integral. Páginas privadas já fornecidas pela opção
 existente `--pagina-arquivo` podem ser reunidas se as faixas forem
 contíguas e o contexto da unidade e visualização permanecer idêntico.
 Não aceitar modo resumido e detalhado misturados.
 
 A leitura Web permanece **um GET, zero POST**, sem login ou troca de
-visualização. Uma sessão que chegou à tela detalhada pode ser interpretada,
-mas o comando não fabrica uma tela D a partir de R e não restaura estado
-do usuário. Esta fatia não conclui a paginação ativa da #57, que exige
-prova de payload/efeitos do formulário por instalação. Cassettes históricas
+visualização; `--pagina N` não se aplica à visão D.
+O comando não fabrica uma tela D a partir de R. Cassettes históricas
 e testes sintéticos são limites de validação, não equivalência live.
 
 
@@ -360,6 +339,6 @@ link não traz classe reconhecida.
 A importação local aceita exportação anterior sem `sigiloso` como
 `false`: aquelas versões recusavam qualquer linha sem as duas classes
 não sigilosas. Com 131 recebidos e 7990 gerados em páginas de 10, a
-legenda `(N registros - 1 a 10)` mantém a recusa
-`paginas_do_controle_nao_obtidas`; sem POST, retry ou GET extra.
+legenda `(N registros - 1 a 10)` passa a ser devolvida como faixa
+1–10 de cada tabela; outras páginas só com `recebidos|gerados --pagina N`.
 Ensaio offline com HTML sintético; o reensaio live fica **NOT_RUN**.

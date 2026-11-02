@@ -1,50 +1,55 @@
-//! Projeção Web de uma categoria integralmente observada, sem POST.
+//! `ies unidade recebidos` e `ies unidade gerados`: uma lista independente
+//! da caixa, a página observada com total e faixa; `--pagina N` acrescenta
+//! no máximo um POST (`pagina_web`). Transporte compartilhado com a caixa.
+mod pagina_web;
+
 use crate::paginas::Leitura;
 use crate::{arquivo_caixa, configuracao, erro_fonte, paginas, transporte};
-use clap::ValueEnum;
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CategoriaLista {
     Recebidos,
     Gerados,
 }
 
 impl CategoriaLista {
-    pub(crate) fn rotulo(self) -> &'static str {
+    pub(crate) fn categoria(self) -> crate::dominio::Categoria {
         match self {
-            Self::Recebidos => "recebidos",
-            Self::Gerados => "gerados",
+            Self::Recebidos => crate::dominio::Categoria::Recebidos,
+            Self::Gerados => crate::dominio::Categoria::Gerados,
         }
+    }
+
+    pub(crate) fn rotulo(self) -> &'static str {
+        self.categoria().rotulo()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
-    PaginasNaoObtidas(CategoriaLista),
+    /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
+    FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
 }
 impl FalhaCategoria {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
+            Self::FaixaNaoPublicavel(erro) => erro.subcodigo(),
             Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
-            Self::PaginasNaoObtidas(CategoriaLista::Recebidos) => "paginas_recebidos_nao_obtidas",
-            Self::PaginasNaoObtidas(CategoriaLista::Gerados) => "paginas_gerados_nao_obtidas",
         }
     }
-    pub(crate) fn mensagem(self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
             Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
-            Self::PaginasNaoObtidas(_) => {
-                "a categoria selecionada exige páginas que não foram obtidas"
-            }
         }
     }
 }
 
-/// Projeta apenas a categoria com posições inteiramente observadas no GET.
+/// A lista da categoria na forma única, com a página observada.
 pub(crate) fn selecionar(
     leitura: &Leitura,
     categoria: CategoriaLista,
@@ -57,38 +62,25 @@ pub(crate) fn selecionar(
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
     };
-    if !cobertura.completa(tabela) {
-        return Err(FalhaCategoria::PaginasNaoObtidas(categoria));
-    }
-    Ok(json!({
-        "unidade": leitura.unidade,
-        "origem": origem,
-        "categoria": categoria.rotulo(),
-        "total_declarado": tabela.total_declarado,
-        "processos": tabela.processos,
-    }))
+    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
+        .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
+    Ok(crate::saida::lista_da_categoria(
+        leitura,
+        categoria.categoria(),
+        origem,
+    ))
 }
 
-/// Uma consulta HTTPS já existente; sem POST nem busca especulativa.
-pub(crate) fn listar_categoria(
+/// Publica ou exporta a lista da categoria a partir do HTML obtido,
+/// com a conferência de `--unidade` da leitura da caixa.
+pub(crate) fn publicar_lista(
+    html: &str,
     unidade: Option<&str>,
+    categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
-    categoria: CategoriaLista,
 ) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let html = match transporte::read_box_from_file(
-        &arquivos.url_controle,
-        &arquivos.cookie,
-        &arquivos.origem,
-    ) {
-        Ok(html) => html,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
-    let leitura = match paginas::juntar(&[html], unidade) {
+    let leitura = match paginas::juntar(&[html.to_owned()], unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
             return erro_fonte(
@@ -130,11 +122,44 @@ pub(crate) fn listar_categoria(
     } else {
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
         println!(
-            "IES: {}: {quantidade} processo(s) observados e cobertos na categoria; demais categorias não consultadas integralmente.",
-            categoria.rotulo()
+            "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
+            categoria.rotulo(),
+            modelo["total_declarado"],
+            match &modelo["faixa_observada"] {
+                Value::Null => "nenhuma".to_owned(),
+                faixa => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+            }
         );
     }
     ExitCode::SUCCESS
+}
+
+/// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria.
+pub(crate) fn listar_categoria(
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+    categoria: CategoriaLista,
+    pagina: Option<usize>,
+) -> ExitCode {
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+    };
+    let obtida = match pagina {
+        None => transporte::read_box_from_file(
+            &arquivos.url_controle,
+            &arquivos.cookie,
+            &arquivos.origem,
+        )
+        .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+        Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
+            .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+    };
+    match obtida {
+        Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
+        Err((subcodigo, mensagem)) => erro_fonte(json_mode, subcodigo, mensagem),
+    }
 }
 
 #[cfg(test)]
@@ -177,46 +202,23 @@ mod tests {
         assert_eq!(modelo["categoria"], "gerados");
     }
 
-    #[test]
-    fn tipo_de_categoria_da_cli_aceita_somente_valores_do_dominio() {
+    fn aceita(args: &[&str]) -> bool {
         use clap::Parser;
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "gerados"
-            ])
-            .is_ok()
-        );
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "desconhecida"
-            ])
-            .is_err()
-        );
+        let mut todos = vec!["ies", "unidade"];
+        todos.extend_from_slice(args);
+        crate::Cli::try_parse_from(todos).is_ok()
     }
 
     #[test]
-    fn categoria_e_paginas_privadas_nao_podem_ser_combinadas_silenciosamente() {
-        use clap::Parser;
-        assert!(
-            crate::Cli::try_parse_from([
-                "ies",
-                "unidade",
-                "listar-processos",
-                "--categoria",
-                "gerados",
-                "--pagina-arquivo",
-                "pagina-2.html"
-            ])
-            .is_err()
-        );
+    fn listas_sao_subcomandos_e_listar_processos_perde_categoria_e_pagina() {
+        assert!(aceita(&["recebidos"]));
+        assert!(aceita(&["gerados"]));
+        assert!(aceita(&["gerados", "--saida", "lista.json"]));
+        assert!(aceita(&["listar-processos", "--pagina-arquivo", "p.html"]));
+        assert!(!aceita(&["listar-processos", "--categoria", "gerados"]));
+        assert!(!aceita(&["listar-processos", "--pagina", "2"]));
+        assert!(!aceita(&["gerados", "--pagina-arquivo", "pagina-2.html"]));
+        assert!(!aceita(&["gerados", "--categoria", "gerados"]));
     }
 
     #[test]
@@ -230,11 +232,116 @@ mod tests {
     }
 
     #[test]
-    fn categoria_requerida_ainda_incompleta_falha_sem_publicar_resultado() {
+    fn categoria_paginada_publica_a_pagina_com_total_e_faixa() {
+        let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
+        assert_eq!(modelo["total_declarado"], 200);
+        assert_eq!(modelo["faixa_observada"]["inicio"], 1);
+        assert_eq!(modelo["faixa_observada"]["fim"], 1);
+        assert_eq!(modelo["processos"][0]["numero"], "R-0001");
+        assert!(modelo.get("completa").is_none());
+    }
+
+    #[test]
+    fn categoria_com_legenda_sem_faixa_e_total_maior_e_recusada() {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
+             <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        let erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
         assert_eq!(
-            selecionar(&leitura(200), CategoriaLista::Recebidos, "web"),
-            Err(FalhaCategoria::PaginasNaoObtidas(CategoriaLista::Recebidos))
+            erro.subcodigo(),
+            "legenda_sem_faixa_com_total_diferente_das_linhas"
         );
+        assert!(selecionar(&leitura, CategoriaLista::Gerados, "web").is_ok());
+    }
+
+    #[test]
+    fn pagina_das_listas_exige_inteiro_positivo() {
+        for lista in ["recebidos", "gerados"] {
+            assert!(aceita(&[lista, "--pagina", "2"]));
+            assert!(!aceita(&[lista, "--pagina", "0"]));
+            assert!(!aceita(&[lista, "--pagina", "-1"]));
+            assert!(!aceita(&[lista, "--pagina", "x"]));
+        }
+    }
+
+    #[test]
+    fn lista_tem_a_forma_unica_da_caixa() {
+        let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
+        let chaves: Vec<&str> = modelo
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            chaves,
+            [
+                "categoria",
+                "faixa_observada",
+                "origem",
+                "processos",
+                "total_declarado",
+                "unidade"
+            ]
+        );
+        assert_eq!(
+            modelo,
+            crate::saida::lista_da_categoria(
+                &leitura(200),
+                crate::dominio::Categoria::Recebidos,
+                "web"
+            )
+        );
+    }
+
+    fn exportar_lista(
+        unidade: Option<&str>,
+        categoria: CategoriaLista,
+    ) -> (ExitCode, Option<Value>) {
+        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
+             <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let caminho = std::env::temp_dir().join(format!(
+            "ies-lista-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho));
+        let valor = std::fs::read(&caminho)
+            .ok()
+            .map(|bytes| serde_json::from_slice(&bytes).unwrap());
+        let _ = std::fs::remove_file(&caminho);
+        (codigo, valor)
+    }
+
+    #[test]
+    fn lista_confere_unidade_global_antes_de_publicar() {
+        let (codigo, valor) = exportar_lista(Some("OUTRA"), CategoriaLista::Recebidos);
+        assert_eq!(codigo, ExitCode::from(1));
+        assert!(valor.is_none());
+        let (codigo, valor) = exportar_lista(Some("PPI"), CategoriaLista::Gerados);
+        assert_eq!(codigo, ExitCode::SUCCESS);
+        let valor = valor.unwrap();
+        assert_eq!(valor["categoria"], "gerados");
+        assert_eq!(valor["total_declarado"], 0);
+        assert!(valor.as_object().unwrap().get("recebidos").is_none());
+    }
+
+    #[test]
+    fn lista_exportada_e_um_objeto_e_nao_um_array() {
+        let (codigo, valor) = exportar_lista(None, CategoriaLista::Recebidos);
+        assert_eq!(codigo, ExitCode::SUCCESS);
+        let valor = valor.unwrap();
+        assert!(valor.is_object());
+        assert_eq!(valor["categoria"], "recebidos");
+        assert_eq!(valor["faixa_observada"]["fim"], 1);
+        assert_eq!(valor["processos"][0]["numero"], "R-0001");
     }
 
     #[test]

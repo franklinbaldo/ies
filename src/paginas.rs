@@ -4,7 +4,7 @@ use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::nos_com_id;
-use crate::paginacao_controle::controles_de_paginacao;
+use crate::paginacao_controle::{controles_de_paginacao, paginador_da_tabela};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,6 +12,8 @@ struct Faixa {
     total: usize,
     inicio: usize,
     fim: usize,
+    /// A legenda publicou `- inicio a fim`; sem isso a faixa é deduzida.
+    explicita: bool,
 }
 
 fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
@@ -38,13 +40,19 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
             return Err(());
         }
-        Ok(Some(Faixa { total, inicio, fim }))
+        Ok(Some(Faixa {
+            total,
+            inicio,
+            fim,
+            explicita: true,
+        }))
     } else if total == linhas {
         // Sentinela de faixa vazia: a tabela informou zero registros.
         Ok(Some(Faixa {
             total,
             inicio: 1,
             fim: total,
+            explicita: false,
         }))
     } else {
         Ok(None)
@@ -145,7 +153,9 @@ impl Grupo {
     }
 
     fn finalizar(self, categoria: Categoria) -> Result<(Tabela<Processo>, Cobertura), ErroCaixa> {
-        let mut proximo = 1usize;
+        // Páginas contíguas entre si; a primeira pode não ser a 1, porque o
+        // servidor lembra a página pedida na sessão.
+        let mut proximo = self.faixas.keys().next().copied().unwrap_or(1);
         let mut intervalos = Vec::new();
         let mut processos = Vec::new();
         for (inicio, (fim, itens)) in self.faixas {
@@ -202,6 +212,72 @@ impl Cobertura {
         }
         proximo == total.saturating_add(1)
     }
+
+    /// Posições lidas (`inicio`, `fim`), contíguas; `None` sem linhas ou
+    /// sem faixa comprovada pela legenda.
+    pub fn faixa_observada(&self) -> Option<(usize, usize)> {
+        if !self.confirmada {
+            return None;
+        }
+        let inicio = self.intervalos.first()?.0;
+        let fim = self.intervalos.last()?.1;
+        (fim >= inicio).then_some((inicio, fim))
+    }
+}
+
+/// Total e posições de uma tabela numa única página, lidos da legenda.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FaixaNaPagina {
+    pub(crate) total: usize,
+    pub(crate) inicio: usize,
+    pub(crate) fim: usize,
+}
+
+fn id_da_tabela(categoria: Categoria) -> &'static str {
+    match categoria {
+        Categoria::Recebidos => "tblProcessosRecebidos",
+        Categoria::Gerados => "tblProcessosGerados",
+    }
+}
+
+/// Faixa de uma tabela numa página isolada; `None` se a tabela não tem
+/// linhas ou a legenda não a comprova.
+pub(crate) fn faixa_na_pagina(
+    html: &str,
+    categoria: Categoria,
+) -> Result<Option<FaixaNaPagina>, ErroCaixa> {
+    let caixa = crate::caixa::parse_html(html)?;
+    let tabela = match categoria {
+        Categoria::Recebidos => &caixa.recebidos,
+        Categoria::Gerados => &caixa.gerados,
+    };
+    let faixa = faixa_da_tabela(
+        html,
+        id_da_tabela(categoria),
+        categoria,
+        tabela.processos.len(),
+    )?;
+    Ok(faixa.filter(|f| f.fim >= f.inicio).map(|f| FaixaNaPagina {
+        total: f.total,
+        inicio: f.inicio,
+        fim: f.fim,
+    }))
+}
+
+/// Recusa tabela cuja faixa observada não pode ser publicada com o total:
+/// legenda sem `registros`, ou sem intervalo e com total diferente das linhas.
+pub(crate) fn conferir_faixa_publicavel(
+    categoria: Categoria,
+    tabela: &Tabela<Processo>,
+    cobertura: &Cobertura,
+) -> Result<(), ErroCaixa> {
+    if tabela.total_declarado.is_none() {
+        return Err(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria });
+    }
+    if !cobertura.confirmada {
+        return Err(ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria });
+    }
+    Ok(())
 }
 
 pub struct Leitura {
@@ -264,6 +340,13 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             ),
         ] {
             let faixa = faixa_da_tabela(html, nome, categoria, tabela.processos.len())?;
+            // Paginador próprio da tabela com legenda sem intervalo: a
+            // coincidência entre total e linhas não comprova página única.
+            if faixa.is_some_and(|f| !f.explicita && f.total > 0)
+                && paginador_da_tabela(html, categoria)?
+            {
+                return Err(ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { categoria });
+            }
             grupo.incluir(categoria, tabela, faixa)?;
         }
     }
@@ -282,3 +365,6 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_faixa;

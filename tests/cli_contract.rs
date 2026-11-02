@@ -402,14 +402,17 @@ fn resumo_de_caixa_local_nao_abre_sessao_e_preserva_nup_opaco() {
             .unwrap()
             .as_nanos()
     ));
-    let dados = serde_json::json!({
-        "origem": "web", "unidade": "PPI",
-        "recebidos": {
-            "total_declarado": 1,
+    let dados = serde_json::json!([
+        {
+            "origem": "web", "unidade": "PPI", "categoria": "recebidos",
+            "total_declarado": 1, "faixa_observada": {"inicio": 1, "fim": 1},
             "processos": [{"id": "0042", "numero": "000123/2026", "visualizado": false}]
         },
-        "gerados": {"total_declarado": 0, "processos": []}
-    });
+        {
+            "origem": "web", "unidade": "PPI", "categoria": "gerados",
+            "total_declarado": 0, "faixa_observada": null, "processos": []
+        }
+    ]);
     fs::write(&arquivo, serde_json::to_vec(&dados).unwrap()).unwrap();
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
 

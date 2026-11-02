@@ -12,10 +12,24 @@ pub(crate) enum ErroCaixaLocal {
     FormatoInvalido,
     OrigemNaoWeb,
     UnidadeDiferenteDaSolicitada,
-    TotalNaoComprovado { categoria: Categoria },
-    IdentificadorInvalido { categoria: Categoria },
-    NumeroInvalido { categoria: Categoria },
-    IdentificadorRepetido { categoria: Categoria },
+    /// O array exportado não é exatamente `[recebidos, gerados]`.
+    ListasExportadasNaoSaoRecebidosEGerados,
+    /// As duas listas exportadas declaram rótulos de unidade diferentes.
+    UnidadeDasListasExportadasDiferente,
+    /// As duas listas exportadas declaram origens diferentes.
+    OrigemDasListasExportadasDiferente,
+    TotalNaoComprovado {
+        categoria: Categoria,
+    },
+    IdentificadorInvalido {
+        categoria: Categoria,
+    },
+    NumeroInvalido {
+        categoria: Categoria,
+    },
+    IdentificadorRepetido {
+        categoria: Categoria,
+    },
 }
 
 impl ErroCaixaLocal {
@@ -25,6 +39,15 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "formato_do_arquivo_da_caixa_invalido",
             Self::OrigemNaoWeb => "origem_do_arquivo_da_caixa_nao_web",
             Self::UnidadeDiferenteDaSolicitada => "unidade_do_arquivo_da_caixa_diferente",
+            Self::ListasExportadasNaoSaoRecebidosEGerados => {
+                "listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados"
+            }
+            Self::UnidadeDasListasExportadasDiferente => {
+                "unidade_das_listas_do_arquivo_da_caixa_diferente"
+            }
+            Self::OrigemDasListasExportadasDiferente => {
+                "origem_das_listas_do_arquivo_da_caixa_diferente"
+            }
             Self::TotalNaoComprovado {
                 categoria: Categoria::Recebidos,
             } => "total_recebidos_do_arquivo_nao_comprovado",
@@ -57,6 +80,15 @@ impl ErroCaixaLocal {
             Self::FormatoInvalido => "arquivo da caixa não tem a estrutura JSON esperada",
             Self::OrigemNaoWeb => "arquivo não declara a origem de exportação Web",
             Self::UnidadeDiferenteDaSolicitada => "unidade do arquivo da caixa não é a solicitada",
+            Self::ListasExportadasNaoSaoRecebidosEGerados => {
+                "arquivo da caixa não traz as listas recebidos e gerados, nessa ordem"
+            }
+            Self::UnidadeDasListasExportadasDiferente => {
+                "as listas do arquivo da caixa declaram unidades diferentes"
+            }
+            Self::OrigemDasListasExportadasDiferente => {
+                "as listas do arquivo da caixa declaram origens diferentes"
+            }
             Self::TotalNaoComprovado { .. } => {
                 "total da categoria não confere com as linhas exportadas"
             }
@@ -73,19 +105,18 @@ pub(crate) struct CaixaObservadaLocal {
     pub(crate) unidade: Option<String>,
 }
 
+/// Uma lista do array exportado por `listar-processos --saida`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Exportacao {
+struct ListaExportada {
     unidade: Option<String>,
     origem: String,
-    recebidos: Secao,
-    gerados: Secao,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Secao {
+    categoria: String,
     total_declarado: Option<usize>,
+    // A importação comprova cobertura pelo total igual às linhas; a faixa
+    // é dado da leitura e não substitui essa prova.
+    #[serde(rename = "faixa_observada")]
+    _faixa_observada: serde::de::IgnoredAny,
     processos: Vec<Linha>,
 }
 
@@ -101,7 +132,10 @@ struct Linha {
     sigiloso: bool,
 }
 
-fn converter(secao: Secao, categoria: Categoria) -> Result<Tabela<Processo>, ErroCaixaLocal> {
+fn converter(
+    secao: ListaExportada,
+    categoria: Categoria,
+) -> Result<Tabela<Processo>, ErroCaixaLocal> {
     // Arquivo arbitrário não comprova cobertura por si só, mas totais divergentes
     // impedem até a interpretação interna como uma caixa integral exportada.
     if secao.total_declarado != Some(secao.processos.len()) {
@@ -135,8 +169,23 @@ pub(crate) fn interpretar(
     json: &str,
     unidade: Option<&str>,
 ) -> Result<CaixaObservadaLocal, ErroCaixaLocal> {
-    let exportada: Exportacao =
+    let listas: Vec<ListaExportada> =
         serde_json::from_str(json).map_err(|_| ErroCaixaLocal::FormatoInvalido)?;
+    let [recebidos, gerados]: [ListaExportada; 2] = listas
+        .try_into()
+        .map_err(|_| ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados)?;
+    if recebidos.categoria != Categoria::Recebidos.rotulo()
+        || gerados.categoria != Categoria::Gerados.rotulo()
+    {
+        return Err(ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados);
+    }
+    if recebidos.unidade != gerados.unidade {
+        return Err(ErroCaixaLocal::UnidadeDasListasExportadasDiferente);
+    }
+    if recebidos.origem != gerados.origem {
+        return Err(ErroCaixaLocal::OrigemDasListasExportadasDiferente);
+    }
+    let exportada = &recebidos;
     if !matches!(
         exportada.origem.as_str(),
         "web" | "web_com_paginas_privadas"
@@ -158,12 +207,13 @@ pub(crate) fn interpretar(
     {
         return Err(ErroCaixaLocal::UnidadeDiferenteDaSolicitada);
     }
+    let unidade_exportada = recebidos.unidade.clone();
     Ok(CaixaObservadaLocal {
         caixa: CaixaDeEntrada {
-            recebidos: converter(exportada.recebidos, Categoria::Recebidos)?,
-            gerados: converter(exportada.gerados, Categoria::Gerados)?,
+            recebidos: converter(recebidos, Categoria::Recebidos)?,
+            gerados: converter(gerados, Categoria::Gerados)?,
         },
-        unidade: exportada.unidade,
+        unidade: unidade_exportada,
     })
 }
 
@@ -182,14 +232,17 @@ mod tests {
     use serde_json::json;
 
     fn caixa() -> String {
-        json!({
-            "unidade": "PPI", "origem": "web",
-            "recebidos": {
-                "total_declarado": 1,
+        json!([
+            {
+                "unidade": "PPI", "origem": "web", "categoria": "recebidos",
+                "total_declarado": 1, "faixa_observada": {"inicio": 1, "fim": 1},
                 "processos": [{"id":"0042","numero":"000123/2026","visualizado":false}]
             },
-            "gerados": {"total_declarado": 0, "processos": []}
-        })
+            {
+                "unidade": "PPI", "origem": "web", "categoria": "gerados",
+                "total_declarado": 0, "faixa_observada": null, "processos": []
+            }
+        ])
         .to_string()
     }
     #[test]
@@ -230,9 +283,9 @@ mod tests {
     #[test]
     fn recusa_identificador_repetido_sem_selecionar_a_primeira_linha() {
         let mut objeto: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        objeto["recebidos"]["total_declarado"] = json!(2);
-        let repetido = objeto["recebidos"]["processos"][0].clone();
-        objeto["recebidos"]["processos"]
+        objeto[0]["total_declarado"] = json!(2);
+        let repetido = objeto[0]["processos"][0].clone();
+        objeto[0]["processos"]
             .as_array_mut()
             .unwrap()
             .push(repetido);
@@ -246,7 +299,8 @@ mod tests {
     #[test]
     fn aceita_exportacao_de_caixa_multipagina_gerada_pelo_ies() {
         let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        exportada["origem"] = json!("web_com_paginas_privadas");
+        exportada[0]["origem"] = json!("web_com_paginas_privadas");
+        exportada[1]["origem"] = json!("web_com_paginas_privadas");
         let observada = interpretar(&exportada.to_string(), Some("PPI")).unwrap();
         assert_eq!(observada.caixa.recebidos.processos[0].numero, "000123/2026");
         assert_eq!(observada.caixa.recebidos.processos[0].id.as_str(), "0042");
@@ -255,8 +309,9 @@ mod tests {
     #[test]
     fn exportacao_multipagina_continua_exigindo_totais_comprovados() {
         let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-        exportada["origem"] = json!("web_com_paginas_privadas");
-        exportada["recebidos"]["total_declarado"] = json!(2);
+        exportada[0]["origem"] = json!("web_com_paginas_privadas");
+        exportada[1]["origem"] = json!("web_com_paginas_privadas");
+        exportada[0]["total_declarado"] = json!(2);
         assert_eq!(
             interpretar(&exportada.to_string(), None).unwrap_err(),
             ErroCaixaLocal::TotalNaoComprovado {
@@ -269,7 +324,8 @@ mod tests {
     fn apenas_as_duas_origens_de_exportacao_reais_sao_aceitas() {
         for origem in ["WEB", "web_replay", "web_com_paginas_privadas_fake"] {
             let mut exportada: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
-            exportada["origem"] = json!(origem);
+            exportada[0]["origem"] = json!(origem);
+            exportada[1]["origem"] = json!(origem);
             assert_eq!(
                 interpretar(&exportada.to_string(), None).unwrap_err(),
                 ErroCaixaLocal::OrigemNaoWeb
@@ -280,9 +336,52 @@ mod tests {
     #[test]
     fn recusa_origem_de_cassette_ou_json_nao_proveniente_de_exportacao() {
         let json = caixa().replace("\"origem\":\"web\"", "\"origem\":\"replay\"");
+        assert!(!json.contains("\"origem\":\"web\""));
         assert_eq!(
             interpretar(&json, None).unwrap_err(),
             ErroCaixaLocal::OrigemNaoWeb
+        );
+    }
+
+    #[test]
+    fn recusa_listas_fora_da_forma_recebidos_gerados() {
+        let base: serde_json::Value = serde_json::from_str(&caixa()).unwrap();
+        let mut trocada = base.clone();
+        trocada.as_array_mut().unwrap().reverse();
+        let mut uma = base.clone();
+        uma.as_array_mut().unwrap().pop();
+        let mut detalhada = base.clone();
+        detalhada[1]["categoria"] = json!("detalhada");
+        for valor in [trocada, uma, detalhada] {
+            assert_eq!(
+                interpretar(&valor.to_string(), None).unwrap_err(),
+                ErroCaixaLocal::ListasExportadasNaoSaoRecebidosEGerados
+            );
+        }
+        let mut unidades = base.clone();
+        unidades[1]["unidade"] = json!("OUTRA");
+        assert_eq!(
+            interpretar(&unidades.to_string(), None).unwrap_err(),
+            ErroCaixaLocal::UnidadeDasListasExportadasDiferente
+        );
+        let mut origens = base.clone();
+        origens[1]["origem"] = json!("web_com_paginas_privadas");
+        assert_eq!(
+            interpretar(&origens.to_string(), None).unwrap_err(),
+            ErroCaixaLocal::OrigemDasListasExportadasDiferente
+        );
+    }
+
+    #[test]
+    fn exportacao_no_formato_anterior_e_recusada() {
+        let antiga = json!({
+            "unidade": "PPI", "origem": "web",
+            "recebidos": {"total_declarado": 0, "processos": []},
+            "gerados": {"total_declarado": 0, "processos": []}
+        });
+        assert_eq!(
+            interpretar(&antiga.to_string(), None).unwrap_err(),
+            ErroCaixaLocal::FormatoInvalido
         );
     }
 }

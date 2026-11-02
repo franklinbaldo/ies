@@ -84,17 +84,19 @@ fn replay_valido_lê_duas_tabelas_sem_url_assinada() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(result["recebidos"].get("completa").is_none());
-    assert!(result["gerados"].get("completa").is_none());
-    assert_eq!(result["recebidos"]["total_declarado"], 3);
-    assert_eq!(result["gerados"]["total_declarado"], 0);
-    assert_eq!(result["recebidos"]["processos"][0]["id"], "42");
-    assert_eq!(result["recebidos"]["processos"][1]["visualizado"], false);
-    assert_eq!(result["recebidos"]["processos"][2]["sigiloso"], true);
-    assert_eq!(
-        result["recebidos"]["processos"][2]["numero"],
-        "001234500000015"
-    );
+    assert!(result[0].get("completa").is_none());
+    assert!(result[1].get("completa").is_none());
+    // Duas listas independentes, na ordem recebidos, gerados.
+    assert_eq!(result.as_array().map(Vec::len), Some(2));
+    assert_eq!(result[0]["categoria"], "recebidos");
+    assert_eq!(result[1]["categoria"], "gerados");
+    assert!(result.get("recebidos").is_none());
+    assert_eq!(result[0]["total_declarado"], 3);
+    assert_eq!(result[1]["total_declarado"], 0);
+    assert_eq!(result[0]["processos"][0]["id"], "42");
+    assert_eq!(result[0]["processos"][1]["visualizado"], false);
+    assert_eq!(result[0]["processos"][2]["sigiloso"], true);
+    assert_eq!(result[0]["processos"][2]["numero"], "001234500000015");
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(!stdout.contains("SEGREDO"));
     assert!(!stdout.contains("infra_hash"));
@@ -228,10 +230,10 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(value["recebidos"].get("completa").is_none());
-    assert!(value["gerados"].get("completa").is_none());
-    assert_eq!(value["recebidos"]["processos"].as_array().unwrap().len(), 4);
-    assert_eq!(value["recebidos"]["processos"][3]["id"], "4");
+    assert!(value[0].get("completa").is_none());
+    assert!(value[1].get("completa").is_none());
+    assert_eq!(value[0]["processos"].as_array().unwrap().len(), 4);
+    assert_eq!(value[0]["processos"][3]["id"], "4");
     let no_selection = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "replay",
@@ -244,8 +246,8 @@ fn replay_de_multiplos_passos_consolida_faixas_sem_post() {
         .unwrap();
     assert_eq!(no_selection.status.code(), Some(0));
     let partial: serde_json::Value = serde_json::from_slice(&no_selection.stdout).unwrap();
-    assert!(partial["recebidos"].get("completa").is_none());
-    assert!(partial["gerados"].get("completa").is_none());
+    assert!(partial[0].get("completa").is_none());
+    assert!(partial[1].get("completa").is_none());
     let repeat = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
             "replay",
@@ -280,14 +282,8 @@ fn replay_todas_paginas_consolida_get_e_post_sem_enviar_requisicoes() {
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let resultado: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        resultado["recebidos"]["processos"]
-            .as_array()
-            .unwrap()
-            .len(),
-        4
-    );
-    assert_eq!(resultado["recebidos"]["processos"][3]["id"], "4");
+    assert_eq!(resultado[0]["processos"].as_array().unwrap().len(), 4);
+    assert_eq!(resultado[0]["processos"][3]["id"], "4");
     fs::remove_dir_all(folder).unwrap();
 }
 
@@ -313,8 +309,8 @@ fn contrato_json_v1_e_deterministico() {
     );
     let valor: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert!(valor.get("completude").is_none());
-    assert!(valor["recebidos"].get("linhas_lidas").is_none());
-    assert!(valor["recebidos"].get("paginas_lidas").is_none());
+    assert!(valor[0].get("linhas_lidas").is_none());
+    assert!(valor[0].get("paginas_lidas").is_none());
     assert!(!String::from_utf8_lossy(&resposta.stdout).contains("infra_hash"));
     fs::remove_dir_all(pasta).unwrap();
 }

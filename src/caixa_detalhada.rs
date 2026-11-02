@@ -19,6 +19,8 @@ pub(crate) struct ProcessoDetalhado {
 pub(crate) struct LeituraDetalhada {
     pub(crate) unidade: String,
     pub(crate) total_declarado: usize,
+    /// Posições lidas (`inicio`, `fim`); `None` sem linhas.
+    pub(crate) faixa_observada: Option<(usize, usize)>,
     pub(crate) processos: Vec<ProcessoDetalhado>,
 }
 
@@ -48,7 +50,6 @@ pub(crate) enum ErroDetalhada {
     FaixaSemIntervaloComPaginacao,
     FaixaDescontinua,
     TotalAlterado,
-    PaginasNaoObtidas,
     LimitePaginas,
 }
 
@@ -81,7 +82,6 @@ impl ErroDetalhada {
             Self::FaixaSemIntervaloComPaginacao => "faixa_detalhada_sem_intervalo_com_paginacao",
             Self::FaixaDescontinua => "faixa_detalhada_descontinua",
             Self::TotalAlterado => "total_detalhado_alterado",
-            Self::PaginasNaoObtidas => "paginas_detalhadas_nao_obtidas",
             Self::LimitePaginas => "limite_paginas_detalhadas",
         }
     }
@@ -328,6 +328,7 @@ pub(crate) fn ler_paginas(
     let mut contexto = None;
     let mut total = None;
     let mut proximo = 1usize;
+    let mut faixa_inicio = None;
     let mut processos = Vec::new();
     let mut ids = HashSet::new();
     let mut numeros = HashSet::new();
@@ -349,6 +350,12 @@ pub(crate) fn ler_paginas(
             return Err(ErroDetalhada::TotalAlterado);
         }
         total = Some(pagina.total);
+        // A primeira página pode não ser a 1 (página lembrada na sessão);
+        // as seguintes continuam a anterior.
+        if faixa_inicio.is_none() {
+            faixa_inicio = Some(pagina.inicio);
+            proximo = pagina.inicio;
+        }
         if pagina.inicio != proximo {
             return Err(ErroDetalhada::FaixaDescontinua);
         }
@@ -364,15 +371,16 @@ pub(crate) fn ler_paginas(
         }
     }
     let total = total.ok_or(ErroDetalhada::TotalNaoDeclarado)?;
-    if processos.len() != total || proximo != total.saturating_add(1) {
-        return Err(ErroDetalhada::PaginasNaoObtidas);
-    }
+    let faixa_observada = faixa_inicio
+        .filter(|_| !processos.is_empty())
+        .map(|inicio| (inicio, proximo - 1));
     let unidade = contexto
         .and_then(|v: ContextoPagina| v.unidade)
         .ok_or(ErroDetalhada::UnidadeNaoIdentificada)?;
     Ok(LeituraDetalhada {
         unidade,
         total_declarado: total,
+        faixa_observada,
         processos,
     })
 }

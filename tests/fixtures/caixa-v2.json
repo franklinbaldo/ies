@@ -1,10 +1,11 @@
-{
-  "gerados": {
-    "processos": [],
-    "total_declarado": 0
-  },
-  "origem": "unb",
-  "recebidos": {
+[
+  {
+    "categoria": "recebidos",
+    "faixa_observada": {
+      "fim": 3,
+      "inicio": 1
+    },
+    "origem": "unb",
     "processos": [
       {
         "id": "42",
@@ -25,7 +26,15 @@
         "visualizado": true
       }
     ],
-    "total_declarado": 3
+    "total_declarado": 3,
+    "unidade": "TESTE"
   },
-  "unidade": "TESTE"
-}
+  {
+    "categoria": "gerados",
+    "faixa_observada": null,
+    "origem": "unb",
+    "processos": [],
+    "total_declarado": 0,
+    "unidade": "TESTE"
+  }
+]

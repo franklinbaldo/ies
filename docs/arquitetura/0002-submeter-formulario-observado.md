@@ -19,10 +19,13 @@ Montar o POST "de cabeça" fabricaria estado e assinatura; recusar sempre
 impede qualquer fluxo Web fora da caixa.
 
 Este documento define **apenas a derivação** da submissão e suas recusas
-tipadas, mais uma função de envio injetável (`_via` + `FnOnce`). Nenhum
-comando da CLI usa o primitivo nesta fatia: `ies processo buscar` continua
-como descrito em [seu contrato](../../contracts/cli/processo-buscar.md),
-nenhum caminho live é habilitado e a matriz de capacidades não muda.
+tipadas, mais uma função de envio injetável (`_via` + `FnOnce`).
+`ies processo buscar` continua como descrito em
+[seu contrato](../../contracts/cli/processo-buscar.md). O primeiro uso
+live é `ies unidade recebidos|gerados --pagina N` (ensaiado em 02/11/2026
+com a sintaxe anterior `listar-processos --categoria T --pagina N`)
+([páginas da caixa](../../contracts/cli/unidade-listar-processos-paginas.md)),
+com a `const` `OBTER_PAGINA_DO_CONTROLE` em `src/pagina_do_controle.rs`.
 
 Aqui, `action` é sempre o **atributo HTML `action` do `<form>`**, não o
 antigo despachante `Action` removido do IES.
@@ -42,7 +45,11 @@ antigo despachante `Action` removido do IES.
 ## Derivação
 
 - Campos `hidden` do formulário entram **exatamente como servidos**, na
-  ordem do documento; campos ocultos exigidos pela operação ausentes,
+  ordem do documento, salvo os listados pela operação em
+  `campos_ocultos_reescritos` (o que o JavaScript observado dela grava,
+  como `hdn{T}PaginaAtual` da caixa): o valor informado ocupa a posição
+  servida, e oculto fora da lista ou não publicado é recusado. Campos
+  ocultos exigidos pela operação ausentes,
   ou nomes ocultos repetidos, são recusados. Ocultos fora do `<form>`
   (por exemplo `hdnInfraPrefixoCookie`) não participam, nem controles
   `disabled`, que o navegador também omite.
@@ -52,8 +59,10 @@ antigo despachante `Action` removido do IES.
   é um `<select multiple>` servido: o navegador envia um par por opção
   selecionada, e os pares saem juntos na posição do `select`. O
   primitivo não escolhe as opções; quem as lê da tela é a operação.
-- O botão de envio efetivo (`type=submit` com o nome declarado) participa
-  com nome e valor servidos; sem ele, recusa.
+- `EnvioDoFormulario::BotaoDeEnvio(nome)`: o botão efetivo (`type=submit`
+  com o nome declarado) participa com nome e valor servidos; sem ele, recusa.
+  `EnvioDoFormulario::SubmitPorScript`: a tela chama `submit()` por
+  JavaScript (paginador da caixa, #57) e nenhum botão participa.
 - `hdnAcao` só seria preenchido por uma regra observada por operação.
   Nenhuma operação tem regra nesta fatia: se o formulário publicar
   `hdnAcao`, a derivação recusa em vez de inferir o valor.

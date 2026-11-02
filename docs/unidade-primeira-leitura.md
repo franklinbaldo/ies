@@ -111,8 +111,8 @@ ies unidade listar-processos --json
 
 O exemplo de URL é ilustrativo: **não construa nem adivinhe o hash**.
 Obtenha-o intacto no navegador ou cliente autorizado. O programa
-não segue redirects, não faz POST, não cria login e não repete
-pedidos automaticamente. Falhas não imprimem cookies ou URL assinada.
+não segue redirects, não cria login e não repete pedidos
+automaticamente; só `ies unidade recebidos|gerados --pagina N` faz POST. Falhas não imprimem cookies ou URL assinada.
 
 O `lnkInfraUnidade` no HTML é o rótulo exibido pela sessão,
 não um ID interno nem uma URL de navegação. `--unidade` agora
@@ -146,8 +146,10 @@ O domínio guarda `IdProcedimento`, `Processo`, `Tabela<Processo>` e
 A borda em `src/saida.rs` calcula o booleano de cobertura e formata
 JSON ou saída humana, sem misturar metadados de origem com parsing HTML.
 
-O JSON contém `unidade`, `origem` e, para Recebidos e Gerados,
-`processos` e `total_declarado`; cada processo tem `id`, `numero`,
+O JSON é o array `[recebidos, gerados]`; cada lista tem `unidade`,
+`origem`, `categoria`, `total_declarado`, `faixa_observada` e
+`processos` ([forma única](../contracts/cli/unidade-recebidos-gerados.md));
+cada processo tem `id`, `numero`,
 `visualizado` e `sigiloso`, lidos da classe do link. A prova de
 cobertura não é exposta como estado mutável. O
 [golden de saída](../tests/fixtures/caixa-v2.json)
@@ -163,7 +165,11 @@ Os três resultados foram reproduzidos offline a partir dos ZIPs
 públicos, sem gravações no repositório. O `cargo test` utiliza
 HTML sintético para proteger parser e transportes contra regressões.
 
-Próximos passos: capturar o payload **completo** da navegação de página
-em ambiente autorizado, reconstruir o POST a partir do formulário fresco,
-verificar a resposta e restaurar filtros/página da sessão. Até isso ser
-comprovado, **a paginação HTTP permanece desabilitada**.
+Atualização (#57): a caixa paginada passa a ser devolvida como página
+observada com total e faixa; `ies unidade recebidos|gerados --pagina N`
+reconstrói um POST do formulário servido, sem restaurar a página da sessão
+([páginas da caixa](../contracts/cli/unidade-listar-processos-paginas.md)).
+A saída é a [forma única de lista](../contracts/cli/unidade-recebidos-gerados.md):
+`listar-processos` devolve o array `[recebidos, gerados]`, e os
+subcomandos, uma lista. O ensaio live de 02/11/2026 usou a sintaxe
+anterior `listar-processos --categoria T --pagina N`.

@@ -79,10 +79,7 @@ fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
     assert_eq!(leitura.caixa.recebidos.processos.len(), 20);
     let saida = crate::saida::json(&leitura, "web-mock");
-    assert_eq!(
-        saida["recebidos"]["processos"].as_array().unwrap().len(),
-        20
-    );
+    assert_eq!(saida[0]["processos"].as_array().unwrap().len(), 20);
     let json = serde_json::to_string(&saida).unwrap();
     assert!(!json.contains("infra_hash"));
     assert!(!json.contains("PHPSESSID"));

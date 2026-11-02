@@ -47,7 +47,7 @@ pub(super) fn listar_processos_da_unidade(
     if caixa_detalhada::possui_tabela(&paginas[0]) {
         return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, destino);
     }
-    mostrar_caixa_com_politica(&paginas, origem, unidade, json_mode, true, destino, true)
+    mostrar_caixa_web(&paginas, origem, unidade, json_mode, destino)
 }
 
 /// A visão detalhada não inventa as categorias recebidos/gerados.
@@ -69,13 +69,15 @@ fn mostrar_caixa_detalhada(
             );
         }
     };
-    let saida = json!({
-        "unidade": &leitura.unidade,
-        "origem": origem,
-        "visualizacao": "detalhada",
-        "total_declarado": leitura.total_declarado,
-        "processos": &leitura.processos
-    });
+    // A visão D é uma lista própria do SEI: array de uma lista, mesma forma.
+    let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
+        unidade: Some(&leitura.unidade),
+        origem,
+        categoria: "detalhada",
+        total_declarado: Some(leitura.total_declarado),
+        faixa_observada: leitura.faixa_observada,
+        processos: &leitura.processos,
+    })]);
     if let Some(caminho) = destino {
         return match arquivo_caixa::gravar(caminho, &saida) {
             Ok(bytes) => {
@@ -99,9 +101,14 @@ fn mostrar_caixa_detalhada(
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&saida).unwrap());
     } else {
+        let faixa = leitura
+            .faixa_observada
+            .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
         println!(
-            "IES: {} processos da visão detalhada da unidade {}.",
-            leitura.total_declarado, leitura.unidade
+            "IES: visão detalhada da unidade {}: {} processo(s) observado(s); total declarado: {}; faixa observada: {faixa}.",
+            leitura.unidade,
+            leitura.processos.len(),
+            leitura.total_declarado
         );
         for processo in &leitura.processos {
             println!("{} ({})", processo.numero, processo.id.as_str());
@@ -127,6 +134,18 @@ pub(super) fn mostrar_caixa(
         destino,
         false,
     )
+}
+
+/// Caixa Web: a página observada com total e faixa por tabela, sem exigir
+/// as demais páginas (contracts/cli/unidade-listar-processos-paginas.md).
+pub(super) fn mostrar_caixa_web(
+    htmls: &[String],
+    origem: &str,
+    unidade: Option<&str>,
+    json_mode: bool,
+    destino: Option<&Path>,
+) -> ExitCode {
+    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, false, destino, true)
 }
 
 /// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
@@ -176,8 +195,29 @@ fn mostrar_caixa_com_politica(
             "unidade não identificada no Controle Web",
         );
     }
-    // Consulta de sessão promete a caixa inteira; replay offline só relata
-    // as páginas selecionadas, sem alegar que representam toda a unidade.
+    // A Web publica a página observada; total e faixa precisam ser legíveis.
+    if exigir_identidade_web
+        && let Err(erro) = paginas::conferir_faixa_publicavel(
+            dominio::Categoria::Recebidos,
+            &leitura.caixa.recebidos,
+            &leitura.recebidos,
+        )
+        .and_then(|()| {
+            paginas::conferir_faixa_publicavel(
+                dominio::Categoria::Gerados,
+                &leitura.caixa.gerados,
+                &leitura.gerados,
+            )
+        })
+    {
+        return erro_fonte(
+            json_mode,
+            erro.subcodigo(),
+            "a legenda do Controle não comprova total e faixa",
+        );
+    }
+    // Só o replay `--todas-paginas` promete todas as posições; a Web e o
+    // replay seletivo publicam a faixa observada.
     if exigir_todas_paginas
         && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
             || !leitura.gerados.completa(&leitura.caixa.gerados))
@@ -271,10 +311,10 @@ mod testes_exportacao {
             ExitCode::SUCCESS
         );
         let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-        assert_eq!(json["visualizacao"], "detalhada");
-        assert_eq!(json["processos"][0]["numero"], "000042/2026");
-        assert!(json.get("recebidos").is_none());
-        assert!(json.get("gerados").is_none());
+        assert_eq!(json[0]["categoria"], "detalhada");
+        assert_eq!(json[0]["processos"][0]["numero"], "000042/2026");
+        assert!(json[0].get("recebidos").is_none());
+        assert!(json.get(1).is_none());
         fs::remove_file(caminho).unwrap();
     }
 
@@ -302,8 +342,8 @@ mod testes_exportacao {
         assert_eq!(codigo, ExitCode::SUCCESS);
         let valor: serde_json::Value =
             serde_json::from_slice(&fs::read(&arquivo).unwrap()).unwrap();
-        assert_eq!(valor["recebidos"]["total_declarado"], 0);
-        assert_eq!(valor["gerados"]["total_declarado"], 0);
+        assert_eq!(valor[0]["total_declarado"], 0);
+        assert_eq!(valor[1]["total_declarado"], 0);
         assert!(valor.get("completa").is_none());
         fs::remove_file(arquivo).unwrap();
     }
@@ -354,3 +394,7 @@ mod testes_exportacao {
         assert_eq!(conferir_identidade_web(&leitura), Ok(()));
     }
 }
+
+#[cfg(test)]
+#[path = "unidade_lista_cli/tests_faixa.rs"]
+mod tests_faixa;

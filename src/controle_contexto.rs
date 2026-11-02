@@ -10,7 +10,30 @@ pub(crate) struct ContextoPagina {
     criterios_gerados: Option<String>,
 }
 
+/// Primeiro campo de contexto que difere entre duas páginas.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DiferencaDeContexto {
+    Unidade,
+    Visualizacao,
+    CriteriosRecebidos,
+    CriteriosGerados,
+}
+
 impl ContextoPagina {
+    pub(crate) fn diferenca(&self, outro: &Self) -> Option<DiferencaDeContexto> {
+        if self.unidade != outro.unidade {
+            Some(DiferencaDeContexto::Unidade)
+        } else if self.modo != outro.modo {
+            Some(DiferencaDeContexto::Visualizacao)
+        } else if self.criterios_recebidos != outro.criterios_recebidos {
+            Some(DiferencaDeContexto::CriteriosRecebidos)
+        } else if self.criterios_gerados != outro.criterios_gerados {
+            Some(DiferencaDeContexto::CriteriosGerados)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn eh_detalhada(&self) -> bool {
         self.modo.as_deref() == Some("D")
     }
@@ -181,6 +204,29 @@ mod tests {
          <input id='hdnRecebidosHashCriterios' value='recebidos'>\
          <input id='hdnGeradosHashCriterios' value='gerados'>"
             .to_owned()
+    }
+
+    #[test]
+    fn diferenca_aponta_o_primeiro_campo_alterado() {
+        let base = contexto_da_pagina(&controle()).unwrap();
+        assert_eq!(base.diferenca(&base.clone()), None);
+        for (de, para, esperada) in [
+            ("UNIDADE A", "UNIDADE B", DiferencaDeContexto::Unidade),
+            ("value='R'", "value='D'", DiferencaDeContexto::Visualizacao),
+            (
+                "'recebidos'",
+                "'outro'",
+                DiferencaDeContexto::CriteriosRecebidos,
+            ),
+            (
+                "'gerados'",
+                "'outro'",
+                DiferencaDeContexto::CriteriosGerados,
+            ),
+        ] {
+            let outra = contexto_da_pagina(&controle().replace(de, para)).unwrap();
+            assert_eq!(base.diferenca(&outra), Some(esperada), "{para}");
+        }
     }
 
     #[test]
