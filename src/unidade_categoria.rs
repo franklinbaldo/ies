@@ -152,13 +152,27 @@ pub(crate) fn listar_categoria(
             &arquivos.cookie,
             &arquivos.origem,
         )
-        .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+        .map_err(|erro| {
+            (
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http().cloned(),
+            )
+        }),
         Some(numero) => pagina_web::obter(&arquivos, unidade, categoria.categoria(), numero)
-            .map_err(|erro| (erro.subcodigo(), erro.mensagem())),
+            .map_err(|erro| {
+                (
+                    erro.subcodigo(),
+                    erro.mensagem(),
+                    erro.status_http().cloned(),
+                )
+            }),
     };
     match obtida {
         Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
-        Err((subcodigo, mensagem)) => erro_fonte(json_mode, subcodigo, mensagem),
+        Err((subcodigo, mensagem, http)) => {
+            crate::saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, http.as_ref())
+        }
     }
 }
 

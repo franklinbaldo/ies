@@ -15,15 +15,20 @@ fn resposta(status_code: i32, mime: &str, corpo: &[u8]) -> RespostaWeb<Cursor<Ve
 #[test]
 fn status_http_inesperado_e_classificado_pela_faixa_observavel() {
     for (status, esperado) in [
-        (500, FalhaTransporte::StatusHttpDeErroDoServidor),
-        (503, FalhaTransporte::StatusHttpDeErroDoServidor),
-        (429, FalhaTransporte::StatusHttpDeLimiteDeRequisicoes),
-        (404, FalhaTransporte::StatusHttpDiferenteDe200),
-        (204, FalhaTransporte::StatusHttpDiferenteDe200),
+        (500, "status_http_de_erro_do_servidor"),
+        (503, "status_http_de_erro_do_servidor"),
+        (429, "status_http_de_limite_de_requisicoes"),
+        (404, "status_http_diferente_de_200"),
+        (204, "status_http_diferente_de_200"),
+        (401, "sessao_nao_autorizada"),
+        (403, "sessao_nao_autorizada"),
+        (301, "redirecionamento_recusado"),
     ] {
+        let falha = decodificar_resposta(resposta(status, "text/html", b"<html>")).unwrap_err();
+        assert_eq!(falha.subcodigo(), esperado, "status {status}");
         assert_eq!(
-            decodificar_resposta(resposta(status, "text/html", b"<html>")),
-            Err(esperado),
+            falha.status_http().map(|h| i32::from(h.status)),
+            Some(status),
             "status {status}"
         );
     }
@@ -65,10 +70,11 @@ fn corpo_invalido_no_charset_declarado_tem_variante_propria() {
 
 #[test]
 fn subcodigos_das_recusas_de_resposta_sao_distintos() {
+    let recusa = || StatusHttpRecusado::sem_mensagem(500);
     let variantes = [
-        FalhaTransporte::StatusHttpDeErroDoServidor,
-        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes,
-        FalhaTransporte::StatusHttpDiferenteDe200,
+        FalhaTransporte::StatusHttpDeErroDoServidor(recusa()),
+        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa()),
+        FalhaTransporte::StatusHttpDiferenteDe200(recusa()),
         FalhaTransporte::TipoDeConteudoNaoHtml,
         FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
     ];

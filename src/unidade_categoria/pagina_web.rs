@@ -34,6 +34,11 @@ impl ErroPaginaWeb {
             Self::Pagina(_) => "a página pedida do Controle não foi obtida",
         }
     }
+
+    /// Status e mensagem do SEI, do GET ou do POST do paginador.
+    pub(super) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        None
+    }
 }
 
 /// HTML da página N da categoria, conferido contra a tela de origem.

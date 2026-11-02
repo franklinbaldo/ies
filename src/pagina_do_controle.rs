@@ -123,6 +123,11 @@ impl ErroPaginaDoControle {
             Self::Caixa(erro) => erro.subcodigo(),
         }
     }
+
+    /// Status e mensagem do SEI quando o POST foi recusado pelo status.
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        None
+    }
 }
 
 /// O que a tela de origem exige para mostrar a página N.

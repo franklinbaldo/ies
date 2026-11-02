@@ -29,7 +29,14 @@ pub(super) fn listar_processos_da_unidade(
         &arquivos.origem,
     ) {
         Ok(html) => html,
-        Err(falha) => return erro_fonte(json_mode, falha.subcodigo(), falha.mensagem()),
+        Err(falha) => {
+            return crate::saida_erro::erro_fonte_http(
+                json_mode,
+                falha.subcodigo(),
+                falha.mensagem(),
+                falha.status_http(),
+            );
+        }
     };
     if let Err(erro) =
         paginas_capturadas::conferir_orcamento_com_inicial(&paginas_adicionais, html.len())

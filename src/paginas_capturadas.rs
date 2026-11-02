@@ -2,7 +2,7 @@
 use crate::transporte::FalhaTransporte;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FalhaPaginaCapturada {
     Arquivo(FalhaTransporte),
     QuantidadeAcimaDoLimite,
@@ -10,7 +10,7 @@ pub(crate) enum FalhaPaginaCapturada {
     BytesAcimaDoLimite,
 }
 impl FalhaPaginaCapturada {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Arquivo(erro) => erro.subcodigo(),
             Self::QuantidadeAcimaDoLimite => "paginas_privadas_acima_do_limite",
@@ -18,7 +18,7 @@ impl FalhaPaginaCapturada {
             Self::BytesAcimaDoLimite => "bytes_de_paginas_privadas_acima_do_limite",
         }
     }
-    pub(crate) fn mensagem(self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Arquivo(erro) => erro.mensagem(),
             Self::QuantidadeAcimaDoLimite => "mais de 199 páginas privadas complementares",

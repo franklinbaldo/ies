@@ -6,7 +6,7 @@ use crate::transporte::{self, FalhaTransporte};
 use serde::Deserialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCaixaLocal {
     Arquivo(FalhaTransporte),
     FormatoInvalido,
@@ -33,7 +33,7 @@ pub(crate) enum ErroCaixaLocal {
 }
 
 impl ErroCaixaLocal {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Arquivo(falha) => falha.subcodigo(),
             Self::FormatoInvalido => "formato_do_arquivo_da_caixa_invalido",
@@ -74,7 +74,7 @@ impl ErroCaixaLocal {
             } => "id_gerados_do_arquivo_repetido",
         }
     }
-    pub(crate) fn mensagem(self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Arquivo(falha) => falha.mensagem(),
             Self::FormatoInvalido => "arquivo da caixa não tem a estrutura JSON esperada",

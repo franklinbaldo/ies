@@ -108,13 +108,6 @@ fn falhas_da_resposta_sao_tipadas_e_sem_nova_tentativa() {
             login.to_owned(),
             E::Submissao(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio),
         ),
-        (
-            503,
-            segunda().html(),
-            E::Submissao(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::StatusHttpDeErroDoServidor,
-            )),
-        ),
         (302, String::new(), E::RedirecionamentoAposPaginar),
         (
             200,

@@ -122,14 +122,21 @@ fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
 #[test]
 fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
     for (status, falha) in [
-        (301, FalhaTransporte::Redirecionamento),
-        (303, FalhaTransporte::Redirecionamento),
-        (307, FalhaTransporte::Redirecionamento),
-        (401, FalhaTransporte::AcessoNegado),
-        (403, FalhaTransporte::AcessoNegado),
+        (301, "redirecionamento_recusado"),
+        (303, "redirecionamento_recusado"),
+        (307, "redirecionamento_recusado"),
+        (401, "sessao_nao_autorizada"),
+        (403, "sessao_nao_autorizada"),
     ] {
         let (r, n) = enviar_com(status, "");
-        assert_eq!(r.unwrap_err(), E::Transporte(falha), "{status}");
+        let E::Transporte(obtida) = r.unwrap_err() else {
+            panic!("{status}: esperava falha de transporte")
+        };
+        assert_eq!(obtida.subcodigo(), falha, "{status}");
+        assert_eq!(
+            obtida.status_http().map(|h| i32::from(h.status)),
+            Some(status)
+        );
         assert_eq!(n, 1);
     }
 }
