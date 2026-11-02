@@ -10,8 +10,17 @@
 //! nove opções viram cabeçalho de texto e três (prazo, devolver, aguardando)
 //! viram cabeçalho só de ícone, rotulado por `aria-label` (5.0.x) ou pelo
 //! argumento de `infraTooltipMostrar` (`UnB` 4.0.9).
+mod alvo;
+mod salvar;
 mod tela;
 
+pub(crate) use alvo::{
+    AlvoDasColunas, ColunaIndisponivelNestaInstalacao, ErroDaListaDeColunas, PlanoDasColunas,
+    planejar,
+};
+pub(crate) use salvar::{
+    SALVAR_NIVEL_DE_DETALHE, campos_do_envio, conferir_controles_do_formulario,
+};
 pub(crate) use tela::{
     ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, ler_nivel_de_detalhe, texto_colapsado,
 };
@@ -155,6 +164,13 @@ impl ColunaDoDetalhe {
             })
     }
 
+    /// Coluna pela chave estável (`atribuicao`, `tipo`, …).
+    pub(crate) fn pela_chave(chave: &str) -> Option<Self> {
+        Self::TODAS
+            .into_iter()
+            .find(|coluna| coluna.chave() == chave)
+    }
+
     pub(crate) fn pelo_campo(nome: &str) -> Option<Self> {
         Self::TODAS
             .into_iter()
@@ -179,6 +195,15 @@ pub(crate) struct NivelDeDetalhe {
 }
 
 impl NivelDeDetalhe {
+    /// Colunas marcadas, na ordem do catálogo.
+    pub(crate) fn marcadas(&self) -> Vec<ColunaDoDetalhe> {
+        self.opcoes
+            .iter()
+            .filter(|opcao| opcao.marcada)
+            .map(|opcao| opcao.coluna)
+            .collect()
+    }
+
     pub(crate) fn json(&self) -> serde_json::Value {
         let opcoes: Vec<_> = self
             .opcoes
@@ -205,3 +230,6 @@ impl NivelDeDetalhe {
 
 #[cfg(test)]
 pub(crate) mod tests;
+
+#[cfg(test)]
+pub(crate) mod tests_alvo;

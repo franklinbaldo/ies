@@ -23,6 +23,11 @@ Se ocorrer timeout depois de uma requisição mutável, o
 efeito pode já ter ocorrido: não repita automaticamente.
 Reconcile lendo o estado, ou declare **efeito incerto**.
 
+Exemplo: salvar o Nível de detalhe responde só com uma página que fecha
+o modal. A prova é o GET seguinte da mesma tela: marcas iguais às pedidas
+(sucesso), iguais às de antes (não aplicada) ou outras (efeito incerto,
+se a resposta do salvar também não foi a esperada).
+
 O acervo atual de cassettes contém as respostas, mas não
 todos os corpos das requisições POST. Ele é suficiente para
 estudar respostas e layouts, não para certificar por si só

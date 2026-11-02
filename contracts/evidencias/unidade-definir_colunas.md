@@ -1,0 +1,35 @@
+---
+type: OperationEvidence
+title: unidade.definir_colunas
+operation: unidade.definir_colunas
+source: todos-demonstration-matrix
+source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
+writes: true
+ies_implemented: true
+upstream_steps: 0
+unresolved_steps: 0
+---
+
+# unidade.definir_colunas
+
+Operação do IES derivada do ensaio do proprietário na tela **Nível de
+detalhe** (`procedimento_configurar_detalhe`), **não** uma operação da
+matriz do Todos: a matriz não tem passo nem cassette para ela
+(`upstream_steps: 0`). O `source_commit` é o da matriz consultada, sem
+passos correspondentes.
+
+## Evidência disponível
+
+- Ensaio live na PEN1 5.0.4, treinamento, 02/11/2026, do proprietário
+  ([validação](../../docs/validacao-live/2026-11-02-leitura-controle.md)):
+  campos do POST de salvar, resposta 200 que fecha o modal e efeito visível
+  na D seguinte; configuração original restaurada e conferida por GET.
+- Capturas privadas só estruturais da tela em PEN1 e GO (12 opções) e o
+  ensaio da UnB 4.0.9 (11 opções), descritos no
+  [contrato da leitura](../cli/unidade-colunas.md).
+
+## Limite da evidência
+
+Não há cassette pública da tela nem da resposta do POST. O HTML exato da
+resposta de sucesso não foi registrado: o IES confere o efeito por GET.
+Nenhum ensaio do comando `--definir` do IES foi feito.

@@ -2,15 +2,17 @@
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
 mod codificacao;
+mod erro;
 mod leitura;
 
-use crate::html_atributos::{ErroAtributoHtml, nos_com_id, nos_por_elemento_e_classe};
+use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::{
     FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
 };
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
+pub(crate) use erro::ErroSubmissaoFormulario;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 use std::fmt;
@@ -25,11 +27,27 @@ pub(crate) enum EstadoDeSessao {
     PreferenciaDeVisualizacao,
 }
 
+/// Preferência persistente do usuário, que sobrevive à sessão.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PreferenciaDoUsuario {
+    /// Colunas da visão detalhada (Nível de detalhe).
+    ColunasDaVisaoDetalhada,
+}
+
 /// Avaliação obrigatória por operação, sem valor padrão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EfeitoAvaliado {
-    ConsultaSemEfeitoObservado { evidencia: &'static str },
-    AlteraEstadoDaSessao { o_que: EstadoDeSessao },
+    ConsultaSemEfeitoObservado {
+        evidencia: &'static str,
+    },
+    AlteraEstadoDaSessao {
+        o_que: EstadoDeSessao,
+    },
+    /// Escrita: grava uma preferência que vale além da sessão; exige prévia,
+    /// confirmação e verificação por leitura.
+    AlteraPreferenciaDoUsuario {
+        o_que: PreferenciaDoUsuario,
+    },
     Desconhecido,
 }
 
@@ -53,8 +71,29 @@ pub(crate) struct OperacaoDeFormulario {
     /// saem exatamente como servidos.
     pub(crate) campos_ocultos_reescritos: &'static [&'static str],
     pub(crate) campos_usuario: &'static [&'static str],
-    pub(crate) marcador_de_resultado: MarcadorDeResultado,
+    pub(crate) resultado: ResultadoDoEnvio,
+    pub(crate) unidade: ConferenciaDaUnidade,
     pub(crate) efeito: EfeitoAvaliado,
+}
+
+/// Como a resposta de sucesso é reconhecida.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoDoEnvio {
+    /// A resposta publica o marcador da operação; sem ele, recusa.
+    Marcador(MarcadorDeResultado),
+    /// Sem marcador observado: só HTML 200 sem tela de login. A operação
+    /// é obrigada a conferir o efeito por leitura posterior.
+    ConferidoPorLeituraPosterior,
+}
+
+/// Onde a unidade solicitada é conferida antes da derivação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ConferenciaDaUnidade {
+    /// `lnkInfraUnidade` único na tela do formulário, igual ao solicitado.
+    NaTelaDoFormulario,
+    /// Tela de janela sem barra da unidade, aberta por link de uma tela já
+    /// conferida na mesma sessão; se publicar `lnkInfraUnidade`, também confere.
+    NaTelaDeOrigemDoLink,
 }
 
 /// Elemento com classe que marca a resposta de sucesso da operação
@@ -79,106 +118,6 @@ pub(crate) struct TelaServida<'a> {
     pub(crate) codificacao: CodificacaoDaTela,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ErroSubmissaoFormulario {
-    EfeitoDaOperacaoNaoAvaliado,
-    IdentificacaoDaUnidadeAusenteNaTela,
-    IdentificacoesDaUnidadeRepetidasNaTela,
-    UnidadeDaTelaDiferenteDaSolicitada,
-    FormularioAusenteNaTela,
-    FormulariosComMesmoIdentificadorNaTela,
-    MetodoDoFormularioDiferenteDePost,
-    EnctypeDoFormularioNaoUrlencoded,
-    AcceptCharsetPublicadoNoFormulario,
-    AcaoDoFormularioAusente,
-    AcaoDoFormularioNaoEhUrlHttps,
-    AcaoDoFormularioForaDaInstalacao,
-    AcaoDoFormularioDiferenteDaOperacao,
-    AcaoDoFormularioSemInfraHashUnico,
-    EntidadeHtmlDesconhecidaNoAtributo {
-        campo: String,
-    },
-    CampoOcultoAusenteNoFormulario {
-        campo: String,
-    },
-    CampoOcultoRepetidoNoFormulario {
-        campo: String,
-    },
-    HdnAcaoPublicadoSemRegraDaOperacao,
-    CampoForaDaListaDaOperacao {
-        campo: String,
-    },
-    CampoNaoPublicadoPeloFormulario {
-        campo: String,
-    },
-    CampoInformadoMaisDeUmaVez {
-        campo: String,
-    },
-    ValorNaoRepresentavelNaCodificacao {
-        campo: String,
-    },
-    BotaoDeEnvioAusenteNoFormulario,
-    BotoesDeEnvioRepetidosNoFormulario,
-    TelaDeLoginRecebidaAposEnvio,
-    MarcadorDeResultadoAusenteNaResposta,
-    /// Tag de abertura servida que o tokenizador de atributos recusou.
-    AtributoHtml(ErroAtributoHtml),
-    Transporte(FalhaTransporte),
-}
-
-impl ErroSubmissaoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::EfeitoDaOperacaoNaoAvaliado => "efeito_da_operacao_nao_avaliado",
-            Self::IdentificacaoDaUnidadeAusenteNaTela => "identificacao_da_unidade_ausente_na_tela",
-            Self::IdentificacoesDaUnidadeRepetidasNaTela => {
-                "identificacoes_da_unidade_repetidas_na_tela"
-            }
-            Self::UnidadeDaTelaDiferenteDaSolicitada => "unidade_da_tela_diferente_da_solicitada",
-            Self::FormularioAusenteNaTela => "formulario_ausente_na_tela",
-            Self::FormulariosComMesmoIdentificadorNaTela => {
-                "formularios_com_mesmo_identificador_na_tela"
-            }
-            Self::MetodoDoFormularioDiferenteDePost => "metodo_do_formulario_diferente_de_post",
-            Self::EnctypeDoFormularioNaoUrlencoded => "enctype_do_formulario_nao_urlencoded",
-            Self::AcceptCharsetPublicadoNoFormulario => "accept_charset_publicado_no_formulario",
-            Self::AcaoDoFormularioAusente => "acao_do_formulario_ausente",
-            Self::AcaoDoFormularioNaoEhUrlHttps => "acao_do_formulario_nao_eh_url_https",
-            Self::AcaoDoFormularioForaDaInstalacao => "acao_do_formulario_fora_da_instalacao",
-            Self::AcaoDoFormularioDiferenteDaOperacao => "acao_do_formulario_diferente_da_operacao",
-            Self::AcaoDoFormularioSemInfraHashUnico => "acao_do_formulario_sem_infra_hash_unico",
-            Self::EntidadeHtmlDesconhecidaNoAtributo { .. } => {
-                "entidade_html_desconhecida_no_atributo"
-            }
-            Self::CampoOcultoAusenteNoFormulario { .. } => "campo_oculto_ausente_no_formulario",
-            Self::CampoOcultoRepetidoNoFormulario { .. } => "campo_oculto_repetido_no_formulario",
-            Self::HdnAcaoPublicadoSemRegraDaOperacao => "hdn_acao_publicado_sem_regra_da_operacao",
-            Self::CampoForaDaListaDaOperacao { .. } => "campo_fora_da_lista_da_operacao",
-            Self::CampoNaoPublicadoPeloFormulario { .. } => "campo_nao_publicado_pelo_formulario",
-            Self::CampoInformadoMaisDeUmaVez { .. } => "campo_informado_mais_de_uma_vez",
-            Self::ValorNaoRepresentavelNaCodificacao { .. } => {
-                "valor_nao_representavel_na_codificacao"
-            }
-            Self::BotaoDeEnvioAusenteNoFormulario => "botao_de_envio_ausente_no_formulario",
-            Self::BotoesDeEnvioRepetidosNoFormulario => "botoes_de_envio_repetidos_no_formulario",
-            Self::TelaDeLoginRecebidaAposEnvio => "tela_de_login_recebida_apos_envio",
-            Self::MarcadorDeResultadoAusenteNaResposta => {
-                "marcador_de_resultado_ausente_na_resposta"
-            }
-            Self::AtributoHtml(falha) => falha.subcodigo(),
-            Self::Transporte(falha) => falha.subcodigo(),
-        }
-    }
-
-    /// Status e mensagem do SEI quando a recusa veio do status HTTP.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Transporte(falha) => falha.status_http(),
-            _ => None,
-        }
-    }
-}
-
 /// POST derivado; não é `Clone`, e o envio o consome (sem retry).
 pub(crate) struct SubmissaoDerivada {
     url: String,
@@ -189,7 +128,7 @@ pub(crate) struct SubmissaoDerivada {
     nomes: Vec<String>,
     corpo: Vec<u8>,
     efeito: EfeitoAvaliado,
-    marcador_de_resultado: MarcadorDeResultado,
+    resultado: ResultadoDoEnvio,
 }
 
 impl SubmissaoDerivada {
@@ -336,7 +275,17 @@ pub(crate) fn derivar_submissao(
     // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
         .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
-    conferir_unidade(&dom, unidade_solicitada)?;
+    match operacao.unidade {
+        ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
+        ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
+            if !nos_com_id(&dom, "lnkInfraUnidade")
+                .map_err(E::AtributoHtml)?
+                .is_empty()
+            {
+                conferir_unidade(&dom, unidade_solicitada)?;
+            }
+        }
+    }
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
     let url = resolver_action(form, &servida, instalacao, operacao)?;
@@ -363,7 +312,7 @@ pub(crate) fn derivar_submissao(
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),
         efeito: operacao.efeito,
-        marcador_de_resultado: operacao.marcador_de_resultado,
+        resultado: operacao.resultado,
     })
 }
 
@@ -431,7 +380,7 @@ where
     let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
     let cookie = texto.trim();
     validar_cookie(cookie).map_err(E::Transporte)?;
-    let marcador_de_resultado = submissao.marcador_de_resultado;
+    let resultado = submissao.resultado;
     let url_do_envio = submissao.url.clone();
     let RespostaDoPost {
         resposta,
@@ -448,13 +397,15 @@ where
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
         outra => E::Transporte(outra),
     })?;
-    let marcado = {
-        let dom = tl::parse(&html, tl::ParserOptions::default())
-            .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
-        let MarcadorDeResultado { elemento, classe } = marcador_de_resultado;
-        !nos_por_elemento_e_classe(&dom, None, elemento, classe)
-            .map_err(E::AtributoHtml)?
-            .is_empty()
+    let marcado = match resultado {
+        ResultadoDoEnvio::ConferidoPorLeituraPosterior => true,
+        ResultadoDoEnvio::Marcador(MarcadorDeResultado { elemento, classe }) => {
+            let dom = tl::parse(&html, tl::ParserOptions::default())
+                .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+            !nos_por_elemento_e_classe(&dom, None, elemento, classe)
+                .map_err(E::AtributoHtml)?
+                .is_empty()
+        }
     };
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
@@ -481,3 +432,7 @@ mod tests_atributos;
 #[cfg(test)]
 #[path = "formulario_web/tests_reescrita.rs"]
 mod tests_reescrita;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_conferencia.rs"]
+mod tests_conferencia;

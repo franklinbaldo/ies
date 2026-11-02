@@ -290,5 +290,20 @@ headers ... connection timeout`, texto de proxy reverso, não do SEI. Um
 503 caiu no POST de volta à página encontrada: o IES devolveu
 `pagina_da_visao_detalhada_nao_restaurada` com `visao_deixada: "R"`,
 causa, status e mensagem; a tela ficou R/0/0 (conferida por GET), e a
-página lembrada da D de GO ficou em 2, a limpar quando GO estabilizar.
+página lembrada da D de GO ficou em 2; limpa às 18:53 pelo arnês (D → página 1 → R), conferida por GET.
 Sem novas tentativas.
+
+## `unidade colunas --definir` (escrita do Nível de detalhe)
+
+Sessões reaproveitadas; contas de treinamento. Para cada conta: leitura
+da configuração encontrada, prévia, `--definir todas --confirmar`,
+leitura, `listar-processos`, restauração com `--definir <original>
+--confirmar`, leitura e GET de estado.
+
+| Instalação | Encontrada | Prévia | Aplicar `todas` | `colunas_ausentes` | Restaurar | Estado final |
+| --- | --- | --- | --- | --- | --- | --- |
+| PEN1 5.0.4 | 3 marcadas | 9 a marcar, 14 campos, nada gravado | exit 0, 12 marcadas, conferido por leitura | `[]` | exit 0, as 3 originais | R/0/0 |
+| UnB 4.0.9 | 7 marcadas | 4 a marcar, 13 campos, nada gravado | exit 0, 11 disponíveis marcadas | `["prioridade"]` (inexistente no 4.0.9) | exit 0, as 7 originais | R/0/0 |
+
+Nenhuma reconciliação foi necessária (`reconciliado_por_leitura: false`).
+GO não foi ensaiado (instável na rodada anterior).

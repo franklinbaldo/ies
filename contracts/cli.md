@@ -40,7 +40,9 @@ legado do Todos faz parte do contrato público por pressuposição.
   tela restaurada; decisão do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
   (uma lista; decisão do proprietário, 02/11/2026)
-- `ies unidade colunas` (Nível de detalhe, só leitura)
+- `ies unidade colunas` (Nível de detalhe, só leitura) e
+  `ies unidade colunas --definir todas|LISTA [--confirmar]` (escrita da
+  preferência de colunas, com prévia, confirmação e verificação)
 - `ies processo enviar NUP --para SIGLA`
 - `ies documento assinar NUMERO`
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
@@ -58,11 +60,13 @@ legado do Todos faz parte do contrato público por pressuposição.
   [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),
   [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única
   e [colunas do Nível de detalhe](cli/unidade-colunas.md).
+- [unidade.definir_colunas](cli/unidade-definir-colunas.md): escrita do Nível de
+  detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
 
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
 `colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
 e origem HTTPS explicitamente autorizada, ou replay offline verificado. Não
-fazem login nem escrita. Os POSTs previstos são os de `--pagina N` (abaixo)
+fazem login nem escrita; a única escrita é `colunas --definir … --confirmar`. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sempre seguida da restauração da visão
 encontrada ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.

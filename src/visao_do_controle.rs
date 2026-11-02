@@ -1,13 +1,16 @@
 //! Troca entre as visões resumida (`R`) e detalhada (`D`) do Controle de
 //! Processos e paginação da D, deixando a tela **como foi encontrada**.
 //! Contratos: contracts/cli/unidade-listar-processos-visao-detalhada.md,
-//! contracts/cli/unidade-recebidos-gerados.md e contracts/cli/unidade-colunas.md.
+//! contracts/cli/unidade-recebidos-gerados.md, contracts/cli/unidade-colunas.md e
+//! contracts/cli/unidade-definir-colunas.md.
 //!
 //! Evidência (02/11/2026, treinamento; capturas privadas só estruturais):
 //! `trocarVisualizacao(v)` grava `hdnTipoVisualizacao` e chama `submit()` de
 //! `frmProcedimentoControlar` (`UnB`, PEN1, GO); a D publica
 //! `hdnDetalhadoPaginaAtual` e `infraAcaoPaginar('=', i, 'Detalhado', null)`
 //! (PEN1, GO); a R não publica `hdnDetalhadoPaginaAtual`.
+mod definir;
+mod definir_erro;
 mod envio;
 mod fluxo;
 mod nivel;
@@ -19,13 +22,17 @@ use crate::caixa_detalhada::ErroDetalhada;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
-    EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
-    MarcadorDeResultado, OperacaoDeFormulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use crate::nivel_de_detalhe::ErroNivelDeDetalhe;
 use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
+pub(crate) use definir::definir_colunas;
+pub(crate) use definir_erro::{
+    ColunasDefinidas, DesfechoDasColunas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
+};
 pub(crate) use envio::{EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
@@ -51,10 +58,11 @@ pub(crate) const TROCAR_VISAO_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
     campos_ocultos_exigidos: &["hdnTipoVisualizacao"],
     campos_ocultos_reescritos: &["hdnTipoVisualizacao"],
     campos_usuario: CAMPOS_USUARIO,
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "tabelaControle",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PreferenciaDeVisualizacao,
     },
@@ -68,10 +76,11 @@ pub(crate) const PAGINAR_VISAO_DETALHADA: OperacaoDeFormulario = OperacaoDeFormu
     campos_ocultos_exigidos: &["hdnTipoVisualizacao", "hdnDetalhadoPaginaAtual"],
     campos_ocultos_reescritos: &["hdnDetalhadoPaginaAtual"],
     campos_usuario: CAMPOS_USUARIO,
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "tabelaControle",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },
@@ -280,3 +289,6 @@ mod tests_fluxo;
 
 #[cfg(test)]
 mod tests_resumida;
+
+#[cfg(test)]
+mod tests_definir;

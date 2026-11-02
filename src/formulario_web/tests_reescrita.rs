@@ -11,10 +11,11 @@ const OPERACAO_POR_SCRIPT: OperacaoDeFormulario = OperacaoDeFormulario {
     campos_ocultos_exigidos: &["hdnAPaginaAtual"],
     campos_ocultos_reescritos: &["hdnAPaginaAtual", "hdnBPaginaAtual"],
     campos_usuario: &["txtBloco"],
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "tabelaControle",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },

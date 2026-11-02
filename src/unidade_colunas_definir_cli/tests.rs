@@ -1,0 +1,138 @@
+//! RED/GREEN da saída JSON de `--definir` com resultados sintéticos.
+use super::*;
+use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::visao_do_controle::{FalhaDoSalvar, VerificacaoDasColunas, Visao};
+
+fn plano() -> PlanoDasColunas {
+    PlanoDasColunas {
+        antes: vec![C::Atribuicao, C::TipoProcesso],
+        alvo: vec![C::Atribuicao, C::Anotacao],
+        indisponiveis: vec![C::Prioridade],
+    }
+}
+
+fn previa() -> ColunasDefinidas {
+    ColunasDefinidas {
+        unidade: "TESTE".to_owned(),
+        plano: plano(),
+        confirmado: false,
+        alterado: false,
+        campos_do_envio: Some(vec![
+            "sbmSalvar".to_owned(),
+            "chkSinAtribuicao".to_owned(),
+            "chkSinAnotacao".to_owned(),
+            "hdnInfraTipoPagina".to_owned(),
+        ]),
+        depois: None,
+        reconciliado_por: None,
+    }
+}
+
+fn erro_500() -> FalhaDoSalvar {
+    FalhaDoSalvar::Envio(ErroSubmissaoFormulario::Transporte(
+        FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+            status: 503,
+            mensagem_do_servidor: Some("Serviço indisponível.".to_owned()),
+        }),
+    ))
+}
+
+#[test]
+fn previa_publica_antes_alvo_diferenca_e_campos_sem_valores() {
+    let valor = json_de_sucesso(&previa());
+    assert_eq!(valor["unidade"], "TESTE");
+    assert_eq!(valor["origem"], "web");
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(valor["alterado"], false);
+    assert_eq!(valor["antes"], json!(["atribuicao", "tipo"]));
+    assert_eq!(valor["alvo"], json!(["atribuicao", "anotacao"]));
+    assert_eq!(valor["marcar"], json!(["anotacao"]));
+    assert_eq!(valor["desmarcar"], json!(["tipo"]));
+    assert_eq!(valor["indisponiveis"], json!(["prioridade"]));
+    assert_eq!(valor["envio"]["metodo"], "POST");
+    assert_eq!(valor["envio"]["acao"], "procedimento_configurar_detalhe");
+    assert_eq!(valor["envio"]["campos"][0], "sbmSalvar");
+    assert_eq!(valor["depois"], Value::Null);
+    assert_eq!(valor["reconciliado_por_leitura"], false);
+    assert!(!valor.to_string().contains("infra_hash"));
+}
+
+#[test]
+fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
+    let mut feito = previa();
+    feito.confirmado = true;
+    feito.alterado = true;
+    feito.depois = Some(feito.plano.alvo.clone());
+    feito.reconciliado_por = Some(erro_500());
+    let valor = json_de_sucesso(&feito);
+    assert_eq!(valor["alterado"], true);
+    assert_eq!(valor["depois"], json!(["atribuicao", "anotacao"]));
+    assert_eq!(valor["reconciliado_por_leitura"], true);
+    assert_eq!(
+        valor["falha_do_salvar"]["subcodigo"],
+        "status_http_de_erro_do_servidor"
+    );
+    assert_eq!(valor["falha_do_salvar"]["status_http"], 503);
+    assert_eq!(
+        valor["falha_do_salvar"]["mensagem_do_servidor"],
+        "Serviço indisponível."
+    );
+}
+
+#[test]
+fn efeito_incerto_publica_codigo_causa_e_verificacao() {
+    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        plano: Box::new(plano()),
+        falha_do_salvar: Some(erro_500()),
+        verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
+            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
+        )),
+    };
+    let valor = json_de_falha(&erro, None);
+    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(
+        valor["subcodigo"],
+        "efeito_incerto_na_configuracao_de_colunas"
+    );
+    assert_eq!(valor["retentavel"], false);
+    assert_eq!(valor["antes"], json!(["atribuicao", "tipo"]));
+    assert_eq!(valor["alvo"], json!(["atribuicao", "anotacao"]));
+    assert_eq!(valor["status_http"], 503);
+    assert_eq!(valor["mensagem_do_servidor"], "Serviço indisponível.");
+    assert_eq!(
+        valor["falha_do_salvar"]["subcodigo"],
+        "status_http_de_erro_do_servidor"
+    );
+    assert_eq!(valor["verificacao"], "falha_de_rede");
+    assert_eq!(valor["observadas"], Value::Null);
+}
+
+#[test]
+fn falha_de_volta_a_r_acompanha_o_erro_da_escrita() {
+    let erro = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
+        plano: Box::new(plano()),
+        observadas: vec![C::Marcadores],
+    };
+    let volta = ErroVisaoDoControle::VisaoDoControleNaoRestaurada {
+        visao_deixada: Visao::Detalhada,
+        causa: Box::new(ErroVisaoDoControle::Transporte(FalhaTransporte::Rede)),
+    };
+    let valor = json_de_falha(&erro, Some(&volta));
+    assert_eq!(valor["codigo"], "escrita_diferente_da_solicitada");
+    assert_eq!(valor["observadas"], json!(["marcadores"]));
+    assert_eq!(valor["visao_deixada"], "D");
+    assert_eq!(valor["restauracao"], "visao_do_controle_nao_restaurada");
+}
+
+#[test]
+fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
+    let erro = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
+        coluna: C::Prioridade,
+    };
+    let valor = json_de_falha(&erro, None);
+    assert_eq!(valor["codigo"], "fonte_invalida");
+    assert_eq!(valor["subcodigo"], "coluna_indisponivel_nesta_instalacao");
+    assert_eq!(valor["coluna"], "prioridade");
+}

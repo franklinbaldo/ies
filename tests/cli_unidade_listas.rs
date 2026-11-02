@@ -1,5 +1,6 @@
 //! Superfície das listas independentes da caixa (Refs #57):
-//! `listar-processos [--pagina N]` (visão D), `recebidos`/`gerados` e `colunas`.
+//! `listar-processos [--pagina N]` (visão D), `recebidos`/`gerados` e `colunas`
+//! (inclusive `--definir`, cujos erros de uso saem antes de ler a configuração).
 //! Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
 
@@ -44,7 +45,8 @@ fn opcoes_removidas_de_listar_processos_sao_erro_de_uso() {
         &["unidade", "listar-processos", "--pagina", "0"][..],
         &["unidade", "listar-processos", "--pagina", "x"][..],
         &["unidade", "colunas", "--pagina", "2"][..],
-        &["unidade", "colunas", "--definir", "todas"][..],
+        &["unidade", "colunas", "--confirmar"][..],
+        &["unidade", "colunas", "--definir"][..],
     ] {
         uso_invalido(args);
     }
@@ -84,6 +86,15 @@ fn listas_sem_sessao_falham_antes_de_qualquer_requisicao() {
         &["unidade", "listar-processos", "--json"][..],
         &["unidade", "listar-processos", "--pagina", "2", "--json"][..],
         &["unidade", "colunas", "--json"][..],
+        &["unidade", "colunas", "--definir", "todas", "--json"][..],
+        &[
+            "unidade",
+            "colunas",
+            "--definir",
+            "tipo,atribuicao",
+            "--confirmar",
+            "--json",
+        ][..],
         &[
             "--unidade",
             "PPI",
@@ -129,4 +140,44 @@ fn ajuda_da_unidade_lista_os_tres_comandos_da_caixa() {
         assert!(texto.contains("--saida"), "{lista}: {texto}");
         assert!(!texto.contains("--pagina-arquivo"), "{lista}: {texto}");
     }
+}
+
+/// Erro de uso de `--definir`: saída 2 antes de ler a configuração local
+/// (os arquivos não existem), logo sem requisição.
+#[test]
+fn definir_com_lista_invalida_e_uso_invalido_sem_requisicao() {
+    for (lista, subcodigo) in [
+        ("", "lista_de_colunas_vazia"),
+        ("tipo,,anotacao", "item_vazio_na_lista_de_colunas"),
+        ("tipo,processo", "coluna_desconhecida"),
+        ("Tipo", "coluna_desconhecida"),
+        ("tipo,tipo", "coluna_repetida_na_lista"),
+    ] {
+        for confirmar in [false, true] {
+            let mut args = vec!["unidade", "colunas", "--definir", lista, "--json"];
+            if confirmar {
+                args.push("--confirmar");
+            }
+            let saida = sem_sessao(&args);
+            assert_eq!(saida.status.code(), Some(2), "{args:?}");
+            let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(valor["codigo"], "entrada_invalida", "{args:?}");
+            assert_eq!(valor["subcodigo"], subcodigo, "{args:?}");
+            assert_eq!(valor["retentavel"], false, "{args:?}");
+        }
+        let humano = sem_sessao(&["unidade", "colunas", "--definir", lista]);
+        assert_eq!(humano.status.code(), Some(2), "{lista}");
+        assert!(humano.stdout.is_empty(), "{lista}");
+        let texto = String::from_utf8(humano.stderr).unwrap();
+        assert!(texto.contains(subcodigo), "{lista}: {texto}");
+    }
+}
+
+#[test]
+fn ajuda_de_colunas_mostra_definir_e_confirmar() {
+    let saida = sem_sessao(&["unidade", "colunas", "--help"]);
+    assert_eq!(saida.status.code(), Some(0));
+    let texto = String::from_utf8(saida.stdout).unwrap();
+    assert!(texto.contains("--definir <todas|LISTA>"), "{texto}");
+    assert!(texto.contains("--confirmar"), "{texto}");
 }

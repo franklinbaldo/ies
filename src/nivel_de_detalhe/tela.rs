@@ -26,6 +26,9 @@ pub(crate) enum ErroNivelDeDetalhe {
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },
+    /// Controle enviável fora de `hdnInfraTipoPagina`, `sbmSalvar` e das
+    /// caixas do catálogo (só recusado antes de salvar).
+    CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
     AtributoHtml(ErroAtributoHtml),
 }
 
@@ -45,6 +48,9 @@ impl ErroNivelDeDetalhe {
             Self::OpcaoDoDetalheNaoPrevista => "opcao_do_nivel_de_detalhe_nao_prevista",
             Self::RotuloDaOpcaoDoDetalheDiferente { .. } => {
                 "rotulo_da_opcao_do_nivel_de_detalhe_diferente"
+            }
+            Self::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe => {
+                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
             }
             Self::AtributoHtml(falha) => falha.subcodigo(),
         }

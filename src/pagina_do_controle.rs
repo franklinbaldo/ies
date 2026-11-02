@@ -12,8 +12,8 @@ mod regras;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
-    EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario, EstadoDeSessao,
-    MarcadorDeResultado, OperacaoDeFormulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use crate::paginas::FaixaNaPagina;
 #[cfg(test)]
@@ -42,10 +42,11 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
     ],
     campos_ocultos_reescritos: &["hdnRecebidosPaginaAtual", "hdnGeradosPaginaAtual"],
     campos_usuario: regras::CAMPOS_USUARIO,
-    marcador_de_resultado: MarcadorDeResultado {
+    resultado: ResultadoDoEnvio::Marcador(MarcadorDeResultado {
         elemento: "table",
         classe: "tabelaControle",
-    },
+    }),
+    unidade: ConferenciaDaUnidade::NaTelaDoFormulario,
     efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
         o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
     },

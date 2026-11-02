@@ -59,6 +59,7 @@ mod transporte;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
+mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
 mod visao_do_controle;
 
@@ -245,8 +246,15 @@ enum UnidadeAcao {
         )]
         pagina: Option<u32>,
     },
-    /// Mostra as 12 opções do Nível de detalhe e quais estão marcadas (só leitura)
-    Colunas,
+    /// Mostra as 12 opções do Nível de detalhe; com --definir, prévia da escrita
+    Colunas {
+        /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
+        #[arg(long, value_name = "todas|LISTA")]
+        definir: Option<String>,
+        /// Salva a configuração pedida (um POST), confere por leitura e restaura a tela
+        #[arg(long, requires = "definir")]
+        confirmar: bool,
+    },
     /// Lista Recebidos da unidade: a página observada, com total e faixa
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
@@ -335,6 +343,19 @@ fn listar(
     )
 }
 
+/// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
+fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
+    match definir {
+        None => unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
+        Some(definir) => unidade_colunas_definir_cli::definir_colunas(
+            cli.unidade.as_deref(),
+            cli.json,
+            definir,
+            confirmar,
+        ),
+    }
+}
+
 fn run(cli: &Cli) -> ExitCode {
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
         return status;
@@ -368,8 +389,8 @@ fn run(cli: &Cli) -> ExitCode {
             );
         }
         Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas),
-        }) => return unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
+            acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
+        }) => return colunas(cli, definir.as_deref(), *confirmar),
         _ => {}
     }
     if let Domain::Documento(Documento {
