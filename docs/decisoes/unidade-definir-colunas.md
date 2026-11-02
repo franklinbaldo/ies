@@ -4,7 +4,7 @@ title: Escrita explícita, única e verificada das colunas do Nível de detalhe
 operation: unidade.definir_colunas
 implementation: partial
 status: adopted-for-scope
-scope: Nível de detalhe do Controle de Processos Web com sessão existente; ies unidade colunas --definir todas|LISTA com prévia, um POST de salvar com --confirmar, verificação por um GET e tela do Controle restaurada
+scope: Nível de detalhe do Controle de Processos Web com sessão existente; ies unidade colunas --definir todas|LISTA com prévia, um POST de salvar com --confirmar, verificação por um GET; vinda da R, a sessão fica na D
 selected_strategy: web-escrita-explicita-unica
 alternatives: web-escrita-explicita-unica,web-salvar-e-restaurar-por-listagem,rest-wssei,soap-official
 evidence_level: ensaio-live-do-proprietario-e-testes-sinteticos
@@ -46,7 +46,7 @@ sessão, sem troca de backend:
 - Erro de uso (lista vazia, item vazio, chave desconhecida ou repetida) sai
   com 2 antes de ler a configuração local, sem requisição.
 - Leitura pelo mesmo fluxo de `ies unidade colunas` (link da D; vinda da R,
-  troca e restaura) e conferência do formulário **também na prévia**:
+  troca para D e fica nela) e conferência do formulário **também na prévia**:
   controle enviável fora de `hdnInfraTipoPagina`, `sbmSalvar` e das caixas
   do catálogo é recusa; a derivação do primitivo exige `sbmSalvar` único.
 - `todas` é o que a instalação publica (UnB 4.0.9: 11); coluna pedida e não
@@ -67,8 +67,14 @@ sessão, sem troca de backend:
   [contrato](../../contracts/cli/unidade-definir-colunas.md)): alvo →
   sucesso com `reconciliado_por_leitura`; antes → não aplicada (1); outro,
   ou leitura impossível → efeito incerto (3).
-- A falha da volta à R depois de salvar não esconde a escrita: a saída
-  publica `alterado` e `depois` com o erro da restauração.
+- Sem volta à R (decisão do proprietário, 02/11/2026, registrada na
+  [decisão da leitura](unidade-listar-processos.md)): restaurar a visão
+  gastava um POST por execução e criava um terceiro desfecho (escrita feita,
+  visão não restaurada) que a saída precisava publicar ao lado da escrita.
+  Vinda da R: 2 GET + 1 POST na prévia, 3 GET + 2 POST ao salvar. A PEN1
+  manteve a D na sessão e num login novo da mesma conta (efeito cosmético);
+  a UnB 4.0.9 volta à R no GET seguinte. A semântica da escrita (prévia,
+  `--confirmar`, verificação, efeito incerto) não muda.
 
 Descartado: aceitar o formulário com campos desconhecidos (enviaria um POST
 diferente do observado) e classificar a resposta por um marcador inventado

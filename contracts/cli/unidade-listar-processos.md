@@ -13,7 +13,8 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 Lê os processos da unidade ativa na tela **Controle de Processos** do SEI
 Web pela [visão detalhada](unidade-listar-processos-visao-detalhada.md)
 (decisão do proprietário, 02/11/2026), com as colunas do
-[Nível de detalhe](unidade-colunas.md), e deixa a tela como a encontrou.
+[Nível de detalhe](unidade-colunas.md); vinda da R, a sessão fica na D,
+sem restaurar (decisão do proprietário, 02/11/2026).
 `ies unidade recebidos` e `ies unidade gerados` leem uma das
 [listas independentes](unidade-recebidos-gerados.md) pela mesma operação. A CaixaDeEntrada é da unidade;
 sessão e credenciais são meios de acesso, não entidades proprietárias.

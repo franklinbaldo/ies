@@ -179,7 +179,10 @@ Mesmas condições acima: arquivos `0600` em pasta `0700`, sessão da mesma
 geração, binário release. O script não põe cookie nem URL assinada em
 argumentos de processo (vão num arquivo de configuração do `curl` `0600`), e
 só imprime visão, índices de página, contagens e subcódigos. Cada `estado`
-é **1 GET** a mais, de conferência.
+é **1 GET** a mais, de conferência. As rodadas de 02/11/2026 abaixo usaram a
+versão que **restaurava** visão e páginas; desde a decisão do proprietário
+de não restaurar ([decisão](../decisoes/unidade-listar-processos.md)), os
+orçamentos e o critério são os comentados no script.
 
 ```sh
 #!/bin/sh
@@ -223,27 +226,30 @@ passo() {  # passo NOME ARGS...: roda o ies, resume e confere o estado
   ies --json "$@" > "$T/$nome.json"; echo "$nome: saída $?"; resumo "$T/$nome.json"; estado
 }
 estado                                   # E0: visão e páginas encontradas
-passo lp unidade listar-processos        # R: 1 GET + 2 POST; D: 1 GET
-passo lp2 unidade listar-processos --pagina 2   # R: 1 GET + 4 POST após a correção (3 no ensaio)
+passo lp unidade listar-processos        # R: 1 GET + 1 POST, fica na D; D: 1 GET
+passo lp2 unidade listar-processos --pagina 2   # D: 1 GET + 1 POST, D fica na página 2
+passo lp1 unidade listar-processos --pagina 1   # D: 1 GET + 1 POST, volta à página 1
 passo fora unidade listar-processos --pagina 99999  # pagina_fora_do_intervalo, sem POST
-passo col unidade colunas                # R: 2 GET + 2 POST; D: 2 GET
-passo rec unidade recebidos              # R: 1 GET; D: 1 GET + 2 POST
-passo ger2 unidade gerados --pagina 2    # muda a página lembrada de Gerados (efeito conhecido)
+passo col unidade colunas                # D: 2 GET (R: 2 GET + 1 POST, fica na D)
+passo rec unidade recebidos              # D: 1 GET + 1 POST, fica na R; R: 1 GET
+passo ger2 unidade gerados --pagina 2    # R: 1 GET + 1 POST, Gerados fica na página 2
 passo ger1 unidade gerados --pagina 1    # volta Gerados à página 1
 ```
 
-Critério: depois de cada `passo`, `estado` igual ao E0 (mesma visão; mesmas
-páginas de Recebidos/Gerados na R; mesma `hdnDetalhadoPaginaAtual` na D),
-exceto `ger2`, que muda só `hdnGeradosPaginaAtual` (desfeito por `ger1`).
+Critério (sem restauração): partindo da R, `lp` deixa a sessão na D (na UnB
+4.0.9 o GET seguinte já volta à R); `lp2` deixa `hdnDetalhadoPaginaAtual=1`
+e faixa 101–200 (PEN1), desfeitos por `lp1`; `col` não troca de visão
+(sessão já na D, 2 GET); `rec` deixa a sessão na R; `ger2` muda só
+`hdnGeradosPaginaAtual` (desfeito por `ger1`). Cada `estado` mostra a visão
+e as páginas que o último comando deixou, e a `faixa_observada` de cada
+saída diz qual página foi lida.
 `lp`: categorias por processo somam o que a R mostrou; `colunas` iguais às
 marcadas em `col` (as de ícone podem faltar na PEN1, divergência a
 registrar). Repetir com a sessão **já na D** (PEN1 ou GO: ligar a
 Visualização detalhada pela interface ou pelo arnês), conferindo que
-`lp` não faz POST, que `lp2` volta a D à página exibida e que `rec`/`ger2`
-deixam a D como estava; no fim, voltar a sessão à R pela interface e
-conferir com `estado`. Qualquer `visao_do_controle_nao_restaurada` ou
-`pagina_da_visao_detalhada_nao_restaurada`: parar, registrar `causa` e
-`status_http`, restaurar manualmente e conferir com `estado`. Sem retry.
+`lp` não faz POST e que `lp2` faz um só; no fim, voltar a sessão à R pela
+interface, se desejado, e conferir com `estado`. Falha: parar, registrar
+subcódigo e `status_http`, conferir com `estado`. Sem retry.
 
 ## Ensaio da visão detalhada por padrão
 

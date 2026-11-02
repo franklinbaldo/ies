@@ -64,7 +64,7 @@ compatibilidade nem uma confiança percentual inventada.
 O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
 `ies unidade listar-processos [--pagina N]` (a visão detalhada, com
-colunas e a tela deixada como foi encontrada), `ies unidade
+colunas; a sessão fica na D), `ies unidade
 recebidos|gerados [--pagina N]` ou `ies unidade colunas`.
 O domínio usa tipos Rust (`Processo`, `IdProcedimento`,
 `Tabela<T>` e `Caixa`). A cobertura é validada na paginação;
@@ -115,7 +115,7 @@ IES_CONFIG_FILE=/privado/ies-config.json ies unidade listar-processos --json
 ```
 
 A leitura continua limitada a GET HTTPS da página autorizada e aos POSTs
-de troca de visão (sempre restaurada) e de `--pagina N`, sem login, percurso de todas
+de troca de visão (sem restaurar) e de `--pagina N`, sem login, percurso de todas
 as páginas nem reutilização automática de credenciais
 para outras interfaces. `status` não testa rede nem declara autenticação.
 
@@ -128,8 +128,8 @@ para outras interfaces. `status` não testa rede nem declara autenticação.
 - `ies unidade listar-processos` lê uma sessão Web já autenticada, com
   caminhos de arquivos privados definidos em variáveis de ambiente, pela
   visão detalhada: um array com uma lista `categoria: null`, a categoria
-  observada e as colunas de cada processo, e `colunas_ausentes`; troca de
-  visão e restaura a encontrada (1 GET + 0 a 4 POST). `ies unidade
+  observada e as colunas de cada processo, e `colunas_ausentes`; vinda da
+  R, troca para a D e fica nela (1 GET + 0 a 2 POST; 1 GET em regime estável). `ies unidade
   recebidos` e `ies unidade gerados` devolvem uma lista da visão resumida,
   com `--pagina N`. Ver a [visão detalhada](contracts/cli/unidade-listar-processos-visao-detalhada.md)
   e as [listas](contracts/cli/unidade-recebidos-gerados.md).
