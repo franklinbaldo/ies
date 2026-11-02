@@ -95,9 +95,16 @@ pub(crate) fn segundo_fator_exigido(html: &str) -> bool {
     algum(html, |tag| tem_id_ou_nome(tag, "txtCodigo2FA"))
 }
 
-/// Texto saneado da mensagem de erro que a tela declara, se houver.
+/// Texto saneado da mensagem de erro que a tela declara, se houver: a
+/// validação da Infra (`txaInfraValidacao`, `UnB` 4.0.9) e, sem ela, os
+/// contêineres de recusa.
 pub(crate) fn mensagem_de_recusa(html: &str) -> Option<String> {
     use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
+    if let Some(mensagem) =
+        crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(html)
+    {
+        return Some(mensagem);
+    }
     let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
     tags(&dom)
         .filter(|(_, tag)| {

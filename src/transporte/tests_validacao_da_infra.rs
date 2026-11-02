@@ -1,7 +1,13 @@
 //! RED/GREEN da mensagem de validação da Infra. Fixtures sintéticas na
 //! estrutura observada (textarea oculto e script de `alert`).
 use super::mensagem_de_validacao_da_infra as validacao;
+use crate::transporte::saneamento::sanear;
 use crate::transporte::texto_de_recusa::texto_do_html;
+
+/// Como `corpo_de_recusa` expõe: texto da recusa, saneado.
+fn extraido(html: &str) -> Option<String> {
+    texto_do_html(html).and_then(|t| sanear(&t))
+}
 
 /// Página sintética com a validação no formato observado.
 pub(crate) fn com_validacao(texto: &str) -> String {
@@ -55,11 +61,11 @@ fn validacao_vem_antes_da_excecao_no_texto_da_recusa() {
         "<form id='frmX'></form>",
         "<div id='divInfraExcecao'>Outra coisa</div>",
     );
-    assert_eq!(texto_do_html(&html).as_deref(), Some("Senha expirada."));
+    assert_eq!(extraido(&html).as_deref(), Some("Senha expirada."));
     // Textarea vazio: a exceção continua valendo.
     let html = com_validacao("").replace(
         "<form id='frmX'></form>",
         "<div id='divInfraExcecao'>Falha.</div>",
     );
-    assert_eq!(texto_do_html(&html).as_deref(), Some("Falha."));
+    assert_eq!(extraido(&html).as_deref(), Some("Falha."));
 }

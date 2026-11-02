@@ -165,7 +165,7 @@ pub(super) fn tela_recusada(mensagem: &str) -> String {
 }
 
 /// Tela de login devolvida pela validação da Infra, na estrutura observada
-/// na UnB 4.0.9 (02/11/2026): `txtUsuario` preenchido, `txaInfraValidacao`
+/// na `UnB` 4.0.9 (02/11/2026): `txtUsuario` preenchido, `txaInfraValidacao`
 /// oculto e o script de `alert`. Sem o aviso `alert-danger`.
 pub(super) fn tela_recusada_pela_infra(mensagem: &str) -> String {
     let validacao = format!(
