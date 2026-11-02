@@ -288,3 +288,38 @@ fn subcodigos_das_regras_sao_distintos() {
     let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
     assert_eq!(unicos.len(), todos.len());
 }
+
+/// Como no navegador: opção `selected` desabilitada (própria ou por
+/// `optgroup disabled`) não é serializada; nenhuma outra é inventada.
+#[test]
+fn opcao_de_orgao_selecionada_mas_desabilitada_nao_e_publicada() {
+    let propria = select_de_orgao(
+        "<option value='1' selected>A</option><option value='2' disabled selected>B</option>",
+    );
+    assert_eq!(
+        regras_do_orgao(&pagina(&interior(&propria))),
+        vec!["1".to_owned()]
+    );
+    let por_grupo = select_de_orgao(
+        "<optgroup label='G' disabled><option value='7' selected>G1</option></optgroup>\
+         <optgroup label='H'><option value='8' selected>H1</option></optgroup>",
+    );
+    assert_eq!(
+        regras_do_orgao(&pagina(&interior(&por_grupo))),
+        vec!["8".to_owned()]
+    );
+    let todas = select_de_orgao("<option value='2' selected disabled>B</option>");
+    assert_eq!(
+        regra(&pagina(&interior(&todas))),
+        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
+    );
+}
+
+fn regras_do_orgao(html: &str) -> Vec<String> {
+    let corpo = String::from_utf8(derivar(html).unwrap().corpo().to_vec()).unwrap();
+    corpo
+        .split('&')
+        .filter_map(|par| par.strip_prefix("selOrgaoPesquisa%5B%5D="))
+        .map(str::to_owned)
+        .collect()
+}

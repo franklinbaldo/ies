@@ -142,14 +142,36 @@ fn orgaos_selecionados(
     if !presente(select, "multiple")? {
         return Err(E::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
     }
-    let mut valores = Vec::new();
-    for opcao in select
+    let descendentes: Vec<_> = select
         .children()
         .all(parser)
         .iter()
         .filter_map(tl::Node::as_tag)
-    {
-        if eh(opcao, "option") && presente(opcao, "selected")? {
+        .collect();
+    // Como no navegador: opção desabilitada, própria ou por `optgroup
+    // disabled`, não é serializada mesmo se servida com `selected`.
+    let mut desabilitadas: Vec<*const tl::HTMLTag<'_>> = Vec::new();
+    for grupo in descendentes.iter().filter(|t| eh(t, "optgroup")) {
+        if presente(grupo, "disabled")? {
+            desabilitadas.extend(
+                grupo
+                    .children()
+                    .all(parser)
+                    .iter()
+                    .filter_map(tl::Node::as_tag)
+                    .map(std::ptr::from_ref),
+            );
+        }
+    }
+    let mut valores = Vec::new();
+    for opcao in descendentes {
+        if !eh(opcao, "option")
+            || presente(opcao, "disabled")?
+            || desabilitadas.contains(&std::ptr::from_ref(opcao))
+        {
+            continue;
+        }
+        if presente(opcao, "selected")? {
             valores
                 .push(atributo(opcao, "value")?.ok_or(E::OpcaoDeOrgaoSelecionadaSemValorNaTela)?);
         }
