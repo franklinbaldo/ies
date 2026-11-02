@@ -234,6 +234,9 @@ fn botao_do_envio(envio: EnvioDoFormulario) -> Option<&'static str> {
     match envio {
         EnvioDoFormulario::BotaoDeEnvio(nome) => Some(nome),
         EnvioDoFormulario::SubmitPorScript => None,
+        EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_) => {
+            todo!("CONTRACT: botão desabilitado pelo onsubmit")
+        }
     }
 }
 
@@ -271,6 +274,9 @@ pub(super) fn ler_controles(
         (EnvioDoFormulario::BotaoDeEnvio(_), 0) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
         (EnvioDoFormulario::BotaoDeEnvio(_), _) => {
             return Err(E::BotoesDeEnvioRepetidosNoFormulario);
+        }
+        (EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_), _) => {
+            todo!("CONTRACT: botão desabilitado pelo onsubmit")
         }
     }
     if let Some(ausente) = operacao

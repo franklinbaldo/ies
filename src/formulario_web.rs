@@ -4,6 +4,7 @@
 mod codificacao;
 mod erro;
 mod leitura;
+mod login;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
@@ -15,6 +16,7 @@ pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
+pub(crate) use login::derivar_submissao_de_login;
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -25,6 +27,8 @@ pub(crate) enum EstadoDeSessao {
     PaginaOuFiltroLembrado,
     UnidadeAtual,
     PreferenciaDeVisualizacao,
+    /// O login cria a sessão autenticada (cookies) no servidor.
+    SessaoAutenticada,
 }
 
 /// Preferência persistente do usuário, que sobrevive à sessão.
@@ -58,6 +62,10 @@ pub(crate) enum EnvioDoFormulario {
     BotaoDeEnvio(&'static str),
     /// O JavaScript observado chama `submit()`: nenhum botão participa.
     SubmitPorScript,
+    /// Botão `type=submit` com este nome é servido (exatamente um), mas o
+    /// `onsubmit` observado o desabilita antes de o navegador montar o
+    /// corpo: ele não participa.
+    BotaoDesabilitadoPeloOnsubmit(&'static str),
 }
 
 /// Declaração `const` feita pela própria operação; não há catálogo central.

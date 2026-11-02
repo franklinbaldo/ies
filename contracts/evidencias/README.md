@@ -145,3 +145,4 @@ Passos sem cassette indexada: 0.
 
 - [unidade.atual](unidade-atual.md) — rótulo da unidade derivado da tela da caixa, não operação original do Todos.
 - [unidade.definir_colunas](unidade-definir_colunas.md) — escrita do Nível de detalhe derivada do ensaio do proprietário, não operação original do Todos.
+- [sessao.login](sessao-login.md) — login Web derivado do comportamento do Todos e de telas públicas de login, não operação original da matriz.

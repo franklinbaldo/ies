@@ -51,6 +51,10 @@ mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod saida_erro;
+#[allow(dead_code)] // Shims do contrato sessao.login; a CLI ainda responde nao_implementado.
+mod sessao_login;
+#[allow(dead_code)] // Idem.
+mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
@@ -96,6 +100,8 @@ enum Domain {
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
     Setup(SetupArgs),
+    /// Autentica na instalação configurada e grava a sessão nos arquivos privados
+    Login(LoginArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
 }
@@ -287,6 +293,14 @@ struct StatusArgs {
     /// Consulta o Controle Web autenticado configurado: um GET com possíveis efeitos
     #[arg(long, conflicts_with_all = ["verificar_arquivos", "verificar_sessao_local"])]
     verificar_controle_web: bool,
+}
+
+/// Credenciais só por arquivo privado `0600` em `IES_CREDENCIAIS_FILE`.
+#[derive(Debug, Args)]
+struct LoginArgs {
+    /// Faz novo login mesmo com a sessão gravada válida
+    #[arg(long)]
+    forcar: bool,
 }
 
 #[derive(Debug, Args)]
