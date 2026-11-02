@@ -66,6 +66,6 @@ instalação/versão e evidência. Se uma verificação pós-escrita for
 necessária, não removê-la por economia. Se falta evidência, manter
 a etapa ou deixar o comando indisponível.
 
-Os testes de [paginação](../../src/paginas.rs) estabelecem o primeiro
+Os testes de [paginação](../../src/paginas/tests.rs) estabelecem o primeiro
 controle offline. Este documento **não relata testes live realizados**,
 não autoriza login nem constitui certificação de compatibilidade.
