@@ -77,3 +77,18 @@ fn recusa_sem_mensagem_publica_so_o_status() {
         "IES: redirecionamento [redirecionamento_recusado] (HTTP 302)"
     );
 }
+
+#[test]
+fn validacao_da_infra_com_200_publica_so_a_mensagem() {
+    let http = StatusHttpRecusado {
+        status: 200,
+        mensagem_do_servidor: Some("Protocolo inválido.".to_owned()),
+    };
+    let valor = json_de_erro_fonte("validacao_recusada_pelo_sei", "validação", Some(&http));
+    assert_eq!(valor["mensagem_do_servidor"], "Protocolo inválido.");
+    assert!(valor.get("status_http").is_none());
+    assert_eq!(
+        linha_humana("validacao_recusada_pelo_sei", "validação", Some(&http)),
+        "IES: validação [validacao_recusada_pelo_sei] (SEI: Protocolo inválido.)"
+    );
+}

@@ -8,8 +8,10 @@ mod login;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
+use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{
-    FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
+    FalhaTransporte, RespostaWeb, StatusHttpRecusado, arquivo_privado, decodificar_resposta,
+    validar_cookie,
 };
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
@@ -414,6 +416,13 @@ where
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
         outra => E::Transporte(outra),
     })?;
+    // 200 com a validação da Infra: recusa do SEI, com ou sem marcador.
+    if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
+        return Err(E::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
+            status: 200,
+            mensagem_do_servidor: Some(mensagem),
+        }));
+    }
     let marcado = match resultado {
         ResultadoDoEnvio::ConferidoPorLeituraPosterior => true,
         ResultadoDoEnvio::Marcador(MarcadorDeResultado { elemento, classe }) => {

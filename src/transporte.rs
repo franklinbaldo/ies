@@ -55,6 +55,8 @@ pub enum FalhaTransporte {
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
+    /// Proxy do ambiente (só no cliente do login): `transporte::proxy`.
+    Proxy(proxy::FalhaDoProxy),
 }
 
 impl FalhaTransporte {
@@ -86,6 +88,7 @@ impl FalhaTransporte {
             Self::PaginaDeLoginRecebidaNoControle => "pagina_de_login_recebida_no_controle",
             Self::RespostaExcessiva => "resposta_excessiva",
             Self::Rede => "falha_de_rede",
+            Self::Proxy(falha) => falha.subcodigo(),
         }
     }
     pub fn mensagem(&self) -> &'static str {
@@ -128,6 +131,7 @@ impl FalhaTransporte {
             }
             Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
             Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
+            Self::Proxy(falha) => falha.mensagem(),
         }
     }
 }
@@ -141,6 +145,14 @@ impl FalhaTransporte {
             | Self::StatusHttpDeErroDoServidor(recusa)
             | Self::StatusHttpDeLimiteDeRequisicoes(recusa)
             | Self::StatusHttpDiferenteDe200(recusa) => Some(recusa),
+            _ => None,
+        }
+    }
+
+    /// Status com que o proxy recusou o `CONNECT`.
+    pub fn status_do_proxy(&self) -> Option<u16> {
+        match self {
+            Self::Proxy(proxy::FalhaDoProxy::RecusouOTunel { status }) => Some(*status),
             _ => None,
         }
     }
@@ -440,6 +452,12 @@ pub(crate) mod texto_de_recusa;
 
 #[path = "transporte/saneamento.rs"]
 pub(crate) mod saneamento;
+
+#[path = "transporte/validacao_da_infra.rs"]
+pub(crate) mod validacao_da_infra;
+
+#[path = "transporte/proxy.rs"]
+pub(crate) mod proxy;
 
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;

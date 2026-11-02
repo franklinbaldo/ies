@@ -218,7 +218,9 @@ Decodificação: charset ISO-8859-1/latin1/windows-1252 declarado vira
 ISO-8859-1; senão UTF-8, e bytes inválidos caem para ISO-8859-1.
 
 Extração, com `tl` e `html_atributos` (sem regex): se o `Content-Type`
-é HTML, o texto de `#divInfraExcecao` (a tela de exceção do SEI, que
+é HTML, o texto do `#txaInfraValidacao` não vazio
+([validação da Infra](../docs/como-o-sei-funciona/validacao-da-infra.md)),
+senão o de `#divInfraExcecao` (a tela de exceção do SEI, que
 as páginas reais testam por `getElementById('divInfraExcecao')`), senão
 o de `div.infraExcecao` ou `div.infraMensagemErro`, senão `<title>` e o
 texto visível do `<body>` (sem `script`, `style`, `noscript`,
@@ -232,6 +234,14 @@ hexadecimais → `<hex>`; corte em 500 caracteres, na fronteira de
 caractere, com `…`. Fora isso o texto sai **como o SEI o enviou** e
 pode conter informação do servidor (caminhos, nomes de classe, SQL):
 não o republique sem revisar.
+
+Validação da Infra num POST com HTTP 200 (troca de visão, `--pagina N`,
+`colunas --definir`, pesquisa): `#txaInfraValidacao` não vazio é
+`validacao_recusada_pelo_sei`, com ou sem o marcador de resultado da
+operação; publica só `mensagem_do_servidor` (sem `status_http`, pois o
+status foi 200) e a linha humana ganha `(SEI: mensagem)`. Em `colunas
+--definir` o efeito fica incerto e segue para a leitura de verificação.
+Textarea vazio ou ausente não muda a classificação.
 
 ```json
 {"codigo":"fonte_invalida","subcodigo":"status_http_de_erro_do_servidor",

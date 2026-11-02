@@ -101,5 +101,22 @@ Roteiro executado uma vez por instalação, com o binário release.
 sem `sbmAcessar` em PEN1, UFRJ e GO (como o navegador).
 
 Senha errada (uma tentativa, UnB): `credencial_recusada`, saída 1,
-nenhum arquivo de sessão gravado; `mensagem_do_servidor` ausente — o
-contêiner da mensagem do SIP ainda não é reconhecido (lacuna).
+nenhum arquivo de sessão gravado; `mensagem_do_servidor` ausente: o SIP
+devolveu a mensagem no textarea oculto `txaInfraValidacao`, que o IES
+não lia.
+
+## Lacunas fechadas offline (revalidação live pendente)
+
+- **Mensagem da credencial recusada**: `credencial_recusada` agora lê o
+  [`txaInfraValidacao`](../como-o-sei-funciona/validacao-da-infra.md),
+  com fixture sintética na estrutura observada. Revalidar com **uma**
+  tentativa de senha errada na UnB (esperado: `mensagem_do_servidor`
+  com o texto genérico de usuário ou senha inválida) e, se autorizado,
+  numa instalação de outra família. `NOT_RUN` até lá.
+- **Proxy**: em rede com saída só por proxy, o login conectava direto.
+  Agora segue `https_proxy`/`HTTPS_PROXY`/`all_proxy`/`ALL_PROXY` e
+  `no_proxy`/`NO_PROXY` ([contrato](../../contracts/cli/sessao-login.md#proxy-do-ambiente)).
+  Revalidar o passo 1 com o proxy exportado: esperado `login_realizado`;
+  um `proxy_*` registra o subcódigo e `status_do_proxy`. Os outros
+  comandos (`unidade atual`) **não** usam proxy: numa rede sem saída
+  direta, o passo 2 falhará com `falha_de_rede`. `NOT_RUN`.
