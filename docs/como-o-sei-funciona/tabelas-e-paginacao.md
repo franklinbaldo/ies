@@ -116,6 +116,13 @@ Observações estruturais de UnB 4.0.9, PEN1 5.0.4 e GO 5.0.3, sem valores
 - O **catálogo do Nível de detalhe varia por versão**: PEN1 5.0.4 e GO
   5.0.3 publicam 12 caixas `chkSin*`; a UnB 4.0.9 publica 11, sem
   `chkSinNivelPrioritarios` (Prioridade). Ensaio live de 02/11/2026.
+- **Salvar o Nível de detalhe** (ensaio do proprietário na PEN1 5.0.4): a
+  tela é uma janela com o formulário `frmAcessoExternoCancelar`; o POST de
+  `sbmSalvar` leva só `hdnInfraTipoPagina` como servido, o botão e as caixas
+  marcadas com valor `on` (elas não têm `value`). A resposta é 200, sem
+  redirect, uma página que fecha o modal, sem marcador de sucesso: o efeito
+  aparece na D seguinte e no GET da tela. É preferência do usuário, não
+  estado da sessão.
 - A página lembrada da D é estado da sessão independente da visão exibida:
   na PEN1, paginar a D vinda da R e voltar à R deixou a D na página pedida,
   e a D seguinte abriu nela (ensaio live de 02/11/2026).

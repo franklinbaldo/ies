@@ -253,7 +253,8 @@ Decisões de implementação:
   configuração) e é documentada como "do catálogo, não observadas".
 - **`ies unidade colunas`**: só leitura, pelo link da D; com a sessão em R,
   1 GET + POST D + GET + POST R. A escrita (padrão "máximo de colunas", por
-  comando explícito com prévia e confirmação) fica para PR futura; a
+  comando explícito com prévia e confirmação) é a operação própria
+  `unidade.definir_colunas` ([decisão](unidade-definir-colunas.md)); a
   evidência do POST de salvar está no [contrato](../../contracts/cli/unidade-colunas.md).
 - **`recebidos`/`gerados` com a sessão na D:** trocar para R e restaurar a D
   (utilidade, escolha do proprietário) em vez de recusar

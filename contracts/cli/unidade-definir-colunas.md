@@ -4,7 +4,7 @@ title: Definir as colunas do Nível de detalhe
 operation: unidade.definir_colunas
 command: ies unidade colunas --definir todas|LISTA [--confirmar]
 effect: write-user-preference
-implementation: stub
+implementation: partial
 ---
 
 # `ies unidade colunas --definir todas|LISTA [--confirmar]` (Refs #57)
@@ -168,4 +168,6 @@ formulário `frmAcessoExternoCancelar`, caixas `chkSin*` sem `value`, oculto
 formulário; o POST de salvar envia só o oculto, o botão e as marcadas
 `on`; resposta 200 sem redirect que fecha o modal; a D e o GET da tela
 mostram a mudança em seguida. Ensaio deste comando: offline com telas
-sintéticas de 12 e 11 opções; live **NOT_RUN**.
+sintéticas de 12 e 11 opções; live **NOT_RUN**
+([roteiro](../../docs/validacao-live/roteiro-definir-colunas.md),
+[decisão](../../docs/decisoes/unidade-definir-colunas.md)).

@@ -47,7 +47,7 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
 | `ies unidade listar-processos [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Visão D com colunas, categoria observada na R do mesmo GET e `colunas_ausentes`; troca R→D→R ou D direta, tela restaurada, inclusive a página lembrada da D; 1 GET + 0 a 4 POST | Ensaio live da troca e da restauração por instalação; efeito `PreferenciaDeVisualizacao`; colunas de ícone na PEN1 | [contrato](../contracts/cli/unidade-listar-processos-visao-detalhada.md) |
-| `ies unidade colunas` | **PARCIAL WEB** (PENDENTE PR) | 12 opções do catálogo do Nível de detalhe com `disponivel` (a UnB 4.0.9 publica 11) e `marcada`, só leitura; D: 2 GET; R: 2 GET + 2 POST | Escrita (`--definir`, prévia e confirmação) em PR futura; ensaio live | [contrato](../contracts/cli/unidade-colunas.md) |
+| `ies unidade colunas [--definir todas\|LISTA [--confirmar]]` | **PARCIAL WEB** (`--definir`: PENDENTE PR) | 12 opções do catálogo do Nível de detalhe com `disponivel` (a UnB 4.0.9 publica 11) e `marcada`; D: 2 GET; R: 2 GET + 2 POST. `--definir`: prévia sem salvar; `--confirmar`: 1 POST de salvar + 1 GET de verificação, reconciliação e saída 3 | Ensaio live da leitura e da escrita | [leitura](../contracts/cli/unidade-colunas.md), [escrita](../contracts/cli/unidade-definir-colunas.md) |
 | `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e restaura a D (+2 POST; com página N, +1 POST que restaura a página da R) | Ensaio live da nova sintaxe; efeitos do POST por instalação | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
@@ -131,6 +131,19 @@ colunas` lê o Nível de detalhe sem salvar. A
 [decisão](decisoes/unidade-listar-processos.md) registra a exceção à regra
 de não criar verbos para `colunas`, que integra a mesma operação.
 Ensaio live **NOT_RUN**.
+
+**PENDENTE PR (escrita das colunas, decisão do proprietário "B",
+02/11/2026):** `unidade colunas --definir todas|LISTA [--confirmar]` é a
+operação `unidade.definir_colunas`, a primeira **escrita** remota do IES: a
+opção pertence ao comando já exposto (não é verbo novo) e substitui a
+alternativa de salvar e restaurar a cada listagem. Sem `--confirmar`, prévia
+com os campos do POST e zero escrita; com ele, um POST de salvar e um GET de
+verificação, reconciliação por leitura e saída 3 para efeito incerto; a tela
+do Controle volta como foi encontrada. `listar-processos` passa a sugerir
+`--definir todas` para as `colunas_ausentes`; `ies setup` não aplica nada.
+Offline com telas sintéticas de 12 e 11 opções; ensaio live **NOT_RUN**
+([decisão](decisoes/unidade-definir-colunas.md),
+[roteiro](validacao-live/roteiro-definir-colunas.md)).
 
 **Critério de contagem:** 17 caminhos operacionais, desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram
