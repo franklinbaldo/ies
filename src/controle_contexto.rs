@@ -173,6 +173,21 @@ mod tests {
     }
 
     #[test]
+    fn booleano_antes_do_id_e_do_value_nao_apaga_o_contexto() {
+        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&controle());
+        let contexto = contexto_da_pagina(&html).unwrap();
+        assert_eq!(contexto.unidade.as_deref(), Some("UNIDADE A"));
+        assert_eq!(contexto.modo.as_deref(), Some("R"));
+        assert_eq!(contexto.criterios_recebidos.as_deref(), Some("recebidos"));
+        assert_eq!(contexto.criterios_gerados.as_deref(), Some("gerados"));
+        let repetido = format!("{html}<input disabled id='hdnTipoVisualizacao' value='D'>");
+        assert_eq!(
+            contexto_da_pagina(&repetido).unwrap_err(),
+            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+        );
+    }
+
+    #[test]
     fn unidade_repetida_na_mesma_tela_nao_pode_virar_uma_identidade_falsa() {
         let html = format!("{}<a id='lnkInfraUnidade'>UNIDADE B</a>", controle());
         assert_eq!(

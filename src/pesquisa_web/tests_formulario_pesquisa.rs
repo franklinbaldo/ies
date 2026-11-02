@@ -189,6 +189,37 @@ fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
 }
 
 #[test]
+fn booleano_antes_de_cada_atributo_preserva_regras_e_corpo() {
+    let esperado = derivar(&observado()).unwrap();
+    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&observado());
+    let obtido = derivar(&html).unwrap();
+    assert_eq!(obtido.corpo(), esperado.corpo());
+    assert_eq!(obtido.url(), esperado.url());
+    let opcoes =
+        "<option selected value='4'>A</option><option hidden selected value='5'>B</option>";
+    let corpo = derivar(&pagina(&interior(&select_de_orgao(opcoes)))).unwrap();
+    let corpo = String::from_utf8(corpo.corpo().to_vec()).unwrap();
+    assert!(
+        corpo.contains("&selOrgaoPesquisa%5B%5D=4&selOrgaoPesquisa%5B%5D=5&"),
+        "{corpo}"
+    );
+}
+
+#[test]
+fn seletor_de_orgao_bruto_com_multiple_disabled_nao_e_publicado() {
+    let bruto = "<select multiple disabled id=\"selOrgaoPesquisa\" name=\"selOrgaoPesquisa[]\">\
+                 <option value=\"4\" selected=\"selected\">A</option></select>";
+    assert_eq!(
+        derivar(&pagina(&interior(bruto))).unwrap_err(),
+        ErroPesquisaProtocolo::Submissao(
+            ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
+                campo: "selOrgaoPesquisa[]".to_owned()
+            }
+        )
+    );
+}
+
+#[test]
 fn seletor_de_orgao_desabilitado_nao_e_publicado_como_no_navegador() {
     let html = observado().replace(" multiple='multiple'", " multiple='multiple' disabled");
     assert_eq!(

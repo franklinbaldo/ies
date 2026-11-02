@@ -201,6 +201,14 @@ mod tests {
     }
 
     #[test]
+    fn booleano_antes_do_id_nao_esconde_a_tabela_do_historico() {
+        let html =
+            crate::html_atributos::com_booleano_antes_dos_atributos(&fixture("202600005002487"));
+        let resultado = ler_historico(&html, "202600005002487").unwrap();
+        assert_eq!(resultado.andamentos.len(), 1);
+    }
+
+    #[test]
     fn historico_aceita_protocolo_opaco_sem_mascara() {
         for protocolo in [
             "23106.000001/2026-01",

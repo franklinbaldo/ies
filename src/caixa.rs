@@ -182,6 +182,17 @@ mod tests {
     }
 
     #[test]
+    fn booleano_antes_de_id_e_class_nao_omite_tabela_nem_processo() {
+        let original = html(&format!("{}{}", linha("42"), linha("43")), 2);
+        let com_booleano = crate::html_atributos::com_booleano_antes_dos_atributos(&original);
+        assert_eq!(parse_html(&com_booleano), parse_html(&original));
+        assert_eq!(
+            parse_html(&com_booleano).unwrap().recebidos.processos.len(),
+            2
+        );
+    }
+
+    #[test]
     fn recusa_dois_links_de_processo_na_linha() {
         let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
             <a class='processoNaoVisualizado'>124</a></td></tr>";

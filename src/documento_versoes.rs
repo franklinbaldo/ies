@@ -317,6 +317,16 @@ mod testes {
         )
     }
     #[test]
+    fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
+        let doc = NumeroDocumento::novo("0007").unwrap();
+        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&pagina(
+            &[1, 4],
+            &["42", "42"],
+        ));
+        let h = interpretar_historico(&html, &doc, "42", Some(2)).unwrap();
+        assert_eq!(h.atual().unwrap().numero(), 4);
+    }
+    #[test]
     fn atual_e_nao_contiguas() {
         let doc = NumeroDocumento::novo("0007").unwrap();
         let h =

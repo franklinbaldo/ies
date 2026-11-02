@@ -4,6 +4,7 @@
 mod codificacao;
 mod leitura;
 
+use crate::html_atributos::ErroAtributoHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::{
     FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, validar_cookie,
@@ -74,18 +75,34 @@ pub(crate) enum ErroSubmissaoFormulario {
     AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
-    EntidadeHtmlDesconhecidaNoAtributo { campo: String },
-    CampoOcultoAusenteNoFormulario { campo: String },
-    CampoOcultoRepetidoNoFormulario { campo: String },
+    EntidadeHtmlDesconhecidaNoAtributo {
+        campo: String,
+    },
+    CampoOcultoAusenteNoFormulario {
+        campo: String,
+    },
+    CampoOcultoRepetidoNoFormulario {
+        campo: String,
+    },
     HdnAcaoPublicadoSemRegraDaOperacao,
-    CampoForaDaListaDaOperacao { campo: String },
-    CampoNaoPublicadoPeloFormulario { campo: String },
-    CampoInformadoMaisDeUmaVez { campo: String },
-    ValorNaoRepresentavelNaCodificacao { campo: String },
+    CampoForaDaListaDaOperacao {
+        campo: String,
+    },
+    CampoNaoPublicadoPeloFormulario {
+        campo: String,
+    },
+    CampoInformadoMaisDeUmaVez {
+        campo: String,
+    },
+    ValorNaoRepresentavelNaCodificacao {
+        campo: String,
+    },
     BotaoDeEnvioAusenteNoFormulario,
     BotoesDeEnvioRepetidosNoFormulario,
     TelaDeLoginRecebidaAposEnvio,
     MarcadorDeResultadoAusenteNaResposta,
+    /// Tag de abertura servida que o tokenizador de atributos recusou.
+    AtributoHtml(ErroAtributoHtml),
     Transporte(FalhaTransporte),
 }
 
@@ -128,6 +145,7 @@ impl ErroSubmissaoFormulario {
             Self::MarcadorDeResultadoAusenteNaResposta => {
                 "marcador_de_resultado_ausente_na_resposta"
             }
+            Self::AtributoHtml(falha) => falha.subcodigo(),
             Self::Transporte(falha) => falha.subcodigo(),
         }
     }
@@ -407,3 +425,7 @@ mod tests_envio;
 #[cfg(test)]
 #[path = "formulario_web/tests_selecao.rs"]
 mod tests_selecao;
+
+#[cfg(test)]
+#[path = "formulario_web/tests_atributos.rs"]
+mod tests_atributos;

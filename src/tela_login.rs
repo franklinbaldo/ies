@@ -71,6 +71,17 @@ mod tests {
     }
 
     #[test]
+    fn booleano_antes_do_id_e_do_name_nao_esconde_o_login() {
+        for html in [
+            "<form novalidate id='frmLogin'><input required name='txtUsuario'></form>",
+            "<form novalidate name='frmLogin'><input autofocus id='txtUsuario'></form>",
+            "<form novalidate action='login.php'><input required name='txtUsuario'></form>",
+        ] {
+            assert!(e_tela_login(html), "{html}");
+        }
+    }
+
+    #[test]
     fn formulario_de_modulo_proprio_com_usuario_aninhado_eh_login() {
         let html = "<form name='frmLogin'><div><input name='txtUsuario'></div></form>";
         assert!(e_tela_login(html));

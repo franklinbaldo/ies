@@ -26,3 +26,19 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
     }
     Ok(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::controles_de_paginacao;
+
+    #[test]
+    fn booleano_antes_do_id_nao_esconde_o_paginador() {
+        for html in [
+            "<a hidden id='lnkInfraProximaPaginaSuperior'>»</a>",
+            "<select disabled id='selInfraPaginacaoSuperior'></select>",
+        ] {
+            assert_eq!(controles_de_paginacao(html), Ok(true), "{html}");
+        }
+        assert_eq!(controles_de_paginacao("<a hidden id='x'>»</a>"), Ok(false));
+    }
+}
