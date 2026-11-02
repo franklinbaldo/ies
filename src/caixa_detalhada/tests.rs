@@ -19,7 +19,7 @@ fn pagina(total: usize, inicio: usize, ids: &[(u32, &str)]) -> String {
          <input id='hdnRecebidosHashCriterios' value='r'>\
          <input id='hdnGeradosHashCriterios' value='g'>\
          <table id='tblProcessosDetalhado'><caption>({total} registros - {inicio} a {fim}):</caption>\
-         <tr><th>Seleção</th><th>Processo</th><th>Tipo</th></tr>{linhas}</table></body></html>"
+         <tr><th></th><th>Processo</th><th>Tipo</th></tr>{linhas}</table></body></html>"
     )
 }
 

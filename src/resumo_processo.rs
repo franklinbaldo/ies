@@ -80,6 +80,8 @@ mod tests {
             numero: "000123/2026".into(),
             visualizado: None,
             sigiloso: Some(false),
+            categoria: None,
+            colunas: crate::caixa_detalhada::ColunasDaLinha::default(),
         }];
         let achados = ocorrencias_sem_categoria(&processos, "000123/2026");
         assert_eq!(achados.len(), 1);

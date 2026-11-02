@@ -1,90 +1,104 @@
 //! Caso de uso da caixa: verifica cobertura antes de publicar ou exportar dados.
-use crate::{
-    arquivo_caixa, caixa_detalhada, configuracao, dominio, erro_fonte, paginas, paginas_capturadas,
-    saida, transporte,
-};
+//! `ies unidade listar-processos` lê a visão detalhada e deixa a tela como a
+//! encontrou (contracts/cli/unidade-listar-processos-visao-detalhada.md).
+use crate::caixa_detalhada::LeituraDetalhada;
+use crate::transporte::envio_post::ler_tela_do_controle;
+use crate::visao_do_controle::{self, EnvioHttps, ErroVisaoDoControle, TelaAtual};
+use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, saida};
 use serde_json::json;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 
 pub(super) fn listar_processos_da_unidade(
     unidade: Option<&str>,
     json_mode: bool,
     destino: Option<&Path>,
-    paginas_privadas: &[PathBuf],
+    pagina: Option<usize>,
 ) -> ExitCode {
-    // Arquivos locais inviáveis não podem provocar GET potencialmente
-    // administrativo: validar e ler complementos antes da sessão.
-    let paginas_adicionais = match paginas_capturadas::ler_complementos(paginas_privadas, 0) {
-        Ok(paginas) => paginas,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let html = match transporte::read_box_from_file(
-        &arquivos.url_controle,
+    let tela =
+        match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
+            Ok(tela) => tela,
+            Err(falha) => {
+                return crate::saida_erro::erro_fonte_http(
+                    json_mode,
+                    falha.subcodigo(),
+                    falha.mensagem(),
+                    falha.status_http(),
+                );
+            }
+        };
+    let atual = TelaAtual {
+        url: tela.url,
+        html: tela.html,
+        mime: tela.mime,
+    };
+    match visao_do_controle::listar_na_visao_detalhada(
+        &tela.instalacao,
+        &atual,
+        unidade,
+        pagina,
         &arquivos.cookie,
-        &arquivos.origem,
+        &mut EnvioHttps,
     ) {
-        Ok(html) => html,
-        Err(falha) => {
-            return crate::saida_erro::erro_fonte_http(
-                json_mode,
-                falha.subcodigo(),
-                falha.mensagem(),
-                falha.status_http(),
-            );
-        }
-    };
-    if let Err(erro) =
-        paginas_capturadas::conferir_orcamento_com_inicial(&paginas_adicionais, html.len())
-    {
-        return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+        Ok(leitura) => mostrar_caixa_detalhada(&leitura, "web", json_mode, destino),
+        Err(erro) => erro_da_visao(json_mode, &erro),
     }
-    let mut paginas = Vec::with_capacity(paginas_adicionais.len() + 1);
-    paginas.push(html);
-    paginas.extend(paginas_adicionais);
-    let origem = if paginas_privadas.is_empty() {
-        "web"
-    } else {
-        "web_com_paginas_privadas"
-    };
-    if caixa_detalhada::possui_tabela(&paginas[0]) {
-        return mostrar_caixa_detalhada(&paginas, origem, unidade, json_mode, destino);
-    }
-    mostrar_caixa_web(&paginas, origem, unidade, json_mode, destino)
 }
 
-/// A visão detalhada não inventa as categorias recebidos/gerados.
-/// Continua usando o único GET já autorizado ou páginas capturadas privadamente.
-fn mostrar_caixa_detalhada(
-    paginas: &[String],
-    origem: &str,
-    unidade: Option<&str>,
-    json_mode: bool,
-    destino: Option<&Path>,
-) -> ExitCode {
-    let leitura = match caixa_detalhada::ler_paginas(paginas, unidade) {
-        Ok(leitura) => leitura,
-        Err(erro) => {
-            return erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "caixa detalhada não comprovada",
-            );
-        }
-    };
-    // D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
-    let saida = serde_json::Value::Array(vec![saida::lista_json(&saida::ListaObservada {
+/// Falha `fonte_invalida` da troca de visão; a de restauração diz onde a tela ficou.
+pub(crate) fn erro_da_visao(json_mode: bool, erro: &ErroVisaoDoControle) -> ExitCode {
+    let mut valor = crate::saida_erro::json_de_erro_fonte(
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    );
+    if let (Some(detalhes), Some(objeto)) = (erro.detalhes_json(), valor.as_object_mut())
+        && let Some(extra) = detalhes.as_object()
+    {
+        objeto.extend(extra.clone());
+    }
+    if json_mode {
+        println!("{valor}");
+    } else {
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
+    }
+    ExitCode::from(1)
+}
+
+/// A lista D: um array com **uma** lista `categoria: null` e `colunas_ausentes`.
+pub(crate) fn json_da_detalhada(leitura: &LeituraDetalhada, origem: &str) -> serde_json::Value {
+    let mut lista = saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
         categoria: None,
         total_declarado: Some(leitura.total_declarado),
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,
-    })]);
+    });
+    if let Some(objeto) = lista.as_object_mut() {
+        objeto.insert(
+            "colunas_ausentes".to_owned(),
+            json!(leitura.colunas_ausentes()),
+        );
+    }
+    serde_json::Value::Array(vec![lista])
+}
+
+/// D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
+pub(crate) fn mostrar_caixa_detalhada(
+    leitura: &LeituraDetalhada,
+    origem: &str,
+    json_mode: bool,
+    destino: Option<&Path>,
+) -> ExitCode {
+    let saida = json_da_detalhada(leitura, origem);
     if let Some(caminho) = destino {
         return match arquivo_caixa::gravar(caminho, &saida) {
             Ok(bytes) => {
@@ -108,22 +122,47 @@ fn mostrar_caixa_detalhada(
     if json_mode {
         println!("{}", serde_json::to_string_pretty(&saida).unwrap());
     } else {
-        let faixa = leitura
-            .faixa_observada
-            .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
-        println!(
-            "IES: visão detalhada da unidade {}: {} processo(s) observado(s); total declarado: {}; faixa observada: {faixa}.",
-            leitura.unidade,
-            leitura.processos.len(),
-            leitura.total_declarado
-        );
-        for processo in &leitura.processos {
-            println!("{} ({})", processo.numero, processo.id.as_str());
-        }
+        println!("{}", humano_da_detalhada(leitura));
     }
     ExitCode::SUCCESS
 }
 
+fn humano_da_detalhada(leitura: &LeituraDetalhada) -> String {
+    use std::fmt::Write as _;
+    let faixa = leitura
+        .faixa_observada
+        .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
+    let mut texto = format!(
+        "IES: visão detalhada da unidade {}: {} processo(s) observado(s); total declarado: {}; faixa observada: {faixa}.",
+        leitura.unidade,
+        leitura.processos.len(),
+        leitura.total_declarado
+    );
+    for processo in &leitura.processos {
+        let categoria = processo
+            .categoria
+            .map_or("categoria não observada", dominio::Categoria::rotulo);
+        let _ = write!(
+            texto,
+            "\n{} ({}; {categoria})",
+            processo.numero,
+            processo.id.as_str()
+        );
+    }
+    let ausentes = leitura.colunas_ausentes();
+    if !ausentes.is_empty() {
+        let _ = write!(
+            texto,
+            "\nIES: colunas não exibidas na visão detalhada: {}. Para vê-las, marque-as no \
+             Nível de detalhe do Controle de Processos (`ies unidade colunas` mostra a configuração \
+             e quais opções existem nesta instalação).",
+            ausentes.join(", ")
+        );
+    }
+    texto
+}
+
+/// Caixa resumida de um replay: Recebidos e Gerados, como observados.
 pub(super) fn mostrar_caixa(
     htmls: &[String],
     origem: &str,
@@ -131,48 +170,6 @@ pub(super) fn mostrar_caixa(
     json_mode: bool,
     exigir_todas_paginas: bool,
     destino: Option<&Path>,
-) -> ExitCode {
-    mostrar_caixa_com_politica(
-        htmls,
-        origem,
-        unidade,
-        json_mode,
-        exigir_todas_paginas,
-        destino,
-        false,
-    )
-}
-
-/// Caixa Web: a página observada com total e faixa por tabela, sem exigir
-/// as demais páginas (contracts/cli/unidade-listar-processos-paginas.md).
-pub(super) fn mostrar_caixa_web(
-    htmls: &[String],
-    origem: &str,
-    unidade: Option<&str>,
-    json_mode: bool,
-    destino: Option<&Path>,
-) -> ExitCode {
-    mostrar_caixa_com_politica(htmls, origem, unidade, json_mode, false, destino, true)
-}
-
-/// A consulta Web exige proveniência; replays de capturas podem não trazê-la.
-fn conferir_identidade_web(leitura: &paginas::Leitura) -> Result<(), crate::erro_web::ErroCaixa> {
-    leitura
-        .unidade
-        .as_deref()
-        .filter(|rotulo| !rotulo.is_empty())
-        .map(|_| ())
-        .ok_or(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
-}
-
-fn mostrar_caixa_com_politica(
-    htmls: &[String],
-    origem: &str,
-    unidade: Option<&str>,
-    json_mode: bool,
-    exigir_todas_paginas: bool,
-    destino: Option<&Path>,
-    exigir_identidade_web: bool,
 ) -> ExitCode {
     let leitura = match paginas::juntar(htmls, unidade) {
         Ok(valor) => valor,
@@ -195,36 +192,8 @@ fn mostrar_caixa_com_politica(
             return ExitCode::from(1);
         }
     };
-    if exigir_identidade_web && let Err(erro) = conferir_identidade_web(&leitura) {
-        return erro_fonte(
-            json_mode,
-            erro.subcodigo(),
-            "unidade não identificada no Controle Web",
-        );
-    }
-    // A Web publica a página observada; total e faixa precisam ser legíveis.
-    if exigir_identidade_web
-        && let Err(erro) = paginas::conferir_faixa_publicavel(
-            dominio::Categoria::Recebidos,
-            &leitura.caixa.recebidos,
-            &leitura.recebidos,
-        )
-        .and_then(|()| {
-            paginas::conferir_faixa_publicavel(
-                dominio::Categoria::Gerados,
-                &leitura.caixa.gerados,
-                &leitura.gerados,
-            )
-        })
-    {
-        return erro_fonte(
-            json_mode,
-            erro.subcodigo(),
-            "a legenda do Controle não comprova total e faixa",
-        );
-    }
-    // Só o replay `--todas-paginas` promete todas as posições; a Web e o
-    // replay seletivo publicam a faixa observada.
+    // Só o replay `--todas-paginas` promete todas as posições; o replay
+    // seletivo publica a faixa observada.
     if exigir_todas_paginas
         && (!leitura.recebidos.completa(&leitura.caixa.recebidos)
             || !leitura.gerados.completa(&leitura.caixa.gerados))
@@ -258,148 +227,6 @@ fn mostrar_caixa_com_politica(
         println!("{}", saida::humano(&leitura));
     }
     ExitCode::SUCCESS
-}
-
-#[cfg(test)]
-mod testes_exportacao {
-    use super::*;
-    use std::fs;
-
-    #[test]
-    fn controle_resumido_paginado_nao_exporta_falso_total() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
-                    <input id='hdnTipoVisualizacao' value='R'>\
-                    <input id='hdnRecebidosHashCriterios' value='filtro-r'>\
-                    <input id='hdnGeradosHashCriterios' value='filtro-g'>\
-                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>\
-                    <a id='lnkInfraProximaPaginaDetalhado'>Próxima</a>";
-        let destino = std::env::temp_dir().join(format!(
-            "ies-resumida-paginada-{}-{}.json",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let status = mostrar_caixa_com_politica(
-            &[html.to_owned()],
-            "web",
-            Some("PPI"),
-            true,
-            true,
-            Some(&destino),
-            true,
-        );
-        assert_eq!(status, ExitCode::from(1));
-        assert!(!destino.exists());
-    }
-
-    #[test]
-    fn detalhada_de_um_get_exporta_sem_categorias_inferidas() {
-        let html = "<html><a id='lnkInfraUnidade'>PPI</a>\
-            <input id='hdnTipoVisualizacao' value='D'>\
-            <table id='tblProcessosDetalhado'>\
-            <caption>(1 registros - 1 a 1):</caption>\
-            <tr><th>Processo</th><th>Tipo</th></tr>\
-            <tr id='P42'><td><a class='processoVisualizado'\
-            href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=42'>\
-            000042/2026</a></td><td>Ofício</td></tr></table></html>";
-        let caminho = std::env::temp_dir().join(format!(
-            "ies-detalhada-{}-{}.json",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        assert_eq!(
-            mostrar_caixa_detalhada(&[html.to_owned()], "web", Some("PPI"), true, Some(&caminho)),
-            ExitCode::SUCCESS
-        );
-        let json: serde_json::Value = serde_json::from_slice(&fs::read(&caminho).unwrap()).unwrap();
-        assert!(json[0]["categoria"].is_null());
-        assert_eq!(json[0]["processos"][0]["numero"], "000042/2026");
-        assert!(json[0].get("recebidos").is_none());
-        assert!(json.get(1).is_none());
-        fs::remove_file(caminho).unwrap();
-    }
-
-    #[test]
-    fn caixa_observada_com_cobertura_total_pode_ser_exportada() {
-        let pasta = std::env::temp_dir().join(format!("ies-caixa-saida-{}", std::process::id()));
-        fs::create_dir_all(&pasta).unwrap();
-        let arquivo = pasta.join(format!(
-            "caixa-{}.json",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                  <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let codigo = mostrar_caixa(
-            &[html.to_owned()],
-            "offline-teste",
-            None,
-            true,
-            true,
-            Some(&arquivo),
-        );
-        assert_eq!(codigo, ExitCode::SUCCESS);
-        let valor: serde_json::Value =
-            serde_json::from_slice(&fs::read(&arquivo).unwrap()).unwrap();
-        assert_eq!(valor[0]["total_declarado"], 0);
-        assert_eq!(valor[1]["total_declarado"], 0);
-        assert!(valor.get("completa").is_none());
-        fs::remove_file(arquivo).unwrap();
-    }
-
-    #[test]
-    fn controle_web_com_cobertura_integral_sem_identidade_de_unidade_falha() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
-        assert_eq!(
-            conferir_identidade_web(&leitura),
-            Err(crate::erro_web::ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
-        );
-    }
-
-    #[test]
-    fn controle_web_nao_grava_exportacao_se_unidade_nao_foi_identificada() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let caminho = std::env::temp_dir().join(format!(
-            "ies-caixa-unidade-ausente-{}-{}.json",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let codigo = mostrar_caixa_com_politica(
-            &[html.to_owned()],
-            "web",
-            None,
-            true,
-            true,
-            Some(&caminho),
-            true,
-        );
-        assert_eq!(codigo, ExitCode::from(1));
-        assert!(!caminho.exists());
-    }
-
-    #[test]
-    fn unidade_comprovada_passando_pelas_duas_tabelas_eh_aceita() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
-                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
-        assert_eq!(leitura.unidade.as_deref(), Some("PPI"));
-        assert_eq!(conferir_identidade_web(&leitura), Ok(()));
-    }
 }
 
 #[cfg(test)]

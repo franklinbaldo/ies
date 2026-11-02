@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Páginas da caixa da unidade
-description: Página observada por padrão e opção --pagina N em ies unidade recebidos e gerados
+description: Página observada por padrão e opção --pagina N em ies unidade recebidos e gerados (a D em listar-processos)
 ---
 
 # Páginas da caixa da unidade (Refs #57)
@@ -11,8 +11,8 @@ e aplica a [regra geral de leituras paginadas](../cli.md) à caixa.
 
 ## Página observada, sem POST
 
-Sem `--pagina`, `ies unidade listar-processos`, `recebidos` e `gerados`
-fazem só o GET existente e devolvem, por lista (Recebidos e Gerados), os
+Sem `--pagina`, `ies unidade recebidos` e `gerados` (sessão na R) fazem só
+o GET existente e devolvem, por lista (Recebidos e Gerados), os
 processos que a tela mostra, o `total_declarado` e a `faixa_observada`,
 na [forma única](unidade-recebidos-gerados.md):
 
@@ -23,8 +23,8 @@ na [forma única](unidade-recebidos-gerados.md):
 - A faixa vem da legenda (`(114 registros - 1 a 100):`). Com legenda sem
   intervalo e linhas iguais ao total (`3 registros:`), a faixa é `1..total`.
   Tabela com zero registros publica `faixa_observada: null`.
-- Com páginas privadas (`--pagina-arquivo`), a faixa é a união contígua
-  das páginas recebidas, em qualquer ponto da lista.
+- No replay de páginas capturadas, a faixa é a união contígua das
+  páginas recebidas, em qualquer ponto da lista.
 - A faixa pode não começar em 1: o servidor lembra a página pedida na
   sessão. A saída não diz "primeira página".
 - `paginas_do_controle_nao_obtidas` deixa de ser emitido por este comando.
@@ -49,9 +49,13 @@ de uma página (UnB e UFRJ, 02/11/2026).
 `ies unidade recebidos --pagina N` e `ies unidade gerados --pagina N`
 pedem a página N (inteiro ≥ 1) de **uma** lista. Recebidos e Gerados têm
 paginadores independentes, e cada ação de página do navegador altera só
-um deles; por isso `--pagina` só existe nesses subcomandos
-(`listar-processos --pagina` é erro de uso do Clap, saída 2), que não
-aceitam `--pagina-arquivo`. A saída é a lista, com a faixa da página obtida.
+um deles; por isso a página de uma tabela R só se pede nesses subcomandos,
+que não aceitam `--pagina-arquivo`. A saída é a lista, com a faixa da
+página obtida. `listar-processos --pagina N` pede a página da visão D
+([visão detalhada](unidade-listar-processos-visao-detalhada.md)). Sessão na
+D: a troca para R e a volta à D estão nas
+[listas](unidade-recebidos-gerados.md); a sequência abaixo vale a partir
+da tela R.
 
 Sequência e orçamento:
 

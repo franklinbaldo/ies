@@ -28,6 +28,7 @@ mod historico_cli;
 mod html_atributos;
 mod instalacao;
 mod mime_web;
+mod nivel_de_detalhe;
 mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
@@ -57,7 +58,9 @@ mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
 mod unidade_categoria;
+mod unidade_colunas_cli;
 mod unidade_lista_cli;
+mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
 use replay_args::Replay;
@@ -229,15 +232,21 @@ struct Unidade {
 enum UnidadeAcao {
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
-    /// Lista Recebidos e Gerados da unidade: duas listas, um GET
+    /// Lista os processos da unidade na visão detalhada, com colunas e a tela restaurada
     ListarProcessos {
-        /// Exporta as listas verificadas para novo arquivo privado
+        /// Exporta a lista verificada para novo arquivo privado
         #[arg(long)]
         saida: Option<PathBuf>,
-        /// Complementa o GET com páginas HTML privadas já capturadas, sem fazer POST
-        #[arg(long = "pagina-arquivo", value_name = "HTML_PRIVADO")]
-        paginas_capturadas: Vec<PathBuf>,
+        /// Pede a página N da visão detalhada (POSTs com efeito de sessão, restaurados)
+        #[arg(
+            long,
+            value_name = "N",
+            value_parser = clap::value_parser!(u32).range(1..)
+        )]
+        pagina: Option<u32>,
     },
+    /// Mostra as 12 opções do Nível de detalhe e quais estão marcadas (só leitura)
+    Colunas,
     /// Lista Recebidos da unidade: a página observada, com total e faixa
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
@@ -250,7 +259,7 @@ struct ListaDaUnidade {
     /// Exporta a lista verificada para novo arquivo privado
     #[arg(long)]
     saida: Option<PathBuf>,
-    /// Pede a página N da lista: no máximo um POST que altera a página lembrada na sessão
+    /// Pede a página N da lista: um POST que altera a página lembrada (na visão detalhada, troca e restaura)
     #[arg(
         long,
         value_name = "N",
@@ -349,19 +358,18 @@ fn run(cli: &Cli) -> ExitCode {
             acao: Some(UnidadeAcao::Gerados(lista)),
         }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
         Domain::Unidade(Unidade {
-            acao:
-                Some(UnidadeAcao::ListarProcessos {
-                    saida,
-                    paginas_capturadas,
-                }),
+            acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
             return unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,
                 saida.as_deref(),
-                paginas_capturadas,
+                pagina.map(|n| n as usize),
             );
         }
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Colunas),
+        }) => return unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
         _ => {}
     }
     if let Domain::Documento(Documento {

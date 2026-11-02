@@ -25,8 +25,8 @@ use crate::{
 #[cfg(test)]
 pub(crate) use envio::derivar_pagina;
 pub(crate) use envio::obter_pagina_via;
-pub(crate) use plano::{codificacao_da_tela, planejar};
-pub(crate) use regras::ErroControleDoFormulario;
+pub(crate) use plano::{codificacao_da_tela, pagina_atual, planejar, tamanho_da_pagina};
+pub(crate) use regras::{ErroControleDoFormulario, campos_do_usuario};
 
 /// O servidor lembra a página de cada tabela na sessão.
 pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {

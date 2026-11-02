@@ -36,9 +36,11 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 - `ies processo NUP`
 - `ies documento NUMERO`
-- `ies unidade listar-processos` (as duas listas, 1 GET)
+- `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas,
+  tela restaurada; decisão do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
   (uma lista; decisão do proprietário, 02/11/2026)
+- `ies unidade colunas` (Nível de detalhe, só leitura)
 - `ies processo enviar NUP --para SIGLA`
 - `ies documento assinar NUMERO`
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
@@ -53,12 +55,16 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
-  [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única.
+  [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),
+  [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única
+  e [colunas do Nível de detalhe](cli/unidade-colunas.md).
 
-Os comandos `ies unidade listar-processos`, `recebidos` e `gerados`
-têm **leitura HTTP GET restrita da caixa Web**, com sessão já existente e origem HTTPS
-explicitamente autorizada, ou replay offline verificado. Não fazem
-login. O único POST previsto é o da opção `--pagina N` (abaixo).
+Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
+`colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
+e origem HTTPS explicitamente autorizada, ou replay offline verificado. Não
+fazem login nem escrita. Os POSTs previstos são os de `--pagina N` (abaixo)
+e os da **troca de visão** R↔D, sempre seguida da restauração da visão
+encontrada ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.
 
 ## Leituras paginadas: página observada por padrão (Refs #57)
@@ -76,10 +82,17 @@ Invariante de **toda** leitura paginada da CLI:
   **`--pagina N`** (inteiro ≥ 1), que pede exatamente a página N com
   o mínimo de requisições. Não há "todas as páginas".
 - N fora do intervalo calculável pelo total e pelo tamanho de página
-  observados é erro tipado **antes** de qualquer envio. A página obtida
-  confere unidade, visualização e critérios da tela de origem; não há
-  retry nem restauração. O efeito é `PaginaOuFiltroLembrado`: a leitura
-  seguinte pode mostrar a página N, e a faixa publicada diz qual é.
+  observados é erro tipado **antes** do envio da página (se o tamanho da
+  página só aparece depois de uma troca de visão, depois dela, com a
+  troca restaurada). A página obtida confere unidade, visualização e
+  critérios da tela de origem; não há retry. O efeito é
+  `PaginaOuFiltroLembrado`: a leitura seguinte pode mostrar a página N, e a
+  faixa publicada diz qual é. Só `recebidos`/`gerados --pagina N` com a
+  sessão já na R deixam a página N lembrada; quando o comando troca de
+  visão, ou lê a D já exibida, a página que moveu é restaurada à
+  **página encontrada** (a da tela do GET ou da resposta da troca) antes
+  da volta. Toda troca de visão é restaurada, e a falha da restauração é
+  erro tipado que diz onde a tela ficou, sem lista.
 
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
@@ -175,7 +188,7 @@ e nunca decidem tratamento.
 
 Todo comando que faz o GET do Controle ou o POST do paginador (`status
 --verificar-controle-web`, `unidade atual`, `listar-processos`,
-`recebidos`/`gerados [--pagina N]`, `processo NUP --resumo`) publica,
+`recebidos`/`gerados [--pagina N]`, `colunas`, `processo NUP --resumo`), inclusive nos POSTs da troca de visão, publica,
 no JSON da falha `fonte_invalida`, dois campos a mais:
 
 | Campo | Quando | Conteúdo |
