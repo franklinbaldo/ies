@@ -103,7 +103,10 @@ fn location_para_outro_host_ou_outro_caminho_e_recusado() {
 #[test]
 fn location_sem_https_com_fragmento_ou_caracteres_de_controle_e_recusado() {
     for localizacao in [
-        format!("http://sei.exemplo.gov.br/sei/controlador.php?{}", consulta("7")),
+        format!(
+            "http://sei.exemplo.gov.br/sei/controlador.php?{}",
+            consulta("7")
+        ),
         format!("javascript:controlador.php?{}", consulta("7")),
         format!("{}#ancora", observado()),
         format!("{} ", observado()),
@@ -138,7 +141,10 @@ fn nomes_de_parametro_nao_canonicos_ou_ponto_e_virgula_sao_recusados() {
 #[test]
 fn acao_diferente_ausente_ou_repetida_e_recusada() {
     for alterado in [
-        observado().replace("acao=procedimento_trabalhar", "acao=procedimento_visualizar"),
+        observado().replace(
+            "acao=procedimento_trabalhar",
+            "acao=procedimento_visualizar",
+        ),
         observado().replace("acao=procedimento_trabalhar&", ""),
         format!("{}&acao=procedimento_trabalhar", observado()),
         format!("{}&acao=procedimento_excluir", observado()),
@@ -175,7 +181,12 @@ fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
     assert_eq!(erro(&sem_hash), E::InfraHashAusenteNoRedirecionamento);
     let repetido = format!("{}&infra_hash={HASH_DESTINO}", observado());
     assert_eq!(erro(&repetido), E::InfraHashRepetidoNoRedirecionamento);
-    for hash in ["e".repeat(63), "e".repeat(65), "g".repeat(64), String::new()] {
+    for hash in [
+        "e".repeat(63),
+        "e".repeat(65),
+        "g".repeat(64),
+        String::new(),
+    ] {
         let alterado = observado().replace(HASH_DESTINO, &hash);
         assert_eq!(
             erro(&alterado),
@@ -202,6 +213,11 @@ fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
         interpretar_com_envio(Some(&observado()), &envio_sem).unwrap_err(),
         E::UnidadeAtualAusenteNaUrlDoEnvio
     );
+    let envio_repetido = format!("{}&infra_unidade_atual=5", url_do_envio());
+    assert_eq!(
+        interpretar_com_envio(Some(&observado()), &envio_repetido).unwrap_err(),
+        E::UnidadeAtualRepetidaNaUrlDoEnvio
+    );
 }
 
 #[test]
@@ -222,6 +238,7 @@ fn subcodigos_sao_estaveis_e_distintos() {
         E::UnidadeAtualAusenteNoRedirecionamento,
         E::UnidadeAtualRepetidaNoRedirecionamento,
         E::UnidadeAtualAusenteNaUrlDoEnvio,
+        E::UnidadeAtualRepetidaNaUrlDoEnvio,
         E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
     ];
     let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();

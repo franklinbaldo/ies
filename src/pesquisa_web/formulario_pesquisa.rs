@@ -1,11 +1,11 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
 use super::redirecionamento::{ErroRedirecionamentoDaPesquisa, interpretar_redirecionamento};
-use super::{ErroResultadoPesquisa, ResultadoPesquisa};
+use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::{
-    EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoPost,
-    SubmissaoDerivada,
+    EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio,
+    RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -70,9 +70,18 @@ pub(crate) fn pesquisar_protocolo_via<R: Read, F>(
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
-    let _ = (submissao, instalacao, cookie_file, enviar);
-    let _ = interpretar_redirecionamento;
-    unimplemented!("CONTRACT shim: pesquisa de protocolo")
+    match enviar_submissao_via(submissao, cookie_file, enviar)
+        .map_err(ErroPesquisaProtocolo::Submissao)?
+    {
+        RespostaDoEnvio::Html(html) => ler_resultados(&html)
+            .map(ResultadoPesquisaProtocolo::Tabela)
+            .map_err(ErroPesquisaProtocolo::Resultado),
+        RespostaDoEnvio::Redirecionamento(redirecionamento) => {
+            interpretar_redirecionamento(redirecionamento, instalacao)
+                .map(|id| ResultadoPesquisaProtocolo::RedirecionadoParaProcessoUnico { id })
+                .map_err(ErroPesquisaProtocolo::Redirecionamento)
+        }
+    }
 }
 
 #[cfg(test)]

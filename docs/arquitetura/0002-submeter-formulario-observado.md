@@ -135,6 +135,12 @@ decimal; um único `infra_hash` de 64 hexadecimais; e um único
 `infra_unidade_atual` igual ao da URL do POST. Cada falha tem variante
 própria em `ErroRedirecionamentoDaPesquisa`.
 
+Ensaio offline: os oito `Location` reais (UnB, PEN1, UFRJ, Goiás;
+interações 6 e 10), com a URL do POST da mesma resposta, passaram pela
+interpretação e devolveram `id_procedimento` decimal (**PASS**, teste
+local temporário lendo arquivo `0600` fora do repositório, não versionado).
+Os testes versionados usam só valores sintéticos.
+
 Abrir `procedimento_trabalhar` pode registrar recebimento
 ([efeitos](../como-o-sei-funciona/efeitos-e-verificacao.md)): o
 redirecionamento é **interpretado, não seguido**. A URL assinada é

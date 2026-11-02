@@ -364,13 +364,17 @@ where
     let cookie = texto.trim();
     validar_cookie(cookie).map_err(E::Transporte)?;
     let marcador_de_resultado = submissao.marcador_de_resultado;
+    let url_do_envio = submissao.url.clone();
     let RespostaDoPost {
         resposta,
         localizacao,
     } = enviar(submissao, cookie).map_err(E::Transporte)?;
     if resposta.status_code == 302 {
-        let _ = localizacao;
-        unimplemented!("CONTRACT shim: 302 como dado");
+        // Corpo descartado sem leitura; a operação decide o que o 302 significa.
+        return Ok(RespostaDoEnvio::Redirecionamento(Redirecionamento302 {
+            localizacao,
+            url_do_envio,
+        }));
     }
     let html = decodificar_resposta(resposta).map_err(|falha| match falha {
         FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
