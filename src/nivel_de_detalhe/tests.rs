@@ -4,9 +4,14 @@ use super::*;
 
 /// Tela com as 12 opções; `marcadas` são os campos com `checked`.
 pub(crate) fn tela(marcadas: &[&str]) -> String {
+    tela_com(&ColunaDoDetalhe::TODAS, marcadas)
+}
+
+/// Tela que publica só `publicadas`, na ordem dada.
+pub(crate) fn tela_com(publicadas: &[ColunaDoDetalhe], marcadas: &[&str]) -> String {
     use std::fmt::Write as _;
     let mut opcoes = String::new();
-    for coluna in ColunaDoDetalhe::TODAS {
+    for &coluna in publicadas {
         let campo = coluna.campo();
         let checked = if marcadas.contains(&campo) {
             " checked=\"checked\""
@@ -99,18 +104,17 @@ fn tela_com_todas_marcadas_como_go_e_booleano_antes_dos_atributos() {
 fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     use ErroNivelDeDetalhe as E;
     let base = tela(&[]);
-    let sem = base.replacen("name=\"chkSinMarcadores\"", "name=\"outro\"", 1);
     assert_eq!(
-        ler_nivel_de_detalhe(&sem),
-        Err(E::OpcaoDoDetalheAusente {
-            coluna: ColunaDoDetalhe::Marcadores
-        })
+        ler_nivel_de_detalhe(&tela_com(&[], &[])),
+        Err(E::NenhumaOpcaoDoDetalhePublicada)
     );
     let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinAtribuicao\"", 1);
-    assert!(matches!(
+    assert_eq!(
         ler_nivel_de_detalhe(&repetida),
-        Err(E::OpcaoDoDetalheRepetida { .. } | E::OpcaoDoDetalheAusente { .. })
-    ));
+        Err(E::OpcaoDoDetalheRepetida {
+            coluna: ColunaDoDetalhe::Atribuicao
+        })
+    );
     let extra = base.replacen(
         "</form>",
         "<input type=\"checkbox\" name=\"chkSinNovaColuna\"></form>",
@@ -145,4 +149,64 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
         ler_nivel_de_detalhe(&dois),
         Err(E::FormulariosDoNivelDeDetalheRepetidos)
     );
+}
+
+/// Estrutura da tela da `UnB` 4.0.9 (ensaio live de 02/11/2026): 11 caixas,
+/// sem `chkSinNivelPrioritarios`.
+fn onze_da_unb() -> Vec<ColunaDoDetalhe> {
+    ColunaDoDetalhe::TODAS
+        .into_iter()
+        .filter(|c| *c != ColunaDoDetalhe::Prioridade)
+        .collect()
+}
+
+#[test]
+fn tela_da_unb_sem_prioridade_publica_a_opcao_indisponivel() {
+    let html = tela_com(&onze_da_unb(), &["chkSinAtribuicao", "chkSinControlePrazo"]);
+    let nivel = ler_nivel_de_detalhe(&html).unwrap();
+    assert_eq!(nivel.opcoes.len(), 12);
+    let prioridade = nivel.opcoes[4];
+    assert_eq!(prioridade.coluna, ColunaDoDetalhe::Prioridade);
+    assert!(!prioridade.disponivel);
+    assert!(!prioridade.marcada);
+    assert_eq!(nivel.opcoes.iter().filter(|o| o.disponivel).count(), 11);
+    assert_eq!(nivel.opcoes.iter().filter(|o| o.marcada).count(), 2);
+    let json = nivel.json();
+    assert_eq!(json[4]["disponivel"], false);
+    assert_eq!(json[4]["marcada"], false);
+    assert_eq!(json[0]["disponivel"], true);
+    assert_eq!(json[0]["marcada"], true);
+}
+
+#[test]
+fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
+    use ErroNivelDeDetalhe as E;
+    let base = tela_com(&onze_da_unb(), &[]);
+    let desconhecida = base.replacen(
+        "</form>",
+        "<input type=\"checkbox\" name=\"chkSinNivelUrgencia\"></form>",
+        1,
+    );
+    assert_eq!(
+        ler_nivel_de_detalhe(&desconhecida),
+        Err(E::OpcaoDoDetalheNaoPrevista)
+    );
+    let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinMarcadores\"", 1);
+    assert_eq!(
+        ler_nivel_de_detalhe(&repetida),
+        Err(E::OpcaoDoDetalheRepetida {
+            coluna: ColunaDoDetalhe::Marcadores
+        })
+    );
+    let rotulo = base.replacen(">Marcadores</label>", ">Etiquetas</label>", 1);
+    assert_eq!(
+        ler_nivel_de_detalhe(&rotulo),
+        Err(E::RotuloDaOpcaoDoDetalheDiferente {
+            coluna: ColunaDoDetalhe::Marcadores
+        })
+    );
+    // Uma só caixa publicada ainda é tela válida.
+    let uma = tela_com(&[ColunaDoDetalhe::Marcadores], &[]);
+    let nivel = ler_nivel_de_detalhe(&uma).unwrap();
+    assert_eq!(nivel.opcoes.iter().filter(|o| o.disponivel).count(), 1);
 }

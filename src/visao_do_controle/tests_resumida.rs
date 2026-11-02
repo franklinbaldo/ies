@@ -52,26 +52,100 @@ fn sessao_em_d_troca_para_r_le_a_lista_e_restaura_a_d() {
     assert!(html.contains("N-3"));
 }
 
-#[test]
-fn sessao_em_d_com_pagina_n_custa_tres_posts() {
+fn segunda() -> TelaR {
     let mut segunda = r();
     segunda.pagina_r = "1";
     segunda.recebidos = (3, 3, vec![4]);
+    segunda
+}
+
+#[test]
+fn sessao_em_d_com_pagina_n_volta_a_pagina_encontrada_da_r_antes_da_d() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,
         Some(2),
-        vec![(200, r().html()), (200, segunda.html()), (200, d().html())],
+        vec![
+            (200, r().html()),
+            (200, segunda().html()),
+            (200, r().html()),
+            (200, d().html()),
+        ],
     );
     assert_eq!(
         registro,
         [
             "POST visao=R pagina=0",
             "POST visao=R recebidos=1 gerados=0",
+            "POST visao=R recebidos=0 gerados=0",
+            "POST visao=D recebidos=0 gerados=0"
+        ]
+    );
+    let html = resultado.unwrap();
+    assert!(html.contains("N-4"));
+    assert!(!html.contains("N-1"));
+}
+
+#[test]
+fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
+    let (resultado, registro) = resumida(
+        d().html(),
+        Categoria::Recebidos,
+        Some(1),
+        vec![
+            (200, segunda().html()),
+            (200, r().html()),
+            (200, segunda().html()),
+            (200, d().html()),
+        ],
+    );
+    assert_eq!(
+        registro,
+        [
+            "POST visao=R pagina=0",
+            "POST visao=R recebidos=0 gerados=0",
+            "POST visao=R recebidos=1 gerados=0",
             "POST visao=D recebidos=1 gerados=0"
         ]
     );
-    assert!(resultado.unwrap().contains("N-4"));
+    assert!(resultado.unwrap().contains("N-1"));
+}
+
+#[test]
+fn volta_a_pagina_da_r_que_falha_restaura_a_d_e_diz_onde_a_r_ficou() {
+    let mut outro_criterio = r();
+    outro_criterio.hash_r = "9999";
+    for (volta, causa) in [
+        (
+            segunda().html(),
+            "faixa_da_resposta_diferente_da_pagina_solicitada",
+        ),
+        (
+            outro_criterio.html(),
+            "criterios_recebidos_alterados_apos_paginar",
+        ),
+    ] {
+        let (resultado, registro) = resumida(
+            d().html(),
+            Categoria::Recebidos,
+            Some(2),
+            vec![
+                (200, r().html()),
+                (200, segunda().html()),
+                (200, volta),
+                (200, d().html()),
+            ],
+        );
+        assert_eq!(registro.len(), 4);
+        assert_eq!(registro[3], "POST visao=D recebidos=1 gerados=0");
+        let erro = resultado.unwrap_err();
+        assert_eq!(erro.subcodigo(), "pagina_da_visao_resumida_nao_restaurada");
+        let detalhes = erro.detalhes_json().unwrap();
+        assert_eq!(detalhes["visao_deixada"], "D");
+        assert_eq!(detalhes["categoria"], "recebidos");
+        assert_eq!(detalhes["pagina_deixada"], 2);
+        assert_eq!(detalhes["causa"], causa);
+    }
 }
 
 #[test]
@@ -182,6 +256,28 @@ fn colunas_com_sessao_em_r_trocam_leem_e_restauram() {
         ]
     );
     assert!(resultado.unwrap().1.opcoes.iter().all(|o| !o.marcada));
+}
+
+/// Ensaio live `UnB` 4.0.9 (02/11/2026): 11 opções, sem Prioridade.
+#[test]
+fn colunas_da_unb_com_onze_opcoes_publicam_a_prioridade_indisponivel() {
+    use crate::nivel_de_detalhe::ColunaDoDetalhe as C;
+    let publicadas: Vec<_> = C::TODAS
+        .into_iter()
+        .filter(|c| *c != C::Prioridade)
+        .collect();
+    let nivel = crate::nivel_de_detalhe::tests::tela_com(&publicadas, &["chkSinAtribuicao"]);
+    let (resultado, registro) = colunas(d().html(), vec![(200, nivel)]);
+    assert_eq!(registro, ["GET procedimento_configurar_detalhe"]);
+    let (_, nivel) = resultado.unwrap();
+    assert_eq!(nivel.opcoes.len(), 12);
+    let indisponiveis: Vec<_> = nivel
+        .opcoes
+        .iter()
+        .filter(|o| !o.disponivel)
+        .map(|o| o.coluna)
+        .collect();
+    assert_eq!(indisponiveis, [C::Prioridade]);
 }
 
 #[test]
