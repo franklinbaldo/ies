@@ -227,6 +227,16 @@ impl ErroLogin {
         }
     }
 
+    /// Chave do arquivo de credenciais envolvida (nunca o valor).
+    pub(crate) fn campo_das_credenciais(&self) -> Option<&'static str> {
+        match self {
+            Self::CampoDasCredenciaisAusente(campo)
+            | Self::CampoDasCredenciaisRepetido(campo)
+            | Self::CampoDasCredenciaisVazio(campo) => Some(campo.chave()),
+            _ => None,
+        }
+    }
+
     /// Texto saneado que a tela de login devolvida declarou como erro.
     pub(crate) fn mensagem_do_servidor(&self) -> Option<&str> {
         match self {

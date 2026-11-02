@@ -260,6 +260,26 @@ fn ordenar_campos<'c>(
     Ok(ordenados)
 }
 
+/// Corpo `application/x-www-form-urlencoded` no charset da tela.
+fn codificar_corpo(
+    ordenados: &[(&str, &str)],
+    codificacao: CodificacaoDaTela,
+) -> Result<String, ErroSubmissaoFormulario> {
+    let mut corpo = String::new();
+    for (i, (nome, valor)) in ordenados.iter().enumerate() {
+        if i > 0 {
+            corpo.push('&');
+        }
+        let nao_representavel = || ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao {
+            campo: (*nome).to_owned(),
+        };
+        codificar(nome, codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+        corpo.push('=');
+        codificar(valor, codificacao, &mut corpo).ok_or_else(nao_representavel)?;
+    }
+    Ok(corpo)
+}
+
 /// Deriva a submissão do formulário servido, sem rede.
 pub(crate) fn derivar_submissao(
     operacao: &OperacaoDeFormulario,
@@ -299,18 +319,7 @@ pub(crate) fn derivar_submissao(
     let url = resolver_action(form, &servida, instalacao, operacao)?;
     let controles = ler_controles(form, dom.parser(), operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
-    let mut corpo = String::new();
-    for (i, (nome, valor)) in ordenados.iter().enumerate() {
-        if i > 0 {
-            corpo.push('&');
-        }
-        let nao_representavel = || E::ValorNaoRepresentavelNaCodificacao {
-            campo: (*nome).to_owned(),
-        };
-        codificar(nome, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
-        corpo.push('=');
-        codificar(valor, tela.codificacao, &mut corpo).ok_or_else(nao_representavel)?;
-    }
+    let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {
         url,
         host: servida.host.to_owned(),

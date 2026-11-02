@@ -102,6 +102,51 @@ pub(super) fn resolver_action(
     instalacao: &Instalacao,
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
+    let absoluta = resolver_referencia(form, servida)?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
+    Ok(absoluta)
+}
+
+/// `action` do login: resolvido contra a URL servida, no **host** da
+/// instalação, sem segmentos `.`/`..` e com consulta de nomes canônicos.
+/// O login não tem `acao=` nem `infra_hash`.
+pub(super) fn resolver_action_no_host(
+    form: &tl::HTMLTag<'_>,
+    servida: &UrlHttps<'_>,
+    instalacao: &Instalacao,
+) -> Result<String, E> {
+    let absoluta = resolver_referencia(form, servida)?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    if !alvo.host.eq_ignore_ascii_case(instalacao.host())
+        || alvo
+            .caminho
+            .split('/')
+            .any(|segmento| segmento == "." || segmento == "..")
+    {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    for item in alvo
+        .consulta
+        .unwrap_or_default()
+        .split('&')
+        .filter(|item| !item.is_empty())
+    {
+        let (nome, valor) = item
+            .split_once('=')
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+        conferir_chave_de_consulta(nome).map_err(E::Transporte)?;
+        conferir_valor_de_consulta(valor).map_err(E::Transporte)?;
+    }
+    Ok(absoluta)
+}
+
+/// `action` absoluto em HTTPS, resolvido contra a URL servida, sem o
+/// fragmento. Não normaliza `..`.
+fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result<String, E> {
     let bruto = atributo(form, "action")?.ok_or(E::AcaoDoFormularioAusente)?;
     let decodificado =
         decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
@@ -126,11 +171,6 @@ pub(super) fn resolver_action(
             None => format!("https://{}/{referencia}", servida.host),
         }
     };
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
-    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
-    }
-    conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
 }
 
@@ -188,7 +228,11 @@ fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
     })
 }
 
-fn classificar(tag: &tl::HTMLTag<'_>, botao: Option<&str>) -> Result<Option<Controle>, E> {
+fn classificar(
+    tag: &tl::HTMLTag<'_>,
+    operacao: &OperacaoDeFormulario,
+) -> Result<Option<Controle>, E> {
+    let botao = botao_do_envio(operacao.envio);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea")
         // Navegadores não enviam controles desabilitados (com ou sem valor).
@@ -203,7 +247,8 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: Option<&str>) -> Result<Option<Cont
         decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
             campo: bruto.clone(),
         })?;
-    if nome == "hdnAcao" {
+    // `hdnAcao` só com a regra observada da operação (o `onsubmit` do login).
+    if nome == "hdnAcao" && !operacao.campos_ocultos_reescritos.contains(&"hdnAcao") {
         return Err(E::HdnAcaoPublicadoSemRegraDaOperacao);
     }
     let padrao = if elemento == "button" {
@@ -229,14 +274,14 @@ fn classificar(tag: &tl::HTMLTag<'_>, botao: Option<&str>) -> Result<Option<Cont
     })
 }
 
-/// Nome do botão que participa do envio; `submit()` por script não envia botão.
+/// Nome do botão servido que a operação declara (o desabilitado pelo
+/// `onsubmit` é conferido e depois retirado); `submit()` por script não
+/// tem botão.
 fn botao_do_envio(envio: EnvioDoFormulario) -> Option<&'static str> {
     match envio {
-        EnvioDoFormulario::BotaoDeEnvio(nome) => Some(nome),
+        EnvioDoFormulario::BotaoDeEnvio(nome)
+        | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(nome) => Some(nome),
         EnvioDoFormulario::SubmitPorScript => None,
-        EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_) => {
-            todo!("CONTRACT: botão desabilitado pelo onsubmit")
-        }
     }
 }
 
@@ -255,7 +300,7 @@ pub(super) fn ler_controles(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        let Some(controle) = classificar(tag, botao_do_envio(operacao.envio))? else {
+        let Some(controle) = classificar(tag, operacao)? else {
             continue;
         };
         match &controle {
@@ -271,12 +316,21 @@ pub(super) fn ler_controles(
     }
     match (operacao.envio, botoes) {
         (EnvioDoFormulario::SubmitPorScript, _) | (EnvioDoFormulario::BotaoDeEnvio(_), 1) => {}
-        (EnvioDoFormulario::BotaoDeEnvio(_), 0) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
-        (EnvioDoFormulario::BotaoDeEnvio(_), _) => {
-            return Err(E::BotoesDeEnvioRepetidosNoFormulario);
+        // Servido uma vez, mas desabilitado antes de o navegador montar o corpo.
+        (EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_), 1) => {
+            controles.retain(|c| !matches!(c, Controle::Botao { .. }));
         }
-        (EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_), _) => {
-            todo!("CONTRACT: botão desabilitado pelo onsubmit")
+        (
+            EnvioDoFormulario::BotaoDeEnvio(_)
+            | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
+            0,
+        ) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
+        (
+            EnvioDoFormulario::BotaoDeEnvio(_)
+            | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
+            _,
+        ) => {
+            return Err(E::BotoesDeEnvioRepetidosNoFormulario);
         }
     }
     if let Some(ausente) = operacao

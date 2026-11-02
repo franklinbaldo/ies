@@ -51,9 +51,7 @@ mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod saida_erro;
-#[allow(dead_code)] // Shims do contrato sessao.login; a CLI ainda responde nao_implementado.
 mod sessao_login;
-#[allow(dead_code)] // Idem.
 mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
@@ -101,6 +99,11 @@ enum Domain {
     /// Configura a conexão (ainda não implementado)
     Setup(SetupArgs),
     /// Autentica na instalação configurada e grava a sessão nos arquivos privados
+    ///
+    /// Credenciais só no arquivo privado 0600 de `IES_CREDENCIAIS_FILE`, com as
+    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao). Sem
+    /// --forcar, confere antes a sessão gravada com um GET e não loga se ela
+    /// valer.
     Login(LoginArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
@@ -380,6 +383,9 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
+        Domain::Login(LoginArgs { forcar }) => {
+            return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
+        }
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }

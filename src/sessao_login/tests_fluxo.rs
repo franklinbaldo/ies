@@ -328,3 +328,18 @@ fn unidade_esperada_diferente_nao_grava_a_sessao() {
     assert!(!ambiente.arquivos.cookie.exists());
     assert!(!ambiente.arquivos.url_controle.exists());
 }
+
+#[test]
+fn arquivos_vazios_do_setup_vao_ao_login_sem_o_get_e_sao_regravados() {
+    let ambiente = Ambiente::novo();
+    privado(&ambiente.arquivos.url_controle, "");
+    privado(&ambiente.arquivos.cookie, "");
+    let mut roteiro = Roteiro::novo(login_completo());
+    let resultado = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap();
+    assert_eq!(roteiro.pedidos[0].url, RAIZ);
+    assert_eq!(resultado.requisicoes, 4);
+    assert_eq!(
+        Ambiente::ler(&ambiente.arquivos.cookie).trim(),
+        "PHPSESSID=nova"
+    );
+}
