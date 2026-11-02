@@ -206,6 +206,32 @@ pub(crate) fn preparar_destino_web(
     }
 }
 
+#[cfg(target_os = "linux")]
+fn conferir_pai_ancorado_visivel(
+    preparado: &DestinoPreparado<'_>,
+) -> Result<(), ErroArquivoCaixa> {
+    use std::os::unix::fs::MetadataExt;
+    let pai = preparado
+        .caminho
+        .parent()
+        .ok_or(ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao)?;
+    let caminho = if pai.as_os_str().is_empty() {
+        Path::new(".")
+    } else {
+        pai
+    };
+    let observado = std::fs::symlink_metadata(caminho)
+        .map_err(|_| ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao)?;
+    let aberto = preparado
+        .pai
+        .metadata()
+        .map_err(|_| ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao)?;
+    if !observado.is_dir() || observado.dev() != aberto.dev() || observado.ino() != aberto.ino() {
+        return Err(ErroArquivoCaixa::DiretorioTrocadoDuranteGravacao);
+    }
+    Ok(())
+}
+
 fn gravar_preparado_com_intervalo(
     destino: &DestinoPreparado<'_>,
     valor: &Value,
@@ -223,6 +249,8 @@ fn gravar_preparado_com_intervalo(
     #[cfg(unix)]
     opcoes.mode(0o600);
     entre_ancoragem_e_abertura();
+    #[cfg(target_os = "linux")]
+    conferir_pai_ancorado_visivel(destino)?;
     #[cfg(target_os = "linux")]
     let caminho = {
         use std::os::fd::AsRawFd;
@@ -250,6 +278,8 @@ fn gravar_preparado_com_intervalo(
         // Não remover por pathname após falha: diretório pode ter mudado.
         return Err(ErroArquivoCaixa::EscritaDeArquivoFalhou);
     }
+    #[cfg(target_os = "linux")]
+    conferir_pai_ancorado_visivel(destino)?;
     Ok(bytes.len())
 }
 

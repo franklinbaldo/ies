@@ -14,7 +14,7 @@ pub(super) fn listar_processos_da_unidade(
     paginas_privadas: &[PathBuf],
 ) -> ExitCode {
     // A saída previamente impossível deve falhar sem acessar a sessão/SEI.
-    let preparado = match destino.map(arquivo_caixa::preparar_destino).transpose() {
+    let preparado = match destino.map(arquivo_caixa::preparar_destino_web).transpose() {
         Ok(valor) => valor,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
