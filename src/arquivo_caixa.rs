@@ -20,7 +20,7 @@ impl ErroArquivoCaixa {
             Self::DiretorioLinkSimbolico => "diretorio_do_arquivo_da_caixa_link_simbolico",
             Self::DiretorioTrocadoDurantePreparacao => {
                 "diretorio_do_arquivo_da_caixa_trocado_durante_preparacao"
-            },
+            }
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -32,7 +32,7 @@ impl ErroArquivoCaixa {
             Self::DiretorioLinkSimbolico => "diretório de destino atravessa link simbólico",
             Self::DiretorioTrocadoDurantePreparacao => {
                 "diretório de destino foi substituído durante a preparação"
-            },
+            }
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
         }
@@ -79,8 +79,7 @@ fn conferir_destino_e_pai(destino: &Path) -> Result<std::fs::Metadata, ErroArqui
             pai_observado = Some(meta);
         }
     }
-    let pai_observado =
-        pai_observado.ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
+    let pai_observado = pai_observado.ok_or(ErroArquivoCaixa::DiretorioDeDestinoAusente)?;
     match std::fs::symlink_metadata(destino) {
         Ok(_) => Err(ErroArquivoCaixa::DestinoJaExiste),
         Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(pai_observado),
@@ -88,6 +87,7 @@ fn conferir_destino_e_pai(destino: &Path) -> Result<std::fs::Metadata, ErroArqui
     }
 }
 
+#[cfg(test)]
 pub fn conferir_destino(destino: &Path) -> Result<(), ErroArquivoCaixa> {
     conferir_destino_e_pai(destino)?;
     Ok(())
