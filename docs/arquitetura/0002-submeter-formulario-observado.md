@@ -22,7 +22,8 @@ Este documento define **apenas a derivação** da submissão e suas recusas
 tipadas, mais uma função de envio injetável (`_via` + `FnOnce`).
 `ies processo buscar` continua como descrito em
 [seu contrato](../../contracts/cli/processo-buscar.md). O primeiro uso
-live é `ies unidade listar-processos --categoria T --pagina N`
+live é `ies unidade recebidos|gerados --pagina N` (ensaiado em 02/11/2026
+com a sintaxe anterior `listar-processos --categoria T --pagina N`)
 ([páginas da caixa](../../contracts/cli/unidade-listar-processos-paginas.md)),
 com a `const` `OBTER_PAGINA_DO_CONTROLE` em `src/pagina_do_controle.rs`.
 

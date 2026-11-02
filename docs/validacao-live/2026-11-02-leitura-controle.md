@@ -92,6 +92,13 @@ com a página observada por padrão e `--pagina N` por categoria. Cada
 `--pagina N` custou 1 GET + no máximo 1 POST; `N` fora do intervalo foi
 recusado **antes** de qualquer POST. Nenhuma escrita.
 
+> **Nota posterior (sintaxe):** este ensaio usou a sintaxe da PR #146,
+> `ies unidade listar-processos --categoria T --pagina N`. Por decisão do
+> proprietário, a mesma operação passou a `ies unidade recebidos|gerados
+> --pagina N`, e `--categoria`/`--pagina` saíram de `listar-processos`
+> ([listas](../../contracts/cli/unidade-recebidos-gerados.md)). O registro
+> abaixo é histórico; a nova sintaxe ainda não foi ensaiada live.
+
 | Instalação | Padrão (1 GET) | `--pagina N` | Fora do intervalo |
 | --- | --- | --- | --- |
 | UnB | 12/12 e 47/47, faixa 1–total | — | `gerados --pagina 2` → `pagina_fora_do_intervalo` |

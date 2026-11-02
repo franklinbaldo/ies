@@ -4,7 +4,7 @@ title: Leitura da caixa da unidade por sessão Web existente
 operation: unidade.listar_processos
 implementation: partial
 status: adopted-for-scope
-scope: GET HTTPS autorizado do Controle de Processos com total e faixa observados; um POST opcional por --categoria T --pagina N
+scope: GET HTTPS autorizado do Controle de Processos com Recebidos e Gerados como listas independentes, total e faixa observados; um POST opcional por ies unidade recebidos|gerados --pagina N
 selected_strategy: web-session-readonly
 alternatives: web-session-readonly,rest-wssei,soap-official
 evidence_level: replays-offline-e-contratos-documentados
@@ -51,6 +51,8 @@ e falha segura de gravação.
 
 - [Contrato da operação](../../contracts/cli/unidade-listar-processos.md)
 - [Páginas da caixa](../../contracts/cli/unidade-listar-processos-paginas.md)
+- [Listas Recebidos e Gerados](../../contracts/cli/unidade-recebidos-gerados.md)
+- [Testes da superfície das listas](../../tests/cli_unidade_listas.rs)
 - [Matriz de evidências](../../contracts/evidencias/unidade-listar_processos.md)
 - [Testes de autenticação e replay](../../tests/replay_unidade.rs)
 - [Comparação experimental](../experimentos/comparar-acessos-sei.md)
@@ -150,3 +152,21 @@ Sem restauração da página 1: a faixa publicada mostra qual página a tela
 traz, e a restauração seria outro POST com o mesmo efeito. Revisar se o
 ensaio live mostrar critério ou unidade alterados após o POST, resposta
 302, ou campo de página diferente do previsto.
+
+## Listas independentes e subcomandos (decisão do proprietário, 02/11/2026)
+
+Recebidos e Gerados são duas listas independentes do SEI: cada uma tem
+paginador, total, faixa e página lembrada próprios; só compartilham a
+resposta HTTP. Alternativas: (a) manter o objeto `{recebidos, gerados}`
+e `--categoria T --pagina N` (PR #146); (b) forma única de lista e
+subcomandos `ies unidade recebidos` e `ies unidade gerados`. O
+proprietário escolheu (b), **por decisão explícita que se sobrepõe** à
+regra da [matriz](../matriz-derivacao-cli.md) de não criar verbos: cada
+lista vira um comando com `--pagina N`, e `listar-processos` devolve o
+array `[recebidos, gerados]` com 1 GET, sem `--categoria` nem `--pagina`
+(contrato pré-1.0, sem alias). A visão D devolve uma lista
+`categoria: "detalhada"`. A operação e a estratégia não mudam: mesmo
+GET, mesmo POST da #146, mesmas recusas; `--unidade` é conferido pela
+mesma leitura. A exportação `--saida` e a importação `--caixa-local`
+passam ao array; o formato anterior é recusado. Ensaio live da nova
+sintaxe: **NOT_RUN** (o ensaio de 02/11/2026 usou `--categoria`).

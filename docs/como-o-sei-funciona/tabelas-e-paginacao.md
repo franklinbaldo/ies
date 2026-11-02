@@ -88,5 +88,5 @@ PEN1, PEN3 e PEN4 (SEI 5.0.4) e Goiás (5.0.3), visão resumida.
 O `InfraUtil.js`, que define `infraAcaoPaginar`, não foi capturado; o
 efeito "grava o campo da página e envia o formulário" vem do oráculo
 Todos para listas comuns. O IES lê a página que a tela mostra e só
-envia um POST com `--categoria T --pagina N`
+envia um POST com `ies unidade recebidos|gerados --pagina N`
 ([contrato](../../contracts/cli/unidade-listar-processos-paginas.md)).
