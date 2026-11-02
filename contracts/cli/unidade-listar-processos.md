@@ -365,18 +365,11 @@ Fora do Linux não há garantia de concorrência equivalente. Continua até
 
 ## Mesmo diretório entre prévia e abertura (Refs #57 e #59)
 
-A prévia local e a abertura do descritor não são uma operação atômica:
-outro processo pode substituir a pasta por **outro diretório regular**
-nesse intervalo, sem usar symlink. No Linux, a identidade `(st_dev,
-st_ino)` do diretório pai conferido deve coincidir com a identidade
-do descritor efetivamente aberto e mantido antes do GET. Diferença
-produz o erro Rust `DiretorioTrocadoDurantePreparacao`, subcódigo
-`diretorio_do_arquivo_da_caixa_trocado_durante_preparacao`, antes de
-acessar configuração, cookie ou SEI. Para caminho relativo sem pai
-explícito, conferir a identidade de `.`. Nunca enviar o JSON à
-pasta substituta. O teste determinístico troca por diretório regular
-**entre** a prévia e a ancoragem, não apenas após a ancoragem.
-
-É uma verificação local: não demonstra sessão autenticada,
-paginação ativa, nem autoriza o GET. Destino recusado: 0 GET/0 POST;
-destino aceito: até 1 GET/0 POST. Validação live NOT_RUN.
+No Linux, a exportação compara dispositivo e inode do pai verificado
+com os do descritor aberto antes do GET. Troca por outra pasta comum
+nesse intervalo retorna
+`diretorio_do_arquivo_da_caixa_trocado_durante_preparacao`, sem
+requisição nem escrita na pasta substituta. A regressão troca o pai
+nesse intervalo. Pai relativo vazio corresponde a `.`.
+Destino recusado: 0 GET/POST; válido: até 1 GET, 0 POST.
+Não comprova paginação, sessão live ou efeitos administrativos.
