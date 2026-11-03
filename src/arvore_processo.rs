@@ -4,7 +4,9 @@
 //! pastas, `Pastas[k]['protocolos']` e a barra (`.acoes`) dos documentos.
 //! Estrutura em docs/como-o-sei-funciona/arvore-do-processo.md; contrato em
 //! contracts/cli/processo-obter-arvore.md. Tipos aceitos: `PROCESSO`,
-//! `DOCUMENTO`, `PASTA` e `AGUARDE`; qualquer outro é recusa.
+//! `PROCESSO_ANEXADO`, `DOCUMENTO`, `PASTA` e `AGUARDE`; qualquer outro é
+//! recusa.
+mod anexados;
 pub(crate) mod endereco;
 mod erro;
 mod literais;
@@ -24,13 +26,15 @@ mod tests_pastas_integridade;
 #[cfg(test)]
 pub(crate) mod tests_tela;
 
+use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use tela::{ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
 
-/// O nó `PROCESSO`: id (a1), NUP (a5, igual a a15) e tipo (a6, a dica).
+/// O nó `PROCESSO` (ou um `PROCESSO_ANEXADO`): id (a1), NUP (a5, igual a
+/// a15) e tipo (a6, a dica).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoNaArvore {
     pub(crate) id: String,
@@ -130,6 +134,7 @@ pub(crate) fn ler_arvore(
     id_aberto: &str,
 ) -> Result<ArvoreLida, ErroArvore> {
     let mut processo: Option<ProcessoNaArvore> = None;
+    let mut anexados: Vec<AnexadoLido> = Vec::new();
     let mut documentos: Vec<DocumentoLido> = Vec::new();
     // Índice do nó → posição em `documentos`, só para documentos de pasta.
     let mut de_pasta: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
@@ -168,6 +173,7 @@ pub(crate) fn ler_arvore(
                 }
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
+            "PROCESSO_ANEXADO" => anexados.push(ler_anexado(&com_aridade(argumentos)?)?),
             "DOCUMENTO" => {
                 let lido = ler_documento(&com_aridade(argumentos)?)?;
                 if documentos
@@ -197,6 +203,7 @@ pub(crate) fn ler_arvore(
     if processo.id != id_aberto {
         return Err(ErroArvore::IdDoProcessoNaArvoreDiferenteDoAberto);
     }
+    let anexados = conferir_anexados(&processo, anexados, &documentos, &nos_de_pasta)?;
     let (pastas, pastas_nao_carregadas) =
         conferir_pastas(&processo.id, &nos_de_pasta, &protocolos, &documentos)?;
     Ok(ArvoreLida {
@@ -204,7 +211,7 @@ pub(crate) fn ler_arvore(
         documentos: documentos.into_iter().map(|d| d.documento).collect(),
         pastas,
         pastas_nao_carregadas,
-        anexados: Vec::new(),
+        anexados,
     })
 }
 

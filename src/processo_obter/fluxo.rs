@@ -68,6 +68,10 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         },
     };
     let (arvore_lida, unidade, resolvido_por) = aberto;
+    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
+    for anexado in &arvore_lida.arvore.anexados {
+        let _ = indice.registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
+    }
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,
