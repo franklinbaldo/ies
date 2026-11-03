@@ -69,7 +69,8 @@ O que falta implementar e em que ordem está na
 ## Mecânica do repositório
 
 - Todo Markdown autoral é OKF ([política de CI](docs/ci.md)); nenhum
-  arquivo texto passa de 20.000 bytes — divida por responsabilidade.
+  arquivo texto passa de 20.000 bytes (exceto `.lock`) — divida por
+  responsabilidade.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`

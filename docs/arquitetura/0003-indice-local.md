@@ -30,18 +30,26 @@ de leitura, sessão nova por caso, controle positivo antes e depois):
 - `controlador.php?acao=procedimento_trabalhar&id_procedimento=N` sem
   hash → **302 para a mesma ação assinada pelo servidor** (chaves `acao`,
   `id_procedimento`, `infra_hash`, `infra_sistema`,
-  `infra_unidade_atual`), mesmo id; a sessão sobrevive.
+  `infra_unidade_atual`), mesmo id; a sessão sobrevive. Idem com
+  `&id_documento=M` acrescido (`procedimento_trabalhar` com os dois ids).
 - Recusadas com 302 para `login.php` e `msg=Link sem assinatura`, **e a
-  sessão morreu** (controle depois falhou), cada uma:
-  `procedimento_controlar` sem parâmetros, `protocolo_pesquisar` sem
-  parâmetros, `procedimento_trabalhar&id_documento=M` (sem
-  `id_procedimento`), `documento_visualizar&id_documento=M`,
-  `procedimento_consultar_historico&id_procedimento=N` e
-  `arvore_visualizar&id_procedimento=N`.
+  sessão morreu** (controle depois falhou), cada uma na forma mínima
+  (`acao` + ids, sem contexto): `procedimento_controlar` e
+  `protocolo_pesquisar` sem parâmetros,
+  `procedimento_trabalhar&id_documento=M` (sem `id_procedimento`),
+  `documento_visualizar`, `documento_imprimir_web`,
+  `documento_versao_listar`, `assinatura_listar`, `arvore_visualizar`
+  (com e sem documento), `procedimento_consultar_historico`,
+  `comentario_listar`, `acompanhamento_gerenciar`,
+  `andamento_marcador_gerenciar`, `protocolo_modelo_gerenciar`,
+  `rel_bloco_protocolo_listar&id_bloco=B` (conteúdo do bloco) e
+  `bloco_interno_listar`. Candidatas escolhidas do inventário de 112
+  `acao` publicadas nas capturas, só as de leitura; nenhuma de escrita.
 
 Consequência: a **única** entrada sem assinatura é `procedimento_trabalhar`
-por id. O Todos também mediu como aceita a mesma forma acrescida de
-`&id_documento=M`; o IES não a mediu e não a monta. Todo o resto vem da
+por id do processo, opcionalmente com o do documento (17 formas medidas,
+2 aceitas). O módulo monta só a forma com `id_procedimento`; a variante
+com documento fica para quando houver uso. Todo o resto vem da
 tabela `link_assinado` da sessão. O Todos mediu ainda que os links do
 menu deixam de valer depois de trocar de unidade (o hash cobre
 `infra_unidade_atual`): a unidade é parte da chave do link.
