@@ -10,7 +10,7 @@ use std::collections::HashSet;
 pub(super) struct UrlHttps<'a> {
     pub(super) host: &'a str,
     pub(super) caminho: &'a str,
-    consulta: Option<&'a str>,
+    pub(super) consulta: Option<&'a str>,
 }
 
 impl<'a> UrlHttps<'a> {
@@ -174,7 +174,7 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     Ok(absoluta)
 }
 
-fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
+pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
     let (mut acoes, mut acoes_iguais, mut hashes) = (0, 0, 0);
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item

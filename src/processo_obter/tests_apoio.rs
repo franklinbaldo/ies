@@ -1,0 +1,290 @@
+//! Apoio dos testes do fluxo: transporte roteirizado, índice em diretório
+//! temporário e telas SINTÉTICAS com a estrutura observada (Controle com
+//! `tr#P{id}` e `frmProtocoloPesquisaRapida`, 302 da pesquisa rápida de GO,
+//! tela do processo e árvore). Hosts, hashes, ids e números inventados.
+use super::*;
+use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
+use crate::arvore_processo::tests_tela::{src_da_arvore, tela_do_processo};
+use crate::formulario_web::SubmissaoDerivada;
+use crate::indice_local::{ChaveDoLink, IndiceLocal};
+use crate::instalacao::Instalacao;
+use crate::transporte::RespostaWeb;
+use std::collections::VecDeque;
+use std::io::Cursor;
+use std::path::PathBuf;
+
+pub(super) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
+pub(super) const UNIDADE: &str = "UNIDADE TESTE";
+pub(super) const ID_UNIDADE: &str = "110000001";
+pub(super) const ID: &str = "10";
+const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
+pub(super) const COOKIE: &str = "PHPSESSID=SINTETICO";
+
+pub(super) fn hash(c: char) -> String {
+    c.to_string().repeat(64)
+}
+
+pub(super) fn instalacao() -> Instalacao {
+    Instalacao::interpretar(ORIGEM).unwrap()
+}
+
+pub(super) fn url_controle() -> String {
+    format!(
+        "{ORIGEM}/controlador.php?acao=procedimento_controlar&{CONTEXTO}&infra_hash={}",
+        hash('a')
+    )
+}
+
+pub(super) fn action_rapida() -> String {
+    format!(
+        "controlador.php?acao=protocolo_pesquisa_rapida&{CONTEXTO}&infra_hash={}",
+        hash('b')
+    )
+}
+
+/// `Location` relativo do 302 da pesquisa rápida (forma das cassettes de GO).
+pub(super) fn trabalhar_rapida(id: &str) -> String {
+    format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&{CONTEXTO}&infra_hash={}",
+        hash('c')
+    )
+}
+
+/// `href` do link da linha `tr#P{id}` no Controle.
+pub(super) fn trabalhar_controle(id: &str) -> String {
+    format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=procedimento_controlar&acao_retorno=procedimento_controlar&id_procedimento={id}&{CONTEXTO}&infra_hash={}",
+        hash('d')
+    )
+}
+
+/// `Location` da entrada por id aceita (ADR 0003: sem `acao_origem`).
+pub(super) fn trabalhar_entrada(id: &str) -> String {
+    format!(
+        "{ORIGEM}/controlador.php?acao=procedimento_trabalhar&id_procedimento={id}&infra_hash={}&{CONTEXTO}",
+        hash('9')
+    )
+}
+
+pub(super) fn url_entrada(id: &str) -> String {
+    format!("{ORIGEM}/controlador.php?acao=procedimento_trabalhar&id_procedimento={id}")
+}
+
+pub(super) fn absoluta(relativa: &str) -> String {
+    format!("{ORIGEM}/{relativa}")
+}
+
+pub(super) fn url_arvore(id: &str) -> String {
+    absoluta(&src_da_arvore(id))
+}
+
+pub(super) const LOGIN_RECUSA: &str = "https://sei.exemplo.gov.br/sip/login.php?sigla_orgao_sistema=ORG&sigla_sistema=SEI&msg=Link%20sem%20assinatura";
+pub(super) const LOGIN: &str =
+    "https://sei.exemplo.gov.br/sip/login.php?sigla_orgao_sistema=ORG&sigla_sistema=SEI";
+
+fn formulario_rapido() -> String {
+    format!(
+        "<form class=\"form-inline\" id=\"frmProtocoloPesquisaRapida\" method=\"post\" action=\"{}\">\
+         <div class=\"input-group\"><input type=\"text\" id=\"txtPesquisaRapida\" name=\"txtPesquisaRapida\" class=\"form-control\" placeholder=\"Pesquisar...\" tabindex=\"52\" />\
+         <span class=\"input-group-btn\"><span id=\"spnInfraUnidade\" class=\"btn\">\
+         <img src=\"svg/pesquisa_rapida.svg\" onclick=\"document.getElementById('frmProtocoloPesquisaRapida').submit();\" /></span></span></div></form>",
+        action_rapida()
+    )
+}
+
+/// Controle na visão resumida com `linhas` (id, número) em Recebidos.
+pub(super) fn controle(linhas: &[(&str, &str)]) -> String {
+    let mut tabela = String::new();
+    for (id, numero) in linhas {
+        tabela.push_str(&format!(
+            "<tr id=\"P{id}\"><td><a href=\"{}\" class=\"processoVisualizado\">{numero}</a></td></tr>",
+            trabalhar_controle(id)
+        ));
+    }
+    let n = linhas.len();
+    let legenda = if n == 0 {
+        "0 registros:".to_owned()
+    } else {
+        format!("{n} registros - 1 a {n}):")
+    };
+    format!(
+        "<html><body>{}<a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
+         <table id=\"tblProcessosRecebidos\"><caption>{legenda}</caption>{tabela}</table>\
+         <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></body></html>",
+        formulario_rapido()
+    )
+}
+
+/// Tela do processo com a árvore do id e o formulário rápido.
+pub(super) fn trabalhar(id: &str) -> String {
+    tela_do_processo(UNIDADE, &[src_da_arvore(id)])
+        .replace("</body>", &format!("{}</body>", formulario_rapido()))
+}
+
+pub(super) fn arvore_de(id: &str, nup: &str) -> String {
+    arvore(&[no_processo(0, id, nup), no_documento(1, "21", id, "0000101")])
+}
+
+/// Uma requisição vista pelo transporte.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct Pedido {
+    pub(super) metodo: &'static str,
+    pub(super) url: String,
+    pub(super) corpo: Option<String>,
+}
+
+pub(super) fn get(url: &str) -> Pedido {
+    Pedido {
+        metodo: "GET",
+        url: url.to_owned(),
+        corpo: None,
+    }
+}
+
+pub(super) fn post(url: &str, corpo: &str) -> Pedido {
+    Pedido {
+        metodo: "POST",
+        url: url.to_owned(),
+        corpo: Some(corpo.to_owned()),
+    }
+}
+
+pub(super) const CORPO_RAPIDO: &str = "txtPesquisaRapida=00001.000001%2F2026-01";
+
+/// Resposta roteirizada: status, HTML e `Location`.
+pub(super) type Resposta = (i32, String, Option<String>);
+
+pub(super) fn ok(html: String) -> Resposta {
+    (200, html, None)
+}
+
+pub(super) fn r302(localizacao: &str) -> Resposta {
+    (302, String::new(), Some(localizacao.to_owned()))
+}
+
+pub(super) struct Roteiro {
+    respostas: VecDeque<Resposta>,
+    pub(super) pedidos: Vec<Pedido>,
+}
+
+impl Roteiro {
+    pub(super) fn novo(respostas: Vec<Resposta>) -> Self {
+        Self {
+            respostas: respostas.into(),
+            pedidos: Vec::new(),
+        }
+    }
+
+    fn proxima(&mut self) -> RespostaDoPost<Cursor<Vec<u8>>> {
+        let (status_code, html, localizacao) =
+            self.respostas.pop_front().expect("requisição além do roteiro");
+        RespostaDoPost {
+            resposta: RespostaWeb {
+                status_code,
+                mime: "text/html; charset=iso-8859-1".to_owned(),
+                content_length: Some(html.len()),
+                corpo: Cursor::new(html.into_bytes()),
+            },
+            localizacao,
+        }
+    }
+}
+
+impl EnvioDoControle for Roteiro {
+    type Corpo = Cursor<Vec<u8>>;
+    fn post(
+        &mut self,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        assert_eq!(cookie, COOKIE);
+        let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
+        self.pedidos.push(post(submissao.url(), &corpo));
+        Ok(self.proxima())
+    }
+    fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        assert_eq!(cookie, COOKIE);
+        self.pedidos.push(get(url));
+        Ok(self.proxima().resposta)
+    }
+}
+
+impl EnvioDoProcesso for Roteiro {
+    fn get_sem_seguir(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        assert_eq!(cookie, COOKIE);
+        self.pedidos.push(get(url));
+        Ok(self.proxima())
+    }
+}
+
+/// Diretório temporário com o cookie (0600) e o caminho do índice.
+pub(super) struct Ambiente {
+    pasta: PathBuf,
+    pub(super) cookie: PathBuf,
+    pub(super) indice: IndiceLocal,
+}
+
+impl Drop for Ambiente {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.pasta);
+    }
+}
+
+pub(super) fn ambiente() -> Ambiente {
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-processo-obter-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&pasta).unwrap();
+    std::fs::set_permissions(&pasta, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let cookie = pasta.join("cookie");
+    std::fs::write(&cookie, format!("{COOKIE}\n")).unwrap();
+    std::fs::set_permissions(&cookie, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let indice = IndiceLocal::em(pasta.join("indice").join("ies.sqlite3"));
+    Ambiente {
+        pasta,
+        cookie,
+        indice,
+    }
+}
+
+pub(super) fn geracao() -> String {
+    crate::sessao_login::geracao_da_sessao(COOKIE)
+}
+
+pub(super) fn chave<'a>(geracao: &'a str, acao: &'a str, objeto: &'a str) -> ChaveDoLink<'a> {
+    ChaveDoLink {
+        geracao_sessao: geracao,
+        unidade: ID_UNIDADE,
+        acao,
+        objeto,
+    }
+}
+
+/// Roda o fluxo com `respostas`; devolve o resultado e os pedidos feitos.
+pub(super) fn rodar(
+    amb: &Ambiente,
+    unidade: Option<&str>,
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
+    let url = url_controle();
+    let sessao = SessaoDoProcesso {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie_file: &amb.cookie,
+    };
+    let nup = NumeroProcesso::novo(NUP).unwrap();
+    let pedido = PedidoDoProcesso { nup: &nup, unidade };
+    let mut roteiro = Roteiro::novo(respostas);
+    let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);
+    assert!(roteiro.respostas.is_empty(), "respostas não consumidas");
+    (r, roteiro.pedidos)
+}

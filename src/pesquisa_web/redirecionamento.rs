@@ -37,6 +37,10 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     InfraSistemaRepetidoNaUrlDoEnvio,
     InfraSistemaNaoDecimalNaUrlDoEnvio,
     InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
+    /// `acao_origem` presente onde a forma observada não o traz (entrada por id).
+    AcaoDeOrigemInesperadaNoRedirecionamento,
+    /// O id endereçado não é o pedido (entrada por id, linha do Controle).
+    IdProcedimentoDoRedirecionamentoDiferenteDoPedido,
 }
 
 impl ErroRedirecionamentoDaPesquisa {
@@ -107,6 +111,12 @@ impl ErroRedirecionamentoDaPesquisa {
             Self::InfraSistemaDoRedirecionamentoDiferenteDoEnvio => {
                 "infra_sistema_do_redirecionamento_diferente_do_envio"
             }
+            Self::AcaoDeOrigemInesperadaNoRedirecionamento => {
+                "acao_de_origem_inesperada_no_redirecionamento"
+            }
+            Self::IdProcedimentoDoRedirecionamentoDiferenteDoPedido => {
+                "id_procedimento_do_redirecionamento_diferente_do_pedido"
+            }
         }
     }
 }
@@ -118,8 +128,6 @@ impl ErroRedirecionamentoDaPesquisa {
 pub(crate) struct UrlDeTrabalho(String);
 
 impl UrlDeTrabalho {
-    // Lida pelo `ies processo NUP` (#59), que abre esta URL; até lá só os testes.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
@@ -136,6 +144,39 @@ impl std::fmt::Debug for UrlDeTrabalho {
 pub(crate) struct ProcessoRedirecionado {
     pub(crate) id: IdProcedimento,
     pub(crate) trabalho: UrlDeTrabalho,
+}
+
+/// De onde veio a URL de `procedimento_trabalhar`: cada forma observada
+/// tem seu `acao_origem`, sua chave do id e sua referência de comparação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OrigemDoTrabalho<'a> {
+    /// 302 da pesquisa avançada (`processo buscar`): `acao_origem=protocolo_pesquisar`.
+    Pesquisa,
+    /// 302 da pesquisa rápida (cassettes de GO): `acao_origem=protocolo_pesquisa_rapida`
+    /// e o id em `id_protocolo`.
+    PesquisaRapida,
+    /// 302 da entrada sem assinatura (ADR 0003): sem `acao_origem`, mesmo id;
+    /// a URL pedida não tem unidade nem sistema para comparar.
+    EntradaPorId { id: &'a str },
+    /// `href` da linha `tr#P{id}` do Controle: `acao_origem=procedimento_controlar`.
+    Controle { id: &'a str },
+}
+
+impl OrigemDoTrabalho<'_> {
+    fn acao_de_origem(self) -> Option<&'static str> {
+        match self {
+            Self::Pesquisa => Some("protocolo_pesquisar"),
+            Self::PesquisaRapida => Some("protocolo_pesquisa_rapida"),
+            Self::EntradaPorId { .. } => None,
+            Self::Controle { .. } => Some("procedimento_controlar"),
+        }
+    }
+    fn chave_do_id(self) -> &'static str {
+        match self {
+            Self::PesquisaRapida => "id_protocolo",
+            _ => "id_procedimento",
+        }
+    }
 }
 
 /// O `Location` observado tem algumas centenas de bytes; 8 KiB é o mesmo
@@ -250,14 +291,33 @@ pub(crate) fn interpretar_redirecionamento(
     redirecionamento: Redirecionamento302,
     instalacao: &Instalacao,
 ) -> Result<ProcessoRedirecionado, ErroRedirecionamentoDaPesquisa> {
-    let localizacao = redirecionamento
-        .localizacao()
+    let processo = conferir_trabalho(
+        redirecionamento.localizacao(),
+        redirecionamento.url_do_envio(),
+        instalacao,
+        OrigemDoTrabalho::Pesquisa,
+    )?;
+    // O `Location` bruto é descartado; só a forma resolvida e conferida sai.
+    drop(redirecionamento);
+    Ok(processo)
+}
+
+/// Confere uma referência a `procedimento_trabalhar` (o `Location` de um 302
+/// ou o `href` de uma linha do Controle), resolvida contra `url_base` (a URL
+/// pedida ou a da tela), na forma observada para `origem`.
+pub(crate) fn conferir_trabalho(
+    localizacao: Option<&str>,
+    url_base: &str,
+    instalacao: &Instalacao,
+    origem: OrigemDoTrabalho<'_>,
+) -> Result<ProcessoRedirecionado, ErroRedirecionamentoDaPesquisa> {
+    let localizacao = localizacao
         .filter(|l| !l.is_empty())
         .ok_or(E::LocalizacaoDoRedirecionamentoAusente)?;
     if localizacao.len() > LIMITE_DA_LOCALIZACAO {
         return Err(E::LocalizacaoDoRedirecionamentoAcimaDoLimite);
     }
-    let absoluta = resolver(localizacao, redirecionamento.url_do_envio())?;
+    let absoluta = resolver(localizacao, url_base)?;
     let (host, caminho, consulta) =
         partir_https(&absoluta).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(host, caminho) {
@@ -267,19 +327,27 @@ pub(crate) fn interpretar_redirecionamento(
     if valores(&pares, "acao") != ["procedimento_trabalhar"] {
         return Err(E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
-    match valores(&pares, "acao_origem").as_slice() {
-        [] => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
-        ["protocolo_pesquisar"] => {}
-        [_] => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
-        _ => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
+    match (valores(&pares, "acao_origem").as_slice(), origem.acao_de_origem()) {
+        ([], None) => {}
+        ([], Some(_)) => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
+        ([_, ..], None) => return Err(E::AcaoDeOrigemInesperadaNoRedirecionamento),
+        ([observada], Some(esperada)) if *observada == esperada => {}
+        ([_], Some(_)) => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
+        (_, Some(_)) => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
     }
-    let id = match valores(&pares, "id_procedimento").as_slice() {
+    let id = match valores(&pares, origem.chave_do_id()).as_slice() {
         [] | [""] => return Err(E::IdProcedimentoAusenteNoRedirecionamento),
         [id] => {
             IdProcedimento::novo(id).map_err(|_| E::IdProcedimentoNaoDecimalNoRedirecionamento)?
         }
         _ => return Err(E::IdProcedimentoRepetidoNoRedirecionamento),
     };
+    if let OrigemDoTrabalho::EntradaPorId { id: pedido } | OrigemDoTrabalho::Controle { id: pedido } =
+        origem
+        && id.as_str() != pedido
+    {
+        return Err(E::IdProcedimentoDoRedirecionamentoDiferenteDoPedido);
+    }
     match valores(&pares, "infra_hash").as_slice() {
         [] => return Err(E::InfraHashAusenteNoRedirecionamento),
         [hash] if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) => {}
@@ -291,7 +359,8 @@ pub(crate) fn interpretar_redirecionamento(
         [unidade] => *unidade,
         _ => return Err(E::UnidadeAtualRepetidaNoRedirecionamento),
     };
-    if unidade != unidade_do_envio(redirecionamento.url_do_envio())? {
+    let sem_referencia = matches!(origem, OrigemDoTrabalho::EntradaPorId { .. });
+    if !sem_referencia && unidade != unidade_do_envio(url_base)? {
         return Err(E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio);
     }
     let sistema = match valores(&pares, "infra_sistema").as_slice() {
@@ -301,11 +370,9 @@ pub(crate) fn interpretar_redirecionamento(
         _ => return Err(E::InfraSistemaRepetidoNoRedirecionamento),
     };
     // Comparação exata, sem normalizar zeros à esquerda.
-    if sistema != sistema_do_envio(redirecionamento.url_do_envio())? {
+    if !sem_referencia && sistema != sistema_do_envio(url_base)? {
         return Err(E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio);
     }
-    // O `Location` bruto é descartado; só a forma resolvida e conferida sai.
-    drop(redirecionamento);
     Ok(ProcessoRedirecionado {
         id,
         trabalho: UrlDeTrabalho(absoluta),

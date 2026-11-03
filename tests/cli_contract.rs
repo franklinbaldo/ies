@@ -7,6 +7,18 @@ fn ies(args: &[&str]) -> std::process::Output {
         .expect("IES deve iniciar")
 }
 
+/// Sem nenhum arquivo de sessão: a leitura Web falha tipada antes da rede.
+fn ies_sem_sessao(args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(args)
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .expect("IES deve iniciar")
+}
+
 #[test]
 fn ajuda_raiz() {
     let output = ies(&["--help"]);
@@ -53,25 +65,26 @@ fn escrita_reconhecida_nao_executa_sei() {
 
 #[test]
 fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
-    let output = ies(&[
+    let output = ies_sem_sessao(&[
         "processo",
         "0064.001060/2023-08",
         "--sem-documentos",
         "--sem-marcadores",
         "--sem-andamentos",
         "--sem-propriedades",
-        "--andamentos-completos",
         "--json",
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
-    assert!(
-        value["dados"]["comando"]
-            .as_str()
-            .unwrap()
-            .contains("sem_documentos: true")
-    );
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+#[test]
+fn leitura_pela_arvore_recusa_andamentos_completos_antes_da_sessao() {
+    let output = ies_sem_sessao(&["processo", "0064.001060/2023-08", "--andamentos-completos", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "andamentos_completos_nao_implementados");
 }
 
 #[test]
@@ -186,10 +199,10 @@ fn processo_rejeita_controle_removivel_no_inicio_ou_fim_sem_rede() {
 
 #[test]
 fn processo_preserva_zeros_e_nao_inventa_leitura() {
-    let output = ies(&["processo", "000123/2026-01", "--json"]);
+    let output = ies_sem_sessao(&["processo", "000123/2026-01", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(resposta["codigo"], "nao_implementado");
+    assert_eq!(resposta["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 #[test]
@@ -200,10 +213,13 @@ fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
         "CNJ 000001",
         "12345678901234567890123456789012345678901234567890123456789012345678901234567890123",
     ] {
-        let output = ies(&["processo", numero, "--json"]);
+        let output = ies_sem_sessao(&["processo", numero, "--json"]);
         assert_eq!(output.status.code(), Some(1), "{numero}");
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(value["codigo"], "nao_implementado", "{numero}");
+        assert_eq!(
+            value["subcodigo"], "caminho_url_controle_nao_informado",
+            "{numero}"
+        );
     }
 }
 
