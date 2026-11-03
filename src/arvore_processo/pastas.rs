@@ -6,7 +6,10 @@
 //! barra dele), nunca pela contagem.
 use super::endereco::conferir_endereco_relativo;
 use super::literais::ler_chamada;
-use super::{DocumentoLido, ErroArvore, Literal, PastaNaArvore, tela::EnderecoDaArvore};
+use super::{
+    Barra, DocumentoLido, ErroArvore, Literal, PastaNaArvore, VerificacaoDaPasta,
+    tela::EnderecoDaArvore,
+};
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -184,6 +187,7 @@ pub(super) fn conferir_pastas(
             id: format!("PASTA{k}"),
             rotulo: (*rotulo).to_owned(),
             total_declarado: declarados[k].len(),
+            verificacao: (!fechadas.contains(k)).then_some(VerificacaoDaPasta::PorIdentidade),
         })
         .collect();
     Ok((lidas, !fechadas.is_empty()))
@@ -198,10 +202,10 @@ fn conferir_identidades<'a>(
     use ErroArvore as E;
     let mut vistos: HashSet<&str> = HashSet::new();
     for d in documentos {
-        let identidade = d
-            .identidade
-            .as_deref()
-            .ok_or(E::DocumentoDaPastaSemIdentidadeNaBarra)?;
+        let Barra::Identidade(identidade) = &d.barra else {
+            return Err(E::DocumentoDaPastaSemIdentidadeNaBarra);
+        };
+        let identidade = identidade.as_str();
         if !declarados.contains(&identidade) {
             return Err(E::DocumentoDaPastaNaoDeclarado);
         }

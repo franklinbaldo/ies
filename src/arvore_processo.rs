@@ -47,13 +47,46 @@ pub(crate) struct DocumentoNaArvore {
     pub(crate) pasta: Option<String>,
 }
 
-/// Uma `PASTA`: id do nó (`PASTA<k>`), rótulo (a5) e quantos protocolos
-/// `Pastas[k]['protocolos']` declara.
+/// Uma `PASTA`: id do nó (`PASTA<k>`), rótulo (a5), quantos protocolos
+/// `Pastas[k]['protocolos']` declara e como a pasta foi conferida (`None`:
+/// fechada, não conferida nesta leitura).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PastaNaArvore {
     pub(crate) id: String,
     pub(crate) rotulo: String,
     pub(crate) total_declarado: usize,
+    pub(crate) verificacao: Option<VerificacaoDaPasta>,
+}
+
+/// Como os documentos de uma pasta foram conferidos com a declaração.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum VerificacaoDaPasta {
+    /// Cada documento pelo `id_rel_protocolo_protocolo` da barra.
+    PorIdentidade,
+    /// Todas as barras da pasta vazias (`''`): só a quantidade, com ids de
+    /// documento únicos na árvore.
+    PorContagem,
+}
+
+impl VerificacaoDaPasta {
+    pub(crate) fn como_texto(self) -> &'static str {
+        match self {
+            Self::PorIdentidade => "por_identidade",
+            Self::PorContagem => "por_contagem",
+        }
+    }
+}
+
+/// A barra (`Nos[i].acoes`) de um documento de pasta.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum Barra {
+    /// Nenhuma linha `.acoes` para o nó.
+    NaoLida,
+    /// Exatamente `Nos[i].acoes = '';`.
+    Vazia,
+    /// Com links, mas nenhum traz `id_rel_protocolo_protocolo`.
+    SemIdentidade,
+    Identidade(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,7 +108,7 @@ const ARGUMENTOS_DA_PASTA: usize = 15;
 pub(super) struct DocumentoLido {
     pai: Pai,
     documento: DocumentoNaArvore,
-    identidade: Option<String>,
+    barra: Barra,
 }
 
 /// Lê os nós da árvore e confere a identidade: o NUP do nó `PROCESSO` tem
@@ -104,7 +137,11 @@ pub(crate) fn ler_arvore(
             let Some((_, barra)) = ler_barra(linha)? else {
                 return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             };
-            documentos[posicao].identidade = pastas::identidade_da_barra(&barra)?;
+            documentos[posicao].barra = if barra.is_empty() {
+                Barra::Vazia
+            } else {
+                pastas::identidade_da_barra(&barra)?.map_or(Barra::SemIdentidade, Barra::Identidade)
+            };
             continue;
         }
         let Some((indice, argumentos)) = ler_declaracao(linha)? else {
@@ -227,6 +264,6 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
             numero_sei: texto_ou_nulo(&a[15])?.map(str::to_owned),
             pasta,
         },
-        identidade: None,
+        barra: Barra::NaoLida,
     })
 }

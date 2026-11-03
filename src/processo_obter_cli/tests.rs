@@ -1,6 +1,8 @@
 //! RED/GREEN do JSON publicado: só o observado, sem URL, hash ou dica.
 use super::*;
-use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore};
+use crate::arvore_processo::{
+    ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore, VerificacaoDaPasta,
+};
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
 use crate::processo_obter::{Andamentos, ResolvidoPor};
@@ -139,6 +141,7 @@ fn forma_do_json() {
                 {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null}
             ],
             "pastas": [],
+            "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
             "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"
         })
@@ -185,14 +188,43 @@ fn documentos_dizem_a_pasta_e_as_pastas_saem_com_rotulo_e_total() {
         id: "PASTA1".into(),
         rotulo: "I".into(),
         total_declarado: 2,
+        verificacao: Some(VerificacaoDaPasta::PorIdentidade),
     }];
     let valor = json_do_processo(&nup, &em_pastas, false);
     assert_eq!(valor["documentos"][1]["pasta"], "PASTA1");
     assert_eq!(
         valor["pastas"],
-        json!([{"id": "PASTA1", "rotulo": "I", "total": 2}])
+        json!([{"id": "PASTA1", "rotulo": "I", "total": 2, "verificacao": "por_identidade"}])
     );
+    assert_eq!(valor["verificacao_das_pastas"], "por_identidade");
+    assert!(valor.get("verificacao_das_pastas_motivo").is_none());
     let texto = humano(&nup, &em_pastas, false);
     assert!(texto.contains("[pasta I]"), "{texto}");
     assert!(texto.contains("1 pasta(s)"), "{texto}");
+}
+
+#[test]
+fn alguma_pasta_por_contagem_rebaixa_a_verificacao_e_diz_o_motivo() {
+    let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
+    let mut em_pastas = aberto(None);
+    em_pastas.arvore.pastas = ["PASTA1", "PASTA2"]
+        .iter()
+        .zip([
+            VerificacaoDaPasta::PorIdentidade,
+            VerificacaoDaPasta::PorContagem,
+        ])
+        .map(|(id, v)| PastaNaArvore {
+            id: (*id).into(),
+            rotulo: "I".into(),
+            total_declarado: 1,
+            verificacao: Some(v),
+        })
+        .collect();
+    let valor = json_do_processo(&nup, &em_pastas, false);
+    assert_eq!(valor["verificacao_das_pastas"], "por_contagem");
+    assert_eq!(valor["verificacao_das_pastas_motivo"], "barras_vazias");
+    assert_eq!(valor["pastas"][0]["verificacao"], "por_identidade");
+    assert_eq!(valor["pastas"][1]["verificacao"], "por_contagem");
+    let texto = humano(&nup, &em_pastas, false);
+    assert!(texto.contains("por_contagem"), "{texto}");
 }

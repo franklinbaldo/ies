@@ -69,10 +69,27 @@ fn identidade_e_nao_contagem() {
         Err(E::DocumentoDaPastaNaoDeclarado)
     );
     // Barra vazia (sem identidade): não se aceita pela contagem.
-    let mut sem_barra = os_quatro();
-    sem_barra[2] = No::Documento("31", p(2), None);
+    // Barra vazia ao lado de barras com identidade: as regras não se misturam.
+    let mut parcial = os_quatro();
+    parcial[2] = No::Documento("31", p(2), None);
     assert_eq!(
-        ler(&aberta(declaradas, sem_barra)),
+        ler(&aberta(declaradas, parcial)),
+        Err(E::IdentidadeParcialNaPasta)
+    );
+    // Barra com links e sem identidade: não é barra vazia.
+    let mut sem_identidade = os_quatro();
+    sem_identidade[2] = No::Documento("31", p(2), Some("-"));
+    assert_eq!(
+        ler(&aberta(declaradas, sem_identidade)),
+        Err(E::DocumentoDaPastaSemIdentidadeNaBarra)
+    );
+    // Nenhuma linha `.acoes` para o nó: também sem identidade.
+    let sem_linha = aberta(declaradas, os_quatro()).replace(
+        &format!("{}\n", super::tests_pastas::barra(5, "31", Some("902"))),
+        "",
+    );
+    assert_eq!(
+        ler(&sem_linha),
         Err(E::DocumentoDaPastaSemIdentidadeNaBarra)
     );
 }
@@ -311,4 +328,59 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
             Err(E::AcaoDeAbrirPastasForaDaFormaObservada)
         );
     }
+}
+
+fn vazios(k: usize, ids: &[&'static str]) -> Vec<No> {
+    ids.iter().map(|id| No::Documento(id, p(k), None)).collect()
+}
+
+#[test]
+fn barras_todas_vazias_sao_conferidas_pela_contagem() {
+    use super::VerificacaoDaPasta::{PorContagem, PorIdentidade};
+    let declaradas: &[(usize, &[&str])] = &[(1, &PASTA1), (2, &PASTA2)];
+    let mut todos = vazios(1, &["21", "22"]);
+    todos.extend(vazios(2, &["31", "32"]));
+    let lida = ler(&aberta(declaradas, todos)).unwrap();
+    assert_eq!(
+        lida.pastas
+            .iter()
+            .map(|p| p.verificacao)
+            .collect::<Vec<_>>(),
+        [Some(PorContagem), Some(PorContagem)]
+    );
+    assert_eq!(lida.documentos.len(), 4);
+    // Cada pasta escolhe a sua regra: a 1 por identidade, a 2 por contagem.
+    let mut mistas = os_quatro();
+    mistas.truncate(2);
+    mistas.extend(vazios(2, &["31", "32"]));
+    let lida = ler(&aberta(declaradas, mistas)).unwrap();
+    assert_eq!(
+        lida.pastas
+            .iter()
+            .map(|p| p.verificacao)
+            .collect::<Vec<_>>(),
+        [Some(PorIdentidade), Some(PorContagem)]
+    );
+}
+
+#[test]
+fn contagem_diferente_da_declarada_e_recusa() {
+    let declaradas: &[(usize, &[&str])] = &[(1, &PASTA1), (2, &PASTA2)];
+    for segunda in [vec!["31"], vec!["31", "32", "33"]] {
+        let mut nos = os_quatro();
+        nos.truncate(2);
+        nos.extend(vazios(2, &segunda));
+        assert_eq!(
+            ler(&aberta(declaradas, nos)),
+            Err(E::ContagemDaPastaDiferenteDaDeclarada),
+            "{segunda:?}"
+        );
+    }
+    // Id de documento repetido na árvore continua recusa.
+    let mut nos = vazios(1, &["21", "22"]);
+    nos.extend(vazios(2, &["31", "21"]));
+    assert_eq!(
+        ler(&aberta(declaradas, nos)),
+        Err(E::DocumentoRepetidoNaArvore)
+    );
 }

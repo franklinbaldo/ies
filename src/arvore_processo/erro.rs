@@ -43,6 +43,8 @@ pub(crate) enum ErroArvore {
     AcoesDeAbrirPastasRepetidas,
     EnderecoDeAbrirPastasNaoReconhecido,
     PastasNaoCarregadasAposAbrirPastas,
+    IdentidadeParcialNaPasta,
+    ContagemDaPastaDiferenteDaDeclarada,
 }
 
 impl ErroArvore {
@@ -112,6 +114,8 @@ impl ErroArvore {
             Self::AcoesDeAbrirPastasRepetidas => "acoes_de_abrir_pastas_repetidas",
             Self::EnderecoDeAbrirPastasNaoReconhecido => "endereco_de_abrir_pastas_nao_reconhecido",
             Self::PastasNaoCarregadasAposAbrirPastas => "pastas_nao_carregadas_apos_abrir_pastas",
+            Self::IdentidadeParcialNaPasta => "identidade_parcial_na_pasta",
+            Self::ContagemDaPastaDiferenteDaDeclarada => "contagem_da_pasta_diferente_da_declarada",
             _ => "arvore_nao_reconhecida",
         }
     }

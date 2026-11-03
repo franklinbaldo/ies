@@ -41,6 +41,12 @@ pub(crate) fn barra(i: usize, documento: &str, protocolo: Option<&str>) -> Strin
     let Some(protocolo) = protocolo else {
         return format!("Nos[{i}].acoes = '';");
     };
+    // `"-"`: barra com links, mas sem `id_rel_protocolo_protocolo`.
+    if protocolo == "-" {
+        return format!(
+            "Nos[{i}].acoes = '<a href=\"controlador.php?acao=documento_alterar&id_documento={documento}\"></a>';"
+        );
+    }
     format!(
         "Nos[{i}].acoes = '<a href=\"controlador.php?acao=documento_alterar&id_procedimento={ID}&id_documento={documento}&arvore=1&infra_hash={h}\" tabindex=\"452\" ><img src=\"svg/documento_alterar.svg\" alt=\"Consultar\" title=\"Consultar\"/></a><a href=\"#\" onclick=\"infraAbrirJanela(\\'x\\');\"></a><a href=\"controlador.php?acao=comentario_listar&acao_origem=arvore_visualizar&id_procedimento={ID}&id_rel_protocolo_protocolo={protocolo}&arvore=1&infra_hash={h}\" tabindex=\"452\" ><img src=\"svg/comentario.svg\"/></a>';",
         h = "e".repeat(64)
@@ -182,26 +188,36 @@ fn documento(id: &str, pasta: Option<&str>) -> DocumentoNaArvore {
     }
 }
 
-fn pastas_declaradas() -> Vec<PastaNaArvore> {
+pub(crate) fn pastas_declaradas(
+    primeira: Option<VerificacaoDaPasta>,
+    segunda: Option<VerificacaoDaPasta>,
+) -> Vec<PastaNaArvore> {
     vec![
         PastaNaArvore {
             id: "PASTA1".into(),
             rotulo: "I".into(),
             total_declarado: 2,
+            verificacao: primeira,
         },
         PastaNaArvore {
             id: "PASTA2".into(),
             rotulo: "II".into(),
             total_declarado: 2,
+            verificacao: segunda,
         },
     ]
 }
+
+const POR_IDENTIDADE: Option<VerificacaoDaPasta> = Some(VerificacaoDaPasta::PorIdentidade);
 
 #[test]
 fn arvore_aberta_le_os_documentos_de_cada_pasta_na_ordem() {
     let lida = ler_arvore(&arvore_aberta(), NUP, ID).unwrap();
     assert!(!lida.pastas_nao_carregadas);
-    assert_eq!(lida.pastas, pastas_declaradas());
+    assert_eq!(
+        lida.pastas,
+        pastas_declaradas(POR_IDENTIDADE, POR_IDENTIDADE)
+    );
     assert_eq!(
         lida.documentos,
         [
@@ -217,7 +233,8 @@ fn arvore_aberta_le_os_documentos_de_cada_pasta_na_ordem() {
 fn arvore_fechada_marca_as_pastas_nao_carregadas() {
     let lida = ler_arvore(&arvore_fechada(), NUP, ID).unwrap();
     assert!(lida.pastas_nao_carregadas);
-    assert_eq!(lida.pastas, pastas_declaradas());
+    // A fechada não foi conferida: `None`, nunca uma verificação alegada.
+    assert_eq!(lida.pastas, pastas_declaradas(None, POR_IDENTIDADE));
     // Só os da pasta aberta: a fechada não é conferida nem publicada aqui.
     assert_eq!(
         lida.documentos,

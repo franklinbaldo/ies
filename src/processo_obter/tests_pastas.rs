@@ -237,3 +237,24 @@ fn todas_as_pastas_fechadas_custam_um_get() {
     assert_eq!(r.unwrap().requisicoes, 4);
     assert_eq!(pedidos.len(), 4);
 }
+
+#[test]
+fn arvore_aberta_com_barras_vazias_sai_por_contagem() {
+    let amb = ambiente();
+    let vazias = arvore_aberta_com(&[
+        No::Documento("21", "PASTA1".into(), None),
+        No::Documento("22", "PASTA1".into(), None),
+        No::Documento("31", "PASTA2".into(), None),
+        No::Documento("32", "PASTA2".into(), None),
+    ]);
+    let (r, pedidos) = rodar(
+        &amb,
+        None,
+        pelo_controle(vec![ok(arvore_fechada()), ok(vazias)]),
+    );
+    let r = r.unwrap();
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(ids(&r), TODOS);
+    assert!(r.arvore.pastas.iter().all(|p| p.verificacao
+        == Some(crate::arvore_processo::VerificacaoDaPasta::PorContagem)));
+}
