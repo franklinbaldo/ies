@@ -9,6 +9,7 @@ use super::{
 };
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{SubmissaoDerivada, TelaServida};
+use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::transporte::{self, FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
@@ -280,11 +281,23 @@ fn conferir_unidade(pedido: &PedidoDeLogin<'_>, unidade: &str) -> Result<(), Err
     Ok(())
 }
 
-/// Fluxo completo com transporte injetável; conta cada pedido feito.
+/// Fluxo completo com transporte injetável; conta cada pedido feito. Sem
+/// índice local (a CLI usa [`entrar_colhendo`]).
 pub(crate) fn entrar_via<T: TransporteDeLogin>(
     pedido: &PedidoDeLogin<'_>,
     transporte: &mut T,
 ) -> Result<ResultadoDoLogin, ErroLogin> {
+    entrar_colhendo(pedido, &IndiceLocal::desligado(), transporte)
+}
+
+/// [`entrar_via`] e, com a sessão válida ou recém-gravada, a colheita do
+/// Controle já obtido no índice local (nenhuma requisição a mais).
+pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
+    pedido: &PedidoDeLogin<'_>,
+    indice: &IndiceLocal,
+    transporte: &mut T,
+) -> Result<ResultadoDoLogin, ErroLogin> {
+    let _ = indice;
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
     let origem = origem.trim();

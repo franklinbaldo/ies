@@ -1,8 +1,9 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md):
 //! abre o processo pelo caminho mais barato que o índice local permite e lê
 //! a árvore, com as pastas. Ordem aprovada: link da árvore guardado →
-//! entrada por id → pesquisa rápida guardada → Controle (linha do NUP ou
-//! pesquisa rápida do formulário). Pasta fechada soma o GET de "Abrir
+//! link `procedimento_trabalhar` guardado (colhido do Controle) → entrada
+//! por id → pesquisa rápida guardada → Controle (linha do NUP ou pesquisa
+//! rápida do formulário). Pasta fechada soma o GET de "Abrir
 //! todas as Pastas". Sem retry, sem redirect seguido; cada palpite errado
 //! do índice é esquecido e o comando segue.
 mod abertura;
@@ -19,6 +20,8 @@ mod tests_andamentos;
 mod tests_andamentos_indice;
 #[cfg(test)]
 mod tests_apoio;
+#[cfg(test)]
+mod tests_colheita;
 #[cfg(test)]
 mod tests_controle;
 #[cfg(test)]
@@ -87,6 +90,7 @@ pub(crate) enum PedidoDeAndamentos {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResolvidoPor {
     IndiceLink,
+    IndiceTrabalhar,
     IndiceEntrada,
     PesquisaRapida,
     Caixa,
@@ -96,6 +100,7 @@ impl ResolvidoPor {
     pub(crate) fn como_texto(self) -> &'static str {
         match self {
             Self::IndiceLink => "indice_link",
+            Self::IndiceTrabalhar => "indice_trabalhar",
             Self::IndiceEntrada => "indice_entrada",
             Self::PesquisaRapida => "pesquisa_rapida",
             Self::Caixa => "caixa",

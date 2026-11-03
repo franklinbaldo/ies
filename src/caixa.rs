@@ -22,11 +22,44 @@ pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
         .and_then(|par| par[0].trim_start_matches('(').parse::<usize>().ok())
 }
 
+/// Uma linha do Controle (visão R ou D) com o `href` do link do número
+/// como a fonte da tag o traz (entidades ainda codificadas). Só para a
+/// colheita do índice local; nunca sai em saída nem em `Debug`.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct LinhaDoControle {
+    pub(crate) id: String,
+    pub(crate) numero: String,
+    pub(crate) href: Option<String>,
+}
+
+impl std::fmt::Debug for LinhaDoControle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LinhaDoControle")
+            .field("id", &self.id)
+            .field("href", &self.href.as_ref().map(|_| "<redigido>"))
+            .finish_non_exhaustive()
+    }
+}
+
 fn ler_tabela(
     dom: &tl::VDom<'_>,
     table_id: &str,
     categoria: Categoria,
 ) -> Result<Tabela<Processo>, ErroCaixa> {
+    let (total, linhas) = ler_linhas(dom, table_id, categoria)?;
+    Tabela::nova(
+        categoria,
+        total,
+        linhas.into_iter().map(|(processo, _)| processo).collect(),
+    )
+}
+
+/// Total da legenda e cada processo com o `href` bruto do seu link.
+fn ler_linhas(
+    dom: &tl::VDom<'_>,
+    table_id: &str,
+    categoria: Categoria,
+) -> Result<(Option<usize>, Vec<(Processo, Option<String>)>), ErroCaixa> {
     let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
@@ -102,12 +135,15 @@ fn ler_tabela(
                         id: id.as_str().to_owned(),
                     });
                 }
-                encontrado = Some(Processo {
-                    id: id.clone(),
-                    numero,
-                    visualizado: estado.visualizado,
-                    sigiloso: estado.sigiloso,
-                });
+                encontrado = Some((
+                    Processo {
+                        id: id.clone(),
+                        numero,
+                        visualizado: estado.visualizado,
+                        sigiloso: estado.sigiloso,
+                    },
+                    atributo(a, "href")?,
+                ));
             }
         }
         processos.push(
@@ -117,7 +153,7 @@ fn ler_tabela(
             })?,
         );
     }
-    Tabela::nova(categoria, total, processos)
+    Ok((total, processos))
 }
 
 pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
@@ -126,6 +162,27 @@ pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
         recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
         gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
     })
+}
+
+/// As linhas de Recebidos e Gerados com o `href` do número, pela mesma
+/// leitura e com as mesmas recusas de [`parse_html`].
+pub(crate) fn linhas_com_link(html: &str) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let mut todas = Vec::new();
+    for (tabela, categoria) in [
+        ("tblProcessosRecebidos", Categoria::Recebidos),
+        ("tblProcessosGerados", Categoria::Gerados),
+    ] {
+        let (total, linhas) = ler_linhas(&dom, tabela, categoria)?;
+        let processos = linhas.iter().map(|(p, _)| p.clone()).collect();
+        Tabela::nova(categoria, total, processos)?;
+        todas.extend(linhas.into_iter().map(|(p, href)| LinhaDoControle {
+            id: p.id.as_str().to_owned(),
+            numero: p.numero,
+            href,
+        }));
+    }
+    Ok(todas)
 }
 
 #[cfg(test)]

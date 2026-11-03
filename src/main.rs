@@ -7,6 +7,7 @@ mod caixa_detalhada;
 mod caixa_local;
 mod cassette;
 mod classe_link_processo;
+mod colheita_do_controle;
 mod configuracao;
 mod controle_contexto;
 mod controle_reconhecido;

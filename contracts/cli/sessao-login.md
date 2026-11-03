@@ -67,6 +67,16 @@ reescrita.
 Cada cadeia tem no máximo **8** redirecionamentos. `requisicoes` na
 saída conta todos os pedidos feitos (inclusive o GET da conferência).
 
+**Efeito local: índice.** O Controle já obtido (o do passo 2, quando a
+sessão gravada vale, ou o do fim do passo 5, depois de gravar a sessão)
+passa pela
+[colheita do Controle](../../docs/arquitetura/0003-indice-local.md):
+NUP ↔ id e o link `procedimento_trabalhar` de cada linha válida, o link
+da pesquisa e o `action` da pesquisa rápida, com a geração do cookie
+gravado e a unidade da URL gravada. Só arquivo local (`ies.sqlite3`, ou
+nada com `IES_SEM_INDICE`); nenhuma requisição a mais, e a saída e as
+falhas do login não mudam (falha do banco nunca derruba o comando).
+
 ## Redirecionamentos do login (regra observada)
 
 Só o fluxo de login segue redirects, por um interpretador explícito; os

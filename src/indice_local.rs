@@ -30,9 +30,9 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-// Integrado em `ies processo NUP`; login e `processo buscar` ainda não.
+// Lido por `ies processo NUP`; alimentado também pela colheita do Controle.
 pub(crate) use entrada_por_id::url_da_entrada_por_id;
-pub(crate) use links::ChaveDoLink;
+pub(crate) use links::{ChaveDoLink, unidade_dos_links};
 #[allow(unused_imports)]
 pub(crate) use validacao::{RegistroRecusado, UrlAssinada};
 
@@ -114,6 +114,38 @@ impl IndiceLocal {
     pub(crate) fn com_relogio(mut self, relogio: impl Fn() -> f64 + Send + 'static) -> Self {
         self.relogio = Box::new(relogio);
         self
+    }
+
+    /// Conteúdo inteiro, ordenado, para os testes conferirem exatamente o
+    /// que foi gravado: `(origem, nup, id)` e
+    /// `(origem, geracao, unidade, acao, objeto, url)`.
+    #[cfg(test)]
+    pub(crate) fn conteudo(&self) -> (Vec<[String; 3]>, Vec<[String; 6]>) {
+        self.executar((Vec::new(), Vec::new()), |banco, _| {
+            let mut consulta = banco.prepare(
+                "SELECT origem, nup, id_procedimento FROM processo ORDER BY origem, nup",
+            )?;
+            let processos = consulta
+                .query_map([], |l| Ok([l.get(0)?, l.get(1)?, l.get(2)?]))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let mut consulta = banco.prepare(
+                "SELECT origem, geracao_sessao, unidade, acao, objeto, url FROM link_assinado \
+                 ORDER BY origem, geracao_sessao, unidade, acao, objeto",
+            )?;
+            let links = consulta
+                .query_map([], |l| {
+                    Ok([
+                        l.get(0)?,
+                        l.get(1)?,
+                        l.get(2)?,
+                        l.get(3)?,
+                        l.get(4)?,
+                        l.get(5)?,
+                    ])
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok((processos, links))
+        })
     }
 
     /// `false` depois da primeira falha do banco (ou se nasceu desligado).

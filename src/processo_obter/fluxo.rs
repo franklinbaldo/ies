@@ -1,4 +1,4 @@
-//! Os quatro passos da resolução (contracts/cli/processo-obter-arvore.md).
+//! Os passos da resolução (1, 1b, 2, 3 e 4) (contracts/cli/processo-obter-arvore.md).
 //! Um passo é tentado só se o anterior não se aplica ou falhou por palpite
 //! do índice; o palpite errado é esquecido e o comando segue.
 use super::abertura::{
@@ -15,7 +15,7 @@ use crate::arvore_processo::ErroArvore;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
-use crate::indice_local::{IndiceLocal, url_da_entrada_por_id};
+use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -27,17 +27,6 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, va
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
 type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
-
-/// `infra_unidade_atual` único e decimal na URL privada do Controle.
-fn unidade_da_url(url: &str) -> Option<String> {
-    let consulta = url.split_once('?')?.1;
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("infra_unidade_atual="));
-    let unidade = valores.next()?;
-    let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
-    (decimal && valores.next().is_none()).then(|| unidade.to_owned())
-}
 
 pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -55,7 +44,7 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         nup: pedido.nup.as_str(),
         unidade_pedida: pedido.unidade,
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
-        unidade_id: unidade_da_url(sessao.url_do_controle),
+        unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
         cookie_file: sessao.cookie_file,
     };
@@ -66,11 +55,14 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     };
     let aberto = match link_da_arvore(&contexto, &mut rede)? {
         Some(aberto) => aberto,
-        None => match entrada_por_id(&contexto, &mut rede)? {
+        None => match link_de_trabalho(&contexto, &mut rede)? {
             Some(aberto) => aberto,
-            None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
+            None => match entrada_por_id(&contexto, &mut rede)? {
                 Some(aberto) => aberto,
-                None => pelo_controle(&contexto, sessao, &mut rede)?,
+                None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
+                    Some(aberto) => aberto,
+                    None => pelo_controle(&contexto, sessao, &mut rede)?,
+                },
             },
         },
     };
@@ -133,6 +125,14 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
         }
     }
     contexto.esquecer_link(ACAO, &id);
+    Ok(None)
+}
+
+/// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
+/// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
+/// GET da tela do processo e GET da árvore.
+fn link_de_trabalho<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+    let _ = (contexto, rede);
     Ok(None)
 }
 

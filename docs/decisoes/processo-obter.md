@@ -4,9 +4,9 @@ title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo h
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3)
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4)
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
@@ -183,6 +183,38 @@ pequenos; a contagem prova quantidade e unicidade, não que cada documento
 é o protocolo declarado, e por isso é publicada como verificação mais
 fraca.
 
+## Colheita do Controle e passo 1b (fatia 4)
+
+**Alternativas.** (a) **web-colheita-do-controle** (escolhida): todo
+comando que já lê o Controle grava no índice, de cada linha válida, o par
+NUP ↔ id e o `href` assinado de `procedimento_trabalhar`, mais o link da
+pesquisa e o `action` da pesquisa rápida da mesma página
+([ADR 0003](../arquitetura/0003-indice-local.md)); `ies processo NUP`
+ganha o passo 1b, que abre esse link. (b)
+**web-get-extra-para-o-indice**: um GET do Controle (ou de páginas
+seguintes) só para alimentar o índice; rejeitada, porque o princípio é
+nunca pedir algo só para o índice. (c) Sem colheita: o processo visto na
+caixa custa a entrada por id (3 GET, e a recusa derruba a sessão) ou o
+caminho 4 inteiro.
+
+**Evidência.** O `href` de `tr#P{id}` nas visões R e D, já lido pelo
+caminho 4a (UnB, GO, PEN1, PEN3, PEN4, UFRJ), é o mesmo
+`procedimento_trabalhar` assinado que o caminho 4a abre: o 1b é o 4a sem
+o GET do Controle. O hash é reutilizável dentro da sessão (ADR 0003).
+
+**Orçamento.** 1b: **2 GET** até a árvore; com andamentos, +1 GET
+(**3**). Na colheita, **0**: nenhuma requisição, nenhuma página a mais, a
+saída dos comandos não muda. O passo vem depois do 1 (link da árvore, 1
+GET) e antes da entrada por id, que custa 3 e arrisca a sessão.
+
+**Efeito declarado.** O GET de `procedimento_trabalhar` é o mesmo do
+caminho 4a (não marcou visualizado em GO; a árvore marcou).
+
+**Trade-offs.** O Controle publica dezenas de linhas por página: a
+colheita grava dezenas de links de vida curta, que só valem nesta
+geração e unidade e são conferidos de novo a cada uso. Link velho custa
+1 GET antes do passo seguinte.
+
 ## Limitações e revisão
 
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
@@ -191,6 +223,7 @@ e propriedades ficam para as próximas fatias; pastas: validação live
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**
 pelo servidor ([relatório](../validacao-live/2026-11-03-processo-obter-andamentos.md)).
+Colheita e passo 1b: validação live **NOT_RUN** até a execução do agente pai.
 Revisar se a legenda trouxer paginação ou se outra instalação publicar o
 link noutra forma. Revisar se a entrada por id responder outra forma, se o 302 da
 pesquisa rápida mudar de chave do id fora de GO, ou se a árvore publicar

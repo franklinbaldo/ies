@@ -125,13 +125,14 @@ impl ErroDetalhada {
     }
 }
 
-#[derive(Debug)]
 struct Pagina {
     contexto: ContextoPagina,
     total: usize,
     inicio: usize,
     fim: usize,
     processos: Vec<ProcessoDetalhado>,
+    /// `href` bruto do link de cada processo, na mesma ordem.
+    links: Vec<String>,
     colunas: Vec<ColunaDoDetalhe>,
 }
 
@@ -220,7 +221,7 @@ fn ler_linha(
     dom: &tl::VDom<'_>,
     tag: &tl::HTMLTag<'_>,
     papeis: &[colunas::PapelDaColuna],
-) -> Result<Option<ProcessoDetalhado>, ErroDetalhada> {
+) -> Result<Option<(ProcessoDetalhado, String)>, ErroDetalhada> {
     let parser = dom.parser();
     let Some(id) = atributo(tag, "id")? else {
         return Ok(None);
@@ -260,10 +261,11 @@ fn ler_linha(
         let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let href = atributo(link, "href")?;
-        if href.is_none_or(|href| !eh_link_do_processo(&href, id.as_str())) {
+        let Some(href) =
+            atributo(link, "href")?.filter(|href| eh_link_do_processo(href, id.as_str()))
+        else {
             continue;
-        }
+        };
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoRepetidos);
         }
@@ -272,14 +274,17 @@ fn ler_linha(
             .map_err(|_| ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(|_| ErroDetalhada::NumeroDoProcessoAusente)?;
-        escolhido = Some(ProcessoDetalhado {
-            id: id.clone(),
-            numero: numero.as_str().to_owned(),
-            visualizado: estado.map(|e| e.visualizado),
-            sigiloso: estado.map(|e| e.sigiloso),
-            categoria: None,
-            colunas: ColunasDaLinha(configuradas.clone()),
-        });
+        escolhido = Some((
+            ProcessoDetalhado {
+                id: id.clone(),
+                numero: numero.as_str().to_owned(),
+                visualizado: estado.map(|e| e.visualizado),
+                sigiloso: estado.map(|e| e.sigiloso),
+                categoria: None,
+                colunas: ColunasDaLinha(configuradas.clone()),
+            },
+            href,
+        ));
     }
     escolhido
         .map(Some)
@@ -332,14 +337,16 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         })
         .collect();
     let mut processos = Vec::new();
+    let mut links = Vec::new();
     if let Some(linhas) = tabela.query_selector(parser, "tr") {
         for linha in linhas {
             let tag = linha
                 .get(parser)
                 .and_then(tl::Node::as_tag)
                 .ok_or(ErroDetalhada::ColunasDaLinhaDiferentes)?;
-            if let Some(processo) = ler_linha(&dom, tag, &papeis)? {
+            if let Some((processo, href)) = ler_linha(&dom, tag, &papeis)? {
                 processos.push(processo);
+                links.push(href);
             }
         }
     }
@@ -356,8 +363,27 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         inicio,
         fim,
         processos,
+        links,
         colunas: configuradas,
     })
+}
+
+/// As linhas de uma página D com o `href` do link do processo, pela mesma
+/// leitura e com as mesmas recusas da página em [`ler_paginas`].
+pub(crate) fn linhas_com_link(
+    html: &str,
+) -> Result<Vec<crate::caixa::LinhaDoControle>, ErroDetalhada> {
+    let pagina = ler_pagina(html)?;
+    Ok(pagina
+        .processos
+        .into_iter()
+        .zip(pagina.links)
+        .map(|(processo, href)| crate::caixa::LinhaDoControle {
+            id: processo.id.as_str().to_owned(),
+            numero: processo.numero,
+            href: Some(href),
+        })
+        .collect())
 }
 
 /// Consome páginas de uma mesma sessão sem inventar uma cobertura transacional.
