@@ -153,4 +153,4 @@ que é o protocolo declarado; por isso a saída diz `mista` ou
 identidade variou **por documento**: num processo de 8 pastas, seis com
 todas as barras vazias, uma com 18 vazias e 2 com links sem identidade,
 outra com 12 e 5; noutro, 19 com identidade e 1 vazia numa pasta. Pastas noutras instalações: não
-observadas. Validação live do comando: **NOT_RUN** até o agente pai.
+observadas. Validação live do comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).

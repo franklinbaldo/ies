@@ -78,7 +78,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   com 19 identidades e 1 vazia, PASTA2 com 2. O leitor deu
   `por_contagem` e `mista`, nessa ordem.
 - [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live do
-  comando: **NOT_RUN** até o agente pai.
+  comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

@@ -187,7 +187,7 @@ fraca.
 
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
 e propriedades ficam para as próximas fatias; pastas: validação live
-**NOT_RUN** até o agente pai.
+**PASS** na UnB, frio, quente e sessão nova, com o servidor sem lembrar as pastas abertas ([relatório](../validacao-live/2026-11-03-processo-obter-pastas.md)).
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**
 pelo servidor ([relatório](../validacao-live/2026-11-03-processo-obter-andamentos.md)).
