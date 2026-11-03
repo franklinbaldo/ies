@@ -132,3 +132,13 @@ comandos ainda conectavam direto; agora usam o mesmo cliente e o mesmo
 proxy ([transporte HTTPS](../../contracts/cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
 Revalidar `unidade atual` pelo proxy do ambiente e com `NO_PROXY='*'`:
 `NOT_RUN`.
+
+**Cliente HTTPS único e Controle em qualquer visão (03/11/2026).** Com
+todos os comandos pelo proxy do ambiente: a conta da PEN1 passou a abrir
+na visão detalhada (herdada da sessão anterior, sem restauração), e o
+`ies login` recusava o Controle (`controle_apos_o_login_nao_reconhecido`)
+porque só reconhecia a resumida — o mesmo valia para `unidade atual` e
+`status --verificar-controle-web`. Corrigido com um reconhecedor único
+(R ou D). Reensaio pelo proxy: PEN1 e UnB com `login_realizado` (6
+requisições), `unidade atual` e `status` corretos com a sessão em R e em
+D, `listar-processos`/`recebidos` normais; `NO_PROXY='*'` direto.

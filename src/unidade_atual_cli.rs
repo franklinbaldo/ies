@@ -1,15 +1,13 @@
 //! Leitor do rótulo da unidade ativa, sem paginação nem mudança de sessão.
 use crate::erro_web::ErroCaixa;
 use crate::saida_erro::erro_fonte_http;
-use crate::{configuracao, erro_fonte, paginas, transporte};
+use crate::{configuracao, erro_fonte, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
 fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
-    let leitura = paginas::juntar(&[html.to_owned()], None)?;
-    leitura
-        .unidade
-        .ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+    // Visão resumida ou detalhada: a sessão fica na última visão usada.
+    crate::controle_reconhecido::unidade_do_controle(html)
 }
 
 pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
