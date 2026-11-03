@@ -12,6 +12,7 @@ mod erro;
 mod literais;
 mod pastas;
 mod tela;
+mod vinculo;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -34,6 +35,7 @@ use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
+pub(crate) use vinculo::ler_vinculo_de_anexacao;
 
 /// O nó `PROCESSO` (ou um `PROCESSO_ANEXADO`): id (a1), NUP (a5, igual a
 /// a15) e tipo (a6, a dica).
@@ -125,15 +127,6 @@ pub(crate) struct VinculoDeAnexacao {
     pub(crate) numero: String,
     pub(crate) id_procedimento: String,
     pub(crate) trabalhar: EnderecoDaArvore,
-}
-
-/// Shim (RED): o vínculo ainda não é lido.
-pub(crate) fn ler_vinculo_de_anexacao(
-    _instalacao: &crate::instalacao::Instalacao,
-    _html: &str,
-    _id: &str,
-) -> Result<Option<VinculoDeAnexacao>, ErroArvore> {
-    Ok(None)
 }
 
 /// Argumentos por nó, observados na `UnB` 4.0.9 e em GO (`PROCESSO`,

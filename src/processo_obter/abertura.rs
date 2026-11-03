@@ -5,6 +5,7 @@ use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -116,7 +117,8 @@ pub(super) fn ler_arvore_aberta(
     html: &str,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    let arvore = ler_arvore(html, contexto.nup, id)?;
+    let mut arvore = ler_arvore(html, contexto.nup, id)?;
+    arvore.anexado_a = ler_vinculo_de_anexacao(&contexto.instalacao, html, id)?;
     let historico = ler_link_do_historico(&contexto.instalacao, html, id);
     Ok(ArvoreAberta { arvore, historico })
 }

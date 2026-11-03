@@ -91,6 +91,15 @@ pub(crate) fn json_do_processo(
             .map(|a| json!({"numero": a.nup, "id_procedimento": a.id, "tipo": a.tipo}))
             .collect();
         objeto.insert("anexados".to_owned(), Value::Array(anexados));
+        let pai = aberto.arvore.anexado_a.as_ref();
+        objeto.insert("anexado".to_owned(), json!(pai.is_some()));
+        objeto.insert(
+            "anexado_a".to_owned(),
+            pai.map_or(
+                Value::Null,
+                |p| json!({"numero": p.numero, "id_procedimento": p.id_procedimento}),
+            ),
+        );
     }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
         let documentos: Vec<Value> = aberto
@@ -152,6 +161,13 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         aberto.resolvido_por.como_texto(),
         aberto.requisicoes,
     );
+    if let Some(pai) = &aberto.arvore.anexado_a {
+        let _ = write!(
+            texto,
+            "\nAnexado ao processo {} (id {}): ies processo {}",
+            pai.numero, pai.id_procedimento, pai.numero
+        );
+    }
     let anexados = &aberto.arvore.anexados;
     if !anexados.is_empty() {
         let _ = write!(

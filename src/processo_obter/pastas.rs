@@ -67,7 +67,7 @@ pub(super) fn aberta_inteira(
 
 /// O link de abrir pastas guardado, tentado antes do link da árvore.
 pub(super) enum Guardado {
-    Aberta(ArvoreAberta),
+    Aberta(Box<ArvoreAberta>),
     /// Não havia link, ou ele envelheceu e foi esquecido: segue o da árvore.
     Seguir,
     /// A árvore é de outro processo: o par NUP ↔ id foi esquecido.
@@ -94,7 +94,7 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
                     .indice
                     .registrar_processo(instalacao, contexto.nup, id);
                 contexto.aprender_link(ACAO, &objeto, link.url());
-                return Ok(Guardado::Aberta(aberta));
+                return Ok(Guardado::Aberta(Box::new(aberta)));
             }
             Err(erro) if erro.diverge_do_pedido() => {
                 contexto.indice.esquecer_processo(instalacao, contexto.nup);
