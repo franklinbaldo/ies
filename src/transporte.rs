@@ -214,11 +214,15 @@ pub(crate) fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTranspor
     if (300..400).contains(&codigo) {
         return FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(status));
     }
+    let lido = corpo_de_recusa::ler(resposta.corpo, &resposta.mime);
     let recusa = StatusHttpRecusado {
         status,
-        mensagem_do_servidor: corpo_de_recusa::mensagem(resposta.corpo, &resposta.mime),
+        mensagem_do_servidor: lido.mensagem,
     };
     match codigo {
+        403 if lido.bloqueio_de_seguranca => {
+            FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)
+        }
         401 | 403 => FalhaTransporte::AcessoNegado(recusa),
         429 => FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa),
         500..=599 => FalhaTransporte::StatusHttpDeErroDoServidor(recusa),
@@ -290,6 +294,13 @@ pub(crate) mod corpo_de_recusa;
 
 #[path = "transporte/texto_de_recusa.rs"]
 pub(crate) mod texto_de_recusa;
+
+#[path = "transporte/bloqueio_de_seguranca.rs"]
+pub(crate) mod bloqueio_de_seguranca;
+
+#[cfg(test)]
+#[path = "transporte/tests_bloqueio_de_seguranca.rs"]
+mod tests_bloqueio_de_seguranca;
 
 #[path = "transporte/saneamento.rs"]
 pub(crate) mod saneamento;

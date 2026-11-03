@@ -45,6 +45,15 @@ Variam login, nomenclatura de protocolo, caixa resumida,
 `data-label`, listas e ações oferecidas. Diferentes
 instalações da mesma versão podem divergir por customização.
 
+**Bloqueio por rajada (GO, 03/11/2026).** Depois de muitas requisições
+seguidas, Goiás respondeu HTTP 403 com uma página própria de WAF
+(`<title>Acesso Negado</title>`, "Sua requisição foi bloqueada por nossa
+política de segurança", um contato e um código de bloqueio); a sessão
+continuou válida. O IES a classifica como
+`bloqueio_de_seguranca_da_instalacao` e não repete nada. Espace as
+execuções ao vivo (alguns segundos entre comandos) e mantenha o orçamento
+declarado; o limiar não foi medido.
+
 Uma recusa porque **a ação não apareceu para aquele recurso**
 não comprova ausência da capacidade em toda a instalação.
 Antes de atribuir comportamento à versão, compare com outra
