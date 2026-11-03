@@ -13,28 +13,110 @@ pub(super) enum Literal {
 
 const ABERTURA: &str = " = new infraArvoreNo(";
 const CONSTRUTOR: &str = "new infraArvoreNo(";
+/// Na `UnB` 4.0.9 a primeira `PASTA` vem na linha do `.html` do nó anterior:
+/// `Nos[0].html = '…';Nos[1] = new infraArvoreNo("PASTA",…);`.
+const HTML_ANTES: &str = ".html = ";
+const BARRA: &str = ".acoes = ";
+const PROTOCOLOS: &str = "['protocolos'] = ";
 
 /// `Ok(None)`: a linha não declara nó (nem contém `new infraArvoreNo(`).
 /// `Ok(Some((i, argumentos)))`: a linha inteira é
-/// `Nos[i] = new infraArvoreNo(<literais separados por vírgula>);`.
+/// `Nos[i] = new infraArvoreNo(<literais separados por vírgula>);`, ou essa
+/// declaração logo depois de `Nos[i-1].html = '<texto>';`.
 pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)>, ErroArvore> {
     let linha = linha.strip_suffix('\r').unwrap_or(linha);
     if !linha.contains(CONSTRUTOR) {
         return Ok(None);
     }
     let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
-    let resto = linha.strip_prefix("Nos[").ok_or(fora)?;
-    let (indice, resto) = resto.split_once(']').ok_or(fora)?;
-    if indice.is_empty() || indice.len() > 6 || !indice.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(fora);
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
+    if let Some(resto) = resto.strip_prefix(HTML_ANTES) {
+        let (Literal::Texto(_), depois) = ler_literal(resto)? else {
+            return Err(fora);
+        };
+        let declaracao = depois.strip_prefix(';').ok_or(fora)?;
+        let (seguinte, argumentos) = ler_no(declaracao)?;
+        if seguinte != indice + 1 {
+            return Err(fora);
+        }
+        return Ok(Some((seguinte, argumentos)));
     }
-    let indice: usize = indice.parse().map_err(|_| fora)?;
+    ler_no(linha).map(Some)
+}
+
+/// `Nos[i] = new infraArvoreNo(…);` exata, sem nada antes nem depois.
+fn ler_no(linha: &str) -> Result<(usize, Vec<Literal>), ErroArvore> {
+    let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
     let resto = resto.strip_prefix(ABERTURA).ok_or(fora)?;
     let (argumentos, depois) = ler_argumentos(resto)?;
     if depois != ";" {
         return Err(fora);
     }
-    Ok(Some((indice, argumentos)))
+    Ok((indice, argumentos))
+}
+
+/// `<variavel><decimal>]` no começo da linha: o índice e o que sobra.
+fn indice_entre<'a>(linha: &'a str, variavel: &str) -> Option<(usize, &'a str)> {
+    let resto = linha.strip_prefix(variavel)?;
+    let (indice, resto) = resto.split_once(']')?;
+    if indice.is_empty() || indice.len() > 6 || !indice.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some((indice.parse().ok()?, resto))
+}
+
+/// O `i` de uma linha `Nos[i].acoes = …`, sem ler o resto.
+pub(super) fn indice_da_barra(linha: &str) -> Option<usize> {
+    let (indice, resto) = indice_entre(linha, "Nos[")?;
+    resto.starts_with(BARRA).then_some(indice)
+}
+
+/// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].acoes = '<texto>';`;
+/// `Ok(None)` se a linha não atribui `.acoes` a um nó.
+pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+    let linha = linha.strip_suffix('\r').unwrap_or(linha);
+    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
+        return Ok(None);
+    };
+    let Some(resto) = resto.strip_prefix(BARRA) else {
+        return Ok(None);
+    };
+    let fora = ErroArvore::BarraDeNoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|_| fora)? {
+        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        _ => Err(fora),
+    }
+}
+
+/// `Ok(Some((k, texto)))` para `Pastas[k]['protocolos'] = '<texto>';`
+/// (indentação tolerada); `Ok(None)` para as outras linhas, inclusive
+/// `Pastas[k] = [];` e `Pastas[k]['link'] = …`.
+pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+    let linha = linha.trim();
+    if !linha.starts_with("Pastas[") || !linha.contains(PROTOCOLOS) {
+        return Ok(None);
+    }
+    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Pastas[").ok_or(fora)?;
+    let resto = resto.strip_prefix(PROTOCOLOS).ok_or(fora)?;
+    match ler_literal(resto).map_err(|_| fora)? {
+        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        _ => Err(fora),
+    }
+}
+
+/// `<variavel>[j] = new <construtor>(<literais>);` (indentação tolerada):
+/// os argumentos, ou `None` se a linha não tem essa forma.
+pub(super) fn ler_chamada(linha: &str, variavel: &str, construtor: &str) -> Option<Vec<Literal>> {
+    let linha = linha.trim();
+    let (_, resto) = indice_entre(linha, variavel)?;
+    let resto = resto.strip_prefix(" = new ")?.strip_prefix(construtor)?;
+    let resto = resto.strip_prefix('(')?;
+    match ler_argumentos(resto) {
+        Ok((argumentos, ";")) => Some(argumentos),
+        _ => None,
+    }
 }
 
 /// Literais separados por `,` (sem espaço, como servidos) até o `)`.
@@ -60,7 +142,7 @@ fn ler_literal(resto: &str) -> Result<(Literal, &str), ErroArvore> {
     if let Some(&aspa @ (b'"' | b'\'')) = resto.as_bytes().first() {
         return ler_texto(&resto[1..], char::from(aspa));
     }
-    let fim = resto.find([',', ')']).unwrap_or(resto.len());
+    let fim = resto.find([',', ')', ';']).unwrap_or(resto.len());
     let (palavra, depois) = resto.split_at(fim);
     let literal = match palavra {
         "null" => Literal::Nulo,

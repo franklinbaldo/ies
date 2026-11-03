@@ -77,7 +77,43 @@ teclado, `processarPasta`) que comparam `this.nodes[i].tipo == 'PASTA'`
 ou trocam `PASTA` por `AGUARDE`, e nos ids `ifrPasta`/`hdnPastaAtual`.
 Em GO, `PASTA` aparece uma vez e `AGUARDE` nenhuma. Pasta só existe como
 nó se houver `new infraArvoreNo("PASTA",…)`; o texto solto não é nó.
-Árvores grandes com pastas ficam para a fatia 2 de #59.
+
+## Pastas
+
+Observado na UnB 4.0.9 nas cassettes públicas `processo-em-pastas-unb`
+(interações 8 e 9) e `processo-pasta-mista-unb` (411 a 487), lidas só pela
+estrutura. O processo de 20 documentos não tem pasta; com 21 aparecem
+duas. Cada pasta tem até 20 documentos e só a mais recente vem carregada.
+
+- **Declaração.** Antes dos nós, por pasta:
+  `  Pastas[k] = [];`, `  Pastas[k]['link'] = 'controlador.php?acao=procedimento_paginar&…&no_pai=PASTAk&pagina_hash=…&infra_hash=…';`
+  e `  Pastas[k]['protocolos'] = '<p1>,<p2>,…';` (decimais).
+- **Nó `PASTA`**, 15 argumentos:
+  `("PASTA","PASTAk","<id>","javascript:abrirFecharPasta('PASTAk');",null,"<rótulo romano>","Pasta k",null,"svg/processo_aberto.svg…","svg/processo_fechado.svg…",<aberta>,true,null,null,null)`,
+  seguido de `Nos[i].carregado = true|false;`. A primeira pasta vem na
+  mesma linha do `.html` do processo:
+  `Nos[0].html = '…';Nos[1] = new infraArvoreNo("PASTA",…);`.
+- **Nó `AGUARDE`**, 15 argumentos, filho da pasta fechada:
+  `("AGUARDE","AGUARDEk","PASTAk",null,null,"Aguarde...","Aguarde...","/infra_css/svg/aguarde.svg",null,null,false,true,null,null,null)`.
+- **Documentos** da pasta têm a2 `"PASTAk"`. A barra de cada um
+  (`Nos[i].acoes = '…';`, uma linha inteira) traz o
+  `id_rel_protocolo_protocolo` no link `comentario_listar`; é esse valor,
+  não o id do documento, que `Pastas[k]['protocolos']` lista (17 de 17 e
+  157 de 157 nas duas leituras da primeira cassette).
+- **Ações.** Na barra do processo,
+  `NosAcoes[1] = new infraArvoreAcao("ABRIR_PASTAS","AP<id>","<id>","controlador.php?acao=procedimento_visualizar&acao_origem=procedimento_visualizar&id_procedimento=<id>&abrir_pastas=1&infra_sistema=…&infra_unidade_atual=…&infra_hash=…",null,"Abrir todas as Pastas","/infra_css/svg/mais.svg",true);`
+  e a irmã `FECHAR_PASTAS` (`fechar_pastas=1`).
+
+O GET de `ABRIR_PASTAS` devolve a árvore inteira: todas as `PASTA`
+primeiro (abertas, `carregado = true`), depois os documentos de cada uma,
+sem `AGUARDE` (8 pastas e 157 documentos, cerca de 1 MB). Na cassette
+mista (uma pasta fechada de 20, outra aberta de 1 ou 2), a árvore simples
+lida **depois** do GET de abrir voltou fechada. Nenhuma das duas cassettes
+tem POST de `procedimento_paginar` nem GET de `FECHAR_PASTAS`. O navegador
+abre uma pasta só preenchendo `hdnPastaAtual` e `hdnProtocolos` e
+enviando `frmArvore` por POST para `Pastas[k]['link']` (alvo `ifrPasta`);
+o Todos mediu que várias pastas num POST dão "Conjunto de protocolos
+inválido". Leitura do IES: [contrato das pastas](../../contracts/cli/processo-obter-pastas.md).
 
 Veja também [rotas e árvore](rotas-e-arvore.md) e
 [efeitos e verificação](efeitos-e-verificacao.md).

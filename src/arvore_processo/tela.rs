@@ -8,6 +8,11 @@ use crate::instalacao::Instalacao;
 pub(crate) struct EnderecoDaArvore(String);
 
 impl EnderecoDaArvore {
+    /// Só para URLs já conferidas por [`super::endereco`].
+    pub(super) fn conferido(url: String) -> Self {
+        Self(url)
+    }
+
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }

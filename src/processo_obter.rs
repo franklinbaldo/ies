@@ -25,6 +25,8 @@ mod tests_fluxo;
 mod tests_indice;
 #[cfg(test)]
 mod tests_login;
+#[cfg(test)]
+mod tests_pastas;
 
 use crate::arvore_processo::ArvoreLida;
 use crate::formulario_web::RespostaDoPost;

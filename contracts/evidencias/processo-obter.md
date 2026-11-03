@@ -15,7 +15,8 @@ unresolved_steps: 0
 Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL LOCAL/WEB
 em `--resumo` e PARCIAL WEB na leitura pela árvore
 ([contrato](../cli/processo-obter-arvore.md), Refs #59, fatia 1) e dos
-andamentos ([contrato](../cli/processo-obter-andamentos.md), fatia 2).
+andamentos ([contrato](../cli/processo-obter-andamentos.md), fatia 2) e
+das pastas ([contrato](../cli/processo-obter-pastas.md), fatia 3).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 ## Evidência própria do IES (fatia 1)
@@ -49,6 +50,25 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 - [Contrato](../cli/processo-obter-andamentos.md) e
   [observação](../../docs/como-o-sei-funciona/historico-do-processo.md).
   Validação live do comando: **PASS** na UnB, na PEN1 e em GO ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
+
+## Evidência própria do IES (fatia 3, pastas)
+
+- `processo-em-pastas-unb.json` (ZIP da UnB, SHA-1
+  `21e0559015c56c403daf8933e5040504a7b83837`; cassette SHA-256
+  `0bc73a70deacb3af4b16edc0851768580fa3046ac3f676bc56a1fe8f0de5a369`):
+  interação 8, árvore com 8 `PASTA`, 7 `AGUARDE` e 17 documentos;
+  interação 9, GET de `ABRIR_PASTAS`, 8 pastas e 157 documentos, sem
+  `AGUARDE`. Os `id_rel_protocolo_protocolo` das barras igualam os
+  `Pastas[k]['protocolos']` (17/17 e 157/157).
+- `processo-pasta-mista-unb.json` (lote SHA-1
+  `4838ecae4d5a132a60d38e5783171a8640a36b30`; cassette SHA-256
+  `dffe2d9379ebcaccd6df56d188b4ae86c93ed3e9fbfd02f721cbdcbaabc7dd42`):
+  20 documentos sem pasta; com 21, duas pastas (uma fechada de 20, uma
+  aberta); interações 412, 418, 433, 439, 462 e 466 abrem tudo por GET; a
+  árvore simples seguinte volta fechada. Nenhum POST de
+  `procedimento_paginar`, nenhum `FECHAR_PASTAS`.
+- [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live:
+  **NOT_RUN** até o agente pai.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

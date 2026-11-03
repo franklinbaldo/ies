@@ -1,6 +1,6 @@
 //! RED/GREEN do JSON publicado: só o observado, sem URL, hash ou dica.
 use super::*;
-use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore, ProcessoNaArvore};
+use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore};
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
 use crate::processo_obter::{Andamentos, ResolvidoPor};
@@ -18,13 +18,17 @@ fn aberto(unidade: Option<&str>) -> ProcessoAberto {
                     id: "21".into(),
                     rotulo: "Despacho 0000101".into(),
                     numero_sei: Some("0000101".into()),
+                    pasta: None,
                 },
                 DocumentoNaArvore {
                     id: "22".into(),
                     rotulo: "E-mail".into(),
                     numero_sei: None,
+                    pasta: None,
                 },
             ],
+            pastas: Vec::new(),
+            pastas_nao_carregadas: false,
         },
         unidade: unidade.map(str::to_owned),
         resolvido_por: ResolvidoPor::Caixa,
@@ -131,9 +135,10 @@ fn forma_do_json() {
             "resolvido_por": "caixa",
             "requisicoes": 3,
             "documentos": [
-                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101"},
-                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null}
+                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null},
+                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null}
             ],
+            "pastas": [],
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
             "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"
         })
@@ -145,6 +150,7 @@ fn sem_documentos_tira_a_chave_e_unidade_nao_observada_e_null() {
     let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
     let valor = json_do_processo(&nup, &aberto(None), true);
     assert!(valor.get("documentos").is_none());
+    assert!(valor.get("pastas").is_none());
     assert!(valor["unidade"].is_null());
     assert_eq!(valor["numero"], "00001.000001/2026-01");
     let texto = valor.to_string();
@@ -166,4 +172,27 @@ fn todos_os_caminhos_tem_nome_estavel() {
         nomes,
         ["indice_link", "indice_entrada", "pesquisa_rapida", "caixa"]
     );
+}
+
+#[test]
+fn documentos_dizem_a_pasta_e_as_pastas_saem_com_rotulo_e_total() {
+    let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
+    let mut em_pastas = aberto(None);
+    for d in &mut em_pastas.arvore.documentos {
+        d.pasta = Some("PASTA1".into());
+    }
+    em_pastas.arvore.pastas = vec![PastaNaArvore {
+        id: "PASTA1".into(),
+        rotulo: "I".into(),
+        total_declarado: 2,
+    }];
+    let valor = json_do_processo(&nup, &em_pastas, false);
+    assert_eq!(valor["documentos"][1]["pasta"], "PASTA1");
+    assert_eq!(
+        valor["pastas"],
+        json!([{"id": "PASTA1", "rotulo": "I", "total": 2}])
+    );
+    let texto = humano(&nup, &em_pastas, false);
+    assert!(texto.contains("[pasta I]"), "{texto}");
+    assert!(texto.contains("1 pasta(s)"), "{texto}");
 }
