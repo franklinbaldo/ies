@@ -73,5 +73,8 @@ o executável IES não depende de Python.
 
 Máximo de 20.000 bytes UTF-8 por arquivo texto, inclusive `Cargo.lock`.
 Arquivos binários são ignorados. Nada de exceções automáticas para gerados.
+O `Cargo.lock` está perto do limite (cerca de 19,8 KB com o `rusqlite` sem
+features padrão, [ADR 0003](arquitetura/0003-indice-local.md)): toda
+dependência nova precisa caber nele.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.

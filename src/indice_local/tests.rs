@@ -1,6 +1,7 @@
 //! Abertura, permissões, falhas que desligam, concorrência, identidade e
 //! capacidade da instalação. Diretórios temporários, sem rede.
 use super::*;
+use crate::instalacao::Instalacao;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
@@ -31,9 +32,14 @@ fn cria_diretorio_0700_e_banco_0600_com_wal_herdando() {
     let raiz = pasta("permissoes");
     let caminho = raiz.join("sub").join(NOME_DO_ARQUIVO);
     let indice = IndiceLocal::em(caminho.clone());
-    indice.registrar_processo(&instalacao(), "N1", "10").unwrap();
+    indice
+        .registrar_processo(&instalacao(), "N1", "10")
+        .unwrap();
     assert!(indice.ligado());
-    assert_eq!(indice.id_por_nup(&instalacao(), "N1").as_deref(), Some("10"));
+    assert_eq!(
+        indice.id_por_nup(&instalacao(), "N1").as_deref(),
+        Some("10")
+    );
     assert_eq!(modo(&raiz.join("sub")), 0o700);
     assert_eq!(modo(&caminho), 0o600);
     for sufixo in ["-wal", "-shm"] {
@@ -114,7 +120,9 @@ fn caminho_respeita_sem_indice_arquivo_e_padrao() {
 fn desligado_nao_cria_nada_e_nao_responde() {
     let indice = IndiceLocal::desligado();
     indice.registrar_entrada_por_id(&instalacao(), true);
-    indice.registrar_processo(&instalacao(), "N1", "10").unwrap();
+    indice
+        .registrar_processo(&instalacao(), "N1", "10")
+        .unwrap();
     assert!(!indice.ligado());
     assert_eq!(indice.entrada_por_id(&instalacao()), None);
     assert_eq!(indice.id_por_nup(&instalacao(), "N1"), None);
@@ -193,7 +201,10 @@ fn duas_conexoes_concorrentes_gravam_sem_perder_linhas() {
     }
     let leitor = IndiceLocal::em(caminho);
     for i in 0..40 {
-        assert_eq!(leitor.id_por_nup(&instalacao(), &format!("A{i}")), Some(i.to_string()));
+        assert_eq!(
+            leitor.id_por_nup(&instalacao(), &format!("A{i}")),
+            Some(i.to_string())
+        );
         let b = (1000 + i).to_string();
         assert_eq!(leitor.id_por_nup(&instalacao(), &format!("B{i}")), Some(b));
     }
@@ -223,12 +234,19 @@ fn nup_opaco_comparado_exatamente_e_por_instalacao() {
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
     let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
-    indice.registrar_processo(&sei, "23106.000001/2026-01", "7").unwrap();
-    indice.registrar_processo(&outra, "23106.000001/2026-01", "7").unwrap();
+    indice
+        .registrar_processo(&sei, "23106.000001/2026-01", "7")
+        .unwrap();
+    indice
+        .registrar_processo(&outra, "23106.000001/2026-01", "7")
+        .unwrap();
     assert_eq!(indice.id_por_nup(&sei, "23106000001202601"), None);
     assert_eq!(indice.id_por_nup(&sei, "23106.000001/2026-01 "), None);
     indice.esquecer_processo(&outra, "23106.000001/2026-01");
-    assert_eq!(indice.id_por_nup(&sei, "23106.000001/2026-01").as_deref(), Some("7"));
+    assert_eq!(
+        indice.id_por_nup(&sei, "23106.000001/2026-01").as_deref(),
+        Some("7")
+    );
 }
 
 #[test]

@@ -2,6 +2,7 @@
 //! da URL e redação. Hashes sintéticos.
 use super::tests::{instalacao, pasta};
 use super::*;
+use crate::instalacao::Instalacao;
 
 const HASH_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HASH_B: &str = "0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789abcdef";
@@ -33,7 +34,9 @@ fn indice(nome: &str) -> IndiceLocal {
 fn link_volta_literal_so_na_mesma_geracao() {
     let indice = indice("link-geracao");
     let sei = instalacao();
-    indice.registrar_link(&sei, chave(G1), &url(HASH_B)).unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_B))
+        .unwrap();
     let guardado = indice.link(&sei, chave(G1)).unwrap();
     assert_eq!(guardado.url(), url(HASH_B));
     assert_eq!(indice.link(&sei, chave(G2)), None);
@@ -55,8 +58,12 @@ fn link_volta_literal_so_na_mesma_geracao() {
 fn nova_observacao_da_mesma_chave_substitui() {
     let indice = indice("link-substitui");
     let sei = instalacao();
-    indice.registrar_link(&sei, chave(G1), &url(HASH_A)).unwrap();
-    indice.registrar_link(&sei, chave(G1), &url(HASH_B)).unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_A))
+        .unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_B))
+        .unwrap();
     assert_eq!(indice.link(&sei, chave(G1)).unwrap().url(), url(HASH_B));
 }
 
@@ -66,9 +73,15 @@ fn descartar_outras_geracoes_mantem_a_atual_e_outras_instalacoes() {
     let sei = instalacao();
     let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
     let url_outra = url(HASH_A).replace("/sei/", "/outro/");
-    indice.registrar_link(&sei, chave(G1), &url(HASH_A)).unwrap();
-    indice.registrar_link(&sei, chave(G2), &url(HASH_B)).unwrap();
-    indice.registrar_link(&outra, chave(G1), &url_outra).unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_A))
+        .unwrap();
+    indice
+        .registrar_link(&sei, chave(G2), &url(HASH_B))
+        .unwrap();
+    indice
+        .registrar_link(&outra, chave(G1), &url_outra)
+        .unwrap();
     indice.descartar_outras_geracoes(&sei, G2);
     assert_eq!(indice.link(&sei, chave(G1)), None);
     assert_eq!(indice.link(&sei, chave(G2)).unwrap().url(), url(HASH_B));
@@ -84,8 +97,12 @@ fn esquecer_link_apaga_so_a_chave() {
         ..chave(G1)
     };
     let url_arvore = url(HASH_A).replace("procedimento_trabalhar", "arvore_visualizar");
-    indice.registrar_link(&sei, chave(G1), &url(HASH_B)).unwrap();
-    indice.registrar_link(&sei, outra_acao, &url_arvore).unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_B))
+        .unwrap();
+    indice
+        .registrar_link(&sei, outra_acao, &url_arvore)
+        .unwrap();
     indice.esquecer_link(&sei, chave(G1));
     assert_eq!(indice.link(&sei, chave(G1)), None);
     assert_eq!(indice.link(&sei, outra_acao).unwrap().url(), url_arvore);
@@ -100,29 +117,81 @@ fn urls_recusadas_por_fato_verificavel() {
     let casos = [
         (boa.replace("https://", "http://"), R::LinkNaoHttps),
         (boa.replace("https://", "HTTPS://"), R::LinkNaoHttps),
-        (boa.replace("controlador.php?", "controlador.php?a=b c&"), R::LinkComCaractereProibido),
+        (
+            boa.replace("controlador.php?", "controlador.php?a=b c&"),
+            R::LinkComCaractereProibido,
+        ),
         (format!("{boa}#ancora"), R::LinkComCaractereProibido),
-        (boa.replace("sei/controlador", "sei\\controlador"), R::LinkComCaractereProibido),
-        (boa.replace("sei.exemplo", "outro.exemplo"), R::LinkForaDaInstalacao),
+        (
+            boa.replace("sei/controlador", "sei\\controlador"),
+            R::LinkComCaractereProibido,
+        ),
+        (
+            boa.replace("sei.exemplo", "outro.exemplo"),
+            R::LinkForaDaInstalacao,
+        ),
         (boa.replace("/sei/", "/outro/"), R::LinkForaDaInstalacao),
-        (boa.replace("controlador.php", "controlador_externo.php"), R::LinkForaDaInstalacao),
-        (boa.replace("https://sei.exemplo", "https://u@sei.exemplo"), R::LinkForaDaInstalacao),
-        (boa.replace("controlador.php?", "controlador.php"), R::LinkForaDaInstalacao),
-        (boa.replace("acao_origem", "Acao_origem"), R::LinkComConsultaNaoCanonica),
-        (boa.replace("infra_sistema=100000100", "infra_sistema=1;2"), R::LinkComConsultaNaoCanonica),
-        (boa.replace("&id_procedimento=7", "&id_procedimento"), R::LinkComConsultaNaoCanonica),
-        (boa.replace("&id_procedimento=7", "&&id_procedimento=7"), R::LinkComConsultaNaoCanonica),
-        (boa.replace("acao=procedimento_trabalhar", "acao=arvore_visualizar"), R::LinkSemAcaoUnicaIgual),
-        (format!("{boa}&acao=procedimento_trabalhar"), R::LinkSemAcaoUnicaIgual),
-        (boa.replace("&infra_hash", "&outro"), R::LinkSemInfraHashUnico),
-        (format!("{boa}&infra_hash={HASH_B}"), R::LinkSemInfraHashUnico),
+        (
+            boa.replace("controlador.php", "controlador_externo.php"),
+            R::LinkForaDaInstalacao,
+        ),
+        (
+            boa.replace("https://sei.exemplo", "https://u@sei.exemplo"),
+            R::LinkForaDaInstalacao,
+        ),
+        (
+            boa.replace("controlador.php?", "controlador.php"),
+            R::LinkForaDaInstalacao,
+        ),
+        (
+            boa.replace("acao_origem", "Acao_origem"),
+            R::LinkComConsultaNaoCanonica,
+        ),
+        (
+            boa.replace("infra_sistema=100000100", "infra_sistema=1;2"),
+            R::LinkComConsultaNaoCanonica,
+        ),
+        (
+            boa.replace("&id_procedimento=7", "&id_procedimento"),
+            R::LinkComConsultaNaoCanonica,
+        ),
+        (
+            boa.replace("&id_procedimento=7", "&&id_procedimento=7"),
+            R::LinkComConsultaNaoCanonica,
+        ),
+        (
+            boa.replace("acao=procedimento_trabalhar", "acao=arvore_visualizar"),
+            R::LinkSemAcaoUnicaIgual,
+        ),
+        (
+            format!("{boa}&acao=procedimento_trabalhar"),
+            R::LinkSemAcaoUnicaIgual,
+        ),
+        (
+            boa.replace("&infra_hash", "&outro"),
+            R::LinkSemInfraHashUnico,
+        ),
+        (
+            format!("{boa}&infra_hash={HASH_B}"),
+            R::LinkSemInfraHashUnico,
+        ),
         (boa.replace(HASH_A, &HASH_A[1..]), R::LinkSemInfraHashUnico),
-        (boa.replace(HASH_A, &HASH_A.replace('a', "g")), R::LinkSemInfraHashUnico),
+        (
+            boa.replace(HASH_A, &HASH_A.replace('a', "g")),
+            R::LinkSemInfraHashUnico,
+        ),
         (format!("{boa}&acao_ajax=x"), R::LinkComAcaoAjax),
-        (boa.replace("infra_unidade_atual=110", "infra_unidade_atual=111"), R::LinkDeOutraUnidade),
+        (
+            boa.replace("infra_unidade_atual=110", "infra_unidade_atual=111"),
+            R::LinkDeOutraUnidade,
+        ),
     ];
     for (texto, esperado) in casos {
-        assert_eq!(indice.registrar_link(&sei, chave(G1), &texto), Err(esperado), "{esperado:?}");
+        assert_eq!(
+            indice.registrar_link(&sei, chave(G1), &texto),
+            Err(esperado),
+            "{esperado:?}"
+        );
     }
     assert_eq!(indice.link(&sei, chave(G1)), None);
     assert!(indice.ligado());
@@ -134,16 +203,62 @@ fn chaves_invalidas_recusadas() {
     let indice = indice("link-chaves");
     let sei = instalacao();
     let casos = [
-        (ChaveDoLink { geracao_sessao: "", ..chave(G1) }, R::GeracaoInvalida),
-        (ChaveDoLink { geracao_sessao: "a b", ..chave(G1) }, R::GeracaoInvalida),
-        (ChaveDoLink { unidade: "", ..chave(G1) }, R::UnidadeInvalida),
-        (ChaveDoLink { unidade: "1\n", ..chave(G1) }, R::UnidadeInvalida),
-        (ChaveDoLink { acao: "Procedimento", ..chave(G1) }, R::AcaoInvalida),
-        (ChaveDoLink { acao: "", ..chave(G1) }, R::AcaoInvalida),
-        (ChaveDoLink { objeto: "a\tb", ..chave(G1) }, R::ObjetoInvalido),
+        (
+            ChaveDoLink {
+                geracao_sessao: "",
+                ..chave(G1)
+            },
+            R::GeracaoInvalida,
+        ),
+        (
+            ChaveDoLink {
+                geracao_sessao: "a b",
+                ..chave(G1)
+            },
+            R::GeracaoInvalida,
+        ),
+        (
+            ChaveDoLink {
+                unidade: "",
+                ..chave(G1)
+            },
+            R::UnidadeInvalida,
+        ),
+        (
+            ChaveDoLink {
+                unidade: "1\n",
+                ..chave(G1)
+            },
+            R::UnidadeInvalida,
+        ),
+        (
+            ChaveDoLink {
+                acao: "Procedimento",
+                ..chave(G1)
+            },
+            R::AcaoInvalida,
+        ),
+        (
+            ChaveDoLink {
+                acao: "",
+                ..chave(G1)
+            },
+            R::AcaoInvalida,
+        ),
+        (
+            ChaveDoLink {
+                objeto: "a\tb",
+                ..chave(G1)
+            },
+            R::ObjetoInvalido,
+        ),
     ];
     for (chave, esperado) in casos {
-        assert_eq!(indice.registrar_link(&sei, chave, &url(HASH_A)), Err(esperado), "{esperado:?}");
+        assert_eq!(
+            indice.registrar_link(&sei, chave, &url(HASH_A)),
+            Err(esperado),
+            "{esperado:?}"
+        );
     }
 }
 
@@ -167,7 +282,9 @@ fn objeto_vazio_e_sem_unidade_na_url_sao_aceitos() {
 fn debug_redige_url_e_hash() {
     let indice = indice("link-debug");
     let sei = instalacao();
-    indice.registrar_link(&sei, chave(G1), &url(HASH_B)).unwrap();
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_B))
+        .unwrap();
     let guardado = indice.link(&sei, chave(G1));
     let texto = format!("{guardado:?} {indice:?}");
     for segredo in [HASH_B, "sei.exemplo", "infra_hash", G1] {

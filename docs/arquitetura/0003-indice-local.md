@@ -17,16 +17,34 @@ esbarra em três custos repetidos a cada comando:
    precisa da pesquisa assinada (Controle → link da pesquisa → POST →
    302 → árvore). O NUP é a chave que a pessoa digita; o id é o que a
    entrada direta aceita.
-2. **Saber se a instalação aceita a entrada por id.** A forma exata
-   `controlador.php?acao=procedimento_trabalhar&id_procedimento=N`, sem
-   `infra_hash`, foi medida hoje pelo agente pai na UnB (treinamento):
-   o servidor responde **302 para a mesma ação, assinada por ele, com o
-   mesmo id**. O Todos mediu o mesmo em PEN3, PEN4 e GO. Qualquer outra
-   forma sem assinatura (com `acao_origem`, `procedimento_visualizar`,
-   `protocolo_pesquisa=NUP`) é recusada com "Link sem assinatura", e
-   **a recusa derruba a sessão inteira**
+2. **Saber se a instalação aceita a entrada por id.** Ver a medição do
+   IES abaixo; o Todos mediu o mesmo aceite em PEN3, PEN4 e GO, e as
+   recusas de `acao_origem` sem hash, `procedimento_visualizar` e
+   `protocolo_pesquisa=NUP`
    ([Todos, infra-hash](https://github.com/franklinbaldo/todos/blob/main/docs/como-o-sei-funciona/03-infra-hash.md),
    itens 4 e 5).
+
+**Evidência própria do IES** (UnB 4.0.9, treinamento, 03/11/2026, só GETs
+de leitura, sessão nova por caso, controle positivo antes e depois):
+
+- `controlador.php?acao=procedimento_trabalhar&id_procedimento=N` sem
+  hash → **302 para a mesma ação assinada pelo servidor** (chaves `acao`,
+  `id_procedimento`, `infra_hash`, `infra_sistema`,
+  `infra_unidade_atual`), mesmo id; a sessão sobrevive.
+- Recusadas com 302 para `login.php` e `msg=Link sem assinatura`, **e a
+  sessão morreu** (controle depois falhou), cada uma:
+  `procedimento_controlar` sem parâmetros, `protocolo_pesquisar` sem
+  parâmetros, `procedimento_trabalhar&id_documento=M` (sem
+  `id_procedimento`), `documento_visualizar&id_documento=M`,
+  `procedimento_consultar_historico&id_procedimento=N` e
+  `arvore_visualizar&id_procedimento=N`.
+
+Consequência: a **única** entrada sem assinatura é `procedimento_trabalhar`
+por id. O Todos também mediu como aceita a mesma forma acrescida de
+`&id_documento=M`; o IES não a mediu e não a monta. Todo o resto vem da
+tabela `link_assinado` da sessão. O Todos mediu ainda que os links do
+menu deixam de valer depois de trocar de unidade (o hash cobre
+`infra_unidade_atual`): a unidade é parte da chave do link.
 3. **Reabrir telas já vistas na sessão.** Cada tela publica links
    assinados para as próximas; sem guardá-los, reabrir um processo
    recomeça do Controle.
@@ -93,6 +111,11 @@ chamador e não pode carregar `&` ou `=`.
 Uma recusa derruba a sessão **para todos os agentes da conta**, não só
 para o comando que tentou. Por isso:
 
+- o módulo torna impossível montar outra URL sem assinatura: uma função
+  só, `url_da_entrada_por_id(instalacao, id_procedimento)`, sem outros
+  parâmetros, com o id restrito a dígitos ASCII; um teste confere a forma
+  exata e outro que nenhum outro arquivo do módulo contém
+  `controlador.php?acao=`;
 - a entrada por id só é usada onde `entrada_por_id` devolve `Some(true)`;
 - instalação desconhecida (`None`) aprende **uma vez**: o primeiro
   comando que precisaria da pesquisa tenta a entrada por id e registra
@@ -142,7 +165,7 @@ valem enquanto a sessão viver.
   vazio diferente de `0` desliga.
 - O diretório é criado `0700`; diretório existente com bits de grupo ou
   outros desliga o índice (o IES não muda o modo de diretórios que não
-  criou). O banco nasce `0600` com `O_NOFOLLOW`; banco, `-wal` ou
+  criou). O banco nasce `0600` com `O_CREAT|O_EXCL` (não segue link simbólico); banco, `-wal` ou
   `-shm` que seja link simbólico, não seja arquivo regular ou tenha
   bits de grupo/outros desliga o índice. O SQLite abre com
   `SQLITE_OPEN_NOFOLLOW` e sem `CREATE`; `-wal` e `-shm` herdam o modo.
