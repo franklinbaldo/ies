@@ -36,6 +36,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 ## Primeiro recorte, com acesso Web estritamente limitado
 
 - `ies processo NUP`
+- `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
+  `--pagina N` acrescenta um POST de `navegar()`)
 - `ies documento NUMERO`
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
   a sessão fica na D, sem restaurar; decisões do proprietário, 02/11/2026)
@@ -56,7 +58,9 @@ legado do Todos faz parte do contrato público por pressuposição.
 ## Contratos iniciais de leitura
 
 - [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
-- [processo.buscar](cli/processo-buscar.md): NUP exato em resposta de pesquisa HTML privada, somente offline.
+- [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
+  sessão de `ies login` (processo único, lista com total e faixa ou "sem
+  resultado") e NUP exato em resposta HTML privada, offline.
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
@@ -77,6 +81,11 @@ falha tipada; relogar é `ies login`) nem escrita; a única escrita é `colunas 
 e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
 comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.
+
+`ies processo buscar TERMO` usa a mesma sessão e as mesmas travas: segue só o
+link `protocolo_pesquisar` publicado pelo Controle; seus POSTs são o da
+pesquisa e, com `--pagina N`, um de `navegar()`, sem restaurar a página ou o
+filtro lembrados ([contrato](cli/processo-buscar.md)).
 
 ## Leituras paginadas: página observada por padrão (Refs #57)
 

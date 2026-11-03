@@ -1,0 +1,187 @@
+//! RED/GREEN da resposta 200 da pesquisa: barra com separador de milhar,
+//! lista, "sem resultado" e formas não reconhecidas. HTML sintético.
+use super::*;
+use crate::pesquisa_web::tests_fixtures::{
+    conteudo_da_lista, formulario, numero, resultado, sem_resultado,
+};
+use ErroRespostaDaPesquisa as E;
+
+#[test]
+fn contagem_aceita_ponto_so_entre_grupos_de_tres_digitos() {
+    assert_eq!(ler_contagem("1"), Some(1));
+    assert_eq!(ler_contagem("10"), Some(10));
+    assert_eq!(ler_contagem("999"), Some(999));
+    assert_eq!(ler_contagem("1.234"), Some(1234));
+    assert_eq!(ler_contagem("4.567"), Some(4567));
+    assert_eq!(ler_contagem("12.345.678"), Some(12_345_678));
+    for fora in [
+        "", "1234", "1,234", "1.23", "1.2345", "01.234", "012", ".234", "1.", "1..234", "1 234",
+        "+1", "-1", "1.234,5", "١٢", "1.ab4",
+    ] {
+        assert_eq!(ler_contagem(fora), None, "{fora:?}");
+    }
+}
+
+#[test]
+fn contagem_enorme_nao_estoura() {
+    assert_eq!(ler_contagem("18.446.744.073.709.551.615"), Some(u64::MAX));
+    assert_eq!(ler_contagem("18.446.744.073.709.551.616"), None);
+}
+
+#[test]
+fn lista_publica_total_faixa_e_numeros_com_linha_da_arvore() {
+    let RespostaDaPesquisa::Lista(lista) =
+        ler_resposta_html(&resultado("00001", 1, 10, "1.234")).unwrap()
+    else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.total_declarado, 1234);
+    assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 10 });
+    assert_eq!(lista.processos.len(), 10);
+    assert_eq!(lista.processos[0].numero.as_str(), numero(1));
+    assert_eq!(lista.processos[9].numero.as_str(), numero(10));
+}
+
+#[test]
+fn pagina_posterior_e_lida_com_a_faixa_da_barra() {
+    let RespostaDaPesquisa::Lista(lista) =
+        ler_resposta_html(&resultado("00001", 1231, 1234, "1.234")).unwrap()
+    else {
+        panic!("esperada lista");
+    };
+    assert_eq!(
+        lista.faixa,
+        FaixaDaPesquisa {
+            inicio: 1231,
+            fim: 1234
+        }
+    );
+    assert_eq!(lista.processos.len(), 4);
+}
+
+#[test]
+fn aviso_de_sem_resultado_e_resposta_observada() {
+    assert_eq!(
+        ler_resposta_html(&sem_resultado("99999")),
+        Ok(RespostaDaPesquisa::SemResultado)
+    );
+}
+
+#[test]
+fn pagina_sem_tabela_nem_aviso_nao_e_reconhecida() {
+    let html = format!("<html>{}</html>", formulario("x", true, "<p>outra</p>"));
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::RespostaDaPesquisaNaoReconhecida)
+    );
+}
+
+#[test]
+fn tabela_e_aviso_juntos_falham_fechado() {
+    let html = resultado("1", 1, 3, "3").replace(
+        "</table>",
+        "</table><div class=\"pesquisaSemResultado\">Nenhum</div>",
+    );
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta)
+    );
+}
+
+#[test]
+fn barra_ausente_ou_repetida_e_recusada() {
+    let sem = resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX");
+    assert_eq!(
+        ler_resposta_html(&sem),
+        Err(E::BarraDeContagemDaPesquisaAusente)
+    );
+    let dupla = resultado("1", 1, 3, "3").replace(
+        "<table border",
+        "<div class=\"pesquisaBarraD\">Exibindo 1 - 3 de 3</div><table border",
+    );
+    assert_eq!(
+        ler_resposta_html(&dupla),
+        Err(E::BarrasDeContagemDaPesquisaRepetidas)
+    );
+}
+
+#[test]
+fn texto_da_barra_fora_da_forma_observada_e_recusado() {
+    for texto in [
+        "Mostrando 1 - 3 de 3",
+        "Exibindo 1 a 3 de 3",
+        "Exibindo 1 - 3 / 3",
+        "Exibindo 1 - 3 de 3 itens",
+        "Exibindo 1-3 de 3",
+    ] {
+        let html = resultado("1", 1, 3, "3").replace("Exibindo 1 - 3 de 3", texto);
+        assert_eq!(
+            ler_resposta_html(&html),
+            Err(E::TextoDaBarraDeContagemForaDoFormato),
+            "{texto}"
+        );
+    }
+}
+
+#[test]
+fn numero_da_barra_sem_separador_observado_e_recusado() {
+    for total in ["1234", "1,234", "1.23"] {
+        let html = resultado("1", 1, 10, "1.234").replace("de 1.234", &format!("de {total}"));
+        assert_eq!(
+            ler_resposta_html(&html),
+            Err(E::NumeroDaBarraDeContagemForaDoFormato),
+            "{total}"
+        );
+    }
+}
+
+#[test]
+fn faixa_impossivel_e_recusada() {
+    for (inicio, fim, total) in [("0", "3", "3"), ("3", "1", "3"), ("1", "3", "2")] {
+        let html = resultado("1", 1, 3, "3").replace(
+            "Exibindo 1 - 3 de 3",
+            &format!("Exibindo {inicio} - {fim} de {total}"),
+        );
+        assert_eq!(
+            ler_resposta_html(&html),
+            Err(E::FaixaDaBarraDeContagemImpossivel),
+            "{inicio}-{fim}/{total}"
+        );
+    }
+}
+
+#[test]
+fn linhas_diferentes_da_faixa_sao_recusadas() {
+    let html = format!(
+        "<html>{}</html>",
+        formulario("1", true, &conteudo_da_lista(1, 9, "1.234", 10))
+    )
+    .replace("Exibindo 1 - 9 de", "Exibindo 1 - 10 de");
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)
+    );
+}
+
+#[test]
+fn linha_invalida_da_tabela_e_erro_de_resultado() {
+    let html = resultado("1", 1, 3, "3")
+        .replace("acao=procedimento_trabalhar", "acao=documento_imprimir_web");
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::Resultado(
+            ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso
+        ))
+    );
+}
+
+#[test]
+fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
+    // Só o total acima de 999 foi observado (quatro dígitos); posições sem o
+    // separador falham fechado em vez de virar outra leitura.
+    let html = resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234");
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::NumeroDaBarraDeContagemForaDoFormato)
+    );
+}
