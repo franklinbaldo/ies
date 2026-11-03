@@ -100,7 +100,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   `id_procedimento_anexado` igual ao da raiz, hash de 64 hex e
   `infra_sistema`/`infra_unidade_atual` iguais aos do a3 da raiz; texto
   igual ao NUP do pai, sem escape nem entidade.
-- Validação live do comando com anexado: **NOT_RUN** até o agente pai.
+- Validação live do comando com anexado: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

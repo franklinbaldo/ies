@@ -253,6 +253,5 @@ Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-0
 Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
 Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 ([relatório](../../docs/validacao-live/2026-11-03-colheita-do-controle.md)).
-Anexados: **NOT_RUN** até a validação do agente pai (o leitor aceitou a
-captura privada da UnB).
+Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).
