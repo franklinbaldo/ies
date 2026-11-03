@@ -16,7 +16,9 @@ pub(crate) mod tela;
 
 pub(crate) use credenciais::Credenciais;
 pub(crate) use erro::{CampoDasCredenciais, ErroLogin};
-pub(crate) use fluxo::{entrar_colhendo, entrar_via};
+pub(crate) use fluxo::entrar_colhendo;
+#[cfg(test)]
+pub(crate) use fluxo::entrar_via;
 pub(crate) use gravacao::geracao_da_sessao;
 
 use crate::configuracao::ArquivosDeAcesso;

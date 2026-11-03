@@ -54,12 +54,15 @@ fn ler_tabela(
     )
 }
 
+/// Um processo da tabela com o `href` bruto do seu link.
+type LinhaLida = (Processo, Option<String>);
+
 /// Total da legenda e cada processo com o `href` bruto do seu link.
 fn ler_linhas(
     dom: &tl::VDom<'_>,
     table_id: &str,
     categoria: Categoria,
-) -> Result<(Option<usize>, Vec<(Processo, Option<String>)>), ErroCaixa> {
+) -> Result<(Option<usize>, Vec<LinhaLida>), ErroCaixa> {
     let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.

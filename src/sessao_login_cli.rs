@@ -2,9 +2,10 @@
 //! privado de `IES_CREDENCIAIS_FILE`; a saída nunca publica credencial,
 //! cookie ou URL assinada.
 use crate::configuracao;
+use crate::indice_local::IndiceLocal;
 use crate::saida_erro::{json_de_erro_fonte, linha_humana};
 use crate::sessao_login::http::HttpsDoLogin;
-use crate::sessao_login::{Conexao, ErroLogin, PedidoDeLogin, ResultadoDoLogin, entrar_via};
+use crate::sessao_login::{Conexao, ErroLogin, PedidoDeLogin, ResultadoDoLogin, entrar_colhendo};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -69,7 +70,8 @@ pub(crate) fn executar_login(json_mode: bool, forcar: bool, unidade: Option<&str
         unidade_esperada: unidade,
         espera_do_lock: ESPERA_DO_LOCK,
     };
-    match entrar_via(&pedido, &mut HttpsDoLogin) {
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    match entrar_colhendo(&pedido, &indice, &mut HttpsDoLogin) {
         Ok(resultado) => {
             if json_mode {
                 println!("{}", json_do_resultado(&resultado));

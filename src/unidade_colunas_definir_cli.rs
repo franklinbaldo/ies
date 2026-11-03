@@ -6,8 +6,8 @@
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroDaListaDeColunas};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::visao_do_controle::{
-    self, ColunasDefinidas, EnvioHttps, ErroDefinirColunas, ErroVisaoDoControle, FalhaDoSalvar,
-    TelaAtual, VerificacaoDasColunas,
+    self, ColunasDefinidas, ErroDefinirColunas, ErroVisaoDoControle, FalhaDoSalvar, TelaAtual,
+    VerificacaoDasColunas,
 };
 use crate::{configuracao, erro_fonte, saida_erro};
 use serde_json::{Map, Value, json};
@@ -27,6 +27,8 @@ pub(crate) fn definir_colunas(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
+    let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
+    let colheita = crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos);
     let tela =
         match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
             Ok(tela) => tela,
@@ -39,6 +41,7 @@ pub(crate) fn definir_colunas(
                 );
             }
         };
+    colheita.colher(&tela.html, Some(&tela.mime));
     let atual = TelaAtual {
         url: tela.url,
         html: tela.html,
@@ -51,7 +54,9 @@ pub(crate) fn definir_colunas(
         &alvo,
         confirmar,
         &arquivos.cookie,
-        &mut EnvioHttps,
+        &mut crate::colheita_do_controle::EnvioColhendo {
+            colheita: &colheita,
+        },
     ) {
         Ok(feito) => {
             if json_mode {

@@ -289,7 +289,7 @@ fn pagina_recusada_pelo_leitor_so_alimenta_o_menu() {
     ]);
     colher(&indice, &html, Some(MIME));
     let (processos, links) = indice.conteudo();
-    assert!(processos.is_empty());
+    assert_eq!(processos.len(), 0);
     assert_eq!(links, links_do_menu());
 }
 

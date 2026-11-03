@@ -39,6 +39,7 @@ use crate::historico_processo::AndamentosLidos;
 use crate::processo::NumeroProcesso;
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
+pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::obter_processo;
 use std::path::Path;

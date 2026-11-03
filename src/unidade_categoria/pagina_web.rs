@@ -2,17 +2,19 @@
 //! N, um POST do paginador de T. Sem retry, sem outras páginas, sem restaurar
 //! a página da categoria. Se a sessão está na visão D, a troca para R (sem
 //! volta) fica com `visao_do_controle`.
+use crate::colheita_do_controle::{Colheita, EnvioColhendo};
 use crate::configuracao::ArquivosDeAcesso;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::TelaServida;
+use crate::indice_local::IndiceLocal;
 use crate::pagina_do_controle::{
     self, ErroPaginaDoControle, PlanoDaPagina, codificacao_da_tela, obter_pagina_via,
 };
 use crate::paginas;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_controle};
-use crate::visao_do_controle::{self, EnvioHttps, ErroVisaoDoControle, TelaAtual};
+use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum ErroPaginaWeb {
@@ -53,15 +55,19 @@ impl ErroPaginaWeb {
 }
 
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
-/// na visão D, a troca para R, que fica (orçamento no contrato).
+/// na visão D, a troca para R, que fica (orçamento no contrato). Cada tela
+/// do Controle lida é colhida no índice local, sem requisição a mais.
 pub(super) fn obter(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
     categoria: Categoria,
     pagina: Option<usize>,
 ) -> Result<String, ErroPaginaWeb> {
+    let indice = IndiceLocal::da_configuracao(arquivos);
+    let colheita = Colheita::da_sessao(&indice, arquivos);
     let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
         .map_err(ErroPaginaWeb::Transporte)?;
+    colheita.colher(&tela.html, Some(&tela.mime));
     let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
         .is_ok_and(|contexto| contexto.eh_detalhada());
     if detalhada {
@@ -77,13 +83,15 @@ pub(super) fn obter(
             categoria,
             pagina,
             &arquivos.cookie,
-            &mut EnvioHttps,
+            &mut EnvioColhendo {
+                colheita: &colheita,
+            },
         )
         .map_err(ErroPaginaWeb::Visao);
     }
     match pagina {
         None => Ok(tela.html),
-        Some(numero) => obter_da_tela(tela, arquivos, unidade, categoria, numero),
+        Some(numero) => obter_da_tela(tela, arquivos, unidade, categoria, numero, &colheita),
     }
 }
 
@@ -94,6 +102,7 @@ fn obter_da_tela(
     unidade: Option<&str>,
     categoria: Categoria,
     numero: usize,
+    colheita: &Colheita<'_>,
 ) -> Result<String, ErroPaginaWeb> {
     // A tela de origem passa pelas mesmas recusas da leitura sem opção.
     let leitura =
@@ -124,6 +133,10 @@ fn obter_da_tela(
         enviar_post,
     )
     .map_err(ErroPaginaWeb::Pagina)?;
+    if let Some(html) = &obtida {
+        // O mesmo servidor e a mesma sessão: o charset da tela de origem.
+        colheita.colher(html, Some(&tela.mime));
+    }
     Ok(obtida.unwrap_or(tela.html))
 }
 

@@ -8,10 +8,19 @@
 //! As linhas vêm dos leitores da caixa (R: `caixa::linhas_com_link`; D:
 //! `caixa_detalhada::linhas_com_link`); não há segundo leitor de linhas.
 //! Nada aqui falha o comando: linha, página ou banco ruins só não gravam.
+use crate::caixa::LinhaDoControle;
 use crate::configuracao::ArquivosDeAcesso;
-use crate::indice_local::IndiceLocal;
+use crate::controle_contexto::contexto_da_pagina;
+use crate::controle_reconhecido::publica_visao_detalhada;
+use crate::formulario_web::{TelaServida, decodificar_atributo, derivar_submissao};
+use crate::indice_local::{ChaveDoLink, IndiceLocal, RegistroRecusado, unidade_dos_links};
 use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
+use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
+use crate::pesquisa_web::redirecionamento::{OrigemDoTrabalho, conferir_trabalho};
+use crate::processo_obter::{CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
+use std::collections::HashMap;
 
 #[cfg(test)]
 #[path = "colheita_do_controle/tests.rs"]
@@ -103,8 +112,108 @@ impl<'i> Colheita<'i> {
         let Some(alvo) = &self.alvo else {
             return;
         };
-        let _ = (alvo, html, mime);
+        let Some(unidade) = unidade_dos_links(&alvo.url_do_controle) else {
+            return;
+        };
+        let (indice, instalacao) = (alvo.indice, &alvo.instalacao);
+        for (linha, url) in linhas_conferidas(alvo, html) {
+            let gravado = registrar(alvo, &unidade, ACAO_DO_TRABALHO, &linha.id, &url);
+            if gravado.is_ok() {
+                let _ = indice.registrar_processo(instalacao, &linha.numero, &linha.id);
+            }
+        }
+        if let Ok(url) = link_da_pesquisa(instalacao, &alvo.url_do_controle, html) {
+            let _ = registrar(alvo, &unidade, ACAO_DA_PESQUISA, "", &url);
+        }
+        if let Some(url) = mime.and_then(|mime| action_da_pesquisa_rapida(alvo, html, mime)) {
+            let _ = registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
+        }
     }
+}
+
+/// Guarda o link sem editar; a recusa da conferência é a resposta.
+fn registrar(
+    alvo: &Alvo<'_>,
+    unidade: &str,
+    acao: &str,
+    objeto: &str,
+    url: &str,
+) -> Result<(), RegistroRecusado> {
+    let chave = ChaveDoLink {
+        geracao_sessao: &alvo.geracao,
+        unidade,
+        acao,
+        objeto,
+    };
+    alvo.indice.registrar_link(&alvo.instalacao, chave, url)
+}
+
+/// As linhas da página pelo leitor da visão que ela publica (D se houver
+/// `tblProcessosDetalhado`, senão R); página recusada: nenhuma.
+fn linhas_da_pagina(html: &str) -> Vec<LinhaDoControle> {
+    if publica_visao_detalhada(html) {
+        crate::caixa_detalhada::linhas_com_link(html).unwrap_or_default()
+    } else {
+        crate::caixa::linhas_com_link(html).unwrap_or_default()
+    }
+}
+
+/// Cada linha de NUP e id únicos na página cujo `href` relativo é o
+/// `procedimento_trabalhar` do Controle para o id da linha, com a URL
+/// absoluta conferida. As outras são puladas.
+fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, String)> {
+    let linhas = linhas_da_pagina(html);
+    let mut nups: HashMap<&str, usize> = HashMap::new();
+    let mut ids: HashMap<&str, usize> = HashMap::new();
+    for linha in &linhas {
+        *nups.entry(&linha.numero).or_default() += 1;
+        *ids.entry(&linha.id).or_default() += 1;
+    }
+    let unicas: Vec<bool> = linhas
+        .iter()
+        .map(|l| nups[l.numero.as_str()] == 1 && ids[l.id.as_str()] == 1)
+        .collect();
+    linhas
+        .into_iter()
+        .zip(unicas)
+        .filter(|(_, unica)| *unica)
+        .filter_map(|(linha, _)| {
+            let url = trabalho_da_linha(alvo, &linha)?;
+            Some((linha, url))
+        })
+        .collect()
+}
+
+fn trabalho_da_linha(alvo: &Alvo<'_>, linha: &LinhaDoControle) -> Option<String> {
+    let href = decodificar_atributo(linha.href.as_deref()?)?;
+    if !href.starts_with("controlador.php?") {
+        return None;
+    }
+    let origem = OrigemDoTrabalho::Controle { id: &linha.id };
+    conferir_trabalho(Some(&href), &alvo.url_do_controle, &alvo.instalacao, origem)
+        .ok()
+        .map(|conferido| conferido.trabalho.as_str().to_owned())
+}
+
+/// O `action` assinado de `frmProtocoloPesquisaRapida`, pela mesma
+/// derivação do envio de `ies processo NUP`.
+fn action_da_pesquisa_rapida(alvo: &Alvo<'_>, html: &str, mime: &str) -> Option<String> {
+    let codificacao = codificacao_da_tela(mime)?;
+    let unidade = contexto_da_pagina(html).ok()?.unidade?;
+    let tela = TelaServida {
+        url: &alvo.url_do_controle,
+        html,
+        codificacao,
+    };
+    derivar_submissao(
+        &PESQUISA_RAPIDA,
+        &alvo.instalacao,
+        &tela,
+        &unidade,
+        &[(CAMPO_DA_PESQUISA_RAPIDA, "")],
+    )
+    .ok()
+    .map(|submissao| submissao.url().to_owned())
 }
 
 /// O envio HTTPS real que colhe cada tela do Controle que os fluxos de

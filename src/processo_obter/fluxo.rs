@@ -11,7 +11,8 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::ErroArvore;
+use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
+use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
@@ -132,8 +133,43 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
 /// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
 /// GET da tela do processo e GET da árvore.
 fn link_de_trabalho<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
-    let _ = (contexto, rede);
-    Ok(None)
+    const ACAO: &str = "procedimento_trabalhar";
+    let instalacao = &contexto.instalacao;
+    let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
+        return Ok(None);
+    };
+    let Some(link) = contexto
+        .chave(ACAO, &id)
+        .and_then(|chave| contexto.indice.link(instalacao, chave))
+    else {
+        return Ok(None);
+    };
+    // Login, redirect ou outro status: o link envelheceu.
+    let Lida::Html { html, mime } = rede.get(link.url())? else {
+        contexto.esquecer_link(ACAO, &id);
+        return Ok(None);
+    };
+    let tela = match ler_tela_do_processo(instalacao, &html, &id, contexto.unidade_pedida) {
+        Ok(tela) => tela,
+        // A sessão está noutra unidade: os outros passos diriam o mesmo.
+        Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
+            return Err(E::Tela(erro));
+        }
+        // Não é a tela deste processo: o link envelheceu.
+        Err(_) => {
+            contexto.esquecer_link(ACAO, &id);
+            return Ok(None);
+        }
+    };
+    match rede.abrir_da_tela(contexto, link.url(), (&html, &mime), tela, &id) {
+        Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar))),
+        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
+            contexto.indice.esquecer_processo(instalacao, contexto.nup);
+            contexto.esquecer_link(ACAO, &id);
+            Ok(None)
+        }
+        Err(erro) => Err(erro),
+    }
 }
 
 /// Passo 2, entrada sem assinatura por id (a única URL que o IES monta): 302 para
@@ -257,12 +293,28 @@ fn pelo_controle<V: EnvioDoProcesso>(
         },
     )?;
     let tela = &controle.tela;
-    contexto.aprender_pesquisa_rapida(&tela.url, &tela.html, &tela.mime, &controle.unidade);
+    // Linhas, link da pesquisa e `action` da pesquisa rápida, sem requisição.
+    Colheita::com_geracao(
+        contexto.indice,
+        &contexto.instalacao,
+        &contexto.geracao,
+        sessao.url_do_controle,
+    )
+    .colher(&tela.html, Some(&tela.mime));
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
             .map_err(E::LinkDoProcessoNoControleNaoReconhecido)?;
-        let (arvore, unidade) = rede.abrir(contexto, redirecionado.trabalho.as_str(), &id)?;
+        let (arvore, unidade) = rede
+            .abrir(contexto, redirecionado.trabalho.as_str(), &id)
+            .inspect_err(|erro| {
+                // A colheita deste GET gravou o par que a árvore desmentiu.
+                if matches!(erro, E::Arvore(arvore) if arvore.diverge_do_pedido()) {
+                    contexto
+                        .indice
+                        .esquecer_processo(&contexto.instalacao, contexto.nup);
+                }
+            })?;
         return Ok((arvore, Some(unidade), ResolvidoPor::Caixa));
     }
     let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;

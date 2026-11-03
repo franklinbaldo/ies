@@ -78,7 +78,7 @@ fn listar_ja_na_d_sem_pagina_nao_colhe_nada_aqui() {
         &mut envio,
     );
     assert!(resultado.is_ok());
-    assert!(envio.vistas.is_empty());
+    assert_eq!(envio.vistas.len(), 0);
 }
 
 #[test]

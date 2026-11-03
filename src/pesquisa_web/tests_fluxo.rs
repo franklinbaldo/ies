@@ -480,3 +480,48 @@ fn lista_numa_pagina_publica_total_e_nao_tem_pagina_2() {
     assert_eq!(r.unwrap_err().subcodigo(), "pagina_fora_do_intervalo");
     assert_eq!(pedidos, tres_pedidos());
 }
+
+#[test]
+fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
+    let (_pasta, arquivo) = cookie();
+    let indice =
+        crate::indice_local::IndiceLocal::em(arquivo.with_file_name("indice").join("ies.sqlite3"));
+    let instalacao = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
+    let colheita = crate::colheita_do_controle::Colheita::do_cookie(
+        &indice,
+        &instalacao,
+        "PHPSESSID=SINTETICO",
+        &url_controle(),
+    );
+    let url = url_controle();
+    let sessao = SessaoDaBusca {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie_file: &arquivo,
+    };
+    let termo = NumeroProcesso::novo("00001").unwrap();
+    let pedido = PedidoDeBusca {
+        termo: &termo,
+        pagina: None,
+        unidade: None,
+    };
+    let mut roteiro = Roteiro::novo(vec![
+        ok(controle_com_menu()),
+        ok(tela_de_pesquisa()),
+        (302, String::new(), Some(localizacao("4321"))),
+    ]);
+    let r = buscar_processo_colhendo(&sessao, &pedido, &colheita, &mut roteiro);
+    assert_eq!(r.unwrap().requisicoes, 3);
+    assert_eq!(roteiro.pedidos, tres_pedidos());
+    let geracao = crate::sessao_login::geracao_da_sessao("PHPSESSID=SINTETICO");
+    let chave = crate::indice_local::ChaveDoLink {
+        geracao_sessao: &geracao,
+        unidade: "110000001",
+        acao: "protocolo_pesquisar",
+        objeto: "",
+    };
+    assert_eq!(
+        indice.link(&instalacao, chave).map(|u| u.url().to_owned()),
+        Some(url_da_tela())
+    );
+}

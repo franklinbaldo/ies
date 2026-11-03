@@ -10,7 +10,7 @@ use crate::html_atributos::nos_com_id;
 use crate::paginas;
 
 /// A página publica a tabela da visão detalhada (tag ilegível não conta).
-fn publica_visao_detalhada(html: &str) -> bool {
+pub(crate) fn publica_visao_detalhada(html: &str) -> bool {
     tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| {
         nos_com_id(&dom, "tblProcessosDetalhado").is_ok_and(|tabelas| !tabelas.is_empty())
     })

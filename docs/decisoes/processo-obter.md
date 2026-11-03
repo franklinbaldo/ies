@@ -77,8 +77,10 @@ não. O IES não restaura esse estado. Lançamento de andamento: não medido.
 - [Árvore do processo](../como-o-sei-funciona/arvore-do-processo.md)
 - [Testes de superfície](../../tests/cli_contract.rs)
 - Testes do fluxo com transporte roteirizado e índice temporário em
-  `src/processo_obter/tests_fluxo.rs`, `tests_indice.rs` e
-  `tests_pastas.rs`; leitor da árvore em `src/arvore_processo/tests*.rs`.
+  `src/processo_obter/tests_fluxo.rs`, `tests_indice.rs`,
+  `tests_pastas.rs` e `tests_colheita.rs` (passo 1b); colheita em
+  `src/colheita_do_controle/tests.rs`; leitor da árvore em
+  `src/arvore_processo/tests*.rs`.
 - [Contrato das pastas](../../contracts/cli/processo-obter-pastas.md)
 - Capturas privadas `0600` (UnB e GO) lidas só pela estrutura: tela do
   processo, árvore e o formulário rápido e as linhas do Controle de seis
