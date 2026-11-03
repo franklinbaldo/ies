@@ -73,7 +73,11 @@ fn recusas_sem_rede() {
         }
     );
     assert_eq!(
-        derivar(&url, &[("txtPesquisaRapida", "1"), ("txtPesquisaRapida", "2")]).unwrap_err(),
+        derivar(
+            &url,
+            &[("txtPesquisaRapida", "1"), ("txtPesquisaRapida", "2")]
+        )
+        .unwrap_err(),
         E::CampoInformadoMaisDeUmaVez {
             campo: campo("txtPesquisaRapida")
         }

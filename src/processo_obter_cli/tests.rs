@@ -74,5 +74,8 @@ fn todos_os_caminhos_tem_nome_estavel() {
     .iter()
     .map(|p| p.como_texto())
     .collect();
-    assert_eq!(nomes, ["indice_link", "indice_entrada", "pesquisa_rapida", "caixa"]);
+    assert_eq!(
+        nomes,
+        ["indice_link", "indice_entrada", "pesquisa_rapida", "caixa"]
+    );
 }

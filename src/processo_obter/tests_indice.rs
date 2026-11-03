@@ -10,7 +10,11 @@ fn com_link_da_arvore(amb: &Ambiente) {
     let (inst, g) = (instalacao(), geracao());
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_visualizar", ID), &url_arvore(ID))
+        .registrar_link(
+            &inst,
+            chave(&g, "procedimento_visualizar", ID),
+            &url_arvore(ID),
+        )
         .unwrap();
 }
 
@@ -41,7 +45,10 @@ fn link_da_arvore_de_outro_nup_e_esquecido_e_o_controle_resolve() {
         ]
     );
     // Reaprendido pela leitura que o servidor confirmou.
-    assert_eq!(amb.indice.id_por_nup(&instalacao(), NUP).as_deref(), Some(ID));
+    assert_eq!(
+        amb.indice.id_por_nup(&instalacao(), NUP).as_deref(),
+        Some(ID)
+    );
 }
 
 #[test]
@@ -62,7 +69,11 @@ fn link_da_arvore_que_responde_login_e_esquecido_e_a_entrada_por_id_segue() {
     assert_eq!(pedidos[1], get(&url_entrada(ID)));
     let g = geracao();
     // O link novo da árvore substituiu o esquecido.
-    assert!(amb.indice.link(&instalacao(), chave(&g, "procedimento_visualizar", ID)).is_some());
+    assert!(
+        amb.indice
+            .link(&instalacao(), chave(&g, "procedimento_visualizar", ID))
+            .is_some()
+    );
 }
 
 #[test]
@@ -89,7 +100,11 @@ fn entrada_recusada_antes_nao_e_tentada() {
     let (r, pedidos) = rodar(
         &amb,
         None,
-        vec![ok(controle(&[(ID, NUP)])), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     assert!(r.is_ok());
     assert_eq!(pedidos[0], get(&url_controle()));
@@ -130,7 +145,11 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .registrar_link(&inst, chave(&g, "protocolo_pesquisa_rapida", ""), &absoluta(&action_rapida()))
+        .registrar_link(
+            &inst,
+            chave(&g, "protocolo_pesquisa_rapida", ""),
+            &absoluta(&action_rapida()),
+        )
         .unwrap();
     let (r, pedidos) = rodar(
         &amb,
@@ -149,7 +168,8 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
 #[test]
 fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
     let amb = ambiente();
-    let pagina = "<html><title>SEI - Pesquisa</title><form id=\"frmPesquisaProtocolo\"></form></html>";
+    let pagina =
+        "<html><title>SEI - Pesquisa</title><form id=\"frmPesquisaProtocolo\"></form></html>";
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[])), ok(pagina.to_owned())]);
     assert_eq!(
         r.unwrap_err(),
@@ -159,17 +179,27 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         })
     );
     assert_eq!(pedidos.len(), 2);
-    let validacao = "<html><textarea id=\"txaInfraValidacao\">Protocolo inválido.</textarea></html>";
+    let validacao =
+        "<html><textarea id=\"txaInfraValidacao\">Protocolo nao encontrado.</textarea></html>";
     let amb = ambiente();
-    let (r, _) = rodar(&amb, None, vec![ok(controle(&[])), ok(validacao.to_owned())]);
+    let (r, _) = rodar(
+        &amb,
+        None,
+        vec![ok(controle(&[])), ok(validacao.to_owned())],
+    );
     let erro = r.unwrap_err();
     assert_eq!(erro.subcodigo(), "pesquisa_rapida_sem_url_de_trabalho");
     assert_eq!(
-        erro.status_http().and_then(|s| s.mensagem_do_servidor.as_deref()),
-        Some("Protocolo inválido.")
+        erro.status_http()
+            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        Some("Protocolo nao encontrado.")
     );
     let amb = ambiente();
-    let (r, _) = rodar(&amb, None, vec![ok(controle(&[])), (500, String::new(), None)]);
+    let (r, _) = rodar(
+        &amb,
+        None,
+        vec![ok(controle(&[])), (500, String::new(), None)],
+    );
     assert_eq!(r.unwrap_err().status_http().map(|s| s.status), Some(500));
 }
 
@@ -189,7 +219,11 @@ fn falhas_fora_de_palpite() {
     let (r, _) = rodar(
         &amb,
         None,
-        vec![ok(controle(&[(ID, NUP)])), ok(trabalhar(ID)), ok(arvore_de(ID, "OUTRO"))],
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, "OUTRO")),
+        ],
     );
     assert_eq!(
         r.unwrap_err(),
@@ -204,14 +238,23 @@ fn falhas_fora_de_palpite() {
     // `--unidade` diferente: para no Controle.
     let amb = ambiente();
     let (r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
-    assert_eq!(r.unwrap_err().subcodigo(), "unidade_da_tela_diferente_da_solicitada");
+    assert_eq!(
+        r.unwrap_err().subcodigo(),
+        "unidade_da_tela_diferente_da_solicitada"
+    );
     assert_eq!(pedidos.len(), 1);
     // 302 da tela do processo para outro lugar.
     let amb = ambiente();
     let (r, _) = rodar(
         &amb,
         None,
-        vec![ok(controle(&[(ID, NUP)])), r302("https://sei.exemplo.gov.br/sei/inicio.php")],
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            r302("https://sei.exemplo.gov.br/sei/inicio.php"),
+        ],
     );
-    assert_eq!(r.unwrap_err().subcodigo(), "redirecionamento_nao_reconhecido");
+    assert_eq!(
+        r.unwrap_err().subcodigo(),
+        "redirecionamento_nao_reconhecido"
+    );
 }

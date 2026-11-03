@@ -4,6 +4,7 @@
 //! entrada por id → pesquisa rápida guardada → Controle (linha do NUP ou
 //! pesquisa rápida do formulário). Sem retry, sem redirect seguido; cada
 //! palpite errado do índice é esquecido e o comando segue.
+mod abertura;
 mod controle;
 pub(crate) mod erro;
 mod fluxo;

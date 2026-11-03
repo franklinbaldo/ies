@@ -1,7 +1,7 @@
 mod arquivo_caixa;
-mod arvore_processo;
 mod arquivo_copia;
 mod arquivo_texto_documento;
+mod arvore_processo;
 mod caixa;
 mod caixa_detalhada;
 mod caixa_local;

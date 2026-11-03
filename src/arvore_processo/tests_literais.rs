@@ -59,26 +59,74 @@ fn linhas_que_nao_declaram_no_sao_ignoradas() {
 fn formas_recusadas() {
     let casos = [
         // Indentada ou com texto antes.
-        (r#"  Nos[0] = new infraArvoreNo("A");"#, E::DeclaracaoDeNoForaDaFormaObservada),
-        (r#"x=1;Nos[0] = new infraArvoreNo("A");"#, E::DeclaracaoDeNoForaDaFormaObservada),
+        (
+            r#"  Nos[0] = new infraArvoreNo("A");"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
+        (
+            r#"x=1;Nos[0] = new infraArvoreNo("A");"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
         // Sem o fechamento exato, ou com algo depois.
-        (r#"Nos[0] = new infraArvoreNo("A")"#, E::DeclaracaoDeNoForaDaFormaObservada),
-        (r#"Nos[0] = new infraArvoreNo("A"); x();"#, E::DeclaracaoDeNoForaDaFormaObservada),
+        (
+            r#"Nos[0] = new infraArvoreNo("A")"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A"); x();"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
         // Índice que não é decimal.
-        (r#"Nos[i] = new infraArvoreNo("A");"#, E::DeclaracaoDeNoForaDaFormaObservada),
-        (r#"Nos[] = new infraArvoreNo("A");"#, E::DeclaracaoDeNoForaDaFormaObservada),
+        (
+            r#"Nos[i] = new infraArvoreNo("A");"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
+        (
+            r#"Nos[] = new infraArvoreNo("A");"#,
+            E::DeclaracaoDeNoForaDaFormaObservada,
+        ),
         // Expressões, identificadores e concatenação não são literais.
-        (r#"Nos[0] = new infraArvoreNo("A"+"B");"#, E::ArgumentoDeNoNaoLiteral),
-        (r#"Nos[0] = new infraArvoreNo(x);"#, E::ArgumentoDeNoNaoLiteral),
-        (r#"Nos[0] = new infraArvoreNo("A",,"B");"#, E::ArgumentoDeNoNaoLiteral),
-        (r#"Nos[0] = new infraArvoreNo("A", "B");"#, E::ArgumentoDeNoNaoLiteral),
-        (r#"Nos[0] = new infraArvoreNo(nulo);"#, E::ArgumentoDeNoNaoLiteral),
-        (r#"Nos[0] = new infraArvoreNo(1.5);"#, E::ArgumentoDeNoNaoLiteral),
+        (
+            r#"Nos[0] = new infraArvoreNo("A"+"B");"#,
+            E::ArgumentoDeNoNaoLiteral,
+        ),
+        (
+            r"Nos[0] = new infraArvoreNo(x);",
+            E::ArgumentoDeNoNaoLiteral,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A",,"B");"#,
+            E::ArgumentoDeNoNaoLiteral,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A", "B");"#,
+            E::ArgumentoDeNoNaoLiteral,
+        ),
+        (
+            r"Nos[0] = new infraArvoreNo(nulo);",
+            E::ArgumentoDeNoNaoLiteral,
+        ),
+        (
+            r"Nos[0] = new infraArvoreNo(1.5);",
+            E::ArgumentoDeNoNaoLiteral,
+        ),
         // Texto aberto e escapes fora da lista.
-        (r#"Nos[0] = new infraArvoreNo("A);"#, E::TextoDeNoSemFechamento),
-        (r#"Nos[0] = new infraArvoreNo("A\x41");"#, E::EscapeDeNoNaoReconhecido),
-        (r#"Nos[0] = new infraArvoreNo("AA");"#, E::EscapeDeNoNaoReconhecido),
-        (r#"Nos[0] = new infraArvoreNo("A\");"#, E::TextoDeNoSemFechamento),
+        (
+            r#"Nos[0] = new infraArvoreNo("A);"#,
+            E::TextoDeNoSemFechamento,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A\x41");"#,
+            E::EscapeDeNoNaoReconhecido,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A\u{41}");"#,
+            E::EscapeDeNoNaoReconhecido,
+        ),
+        (
+            r#"Nos[0] = new infraArvoreNo("A\");"#,
+            E::TextoDeNoSemFechamento,
+        ),
     ];
     for (linha, esperado) in casos {
         assert_eq!(ler_declaracao(linha), Err(esperado), "{linha}");

@@ -214,8 +214,10 @@ ignorá-la.
 
 ## Consequências
 
-- A integração (pesquisa, `processo`, login) vem em PRs seguintes; este
-  só entrega o módulo, testado offline com diretórios temporários.
+- A integração vem por comando: `ies processo NUP` (Refs #59, fatia 1)
+  usa as três tabelas
+  ([contrato](../../contracts/cli/processo-obter-arvore.md)); login e
+  `processo buscar` ainda não.
 - O módulo não depende de `pesquisa_web`, `processo*` nem `sessao_login`.
 
 ## Condições de revisão

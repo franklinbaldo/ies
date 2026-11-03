@@ -1,8 +1,9 @@
 //! RED/GREEN da leitura da árvore: HTML sintético com a forma observada na
-//! UnB e em GO (16 argumentos, `PROCESSO` e `DOCUMENTO`, linhas `.acoes`,
+//! `UnB` e em GO (16 argumentos, `PROCESSO` e `DOCUMENTO`, linhas `.acoes`,
 //! `.src` e `.html` entre as declarações). Nenhum valor real.
 use super::ErroArvore as E;
 use super::*;
+use std::fmt::Write as _;
 
 pub(crate) const NUP: &str = "00001.000001/2026-01";
 
@@ -28,9 +29,14 @@ pub(crate) fn arvore(nos: &[String]) -> String {
     for (i, no) in nos.iter().enumerate() {
         html.push_str(no);
         html.push('\n');
-        html.push_str(&format!("Nos[{i}].acoes = '';\nNos[{i}].src = '';\nNos[{i}].html = '';\n"));
+        let _ = write!(
+            html,
+            "Nos[{i}].acoes = '';\nNos[{i}].src = '';\nNos[{i}].html = '';\n"
+        );
     }
-    html.push_str("  if (Nos.length){\n      Nos[0].processar = function (){};\n  }\n</script></head>");
+    html.push_str(
+        "  if (Nos.length){\n      Nos[0].processar = function (){};\n  }\n</script></head>",
+    );
     html.push_str("<body><div id=\"divArvore\"></div><form id=\"frmArvore\"></form></body></html>");
     html
 }
@@ -75,7 +81,7 @@ fn le_processo_e_documentos_do_primeiro_nivel_sem_a_dica() {
 #[test]
 fn processo_sem_documentos_e_numero_sei_nulo() {
     let lida = ler_arvore(&arvore(&[no_processo(0, "10", NUP)]), NUP, "10").unwrap();
-    assert!(lida.documentos.is_empty());
+    assert_eq!(lida.documentos, []);
     let nulo = no_documento(1, "21", "10", "X").replace(",\"X\");", ",null);");
     let lida = ler_arvore(&arvore(&[no_processo(0, "10", NUP), nulo]), NUP, "10").unwrap();
     assert_eq!(lida.documentos[0].numero_sei, None);
@@ -106,15 +112,31 @@ fn recusas_estruturais() {
     let pasta = no_documento(1, "30", "10", "1").replace("\"DOCUMENTO\"", "\"PASTA\"");
     let casos: Vec<(Vec<String>, E)> = vec![
         (vec![], E::NoDoProcessoAusenteNaArvore),
-        (vec![no_documento(0, "21", "10", "1")], E::NoDoProcessoAusenteNaArvore),
-        (vec![p(), no_processo(1, "11", NUP)], E::NosDoProcessoRepetidosNaArvore),
-        (vec![p(), pasta], E::TipoDeNoDaArvoreNaoSuportado),
-        (vec![p(), no_documento(1, "21", "99", "1")], E::DocumentoComPaiDiferenteDoProcesso),
         (
-            vec![p(), no_documento(1, "21", "10", "1"), no_documento(2, "21", "10", "2")],
+            vec![no_documento(0, "21", "10", "1")],
+            E::NoDoProcessoAusenteNaArvore,
+        ),
+        (
+            vec![p(), no_processo(1, "11", NUP)],
+            E::NosDoProcessoRepetidosNaArvore,
+        ),
+        (vec![p(), pasta], E::TipoDeNoDaArvoreNaoSuportado),
+        (
+            vec![p(), no_documento(1, "21", "99", "1")],
+            E::DocumentoComPaiDiferenteDoProcesso,
+        ),
+        (
+            vec![
+                p(),
+                no_documento(1, "21", "10", "1"),
+                no_documento(2, "21", "10", "2"),
+            ],
             E::DocumentoRepetidoNaArvore,
         ),
-        (vec![p(), no_documento(1, "2a", "10", "1")], E::IdDeNoNaoDecimal),
+        (
+            vec![p(), no_documento(1, "2a", "10", "1")],
+            E::IdDeNoNaoDecimal,
+        ),
         (
             vec![p().replace(",null,\"controlador", ",\"9\",\"controlador")],
             E::NoDoProcessoComPai,
@@ -131,14 +153,21 @@ fn recusas_estruturais() {
             vec![p().replace(",\"noVisitado\",\"", ",\"")],
             E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
         ),
-        (vec![p().replace("Nos[0]", "Nos[1]")], E::IndiceDeNoForaDaSequencia),
+        (
+            vec![p().replace("Nos[0]", "Nos[1]")],
+            E::IndiceDeNoForaDaSequencia,
+        ),
         (
             vec![p(), no_documento(2, "21", "10", "1")],
             E::IndiceDeNoForaDaSequencia,
         ),
     ];
     for (nos, esperado) in casos {
-        assert_eq!(ler_arvore(&arvore(&nos), NUP, "10"), Err(esperado), "{nos:?}");
+        assert_eq!(
+            ler_arvore(&arvore(&nos), NUP, "10"),
+            Err(esperado),
+            "{nos:?}"
+        );
     }
 }
 

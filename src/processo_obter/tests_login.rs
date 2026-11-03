@@ -9,7 +9,11 @@ fn recusa_caracteristica_da_entrada_sem_assinatura() {
         "/sip/login.php?msg=Link%20sem%20assinatura",
         "login.php?msg=Link sem assinatura",
     ] {
-        assert_eq!(destino(Some(localizacao)), D::RecusaSemAssinatura, "{localizacao}");
+        assert_eq!(
+            destino(Some(localizacao)),
+            D::RecusaSemAssinatura,
+            "{localizacao}"
+        );
     }
 }
 

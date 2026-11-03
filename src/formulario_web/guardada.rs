@@ -21,8 +21,51 @@ pub(crate) fn derivar_submissao_guardada(
     referer: &str,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
-    let _ = (operacao, instalacao, url_guardada, referer, campos);
-    Err(ErroSubmissaoFormulario::FormularioAusenteNaTela)
+    use ErroSubmissaoFormulario as E;
+    if operacao.efeito == EfeitoAvaliado::Desconhecido {
+        return Err(E::EfeitoDaOperacaoNaoAvaliado);
+    }
+    // Sem o formulário não há ocultos nem botão para reproduzir.
+    if operacao.envio != EnvioDoFormulario::SubmitPorScript
+        || !operacao.campos_ocultos_exigidos.is_empty()
+        || !operacao.campos_ocultos_reescritos.is_empty()
+    {
+        return Err(E::FormularioAusenteNaTela);
+    }
+    let alvo = UrlHttps::interpretar(url_guardada).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
+    let servida =
+        UrlHttps::interpretar(referer).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
+        return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
+    }
+    for (i, (nome, valor)) in campos.iter().enumerate() {
+        let campo = (*nome).to_owned();
+        if !operacao.campos_usuario.contains(nome) {
+            return Err(E::CampoForaDaListaDaOperacao { campo });
+        }
+        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        }
+        if !valor.bytes().all(|b| (32..=126).contains(&b)) {
+            return Err(E::ValorNaoRepresentavelNaCodificacao { campo });
+        }
+    }
+    let corpo = codificar_corpo(campos, CodificacaoDaTela::Utf8)?;
+    Ok(SubmissaoDerivada {
+        url: url_guardada.to_owned(),
+        host: alvo.host.to_owned(),
+        caminho: alvo.caminho.to_owned(),
+        acao: operacao.acao,
+        referer: referer.to_owned(),
+        nomes: campos.iter().map(|(n, _)| (*n).to_owned()).collect(),
+        corpo: corpo.into_bytes(),
+        efeito: operacao.efeito,
+        resultado: operacao.resultado,
+    })
 }
 
 #[cfg(test)]

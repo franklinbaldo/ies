@@ -327,7 +327,10 @@ pub(crate) fn conferir_trabalho(
     if valores(&pares, "acao") != ["procedimento_trabalhar"] {
         return Err(E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
-    match (valores(&pares, "acao_origem").as_slice(), origem.acao_de_origem()) {
+    match (
+        valores(&pares, "acao_origem").as_slice(),
+        origem.acao_de_origem(),
+    ) {
         ([], None) => {}
         ([], Some(_)) => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
         ([_, ..], None) => return Err(E::AcaoDeOrigemInesperadaNoRedirecionamento),

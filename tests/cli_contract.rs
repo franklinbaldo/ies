@@ -81,7 +81,12 @@ fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
 
 #[test]
 fn leitura_pela_arvore_recusa_andamentos_completos_antes_da_sessao() {
-    let output = ies_sem_sessao(&["processo", "0064.001060/2023-08", "--andamentos-completos", "--json"]);
+    let output = ies_sem_sessao(&[
+        "processo",
+        "0064.001060/2023-08",
+        "--andamentos-completos",
+        "--json",
+    ]);
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "andamentos_completos_nao_implementados");

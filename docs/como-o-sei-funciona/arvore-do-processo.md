@@ -15,7 +15,10 @@ aparece aqui ou nas fixtures.
 1. `controlador.php?acao=procedimento_trabalhar&…&id_procedimento=N&…&infra_hash=<64 hex>`:
    o `Location` do 302 da [pesquisa](pesquisa-de-protocolo.md) com NUP
    exato, ou o `href` do link do processo na linha `tr#P{id}` do
-   Controle (visões R e D).
+   Controle (visões R e D). Na **pesquisa rápida**
+   (`form#frmProtocoloPesquisaRapida`, um campo `txtPesquisaRapida`), o
+   302 das cassettes de GO tem `acao_origem=protocolo_pesquisa_rapida` e o
+   id em `id_protocolo`; o `src` da árvore volta a usar `id_procedimento`.
 2. A resposta 200 (`<title>SEI - Processo`) traz exatamente um
    `<iframe id="ifrArvore" name="ifrArvore" … src="controlador.php?acao=procedimento_visualizar&acao_origem=procedimento_trabalhar&acao_retorno=…&id_procedimento=N&id_documento=&infra_sistema=…&infra_unidade_atual=…&infra_hash=…">`,
    com `&` cru nas duas instalações, e um `iframe#ifrVisualizacao` com

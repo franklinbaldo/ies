@@ -15,7 +15,7 @@ mod tests_literais;
 pub(crate) mod tests_tela;
 
 use literais::{Literal, ler_declaracao};
-pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
+pub(crate) use tela::{ErroTelaDoProcesso, ler_tela_do_processo};
 
 /// O nó `PROCESSO`: id (a1), NUP (a5, igual a a15) e tipo (a6, a dica).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -98,12 +98,13 @@ impl ErroArvore {
     pub(crate) fn diverge_do_pedido(self) -> bool {
         matches!(
             self,
-            Self::IdentidadeDoProcessoDiferenteDaPedida | Self::IdDoProcessoNaArvoreDiferenteDoAberto
+            Self::IdentidadeDoProcessoDiferenteDaPedida
+                | Self::IdDoProcessoNaArvoreDiferenteDoAberto
         )
     }
 }
 
-/// Argumentos por nó, observados na UnB 4.0.9 e em GO.
+/// Argumentos por nó, observados na `UnB` 4.0.9 e em GO.
 const ARGUMENTOS: usize = 16;
 
 /// Lê os nós da árvore e confere a identidade: o NUP do nó `PROCESSO` tem
@@ -113,8 +114,99 @@ pub(crate) fn ler_arvore(
     nup_pedido: &str,
     id_aberto: &str,
 ) -> Result<ArvoreLida, ErroArvore> {
-    let _ = (html, nup_pedido, id_aberto, ARGUMENTOS);
-    let _: Option<Literal> = None;
-    let _ = ler_declaracao;
-    Err(ErroArvore::NoDoProcessoAusenteNaArvore)
+    let mut processo: Option<ProcessoNaArvore> = None;
+    // Documentos com o pai declarado; o pai é conferido no fim, porque o
+    // nó do processo vem antes, mas a regra não depende da ordem.
+    let mut documentos: Vec<(String, DocumentoNaArvore)> = Vec::new();
+    let mut proximo = 0usize;
+    for linha in html.split('\n') {
+        let Some((indice, argumentos)) = ler_declaracao(linha)? else {
+            continue;
+        };
+        if indice != proximo {
+            return Err(ErroArvore::IndiceDeNoForaDaSequencia);
+        }
+        proximo += 1;
+        let argumentos: [Literal; ARGUMENTOS] = argumentos
+            .try_into()
+            .map_err(|_| ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)?;
+        match texto(&argumentos[0])? {
+            "PROCESSO" => {
+                if processo.is_some() {
+                    return Err(ErroArvore::NosDoProcessoRepetidosNaArvore);
+                }
+                processo = Some(ler_processo(&argumentos)?);
+            }
+            "DOCUMENTO" => {
+                let (pai, documento) = ler_documento(&argumentos)?;
+                if documentos.iter().any(|(_, d)| d.id == documento.id) {
+                    return Err(ErroArvore::DocumentoRepetidoNaArvore);
+                }
+                documentos.push((pai, documento));
+            }
+            _ => return Err(ErroArvore::TipoDeNoDaArvoreNaoSuportado),
+        }
+    }
+    let processo = processo.ok_or(ErroArvore::NoDoProcessoAusenteNaArvore)?;
+    if documentos.iter().any(|(pai, _)| *pai != processo.id) {
+        return Err(ErroArvore::DocumentoComPaiDiferenteDoProcesso);
+    }
+    if processo.nup != nup_pedido {
+        return Err(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida);
+    }
+    if processo.id != id_aberto {
+        return Err(ErroArvore::IdDoProcessoNaArvoreDiferenteDoAberto);
+    }
+    Ok(ArvoreLida {
+        processo,
+        documentos: documentos.into_iter().map(|(_, d)| d).collect(),
+    })
+}
+
+fn texto(literal: &Literal) -> Result<&str, ErroArvore> {
+    match literal {
+        Literal::Texto(texto) => Ok(texto),
+        _ => Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado),
+    }
+}
+
+fn texto_ou_nulo(literal: &Literal) -> Result<Option<&str>, ErroArvore> {
+    match literal {
+        Literal::Nulo => Ok(None),
+        outro => texto(outro).map(Some),
+    }
+}
+
+fn id(literal: &Literal) -> Result<String, ErroArvore> {
+    let id = texto(literal)?;
+    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroArvore::IdDeNoNaoDecimal);
+    }
+    Ok(id.to_owned())
+}
+
+fn ler_processo(a: &[Literal; ARGUMENTOS]) -> Result<ProcessoNaArvore, ErroArvore> {
+    let id = id(&a[1])?;
+    if texto_ou_nulo(&a[2])?.is_some() {
+        return Err(ErroArvore::NoDoProcessoComPai);
+    }
+    let nup = texto(&a[5])?;
+    if texto(&a[15])? != nup {
+        return Err(ErroArvore::NupDoNoDoProcessoInconsistente);
+    }
+    Ok(ProcessoNaArvore {
+        id,
+        nup: nup.to_owned(),
+        tipo: texto(&a[6])?.to_owned(),
+    })
+}
+
+/// O pai (a2) e o documento; a dica (a6) não é lida.
+fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<(String, DocumentoNaArvore), ErroArvore> {
+    let documento = DocumentoNaArvore {
+        id: id(&a[1])?,
+        rotulo: texto(&a[5])?.to_owned(),
+        numero_sei: texto_ou_nulo(&a[15])?.map(str::to_owned),
+    };
+    Ok((id(&a[2])?, documento))
 }

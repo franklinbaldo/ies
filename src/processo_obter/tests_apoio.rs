@@ -10,6 +10,7 @@ use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
 use crate::transporte::RespostaWeb;
 use std::collections::VecDeque;
+use std::fmt::Write as _;
 use std::io::Cursor;
 use std::path::PathBuf;
 
@@ -96,10 +97,11 @@ fn formulario_rapido() -> String {
 pub(super) fn controle(linhas: &[(&str, &str)]) -> String {
     let mut tabela = String::new();
     for (id, numero) in linhas {
-        tabela.push_str(&format!(
+        let _ = write!(
+            tabela,
             "<tr id=\"P{id}\"><td><a href=\"{}\" class=\"processoVisualizado\">{numero}</a></td></tr>",
             trabalhar_controle(id)
-        ));
+        );
     }
     let n = linhas.len();
     let legenda = if n == 0 {
@@ -122,7 +124,10 @@ pub(super) fn trabalhar(id: &str) -> String {
 }
 
 pub(super) fn arvore_de(id: &str, nup: &str) -> String {
-    arvore(&[no_processo(0, id, nup), no_documento(1, "21", id, "0000101")])
+    arvore(&[
+        no_processo(0, id, nup),
+        no_documento(1, "21", id, "0000101"),
+    ])
 }
 
 /// Uma requisição vista pelo transporte.
@@ -176,8 +181,10 @@ impl Roteiro {
     }
 
     fn proxima(&mut self) -> RespostaDoPost<Cursor<Vec<u8>>> {
-        let (status_code, html, localizacao) =
-            self.respostas.pop_front().expect("requisição além do roteiro");
+        let (status_code, html, localizacao) = self
+            .respostas
+            .pop_front()
+            .expect("requisição além do roteiro");
         RespostaDoPost {
             resposta: RespostaWeb {
                 status_code,
@@ -202,7 +209,11 @@ impl EnvioDoControle for Roteiro {
         self.pedidos.push(post(submissao.url(), &corpo));
         Ok(self.proxima())
     }
-    fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+    fn get(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
         self.pedidos.push(get(url));
         Ok(self.proxima().resposta)

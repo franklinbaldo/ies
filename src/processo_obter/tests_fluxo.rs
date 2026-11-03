@@ -40,13 +40,20 @@ fn caminho_4a_linha_do_controle_e_aprende_tudo() {
     );
     let (inst, g) = (instalacao(), geracao());
     assert_eq!(amb.indice.id_por_nup(&inst, NUP).as_deref(), Some(ID));
-    let link = |acao, objeto| amb.indice.link(&inst, chave(&g, acao, objeto)).map(|u| u.url().to_owned());
+    let link = |acao, objeto| {
+        amb.indice
+            .link(&inst, chave(&g, acao, objeto))
+            .map(|u| u.url().to_owned())
+    };
     assert_eq!(link("procedimento_visualizar", ID), Some(url_arvore(ID)));
     assert_eq!(
         link("procedimento_trabalhar", ID),
         Some(absoluta(&trabalhar_controle(ID)))
     );
-    assert_eq!(link("protocolo_pesquisa_rapida", ""), Some(absoluta(&action_rapida())));
+    assert_eq!(
+        link("protocolo_pesquisa_rapida", ""),
+        Some(absoluta(&action_rapida()))
+    );
 }
 
 #[test]
@@ -72,7 +79,10 @@ fn caminho_4b_pesquisa_rapida_do_formulario() {
             get(&url_arvore(ID)),
         ]
     );
-    assert_eq!(amb.indice.id_por_nup(&instalacao(), NUP).as_deref(), Some(ID));
+    assert_eq!(
+        amb.indice.id_por_nup(&instalacao(), NUP).as_deref(),
+        Some(ID)
+    );
 }
 
 #[test]
@@ -80,12 +90,20 @@ fn caminho_3_pesquisa_rapida_guardada() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .registrar_link(&inst, chave(&g, "protocolo_pesquisa_rapida", ""), &absoluta(&action_rapida()))
+        .registrar_link(
+            &inst,
+            chave(&g, "protocolo_pesquisa_rapida", ""),
+            &absoluta(&action_rapida()),
+        )
         .unwrap();
     let (r, pedidos) = rodar(
         &amb,
         None,
-        vec![r302(&trabalhar_rapida(ID)), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            r302(&trabalhar_rapida(ID)),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     conferir_aberto(&r.unwrap(), ResolvidoPor::PesquisaRapida, 3, Some(UNIDADE));
     assert_eq!(
@@ -106,12 +124,20 @@ fn caminho_2_entrada_por_id_registra_o_aceite() {
     let (r, pedidos) = rodar(
         &amb,
         None,
-        vec![r302(&trabalhar_entrada(ID)), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            r302(&trabalhar_entrada(ID)),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     conferir_aberto(&r.unwrap(), ResolvidoPor::IndiceEntrada, 3, Some(UNIDADE));
     assert_eq!(
         pedidos,
-        [get(&url_entrada(ID)), get(&trabalhar_entrada(ID)), get(&url_arvore(ID))]
+        [
+            get(&url_entrada(ID)),
+            get(&trabalhar_entrada(ID)),
+            get(&url_arvore(ID))
+        ]
     );
     assert_eq!(amb.indice.entrada_por_id(&inst), Some(true));
 }
@@ -122,7 +148,11 @@ fn caminho_1_link_da_arvore_numa_requisicao_sem_unidade() {
     let (inst, g) = (instalacao(), geracao());
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_visualizar", ID), &url_arvore(ID))
+        .registrar_link(
+            &inst,
+            chave(&g, "procedimento_visualizar", ID),
+            &url_arvore(ID),
+        )
         .unwrap();
     let (r, pedidos) = rodar(&amb, None, vec![ok(arvore_de(ID, NUP))]);
     conferir_aberto(&r.unwrap(), ResolvidoPor::IndiceLink, 1, None);
@@ -135,7 +165,11 @@ fn segunda_execucao_na_mesma_sessao_custa_uma_requisicao() {
     let (r, _) = rodar(
         &amb,
         None,
-        vec![ok(controle(&[(ID, NUP)])), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     assert_eq!(r.unwrap().requisicoes, 3);
     let (r, pedidos) = rodar(&amb, None, vec![ok(arvore_de(ID, NUP))]);
@@ -149,12 +183,20 @@ fn com_unidade_o_link_da_arvore_e_pulado() {
     let (inst, g) = (instalacao(), geracao());
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_visualizar", ID), &url_arvore(ID))
+        .registrar_link(
+            &inst,
+            chave(&g, "procedimento_visualizar", ID),
+            &url_arvore(ID),
+        )
         .unwrap();
     let (r, pedidos) = rodar(
         &amb,
         Some(UNIDADE),
-        vec![r302(&trabalhar_entrada(ID)), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            r302(&trabalhar_entrada(ID)),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     assert_eq!(r.unwrap().resolvido_por, ResolvidoPor::IndiceEntrada);
     assert_eq!(pedidos[0], get(&url_entrada(ID)));
@@ -167,7 +209,11 @@ fn indice_desligado_vai_direto_ao_controle() {
     let (r, pedidos) = rodar(
         &amb,
         None,
-        vec![ok(controle(&[(ID, NUP)])), ok(trabalhar(ID)), ok(arvore_de(ID, NUP))],
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            ok(trabalhar(ID)),
+            ok(arvore_de(ID, NUP)),
+        ],
     );
     assert_eq!(r.unwrap().resolvido_por, ResolvidoPor::Caixa);
     assert_eq!(pedidos.len(), 3);

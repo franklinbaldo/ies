@@ -1,8 +1,10 @@
 //! RED/GREEN da tela `procedimento_trabalhar`: unidade e `iframe#ifrArvore`
-//! na forma observada (UnB e GO, `&` cru no `src`). HTML sintético.
+//! na forma observada (`UnB` e GO, `&` cru no `src`). HTML sintético.
 use super::ErroTelaDoProcesso as E;
+use super::tela::TelaDoProcesso;
 use super::*;
 use crate::instalacao::Instalacao;
+use std::fmt::Write as _;
 
 pub(crate) const HASH_ARVORE: &str =
     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -23,18 +25,17 @@ pub(crate) fn tela_do_processo(unidade: &str, iframes: &[String]) -> String {
          <a id=\"lnkInfraUnidade\" href=\"#\">{unidade}</a>"
     );
     for src in iframes {
-        html.push_str(&format!(
+        let _ = write!(
+            html,
             "<iframe id=\"ifrArvore\" name=\"ifrArvore\" class=\"c\" src=\"{src}\"></iframe>"
-        ));
+        );
     }
     html.push_str("<iframe id=\"ifrVisualizacao\" src=\"about:blank\"></iframe></body></html>");
     html
 }
 
-const URL: &str = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash=x";
-
 fn ler(html: &str, unidade: Option<&str>) -> Result<TelaDoProcesso, E> {
-    ler_tela_do_processo(&instalacao(), URL, html, "10", unidade)
+    ler_tela_do_processo(&instalacao(), html, "10", unidade)
 }
 
 #[test]
@@ -73,7 +74,10 @@ fn recusas_da_tela() {
         Err(E::ArvoreAusenteNaTelaDoProcesso)
     );
     assert_eq!(
-        ler(&tela_do_processo("U", &[src_da_arvore("10"), src_da_arvore("10")]), None),
+        ler(
+            &tela_do_processo("U", &[src_da_arvore("10"), src_da_arvore("10")]),
+            None
+        ),
         Err(E::ArvoresRepetidasNaTelaDoProcesso)
     );
     assert_eq!(
@@ -89,7 +93,7 @@ fn recusas_da_tela() {
         "javascript:void(0)".to_owned(),
     ] {
         assert_eq!(
-            ler(&tela_do_processo("U", &[src.clone()]), None),
+            ler(&tela_do_processo("U", std::slice::from_ref(&src)), None),
             Err(E::EnderecoDaArvoreNaoReconhecido),
             "{src}"
         );
