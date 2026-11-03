@@ -275,4 +275,4 @@ ignorá-la.
   recusa (a regra de duas seguidas pode ser pouca ou demais).
 - Medição de hash de uso único ou dependente de navegação: links
   assinados deixariam de ser guardados.
-- Validação live: **NOT_RUN** nesta fatia (sem integração).
+- Validação live: integração validada nos ensaios de `processo NUP` e da colheita do Controle ([relatório](../validacao-live/2026-11-03-colheita-do-controle.md)).

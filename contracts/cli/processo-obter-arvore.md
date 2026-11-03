@@ -202,6 +202,6 @@ Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
 Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
 Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
-Fatia 4 (colheita do Controle e passo 1b): **NOT_RUN** até a validação do
-agente pai.
+Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
+([relatório](../../docs/validacao-live/2026-11-03-colheita-do-controle.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

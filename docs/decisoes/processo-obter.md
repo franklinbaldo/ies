@@ -225,7 +225,7 @@ e propriedades ficam para as próximas fatias; pastas: validação live
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**
 pelo servidor ([relatório](../validacao-live/2026-11-03-processo-obter-andamentos.md)).
-Colheita e passo 1b: validação live **NOT_RUN** até a execução do agente pai.
+Colheita e passo 1b: validação live **PASS** na UnB e na PEN1 ([relatório](../validacao-live/2026-11-03-colheita-do-controle.md)).
 Revisar se a legenda trouxer paginação ou se outra instalação publicar o
 link noutra forma. Revisar se a entrada por id responder outra forma, se o 302 da
 pesquisa rápida mudar de chave do id fora de GO, ou se a árvore publicar
