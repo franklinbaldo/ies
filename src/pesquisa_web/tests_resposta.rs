@@ -185,3 +185,24 @@ fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
         Err(E::NumeroDaBarraDeContagemForaDoFormato)
     );
 }
+
+#[test]
+fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
+    let html = sem_resultado("99999").replace(
+        "<div class=\"pesquisaSemResultado\">",
+        "<div class=\"pesquisaBarraD\">Exibindo 1 - 3 de 3</div><div class=\"pesquisaSemResultado\">",
+    );
+    assert_ne!(
+        html,
+        sem_resultado("99999"),
+        "fixture sem o marcador esperado"
+    );
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
+    );
+    assert_eq!(
+        E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta.subcodigo(),
+        "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
+    );
+}

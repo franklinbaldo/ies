@@ -151,6 +151,15 @@ fn derivar_com(
     let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
     let form = localizar_formulario(&dom, operacao.formulario).map_err(E::Submissao)?;
     let regras = ler_regras_da_tela(form, dom.parser()).map_err(E::RegraDoFormulario)?;
+    // O navegador conta `maxlength` em unidades UTF-16; termo maior não
+    // seria digitável na tela servida e não sai em POST.
+    if let Some(maxlength) = regras.maxlength_do_termo
+        && protocolo.encode_utf16().count() > maxlength as usize
+    {
+        return Err(E::RegraDoFormulario(
+            ErroRegraDoFormularioDePesquisa::TermoAcimaDoMaxlengthDaTela { maxlength },
+        ));
+    }
     let mut campos = vec![
         ("rdoPesquisarEm", regras.opcao_de_processos.as_str()),
         ("txtProtocoloPesquisa", protocolo),

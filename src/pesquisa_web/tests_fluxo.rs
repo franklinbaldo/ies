@@ -435,3 +435,19 @@ fn tela_de_resultado_com_outro_termo_nao_pagina() {
     );
     assert_eq!(pedidos.len(), 3);
 }
+
+#[test]
+fn termo_acima_do_maxlength_servido_para_antes_do_post() {
+    let termo = "1".repeat(51);
+    let (r, pedidos) = buscar(
+        &termo,
+        None,
+        None,
+        vec![ok(controle_com_menu()), ok(tela_de_pesquisa())],
+    );
+    assert_eq!(
+        r.unwrap_err().subcodigo(),
+        "termo_acima_do_maxlength_da_tela"
+    );
+    assert_eq!(pedidos, vec![get(url_controle()), get(url_da_tela())]);
+}

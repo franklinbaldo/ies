@@ -42,6 +42,8 @@ pub(crate) enum ErroRespostaDaPesquisa {
     HtmlDaRespostaNaoInterpretado,
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
+    /// Aviso de "sem resultado" e barra "Exibindo I - F de N" juntos.
+    AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta,
     BarraDeContagemDaPesquisaAusente,
     BarrasDeContagemDaPesquisaRepetidas,
     TextoDaBarraDeContagemForaDoFormato,
@@ -61,6 +63,9 @@ impl ErroRespostaDaPesquisa {
                 "tabela_de_resultado_e_aviso_de_sem_resultado_na_mesma_resposta"
             }
             Self::BarraDeContagemDaPesquisaAusente => "barra_de_contagem_da_pesquisa_ausente",
+            Self::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta => {
+                "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
+            }
             Self::BarrasDeContagemDaPesquisaRepetidas => "barras_de_contagem_da_pesquisa_repetidas",
             Self::TextoDaBarraDeContagemForaDoFormato => {
                 "texto_da_barra_de_contagem_fora_do_formato"
@@ -125,16 +130,16 @@ pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRe
         .map_err(E::AtributoHtml)?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")
         .map_err(E::AtributoHtml)?;
-    match (tabelas.is_empty(), avisos.len()) {
-        (true, 1) => return Ok(RespostaDaPesquisa::SemResultado),
-        (true, _) => return Err(E::RespostaDaPesquisaNaoReconhecida),
-        (false, 0) => {}
-        (false, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
+    let barras =
+        nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD").map_err(E::AtributoHtml)?;
+    match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
+        (true, 1, true) => return Ok(RespostaDaPesquisa::SemResultado),
+        (true, 1, false) => return Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
+        (true, _, _) => return Err(E::RespostaDaPesquisaNaoReconhecida),
+        (false, 0, _) => {}
+        (false, _, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
     }
-    let barra = match nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")
-        .map_err(E::AtributoHtml)?
-        .as_slice()
-    {
+    let barra = match barras.as_slice() {
         [] => return Err(E::BarraDeContagemDaPesquisaAusente),
         [barra] => *barra,
         _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),

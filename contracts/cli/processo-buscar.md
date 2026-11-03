@@ -82,6 +82,14 @@ Controle), `origem: "web"` e `requisicoes`.
   `mensagem_do_servidor` saneada.
 - `resposta_da_pesquisa_nao_reconhecida`: 200 sem tabela, sem aviso de
   "sem resultado" e sem validação; também tabela e aviso juntos.
+- `aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta`: aviso de
+  "sem resultado" com barra "Exibindo I - F de N" é ambíguo e não vira
+  `sem_resultado`.
+- Termo (antes de qualquer POST): `termo_acima_do_maxlength_da_tela`
+  (mais unidades UTF-16 que o `maxlength` servido em
+  `txtProtocoloPesquisa`), `maxlength_do_termo_ilegivel_na_tela`,
+  `campos_do_termo_repetidos_na_tela`. Sem `maxlength` publicado, a tela
+  não limita o termo.
 - Link: `link_da_pesquisa_ausente_no_controle`,
   `links_da_pesquisa_repetidos_no_controle`,
   `link_da_pesquisa_com_endereco_absoluto`,

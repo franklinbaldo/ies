@@ -33,6 +33,10 @@ NUP, id, cookie ou HTML foi versionado; abaixo só formas e contagens.
 | `--pagina 2` | **PASS**: faixa 11–20, mesmo total, 4 req. | **PASS**: idem | **PASS (recusa)**: `pagina_fora_do_intervalo` |
 | `--pagina 100000` | **PASS (recusa)**: `pagina_fora_do_intervalo` | **PASS (recusa)** | **PASS (recusa)** |
 
+Depois da revisão (UnB, mesmo dia): termo de 51 caracteres →
+`termo_acima_do_maxlength_da_tela` sem POST; termo de 50 → `sem_resultado`
+em 3 requisições (**PASS**).
+
 UFRJ, PEN2, PEN3 e PEN4: NOT_RUN (fora do orçamento desta rodada).
 
 ## Observações

@@ -157,8 +157,14 @@ treinamento autorizado.
   UFRJ e PEN2–4: NOT_RUN.
 - A página N e a barra acima de 999 (`3.441`, `15.835`) foram vistas ao
   vivo; uma barra sem separador continua falhando fechada.
-- Não há filtros além do protocolo; o termo não é limitado pelo `maxlength`
-  servido (50), que o navegador aplicaria.
+- Não há filtros além do protocolo. O termo obedece ao `maxlength`
+  **publicado** em `txtProtocoloPesquisa` (50 nas capturas da UnB e da
+  PEN1), contado em unidades UTF-16 como no navegador; acima dele a recusa
+  vem antes do POST. O valor não é presumido: sem atributo, a tela não
+  limita; atributo fora de dígitos ASCII é recusa (mais estrito que o
+  navegador, que o ignoraria).
+- Aviso de "sem resultado" junto com barra de contagem é resposta
+  ambígua e falha fechada, como tabela com aviso.
 - Revisar se outra instalação publicar o menu em outra forma, a barra em
   outro texto, ou se o 200 de uma linha só aparecer sem barra.
 - Não reutilizar esta decisão como prova de autenticação, de inexistência
