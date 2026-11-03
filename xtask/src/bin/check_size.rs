@@ -1,6 +1,7 @@
 //! Verifica o limite de 20.000 bytes em todos os arquivos texto do repositorio.
 //! O que tem NUL ou nao e UTF-8 e tratado como binario.
 //! Arquivos ignorados pelo Git (como target/) nao entram no inventario.
+//! Arquivos `.lock` (lockfiles gerados) sao isentos.
 
 use std::fs;
 use std::path::Path;
@@ -14,6 +15,16 @@ fn arquivo_textual(bytes: &[u8]) -> bool {
 
 fn viola_limite(bytes: &[u8]) -> bool {
     arquivo_textual(bytes) && bytes.len() > LIMITE
+}
+
+/// Arquivos `.lock` (lockfiles gerados pelo gerenciador de pacotes, que não
+/// podem ser divididos) são isentos do limite: decisão do proprietário,
+/// 03/11/2026, docs/ci.md.
+fn isento(nome: &str) -> bool {
+    // `extension()` de `.lock` (arquivo oculto sem extensão) é `None`.
+    Path::new(nome)
+        .extension()
+        .is_some_and(|extensao| extensao.eq_ignore_ascii_case("lock"))
 }
 
 fn caminhos_git() -> Result<Vec<String>, String> {
@@ -46,7 +57,7 @@ fn verificar() -> Result<(), String> {
     let mut conferidos = 0usize;
     for nome in caminhos_git()? {
         let caminho = Path::new(&nome);
-        if !caminho.is_file() {
+        if isento(&nome) || !caminho.is_file() {
             continue;
         }
         let conteudo = fs::read(caminho).map_err(|e| format!("{nome}: {e}"))?;
@@ -85,6 +96,17 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn arquivos_lock_sao_isentos_pelo_nome() {
+        assert!(isento("Cargo.lock"));
+        assert!(isento("xtask/Cargo.lock"));
+        assert!(isento("uv.lock"));
+        assert!(!isento("lock.rs"));
+        assert!(!isento("Cargo.lock.md"));
+        assert!(!isento("docs/lock"));
+        assert!(!isento(".lock/arquivo.md"));
+    }
 
     #[test]
     fn limite_inclusivo() {

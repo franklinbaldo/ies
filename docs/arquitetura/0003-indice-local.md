@@ -199,9 +199,10 @@ ignorá-la.
 3. **Só identidade, como o Todos.** Perde o ganho de 5 → 1 dentro da
    sessão.
 4. **SQLite com três vidas** (escolhida). Custo: compilar o SQLite em C
-   (`cc`) e o `Cargo.lock` cresce para perto de 19,8 KB; as features
-   padrão do `rusqlite` (`cache`, `hashlink`) ficam fora para caber no
-   limite de 20.000 bytes.
+   (`cc`). As features padrão do `rusqlite` (`cache`, `hashlink`) ficam
+   fora: o módulo não usa statements em cache. (Elas tinham saído para o
+   `Cargo.lock` caber em 20.000 bytes; depois os `.lock` ficaram isentos
+   do limite, [CI](../ci.md).)
 
 ## Consequências
 
@@ -215,5 +216,4 @@ ignorá-la.
   recusa (a regra de duas seguidas pode ser pouca ou demais).
 - Medição de hash de uso único ou dependente de navegação: links
   assinados deixariam de ser guardados.
-- `Cargo.lock` passar de 20.000 bytes por outra dependência.
 - Validação live: **NOT_RUN** nesta fatia (sem integração).
