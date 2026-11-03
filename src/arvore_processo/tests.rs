@@ -67,11 +67,13 @@ fn le_processo_e_documentos_do_primeiro_nivel_sem_a_dica() {
                 id: "21".into(),
                 rotulo: "Despacho 0000101".into(),
                 numero_sei: Some("0000101".into()),
+                pasta: None,
             },
             DocumentoNaArvore {
                 id: "22".into(),
                 rotulo: "Despacho 0000102".into(),
                 numero_sei: Some("0000102".into()),
+                pasta: None,
             },
         ]
     );
@@ -110,6 +112,7 @@ fn identidade_e_comparada_byte_a_byte() {
 fn recusas_estruturais() {
     let p = || no_processo(0, "10", NUP);
     let pasta = no_documento(1, "30", "10", "1").replace("\"DOCUMENTO\"", "\"PASTA\"");
+    let outro_tipo = no_documento(1, "30", "10", "1").replace("\"DOCUMENTO\"", "\"ANEXADO\"");
     let casos: Vec<(Vec<String>, E)> = vec![
         (vec![], E::NoDoProcessoAusenteNaArvore),
         (
@@ -120,7 +123,12 @@ fn recusas_estruturais() {
             vec![p(), no_processo(1, "11", NUP)],
             E::NosDoProcessoRepetidosNaArvore,
         ),
-        (vec![p(), pasta], E::TipoDeNoDaArvoreNaoSuportado),
+        // `PASTA` tem 15 argumentos; outro tipo é recusa.
+        (
+            vec![p(), pasta],
+            E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+        ),
+        (vec![p(), outro_tipo], E::TipoDeNoDaArvoreNaoSuportado),
         (
             vec![p(), no_documento(1, "21", "99", "1")],
             E::DocumentoComPaiDiferenteDoProcesso,

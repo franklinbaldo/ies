@@ -6,6 +6,7 @@ use super::abertura::{
 };
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
+use super::pastas::{self, Guardado};
 use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
@@ -93,8 +94,9 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     })
 }
 
-/// Passo 1, link da árvore guardado nesta geração e unidade: um GET. A árvore
-/// não publica a unidade; com `--unidade` o passo é pulado.
+/// Passo 1, link guardado nesta geração e unidade: o de "Abrir todas as
+/// Pastas", se houver, e senão o da árvore; um GET. A árvore não publica a
+/// unidade; com `--unidade` o passo é pulado.
 fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
     const ACAO: &str = "procedimento_visualizar";
     if contexto.unidade_pedida.is_some() {
@@ -104,6 +106,11 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
         return Ok(None);
     };
+    match pastas::pelo_link_guardado(contexto, rede, &id)? {
+        Guardado::Aberta(aberta) => return Ok(Some((aberta, None, ResolvidoPor::IndiceLink))),
+        Guardado::Divergiu => return Ok(None),
+        Guardado::Seguir => {}
+    }
     let Some(link) = contexto
         .chave(ACAO, &id)
         .and_then(|chave| contexto.indice.link(instalacao, chave))
@@ -114,6 +121,7 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
         match ler_arvore_aberta(contexto, &html, &id) {
             Ok(aberta) => {
                 concluir(contexto, &aberta.arvore, None, link.url());
+                let aberta = pastas::completar(contexto, rede, &html, aberta)?;
                 return Ok(Some((aberta, None, ResolvidoPor::IndiceLink)));
             }
             Err(erro) if erro.diverge_do_pedido() => {

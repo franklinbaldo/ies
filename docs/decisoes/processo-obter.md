@@ -4,9 +4,9 @@ title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo h
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2)
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3)
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
@@ -77,8 +77,9 @@ não. O IES não restaura esse estado. Lançamento de andamento: não medido.
 - [Árvore do processo](../como-o-sei-funciona/arvore-do-processo.md)
 - [Testes de superfície](../../tests/cli_contract.rs)
 - Testes do fluxo com transporte roteirizado e índice temporário em
-  `src/processo_obter/tests_fluxo.rs` e `tests_indice.rs`; leitor da
-  árvore em `src/arvore_processo/tests*.rs`.
+  `src/processo_obter/tests_fluxo.rs`, `tests_indice.rs` e
+  `tests_pastas.rs`; leitor da árvore em `src/arvore_processo/tests*.rs`.
+- [Contrato das pastas](../../contracts/cli/processo-obter-pastas.md)
 - Capturas privadas `0600` (UnB e GO) lidas só pela estrutura: tela do
   processo, árvore e o formulário rápido e as linhas do Controle de seis
   instalações passaram pelos leitores; nenhum valor foi copiado.
@@ -125,10 +126,68 @@ comando, mas publica o que a pessoa vê no SEI; o completo exige uma
 mudança de estado de sessão declarada. Legenda com faixa de paginação é
 recusa até ser observada.
 
+## Pastas (fatia 3)
+
+**Alternativas.** (a) **web-abrir-todas-as-pastas** (escolhida): o GET da
+ação assinada `ABRIR_PASTAS` que a árvore publica, só quando há `AGUARDE`,
+e a releitura da árvore inteira. (b) **web-paginar-pasta-por-post**: um
+POST de `frmArvore` para `Pastas[k]['link']` por pasta fechada, como o
+navegador; custa uma requisição por pasta (7 contra 1 na cassette de 8
+pastas) e ficou fora desta fatia, porque as duas cassettes publicam a ação
+de abrir. (c) Um POST com os protocolos de várias pastas: o Todos mediu a
+recusa "Conjunto de protocolos inválido". (d) Publicar só a pasta aberta:
+seria lista parcial.
+
+**Evidência.** Cassettes públicas da UnB `processo-em-pastas-unb`
+(SHA-256 `0bc73a70…a369`, interações 8 e 9: 8 pastas, 7 `AGUARDE`, 17 e
+157 documentos) e `processo-pasta-mista-unb` (SHA-256 `dffe2d93…dd42`,
+interações 411 a 487: uma pasta fechada e uma aberta; a árvore simples
+volta fechada depois do GET de abrir). O Todos, oráculo de comportamento,
+confere as pastas pelo `id_rel_protocolo_protocolo` da barra; a mesma
+regra deu 17/17 e 157/157 nas duas leituras.
+
+**Integridade.** Por identidade quando a barra a publica: cada protocolo
+declarado exatamente uma vez entre os documentos da pasta, nenhum fora da
+declaração. O Todos exige também a ordem; o IES publica a ordem servida e
+não a usa como prova. **Barras vazias** (decisão do proprietário,
+03/11/2026, opção B): ao vivo na UnB, dois processos com pastas (157
+documentos em 8 pastas e um de 2 pastas), abertos só em outra unidade,
+abriram inteiros por `ABRIR_PASTAS`, com contagens iguais às declaradas
+(7×20 + 17), mas 150 barras vazias (`Nos[i].acoes = '';`). Uma primeira
+versão da B (regra por pasta, tudo ou nada) falhou na revalidação ao
+vivo: a identidade varia **por documento** (no processo A, PASTA6 com 18
+barras vazias e 2 com links sem `id_rel_protocolo_protocolo`, PASTA8 com
+12 e 5; no B, PASTA1 com 19 identidades e 1 vazia). Regra adotada: cada
+identidade achada está na declaração e aparece uma vez; os declarados sem
+documento identificado são tantos quantos os documentos sem identidade
+(`contagem_da_pasta_diferente_da_declarada`); ids únicos na árvore;
+nenhum `AGUARDE`. Cada pasta diz `por_identidade`, `mista` ou
+`por_contagem`, com as duas quantidades; o topo, a mais fraca, com o
+motivo `documentos_sem_identidade_na_barra`. Nas duas árvores reais: A
+`por_contagem` (8 pastas, 0 identidades), B `mista` (PASTA1 19+1, PASTA2
+2+0). **Opção A rejeitada:** manter só a identidade recusaria esses processos inteiros
+(`documento_da_pasta_sem_identidade_na_barra`) e o usuário não receberia
+nada, embora a árvore servida seja coerente; a B entrega a lista e diz
+qual conferência foi feita, sem alegar identidade onde ela não existe. A
+regra é a barra observada, nunca o texto "aberto somente na
+unidade" (mensagem é apresentação).
+
+**Orçamento e índice.** Sem `AGUARDE`, +0; com `AGUARDE`, +1 GET. A URL
+de abrir é guardada com o objeto `<id>:abrir_pastas` e tentada primeiro no
+caminho 1: a repetição quente custa **1**. Efeito declarado
+`PaginaOuFiltroLembrado` (não medido pelo IES; nas cassettes a leitura
+seguinte voltou fechada). Nunca `FECHAR_PASTAS`, sem restauração.
+
+**Trade-offs.** Abrir todas custa ~1 MB num GET em vez de vários POSTs
+pequenos; a contagem prova quantidade e unicidade, não que cada documento
+é o protocolo declarado, e por isso é publicada como verificação mais
+fraca.
+
 ## Limitações e revisão
 
-Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Pastas
-(`PASTA`), marcadores e propriedades ficam para as próximas fatias.
+Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
+e propriedades ficam para as próximas fatias; pastas: validação live
+**PASS** na UnB, frio, quente e sessão nova, com o servidor sem lembrar as pastas abertas ([relatório](../validacao-live/2026-11-03-processo-obter-pastas.md)).
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**
 pelo servidor ([relatório](../validacao-live/2026-11-03-processo-obter-andamentos.md)).

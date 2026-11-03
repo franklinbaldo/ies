@@ -4,14 +4,14 @@ title: Abrir processo pela árvore
 description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore e os andamentos e aprende no índice local
 ---
 
-# `ies processo NUP` pela árvore (Refs #59, fatias 1 e 2)
+# `ies processo NUP` pela árvore (Refs #59, fatias 1 a 3)
 
 Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
 `--resumo`, `ies processo NUP [--sem-documentos] [--sem-andamentos |
 --andamentos-completos] [--json] [--unidade SIGLA]` usa a sessão de
-`ies login`, abre o processo e publica a identidade, os documentos do
-**primeiro nível** da árvore e os andamentos
-([seção própria](processo-obter-andamentos.md)). Marcadores e
+`ies login`, abre o processo e publica a identidade, os documentos da
+árvore, inclusive os de pastas ([pastas](processo-obter-pastas.md)), e os
+andamentos ([seção própria](processo-obter-andamentos.md)). Marcadores e
 propriedades não são lidos. `--resumo` não muda.
 
 ## Resolução (ordem aprovada pelo proprietário)
@@ -69,8 +69,10 @@ Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
 `sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
 
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`,
-os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id)
-e o `action` da pesquisa rápida do Controle e da tela do processo.
+os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id),
+o de "Abrir todas as Pastas" (objeto = `<id>:abrir_pastas`, só depois da
+árvore aberta conferida) e o `action` da pesquisa rápida do Controle e da
+tela do processo.
 
 ## Orçamento por caminho
 
@@ -84,7 +86,9 @@ e o `action` da pesquisa rápida do Controle e da tela do processo.
 
 Os andamentos somam 1 GET (padrão) ou 1 GET + 1 POST
 (`--andamentos-completos`), e nada com `--sem-andamentos` ou sem link
-publicado na árvore ([orçamento](processo-obter-andamentos.md)).
+publicado na árvore ([orçamento](processo-obter-andamentos.md)). Pasta
+fechada (`AGUARDE`) soma 1 GET; o link guardado de "Abrir todas as Pastas"
+faz o caminho 1 custar 1 ([pastas](processo-obter-pastas.md)).
 
 Um palpite que falha soma suas requisições às do passo seguinte
 (`requisicoes` publica o total). Sem retry, sem redirect seguido pelo
@@ -102,7 +106,8 @@ escrito à mão (aspas duplas ou simples com escapes `\\ \" \' \/ \n \r \t`,
 Qualquer linha com `new infraArvoreNo(` fora dessa forma é recusa. Índices
 consecutivos desde 0, 16 argumentos, um único `PROCESSO` (a1 id decimal,
 a2 `null`, a5 NUP, a6 tipo, a15 igual a a5), `DOCUMENTO` com a2 igual ao
-id do processo; outro tipo (inclusive `PASTA`) é recusa nesta fatia.
+id do processo ou a uma pasta; `PASTA` e `AGUARDE` (15 argumentos) seguem
+o [contrato das pastas](processo-obter-pastas.md); outro tipo é recusa.
 O NUP do nó (a5) é comparado **byte a byte** com o pedido. Estrutura em
 [árvore do processo](../../docs/como-o-sei-funciona/arvore-do-processo.md).
 
@@ -118,7 +123,10 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
  "unidade": "SIGLA ou null", "resolvido_por": "caixa",
  "requisicoes": 4,
- "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null"}],
+ "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
+                 "pasta": "PASTA1 ou null"}],
+ "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
+ "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
                 "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
@@ -128,10 +136,10 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 [andamentos](processo-obter-andamentos.md).
 
-`documentos` segue a ordem dos nós e não afirma completude além do
-primeiro nível servido. A dica dos documentos (a6) **não** é publicada:
-em e-mails traz remetente e destinatários. `--sem-documentos` tira a
-chave `documentos` (a árvore continua lida: é ela que prova a identidade).
+`documentos` segue a ordem dos nós; com pastas, só sai depois de cada
+pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
+em e-mails traz remetente e destinatários. `--sem-documentos` tira as
+chaves `documentos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
 `--sem-marcadores` e `--sem-propriedades` são aceitos sem efeito.
 `--sem-andamentos` com `--andamentos-completos` sai com 2
 (`sem_andamentos_incompativel_com_andamentos_completos`).
@@ -172,7 +180,9 @@ Tela: `arvore_ausente_na_tela_do_processo`,
 `id_do_processo_na_arvore_diferente_do_aberto`.
 
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
+Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 
 Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
-Fatia 2 (andamentos): **NOT_RUN** pelo IES até a validação do agente pai.
+Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
+Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

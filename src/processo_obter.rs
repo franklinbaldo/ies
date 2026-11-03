@@ -1,15 +1,17 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md):
 //! abre o processo pelo caminho mais barato que o índice local permite e lê
-//! o primeiro nível da árvore. Ordem aprovada: link da árvore guardado →
+//! a árvore, com as pastas. Ordem aprovada: link da árvore guardado →
 //! entrada por id → pesquisa rápida guardada → Controle (linha do NUP ou
-//! pesquisa rápida do formulário). Sem retry, sem redirect seguido; cada
-//! palpite errado do índice é esquecido e o comando segue.
+//! pesquisa rápida do formulário). Pasta fechada soma o GET de "Abrir
+//! todas as Pastas". Sem retry, sem redirect seguido; cada palpite errado
+//! do índice é esquecido e o comando segue.
 mod abertura;
 mod andamentos;
 mod controle;
 pub(crate) mod erro;
 mod fluxo;
 mod login;
+mod pastas;
 
 #[cfg(test)]
 mod tests_andamentos;
@@ -25,6 +27,8 @@ mod tests_fluxo;
 mod tests_indice;
 #[cfg(test)]
 mod tests_login;
+#[cfg(test)]
+mod tests_pastas;
 
 use crate::arvore_processo::ArvoreLida;
 use crate::formulario_web::RespostaDoPost;

@@ -32,8 +32,9 @@ e propriedades ainda não são lidos.
 - `NUP`: número do processo que o usuário pode consultar.
 - `--resumo`: procura apenas a identidade já exibida na Caixa de Entrada,
   com um GET autorizado e sem acessar árvore/documentos/andamentos.
-- `--sem-documentos`: omite a lista `documentos` (a árvore continua sendo
-  lida, porque é ela que confirma a identidade).
+- `--sem-documentos`: omite `documentos` e `pastas` (a árvore continua
+  sendo lida, porque é ela que confirma a identidade;
+  [pastas](processo-obter-pastas.md)).
 - `--sem-marcadores`, `--sem-propriedades`: aceitos e sem efeito (dados
   ainda não lidos).
 - `--sem-andamentos`: não pede o histórico; `--andamentos-completos`: pede

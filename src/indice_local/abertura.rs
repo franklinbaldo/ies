@@ -133,7 +133,7 @@ fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
             return Err(Falha);
         }
     }
-    for sufixo in ["-wal", "-shm", "-journal"] {
+    for sufixo in ["-wal", "-shm", "-journal", ".lock"] {
         arquivo_privado_existente(&lateral(caminho, sufixo))?;
     }
     Ok(())
@@ -154,6 +154,10 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
     let mut conexao = Connection::open_with_flags(caminho, flags)?;
     conexao.busy_timeout(ESPERA_DO_LOCK)?;
     if preparar {
+        // Trocar para WAL exige lock exclusivo: com outra conexão aberta no
+        // modo antigo, o SQLite devolve o modo anterior sem erro. A preparação
+        // é serializada entre processos por um lock lateral.
+        let _trava = TravaDaPreparacao::obter(caminho)?;
         let modo: String =
             conexao.pragma_update_and_check(None, "journal_mode", "WAL", |l| l.get(0))?;
         if !modo.eq_ignore_ascii_case("wal") {
@@ -162,6 +166,39 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
         migrar(&mut conexao)?;
     }
     Ok(conexao)
+}
+
+/// Lock exclusivo de `<banco>.lock` (`0600`, sem seguir link simbólico),
+/// liberado ao sair de escopo; espera no máximo `ESPERA_DO_LOCK`.
+struct TravaDaPreparacao {
+    _arquivo: fs::File,
+}
+
+impl TravaDaPreparacao {
+    fn obter(banco: &Path) -> Result<Self, Falha> {
+        let arquivo = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .custom_flags(libc_o_nofollow())
+            .open(lateral(banco, ".lock"))?;
+        let limite = std::time::Instant::now() + ESPERA_DO_LOCK;
+        loop {
+            match arquivo.try_lock() {
+                Ok(()) => return Ok(Self { _arquivo: arquivo }),
+                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < limite => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => return Err(Falha),
+            }
+        }
+    }
+}
+
+/// `O_NOFOLLOW` do Linux (o mesmo valor usado na gravação da sessão).
+const fn libc_o_nofollow() -> i32 {
+    0o400_000
 }
 
 /// O esquema e as migrações numa transação só: o que falhar no meio desfaz

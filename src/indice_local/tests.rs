@@ -175,9 +175,17 @@ fn esquema_versionado_em_wal() {
     assert_eq!((versao, modo.as_str()), (1, "wal"));
 }
 
+/// A corrida está na criação: duas conexões preparando o mesmo arquivo novo
+/// (troca para WAL e migração). Repetida para não depender da sorte.
 #[test]
 fn duas_conexoes_concorrentes_gravam_sem_perder_linhas() {
-    let raiz = pasta("concorrente");
+    for rodada in 0..12 {
+        concorrencia_numa_pasta_nova(&format!("concorrente-{rodada}"));
+    }
+}
+
+fn concorrencia_numa_pasta_nova(nome: &str) {
+    let raiz = pasta(nome);
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     let tarefas: Vec<_> = ["A", "B"]
         .into_iter()

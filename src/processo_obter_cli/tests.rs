@@ -1,6 +1,8 @@
 //! RED/GREEN do JSON publicado: só o observado, sem URL, hash ou dica.
 use super::*;
-use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore, ProcessoNaArvore};
+use crate::arvore_processo::{
+    ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore, VerificacaoDaPasta,
+};
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
 use crate::processo_obter::{Andamentos, ResolvidoPor};
@@ -18,13 +20,17 @@ fn aberto(unidade: Option<&str>) -> ProcessoAberto {
                     id: "21".into(),
                     rotulo: "Despacho 0000101".into(),
                     numero_sei: Some("0000101".into()),
+                    pasta: None,
                 },
                 DocumentoNaArvore {
                     id: "22".into(),
                     rotulo: "E-mail".into(),
                     numero_sei: None,
+                    pasta: None,
                 },
             ],
+            pastas: Vec::new(),
+            pastas_nao_carregadas: false,
         },
         unidade: unidade.map(str::to_owned),
         resolvido_por: ResolvidoPor::Caixa,
@@ -131,9 +137,11 @@ fn forma_do_json() {
             "resolvido_por": "caixa",
             "requisicoes": 3,
             "documentos": [
-                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101"},
-                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null}
+                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null},
+                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null}
             ],
+            "pastas": [],
+            "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
             "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"
         })
@@ -145,6 +153,7 @@ fn sem_documentos_tira_a_chave_e_unidade_nao_observada_e_null() {
     let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
     let valor = json_do_processo(&nup, &aberto(None), true);
     assert!(valor.get("documentos").is_none());
+    assert!(valor.get("pastas").is_none());
     assert!(valor["unidade"].is_null());
     assert_eq!(valor["numero"], "00001.000001/2026-01");
     let texto = valor.to_string();
@@ -166,4 +175,74 @@ fn todos_os_caminhos_tem_nome_estavel() {
         nomes,
         ["indice_link", "indice_entrada", "pesquisa_rapida", "caixa"]
     );
+}
+
+#[test]
+fn documentos_dizem_a_pasta_e_as_pastas_saem_com_rotulo_e_total() {
+    let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
+    let mut em_pastas = aberto(None);
+    for d in &mut em_pastas.arvore.documentos {
+        d.pasta = Some("PASTA1".into());
+    }
+    em_pastas.arvore.pastas = vec![PastaNaArvore {
+        id: "PASTA1".into(),
+        rotulo: "I".into(),
+        total_declarado: 2,
+        verificacao: Some(VerificacaoDaPasta::PorIdentidade),
+        conferidos_por_identidade: 2,
+        conferidos_por_contagem: 0,
+    }];
+    let valor = json_do_processo(&nup, &em_pastas, false);
+    assert_eq!(valor["documentos"][1]["pasta"], "PASTA1");
+    assert_eq!(
+        valor["pastas"],
+        json!([{"id": "PASTA1", "rotulo": "I", "total": 2, "verificacao": "por_identidade",
+                "conferidos_por_identidade": 2, "conferidos_por_contagem": 0}])
+    );
+    assert_eq!(valor["verificacao_das_pastas"], "por_identidade");
+    assert!(valor.get("verificacao_das_pastas_motivo").is_none());
+    let texto = humano(&nup, &em_pastas, false);
+    assert!(texto.contains("[pasta I]"), "{texto}");
+    assert!(texto.contains("1 pasta(s)"), "{texto}");
+}
+
+fn com_verificacoes(regras: &[VerificacaoDaPasta]) -> ProcessoAberto {
+    let mut em_pastas = aberto(None);
+    em_pastas.arvore.pastas = regras
+        .iter()
+        .enumerate()
+        .map(|(i, v)| PastaNaArvore {
+            id: format!("PASTA{}", i + 1),
+            rotulo: "I".into(),
+            total_declarado: 1,
+            verificacao: Some(*v),
+            conferidos_por_identidade: 1,
+            conferidos_por_contagem: 0,
+        })
+        .collect();
+    em_pastas
+}
+
+#[test]
+fn a_verificacao_do_topo_e_a_mais_fraca_e_diz_o_motivo() {
+    use VerificacaoDaPasta::{Mista, PorContagem, PorIdentidade};
+    let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
+    for (regras, topo) in [
+        (vec![PorIdentidade, PorContagem], "por_contagem"),
+        (vec![PorIdentidade, Mista], "mista"),
+        (vec![Mista, PorContagem], "por_contagem"),
+    ] {
+        let valor = json_do_processo(&nup, &com_verificacoes(&regras), false);
+        assert_eq!(valor["verificacao_das_pastas"], topo, "{regras:?}");
+        assert_eq!(
+            valor["verificacao_das_pastas_motivo"],
+            "documentos_sem_identidade_na_barra"
+        );
+        assert_eq!(valor["pastas"][1]["verificacao"], regras[1].como_texto());
+    }
+    let todas = json_do_processo(&nup, &com_verificacoes(&[PorIdentidade]), false);
+    assert_eq!(todas["verificacao_das_pastas"], "por_identidade");
+    assert!(todas.get("verificacao_das_pastas_motivo").is_none());
+    let texto = humano(&nup, &com_verificacoes(&[Mista]), false);
+    assert!(texto.contains("mista"), "{texto}");
 }

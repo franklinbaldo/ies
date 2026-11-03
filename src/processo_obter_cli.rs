@@ -1,7 +1,8 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
-//! índice local, abre o processo e publica identidade, primeiro nível da
-//! árvore e andamentos. Nunca URL, hash ou HTML.
+//! índice local, abre o processo e publica identidade, documentos e pastas
+//! da árvore e andamentos. Nunca URL, hash ou HTML.
+use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -37,6 +38,16 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
         "faixa_observada": {"inicio": 1, "fim": lidos.itens.len()},
         "itens": itens,
     })
+}
+
+/// A verificação mais fraca entre as pastas conferidas (`por_contagem` <
+/// `mista` < `por_identidade`); `None` sem pastas.
+fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta> {
+    use VerificacaoDaPasta::{Mista, PorContagem, PorIdentidade};
+    let regras: Vec<VerificacaoDaPasta> = pastas.iter().filter_map(|p| p.verificacao).collect();
+    [PorContagem, Mista, PorIdentidade]
+        .into_iter()
+        .find(|v| regras.contains(v))
 }
 
 /// O JSON publicado; `documentos` some com `--sem-documentos` e
@@ -82,10 +93,38 @@ pub(crate) fn json_do_processo(
                     "id_documento": d.id,
                     "rotulo": d.rotulo,
                     "numero_sei": d.numero_sei,
+                    "pasta": d.pasta,
                 })
             })
             .collect();
         objeto.insert("documentos".to_owned(), Value::Array(documentos));
+        let pastas: Vec<Value> = aberto
+            .arvore
+            .pastas
+            .iter()
+            .map(|p| {
+                json!({
+                    "id": p.id,
+                    "rotulo": p.rotulo,
+                    "total": p.total_declarado,
+                    "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
+                    "conferidos_por_identidade": p.conferidos_por_identidade,
+                    "conferidos_por_contagem": p.conferidos_por_contagem,
+                })
+            })
+            .collect();
+        objeto.insert("pastas".to_owned(), Value::Array(pastas));
+        let verificacao = verificacao_das_pastas(&aberto.arvore.pastas);
+        objeto.insert(
+            "verificacao_das_pastas".to_owned(),
+            json!(verificacao.map(VerificacaoDaPasta::como_texto)),
+        );
+        if verificacao.is_some_and(|v| v != VerificacaoDaPasta::PorIdentidade) {
+            objeto.insert(
+                "verificacao_das_pastas_motivo".to_owned(),
+                json!("documentos_sem_identidade_na_barra"),
+            );
+        }
     }
     valor
 }
@@ -105,13 +144,25 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         aberto.requisicoes,
     );
     if !sem_documentos {
+        let arvore = &aberto.arvore;
         let _ = write!(
             texto,
-            "\n{} documento(s) no primeiro nível da árvore:",
-            aberto.arvore.documentos.len()
+            "\n{} documento(s) na árvore, {} pasta(s){}:",
+            arvore.documentos.len(),
+            arvore.pastas.len(),
+            verificacao_das_pastas(&arvore.pastas)
+                .map(|v| format!(" conferidas {}", v.como_texto()))
+                .unwrap_or_default()
         );
-        for documento in &aberto.arvore.documentos {
+        for documento in &arvore.documentos {
             let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);
+            let pasta = documento
+                .pasta
+                .as_ref()
+                .and_then(|id| arvore.pastas.iter().find(|p| &p.id == id));
+            if let Some(pasta) = pasta {
+                let _ = write!(texto, " [pasta {}]", pasta.rotulo);
+            }
         }
     }
     match &aberto.andamentos {
