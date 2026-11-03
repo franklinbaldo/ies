@@ -16,7 +16,9 @@ confere origem, URL assinada e arquivo de cookie privado **antes de chamar o
 adaptador HTTP**; depois aceita somente HTTP 200 HTML, sem redirecionamento,
 limita o corpo recebido a 8 MB e decodifica a resposta. O mesmo HTML chega
 ao parser de caixa e à projeção de saída, sem segundo GET. A operação não
-executa login, POST ou escrita no SEI.
+executa login, POST ou escrita no SEI. O adaptador real é o cliente HTTPS
+único (`src/transporte/cliente_https.rs`, com proxy do ambiente); o
+benchmark o substitui pelo adaptador injetado e não mede TLS nem proxy.
 
 Testes de contrato devem contar a invocação efetiva do adaptador, inclusive
 nos casos negativos (origem inválida deve resultar em **zero** GET), além de
