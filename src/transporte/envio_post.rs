@@ -99,6 +99,16 @@ pub(crate) fn enviar_post(
     })
 }
 
+/// POST com ambiente e camada TLS injetáveis (testes com proxy falso).
+pub(crate) fn enviar_post_via<S: Read + std::io::Write>(
+    submissao: SubmissaoDerivada,
+    cookie: &str,
+    _ambiente: impl Fn(&str) -> Option<String>,
+    _envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<RespostaDoPost<impl Read>, FalhaTransporte> {
+    enviar_post(submissao, cookie)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

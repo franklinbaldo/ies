@@ -287,6 +287,16 @@ pub(crate) fn get_https(
     Ok(resposta_web(resposta))
 }
 
+/// GET com ambiente e camada TLS injetáveis (testes com proxy falso).
+pub(crate) fn get_https_via<S: Read + std::io::Write>(
+    destino: &str,
+    cookie: &str,
+    _ambiente: impl Fn(&str) -> Option<String>,
+    _envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<RespostaWeb<impl Read>, FalhaTransporte> {
+    get_https(destino, cookie)
+}
+
 pub fn read_box_from_file(
     url_file: &Path,
     cookie_file: &Path,
@@ -330,6 +340,10 @@ mod tests_resposta;
 #[cfg(test)]
 #[path = "transporte/tests_recusa_http.rs"]
 mod tests_recusa_http;
+
+#[cfg(test)]
+#[path = "transporte/tests_cliente_https.rs"]
+mod tests_cliente_https;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]
