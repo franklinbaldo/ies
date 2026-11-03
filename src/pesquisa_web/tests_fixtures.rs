@@ -1,5 +1,5 @@
 //! Telas SINTÉTICAS da busca de processo, com a estrutura observada na
-//! UnB 4.0.9 de treinamento (03/11/2026): menu `protocolo_pesquisar` no
+//! `UnB` 4.0.9 de treinamento (03/11/2026): menu `protocolo_pesquisar` no
 //! Controle, `frmPesquisaProtocolo`, barra "Exibindo I - F de N", linhas com
 //! `a.arvore` e `a.protocoloNormal` (com `class` repetido), `navegar()` e
 //! aviso `pesquisaSemResultado`. Nenhum valor real: hosts, hashes, IDs e
@@ -20,7 +20,7 @@ pub(crate) fn url_controle() -> String {
     )
 }
 
-/// O `href` do menu como servido (com `&` cru, como na UnB).
+/// O `href` do menu como servido (com `&` cru, como na `UnB`).
 pub(crate) fn href_do_menu() -> String {
     format!(
         "controlador.php?acao=protocolo_pesquisar&{CONTEXTO}&infra_hash={}",
@@ -117,7 +117,7 @@ pub(crate) fn numero(posicao: u64) -> String {
     format!("00001.{posicao:06}/2026-00")
 }
 
-/// Uma linha como na UnB: `a.arvore` e `a.protocoloNormal` com o mesmo
+/// Uma linha como na `UnB`: `a.arvore` e `a.protocoloNormal` com o mesmo
 /// `href`, e `class` repetido (idêntico) no segundo.
 pub(crate) fn linha(posicao: u64) -> String {
     let href = format!(
@@ -137,26 +137,42 @@ pub(crate) fn linha(posicao: u64) -> String {
     )
 }
 
+/// Número com `.` entre grupos de 3, como o total da barra observada.
+pub(crate) fn milhar(n: u64) -> String {
+    let digitos = n.to_string();
+    let mut saida = String::new();
+    for (i, c) in digitos.chars().enumerate() {
+        if i > 0 && (digitos.len() - i).is_multiple_of(3) {
+            saida.push('.');
+        }
+        saida.push(c);
+    }
+    saida
+}
+
 /// Barra, tabela com as linhas `inicio..=fim` e paginador `navegar()`.
 pub(crate) fn conteudo_da_lista(inicio: u64, fim: u64, total: &str, tamanho: u64) -> String {
     let linhas: String = (inicio..=fim).map(linha).collect();
     let numerico: u64 = total.replace('.', "").parse().unwrap_or(0);
-    let links: String = (1..=10u64)
-        .map(|n| (n - 1) * tamanho)
-        .filter(|k| *k + 1 != inicio && *k < numerico)
-        .map(|k| {
-            format!(
-                " <a href=\"javascript:navegar('{k}')\">{}</a>\n",
-                k / tamanho + 1
-            )
-        })
-        .collect();
+    let mut links = String::new();
+    for k in (0..10u64).map(|n| n * tamanho) {
+        if k + 1 != inicio && k < numerico {
+            let pagina = k / tamanho + 1;
+            links.push_str(" <a href=\"javascript:navegar('");
+            links.push_str(&k.to_string());
+            links.push_str("')\">");
+            links.push_str(&pagina.to_string());
+            links.push_str("</a>\n");
+        }
+    }
     format!(
         "<div class=\"pesquisaBarra\"><div class=\"pesquisaBarraE\"><button type=\"button\" \
          id=\"btnVerCriteriosPesquisa\" class=\"infraButton\">Ver</button></div>\
-         <div class=\"pesquisaBarraD\">Exibindo {inicio} - {fim} de {total}</div></div>\
+         <div class=\"pesquisaBarraD\">Exibindo {} - {} de {total}</div></div>\
          <table border=\"0\" class=\"pesquisaResultado\">{linhas}</table>\
          <div class=\"pesquisaPaginas\"><div class=\"pesquisaPaginaSelecionada\">{}</div>\n{links}</div>",
+        milhar(inicio),
+        milhar(fim),
         (inicio - 1) / tamanho + 1
     )
 }
@@ -170,7 +186,7 @@ pub(crate) fn resultado(termo: &str, inicio: u64, fim: u64, total: &str) -> Stri
     ))
 }
 
-/// Resposta 200 sem resultado, como na UnB (aviso dentro de `#conteudo`).
+/// Resposta 200 sem resultado, como na `UnB` (aviso dentro de `#conteudo`).
 pub(crate) fn sem_resultado(termo: &str) -> String {
     pagina(&formulario(
         termo,

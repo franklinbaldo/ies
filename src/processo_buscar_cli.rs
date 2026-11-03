@@ -2,6 +2,7 @@
 //! valida o termo (saída 2 antes de ler a configuração), lê os arquivos
 //! privados da sessão e publica a resposta observada da pesquisa Web.
 use crate::pesquisa_web::fluxo::{BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_processo};
+use crate::pesquisa_web::resposta::RespostaDaPesquisa;
 use crate::processo::NumeroProcesso;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{
@@ -45,16 +46,67 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 }
 
 /// O JSON da resposta observada; nunca HTML, links, cookies ou `infra_hash`.
-pub(crate) fn json_da_busca(_termo: &NumeroProcesso, _busca: &BuscaRealizada) -> Value {
-    todo!("GREEN #58: JSON das três respostas")
+pub(crate) fn json_da_busca(termo: &NumeroProcesso, busca: &BuscaRealizada) -> Value {
+    let mut valor = json!({
+        "termo": termo.as_str(),
+        "unidade": busca.unidade,
+        "origem": "web",
+        "requisicoes": busca.requisicoes,
+    });
+    let extra = match &busca.resposta {
+        // O 302 só traz o identificador interno: nenhum número é inventado.
+        RespostaDaPesquisa::ProcessoUnico { id } => json!({
+            "resultado": "processo_unico",
+            "processo": {"id": id.as_str()},
+        }),
+        RespostaDaPesquisa::Lista(lista) => json!({
+            "resultado": "lista",
+            "total_declarado": lista.total_declarado,
+            "faixa_observada": {"inicio": lista.faixa.inicio, "fim": lista.faixa.fim},
+            "processos": lista
+                .processos
+                .iter()
+                .map(|p| json!({"numero": p.numero.as_str()}))
+                .collect::<Vec<_>>(),
+        }),
+        // Resposta observada para esta conta/unidade, não inexistência.
+        RespostaDaPesquisa::SemResultado => json!({
+            "resultado": "sem_resultado",
+            "total_declarado": 0,
+            "faixa_observada": null,
+            "processos": [],
+        }),
+    };
+    if let (Some(objeto), Value::Object(campos)) = (valor.as_object_mut(), extra) {
+        objeto.extend(campos);
+    }
+    valor
 }
 
 fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
-    let valor = json_da_busca(termo, busca);
+    let detalhe = match &busca.resposta {
+        RespostaDaPesquisa::ProcessoUnico { id } => {
+            format!("um processo (id interno {})", id.as_str())
+        }
+        RespostaDaPesquisa::Lista(lista) => {
+            let numeros: Vec<&str> = lista.processos.iter().map(|p| p.numero.as_str()).collect();
+            format!(
+                "{} de {} declarado(s), faixa {} a {}: {}",
+                numeros.len(),
+                lista.total_declarado,
+                lista.faixa.inicio,
+                lista.faixa.fim,
+                numeros.join(", ")
+            )
+        }
+        RespostaDaPesquisa::SemResultado => {
+            "nenhum resultado para esta conta e unidade (não prova inexistência)".to_owned()
+        }
+    };
     format!(
-        "IES: pesquisa de {:?}: {} ({} requisição(ões)).",
+        "IES: pesquisa de {:?} na unidade {}: {detalhe} ({} requisições).",
         termo.as_str(),
-        valor["resultado"].as_str().unwrap_or_default(),
+        busca.unidade,
         busca.requisicoes
     )
 }

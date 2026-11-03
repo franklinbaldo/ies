@@ -394,7 +394,7 @@ fn origem_de_outra_instalacao_nao_envia_nada() {
             FalhaTransporte::OrigemNaoAutorizada
         ))
     );
-    assert!(roteiro.pedidos.is_empty());
+    assert_eq!(roteiro.pedidos, vec![]);
 }
 
 #[test]

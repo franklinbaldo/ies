@@ -174,3 +174,14 @@ fn linha_invalida_da_tabela_e_erro_de_resultado() {
         ))
     );
 }
+
+#[test]
+fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
+    // Só o total acima de 999 foi observado ("3.440"); posições sem o
+    // separador falham fechado em vez de virar outra leitura.
+    let html = resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234");
+    assert_eq!(
+        ler_resposta_html(&html),
+        Err(E::NumeroDaBarraDeContagemForaDoFormato)
+    );
+}

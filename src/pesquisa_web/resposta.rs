@@ -1,11 +1,12 @@
 //! Resposta 200 do POST da pesquisa por protocolo: tabela com barra de
 //! contagem, aviso de "sem resultado" ou nenhuma forma reconhecida.
-//! Formas observadas na UnB 4.0.9 de treinamento em 03/11/2026 (capturas
+//! Formas observadas na `UnB` 4.0.9 de treinamento em 03/11/2026 (capturas
 //! privadas, só estrutura): `div.pesquisaBarraD` "Exibindo 1 - 10 de 1.234"
 //! antes de `table.pesquisaResultado`; `div.pesquisaSemResultado` sozinho.
-use super::{ErroResultadoPesquisa, ResultadoPesquisa};
+use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
-use crate::html_atributos::ErroAtributoHtml;
+use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe};
+use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
 
 /// Posições `inicio..=fim` (base 1) declaradas pela barra.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,14 +80,76 @@ impl ErroRespostaDaPesquisa {
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
 /// 1 a 3, sem zero à esquerda); qualquer outra forma é `None`.
-pub(crate) fn ler_contagem(_texto: &str) -> Option<u64> {
-    todo!("GREEN #58: separador de milhar da barra")
+pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
+    let digitos = |grupo: &str| !grupo.is_empty() && grupo.bytes().all(|b| b.is_ascii_digit());
+    let mut grupos = texto.split('.');
+    let primeiro = grupos.next()?;
+    if !digitos(primeiro) || primeiro.len() > 3 || (primeiro.len() > 1 && primeiro.starts_with('0'))
+    {
+        return None;
+    }
+    let mut valor: u64 = primeiro.parse().ok()?;
+    for grupo in grupos {
+        if grupo.len() != 3 || !digitos(grupo) {
+            return None;
+        }
+        valor = valor
+            .checked_mul(1000)?
+            .checked_add(grupo.parse::<u64>().ok()?)?;
+    }
+    Some(valor)
+}
+
+/// "Exibindo I - F de N", com espaços colapsados; nada antes ou depois.
+fn ler_barra(texto: &str) -> Result<(FaixaDaPesquisa, u64), ErroRespostaDaPesquisa> {
+    use ErroRespostaDaPesquisa as E;
+    let palavras: Vec<&str> = texto.split_whitespace().collect();
+    let ["Exibindo", inicio, "-", fim, "de", total] = palavras.as_slice() else {
+        return Err(E::TextoDaBarraDeContagemForaDoFormato);
+    };
+    let numero = |t: &str| ler_contagem(t).ok_or(E::NumeroDaBarraDeContagemForaDoFormato);
+    let (inicio, fim, total) = (numero(inicio)?, numero(fim)?, numero(total)?);
+    if inicio == 0 || inicio > fim || fim > total {
+        return Err(E::FaixaDaBarraDeContagemImpossivel);
+    }
+    Ok((FaixaDaPesquisa { inicio, fim }, total))
 }
 
 /// Classifica a resposta 200 (já sem validação da Infra) em lista ou
 /// "sem resultado"; o 302 é interpretado antes, em `formulario_pesquisa`.
-pub(crate) fn ler_resposta_html(_html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
-    todo!("GREEN #58: tabela, barra e aviso de sem resultado")
+pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+    use ErroRespostaDaPesquisa as E;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
+    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
+        .map_err(E::AtributoHtml)?;
+    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")
+        .map_err(E::AtributoHtml)?;
+    match (tabelas.is_empty(), avisos.len()) {
+        (true, 1) => return Ok(RespostaDaPesquisa::SemResultado),
+        (true, _) => return Err(E::RespostaDaPesquisaNaoReconhecida),
+        (false, 0) => {}
+        (false, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
+    }
+    let barra = match nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")
+        .map_err(E::AtributoHtml)?
+        .as_slice()
+    {
+        [] => return Err(E::BarraDeContagemDaPesquisaAusente),
+        [barra] => *barra,
+        _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
+    };
+    let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
+    let (faixa, total_declarado) = ler_barra(&texto)?;
+    let processos = ler_resultados(html).map_err(E::Resultado)?;
+    if processos.len() as u64 != faixa.fim - faixa.inicio + 1 {
+        return Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra);
+    }
+    Ok(RespostaDaPesquisa::Lista(ListaDaPesquisa {
+        processos,
+        total_declarado,
+        faixa,
+    }))
 }
 
 #[cfg(test)]

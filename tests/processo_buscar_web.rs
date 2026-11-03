@@ -77,5 +77,5 @@ fn arquivos_de_sessao_ausentes_sao_falha_tipada() {
 fn pagina_zero_e_erro_de_uso() {
     let saida = ies(&["processo", "buscar", "1", "--pagina", "0"], true);
     assert_eq!(saida.status.code(), Some(2));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(String::from_utf8_lossy(&saida.stdout), "");
 }

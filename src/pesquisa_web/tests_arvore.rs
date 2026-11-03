@@ -1,4 +1,4 @@
-//! RED/GREEN das linhas da UnB 4.0.9: `a.arvore` com o mesmo `href` do
+//! RED/GREEN das linhas da `UnB` 4.0.9: `a.arvore` com o mesmo `href` do
 //! `a.protocoloNormal`, e `class` repetido idêntico neste. HTML sintético.
 use super::*;
 use crate::pesquisa_web::tests_fixtures::{linha, numero};

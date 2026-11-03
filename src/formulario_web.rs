@@ -426,17 +426,21 @@ where
             mensagem_do_servidor: Some(mensagem),
         }));
     }
-    let marcado = match resultado {
-        ResultadoDoEnvio::ConferidoPorLeituraPosterior => true,
-        ResultadoDoEnvio::Marcador(MarcadorDeResultado { elemento, classe }) => {
-            let dom = tl::parse(&html, tl::ParserOptions::default())
-                .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
-            !nos_por_elemento_e_classe(&dom, None, elemento, classe)
-                .map_err(E::AtributoHtml)?
-                .is_empty()
-        }
-        ResultadoDoEnvio::UmDosMarcadores(_) => todo!("GREEN #58: um dos marcadores"),
+    let marcadores: &[MarcadorDeResultado] = match &resultado {
+        ResultadoDoEnvio::ConferidoPorLeituraPosterior => &[],
+        ResultadoDoEnvio::Marcador(marcador) => std::slice::from_ref(marcador),
+        ResultadoDoEnvio::UmDosMarcadores(marcadores) => marcadores,
     };
+    let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
+    if !marcadores.is_empty() {
+        let dom = tl::parse(&html, tl::ParserOptions::default())
+            .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        for MarcadorDeResultado { elemento, classe } in marcadores {
+            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)
+                .map_err(E::AtributoHtml)?
+                .is_empty();
+        }
+    }
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
     }

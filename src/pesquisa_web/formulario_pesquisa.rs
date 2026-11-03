@@ -5,14 +5,15 @@ use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, ler_regras_da_te
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost,
-    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
-    localizar_formulario,
+    EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
+    SubmissaoDerivada, TelaServida, derivar_submissao, localizar_formulario,
 };
+#[cfg(test)]
+use crate::formulario_web::{RespostaDoPost, enviar_submissao_via};
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
-use std::io::Read;
-use std::path::Path;
+#[cfg(test)]
+use std::{io::Read, path::Path};
 
 /// Ocultos exigidos na tela da pesquisa e na tela de resultado.
 pub(crate) const CAMPOS_OCULTOS_DA_PESQUISA: &[&str] = &[
@@ -35,7 +36,7 @@ pub(crate) const CAMPOS_USUARIO_DA_PESQUISA: &[&str] = &[
 ];
 
 /// Respostas 200 reconhecidas: a tabela de resultado ou o aviso de que a
-/// pesquisa não devolveu nada (UnB 4.0.9, 03/11/2026).
+/// pesquisa não devolveu nada (`UnB` 4.0.9, 03/11/2026).
 pub(crate) const MARCADORES_DA_RESPOSTA: ResultadoDoEnvio = ResultadoDoEnvio::UmDosMarcadores(&[
     MarcadorDeResultado {
         elemento: "table",
@@ -111,13 +112,21 @@ pub(crate) fn derivar_pesquisa_de_protocolo(
 /// Deriva o POST de `navegar(inicio)` a partir da tela de resultado: mesmas
 /// regras do `onsubmit`, sem botão, com `hdnInicio = inicio`.
 pub(crate) fn derivar_pagina_da_pesquisa(
-    _instalacao: &Instalacao,
-    _tela: &TelaServida<'_>,
-    _unidade_solicitada: &str,
-    _protocolo: &str,
-    _inicio: u64,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade_solicitada: &str,
+    protocolo: &str,
+    inicio: u64,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
-    todo!("GREEN #58: POST de navegar(inicio)")
+    let inicio = inicio.to_string();
+    derivar_com(
+        &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO,
+        instalacao,
+        tela,
+        unidade_solicitada,
+        protocolo,
+        Some(&inicio),
+    )
 }
 
 fn derivar_com(
@@ -161,14 +170,37 @@ fn derivar_com(
 /// A resposta do envio interpretada: o 302 vira o identificador (nunca
 /// seguido) e o 200 é classificado; o HTML 200 volta para a paginação.
 pub(crate) fn interpretar_envio(
-    _resposta: RespostaDoEnvio,
-    _instalacao: &Instalacao,
+    resposta: RespostaDoEnvio,
+    instalacao: &Instalacao,
 ) -> Result<(RespostaDaPesquisa, Option<String>), ErroPesquisaProtocolo> {
-    let _ = (interpretar_redirecionamento, ler_resposta_html);
-    todo!("GREEN #58: lista, sem resultado ou 302")
+    match resposta {
+        RespostaDoEnvio::Html(html) => ler_resposta_html(&html)
+            .map(|resposta| (resposta, Some(html)))
+            .map_err(ErroPesquisaProtocolo::Resposta),
+        RespostaDoEnvio::Redirecionamento(redirecionamento) => {
+            interpretar_redirecionamento(redirecionamento, instalacao)
+                .map(|id| (RespostaDaPesquisa::ProcessoUnico { id }, None))
+                .map_err(ErroPesquisaProtocolo::Redirecionamento)
+        }
+    }
 }
 
-/// Envia uma vez e interpreta a resposta; o 302 nunca é seguido.
+/// Falha do envio; sem marcador reconhecido (nem tabela, nem aviso de
+/// "sem resultado", nem validação) é `resposta_da_pesquisa_nao_reconhecida`.
+pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProtocolo {
+    match erro {
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta => {
+            ErroPesquisaProtocolo::Resposta(
+                ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
+            )
+        }
+        outro => ErroPesquisaProtocolo::Submissao(outro),
+    }
+}
+
+/// Envia uma vez e interpreta a resposta; o 302 nunca é seguido. O fluxo do
+/// comando usa as mesmas peças (`interpretar_envio`) guardando o HTML.
+#[cfg(test)]
 pub(crate) fn pesquisar_protocolo_via<R: Read, F>(
     submissao: SubmissaoDerivada,
     instalacao: &Instalacao,
@@ -178,8 +210,7 @@ pub(crate) fn pesquisar_protocolo_via<R: Read, F>(
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
-    let resposta = enviar_submissao_via(submissao, cookie_file, enviar)
-        .map_err(ErroPesquisaProtocolo::Submissao)?;
+    let resposta = enviar_submissao_via(submissao, cookie_file, enviar).map_err(falha_do_envio)?;
     interpretar_envio(resposta, instalacao).map(|(resposta, _)| resposta)
 }
 
