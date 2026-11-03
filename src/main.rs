@@ -1,6 +1,7 @@
 mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_texto_documento;
+mod arvore_processo;
 mod caixa;
 mod caixa_detalhada;
 mod caixa_local;
@@ -41,6 +42,8 @@ mod pesquisa_web;
 mod processo;
 mod processo_buscar_cli;
 mod processo_historico_privado_cli;
+mod processo_obter;
+mod processo_obter_cli;
 mod processo_pesquisa_privada_cli;
 mod processo_resumo_cli;
 mod replay_args;
@@ -356,6 +359,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| processo_historico_privado_cli::tentar_ler(cli))
         .or_else(|| processo_resumo_cli::tentar_resumo(cli))
+        .or_else(|| processo_obter_cli::tentar_obter(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.

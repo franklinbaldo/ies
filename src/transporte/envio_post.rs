@@ -87,6 +87,16 @@ pub(crate) fn enviar_post(
     Ok(resposta_do_post(resposta))
 }
 
+/// GET HTTPS único que devolve também o `Location`: o 302 volta como dado,
+/// nunca seguido (`ies processo NUP` precisa dele na entrada por id).
+pub(crate) fn get_com_localizacao(
+    url: &str,
+    cookie: &str,
+) -> Result<RespostaDoPost<CorpoHttps>, FalhaTransporte> {
+    let resposta = cliente_https::requisitar("GET", url, cookie, None)?;
+    Ok(resposta_do_post(resposta))
+}
+
 fn envio_de(submissao: &SubmissaoDerivada) -> Envio<'_> {
     Envio {
         tipo: SubmissaoDerivada::TIPO_DE_CONTEUDO,

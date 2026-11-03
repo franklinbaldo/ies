@@ -3,6 +3,7 @@
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
 mod codificacao;
 mod erro;
+mod guardada;
 mod leitura;
 mod login;
 
@@ -16,6 +17,7 @@ use crate::transporte::{
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
+pub(crate) use guardada::derivar_submissao_guardada;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 pub(crate) use login::derivar_submissao_de_login;

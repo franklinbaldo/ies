@@ -53,6 +53,9 @@ com documento fica para quando houver uso. Todo o resto vem da
 tabela `link_assinado` da sessão. O Todos mediu ainda que os links do
 menu deixam de valer depois de trocar de unidade (o hash cobre
 `infra_unidade_atual`): a unidade é parte da chave do link.
+Com o `ies processo NUP` integrado (03/11/2026), a entrada por id foi
+aceita também em GO 5.0.3 e na PEN1 4.0.12, que o Todos não tinha medido
+([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)).
 3. **Reabrir telas já vistas na sessão.** Cada tela publica links
    assinados para as próximas; sem guardá-los, reabrir um processo
    recomeça do Controle.
@@ -214,8 +217,10 @@ ignorá-la.
 
 ## Consequências
 
-- A integração (pesquisa, `processo`, login) vem em PRs seguintes; este
-  só entrega o módulo, testado offline com diretórios temporários.
+- A integração vem por comando: `ies processo NUP` (Refs #59, fatia 1)
+  usa as três tabelas
+  ([contrato](../../contracts/cli/processo-obter-arvore.md)); login e
+  `processo buscar` ainda não.
 - O módulo não depende de `pesquisa_web`, `processo*` nem `sessao_login`.
 
 ## Condições de revisão

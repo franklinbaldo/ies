@@ -30,8 +30,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-// A integração (pesquisa, `processo`, login) vem em PRs seguintes.
-#[allow(unused_imports)]
+// Integrado em `ies processo NUP`; login e `processo buscar` ainda não.
 pub(crate) use entrada_por_id::url_da_entrada_por_id;
 pub(crate) use links::ChaveDoLink;
 #[allow(unused_imports)]

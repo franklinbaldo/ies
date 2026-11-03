@@ -5,15 +5,34 @@ operation: processo.obter
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 40
 unresolved_steps: 0
 ---
 
 # processo.obter
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL LOCAL/WEB
+em `--resumo` e PARCIAL WEB na leitura pela árvore
+([contrato](../cli/processo-obter-arvore.md), Refs #59, fatia 1).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+
+## Evidência própria do IES (fatia 1)
+
+- Pesquisa rápida: nas cassettes `processo-andamento-go` e
+  `processo-nup-inexistente-go`, o POST de `protocolo_pesquisa_rapida`
+  com NUP existente respondeu 302 para `procedimento_trabalhar` com
+  `acao_origem=protocolo_pesquisa_rapida` e `id_protocolo`; o inexistente,
+  200 com a tela de pesquisa. Seguem-se `procedimento_trabalhar` (200) e
+  `procedimento_visualizar` (200).
+- Capturas privadas `0600`, lidas só pela estrutura (03/11/2026): tela do
+  processo e árvore de UnB e GO passaram pelos leitores; o formulário
+  rápido e o link da linha do Controle de UnB, GO, PEN1, PEN3, PEN4 e
+  UFRJ também.
+- Medição do agente pai (03/11/2026): pesquisa rápida com o NUP exato
+  abriu o processo na UnB, em GO e na PEN1, inclusive NUPs que a pesquisa
+  avançada não achou em GO e na PEN1.
+- Validação live do comando IES: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

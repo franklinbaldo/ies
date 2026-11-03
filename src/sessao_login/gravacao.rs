@@ -67,6 +67,13 @@ pub(crate) fn caminho_ao_lado(arquivo: &Path, sufixo: &str) -> PathBuf {
     PathBuf::from(nome)
 }
 
+/// Geração da sessão: o SHA-256 hexadecimal do cookie sem espaços nas
+/// pontas, o mesmo `cookie_sha256` do marcador. O índice local usa-a como
+/// chave opaca dos links assinados (ADR 0003); o cookie nunca sai daqui.
+pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
+    sha256(cookie)
+}
+
 fn sha256(texto: &str) -> String {
     use std::fmt::Write as _;
     Sha256::digest(texto.trim().as_bytes())

@@ -17,6 +17,7 @@ pub(crate) mod tela;
 pub(crate) use credenciais::Credenciais;
 pub(crate) use erro::{CampoDasCredenciais, ErroLogin};
 pub(crate) use fluxo::entrar_via;
+pub(crate) use gravacao::geracao_da_sessao;
 
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
