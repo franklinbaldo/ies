@@ -177,78 +177,66 @@ pub(super) fn conferir_pastas(
             .iter()
             .filter(|d| d.pai == Pai::Pasta(*k))
             .collect();
-        let verificacao = if fechadas.contains(k) {
+        let (verificacao, por_identidade, por_contagem) = if fechadas.contains(k) {
             if !da_pasta.is_empty() {
                 return Err(E::PastaCarregadaPelaMetade);
             }
-            None
+            (None, 0, 0)
         } else {
-            Some(conferir_pasta(&da_pasta, &declarados[k])?)
+            let (v, i, c) = conferir_pasta(&da_pasta, &declarados[k])?;
+            (Some(v), i, c)
         };
         lidas.push(PastaNaArvore {
             id: format!("PASTA{k}"),
             rotulo: (*rotulo).to_owned(),
             total_declarado: declarados[k].len(),
             verificacao,
-            conferidos_por_identidade: 0,
-            conferidos_por_contagem: 0,
+            conferidos_por_identidade: por_identidade,
+            conferidos_por_contagem: por_contagem,
         });
     }
     Ok((lidas, !fechadas.is_empty()))
 }
 
-/// Uma regra por pasta: todas as barras vazias → contagem; senão,
-/// identidade de cada documento. Barra vazia ao lado de identidade é recusa.
-/// Ids de documento únicos na árvore já foram conferidos na leitura.
+/// Identidade por documento, o resto pela contagem: cada identidade achada
+/// está na declaração e aparece uma vez, e os declarados sem documento
+/// identificado são tantos quantos os documentos sem identidade. Ids de
+/// documento únicos na árvore já foram conferidos na leitura.
 fn conferir_pasta(
     documentos: &[&DocumentoLido],
     declarados: &[&str],
-) -> Result<VerificacaoDaPasta, ErroArvore> {
-    let vazias = documentos
-        .iter()
-        .filter(|d| d.barra == Barra::Vazia)
-        .count();
-    if vazias > 0 && vazias == documentos.len() {
-        if documentos.len() != declarados.len() {
-            return Err(ErroArvore::ContagemDaPastaDiferenteDaDeclarada);
-        }
-        return Ok(VerificacaoDaPasta::PorContagem);
-    }
-    if vazias > 0
-        && documentos
-            .iter()
-            .any(|d| matches!(d.barra, Barra::Identidade(_)))
-    {
-        return Err(ErroArvore::ContagemDaPastaDiferenteDaDeclarada);
-    }
-    conferir_identidades(documentos, declarados)?;
-    Ok(VerificacaoDaPasta::PorIdentidade)
-}
-
-/// Cada declarado exatamente uma vez; nenhum documento sem identidade ou
-/// fora da declaração.
-fn conferir_identidades(
-    documentos: &[&DocumentoLido],
-    declarados: &[&str],
-) -> Result<(), ErroArvore> {
+) -> Result<(VerificacaoDaPasta, usize, usize), ErroArvore> {
     use ErroArvore as E;
     let mut vistos: HashSet<&str> = HashSet::new();
+    let mut sem_identidade = 0usize;
     for d in documentos {
-        let Barra::Identidade(identidade) = &d.barra else {
-            return Err(E::DocumentoDaPastaSemIdentidadeNaBarra);
-        };
-        let identidade = identidade.as_str();
-        if !declarados.contains(&identidade) {
-            return Err(E::DocumentoDaPastaNaoDeclarado);
-        }
-        if !vistos.insert(identidade) {
-            return Err(E::ProtocoloRepetidoNaPasta);
+        match &d.barra {
+            Barra::NaoLida => return Err(E::DocumentoDaPastaSemIdentidadeNaBarra),
+            Barra::SemIdentidade => sem_identidade += 1,
+            Barra::Identidade(identidade) => {
+                let identidade = identidade.as_str();
+                if !declarados.contains(&identidade) {
+                    return Err(E::DocumentoDaPastaNaoDeclarado);
+                }
+                if !vistos.insert(identidade) {
+                    return Err(E::ProtocoloRepetidoNaPasta);
+                }
+            }
         }
     }
-    if vistos.len() != declarados.len() {
-        return Err(E::ProtocoloDeclaradoAusenteDaPasta);
+    if declarados.len() - vistos.len() != sem_identidade {
+        return Err(if sem_identidade == 0 {
+            E::ProtocoloDeclaradoAusenteDaPasta
+        } else {
+            E::ContagemDaPastaDiferenteDaDeclarada
+        });
     }
-    Ok(())
+    let verificacao = match (vistos.len(), sem_identidade) {
+        (_, 0) => VerificacaoDaPasta::PorIdentidade,
+        (0, _) => VerificacaoDaPasta::PorContagem,
+        _ => VerificacaoDaPasta::Mista,
+    };
+    Ok((verificacao, vistos.len(), sem_identidade))
 }
 
 const ACAO_DE_ABRIR: &str = "new infraArvoreAcao(\"ABRIR_PASTAS\",";

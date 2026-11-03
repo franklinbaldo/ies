@@ -71,8 +71,12 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   pastas (157 documentos em 8 pastas e um de 2 pastas) abriram inteiros
   por `ABRIR_PASTAS` (nenhum `AGUARDE`); as contagens por pasta igualaram
   `Pastas[k]['protocolos']` (7×20 + 17), mas 150 barras vieram vazias
-  (processo aberto só em outra unidade). Daí a verificação `por_contagem`
-  dessas pastas.
+  (processo aberto só em outra unidade). Na revalidação, a identidade
+  variou por documento: no processo de 8 pastas, PASTA1–5 e 7 só com
+  barras vazias, PASTA6 com 18 vazias e 2 com links sem
+  `id_rel_protocolo_protocolo`, PASTA8 com 12 e 5; no de 2 pastas, PASTA1
+  com 19 identidades e 1 vazia, PASTA2 com 2. O leitor deu
+  `por_contagem` e `mista`, nessa ordem.
 - [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live do
   comando: **NOT_RUN** até o agente pai.
 

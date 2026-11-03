@@ -87,11 +87,9 @@ impl VerificacaoDaPasta {
 /// A barra (`Nos[i].acoes`) de um documento de pasta.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum Barra {
-    /// Nenhuma linha `.acoes` para o nó.
+    /// Nenhuma linha `.acoes` para o nó (nunca observado: recusa).
     NaoLida,
-    /// Exatamente `Nos[i].acoes = '';`.
-    Vazia,
-    /// Com links, mas nenhum traz `id_rel_protocolo_protocolo`.
+    /// Vazia (`''`) ou com links sem `id_rel_protocolo_protocolo`.
     SemIdentidade,
     Identidade(String),
 }
@@ -144,11 +142,8 @@ pub(crate) fn ler_arvore(
             let Some((_, barra)) = ler_barra(linha)? else {
                 return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             };
-            documentos[posicao].barra = if barra.is_empty() {
-                Barra::Vazia
-            } else {
-                pastas::identidade_da_barra(&barra)?.map_or(Barra::SemIdentidade, Barra::Identidade)
-            };
+            documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
+                .map_or(Barra::SemIdentidade, Barra::Identidade);
             continue;
         }
         let Some((indice, argumentos)) = ler_declaracao(linha)? else {

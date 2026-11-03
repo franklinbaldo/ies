@@ -101,9 +101,13 @@ duas. Cada pasta tem até 20 documentos e só a mais recente vem carregada.
   não o id do documento, que `Pastas[k]['protocolos']` lista (17 de 17 e
   157 de 157 nas duas leituras da primeira cassette). Ao vivo na UnB
   (03/11/2026), em dois processos abertos só em outra unidade (o `.html`
-  do nó do processo diz "Processo aberto somente na unidade …"), as barras
-  vieram vazias (`Nos[i].acoes = '';`, 150 documentos), com a contagem de
-  cada pasta igual à declarada; o IES confere essas pastas pela contagem.
+  do nó do processo diz "Processo aberto somente na unidade …"), 150 barras
+  vieram vazias (`Nos[i].acoes = '';`) e algumas com links sem
+  `id_rel_protocolo_protocolo` (`documento_consultar`,
+  `documento_imprimir_web`, `procedimento_gerar_pdf`…), misturadas na
+  mesma pasta com barras que o trazem; a contagem de cada pasta igualou a
+  declarada. A identidade é, portanto, **por documento**. Todo documento
+  tinha uma linha `.acoes`.
 - **Ações.** Na barra do processo,
   `NosAcoes[1] = new infraArvoreAcao("ABRIR_PASTAS","AP<id>","<id>","controlador.php?acao=procedimento_visualizar&acao_origem=procedimento_visualizar&id_procedimento=<id>&abrir_pastas=1&infra_sistema=…&infra_unidade_atual=…&infra_hash=…",null,"Abrir todas as Pastas","/infra_css/svg/mais.svg",true);`
   e a irmã `FECHAR_PASTAS` (`fechar_pastas=1`).

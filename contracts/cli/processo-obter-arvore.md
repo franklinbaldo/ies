@@ -126,7 +126,7 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null"}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
- "verificacao_das_pastas": "por_identidade ou por_contagem ou null",
+ "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
                 "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},

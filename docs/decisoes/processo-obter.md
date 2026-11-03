@@ -153,16 +153,23 @@ não a usa como prova. **Barras vazias** (decisão do proprietário,
 03/11/2026, opção B): ao vivo na UnB, dois processos com pastas (157
 documentos em 8 pastas e um de 2 pastas), abertos só em outra unidade,
 abriram inteiros por `ABRIR_PASTAS`, com contagens iguais às declaradas
-(7×20 + 17), mas 150 barras vazias (`Nos[i].acoes = '';`). A pasta cujas
-barras são **todas** vazias é conferida pela contagem (quantidade igual à
-declarada, ids únicos na árvore, nenhum `AGUARDE`) e a saída diz
-`verificacao_das_pastas: "por_contagem"` com o motivo `barras_vazias`;
-pasta mista é recusa (`identidade_parcial_na_pasta`). **Opção A
-rejeitada:** manter só a identidade recusaria esses processos inteiros
+(7×20 + 17), mas 150 barras vazias (`Nos[i].acoes = '';`). Uma primeira
+versão da B (regra por pasta, tudo ou nada) falhou na revalidação ao
+vivo: a identidade varia **por documento** (no processo A, PASTA6 com 18
+barras vazias e 2 com links sem `id_rel_protocolo_protocolo`, PASTA8 com
+12 e 5; no B, PASTA1 com 19 identidades e 1 vazia). Regra adotada: cada
+identidade achada está na declaração e aparece uma vez; os declarados sem
+documento identificado são tantos quantos os documentos sem identidade
+(`contagem_da_pasta_diferente_da_declarada`); ids únicos na árvore;
+nenhum `AGUARDE`. Cada pasta diz `por_identidade`, `mista` ou
+`por_contagem`, com as duas quantidades; o topo, a mais fraca, com o
+motivo `documentos_sem_identidade_na_barra`. Nas duas árvores reais: A
+`por_contagem` (8 pastas, 0 identidades), B `mista` (PASTA1 19+1, PASTA2
+2+0). **Opção A rejeitada:** manter só a identidade recusaria esses processos inteiros
 (`documento_da_pasta_sem_identidade_na_barra`) e o usuário não receberia
 nada, embora a árvore servida seja coerente; a B entrega a lista e diz
 qual conferência foi feita, sem alegar identidade onde ela não existe. A
-regra é a barra vazia observada, nunca o texto "aberto somente na
+regra é a barra observada, nunca o texto "aberto somente na
 unidade" (mensagem é apresentação).
 
 **Orçamento e índice.** Sem `AGUARDE`, +0; com `AGUARDE`, +1 GET. A URL

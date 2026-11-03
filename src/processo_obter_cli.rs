@@ -40,15 +40,14 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
     })
 }
 
-/// A verificação mais fraca entre as pastas conferidas; `None` sem pastas
-/// (ou sem nenhuma conferida).
+/// A verificação mais fraca entre as pastas conferidas (`por_contagem` <
+/// `mista` < `por_identidade`); `None` sem pastas.
 fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta> {
+    use VerificacaoDaPasta::{Mista, PorContagem, PorIdentidade};
     let regras: Vec<VerificacaoDaPasta> = pastas.iter().filter_map(|p| p.verificacao).collect();
-    if regras.contains(&VerificacaoDaPasta::PorContagem) {
-        Some(VerificacaoDaPasta::PorContagem)
-    } else {
-        regras.first().copied()
-    }
+    [PorContagem, Mista, PorIdentidade]
+        .into_iter()
+        .find(|v| regras.contains(v))
 }
 
 /// O JSON publicado; `documentos` some com `--sem-documentos` e
@@ -109,6 +108,8 @@ pub(crate) fn json_do_processo(
                     "rotulo": p.rotulo,
                     "total": p.total_declarado,
                     "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
+                    "conferidos_por_identidade": p.conferidos_por_identidade,
+                    "conferidos_por_contagem": p.conferidos_por_contagem,
                 })
             })
             .collect();
@@ -118,10 +119,10 @@ pub(crate) fn json_do_processo(
             "verificacao_das_pastas".to_owned(),
             json!(verificacao.map(VerificacaoDaPasta::como_texto)),
         );
-        if verificacao == Some(VerificacaoDaPasta::PorContagem) {
+        if verificacao.is_some_and(|v| v != VerificacaoDaPasta::PorIdentidade) {
             objeto.insert(
                 "verificacao_das_pastas_motivo".to_owned(),
-                json!("barras_vazias"),
+                json!("documentos_sem_identidade_na_barra"),
             );
         }
     }
