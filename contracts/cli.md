@@ -15,6 +15,7 @@ testes e pelas instalações reais.
 - `ies <substantivo> NUMERO` lê; `ies <substantivo>` sem argumentos mostra ajuda.
 - Não existe `agir`, `Action` ou `PageModel` como contrato público.
 - `--json` e `--unidade` são globais; falhas operacionais são estruturadas.
+  `--unidade` é pré-condição conferida na tela, nunca um rótulo ecoado.
 - Códigos de saída: 0 sucesso, 1 falha, 2 uso inválido, 3 efeito incerto.
 - Escritas exigem prévia, confirmação e verificação; efeito incerto nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.

@@ -125,3 +125,14 @@ sessão e credenciais.
 - [WSSEI e Swagger, projeto do desenvolvedor](https://github.com/pengovbr/mod-wssei/blob/c6bfce09bd181a5f245e9dbb596d5916dba69727/swagger/wssei.json).
 - [Cadastro de sistemas e WebServices no SEI](https://manuais.processoeletronico.gov.br/pt-br/latest/SEIADM/Administracao_sei/Man_Adm_SEI_04-Administra%C3%A7%C3%A3o_SEI-11_Sistemas.html).
 - [Como o SEI Web funciona](../como-o-sei-funciona/README.md).
+
+## Prioridade entre interfaces
+
+**A Web é a interface do IES** e o alvo de compatibilidade nacional: faz
+parte do uso normal de toda instalação. **REST WSSEI e SOAP não são
+prioridade**: nenhum comando depende deles, não entram na fila de
+implementação e nunca são fallback de escrita. REST é módulo opcional,
+ausente em muitas instalações; SOAP pode exigir credenciais próprias, e o
+cookie Web não o autoriza. Os contratos oficiais ficam só como referência;
+OpenAPI público não prova REST funcional, e 401/403/404 não provam
+ausência sem diagnóstico autorizado.

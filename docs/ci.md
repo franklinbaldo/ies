@@ -54,15 +54,18 @@ executor adequado; não mantenha o HTML de timings versionado.
 
 ## Compatibilidade da saída JSON
 
-O teste `contrato_json_v1_e_deterministico` compara byte a byte
-o replay sintético com `tests/fixtures/caixa-v2.json`. Alterações
-de formato exigem revisão explícita do golden e do contrato OKF.
+Os goldens `tests/fixtures/caixa-v2.json` (resumida) e
+`tests/fixtures/caixa-detalhada-v2.json` (detalhada) são comparados byte a
+byte. Alterações intencionais de saída atualizam o golden e o contrato OKF
+na mesma PR.
 O domínio tipado pode evoluir sem gerar chaves JSON acidentalmente.
 
 ## OKF
 
 Todo Markdown autoral exige frontmatter com `type` e Spec correspondente
 em `.okf/specs/{slug}.md`; o gate exige `--normative-spec`.
+`Cassette`, `OperationEvidence` e `SEIObservation` são categorias de
+**documentos**, não classes, serviços ou camadas do runtime.
 A versão do parser é fixada em `0.48.2`, ferramenta externa de CI;
 o executável IES não depende de Python.
 
