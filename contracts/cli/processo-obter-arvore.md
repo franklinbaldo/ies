@@ -159,5 +159,5 @@ Tela: `arvore_ausente_na_tela_do_processo`,
 `identidade_do_processo_diferente_da_pedida`,
 `id_do_processo_na_arvore_diferente_do_aberto`.
 
-Validação live: **NOT_RUN** nesta fatia (o agente pai executa).
+Validação live: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

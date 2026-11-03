@@ -8,7 +8,7 @@ scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvo
 selected_strategy: web-indice-pesquisa-rapida-arvore
 alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
-live_validation: nao-executada
+live_validation: pass-unb-go-pen1
 ---
 
 # Ler processo: resumo na caixa e árvore com índice local
@@ -85,7 +85,7 @@ não. O IES não restaura esse estado. Lançamento de andamento: não medido.
 
 ## Limitações e revisão
 
-Validação live: **NOT_RUN** nesta fatia (o agente pai executa). Pastas
+Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Pastas
 (`PASTA`), andamentos, marcadores e propriedades ficam para as próximas
 fatias. Revisar se a entrada por id responder outra forma, se o 302 da
 pesquisa rápida mudar de chave do id fora de GO, ou se a árvore publicar

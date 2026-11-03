@@ -32,7 +32,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 - Medição do agente pai (03/11/2026): pesquisa rápida com o NUP exato
   abriu o processo na UnB, em GO e na PEN1, inclusive NUPs que a pesquisa
   avançada não achou em GO e na PEN1.
-- Validação live do comando IES: **NOT_RUN** nesta fatia.
+- Validação live do comando IES: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
