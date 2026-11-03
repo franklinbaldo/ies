@@ -4,8 +4,8 @@ use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::pesquisa_web::resposta::FaixaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{
-    ORIGEM, UNIDADE, controle, href_do_menu, localizacao, menu, resultado, sem_resultado,
-    tela_de_pesquisa, url_controle, url_da_tela, url_do_envio, validacao,
+    ORIGEM, UNIDADE, controle, href_do_menu, localizacao, menu, resultado, resultado_numa_pagina,
+    sem_resultado, tela_de_pesquisa, url_controle, url_da_tela, url_do_envio, validacao,
 };
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::collections::VecDeque;
@@ -450,4 +450,29 @@ fn termo_acima_do_maxlength_servido_para_antes_do_post() {
         "termo_acima_do_maxlength_da_tela"
     );
     assert_eq!(pedidos, vec![get(url_controle()), get(url_da_tela())]);
+}
+
+#[test]
+fn lista_numa_pagina_publica_total_e_nao_tem_pagina_2() {
+    let resposta = || ok(resultado_numa_pagina("00001", 2, "2 resultados"));
+    let (r, pedidos) = buscar(
+        "00001",
+        None,
+        None,
+        vec![ok(controle_com_menu()), ok(tela_de_pesquisa()), resposta()],
+    );
+    let RespostaDaPesquisa::Lista(lista) = r.unwrap().resposta else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.total_declarado, 2);
+    assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 2 });
+    assert_eq!(pedidos, tres_pedidos());
+    let (r, pedidos) = buscar(
+        "00001",
+        Some(2),
+        None,
+        vec![ok(controle_com_menu()), ok(tela_de_pesquisa()), resposta()],
+    );
+    assert_eq!(r.unwrap_err().subcodigo(), "pagina_fora_do_intervalo");
+    assert_eq!(pedidos, tres_pedidos());
 }

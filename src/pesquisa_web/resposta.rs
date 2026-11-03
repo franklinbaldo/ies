@@ -109,11 +109,20 @@ pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
 fn ler_barra(texto: &str) -> Result<(FaixaDaPesquisa, u64), ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
     let palavras: Vec<&str> = texto.split_whitespace().collect();
-    let ["Exibindo", inicio, "-", fim, "de", total] = palavras.as_slice() else {
-        return Err(E::TextoDaBarraDeContagemForaDoFormato);
-    };
     let numero = |t: &str| ler_contagem(t).ok_or(E::NumeroDaBarraDeContagemForaDoFormato);
-    let (inicio, fim, total) = (numero(inicio)?, numero(fim)?, numero(total)?);
+    // "Exibindo I - F de N" pagina; "N resultados" é a lista que cabe numa
+    // página, sem `navegar()` (`UnB`, 2 e 9 resultados). O singular não foi
+    // observado e continua fora do formato.
+    let (inicio, fim, total) = match palavras.as_slice() {
+        ["Exibindo", inicio, "-", fim, "de", total] => {
+            (numero(inicio)?, numero(fim)?, numero(total)?)
+        }
+        [total, "resultados"] => {
+            let total = numero(total)?;
+            (1.min(total), total, total)
+        }
+        _ => return Err(E::TextoDaBarraDeContagemForaDoFormato),
+    };
     if inicio == 0 || inicio > fim || fim > total {
         return Err(E::FaixaDaBarraDeContagemImpossivel);
     }

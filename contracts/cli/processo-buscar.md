@@ -67,7 +67,9 @@ Controle), `origem: "web"` e `requisicoes`.
 - **200 com `table.pesquisaResultado`**: `{"resultado":"lista",
   "total_declarado":N,"faixa_observada":{"inicio":I,"fim":F},
   "processos":[{"numero":"…"}]}`. Total e faixa vêm da barra
-  `div.pesquisaBarraD` "Exibindo I - F de N"; o separador de milhar `.`
+  `div.pesquisaBarraD` "Exibindo I - F de N" ou, quando a lista cabe numa
+  página, "N resultados" (faixa `1 … N`, sem página 2); o singular não foi
+  observado e falha fechado; o separador de milhar `.`
   só é aceito entre grupos de 3 dígitos (`1.234`), qualquer outra forma
   falha fechada. As linhas lidas devem ser `F - I + 1`.
 - **200 com `div.pesquisaSemResultado`** (sem tabela):

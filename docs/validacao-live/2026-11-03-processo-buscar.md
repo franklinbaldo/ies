@@ -37,6 +37,11 @@ Depois da revisão (UnB, mesmo dia): termo de 51 caracteres →
 `termo_acima_do_maxlength_da_tela` sem POST; termo de 50 → `sem_resultado`
 em 3 requisições (**PASS**).
 
+Lista numa página (UnB, mesmo dia): barra "N resultados" com 2 e 9 →
+`lista`, faixa `1 … N`, 3 requisições; `--pagina 2` →
+`pagina_fora_do_intervalo` sem POST de página (**PASS**; antes da correção
+a mesma busca dava `texto_da_barra_de_contagem_fora_do_formato`).
+
 UFRJ, PEN2, PEN3 e PEN4: NOT_RUN (fora do orçamento desta rodada).
 
 ## Observações

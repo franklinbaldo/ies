@@ -2,7 +2,7 @@
 //! lista, "sem resultado" e formas não reconhecidas. HTML sintético.
 use super::*;
 use crate::pesquisa_web::tests_fixtures::{
-    conteudo_da_lista, formulario, numero, resultado, sem_resultado,
+    conteudo_da_lista, formulario, numero, resultado, resultado_numa_pagina, sem_resultado,
 };
 use ErroRespostaDaPesquisa as E;
 
@@ -204,5 +204,51 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
     assert_eq!(
         E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta.subcodigo(),
         "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
+    );
+}
+
+#[test]
+fn lista_numa_pagina_le_n_resultados_como_faixa_inteira() {
+    for n in [2, 9] {
+        let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&resultado_numa_pagina(
+            "00001",
+            n,
+            &format!("{n} resultados"),
+        ))
+        .unwrap() else {
+            panic!("esperada lista");
+        };
+        assert_eq!(lista.total_declarado, n);
+        assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: n });
+        assert_eq!(lista.processos.len() as u64, n);
+    }
+}
+
+#[test]
+fn barra_numa_pagina_fora_da_forma_observada_e_recusada() {
+    for barra in [
+        "1 resultado",
+        "2 resultado",
+        "resultados",
+        "2 resultados encontrados",
+        "2 Resultados",
+    ] {
+        assert_eq!(
+            ler_resposta_html(&resultado_numa_pagina("00001", 2, barra)),
+            Err(E::TextoDaBarraDeContagemForaDoFormato),
+            "{barra:?}"
+        );
+    }
+    assert_eq!(
+        ler_resposta_html(&resultado_numa_pagina("00001", 2, "02 resultados")),
+        Err(E::NumeroDaBarraDeContagemForaDoFormato)
+    );
+    assert_eq!(
+        ler_resposta_html(&resultado_numa_pagina("00001", 2, "0 resultados")),
+        Err(E::FaixaDaBarraDeContagemImpossivel)
+    );
+    assert_eq!(
+        ler_resposta_html(&resultado_numa_pagina("00001", 2, "3 resultados")),
+        Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)
     );
 }
