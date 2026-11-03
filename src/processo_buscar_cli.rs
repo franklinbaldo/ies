@@ -1,7 +1,11 @@
 //! `ies processo buscar TERMO [--pagina N]` (contracts/cli/processo-buscar.md):
 //! valida o termo (saída 2 antes de ler a configuração), lê os arquivos
 //! privados da sessão e publica a resposta observada da pesquisa Web.
-use crate::pesquisa_web::fluxo::{BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_processo};
+use crate::colheita_do_controle::Colheita;
+use crate::indice_local::IndiceLocal;
+use crate::pesquisa_web::fluxo::{
+    BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_processo_colhendo,
+};
 use crate::pesquisa_web::resposta::RespostaDaPesquisa;
 use crate::processo::NumeroProcesso;
 use crate::visao_do_controle::EnvioHttps;
@@ -144,7 +148,9 @@ fn buscar(cli: &Cli, comando: &Processo, termo: &str, pagina: Option<u32>) -> Ex
         pagina,
         unidade: cli.unidade.as_deref(),
     };
-    match buscar_processo(&sessao, &pedido, &mut EnvioHttps) {
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    let colheita = Colheita::da_sessao(&indice, &arquivos);
+    match buscar_processo_colhendo(&sessao, &pedido, &colheita, &mut EnvioHttps) {
         Ok(busca) => {
             if cli.json {
                 let valor = json_da_busca(&termo, &busca);

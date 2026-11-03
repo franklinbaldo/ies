@@ -9,6 +9,7 @@ use super::{
 };
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{SubmissaoDerivada, TelaServida};
+use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::transporte::{self, FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
@@ -39,6 +40,21 @@ struct SessaoObtida {
     url: String,
     cookie: String,
     unidade: String,
+    controle: ControleObtido,
+}
+
+/// HTML e `Content-Type` do Controle já lido, para a colheita do índice.
+struct ControleObtido {
+    html: String,
+    mime: String,
+}
+
+/// A sessão gravada que respondeu com o Controle.
+struct SessaoGravada {
+    url: String,
+    cookie: String,
+    unidade: String,
+    controle: ControleObtido,
 }
 
 fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
@@ -73,13 +89,13 @@ fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin>
     }
 }
 
-/// Um GET da sessão gravada. `Some(unidade)`: válida. `None`: ausente, de
-/// outra geração ou vencida (tela de login, 3xx, 401/403).
+/// Um GET da sessão gravada. `Some`: válida. `None`: ausente, de outra
+/// geração ou vencida (tela de login, 3xx, 401/403).
 fn conferir_sessao_gravada<T: TransporteDeLogin>(
     pedido: &PedidoDeLogin<'_>,
     origem: &str,
     transporte: &mut T,
-) -> Result<Option<String>, ErroLogin> {
+) -> Result<Option<SessaoGravada>, ErroLogin> {
     let arquivos = pedido.arquivos;
     let Some(url) = ler_da_sessao(&arquivos.url_controle)? else {
         return Ok(None);
@@ -96,10 +112,19 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
     let resposta = transporte
         .get(&url, &cookie)
         .map_err(ErroLogin::Transporte)?;
-    match transporte::decodificar_resposta(como_web(resposta)) {
-        Ok(html) => unidade_do_controle(&html)
-            .map(Some)
-            .map_err(ErroLogin::ControleDaSessaoExistenteNaoReconhecido),
+    let web = como_web(resposta);
+    let mime = web.mime.clone();
+    match transporte::decodificar_resposta(web) {
+        Ok(html) => {
+            let unidade = unidade_do_controle(&html)
+                .map_err(ErroLogin::ControleDaSessaoExistenteNaoReconhecido)?;
+            Ok(Some(SessaoGravada {
+                url,
+                cookie,
+                unidade,
+                controle: ControleObtido { html, mime },
+            }))
+        }
         Err(
             FalhaTransporte::PaginaDeLoginRecebidaNoControle
             | FalhaTransporte::Redirecionamento(_)
@@ -165,7 +190,7 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
 /// `None` se a URL não é a do Controle.
 fn como_controle(
     url: &str,
-    html: &str,
+    (html, mime): (&str, &str),
     origem: &str,
     pote: &PoteDeCookies,
 ) -> Option<Result<SessaoObtida, ErroLogin>> {
@@ -182,6 +207,10 @@ fn como_controle(
                     url: url.to_owned(),
                     cookie,
                     unidade,
+                    controle: ControleObtido {
+                        html: html.to_owned(),
+                        mime: mime.to_owned(),
+                    },
                 })
             }),
     )
@@ -240,8 +269,8 @@ fn autenticar<T: TransporteDeLogin>(
         }
         _ => (url_do_post, resposta),
     };
-    let (html, _) = html_200(resposta)?;
-    if let Some(obtida) = como_controle(&url, &html, origem, &pote) {
+    let (html, mime) = html_200(resposta)?;
+    if let Some(obtida) = como_controle(&url, (&html, &mime), origem, &pote) {
         return obtida;
     }
     if tela::captcha_exigido(&html) {
@@ -262,8 +291,8 @@ fn autenticar<T: TransporteDeLogin>(
     transporte::validar_origem(&destino, origem)
         .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
-    let (html, _) = html_200(resposta)?;
-    como_controle(&url, &html, origem, &pote).unwrap_or(Err(
+    let (html, mime) = html_200(resposta)?;
+    como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(
         ErroLogin::ControleAposOLoginNaoReconhecido(
             ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle,
         ),
@@ -280,9 +309,21 @@ fn conferir_unidade(pedido: &PedidoDeLogin<'_>, unidade: &str) -> Result<(), Err
     Ok(())
 }
 
-/// Fluxo completo com transporte injetável; conta cada pedido feito.
+/// Fluxo completo com transporte injetável; conta cada pedido feito. Sem
+/// índice local (a CLI usa [`entrar_colhendo`]).
+#[cfg(test)]
 pub(crate) fn entrar_via<T: TransporteDeLogin>(
     pedido: &PedidoDeLogin<'_>,
+    transporte: &mut T,
+) -> Result<ResultadoDoLogin, ErroLogin> {
+    entrar_colhendo(pedido, &IndiceLocal::desligado(), transporte)
+}
+
+/// [`entrar_via`] e, com a sessão válida ou recém-gravada, a colheita do
+/// Controle já obtido no índice local (nenhuma requisição a mais).
+pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
+    pedido: &PedidoDeLogin<'_>,
+    indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<ResultadoDoLogin, ErroLogin> {
     let origem =
@@ -296,12 +337,18 @@ pub(crate) fn entrar_via<T: TransporteDeLogin>(
         pedidos: 0,
     };
     if !pedido.forcar
-        && let Some(unidade) = conferir_sessao_gravada(pedido, origem, &mut contador)?
+        && let Some(gravada) = conferir_sessao_gravada(pedido, origem, &mut contador)?
     {
-        conferir_unidade(pedido, &unidade)?;
+        conferir_unidade(pedido, &gravada.unidade)?;
+        colher(
+            indice,
+            &instalacao,
+            (&gravada.cookie, &gravada.url),
+            &gravada.controle,
+        );
         return Ok(ResultadoDoLogin {
             instalacao: instalacao.url_base(),
-            unidade_exibida: unidade,
+            unidade_exibida: gravada.unidade,
             conexao: Conexao::SessaoExistenteValida,
             requisicoes: contador.pedidos,
         });
@@ -318,10 +365,28 @@ pub(crate) fn entrar_via<T: TransporteDeLogin>(
         &obtida.url,
         &obtida.cookie,
     )?;
+    // A chave é a do cookie e da URL que acabaram de ser gravados.
+    colher(
+        indice,
+        &instalacao,
+        (&obtida.cookie, &obtida.url),
+        &obtida.controle,
+    );
     Ok(ResultadoDoLogin {
         instalacao: instalacao.url_base(),
         unidade_exibida: obtida.unidade,
         conexao: Conexao::LoginRealizado,
         requisicoes: contador.pedidos,
     })
+}
+
+/// Colheita do Controle já lido (nenhum pedido); nunca falha o login.
+fn colher(
+    indice: &IndiceLocal,
+    instalacao: &Instalacao,
+    (cookie, url): (&str, &str),
+    controle: &ControleObtido,
+) {
+    crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, url)
+        .colher(&controle.html, Some(&controle.mime));
 }

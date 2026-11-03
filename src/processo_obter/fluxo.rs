@@ -1,4 +1,4 @@
-//! Os quatro passos da resolução (contracts/cli/processo-obter-arvore.md).
+//! Os passos da resolução (1, 1b, 2, 3 e 4) (contracts/cli/processo-obter-arvore.md).
 //! Um passo é tentado só se o anterior não se aplica ou falhou por palpite
 //! do índice; o palpite errado é esquecido e o comando segue.
 use super::abertura::{
@@ -11,11 +11,12 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::ErroArvore;
+use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
+use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
-use crate::indice_local::{IndiceLocal, url_da_entrada_por_id};
+use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -27,17 +28,6 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, va
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
 type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
-
-/// `infra_unidade_atual` único e decimal na URL privada do Controle.
-fn unidade_da_url(url: &str) -> Option<String> {
-    let consulta = url.split_once('?')?.1;
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("infra_unidade_atual="));
-    let unidade = valores.next()?;
-    let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
-    (decimal && valores.next().is_none()).then(|| unidade.to_owned())
-}
 
 pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -55,7 +45,7 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         nup: pedido.nup.as_str(),
         unidade_pedida: pedido.unidade,
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
-        unidade_id: unidade_da_url(sessao.url_do_controle),
+        unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
         cookie_file: sessao.cookie_file,
     };
@@ -66,11 +56,14 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     };
     let aberto = match link_da_arvore(&contexto, &mut rede)? {
         Some(aberto) => aberto,
-        None => match entrada_por_id(&contexto, &mut rede)? {
+        None => match link_de_trabalho(&contexto, &mut rede)? {
             Some(aberto) => aberto,
-            None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
+            None => match entrada_por_id(&contexto, &mut rede)? {
                 Some(aberto) => aberto,
-                None => pelo_controle(&contexto, sessao, &mut rede)?,
+                None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
+                    Some(aberto) => aberto,
+                    None => pelo_controle(&contexto, sessao, &mut rede)?,
+                },
             },
         },
     };
@@ -134,6 +127,49 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     }
     contexto.esquecer_link(ACAO, &id);
     Ok(None)
+}
+
+/// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
+/// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
+/// GET da tela do processo e GET da árvore.
+fn link_de_trabalho<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+    const ACAO: &str = "procedimento_trabalhar";
+    let instalacao = &contexto.instalacao;
+    let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
+        return Ok(None);
+    };
+    let Some(link) = contexto
+        .chave(ACAO, &id)
+        .and_then(|chave| contexto.indice.link(instalacao, chave))
+    else {
+        return Ok(None);
+    };
+    // Login, redirect ou outro status: o link envelheceu.
+    let Lida::Html { html, mime } = rede.get(link.url())? else {
+        contexto.esquecer_link(ACAO, &id);
+        return Ok(None);
+    };
+    let tela = match ler_tela_do_processo(instalacao, &html, &id, contexto.unidade_pedida) {
+        Ok(tela) => tela,
+        // A sessão está noutra unidade: os outros passos diriam o mesmo.
+        Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
+            return Err(E::Tela(erro));
+        }
+        // Não é a tela deste processo: o link envelheceu.
+        Err(_) => {
+            contexto.esquecer_link(ACAO, &id);
+            return Ok(None);
+        }
+    };
+    match rede.abrir_da_tela(contexto, link.url(), (&html, &mime), tela, &id) {
+        Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar))),
+        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
+            contexto.indice.esquecer_processo(instalacao, contexto.nup);
+            contexto.esquecer_link(ACAO, &id);
+            Ok(None)
+        }
+        Err(erro) => Err(erro),
+    }
 }
 
 /// Passo 2, entrada sem assinatura por id (a única URL que o IES monta): 302 para
@@ -257,12 +293,28 @@ fn pelo_controle<V: EnvioDoProcesso>(
         },
     )?;
     let tela = &controle.tela;
-    contexto.aprender_pesquisa_rapida(&tela.url, &tela.html, &tela.mime, &controle.unidade);
+    // Linhas, link da pesquisa e `action` da pesquisa rápida, sem requisição.
+    Colheita::com_geracao(
+        contexto.indice,
+        &contexto.instalacao,
+        &contexto.geracao,
+        sessao.url_do_controle,
+    )
+    .colher(&tela.html, Some(&tela.mime));
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
             .map_err(E::LinkDoProcessoNoControleNaoReconhecido)?;
-        let (arvore, unidade) = rede.abrir(contexto, redirecionado.trabalho.as_str(), &id)?;
+        let (arvore, unidade) = rede
+            .abrir(contexto, redirecionado.trabalho.as_str(), &id)
+            .inspect_err(|erro| {
+                // A colheita deste GET gravou o par que a árvore desmentiu.
+                if matches!(erro, E::Arvore(arvore) if arvore.diverge_do_pedido()) {
+                    contexto
+                        .indice
+                        .esquecer_processo(&contexto.instalacao, contexto.nup);
+                }
+            })?;
         return Ok((arvore, Some(unidade), ResolvidoPor::Caixa));
     }
     let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;

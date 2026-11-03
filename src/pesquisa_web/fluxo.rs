@@ -14,6 +14,7 @@ use super::paginacao::{
 };
 use super::redirecionamento::UrlDeTrabalho;
 use super::resposta::{RespostaDaPesquisa, ler_resposta_html};
+use crate::colheita_do_controle::Colheita;
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, enviar_submissao_via,
@@ -82,12 +83,25 @@ pub(crate) fn ler_controle<V: EnvioDoControle>(
 }
 
 /// Orçamento: página 1 = GET + GET + POST; página N = mais um POST.
+#[cfg(test)]
 pub(crate) fn buscar_processo<V: EnvioDoControle>(
     sessao: &SessaoDaBusca<'_>,
     pedido: &PedidoDeBusca<'_>,
     envio: &mut V,
 ) -> Result<BuscaRealizada, ErroBuscaDeProcesso> {
+    buscar_processo_colhendo(sessao, pedido, &Colheita::nenhuma(), envio)
+}
+
+/// [`buscar_processo`] com a colheita do Controle lido (nenhuma
+/// requisição a mais).
+pub(crate) fn buscar_processo_colhendo<V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    pedido: &PedidoDeBusca<'_>,
+    colheita: &Colheita<'_>,
+    envio: &mut V,
+) -> Result<BuscaRealizada, ErroBuscaDeProcesso> {
     let controle = ler_controle(sessao, pedido.unidade, envio)?;
+    colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
     pesquisar_a_partir_do_controle(&controle, sessao.cookie_file, pedido, envio)
 }
 

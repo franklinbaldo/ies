@@ -20,6 +20,18 @@ pub(crate) struct ChaveDoLink<'a> {
     pub(crate) objeto: &'a str,
 }
 
+/// Unidade da chave dos links: o `infra_unidade_atual` único e decimal da
+/// URL privada do Controle. `None` se ausente, repetido ou não decimal.
+pub(crate) fn unidade_dos_links(url_do_controle: &str) -> Option<String> {
+    let consulta = url_do_controle.split_once('?')?.1;
+    let mut valores = consulta
+        .split('&')
+        .filter_map(|par| par.strip_prefix("infra_unidade_atual="));
+    let unidade = valores.next()?;
+    let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
+    (decimal && valores.next().is_none()).then(|| unidade.to_owned())
+}
+
 impl IndiceLocal {
     /// A URL assinada já vista nesta geração de sessão e unidade, literal.
     /// A linha que não passa mais na conferência da gravação não volta.

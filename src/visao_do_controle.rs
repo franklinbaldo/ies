@@ -201,3 +201,6 @@ mod tests_resumida;
 
 #[cfg(test)]
 mod tests_definir;
+
+#[cfg(test)]
+mod tests_colheita;

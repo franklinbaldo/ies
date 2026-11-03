@@ -70,12 +70,17 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
         Ok(arquivos) => arquivos,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let html = match transporte::read_box_from_file(
+    let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
+    let colheita = crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos);
+    let html = match transporte::envio_post::ler_tela_do_controle(
         &arquivos.url_controle,
         &arquivos.cookie,
         &arquivos.origem,
     ) {
-        Ok(html) => html,
+        Ok(tela) => {
+            colheita.colher(&tela.html, Some(&tela.mime));
+            tela.html
+        }
         Err(erro) => {
             return crate::saida_erro::erro_fonte_http(
                 json_mode,

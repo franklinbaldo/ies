@@ -40,6 +40,9 @@ pub(crate) trait EnvioDoControle {
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
     fn get(&mut self, url: &str, cookie: &str)
     -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte>;
+    /// Uma tela do Controle que o fluxo acabou de receber, para a colheita
+    /// do índice local (nenhuma requisição). Padrão: nada.
+    fn colher_controle(&mut self, _html: &str, _mime: Option<&str>) {}
 }
 
 /// Transporte real: os mesmos POST e GET HTTPS das demais leituras.
@@ -106,11 +109,14 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
         })
         .map_err(E::Submissao)?;
         match resposta {
-            RespostaDoEnvio::Html(html) => Ok(TelaAtual {
-                url,
-                html,
-                mime: mime.into_inner(),
-            }),
+            RespostaDoEnvio::Html(html) => {
+                let mime = mime.into_inner();
+                // Só os envios de `frmProcedimentoControlar` devolvem o Controle.
+                if operacao.acao == "procedimento_controlar" {
+                    self.envio.colher_controle(&html, Some(&mime));
+                }
+                Ok(TelaAtual { url, html, mime })
+            }
             RespostaDoEnvio::Redirecionamento(_) => Err(match redirecionado {
                 Redirecionado::AoTrocarVisao => E::RedirecionamentoAoTrocarVisao,
                 Redirecionado::AoPaginar => E::RedirecionamentoAposPaginar,

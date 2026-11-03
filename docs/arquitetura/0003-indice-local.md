@@ -165,6 +165,51 @@ sessão. O IES guarda com escopo de sessão porque:
 - o hash dentro da sessão é reutilizável e não é de uso único
   (03-infra-hash, item 3; medição de hoje na UnB, acima).
 
+### Colheita do Controle (zero requisições)
+
+Todo comando que **já** lê o Controle de Processos
+(`procedimento_controlar`) entrega cada página que leu a
+`colheita_do_controle::colher` (`src/colheita_do_controle.rs`), que
+alimenta o índice com o que a página mostra. Nenhuma requisição a mais,
+nenhuma página a mais (`--pagina N` colhe só as páginas de fato lidas) e
+nenhuma mudança na saída ou no código de saída do comando.
+
+| O que | Tabela | Chave | Vida |
+|---|---|---|---|
+| NUP ↔ id de cada linha válida | `processo` | `(origem, nup)` | durável até divergir |
+| `href` da linha (`procedimento_trabalhar`) | `link_assinado` | objeto = id | geração e unidade |
+| menu `protocolo_pesquisar` | `link_assinado` | objeto vazio | geração e unidade |
+| `action` de `frmProtocoloPesquisaRapida` | `link_assinado` (`protocolo_pesquisa_rapida`) | objeto vazio | geração e unidade |
+
+- **Leitores reaproveitados.** As linhas vêm dos mesmos leitores da caixa:
+  visão R (`tblProcessosRecebidos` e `tblProcessosGerados`, `caixa.rs`) e
+  visão D (`tblProcessosDetalhado`, `caixa_detalhada.rs`), que agora
+  devolvem também o `href` do link do número. Página que o leitor recusa
+  não alimenta nada.
+- **Conferência por linha.** O `href` decodificado tem de ser relativo
+  (`controlador.php?`) e passar por `conferir_trabalho` na forma
+  `OrigemDoTrabalho::Controle` (uma `acao=procedimento_trabalhar`,
+  `acao_origem=procedimento_controlar`, `id_procedimento` igual ao id da
+  linha, `infra_hash` de 64 hex, `infra_unidade_atual` e `infra_sistema`
+  iguais aos da URL privada do Controle, host da instalação) e depois pela
+  conferência de gravação do índice. Linha que falha é pulada (nem o par
+  NUP ↔ id é gravado); NUP repetido na página, ou id em duas linhas, pula
+  todas as linhas envolvidas. Nada disso falha o comando.
+- **Chave.** A geração é o SHA-256 do cookie em uso (`geracao_da_sessao`);
+  a unidade, o `infra_unidade_atual` da URL privada do Controle — as
+  mesmas de `ies processo NUP`. No `ies login`, a colheita roda depois
+  de gravar a sessão, com o cookie e a URL recém-gravados.
+- **Onde.** `ies login` (login novo e sessão gravada válida),
+  `ies status --verificar-controle-web`, `ies unidade atual`,
+  `ies unidade listar-processos`, `recebidos`, `gerados`,
+  `ies unidade colunas [--definir]` (GET inicial e telas do Controle
+  devolvidas pelos POSTs de visão e página), o GET do Controle do
+  passo 4 de `ies processo NUP` e o de `ies processo buscar`.
+- **Uso.** O link `procedimento_trabalhar` colhido abre o passo 1b de
+  `ies processo NUP` (2 GET até a árvore,
+  [contrato](../../contracts/cli/processo-obter-arvore.md)). O link da
+  pesquisa avançada fica guardado; nenhum comando o usa ainda.
+
 ## Privacidade
 
 O arquivo revela quais processos a pessoa acessa e guarda URLs que
@@ -219,9 +264,10 @@ ignorá-la.
 
 - A integração vem por comando: `ies processo NUP` (Refs #59, fatia 1)
   usa as três tabelas
-  ([contrato](../../contracts/cli/processo-obter-arvore.md)); login e
-  `processo buscar` ainda não.
-- O módulo não depende de `pesquisa_web`, `processo*` nem `sessao_login`.
+  ([contrato](../../contracts/cli/processo-obter-arvore.md)); os comandos
+  que leem o Controle só o alimentam (colheita, acima).
+- O módulo não depende de `pesquisa_web`, `processo*` nem `sessao_login`;
+  a colheita, que depende dos leitores, fica fora dele.
 
 ## Condições de revisão
 
@@ -229,4 +275,4 @@ ignorá-la.
   recusa (a regra de duas seguidas pode ser pouca ou demais).
 - Medição de hash de uso único ou dependente de navegação: links
   assinados deixariam de ser guardados.
-- Validação live: **NOT_RUN** nesta fatia (sem integração).
+- Validação live: integração validada nos ensaios de `processo NUP` e da colheita do Controle ([relatório](../validacao-live/2026-11-03-colheita-do-controle.md)).

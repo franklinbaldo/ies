@@ -319,4 +319,4 @@ pub(crate) mod resposta;
 // Link do menu da pesquisa no Controle e o fluxo do comando.
 pub(crate) mod erro_busca;
 pub(crate) mod fluxo;
-mod link_da_pesquisa;
+pub(crate) mod link_da_pesquisa;

@@ -58,7 +58,7 @@ fn postar_pagina<V: EnvioDoControle>(
         codificacao,
     };
     let envio = &mut *sessao.envio;
-    obter_pagina_via(
+    let pagina = obter_pagina_via(
         sessao.instalacao,
         &servida,
         sessao.unidade,
@@ -67,5 +67,10 @@ fn postar_pagina<V: EnvioDoControle>(
         sessao.cookie_file,
         |submissao, cookie| envio.post(submissao, cookie),
     )
-    .map_err(E::Pagina)
+    .map_err(E::Pagina)?;
+    if let Some(html) = &pagina {
+        // O mesmo servidor e a mesma sessão: o charset da tela de origem.
+        sessao.envio.colher_controle(html, Some(&tela.mime));
+    }
+    Ok(pagina)
 }

@@ -3,7 +3,9 @@
 //! rápida e a abertura `procedimento_trabalhar` → árvore.
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
-use crate::arvore_processo::{ArvoreLida, ErroArvore, ler_arvore, ler_tela_do_processo};
+use crate::arvore_processo::{
+    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_tela_do_processo,
+};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
@@ -22,7 +24,7 @@ use std::path::Path;
 /// `form#frmProtocoloPesquisaRapida` (`UnB`, GO, PEN1): POST para o `action`
 /// assinado, um controle `txtPesquisaRapida`, enviado pelo `onclick` da
 /// imagem (`submit()`), sem botão nem oculto. A resposta esperada é o 302.
-pub(super) const PESQUISA_RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
+pub(crate) const PESQUISA_RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "protocolo_pesquisa_rapida",
     formulario: "frmProtocoloPesquisaRapida",
     envio: EnvioDoFormulario::SubmitPorScript,
@@ -37,7 +39,7 @@ pub(super) const PESQUISA_RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-pub(super) const CAMPO: &str = "txtPesquisaRapida";
+pub(crate) const CAMPO: &str = "txtPesquisaRapida";
 
 /// O que o comando sabe antes da primeira requisição.
 pub(super) struct Contexto<'a> {
@@ -206,7 +208,20 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         };
         let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
             .map_err(E::Tela)?;
-        contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
+        self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
+    }
+
+    /// A partir da tela do processo já lida e conferida: GET da árvore (e o
+    /// de abrir as pastas, se alguma veio fechada); registra o que leu.
+    pub(super) fn abrir_da_tela(
+        &mut self,
+        contexto: &Contexto<'_>,
+        trabalho: &str,
+        (html, mime): (&str, &str),
+        tela: TelaDoProcesso,
+        id: &str,
+    ) -> Result<(ArvoreAberta, String), E> {
+        contexto.aprender_pesquisa_rapida(trabalho, html, mime, &tela.unidade);
         let html = match self.get(tela.arvore.as_str())? {
             Lida::Html { html, .. } => html,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),

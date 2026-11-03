@@ -2,8 +2,10 @@
 //! `ies unidade listar-processos` lê a visão detalhada; vinda da R, a sessão
 //! fica na D (contracts/cli/unidade-listar-processos-visao-detalhada.md).
 use crate::caixa_detalhada::LeituraDetalhada;
+use crate::colheita_do_controle::{Colheita, EnvioColhendo};
+use crate::indice_local::IndiceLocal;
 use crate::transporte::envio_post::ler_tela_do_controle;
-use crate::visao_do_controle::{self, EnvioHttps, ErroVisaoDoControle, TelaAtual};
+use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, saida};
 use serde_json::json;
 use std::path::Path;
@@ -19,6 +21,8 @@ pub(super) fn listar_processos_da_unidade(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    let colheita = Colheita::da_sessao(&indice, &arquivos);
     let tela =
         match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
             Ok(tela) => tela,
@@ -31,6 +35,7 @@ pub(super) fn listar_processos_da_unidade(
                 );
             }
         };
+    colheita.colher(&tela.html, Some(&tela.mime));
     let atual = TelaAtual {
         url: tela.url,
         html: tela.html,
@@ -42,7 +47,9 @@ pub(super) fn listar_processos_da_unidade(
         unidade,
         pagina,
         &arquivos.cookie,
-        &mut EnvioHttps,
+        &mut EnvioColhendo {
+            colheita: &colheita,
+        },
     ) {
         Ok(leitura) => mostrar_caixa_detalhada(&leitura, "web", json_mode, destino),
         Err(erro) => erro_da_visao(json_mode, &erro),
