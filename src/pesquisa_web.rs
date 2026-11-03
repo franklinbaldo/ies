@@ -19,6 +19,9 @@ pub enum ErroResultadoPesquisa {
     LinhaDePesquisaComMaisDeUmLinkDoProcesso,
     LinkDeProcessoForaDaLinhaDePesquisa,
     LinkDeProcessoSemClasseReconhecida,
+    /// `a.arvore` da linha com `href` diferente do `a.protocoloNormal`.
+    LinkDaArvoreComHrefDiferenteDoLinkDoProcesso,
+    LinhaDePesquisaComMaisDeUmLinkDaArvore,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
@@ -45,6 +48,12 @@ impl ErroResultadoPesquisa {
                 "link_de_processo_fora_da_linha_de_pesquisa"
             }
             Self::LinkDeProcessoSemClasseReconhecida => "link_de_processo_sem_classe_reconhecida",
+            Self::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso => {
+                "link_da_arvore_com_href_diferente_do_link_do_processo"
+            }
+            Self::LinhaDePesquisaComMaisDeUmLinkDaArvore => {
+                "linha_de_pesquisa_com_mais_de_um_link_da_arvore"
+            }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::LinkDePesquisaSemIdentificadorDoProcesso => {
                 "link_de_pesquisa_sem_identificador_do_processo"
@@ -243,6 +252,12 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_arvore;
+
+#[cfg(test)]
+pub(crate) mod tests_fixtures;
 
 // A declaração do formulário fica com a pesquisa, não num catálogo do primitivo
 // (docs/arquitetura/0002); `ies processo buscar` a usa pelo `fluxo`.
