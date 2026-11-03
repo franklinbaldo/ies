@@ -34,6 +34,17 @@ Capturas privadas `0600`, só para inspeção estrutural; nenhum valor real
   `<table class="pesquisaResultado">` de 10 linhas: o total usa `.` como
   separador de milhar. Não houve página com posição acima de 999, então a
   forma de `I` e `F` nessa faixa não foi vista.
+- **Lista que cabe numa página** (UnB, 03/11/2026): **200** com
+  `<div class="pesquisaBarraD">N resultados</div>`, N linhas e nenhum
+  `navegar()`; visto com 2 e 9. Com 94, a mesma tela volta a "Exibindo
+  1 - 10 de 94". Um único protocolo casado pelo número vira 302; 1
+  resultado por texto não foi visto.
+- **Termo acima do `maxlength` (ablação, UnB):** o servidor aceita e usa o
+  termo inteiro. Prefixo de 50 caracteres → lista; o mesmo prefixo + uma
+  palavra inexistente nas posições 52–57 → "sem resultado" (os termos se
+  somam: `23106 zzqqxx` curto também não acha nada); o eco do campo volta
+  com 55, 57, 60 e 200 caracteres. O limite de 50 é só do navegador. A
+  pesquisa rápida (`txtPesquisaRapida`) não publica `maxlength`.
 - **Linha.** Cada `tr.pesquisaTituloRegistro` tem um `a.arvore` (ícone) e
   um `a.protocoloNormal` com o **mesmo** `href`
   (`acao=procedimento_trabalhar&acao_origem=protocolo_pesquisar&id_procedimento=…`);

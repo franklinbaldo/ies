@@ -211,3 +211,12 @@ pub(crate) fn localizacao(id: &str) -> String {
         hash('d')
     )
 }
+
+/// Lista que cabe numa página: a barra vem como `N resultados`, sem
+/// "Exibindo" nem `navegar()` (`UnB` 4.0.9, 03/11/2026, com 2 e 9).
+pub(crate) fn resultado_numa_pagina(termo: &str, linhas: u64, barra: &str) -> String {
+    let lista = conteudo_da_lista(1, linhas, &linhas.to_string(), 10);
+    let servida = format!("Exibindo 1 - {linhas} de {linhas}");
+    assert!(lista.contains(&servida) && !lista.contains("navegar("));
+    pagina(&formulario(termo, true, &lista.replace(&servida, barra)))
+}

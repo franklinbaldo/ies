@@ -52,7 +52,8 @@ Adotar a rota Web para o comando `buscar`, mantendo a fatia offline:
 - 302 → `processo_unico` só com o `id`; o número formatado não é inventado
   (abrir o processo é #59);
 - lista → `total_declarado` e `faixa_observada` da barra "Exibindo I - F
-  de N", separador `.` só entre grupos de 3 dígitos;
+  de N" ou "N resultados" (lista numa página só), separador `.` só entre
+  grupos de 3 dígitos;
 - `sem_resultado` é saída 0 e **não** `processo_inexistente`;
 - `--pagina N` usa `PAGINAR_PESQUISA_DE_PROTOCOLO` (`SubmitPorScript`,
   `hdnInicio` reescrito) derivado da tela de resultado, depois de conferir
@@ -162,10 +163,14 @@ treinamento autorizado.
   PEN1), contado em unidades UTF-16 como no navegador; acima dele a recusa
   vem antes do POST. O valor não é presumido: sem atributo, a tela não
   limita; atributo fora de dígitos ASCII é recusa (mais estrito que o
-  navegador, que o ignoraria).
+  navegador, que o ignoraria). A
+  [ablação](../como-o-sei-funciona/pesquisa-de-protocolo.md) mostrou que o
+  servidor aceita e usa o termo acima de 50: o limite é do cliente, e a
+  regra fica por fidelidade à tela e para não gastar 3 requisições num
+  termo que nenhum NUP precisa.
 - Aviso de "sem resultado" junto com barra de contagem é resposta
   ambígua e falha fechada, como tabela com aviso.
 - Revisar se outra instalação publicar o menu em outra forma, a barra em
-  outro texto, ou se o 200 de uma linha só aparecer sem barra.
+  outro texto, ou se 1 resultado por texto vier no singular.
 - Não reutilizar esta decisão como prova de autenticação, de inexistência
   do processo ou de resultado integral.
