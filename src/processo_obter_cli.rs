@@ -1,7 +1,7 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
-//! índice local, abre o processo e publica identidade, primeiro nível da
-//! árvore e andamentos. Nunca URL, hash ou HTML.
+//! índice local, abre o processo e publica identidade, documentos e pastas
+//! da árvore e andamentos. Nunca URL, hash ou HTML.
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -82,10 +82,18 @@ pub(crate) fn json_do_processo(
                     "id_documento": d.id,
                     "rotulo": d.rotulo,
                     "numero_sei": d.numero_sei,
+                    "pasta": d.pasta,
                 })
             })
             .collect();
         objeto.insert("documentos".to_owned(), Value::Array(documentos));
+        let pastas: Vec<Value> = aberto
+            .arvore
+            .pastas
+            .iter()
+            .map(|p| json!({"id": p.id, "rotulo": p.rotulo, "total": p.total_declarado}))
+            .collect();
+        objeto.insert("pastas".to_owned(), Value::Array(pastas));
     }
     valor
 }
@@ -105,13 +113,22 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         aberto.requisicoes,
     );
     if !sem_documentos {
+        let arvore = &aberto.arvore;
         let _ = write!(
             texto,
-            "\n{} documento(s) no primeiro nível da árvore:",
-            aberto.arvore.documentos.len()
+            "\n{} documento(s) na árvore, {} pasta(s):",
+            arvore.documentos.len(),
+            arvore.pastas.len()
         );
-        for documento in &aberto.arvore.documentos {
+        for documento in &arvore.documentos {
             let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);
+            let pasta = documento
+                .pasta
+                .as_ref()
+                .and_then(|id| arvore.pastas.iter().find(|p| &p.id == id));
+            if let Some(pasta) = pasta {
+                let _ = write!(texto, " [pasta {}]", pasta.rotulo);
+            }
         }
     }
     match &aberto.andamentos {

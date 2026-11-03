@@ -26,7 +26,7 @@ pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
-pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, ler_tela_do_processo};
+pub(crate) use tela::{ErroTelaDoProcesso, ler_tela_do_processo};
 
 /// O nó `PROCESSO`: id (a1), NUP (a5, igual a a15) e tipo (a6, a dica).
 #[derive(Clone, Debug, PartialEq, Eq)]

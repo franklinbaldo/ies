@@ -1,0 +1,110 @@
+//! Pastas fechadas depois da árvore (contracts/cli/processo-obter-pastas.md):
+//! com algum `AGUARDE`, um GET de "Abrir todas as Pastas" e a releitura da
+//! árvore inteira; o link conferido é guardado no índice com objeto
+//! `<id>:abrir_pastas`, tentado primeiro no caminho 1. Nunca
+//! `FECHAR_PASTAS`, nunca restauração.
+use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_aberta};
+use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use crate::arvore_processo::{ErroArvore, ler_acao_de_abrir_pastas};
+use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao};
+
+pub(super) const ACAO: &str = "procedimento_visualizar";
+
+/// Efeito do GET de `ABRIR_PASTAS`: a ação irmã `FECHAR_PASTAS` sugere que
+/// o servidor lembra as pastas abertas (não medido pelo IES; nas cassettes
+/// da `UnB` a árvore seguinte voltou fechada). Não é escrita.
+const EFEITO_DE_ABRIR_PASTAS: EfeitoAvaliado = EfeitoAvaliado::AlteraEstadoDaSessao {
+    o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
+};
+const _: () = assert!(matches!(
+    EFEITO_DE_ABRIR_PASTAS,
+    EfeitoAvaliado::AlteraEstadoDaSessao { .. }
+));
+
+/// Objeto do link de abrir pastas no índice, distinto do da árvore (`<id>`).
+pub(super) fn objeto(id: &str) -> String {
+    format!("{id}:abrir_pastas")
+}
+
+/// A árvore já conferida, completada se tem pasta fechada. Depois da
+/// primeira árvore a identidade está provada: tudo aqui é erro, não palpite.
+pub(super) fn completar<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+    html: &str,
+    aberta: ArvoreAberta,
+) -> Result<ArvoreAberta, E> {
+    if !aberta.arvore.pastas_nao_carregadas {
+        return Ok(aberta);
+    }
+    let id = aberta.arvore.processo.id.clone();
+    let endereco = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)
+        .map_err(E::Arvore)?
+        .ok_or(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir))?;
+    let html = match rede.get(endereco.as_str())? {
+        Lida::Html { html, .. } => html,
+        Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
+        Lida::Login => return Err(E::SessaoEncerrada),
+        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+    };
+    let completa = aberta_inteira(contexto, &html, &id).map_err(E::Arvore)?;
+    contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
+    Ok(completa)
+}
+
+/// A árvore servida por "Abrir todas as Pastas": conferida e sem `AGUARDE`.
+pub(super) fn aberta_inteira(
+    contexto: &Contexto<'_>,
+    html: &str,
+    id: &str,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let completa = ler_arvore_aberta(contexto, html, id)?;
+    if completa.arvore.pastas_nao_carregadas {
+        return Err(ErroArvore::PastasNaoCarregadasAposAbrirPastas);
+    }
+    Ok(completa)
+}
+
+/// O link de abrir pastas guardado, tentado antes do link da árvore.
+pub(super) enum Guardado {
+    Aberta(ArvoreAberta),
+    /// Não havia link, ou ele envelheceu e foi esquecido: segue o da árvore.
+    Seguir,
+    /// A árvore é de outro processo: o par NUP ↔ id foi esquecido.
+    Divergiu,
+}
+
+pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+    id: &str,
+) -> Result<Guardado, E> {
+    let objeto = objeto(id);
+    let instalacao = &contexto.instalacao;
+    let Some(link) = contexto
+        .chave(ACAO, &objeto)
+        .and_then(|chave| contexto.indice.link(instalacao, chave))
+    else {
+        return Ok(Guardado::Seguir);
+    };
+    if let Lida::Html { html, .. } = rede.get(link.url())? {
+        match aberta_inteira(contexto, &html, id) {
+            Ok(aberta) => {
+                let _ = contexto
+                    .indice
+                    .registrar_processo(instalacao, contexto.nup, id);
+                contexto.aprender_link(ACAO, &objeto, link.url());
+                return Ok(Guardado::Aberta(aberta));
+            }
+            Err(erro) if erro.diverge_do_pedido() => {
+                contexto.indice.esquecer_processo(instalacao, contexto.nup);
+                contexto.esquecer_link(ACAO, &objeto);
+                return Ok(Guardado::Divergiu);
+            }
+            Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
+            Err(erro) => return Err(E::Arvore(erro)),
+        }
+    }
+    contexto.esquecer_link(ACAO, &objeto);
+    Ok(Guardado::Seguir)
+}

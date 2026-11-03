@@ -69,8 +69,10 @@ Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
 `sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
 
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`,
-os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id)
-e o `action` da pesquisa rápida do Controle e da tela do processo.
+os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id),
+o de "Abrir todas as Pastas" (objeto = `<id>:abrir_pastas`, só depois da
+árvore aberta conferida) e o `action` da pesquisa rápida do Controle e da
+tela do processo.
 
 ## Orçamento por caminho
 

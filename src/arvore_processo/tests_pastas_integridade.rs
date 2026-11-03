@@ -10,6 +10,9 @@ fn p(k: usize) -> String {
     format!("PASTA{k}")
 }
 
+/// Declarações `Pastas[k]['protocolos']` de um caso.
+type Declaradas<'a> = Vec<(usize, &'a [&'a str])>;
+
 fn ler(html: &str) -> Result<ArvoreLida, ErroArvore> {
     ler_arvore(html, NUP, ID)
 }
@@ -76,7 +79,7 @@ fn identidade_e_nao_contagem() {
 
 #[test]
 fn declaracoes_das_pastas_conferidas() {
-    let casos: Vec<(Vec<(usize, &[&str])>, E)> = vec![
+    let casos: Vec<(Declaradas, E)> = vec![
         (vec![(1, &PASTA1)], E::PastaSemProtocolosDeclarados),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (3, &["904"])],

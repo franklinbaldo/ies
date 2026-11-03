@@ -190,7 +190,8 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         }
     }
 
-    /// GET da tela do processo e GET da árvore; registra o que leu.
+    /// GET da tela do processo e GET da árvore (e o de abrir as pastas, se
+    /// alguma veio fechada); registra o que leu.
     pub(super) fn abrir(
         &mut self,
         contexto: &Contexto<'_>,
@@ -206,18 +207,20 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
             .map_err(E::Tela)?;
         contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
-        let arvore = match self.get(tela.arvore.as_str())? {
-            Lida::Html { html, .. } => ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?,
+        let html = match self.get(tela.arvore.as_str())? {
+            Lida::Html { html, .. } => html,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
+        let arvore = ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?;
         concluir(
             contexto,
             &arvore.arvore,
             Some(trabalho),
             tela.arvore.as_str(),
         );
+        let arvore = super::pastas::completar(contexto, self, &html, arvore)?;
         Ok((arvore, tela.unidade))
     }
 }
