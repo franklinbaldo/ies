@@ -244,15 +244,21 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
 #[cfg(test)]
 mod tests;
 
-// A declaração do formulário fica com a pesquisa, não num catálogo do primitivo.
-// Nenhum comando a usa nesta fatia (docs/arquitetura/0002).
-#[cfg_attr(not(test), allow(dead_code))]
+// A declaração do formulário fica com a pesquisa, não num catálogo do primitivo
+// (docs/arquitetura/0002); `ies processo buscar` a usa pelo `fluxo`.
 pub(crate) mod formulario_pesquisa;
 
 // O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
-#[cfg_attr(not(test), allow(dead_code))]
 mod redirecionamento;
 
 // Regras do `onsubmit` da pesquisa, lidas do JS servido e escritas à mão.
-#[cfg_attr(not(test), allow(dead_code))]
 mod regras_formulario;
+
+// Resposta 200 (lista com barra ou "sem resultado") e paginação `navegar()`.
+pub(crate) mod paginacao;
+pub(crate) mod resposta;
+
+// Link do menu da pesquisa no Controle e o fluxo do comando.
+pub(crate) mod erro_busca;
+pub(crate) mod fluxo;
+mod link_da_pesquisa;

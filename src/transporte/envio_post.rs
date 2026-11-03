@@ -33,7 +33,7 @@ impl std::fmt::Debug for TelaDoControle {
 
 /// O GET é injetável; URL, origem e cookie passam pelas validações do GET
 /// da caixa antes de qualquer conexão. `FnOnce`: uma única tentativa.
-pub(super) fn ler_tela_via<R: Read, F>(
+pub(crate) fn ler_tela_via<R: Read, F>(
     url: &str,
     cookie_file: &Path,
     origem_autorizada: &str,

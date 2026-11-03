@@ -91,6 +91,9 @@ pub(crate) struct OperacaoDeFormulario {
 pub(crate) enum ResultadoDoEnvio {
     /// A resposta publica o marcador da operação; sem ele, recusa.
     Marcador(MarcadorDeResultado),
+    /// A resposta publica pelo menos um destes marcadores; a operação
+    /// distingue depois qual (tabela ou aviso de "sem resultado").
+    UmDosMarcadores(&'static [MarcadorDeResultado]),
     /// Sem marcador observado: só HTML 200 sem tela de login. A operação
     /// é obrigada a conferir o efeito por leitura posterior.
     ConferidoPorLeituraPosterior,
@@ -432,6 +435,7 @@ where
                 .map_err(E::AtributoHtml)?
                 .is_empty()
         }
+        ResultadoDoEnvio::UmDosMarcadores(_) => todo!("GREEN #58: um dos marcadores"),
     };
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
