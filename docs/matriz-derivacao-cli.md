@@ -39,7 +39,7 @@ não altera o contrato público nem impede correções de segurança necessária
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
 | `ies processo NUP` | **STUB** da leitura integral; PARCIAL LOCAL/WEB em `--resumo`, `--historico-privado` e `--resultado-pesquisa-file` | NUP tipado; resumo da caixa por GET existente ou arquivo, busca e histórico em HTML privado | Resolver NUP fora da caixa, obter árvore/documentos, histórico e propriedades pela sessão autorizada; verificar identidade e efeitos | [#58](https://github.com/franklinbaldo/ies/issues/58), [#59](https://github.com/franklinbaldo/ies/issues/59) |
-| `ies processo buscar TERMO [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, Refs #58) | Pesquisa por protocolo pela sessão de `ies login`: link `protocolo_pesquisar` do Controle, GET da tela, POST derivado; 302 → `processo_unico` (só o id), lista com `total_declarado` e `faixa_observada` (separador de milhar), `sem_resultado` (saída 0); `--pagina N` por `navegar()`. Página 1: GET + GET + POST; página N: + 1 POST | Ensaio live do comando IES (UnB primeiro, depois UFRJ/GO/PEN); filtros além do protocolo; número formatado após o 302 (abrir o processo é #59) | [contrato](../contracts/cli/processo-buscar.md), [#58](https://github.com/franklinbaldo/ies/issues/58) |
+| `ies processo buscar TERMO [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, Refs #58) | Pesquisa por protocolo pela sessão de `ies login`: link `protocolo_pesquisar` do Controle, GET da tela, POST derivado; 302 → `processo_unico` (só o id), lista com `total_declarado` e `faixa_observada` (separador de milhar), `sem_resultado` (saída 0); `--pagina N` por `navegar()`. Página 1: GET + GET + POST; página N: + 1 POST | Live: PASS UnB e GO, PEN1 sem índice, UFRJ/PEN2–4 NOT_RUN; filtros além do protocolo; número formatado após o 302 (abrir o processo é #59) | [contrato](../contracts/cli/processo-buscar.md), [#58](https://github.com/franklinbaldo/ies/issues/58) |
 | `ies processo enviar NUP --para SIGLA` | **STUB** | Entrada/confirmar declarados | Prévia, autorização, destinatários, efeito e conferência pós-escrita, sem retry cego | [evidência](../contracts/evidencias/processo-enviar.md) |
 | `ies processo concluir NUP` | **STUB** | Entrada/confirmar declarados | Prévia e execução controlada, verificação independente do resultado; efeito incerto tipado | [evidência](../contracts/evidencias/processo-concluir.md) |
 | `ies documento DOC [DOC ...]` | **STUB** da obtenção Web geral; **PARCIAL LOCAL** com `--html-privado` | Identidade exata e texto capturado; exportação privada sem sobrescrever | Resolver DOC e link vigente pela árvore/pesquisa, GET autorizado com sessão vinculada, conteúdo e metadados, lote, histórico e `--versao` | [#60](https://github.com/franklinbaldo/ies/issues/60), [#88](https://github.com/franklinbaldo/ies/issues/88) |
@@ -163,7 +163,7 @@ quatro famílias; ensaio live **NOT_RUN**
 e interpreta o 302 sem segui-lo. Saídas `processo_unico`, `lista` e
 `sem_resultado`, esta última uma resposta observada, não inexistência.
 Offline com telas sintéticas modeladas na UnB 4.0.9 (03/11/2026); ensaio
-live do comando IES **NOT_RUN** ([decisão](decisoes/processo-buscar.md)).
+live do comando IES: PASS na UnB e em GO ([relatório](validacao-live/2026-11-03-processo-buscar.md)).
 
 **Critério de contagem:** 18 caminhos operacionais (o 18º é `ies login`, PENDENTE PR), desconsiderando
 `ies processo`, `ies documento` e `ies unidade` isolados, que mostram

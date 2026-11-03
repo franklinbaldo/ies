@@ -72,7 +72,8 @@ nunca versionadas. Observado: 302 para NUP exato, 200 com
 `pesquisaSemResultado` para inexistente, 200 com barra "Exibindo 1 - 10 de
 N.NNN" e tabela para parcial ([observação](../../docs/como-o-sei-funciona/pesquisa-de-protocolo.md)).
 As telas sintéticas dos testes reproduzem só essa estrutura. O comando IES
-ainda não rodou live (**NOT_RUN**).
+rodou live em 03/11/2026: PASS na UnB e em GO; a PEN1 responde
+`sem_resultado` até para NUP da unidade ([relatório live](../../docs/validacao-live/2026-11-03-processo-buscar.md)).
 
 ## Limite da evidência
 

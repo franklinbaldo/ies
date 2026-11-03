@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: pesquisa por protocolo pela sessão de ies login (página observada ou --pagina N) e seleção exata de NUP em resposta capturada
 selected_strategy: web-post-authorized
 alternatives: web-post-authorized,web-captured-offline,rest-wssei,soap-official
-evidence_level: ensaio-estrutural-unb-4.0.9-e-telas-sinteticas
-live_validation: nao-realizada-pelo-comando
+evidence_level: ensaio-live-unb-go-pen1
+live_validation: pass-unb-go-pen1-sem-indice
 ---
 
 # Decisão de implementação de processo.buscar
@@ -150,13 +150,13 @@ treinamento autorizado.
 
 ## Limitações e revisão
 
-- Ensaio live **do comando IES**: NOT_RUN (o proprietário roda na UnB a
-  seguir). UFRJ, GO e PEN: NOT_RUN; a derivação passou nos formulários
-  das cassettes, mas o POST só foi aceito na UnB.
-- A resposta de `--pagina N` não foi capturada: a conferência (mesmo
-  total, faixa `inicio + 1 … min(inicio + tamanho, N)`) é inferência da
-  regra servida; posições acima de 999 na barra não foram vistas e exigem o
-  mesmo separador (falha fechada se vierem sem ele).
+- Ensaio live **do comando IES** (03/11/2026,
+  [relatório](../validacao-live/2026-11-03-processo-buscar.md)): PASS na
+  UnB e em GO nos cinco casos; a PEN1 responde `sem_resultado` até para
+  NUP da própria unidade (resposta do servidor, reproduzida fora do IES).
+  UFRJ e PEN2–4: NOT_RUN.
+- A página N e a barra acima de 999 (`3.441`, `15.835`) foram vistas ao
+  vivo; uma barra sem separador continua falhando fechada.
 - Não há filtros além do protocolo; o termo não é limitado pelo `maxlength`
   servido (50), que o navegador aplicaria.
 - Revisar se outra instalação publicar o menu em outra forma, a barra em
