@@ -1,0 +1,140 @@
+---
+type: Contract
+title: Andamentos do processo pela árvore
+description: ies processo NUP lê o histórico pelo link assinado da árvore, na visão servida ou completa, sem alegar completude além do lido
+---
+
+# Andamentos de `ies processo NUP` (Refs #59, fatia 2)
+
+Complementa o [contrato da árvore](processo-obter-arvore.md). Depois da
+árvore conferida, o comando lê o histórico do processo. Estrutura em
+[histórico do processo](../../docs/como-o-sei-funciona/historico-do-processo.md);
+decisão em [processo.obter](../../docs/decisoes/processo-obter.md).
+
+## Link do histórico
+
+A árvore publica o link assinado num `div#divConsultarAndamento`, numa de
+duas formas, lidas por forma exata de texto (atributos pelo tokenizador
+de `html_atributos`; sem regex, sem executar JavaScript):
+
+- `onclick="consultarAndamento();"` e, no `script`, a linha
+  `function consultarAndamento(){` seguida de
+  `parent.document.getElementById('ifrVisualizacao').src = '<URL>';`
+  (UnB 4.0.9);
+- `onclick="consultarAndamento('<URL>');"` (GO 5.0.3).
+
+A URL tem de ser relativa (`controlador.php?`), com uma
+`acao=procedimento_consultar_historico`, `id_procedimento` igual ao da
+árvore e um `infra_hash` de 64 hex, chaves canônicas (a mesma regra do
+`src` de `ifrArvore`); é resolvida contra a instalação. As duas formas
+juntas ou repetidas são `links_do_historico_repetidos_na_arvore`; um
+`onclick` ou uma função fora dessas formas,
+`link_do_historico_fora_da_forma_observada`.
+
+**Link não publicado.** Em GO, duas árvores não publicaram o link em
+nenhuma forma. Isso não derruba o comando: a árvore já provou a
+identidade. Sai `"andamentos": null`, `"andamentos"` continua em
+`nao_lidos` e `"andamentos_nao_lidos_motivo":
+"link_do_historico_nao_publicado_na_arvore"`. Link presente mas inválido
+ou repetido continua recusa tipada.
+
+## Visões e requisições
+
+- **Padrão**: 1 GET do link. Publica a visão que a página serviu, lida de
+  `hdnTipoHistorico` no `form#frmProcedimentoHistorico` (`R` →
+  `"resumido"`, `P` → `"completo"`; outro valor, ausente ou repetido é
+  `tipo_do_historico_nao_publicado`). Normalmente `R`.
+- **`--andamentos-completos`**: o GET e, se ele serviu `R`, o POST de
+  `verHistorico('P')`: as três linhas servidas da função
+  (`function verHistorico(valor){`,
+  `document.getElementById('hdnTipoHistorico').value = valor;`,
+  `document.getElementById('frmProcedimentoHistorico').submit();`) e o
+  único `a#ancTipoHistorico` com `onclick="verHistorico('P');"` são
+  conferidos literalmente antes de derivar
+  (`regra_de_ver_historico_nao_observada`). O POST vai para o `action`
+  assinado com os ocultos como servidos, só `hdnTipoHistorico=P`
+  reescrito, sem botão (`btnAtualizarAndamento`, escrita, é `type=button`
+  e nunca participa). Só a visão `P` é publicada; resposta `R` é
+  `visao_do_historico_diferente_da_pedida`. Se o GET já serviu `P`, não
+  há POST.
+- **`--sem-andamentos`**: nenhum pedido ao histórico; a chave
+  `andamentos` some, `"andamentos"` fica em `nao_lidos` e o motivo é
+  `"omitidos_por_sem_andamentos"`. Com `--andamentos-completos` sai 2
+  (`sem_andamentos_incompativel_com_andamentos_completos`).
+
+## Índice local
+
+O link lido com sucesso é guardado (`acao`
+`procedimento_consultar_historico`, objeto = id). No **caminho 1** (árvore
+pelo link guardado) o link guardado do histórico é tentado primeiro;
+login, redirect ou página de outro NUP o apagam, e o link da árvore
+recém-lida é usado. Status de falha (por exemplo 503) não é palpite: é
+erro de transporte, sem nova tentativa. Nos caminhos 2–4 usa-se o link da
+árvore recém-lida.
+
+## Orçamento
+
+| Caminho | Padrão | `--andamentos-completos` | `--sem-andamentos` |
+| --- | --- | --- | --- |
+| 1. link da árvore, histórico guardado | 2 | 3 | 1 |
+| 1. guardado que falha por palpite | 3 | 4 | 1 |
+| 2. entrada por id | 4 | 5 | 3 |
+| 3. pesquisa rápida guardada | 4 | 5 | 3 |
+| 4a. linha do Controle | 4 | 5 | 3 |
+| 4b. pesquisa rápida do Controle | 5 | 6 | 4 |
+
+Sem link na árvore (e sem guardado), o histórico custa 0; se o GET já
+servir `P`, o completo custa o mesmo que o padrão.
+
+## Contagem e completude
+
+A legenda da tabela é `Lista de Andamentos (N registro):` ou
+`(N registros):`; outra forma (inclusive uma com faixa de paginação) é
+`legenda_dos_andamentos_fora_da_forma_observada`, ausente é
+`legenda_dos_andamentos_ausente`. Linhas além de N são
+`andamentos_alem_do_total_declarado`. Linhas aquém de N saem com
+`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`:
+o IES nunca alega completude além do lido. Nenhum paginador foi visto
+até 75 linhas (GO); históricos maiores: **NOT_RUN**.
+
+## Saída
+
+```json
+"andamentos": {"tipo": "resumido", "total_declarado": 3,
+  "faixa_observada": {"inicio": 1, "fim": 3},
+  "itens": [{"ocorrido_em": "dd/mm/aaaa hh:mm", "unidade": "SIGLA",
+             "usuario": "sigla ou null", "descricao": "texto"}]}
+```
+
+`tipo` é o nome da visão do SEI ("Ver histórico completo"), não uma
+alegação de completude. Itens na ordem servida, sem id inventado. O motivo
+fica numa chave irmã, e não dentro do objeto, para que `andamentos` seja
+sempre o objeto inteiro ou `null` ("não observado").
+
+## Efeitos
+
+O GET do histórico é leitura (lançamento de andamento: não medido). O
+POST `P` é declarado `PaginaOuFiltroLembrado`: não foi medido se o
+servidor lembra a visão na sessão. O IES não restaura a visão.
+
+## Falhas (saída 1)
+
+Link: `link_do_historico_fora_da_forma_observada`,
+`links_do_historico_repetidos_na_arvore`,
+`endereco_do_historico_nao_reconhecido`,
+`endereco_do_historico_de_outro_processo`,
+`html_da_arvore_nao_interpretado`.
+
+Página: os do leitor de `--historico-privado` (`titulo_ausente`,
+`numero_do_historico_diferente_do_solicitado`, `historico_ausente`,
+`tabelas_do_historico_repetidas`, `linha_invalida`, `historico_vazio`…),
+`legenda_dos_andamentos_ausente`,
+`legenda_dos_andamentos_fora_da_forma_observada`,
+`andamentos_alem_do_total_declarado`, `tipo_do_historico_nao_publicado`,
+`charset_do_historico_nao_suportado`.
+
+Visão completa: `regra_de_ver_historico_nao_observada`,
+`visao_do_historico_diferente_da_pedida` e os do primitivo de formulário.
+Login (200 ou 302) fora de palpite é `sessao_encerrada_rode_ies_login`;
+status HTTP de falha (503 do gateway visto em GO) sai com o erro de
+transporte e `status_http`, sem retry.

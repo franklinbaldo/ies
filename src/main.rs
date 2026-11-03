@@ -27,6 +27,7 @@ mod filtro_andamentos;
 mod formulario_web;
 mod historico;
 mod historico_cli;
+mod historico_processo;
 mod html_atributos;
 #[allow(dead_code)] // Índice local (ADR 0003); a integração vem depois.
 mod indice_local;

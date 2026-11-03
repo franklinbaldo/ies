@@ -2,7 +2,6 @@
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// URL absoluta da árvore, assinada: `Debug` redigido, sem `Display`.
 #[derive(Clone, PartialEq, Eq)]
@@ -100,49 +99,20 @@ pub(crate) fn ler_tela_do_processo(
     })
 }
 
-/// `controlador.php?…` relativo (a forma servida), com uma
-/// `acao=procedimento_visualizar`, um `id_procedimento` igual ao aberto e um
-/// `infra_hash` de 64 hex, chaves canônicas. Resolvido contra a instalação.
+/// O `src` da árvore: `acao=procedimento_visualizar`, conferido pela regra
+/// comum de [`super::endereco`].
 fn conferir_endereco(
     instalacao: &Instalacao,
     src: &str,
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroTelaDoProcesso> {
-    use ErroTelaDoProcesso as E;
-    let consulta = src
-        .strip_prefix("controlador.php?")
-        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
-    if src.len() > 8_192
-        || !src.bytes().all(|b| (33..=126).contains(&b))
-        || src.contains(['#', '\\'])
-    {
-        return Err(E::EnderecoDaArvoreNaoReconhecido);
-    }
-    let (mut acoes, mut hashes, mut ids) = (0, 0, Vec::new());
-    for par in consulta.split('&') {
-        let (nome, valor) = par
-            .split_once('=')
-            .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
-        if conferir_chave_de_consulta(nome).is_err() || conferir_valor_de_consulta(valor).is_err() {
-            return Err(E::EnderecoDaArvoreNaoReconhecido);
-        }
-        match nome {
-            "acao" if valor == "procedimento_visualizar" => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
+    use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+    conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
+        .map(EnderecoDaArvore)
+        .map_err(|recusa| match recusa {
+            EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroTelaDoProcesso::EnderecoDaArvoreDeOutroProcesso
             }
-            "acao" | "acao_ajax" | "infra_hash" => return Err(E::EnderecoDaArvoreNaoReconhecido),
-            "id_procedimento" => ids.push(valor),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 {
-        return Err(E::EnderecoDaArvoreNaoReconhecido);
-    }
-    match ids.as_slice() {
-        [unico] if *unico == id => {}
-        [_] => return Err(E::EnderecoDaArvoreDeOutroProcesso),
-        _ => return Err(E::EnderecoDaArvoreNaoReconhecido),
-    }
-    Ok(EnderecoDaArvore(format!("{}/{src}", instalacao.url_base())))
+        })
 }

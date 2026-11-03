@@ -76,6 +76,7 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         arvore,
         unidade,
         resolvido_por,
+        andamentos: super::Andamentos::Omitidos,
         requisicoes: rede.requisicoes,
     })
 }

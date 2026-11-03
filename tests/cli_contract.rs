@@ -80,16 +80,33 @@ fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
 }
 
 #[test]
-fn leitura_pela_arvore_recusa_andamentos_completos_antes_da_sessao() {
+fn leitura_pela_arvore_aceita_andamentos_completos_e_le_a_sessao() {
     let output = ies_sem_sessao(&[
         "processo",
         "0064.001060/2023-08",
         "--andamentos-completos",
         "--json",
     ]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+#[test]
+fn sem_andamentos_e_andamentos_completos_sao_incompativeis() {
+    let output = ies_sem_sessao(&[
+        "processo",
+        "0064.001060/2023-08",
+        "--sem-andamentos",
+        "--andamentos-completos",
+        "--json",
+    ]);
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "andamentos_completos_nao_implementados");
+    assert_eq!(
+        value["subcodigo"],
+        "sem_andamentos_incompativel_com_andamentos_completos"
+    );
 }
 
 #[test]

@@ -119,6 +119,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     let pedido = PedidoDoProcesso {
         nup,
         unidade: cli.unidade.as_deref(),
+        andamentos: crate::processo_obter::PedidoDeAndamentos::Omitidos,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {

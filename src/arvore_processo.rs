@@ -4,6 +4,7 @@
 //! Estrutura em docs/como-o-sei-funciona/arvore-do-processo.md; contrato em
 //! contracts/cli/processo-obter-arvore.md. Nesta fatia: `PROCESSO` e
 //! `DOCUMENTO` do primeiro nível; `PASTA` e qualquer outro tipo são recusa.
+pub(crate) mod endereco;
 mod literais;
 mod tela;
 
