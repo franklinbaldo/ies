@@ -6,6 +6,11 @@ use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_tela::{src_da_arvore, tela_do_processo};
 use crate::formulario_web::SubmissaoDerivada;
+pub(super) use crate::historico_processo::tests_apoio::corpo_ver_completo;
+use crate::historico_processo::tests_apoio::{
+    HASH_HISTORICO, action_do_historico, com_link, forma_go, forma_unb, link_do_historico,
+    pagina_do_historico,
+};
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
 use crate::transporte::RespostaWeb;
@@ -130,6 +135,37 @@ pub(super) fn arvore_de(id: &str, nup: &str) -> String {
     ])
 }
 
+/// Árvore com o link do histórico na forma de GO (`onclick` com a URL).
+pub(super) fn arvore_com_historico(id: &str, nup: &str) -> String {
+    com_link(&arvore_de(id, nup), &[forma_go(&link_do_historico(id))])
+}
+
+/// Árvore com o link do histórico na forma da `UnB` (função servida).
+pub(super) fn arvore_com_historico_unb(id: &str, nup: &str) -> String {
+    com_link(&arvore_de(id, nup), &[forma_unb(&link_do_historico(id))])
+}
+
+/// URL absoluta do histórico publicada pela árvore sintética.
+pub(super) fn url_historico(id: &str) -> String {
+    absoluta(&link_do_historico(id))
+}
+
+/// Outro link assinado do mesmo histórico (o guardado numa execução
+/// anterior), para distinguir nos pedidos qual foi usado.
+pub(super) fn url_historico_guardada(id: &str) -> String {
+    url_historico(id).replace(HASH_HISTORICO, &hash('7'))
+}
+
+/// `action` absoluto do `form#frmProcedimentoHistorico` sintético.
+pub(super) fn url_post_historico(id: &str) -> String {
+    absoluta(&action_do_historico(id))
+}
+
+/// Página do histórico do NUP padrão, visão `tipo`, legenda `total`.
+pub(super) fn historico(tipo: char, total: u64, linhas: usize) -> String {
+    pagina_do_historico(NUP, ID, tipo, total, linhas)
+}
+
 /// Uma requisição vista pelo transporte.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Pedido {
@@ -185,12 +221,17 @@ impl Roteiro {
             .respostas
             .pop_front()
             .expect("requisição além do roteiro");
+        // Servido em iso-8859-1, como o MIME declara.
+        let corpo: Vec<u8> = html
+            .chars()
+            .map(|c| u8::try_from(c).unwrap_or(b'?'))
+            .collect();
         RespostaDoPost {
             resposta: RespostaWeb {
                 status_code,
                 mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: Some(html.len()),
-                corpo: Cursor::new(html.into_bytes()),
+                content_length: Some(corpo.len()),
+                corpo: Cursor::new(corpo),
             },
             localizacao,
         }
@@ -280,10 +321,20 @@ pub(super) fn chave<'a>(geracao: &'a str, acao: &'a str, objeto: &'a str) -> Cha
     }
 }
 
-/// Roda o fluxo com `respostas`; devolve o resultado e os pedidos feitos.
+/// Roda o fluxo sem andamentos (fatia 1) com `respostas`.
 pub(super) fn rodar(
     amb: &Ambiente,
     unidade: Option<&str>,
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
+    rodar_com(amb, unidade, PedidoDeAndamentos::Omitidos, respostas)
+}
+
+/// Roda o fluxo com `respostas`; devolve o resultado e os pedidos feitos.
+pub(super) fn rodar_com(
+    amb: &Ambiente,
+    unidade: Option<&str>,
+    andamentos: PedidoDeAndamentos,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
     let url = url_controle();
@@ -293,7 +344,11 @@ pub(super) fn rodar(
         cookie_file: &amb.cookie,
     };
     let nup = NumeroProcesso::novo(NUP).unwrap();
-    let pedido = PedidoDoProcesso { nup: &nup, unidade };
+    let pedido = PedidoDoProcesso {
+        nup: &nup,
+        unidade,
+        andamentos,
+    };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);
     assert!(roteiro.respostas.is_empty(), "respostas não consumidas");

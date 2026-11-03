@@ -1,14 +1,16 @@
 //! Os quatro passos da resolução (contracts/cli/processo-obter-arvore.md).
 //! Um passo é tentado só se o anterior não se aplica ou falhou por palpite
 //! do índice; o palpite errado é esquecido e o comando segue.
-use super::abertura::{CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede, concluir};
+use super::abertura::{
+    ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede, concluir, ler_arvore_aberta,
+};
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{ArvoreLida, ErroArvore, ler_arvore};
+use crate::arvore_processo::ErroArvore;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
@@ -23,7 +25,7 @@ use crate::pesquisa_web::redirecionamento::{
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
-type Passo = Result<Option<(ArvoreLida, Option<String>, ResolvidoPor)>, E>;
+type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
 
 /// `infra_unidade_atual` único e decimal na URL privada do Controle.
 fn unidade_da_url(url: &str) -> Option<String> {
@@ -71,11 +73,22 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
             },
         },
     };
-    let (arvore, unidade, resolvido_por) = aberto;
+    let (arvore_lida, unidade, resolvido_por) = aberto;
+    let andamentos = super::andamentos::ler(
+        &contexto,
+        &mut rede,
+        &arvore_lida,
+        &super::andamentos::Leitura {
+            pedido: pedido.andamentos,
+            guardado_primeiro: resolvido_por == ResolvidoPor::IndiceLink,
+            unidade: unidade.as_deref(),
+        },
+    )?;
     Ok(ProcessoAberto {
-        arvore,
+        arvore: arvore_lida.arvore,
         unidade,
         resolvido_por,
+        andamentos,
         requisicoes: rede.requisicoes,
     })
 }
@@ -98,10 +111,10 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
         return Ok(None);
     };
     if let Lida::Html { html, .. } = rede.get(link.url())? {
-        match ler_arvore(&html, contexto.nup, &id) {
-            Ok(arvore) => {
-                concluir(contexto, &arvore, None, link.url());
-                return Ok(Some((arvore, None, ResolvidoPor::IndiceLink)));
+        match ler_arvore_aberta(contexto, &html, &id) {
+            Ok(aberta) => {
+                concluir(contexto, &aberta.arvore, None, link.url());
+                return Ok(Some((aberta, None, ResolvidoPor::IndiceLink)));
             }
             Err(erro) if erro.diverge_do_pedido() => {
                 contexto.indice.esquecer_processo(instalacao, contexto.nup);
@@ -220,7 +233,7 @@ fn pelo_controle<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
-) -> Result<(ArvoreLida, Option<String>, ResolvidoPor), E> {
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
     let busca = SessaoDaBusca {
         url_do_controle: sessao.url_do_controle,
         origem: sessao.origem,

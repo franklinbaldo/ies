@@ -3,12 +3,13 @@
 //! rápida e a abertura `procedimento_trabalhar` → árvore.
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
-use crate::arvore_processo::{ArvoreLida, ler_arvore, ler_tela_do_processo};
+use crate::arvore_processo::{ArvoreLida, ErroArvore, ler_arvore, ler_tela_do_processo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
     TelaServida, derivar_submissao, enviar_submissao_via,
 };
+use crate::historico_processo::{EnderecoDoHistorico, ErroLinkDoHistorico, ler_link_do_historico};
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -101,6 +102,23 @@ impl Contexto<'_> {
     }
 }
 
+/// A árvore conferida e o link do histórico lido da mesma página (a falha
+/// do link só pesa se os andamentos forem pedidos).
+pub(super) struct ArvoreAberta {
+    pub(super) arvore: ArvoreLida,
+    pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
+}
+
+pub(super) fn ler_arvore_aberta(
+    contexto: &Contexto<'_>,
+    html: &str,
+    id: &str,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let arvore = ler_arvore(html, contexto.nup, id)?;
+    let historico = ler_link_do_historico(&contexto.instalacao, html, id);
+    Ok(ArvoreAberta { arvore, historico })
+}
+
 /// Cookie lido uma vez e as requisições feitas (inclusive as que falharam).
 pub(super) struct Rede<'v, V> {
     pub(super) envio: &'v mut V,
@@ -178,7 +196,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         trabalho: &str,
         id: &str,
-    ) -> Result<(ArvoreLida, String), E> {
+    ) -> Result<(ArvoreAberta, String), E> {
         let (html, mime) = match self.get(trabalho)? {
             Lida::Html { html, mime } => (html, mime),
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
@@ -189,12 +207,17 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             .map_err(E::Tela)?;
         contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
         let arvore = match self.get(tela.arvore.as_str())? {
-            Lida::Html { html, .. } => ler_arvore(&html, contexto.nup, id).map_err(E::Arvore)?,
+            Lida::Html { html, .. } => ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        concluir(contexto, &arvore, Some(trabalho), tela.arvore.as_str());
+        concluir(
+            contexto,
+            &arvore.arvore,
+            Some(trabalho),
+            tela.arvore.as_str(),
+        );
         Ok((arvore, tela.unidade))
     }
 }

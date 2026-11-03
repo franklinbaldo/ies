@@ -1,16 +1,18 @@
 ---
 type: Contract
 title: Abrir processo pela árvore
-description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore e aprende no índice local
+description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore e os andamentos e aprende no índice local
 ---
 
-# `ies processo NUP` pela árvore (Refs #59, fatia 1)
+# `ies processo NUP` pela árvore (Refs #59, fatias 1 e 2)
 
 Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
-`--resumo`, `ies processo NUP [--sem-documentos] [--json] [--unidade SIGLA]`
-usa a sessão de `ies login`, abre o processo e publica a identidade e os
-documentos do **primeiro nível** da árvore. Andamentos, marcadores e
-propriedades não são lidos nesta fatia. `--resumo` não muda.
+`--resumo`, `ies processo NUP [--sem-documentos] [--sem-andamentos |
+--andamentos-completos] [--json] [--unidade SIGLA]` usa a sessão de
+`ies login`, abre o processo e publica a identidade, os documentos do
+**primeiro nível** da árvore e os andamentos
+([seção própria](processo-obter-andamentos.md)). Marcadores e
+propriedades não são lidos. `--resumo` não muda.
 
 ## Resolução (ordem aprovada pelo proprietário)
 
@@ -72,13 +74,17 @@ e o `action` da pesquisa rápida do Controle e da tela do processo.
 
 ## Orçamento por caminho
 
-| Caminho | Requisições |
+| Caminho | Requisições (até a árvore) |
 | --- | --- |
 | 1. link da árvore | 1 GET |
 | 2. entrada por id | 3 GET |
 | 3. pesquisa rápida guardada | 1 POST + 2 GET |
 | 4a. linha do Controle | 3 GET |
 | 4b. pesquisa rápida do Controle | 3 GET + 1 POST |
+
+Os andamentos somam 1 GET (padrão) ou 1 GET + 1 POST
+(`--andamentos-completos`), e nada com `--sem-andamentos` ou sem link
+publicado na árvore ([orçamento](processo-obter-andamentos.md)).
 
 Um palpite que falha soma suas requisições às do passo seguinte
 (`requisicoes` publica o total). Sem retry, sem redirect seguido pelo
@@ -111,18 +117,24 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 ```json
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
  "unidade": "SIGLA ou null", "resolvido_por": "caixa",
- "requisicoes": 3,
+ "requisicoes": 4,
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null"}],
- "nao_lidos": ["andamentos", "marcadores", "propriedades"]}
+ "andamentos": {"tipo": "resumido", "total_declarado": 3,
+                "faixa_observada": {"inicio": 1, "fim": 3},
+                "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
+ "nao_lidos": ["marcadores", "propriedades"]}
 ```
+
+As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
+[andamentos](processo-obter-andamentos.md).
 
 `documentos` segue a ordem dos nós e não afirma completude além do
 primeiro nível servido. A dica dos documentos (a6) **não** é publicada:
 em e-mails traz remetente e destinatários. `--sem-documentos` tira a
 chave `documentos` (a árvore continua lida: é ela que prova a identidade).
-`--sem-marcadores`, `--sem-andamentos` e `--sem-propriedades` são aceitos
-sem efeito. `--andamentos-completos` sai com 2
-(`andamentos_completos_nao_implementados`).
+`--sem-marcadores` e `--sem-propriedades` são aceitos sem efeito.
+`--sem-andamentos` com `--andamentos-completos` sai com 2
+(`sem_andamentos_incompativel_com_andamentos_completos`).
 
 ## Falhas (saída 1)
 
@@ -159,5 +171,8 @@ Tela: `arvore_ausente_na_tela_do_processo`,
 `identidade_do_processo_diferente_da_pedida`,
 `id_do_processo_na_arvore_diferente_do_aberto`.
 
-Validação live: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
+Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
+
+Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
+Fatia 2 (andamentos): **NOT_RUN** pelo IES até a validação do agente pai.
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

@@ -1,0 +1,78 @@
+//! RED/GREEN da página de bloqueio de segurança da instalação: 403 com a
+//! estrutura observada em GO (título e frase), página SINTÉTICA (contato,
+//! código e textos de apoio inventados). 403 genérico não muda.
+use super::bloqueio_de_seguranca::e_bloqueio_de_seguranca;
+use super::*;
+use std::io::Cursor;
+
+const BLOQUEIO: &str = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Acesso Negado</title>\
+    <style>body{font-family:sans-serif}</style></head><body><div class=\"caixa\">\
+    <h1>Acesso Negado</h1><p>Sua requisição foi bloqueada por nossa política de segurança. \
+    Maiores detalhes sobre este bloqueio e sua possível liberação poderão ser solicitados através do \
+    e-mail <a href=\"mailto:seguranca@exemplo.gov.br\">seguranca@exemplo.gov.br</a> informando o \
+    endereço acessado e código de bloqueio a seguir:</p><p><b>0000000000000-SINTETICO</b></p>\
+    </div></body></html>";
+
+fn resposta(status_code: i32, mime: &str, corpo: &str) -> RespostaWeb<Cursor<Vec<u8>>> {
+    RespostaWeb {
+        status_code,
+        mime: mime.to_owned(),
+        content_length: Some(corpo.len()),
+        corpo: Cursor::new(corpo.as_bytes().to_vec()),
+    }
+}
+
+#[test]
+fn reconhece_a_pagina_pelo_titulo_e_pela_frase_visivel() {
+    assert!(e_bloqueio_de_seguranca(BLOQUEIO));
+    let com_entidades = BLOQUEIO
+        .replace("requisição", "requisi&ccedil;&atilde;o")
+        .replace("política", "pol&iacute;tica")
+        .replace("bloqueada por nossa", "bloqueada\n   por   nossa");
+    assert!(e_bloqueio_de_seguranca(&com_entidades));
+}
+
+#[test]
+fn outro_titulo_frase_ausente_ou_frase_fora_do_texto_visivel_nao_e_bloqueio() {
+    assert!(!e_bloqueio_de_seguranca(&BLOQUEIO.replace(
+        "<title>Acesso Negado</title>",
+        "<title>SEI - Erro</title>"
+    )));
+    assert!(!e_bloqueio_de_seguranca(
+        &BLOQUEIO.replace("bloqueada por nossa política de segurança", "negada")
+    ));
+    let em_script = "<html><head><title>Acesso Negado</title></head><body>\
+        <script>var t='bloqueada por nossa política de segurança';</script><p>Negado.</p></body></html>";
+    assert!(!e_bloqueio_de_seguranca(em_script));
+}
+
+#[test]
+fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
+    let falha =
+        decodificar_resposta(resposta(403, "text/html; charset=utf-8", BLOQUEIO)).unwrap_err();
+    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
+    let http = falha.status_http().unwrap();
+    assert_eq!(http.status, 403);
+    let mensagem = http.mensagem_do_servidor.as_deref().unwrap();
+    assert!(
+        mensagem.contains("bloqueada por nossa política de segurança"),
+        "{mensagem}"
+    );
+    assert!(mensagem.contains("0000000000000-SINTETICO"), "{mensagem}");
+    assert!(!mensagem.contains("mailto:"), "{mensagem}");
+}
+
+#[test]
+fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
+    let generico = decodificar_resposta(resposta(
+        403,
+        "text/html",
+        "<html><head><title>Forbidden</title></head><body>Forbidden</body></html>",
+    ))
+    .unwrap_err();
+    assert_eq!(generico.subcodigo(), "sessao_nao_autorizada");
+    let nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
+    assert_eq!(nao_autorizado.subcodigo(), "sessao_nao_autorizada");
+    let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
+    assert_eq!(texto.subcodigo(), "sessao_nao_autorizada");
+}

@@ -2,6 +2,7 @@
 //! verificável, com subcódigo estável (contracts/cli/processo-obter-arvore.md).
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -33,6 +34,12 @@ pub(crate) enum ErroProcessoObter {
     Formulario(ErroSubmissaoFormulario),
     Tela(ErroTelaDoProcesso),
     Arvore(ErroArvore),
+    /// O link do histórico na árvore (só quando os andamentos são lidos).
+    LinkDoHistorico(ErroLinkDoHistorico),
+    /// A página do histórico ou a troca de visão.
+    Andamentos(ErroAndamentos),
+    /// Derivação ou envio do formulário `verHistorico('P')`.
+    FormularioDoHistorico(ErroSubmissaoFormulario),
 }
 
 impl ErroProcessoObter {
@@ -54,9 +61,11 @@ impl ErroProcessoObter {
                 "link_do_processo_no_controle_nao_reconhecido"
             }
             Self::CharsetDoControleNaoSuportado => "charset_do_controle_nao_suportado",
-            Self::Formulario(erro) => erro.subcodigo(),
+            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.subcodigo(),
             Self::Tela(erro) => erro.subcodigo(),
             Self::Arvore(erro) => erro.subcodigo(),
+            Self::LinkDoHistorico(erro) => erro.subcodigo(),
+            Self::Andamentos(erro) => erro.subcodigo(),
         }
     }
 
@@ -92,6 +101,18 @@ impl ErroProcessoObter {
                 "o processo aberto não tem o número pedido"
             }
             Self::Arvore(_) => "a árvore do processo não foi reconhecida",
+            Self::LinkDoHistorico(_) => "o link do histórico na árvore não foi reconhecido",
+            Self::Andamentos(ErroAndamentos::Historico(_)) => {
+                "a página do histórico não foi reconhecida"
+            }
+            Self::Andamentos(ErroAndamentos::AndamentosAlemDoTotalDeclarado) => {
+                "o histórico mostrou mais andamentos que o total declarado"
+            }
+            Self::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida) => {
+                "o SEI não serviu a visão completa do histórico"
+            }
+            Self::Andamentos(_) => "o histórico não foi servido na forma observada",
+            Self::FormularioDoHistorico(_) => "o histórico completo não foi pedido como observado",
         }
     }
 
@@ -103,7 +124,7 @@ impl ErroProcessoObter {
             Self::RespostaDaEntradaPorIdNaoReconhecida(status)
             | Self::PesquisaRapidaSemUrlDeTrabalho(status)
             | Self::RedirecionamentoNaoReconhecido(status) => Some(status),
-            Self::Formulario(erro) => erro.status_http(),
+            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.status_http(),
             _ => None,
         }
     }

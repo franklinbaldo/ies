@@ -1,0 +1,95 @@
+//! A página `procedimento_consultar_historico`: as linhas pelo leitor de
+//! `--historico-privado`, a legenda `Lista de Andamentos (N registro):` ou
+//! `(N registros):` da `table#tblHistorico` e a visão servida em
+//! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
+use super::{AndamentosLidos, ErroAndamentos as E, TipoDoHistorico};
+use crate::formulario_web::{decodificar_atributo, localizar_formulario};
+use crate::historico::ler_historico;
+use crate::html_atributos::{nos_com_id, valor_do_atributo};
+
+/// Lê a página e confere o NUP do título com o pedido.
+pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E> {
+    let detalhe = ler_historico(html, nup).map_err(E::Historico)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::LegendaDosAndamentosAusente)?;
+    let total_declarado = legenda(&dom)?;
+    let tipo = tipo_servido(&dom)?;
+    if detalhe.andamentos.len() as u64 > total_declarado {
+        return Err(E::AndamentosAlemDoTotalDeclarado);
+    }
+    Ok(AndamentosLidos {
+        tipo,
+        total_declarado,
+        itens: detalhe.andamentos,
+    })
+}
+
+/// A única `caption` da tabela (já conferida única pelo leitor das linhas).
+fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
+    let parser = dom.parser();
+    let tabela = nos_com_id(dom, "tblHistorico")
+        .ok()
+        .and_then(|nos| nos.first().copied())
+        .and_then(|no| no.get(parser))
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::LegendaDosAndamentosAusente)?;
+    let legendas: Vec<String> = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten()
+        .filter_map(|no| no.get(parser))
+        .map(|no| {
+            no.inner_text(parser)
+                .replace("&nbsp;", " ")
+                .replace('\u{a0}', " ")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect();
+    let texto = match legendas.as_slice() {
+        [] => return Err(E::LegendaDosAndamentosAusente),
+        [texto] => texto,
+        _ => return Err(E::LegendaDosAndamentosForaDaFormaObservada),
+    };
+    let fora = E::LegendaDosAndamentosForaDaFormaObservada;
+    let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
+    let numero = resto
+        .strip_suffix(" registros):")
+        .or_else(|| resto.strip_suffix(" registro):"))
+        .ok_or(fora)?;
+    if numero.is_empty() || numero.len() > 9 || !numero.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(fora);
+    }
+    numero.parse().map_err(|_| fora)
+}
+
+/// O único `hdnTipoHistorico` do formulário: `R` ou `P`.
+fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, E> {
+    let ausente = E::TipoDoHistoricoNaoPublicado;
+    let parser = dom.parser();
+    let form =
+        localizar_formulario(dom, super::VER_HISTORICO_COMPLETO.formulario).map_err(|_| ausente)?;
+    let mut valores = Vec::new();
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
+    {
+        if valor_do_atributo(tag, "name")
+            .map_err(|_| ausente)?
+            .as_deref()
+            == Some(super::CAMPO_TIPO)
+        {
+            let bruto = valor_do_atributo(tag, "value").map_err(|_| ausente)?;
+            valores.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ausente)?);
+        }
+    }
+    match valores.as_slice() {
+        [v] if v == "R" => Ok(TipoDoHistorico::Resumido),
+        [v] if v == "P" => Ok(TipoDoHistorico::Completo),
+        _ => Err(ausente),
+    }
+}

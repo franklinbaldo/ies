@@ -36,6 +36,9 @@ pub enum FalhaTransporte {
     CookieInvalido,
     /// Status HTTP 401 ou 403.
     AcessoNegado(StatusHttpRecusado),
+    /// 403 com a página de bloqueio de segurança da instalação (WAF): a
+    /// sessão não venceu; não há relogin nem nova tentativa.
+    BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
     /// Status HTTP 3xx; o corpo não é lido.
     Redirecionamento(StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
@@ -73,6 +76,7 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
             Self::CookieInvalido => "cookie_invalido",
             Self::AcessoNegado(_) => "sessao_nao_autorizada",
+            Self::BloqueioDeSegurancaDaInstalacao(_) => "bloqueio_de_seguranca_da_instalacao",
             Self::Redirecionamento(_) => "redirecionamento_recusado",
             Self::StatusHttpDeErroDoServidor(_) => "status_http_de_erro_do_servidor",
             Self::StatusHttpDeLimiteDeRequisicoes(_) => "status_http_de_limite_de_requisicoes",
@@ -112,6 +116,9 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
             Self::CookieInvalido => "formato de cookie de sessão inválido",
             Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
+            Self::BloqueioDeSegurancaDaInstalacao(_) => {
+                "a política de segurança da instalação bloqueou a requisição; espace as execuções"
+            }
             Self::Redirecionamento(_) => {
                 "redirecionamento recusado; a sessão pode exigir novo login"
             }
@@ -137,6 +144,7 @@ impl FalhaTransporte {
     pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::AcessoNegado(recusa)
+            | Self::BloqueioDeSegurancaDaInstalacao(recusa)
             | Self::Redirecionamento(recusa)
             | Self::StatusHttpDeErroDoServidor(recusa)
             | Self::StatusHttpDeLimiteDeRequisicoes(recusa)

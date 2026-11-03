@@ -50,3 +50,18 @@ deixou de ser `Copy`. A variante e o subcódigo continuam sendo a
 classificação: o status e a mensagem são só apresentação e nenhum
 código os inspeciona para decidir tratamento. Ver o
 [contrato da CLI](../contracts/cli.md).
+
+## Bloqueio de segurança da instalação
+
+`FalhaTransporte::BloqueioDeSegurancaDaInstalacao`
+(`bloqueio_de_seguranca_da_instalacao`) é o 403 com a página de bloqueio
+do WAF de GO (03/11/2026, depois de rajadas): `<title>Acesso Negado</title>`
+e a frase "bloqueada por nossa política de segurança" no texto visível
+do corpo. É reconhecimento de **tela** (como o da tela de login), feito
+na camada de transporte para todos os comandos Web
+(`src/transporte/bloqueio_de_seguranca.rs`), não leitura da mensagem para
+decidir tratamento. Expõe `status_http` 403 e a mensagem saneada com o
+código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
+sessão continuou válida: não há relogin, retry nem pausa automática. O
+403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
+ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).

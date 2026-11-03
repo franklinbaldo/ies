@@ -7,16 +7,40 @@ use std::io::Read;
 /// Bytes do corpo da recusa lidos no máximo; o resto nunca é lido.
 pub(crate) const LIMITE: usize = 64 * 1024;
 
-/// Mensagem saneada do corpo, ou `None` se nada legível sobrou.
-pub(crate) fn mensagem<R: Read>(corpo: R, mime: &str) -> Option<String> {
-    let bytes = ler_ate_o_limite(corpo)?;
-    let texto = decodificar(&bytes, mime);
-    let bruto = if crate::mime_web::e_html(mime) {
-        super::texto_de_recusa::texto_do_html(&texto)?
-    } else {
-        texto
+/// O que a única leitura do corpo rende: a mensagem saneada e se a
+/// página é a de bloqueio de segurança da instalação.
+pub(crate) struct CorpoLido {
+    pub(crate) mensagem: Option<String>,
+    pub(crate) bloqueio_de_seguranca: bool,
+}
+
+/// Lê o corpo uma vez, até `LIMITE`.
+pub(crate) fn ler<R: Read>(corpo: R, mime: &str) -> CorpoLido {
+    let Some(bytes) = ler_ate_o_limite(corpo) else {
+        return CorpoLido {
+            mensagem: None,
+            bloqueio_de_seguranca: false,
+        };
     };
-    super::saneamento::sanear(&bruto)
+    let texto = decodificar(&bytes, mime);
+    let html = crate::mime_web::e_html(mime);
+    let bloqueio_de_seguranca =
+        html && super::bloqueio_de_seguranca::e_bloqueio_de_seguranca(&texto);
+    let bruto = if html {
+        super::texto_de_recusa::texto_do_html(&texto)
+    } else {
+        Some(texto)
+    };
+    CorpoLido {
+        mensagem: bruto.and_then(|b| super::saneamento::sanear(&b)),
+        bloqueio_de_seguranca,
+    }
+}
+
+/// Mensagem saneada do corpo, ou `None` se nada legível sobrou.
+#[cfg(test)]
+pub(crate) fn mensagem<R: Read>(corpo: R, mime: &str) -> Option<String> {
+    ler(corpo, mime).mensagem
 }
 
 /// Até `LIMITE` bytes, em fluxo; erro de leitura não mascara o status.

@@ -1,0 +1,79 @@
+//! RED/GREEN da troca para a visão completa: regra servida conferida
+//! literalmente e POST derivado pelo primitivo de formulário.
+use super::ErroAndamentos as E;
+use super::tests_apoio::*;
+use super::*;
+use crate::arvore_processo::tests::NUP;
+use crate::formulario_web::{CodificacaoDaTela, EfeitoAvaliado, TelaServida, derivar_submissao};
+use crate::instalacao::Instalacao;
+
+const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
+
+#[test]
+fn regra_servida_na_visao_resumida_e_aceita() {
+    let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
+    assert_eq!(conferir_regra_de_ver_historico(&html), Ok(()));
+}
+
+#[test]
+fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
+    let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
+    for trocado in [
+        html.replace("function verHistorico(valor){", "function verHistorico(v){"),
+        html.replace(
+            "document.getElementById('hdnTipoHistorico').value = valor;",
+            "document.getElementById('hdnTipoHistorico').value = 'P';",
+        ),
+        html.replace(
+            "document.getElementById('frmProcedimentoHistorico').submit();",
+            "infraSubmit();",
+        ),
+        html.replace("verHistorico('P');", "verHistorico('X');"),
+        html.replace("id=\"ancTipoHistorico\" ", ""),
+        pagina_do_historico(NUP, "10", 'P', 2, 2),
+    ] {
+        assert_eq!(
+            conferir_regra_de_ver_historico(&trocado),
+            Err(E::RegraDeVerHistoricoNaoObservada)
+        );
+    }
+}
+
+#[test]
+fn post_reenvia_os_ocultos_servidos_com_o_tipo_p_e_sem_o_botao_de_escrita() {
+    let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
+    let url = format!("{ORIGEM}/{}", link_do_historico("10"));
+    let tela = TelaServida {
+        url: &url,
+        html: &html,
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let submissao = derivar_submissao(
+        &VER_HISTORICO_COMPLETO,
+        &instalacao,
+        &tela,
+        "",
+        &[(CAMPO_TIPO, "P")],
+    )
+    .unwrap();
+    assert_eq!(
+        submissao.url(),
+        format!("{ORIGEM}/{}", action_do_historico("10"))
+    );
+    assert_eq!(
+        String::from_utf8(submissao.corpo().to_vec()).unwrap(),
+        corpo_ver_completo(2)
+    );
+    assert!(
+        !submissao
+            .nomes_dos_campos()
+            .iter()
+            .any(|n| n.starts_with("btn"))
+    );
+    assert_eq!(submissao.referer(), url);
+    assert!(matches!(
+        submissao.efeito(),
+        EfeitoAvaliado::AlteraEstadoDaSessao { .. }
+    ));
+}
