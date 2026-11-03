@@ -62,10 +62,12 @@ prioridade de interfaces (Web principal; REST baixa; SOAP não prioritário).
   por operação em `src/sessao_login/tela.rs`, sem despachante.
 - **Cookies:** pote por host e `Path`; o arquivo recebe os que o navegador
   enviaria ao `controlador.php`.
-- **Cliente HTTP:** HTTP/1.1 mínimo sobre `native-tls` (já no `Cargo.lock`
-  pelo `minreq`); o `minreq` 2.14.1 guarda um valor por cabeçalho e
-  perderia os `Set-Cookie` múltiplos observados (UnB, PEN1, GO). Mesmo
-  limite de 8 MB e tempo de 30 s, `User-Agent: ies/<versão>`.
+- **Cliente HTTP:** HTTP/1.1 mínimo sobre `native-tls`; o `minreq` 2.14.1
+  guardava um valor por cabeçalho e perderia os `Set-Cookie` múltiplos
+  observados (UnB, PEN1, GO). Mesmo limite de 8 MB e tempo de 30 s,
+  `User-Agent: ies/<versão>`. Depois virou o cliente HTTPS único de todos
+  os comandos (`src/transporte/cliente_https.rs`, com proxy do ambiente) e
+  o `minreq` saiu das dependências.
 - **Geração e lock:** marcador `<url-controle>.geracao` (contador e SHA-256
   de cookie e URL) renomeado por último; lock `<url-controle>.lock` com
   `File::try_lock` da `std` (sem dependência nova). Arquivos que não batem

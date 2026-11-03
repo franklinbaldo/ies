@@ -118,13 +118,27 @@ não lia.
   `no_proxy`/`NO_PROXY` ([contrato](../../contracts/cli/sessao-login.md#proxy-do-ambiente)).
   Revalidar o passo 1 com o proxy exportado: esperado `login_realizado`;
   um `proxy_*` registra o subcódigo e `status_do_proxy`. Os outros
-  comandos (`unidade atual`) **não** usam proxy: numa rede sem saída
-  direta, o passo 2 falhará com `falha_de_rede`. `NOT_RUN`.
+  comandos (`unidade atual`) agora também usam o proxy: o passo 2 deve
+  passar na mesma rede; um `proxy_*` sai em `fonte_invalida`, sem
+  `status_do_proxy`. `NOT_RUN`.
 
 **Reensaio das lacunas (02/11/2026, UnB).** Com o binário que lê
 `txaInfraValidacao` e atravessa proxy: senha errada (1 tentativa) →
 `credencial_recusada` com `mensagem_do_servidor: "Usuário ou Senha
 Inválida."`; login correto **pelo proxy HTTPS do ambiente** (túnel
 CONNECT) → `login_realizado`, 6 requisições; o mesmo com `NO_PROXY='*'`
-→ conexão direta, `login_realizado`, 6. Os demais comandos (minreq sem a
-feature `proxy`) continuam conectando direto.
+→ conexão direta, `login_realizado`, 6. Naquele binário os demais
+comandos ainda conectavam direto; agora usam o mesmo cliente e o mesmo
+proxy ([transporte HTTPS](../../contracts/cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
+Revalidar `unidade atual` pelo proxy do ambiente e com `NO_PROXY='*'`:
+`NOT_RUN`.
+
+**Cliente HTTPS único e Controle em qualquer visão (03/11/2026).** Com
+todos os comandos pelo proxy do ambiente: a conta da PEN1 passou a abrir
+na visão detalhada (herdada da sessão anterior, sem restauração), e o
+`ies login` recusava o Controle (`controle_apos_o_login_nao_reconhecido`)
+porque só reconhecia a resumida — o mesmo valia para `unidade atual` e
+`status --verificar-controle-web`. Corrigido com um reconhecedor único
+(R ou D). Reensaio pelo proxy: PEN1 e UnB com `login_realizado` (6
+requisições), `unidade atual` e `status` corretos com a sessão em R e em
+D, `listar-processos`/`recebidos` normais; `NO_PROXY='*'` direto.

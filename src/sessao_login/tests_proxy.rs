@@ -1,9 +1,9 @@
 //! O cliente do login usa o proxy do ambiente: o `CONNECT` vai ao proxy
 //! falso local sem resolver o host do SEI; a exceção conecta direto. O TLS
 //! através do túnel não é exercitado (exigiria certificado de teste).
-use super::http::abrir_conexao;
 use crate::sessao_login_cli::json_do_erro;
 use crate::transporte::FalhaTransporte;
+use crate::transporte::cliente_https::abrir_conexao;
 use crate::transporte::proxy::FalhaDoProxy;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;

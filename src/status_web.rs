@@ -1,6 +1,6 @@
 //! Diagnóstico opt-in do Controle Web: nunca revela processos ou links assinados.
 use crate::erro_web::ErroCaixa;
-use crate::{configuracao, paginas, transporte};
+use crate::{configuracao, transporte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
@@ -35,11 +35,14 @@ impl FalhaControleWeb {
 
 /// A tela precisa conter Controle de Processos e unidade única, não apenas HTTP 200.
 pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
-    let leitura = paginas::juntar(&[html.to_owned()], None)
-        .map_err(FalhaControleWeb::ControleNaoReconhecido)?;
-    let unidade = leitura
-        .unidade
-        .ok_or(FalhaControleWeb::IdentidadeUnidadeNaoObservada)?;
+    // Visão resumida ou detalhada: a sessão fica na última visão usada.
+    let unidade =
+        crate::controle_reconhecido::unidade_do_controle(html).map_err(|erro| match erro {
+            ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle => {
+                FalhaControleWeb::IdentidadeUnidadeNaoObservada
+            }
+            outro => FalhaControleWeb::ControleNaoReconhecido(outro),
+        })?;
     Ok(json!({
         "controle_web": "observado",
         "unidade_exibida": unidade,

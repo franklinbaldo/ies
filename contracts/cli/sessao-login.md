@@ -106,16 +106,14 @@ do host e `Referer` = URL da tela.
 
 ## Proxy do ambiente
 
-O cliente HTTPS do login (`native-tls`, porque o `minreq` guarda só o
-último `Set-Cookie`) atravessa um proxy declarado no ambiente. Os outros
-comandos usam o `minreq` 2.14 **sem** a feature `proxy`: hoje eles não
-leem nenhuma variável de proxy e conectam direto.
+O cliente HTTPS único do IES (`native-tls`, todos os cabeçalhos
+guardados, inclusive cada `Set-Cookie`) atravessa um proxy declarado no
+ambiente. O login e **todos os outros comandos** usam o mesmo cliente e
+as mesmas regras ([transporte HTTPS](../cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
 
 - Variável: a primeira **não vazia** de `https_proxy`, `HTTPS_PROXY`,
   `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS; `http_proxy` não
-  vale). O `minreq` com `proxy` leria só `https_proxy` para HTTPS (o
-  `map_err` dele nunca chega a `HTTPS_PROXY`) e ignoraria `NO_PROXY`;
-  o IES segue a convenção do curl, documentada aqui.
+  vale). O IES segue a convenção do curl, documentada aqui.
 - Exceções: `no_proxy`, senão `NO_PROXY`, separadas por vírgula, sem
   caixa: `*` dispensa todos; `.sufixo` dispensa o domínio e os
   subdomínios; outra entrada é host exato. Entrada com porta ou

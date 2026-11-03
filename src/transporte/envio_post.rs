@@ -1,9 +1,11 @@
 //! GET do Controle que preserva URL e `Content-Type`, e o POST real da
 //! submissão derivada. Mesmas travas do GET: HTTPS na instalação autorizada,
 //! sem redirects, 8 MB durante o recebimento e uma única tentativa.
+use super::cliente_https::{self, CorpoHttps, Envio};
+use super::resposta_http::{Corpo, Resposta};
 use super::{
-    FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, get_https, resposta_web,
-    validar_cookie, validar_origem,
+    FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, get_https, validar_cookie,
+    validar_origem,
 };
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
@@ -68,35 +70,54 @@ pub(crate) fn ler_tela_do_controle(
     ler_tela_via(url.trim(), cookie_file, origem.trim(), get_https)
 }
 
-/// POST HTTPS único, sem seguir redirects. A URL, a instalação e o corpo
-/// vêm da derivação; `Origin` e `Referer` são os da tela servida. O
-/// `Content-Type` é o do navegador, sem parâmetro: o corpo já está no
-/// charset da tela. Status, MIME, limite e login ficam com o envio.
+/// POST HTTPS único pelo cliente HTTPS (com o proxy do ambiente), sem
+/// seguir redirects. A URL, a instalação e o corpo vêm da derivação;
+/// `Origin` e `Referer` são os da tela servida. O `Content-Type` é o do
+/// navegador, sem parâmetro: o corpo já está no charset da tela. Status,
+/// MIME, limite e login ficam com o envio.
 // A submissão é recebida por valor, como no `FnOnce` do envio: consumida
 // numa única tentativa, sem cópia para retry.
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn enviar_post(
     submissao: SubmissaoDerivada,
     cookie: &str,
-) -> Result<RespostaDoPost<minreq::ResponseLazy>, FalhaTransporte> {
-    if !submissao.url().starts_with("https://") {
-        return Err(FalhaTransporte::UrlInvalida);
+) -> Result<RespostaDoPost<CorpoHttps>, FalhaTransporte> {
+    let envio = envio_de(&submissao);
+    let resposta = cliente_https::requisitar("POST", submissao.url(), cookie, Some(&envio))?;
+    Ok(resposta_do_post(resposta))
+}
+
+fn envio_de(submissao: &SubmissaoDerivada) -> Envio<'_> {
+    Envio {
+        tipo: SubmissaoDerivada::TIPO_DE_CONTEUDO,
+        origem: submissao.origem(),
+        referer: submissao.referer(),
+        corpo: submissao.corpo(),
     }
-    let resposta = minreq::post(submissao.url())
-        .with_timeout(30)
-        .with_follow_redirects(false)
-        .with_header("Cookie", cookie)
-        .with_header("Content-Type", SubmissaoDerivada::TIPO_DE_CONTEUDO)
-        .with_header("Origin", submissao.origem())
-        .with_header("Referer", submissao.referer())
-        .with_body(submissao.corpo().to_vec())
-        .send_lazy()
-        .map_err(|_| FalhaTransporte::Rede)?;
-    let localizacao = resposta.headers.get("location").cloned();
-    Ok(RespostaDoPost {
-        resposta: resposta_web(resposta),
+}
+
+fn resposta_do_post<R: std::io::BufRead>(resposta: Resposta<R>) -> RespostaDoPost<Corpo<R>> {
+    let localizacao = resposta.cabecalho("location").map(str::to_owned);
+    RespostaDoPost {
+        resposta: cliente_https::resposta_web(resposta),
         localizacao,
-    })
+    }
+}
+
+/// O mesmo POST com ambiente e camada TLS injetáveis (proxy falso nos testes).
+#[cfg(test)]
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn enviar_post_via<S: Read + std::io::Write>(
+    submissao: SubmissaoDerivada,
+    cookie: &str,
+    ambiente: impl Fn(&str) -> Option<String>,
+    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<RespostaDoPost<impl Read>, FalhaTransporte> {
+    let envio = envio_de(&submissao);
+    let url = submissao.url();
+    let resposta =
+        cliente_https::requisitar_via("POST", url, cookie, Some(&envio), ambiente, envolver)?;
+    Ok(resposta_do_post(resposta))
 }
 
 #[cfg(test)]

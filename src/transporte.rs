@@ -1,162 +1,15 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
-//! Sem login, redirects ou tentativa de outro backend; o único POST é o de
-//! `envio_post`, usado por `--pagina N`.
+//! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
+//! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
 use crate::instalacao::{Instalacao, host_valido};
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 
-/// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
-/// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StatusHttpRecusado {
-    pub status: u16,
-    /// `None` em 3xx (corpo não lido) ou quando o corpo não rendeu texto.
-    pub mensagem_do_servidor: Option<String>,
-}
+pub use falha::{FalhaTransporte, StatusHttpRecusado};
 
-impl StatusHttpRecusado {
-    pub(crate) fn sem_mensagem(status: u16) -> Self {
-        Self {
-            status,
-            mensagem_do_servidor: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum FalhaTransporte {
-    UrlInvalida,
-    ChaveDeConsultaNaoCanonica,
-    SeparadorDeConsultaAmbiguo,
-    OrigemNaoAutorizada,
-    ArquivoPrivadoAusenteOuInacessivel,
-    ArquivoPrivadoComPermissoesInseguras,
-    CaminhoDeArquivoNaoEhArquivo,
-    ArquivoPrivadoLinkSimbolico,
-    ArquivoPrivadoVazio,
-    ArquivoPrivadoAcimaDoLimite,
-    ArquivoPrivadoNaoPodeSerLido,
-    CookieInvalido,
-    /// Status HTTP 401 ou 403.
-    AcessoNegado(StatusHttpRecusado),
-    /// Status HTTP 3xx; o corpo não é lido.
-    Redirecionamento(StatusHttpRecusado),
-    /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
-    StatusHttpDeErroDoServidor(StatusHttpRecusado),
-    /// Status HTTP 429.
-    StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado),
-    /// Qualquer outro status diferente de 200.
-    StatusHttpDiferenteDe200(StatusHttpRecusado),
-    /// `Content-Type` cujo tipo principal não é `text/html`.
-    TipoDeConteudoNaoHtml,
-    /// Corpo que não decodifica no charset declarado (ou UTF-8).
-    CorpoNaoDecodificavelNoCharsetDeclarado,
-    PaginaDeLoginRecebidaNoControle,
-    RespostaExcessiva,
-    Rede,
-    /// Proxy do ambiente (só no cliente do login): `transporte::proxy`.
-    Proxy(proxy::FalhaDoProxy),
-}
-
-impl FalhaTransporte {
-    pub fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::UrlInvalida => "url_invalida",
-            Self::ChaveDeConsultaNaoCanonica => "chave_de_consulta_do_controle_nao_canonica",
-            Self::SeparadorDeConsultaAmbiguo => "separador_de_consulta_do_controle_ambiguo",
-            Self::OrigemNaoAutorizada => "origem_nao_autorizada",
-            Self::ArquivoPrivadoAusenteOuInacessivel => "arquivo_privado_ausente_ou_inacessivel",
-            Self::ArquivoPrivadoComPermissoesInseguras => {
-                "arquivo_privado_com_permissoes_inseguras"
-            }
-            Self::CaminhoDeArquivoNaoEhArquivo => "caminho_nao_eh_arquivo",
-            Self::ArquivoPrivadoLinkSimbolico => "arquivo_privado_link_simbolico",
-            Self::ArquivoPrivadoVazio => "arquivo_privado_vazio",
-            Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
-            Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
-            Self::CookieInvalido => "cookie_invalido",
-            Self::AcessoNegado(_) => "sessao_nao_autorizada",
-            Self::Redirecionamento(_) => "redirecionamento_recusado",
-            Self::StatusHttpDeErroDoServidor(_) => "status_http_de_erro_do_servidor",
-            Self::StatusHttpDeLimiteDeRequisicoes(_) => "status_http_de_limite_de_requisicoes",
-            Self::StatusHttpDiferenteDe200(_) => "status_http_diferente_de_200",
-            Self::TipoDeConteudoNaoHtml => "tipo_de_conteudo_nao_html",
-            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
-                "corpo_nao_decodificavel_no_charset_declarado"
-            }
-            Self::PaginaDeLoginRecebidaNoControle => "pagina_de_login_recebida_no_controle",
-            Self::RespostaExcessiva => "resposta_excessiva",
-            Self::Rede => "falha_de_rede",
-            Self::Proxy(falha) => falha.subcodigo(),
-        }
-    }
-    pub fn mensagem(&self) -> &'static str {
-        match self {
-            Self::UrlInvalida => "URL assinada da caixa inválida",
-            Self::ChaveDeConsultaNaoCanonica => {
-                "nome de parâmetro da URL de controle não é canônico"
-            }
-            Self::SeparadorDeConsultaAmbiguo => {
-                "separador de parâmetros da URL de controle não é inequívoco"
-            }
-            Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
-            Self::ArquivoPrivadoAusenteOuInacessivel => {
-                "arquivo privado não encontrado ou sem acesso"
-            }
-            Self::ArquivoPrivadoComPermissoesInseguras => {
-                "arquivo privado permite acesso por outros usuários"
-            }
-            Self::CaminhoDeArquivoNaoEhArquivo => {
-                "caminho informado não aponta para arquivo regular"
-            }
-            Self::ArquivoPrivadoLinkSimbolico => "arquivo privado não pode ser link simbólico",
-            Self::ArquivoPrivadoVazio => "arquivo privado vazio",
-            Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
-            Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
-            Self::CookieInvalido => "formato de cookie de sessão inválido",
-            Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
-            Self::Redirecionamento(_) => {
-                "redirecionamento recusado; a sessão pode exigir novo login"
-            }
-            Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
-            Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
-            Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
-            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
-            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
-                "o corpo da resposta não decodifica no charset declarado"
-            }
-            Self::PaginaDeLoginRecebidaNoControle => {
-                "o SEI devolveu formulário de login em vez da caixa"
-            }
-            Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
-            Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
-            Self::Proxy(falha) => falha.mensagem(),
-        }
-    }
-}
-
-impl FalhaTransporte {
-    /// Status e mensagem do SEI, só nas recusas por status HTTP.
-    pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::AcessoNegado(recusa)
-            | Self::Redirecionamento(recusa)
-            | Self::StatusHttpDeErroDoServidor(recusa)
-            | Self::StatusHttpDeLimiteDeRequisicoes(recusa)
-            | Self::StatusHttpDiferenteDe200(recusa) => Some(recusa),
-            _ => None,
-        }
-    }
-
-    /// Status com que o proxy recusou o `CONNECT`.
-    pub fn status_do_proxy(&self) -> Option<u16> {
-        match self {
-            Self::Proxy(proxy::FalhaDoProxy::RecusouOTunel { status }) => Some(*status),
-            _ => None,
-        }
-    }
-}
+#[path = "transporte/falha.rs"]
+mod falha;
 
 // PHP decodifica percent/plus e converte pontos/espaços em underscores;
 // preservar a rejeição de nomes não literais já exigida pelo transporte.
@@ -312,7 +165,7 @@ pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>,
     leitor
         .take(limite as u64 + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| FalhaTransporte::Rede)?;
+        .map_err(|erro| resposta_http::falha_de_leitura(&erro))?;
     if bytes.len() > limite {
         return Err(FalhaTransporte::RespostaExcessiva);
     }
@@ -401,37 +254,25 @@ pub fn read_box(
     read_box_via(url, cookie_file, origem_autorizada, get_https)
 }
 
-/// Resposta `minreq` como `RespostaWeb`, sem ler o corpo.
-fn resposta_web(resposta: minreq::ResponseLazy) -> RespostaWeb<minreq::ResponseLazy> {
-    let mime = resposta
-        .headers
-        .get("content-type")
-        .cloned()
-        .unwrap_or_default();
-    let content_length = resposta
-        .headers
-        .get("content-length")
-        .and_then(|n| n.trim().parse::<usize>().ok());
-    RespostaWeb {
-        status_code: resposta.status_code,
-        mime,
-        content_length,
-        corpo: resposta,
-    }
-}
-
-/// GET real único, sem seguir redirects; o corpo é lido depois, limitado.
+/// GET real único pelo cliente HTTPS (com o proxy do ambiente), sem
+/// seguir redirects; o corpo é lido depois, limitado.
 pub(crate) fn get_https(
     destino: &str,
     cookie: &str,
-) -> Result<RespostaWeb<minreq::ResponseLazy>, FalhaTransporte> {
-    let resposta = minreq::get(destino)
-        .with_timeout(30)
-        .with_follow_redirects(false)
-        .with_header("Cookie", cookie)
-        .send_lazy()
-        .map_err(|_| FalhaTransporte::Rede)?;
-    Ok(resposta_web(resposta))
+) -> Result<RespostaWeb<cliente_https::CorpoHttps>, FalhaTransporte> {
+    cliente_https::requisitar("GET", destino, cookie, None).map(cliente_https::resposta_web)
+}
+
+/// O mesmo GET com ambiente e camada TLS injetáveis (proxy falso nos testes).
+#[cfg(test)]
+pub(crate) fn get_https_via<S: Read + std::io::Write>(
+    destino: &str,
+    cookie: &str,
+    ambiente: impl Fn(&str) -> Option<String>,
+    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<RespostaWeb<impl Read>, FalhaTransporte> {
+    cliente_https::requisitar_via("GET", destino, cookie, None, ambiente, envolver)
+        .map(cliente_https::resposta_web)
 }
 
 pub fn read_box_from_file(
@@ -459,6 +300,12 @@ pub(crate) mod validacao_da_infra;
 #[path = "transporte/proxy.rs"]
 pub(crate) mod proxy;
 
+#[path = "transporte/resposta_http.rs"]
+pub(crate) mod resposta_http;
+
+#[path = "transporte/cliente_https.rs"]
+pub(crate) mod cliente_https;
+
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;
 
@@ -477,6 +324,10 @@ mod tests_resposta;
 #[cfg(test)]
 #[path = "transporte/tests_recusa_http.rs"]
 mod tests_recusa_http;
+
+#[cfg(test)]
+#[path = "transporte/tests_cliente_https.rs"]
+mod tests_cliente_https;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]

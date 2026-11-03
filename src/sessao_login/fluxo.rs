@@ -56,9 +56,8 @@ fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
 /// Unidade do Controle, pela mesma leitura da caixa (duas tabelas e
 /// `lnkInfraUnidade` único).
 fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
-    crate::paginas::juntar(&[html.to_owned()], None)?
-        .unidade
-        .ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
+    // A conta pode abrir na visão detalhada herdada do último uso (SEI 5.x).
+    crate::controle_reconhecido::unidade_do_controle(html)
 }
 
 /// Um arquivo da sessão gravada; ausente ou vazio vale "sem sessão".

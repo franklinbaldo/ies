@@ -8,6 +8,7 @@ mod cassette;
 mod classe_link_processo;
 mod configuracao;
 mod controle_contexto;
+mod controle_reconhecido;
 #[allow(dead_code)] // A criação dependerá de editor Web validado.
 mod copia_documento;
 mod copia_listagem;
