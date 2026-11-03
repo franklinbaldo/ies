@@ -48,7 +48,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   `hdnInfraNroItens`/`hdnInfraPaginaAtual` na UnB sem efeito.
 - [Contrato](../cli/processo-obter-andamentos.md) e
   [observação](../../docs/como-o-sei-funciona/historico-do-processo.md).
-  Validação live do comando: **NOT_RUN** (a cargo do agente pai).
+  Validação live do comando: **PASS** na UnB, na PEN1 e em GO ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

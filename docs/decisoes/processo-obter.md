@@ -8,7 +8,7 @@ scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvo
 selected_strategy: web-indice-pesquisa-rapida-arvore
 alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
-live_validation: pass-unb-go-pen1-fatia1-not-run-fatia2
+live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
 
 # Ler processo: resumo na caixa e árvore com índice local
@@ -129,8 +129,10 @@ recusa até ser observada.
 
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Pastas
 (`PASTA`), marcadores e propriedades ficam para as próximas fatias.
-Andamentos: validação live **NOT_RUN** pelo IES até o agente pai rodar
-UnB, GO e PEN1. Revisar se a legenda trouxer paginação, se outra
-instalação publicar o link noutra forma ou se a visão `P` ficar lembrada. Revisar se a entrada por id responder outra forma, se o 302 da
+Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
+completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**
+pelo servidor ([relatório](../validacao-live/2026-11-03-processo-obter-andamentos.md)).
+Revisar se a legenda trouxer paginação ou se outra instalação publicar o
+link noutra forma. Revisar se a entrada por id responder outra forma, se o 302 da
 pesquisa rápida mudar de chave do id fora de GO, ou se a árvore publicar
 outro construtor.
