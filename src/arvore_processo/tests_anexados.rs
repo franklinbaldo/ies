@@ -1,0 +1,227 @@
+//! RED/GREEN dos processos anexados: HTML SINTÉTICO com a forma observada
+//! na `UnB` 4.0.9 (03/11/2026): `PROCESSO_ANEXADO` com 16 argumentos, pai
+//! (a2) igual ao id do processo, a3 `arvore_visualizar` com
+//! `id_procedimento` do processo e `id_procedimento_anexado` do anexado,
+//! a12 a a14 `null`, a15 igual a a5 e uma barra própria. Os documentos do
+//! anexado não aparecem na árvore. Ids, números e rótulos inventados.
+use super::ErroArvore as E;
+use super::tests::{NUP, arvore, no_documento, no_processo};
+use super::tests_pastas::no_pasta;
+use super::*;
+
+pub(crate) const NUP_ANEXADO: &str = "00002.000002/2026-02";
+
+/// Declaração do `PROCESSO_ANEXADO` na forma observada.
+pub(crate) fn no_anexado(i: usize, id: &str, pai: &str, nup: &str) -> String {
+    format!(
+        "Nos[{i}] = new infraArvoreNo(\"PROCESSO_ANEXADO\",\"{id}\",\"{pai}\",\"controlador.php?acao=arvore_visualizar&acao_origem=procedimento_visualizar&id_procedimento={pai}&id_procedimento_anexado={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={h}\",\"ifrVisualizacao\",\"{nup}\",\"Tipo Anexado Sintetico\",\"svg/processo_anexado.svg?11\",\"svg/processo_anexado.svg?11\",\"svg/processo_anexado.svg?11\",true,true,null,null,null,\"{nup}\");",
+        h = "e".repeat(64)
+    )
+}
+
+/// A barra do anexado observada começa por `procedimento_alterar`.
+fn com_barra_do_anexado(html: &str, i: usize) -> String {
+    html.replace(
+        &format!("Nos[{i}].acoes = '';"),
+        &format!(
+            "Nos[{i}].acoes = '<a href=\"controlador.php?acao=procedimento_alterar&id_procedimento=20&infra_hash={}\"></a>';",
+            "d".repeat(64)
+        ),
+    )
+}
+
+fn anexado(id: &str) -> ProcessoNaArvore {
+    ProcessoNaArvore {
+        id: id.into(),
+        nup: NUP_ANEXADO.into(),
+        tipo: "Tipo Anexado Sintetico".into(),
+    }
+}
+
+#[test]
+fn le_o_anexado_filho_do_processo_e_os_documentos_do_processo() {
+    let html = com_barra_do_anexado(
+        &arvore(&[
+            no_processo(0, "10", NUP),
+            no_anexado(1, "20", "10", NUP_ANEXADO),
+            no_documento(2, "21", "10", "0000101"),
+        ]),
+        1,
+    );
+    let lida = ler_arvore(&html, NUP, "10").unwrap();
+    assert_eq!(lida.processo.id, "10");
+    assert_eq!(lida.anexados, [anexado("20")]);
+    assert_eq!(lida.documentos.len(), 1);
+    assert_eq!(lida.documentos[0].id, "21");
+    let debug = format!("{lida:?}");
+    assert!(!debug.contains(&"e".repeat(64)), "{debug}");
+}
+
+#[test]
+fn sem_anexado_a_lista_e_vazia_e_varios_saem_na_ordem() {
+    let lida = ler_arvore(&arvore(&[no_processo(0, "10", NUP)]), NUP, "10").unwrap();
+    assert_eq!(lida.anexados, []);
+    let outro = "00003.000003/2026-03";
+    let html = arvore(&[
+        no_processo(0, "10", NUP),
+        no_anexado(1, "20", "10", NUP_ANEXADO),
+        no_anexado(2, "30", "10", outro),
+    ]);
+    let lida = ler_arvore(&html, NUP, "10").unwrap();
+    let ids: Vec<&str> = lida.anexados.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, ["20", "30"]);
+    assert_eq!(lida.anexados[1].nup, outro);
+}
+
+#[test]
+fn identidade_do_processo_continua_conferida_com_anexado() {
+    let html = arvore(&[
+        no_processo(0, "10", NUP),
+        no_anexado(1, "20", "10", NUP_ANEXADO),
+    ]);
+    // O NUP do anexado não é o processo pedido.
+    assert_eq!(
+        ler_arvore(&html, NUP_ANEXADO, "20"),
+        Err(E::IdentidadeDoProcessoDiferenteDaPedida)
+    );
+}
+
+#[test]
+fn recusas_do_anexado() {
+    let p = || no_processo(0, "10", NUP);
+    let a = || no_anexado(1, "20", "10", NUP_ANEXADO);
+    let casos: Vec<(Vec<String>, E)> = vec![
+        (
+            vec![
+                p(),
+                a().replace(&format!(",\"{NUP_ANEXADO}\");"), ",\"outro\");"),
+            ],
+            E::NupDoNoDoProcessoAnexadoInconsistente,
+        ),
+        (
+            vec![
+                p(),
+                a().replace(&format!(",\"{NUP_ANEXADO}\");"), ",null);"),
+            ],
+            E::ArgumentoDeNoComTipoDiferenteDoObservado,
+        ),
+        (
+            vec![p(), no_anexado(1, "20", "99", NUP_ANEXADO)],
+            E::ProcessoAnexadoComPaiDiferenteDoProcesso,
+        ),
+        (
+            vec![
+                p(),
+                a().replace(",\"10\",\"controlador", ",null,\"controlador"),
+            ],
+            E::ArgumentoDeNoComTipoDiferenteDoObservado,
+        ),
+        (
+            vec![p(), a(), no_anexado(2, "20", "10", "00003.000003/2026-03")],
+            E::ProcessoAnexadoRepetidoNaArvore,
+        ),
+        (
+            vec![p(), a(), no_anexado(2, "30", "10", NUP_ANEXADO)],
+            E::ProcessoAnexadoRepetidoNaArvore,
+        ),
+        (
+            vec![p(), no_anexado(1, "10", "10", NUP_ANEXADO)],
+            E::ProcessoAnexadoIgualAoProcesso,
+        ),
+        (
+            vec![p(), no_anexado(1, "20", "10", NUP)],
+            E::ProcessoAnexadoIgualAoProcesso,
+        ),
+        // Filhos do anexado nunca observados: recusa, não palpite.
+        (
+            vec![p(), a(), no_documento(2, "21", "20", "1")],
+            E::NoComPaiNoProcessoAnexado,
+        ),
+        (
+            vec![p(), a(), no_pasta(2, 1, "20", true)],
+            E::NoComPaiNoProcessoAnexado,
+        ),
+        (
+            vec![p(), a(), no_anexado(2, "30", "20", "00003.000003/2026-03")],
+            E::NoComPaiNoProcessoAnexado,
+        ),
+        (
+            vec![p(), no_anexado(1, "2a", "10", NUP_ANEXADO)],
+            E::IdDeNoNaoDecimal,
+        ),
+        (
+            vec![p(), a().replace(",true,true,null,", ",true,true,")],
+            E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+        ),
+    ];
+    for (nos, esperado) in casos {
+        assert_eq!(
+            ler_arvore(&arvore(&nos), NUP, "10"),
+            Err(esperado),
+            "{nos:?}"
+        );
+    }
+}
+
+#[test]
+fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
+    let a = no_anexado(1, "20", "10", NUP_ANEXADO);
+    let variantes = [
+        a.replace("id_procedimento_anexado=20", "id_procedimento_anexado=21"),
+        a.replace("&id_procedimento_anexado=20", ""),
+        a.replace("id_procedimento=10&", "id_procedimento=11&"),
+        a.replace("acao=arvore_visualizar", "acao=procedimento_trabalhar"),
+        a.replace(
+            "&infra_sistema",
+            "&id_procedimento_anexado=20&infra_sistema",
+        ),
+        a.replace(
+            "\"controlador.php?",
+            "\"https://outro.exemplo/controlador.php?",
+        ),
+        a.replace(",true,true,null,null,null,", ",true,true,\"x\",null,null,"),
+        a.replace(",true,true,null,null,null,", ",true,true,null,null,\"x\","),
+    ];
+    for variante in variantes {
+        let html = arvore(&[no_processo(0, "10", NUP), variante.clone()]);
+        assert_eq!(
+            ler_arvore(&html, NUP, "10"),
+            Err(E::ProcessoAnexadoForaDaFormaObservada),
+            "{variante}"
+        );
+    }
+}
+
+#[test]
+fn subcodigos_estaveis_do_anexado() {
+    let casos = [
+        (
+            E::ProcessoAnexadoForaDaFormaObservada,
+            "processo_anexado_fora_da_forma_observada",
+        ),
+        (
+            E::NupDoNoDoProcessoAnexadoInconsistente,
+            "nup_do_no_do_processo_anexado_inconsistente",
+        ),
+        (
+            E::ProcessoAnexadoComPaiDiferenteDoProcesso,
+            "processo_anexado_com_pai_diferente_do_processo",
+        ),
+        (
+            E::ProcessoAnexadoRepetidoNaArvore,
+            "processo_anexado_repetido_na_arvore",
+        ),
+        (
+            E::ProcessoAnexadoIgualAoProcesso,
+            "processo_anexado_igual_ao_processo",
+        ),
+        (
+            E::NoComPaiNoProcessoAnexado,
+            "no_com_pai_no_processo_anexado",
+        ),
+    ];
+    for (erro, subcodigo) in casos {
+        assert_eq!(erro.subcodigo(), subcodigo);
+        assert!(!erro.diverge_do_pedido());
+    }
+}

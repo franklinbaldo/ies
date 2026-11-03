@@ -14,6 +14,8 @@ mod tela;
 #[cfg(test)]
 pub(crate) mod tests;
 #[cfg(test)]
+pub(crate) mod tests_anexados;
+#[cfg(test)]
 mod tests_literais;
 #[cfg(test)]
 pub(crate) mod tests_pastas;
@@ -102,6 +104,9 @@ pub(crate) struct ArvoreLida {
     /// Alguma pasta veio fechada (com o nó `AGUARDE`): os documentos dela
     /// não estão nesta árvore.
     pub(crate) pastas_nao_carregadas: bool,
+    /// Os `PROCESSO_ANEXADO` filhos do processo, na ordem da árvore. Os
+    /// documentos deles não são servidos nesta árvore.
+    pub(crate) anexados: Vec<ProcessoNaArvore>,
 }
 
 /// Argumentos por nó, observados na `UnB` 4.0.9 e em GO (`PROCESSO`,
@@ -199,6 +204,7 @@ pub(crate) fn ler_arvore(
         documentos: documentos.into_iter().map(|d| d.documento).collect(),
         pastas,
         pastas_nao_carregadas,
+        anexados: Vec::new(),
     })
 }
 

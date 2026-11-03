@@ -19,6 +19,8 @@ mod tests_andamentos;
 #[cfg(test)]
 mod tests_andamentos_indice;
 #[cfg(test)]
+mod tests_anexados;
+#[cfg(test)]
 mod tests_apoio;
 #[cfg(test)]
 mod tests_colheita;

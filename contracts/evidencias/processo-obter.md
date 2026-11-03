@@ -80,6 +80,20 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 - [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live do
   comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).
 
+## Evidência própria do IES (anexados)
+
+- Captura privada ao vivo da UnB 4.0.9 (03/11/2026, `0600`, lida só pela
+  estrutura): a árvore de um processo com 9 nós, o `PROCESSO`, um
+  `PROCESSO_ANEXADO` e 7 `DOCUMENTO`, todos com 16 argumentos. O anexado
+  tem a2 igual ao id do processo, a3 `arvore_visualizar` com
+  `id_procedimento` do processo e `id_procedimento_anexado` igual a a1,
+  a12–a14 `null`, a15 igual a a5 e barra própria (`procedimento_alterar`,
+  `comentario_listar`). Os 7 documentos são filhos do processo; nenhum nó
+  tem o anexado como pai. Antes desta fatia o comando recusava a árvore
+  com `tipo_de_no_da_arvore_nao_suportado`; o leitor novo aceitou a
+  captura (teste local temporário, apagado).
+- Validação live do comando com anexado: **NOT_RUN** até o agente pai.
+
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
 Confronte os hashes com o manifesto atual antes de alegar paridade.

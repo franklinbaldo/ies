@@ -123,5 +123,34 @@ enviando `frmArvore` por POST para `Pastas[k]['link']` (alvo `ifrPasta`);
 o Todos mediu que várias pastas num POST dão "Conjunto de protocolos
 inválido". Leitura do IES: [contrato das pastas](../../contracts/cli/processo-obter-pastas.md).
 
+## Processos anexados
+
+Observado ao vivo na UnB 4.0.9 (03/11/2026), numa captura privada lida só
+pela estrutura: um processo com um anexado e 7 documentos. O anexado é um
+nó próprio, logo depois do processo:
+
+| Arg. | PROCESSO_ANEXADO |
+| --- | --- |
+| a0 | `"PROCESSO_ANEXADO"` |
+| a1 | id do procedimento anexado |
+| a2 | id do processo (o pai) |
+| a3 | `controlador.php?acao=arvore_visualizar&acao_origem=procedimento_visualizar&id_procedimento=<pai>&id_procedimento_anexado=<a1>&infra_sistema=…&infra_unidade_atual=…&infra_hash=…` (`&` cru) |
+| a4 | `"ifrVisualizacao"` |
+| a5 | NUP do anexado |
+| a6 | tipo do anexado |
+| a7–a9 | `svg/processo_anexado.svg?…`, três vezes |
+| a10, a11 | `true`, `true` |
+| a12–a14 | `null`, `null`, `null` (no processo, `"noVisitado"`, `null`, `"noVisitado"`) |
+| a15 | NUP do anexado outra vez |
+
+Seguem-se `.acoes` (links `procedimento_alterar` e `comentario_listar`),
+`.src` e `.html` (com um link `procedimento_trabalhar`). **Todos** os
+documentos da árvore tinham a2 igual ao id do processo; nenhum nó tinha o
+anexado como pai: os documentos do anexado não vêm nesta árvore. O Todos
+mede a anexação (`processo anexar`, "Lista de Processos Anexados") e a
+regra do SEI de que um processo anexado não pode estar anexado a outro,
+mas não lê esse nó. Leitura do IES:
+[contrato](../../contracts/cli/processo-obter-arvore.md).
+
 Veja também [rotas e árvore](rotas-e-arvore.md) e
 [efeitos e verificação](efeitos-e-verificacao.md).
