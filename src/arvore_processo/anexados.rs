@@ -1,7 +1,8 @@
 //! Processos anexados da árvore (Refs #59; contracts/cli/processo-obter-arvore.md).
 //! Forma observada na `UnB` 4.0.9 (03/11/2026): `PROCESSO_ANEXADO` com 16
 //! argumentos, filho do processo, a3 `arvore_visualizar` com o id do pai e
-//! o do anexado, a12 a a14 `null` e a15 igual a a5. Os documentos do
+//! o do anexado, a12 `null` (ou `"noVisitado"` quando a árvore do pai é
+//! aberta a partir do anexado), a13 e a14 `null` e a15 igual a a5. Os documentos do
 //! anexado não vêm nesta árvore; filho de anexado nunca foi observado e é
 //! recusa.
 use super::pastas::{NoDePasta, Pai};
@@ -21,7 +22,10 @@ pub(super) fn ler_anexado(a: &[Literal; ARGUMENTOS]) -> Result<AnexadoLido, Erro
     if !endereco_observado(super::texto(&a[3])?, &pai, &id) {
         return Err(fora);
     }
-    if a[12..15].iter().any(|l| *l != Literal::Nulo) {
+    // a12 é estado visual: `"noVisitado"` quando a árvore foi aberta a
+    // partir do próprio anexado (`id_procedimento_anexado` no `ifrArvore`).
+    let a12_observado = a[12] == Literal::Nulo || a[12] == Literal::Texto("noVisitado".to_owned());
+    if !a12_observado || a[13..15].iter().any(|l| *l != Literal::Nulo) {
         return Err(fora);
     }
     let nup = super::texto(&a[5])?;

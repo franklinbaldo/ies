@@ -225,3 +225,38 @@ fn subcodigos_estaveis_do_anexado() {
         assert!(!erro.diverge_do_pedido());
     }
 }
+
+/// A árvore do pai aberta a partir do anexado (`ifrArvore` com
+/// `id_procedimento_anexado`) marca o nó do anexado: a12 `"noVisitado"`
+/// (`UnB` 4.0.9, 03/11/2026). Só esse valor de estado visual é aceito.
+#[test]
+fn anexado_marcado_como_visitado_na_arvore_aberta_por_ele_e_aceito() {
+    let visitado = no_anexado(1, "20", "10", NUP_ANEXADO).replace(
+        "true,true,null,null,null,",
+        "true,true,\"noVisitado\",null,null,",
+    );
+    assert!(visitado.contains("\"noVisitado\",null,null,"));
+    let html = com_barra_do_anexado(&arvore(&[no_processo(0, "10", NUP), visitado.clone()]), 1);
+    assert_eq!(
+        ler_arvore(&html, NUP, "10").unwrap().anexados,
+        [anexado("20")]
+    );
+    for outro in [
+        "\"selecionado\",null,null,",
+        "null,\"noVisitado\",null,",
+        "null,null,\"noVisitado\",",
+    ] {
+        let html = com_barra_do_anexado(
+            &arvore(&[
+                no_processo(0, "10", NUP),
+                visitado.replace("\"noVisitado\",null,null,", outro),
+            ]),
+            1,
+        );
+        assert_eq!(
+            ler_arvore(&html, NUP, "10").map(|_| ()),
+            Err(E::ProcessoAnexadoForaDaFormaObservada),
+            "{outro}"
+        );
+    }
+}
