@@ -180,15 +180,19 @@ fn redirecionamento_302_vira_processo_unico_em_tres_requisicoes() {
             (302, String::new(), Some(localizacao("4321"))),
         ],
     );
+    let busca = r.unwrap();
+    assert_eq!(busca.unidade, UNIDADE);
     assert_eq!(
-        r.unwrap(),
-        BuscaRealizada {
-            unidade: UNIDADE.to_owned(),
-            resposta: RespostaDaPesquisa::ProcessoUnico {
-                id: crate::dominio::IdProcedimento::novo("4321").unwrap()
-            },
-            requisicoes: 3,
+        busca.resposta,
+        RespostaDaPesquisa::ProcessoUnico {
+            id: crate::dominio::IdProcedimento::novo("4321").unwrap()
         }
+    );
+    assert_eq!(busca.requisicoes, 3);
+    // A URL de trabalho é a do `Location`, resolvida; nenhum GET a ela.
+    assert_eq!(
+        busca.trabalho.unwrap().as_str(),
+        format!("{ORIGEM}/{}", localizacao("4321"))
     );
     assert_eq!(pedidos, tres_pedidos());
 }

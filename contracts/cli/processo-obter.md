@@ -3,7 +3,7 @@ type: CommandContract
 title: Ler processo administrativo
 operation: processo.obter
 command: ies processo NUP
-effect: read
+effect: read-marks-viewed
 implementation: partial
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
@@ -21,19 +21,23 @@ máscara, tamanho máximo arbitrário, apenas dígitos ou prefixo de órgão.
 Cada instalação pode reconhecer outra numeração, inclusive de sistemas
 externos. O valor preserva zeros à esquerda. Cabe ao SEI resolver se o protocolo existe ou é acessível.
 O recorte `--resumo` pode localizar o número **somente na caixa
-inteira da unidade**, sem abrir o processo. A leitura integral permanece
-não implementada.
+inteira da unidade**, sem abrir o processo. Sem `--resumo`, o comando
+abre o processo pela sessão de `ies login` e publica identidade e
+documentos do primeiro nível da árvore
+(seção "Leitura pela árvore"); andamentos,
+marcadores e propriedades ainda não são lidos.
 
 ## Entradas
 
 - `NUP`: número do processo que o usuário pode consultar.
 - `--resumo`: procura apenas a identidade já exibida na Caixa de Entrada,
   com um GET autorizado e sem acessar árvore/documentos/andamentos.
-- `--sem-documentos`: omite a árvore de documentos.
-- `--sem-marcadores`: omite os marcadores do processo.
-- `--sem-andamentos`: omite os andamentos.
-- `--sem-propriedades`: omite o cadastro e as propriedades complementares.
-- `--andamentos-completos`: solicita a lista completa quando disponível.
+- `--sem-documentos`: omite a lista `documentos` (a árvore continua sendo
+  lida, porque é ela que confirma a identidade).
+- `--sem-marcadores`, `--sem-andamentos`, `--sem-propriedades`: aceitos e
+  sem efeito nesta fatia, que não lê nenhum desses dados.
+- `--andamentos-completos`: recusado com saída 2
+  (`andamentos_completos_nao_implementados`) até haver leitura do histórico.
 - `--json` e `--unidade SIGLA`: opções globais.
 
 ## Saída prevista
@@ -54,7 +58,8 @@ são preservados quando efetivamente apresentados.
 
 ## Falhas e estado de implementação
 
-Sem `--resumo`, a consulta integral continua não implementada. Com
+Sem `--resumo`, valem os subcódigos da
+seção "Leitura pela árvore". Com
 `--resumo`, o comando lê a caixa da unidade uma vez, exige cobertura
 dos totais declarados e retorna as ocorrências observadas agrupadas
 como `recebidos` ou `gerados`. A ausência do número na caixa não
@@ -62,8 +67,92 @@ comprova inexistência do processo; produz `numero_nao_observado_na_caixa`.
 Não há POST, abertura da árvore nem recebimento automático.
 `--resumo` e `--andamentos-completos` são incompatíveis. Evidências históricas
 são reproduzidas separadamente pelo comando ies replay CENARIO.
-Ao implementar, códigos 0/1/2/3 devem distinguir sucesso, falha,
-uso inválido e efeito incerto; uma consulta não deve fabricar sessão.
+Os códigos 0/1/2 distinguem sucesso, falha e uso inválido; uma consulta
+não fabrica sessão.
+
+## Leitura pela árvore (Refs #59, fatia 1)
+
+`ies processo NUP [--sem-documentos] [--json] [--unidade SIGLA]`, com a
+sessão de `ies login`. Orçamento: **5 requisições**, sem retry e sem
+redirect seguido pelo cliente:
+
+1. GET do Controle; 2. GET da tela de pesquisa; 3. POST da pesquisa pelo
+   NUP (o fluxo de [processo buscar](processo-buscar.md));
+4. GET de `procedimento_trabalhar`; 5. GET do `src` de `iframe#ifrArvore`.
+
+**Resolução: pesquisa primeiro, caixa como reserva.** Um 302 da pesquisa
+é conferido como em `processo buscar` e sua URL é aberta
+(`resolvido_por: "pesquisa"`). Se a pesquisa responde `sem_resultado` ou
+lista (nunca se escolhe linha), procura-se o NUP exato na página do
+Controle **já obtida** na requisição 1, sem novo GET
+(`resolvido_por: "caixa"`). O link precisa estar na linha `tr#P{id}` que
+os leitores da caixa (visões R e D) atribuem ao NUP, com texto igual ao
+NUP, `href` relativo `controlador.php?`, uma única
+`acao=procedimento_trabalhar`, `id_procedimento` igual ao da linha, um
+`infra_hash` de 64 hex, chaves canônicas e mesma instalação. Link
+inválido é recusa (sem cair para outra fonte); NUP em duas linhas, ou
+dois links diferentes para ele, é recusa. Ausência na página não prova
+inexistência: o erro diz os dois fatos
+(`processo_nao_resolvido_pesquisa_sem_resultado_e_ausente_no_controle`
+ou `processo_nao_resolvido_pesquisa_em_lista_e_ausente_no_controle`).
+
+**Efeito declarado.** Abrir o processo muda o estado da unidade: em GO, o
+GET da árvore (requisição 5) marcou como visualizado um processo recebido
+não visualizado. O IES não restaura esse estado. Se há lançamento de
+andamento: não medido. Por isso `effect: read-marks-viewed`.
+
+**Árvore.** Exatamente um `iframe#ifrArvore`, `src` relativo com uma
+`acao=procedimento_visualizar`, `id_procedimento` igual ao aberto e
+`infra_hash` de 64 hex. Os nós são lidos só das linhas inteiras
+`Nos[i] = new infraArvoreNo(…);` por um leitor de literais JS escrito à
+mão (strings com escapes, `null`, `true`, `false`, inteiros), sem
+executar JavaScript; qualquer outra forma é recusa. Índices consecutivos
+desde 0, 16 argumentos, um único nó `PROCESSO` sem pai, `DOCUMENTO` com
+pai igual ao processo; outro tipo (inclusive `PASTA`) é recusa nesta fatia.
+O NUP do nó do processo (a5 e a15) deve ser **igual byte a byte** ao NUP
+pedido, e o id do nó igual ao `id_procedimento` aberto. Estrutura em
+[árvore do processo](../../docs/como-o-sei-funciona/arvore-do-processo.md).
+
+Saída JSON (sem URL, `infra_hash` ou HTML):
+
+```json
+{"numero": "NUP", "id_procedimento": "N", "tipo": "dica do nó PROCESSO",
+ "unidade": "SIGLA", "origem": "web", "resolvido_por": "pesquisa",
+ "requisicoes": 5, "escopo": "arvore_primeiro_nivel",
+ "documentos": [{"id_documento": "D", "numero": "SEI ou null",
+                 "rotulo": "rótulo do nó"}],
+ "andamentos": null, "marcadores": null, "propriedades": null,
+ "nao_consultados": ["andamentos", "marcadores", "propriedades"]}
+```
+
+`documentos` segue a ordem dos nós; não é afirmação de completude além
+do primeiro nível servido. Com `--sem-documentos`, a chave some e entra
+`"omitidos": ["documentos"]`. A dica dos documentos não é publicada (em
+e-mails traz remetente e destinatários).
+
+Subcódigos novos: `pesquisa_sem_url_de_trabalho`,
+os dois `processo_nao_resolvido_*` acima, `processo_repetido_no_controle`,
+`link_do_processo_ausente_no_controle`,
+`links_do_processo_repetidos_no_controle`,
+`link_do_processo_no_controle_nao_reconhecido`,
+`arvore_ausente_na_tela_do_processo`,
+`arvores_repetidas_na_tela_do_processo`,
+`endereco_da_arvore_nao_reconhecido`,
+`endereco_da_arvore_de_outro_processo`,
+`html_da_tela_do_processo_nao_interpretado`,
+`declaracao_de_no_fora_da_forma_observada`,
+`argumento_de_no_nao_literal`, `texto_de_no_sem_fechamento`,
+`escape_de_no_nao_reconhecido`,
+`quantidade_de_argumentos_do_no_diferente_da_observada`,
+`argumento_de_no_com_tipo_diferente_do_observado`,
+`indice_de_no_fora_da_sequencia`, `tipo_de_no_da_arvore_nao_suportado`,
+`no_do_processo_ausente_na_arvore`, `nos_do_processo_repetidos_na_arvore`,
+`no_do_processo_com_pai`, `id_de_no_nao_decimal`,
+`documento_com_pai_diferente_do_processo`, `documento_repetido_na_arvore`,
+`identidade_do_processo_diferente_da_pedida`,
+`id_do_processo_na_arvore_diferente_do_aberto` e
+`andamentos_completos_nao_implementados`. Falhas de sessão, Controle e
+pesquisa mantêm os subcódigos de `processo buscar`.
 
 ## Evidência
 
@@ -79,8 +168,7 @@ A aprovação da interface não comprova paridade nem execução HTTP no IES.
 `ies processo NUP --resumo --saida CAMINHO [--json]` grava **em novo arquivo
 privado** a mesma projeção de identidade da caixa que `--resumo --json`
 produz: número exato, unidade, categoria e ocorrências observadas.
-`--saida` exige `--resumo`; o comando `processo NUP` sem resumo
-não passa a consultar a árvore, documentos ou histórico.
+`--saida` exige `--resumo` e não se combina com a leitura pela árvore.
 
 O arquivo é criado sem sobrescrever destino preexistente, com permissão
 0600 em Unix e erros tipados já definidos para arquivo da caixa. No
@@ -124,7 +212,7 @@ real, a sessão ou a atualidade das páginas; totais e IDs continuam
 sujeitos às mesmas verificações em ambas. Alterações
 externas podem fabricar observações; nunca atribuir a esta operação
 existência, ausência ou cobertura atual do SEI. Orçamento de
-requisições SEI: **zero**. Não altera `processo NUP` sem `--resumo`.
+requisições SEI: **zero**.
 
 ## Observação positiva em página parcial da caixa (Refs #59)
 
@@ -221,7 +309,7 @@ A saída inclui `escopo: historico_privado_offline`, `parcial: true`,
 como histórico atual, integral, autenticado ou snapshot do SEI.
 `--resumo`, `--andamentos-completos`, filtros de omissão e outras fontes
 não podem ser combinadas ao modo de histórico privado, que continua
-separado da leitura live de `ies processo NUP` sem a nova opção.
+separado da leitura pela árvore de `ies processo NUP`.
 Nenhum login, efeito de GET, POST ou escrita é declarado ou realizado.
 
 ## Filtro de andamentos capturados: controles na entrada original (Refs #59)

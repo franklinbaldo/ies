@@ -35,6 +35,24 @@ fn interpretar_com_envio(localizacao: Option<&str>, envio: &str) -> Result<IdPro
         Redirecionamento302::sintetico(localizacao, envio),
         &instalacao(),
     )
+    .map(|p| p.id)
+}
+
+#[test]
+fn url_de_trabalho_sai_resolvida_e_redigida_no_debug() {
+    let p = interpretar_redirecionamento(
+        Redirecionamento302::sintetico(Some(&observado()), &url_do_envio()),
+        &instalacao(),
+    )
+    .unwrap();
+    assert_eq!(
+        p.trabalho.as_str(),
+        format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?{}",
+            consulta("7")
+        )
+    );
+    assert!(!format!("{p:?}").contains(HASH_DESTINO));
 }
 
 fn erro(localizacao: &str) -> E {
