@@ -71,7 +71,10 @@ o executável IES não depende de Python.
 
 ## Arquivos
 
-Máximo de 20.000 bytes UTF-8 por arquivo texto, inclusive `Cargo.lock`.
-Arquivos binários são ignorados. Nada de exceções automáticas para gerados.
+Máximo de 20.000 bytes UTF-8 por arquivo texto. Arquivos binários são
+ignorados. A única isenção são os arquivos `.lock` (como `Cargo.lock`):
+são gerados pelo gerenciador de pacotes e não podem ser divididos
+(decisão do proprietário, 03/11/2026). Nada de outras exceções
+automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.

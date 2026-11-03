@@ -39,6 +39,8 @@ O que falta implementar e em que ordem está na
   deles ([ADR 0001](docs/arquitetura/0001-rotas-por-evidencia.md)).
 - **Mínimo de requests.** Reaproveitar a sessão (`ies login` só reloga
   se ela venceu); `--pagina N` em vez de percorrer páginas; nunca retry.
+  Reusar URLs assinadas já vistas na mesma sessão e a identidade durável
+  do [índice local](docs/arquitetura/0003-indice-local.md).
   **Não restaurar a tela** (visão, página, colunas): vários agentes na
   mesma conta ficariam desfazendo uns aos outros, e todos querem a visão
   detalhada com todas as colunas.
@@ -67,7 +69,8 @@ O que falta implementar e em que ordem está na
 ## Mecânica do repositório
 
 - Todo Markdown autoral é OKF ([política de CI](docs/ci.md)); nenhum
-  arquivo texto passa de 20.000 bytes — divida por responsabilidade.
+  arquivo texto passa de 20.000 bytes (exceto `.lock`) — divida por
+  responsabilidade.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
