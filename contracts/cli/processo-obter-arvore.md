@@ -125,7 +125,8 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "requisicoes": 4,
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null"}],
- "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20}],
+ "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
+ "verificacao_das_pastas": "por_identidade ou por_contagem ou null",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
                 "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
@@ -138,7 +139,7 @@ As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
 pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
 em e-mails traz remetente e destinatários. `--sem-documentos` tira as
-chaves `documentos` e `pastas` (a árvore continua lida: é ela que prova a identidade).
+chaves `documentos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
 `--sem-marcadores` e `--sem-propriedades` são aceitos sem efeito.
 `--sem-andamentos` com `--andamentos-completos` sai com 2
 (`sem_andamentos_incompativel_com_andamentos_completos`).

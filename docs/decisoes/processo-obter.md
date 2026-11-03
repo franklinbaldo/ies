@@ -146,10 +146,24 @@ volta fechada depois do GET de abrir). O Todos, oráculo de comportamento,
 confere as pastas pelo `id_rel_protocolo_protocolo` da barra; a mesma
 regra deu 17/17 e 157/157 nas duas leituras.
 
-**Integridade.** Por identidade, não por contagem: cada protocolo
-declarado exatamente uma vez entre os documentos da pasta, nenhum
-documento fora da declaração, nenhum sem identidade. O Todos exige também
-a ordem; o IES publica a ordem servida e não a usa como prova.
+**Integridade.** Por identidade quando a barra a publica: cada protocolo
+declarado exatamente uma vez entre os documentos da pasta, nenhum fora da
+declaração. O Todos exige também a ordem; o IES publica a ordem servida e
+não a usa como prova. **Barras vazias** (decisão do proprietário,
+03/11/2026, opção B): ao vivo na UnB, dois processos com pastas (157
+documentos em 8 pastas e um de 2 pastas), abertos só em outra unidade,
+abriram inteiros por `ABRIR_PASTAS`, com contagens iguais às declaradas
+(7×20 + 17), mas 150 barras vazias (`Nos[i].acoes = '';`). A pasta cujas
+barras são **todas** vazias é conferida pela contagem (quantidade igual à
+declarada, ids únicos na árvore, nenhum `AGUARDE`) e a saída diz
+`verificacao_das_pastas: "por_contagem"` com o motivo `barras_vazias`;
+pasta mista é recusa (`identidade_parcial_na_pasta`). **Opção A
+rejeitada:** manter só a identidade recusaria esses processos inteiros
+(`documento_da_pasta_sem_identidade_na_barra`) e o usuário não receberia
+nada, embora a árvore servida seja coerente; a B entrega a lista e diz
+qual conferência foi feita, sem alegar identidade onde ela não existe. A
+regra é a barra vazia observada, nunca o texto "aberto somente na
+unidade" (mensagem é apresentação).
 
 **Orçamento e índice.** Sem `AGUARDE`, +0; com `AGUARDE`, +1 GET. A URL
 de abrir é guardada com o objeto `<id>:abrir_pastas` e tentada primeiro no
@@ -158,8 +172,9 @@ caminho 1: a repetição quente custa **1**. Efeito declarado
 seguinte voltou fechada). Nunca `FECHAR_PASTAS`, sem restauração.
 
 **Trade-offs.** Abrir todas custa ~1 MB num GET em vez de vários POSTs
-pequenos; processo aberto só em outra unidade (barra vazia, medido pelo
-Todos) é recusado em vez de aceito pela contagem.
+pequenos; a contagem prova quantidade e unicidade, não que cada documento
+é o protocolo declarado, e por isso é publicada como verificação mais
+fraca.
 
 ## Limitações e revisão
 

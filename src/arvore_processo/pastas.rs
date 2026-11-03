@@ -171,32 +171,62 @@ pub(super) fn conferir_pastas(
             return Err(E::DocumentoComPaiDiferenteDoProcesso);
         }
     }
-    for (k, _) in &pastas {
-        let da_pasta = documentos.iter().filter(|d| d.pai == Pai::Pasta(*k));
-        if fechadas.contains(k) {
-            if da_pasta.count() > 0 {
+    let mut lidas = Vec::with_capacity(pastas.len());
+    for (k, rotulo) in &pastas {
+        let da_pasta: Vec<&DocumentoLido> = documentos
+            .iter()
+            .filter(|d| d.pai == Pai::Pasta(*k))
+            .collect();
+        let verificacao = if fechadas.contains(k) {
+            if !da_pasta.is_empty() {
                 return Err(E::PastaCarregadaPelaMetade);
             }
-            continue;
-        }
-        conferir_identidades(da_pasta, &declarados[k])?;
-    }
-    let lidas = pastas
-        .iter()
-        .map(|(k, rotulo)| PastaNaArvore {
+            None
+        } else {
+            Some(conferir_pasta(&da_pasta, &declarados[k])?)
+        };
+        lidas.push(PastaNaArvore {
             id: format!("PASTA{k}"),
             rotulo: (*rotulo).to_owned(),
             total_declarado: declarados[k].len(),
-            verificacao: (!fechadas.contains(k)).then_some(VerificacaoDaPasta::PorIdentidade),
-        })
-        .collect();
+            verificacao,
+        });
+    }
     Ok((lidas, !fechadas.is_empty()))
+}
+
+/// Uma regra por pasta: todas as barras vazias → contagem; senão,
+/// identidade de cada documento. Barra vazia ao lado de identidade é recusa.
+/// Ids de documento únicos na árvore já foram conferidos na leitura.
+fn conferir_pasta(
+    documentos: &[&DocumentoLido],
+    declarados: &[&str],
+) -> Result<VerificacaoDaPasta, ErroArvore> {
+    let vazias = documentos
+        .iter()
+        .filter(|d| d.barra == Barra::Vazia)
+        .count();
+    if vazias > 0 && vazias == documentos.len() {
+        if documentos.len() != declarados.len() {
+            return Err(ErroArvore::ContagemDaPastaDiferenteDaDeclarada);
+        }
+        return Ok(VerificacaoDaPasta::PorContagem);
+    }
+    if vazias > 0
+        && documentos
+            .iter()
+            .any(|d| matches!(d.barra, Barra::Identidade(_)))
+    {
+        return Err(ErroArvore::IdentidadeParcialNaPasta);
+    }
+    conferir_identidades(documentos, declarados)?;
+    Ok(VerificacaoDaPasta::PorIdentidade)
 }
 
 /// Cada declarado exatamente uma vez; nenhum documento sem identidade ou
 /// fora da declaração.
-fn conferir_identidades<'a>(
-    documentos: impl Iterator<Item = &'a DocumentoLido>,
+fn conferir_identidades(
+    documentos: &[&DocumentoLido],
     declarados: &[&str],
 ) -> Result<(), ErroArvore> {
     use ErroArvore as E;

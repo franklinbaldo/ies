@@ -2,6 +2,7 @@
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
 //! índice local, abre o processo e publica identidade, documentos e pastas
 //! da árvore e andamentos. Nunca URL, hash ou HTML.
+use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -37,6 +38,17 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
         "faixa_observada": {"inicio": 1, "fim": lidos.itens.len()},
         "itens": itens,
     })
+}
+
+/// A verificação mais fraca entre as pastas conferidas; `None` sem pastas
+/// (ou sem nenhuma conferida).
+fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta> {
+    let regras: Vec<VerificacaoDaPasta> = pastas.iter().filter_map(|p| p.verificacao).collect();
+    if regras.contains(&VerificacaoDaPasta::PorContagem) {
+        Some(VerificacaoDaPasta::PorContagem)
+    } else {
+        regras.first().copied()
+    }
 }
 
 /// O JSON publicado; `documentos` some com `--sem-documentos` e
@@ -91,9 +103,27 @@ pub(crate) fn json_do_processo(
             .arvore
             .pastas
             .iter()
-            .map(|p| json!({"id": p.id, "rotulo": p.rotulo, "total": p.total_declarado}))
+            .map(|p| {
+                json!({
+                    "id": p.id,
+                    "rotulo": p.rotulo,
+                    "total": p.total_declarado,
+                    "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
+                })
+            })
             .collect();
         objeto.insert("pastas".to_owned(), Value::Array(pastas));
+        let verificacao = verificacao_das_pastas(&aberto.arvore.pastas);
+        objeto.insert(
+            "verificacao_das_pastas".to_owned(),
+            json!(verificacao.map(VerificacaoDaPasta::como_texto)),
+        );
+        if verificacao == Some(VerificacaoDaPasta::PorContagem) {
+            objeto.insert(
+                "verificacao_das_pastas_motivo".to_owned(),
+                json!("barras_vazias"),
+            );
+        }
     }
     valor
 }
@@ -116,9 +146,12 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         let arvore = &aberto.arvore;
         let _ = write!(
             texto,
-            "\n{} documento(s) na árvore, {} pasta(s):",
+            "\n{} documento(s) na árvore, {} pasta(s){}:",
             arvore.documentos.len(),
-            arvore.pastas.len()
+            arvore.pastas.len(),
+            verificacao_das_pastas(&arvore.pastas)
+                .map(|v| format!(" conferidas {}", v.como_texto()))
+                .unwrap_or_default()
         );
         for documento in &arvore.documentos {
             let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);

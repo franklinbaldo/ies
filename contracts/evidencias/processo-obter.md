@@ -67,8 +67,14 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   aberta); interações 412, 418, 433, 439, 462 e 466 abrem tudo por GET; a
   árvore simples seguinte volta fechada. Nenhum POST de
   `procedimento_paginar`, nenhum `FECHAR_PASTAS`.
-- [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live:
-  **NOT_RUN** até o agente pai.
+- Medição ao vivo do agente pai na UnB (03/11/2026): dois processos com
+  pastas (157 documentos em 8 pastas e um de 2 pastas) abriram inteiros
+  por `ABRIR_PASTAS` (nenhum `AGUARDE`); as contagens por pasta igualaram
+  `Pastas[k]['protocolos']` (7×20 + 17), mas 150 barras vieram vazias
+  (processo aberto só em outra unidade). Daí a verificação `por_contagem`
+  dessas pastas.
+- [Contrato das pastas](../cli/processo-obter-pastas.md). Validação live do
+  comando: **NOT_RUN** até o agente pai.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
