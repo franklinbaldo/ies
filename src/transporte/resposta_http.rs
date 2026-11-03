@@ -70,10 +70,10 @@ impl std::error::Error for CorpoExcessivo {}
 
 /// Erro de leitura do corpo como falha: o limite é `RespostaExcessiva`.
 pub(crate) fn falha_de_leitura(erro: &io::Error) -> FalhaTransporte {
-    if erro
+    let interno = erro
         .get_ref()
-        .is_some_and(|interno| interno.is::<CorpoExcessivo>())
-    {
+        .and_then(|e| e.downcast_ref::<CorpoExcessivo>());
+    if interno.is_some() {
         FalhaTransporte::RespostaExcessiva
     } else {
         FalhaTransporte::Rede
