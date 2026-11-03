@@ -164,6 +164,24 @@ pub(super) fn tela_recusada(mensagem: &str) -> String {
     tela_sbm().replace("<form id=", &format!("{aviso}<form id="))
 }
 
+/// Tela de login devolvida pela validação da Infra, na estrutura observada
+/// na `UnB` 4.0.9 (02/11/2026): `txtUsuario` preenchido, `txaInfraValidacao`
+/// oculto e o script de `alert`. Sem o aviso `alert-danger`.
+pub(super) fn tela_recusada_pela_infra(mensagem: &str) -> String {
+    let validacao = format!(
+        "<textarea id=\"txaInfraValidacao\" name=\"txaInfraValidacao\" style=\"display:none\">{mensagem}</textarea>
+<script type=\"text/javascript\" charset=\"iso-8859-1\"><!--//--><![CDATA[//><!--
+self.setTimeout('alert(document.getElementById(\\'txaInfraValidacao\\').value)',300);
+//--><!]]></script>"
+    );
+    tela_sbm()
+        .replace(
+            "name=\"txtUsuario\" placeholder=\"Usuário\" class=\"form-control\" value=\"\"",
+            "name=\"txtUsuario\" placeholder=\"Usuário\" class=\"form-control\" value=\"usuario.teste\"",
+        )
+        .replace("</form>", &format!("</form>{validacao}"))
+}
+
 pub(super) fn controle(unidade: &str) -> String {
     format!(
         "<html><body><a id=\"lnkInfraUnidade\" href=\"#\">{unidade}</a>

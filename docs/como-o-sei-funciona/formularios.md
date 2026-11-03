@@ -22,7 +22,8 @@ pode ter valor vazio; botões `type=button` podem acionar
 submissão programática; vários botões produzem efeitos diferentes.
 
 O servidor pode recusar o gesto na própria página ou em
-campos de validação, inclusive respondendo HTTP 200.
+campos de validação, inclusive respondendo HTTP 200
+([`txaInfraValidacao`](validacao-da-infra.md)).
 Uma tela de formulário desconhecida deve ser recusada sem agir.
 
 **Regra empírica:** observar formulário fresco, reproduzir

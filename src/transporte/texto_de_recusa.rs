@@ -26,6 +26,10 @@ const MAX_PROFUNDIDADE: usize = 256;
 pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
     let parser = dom.parser();
+    // A validação da Infra (txaInfraValidacao) vem antes de tudo.
+    if let Some(texto) = super::validacao_da_infra::texto_da_validacao(&dom) {
+        return Some(texto);
+    }
     // Tag ilegível: não se afirma o contêiner; vale o texto geral da tela.
     if let Some(handle) = conteiner_de_erro(&dom) {
         let texto = texto_visivel(handle, parser);
@@ -126,8 +130,38 @@ pub(crate) fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> St
     saida
 }
 
-/// `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#39;`, `&nbsp;` e
-/// referências numéricas; o resto fica como veio.
+/// Letras acentuadas do português e ordinais, por nome (ISO-8859-1).
+const LATINAS: [(&str, char); 26] = [
+    ("aacute", 'á'),
+    ("Aacute", 'Á'),
+    ("agrave", 'à'),
+    ("Agrave", 'À'),
+    ("acirc", 'â'),
+    ("Acirc", 'Â'),
+    ("atilde", 'ã'),
+    ("Atilde", 'Ã'),
+    ("eacute", 'é'),
+    ("Eacute", 'É'),
+    ("ecirc", 'ê'),
+    ("Ecirc", 'Ê'),
+    ("iacute", 'í'),
+    ("Iacute", 'Í'),
+    ("oacute", 'ó'),
+    ("Oacute", 'Ó'),
+    ("ocirc", 'ô'),
+    ("Ocirc", 'Ô'),
+    ("otilde", 'õ'),
+    ("Otilde", 'Õ'),
+    ("uacute", 'ú'),
+    ("Uacute", 'Ú'),
+    ("ccedil", 'ç'),
+    ("Ccedil", 'Ç'),
+    ("ordm", 'º'),
+    ("ordf", 'ª'),
+];
+
+/// `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#39;`, `&nbsp;`, as letras
+/// de `LATINAS` e referências numéricas; o resto fica como veio.
 pub(crate) fn decodificar_entidades(texto: &str) -> String {
     let mut saida = String::with_capacity(texto.len());
     let mut resto = texto;
@@ -158,6 +192,7 @@ fn entidade(nome: &str) -> Option<char> {
         "quot" => Some('"'),
         "apos" => Some('\''),
         "nbsp" => Some('\u{a0}'),
+        _ if !nome.starts_with('#') => LATINAS.iter().find(|(n, _)| *n == nome).map(|(_, c)| *c),
         _ => {
             let numero = nome.strip_prefix('#')?;
             let valor = match numero.strip_prefix(['x', 'X']) {

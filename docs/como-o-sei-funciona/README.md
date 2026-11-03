@@ -21,6 +21,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [URLs assinadas e infra_hash](infra-hash.md)
 - [Rotas, links e árvore do processo](rotas-e-arvore.md)
 - [Formulários e JavaScript](formularios.md)
+- [Mensagem de validação da Infra](validacao-da-infra.md)
 - [Tabelas e paginação](tabelas-e-paginacao.md)
 - [Estado e diferenças entre instalações](estado-e-instalacoes.md)
 - [Efeitos e verificação](efeitos-e-verificacao.md)

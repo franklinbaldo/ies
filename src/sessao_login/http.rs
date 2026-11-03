@@ -2,11 +2,13 @@
 //! conexão por pedido, `Connection: close`, sem redirecionamento, sem
 //! retry, 8 MB durante o recebimento. Existe porque o `minreq` 2.14.1 guarda
 //! um valor por nome de cabeçalho (`HashMap::insert` em `read_metadata`) e
-//! perderia todos os `Set-Cookie` de uma resposta menos o último.
+//! perderia todos os `Set-Cookie` de uma resposta menos o último. Com proxy
+//! no ambiente (`transporte::proxy`), um `CONNECT` por pedido e o TLS com o
+//! host do SEI (SNI e certificado) através do túnel.
 use super::{RespostaHttp, TransporteDeLogin};
 use crate::formulario_web::SubmissaoDerivada;
 use crate::instalacao::host_valido;
-use crate::transporte::{FalhaTransporte, ler_limitado};
+use crate::transporte::{FalhaTransporte, ler_limitado, proxy};
 use std::fmt::Write as _;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -90,6 +92,31 @@ fn requisitar(
         );
     }
     pedido.push_str("\r\n");
+    let tcp = abrir_conexao(host, ambiente_do_processo)?;
+    let conector = native_tls::TlsConnector::new().map_err(|_| FalhaTransporte::Rede)?;
+    let mut tls = conector
+        .connect(host, tcp)
+        .map_err(|_| FalhaTransporte::Rede)?;
+    tls.write_all(pedido.as_bytes())
+        .and_then(|()| tls.write_all(envio.map_or(&[][..], |e| e.corpo)))
+        .and_then(|()| tls.flush())
+        .map_err(|_| FalhaTransporte::Rede)?;
+    ler_resposta(&mut BufReader::new(tls))
+}
+
+fn ambiente_do_processo(nome: &str) -> Option<String> {
+    std::env::var(nome).ok()
+}
+
+/// Conexão TCP a `host:443`, direta ou pelo túnel do proxy que `ambiente`
+/// declarar (`transporte::proxy`), já com os tempos limite.
+pub(crate) fn abrir_conexao(
+    host: &str,
+    ambiente: impl Fn(&str) -> Option<String>,
+) -> Result<TcpStream, FalhaTransporte> {
+    if let Some(proxy) = proxy::proxy_para(host, ambiente).map_err(FalhaTransporte::Proxy)? {
+        return proxy::conectar_via(&proxy, host, TEMPO_LIMITE).map_err(FalhaTransporte::Proxy);
+    }
     // Cada endereço resolvido é uma tentativa de conexão TCP, não de pedido:
     // nada foi enviado antes de uma delas abrir.
     let tcp = (host, 443)
@@ -100,15 +127,7 @@ fn requisitar(
     tcp.set_read_timeout(Some(TEMPO_LIMITE))
         .and_then(|()| tcp.set_write_timeout(Some(TEMPO_LIMITE)))
         .map_err(|_| FalhaTransporte::Rede)?;
-    let conector = native_tls::TlsConnector::new().map_err(|_| FalhaTransporte::Rede)?;
-    let mut tls = conector
-        .connect(host, tcp)
-        .map_err(|_| FalhaTransporte::Rede)?;
-    tls.write_all(pedido.as_bytes())
-        .and_then(|()| tls.write_all(envio.map_or(&[][..], |e| e.corpo)))
-        .and_then(|()| tls.flush())
-        .map_err(|_| FalhaTransporte::Rede)?;
-    ler_resposta(&mut BufReader::new(tls))
+    Ok(tcp)
 }
 
 fn ler_linha<R: BufRead>(leitor: &mut R) -> Result<String, FalhaTransporte> {

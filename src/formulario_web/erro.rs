@@ -1,6 +1,6 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
 use crate::html_atributos::ErroAtributoHtml;
-use crate::transporte::FalhaTransporte;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ErroSubmissaoFormulario {
@@ -44,6 +44,9 @@ pub(crate) enum ErroSubmissaoFormulario {
     BotoesDeEnvioRepetidosNoFormulario,
     TelaDeLoginRecebidaAposEnvio,
     MarcadorDeResultadoAusenteNaResposta,
+    /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
+    /// pela validação da Infra. Status 200 e a mensagem saneada.
+    ValidacaoRecusadaPeloSei(StatusHttpRecusado),
     /// Tag de abertura servida que o tokenizador de atributos recusou.
     AtributoHtml(ErroAtributoHtml),
     Transporte(FalhaTransporte),
@@ -88,15 +91,18 @@ impl ErroSubmissaoFormulario {
             Self::MarcadorDeResultadoAusenteNaResposta => {
                 "marcador_de_resultado_ausente_na_resposta"
             }
+            Self::ValidacaoRecusadaPeloSei(_) => "validacao_recusada_pelo_sei",
             Self::AtributoHtml(falha) => falha.subcodigo(),
             Self::Transporte(falha) => falha.subcodigo(),
         }
     }
 
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+    /// Na validação da Infra, status 200 e a mensagem do SEI.
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
+            Self::ValidacaoRecusadaPeloSei(recusa) => Some(recusa),
             _ => None,
         }
     }

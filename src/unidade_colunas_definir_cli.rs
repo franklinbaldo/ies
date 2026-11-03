@@ -110,7 +110,10 @@ fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
     let mut valor = Map::new();
     valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
     if let Some(http) = falha.status_http() {
-        valor.insert("status_http".to_owned(), json!(http.status));
+        // 200: validação da Infra, só a mensagem.
+        if http.status != 200 {
+            valor.insert("status_http".to_owned(), json!(http.status));
+        }
         if let Some(texto) = http.mensagem_do_servidor {
             valor.insert("mensagem_do_servidor".to_owned(), json!(texto));
         }

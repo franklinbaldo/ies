@@ -104,6 +104,47 @@ navegador montar o corpo, e não participa. Combinação não observada é
 recusa. Corpo no charset da tela (`iso-8859-1` observado), `Origin`
 do host e `Referer` = URL da tela.
 
+## Proxy do ambiente
+
+O cliente HTTPS do login (`native-tls`, porque o `minreq` guarda só o
+último `Set-Cookie`) atravessa um proxy declarado no ambiente. Os outros
+comandos usam o `minreq` 2.14 **sem** a feature `proxy`: hoje eles não
+leem nenhuma variável de proxy e conectam direto.
+
+- Variável: a primeira **não vazia** de `https_proxy`, `HTTPS_PROXY`,
+  `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS; `http_proxy` não
+  vale). O `minreq` com `proxy` leria só `https_proxy` para HTTPS (o
+  `map_err` dele nunca chega a `HTTPS_PROXY`) e ignoraria `NO_PROXY`;
+  o IES segue a convenção do curl, documentada aqui.
+- Exceções: `no_proxy`, senão `NO_PROXY`, separadas por vírgula, sem
+  caixa: `*` dispensa todos; `.sufixo` dispensa o domínio e os
+  subdomínios; outra entrada é host exato. Entrada com porta ou
+  curinga parcial (`*.x`) não casa. A exceção é conferida antes do
+  endereço: host dispensado conecta direto mesmo com proxy inválido.
+- Endereço `[http://][usuario[:senha]@]host:porta[/]` (IPv6 entre
+  colchetes); porta obrigatória (sem padrão adivinhado); `%XX` da
+  credencial decodificado. Credencial vai só em
+  `Proxy-Authorization: Basic`, nunca em `Debug`, log ou saída.
+  `https://`, `socks5://` e outros esquemas: `proxy_com_esquema_nao_suportado`.
+- Por pedido: conexão TCP ao proxy (cada endereço resolvido), um
+  `CONNECT host:443 HTTP/1.1` com `Host`, resposta lida byte a byte até a
+  linha vazia (16 KiB no máximo); 2xx abre o túnel e o TLS segue com o
+  host do SEI (SNI e certificado do SEI pela CA do sistema, como sem
+  proxy). Mesmos 30 s de tempo limite e limites de resposta. Sem retry,
+  nem do `CONNECT` nem do pedido.
+
+| Fato | Subcódigo |
+| --- | --- |
+| Valor fora do formato acima | `endereco_de_proxy_invalido` |
+| Esquema diferente de `http://` | `proxy_com_esquema_nao_suportado` |
+| DNS ou TCP do proxy falhou (nada foi ao SEI) | `proxy_inacessivel` |
+| Resposta ao `CONNECT` fora de HTTP/1.x ou truncada | `resposta_do_proxy_nao_interpretavel` |
+| `CONNECT` respondido fora de 2xx (`407`, `403`, `502`...) | `proxy_recusou_o_tunel`, com `status_do_proxy` |
+
+`status_do_proxy` não é `status_http` (o SEI não respondeu). Testado
+offline com proxy falso local (`TcpListener`); o TLS através do túnel
+não tem teste automatizado.
+
 ## Saída
 
 ```json
@@ -146,18 +187,23 @@ a sessão que o primeiro gravou.
 `regra_do_onsubmit_do_login_nao_observada`,
 `botao_de_envio_do_login_nao_reconhecido`, os do primitivo de formulário,
 `credencial_recusada` (com `mensagem_do_servidor` saneada quando a tela
-a declara), `tela_apos_o_login_nao_reconhecida`,
+a declara: primeiro o `#txaInfraValidacao` da
+[validação da Infra](../../docs/como-o-sei-funciona/validacao-da-infra.md),
+observado na UnB 4.0.9; senão `divInfraExcecao`, `alert-danger`,
+`infraMensagemErro` ou `infraExcecao`), `tela_apos_o_login_nao_reconhecida`,
 `link_do_controle_de_processos_nao_reconhecido`,
 `controle_apos_o_login_nao_reconhecido`, `cookie_da_sessao_nao_recebido`,
 `destino_da_sessao_nao_eh_arquivo_regular`, `gravacao_da_sessao_falhou`,
 `unidade_exibida_diferente_da_solicitada` e os de transporte
 (`status_http_*` com `status_http` e `mensagem_do_servidor`,
-`falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`).
+`falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`) e
+os do proxy (acima).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
 terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
 `status_http` e `mensagem_do_servidor` nas recusas HTTP, só
-`mensagem_do_servidor` em `credencial_recusada` e `campo` (a chave, nunca
-o valor) nas falhas do arquivo de credenciais. Saída 1.
+`mensagem_do_servidor` em `credencial_recusada`, `status_do_proxy` em
+`proxy_recusou_o_tunel` e `campo` (a chave, nunca o valor) nas falhas do
+arquivo de credenciais. Saída 1.
 
 ## Fora do escopo
 

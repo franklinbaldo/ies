@@ -1,7 +1,7 @@
 //! Recusas tipadas do fluxo: cada uma termina sem novo POST, com a
 //! sequência de pedidos conferida.
 use super::tests_apoio::*;
-use super::{ErroLogin, entrar_via};
+use super::{ErroLogin, entrar_via, tela};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 fn erro_com(respostas: Vec<super::RespostaHttp>) -> (ErroLogin, Roteiro) {
@@ -171,6 +171,34 @@ fn tela_de_login_devolvida_e_credencial_recusada_com_a_mensagem_saneada() {
         ErroLogin::CredencialRecusada {
             mensagem_do_servidor: None
         }
+    );
+}
+
+#[test]
+fn credencial_recusada_le_a_validacao_da_infra_antes_dos_conteineres() {
+    // UnB 4.0.9 (02/11): 200, tela de login de novo e txaInfraValidacao.
+    let (erro, roteiro) = erro_com(vec![
+        r302(LOGIN_SIP_INFRA_URL, &[]),
+        r200(&tela_sbm(), &[]),
+        r200(
+            &tela_recusada_pela_infra("Usu&aacute;rio ou Senha Inv&aacute;lida."),
+            &[],
+        ),
+    ]);
+    assert_eq!(
+        erro,
+        ErroLogin::CredencialRecusada {
+            mensagem_do_servidor: Some("Usu\u{e1}rio ou Senha Inv\u{e1}lida.".to_owned())
+        }
+    );
+    assert_eq!(posts(&roteiro), 1);
+    let ambas = tela_recusada("Outro texto").replace(
+        "<form id=",
+        "<textarea id=\"txaInfraValidacao\" style=\"display:none\">Senha expirada.</textarea><form id=",
+    );
+    assert_eq!(
+        tela::mensagem_de_recusa(&ambas).as_deref(),
+        Some("Senha expirada.")
     );
 }
 
