@@ -12,7 +12,7 @@ fn contagem_aceita_ponto_so_entre_grupos_de_tres_digitos() {
     assert_eq!(ler_contagem("10"), Some(10));
     assert_eq!(ler_contagem("999"), Some(999));
     assert_eq!(ler_contagem("1.234"), Some(1234));
-    assert_eq!(ler_contagem("3.440"), Some(3440));
+    assert_eq!(ler_contagem("4.567"), Some(4567));
     assert_eq!(ler_contagem("12.345.678"), Some(12_345_678));
     for fora in [
         "", "1234", "1,234", "1.23", "1.2345", "01.234", "012", ".234", "1.", "1..234", "1 234",
@@ -177,7 +177,7 @@ fn linha_invalida_da_tabela_e_erro_de_resultado() {
 
 #[test]
 fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
-    // Só o total acima de 999 foi observado ("3.440"); posições sem o
+    // Só o total acima de 999 foi observado (quatro dígitos); posições sem o
     // separador falham fechado em vez de virar outra leitura.
     let html = resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234");
     assert_eq!(

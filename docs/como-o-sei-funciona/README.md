@@ -23,6 +23,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [Formulários e JavaScript](formularios.md)
 - [Mensagem de validação da Infra](validacao-da-infra.md)
 - [Tabelas e paginação](tabelas-e-paginacao.md)
+- [Pesquisa de processo por protocolo](pesquisa-de-protocolo.md)
 - [Estado e diferenças entre instalações](estado-e-instalacoes.md)
 - [Efeitos e verificação](efeitos-e-verificacao.md)
 - [Regressões recentes do Todos relevantes ao IES](alertas-do-todos.md)
