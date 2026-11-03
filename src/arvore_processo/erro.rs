@@ -44,6 +44,17 @@ pub(crate) enum ErroArvore {
     EnderecoDeAbrirPastasNaoReconhecido,
     PastasNaoCarregadasAposAbrirPastas,
     ContagemDaPastaDiferenteDaDeclarada,
+    // Processos anexados.
+    ProcessoAnexadoForaDaFormaObservada,
+    NupDoNoDoProcessoAnexadoInconsistente,
+    ProcessoAnexadoComPaiDiferenteDoProcesso,
+    ProcessoAnexadoRepetidoNaArvore,
+    ProcessoAnexadoIgualAoProcesso,
+    NoComPaiNoProcessoAnexado,
+    // Vínculo do processo aberto com o pai (ele mesmo anexado).
+    VinculoDeAnexacaoForaDaFormaObservada,
+    VinculosDeAnexacaoRepetidos,
+    HtmlDoNoDoProcessoForaDaFormaObservada,
 }
 
 impl ErroArvore {
@@ -114,6 +125,29 @@ impl ErroArvore {
             Self::EnderecoDeAbrirPastasNaoReconhecido => "endereco_de_abrir_pastas_nao_reconhecido",
             Self::PastasNaoCarregadasAposAbrirPastas => "pastas_nao_carregadas_apos_abrir_pastas",
             Self::ContagemDaPastaDiferenteDaDeclarada => "contagem_da_pasta_diferente_da_declarada",
+            outro => outro.subcodigo_dos_anexados(),
+        }
+    }
+
+    fn subcodigo_dos_anexados(self) -> &'static str {
+        match self {
+            Self::ProcessoAnexadoForaDaFormaObservada => "processo_anexado_fora_da_forma_observada",
+            Self::NupDoNoDoProcessoAnexadoInconsistente => {
+                "nup_do_no_do_processo_anexado_inconsistente"
+            }
+            Self::ProcessoAnexadoComPaiDiferenteDoProcesso => {
+                "processo_anexado_com_pai_diferente_do_processo"
+            }
+            Self::ProcessoAnexadoRepetidoNaArvore => "processo_anexado_repetido_na_arvore",
+            Self::ProcessoAnexadoIgualAoProcesso => "processo_anexado_igual_ao_processo",
+            Self::NoComPaiNoProcessoAnexado => "no_com_pai_no_processo_anexado",
+            Self::VinculoDeAnexacaoForaDaFormaObservada => {
+                "vinculo_de_anexacao_fora_da_forma_observada"
+            }
+            Self::VinculosDeAnexacaoRepetidos => "vinculos_de_anexacao_repetidos",
+            Self::HtmlDoNoDoProcessoForaDaFormaObservada => {
+                "html_do_no_do_processo_fora_da_forma_observada"
+            }
             _ => "arvore_nao_reconhecida",
         }
     }

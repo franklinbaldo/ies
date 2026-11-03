@@ -337,13 +337,24 @@ pub(super) fn rodar_com(
     andamentos: PedidoDeAndamentos,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
+    rodar_nup(amb, NUP, unidade, andamentos, respostas)
+}
+
+/// Como [`rodar_com`], pedindo `nup`.
+pub(super) fn rodar_nup(
+    amb: &Ambiente,
+    nup: &str,
+    unidade: Option<&str>,
+    andamentos: PedidoDeAndamentos,
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
     let url = url_controle();
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
         origem: ORIGEM,
         cookie_file: &amb.cookie,
     };
-    let nup = NumeroProcesso::novo(NUP).unwrap();
+    let nup = NumeroProcesso::novo(nup).unwrap();
     let pedido = PedidoDoProcesso {
         nup: &nup,
         unidade,

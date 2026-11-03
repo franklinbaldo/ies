@@ -1,7 +1,7 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
-//! índice local, abre o processo e publica identidade, documentos e pastas
-//! da árvore e andamentos. Nunca URL, hash ou HTML.
+//! índice local, abre o processo e publica identidade, anexados, documentos
+//! e pastas da árvore e andamentos. Nunca URL, hash ou HTML.
 use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
@@ -50,7 +50,7 @@ fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta
         .find(|v| regras.contains(v))
 }
 
-/// O JSON publicado; `documentos` some com `--sem-documentos` e
+/// O JSON publicado; `anexados` sai sempre; `documentos` some com `--sem-documentos` e
 /// `andamentos` com `--sem-andamentos` (link não publicado: `null`).
 pub(crate) fn json_do_processo(
     nup: &NumeroProcesso,
@@ -81,7 +81,25 @@ pub(crate) fn json_do_processo(
             nao_lidos.insert(0, "andamentos");
             objeto.insert("andamentos_nao_lidos_motivo".to_owned(), json!(motivo));
         }
+        let anexados = &aberto.arvore.anexados;
+        if !anexados.is_empty() {
+            nao_lidos.push("documentos_dos_anexados");
+        }
         objeto.insert("nao_lidos".to_owned(), json!(nao_lidos));
+        let anexados: Vec<Value> = anexados
+            .iter()
+            .map(|a| json!({"numero": a.nup, "id_procedimento": a.id, "tipo": a.tipo}))
+            .collect();
+        objeto.insert("anexados".to_owned(), Value::Array(anexados));
+        let pai = aberto.arvore.anexado_a.as_ref();
+        objeto.insert("anexado".to_owned(), json!(pai.is_some()));
+        objeto.insert(
+            "anexado_a".to_owned(),
+            pai.map_or(
+                Value::Null,
+                |p| json!({"numero": p.numero, "id_procedimento": p.id_procedimento}),
+            ),
+        );
     }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
         let documentos: Vec<Value> = aberto
@@ -143,6 +161,28 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         aberto.resolvido_por.como_texto(),
         aberto.requisicoes,
     );
+    if let Some(pai) = &aberto.arvore.anexado_a {
+        let _ = write!(
+            texto,
+            "\nAnexado ao processo {} (id {}): ies processo {}",
+            pai.numero, pai.id_procedimento, pai.numero
+        );
+    }
+    let anexados = &aberto.arvore.anexados;
+    if !anexados.is_empty() {
+        let _ = write!(
+            texto,
+            "\n{} processo(s) anexado(s), sem os documentos deles; abra cada um:",
+            anexados.len()
+        );
+        for a in anexados {
+            let _ = write!(
+                texto,
+                "\n- {} (id {}, {}): ies processo {}",
+                a.nup, a.id, a.tipo, a.nup
+            );
+        }
+    }
     if !sem_documentos {
         let arvore = &aberto.arvore;
         let _ = write!(

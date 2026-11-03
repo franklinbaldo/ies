@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Abrir processo pela árvore
-description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore e os andamentos e aprende no índice local
+description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore, os processos anexados e os andamentos e aprende no índice local
 ---
 
 # `ies processo NUP` pela árvore (Refs #59, fatias 1 a 4)
@@ -10,8 +10,9 @@ Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
 `--resumo`, `ies processo NUP [--sem-documentos] [--sem-andamentos |
 --andamentos-completos] [--json] [--unidade SIGLA]` usa a sessão de
 `ies login`, abre o processo e publica a identidade, os documentos da
-árvore, inclusive os de pastas ([pastas](processo-obter-pastas.md)), e os
-andamentos ([seção própria](processo-obter-andamentos.md)). Marcadores e
+árvore, inclusive os de pastas ([pastas](processo-obter-pastas.md)), os
+processos anexados e os andamentos
+([seção própria](processo-obter-andamentos.md)). Marcadores e
 propriedades não são lidos. `--resumo` não muda.
 
 ## Resolução (ordem aprovada pelo proprietário)
@@ -78,7 +79,10 @@ apaga a linha do processo (a colheita do mesmo GET a teria gravado). No passo 3,
 Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
 `sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
 
-**Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`,
+**Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`
+e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`;
+aberto um anexado, o par do pai e o link `procedimento_trabalhar` dele
+(objeto = id do pai, que o passo 1b usa);
 os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id),
 o de "Abrir todas as Pastas" (objeto = `<id>:abrir_pastas`, só depois da
 árvore aberta conferida) e o `action` da pesquisa rápida da tela do
@@ -124,9 +128,35 @@ Qualquer linha com `new infraArvoreNo(` fora dessa forma é recusa. Índices
 consecutivos desde 0, 16 argumentos, um único `PROCESSO` (a1 id decimal,
 a2 `null`, a5 NUP, a6 tipo, a15 igual a a5), `DOCUMENTO` com a2 igual ao
 id do processo ou a uma pasta; `PASTA` e `AGUARDE` (15 argumentos) seguem
-o [contrato das pastas](processo-obter-pastas.md); outro tipo é recusa.
+o [contrato das pastas](processo-obter-pastas.md); `PROCESSO_ANEXADO`
+segue a seção abaixo; outro tipo é recusa.
 O NUP do nó (a5) é comparado **byte a byte** com o pedido. Estrutura em
 [árvore do processo](../../docs/como-o-sei-funciona/arvore-do-processo.md).
+
+**Processos anexados.** Forma observada na UnB 4.0.9 (03/11/2026), a
+única aceita: `PROCESSO_ANEXADO` com 16 argumentos, a1 id decimal do
+anexado, a2 igual ao id do processo, a3 texto que começa por
+`controlador.php?` com uma `acao=arvore_visualizar`, um `id_procedimento`
+igual a a2 e um `id_procedimento_anexado` igual a a1, a5 NUP do anexado
+(não vazio), a6 tipo, a12 a a14 `null` e a15 igual a a5. Id ou NUP
+iguais aos do processo, ou repetidos entre anexados, são recusa. A barra
+do anexado (`.acoes`) não é lida. A árvore **não** traz os documentos do
+anexado (na captura, todos os documentos eram filhos do processo); um
+`DOCUMENTO`, `PASTA` ou `PROCESSO_ANEXADO` com pai num anexado nunca foi
+observado e é recusa, nunca palpite. Para ler o anexado:
+`ies processo <NUP do anexado>`, que o índice já resolve pelo id aprendido.
+
+**Processo aberto que é anexado.** A árvore do próprio anexado tem raiz
+`PROCESSO` comum; o `.html` da raiz (literal JS, lido pelo mesmo leitor de
+literais, na linha própria ou seguido da declaração seguinte) traz o
+vínculo. As tags `<a>` do `.html` são lidas pelo tokenizador de atributos;
+é candidata a que tem `href` com chave `id_procedimento_anexado`. Uma
+candidata é o vínculo: `href` relativo `controlador.php?` conferido como
+os outros links assinados (uma `acao=procedimento_trabalhar`, um
+`infra_hash` de 64 hex, um `id_procedimento` decimal diferente do aberto),
+um `id_procedimento_anexado` igual ao aberto e texto não vazio, sem
+espaço nas pontas, entidade ou tag: o NUP do pai. Nenhuma candidata:
+`anexado: false`. A frase em volta e o ícone não classificam nada.
 
 **Efeito declarado.** Em GO, o GET da árvore marcou como visualizado um
 processo recebido não visualizado (o de `procedimento_trabalhar`, sozinho,
@@ -140,6 +170,8 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
  "unidade": "SIGLA ou null", "resolvido_por": "caixa",
  "requisicoes": 4,
+ "anexado": false, "anexado_a": null,
+ "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null"}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
@@ -147,8 +179,16 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
                 "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
- "nao_lidos": ["marcadores", "propriedades"]}
+ "nao_lidos": ["marcadores", "propriedades", "documentos_dos_anexados"]}
 ```
+
+`anexados` sai **sempre**, na ordem dos nós (`[]` sem anexado), também
+com `--sem-documentos`: vem da mesma árvore, sem custo, e é identidade do
+processo, não documento. Com algum anexado, `nao_lidos` termina em
+`documentos_dos_anexados`; o texto humano lista cada um com a dica
+`ies processo <NUP>`. `anexado` (`true` com o vínculo) e `anexado_a`
+(`{"numero", "id_procedimento"}` do pai, ou `null`) também saem sempre;
+o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
 As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 [andamentos](processo-obter-andamentos.md).
@@ -196,6 +236,15 @@ Tela: `arvore_ausente_na_tela_do_processo`,
 `identidade_do_processo_diferente_da_pedida`,
 `id_do_processo_na_arvore_diferente_do_aberto`.
 
+Anexados: `processo_anexado_fora_da_forma_observada`,
+`nup_do_no_do_processo_anexado_inconsistente`,
+`processo_anexado_com_pai_diferente_do_processo`,
+`processo_anexado_repetido_na_arvore`,
+`processo_anexado_igual_ao_processo`, `no_com_pai_no_processo_anexado`,
+`vinculo_de_anexacao_fora_da_forma_observada`,
+`vinculos_de_anexacao_repetidos` (duas candidatas ou dois `.html` da raiz),
+`html_do_no_do_processo_fora_da_forma_observada`.
+
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
 Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 
@@ -204,4 +253,5 @@ Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-0
 Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
 Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 ([relatório](../../docs/validacao-live/2026-11-03-colheita-do-controle.md)).
+Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

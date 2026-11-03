@@ -68,6 +68,19 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         },
     };
     let (arvore_lida, unidade, resolvido_por) = aberto;
+    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
+    for anexado in &arvore_lida.arvore.anexados {
+        let _ = indice.registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
+    }
+    // Aberto um anexado: o pai e o link dele, para o passo 1b.
+    if let Some(pai) = &arvore_lida.arvore.anexado_a {
+        let _ = indice.registrar_processo(&contexto.instalacao, &pai.numero, &pai.id_procedimento);
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &pai.id_procedimento,
+            pai.trabalhar.as_str(),
+        );
+    }
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,
@@ -100,7 +113,7 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
         return Ok(None);
     };
     match pastas::pelo_link_guardado(contexto, rede, &id)? {
-        Guardado::Aberta(aberta) => return Ok(Some((aberta, None, ResolvidoPor::IndiceLink))),
+        Guardado::Aberta(aberta) => return Ok(Some((*aberta, None, ResolvidoPor::IndiceLink))),
         Guardado::Divergiu => return Ok(None),
         Guardado::Seguir => {}
     }
