@@ -46,7 +46,7 @@ pub(crate) trait EnvioDoControle {
 pub(crate) struct EnvioHttps;
 
 impl EnvioDoControle for EnvioHttps {
-    type Corpo = minreq::ResponseLazy;
+    type Corpo = crate::transporte::cliente_https::CorpoHttps;
     fn post(
         &mut self,
         submissao: SubmissaoDerivada,

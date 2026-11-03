@@ -1,5 +1,6 @@
-//! Túnel HTTP `CONNECT` para o cliente HTTPS do login, quando o ambiente
-//! declara um proxy. Contrato: contracts/cli/sessao-login.md, "Proxy".
+//! Túnel HTTP `CONNECT` para o cliente HTTPS único (`cliente_https`), em
+//! todos os comandos, quando o ambiente declara um proxy. Contrato:
+//! contracts/cli.md, "Transporte HTTPS", e contracts/cli/sessao-login.md, "Proxy".
 //!
 //! Variáveis, nesta ordem, só a primeira não vazia vale: `https_proxy`,
 //! `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS;

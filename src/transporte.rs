@@ -1,6 +1,6 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
-//! Sem login, redirects ou tentativa de outro backend; o único POST é o de
-//! `envio_post`, usado por `--pagina N`.
+//! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
+//! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
 use crate::instalacao::{Instalacao, host_valido};
 use std::fs;
 use std::io::Read;
@@ -165,7 +165,7 @@ pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>,
     leitor
         .take(limite as u64 + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| FalhaTransporte::Rede)?;
+        .map_err(|erro| resposta_http::falha_de_leitura(&erro))?;
     if bytes.len() > limite {
         return Err(FalhaTransporte::RespostaExcessiva);
     }
@@ -254,47 +254,25 @@ pub fn read_box(
     read_box_via(url, cookie_file, origem_autorizada, get_https)
 }
 
-/// Resposta `minreq` como `RespostaWeb`, sem ler o corpo.
-fn resposta_web(resposta: minreq::ResponseLazy) -> RespostaWeb<minreq::ResponseLazy> {
-    let mime = resposta
-        .headers
-        .get("content-type")
-        .cloned()
-        .unwrap_or_default();
-    let content_length = resposta
-        .headers
-        .get("content-length")
-        .and_then(|n| n.trim().parse::<usize>().ok());
-    RespostaWeb {
-        status_code: resposta.status_code,
-        mime,
-        content_length,
-        corpo: resposta,
-    }
-}
-
-/// GET real único, sem seguir redirects; o corpo é lido depois, limitado.
+/// GET real único pelo cliente HTTPS (com o proxy do ambiente), sem
+/// seguir redirects; o corpo é lido depois, limitado.
 pub(crate) fn get_https(
     destino: &str,
     cookie: &str,
-) -> Result<RespostaWeb<minreq::ResponseLazy>, FalhaTransporte> {
-    let resposta = minreq::get(destino)
-        .with_timeout(30)
-        .with_follow_redirects(false)
-        .with_header("Cookie", cookie)
-        .send_lazy()
-        .map_err(|_| FalhaTransporte::Rede)?;
-    Ok(resposta_web(resposta))
+) -> Result<RespostaWeb<cliente_https::CorpoHttps>, FalhaTransporte> {
+    cliente_https::requisitar("GET", destino, cookie, None).map(cliente_https::resposta_web)
 }
 
-/// GET com ambiente e camada TLS injetáveis (testes com proxy falso).
+/// O mesmo GET com ambiente e camada TLS injetáveis (proxy falso nos testes).
+#[cfg(test)]
 pub(crate) fn get_https_via<S: Read + std::io::Write>(
     destino: &str,
     cookie: &str,
-    _ambiente: impl Fn(&str) -> Option<String>,
-    _envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
+    ambiente: impl Fn(&str) -> Option<String>,
+    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
 ) -> Result<RespostaWeb<impl Read>, FalhaTransporte> {
-    get_https(destino, cookie)
+    cliente_https::requisitar_via("GET", destino, cookie, None, ambiente, envolver)
+        .map(cliente_https::resposta_web)
 }
 
 pub fn read_box_from_file(
@@ -321,6 +299,12 @@ pub(crate) mod validacao_da_infra;
 
 #[path = "transporte/proxy.rs"]
 pub(crate) mod proxy;
+
+#[path = "transporte/resposta_http.rs"]
+pub(crate) mod resposta_http;
+
+#[path = "transporte/cliente_https.rs"]
+pub(crate) mod cliente_https;
 
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;

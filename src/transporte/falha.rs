@@ -51,7 +51,7 @@ pub enum FalhaTransporte {
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
-    /// Proxy do ambiente (só no cliente do login): `transporte::proxy`.
+    /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
     Proxy(proxy::FalhaDoProxy),
 }
 

@@ -1,4 +1,4 @@
-//! Proxy do login: ambiente, endereço, exceções e o `CONNECT`, com fluxo
+//! Proxy do ambiente: ambiente, endereço, exceções e o `CONNECT`, com fluxo
 //! injetável e um proxy falso local (`TcpListener`). O TLS através do
 //! túnel não é exercitado aqui (exigiria certificado de teste).
 use super::*;
