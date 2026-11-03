@@ -221,12 +221,17 @@ impl Roteiro {
             .respostas
             .pop_front()
             .expect("requisição além do roteiro");
+        // Servido em iso-8859-1, como o MIME declara.
+        let corpo: Vec<u8> = html
+            .chars()
+            .map(|c| u8::try_from(c).unwrap_or(b'?'))
+            .collect();
         RespostaDoPost {
             resposta: RespostaWeb {
                 status_code,
                 mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: Some(html.len()),
-                corpo: Cursor::new(html.into_bytes()),
+                content_length: Some(corpo.len()),
+                corpo: Cursor::new(corpo),
             },
             localizacao,
         }

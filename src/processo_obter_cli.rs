@@ -1,19 +1,46 @@
-//! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md):
-//! lê os arquivos privados da sessão e o índice local, abre o processo e
-//! publica identidade e primeiro nível da árvore. Nunca URL, hash ou HTML.
+//! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
+//! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
+//! índice local, abre o processo e publica identidade, primeiro nível da
+//! árvore e andamentos. Nunca URL, hash ou HTML.
+use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
-use crate::processo_obter::{PedidoDoProcesso, ProcessoAberto, SessaoDoProcesso, obter_processo};
+use crate::processo_obter::{
+    Andamentos, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, SessaoDoProcesso,
+    obter_processo,
+};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, configuracao, erro_fonte, saida_erro, transporte};
 use serde_json::{Value, json};
 use std::fmt::Write as _;
 use std::process::ExitCode;
 
-/// Dados que esta fatia não lê (`null` seria "não observado").
-const NAO_LIDOS: [&str; 3] = ["andamentos", "marcadores", "propriedades"];
+/// Dados que o comando ainda não lê (`null` seria "não observado").
+const NAO_LIDOS: [&str; 2] = ["marcadores", "propriedades"];
 
-/// O JSON publicado; `documentos` some com `--sem-documentos`.
+fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
+    let itens: Vec<Value> = lidos
+        .itens
+        .iter()
+        .map(|a| {
+            json!({
+                "ocorrido_em": a.ocorrido_em,
+                "unidade": a.unidade,
+                "usuario": a.usuario,
+                "descricao": a.descricao,
+            })
+        })
+        .collect();
+    json!({
+        "tipo": lidos.tipo.como_texto(),
+        "total_declarado": lidos.total_declarado,
+        "faixa_observada": {"inicio": 1, "fim": lidos.itens.len()},
+        "itens": itens,
+    })
+}
+
+/// O JSON publicado; `documentos` some com `--sem-documentos` e
+/// `andamentos` com `--sem-andamentos` (link não publicado: `null`).
 pub(crate) fn json_do_processo(
     nup: &NumeroProcesso,
     aberto: &ProcessoAberto,
@@ -27,8 +54,24 @@ pub(crate) fn json_do_processo(
         "unidade": aberto.unidade,
         "resolvido_por": aberto.resolvido_por.como_texto(),
         "requisicoes": aberto.requisicoes,
-        "nao_lidos": NAO_LIDOS,
     });
+    let mut nao_lidos: Vec<&str> = NAO_LIDOS.to_vec();
+    if let Some(objeto) = valor.as_object_mut() {
+        match &aberto.andamentos {
+            Andamentos::Lidos(lidos) => {
+                objeto.insert("andamentos".to_owned(), json_dos_andamentos(lidos));
+            }
+            Andamentos::LinkNaoPublicadoNaArvore => {
+                objeto.insert("andamentos".to_owned(), Value::Null);
+            }
+            Andamentos::Omitidos => {}
+        }
+        if let Some(motivo) = aberto.andamentos.motivo() {
+            nao_lidos.insert(0, "andamentos");
+            objeto.insert("andamentos_nao_lidos_motivo".to_owned(), json!(motivo));
+        }
+        objeto.insert("nao_lidos".to_owned(), json!(nao_lidos));
+    }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
         let documentos: Vec<Value> = aberto
             .arvore
@@ -71,7 +114,34 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
             let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);
         }
     }
-    texto.push_str("\nNão lidos nesta versão: andamentos, marcadores e propriedades.");
+    match &aberto.andamentos {
+        Andamentos::Lidos(lidos) => {
+            let _ = write!(
+                texto,
+                "\nAndamentos (visão {}): {} de {} declarados.",
+                lidos.tipo.como_texto(),
+                lidos.itens.len(),
+                lidos.total_declarado
+            );
+            for a in &lidos.itens {
+                let _ = write!(
+                    texto,
+                    "\n- {} {}: {}",
+                    a.ocorrido_em.as_deref().unwrap_or("?"),
+                    a.unidade.as_deref().unwrap_or("?"),
+                    a.descricao
+                );
+            }
+        }
+        outro => {
+            let _ = write!(
+                texto,
+                "\nAndamentos não lidos ({}).",
+                outro.motivo().unwrap_or_default()
+            );
+        }
+    }
+    texto.push_str("\nNão lidos nesta versão: marcadores e propriedades.");
     texto
 }
 
@@ -93,13 +163,20 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 }
 
 fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
-    if comando.andamentos_completos {
+    if comando.andamentos_completos && comando.sem_andamentos {
         return erro_de_uso(
             cli.json,
-            "andamentos_completos_nao_implementados",
-            "a leitura do histórico completo ainda não existe",
+            "sem_andamentos_incompativel_com_andamentos_completos",
+            "--sem-andamentos e --andamentos-completos são incompatíveis",
         );
     }
+    let andamentos = if comando.sem_andamentos {
+        PedidoDeAndamentos::Omitidos
+    } else if comando.andamentos_completos {
+        PedidoDeAndamentos::Completos
+    } else {
+        PedidoDeAndamentos::VisaoServida
+    };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
@@ -119,7 +196,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     let pedido = PedidoDoProcesso {
         nup,
         unidade: cli.unidade.as_deref(),
-        andamentos: crate::processo_obter::PedidoDeAndamentos::Omitidos,
+        andamentos,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {

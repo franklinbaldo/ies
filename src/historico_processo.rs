@@ -17,7 +17,6 @@ mod tests_link;
 mod tests_lista;
 #[cfg(test)]
 mod tests_visao;
-
 use crate::historico::ErroHistorico;
 use crate::processo::Andamento;
 pub(crate) use link::{EnderecoDoHistorico, ler_link_do_historico};

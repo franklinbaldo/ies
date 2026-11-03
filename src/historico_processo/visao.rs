@@ -9,8 +9,9 @@
 use super::ErroAndamentos as E;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, MarcadorDeResultado,
-    OperacaoDeFormulario, ResultadoDoEnvio,
+    OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo,
 };
+use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 pub(crate) const CAMPO_TIPO: &str = "hdnTipoHistorico";
 
@@ -34,7 +35,40 @@ pub(crate) const VER_HISTORICO_COMPLETO: OperacaoDeFormulario = OperacaoDeFormul
     },
 };
 
-/// Confere, literalmente, a função servida e o link para a visão `P`.
-pub(crate) fn conferir_regra_de_ver_historico(_html: &str) -> Result<(), E> {
-    Err(E::RegraDeVerHistoricoNaoObservada)
+/// Linhas literais de `verHistorico(valor)` servidas (sem interpretar JS).
+const REGRA_DE_VER_HISTORICO: [&str; 3] = [
+    "function verHistorico(valor){",
+    "document.getElementById('hdnTipoHistorico').value = valor;",
+    "document.getElementById('frmProcedimentoHistorico').submit();",
+];
+
+/// Confere, literalmente, a função servida e o único link para a visão `P`.
+pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), E> {
+    let fora = E::RegraDeVerHistoricoNaoObservada;
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
+    if !REGRA_DE_VER_HISTORICO
+        .iter()
+        .all(|regra| linhas.contains(regra))
+    {
+        return Err(fora);
+    }
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let parser = dom.parser();
+    let links = nos_com_id(&dom, "ancTipoHistorico").map_err(|_| fora)?;
+    let [link] = links.as_slice() else {
+        return Err(fora);
+    };
+    let link = link
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("a"))
+        .ok_or(fora)?;
+    let onclick = valor_do_atributo(link, "onclick")
+        .map_err(|_| fora)?
+        .and_then(|bruto| decodificar_atributo(&bruto))
+        .ok_or(fora)?;
+    if onclick != "verHistorico('P');" {
+        return Err(fora);
+    }
+    Ok(())
 }

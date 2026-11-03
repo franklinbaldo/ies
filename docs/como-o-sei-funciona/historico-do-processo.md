@@ -66,12 +66,29 @@ O POST do formulário com os ocultos servidos e `hdnTipoHistorico=P`
 (envio por script, nenhum botão) devolveu a visão **completa**:
 `hdnTipoHistorico` vale `P` e o link passa a `verHistorico('R')` ("Ver
 histórico resumido"). Em GO, 20 linhas viraram 49; noutro processo, 17
-continuaram 17. Nenhum paginador apareceu até 49 linhas, e a legenda
-declarou exatamente as linhas servidas.
+continuaram 17. Em 14 processos de GO, a visão `P` veio inteira até 75
+linhas, a legenda declarou exatamente as linhas servidas e não houve
+paginador (`selInfraPaginacao` e `lnkInfraProximaPagina` ausentes).
+Históricos maiores: **NOT_RUN**.
+
+## Ablação dos ocultos da Infra
+
+UnB 4.0.9, 03/11/2026, visão `P` de um histórico de 18 andamentos, com
+pausa entre pedidos: o POST com `hdnInfraNroItens=10` devolveu as 18
+linhas, sem paginador, e o campo voltou `0`; com `hdnInfraPaginaAtual=1`,
+também 18 linhas e o campo de volta `0`; o controle (como servido, só
+`hdnTipoHistorico=P`) deu 18. Esses ocultos não controlam tamanho nem
+página do histórico: o IES os envia como servidos e só reescreve
+`hdnTipoHistorico`.
+
+## Links ausentes e falhas
+
+Em GO, duas de 14 árvores não publicaram o link do histórico em nenhuma
+das formas acima. Um GET do histórico respondeu 503 (gateway de GO).
 
 Não medido: se o servidor lembra a visão na sessão (um GET seguinte
-abriria `P`), se o GET do histórico lança andamento, e a forma da
-legenda com paginação.
+abriria `P`), se o GET do histórico lança andamento, a forma da legenda
+com paginação e por que algumas árvores não publicam o link.
 
 Veja também [árvore do processo](arvore-do-processo.md),
 [formulários e JavaScript](formularios.md) e

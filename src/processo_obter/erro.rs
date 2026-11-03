@@ -61,12 +61,11 @@ impl ErroProcessoObter {
                 "link_do_processo_no_controle_nao_reconhecido"
             }
             Self::CharsetDoControleNaoSuportado => "charset_do_controle_nao_suportado",
-            Self::Formulario(erro) => erro.subcodigo(),
+            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.subcodigo(),
             Self::Tela(erro) => erro.subcodigo(),
             Self::Arvore(erro) => erro.subcodigo(),
             Self::LinkDoHistorico(erro) => erro.subcodigo(),
             Self::Andamentos(erro) => erro.subcodigo(),
-            Self::FormularioDoHistorico(erro) => erro.subcodigo(),
         }
     }
 

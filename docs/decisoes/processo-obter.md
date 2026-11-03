@@ -1,14 +1,14 @@
 ---
 type: ImplementationDecision
-title: Ler processo pela caixa (resumo) e pela árvore com índice local
+title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo histórico
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1)
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2)
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
-live_validation: pass-unb-go-pen1
+live_validation: pass-unb-go-pen1-fatia1-not-run-fatia2
 ---
 
 # Ler processo: resumo na caixa e árvore com índice local
@@ -83,10 +83,54 @@ não. O IES não restaura esse estado. Lançamento de andamento: não medido.
   processo, árvore e o formulário rápido e as linhas do Controle de seis
   instalações passaram pelos leitores; nenhum valor foi copiado.
 
+## Andamentos (fatia 2)
+
+**Alternativas.** (a) **web-historico-link-da-arvore** (escolhida): o link
+assinado `procedimento_consultar_historico` que a árvore publica, nas duas
+formas observadas (função servida na UnB, `onclick` com a URL em GO), e o
+POST `verHistorico('P')` do formulário servido para a visão completa.
+(b) **web-historico-url-montada**: montar a URL do histórico pelo id;
+rejeitada, porque sem `infra_hash` a instalação recusa e pode derrubar a
+sessão (como na entrada por id), e o IES só monta a entrada por id. (c)
+REST: fora da prioridade (ADR 0001). (d) Ler os andamentos da tela do
+processo: a tela não os publica.
+
+**Evidência.** Capturas privadas `0600` (UnB 4.0.9 e GO 5.0.3, 03/11/2026)
+lidas só pela estrutura passaram pelos leitores: as duas formas do link,
+as páginas `R` (UnB) e `P` (GO, 49 e 17 linhas), a regra servida de
+`verHistorico` e a derivação do POST pelo primitivo de formulário (dez
+ocultos, nenhum botão). Medições do agente pai: a visão `P` de 14
+processos de GO veio inteira até 75 linhas, sem paginador; a ablação na
+UnB mostrou que `hdnInfraNroItens` e `hdnInfraPaginaAtual` não paginam o
+histórico. Duas árvores de GO não publicaram o link: isso sai como
+`andamentos: null` com motivo, não como falha. O leitor de linhas de
+`--historico-privado` (`src/historico.rs`) leu as páginas reais sem
+mudança.
+
+**Orçamento.** Padrão +1 GET; `--andamentos-completos` +1 GET +1 POST
+(o POST só se o GET serviu `R`); `--sem-andamentos` +0. Repetição quente
+no caminho 1: árvore e histórico guardado, **2**. Tabela por caminho no
+[contrato dos andamentos](../../contracts/cli/processo-obter-andamentos.md).
+
+**Efeitos.** O GET do histórico é leitura (lançamento de andamento não
+medido). O POST `P` é declarado `PaginaOuFiltroLembrado`: não se mediu
+se a visão fica lembrada. A visão não é restaurada (vários agentes na
+mesma conta se desfariam). O botão `btnAtualizarAndamento` (escrita) nunca
+participa. Falha HTTP no histórico (503 visto em GO) encerra o comando com
+o erro de transporte, sem retry; o 403 do WAF de GO é
+`bloqueio_de_seguranca_da_instalacao`.
+
+**Trade-offs.** Ler sempre a visão servida custa um GET a mais por
+comando, mas publica o que a pessoa vê no SEI; o completo exige uma
+mudança de estado de sessão declarada. Legenda com faixa de paginação é
+recusa até ser observada.
+
 ## Limitações e revisão
 
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Pastas
-(`PASTA`), andamentos, marcadores e propriedades ficam para as próximas
-fatias. Revisar se a entrada por id responder outra forma, se o 302 da
+(`PASTA`), marcadores e propriedades ficam para as próximas fatias.
+Andamentos: validação live **NOT_RUN** pelo IES até o agente pai rodar
+UnB, GO e PEN1. Revisar se a legenda trouxer paginação, se outra
+instalação publicar o link noutra forma ou se a visão `P` ficar lembrada. Revisar se a entrada por id responder outra forma, se o 302 da
 pesquisa rápida mudar de chave do id fora de GO, ou se a árvore publicar
 outro construtor.

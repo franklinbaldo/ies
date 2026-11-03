@@ -14,7 +14,8 @@ unresolved_steps: 0
 
 Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL LOCAL/WEB
 em `--resumo` e PARCIAL WEB na leitura pela árvore
-([contrato](../cli/processo-obter-arvore.md), Refs #59, fatia 1).
+([contrato](../cli/processo-obter-arvore.md), Refs #59, fatia 1) e dos
+andamentos ([contrato](../cli/processo-obter-andamentos.md), fatia 2).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 ## Evidência própria do IES (fatia 1)
@@ -33,6 +34,21 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   abriu o processo na UnB, em GO e na PEN1, inclusive NUPs que a pesquisa
   avançada não achou em GO e na PEN1.
 - Validação live do comando IES: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
+
+## Evidência própria do IES (fatia 2, andamentos)
+
+- Capturas privadas `0600` (03/11/2026), só estrutura: árvore da UnB
+  (link na função `consultarAndamento`) e de GO (link no `onclick`),
+  histórico `R` da UnB e `P` de GO (49 e 17 linhas) passaram pelo leitor
+  do link, pelo leitor de `--historico-privado`, pela legenda e pela regra
+  de `verHistorico`; o POST `P` derivou pelo primitivo de formulário.
+- Medições do agente pai: visão `P` inteira até 75 linhas em 14 processos
+  de GO, sem paginador; duas árvores de GO sem o link; um 503 no
+  histórico; 403 do WAF de GO depois de rajadas; ablação de
+  `hdnInfraNroItens`/`hdnInfraPaginaAtual` na UnB sem efeito.
+- [Contrato](../cli/processo-obter-andamentos.md) e
+  [observação](../../docs/como-o-sei-funciona/historico-do-processo.md).
+  Validação live do comando: **NOT_RUN** (a cargo do agente pai).
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

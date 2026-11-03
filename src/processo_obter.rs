@@ -124,6 +124,7 @@ pub(crate) enum Andamentos {
 }
 
 impl Andamentos {
+    #[cfg(test)]
     pub(crate) fn lidos(&self) -> Option<&AndamentosLidos> {
         match self {
             Self::Lidos(lidos) => Some(lidos),
