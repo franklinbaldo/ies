@@ -149,7 +149,12 @@ documentos da árvore tinham a2 igual ao id do processo; nenhum nó tinha o
 anexado como pai: os documentos do anexado não vêm nesta árvore. O Todos
 mede a anexação (`processo anexar`, "Lista de Processos Anexados") e a
 regra do SEI de que um processo anexado não pode estar anexado a outro,
-mas não lê esse nó. Leitura do IES:
+mas não lê esse nó.
+
+Aberto pelo próprio NUP (pesquisa rápida), o anexado tem árvore própria:
+raiz `PROCESSO` (a7–a9 `svg/processo_anexado.svg`, só corroboração) e
+`Nos[0].html = '<div style="…;display:inline;">Processo anexado ao processo <a href="controlador.php?acao=procedimento_trabalhar&acao_origem=arvore_visualizar&id_procedimento=<pai>&id_procedimento_anexado=<próprio>&infra_sistema=…&infra_unidade_atual=…&infra_hash=<64 hex>" target="_blank" class="ancoraVisualizacaoArvore"><NUP do pai></a>.</div>';`,
+com exatamente um `<a>`; o texto do link é o NUP do pai. Leitura do IES:
 [contrato](../../contracts/cli/processo-obter-arvore.md).
 
 Veja também [rotas e árvore](rotas-e-arvore.md) e

@@ -80,7 +80,9 @@ Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
 `sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
 
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`
-e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`,
+e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`;
+aberto um anexado, o par do pai e o link `procedimento_trabalhar` dele
+(objeto = id do pai, que o passo 1b usa);
 os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id),
 o de "Abrir todas as Pastas" (objeto = `<id>:abrir_pastas`, só depois da
 árvore aberta conferida) e o `action` da pesquisa rápida da tela do
@@ -144,6 +146,18 @@ anexado (na captura, todos os documentos eram filhos do processo); um
 observado e é recusa, nunca palpite. Para ler o anexado:
 `ies processo <NUP do anexado>`, que o índice já resolve pelo id aprendido.
 
+**Processo aberto que é anexado.** A árvore do próprio anexado tem raiz
+`PROCESSO` comum; o `.html` da raiz (literal JS, lido pelo mesmo leitor de
+literais, na linha própria ou seguido da declaração seguinte) traz o
+vínculo. As tags `<a>` do `.html` são lidas pelo tokenizador de atributos;
+é candidata a que tem `href` com chave `id_procedimento_anexado`. Uma
+candidata é o vínculo: `href` relativo `controlador.php?` conferido como
+os outros links assinados (uma `acao=procedimento_trabalhar`, um
+`infra_hash` de 64 hex, um `id_procedimento` decimal diferente do aberto),
+um `id_procedimento_anexado` igual ao aberto e texto não vazio, sem
+espaço nas pontas, entidade ou tag: o NUP do pai. Nenhuma candidata:
+`anexado: false`. A frase em volta e o ícone não classificam nada.
+
 **Efeito declarado.** Em GO, o GET da árvore marcou como visualizado um
 processo recebido não visualizado (o de `procedimento_trabalhar`, sozinho,
 não). O IES não restaura esse estado. Lançamento de andamento: não medido.
@@ -156,6 +170,7 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
  "unidade": "SIGLA ou null", "resolvido_por": "caixa",
  "requisicoes": 4,
+ "anexado": false, "anexado_a": null,
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null"}],
@@ -171,7 +186,9 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
 com `--sem-documentos`: vem da mesma árvore, sem custo, e é identidade do
 processo, não documento. Com algum anexado, `nao_lidos` termina em
 `documentos_dos_anexados`; o texto humano lista cada um com a dica
-`ies processo <NUP>`.
+`ies processo <NUP>`. `anexado` (`true` com o vínculo) e `anexado_a`
+(`{"numero", "id_procedimento"}` do pai, ou `null`) também saem sempre;
+o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
 As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 [andamentos](processo-obter-andamentos.md).
@@ -223,7 +240,10 @@ Anexados: `processo_anexado_fora_da_forma_observada`,
 `nup_do_no_do_processo_anexado_inconsistente`,
 `processo_anexado_com_pai_diferente_do_processo`,
 `processo_anexado_repetido_na_arvore`,
-`processo_anexado_igual_ao_processo`, `no_com_pai_no_processo_anexado`.
+`processo_anexado_igual_ao_processo`, `no_com_pai_no_processo_anexado`,
+`vinculo_de_anexacao_fora_da_forma_observada`,
+`vinculos_de_anexacao_repetidos` (duas candidatas ou dois `.html` da raiz),
+`html_do_no_do_processo_fora_da_forma_observada`.
 
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
 Pastas: os do [contrato das pastas](processo-obter-pastas.md).

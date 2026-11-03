@@ -16,6 +16,8 @@ mod tela;
 #[cfg(test)]
 pub(crate) mod tests;
 #[cfg(test)]
+pub(crate) mod tests_anexado_a;
+#[cfg(test)]
 pub(crate) mod tests_anexados;
 #[cfg(test)]
 mod tests_literais;
@@ -31,7 +33,7 @@ pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
-pub(crate) use tela::{ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
+pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
 
 /// O nó `PROCESSO` (ou um `PROCESSO_ANEXADO`): id (a1), NUP (a5, igual a
 /// a15) e tipo (a6, a dica).
@@ -111,6 +113,27 @@ pub(crate) struct ArvoreLida {
     /// Os `PROCESSO_ANEXADO` filhos do processo, na ordem da árvore. Os
     /// documentos deles não são servidos nesta árvore.
     pub(crate) anexados: Vec<ProcessoNaArvore>,
+    /// O pai, quando o processo aberto é ele mesmo um anexado (link do
+    /// `.html` do nó raiz); preenchido por [`ler_vinculo_de_anexacao`].
+    pub(crate) anexado_a: Option<VinculoDeAnexacao>,
+}
+
+/// O processo ao qual o aberto está anexado: NUP (texto do link), id e o
+/// `procedimento_trabalhar` assinado dele (redigido no `Debug`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct VinculoDeAnexacao {
+    pub(crate) numero: String,
+    pub(crate) id_procedimento: String,
+    pub(crate) trabalhar: EnderecoDaArvore,
+}
+
+/// Shim (RED): o vínculo ainda não é lido.
+pub(crate) fn ler_vinculo_de_anexacao(
+    _instalacao: &crate::instalacao::Instalacao,
+    _html: &str,
+    _id: &str,
+) -> Result<Option<VinculoDeAnexacao>, ErroArvore> {
+    Ok(None)
 }
 
 /// Argumentos por nó, observados na `UnB` 4.0.9 e em GO (`PROCESSO`,
@@ -212,6 +235,7 @@ pub(crate) fn ler_arvore(
         pastas,
         pastas_nao_carregadas,
         anexados,
+        anexado_a: None,
     })
 }
 

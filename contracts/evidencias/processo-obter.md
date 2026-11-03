@@ -92,6 +92,14 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   tem o anexado como pai. Antes desta fatia o comando recusava a árvore
   com `tipo_de_no_da_arvore_nao_suportado`; o leitor novo aceitou a
   captura (teste local temporário, apagado).
+- Captura privada da árvore do próprio anexado (mesmo dia, aberta pela
+  pesquisa rápida do NUP dele): 2 nós, raiz `PROCESSO` com id e NUP iguais
+  aos do nó `PROCESSO_ANEXADO` da árvore do pai e ícones
+  `processo_anexado.svg`; o `.html` da raiz tem um único `<a>`, `href`
+  `procedimento_trabalhar` com `id_procedimento` igual ao id do pai,
+  `id_procedimento_anexado` igual ao da raiz, hash de 64 hex e
+  `infra_sistema`/`infra_unidade_atual` iguais aos do a3 da raiz; texto
+  igual ao NUP do pai, sem escape nem entidade.
 - Validação live do comando com anexado: **NOT_RUN** até o agente pai.
 
 As referências #N são passos de roteiro; o link leva à revisão com

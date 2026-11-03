@@ -4,9 +4,9 @@ title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo h
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
@@ -238,6 +238,17 @@ a a5 e nenhum nó filho dele ([evidência](../../contracts/evidencias/processo-o
 `ies processo <NUP do anexado>`, que já sai pelo índice. Filho de
 anexado, nunca observado, é recusa (`no_com_pai_no_processo_anexado`):
 falha fechada até haver captura.
+
+**Pai do processo aberto.** Aberto um anexado, o `.html` da raiz traz o
+link assinado do pai (UnB 4.0.9, 03/11/2026). O IES publica `anexado` e
+`anexado_a` e aprende o par e o link `procedimento_trabalhar` do pai, sem
+requisição: depois, `ies processo <NUP do pai>` custa 2 GET (passo 1b).
+Link candidato fora da forma ou repetido: (a) **web-vinculo-recusa-fechada**
+(escolhida), recusa tipada; (b) **web-vinculo-nulo-com-motivo**, publicar
+a árvore com `anexado_a: null` e um motivo. Escolhida (a): com um link
+candidato malformado, `anexado: false` seria afirmação falsa e (b)
+exigiria um terceiro estado; o leitor da árvore inteira já falha fechado,
+e a recusa diz o fato.
 
 ## Limitações e revisão
 
