@@ -1,6 +1,8 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
-use super::redirecionamento::{ErroRedirecionamentoDaPesquisa, interpretar_redirecionamento};
+use super::redirecionamento::{
+    ErroRedirecionamentoDaPesquisa, UrlDeTrabalho, interpretar_redirecionamento,
+};
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
 use crate::formulario_web::{
@@ -176,19 +178,35 @@ fn derivar_com(
     derivar_submissao(operacao, instalacao, tela, unidade_solicitada, &campos).map_err(E::Submissao)
 }
 
-/// A resposta do envio interpretada: o 302 vira o identificador (nunca
-/// seguido) e o 200 é classificado; o HTML 200 volta para a paginação.
+/// Resposta classificada, o HTML 200 (para a paginação) e, no 302, a URL
+/// de trabalho conferida (só `ies processo NUP` a abre).
+pub(crate) struct EnvioInterpretado {
+    pub(crate) resposta: RespostaDaPesquisa,
+    pub(crate) html: Option<String>,
+    pub(crate) trabalho: Option<UrlDeTrabalho>,
+}
+
+/// A resposta do envio interpretada: o 302 vira o identificador e a URL
+/// conferida (nunca seguida aqui) e o 200 é classificado.
 pub(crate) fn interpretar_envio(
     resposta: RespostaDoEnvio,
     instalacao: &Instalacao,
-) -> Result<(RespostaDaPesquisa, Option<String>), ErroPesquisaProtocolo> {
+) -> Result<EnvioInterpretado, ErroPesquisaProtocolo> {
     match resposta {
         RespostaDoEnvio::Html(html) => ler_resposta_html(&html)
-            .map(|resposta| (resposta, Some(html)))
+            .map(|resposta| EnvioInterpretado {
+                resposta,
+                html: Some(html),
+                trabalho: None,
+            })
             .map_err(ErroPesquisaProtocolo::Resposta),
         RespostaDoEnvio::Redirecionamento(redirecionamento) => {
             interpretar_redirecionamento(redirecionamento, instalacao)
-                .map(|id| (RespostaDaPesquisa::ProcessoUnico { id }, None))
+                .map(|p| EnvioInterpretado {
+                    resposta: RespostaDaPesquisa::ProcessoUnico { id: p.id },
+                    html: None,
+                    trabalho: Some(p.trabalho),
+                })
                 .map_err(ErroPesquisaProtocolo::Redirecionamento)
         }
     }
@@ -220,7 +238,7 @@ where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     let resposta = enviar_submissao_via(submissao, cookie_file, enviar).map_err(falha_do_envio)?;
-    interpretar_envio(resposta, instalacao).map(|(resposta, _)| resposta)
+    interpretar_envio(resposta, instalacao).map(|e| e.resposta)
 }
 
 #[cfg(test)]

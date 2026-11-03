@@ -307,7 +307,7 @@ pub(crate) mod tests_fixtures;
 pub(crate) mod formulario_pesquisa;
 
 // O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
-mod redirecionamento;
+pub(crate) mod redirecionamento;
 
 // Regras do `onsubmit` da pesquisa, lidas do JS servido e escritas à mão.
 mod regras_formulario;

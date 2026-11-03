@@ -111,6 +111,33 @@ impl ErroRedirecionamentoDaPesquisa {
     }
 }
 
+/// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
+/// uma `acao`, chaves canônicas, `infra_hash` de 64 hex). É assinada:
+/// nunca vai para `Debug`, saída ou log; só `ies processo NUP` a usa num GET.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct UrlDeTrabalho(String);
+
+impl UrlDeTrabalho {
+    // Lida pelo `ies processo NUP` (#59), que abre esta URL; até lá só os testes.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for UrlDeTrabalho {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("UrlDeTrabalho(<redigido>)")
+    }
+}
+
+/// O que o 302 da pesquisa endereça: o id interno e a URL validada.
+#[derive(Debug)]
+pub(crate) struct ProcessoRedirecionado {
+    pub(crate) id: IdProcedimento,
+    pub(crate) trabalho: UrlDeTrabalho,
+}
+
 /// O `Location` observado tem algumas centenas de bytes; 8 KiB é o mesmo
 /// teto dos arquivos privados de URL assinada.
 const LIMITE_DA_LOCALIZACAO: usize = 8_192;
@@ -216,12 +243,13 @@ fn sistema_do_envio(url_do_envio: &str) -> Result<String, E> {
     }
 }
 
-/// Extrai o `id_procedimento` do 302 e descarta a URL assinada (consumida).
-/// Nunca emite GET ao destino: abrir o processo pode registrar recebimento.
+/// Extrai o `id_procedimento` e a URL resolvida do 302. Nenhum GET aqui:
+/// `processo buscar` descarta a URL; só `ies processo NUP` a abre, porque
+/// abrir o processo altera o estado da unidade (docs/decisoes/processo-obter.md).
 pub(crate) fn interpretar_redirecionamento(
     redirecionamento: Redirecionamento302,
     instalacao: &Instalacao,
-) -> Result<IdProcedimento, ErroRedirecionamentoDaPesquisa> {
+) -> Result<ProcessoRedirecionado, ErroRedirecionamentoDaPesquisa> {
     let localizacao = redirecionamento
         .localizacao()
         .filter(|l| !l.is_empty())
@@ -276,9 +304,12 @@ pub(crate) fn interpretar_redirecionamento(
     if sistema != sistema_do_envio(redirecionamento.url_do_envio())? {
         return Err(E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio);
     }
-    // Location e URL assinados descartados aqui, antes de devolver o id.
+    // O `Location` bruto é descartado; só a forma resolvida e conferida sai.
     drop(redirecionamento);
-    Ok(id)
+    Ok(ProcessoRedirecionado {
+        id,
+        trabalho: UrlDeTrabalho(absoluta),
+    })
 }
 
 #[cfg(test)]

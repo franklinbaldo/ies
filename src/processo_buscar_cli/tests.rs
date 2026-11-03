@@ -10,6 +10,7 @@ fn busca(resposta: RespostaDaPesquisa, requisicoes: u8) -> BuscaRealizada {
         unidade: "UNIDADE TESTE".to_owned(),
         resposta,
         requisicoes,
+        trabalho: None,
     }
 }
 
