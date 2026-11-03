@@ -68,22 +68,7 @@ fn identidade_e_nao_contagem() {
         ler(&aberta(declaradas, de_outra)),
         Err(E::DocumentoDaPastaNaoDeclarado)
     );
-    // Barra vazia (sem identidade): não se aceita pela contagem.
-    // Barra vazia ao lado de barras com identidade: as regras não se misturam.
-    let mut parcial = os_quatro();
-    parcial[2] = No::Documento("31", p(2), None);
-    assert_eq!(
-        ler(&aberta(declaradas, parcial)),
-        Err(E::IdentidadeParcialNaPasta)
-    );
-    // Barra com links e sem identidade: não é barra vazia.
-    let mut sem_identidade = os_quatro();
-    sem_identidade[2] = No::Documento("31", p(2), Some("-"));
-    assert_eq!(
-        ler(&aberta(declaradas, sem_identidade)),
-        Err(E::DocumentoDaPastaSemIdentidadeNaBarra)
-    );
-    // Nenhuma linha `.acoes` para o nó: também sem identidade.
+    // Nenhuma linha `.acoes` para o nó: nunca observado, continua recusa.
     let sem_linha = aberta(declaradas, os_quatro()).replace(
         &format!("{}\n", super::tests_pastas::barra(5, "31", Some("902"))),
         "",
@@ -348,6 +333,10 @@ fn barras_todas_vazias_sao_conferidas_pela_contagem() {
             .collect::<Vec<_>>(),
         [Some(PorContagem), Some(PorContagem)]
     );
+    assert_eq!(
+        conferencia(&lida),
+        [(Some(PorContagem), 0, 2), (Some(PorContagem), 0, 2)]
+    );
     assert_eq!(lida.documentos.len(), 4);
     // Cada pasta escolhe a sua regra: a 1 por identidade, a 2 por contagem.
     let mut mistas = os_quatro();
@@ -382,5 +371,76 @@ fn contagem_diferente_da_declarada_e_recusa() {
     assert_eq!(
         ler(&aberta(declaradas, nos)),
         Err(E::DocumentoRepetidoNaArvore)
+    );
+}
+
+fn conferencia(lida: &ArvoreLida) -> Vec<(Option<VerificacaoDaPasta>, usize, usize)> {
+    lida.pastas
+        .iter()
+        .map(|p| {
+            (
+                p.verificacao,
+                p.conferidos_por_identidade,
+                p.conferidos_por_contagem,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn identidade_por_documento_e_o_resto_pela_contagem() {
+    use super::VerificacaoDaPasta::{Mista, PorIdentidade};
+    let declaradas: &[(usize, &[&str])] = &[(1, &PASTA1), (2, &PASTA2)];
+    // Barra vazia ou com links sem `id_rel_protocolo_protocolo`: sem identidade.
+    for sem in [None, Some("-")] {
+        let mut nos = os_quatro();
+        nos[2] = No::Documento("31", p(2), sem);
+        let lida = ler(&aberta(declaradas, nos)).unwrap();
+        assert_eq!(
+            conferencia(&lida),
+            [(Some(PorIdentidade), 2, 0), (Some(Mista), 1, 1)],
+            "{sem:?}"
+        );
+    }
+}
+
+#[test]
+fn pasta_mista_que_nao_fecha_e_recusa() {
+    let declaradas: &[(usize, &[&str])] = &[(1, &PASTA1), (2, &PASTA2)];
+    let com_pasta2 = |segunda: Vec<No>| {
+        let mut nos = os_quatro();
+        nos.truncate(2);
+        nos.extend(segunda);
+        ler(&aberta(declaradas, nos))
+    };
+    // 1 identidade + 2 sem: 2 declarados − 1 = 1 ≠ 2.
+    assert_eq!(
+        com_pasta2(vec![
+            No::Documento("31", p(2), Some("902")),
+            No::Documento("32", p(2), None),
+            No::Documento("33", p(2), Some("-")),
+        ]),
+        Err(E::ContagemDaPastaDiferenteDaDeclarada)
+    );
+    // A identidade que aparece continua conferida.
+    assert_eq!(
+        com_pasta2(vec![
+            No::Documento("31", p(2), Some("999")),
+            No::Documento("32", p(2), None),
+        ]),
+        Err(E::DocumentoDaPastaNaoDeclarado)
+    );
+    assert_eq!(
+        com_pasta2(vec![
+            No::Documento("31", p(2), Some("902")),
+            No::Documento("32", p(2), Some("902")),
+            No::Documento("33", p(2), None),
+        ]),
+        Err(E::ProtocoloRepetidoNaPasta)
+    );
+    // Toda por identidade e faltando um: o subcódigo de identidade.
+    assert_eq!(
+        com_pasta2(vec![No::Documento("31", p(2), Some("902"))]),
+        Err(E::ProtocoloDeclaradoAusenteDaPasta)
     );
 }

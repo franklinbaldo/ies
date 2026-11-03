@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Pastas da árvore do processo
-description: ies processo NUP lê processos com pastas, abre as fechadas com um GET de Abrir todas as Pastas e confere cada pasta pela identidade dos protocolos declarados ou, com todas as barras vazias, pela contagem
+description: ies processo NUP lê processos com pastas, abre as fechadas com um GET de Abrir todas as Pastas e confere cada pasta pela identidade dos protocolos declarados ou, para os documentos sem identidade na barra, pela contagem
 ---
 
 # Pastas de `ies processo NUP` (Refs #59, fatia 3)
@@ -44,30 +44,34 @@ do GET, qualquer `AGUARDE` restante é
 O IES **não** abre pasta por pasta (`procedimento_paginar` por POST) nem
 chama `FECHAR_PASTAS`, e não restaura o estado das pastas.
 
-## Integridade: por identidade ou por contagem
+## Integridade: identidade por documento, o resto pela contagem
 
 Cada `Pastas[k]['protocolos'] = '<p1>,<p2>,…';` (decimais, sem repetição,
 não vazia) é a lista declarada da pasta `k`; pasta sem declaração,
-declaração sem pasta e declaração repetida são recusa. A identidade de
-cada documento de pasta é o `id_rel_protocolo_protocolo` dos links da sua
-barra (`Nos[i].acoes = '…';`); links com valores diferentes são recusa.
-Cada pasta carregada usa **uma** regra, escolhida pelas barras dela:
+declaração sem pasta e declaração repetida são recusa.
 
-- **Por identidade** (`por_identidade`): toda barra da pasta tem
-  identidade. Cada protocolo declarado aparece **exatamente uma vez** entre
-  os documentos da pasta, e nenhum documento fica fora da lista.
-- **Por contagem** (`por_contagem`): toda barra da pasta é exatamente
-  `Nos[i].acoes = '';`. A quantidade de documentos da pasta tem de ser a
-  declarada (`contagem_da_pasta_diferente_da_declarada`); os ids de
-  documento (a1) continuam únicos na árvore inteira e, depois de abrir,
-  não pode restar `AGUARDE`.
-- **Mista** (barras vazias ao lado de barras com identidade):
-  `identidade_parcial_na_pasta`. As regras nunca se misturam.
-- Barra com links e sem identidade, ou documento sem linha `.acoes`:
-  `documento_da_pasta_sem_identidade_na_barra`.
+**Por documento.** A identidade é o único `id_rel_protocolo_protocolo`
+dos links da barra (`Nos[i].acoes = '…';`); valores diferentes são
+recusa. Barra vazia, ou com links sem esse parâmetro (ao vivo:
+`acompanhamento_gerenciar`, `documento_consultar`,
+`documento_imprimir_web`, `documento_receber`, `procedimento_gerar_pdf`,
+`protocolo_modelo_gerenciar`, `documento_consultar_recebido`, sem
+`comentario_listar`), deixa o documento **sem identidade**. Documento sem
+linha `.acoes` nunca foi observado e é
+`documento_da_pasta_sem_identidade_na_barra`.
 
-A regra é o fato observado (as barras vazias), nunca o texto "aberto
-somente na unidade" do `.html` do processo: mensagem é apresentação.
+**Por pasta.** Toda identidade achada está na lista declarada e aparece
+**exatamente uma vez** (`documento_da_pasta_nao_declarado`,
+`protocolo_repetido_na_pasta`), e os declarados sem documento
+identificado são **tantos quantos** os documentos sem identidade da pasta.
+Se todos têm identidade, faltar um é `protocolo_declarado_ausente_da_pasta`;
+senão, a diferença é `contagem_da_pasta_diferente_da_declarada`. Os ids
+de documento (a1) são únicos na árvore inteira e, depois de abrir, não
+resta `AGUARDE`. A `verificacao` da pasta é `por_identidade` (todos com
+identidade), `mista` (alguns) ou `por_contagem` (nenhum).
+
+A regra é a barra observada, nunca o texto "aberto somente na unidade" do
+`.html` do processo: mensagem é apresentação.
 
 A pasta fechada da primeira leitura não é conferida (os documentos dela
 não estão lá); uma pasta com `AGUARDE` **e** documentos é
@@ -81,17 +85,19 @@ na raiz. Ao lado, `pastas` lista as pastas na ordem da árvore:
 
 ```json
 {"documentos": [{"id_documento": "D", "rotulo": "…", "numero_sei": "…", "pasta": "PASTA1"}],
- "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_contagem"}],
- "verificacao_das_pastas": "por_contagem",
- "verificacao_das_pastas_motivo": "barras_vazias"}
+ "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "mista",
+             "conferidos_por_identidade": 19, "conferidos_por_contagem": 1}],
+ "verificacao_das_pastas": "mista",
+ "verificacao_das_pastas_motivo": "documentos_sem_identidade_na_barra"}
 ```
 
 `total` é a quantidade declarada em `Pastas[k]['protocolos']`, já
-conferida, e `verificacao` a regra da pasta. No topo,
-`verificacao_das_pastas` é `"por_identidade"`, `"por_contagem"` (se ao
-menos uma pasta usou a contagem, a mais fraca) ou `null` sem pastas; com
-contagem, `verificacao_das_pastas_motivo: "barras_vazias"`. Identidade só
-é alegada onde foi conferida. `pastas` sai `[]` sem pastas, e as três
+conferida; `verificacao` e as duas quantidades dizem como. No topo,
+`verificacao_das_pastas` é a mais fraca presente (`por_contagem` <
+`mista` < `por_identidade`) ou `null` sem pastas; se alguma pasta não é
+toda por identidade, `verificacao_das_pastas_motivo:
+"documentos_sem_identidade_na_barra"`. Identidade só é alegada onde foi
+conferida. `pastas` sai `[]` sem pastas, e as três
 chaves somem com `--sem-documentos`.
 A ordem dos documentos é a da árvore servida.
 
@@ -130,7 +136,7 @@ limite do transporte é 8 MB e a leitura é linear, linha a linha.
 `identidades_divergentes_na_barra_do_documento`,
 `documento_da_pasta_sem_identidade_na_barra`,
 `documento_da_pasta_nao_declarado`, `protocolo_repetido_na_pasta`,
-`protocolo_declarado_ausente_da_pasta`, `identidade_parcial_na_pasta`,
+`protocolo_declarado_ausente_da_pasta`,
 `contagem_da_pasta_diferente_da_declarada`, `pasta_carregada_pela_metade`,
 `pastas_nao_carregadas_sem_acao_de_abrir`,
 `acao_de_abrir_pastas_fora_da_forma_observada`,
@@ -141,9 +147,10 @@ limite do transporte é 8 MB e a leitura é linear, linha a linha.
 
 ## Limitações
 
-Por contagem, a pasta prova a quantidade e a unicidade dos documentos,
-não que cada um é o protocolo declarado; por isso a saída diz
-`por_contagem`. Ao vivo na UnB (03/11/2026, medição do agente pai), dois
-processos abertos só em outra unidade vieram com 150 barras vazias e
-contagens iguais às declaradas. Pastas noutras instalações: não
+O documento sem identidade só prova a quantidade e a unicidade, não
+que é o protocolo declarado; por isso a saída diz `mista` ou
+`por_contagem`. Ao vivo na UnB (03/11/2026, medição do agente pai) a
+identidade variou **por documento**: num processo de 8 pastas, seis com
+todas as barras vazias, uma com 18 vazias e 2 com links sem identidade,
+outra com 12 e 5; noutro, 19 com identidade e 1 vazia numa pasta. Pastas noutras instalações: não
 observadas. Validação live do comando: **NOT_RUN** até o agente pai.

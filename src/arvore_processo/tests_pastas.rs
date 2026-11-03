@@ -188,27 +188,26 @@ fn documento(id: &str, pasta: Option<&str>) -> DocumentoNaArvore {
     }
 }
 
-pub(crate) fn pastas_declaradas(
-    primeira: Option<VerificacaoDaPasta>,
-    segunda: Option<VerificacaoDaPasta>,
-) -> Vec<PastaNaArvore> {
-    vec![
-        PastaNaArvore {
-            id: "PASTA1".into(),
-            rotulo: "I".into(),
-            total_declarado: 2,
-            verificacao: primeira,
-        },
-        PastaNaArvore {
-            id: "PASTA2".into(),
-            rotulo: "II".into(),
-            total_declarado: 2,
-            verificacao: segunda,
-        },
-    ]
+/// Verificação e (identidade, contagem) de uma pasta esperada.
+pub(crate) type Conferida = (Option<VerificacaoDaPasta>, usize, usize);
+
+pub(crate) fn pastas_declaradas(primeira: Conferida, segunda: Conferida) -> Vec<PastaNaArvore> {
+    [("PASTA1", "I", primeira), ("PASTA2", "II", segunda)]
+        .into_iter()
+        .map(
+            |(id, rotulo, (verificacao, identidade, contagem))| PastaNaArvore {
+                id: id.into(),
+                rotulo: rotulo.into(),
+                total_declarado: 2,
+                verificacao,
+                conferidos_por_identidade: identidade,
+                conferidos_por_contagem: contagem,
+            },
+        )
+        .collect()
 }
 
-const POR_IDENTIDADE: Option<VerificacaoDaPasta> = Some(VerificacaoDaPasta::PorIdentidade);
+const POR_IDENTIDADE: Conferida = (Some(VerificacaoDaPasta::PorIdentidade), 2, 0);
 
 #[test]
 fn arvore_aberta_le_os_documentos_de_cada_pasta_na_ordem() {
@@ -234,7 +233,7 @@ fn arvore_fechada_marca_as_pastas_nao_carregadas() {
     let lida = ler_arvore(&arvore_fechada(), NUP, ID).unwrap();
     assert!(lida.pastas_nao_carregadas);
     // A fechada não foi conferida: `None`, nunca uma verificação alegada.
-    assert_eq!(lida.pastas, pastas_declaradas(None, POR_IDENTIDADE));
+    assert_eq!(lida.pastas, pastas_declaradas((None, 0, 0), POR_IDENTIDADE));
     // Só os da pasta aberta: a fechada não é conferida nem publicada aqui.
     assert_eq!(
         lida.documentos,

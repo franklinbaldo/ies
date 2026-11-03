@@ -56,6 +56,10 @@ pub(crate) struct PastaNaArvore {
     pub(crate) rotulo: String,
     pub(crate) total_declarado: usize,
     pub(crate) verificacao: Option<VerificacaoDaPasta>,
+    /// Documentos conferidos pela identidade da barra.
+    pub(crate) conferidos_por_identidade: usize,
+    /// Documentos sem identidade na barra, que só entram na contagem.
+    pub(crate) conferidos_por_contagem: usize,
 }
 
 /// Como os documentos de uma pasta foram conferidos com a declaração.
@@ -63,7 +67,9 @@ pub(crate) struct PastaNaArvore {
 pub(crate) enum VerificacaoDaPasta {
     /// Cada documento pelo `id_rel_protocolo_protocolo` da barra.
     PorIdentidade,
-    /// Todas as barras da pasta vazias (`''`): só a quantidade, com ids de
+    /// Parte pela identidade, o resto (sem identidade na barra) pela contagem.
+    Mista,
+    /// Nenhum documento com identidade na barra: só a quantidade, com ids de
     /// documento únicos na árvore.
     PorContagem,
 }
@@ -72,6 +78,7 @@ impl VerificacaoDaPasta {
     pub(crate) fn como_texto(self) -> &'static str {
         match self {
             Self::PorIdentidade => "por_identidade",
+            Self::Mista => "mista",
             Self::PorContagem => "por_contagem",
         }
     }

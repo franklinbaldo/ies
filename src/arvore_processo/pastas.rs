@@ -190,6 +190,8 @@ pub(super) fn conferir_pastas(
             rotulo: (*rotulo).to_owned(),
             total_declarado: declarados[k].len(),
             verificacao,
+            conferidos_por_identidade: 0,
+            conferidos_por_contagem: 0,
         });
     }
     Ok((lidas, !fechadas.is_empty()))
@@ -217,7 +219,7 @@ fn conferir_pasta(
             .iter()
             .any(|d| matches!(d.barra, Barra::Identidade(_)))
     {
-        return Err(ErroArvore::IdentidadeParcialNaPasta);
+        return Err(ErroArvore::ContagemDaPastaDiferenteDaDeclarada);
     }
     conferir_identidades(documentos, declarados)?;
     Ok(VerificacaoDaPasta::PorIdentidade)
