@@ -37,6 +37,7 @@ mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
+mod processo_buscar_cli;
 mod processo_historico_privado_cli;
 mod processo_pesquisa_privada_cli;
 mod processo_resumo_cli;
@@ -161,9 +162,17 @@ struct Processo {
 
 #[derive(Debug, Subcommand)]
 enum ProcessoAcao {
+    /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
-        #[arg(long)]
-        assunto: Option<String>,
+        /// NUP inteiro ou parte do número, como digitado no campo Protocolo
+        termo: String,
+        /// Pede a página N do resultado (um POST que altera a página lembrada)
+        #[arg(
+            long,
+            value_name = "N",
+            value_parser = clap::value_parser!(u32).range(1..)
+        )]
+        pagina: Option<u32>,
     },
     Enviar {
         numero: String,
@@ -338,7 +347,8 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    processo_pesquisa_privada_cli::tentar_consultar(cli)
+    processo_buscar_cli::tentar_buscar(cli)
+        .or_else(|| processo_pesquisa_privada_cli::tentar_consultar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))

@@ -59,6 +59,27 @@ pub(crate) fn nos_por_elemento_e_classe(
     elemento: &str,
     classe: &str,
 ) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
+    filtrar_por_classe(dom, raiz, elemento, classe, false)
+}
+
+/// Como `nos_por_elemento_e_classe`, aceitando `class` repetido com valores
+/// idênticos (link da pesquisa da `UnB` 4.0.9); valores diferentes são erro.
+pub(crate) fn nos_por_elemento_e_classe_com_repeticao_identica(
+    dom: &tl::VDom<'_>,
+    raiz: Option<&tl::HTMLTag<'_>>,
+    elemento: &str,
+    classe: &str,
+) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
+    filtrar_por_classe(dom, raiz, elemento, classe, true)
+}
+
+fn filtrar_por_classe(
+    dom: &tl::VDom<'_>,
+    raiz: Option<&tl::HTMLTag<'_>>,
+    elemento: &str,
+    classe: &str,
+    repeticao_identica: bool,
+) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
     let parser = dom.parser();
     let candidatos: Vec<tl::NodeHandle> = match raiz {
         Some(raiz) => raiz
@@ -70,9 +91,16 @@ pub(crate) fn nos_por_elemento_e_classe(
     };
     let mut achados = Vec::new();
     for candidato in candidatos {
-        if let Some(tag) = candidato.get(parser).and_then(tl::Node::as_tag)
-            && atributos(tag)?.tem_classe(classe)?
-        {
+        let Some(tag) = candidato.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let lidos = atributos(tag)?;
+        let tem = if repeticao_identica {
+            lidos.tem_classe_com_repeticao_identica(classe)?
+        } else {
+            lidos.tem_classe(classe)?
+        };
+        if tem {
             achados.push(candidato);
         }
     }

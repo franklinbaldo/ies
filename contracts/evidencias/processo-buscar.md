@@ -5,14 +5,16 @@ operation: processo.buscar
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 28
 unresolved_steps: 0
 ---
 
 # processo.buscar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
+(`ies processo buscar TERMO [--pagina N]`) e PARCIAL LOCAL
+(`--resultado-pesquisa-file`); ver [contrato](../cli/processo-buscar.md).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -60,6 +62,18 @@ Estado registrado no Todos: **demonstrada**.
 Estado registrado no Todos: **demonstrada**.
 
 - `processo-busca-go#1,2,3,4` → [processo-busca-go--a7182b2ab8d7.md](../../cassettes/go/processo-busca-go--a7182b2ab8d7.md)
+
+## Ensaio estrutural do IES (UnB 4.0.9, 03/11/2026)
+
+Fora da matriz do Todos: o proprietário fez, na UnB de treinamento, o fluxo
+que o IES agora executa (GET do Controle, link `protocolo_pesquisar`, GET da
+tela, POST derivado) e guardou as respostas em capturas privadas `0600`,
+nunca versionadas. Observado: 302 para NUP exato, 200 com
+`pesquisaSemResultado` para inexistente, 200 com barra "Exibindo 1 - 10 de
+N.NNN" e tabela para parcial ([observação](../../docs/como-o-sei-funciona/pesquisa-de-protocolo.md)).
+As telas sintéticas dos testes reproduzem só essa estrutura. O comando IES
+rodou live em 03/11/2026: PASS na UnB e em GO; a PEN1 responde
+`sem_resultado` até para NUP da unidade ([relatório live](../../docs/validacao-live/2026-11-03-processo-buscar.md)).
 
 ## Limite da evidência
 

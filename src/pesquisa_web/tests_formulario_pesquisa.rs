@@ -323,3 +323,88 @@ fn regras_do_orgao(html: &str) -> Vec<String> {
         .map(str::to_owned)
         .collect()
 }
+
+/// Troca o campo do termo por `campo` (atributo `maxlength` variado).
+fn com_campo_do_termo(campo: &str) -> String {
+    let servido =
+        "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>";
+    let html = observado();
+    assert!(html.contains(servido), "fixture sem o campo do termo");
+    html.replace(servido, campo)
+}
+
+fn derivar_termo(html: &str, termo: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    let url = url_servida();
+    derivar_pesquisa_de_protocolo(&instalacao(), &tela_iso(&url, html), "UNIDADE TESTE", termo)
+}
+
+fn regra_do_termo(html: &str, termo: &str) -> R {
+    match derivar_termo(html, termo).unwrap_err() {
+        ErroPesquisaProtocolo::RegraDoFormulario(erro) => erro,
+        outro => panic!("esperada regra do formulário, veio {outro:?}"),
+    }
+}
+
+const CAMPO_COM_50: &str = "<input type='text' id='txtProtocoloPesquisa' \
+    name='txtProtocoloPesquisa' class='infraText' maxlength='50' value=''>";
+
+#[test]
+fn termo_no_limite_do_maxlength_servido_e_enviado() {
+    let html = com_campo_do_termo(CAMPO_COM_50);
+    assert!(derivar_termo(&html, &"1".repeat(50)).is_ok());
+}
+
+#[test]
+fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
+    let html = com_campo_do_termo(CAMPO_COM_50);
+    let erro = regra_do_termo(&html, &"1".repeat(51));
+    assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
+    assert_eq!(erro.subcodigo(), "termo_acima_do_maxlength_da_tela");
+}
+
+#[test]
+fn maxlength_e_o_publicado_e_nao_um_valor_universal() {
+    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'10'"));
+    assert!(derivar_termo(&html, &"1".repeat(10)).is_ok());
+    assert_eq!(
+        regra_do_termo(&html, &"1".repeat(11)),
+        R::TermoAcimaDoMaxlengthDaTela { maxlength: 10 }
+    );
+}
+
+#[test]
+fn sem_maxlength_publicado_o_termo_nao_tem_limite_da_tela() {
+    assert!(derivar_termo(&observado(), &"1".repeat(51)).is_ok());
+}
+
+#[test]
+fn maxlength_conta_unidades_utf16_como_o_navegador() {
+    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'2'"));
+    assert!(derivar_termo(&html, "éé").is_ok());
+    assert_eq!(
+        regra_do_termo(&html, "😀a"),
+        R::TermoAcimaDoMaxlengthDaTela { maxlength: 2 }
+    );
+}
+
+#[test]
+fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
+    for ruim in ["''", "'-1'", "'5a'", "' 5'"] {
+        let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", ruim));
+        assert_eq!(
+            regra_do_termo(&html, "1"),
+            R::MaxlengthDoTermoIlegivelNaTela,
+            "maxlength={ruim}"
+        );
+    }
+    let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
+    assert_eq!(regra_do_termo(&html, "1"), R::CamposDoTermoRepetidosNaTela);
+    assert_eq!(
+        R::MaxlengthDoTermoIlegivelNaTela.subcodigo(),
+        "maxlength_do_termo_ilegivel_na_tela"
+    );
+    assert_eq!(
+        R::CamposDoTermoRepetidosNaTela.subcodigo(),
+        "campos_do_termo_repetidos_na_tela"
+    );
+}

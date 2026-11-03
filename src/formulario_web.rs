@@ -91,6 +91,9 @@ pub(crate) struct OperacaoDeFormulario {
 pub(crate) enum ResultadoDoEnvio {
     /// A resposta publica o marcador da operação; sem ele, recusa.
     Marcador(MarcadorDeResultado),
+    /// A resposta publica pelo menos um destes marcadores; a operação
+    /// distingue depois qual (tabela ou aviso de "sem resultado").
+    UmDosMarcadores(&'static [MarcadorDeResultado]),
     /// Sem marcador observado: só HTML 200 sem tela de login. A operação
     /// é obrigada a conferir o efeito por leitura posterior.
     ConferidoPorLeituraPosterior,
@@ -423,16 +426,21 @@ where
             mensagem_do_servidor: Some(mensagem),
         }));
     }
-    let marcado = match resultado {
-        ResultadoDoEnvio::ConferidoPorLeituraPosterior => true,
-        ResultadoDoEnvio::Marcador(MarcadorDeResultado { elemento, classe }) => {
-            let dom = tl::parse(&html, tl::ParserOptions::default())
-                .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
-            !nos_por_elemento_e_classe(&dom, None, elemento, classe)
-                .map_err(E::AtributoHtml)?
-                .is_empty()
-        }
+    let marcadores: &[MarcadorDeResultado] = match &resultado {
+        ResultadoDoEnvio::ConferidoPorLeituraPosterior => &[],
+        ResultadoDoEnvio::Marcador(marcador) => std::slice::from_ref(marcador),
+        ResultadoDoEnvio::UmDosMarcadores(marcadores) => marcadores,
     };
+    let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
+    if !marcadores.is_empty() {
+        let dom = tl::parse(&html, tl::ParserOptions::default())
+            .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        for MarcadorDeResultado { elemento, classe } in marcadores {
+            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)
+                .map_err(E::AtributoHtml)?
+                .is_empty();
+        }
+    }
     if !marcado {
         return Err(E::MarcadorDeResultadoAusenteNaResposta);
     }

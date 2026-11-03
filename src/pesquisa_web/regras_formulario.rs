@@ -20,6 +20,14 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     OpcaoDeOrgaoSelecionadaSemValorNaTela,
     InicioDaPaginacaoDiferenteDeZeroNaTela,
     EntidadeHtmlDesconhecidaNaRegra,
+    /// O termo tem mais unidades UTF-16 que o `maxlength` servido, que o
+    /// navegador não deixaria digitar.
+    TermoAcimaDoMaxlengthDaTela {
+        maxlength: u32,
+    },
+    /// `maxlength` do termo servido fora de um inteiro decimal não negativo.
+    MaxlengthDoTermoIlegivelNaTela,
+    CamposDoTermoRepetidosNaTela,
     /// Tag de abertura que o tokenizador de atributos recusou.
     AtributoHtml(ErroAtributoHtml),
 }
@@ -55,6 +63,9 @@ impl ErroRegraDoFormularioDePesquisa {
                 "inicio_da_paginacao_diferente_de_zero_na_tela"
             }
             Self::EntidadeHtmlDesconhecidaNaRegra => "entidade_html_desconhecida_na_regra",
+            Self::TermoAcimaDoMaxlengthDaTela { .. } => "termo_acima_do_maxlength_da_tela",
+            Self::MaxlengthDoTermoIlegivelNaTela => "maxlength_do_termo_ilegivel_na_tela",
+            Self::CamposDoTermoRepetidosNaTela => "campos_do_termo_repetidos_na_tela",
             Self::AtributoHtml(falha) => falha.subcodigo(),
         }
     }
@@ -65,6 +76,8 @@ impl ErroRegraDoFormularioDePesquisa {
 pub(crate) struct RegrasDaTela {
     pub(crate) opcao_de_processos: String,
     pub(crate) orgaos_selecionados: Vec<String>,
+    /// `maxlength` servido no campo do termo; `None` quando não publicado.
+    pub(crate) maxlength_do_termo: Option<u32>,
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
@@ -182,6 +195,33 @@ fn orgaos_selecionados(
     Ok(valores)
 }
 
+/// `maxlength` de `txtProtocoloPesquisa` como servido (50 nas quatro
+/// instalações, sem presumir esse valor). Só dígitos ASCII são aceitos,
+/// mais estrito que o navegador, que ignora o atributo inválido.
+fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<Option<u32>, E> {
+    let mut campos = Vec::new();
+    for tag in tags.iter().filter(|t| eh(t, "input")) {
+        if atributo(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
+            campos.push(*tag);
+        }
+    }
+    let campo = match campos.as_slice() {
+        [] => return Ok(None),
+        [campo] => *campo,
+        _ => return Err(E::CamposDoTermoRepetidosNaTela),
+    };
+    let Some(valor) = atributo(campo, "maxlength")? else {
+        return Ok(None);
+    };
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(E::MaxlengthDoTermoIlegivelNaTela);
+    }
+    valor
+        .parse()
+        .map(Some)
+        .map_err(|_| E::MaxlengthDoTermoIlegivelNaTela)
+}
+
 /// Lê, do `<form>` já localizado, os valores que o `onsubmit` exige.
 pub(crate) fn ler_regras_da_tela(
     form: &tl::HTMLTag<'_>,
@@ -196,8 +236,10 @@ pub(crate) fn ler_regras_da_tela(
     let opcao_de_processos = opcao_de_processos(&tags)?;
     conferir_ocultos(&tags)?;
     let orgaos_selecionados = orgaos_selecionados(&tags, parser)?;
+    let maxlength_do_termo = maxlength_do_termo(&tags)?;
     Ok(RegrasDaTela {
         opcao_de_processos,
         orgaos_selecionados,
+        maxlength_do_termo,
     })
 }

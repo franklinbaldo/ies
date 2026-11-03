@@ -1,8 +1,10 @@
 //! RED/GREEN do envio da pesquisa: 200 vira tabela, 302 vira identificador,
 //! sem seguir o destino. Respostas sintéticas, no máximo uma chamada.
 use super::*;
+use crate::dominio::IdProcedimento;
 use crate::formulario_web::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use crate::formulario_web::{RespostaDoPost, derivar_submissao};
+use crate::pesquisa_web::ErroResultadoPesquisa;
 use crate::transporte::RespostaWeb;
 use std::cell::Cell;
 use std::fs;
@@ -68,10 +70,7 @@ fn pesquisar(
     status_code: i32,
     html: &str,
     localizacao: Option<&str>,
-) -> (
-    Result<ResultadoPesquisaProtocolo, ErroPesquisaProtocolo>,
-    usize,
-) {
+) -> (Result<RespostaDaPesquisa, ErroPesquisaProtocolo>, usize) {
     let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = pesquisar_protocolo_via(submissao(), &instalacao(), &arquivo, |_, _| {
@@ -95,7 +94,7 @@ fn localizacao(id: &str) -> String {
     )
 }
 
-const TABELA: &str = r#"<html><table class="pesquisaResultado">
+const TABELA: &str = r#"<html><div class="pesquisaBarraD">Exibindo 1 - 1 de 1</div><table class="pesquisaResultado">
   <tr class="pesquisaTituloRegistro"><td class="pesquisaTituloEsquerda">
   <a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=7">00001.123456/2026-07</a>
   </td></tr></table></html>"#;
@@ -103,11 +102,12 @@ const TABELA: &str = r#"<html><table class="pesquisaResultado">
 #[test]
 fn resposta_200_com_tabela_vira_resultados_tipados() {
     let (r, n) = pesquisar(200, TABELA, None);
-    let ResultadoPesquisaProtocolo::Tabela(resultados) = r.unwrap() else {
+    let RespostaDaPesquisa::Lista(lista) = r.unwrap() else {
         panic!("esperada tabela");
     };
-    assert_eq!(resultados.len(), 1);
-    assert_eq!(resultados[0].numero.as_str(), "00001.123456/2026-07");
+    assert_eq!(lista.processos.len(), 1);
+    assert_eq!(lista.total_declarado, 1);
+    assert_eq!(lista.processos[0].numero.as_str(), "00001.123456/2026-07");
     assert_eq!(n, 1);
 }
 
@@ -116,7 +116,7 @@ fn resposta_302_observada_vira_processo_unico_sem_segunda_chamada() {
     let (r, n) = pesquisar(302, "", Some(&localizacao("7")));
     assert_eq!(
         r.unwrap(),
-        ResultadoPesquisaProtocolo::RedirecionadoParaProcessoUnico {
+        RespostaDaPesquisa::ProcessoUnico {
             id: IdProcedimento::novo("7").unwrap()
         }
     );
@@ -158,6 +158,8 @@ fn tabela_com_marcador_mas_linha_invalida_e_erro_de_resultado() {
     let (r, _) = pesquisar(200, &html, None);
     assert_eq!(
         r.unwrap_err(),
-        ErroPesquisaProtocolo::Resultado(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
+        ErroPesquisaProtocolo::Resposta(ErroRespostaDaPesquisa::Resultado(
+            ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso
+        ))
     );
 }

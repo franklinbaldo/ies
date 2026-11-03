@@ -1,6 +1,9 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
-use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe, valor_do_atributo};
+use crate::html_atributos::{
+    ErroAtributoHtml, nos_por_elemento_e_classe, nos_por_elemento_e_classe_com_repeticao_identica,
+    valor_do_atributo,
+};
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -19,6 +22,9 @@ pub enum ErroResultadoPesquisa {
     LinhaDePesquisaComMaisDeUmLinkDoProcesso,
     LinkDeProcessoForaDaLinhaDePesquisa,
     LinkDeProcessoSemClasseReconhecida,
+    /// `a.arvore` da linha com `href` diferente do `a.protocoloNormal`.
+    LinkDaArvoreComHrefDiferenteDoLinkDoProcesso,
+    LinhaDePesquisaComMaisDeUmLinkDaArvore,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
     LinkDePesquisaComIdentificadoresRepetidos,
@@ -45,6 +51,12 @@ impl ErroResultadoPesquisa {
                 "link_de_processo_fora_da_linha_de_pesquisa"
             }
             Self::LinkDeProcessoSemClasseReconhecida => "link_de_processo_sem_classe_reconhecida",
+            Self::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso => {
+                "link_da_arvore_com_href_diferente_do_link_do_processo"
+            }
+            Self::LinhaDePesquisaComMaisDeUmLinkDaArvore => {
+                "linha_de_pesquisa_com_mais_de_um_link_da_arvore"
+            }
             Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
             Self::LinkDePesquisaSemIdentificadorDoProcesso => {
                 "link_de_pesquisa_sem_identificador_do_processo"
@@ -149,6 +161,34 @@ fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
     Ok(primeiro_id)
 }
 
+/// A `UnB` 4.0.9 publica, antes do número, um `a.arvore` (ícone da árvore)
+/// com o **mesmo** `href` do `a.protocoloNormal`. Só essa forma é aceita:
+/// zero ou um por linha, `href` byte a byte igual.
+fn contar_arvore_da_linha(
+    dom: &tl::VDom<'_>,
+    linha: &tl::HTMLTag<'_>,
+    href_do_processo: &str,
+) -> Result<usize, ErroResultadoPesquisa> {
+    use ErroResultadoPesquisa as E;
+    let ilegivel = |_: ErroAtributoHtml| E::HtmlDePesquisaNaoInterpretado;
+    // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
+    let arvores = nos_por_elemento_e_classe_com_repeticao_identica(dom, Some(linha), "a", "arvore")
+        .map_err(ilegivel)?;
+    let arvore = match arvores.as_slice() {
+        [] => return Ok(0),
+        [arvore] => *arvore,
+        _ => return Err(E::LinhaDePesquisaComMaisDeUmLinkDaArvore),
+    };
+    let tag = arvore
+        .get(dom.parser())
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::HtmlDePesquisaNaoInterpretado)?;
+    if valor_do_atributo(tag, "href").map_err(ilegivel)?.as_deref() != Some(href_do_processo) {
+        return Err(E::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
+    }
+    Ok(1)
+}
+
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
@@ -174,13 +214,19 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     let mut observados = HashSet::new();
     let mut ids_observados = HashSet::new();
     let mut resultados = Vec::new();
+    let mut arvores = 0;
     for linha in linhas {
         let tag = linha
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let links =
-            nos_por_elemento_e_classe(&dom, Some(tag), "a", "protocoloNormal").map_err(ilegivel)?;
+        let links = nos_por_elemento_e_classe_com_repeticao_identica(
+            &dom,
+            Some(tag),
+            "a",
+            "protocoloNormal",
+        )
+        .map_err(ilegivel)?;
         let link_no = match links.as_slice() {
             [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
             [link] => *link,
@@ -204,14 +250,20 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         if !ids_observados.insert(primeiro_id.trim_start_matches('0').to_owned()) {
             return Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa);
         }
+        arvores += contar_arvore_da_linha(&dom, tag, &href)?;
         resultados.push(ResultadoPesquisa { numero });
     }
     // A seleção por classe das linhas pode omitir links reais se a versão
     // do SEI mudar o HTML. Nunca devolver subconjunto silencioso como se
     // representasse todos os links observáveis da tabela de resultados.
-    let links_da_tabela = nos_por_elemento_e_classe(&dom, Some(tabela), "a", "protocoloNormal")
-        .map_err(ilegivel)?
-        .len();
+    let links_da_tabela = nos_por_elemento_e_classe_com_repeticao_identica(
+        &dom,
+        Some(tabela),
+        "a",
+        "protocoloNormal",
+    )
+    .map_err(ilegivel)?
+    .len();
     if links_da_tabela != resultados.len() {
         return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }
@@ -235,7 +287,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             });
         links_de_trabalho += usize::from(abre_processo);
     }
-    if links_de_trabalho != resultados.len() {
+    if links_de_trabalho != resultados.len() + arvores {
         return Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida);
     }
     Ok(resultados)
@@ -244,15 +296,27 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
 #[cfg(test)]
 mod tests;
 
-// A declaração do formulário fica com a pesquisa, não num catálogo do primitivo.
-// Nenhum comando a usa nesta fatia (docs/arquitetura/0002).
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
+mod tests_arvore;
+
+#[cfg(test)]
+pub(crate) mod tests_fixtures;
+
+// A declaração do formulário fica com a pesquisa, não num catálogo do primitivo
+// (docs/arquitetura/0002); `ies processo buscar` a usa pelo `fluxo`.
 pub(crate) mod formulario_pesquisa;
 
 // O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
-#[cfg_attr(not(test), allow(dead_code))]
 mod redirecionamento;
 
 // Regras do `onsubmit` da pesquisa, lidas do JS servido e escritas à mão.
-#[cfg_attr(not(test), allow(dead_code))]
 mod regras_formulario;
+
+// Resposta 200 (lista com barra ou "sem resultado") e paginação `navegar()`.
+pub(crate) mod paginacao;
+pub(crate) mod resposta;
+
+// Link do menu da pesquisa no Controle e o fluxo do comando.
+pub(crate) mod erro_busca;
+pub(crate) mod fluxo;
+mod link_da_pesquisa;

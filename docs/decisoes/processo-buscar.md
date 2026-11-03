@@ -1,55 +1,95 @@
 ---
 type: ImplementationDecision
-title: Pesquisa de NUP em HTML privado sem sessão
+title: Pesquisa de processo pela Web e em HTML privado
 operation: processo.buscar
 implementation: partial
 status: adopted-for-scope
-scope: seleção exata de NUP em uma resposta de pesquisa previamente capturada
-selected_strategy: web-captured-offline
-alternatives: web-captured-offline,web-post-authorized,rest-wssei,soap-official
-evidence_level: matriz-historica-e-parser-offline
-live_validation: nao-realizada
+scope: pesquisa por protocolo pela sessão de ies login (página observada ou --pagina N) e seleção exata de NUP em resposta capturada
+selected_strategy: web-post-authorized
+alternatives: web-post-authorized,web-captured-offline,rest-wssei,soap-official
+evidence_level: ensaio-live-unb-go-pen1
+live_validation: pass-unb-go-pen1-sem-indice
 ---
 
 # Decisão de implementação de processo.buscar
 
 ## Alternativas consideradas
 
-- **web-captured-offline:** aceita resposta HTML já obtida pelo operador
-  autorizado, com parser estrito e orçamento de zero requisições.
-- **web-post-authorized:** caminho futuro para pesquisa NUP fora da caixa,
-  mas POST e sessão têm efeitos/permissões ainda não ensaiados no IES.
+- **web-post-authorized:** `ies processo buscar TERMO [--pagina N]`: GET do
+  Controle, link `protocolo_pesquisar` publicado, GET da tela, POST da
+  pesquisa e, na página N, um POST de `navegar()`, com a sessão gravada por
+  `ies login`. Orçamento: 3 requisições na página 1 e 4 na página N.
+- **web-captured-offline:** resposta HTML já obtida pelo operador, parser
+  estrito e zero requisições (`--resultado-pesquisa-file`, mantido).
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.
 
 ## Comparação
 
-A alternativa offline evita qualquer acesso autenticado ou GET/POST, ao
-custo de não comprovar a presença atual nem a cobertura da busca.
-A rota Web POST pode ser mais útil, mas seus efeitos e sessão não foram
-validados no IES; REST e SOAP não têm disponibilidade comprovada.
+A rota Web foi ensaiada pelo proprietário na UnB 4.0.9 (03/11/2026): o
+POST derivado como abaixo foi **aceito** (302 para NUP exato, 200 com
+`pesquisaSemResultado` para inexistente, 200 com tabela e barra para
+parcial), com efeito `PaginaOuFiltroLembrado`. Custa 3 ou 4 requisições e
+altera a página/filtro lembrados, mas responde para a conta e a unidade
+reais. A offline não acessa o SEI e não comprova presença atual. REST e
+SOAP continuam sem disponibilidade comprovada.
 
 ## Decisão
 
-A primeira fatia amplia a CLI de domínio para consultar NUP em uma
-resposta de pesquisa **externa à caixa** sem reutilizar links ou enviar
-credenciais. O arquivo não é prova de autoria, frescura, autenticação
-ou cobertura: a saída é rotulada como observação offline. Um NUP ausente
-não significa inexistência no SEI. O contrato exige tabela única,
-links e identificadores verificáveis, e número exato.
+Adotar a rota Web para o comando `buscar`, mantendo a fatia offline:
+
+- o GET do Controle valida origem antes do cookie; a unidade vem do
+  Controle reconhecido (R ou D) e confere `--unidade`;
+- só o link do menu com `acao=protocolo_pesquisar` da **mesma resposta**
+  é seguido: relativo `controlador.php?`, uma `acao`, um `infra_hash` de 64
+  hex, chaves canônicas, mesma instalação; ausente, repetido, absoluto ou
+  fora da forma é recusa sem rede;
+- o POST usa `PESQUISAR_PROTOCOLO` (const da operação, sem despachante),
+  agora com `ResultadoDoEnvio::UmDosMarcadores` (`table.pesquisaResultado`
+  ou `div.pesquisaSemResultado`); a validação da Infra continua recusa
+  (`validacao_recusada_pelo_sei`) e a falta de marcador vira
+  `resposta_da_pesquisa_nao_reconhecida`;
+- 302 → `processo_unico` só com o `id`; o número formatado não é inventado
+  (abrir o processo é #59);
+- lista → `total_declarado` e `faixa_observada` da barra "Exibindo I - F
+  de N", separador `.` só entre grupos de 3 dígitos;
+- `sem_resultado` é saída 0 e **não** `processo_inexistente`;
+- `--pagina N` usa `PAGINAR_PESQUISA_DE_PROTOCOLO` (`SubmitPorScript`,
+  `hdnInicio` reescrito) derivado da tela de resultado, depois de conferir
+  as linhas literais de `navegar()`, os links `navegar('K')` e o termo
+  servido; N fora do intervalo falha antes do POST; sem restauração.
+
+As linhas reais da UnB têm `a.arvore` com o mesmo `href` do
+`a.protocoloNormal`, e este repete `class` idêntico. O parser aceita só essa
+forma, pelo tokenizador de `src/html_atributos`
+(`valor_com_repeticao_identica`); valores diferentes continuam recusados.
 
 ## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/processo-buscar.md)
 - [Matriz](../../contracts/evidencias/processo-buscar.md)
-- [Testes de integração](../../tests/processo_pesquisa_privada.rs)
-- [Testes unitários](../../src/processo_pesquisa_privada_cli/tests.rs)
+- [Observação da pesquisa](../como-o-sei-funciona/pesquisa-de-protocolo.md)
+- [Superfície da CLI](../../tests/processo_buscar_web.rs) e
+  [testes de integração offline](../../tests/processo_pesquisa_privada.rs)
+- Testes unitários: [fluxo](../../src/pesquisa_web/tests_fluxo.rs) (sequência
+  exata de requisições), [resposta](../../src/pesquisa_web/tests_resposta.rs),
+  [paginação](../../src/pesquisa_web/tests_paginacao.rs),
+  [link](../../src/pesquisa_web/tests_link.rs),
+  [linhas da UnB](../../src/pesquisa_web/tests_arvore.rs) e
+  [JSON](../../src/processo_buscar_cli/tests.rs)
 - [Parser da resposta](../../src/pesquisa_web.rs)
 - [Política de acesso](../interfaces/acesso-por-instalacao.md)
 
-## Regras do `onsubmit` para a derivação offline
+Ensaio estrutural local (03/11/2026, teste temporário não versionado, sobre
+as capturas privadas `0600`): a resposta parcial virou lista de 10 linhas
+com total e faixa 1–10; o plano da página 2 deu `hdnInicio=10` e faixa
+11–20; o POST de página derivado da tela real não leva `sbmPesquisar`; a
+resposta inexistente virou `sem_resultado`; o link do menu foi achado nos
+Controles da UnB, PEN1 e GO (**PASS**).
 
-Fora da CLI: `derivar_pesquisa_de_protocolo` (em
+## Regras do `onsubmit` da derivação
+
+`derivar_pesquisa_de_protocolo` (em
 `src/pesquisa_web/formulario_pesquisa.rs`) prepara o POST da
 [decisão 0002](../arquitetura/0002-submeter-formulario-observado.md),
 sem rede. As regras foram escritas à mão a partir do JavaScript servido no
@@ -103,13 +143,29 @@ Regra do HTML, não observada nas cassettes; teste:
 `opcao_de_orgao_selecionada_mas_desabilitada_nao_e_publicada`.
 
 As checkboxes marcadas, os selects simples e os textos vazios que o
-navegador enviaria continuam fora do POST. Medir isso exige a
+navegador enviaria continuam fora do POST. Na UnB 4.0.9 o servidor aceitou
+o POST assim mesmo (03/11/2026); nas outras instalações, medir isso exige a
 [coleta do formato de POST](../coleta-formato-post.md) ou ablação em
-treinamento autorizado. Validação live: **NOT_RUN**.
+treinamento autorizado.
 
 ## Limitações e revisão
 
-Para Web live, identificar POST real, hiddens, efeitos, autorização de
-sessão e variações UnB/UFRJ/Goiás/PEN antes de implementar transporte.
-Não reutilizar esta decisão como prova de autenticação, ausência ou
-resultado integral; reavaliar custos e equivalência com Todos.
+- Ensaio live **do comando IES** (03/11/2026,
+  [relatório](../validacao-live/2026-11-03-processo-buscar.md)): PASS na
+  UnB e em GO nos cinco casos; a PEN1 responde `sem_resultado` até para
+  NUP da própria unidade (resposta do servidor, reproduzida fora do IES).
+  UFRJ e PEN2–4: NOT_RUN.
+- A página N e a barra acima de 999 (`3.441`, `15.835`) foram vistas ao
+  vivo; uma barra sem separador continua falhando fechada.
+- Não há filtros além do protocolo. O termo obedece ao `maxlength`
+  **publicado** em `txtProtocoloPesquisa` (50 nas capturas da UnB e da
+  PEN1), contado em unidades UTF-16 como no navegador; acima dele a recusa
+  vem antes do POST. O valor não é presumido: sem atributo, a tela não
+  limita; atributo fora de dígitos ASCII é recusa (mais estrito que o
+  navegador, que o ignoraria).
+- Aviso de "sem resultado" junto com barra de contagem é resposta
+  ambígua e falha fechada, como tabela com aviso.
+- Revisar se outra instalação publicar o menu em outra forma, a barra em
+  outro texto, ou se o 200 de uma linha só aparecer sem barra.
+- Não reutilizar esta decisão como prova de autenticação, de inexistência
+  do processo ou de resultado integral.
