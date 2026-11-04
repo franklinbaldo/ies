@@ -1,4 +1,4 @@
-//! Falhas de `ies processo NUP` (sem `--resumo`): uma variante por fato
+//! Falhas de `ies processo NUP`: uma variante por fato
 //! verificável, com subcódigo estável (contracts/cli/processo-obter-arvore.md).
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::formulario_web::ErroSubmissaoFormulario;

@@ -58,7 +58,8 @@ código os inspeciona para decidir tratamento. Ver o
 do WAF de GO (03/11/2026, depois de rajadas): `<title>Acesso Negado</title>`
 e a frase "bloqueada por nossa política de segurança" no texto visível
 do corpo; ou a do Cloudflare da PEN2 (04/11/2026, segundo GET de
-`ies login`): `<title>Attention Required! | Cloudflare</title>` e
+`ies login`; também na PEN3, no POST da pesquisa com termo só de
+dígitos): `<title>Attention Required! | Cloudflare</title>` e
 "Sorry, you have been blocked". É reconhecimento de **tela** (como o da tela de login), feito
 na camada de transporte para todos os comandos Web
 (`src/transporte/bloqueio_de_seguranca.rs`), não leitura da mensagem para

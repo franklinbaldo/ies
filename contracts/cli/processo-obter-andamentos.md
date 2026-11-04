@@ -128,7 +128,7 @@ Link: `link_do_historico_fora_da_forma_observada`,
 `endereco_do_historico_de_outro_processo`,
 `html_da_arvore_nao_interpretado`.
 
-Página: os do leitor de `--historico-privado` (`titulo_ausente`,
+Página: os do leitor do histórico, `src/historico.rs` (`titulo_ausente`,
 `numero_do_historico_diferente_do_solicitado`, `historico_ausente`,
 `tabelas_do_historico_repetidas`, `linha_invalida`, `historico_vazio`…),
 `legenda_dos_andamentos_ausente`,

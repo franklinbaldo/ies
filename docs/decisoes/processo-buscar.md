@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: pesquisa por protocolo pela sessão de ies login (página observada ou --pagina N) e seleção exata de NUP em resposta capturada
 selected_strategy: web-post-authorized
 alternatives: web-post-authorized,web-captured-offline,rest-wssei,soap-official
-evidence_level: ensaio-live-unb-go-pen1
-live_validation: pass-unb-go-pen1-sem-indice
+evidence_level: ensaio-live-unb-go-pen1-pen3-e-replay-do-acervo
+live_validation: pass-unb-go-pen3-pen1-sem-indice
 ---
 
 # Decisão de implementação de processo.buscar
@@ -20,7 +20,9 @@ live_validation: pass-unb-go-pen1-sem-indice
   pesquisa e, na página N, um POST de `navegar()`, com a sessão gravada por
   `ies login`. Orçamento: 3 requisições na página 1 e 4 na página N.
 - **web-captured-offline:** resposta HTML já obtida pelo operador, parser
-  estrito e zero requisições (`--resultado-pesquisa-file`, mantido).
+  estrito e zero requisições (`--resultado-pesquisa-file`, aposentado em
+  04/11/2026 por decisão do proprietário; a leitura offline fica em
+  `ies replay --resultado-pesquisa`).
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.
 
@@ -70,8 +72,7 @@ forma, pelo tokenizador de `src/html_atributos`
 - [Contrato](../../contracts/cli/processo-buscar.md)
 - [Matriz](../../contracts/evidencias/processo-buscar.md)
 - [Observação da pesquisa](../como-o-sei-funciona/pesquisa-de-protocolo.md)
-- [Superfície da CLI](../../tests/processo_buscar_web.rs) e
-  [testes de integração offline](../../tests/processo_pesquisa_privada.rs)
+- [Superfície da CLI](../../tests/processo_buscar_web.rs)
 - Testes unitários: [fluxo](../../src/pesquisa_web/tests_fluxo.rs) (sequência
   exata de requisições), [resposta](../../src/pesquisa_web/tests_resposta.rs),
   [paginação](../../src/pesquisa_web/tests_paginacao.rs),
@@ -80,6 +81,9 @@ forma, pelo tokenizador de `src/html_atributos`
   [JSON](../../src/processo_buscar_cli/tests.rs)
 - [Parser da resposta](../../src/pesquisa_web.rs)
 - [Política de acesso](../interfaces/acesso-por-instalacao.md)
+- [Replay do acervo](processo-buscar/replay-do-acervo.md) (apêndice,
+  04/11/2026): as peças do comando sobre as 52 cassettes com a Pesquisa
+  nas sete instalações, e a linha com acerto em documento de Goiás.
 
 Ensaio estrutural local (03/11/2026, teste temporário não versionado, sobre
 as capturas privadas `0600`): a resposta parcial virou lista de 10 linhas
@@ -155,7 +159,11 @@ treinamento autorizado.
   [relatório](../validacao-live/2026-11-03-processo-buscar.md)): PASS na
   UnB e em GO nos cinco casos; a PEN1 responde `sem_resultado` até para
   NUP da própria unidade (resposta do servidor, reproduzida fora do IES).
-  UFRJ e PEN2–4: NOT_RUN.
+  PEN3 5.0.4 (04/11/2026,
+  [relatório](../validacao-live/2026-11-04-processo-buscar.md)): PASS,
+  inclusive NUP fora da caixa da unidade. UFRJ, PEN2 e PEN4: NOT_RUN.
+- Linhas a menos que a faixa da barra (`processo-busca-go#4`: 9 linhas
+  para 1–10) continuam falha fechada; a causa não está na tela.
 - A página N e a barra acima de 999 (`3.441`, `15.835`) foram vistas ao
   vivo; uma barra sem separador continua falhando fechada.
 - Não há filtros além do protocolo. O termo obedece ao `maxlength`

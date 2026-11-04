@@ -4,7 +4,7 @@ title: Documentos movidos na árvore de ies processo NUP
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: apêndice da decisão de processo.obter; nó DOCUMENTO_MOVIDO da árvore na forma da PEN1 4.0.12, fora dos documentos, com o destino lido do link assinado do .html do nó
+scope: apêndice da decisão de processo.obter; nó DOCUMENTO_MOVIDO da árvore na forma da PEN1 5.0.4, fora dos documentos, com o destino lido do link assinado do .html do nó
 selected_strategy: web-movidos-pelo-link-do-no
 alternatives: web-movidos-pelo-link-do-no,web-movidos-pela-dica,web-movidos-recusa,web-movidos-como-documentos
 evidence_level: captura-privada-pen1-estrutura-e-testes-sinteticos
@@ -72,7 +72,7 @@ o documento movido e trazido de volta, e agora é aceito
 
 - [Contrato](../../../contracts/cli/processo-obter-arvore.md) e
   [evidência](../../../contracts/evidencias/processo-obter.md)
-  (captura privada da PEN1 4.0.12, 04/11/2026, só estrutura; o leitor a
+  (captura privada da PEN1 5.0.4, 04/11/2026, só estrutura; o leitor a
   aceitou em teste local temporário, apagado).
 - [Observação](../../como-o-sei-funciona/arvore-do-processo.md).
 - Testes sintéticos: `src/arvore_processo/tests_movidos.rs`,

@@ -10,14 +10,14 @@ source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
 
 # Busca de processo pela pesquisa Web (Refs #58, #56)
 
-Dois recortes da mesma operação, sem relogin automático e sem REST/SOAP:
-
-- **live:** `ies processo buscar TERMO [--pagina N] [--json]` executa a
-  pesquisa Web por protocolo com a sessão dos arquivos privados gravados
-  por [`ies login`](sessao-login.md) (`IES_ORIGEM_FILE`, `IES_COOKIE_FILE`,
-  `IES_URL_CONTROLE_FILE` ou `IES_CONFIG_FILE`);
-- **offline:** `ies processo NUP --resultado-pesquisa-file HTML_PRIVADO`
-  interpreta uma resposta já capturada, sem rede (seção própria abaixo).
+Sem relogin automático e sem REST/SOAP, `ies processo buscar TERMO
+[--pagina N] [--json]` executa a pesquisa Web por protocolo com a sessão
+dos arquivos privados gravados por [`ies login`](sessao-login.md)
+(`IES_ORIGEM_FILE`, `IES_COOKIE_FILE`, `IES_URL_CONTROLE_FILE` ou
+`IES_CONFIG_FILE`). O recorte offline `ies processo NUP
+--resultado-pesquisa-file` foi aposentado em 04/11/2026 (decisão do
+proprietário, [processo.obter](processo-obter.md)); respostas capturadas
+seguem lidas por `ies replay --resultado-pesquisa`.
 
 O stub anterior `ies processo buscar [--assunto]` foi substituído: o
 verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
@@ -29,7 +29,7 @@ verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
 `NumeroProcesso`: controles recusados antes de aparar espaços, vazio e
 `sei://` recusados, saída 2 (`entrada_invalida`) **antes** de ler a
 configuração. `--pagina N` é inteiro ≥ 1. Opções de leitura de
-`ies processo NUP` (`--resumo`, `--historico-privado`, filtros…) junto com
+`ies processo NUP` (`--sem-documentos`, `--andamentos-completos`…) junto com
 `buscar` são `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é
 pré-condição conferida na tela do Controle, não rótulo ecoado.
 
@@ -135,20 +135,22 @@ tamanho da página. O IES exige essas duas linhas literais e todo link
   mesmo total e faixa `inicio = hdnInicio + 1`,
   `fim = min(hdnInicio + tamanho, N)`.
 
-## Busca offline em resposta HTML privada
+## Links das linhas do resultado
 
-`ies processo NUP --resultado-pesquisa-file HTML_PRIVADO [--json]` continua
-como antes: arquivo regular `0600` (≤ 8 MB, sem symlink final), uma única
-`pesquisaResultado`, correspondência **exata** do NUP, saída com
-`escopo: resposta_pesquisa_html_privado_offline`, `requisicoes: 0`, e
-`numero_nao_observado` (não `processo_inexistente`) quando ausente.
-
-Nas duas fatias, cada linha da tabela tem um `a.protocoloNormal` com
+Em cada página, cada linha da tabela tem um `a.protocoloNormal` com
 `procedimento_trabalhar`; a UnB 4.0.9 publica também um `a.arvore` com o
 **mesmo** `href` e repete o atributo `class` idêntico no
 `a.protocoloNormal`. Ambos são aceitos só nessa forma; `href` diferente,
 mais de um `a.arvore` por linha ou `class` repetido com valores diferentes
 falham fechado.
+
+Em Goiás, a linha cujo acerto é um **documento** do processo leva
+`id_documento` no link do processo e mais dois `a.protocoloNormal`
+(nome e número SEI do documento) que abrem `documento_visualizar`. Esses
+links são aceitos só com uma `acao=documento_visualizar` e o **mesmo**
+`id_documento` decimal do link do processo; senão,
+`link_do_documento_da_linha_diferente_do_processo`. A linha publica só o
+número do processo; o documento não sai.
 
 ## Evidência e validação
 
@@ -157,5 +159,11 @@ falham fechado.
 - [Parser e fluxo](../../src/pesquisa_web.rs), com testes de sequência de
   requisições por transporte injetável e
   [superfície da CLI](../../tests/processo_buscar_web.rs).
-- UnB live do comando IES: **NOT_RUN** até o ensaio do operador;
-  UFRJ/GO/PEN: **NOT_RUN**.
+- [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-buscar-acervo.md)
+  (04/11/2026): Controle, tela, envio e plano da página 2 das 52
+  cassettes com a Pesquisa, nas sete instalações, pelas peças do comando.
+- Ensaio live do comando IES: PASS na UnB e em GO
+  ([03/11/2026](../../docs/validacao-live/2026-11-03-processo-buscar.md))
+  e na PEN3 ([04/11/2026](../../docs/validacao-live/2026-11-04-processo-buscar.md));
+  PEN1 responde `sem_resultado` até para NUP da unidade; UFRJ, PEN2 e
+  PEN4: **NOT_RUN**.

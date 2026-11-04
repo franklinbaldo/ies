@@ -136,7 +136,7 @@ POST. Com a leitura pela visão D e `--pagina N`, a opção foi **removida**
 de `listar-processos` (erro de uso, saída 2, sem alias pré-1.0): as telas
 da troca de visão são de outra geração que as capturas, e juntá-las não
 tem semântica verificável. Capturas continuam legíveis por `ies replay`;
-`processo NUP --resumo --pagina-arquivo` não muda.
+`processo NUP --resumo --pagina-arquivo` foi aposentado em 04/11/2026.
 
 ## Consulta de apenas uma lista (Refs #57)
 

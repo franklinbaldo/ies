@@ -80,7 +80,7 @@ impl ErroLinkDoHistorico {
 /// Falhas da página do histórico e da troca de visão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroAndamentos {
-    /// Título, tabela ou linhas (leitor de `--historico-privado`).
+    /// Título, tabela ou linhas (leitor de `crate::historico`).
     Historico(ErroHistorico),
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,

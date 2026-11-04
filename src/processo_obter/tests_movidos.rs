@@ -1,5 +1,5 @@
 //! RED/GREEN do documento movido no fluxo: a árvore sintética (forma da
-//! PEN1 4.0.12) custa o mesmo que outra, publica o movido fora dos
+//! PEN1 5.0.4) custa o mesmo que outra, publica o movido fora dos
 //! documentos e ensina ao índice o par NUP ↔ id e o link
 //! `procedimento_trabalhar` assinado do destino, sem requisição a mais.
 use super::tests_apoio::*;

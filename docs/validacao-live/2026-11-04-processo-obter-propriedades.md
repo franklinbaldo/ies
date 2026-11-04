@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN da leitura dos metadados pela barra da árvore, c
 
 # Ensaio live das propriedades de `ies processo NUP` — 04/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Propriedades ([contrato](../../contracts/cli/processo-obter-propriedades.md)),
 binário em release do ramo do PR, índice novo, sessão nova, ritmo espaçado.
 Só formas e contagens abaixo.

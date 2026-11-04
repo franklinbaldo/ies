@@ -1,5 +1,5 @@
 //! RED/GREEN dos documentos movidos: HTML SINTÉTICO com a forma observada
-//! na PEN1 4.0.12 (04/11/2026): `DOCUMENTO_MOVIDO` com 16 argumentos, a1
+//! na PEN1 5.0.4 (04/11/2026): `DOCUMENTO_MOVIDO` com 16 argumentos, a1
 //! composto `<id_documento>-<id_rel_protocolo_protocolo>`, a2 o processo,
 //! a3 o `arvore_visualizar` do próprio processo, a15 o número SEI, `.acoes`
 //! só com Comentários e `.html` com um único `<a>`: o

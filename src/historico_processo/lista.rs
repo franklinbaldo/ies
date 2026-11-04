@@ -1,5 +1,5 @@
 //! A página `procedimento_consultar_historico`: as linhas pelo leitor de
-//! `--historico-privado`, a legenda `Lista de Andamentos (N registro):` ou
+//! histórico (`crate::historico`, também usado por `ies replay`), a legenda `Lista de Andamentos (N registro):` ou
 //! `(N registros):` da `table#tblHistorico` e a visão servida em
 //! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
 use super::{AndamentosLidos, ErroAndamentos as E, TipoDoHistorico};

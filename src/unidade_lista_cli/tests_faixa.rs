@@ -64,19 +64,17 @@ fn detalhada_parcial_exporta_faixa_observada() {
 }
 
 #[test]
-fn exportacao_detalhada_e_reimportada_sem_categoria() {
+fn exportacao_detalhada_e_lista_unica_sem_categoria() {
     let texto = exportar_detalhada(
         &detalhada("(1 registros - 1 a 1):", "outraClasse"),
-        "detalhada-reimportada",
+        "detalhada-lista-unica",
     );
-    let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
-    let crate::caixa_local::ListasLocais::SemCategoria(processos) = &observada.listas else {
-        panic!("a exportação D não tem recebidos/gerados");
-    };
+    let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
+    let processos = valor[0]["processos"].as_array().unwrap();
     assert_eq!(processos.len(), 1);
-    assert_eq!(processos[0].numero, "000042/2026");
-    assert_eq!(processos[0].visualizado, None);
-    assert_eq!(observada.unidade.as_deref(), Some("PPI"));
+    assert_eq!(processos[0]["numero"], "000042/2026");
+    assert!(processos[0]["visualizado"].is_null());
+    assert_eq!(valor[0]["unidade"], "PPI");
 }
 
 fn controle(legenda_recebidos: &str, ids: &[u32]) -> String {
@@ -100,16 +98,19 @@ fn controle(legenda_recebidos: &str, ids: &[u32]) -> String {
 }
 
 #[test]
-fn exportacao_do_replay_e_reimportada_pela_caixa_local() {
+fn exportacao_do_replay_publica_as_duas_listas() {
     let caminho = destino("caixa-replay");
     let html = controle("(2 registros - 1 a 2):", &[1, 2]);
     let codigo = mostrar_caixa(&[html], "web", Some("PPI"), true, true, Some(&caminho));
     assert_eq!(codigo, ExitCode::SUCCESS);
     let texto = fs::read_to_string(&caminho).unwrap();
     fs::remove_file(&caminho).unwrap();
-    let observada = crate::caixa_local::interpretar(&texto, Some("PPI")).unwrap();
-    assert_eq!(observada.caixa().recebidos.processos.len(), 2);
-    assert_eq!(observada.caixa().recebidos.processos[1].numero, "NUP-2");
+    let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
+    assert_eq!(valor[0]["categoria"], "recebidos");
+    let recebidos = valor[0]["processos"].as_array().unwrap();
+    assert_eq!(recebidos.len(), 2);
+    assert_eq!(recebidos[1]["numero"], "NUP-2");
+    assert_eq!(valor[1]["categoria"], "gerados");
 }
 
 #[test]

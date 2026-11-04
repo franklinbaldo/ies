@@ -38,8 +38,8 @@ não envia GET/POST e não consulta processos fora das tabelas capturadas.
 ## TDD e validação
 
 Testar NUP encontrado, ausente em caixa integral, caixa parcial,
-faixas múltiplas, entrada inválida e operação incompatível. O mesmo
-modelo de domínio é usado por `ies processo NUP --resumo`, mas o
-adaptador de transporte live continua independente. Validar com
+faixas múltiplas, entrada inválida e operação incompatível. O
+`ies processo NUP --resumo`, que usava o mesmo modelo, foi aposentado em
+04/11/2026; o replay continua. Validar com
 cassettes verificados de UnB, UFRJ, Goiás e PEN quando houver ZIPs
 locais; não inferir compatibilidade live dessa comparação.

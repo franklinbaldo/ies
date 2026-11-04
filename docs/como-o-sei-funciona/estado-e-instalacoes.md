@@ -39,7 +39,9 @@ A [separação entre instalação, órgão, unidade e versão](../interfaces/ins
 As instalações públicas mapeadas em outubro de 2026 foram
 UnB (SEI 4.0.9), UFRJ (4.1.5), Goiás (5.0.3),
 PEN1 (4.0.12), PEN2 (4.1.5), PEN3 e PEN4 (5.0.4).
-Versões são medições daquela data, não informações permanentes.
+Versões são medições daquela data, não informações permanentes: a PEN1
+passou a 5.0.4 antes de 02/11/2026
+([evidência](../interfaces/instalacoes-e-versoes.md)).
 
 Variam login, nomenclatura de protocolo, caixa resumida,
 `data-label`, listas e ações oferecidas. Diferentes

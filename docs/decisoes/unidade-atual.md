@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: leitura passiva do rotulo de unidade ativa publicado na pagina Web
 selected_strategy: web-control-get
 alternatives: web-control-get,web-switch-page,rest-user-units
-evidence_level: primeiro-html-da-caixa-capturado
-live_validation: nao-realizada
+evidence_level: primeiro-html-da-caixa-capturado-e-ensaio-live
+live_validation: pass-unb-ufrj-pen1-pen3-pen4-go-0211-pen2-not-run
 ---
 
 # Unidade ativa sem trocar a sessão
@@ -41,6 +41,8 @@ a solicitação explícita, falhar com erro específico.
 - [Evidência derivada](../../contracts/evidencias/unidade-atual.md)
 - [Testes da CLI](../../tests/cli_contract.rs)
 - [Parser da caixa](../../tests/replay_unidade.rs)
+- [Ensaio live de 02/11/2026](../validacao-live/2026-11-02-leitura-controle.md):
+  PASS em UnB, UFRJ, PEN1, PEN3, PEN4 e GO (na 2ª execução); PEN2 503.
 
 ## Limitações e revisão
 

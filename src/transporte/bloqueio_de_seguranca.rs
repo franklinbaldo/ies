@@ -10,7 +10,8 @@
 //! Na PEN2 (Tramita, 04/11/2026), o Cloudflare devolveu no segundo GET de
 //! `ies login` um 403 com `<title>Attention Required! | Cloudflare</title>`
 //! e "Sorry, you have been blocked" no texto visível: o mesmo fato, outro
-//! par de título e frase.
+//! par de título e frase. A mesma página veio na PEN3 no POST da
+//! pesquisa com termo só de dígitos; a pesquisa seguinte passou.
 use super::texto_de_recusa::{decodificar_entidades, texto_visivel};
 
 /// (título exato, frase no texto visível do corpo), por página observada.

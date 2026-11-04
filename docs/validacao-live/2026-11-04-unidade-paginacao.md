@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN de unidade listar-processos, recebidos e gerados 
 
 # Ensaio live da paginação da caixa — 04/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Ensaio da sintaxe nova de #57:
 [`listar-processos [--pagina N]`](../../contracts/cli/unidade-listar-processos-visao-detalhada.md),
 [`recebidos|gerados [--pagina N]`](../../contracts/cli/unidade-recebidos-gerados.md)

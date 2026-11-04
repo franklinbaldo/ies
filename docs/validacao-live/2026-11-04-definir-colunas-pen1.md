@@ -25,7 +25,8 @@ tinha passado na PEN1 em 02/11/2026 (12 marcadas, conferido por leitura,
 
 Versão: a [tabela de instalações](../como-o-sei-funciona/estado-e-instalacoes.md)
 registra a PEN1 como 4.0.12, mas as telas capturadas em 02/11 e em 03 e
-04/11 carregam os recursos com `?5.0.4-2.45.1-…`.
+04/11 carregam os recursos com `?5.0.4-2.45.1-…`. A PEN1 é 5.0.4 desde então
+([evidência](../interfaces/instalacoes-e-versoes.md)).
 
 ## O que a saída 3 prova
 

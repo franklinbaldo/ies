@@ -54,7 +54,7 @@ tabela `link_assinado` da sessão. O Todos mediu ainda que os links do
 menu deixam de valer depois de trocar de unidade (o hash cobre
 `infra_unidade_atual`): a unidade é parte da chave do link.
 Com o `ies processo NUP` integrado (03/11/2026), a entrada por id foi
-aceita também em GO 5.0.3 e na PEN1 4.0.12, que o Todos não tinha medido
+aceita também em GO 5.0.3 e na PEN1 5.0.4, que o Todos não tinha medido
 ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)).
 3. **Reabrir telas já vistas na sessão.** Cada tela publica links
    assinados para as próximas; sem guardá-los, reabrir um processo

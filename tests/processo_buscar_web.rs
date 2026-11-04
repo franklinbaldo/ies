@@ -45,7 +45,10 @@ fn termo_com_controle_e_erro_de_uso_antes_da_configuracao() {
 
 #[test]
 fn opcoes_de_leitura_do_processo_nao_combinam_com_buscar() {
-    let saida = ies(&["--json", "processo", "--resumo", "buscar", "1"], false);
+    let saida = ies(
+        &["--json", "processo", "--sem-documentos", "buscar", "1"],
+        false,
+    );
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "opcoes_incompativeis_com_busca");
 }

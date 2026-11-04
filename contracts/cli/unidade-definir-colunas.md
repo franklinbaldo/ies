@@ -177,6 +177,10 @@ formulário; o POST de salvar envia só o oculto, o botão e as marcadas
 mostram a mudança em seguida. Ensaio deste comando: PASS na PEN1 5.0.4 e na
 UnB 4.0.9 em 02/11/2026 e na UnB em 04/11/2026; **saída 3 na PEN1 em
 04/11/2026**, sem efeito, com causa não registrada
-([diagnóstico](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md),
+([diagnóstico](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md)),
+e **PASS na PEN4 e na PEN3 5.0.4 em 04/11/2026** pelo roteiro reescrito
+(sinal de gravação reconhecido, sem reconciliação:
+[relatório PEN4](../../docs/validacao-live/2026-11-04-definir-colunas-pen4.md),
+[relatório PEN3](../../docs/validacao-live/2026-11-04-definir-colunas-pen3.md),
 [roteiro](../../docs/validacao-live/roteiro-definir-colunas.md),
 [decisão](../../docs/decisoes/unidade-definir-colunas.md)).
