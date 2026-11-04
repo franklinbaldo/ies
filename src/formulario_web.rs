@@ -7,6 +7,7 @@ mod erro;
 mod guardada;
 mod leitura;
 mod login;
+mod redirecionamento;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
@@ -20,6 +21,7 @@ pub(crate) use guardada::derivar_submissao_guardada;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 pub(crate) use login::derivar_submissao_de_login;
+pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
 use std::io::Read;
 use std::path::Path;

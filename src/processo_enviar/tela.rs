@@ -16,7 +16,7 @@ use crate::arvore_processo::ACAO_DE_ENVIAR;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
+    OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
@@ -296,10 +296,15 @@ pub(crate) fn campos_do_envio(
 }
 
 /// O 302 do POST é o observado: `controlador.php?acao=arvore_visualizar`
-/// (relativo, como servido), com `acao_origem=procedimento_enviar` e o id,
-/// cada chave uma vez.
-pub(crate) fn redirecionamento_esperado(localizacao: Option<&str>, id: &str) -> bool {
-    let Some(consulta) = localizacao.and_then(|l| l.strip_prefix("controlador.php?")) else {
+/// (relativo, como gravado, ou no host e na pasta do POST: ver
+/// `consulta_do_controlador`), com `acao_origem=procedimento_enviar` e o
+/// id, cada chave uma vez.
+pub(crate) fn redirecionamento_esperado(
+    localizacao: Option<&str>,
+    url_do_envio: &str,
+    id: &str,
+) -> bool {
+    let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {

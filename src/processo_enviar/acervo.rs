@@ -254,7 +254,12 @@ fn replay_de_processo_enviar_no_acervo() {
                 }
                 ("procedimento_enviar", "POST", status) => {
                     let classe = match status {
-                        302 if redirecionamento_esperado(gravacao::localizacao(r.item), &id) => {
+                        302 if redirecionamento_esperado(
+                            gravacao::localizacao(r.item),
+                            &gravacao::url_sem_consulta(json, r.item),
+                            &id,
+                        ) =>
+                        {
                             "302 esperado".to_owned()
                         }
                         302 => "302 não reconhecido".to_owned(),

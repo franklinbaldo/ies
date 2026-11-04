@@ -105,6 +105,29 @@ fn confirmar_pela_tela_um_post_e_verificacao_pela_arvore() {
 }
 
 #[test]
+fn confirmar_pela_tela_com_location_http_no_mesmo_host_e_esperada() {
+    // Issue #766 do Todos: o GO devolve o `Location` em `http://` no mesmo
+    // host. Só dado: nada é seguido, e a verificação é a mesma.
+    let amb = ambiente();
+    let http = crate::arvore_processo::tests_concluir::absoluta(&volta_a_arvore())
+        .replacen("https://", "http://", 1);
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &tela())),
+        vec![
+            ok(tela_de_conclusao(ID)),
+            r302(&http),
+            ok(arvore(&[], vazio())),
+        ],
+    );
+    let (r, feitos) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r.unwrap(),
+        concluido(FormaDaConclusao::Tela, &[UNIDADE], &[])
+    );
+    assert_eq!(feitos, pela_tela_e_verificacao());
+}
+
+#[test]
 fn confirmar_pela_tela_volta_ao_controle_tambem_e_esperada() {
     let amb = ambiente();
     let principal = volta_a_arvore().replace("acao=arvore_visualizar", "acao=principal");

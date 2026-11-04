@@ -6,6 +6,7 @@ use super::tela::{
     redirecionamento_esperado,
 };
 use super::tests_apoio::*;
+use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::tests_tela::instalacao;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::processo_concluir::tests_apoio::{ID, NUP};
@@ -189,17 +190,27 @@ fn recusas_da_tela_antes_de_qualquer_post() {
 
 #[test]
 fn redirecionamento_do_envio_observado() {
-    assert!(redirecionamento_esperado(
-        Some(&volta_a_arvore_do_envio()),
-        ID
-    ));
+    let post = absoluta(&action_de_enviar());
+    let esperado = |l: Option<&str>| redirecionamento_esperado(l, &post, ID);
+    let volta = volta_a_arvore_do_envio();
+    assert!(esperado(Some(&volta)));
+    // `http://` no host e na pasta do POST: o mesmo controlador (#766).
+    assert!(esperado(Some(
+        &absoluta(&volta).replacen("https://", "http://", 1)
+    )));
+    assert!(esperado(Some(&absoluta(&volta))));
     for outro in [
-        volta_a_arvore_do_envio().replace("acao_origem=procedimento_enviar", "acao_origem=x"),
-        volta_a_arvore_do_envio().replace("id_procedimento=10", "id_procedimento=11"),
-        volta_a_arvore_do_envio().replace("acao=arvore_visualizar", "acao=procedimento_enviar"),
-        format!("https://outro/{}", volta_a_arvore_do_envio()),
+        volta.replace("acao_origem=procedimento_enviar", "acao_origem=x"),
+        volta.replace("id_procedimento=10", "id_procedimento=11"),
+        volta.replace("acao=arvore_visualizar", "acao=procedimento_enviar"),
+        format!("https://outro/{volta}"),
+        absoluta(&volta).replacen(
+            "https://sei.exemplo.gov.br",
+            "http://outro.exemplo.gov.br",
+            1,
+        ),
     ] {
-        assert!(!redirecionamento_esperado(Some(&outro), ID), "{outro}");
+        assert!(!esperado(Some(&outro)), "{outro}");
     }
-    assert!(!redirecionamento_esperado(None, ID));
+    assert!(!esperado(None));
 }

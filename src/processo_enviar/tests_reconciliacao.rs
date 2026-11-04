@@ -52,6 +52,25 @@ fn confirmar_envia_uma_vez_e_verifica() {
 }
 
 #[test]
+fn location_http_no_mesmo_host_e_a_resposta_esperada() {
+    // Issue #766 do Todos (GO): `Location` em `http://` no host do POST.
+    let http = crate::arvore_processo::tests_concluir::absoluta(&volta_a_arvore_do_envio())
+        .replacen("https://", "http://", 1);
+    let (r, feitos) = rodar_envio(
+        DESTINO,
+        true,
+        true,
+        respostas(
+            Versao::V41,
+            r302(&http),
+            ok(arvore(&[UNIDADE, DESTINO], &[])),
+        ),
+    );
+    assert_eq!(r.unwrap(), enviado(true, &[UNIDADE, DESTINO]));
+    assert_eq!(feitos, pedidos_da_escrita(Versao::V41, true));
+}
+
+#[test]
 fn resposta_nao_esperada_e_reconciliada_pela_leitura() {
     for (resposta, falha) in [
         (
