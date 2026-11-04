@@ -52,6 +52,8 @@ fn link_volta_literal_so_na_mesma_geracao() {
     assert_eq!(indice.link(&sei, outro_objeto), None);
     let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
     assert_eq!(indice.link(&outra, chave(G1)), None);
+    let outro_host = Instalacao::interpretar("https://outro.exemplo/sei").unwrap();
+    assert_eq!(indice.link(&outro_host, chave(G1)), None);
 }
 
 #[test]

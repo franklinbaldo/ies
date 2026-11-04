@@ -257,6 +257,13 @@ ignorá-la.
 - `journal_mode=WAL` e `busy_timeout` de 2 s permitem vários `ies` ao
   mesmo tempo no mesmo banco.
 
+Os testes offline de `src/indice_local/` cobrem isolamento por geração,
+unidade e origem, expiração de recusas, aceite independente das duas formas
+de entrada, contestação das identidades pelo servidor, migração, corrupção e
+versão futura. A concorrência entre processos é exercitada por duas instâncias
+do próprio executável de testes gravando ao mesmo tempo no mesmo banco; nenhum
+desses cenários faz requisições ao SEI.
+
 ## Alternativas
 
 1. **Sem índice.** Zero estado, mas cada `processo NUP` custa a
