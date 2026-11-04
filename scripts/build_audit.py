@@ -57,6 +57,9 @@ def medir(workspace, saida):
             ignore=shutil.ignore_patterns(".git", "target", "__pycache__", ".venv"),
         )
         grafo = grafo_do_workspace(copia)
+        # Pré-baixar as dependências antes de iniciar a medição cronometrada.
+        # Evita favorecer a segunda árvore com o cache do registro populado pela primeira.
+        executar(["cargo", "fetch", "--locked"], copia)
         limpo, _ = executar(COMANDO, copia)
         sem_mudanca, _ = executar(COMANDO, copia)
         alterado = copia / ARQUIVO_ALTERADO
@@ -80,7 +83,7 @@ def medir(workspace, saida):
             "operacao_alterada": incremental, "parser_alterado": parser_incremental,
         },
         "grafo": grafo,
-        "observacao": "Mesmo executor; cópias e targets separados; sem SEI; sem baseline de release.",
+        "observacao": "Mesmo executor; cópias e targets separados; cargo fetch fora do cronômetro; sem SEI.",
     }
     saida.write_text(json.dumps(resultado, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(resultado, ensure_ascii=False))
