@@ -6,7 +6,8 @@ description: Estrutura observada de procedimento_trabalhar, ifrArvore e das decl
 
 # Tela de trabalho e árvore do processo
 
-Observado na UnB 4.0.9 e em Goiás (treinamento, 03/11/2026), em
+Observado na UnB 4.0.9 e em Goiás (treinamento, 03/11/2026; documentos
+movidos na PEN1 4.0.12, 04/11/2026), em
 capturas privadas `0600` lidas só pela estrutura. Nenhum valor real
 aparece aqui ou nas fixtures.
 
@@ -155,6 +156,36 @@ Aberto pelo próprio NUP (pesquisa rápida), o anexado tem árvore própria:
 raiz `PROCESSO` (a7–a9 `svg/processo_anexado.svg`, só corroboração) e
 `Nos[0].html = '<div style="…;display:inline;">Processo anexado ao processo <a href="controlador.php?acao=procedimento_trabalhar&acao_origem=arvore_visualizar&id_procedimento=<pai>&id_procedimento_anexado=<próprio>&infra_sistema=…&infra_unidade_atual=…&infra_hash=<64 hex>" target="_blank" class="ancoraVisualizacaoArvore"><NUP do pai></a>.</div>';`,
 com exatamente um `<a>`; o texto do link é o NUP do pai. Leitura do IES:
+[contrato](../../contracts/cli/processo-obter-arvore.md).
+
+## Documentos movidos
+
+Observado ao vivo na PEN1 4.0.12 (04/11/2026), numa captura privada
+`iso-8859-1` lida só pela estrutura: árvore com 1 `PROCESSO`, 2
+`DOCUMENTO` e 1 `DOCUMENTO_MOVIDO`, um documento movido para outro
+processo:
+
+| Arg. | DOCUMENTO_MOVIDO |
+| --- | --- |
+| a0 | `"DOCUMENTO_MOVIDO"` |
+| a1 | `"<n>-<m>"`: `n` é o `id_documento` do link do destino, `m` o `id_rel_protocolo_protocolo` da barra |
+| a2 | id do processo |
+| a3 | o mesmo `arvore_visualizar` assinado do nó `PROCESSO` (sem `id_documento`) |
+| a4 | `"ifrConteudoVisualizacao"` |
+| a5 | rótulo: tipo do documento e, entre parênteses, o número SEI |
+| a6 | dica: `Documento movido para o processo <NUP do destino>: <motivo digitado>` |
+| a7–a9 | `svg/documento_movido.svg?…`, três vezes |
+| a10–a14 | `true`, `true`, `null`, `null`, `"noVisitado"` |
+| a15 | número SEI (o de a5) |
+
+Seguem-se `.acoes` com um só link (`comentario_listar`, `id_procedimento`
+do processo e `id_rel_protocolo_protocolo` = `m`), `.src = ''` e
+`Nos[i].html = 'Documento movido para o processo <a href="controlador.php?acao=procedimento_trabalhar&acao_origem=arvore_visualizar&id_procedimento=<destino>&id_documento=<n>&infra_sistema=…&infra_unidade_atual=…&infra_hash=<64 hex>" target="_blank" class="ancoraVisualizacaoArvore"><NUP do destino></a>.';`,
+com exatamente um `<a>`; o texto é o mesmo NUP da dica. `n` não é id de
+nenhum `DOCUMENTO` da árvore, a15 não repete o de nenhum deles e o id do
+destino não aparece em outro nó: o movido não está mais no processo. Não
+havia pastas; movido dentro de pasta não foi observado. O Todos não
+menciona esse nó. Leitura do IES:
 [contrato](../../contracts/cli/processo-obter-arvore.md).
 
 Veja também [rotas e árvore](rotas-e-arvore.md) e

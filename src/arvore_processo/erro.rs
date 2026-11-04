@@ -55,6 +55,13 @@ pub(crate) enum ErroArvore {
     VinculoDeAnexacaoForaDaFormaObservada,
     VinculosDeAnexacaoRepetidos,
     HtmlDoNoDoProcessoForaDaFormaObservada,
+    // Documentos movidos para outro processo.
+    DocumentoMovidoForaDaFormaObservada,
+    DocumentoMovidoComPaiDiferenteDoProcesso,
+    DocumentoMovidoRepetidoNaArvore,
+    DocumentoMovidoPresenteEntreOsDocumentos,
+    DestinoDoDocumentoMovidoForaDaFormaObservada,
+    DestinosDoDocumentoMovidoRepetidos,
 }
 
 impl ErroArvore {
@@ -148,6 +155,24 @@ impl ErroArvore {
             Self::HtmlDoNoDoProcessoForaDaFormaObservada => {
                 "html_do_no_do_processo_fora_da_forma_observada"
             }
+            outro => outro.subcodigo_dos_movidos(),
+        }
+    }
+
+    fn subcodigo_dos_movidos(self) -> &'static str {
+        match self {
+            Self::DocumentoMovidoForaDaFormaObservada => "documento_movido_fora_da_forma_observada",
+            Self::DocumentoMovidoComPaiDiferenteDoProcesso => {
+                "documento_movido_com_pai_diferente_do_processo"
+            }
+            Self::DocumentoMovidoRepetidoNaArvore => "documento_movido_repetido_na_arvore",
+            Self::DocumentoMovidoPresenteEntreOsDocumentos => {
+                "documento_movido_presente_entre_os_documentos"
+            }
+            Self::DestinoDoDocumentoMovidoForaDaFormaObservada => {
+                "destino_do_documento_movido_fora_da_forma_observada"
+            }
+            Self::DestinosDoDocumentoMovidoRepetidos => "destinos_do_documento_movido_repetidos",
             _ => "arvore_nao_reconhecida",
         }
     }

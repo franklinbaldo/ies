@@ -26,8 +26,7 @@ O NUP e o id da tela conferiram em todos. Nenhum POST foi enviado.
 
 - A primeira chamada na UnB deu `falha_de_rede` (rede intermitente); a
   repetição passou.
-- **PEN1 4.0.12: NOT_RUN.** A árvore do processo escolhido tem um nó
-  `DOCUMENTO_MOVIDO` (documento movido para outro processo, id composto),
-  que a árvore ainda recusa (`tipo_de_no_da_arvore_nao_suportado`); fica
-  para um recorte próprio.
+- **PEN1 4.0.12:** primeiro NOT_RUN, porque a árvore do processo escolhido
+  tinha um nó `DOCUMENTO_MOVIDO` então recusado; depois do recorte dos
+  documentos movidos, **PASS** ([relatório](2026-11-04-processo-obter-movidos.md)).
 - Processo restrito/sigiloso (hipótese legal servida): NOT_RUN.

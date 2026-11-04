@@ -36,6 +36,8 @@ mod tests_indice;
 #[cfg(test)]
 mod tests_login;
 #[cfg(test)]
+mod tests_movidos;
+#[cfg(test)]
 mod tests_pastas;
 #[cfg(test)]
 mod tests_propriedades;
