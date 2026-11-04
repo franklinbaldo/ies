@@ -1,10 +1,10 @@
 //! A identidade pedida sai da gravação, nunca do nome do cenário: o id da
 //! URL servida e o NUP declarado pelo nó `PROCESSO` de uma árvore do mesmo
 //! id na mesma cassette. Sem os dois, a leitura é `nao_aplicavel`.
-use super::gravacao::{self, Resposta};
 use super::{Leitor, Registro, Resultado};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::{ler_tela_do_processo, nup_declarado_na_arvore};
+use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::cassette::html_da_resposta;
 use crate::historico_processo::{TipoDoHistorico, ler_andamentos};
 use crate::html_atributos::nos_com_id;

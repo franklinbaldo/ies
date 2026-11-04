@@ -62,6 +62,13 @@ Estado registrado no Todos: **demonstrada**.
 
 - `unidade-processos-paginado-go#1` → [unidade-processos-paginado-go--ca25324d2aac.md](../../cassettes/go/unidade-processos-paginado-go--ca25324d2aac.md)
 
+## Replay do IES
+
+O [replay de conformidade do acervo](../../docs/validacao-replay/2026-11-04-unidade-listar-processos-acervo.md)
+(04/11/2026) passou as 757 respostas de `procedimento_controlar` das 495
+cassettes pelos leitores de produção do IES, offline. É veredito do IES,
+não do Todos; não substitui o ensaio live.
+
 ## Limite da evidência
 
 As respostas HTTP de ambientes públicos não comprovam, sozinhas,

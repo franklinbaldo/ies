@@ -148,6 +148,31 @@ fn paginacao_detalhada_sem_intervalo_explicito_nao_prova_cobertura() {
     );
 }
 
+/// UFRJ 4.1.5 (04/11/2026): D de uma página publica o índice oculto
+/// `hdnDetalhadoPaginaAtual=0`, sem paginador e sem faixa na legenda.
+#[test]
+fn indice_oculto_zero_sem_paginador_nao_e_paginacao() {
+    let original = pagina(1, 1, &[(1, "000001/2026")]);
+    let sem_faixa = original.replace("registros - 1 a 1", "registros");
+    let zero = sem_faixa.replace(
+        "</body>",
+        "<input type='hidden' id='hdnDetalhadoPaginaAtual' value='0'></body>",
+    );
+    let lida = ler_paginas(std::slice::from_ref(&zero), Some("PPI")).unwrap();
+    assert_eq!(lida.total_declarado, 1);
+    for paginador in [
+        "<a id='lnkDetalhadoProximaPaginaSuperior'>»</a>",
+        "<select id='selDetalhadoPaginacaoSuperior'><option>1</option></select>",
+    ] {
+        let html = zero.replace("</body>", &format!("{paginador}</body>"));
+        assert_eq!(
+            ler_paginas(&[html], Some("PPI")),
+            Err(ErroDetalhada::FaixaSemIntervaloComPaginacao),
+            "{paginador}"
+        );
+    }
+}
+
 fn com_classe(classe: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
     let original = pagina(1, 1, &[(1, "001234500000015")]);
     ler_paginas(

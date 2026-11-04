@@ -56,6 +56,7 @@ e falha segura de gravação.
 - [Matriz de evidências](../../contracts/evidencias/unidade-listar_processos.md)
 - [Testes de autenticação e replay](../../tests/replay_unidade.rs)
 - [Comparação experimental](../experimentos/comparar-acessos-sei.md)
+- [Replay do acervo pelos leitores do Controle](unidade-listar-processos/replay-do-acervo.md)
 
 A verificação do GET rejeita nomes de parâmetros PHP não canônicos e
 separadores literais `;` para impedir ambiguidade de ação/hash após o

@@ -192,6 +192,9 @@ impl ErroVisaoDoControle {
 }
 
 #[cfg(test)]
+mod acervo;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]

@@ -74,6 +74,8 @@ pub enum ErroCaixa {
     },
     LimitePaginas,
     VisaoResumidaComPaginacao,
+    /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
+    FiltroDeMarcadorAtivoNoControle,
     UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
     IdentificacoesDaUnidadeRepetidasNoControle,
@@ -119,6 +121,7 @@ impl ErroCaixa {
             }
             Self::LimitePaginas => "limite_paginas",
             Self::VisaoResumidaComPaginacao => "visao_resumida_com_paginacao_nao_demonstrada",
+            Self::FiltroDeMarcadorAtivoNoControle => "filtro_de_marcador_ativo_no_controle",
             Self::UnidadeInesperada => "unidade_inesperada",
             Self::IdentificacaoDaUnidadeAusenteNoControle => {
                 "identificacao_da_unidade_ausente_no_controle"

@@ -9,6 +9,8 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
 pub(crate) use colunas::ColunasDaLinha;
+#[cfg(test)]
+pub(crate) use colunas::ValorDaColuna;
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -151,6 +153,28 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// `hdnDetalhadoPaginaAtual` com índice diferente de `0`. O índice `0`
+/// sozinho não é paginação: a UFRJ 4.1.5 o publica numa D de uma página,
+/// sem paginador (04/11/2026), como `hdn{T}PaginaAtual` na R.
+fn indice_oculto_alem_da_primeira(
+    dom: &tl::VDom<'_>,
+    parser: &tl::Parser<'_>,
+) -> Result<bool, ErroDetalhada> {
+    let nos = nos_com_id(dom, "hdnDetalhadoPaginaAtual")
+        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+    for no in nos {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            return Ok(true);
+        };
+        let valor =
+            valor_do_atributo(tag, "value").map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+        if valor.as_deref().map(str::trim) != Some("0") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Legenda da lista detalhada, sem supor que o total é igual à página.
@@ -361,10 +385,10 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         }
     }
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
-    let paginacao_visivel = !nos_com_id(&dom, "hdnDetalhadoPaginaAtual")
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
-        .is_empty()
+    let paginacao_visivel = indice_oculto_alem_da_primeira(&dom, parser)?
         || crate::paginacao_controle::controles_de_paginacao(html)
+            .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")
             .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {

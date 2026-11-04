@@ -224,5 +224,7 @@ troca, leitura e restauração da visão PASS, com a versão que restaurava.
 Fluxo sem restauração acima ([ensaio de 04/11/2026](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na
 UnB 4.0.9 (R→D, 1 GET + 1 POST; a UnB volta à R a cada GET) e na PEN1
 4.0.12, PEN3 e PEN4 5.0.4 (D com 3 páginas, lembra a D), nos quatro
-regimes da tabela, com as requisições contadas e a página da D lembrada;
-GO **NOT_RUN**.
+regimes da tabela, com as requisições contadas e a página da D lembrada.
+UFRJ 4.1.5: D de uma página com `hdnDetalhadoPaginaAtual=0`, sem
+paginador e legenda sem intervalo; recusada na rodada e **PASS** depois
+da correção (o índice `0` sozinho não é paginação). PEN2 e GO **NOT_RUN**.
