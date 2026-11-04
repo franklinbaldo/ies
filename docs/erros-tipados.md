@@ -132,3 +132,16 @@ cookie: saída 1, nada enviado) e o resultado depois dela,
 `FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
 a verificação é a mesma `VerificacaoPorLeitura`
 ([contrato](../contracts/cli/processo-reabrir.md)).
+
+## Enviar o processo
+
+`ErroEnviar` (`src/processo_enviar/erro.rs`) segue a divisão de concluir:
+antes do POST (abertura, situação, barra `ErroEnviarNaBarra`, tela
+`ErroTelaDeEnvio`, consulta `FalhaDaConsulta`, destino não oferecido ou
+repetido, já aberto no destino, derivação: saída 1, nada enviado) e depois
+dele: `EnvioNaoAplicado` (sem o destino), `SituacaoDaOrigemDiferenteDaPedidaAposEnvio`
+(o destino abriu, mas a unidade da sessão não ficou como `--manter-aberto`
+pediu) e `EfeitoIncertoNoEnvio` (saída 3). A resposta não esperada é a
+`FalhaDoEnvio` de concluir, com `RedirecionamentoNaoReconhecidoAposEnviar`
+e `RespostaDoEnvioSemRedirecionamento`
+([contrato](../contracts/cli/processo-enviar.md)).

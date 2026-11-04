@@ -5,15 +5,26 @@ operation: processo.enviar
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 27
 unresolved_steps: 0
 ---
 
 # processo.enviar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
+([contrato](../cli/processo-enviar.md), Refs #173): prévia com a tela
+"Enviar Processo" e a consulta do autocomplete (sem POST de escrita), um
+POST e verificação por `aberto_em`; escrita live NOT_RUN (aguarda
+autorização). Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+
+## Evidência própria do IES
+
+- [Observação estrutural](../../docs/como-o-sei-funciona/envio-do-processo.md)
+  das 37 telas, 66 consultas e 27 POST de `procedimento_enviar` gravados.
+- [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-enviar-acervo.md):
+  26 cassettes; 25 envios a uma unidade verificados pela situação, com o
+  POST derivado da tela gravada.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
