@@ -66,12 +66,18 @@ Controle), `origem: "web"` e `requisicoes`.
   inventado a partir do termo.
 - **200 com `table.pesquisaResultado`**: `{"resultado":"lista",
   "total_declarado":N,"faixa_observada":{"inicio":I,"fim":F},
-  "processos":[{"numero":"…"}]}`. Total e faixa vêm da barra
-  `div.pesquisaBarraD` "Exibindo I - F de N" ou, quando a lista cabe numa
+  "linhas_ausentes_da_faixa":A,"processos":[{"numero":"…"}]}`. Total e
+  faixa vêm da barra `div.pesquisaBarraD` "Exibindo I - F de N" ou, quando a lista cabe numa
   página, "N resultados" (faixa `1 … N`, sem página 2); o singular não foi
   observado e falha fechado; o separador de milhar `.`
   só é aceito entre grupos de 3 dígitos (`1.234`), qualquer outra forma
-  falha fechada. As linhas lidas devem ser `F - I + 1`.
+  falha fechada. Com a faixa escrita na barra, as linhas lidas podem ser
+  menos que `F - I + 1` (Goiás 5.0.3 omite registros do HTML): a lista
+  publica as presentes e `linhas_ausentes_da_faixa` = `F - I + 1 -`
+  lidas (0 quando completa), sem dizer que está completa. Mais linhas
+  que a faixa, ou qualquer diferença com "N resultados", é
+  `linhas_da_tabela_diferentes_da_faixa_da_barra`. A paginação conta
+  pela barra.
 - **200 com `div.pesquisaSemResultado`** (sem tabela):
   `{"resultado":"sem_resultado","total_declarado":0,"faixa_observada":null,
   "processos":[]}`. É uma **resposta observada**, não erro e **não**

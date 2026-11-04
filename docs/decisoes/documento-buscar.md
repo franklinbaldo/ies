@@ -96,13 +96,28 @@ RED registrado: 21 testes falhando (linhas, resposta, 302, fluxo e JSON)
 antes da implementação; depois, 2 (processo visitado e última página com
 "N resultados") antes da segunda correção.
 
+## Linhas ausentes da faixa
+
+A mesma regra de
+[processo buscar](processo-buscar.md#linhas-ausentes-da-faixa), na peça
+comum (`classificar_resposta`), por decisão do proprietário de
+04/11/2026. As quatro respostas de Goiás 5.0.3 antes recusadas
+(`documento-numero-e-busca-go#13`, 4 de "1 - 10"; `pesquisa-paginas-go#4`,
+1 de "11 - 20"; `#5`, 6 de "21 - 30"; `#8`, tabela vazia em "1 - 10 de
+3.300") têm `tr` = 3 × registros e nenhum link fora deles: as linhas não
+estão no HTML. A lista publica os documentos presentes, a faixa da barra
+em `faixa_observada`, `total_declarado` e `linhas_ausentes_da_faixa`.
+Mais linhas que a faixa, ou diferença sob "N resultados", continuam
+`linhas_da_tabela_diferentes_da_faixa_da_barra`.
+
+RED da regra: 6 testes falhando (4 nas peças comuns e de documentos, 2 na
+borda das duas CLIs) antes da implementação.
+
 ## Limitações e revisão
 
 - **Goiás publica menos linhas que a faixa** ("Exibindo 1 - 10 de 3.300"
-  com 0 a 6 linhas, acesso filtrado). Como em `processo buscar`, é
-  `linhas_da_tabela_diferentes_da_faixa_da_barra`: falha fechada, porque
-  não se distingue linha filtrada pelo SEI de linha perdida na leitura.
-  Revisar com o proprietário se GO entrar no escopo live.
+  com 0 a 6 linhas): publicadas com `linhas_ausentes_da_faixa`, ver
+  abaixo.
 - A resposta de "Erro realizando pesquisa" da UnB (`divInfraMensagens`,
   sem `txaInfraValidacao`) continua `resposta_da_pesquisa_nao_reconhecida`.
 - Nenhuma cassette gravou pesquisa em documentos por número **parcial**:

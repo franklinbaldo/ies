@@ -94,13 +94,14 @@ concluir não foi gravada (o Todos recusa antes, pela barra).
 
 ## Reabrir
 
-Nas sete instalações, inclusive nas da forma tela, reabrir é
-`reabrirProcesso()`: a barra do processo concluído publica o `onclick`, e
-a URL `procedimento_reabrir&…&id_procedimento=ID&atualizar_arvore=1` está
-no corpo da função na tela do nó, na mesma forma de três linhas. O GET
-devolveu 200 e a árvore seguinte mostrou o processo de novo aberto na
-unidade da sessão, **atribuído** ao usuário (11 gravações, uma por
-instalação nos cenários `processo-escritas-*` e `processo-escrita-ciclo-*`).
+Nas sete instalações, inclusive nas da forma tela, a barra do processo
+concluído publica `onclick="reabrirProcesso();"`. A URL
+`procedimento_reabrir` está na tela do nó, mas **não** na mesma forma em
+todas: no SEI 4.0 no corpo da função, em três linhas; no 4.1 e 5.0 na
+linha `var linkReabrirProcesso = '…';` (a função vem de um `.js` à parte).
+O GET devolveu 200 e a árvore seguinte mostrou o processo de novo aberto
+na unidade da sessão, **atribuído** ao usuário (11 gravações). Detalhes em
+[reabertura do processo](reabertura-do-processo.md).
 
 ## Limites
 

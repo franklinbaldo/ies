@@ -16,7 +16,7 @@ Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
 ([contrato](../cli/processo-concluir.md), Refs #172): prévia, uma escrita
 pela forma que a barra publica (tela "Conclusão de Processo" no 4.1/5.0,
 `concluirProcesso()` no 4.0) e verificação por `aberto_em`; escrita live
-NOT_RUN. Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+PASS na UFRJ 4.1.5 e na UnB 4.0.9. Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 ## Evidência própria do IES
 

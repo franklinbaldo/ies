@@ -1,7 +1,7 @@
 //! RED/GREEN do fluxo de `processo concluir`: sequências exatas de
 //! requisições (orçamento do contrato), decisão antes de escrever, uma
 //! escrita nas duas formas e a tabela de reconciliação. Telas sintéticas.
-use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoDaConclusao as V};
+use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoPorLeitura as V};
 use super::tests_apoio::*;
 use super::{FormaDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ErroFuncaoDeConcluir, MotivoAbertoEm};

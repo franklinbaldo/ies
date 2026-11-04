@@ -9,8 +9,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
 use crate::transporte::{
-    arquivo_privado, conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
-    validar_cookie,
+    conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
 };
 use std::path::Path;
 
@@ -58,10 +57,9 @@ pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     url: &str,
 ) -> Result<TelaAtual, E> {
-    let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(E::Transporte)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie).map_err(E::Transporte)?;
-    let resposta = sessao.envio.get(url, cookie).map_err(E::Transporte)?;
+    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
+        .map_err(E::Transporte)?;
+    let resposta = sessao.envio.get(url, &cookie).map_err(E::Transporte)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
     Ok(TelaAtual {

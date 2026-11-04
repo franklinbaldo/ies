@@ -150,17 +150,61 @@ fn faixa_impossivel_e_recusada() {
     }
 }
 
+/// Goiás 5.0.3 (`processo-busca-go`, passo 4): "Exibindo 1 - 10 de 966" com
+/// 9 registros no HTML (27 `tr`, 3 por registro); a linha falta na página.
 #[test]
-fn linhas_diferentes_da_faixa_sao_recusadas() {
+fn menos_linhas_que_a_faixa_declarada_publicam_as_ausentes() {
     let html = format!(
         "<html>{}</html>",
-        formulario("1", true, &conteudo_da_lista(1, 9, "1.234", 10))
+        formulario("1", true, &conteudo_da_lista(1, 9, "966", 10))
     )
     .replace("Exibindo 1 - 9 de", "Exibindo 1 - 10 de");
+    let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&html).unwrap() else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.processos.len(), 9);
+    assert_eq!(lista.total_declarado, 966);
+    assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 10 });
+    assert_eq!(lista.linhas_ausentes_da_faixa, 1);
+}
+
+/// Goiás 5.0.3 (`pesquisa-paginas-go`, passo 8): barra "Exibindo 1 - 10 de
+/// 3.300" e `table.pesquisaResultado` vazia.
+#[test]
+fn tabela_vazia_com_barra_publica_a_faixa_inteira_ausente() {
+    let html = resultado("1", 1, 10, "3.300");
+    let inicio = html.find("class=\"pesquisaResultado\">").unwrap() + 26;
+    let fim = html[inicio..].find("</table>").unwrap() + inicio;
+    let vazia = format!("{} {}", &html[..inicio], &html[fim..]);
+    let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&vazia).unwrap() else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.processos.len(), 0);
+    assert_eq!(lista.total_declarado, 3300);
+    assert_eq!(lista.linhas_ausentes_da_faixa, 10);
+}
+
+#[test]
+fn mais_linhas_que_a_faixa_sao_recusadas() {
+    let html = format!(
+        "<html>{}</html>",
+        formulario("1", true, &conteudo_da_lista(1, 11, "1.234", 10))
+    )
+    .replace("Exibindo 1 - 11 de", "Exibindo 1 - 10 de");
     assert_eq!(
         ler_resposta_html(&html),
         Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)
     );
+}
+
+#[test]
+fn lista_completa_nao_tem_linhas_ausentes() {
+    let RespostaDaPesquisa::Lista(lista) =
+        ler_resposta_html(&resultado("00001", 1, 10, "1.234")).unwrap()
+    else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.linhas_ausentes_da_faixa, 0);
 }
 
 #[test]
@@ -247,6 +291,7 @@ fn barra_numa_pagina_fora_da_forma_observada_e_recusada() {
         ler_resposta_html(&resultado_numa_pagina("00001", 2, "0 resultados")),
         Err(E::FaixaDaBarraDeContagemImpossivel)
     );
+    // "N resultados" não escreve a faixa: a contagem tem de bater.
     assert_eq!(
         ler_resposta_html(&resultado_numa_pagina("00001", 2, "3 resultados")),
         Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)

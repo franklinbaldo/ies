@@ -42,6 +42,8 @@ pub(crate) struct ListaDeDocumentos {
     pub(crate) documentos: Vec<DocumentoEncontrado>,
     pub(crate) total_declarado: u64,
     pub(crate) faixa: FaixaDaPesquisa,
+    /// Posições da faixa da barra sem linha na tabela (Goiás 5.0.3).
+    pub(crate) linhas_ausentes_da_faixa: u64,
 }
 
 /// As três respostas observadas da pesquisa em documentos.

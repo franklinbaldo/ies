@@ -34,9 +34,23 @@ página 2 de `pesquisa-paginas-pen3#9` com
 última página). Depois das duas correções da decisão, as duas são lidas;
 o resto não mudou.
 
+**Linhas ausentes da faixa (Goiás, decisão do proprietário de 04/11/2026).**
+As quatro respostas de Goiás recusadas com
+`linhas_da_tabela_diferentes_da_faixa_da_barra` têm menos registros no
+HTML que a faixa da barra: `documento-numero-e-busca-go#13` 4 de "1 - 10",
+`pesquisa-paginas-go#4` 1 de "11 - 20", `#5` 6 de "21 - 30" e `#8` a
+tabela vazia em "1 - 10 de 3.300". Em todas, `tr` = 3 × registros e
+nenhum link fica fora dos registros lidos: as linhas não estão na
+resposta. Depois da regra de
+[linhas ausentes](../decisoes/documento-buscar.md#linhas-ausentes-da-faixa),
+as quatro são lidas (`lista_com_linhas_ausentes`,
+`pagina_seguinte_conferida_com_linhas_ausentes`), as páginas seguintes
+conferem a faixa da barra contra o plano, e os planos da página 2 de
+`#13` e `#8` passam a ser derivados (3 leituras a mais).
+
 ## Resultado
 
-Cassettes lidas: 52; leituras registradas no replay inteiro: 505.
+Cassettes lidas: 52; leituras registradas no replay inteiro: 508.
 
 | Leitor | Instalação | Total | Lido | Recusado | Não aplicável |
 |---|---|---:|---:|---|---|
@@ -50,28 +64,28 @@ Cassettes lidas: 52; leituras registradas no replay inteiro: 505.
 | tela da pesquisa (POST em documentos) | **todas** | 128 | 128 | 0 | 0 |
 | resposta do envio em documentos | unb | 11 | 6 | 1 (`resposta_da_pesquisa_nao_reconhecida` 1) | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
 | resposta do envio em documentos | ufrj | 8 | 4 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
-| resposta do envio em documentos | go | 10 | 4 | 2 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 2) | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
+| resposta do envio em documentos | go | 10 | 6 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
 | resposta do envio em documentos | pen1 | 8 | 4 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
 | resposta do envio em documentos | pen2 | 8 | 4 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
 | resposta do envio em documentos | pen3 | 12 | 8 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
 | resposta do envio em documentos | pen4 | 9 | 5 | 0 | 4 (`pesquisa_gravada_em_processos` 2; `redirecionamento_para_processo_sem_id_documento` 2) |
-| resposta do envio em documentos | **todas** | 66 | 35 | 3 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 2; `resposta_da_pesquisa_nao_reconhecida` 1) | 28 (`pesquisa_gravada_em_processos` 14; `redirecionamento_para_processo_sem_id_documento` 14) |
+| resposta do envio em documentos | **todas** | 66 | 37 | 1 (`resposta_da_pesquisa_nao_reconhecida` 1) | 28 (`pesquisa_gravada_em_processos` 14; `redirecionamento_para_processo_sem_id_documento` 14) |
 | plano da página 2 em documentos | unb | 5 | 4 | 1 (`assinante_oculto_preenchido_na_pesquisa_em_documentos` 1) | 0 |
 | plano da página 2 em documentos | ufrj | 2 | 2 | 0 | 0 |
-| plano da página 2 em documentos | go | 3 | 3 | 0 | 0 |
+| plano da página 2 em documentos | go | 5 | 5 | 0 | 0 |
 | plano da página 2 em documentos | pen1 | 3 | 3 | 0 | 0 |
 | plano da página 2 em documentos | pen2 | 3 | 3 | 0 | 0 |
 | plano da página 2 em documentos | pen3 | 4 | 4 | 0 | 0 |
 | plano da página 2 em documentos | pen4 | 4 | 4 | 0 | 0 |
-| plano da página 2 em documentos | **todas** | 24 | 23 | 1 (`assinante_oculto_preenchido_na_pesquisa_em_documentos` 1) | 0 |
+| plano da página 2 em documentos | **todas** | 26 | 25 | 1 (`assinante_oculto_preenchido_na_pesquisa_em_documentos` 1) | 0 |
 | página seguinte em documentos | unb | 2 | 2 | 0 | 0 |
 | página seguinte em documentos | ufrj | 2 | 2 | 0 | 0 |
-| página seguinte em documentos | go | 3 | 1 | 2 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 2) | 0 |
+| página seguinte em documentos | go | 3 | 3 | 0 | 0 |
 | página seguinte em documentos | pen1 | 2 | 2 | 0 | 0 |
 | página seguinte em documentos | pen2 | 2 | 2 | 0 | 0 |
 | página seguinte em documentos | pen3 | 1 | 1 | 0 | 0 |
 | página seguinte em documentos | pen4 | 2 | 2 | 0 | 0 |
-| página seguinte em documentos | **todas** | 14 | 12 | 2 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 2) | 0 |
+| página seguinte em documentos | **todas** | 14 | 14 | 0 | 0 |
 
 Formas lidas por instalação:
 
@@ -79,17 +93,21 @@ Formas lidas por instalação:
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | resposta do envio em documentos | `documento_unico` | 1 | 1 | 1 | 1 | 1 | 2 | 1 |
 | resposta do envio em documentos | `lista` | 5 | 2 | 3 | 3 | 3 | 4 | 4 |
+| resposta do envio em documentos | `lista_com_linhas_ausentes` | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
 | resposta do envio em documentos | `sem_resultado` | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
-| plano da página 2 em documentos | `pagina_2_planejada` | 4 | 2 | 2 | 2 | 2 | 1 | 2 |
+| plano da página 2 em documentos | `pagina_2_planejada` | 4 | 2 | 4 | 2 | 2 | 1 | 2 |
 | plano da página 2 em documentos | `uma_pagina_so` | 0 | 0 | 1 | 1 | 1 | 3 | 2 |
 | página seguinte em documentos | `pagina_seguinte_conferida` | 2 | 2 | 1 | 2 | 2 | 1 | 2 |
+| página seguinte em documentos | `pagina_seguinte_conferida_com_linhas_ausentes` | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 2 | 2 | 1 | 2 | 2 | 1 | 2 |
 
 Totais declarados das listas lidas (`cassette#passo`, pesquisas em
 documentos):
 
 - go `documento-buscar-texto-go--724f88e4c47b#2`: 2
 - go `documento-numero-e-busca-go--f26b4140acb8#11`: 27338
+- go `documento-numero-e-busca-go--f26b4140acb8#13`: 225304 (4 linhas na faixa 1–10)
 - go `pesquisa-paginas-go--c4018448aa04#3`: 27338
+- go `pesquisa-paginas-go--c4018448aa04#8`: 3300 (tabela vazia, faixa 1–10)
 - pen1 `documento-numero-e-busca-pen1--f274a10a3ee0#11`: 2
 - pen1 `documento-numero-e-busca-pen1--f274a10a3ee0#13`: 609
 - pen1 `pesquisa-paginas-pen1--671f8ac44dd3#7`: 4490
@@ -115,25 +133,24 @@ documentos):
 Recusas por subcódigo (leitores de documento buscar):
 
 - `assinante_oculto_preenchido_na_pesquisa_em_documentos` (1): `documento-busca-autocompletar-unb--3dfc2c884999#9` (plano da página 2 em documentos)
-- `linhas_da_tabela_diferentes_da_faixa_da_barra` (4): `documento-numero-e-busca-go--f26b4140acb8#13` (resposta do envio em documentos), `pesquisa-paginas-go--c4018448aa04#4` (página seguinte em documentos), `pesquisa-paginas-go--c4018448aa04#5` (página seguinte em documentos), `pesquisa-paginas-go--c4018448aa04#8` (resposta do envio em documentos)
 - `resposta_da_pesquisa_nao_reconhecida` (1): `documento-numero-e-busca-unb--f1b386d8e7bc#11` (resposta do envio em documentos)
 
 ## Leitura
 
 - **As 26 pesquisas em documentos** que o replay de `processo buscar`
-  classificou como não aplicáveis foram lidas: 24 listas com total e
-  faixa (inclusive "N resultados"), e as 2 de Goiás com menos linhas que
-  a faixa recusadas; mais os 3 "sem resultado" e a recusa da UnB ("Erro
+  classificou como não aplicáveis foram lidas: 26 listas com total e
+  faixa (inclusive "N resultados"), 2 delas de Goiás com linhas ausentes
+  da faixa; mais os 3 "sem resultado" e a recusa da UnB ("Erro
   realizando pesquisa" em `divInfraMensagens`, que o comando também não
   reconhece).
 - **Número SEI exato.** Os 8 redirecionamentos com `id_documento` (7 de
   `documento-numero-e-busca`, 1 de `documento-busca-autocompletar-pen3`)
   viram `documento_unico`; os 14 de `processo-busca` (`id_documento`
   vazio) são não aplicáveis.
-- **Paginação.** 23 planos da página 2 derivam o POST de `navegar()` em
+- **Paginação.** 25 planos da página 2 derivam o POST de `navegar()` em
   documentos (o da UnB com assinante preenchido na tela de resultado é
-  recusado, como deve). Das 14 páginas seguintes gravadas, 12 batem com
-  o plano feito da página 1 (total e faixa); as 2 de Goiás têm menos
-  linhas que a faixa.
+  recusado, como deve). As 14 páginas seguintes gravadas batem com
+  o plano feito da página 1 (total e faixa); 2 de Goiás com linhas
+  ausentes da faixa.
 - **Tela.** As 128 telas de Pesquisa das sete instalações derivam o POST
   em documentos (rádio `D`, duas caixas de tipo marcadas, órgãos).

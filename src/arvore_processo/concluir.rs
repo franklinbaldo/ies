@@ -26,6 +26,10 @@ const ONCLICK: &str = "concluirProcesso();";
 pub(crate) struct EnderecoDeEscrita(String);
 
 impl EnderecoDeEscrita {
+    pub(super) fn novo(url: String) -> Self {
+        Self(url)
+    }
+
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
@@ -111,8 +115,12 @@ pub(crate) fn ler_concluir_da_barra(
 }
 
 /// O `href` (a3) da declaração do nó `PROCESSO` do id, conferido como
-/// `arvore_visualizar` assinado do mesmo processo.
-fn tela_do_no_da_raiz(instalacao: &Instalacao, html: &str, id: &str) -> Option<EnderecoDeEscrita> {
+/// `arvore_visualizar` assinado do mesmo processo (também a de reabrir).
+pub(super) fn tela_do_no_da_raiz(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Option<EnderecoDeEscrita> {
     let mut achados = Vec::new();
     for linha in html.split('\n') {
         let Ok(Some((_, argumentos))) = ler_declaracao(linha) else {
@@ -165,34 +173,48 @@ impl ErroFuncaoDeConcluir {
     }
 }
 
-const FUNCAO: &str = "function concluirProcesso(){";
 const CONFIRM: &str = "//if (confirm(";
 const LOCATION: &str = "location.href = '";
 
+/// A definição de uma função da tela do nó fora da forma de três linhas.
+pub(super) struct FuncaoForaDaForma;
+
+/// As URLs de `location.href` de cada `function {nome}(){` da tela do nó,
+/// na forma observada no SEI 4.0: a linha da função, a do `confirm`
+/// comentado e a do `location.href = '…';` (também a de reabrir).
+pub(super) fn urls_das_funcoes<'h>(
+    html: &'h str,
+    nome: &str,
+) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
+    let funcao = format!("function {nome}(){{");
+    let prefixo = format!("function {nome}");
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
+    let mut achados = Vec::new();
+    for (i, linha) in linhas.iter().enumerate() {
+        if !linha.contains(&prefixo) {
+            continue;
+        }
+        let confirm = linhas.get(i + 1).copied().unwrap_or_default();
+        let url = (*linha == funcao && confirm.starts_with(CONFIRM) && confirm.ends_with("){"))
+            .then(|| linhas.get(i + 2))
+            .flatten()
+            .and_then(|l| l.strip_prefix(LOCATION))
+            .and_then(|resto| resto.strip_suffix("';"))
+            .ok_or(FuncaoForaDaForma)?;
+        achados.push(url);
+    }
+    Ok(achados)
+}
+
 /// A URL de `concluirProcesso()` na tela do nó do processo `id`, conferida.
-/// Forma observada: a linha da função, a do `confirm` comentado e a do
-/// `location.href = '…';`.
 pub(crate) fn ler_funcao_de_concluir(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroFuncaoDeConcluir> {
     use ErroFuncaoDeConcluir as E;
-    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
-    let mut achados = Vec::new();
-    for (i, linha) in linhas.iter().enumerate() {
-        if !linha.contains("function concluirProcesso") {
-            continue;
-        }
-        let confirm = linhas.get(i + 1).copied().unwrap_or_default();
-        let url = (*linha == FUNCAO && confirm.starts_with(CONFIRM) && confirm.ends_with("){"))
-            .then(|| linhas.get(i + 2))
-            .flatten()
-            .and_then(|l| l.strip_prefix(LOCATION))
-            .and_then(|resto| resto.strip_suffix("';"))
-            .ok_or(E::FuncaoDeConcluirForaDaFormaObservada)?;
-        achados.push(url);
-    }
+    let achados = urls_das_funcoes(html, "concluirProcesso")
+        .map_err(|FuncaoForaDaForma| E::FuncaoDeConcluirForaDaFormaObservada)?;
     let url = match achados.as_slice() {
         [] => return Err(E::FuncaoDeConcluirAusenteNaTelaDoNo),
         [url] => *url,

@@ -5,21 +5,20 @@
 //! escrita (POST da tela de conclusão, ou o GET de `concluirProcesso()`) e
 //! uma leitura nova da árvore para verificar. Nunca repete a escrita.
 mod erro;
+pub(crate) mod escrita;
 mod fluxo;
 mod tela;
 
 #[cfg(test)]
 mod acervo;
 #[cfg(test)]
-mod tests_apoio;
+pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
 mod tests_tela;
 
-#[cfg(test)]
-pub(crate) use erro::VerificacaoDaConclusao;
-pub(crate) use erro::{ErroConcluir, FalhaDoEnvio};
+pub(crate) use erro::{ErroConcluir, FalhaDoEnvio, VerificacaoPorLeitura};
 pub(crate) use fluxo::concluir_processo;
 
 use crate::processo::NumeroProcesso;

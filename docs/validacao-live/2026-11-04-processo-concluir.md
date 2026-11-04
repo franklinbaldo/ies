@@ -1,26 +1,31 @@
 ---
 type: SEIObservation
-title: Ensaio live de processo concluir e plano da escrita
-description: Prévia somente leitura de ies processo concluir na UFRJ 4.1.5 (PASS) e plano da escrita live para autorização do proprietário (NOT_RUN), 04/11/2026
+title: Ensaio live de processo concluir e processo reabrir
+description: Prévia de ies processo concluir na UFRJ 4.1.5 (PASS) e, autorizada pelo proprietário, a escrita de concluir e de reabrir na UFRJ 4.1.5 (forma tela, URL por variável) e na UnB 4.0.9 (forma função), com a contagem de requisições e a verificação por leitura (PASS), 04/11/2026
 ---
 
-# Ensaio live de `processo concluir` — 04/11/2026
+# Ensaio live de `processo concluir` e `processo reabrir` — 04/11/2026
 
-Contrato em [processo concluir](../../contracts/cli/processo-concluir.md).
+Contratos em [processo concluir](../../contracts/cli/processo-concluir.md)
+e [processo reabrir](../../contracts/cli/processo-reabrir.md). Duas
+partes: a prévia somente leitura (18:04–18:06, binário `5e9dc8d`) e, depois
+da autorização do proprietário ("Autorizo concluir, escolher vc"), a
+escrita (18:34–18:41, seção "Escrita autorizada").
+
+## Prévia (antes da autorização)
+
 Binário em release do ramo `slice-concluir` (commit `5e9dc8d`), sessão já
 aberta da UFRJ 4.1.5 de treinamento (conta pública `servidor1`, unidade
-PR-P), índice da sessão. **Nenhuma escrita**: o proprietário ainda não
-autorizou concluir processo na conta de treinamento compartilhada.
-
-## Resultado
+PR-P), índice da sessão. Nenhuma escrita.
 
 | Item | Instalação | Veredito |
 | --- | --- | --- |
 | Prévia (forma `tela`, uma unidade) | UFRJ 4.1.5 | **PASS** |
 | Prévia (forma `tela`, oito unidades) | UFRJ 4.1.5 | **PASS** |
 | Prévia, saída humana | UFRJ 4.1.5 | **PASS** |
-| `--confirmar` (escrita e verificação) | todas | **NOT_RUN** (sem autorização) |
-| Forma `funcao` ao vivo | UnB 4.0.9 | **NOT_RUN** |
+| `--confirmar` (escrita e verificação) | UFRJ 4.1.5, UnB 4.0.9 | **PASS** (abaixo) |
+| Forma `funcao` ao vivo | UnB 4.0.9 | **PASS** (abaixo) |
+| Forma `tela` na PEN1 5.0.4 | PEN1 | **NOT_RUN** (fora deste ensaio) |
 
 Execuções (horários UTC; nenhuma URL, cookie ou `infra_hash` registrado):
 
@@ -51,50 +56,64 @@ Efeito das prévias: só GETs da abertura (`procedimento_trabalhar` e
 `procedimento_visualizar`), os mesmos de `ies processo NUP`, em processos
 já visualizados na unidade. Nenhuma tela de conclusão foi pedida.
 
-## Plano da escrita live (para autorização)
+## Escrita autorizada: concluir e reabrir
 
-Objetivo: PASS de `--confirmar` nas duas formas, com a verificação por
-`aberto_em` (critério de aceite da issue: UnB e PEN1 em processo criado
-para o ensaio).
+Binário em release do ramo `slice-reabrir` (commit `c8f82a8`, `processo
+concluir` mais `processo reabrir`), copiado para fora do repositório.
+Sessões já abertas (nenhum `ies login`), índices das sessões. Cada
+comando passou por um relay `CONNECT` local que registrou um túnel por
+requisição; os túneis contados conferem com `requisicoes` em todos os
+comandos. Intervalo de pelo menos 22 s entre comandos; nenhum retry do
+IES. JSON de cada comando guardado em arquivo privado (0600), fora do
+repositório; nenhuma URL, cookie ou `infra_hash` nas saídas (conferido).
 
-**Processos.** Um processo **criado para o ensaio** em cada instalação
-(pelo navegador ou por quem o proprietário indicar; o IES não cria
-processo), aberto só na unidade da sessão, sem documentos assinados de
-terceiros. Não usar processos do acervo compartilhado.
+Processos escolhidos pelo agente, de testes automatizados, abertos só na
+unidade da sessão (ou em nenhuma) antes do ensaio: UFRJ
+`99079.900901/2026-02` (a prévia anterior já o mostrava aberto só em
+PR-P); UnB `23106.001574/2026-60` (processo gerado num ensaio anterior,
+encontrado já concluído em todas as unidades).
 
-| Ordem | Instalação | Forma esperada | Por quê |
-| --- | --- | --- | --- |
-| 1 | PEN1 5.0.4 (ou UFRJ 4.1.5) | `tela` (POST) | a forma de cinco instalações; a da PEN1 5.0.4 ainda não foi observada |
-| 2 | UnB 4.0.9 | `funcao` (o GET é a escrita) | única instalação 4.0 hoje |
+### UFRJ 4.1.5 (conta `servidor1`, unidade PR-P)
 
-**Orçamento por instalação** (≥ 22 s entre comandos, nenhum retry, no
-máximo 5 comandos):
+| Hora | Comando | Túneis = `requisicoes` | Campos | Veredito |
+| --- | --- | --- | --- | --- |
+| 18:34:41 | `concluir` (prévia) | 2 | `forma: tela`, `aberto_em: [PR-P]` | PASS |
+| 18:35:06 | `concluir --confirmar` | 5 (2 abertura, GET da tela, POST, 1 verificação) | `alterado: true`, `depois: []`, `reconciliado_por_leitura: false` | **PASS** |
+| 18:35:34 | `processo NUP` | 1 | `aberto_em: []` | PASS |
+| 18:35:58 | `concluir --confirmar` de novo | 2 | `alterado: false`, `forma: null`, sem escrita | PASS |
+| 18:36:23 | `reabrir` (prévia) | 2 | `reabertura_oferecida: true`, `aberto_em: []` | PASS |
+| 18:36:48 | `reabrir --confirmar` | 5 (2 abertura, tela do nó, GET de reabrir, 1 verificação) | `forma: variavel`, `alterado: true`, `depois: [PR-P]` | **PASS** |
+| 18:37:16 | `processo NUP` | 1 | `aberto_em: [PR-P]`, atribuído a `servidor1` | PASS |
 
-1. `ies processo concluir NUP --json` (prévia; 2–3 GET). Seguir só se
-   `forma` for a esperada, `aberto_em == [unidade]` e saída 0.
-2. `ies processo concluir NUP --confirmar --json` (a escrita): `tela` =
-   abertura + 1 GET + 1 POST + 1 GET; `funcao` = abertura + 3 GET.
-3. `ies processo NUP --sem-andamentos --sem-propriedades --sem-marcadores --json`
-   (leitura independente; 1–2 GET).
-4. `ies processo concluir NUP --confirmar --json` de novo: deve sair 0 com
-   `alterado: false` e `forma: null`, **sem escrita** (só a abertura).
+Estado final: aberto só em PR-P, atribuído a `servidor1` (o estado de
+antes, mais a atribuição).
 
-**PASS** se: (2) sai 0 com `confirmado: true`, `alterado: true`,
-`reconciliado_por_leitura: false`, `depois == depois_esperado == []` e
-`requisicoes` igual ao orçamento; (3) mostra `aberto_em: []`
-("Processo não possui andamentos abertos.") e a barra sem a ação de
-concluir; (4) sai 0 sem escrita. **FAIL** com o subcódigo: saída 1
-(`conclusao_nao_aplicada` ou recusa da tela/função antes da escrita).
-**Saída 3**: parar; não repetir; ler com `ies processo NUP`, registrar
-`falha_do_envio` e `verificacao` e reportar.
+### UnB 4.0.9 (conta `aluno1`, Unidade1)
 
-**Reabrir depois.** Observado nas sete instalações (11 gravações): o
-processo concluído oferece `reabrirProcesso()` na barra, com a URL
-`procedimento_reabrir` no corpo da função na tela do nó; o GET reabre na
-unidade da sessão e a situação seguinte mostra a unidade **atribuída** ao
-usuário. O IES não implementa reabrir (é outro comando da CLI pública; a
-peça de leitura da função já existe e serviria). Para o ensaio, o
-proprietário reabre pelo navegador ("Reabrir Processo" na barra) ou
-autoriza uma fatia `ies processo reabrir NUP [--confirmar]` com o mesmo
-padrão. Um processo criado para o ensaio pode simplesmente ficar
-concluído.
+| Hora | Comando | Túneis = `requisicoes` | Campos | Veredito |
+| --- | --- | --- | --- | --- |
+| 18:37:26 | `concluir` (prévia) | 3 | `forma: null`, `aberto_em: []` (já concluído; não serve para concluir primeiro) | — |
+| 18:38:03 | `reabrir` (prévia) | 2 túneis | saída 1, `falha_de_rede` no 2.º GET (o túnel recebeu 39 bytes em 10 s); leitura, nada a reconciliar | — |
+| 18:39:08 | `reabrir` (prévia, nova execução) | 2 | `reabertura_oferecida: true`, `aberto_em: []` | PASS |
+| 18:39:34 | `reabrir --confirmar` | 5 (2 abertura, tela do nó, GET de reabrir, 1 verificação) | `forma: funcao`, `alterado: true`, `depois: [Unidade1]` | **PASS** |
+| 18:40:02 | `processo NUP` | 1 | `aberto_em: [Unidade1]`, atribuído a `aluno1` | PASS |
+| 18:40:26 | `concluir` (prévia) | 2 | `forma: funcao`, `aberto_em: [Unidade1]` | PASS |
+| 18:40:51 | `concluir --confirmar` | 5 (2 abertura, tela do nó, GET da função, 1 verificação) | `alterado: true`, `depois: []`, `reconciliado_por_leitura: false` | **PASS** |
+| 18:41:19 | `concluir --confirmar` de novo | 2 | `alterado: false`, `forma: null`, `aberto_em: []`, sem escrita | PASS |
+
+Estado final: concluído em todas as unidades, como estava antes do
+ensaio.
+
+**Desvios do plano.** Na UnB a ordem foi invertida (reabrir, depois
+concluir), porque o processo escolhido já estava concluído; assim o
+estado final é o de antes. A prévia de reabrir das 18:38:03 falhou na
+rede e foi executada de novo 65 s depois, à mão (é leitura: não há efeito
+a reconciliar); por isso a UnB usou 8 comandos e a leitura independente
+depois de concluir foi a abertura do `concluir --confirmar` repetido
+(`aberto_em: []`), não um `processo NUP` à parte.
+
+**Leitura.** As duas formas de concluir e as duas formas de a tela do nó
+publicar reabrir funcionaram ao vivo como nas gravações: a resposta da
+escrita foi a esperada nos quatro casos (302 do POST; HTML 200 da função
+e dos dois GET de reabrir), sem reconciliação. A reabertura atribuiu o
+processo ao usuário nas duas instalações, como nas 11 gravações.

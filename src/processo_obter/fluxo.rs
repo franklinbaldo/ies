@@ -12,7 +12,8 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroTelaDoProcesso, ler_tela_do_processo,
+    ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso,
+    ReabrirNaBarra, ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
@@ -37,20 +38,26 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoAberto, E> {
-    abrir_para_concluir(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
+    abrir_para_escrever(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
 }
 
-/// A ação de concluir lida na barra da árvore aberta.
-pub(crate) type ConcluirLido = Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>;
+/// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
+/// só pesa no comando que a usa.
+pub(crate) struct AcoesDeEstado {
+    /// contracts/cli/processo-concluir.md
+    pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
+    /// contracts/cli/processo-reabrir.md
+    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+}
 
-/// Como [`obter_processo`], devolvendo também a ação de concluir da barra
-/// da árvore lida (contracts/cli/processo-concluir.md).
-pub(crate) fn abrir_para_concluir<V: EnvioDoProcesso>(
+/// Como [`obter_processo`], devolvendo também as ações de concluir e de
+/// reabrir da barra da árvore lida.
+pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoProcesso<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<(ProcessoAberto, ConcluirLido), E> {
+) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
     let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
@@ -105,7 +112,11 @@ pub(crate) fn abrir_para_concluir<V: EnvioDoProcesso>(
         marcadores,
         requisicoes: rede.requisicoes,
     };
-    Ok((aberto, arvore_lida.concluir))
+    let acoes = AcoesDeEstado {
+        concluir: arvore_lida.concluir,
+        reabrir: arvore_lida.reabrir,
+    };
+    Ok((aberto, acoes))
 }
 
 /// A cadeia de passos até a árvore conferida (com as pastas), e o que ela

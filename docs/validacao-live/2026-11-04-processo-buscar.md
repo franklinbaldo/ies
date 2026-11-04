@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
 title: Ensaio live de processo buscar na PEN3 5.0.4
-description: PASS/FAIL/NOT_RUN de ies processo buscar na PEN3 (NUP na caixa, NUP fora da caixa, inexistente, parcial, --pagina 2, fora do intervalo, termo só de dígitos e zero à esquerda), 04/11/2026
+description: PASS/FAIL/NOT_RUN de ies processo buscar na PEN3 (NUP na caixa, NUP fora da caixa, inexistente, parcial, --pagina 2, fora do intervalo, termo só de dígitos e zero à esquerda; termo só de dígitos contra o Cloudflare), 04/11/2026
 ---
 
 # Ensaio live de `ies processo buscar` — PEN3 5.0.4 — 04/11/2026
@@ -62,11 +62,32 @@ SEI 5.0.4), com o binário release do ramo `slice-buscar` (commit
   relogin sem necessidade: o caso 8, 28 s depois, passou com a mesma
   sessão. Corrigido no commit seguinte (a página passa a ser
   `bloqueio_de_seguranca_da_instalacao`, teste sintético); a reprodução
-  live ficou **NOT_RUN** de propósito, para não provocar o bloqueio de
-  novo. O que a borda rejeita no termo não foi investigado.
+  live foi feita depois, com autorização (seção seguinte): o termo não é
+  a causa.
 - **Lista e paginação.** A barra veio "Exibindo 1 - 10 de 81" e a página 2,
   pelo POST de `navegar()`, manteve o total; nenhuma linha de acerto em
   documento apareceu nessas duas páginas.
+
+## Termos só de dígitos (Cloudflare)
+
+Rodada autorizada pelo proprietário (18:24–18:41 UTC, commit `1cc78b2`,
+≥ 60 s entre comandos, sem retry; tabela completa e contagem no
+[relatório de documento buscar](2026-11-04-documento-buscar.md#termos-só-de-dígitos-cloudflare)).
+
+| Início (UTC) | Termo | Túneis | Resposta |
+| --- | --- | ---: | --- |
+| 18:25:18 | `98390.000039/2026-22` (controle) | 3 | `processo_unico` |
+| 18:26:37 | `98390000039202622` (o termo do caso 7) | 1 | 403 Cloudflare **no GET do Controle**: `bloqueio_de_seguranca_da_instalacao` |
+| 18:37:30 | `98390.000038/2026-88` (controle, 10 min 53 s depois) | 3 | `processo_unico` |
+| 18:38:46 | `98390000038202688` (só dígitos) | 3 | `processo_unico`, o mesmo id do controle |
+
+O bloqueio voltou com o mesmo termo do caso 7, mas na requisição que
+**não** leva o termo (o GET do Controle, primeira do comando); o POST não
+saiu. Um NUP só de dígitos passou 76 s depois de um controle, e o SEI o
+casou com o processo do NUP formatado. A hipótese de que o termo só de
+dígitos dispara o Cloudflare **não se sustenta**: a borda bloqueia por
+origem ou ritmo agregado, não pelo termo. O comando já publica o bloqueio
+como `bloqueio_de_seguranca_da_instalacao`, sem retry.
 
 ## Não executado
 
