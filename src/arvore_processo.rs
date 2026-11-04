@@ -4,13 +4,14 @@
 //! pastas, `Pastas[k]['protocolos']` e a barra (`.acoes`) dos documentos.
 //! Estrutura em docs/como-o-sei-funciona/arvore-do-processo.md; contrato em
 //! contracts/cli/processo-obter-arvore.md. Tipos aceitos: `PROCESSO`,
-//! `PROCESSO_ANEXADO`, `DOCUMENTO`, `PASTA` e `AGUARDE`; qualquer outro é
-//! recusa.
+//! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
+//! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
 mod barra_do_processo;
 pub(crate) mod endereco;
 mod erro;
 mod literais;
+mod movidos;
 mod pastas;
 mod tela;
 mod vinculo;
@@ -26,6 +27,8 @@ mod tests_barra;
 #[cfg(test)]
 mod tests_literais;
 #[cfg(test)]
+pub(crate) mod tests_movidos;
+#[cfg(test)]
 pub(crate) mod tests_pastas;
 #[cfg(test)]
 mod tests_pastas_integridade;
@@ -36,6 +39,8 @@ use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use barra_do_processo::ler_link_das_propriedades;
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
+pub(crate) use movidos::ler_destinos_dos_movidos;
+use movidos::{MovidoLido, conferir_movidos, ler_movido};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
@@ -119,6 +124,9 @@ pub(crate) struct ArvoreLida {
     /// Os `PROCESSO_ANEXADO` filhos do processo, na ordem da árvore. Os
     /// documentos deles não são servidos nesta árvore.
     pub(crate) anexados: Vec<ProcessoNaArvore>,
+    /// Os `DOCUMENTO_MOVIDO` (movidos para outro processo), na ordem da
+    /// árvore; não são documentos do processo.
+    pub(crate) documentos_movidos: Vec<DocumentoMovido>,
     /// O pai, quando o processo aberto é ele mesmo um anexado (link do
     /// `.html` do nó raiz); preenchido por [`ler_vinculo_de_anexacao`].
     pub(crate) anexado_a: Option<VinculoDeAnexacao>,
@@ -128,6 +136,26 @@ pub(crate) struct ArvoreLida {
 /// `procedimento_trabalhar` assinado dele (redigido no `Debug`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct VinculoDeAnexacao {
+    pub(crate) numero: String,
+    pub(crate) id_procedimento: String,
+    pub(crate) trabalhar: EnderecoDaArvore,
+}
+
+/// Um `DOCUMENTO_MOVIDO`: id composto opaco (a1), rótulo (a5), número SEI
+/// (a15) e o destino, quando o `.html` do nó publica o link assinado dele
+/// (preenchido por [`ler_destinos_dos_movidos`]). A dica (a6) não é guardada.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct DocumentoMovido {
+    pub(crate) id: String,
+    pub(crate) rotulo: String,
+    pub(crate) numero_sei: Option<String>,
+    pub(crate) destino: Option<DestinoDoMovido>,
+}
+
+/// O processo para onde o documento foi movido: NUP (texto do link), id e o
+/// `procedimento_trabalhar` assinado (redigido no `Debug`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct DestinoDoMovido {
     pub(crate) numero: String,
     pub(crate) id_procedimento: String,
     pub(crate) trabalhar: EnderecoDaArvore,
@@ -155,6 +183,7 @@ pub(crate) fn ler_arvore(
 ) -> Result<ArvoreLida, ErroArvore> {
     let mut processo: Option<ProcessoNaArvore> = None;
     let mut anexados: Vec<AnexadoLido> = Vec::new();
+    let mut movidos: Vec<MovidoLido> = Vec::new();
     let mut documentos: Vec<DocumentoLido> = Vec::new();
     // Índice do nó → posição em `documentos`, só para documentos de pasta.
     let mut de_pasta: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
@@ -194,6 +223,7 @@ pub(crate) fn ler_arvore(
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
             "PROCESSO_ANEXADO" => anexados.push(ler_anexado(&com_aridade(argumentos)?)?),
+            "DOCUMENTO_MOVIDO" => movidos.push(ler_movido(&com_aridade(argumentos)?)?),
             "DOCUMENTO" => {
                 let lido = ler_documento(&com_aridade(argumentos)?)?;
                 if documentos
@@ -224,6 +254,7 @@ pub(crate) fn ler_arvore(
         return Err(ErroArvore::IdDoProcessoNaArvoreDiferenteDoAberto);
     }
     let anexados = conferir_anexados(&processo, anexados, &documentos, &nos_de_pasta)?;
+    let documentos_movidos = conferir_movidos(&processo, movidos, &documentos)?;
     let (pastas, pastas_nao_carregadas) =
         conferir_pastas(&processo.id, &nos_de_pasta, &protocolos, &documentos)?;
     Ok(ArvoreLida {
@@ -232,6 +263,7 @@ pub(crate) fn ler_arvore(
         pastas,
         pastas_nao_carregadas,
         anexados,
+        documentos_movidos,
         anexado_a: None,
     })
 }

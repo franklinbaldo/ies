@@ -32,6 +32,7 @@ pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
             pastas: Vec::new(),
             pastas_nao_carregadas: false,
             anexados: Vec::new(),
+            documentos_movidos: Vec::new(),
             anexado_a: None,
         },
         unidade: unidade.map(str::to_owned),
@@ -146,6 +147,7 @@ fn forma_do_json() {
                 {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null},
                 {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null}
             ],
+            "documentos_movidos": [],
             "pastas": [],
             "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],

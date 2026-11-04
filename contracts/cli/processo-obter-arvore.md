@@ -83,7 +83,9 @@ Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`
 e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`;
 aberto um anexado, o par do pai e o link `procedimento_trabalhar` dele
-(objeto = id do pai, que o passo 1b usa);
+(objeto = id do pai, que o passo 1b usa); de cada documento movido com
+destino conferido, o par e o link `procedimento_trabalhar` do destino
+(objeto = id do destino);
 os links `procedimento_trabalhar` e `procedimento_visualizar` (objeto = id),
 o de "Abrir todas as Pastas" (objeto = `<id>:abrir_pastas`, só depois da
 árvore aberta conferida) e o `action` da pesquisa rápida da tela do
@@ -130,7 +132,7 @@ consecutivos desde 0, 16 argumentos, um único `PROCESSO` (a1 id decimal,
 a2 `null`, a5 NUP, a6 tipo, a15 igual a a5), `DOCUMENTO` com a2 igual ao
 id do processo ou a uma pasta; `PASTA` e `AGUARDE` (15 argumentos) seguem
 o [contrato das pastas](processo-obter-pastas.md); `PROCESSO_ANEXADO`
-segue a seção abaixo; outro tipo é recusa.
+e `DOCUMENTO_MOVIDO` seguem as seções abaixo; outro tipo é recusa.
 O NUP do nó (a5) é comparado **byte a byte** com o pedido. Estrutura em
 [árvore do processo](../../docs/como-o-sei-funciona/arvore-do-processo.md).
 
@@ -159,6 +161,28 @@ um `id_procedimento_anexado` igual ao aberto e texto não vazio, sem
 espaço nas pontas, entidade ou tag: o NUP do pai. Nenhuma candidata:
 `anexado: false`. A frase em volta e o ícone não classificam nada.
 
+**Documentos movidos.** Forma observada na PEN1 4.0.12 (04/11/2026), a
+única aceita: `DOCUMENTO_MOVIDO` com 16 argumentos, a1 composto
+`<decimal>-<decimal>` (opaco; na captura, a primeira parte é o
+`id_documento` do link do destino e a segunda o
+`id_rel_protocolo_protocolo` da barra), a2 igual ao id do processo (pasta
+ou outro pai é recusa), a3 começando por `controlador.php?` com uma
+`acao=arvore_visualizar`, um `id_procedimento` igual a a2 e nenhum
+`id_documento`, a5 rótulo não vazio e a15 número SEI ou `null`. O movido
+**não** é documento do processo: não entra em `documentos`, nas pastas
+nem nas conferências delas. Composto repetido, primeira parte repetida
+entre movidos ou igual ao id de um `DOCUMENTO` são recusa. A dica (a6,
+frase com o NUP e o motivo digitado) e a barra (`.acoes`) não são lidas.
+O destino vem do `.html` do nó (mesmo leitor de literais e de atributos
+do vínculo): uma tag `<a>` com `href` é o link do destino, conferido como
+os outros links assinados (uma `acao=procedimento_trabalhar`, um
+`infra_hash` de 64 hex, um `id_procedimento` decimal diferente do aberto),
+com um `id_documento` igual à primeira parte de a1, sem
+`id_procedimento_anexado`, e texto não vazio, sem espaço nas pontas,
+entidade ou tag, diferente do NUP aberto: o NUP do destino. Nenhuma tag
+`<a>` com `href` (ou nenhum `.html`): `destino: null`, não observado.
+Para ler o destino: `ies processo <NUP do destino>`, que sai pelo passo 1b.
+
 **Efeito declarado.** Em GO, o GET da árvore marcou como visualizado um
 processo recebido não visualizado (o de `procedimento_trabalhar`, sozinho,
 não). O IES não restaura esse estado. Lançamento de andamento: não medido.
@@ -175,6 +199,8 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null"}],
+ "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15 ou null",
+                         "destino": {"numero": "NUP", "id_procedimento": "N"}}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
  "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
@@ -204,8 +230,11 @@ As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
 pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
-em e-mails traz remetente e destinatários. `--sem-documentos` tira as
-chaves `documentos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
+em e-mails traz remetente e destinatários. `documentos_movidos` segue a ordem dos nós (`[]` sem movido; `destino`
+`null` sem link); o texto humano lista cada um com
+`movido para <NUP>, ies processo <NUP>` ou `destino não publicado`.
+`--sem-documentos` tira as
+chaves `documentos`, `documentos_movidos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
 `--sem-marcadores` é aceito sem efeito; `--sem-propriedades` não pede a
 tela de propriedades.
 `--sem-andamentos` com `--andamentos-completos` sai com 2
@@ -255,6 +284,14 @@ Anexados: `processo_anexado_fora_da_forma_observada`,
 `vinculos_de_anexacao_repetidos` (duas candidatas ou dois `.html` da raiz),
 `html_do_no_do_processo_fora_da_forma_observada`.
 
+Movidos: `documento_movido_fora_da_forma_observada`,
+`documento_movido_com_pai_diferente_do_processo`,
+`documento_movido_repetido_na_arvore`,
+`documento_movido_presente_entre_os_documentos`,
+`destino_do_documento_movido_fora_da_forma_observada`,
+`destinos_do_documento_movido_repetidos` (duas tags `<a>` com `href` ou
+dois `.html` do nó).
+
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
 Propriedades: os do [contrato das propriedades](processo-obter-propriedades.md).
 Pastas: os do [contrato das pastas](processo-obter-pastas.md).
@@ -264,5 +301,6 @@ Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-0
 Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
 Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 ([relatório](../../docs/validacao-live/2026-11-03-colheita-do-controle.md)).
+Documentos movidos: **NOT_RUN** até a validação do agente pai na PEN1.
 Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

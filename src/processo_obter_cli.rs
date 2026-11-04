@@ -428,5 +428,8 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
 #[path = "processo_obter_cli/tests.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "processo_obter_cli/tests_movidos.rs"]
+mod tests_movidos;
+#[cfg(test)]
 #[path = "processo_obter_cli/tests_propriedades.rs"]
 mod tests_propriedades;
