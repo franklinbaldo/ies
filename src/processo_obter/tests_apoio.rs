@@ -250,12 +250,13 @@ impl Roteiro {
             .chars()
             .map(|c| u8::try_from(c).unwrap_or(b'?'))
             .collect();
+        let tamanho = corpo.len();
         RespostaDoPost {
             resposta: crate::transporte::testes_http::resposta(
                 status_code,
                 "text/html; charset=iso-8859-1",
-                corpo.clone(),
-                Some(corpo.len()),
+                corpo,
+                Some(tamanho),
             ),
             localizacao,
         }
