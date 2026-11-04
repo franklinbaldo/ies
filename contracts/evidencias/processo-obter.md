@@ -102,6 +102,25 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   igual ao NUP do pai, sem escape nem entidade.
 - Validação live do comando com anexado: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 
+## Evidência própria do IES (documentos movidos)
+
+- Captura privada ao vivo da PEN1 4.0.12 (04/11/2026, `0600`,
+  `iso-8859-1`, lida só pela estrutura): árvore de 4 nós de 16
+  argumentos, 1 `PROCESSO`, 2 `DOCUMENTO` e 1 `DOCUMENTO_MOVIDO` com a1
+  `<n>-<m>`, a2 igual ao id do processo, a3 igual ao do nó `PROCESSO` e
+  a15 igual ao número entre parênteses de a5. O `.html` do movido tem um
+  único `<a>` `procedimento_trabalhar` (hash de 64 hex) com
+  `id_procedimento` diferente do processo e `id_documento` igual a `n`;
+  texto igual ao NUP da dica. A barra só tem `comentario_listar`, com
+  `id_rel_protocolo_protocolo` igual a `m`. Nenhum `DOCUMENTO` tem id `n`.
+  Antes desta fatia o comando recusava a árvore com
+  `tipo_de_no_da_arvore_nao_suportado`; o leitor novo aceitou a captura
+  (2 documentos, 1 movido com destino conferido, sem vínculo de anexação;
+  teste local temporário, apagado).
+- [Contrato](../cli/processo-obter-arvore.md) e
+  [observação](../../docs/como-o-sei-funciona/arvore-do-processo.md).
+  Validação live: **NOT_RUN**.
+
 ## Evidência própria do IES (propriedades)
 
 - Captura privada ao vivo da UnB 4.0.9 (04/11/2026, `0600`, `iso-8859-1`,
