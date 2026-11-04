@@ -307,6 +307,12 @@ da frase da dica (**web-movidos-pela-dica**, rejeitada). 0 requisições a
 mais. Alternativas e trade-offs no
 [apêndice](processo-obter/documentos-movidos.md).
 
+## Situação e natureza
+
+`aberto_em` e ícone/cancelamento dos documentos saem da árvore já lida,
+0 requisições, só nas formas observadas
+([apêndice](processo-obter/situacao.md)).
+
 ## Limitações e revisão
 
 Propriedades: validação live **PASS** na UnB e na PEN1 ([PEN1](../validacao-live/2026-11-04-processo-obter-movidos.md), [relatório](../validacao-live/2026-11-04-processo-obter-propriedades.md)).

@@ -4,9 +4,9 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_destinos_dos_movidos,
-    ler_link_das_propriedades, ler_link_dos_marcadores, ler_tela_do_processo,
-    ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ErroArvore, MotivoAbertoEm, TelaDoProcesso, ler_arvore,
+    ler_destinos_dos_movidos, ler_link_das_propriedades, ler_link_dos_marcadores,
+    ler_tela_do_processo, ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -126,6 +126,10 @@ pub(super) fn ler_arvore_aberta(
 ) -> Result<ArvoreAberta, ErroArvore> {
     let mut arvore = ler_arvore(html, contexto.nup, id)?;
     arvore.anexado_a = ler_vinculo_de_anexacao(&contexto.instalacao, html, id)?;
+    if arvore.anexado_a.is_some() {
+        // O `.html` da raiz é o aviso do vínculo, não a situação.
+        arvore.aberto_em = AbertoEm::NaoLido(MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao);
+    }
     ler_destinos_dos_movidos(&contexto.instalacao, html, &mut arvore)?;
     let historico = ler_link_do_historico(&contexto.instalacao, html, id);
     let propriedades = ler_link_das_propriedades(&contexto.instalacao, html, id);

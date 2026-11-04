@@ -14,7 +14,9 @@ Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
 processos anexados, os andamentos
 ([seção própria](processo-obter-andamentos.md)) e as propriedades
 ([seção própria](processo-obter-propriedades.md)) e os marcadores, sempre
-como lista ([seção própria](processo-obter-marcadores.md)). `--resumo`
+como lista ([seção própria](processo-obter-marcadores.md)), onde o
+processo está aberto e a natureza de cada documento, sem requisição a
+mais ([seção própria](processo-obter-situacao.md)). `--resumo`
 não muda.
 
 ## Resolução (ordem aprovada pelo proprietário)
@@ -202,8 +204,10 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "requisicoes": 4,
  "anexado": false, "anexado_a": null,
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
+ "aberto_em": [{"sigla": "…", "nome": "…", "atribuido_a": {"sigla": "…", "nome": "…"}}],
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
-                 "pasta": "PASTA1 ou null"}],
+                 "pasta": "PASTA1 ou null", "icone": "documento_interno",
+                 "cancelado": false, "motivo_do_cancelamento": null}],
  "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15 ou null",
                          "destino": {"numero": "NUP", "id_procedimento": "N"}}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
@@ -234,13 +238,16 @@ o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
 [andamentos](processo-obter-andamentos.md); as de `propriedades`, em
 [propriedades](processo-obter-propriedades.md); as de `marcadores`, em
-[marcadores](processo-obter-marcadores.md). `nao_lidos` é, na ordem:
-`andamentos` (se não lidos), `marcadores` (se não lidos),
-`propriedades` (se não lidas) e `documentos_dos_anexados`.
+[marcadores](processo-obter-marcadores.md); as de `aberto_em` e dos
+campos de natureza, em [situação](processo-obter-situacao.md).
+`nao_lidos` é, na ordem: `aberto_em` (se não lido), `andamentos` (se
+não lidos), `marcadores` (se não lidos), `propriedades` (se não lidas)
+e `documentos_dos_anexados`.
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
-pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
-em e-mails traz remetente e destinatários. `documentos_movidos` segue a ordem dos nós (`[]` sem movido; `destino`
+pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) sai em `dica` quando
+difere do rótulo, e o cancelamento é lido dela
+([situação](processo-obter-situacao.md)). `documentos_movidos` segue a ordem dos nós (`[]` sem movido; `destino`
 `null` sem link); o texto humano lista cada um com
 `movido para <NUP>, ies processo <NUP>` ou `destino não publicado`.
 `--sem-documentos` tira as
@@ -308,9 +315,11 @@ Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 
 Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
 Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
-Fatia 3 (pastas): **NOT_RUN** até a validação do agente pai.
+Fatia 3 (pastas): **PASS** na UnB, frio, quente e sessão nova
+([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).
 Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 ([relatório](../../docs/validacao-live/2026-11-03-colheita-do-controle.md)).
 Documentos movidos: **PASS** na PEN1 ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-movidos.md)).
+Situação e natureza: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
 Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

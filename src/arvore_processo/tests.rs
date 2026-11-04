@@ -21,6 +21,19 @@ pub(crate) fn no_documento(i: usize, id: &str, pai: &str, numero: &str) -> Strin
     )
 }
 
+/// A natureza do `no_documento` sintético: ícone interno, não cancelado.
+pub(crate) fn interno() -> NaturezaDoDocumento {
+    NaturezaDoDocumento {
+        icone: Some("documento_interno".into()),
+        cancelado: Some(false),
+        motivo_do_cancelamento: None,
+        dica: Some(DICA_SINTETICA.into()),
+    }
+}
+
+/// A dica decodificada de `no_documento`, diferente do rótulo.
+pub(crate) const DICA_SINTETICA: &str = "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br";
+
 /// Árvore com as linhas que acompanham cada nó e o código depois deles.
 pub(crate) fn arvore(nos: &[String]) -> String {
     let mut html = String::from(
@@ -50,7 +63,7 @@ fn padrao() -> String {
 }
 
 #[test]
-fn le_processo_e_documentos_do_primeiro_nivel_sem_a_dica() {
+fn le_processo_e_documentos_do_primeiro_nivel_com_a_dica() {
     let lida = ler_arvore(&padrao(), NUP, "10").unwrap();
     assert_eq!(
         lida.processo,
@@ -68,16 +81,17 @@ fn le_processo_e_documentos_do_primeiro_nivel_sem_a_dica() {
                 rotulo: "Despacho 0000101".into(),
                 numero_sei: Some("0000101".into()),
                 pasta: None,
+                natureza: interno(),
             },
             DocumentoNaArvore {
                 id: "22".into(),
                 rotulo: "Despacho 0000102".into(),
                 numero_sei: Some("0000102".into()),
                 pasta: None,
+                natureza: interno(),
             },
         ]
     );
-    assert!(!format!("{lida:?}").contains("pessoa@"));
 }
 
 #[test]

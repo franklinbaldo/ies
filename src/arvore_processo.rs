@@ -12,7 +12,9 @@ pub(crate) mod endereco;
 mod erro;
 mod literais;
 mod movidos;
+mod natureza;
 mod pastas;
+mod situacao;
 mod tela;
 mod vinculo;
 
@@ -31,9 +33,13 @@ mod tests_literais;
 #[cfg(test)]
 pub(crate) mod tests_movidos;
 #[cfg(test)]
+mod tests_natureza;
+#[cfg(test)]
 pub(crate) mod tests_pastas;
 #[cfg(test)]
 mod tests_pastas_integridade;
+#[cfg(test)]
+mod tests_situacao;
 #[cfg(test)]
 pub(crate) mod tests_tela;
 
@@ -43,8 +49,12 @@ pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
+pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
+pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
+#[cfg(test)]
+pub(crate) use situacao::{Atribuicao, UnidadeAberta};
 pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
 pub(crate) use vinculo::ler_vinculo_de_anexacao;
 
@@ -58,14 +68,16 @@ pub(crate) struct ProcessoNaArvore {
 }
 
 /// Um `DOCUMENTO`: id (a1), rótulo (a5), número SEI (a15, que pode vir
-/// `null`) e a pasta (`PASTA<k>`) quando o pai (a2) é uma. A dica (a6) não
-/// é guardada: em e-mails traz remetente e destinatários.
+/// `null`), a pasta (`PASTA<k>`) quando o pai (a2) é uma e a natureza
+/// (a6 a a9). A dica (a6) não é guardada: em e-mails traz remetente e
+/// destinatários.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DocumentoNaArvore {
     pub(crate) id: String,
     pub(crate) rotulo: String,
     pub(crate) numero_sei: Option<String>,
     pub(crate) pasta: Option<String>,
+    pub(crate) natureza: NaturezaDoDocumento,
 }
 
 /// Uma `PASTA`: id do nó (`PASTA<k>`), rótulo (a5), quantos protocolos
@@ -132,6 +144,8 @@ pub(crate) struct ArvoreLida {
     /// O pai, quando o processo aberto é ele mesmo um anexado (link do
     /// `.html` do nó raiz); preenchido por [`ler_vinculo_de_anexacao`].
     pub(crate) anexado_a: Option<VinculoDeAnexacao>,
+    /// Onde o processo está aberto (o `.html` da raiz).
+    pub(crate) aberto_em: AbertoEm,
 }
 
 /// O processo ao qual o aberto está anexado: NUP (texto do link), id e o
@@ -267,6 +281,7 @@ pub(crate) fn ler_arvore(
         anexados,
         documentos_movidos,
         anexado_a: None,
+        aberto_em: situacao::ler_aberto_em(html),
     })
 }
 
@@ -318,7 +333,8 @@ fn ler_processo(a: &[Literal; ARGUMENTOS]) -> Result<ProcessoNaArvore, ErroArvor
     })
 }
 
-/// O pai (a2: o processo ou `PASTA<k>`) e o documento; a dica (a6) não é lida.
+/// O pai (a2: o processo ou `PASTA<k>`) e o documento; a dica (a6) só
+/// conta para o cancelamento.
 fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore> {
     let id_documento = id(&a[1])?;
     let pai = pastas::pai_do_documento(texto(&a[2])?)?;
@@ -333,6 +349,7 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
             rotulo: texto(&a[5])?.to_owned(),
             numero_sei: texto_ou_nulo(&a[15])?.map(str::to_owned),
             pasta,
+            natureza: natureza::ler_natureza(a),
         },
         barra: Barra::NaoLida,
     })

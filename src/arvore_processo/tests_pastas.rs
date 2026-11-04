@@ -4,7 +4,7 @@
 //! `.html` do processo, `Pastas[k]['protocolos']` antes dos nós, a barra de
 //! cada documento com `id_rel_protocolo_protocolo` e a ação `ABRIR_PASTAS`.
 //! Ids, números, hashes e rótulos inventados.
-use super::tests::{NUP, no_documento, no_processo};
+use super::tests::{NUP, interno, no_documento, no_processo};
 use super::*;
 use std::fmt::Write as _;
 
@@ -185,6 +185,7 @@ fn documento(id: &str, pasta: Option<&str>) -> DocumentoNaArvore {
         rotulo: format!("Despacho 00{id}"),
         numero_sei: Some(format!("00{id}")),
         pasta: pasta.map(str::to_owned),
+        natureza: interno(),
     }
 }
 

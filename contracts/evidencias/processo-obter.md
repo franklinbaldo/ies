@@ -156,6 +156,22 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   e [decisão](../../docs/decisoes/processo-obter/marcadores.md).
   Validação live: **NOT_RUN**.
 
+## Evidência própria do IES (situação e natureza)
+
+- Capturas privadas das árvores da UnB 4.0.9 (seis), de GO 5.0.3 (uma) e
+  da PEN1 4.0.12 (uma), `0600`, `iso-8859-1`, lidas só pela estrutura: o
+  `.html` do nó `PROCESSO` em seis formas (somente na unidade, com e sem
+  atribuição; nas unidades, com e sem atribuição; sem andamentos abertos;
+  aviso de anexação) e sete radicais de ícone de documento, um cancelado
+  (dica `Documento Cancelado: <motivo>`). Em teste local temporário
+  (apagado), o leitor deu as unidades esperadas nas sete árvores não
+  anexadas, "fora da forma" no anexado e `cancelado: true` só no
+  cancelado.
+- [Contrato](../cli/processo-obter-situacao.md),
+  [observação](../../docs/como-o-sei-funciona/situacao-na-arvore.md) e
+  [decisão](../../docs/decisoes/processo-obter/situacao.md).
+  Validação live do comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
+
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
 Confronte os hashes com o manifesto atual antes de alegar paridade.

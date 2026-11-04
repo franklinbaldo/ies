@@ -1,7 +1,8 @@
 //! RED/GREEN do JSON publicado: só o observado, sem URL, hash ou dica.
 use super::*;
 use crate::arvore_processo::{
-    ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore, VerificacaoDaPasta,
+    AbertoEm, ArvoreLida, DocumentoNaArvore, PastaNaArvore, ProcessoNaArvore, UnidadeAberta,
+    VerificacaoDaPasta,
 };
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
@@ -21,12 +22,14 @@ pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
                     rotulo: "Despacho 0000101".into(),
                     numero_sei: Some("0000101".into()),
                     pasta: None,
+                    natureza: crate::arvore_processo::tests::interno(),
                 },
                 DocumentoNaArvore {
                     id: "22".into(),
                     rotulo: "E-mail".into(),
                     numero_sei: None,
                     pasta: None,
+                    natureza: crate::arvore_processo::tests::interno(),
                 },
             ],
             pastas: Vec::new(),
@@ -34,6 +37,11 @@ pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
             anexados: Vec::new(),
             documentos_movidos: Vec::new(),
             anexado_a: None,
+            aberto_em: AbertoEm::Unidades(vec![UnidadeAberta {
+                sigla: "UNIDADE TESTE".into(),
+                nome: "Unidade Teste".into(),
+                atribuido_a: None,
+            }]),
         },
         unidade: unidade.map(str::to_owned),
         resolvido_por: ResolvidoPor::Caixa,
@@ -144,9 +152,14 @@ fn forma_do_json() {
             "anexado": false,
             "anexado_a": null,
             "anexados": [],
+            "aberto_em": [{"sigla": "UNIDADE TESTE", "nome": "Unidade Teste", "atribuido_a": null}],
             "documentos": [
-                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null},
-                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null}
+                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null,
+                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                 "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"},
+                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null,
+                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                 "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"}
             ],
             "documentos_movidos": [],
             "pastas": [],

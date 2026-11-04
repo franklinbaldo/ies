@@ -102,3 +102,22 @@ fn processo_sem_vinculo_nao_aprende_pai() {
     assert!(r.unwrap().arvore.anexado_a.is_none());
     assert!(amb.indice.id_por_nup(&instalacao(), NUP_PAI).is_none());
 }
+
+#[test]
+fn aberto_em_do_anexado_e_nao_lido_pelo_vinculo() {
+    use crate::arvore_processo::{AbertoEm, MotivoAbertoEm};
+    let amb = ambiente();
+    let (r, _) = rodar(
+        &amb,
+        None,
+        vec![
+            ok(controle(&[(ID, NUP)])),
+            ok(trabalhar(ID)),
+            ok(arvore_anexada()),
+        ],
+    );
+    assert_eq!(
+        r.unwrap().arvore.aberto_em,
+        AbertoEm::NaoLido(MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao)
+    );
+}

@@ -68,7 +68,9 @@ construtor.
 
 O significado de a10–a14 não foi demonstrado (o Todos também não o
 publica). Nos documentos, a15 aparece dentro de a5. A dica de e-mail traz
-remetente e destinatários: dado pessoal que o IES **não** publica.
+remetente e destinatários: dado pessoal que o IES **não** publica. Ícones,
+cancelamento e o `.html` da raiz (onde o processo está aberto) em
+[situação na árvore](situacao-na-arvore.md).
 
 ## A palavra PASTA
 
