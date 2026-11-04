@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
 title: Ensaio live da paginação e da troca de visão em listar-processos, recebidos e gerados
-description: PASS/FAIL/NOT_RUN de unidade listar-processos, recebidos e gerados com e sem --pagina N, requisições contadas por túnel e efeito lembrado pelo SEI, UnB, PEN1, PEN3 e PEN4, 04/11/2026
+description: PASS/FAIL/NOT_RUN de unidade listar-processos, recebidos e gerados com e sem --pagina N, requisições contadas por túnel e efeito lembrado pelo SEI, UnB, PEN1, PEN3, PEN4 e UFRJ (PEN2 NOT_RUN), 04/11/2026
 ---
 
 # Ensaio live da paginação da caixa — 04/11/2026
@@ -13,7 +13,8 @@ e as [páginas da caixa](../../contracts/cli/unidade-listar-processos-paginas.md
 no fluxo **sem restauração** (a tela fica onde o comando a deixou).
 Binário em release do ramo `slice-pagina-live` (base `04a316e`) para UnB e
 PEN1 e do ramo `slice-pagina-pen34` (base `5735017`) para PEN3 e PEN4
-(Tramita, homologação), só leitura, instalações de treinamento.
+(Tramita, homologação) e do ramo `slice-pagina-ufrj-pen2` (base `ec02d2f`)
+para UFRJ e PEN2, só leitura, instalações de treinamento.
 
 ## Condições
 
@@ -22,7 +23,8 @@ PEN1 e do ramo `slice-pagina-pen34` (base `5735017`) para PEN3 e PEN4
   conferiu a sessão gravada (`sessao_existente_valida`, 1 req.). Um login
   por instalação, nenhum outro. PEN3 e PEN4: sessões abertas por `ies
   login` minutos antes da rodada (6 req. cada, fora das contagens);
-  nenhum login durante a rodada.
+  nenhum login durante a rodada. UFRJ e PEN2: pastas novas, um `ies login`
+  cada antes da rodada (UFRJ 6 req.; PEN2 recusado, ver abaixo).
 - **Contagem de requisições:** um relay `CONNECT` local, entre o `ies` e
   o proxy do ambiente, conta os túneis. O cliente HTTPS do IES abre uma
   conexão por pedido (`Connection: close`), então túnel = pedido. O relay
@@ -36,7 +38,7 @@ PEN1 e do ramo `slice-pagina-pen34` (base `5735017`) para PEN3 e PEN4
   não entram nas contagens abaixo.
 - **Ritmo e orçamento:** 22 s ou mais entre execuções por instalação. UnB:
   12 comandos e 3 conferências; PEN1: 14 comandos e 6 conferências; PEN3:
-  16 comandos e 5 conferências; PEN4: 16 comandos e 4 conferências.
+  16 comandos e 5 conferências; PEN4: 16 comandos e 4 conferências; UFRJ: 9 comandos e 4 conferências.
 - Nenhuma saída trouxe URL, `infra_hash` ou cookie. Nenhuma escrita;
   `unidade colunas --definir` não foi executado.
 
@@ -142,11 +144,42 @@ Os quatro regimes da visão detalhada e os dois de `recebidos|gerados`
 foram medidos nas duas, como na PEN1. Várias páginas, antes provadas só
 na PEN1, agora também na 5.0.4: D com três páginas e R com duas por lista.
 
+## UFRJ 4.1.5 (PR-P; 1 recebido, 9 gerados, D 10; uma página cada)
+
+Versão lida na tela. Sessão nova na R (`R/0/0`). A R publica
+`hdn{Recebidos,Gerados}PaginaAtual` sem paginador; a D publica
+`hdnDetalhadoPaginaAtual=0`, nenhum paginador e a legenda
+`Processos (10 registros):`, sem intervalo. Todo GET 1.060 B, todo POST
+2,1–2,3 KB; requisições medidas iguais ao contrato em todos os casos.
+
+| # | Caso (tela no GET) | Requisições (contrato) | Resultado |
+| --- | --- | --- | --- |
+| a | `recebidos` (R) | 1 GET (1) | **FAIL**: `legenda_sem_faixa_com_total_diferente_das_linhas`; legenda `(1 registro):` no singular (corrigido, ver Achados) |
+| a′ | `recebidos` (R), binário corrigido | 1 GET (1) | **PASS**: 1 de 1, faixa 1–1 |
+| b | `gerados --pagina 2` (R) | 1 GET (1) | **PASS**: `pagina_fora_do_intervalo` sem POST |
+| d | `listar-processos` (R→D) | 1 GET + 1 POST (1 + 1) | **FAIL**: `faixa_detalhada_sem_intervalo_com_paginacao` depois do POST D (ver Achados) |
+| — | Conferência | — | `D`, índice 0, `10 registros`: a UFRJ lembra a D |
+| o | `recebidos --pagina 99` (D→R) | 1 GET + 1 POST (1 + 1) | **PASS**: `pagina_fora_do_intervalo`, mensagem "a página pedida do Controle não foi obtida" |
+| — | Conferência | — | `R/0/0` |
+| j | `recebidos` (R, estável) | 1 GET (1) | **PASS**: 1 de 1 |
+| k | `recebidos --pagina 2` (R) | 1 GET (1) | **PASS**: recusa sem POST |
+| m | `gerados --pagina 1` (R, a página mostrada) | 1 GET (1) | **PASS**: 9 de 9, 1–9, nenhum POST |
+| p | `listar-processos --pagina 99999` (R) | 1 GET (1) | **PASS**: recusa sem POST |
+| — | Conferência final | — | `R/0/0` |
+| e–i, l, n, q | `listar-processos` com a D | — | NOT_RUN: a leitura da D falha como em d; repetir seria repetir o comando que falhou |
+| — | Várias páginas | — | NOT_RUN: a unidade tem uma página em cada lista e na D |
+
+## PEN2 (Tramita)
+
+`ies login` recusado: `fonte_invalida` / `status_http_de_erro_do_servidor`
+(503 do nginx no segundo GET, 2 túneis). Sem repetição, sem sessão: casos
+a–q **NOT_RUN**, como no ensaio de 02/11.
+
 ## Efeito observado (o que o GET seguinte mostra)
 
 - **Visão:** PEN1, PEN3 e PEN4 lembram a última visão pedida (D depois
-  de `listar-processos`, R depois de `recebidos|gerados`); a UnB volta à R
-  em todo GET. Nada foi restaurado, como decidido.
+  de `listar-processos`, R depois de `recebidos|gerados`); a UFRJ também
+  (D depois do POST de d, R depois de o); a UnB volta à R em todo GET. Nada foi restaurado, como decidido.
 - **Página da D:** fica lembrada à parte das páginas da R. Na PEN1, a
   página 2 pedida em b continuou sendo a da D depois de três comandos na
   R (l devolveu 101–200 sem `--pagina`); na PEN3 e na PEN4, a página 3
@@ -162,10 +195,24 @@ na PEN1, agora também na 5.0.4: D com três páginas e R com duas por lista.
   gerados da página 1 formam a D página 1). `null` é "não observada",
   como contratado.
 - As sessões da PEN1, PEN3 e PEN4 terminaram na D, página 1; a da UnB,
-  na R. Nenhuma
+  na R, como a da UFRJ. Nenhuma
   recusa `bloqueio_de_seguranca_da_instalacao` nem efeito inesperado.
 
 ## Achados
+
+**Legenda no singular na R (corrigido).** A UFRJ publica
+`Processos recebidos (1 registro):`. O total era lido, mas a faixa só
+procurava ` registros` e `recebidos` recusava (caso a). A faixa passou a
+aceitar o singular, como a D já aceitava. RED: 1 teste
+(`legenda_no_singular_comprova_a_faixa_de_um_registro`) falhando antes da
+correção; reensaio a′ **PASS**.
+
+**D de uma página com índice oculto (FAIL, não corrigido).** A D da UFRJ
+publica `hdnDetalhadoPaginaAtual=0` sem paginador e legenda sem intervalo.
+O parser da D trata o índice oculto como paginação visível e exige
+`- inicio a fim`. A R já não conta `hdn{T}PaginaAtual`; a D precisaria
+contar só os paginadores `lnkDetalhado*`/`selDetalhado*`, que hoje não
+reconhece. Fica para outra fatia (uma correção por rodada).
 
 **Mensagem da recusa de página vinda da D (corrigido).** Em o, o
 subcódigo estava certo, mas a mensagem era a genérica da troca de visão,
@@ -192,5 +239,6 @@ D só é conhecido depois de vê-la. Custa 1 POST e deixa a sessão na D.
 | Instalação | Motivo |
 | --- | --- |
 | GO 5.0.3 | WAF devolve 403 "Acesso Negado" em rajadas; fora desta rodada |
-| UFRJ, PEN2 | fora desta rodada |
+| PEN2 | login recusado com 503 (`status_http_de_erro_do_servidor`) |
+| UFRJ, D e várias páginas | D falha na leitura (Achados); uma página por lista |
 | UnB, várias páginas | a unidade tem uma página por lista e a D sem paginação |

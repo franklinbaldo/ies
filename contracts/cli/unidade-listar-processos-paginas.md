@@ -83,8 +83,9 @@ restauração. Efeito avaliado: `AlteraEstadoDaSessao::PaginaOuFiltroLembrado`.
 O GET seguinte pode mostrar a página N da tabela; a faixa publicada diz qual.
 Usar só em instalação de treinamento autorizada. Ensaio live da sintaxe
 `recebidos|gerados --pagina N` em 04/11/2026 ([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): PASS na
-UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista), 1 GET + 0
-ou 1 POST medidos, página lembrada por lista.
+UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista) e na UFRJ
+4.1.5 (uma página, depois da correção do singular), 1 GET + 0 ou 1 POST
+medidos, página lembrada por lista; PEN2 NOT_RUN (login com 503).
 
 | Recusa antes do POST | Subcódigo |
 | --- | --- |
