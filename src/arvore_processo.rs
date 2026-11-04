@@ -37,6 +37,8 @@ mod tests_natureza;
 #[cfg(test)]
 pub(crate) mod tests_pastas;
 #[cfg(test)]
+mod tests_pastas_concatenacao;
+#[cfg(test)]
 mod tests_pastas_integridade;
 #[cfg(test)]
 mod tests_situacao;
@@ -211,6 +213,15 @@ pub(crate) fn ler_arvore(
             protocolos.push(declarados);
             continue;
         }
+        // A concatenação vazia não muda a barra já lida do documento.
+        if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
+            if let Some(&posicao) = de_pasta.get(&i)
+                && documentos[posicao].barra == Barra::NaoLida
+            {
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+            }
+            continue;
+        }
         if let Some(i) = literais::indice_da_barra(linha)
             && let Some(&posicao) = de_pasta.get(&i)
         {
@@ -352,5 +363,22 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
             natureza: natureza::ler_natureza(a),
         },
         barra: Barra::NaoLida,
+    })
+}
+
+/// O NUP (a5) do nó `PROCESSO` declarado, sem conferência: só o replay do
+/// acervo o usa, para tirar da própria gravação a identidade pedida.
+#[cfg(test)]
+pub(crate) fn nup_declarado_na_arvore(html: &str) -> Option<String> {
+    html.split('\n').find_map(|linha| {
+        let (_, argumentos) = ler_declaracao(linha).ok()??;
+        match argumentos.as_slice() {
+            [Literal::Texto(tipo), _, _, _, _, Literal::Texto(nup), ..]
+                if tipo == "PROCESSO" && argumentos.len() == ARGUMENTOS =>
+            {
+                Some(nup.clone())
+            }
+            _ => None,
+        }
     })
 }

@@ -7,6 +7,8 @@
 //! todas as Pastas". Sem retry, sem redirect seguido; cada palpite errado
 //! do índice é esquecido e o comando segue.
 mod abertura;
+#[cfg(test)]
+mod acervo;
 mod andamentos;
 mod controle;
 pub(crate) mod erro;

@@ -95,7 +95,10 @@ A legenda da tabela é `Lista de Andamentos (N registro):` ou
 `andamentos_alem_do_total_declarado`. Linhas aquém de N saem com
 `total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`:
 o IES nunca alega completude além do lido. Nenhum paginador foi visto
-até 75 linhas (GO); históricos maiores: **NOT_RUN**.
+até 75 linhas ao vivo (GO). No [replay do acervo](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md)
+(120 páginas, sete instalações, a maior com 57 linhas na UFRJ) a
+`divInfraAreaPaginacaoSuperior` vem sempre vazia e as linhas igualam N.
+Históricos acima de 75 linhas: **NOT_RUN**.
 
 ## Saída
 

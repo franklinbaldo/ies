@@ -35,6 +35,10 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   abriu o processo na UnB, em GO e na PEN1, inclusive NUPs que a pesquisa
   avançada não achou em GO e na PEN1.
 - Validação live do comando IES: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
+- Replay offline das 495 cassettes públicas pelos mesmos leitores (tela,
+  árvore, pastas, histórico, propriedades, marcadores, situação e
+  natureza), lido/recusado/não aplicável por instalação, achados abertos
+  ([relatório](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md)).
 
 ## Evidência própria do IES (fatia 2, andamentos)
 

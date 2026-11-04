@@ -3,10 +3,11 @@
 //! árvore inteira; o link conferido é guardado no índice com objeto
 //! `<id>:abrir_pastas`, tentado primeiro no caminho 1. Nunca
 //! `FECHAR_PASTAS`, nunca restauração.
-use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_aberta};
+use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_da_pagina};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{ErroArvore, ler_acao_de_abrir_pastas};
 use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao};
+use crate::instalacao::Instalacao;
 
 pub(super) const ACAO: &str = "procedimento_visualizar";
 
@@ -58,7 +59,17 @@ pub(super) fn aberta_inteira(
     html: &str,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    let completa = ler_arvore_aberta(contexto, html, id)?;
+    aberta_inteira_da_pagina(&contexto.instalacao, contexto.nup, html, id)
+}
+
+/// A mesma conferência, sem rede nem índice (também a do replay do acervo).
+pub(super) fn aberta_inteira_da_pagina(
+    instalacao: &Instalacao,
+    nup: &str,
+    html: &str,
+    id: &str,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let completa = ler_arvore_da_pagina(instalacao, nup, html, id)?;
     if completa.arvore.pastas_nao_carregadas {
         return Err(ErroArvore::PastasNaoCarregadasAposAbrirPastas);
     }

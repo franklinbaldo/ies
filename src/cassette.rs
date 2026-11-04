@@ -1,10 +1,9 @@
 //! Replay offline seguro de resposta HTTP a partir de cassette pública.
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use sha1::{Digest as _, Sha1};
-use sha2::Sha256;
-use std::io::{Cursor, Read};
 use std::path::Path;
-use zip::ZipArchive;
+mod conferencia;
+pub(crate) use conferencia::ZipDoAcervo;
+#[cfg(test)]
+pub(crate) use conferencia::{conferir_cassette_ate, html_da_resposta};
 
 fn campo<'a>(source: &'a str, field: &str) -> Option<&'a str> {
     let rest = source.strip_prefix("---\n")?;
@@ -271,8 +270,6 @@ fn passos_de_todas_as_paginas(
     Ok(indices)
 }
 
-// O formato canônico exige sufixos em minúsculas nas evidências.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn read_verified_html(
     card: &Path,
     archive: &Path,
@@ -281,86 +278,8 @@ fn read_verified_html(
     todas_paginas: bool,
     permitir_multiplos: bool,
 ) -> Result<(Vec<String>, String, String), String> {
-    let card_text = std::fs::read_to_string(card).map_err(|_| "card não encontrado")?;
-    if campo(&card_text, "type") != Some("Cassette") {
-        return Err("card não é uma cassette OKF".into());
-    }
-    let member = campo(&card_text, "archive_member").ok_or("cassette sem membro do ZIP")?;
-    if member.contains('/') || member.contains('\\') || !member.ends_with(".json") {
-        return Err("membro inseguro da cassette".into());
-    }
-    let source = campo(&card_text, "source_zip").ok_or("URL do ZIP ausente")?;
-    let suffix = source
-        .strip_prefix("https://archive.org/download/todos-sei-cassettes-2026/")
-        .ok_or("ZIP fora do acervo público")?;
-    if suffix.contains("..")
-        || !suffix.ends_with(".zip")
-        || !(suffix.starts_with("lotes/lote-") || suffix.starts_with("todos-sei-cassettes-"))
-    {
-        return Err("caminho do ZIP não é permitido".into());
-    }
-    let expected_zip = campo(&card_text, "archive_sha1").ok_or("hash do ZIP ausente")?;
-    let expected_json =
-        campo(&card_text, "cassette_sha256_lf").ok_or("hash da cassette ausente")?;
-    if expected_zip.len() != 40
-        || !expected_zip.bytes().all(|b| b.is_ascii_hexdigit())
-        || expected_json.len() != 64
-        || !expected_json.bytes().all(|b| b.is_ascii_hexdigit())
-    {
-        return Err("digest do card inválido".into());
-    }
-    let installation = campo(&card_text, "installation")
-        .ok_or("instalação ausente")?
-        .to_owned();
-    if !["unb", "ufrj", "go", "pen1", "pen2", "pen3", "pen4"].contains(&installation.as_str()) {
-        return Err("instalação fora da lista pública".into());
-    }
-
-    let metadata = archive.metadata().map_err(|_| "ZIP não encontrado")?;
-    if metadata.len() > 160_000_000 {
-        return Err("ZIP maior que 160 MB".into());
-    }
-    let raw = std::fs::read(archive).map_err(|_| "falha ao ler ZIP")?;
-    if format!("{:x}", Sha1::digest(&raw)) != expected_zip {
-        return Err("SHA-1 do ZIP não confere".into());
-    }
-    let mut zip = ZipArchive::new(Cursor::new(raw)).map_err(|_| "ZIP inválido")?;
-    let file = zip
-        .by_name(member)
-        .map_err(|_| "membro não encontrado no ZIP")?;
-    if file.size() > 30_000_000 {
-        return Err("cassette JSON maior que 30 MB".into());
-    }
-    let mut json_bytes = Vec::new();
-    file.take(30_000_001)
-        .read_to_end(&mut json_bytes)
-        .map_err(|_| "falha de leitura da cassette")?;
-    if json_bytes.len() > 30_000_000 {
-        return Err("cassette maior que 30 MB".into());
-    }
-    let normalized = json_bytes.replace_with_lf();
-    if format!("{:x}", Sha256::digest(&normalized)) != expected_json {
-        return Err("SHA-256 da cassette não confere".into());
-    }
-
-    let json: serde_json::Value =
-        serde_json::from_slice(&json_bytes).map_err(|_| "JSON de cassette inválido")?;
-    if json["complete"] != true || json["schema_version"] != 1 {
-        return Err("cassette incompleta ou schema desconhecido".into());
-    }
-    let root = json["sei_root"].as_str().unwrap_or("");
-    let allowed = match installation.as_str() {
-        "unb" => "sei.treinamento.unb.br",
-        "ufrj" => "teste.sei.tic.ufrj.br",
-        "go" => "seitreinamento.go.gov.br",
-        "pen1" => "sei.orgao1.tramita.processoeletronico.gov.br",
-        "pen2" => "sei.orgao2.tramita.processoeletronico.gov.br",
-        "pen3" => "sei.orgao3.tramita.processoeletronico.gov.br",
-        _ => "sei.orgao4.tramita.processoeletronico.gov.br",
-    };
-    if !root.starts_with(&format!("https://{allowed}/")) && root != format!("https://{allowed}") {
-        return Err("host da cassette não corresponde à instalação".into());
-    }
+    let conferida = conferencia::conferir_cassette(card, &ZipDoAcervo::ler(archive)?)?;
+    let (json, installation) = (conferida.json, conferida.instalacao);
     let operation = if todas_paginas {
         "procedimento_controlar"
     } else {
@@ -425,52 +344,14 @@ fn selected_html_pages(
         {
             return Err("passo não é uma resposta de caixa admitida (GET inicial; GET/POST subsequentes offline)".into());
         }
-        let mime = it["response"]["headers"]["content-type"]
-            .as_str()
-            .unwrap_or("");
-        if !mime.to_ascii_lowercase().contains("text/html") {
-            return Err("resposta não é HTML".into());
-        }
-        let b64 = it["response"]["body_base64"]
-            .as_str()
-            .ok_or("body_base64 ausente")?;
-        let bytes = STANDARD.decode(b64).map_err(|_| "body_base64 inválido")?;
-        if bytes.len() > crate::MAX_HTML_BYTES {
-            return Err("HTML acima do limite".into());
-        }
-        let encoding = it["response"]["encoding"].as_str().unwrap_or("");
-        let encoding = if encoding.is_empty() && mime.to_ascii_lowercase().contains("8859-1") {
-            "iso-8859-1"
-        } else {
-            encoding
-        };
+        let (bytes, encoding) = conferencia::corpo_html(it)?;
         total_bytes += bytes.len();
         if total_bytes > 48_000_000 {
             return Err("conjunto de HTML maior que 48 MB".into());
         }
-        pages.push(legivel(&bytes, encoding)?);
+        pages.push(legivel(&bytes, &encoding)?);
     }
     Ok(pages)
-}
-
-trait NewlineNormalization {
-    fn replace_with_lf(&self) -> Vec<u8>;
-}
-impl NewlineNormalization for Vec<u8> {
-    fn replace_with_lf(&self) -> Vec<u8> {
-        let mut ret = Vec::with_capacity(self.len());
-        let mut i = 0;
-        while i < self.len() {
-            if self[i] == b'\r' && self.get(i + 1) == Some(&b'\n') {
-                ret.push(b'\n');
-                i += 2;
-            } else {
-                ret.push(self[i]);
-                i += 1;
-            }
-        }
-        ret
-    }
 }
 
 pub fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, String> {

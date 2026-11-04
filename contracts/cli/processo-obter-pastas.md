@@ -58,7 +58,10 @@ recusa. Barra vazia, ou com links sem esse parâmetro (ao vivo:
 `protocolo_modelo_gerenciar`, `documento_consultar_recebido`, sem
 `comentario_listar`), deixa o documento **sem identidade**. Documento sem
 linha `.acoes` nunca foi observado e é
-`documento_da_pasta_sem_identidade_na_barra`.
+`documento_da_pasta_sem_identidade_na_barra`. A linha seguinte
+`Nos[i].acoes = Nos[i].acoes.concat('');` (UFRJ e GO, sempre com o
+literal vazio) não muda a barra; concatenação com conteúdo é
+`barra_de_no_fora_da_forma_observada`.
 
 **Por pasta.** Toda identidade achada está na lista declarada e aparece
 **exatamente uma vez** (`documento_da_pasta_nao_declarado`,
@@ -152,5 +155,7 @@ que é o protocolo declarado; por isso a saída diz `mista` ou
 `por_contagem`. Ao vivo na UnB (03/11/2026, medição do agente pai) a
 identidade variou **por documento**: num processo de 8 pastas, seis com
 todas as barras vazias, uma com 18 vazias e 2 com links sem identidade,
-outra com 12 e 5; noutro, 19 com identidade e 1 vazia numa pasta. Pastas noutras instalações: não
-observadas. Validação live do comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).
+outra com 12 e 5; noutro, 19 com identidade e 1 vazia numa pasta. No
+[replay do acervo](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md) as
+42 leituras de pastas da UnB e da UFRJ (maior: 8 pastas, 157 documentos)
+são lidas. Pastas noutras instalações: não observadas. Validação live do comando: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).
