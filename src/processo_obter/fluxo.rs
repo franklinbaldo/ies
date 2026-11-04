@@ -24,7 +24,7 @@ use crate::pesquisa_web::fluxo::{SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, conferir_trabalho,
 };
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
 type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
@@ -37,9 +37,8 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
 ) -> Result<ProcessoAberto, E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
-    let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(E::Transporte)?;
-    let cookie = texto.trim().to_owned();
-    validar_cookie(&cookie).map_err(E::Transporte)?;
+    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
+        .map_err(E::Transporte)?;
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),
