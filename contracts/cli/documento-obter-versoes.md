@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Ler versão de documento e preparar cópia de trabalho
-description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual sai do rodapé servido ou da lista lida, nunca de um GET só para ela; com --saida, a leitura prepara DOC.vN.html quando a árvore declara o documento editável e não assinado
+description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual sai do rodapé servido ou da lista lida, nunca de um GET só para ela; com --saida, a leitura prepara DOC.vN.html quando a árvore declara o documento editável e não assinado; o texto da versão N vai para DOC.vN.txt (#204)
 ---
 
 # Versões e cópia de trabalho de `ies documento DOC` (Refs #88)
@@ -89,6 +89,21 @@ Cada documento do JSON da leitura Web ganha:
 `texto` (ou `arquivo` com `--saida`) é o da versão lida. Nunca URL,
 `infra_hash`, cookie ou HTML no terminal.
 
+## Nome do texto com `--saida` (#204)
+
+Decisão do proprietário (04/11/2026): o texto da versão pedida com
+`--versao N` vai para `DOC.vN.txt`, na convenção da cópia `DOC.vN.html`;
+o texto atual, sem `--versao`, continua em `DOC.txt`. Os dois convivem
+na mesma pasta. Com `--versao N` o nome é conhecido antes da rede: um
+`DOC.vN.txt` (arquivo ou link) já presente para qualquer documento do
+lote sai `arquivo_texto_documento_ja_existe` com **0 requisições**. A
+gravação continua `create_new` (0600, sem sobrescrever), então um
+arquivo criado entre a conferência e a gravação ainda é recusado, depois
+da rede. O externo segue a mesma regra por construção: com `--versao N`
+a barra é lida antes do anexo e recusa sem pedi-lo (abaixo), então
+nenhum `DOC.txt` de externo vem de uma versão; a conferência prévia
+também cobre esse nome.
+
 ## Cópia de trabalho
 
 Com `--saida DIR` e sem `--sem-copia`, depois de todos os documentos
@@ -141,6 +156,8 @@ unidade não publica a lista na barra (`lista_de_versoes_nao_publicada_na_arvore
 Validação live: `--versao N` **PASS** na PEN4, na PEN3 e na UFRJ 4.1.5
 (G + 2); cópia `DOC.vN.html` **PASS** na UFRJ
 ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
-Com `--saida`, o texto da versão N vai para o mesmo `DOC.txt` do texto
-atual: num diretório que já tem `DOC.txt` a leitura gasta G + 2 e sai
-`arquivo_texto_documento_ja_existe` (visto na PEN4).
+Antes de #204, com `--saida`, o texto da versão N ia para o mesmo
+`DOC.txt` do texto atual: num diretório que já tinha `DOC.txt` a leitura
+gastava G + 2 e saía `arquivo_texto_documento_ja_existe` (visto na PEN4).
+Agora vai para `DOC.vN.txt`; o nome novo ainda não foi exercido ao vivo
+(coberto por testes sintéticos).

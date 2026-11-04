@@ -82,7 +82,8 @@ linha por documento e o texto. Nunca URL, `infra_hash`, cookie ou HTML.
 
 Com `--saida DIR` (diretório existente), cada texto vai para `DOC.txt`
 0600, sem sobrescrever nem seguir symlink, **depois** de todos lidos; o
-JSON troca `texto` por `arquivo` e `bytes`.
+JSON troca `texto` por `arquivo` e `bytes`. Com `--versao N` o nome é
+`DOC.vN.txt` ([versões](documento-obter-versoes.md), #204).
 
 ## Falhas tipadas
 
@@ -105,7 +106,7 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
-| `arquivo_texto_documento_ja_existe`, `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `escrita_texto_documento_falhou` | `--saida`: `DOC.txt` já existe, o diretório falta ou passa por link simbólico, ou a escrita falhou; conferido depois de todos lidos (as requisições já foram gastas) |
+| `arquivo_texto_documento_ja_existe`, `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `escrita_texto_documento_falhou` | `--saida`: `DOC.txt` (ou `DOC.vN.txt`) já existe, o diretório falta ou passa por link simbólico, ou a escrita falhou; conferido depois de todos lidos (as requisições já foram gastas), salvo `DOC.vN.txt` com `--versao N`, conferido antes da rede (0 requisições) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
 subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive

@@ -3,6 +3,7 @@
 //! `--versao`, `--saida` e `--sem-copia`; os campos `versao`,
 //! `versao_atual`, `copia` e motivos; e a gravação de `DOC.vN.html` (com a
 //! base e o manifesto de `documento salvar`), 0600, sem sobrescrever.
+use crate::arquivo_texto_documento::ErroArquivoTexto;
 use crate::copia_documento::{self, ErroCopia, FonteHtml, IdentidadeCopia};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
@@ -27,6 +28,37 @@ pub(crate) fn pedido(versao: Option<u32>, saida: bool, sem_copia: bool) -> Optio
         versao,
         copia: saida && !sem_copia,
     })
+}
+
+/// O nome do texto em `--saida` (#204): `DOC.txt` para o texto atual e
+/// `DOC.vN.txt` para a versão pedida com `--versao N`, na convenção da
+/// cópia `DOC.vN.html`.
+pub(crate) fn nome_do_texto(numero: &str, pedida: Option<VersaoDocumento>) -> String {
+    match pedida {
+        Some(n) => format!("{numero}.v{}.txt", n.numero()),
+        None => format!("{numero}.txt"),
+    }
+}
+
+/// Antes de qualquer rede (#204): com `--versao N` e `--saida DIR`, o nome
+/// de cada texto já é conhecido; um `DOC.vN.txt` (ou link) já presente é
+/// recusa tipada sem gastar requisição. Sem `--versao` nada é conferido
+/// aqui: o externo grava `DOC.pdf`/`.html`, e o nome só se sabe depois.
+pub(crate) fn conferir_textos_antes_da_rede(
+    diretorio: &Path,
+    numeros: &[NumeroDocumento],
+    pedida: Option<VersaoDocumento>,
+) -> Result<(), ErroArquivoTexto> {
+    let Some(versao) = pedida else {
+        return Ok(());
+    };
+    for numero in numeros {
+        let destino = diretorio.join(nome_do_texto(numero.as_str(), Some(versao)));
+        if std::fs::symlink_metadata(&destino).is_ok() {
+            return Err(ErroArquivoTexto::DestinoJaExiste);
+        }
+    }
+    Ok(())
 }
 
 /// Grava a cópia quando a leitura a preparou; nada quando não.
@@ -93,12 +125,12 @@ pub(crate) fn linha_humana(d: &DocumentoObtido, gravada: Option<&CopiaGravada>) 
 }
 
 #[cfg(test)]
-mod testes {
+pub(crate) mod testes {
     use super::*;
     use crate::arvore_processo::{NaturezaDoDocumento, ProcessoNaArvore};
     use crate::processo_obter::{CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento};
 
-    fn documento(versoes: VersoesDoDocumento) -> DocumentoObtido {
+    pub(crate) fn documento(versoes: VersoesDoDocumento) -> DocumentoObtido {
         DocumentoObtido {
             numero: "0011519".into(),
             id_documento: "42".into(),
@@ -125,11 +157,11 @@ mod testes {
         }
     }
 
-    fn v(n: u32) -> VersaoDocumento {
+    pub(crate) fn v(n: u32) -> VersaoDocumento {
         VersaoDocumento::nova(n).unwrap()
     }
 
-    fn diretorio() -> std::path::PathBuf {
+    pub(crate) fn diretorio() -> std::path::PathBuf {
         let path = std::env::temp_dir().join(format!(
             "ies-versao-cli-{}-{}",
             std::process::id(),
@@ -140,6 +172,48 @@ mod testes {
         ));
         std::fs::create_dir(&path).unwrap();
         path
+    }
+
+    #[test]
+    fn texto_da_versao_pedida_vai_para_doc_vn_txt() {
+        assert_eq!(nome_do_texto("0011519", None), "0011519.txt");
+        assert_eq!(nome_do_texto("0011519", Some(v(3))), "0011519.v3.txt");
+    }
+
+    #[test]
+    fn doc_vn_txt_existente_e_recusado_antes_da_rede() {
+        let pasta = diretorio();
+        let numeros = [
+            NumeroDocumento::novo("0011519").unwrap(),
+            NumeroDocumento::novo("0011520").unwrap(),
+        ];
+        std::fs::write(pasta.join("0011519.txt"), "atual").unwrap();
+        std::fs::write(pasta.join("0011520.v3.txt"), "outra").unwrap();
+        assert_eq!(
+            conferir_textos_antes_da_rede(&pasta, &numeros, None),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_textos_antes_da_rede(&pasta, &numeros[..1], Some(v(2))),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_textos_antes_da_rede(&pasta, &numeros, Some(v(2))),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_textos_antes_da_rede(&pasta, &numeros, Some(v(3))),
+            Err(ErroArquivoTexto::DestinoJaExiste)
+        );
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink("/nao/existe", pasta.join("0011519.v4.txt")).unwrap();
+            assert_eq!(
+                conferir_textos_antes_da_rede(&pasta, &numeros[..1], Some(v(4))),
+                Err(ErroArquivoTexto::DestinoJaExiste)
+            );
+        }
+        std::fs::remove_dir_all(pasta).unwrap();
     }
 
     #[test]

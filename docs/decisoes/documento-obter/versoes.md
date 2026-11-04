@@ -76,6 +76,19 @@ forma servida: `id_documento` duas vezes com o mesmo valor e a âncora
   depois, 5 do rodapé antes do leitor.
 - [Ensaio live na PEN4 5.0.4](../../validacao-live/2026-11-04-documento-versoes.md).
 
+## Nome do texto da versão (#204)
+
+Na PEN4 (#176), `--versao N --saida` gravava em `DOC.txt` e, com o
+texto atual já na pasta, gastava G + 2 para recusar. Alternativas:
+`DOC.vN.txt` (escolhida pelo proprietário em 04/11/2026, na convenção
+de `DOC.vN.html`), sobrescrever `DOC.txt` (perde o texto atual, viola o
+"sem sobrescrever") ou um subdiretório por versão (convenção nova sem
+ganho). Como N e DOC são conhecidos antes da rede, `DOC.vN.txt` já
+presente é recusado com 0 requisições; o `create_new` na gravação
+continua sendo a garantia final. RED: 4 testes falhando
+(`documento_versao_cli::testes`, `documento_obter_cli::testes`,
+`cli_contract`). O externo nunca chega ao anexo com `--versao N`.
+
 ## Limitações e revisão
 
 O `'N'` de `editarConteudo` é a declaração da árvore na montagem; o JS
