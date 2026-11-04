@@ -133,16 +133,19 @@ pub(crate) fn resposta_da_funcao<R: std::io::Read>(
 /// (inclusive as que falharam), da abertura à verificação.
 pub(crate) struct Contador<'v, V> {
     envio: &'v mut V,
-    feitas: u8,
+    feitas: crate::transporte::contagem::ContagemDeRequisicoes,
 }
 
 impl<'v, V> Contador<'v, V> {
     pub(crate) fn novo(envio: &'v mut V) -> Self {
-        Self { envio, feitas: 0 }
+        Self {
+            envio,
+            feitas: crate::transporte::contagem::ContagemDeRequisicoes::default(),
+        }
     }
 
     pub(crate) fn feitas(&self) -> u8 {
-        self.feitas
+        self.feitas.total_u8()
     }
 }
 
@@ -153,7 +156,7 @@ impl<V: EnvioDoProcesso> EnvioDoControle for Contador<'_, V> {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        self.feitas = self.feitas.saturating_add(1);
+        self.feitas.registrar();
         self.envio.post(submissao, cookie)
     }
     fn get(
@@ -161,7 +164,7 @@ impl<V: EnvioDoProcesso> EnvioDoControle for Contador<'_, V> {
         url: &str,
         cookie: &str,
     ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
-        self.feitas = self.feitas.saturating_add(1);
+        self.feitas.registrar();
         self.envio.get(url, cookie)
     }
     fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
@@ -175,7 +178,7 @@ impl<V: EnvioDoProcesso> EnvioDoProcesso for Contador<'_, V> {
         url: &str,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        self.feitas = self.feitas.saturating_add(1);
+        self.feitas.registrar();
         self.envio.get_sem_seguir(url, cookie)
     }
     fn get_binario(
@@ -185,7 +188,7 @@ impl<V: EnvioDoProcesso> EnvioDoProcesso for Contador<'_, V> {
         limite: usize,
     ) -> Result<crate::transporte::resposta_binaria::RespostaBinaria<Self::Corpo>, FalhaTransporte>
     {
-        self.feitas = self.feitas.saturating_add(1);
+        self.feitas.registrar();
         self.envio.get_binario(url, cookie, limite)
     }
 }
