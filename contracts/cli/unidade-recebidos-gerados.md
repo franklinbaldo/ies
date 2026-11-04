@@ -82,7 +82,8 @@ R tem a mesma mensagem da sessão já na R. Ensaio live de 04/11/2026
 ([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9, na PEN1 4.0.12 e na PEN3 e PEN4
 5.0.4, com e sem `--pagina N` e nas duas ordens, e na UFRJ 4.1.5 (uma
 página, legenda `(1 registro):` aceita depois da correção); PEN2 (login
-com 503) e GO **NOT_RUN**. Regime estável: depois da troca a
+com 503, depois 403 do Cloudflare) e GO (login interrompido pelo proxy do
+ambiente) **NOT_RUN** ([GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)). Regime estável: depois da troca a
 sessão está na R, e `recebidos|gerados` custa 1 GET (mais o POST de página,
 se pedido). Uma falha é publicada como está, sem lista; não há POST de
 volta. As recusas `visao_do_controle_nao_restaurada` e
@@ -125,7 +126,10 @@ provisório anterior a 1.0: **sem alias de compatibilidade**.
 
 `recebidos` e `gerados` aplicam à sua tabela as mesmas recusas da caixa
 (total, faixa, paginador sem intervalo) e exigem `lnkInfraUnidade`:
-sem ele, `identificacao_da_unidade_ausente_no_controle`. A outra tabela
+sem ele, `identificacao_da_unidade_ausente_no_controle`. Tabela da
+categoria ausente é `tabela_ausente`, salvo a lista vazia comprovada pela
+estrutura (GO; [páginas da caixa](unidade-listar-processos-paginas.md)),
+publicada com `total_declarado: 0`. A outra tabela
 continua interpretada e verificada estruturalmente pela leitura da tela.
 `--unidade SIGLA` diferente do rótulo publicado falha como em
 `listar-processos`.

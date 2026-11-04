@@ -75,14 +75,25 @@ PEN1): a unidade é a conferida na D que publicou o link, na mesma sessão
 
 ## Resposta do POST e efeito incerto
 
-Não há marcador de resultado observado: a resposta de sucesso é HTML 200
-que fecha o modal. O primitivo aceita HTML 200 sem tela de login
-(`ResultadoDoEnvio::ConferidoPorLeituraPosterior`), e a verificação por GET
-é obrigatória. A resposta **não é a esperada** quando: falha de rede ou
-tempo esgotado, 5xx, 429, 401/403, outro status, 302 (não seguido,
-`redirecionamento_ao_salvar_nivel_de_detalhe`), MIME não HTML, charset,
-tamanho ou tela de login. Então o IES **não repete** o POST: faz o mesmo GET
-de verificação **uma vez** para reconciliar.
+A resposta de sucesso observada (PEN1 5.0.4, 02/11/2026, captura privada
+estrutural) é HTML 200, sem redirect, com a **mesma tela** do Nível de
+detalhe: o `inicializar()` dela traz `if ('1'=='1'){`, seguido de
+`window.parent.location` para `procedimento_controlar` e
+`infraFecharJanelaModal()`. No GET a mesma função traz `if (''=='1'){`
+(PEN1 5.0.4, GO 5.0.3, UnB 4.0.9). O primitivo continua aceitando HTML 200
+sem tela de login (`ResultadoDoEnvio::ConferidoPorLeituraPosterior`); a
+**operação** lê esse sinal na resposta, por forma exata (uma só
+`function inicializar(){`, depois `if ('V'=='1'){`), sem executar JS. A
+verificação por GET continua obrigatória: o sinal só classifica a resposta.
+
+A resposta **é a esperada** só com `V` = `1`. **Não é a esperada** quando:
+falha de rede ou tempo esgotado, 5xx, 429, 401/403, outro status, 302 (não
+seguido, `redirecionamento_ao_salvar_nivel_de_detalhe`), MIME não HTML,
+charset, tamanho, tela de login, validação da Infra, a tela devolvida com
+`V` vazio (`nivel_de_detalhe_devolvido_sem_sinal_de_gravacao`) ou HTML 200
+sem o `inicializar()` nessa forma (`resposta_do_salvar_nao_reconhecida`).
+Então o IES **não repete** o POST: faz o mesmo GET de verificação **uma
+vez** para reconciliar.
 
 | Resposta do POST | Marcas lidas no GET | Saída | Resultado |
 | --- | --- | --- | --- |
@@ -163,7 +174,9 @@ formulário `frmAcessoExternoCancelar`, caixas `chkSin*` sem `value`, oculto
 `hdnInfraTipoPagina`, `sbmSalvar` "Salvar", `hdnInfraPrefixoCookie` fora do
 formulário; o POST de salvar envia só o oculto, o botão e as marcadas
 `on`; resposta 200 sem redirect que fecha o modal; a D e o GET da tela
-mostram a mudança em seguida. Ensaio deste comando: offline com telas
-sintéticas de 12 e 11 opções; live **NOT_RUN**
-([roteiro](../../docs/validacao-live/roteiro-definir-colunas.md),
+mostram a mudança em seguida. Ensaio deste comando: PASS na PEN1 5.0.4 e na
+UnB 4.0.9 em 02/11/2026 e na UnB em 04/11/2026; **saída 3 na PEN1 em
+04/11/2026**, sem efeito, com causa não registrada
+([diagnóstico](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md),
+[roteiro](../../docs/validacao-live/roteiro-definir-colunas.md),
 [decisão](../../docs/decisoes/unidade-definir-colunas.md)).

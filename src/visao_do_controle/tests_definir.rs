@@ -7,6 +7,7 @@ use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual};
 use super::*;
 use crate::formulario_web::{ErroSubmissaoFormulario as S, RespostaDoPost, SubmissaoDerivada};
 use crate::nivel_de_detalhe::tests_alvo::{HASH_DO_SALVAR, onze, tela_salvavel};
+use crate::nivel_de_detalhe::tests_salvar::resposta_do_salvar;
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe as C, ErroNivelDeDetalhe};
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::io::Cursor;
@@ -108,11 +109,9 @@ fn nivel(publicadas: &[C], marcadas: &[C]) -> Passo {
     Passo::Html(200, tela_salvavel(publicadas, marcadas, ""))
 }
 
+/// Resposta do salvar que gravou (PEN1 5.0.4): a tela com `'1'=='1'`.
 fn fecha_modal() -> Passo {
-    Passo::Html(
-        200,
-        "<html><body><script>infraFecharJanelaModal();</script></body></html>".to_owned(),
-    )
+    Passo::Html(200, resposta_do_salvar(&C::TODAS, &C::TODAS, "1"))
 }
 
 struct Rodada {
@@ -490,5 +489,59 @@ fn resposta_esperada_e_verificacao_impossivel_e_efeito_incerto() {
         } if **verificacao == VerificacaoDasColunas::LeituraFalhou(
             ErroVisaoDoControle::Transporte(FalhaTransporte::Rede)
         )
+    ));
+}
+
+#[test]
+fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
+    let rodada = salvar_incerto(
+        Passo::Html(200, resposta_do_salvar(&C::TODAS, &ATUAL, "")),
+        nivel(&C::TODAS, &ATUAL),
+    );
+    assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
+    let falha = erro(&rodada);
+    assert!(matches!(
+        falha,
+        ErroDefinirColunas::ConfiguracaoDeColunasNaoAplicada {
+            falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
+            ..
+        }
+    ));
+    assert_eq!(falha.saida(), 1);
+    assert_eq!(
+        FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.subcodigo(),
+        "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"
+    );
+    assert_eq!(
+        FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.status_http(),
+        None
+    );
+}
+
+#[test]
+fn resposta_200_nao_reconhecida_e_leitura_do_alvo_e_reconciliada() {
+    let inventada =
+        "<html><body><script>infraFecharJanelaModal();</script></body></html>".to_owned();
+    let rodada = salvar_incerto(Passo::Html(200, inventada), nivel(&C::TODAS, &C::TODAS));
+    assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
+    let por = ok(&rodada).reconciliado_por.as_ref().unwrap();
+    assert_eq!(por, &FalhaDoSalvar::RespostaDoSalvarNaoReconhecida);
+    assert_eq!(por.subcodigo(), "resposta_do_salvar_nao_reconhecida");
+}
+
+#[test]
+fn sem_sinal_e_verificacao_impossivel_e_efeito_incerto_com_a_falha_do_salvar() {
+    let rodada = salvar_incerto(
+        Passo::Html(200, resposta_do_salvar(&C::TODAS, &ATUAL, "")),
+        Passo::Falha(FalhaTransporte::Rede),
+    );
+    assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
+    assert!(matches!(
+        erro(&rodada),
+        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+            falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
+            verificacao,
+            ..
+        } if matches!(**verificacao, VerificacaoDasColunas::LeituraFalhou(_))
     ));
 }

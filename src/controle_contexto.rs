@@ -108,11 +108,15 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    contexto_do_dom(&dom)
+}
+
+pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, ErroCaixa> {
     Ok(ContextoPagina {
-        unidade: unidade_html(&dom)?,
-        modo: valor_oculto(&dom, "hdnTipoVisualizacao")?,
-        criterios_recebidos: valor_oculto(&dom, "hdnRecebidosHashCriterios")?,
-        criterios_gerados: valor_oculto(&dom, "hdnGeradosHashCriterios")?,
+        unidade: unidade_html(dom)?,
+        modo: valor_oculto(dom, "hdnTipoVisualizacao")?,
+        criterios_recebidos: valor_oculto(dom, "hdnRecebidosHashCriterios")?,
+        criterios_gerados: valor_oculto(dom, "hdnGeradosHashCriterios")?,
     })
 }
 /// `hdnIdMarcador{id da unidade}` com valor: a visão R mostra só os

@@ -46,11 +46,7 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies documento salvar DOC` | **PARCIAL LOCAL**; `--confirmar` remoto bloqueado | Prévia, diff/cópias de trabalho locais e inventário versionado | Detectar versão/assinatura/conflitos no SEI; salvar com efeito e reconciliação; preservar rascunhos | [#89](https://github.com/franklinbaldo/ies/issues/89) |
 | `ies documento buscar [--assunto]` | **STUB** | Gramática/entrada Clap; pesquisa textual apenas em `replay` | Busca Web por critérios observados, identidade, paginação e erros de acesso, sem promover replay a busca live | [#61](https://github.com/franklinbaldo/ies/issues/61) |
 | `ies documento assinar DOC` | **STUB** | Gramática/confirmar declarados | Prévia, permissões, assinatura autorizada e confirmação independente dos efeitos | [evidência](../contracts/evidencias/documento-assinar.md) |
-| `ies unidade listar-processos [--pagina N]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Visão D com colunas, categoria observada na R do mesmo GET e `colunas_ausentes`; troca R→D sem volta ou D direta, sem restaurar visão nem página (a sessão fica na D); 1 GET + 0 a 2 POST, 1 GET em regime estável | [live 04/11](validacao-live/2026-11-04-unidade-paginacao.md): PASS UnB, PEN1, PEN3, PEN4 (D com 3 páginas), UFRJ (D de 1 página, após correção); PEN2, GO NOT_RUN; [replay](validacao-replay/2026-11-04-unidade-listar-processos-acervo.md) | [contrato](../contracts/cli/unidade-listar-processos-visao-detalhada.md) |
-| `ies unidade colunas [--definir todas\|LISTA [--confirmar]]` | **PARCIAL WEB** (`--definir`: PENDENTE PR) | 12 opções do catálogo do Nível de detalhe com `disponivel` (a UnB 4.0.9 publica 11) e `marcada`; D: 2 GET; R: 2 GET + 1 POST D, e a sessão fica na D. `--definir`: prévia sem salvar; `--confirmar`: 1 POST de salvar + 1 GET de verificação, reconciliação e saída 3 | Ensaio live da leitura e da escrita | [leitura](../contracts/cli/unidade-colunas.md), [escrita](../contracts/cli/unidade-definir-colunas.md) |
-| `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e fica nela (+1 POST) | [live 04/11](validacao-live/2026-11-04-unidade-paginacao.md): PASS UnB, PEN1, PEN3, PEN4, UFRJ (página lembrada); PEN2, GO NOT_RUN; [replay](validacao-replay/2026-11-04-unidade-listar-processos-acervo.md) | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
-| `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
-| `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Validar em instalações autorizadas e garantir contexto da sessão; não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
+| `ies unidade listar-processos`, `colunas`, `recebidos`, `gerados`, `atual` | ver a [matriz da unidade](matriz-derivacao-cli-unidade.md) (5 caminhos) | Idem | Idem | Idem |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
 | `ies login [--forcar]` | **PARCIAL WEB** (PENDENTE PR, decisão do proprietário, 02/11/2026) | Login pela tela servida da raiz (SIP e módulo de Goiás), credenciais em arquivo `0600`, órgão exato, `hdnAcao` e botão observados, Painel pelo link do menu, gravação atômica por geração sob lock; sessão válida: 1 GET | Ensaio live por instalação (UnB, PEN1, UFRJ, GO); mensagem real de credencial recusada; relogin nos outros comandos só depois de falha tipada de sessão vencida (futuro) | [contrato](../contracts/cli/sessao-login.md) |
@@ -99,53 +95,9 @@ com recusa correta da caixa paginada, mas com `resposta_inesperada`
 intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; os estados da matriz
 não mudam, porque a paginação ativa (#57) continua ausente.
 
-**PENDENTE PR #57 (página observada e `--pagina N`):** `unidade
-listar-processos` deixa de recusar caixa paginada: devolve a página que a
-tela mostra com `total_declarado` e `faixa_observada` por tabela, zero POST;
-`unidade recebidos|gerados --pagina N` (antes `--categoria T --pagina N`)
-faz no máximo um POST do paginador da tabela,
-com efeito `PaginaOuFiltroLembrado` e sem restauração. Ensaio live
-**NOT_RUN**. Inventário das outras leituras paginadas, ainda fora da
-[regra geral](../contracts/cli.md): `processo NUP --resumo` e
-`replay --numero-processo` recusam página parcial
-(`paginas_do_controle_nao_obtidas`) porque ausência numa página não prova
-ausência na caixa; `--resultado-pesquisa-file` e `--historico-privado` não
-leem total nem faixa da resposta; a lista de versões de documento só
-aceita legenda igual às linhas. Alinhar cada uma exige evidência da
-legenda e, para `--pagina N`, do paginador daquela tela.
-
-**Decisão do proprietário (02/11/2026), exceção explícita à regra de
-priorização:** Recebidos e Gerados são listas independentes do SEI
-(paginador, total, faixa e página lembrada próprios). Por isso ganham
-os subcomandos `ies unidade recebidos` e `ies unidade gerados`, os únicos
-com `--pagina N`; `listar-processos` devolve o array das duas listas e
-perde `--categoria` e `--pagina`, sem alias. Não é capacidade nova da
-operação `unidade.listar_processos`: mesmo GET, mesmo POST e mesmas
-recusas ([decisão](decisoes/unidade-listar-processos.md)). A exceção não
-autoriza outros verbos.
-
-**PENDENTE PR (visão detalhada por padrão, decisão do proprietário,
-02/11/2026):** `listar-processos` lê a visão D (uma lista com colunas e a
-categoria observada por processo), troca de visão sem restaurar (a sessão
-fica na D; decisão do proprietário, 02/11/2026: restaurar desperdiçava
-requisições), e volta a ter `--pagina N` (página da D, que fica lembrada); `--pagina-arquivo` sai. `unidade
-colunas` lê o Nível de detalhe sem salvar. A
-[decisão](decisoes/unidade-listar-processos.md) registra a exceção à regra
-de não criar verbos para `colunas`, que integra a mesma operação.
-Ensaio live **NOT_RUN**.
-
-**PENDENTE PR (escrita das colunas, decisão do proprietário "B",
-02/11/2026):** `unidade colunas --definir todas|LISTA [--confirmar]` é a
-operação `unidade.definir_colunas`, a primeira **escrita** remota do IES: a
-opção pertence ao comando já exposto (não é verbo novo) e substitui a
-alternativa de salvar e restaurar a cada listagem. Sem `--confirmar`, prévia
-com os campos do POST e zero escrita; com ele, um POST de salvar e um GET de
-verificação, reconciliação por leitura e saída 3 para efeito incerto; vinda
-da R, a sessão fica na D. `listar-processos` passa a sugerir
-`--definir todas` para as `colunas_ausentes`; `ies setup` não aplica nada.
-Offline com telas sintéticas de 12 e 11 opções; ensaio live **NOT_RUN**
-([decisão](decisoes/unidade-definir-colunas.md),
-[roteiro](validacao-live/roteiro-definir-colunas.md)).
+**#57 (caixa da unidade):** página observada e `--pagina N`, listas
+independentes, visão detalhada por padrão e escrita das colunas estão na
+[matriz da unidade](matriz-derivacao-cli-unidade.md).
 
 **PENDENTE PR (login nativo, decisão do proprietário, 02/11/2026):** `ies
 login [--forcar]` é a operação `sessao.login`, um comando novo por decisão

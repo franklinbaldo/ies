@@ -23,10 +23,14 @@ Se ocorrer timeout depois de uma requisição mutável, o
 efeito pode já ter ocorrido: não repita automaticamente.
 Reconcile lendo o estado, ou declare **efeito incerto**.
 
-Exemplo: salvar o Nível de detalhe responde só com uma página que fecha
-o modal. A prova é o GET seguinte da mesma tela: marcas iguais às pedidas
-(sucesso), iguais às de antes (não aplicada) ou outras (efeito incerto,
-se a resposta do salvar também não foi a esperada).
+Exemplo: salvar o Nível de detalhe responde com a mesma tela, cujo
+`inicializar()` passa de `if (''=='1'){` (GET) para `if ('1'=='1'){`
+seguido de `infraFecharJanelaModal()` (PEN1 5.0.4): é o sinal de que o SEI
+gravou. O sinal classifica a resposta, mas a prova é o GET seguinte da
+mesma tela: marcas iguais às pedidas (sucesso), iguais às de antes (não
+aplicada) ou outras (efeito incerto, se a resposta do salvar também não
+foi a esperada). Se esse GET falha, o efeito é incerto mesmo com o sinal
+([diagnóstico da PEN1](../validacao-live/2026-11-04-definir-colunas-pen1.md)).
 
 O acervo atual de cassettes contém as respostas, mas não
 todos os corpos das requisições POST. Ele é suficiente para

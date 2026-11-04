@@ -173,7 +173,8 @@ Versão lida na tela. Sessão nova na R (`R/0/0`). A R publica
 
 `ies login` recusado: `fonte_invalida` / `status_http_de_erro_do_servidor`
 (503 do nginx no segundo GET, 2 túneis). Sem repetição, sem sessão: casos
-a–q **NOT_RUN**, como no ensaio de 02/11.
+a–q **NOT_RUN**, como no ensaio de 02/11. A segunda tentativa do dia
+(GO e PEN2) está no [relatório próprio](2026-11-04-unidade-paginacao-go-pen2.md).
 
 ## Efeito observado (o que o GET seguinte mostra)
 
@@ -243,7 +244,7 @@ D só é conhecido depois de vê-la. Custa 1 POST e deixa a sessão na D.
 
 | Instalação | Motivo |
 | --- | --- |
-| GO 5.0.3 | WAF devolve 403 "Acesso Negado" em rajadas; fora desta rodada |
-| PEN2 | login recusado com 503 (`status_http_de_erro_do_servidor`) |
+| GO 5.0.3 | WAF devolve 403 "Acesso Negado" em rajadas; fora desta rodada; na segunda tentativa, login interrompido pelo proxy do ambiente ([GO e PEN2](2026-11-04-unidade-paginacao-go-pen2.md)) |
+| PEN2 | login recusado com 503 (`status_http_de_erro_do_servidor`); na segunda tentativa, 403 do Cloudflare ([GO e PEN2](2026-11-04-unidade-paginacao-go-pen2.md)) |
 | UFRJ, várias páginas e casos e–i, l, n, q | uma página por lista e na D; casos da D não rodados na rodada (o d′ passou depois da correção) |
 | UnB, várias páginas | a unidade tem uma página por lista e a D sem paginação |

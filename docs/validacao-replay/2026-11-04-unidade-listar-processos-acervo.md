@@ -14,8 +14,8 @@ leitores e regras de identidade no
 Nenhuma requisição ao SEI: os 29 ZIPs do cache, cada um conferido pelo
 `archive_sha1` e cada membro pelo `cassette_sha256_lf` dos cards.
 
-**Escopo.** 495 cassettes, 757 respostas (743 GET, 14 POST), 8.233
-leituras, 1.393 páginas de lista. Replay offline não é ensaio live:
+**Escopo.** 495 cassettes, 757 respostas (743 GET, 14 POST), 8.237
+leituras, 1.397 páginas de lista. Replay offline não é ensaio live:
 prova que cada tela gravada é lida ou recusada com subcódigo, não o
 fluxo HTTP do IES. O ensaio live de paginação está em
 [validação live](../validacao-live/).
@@ -53,21 +53,21 @@ omitidas abaixo.
 | --unidade da tela anterior | **todas** | 234 | 212 | 22 (`unidade_da_tela_diferente_da_solicitada` 22) | 0 |
 | lista R (juntar) | unb | 269 | 265 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
 | lista R (juntar) | ufrj | 87 | 83 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
-| lista R (juntar) | go | 84 | 73 | 3 (`filtro_de_marcador_ativo_no_controle` 1; `tabela_ausente` 2) | 8 (`filtro_na_url_servida` 3; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| lista R (juntar) | go | 84 | 75 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 8 (`filtro_na_url_servida` 3; `tela_na_visao_d_o_comando_troca_para_r` 5) |
 | lista R (juntar) | pen1 | 72 | 68 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
 | lista R (juntar) | pen2 | 69 | 65 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
 | lista R (juntar) | pen3 | 76 | 72 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
 | lista R (juntar) | pen4 | 72 | 68 | 1 (`filtro_de_marcador_ativo_no_controle` 1) | 3 (`filtro_na_url_servida` 3) |
-| lista R (juntar) | **todas** | 729 | 694 | 9 (`filtro_de_marcador_ativo_no_controle` 7; `tabela_ausente` 2) | 26 (`filtro_na_url_servida` 21; `tela_na_visao_d_o_comando_troca_para_r` 5) |
-| recebidos | go | 84 | 73 | 0 | 11 (`lista_r_nao_lida` 6; `tela_na_visao_d_o_comando_troca_para_r` 5) |
-| recebidos | **todas** | 729 | 694 | 0 | 35 (`lista_r_nao_lida` 30; `tela_na_visao_d_o_comando_troca_para_r` 5) |
-| gerados | go | 84 | 73 | 0 | 11 (`lista_r_nao_lida` 6; `tela_na_visao_d_o_comando_troca_para_r` 5) |
-| gerados | **todas** | 729 | 694 | 0 | 35 (`lista_r_nao_lida` 30; `tela_na_visao_d_o_comando_troca_para_r` 5) |
-| página de recebidos | **todas** | 699 | 694 | 0 | 5 (`tela_na_visao_d_o_comando_troca_para_r` 5) |
-| página de gerados | **todas** | 699 | 694 | 0 | 5 (`tela_na_visao_d_o_comando_troca_para_r` 5) |
+| lista R (juntar) | **todas** | 729 | 696 | 7 (`filtro_de_marcador_ativo_no_controle` 7) | 26 (`filtro_na_url_servida` 21; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| recebidos | go | 84 | 75 | 0 | 9 (`lista_r_nao_lida` 4; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| recebidos | **todas** | 729 | 696 | 0 | 33 (`lista_r_nao_lida` 28; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| gerados | go | 84 | 75 | 0 | 9 (`lista_r_nao_lida` 4; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| gerados | **todas** | 729 | 696 | 0 | 33 (`lista_r_nao_lida` 28; `tela_na_visao_d_o_comando_troca_para_r` 5) |
+| página de recebidos | **todas** | 701 | 696 | 0 | 5 (`tela_na_visao_d_o_comando_troca_para_r` 5) |
+| página de gerados | **todas** | 701 | 696 | 0 | 5 (`tela_na_visao_d_o_comando_troca_para_r` 5) |
 | lista D (colunas) | **todas** | 729 | 5 | 0 | 724 (`tela_na_visao_r_o_comando_troca_para_d` 724) |
 | página da D | **todas** | 729 | 5 | 0 | 724 (`tela_na_visao_r_o_comando_troca_para_d` 724) |
-| linhas com link (colheita) | **todas** | 729 | 699 | 0 | 30 (`lista_r_nao_lida` 30) |
+| linhas com link (colheita) | **todas** | 729 | 701 | 0 | 28 (`lista_r_nao_lida` 28) |
 | tela de login (sip/login.php) | unb | 8 | 0 | 8 (`pagina_de_login_recebida_no_controle` 8) | 0 |
 | tela de login (sip/login.php) | ufrj | 1 | 0 | 1 (`pagina_de_login_recebida_no_controle` 1) | 0 |
 | tela de login (sip/login.php) | pen1 | 1 | 0 | 1 (`pagina_de_login_recebida_no_controle` 1) | 0 |
@@ -80,7 +80,7 @@ D em GO); unidade em 729. Linhas publicadas: 38.310 de Recebidos e
 36.998 de Gerados (até 100 por página), todas as faixas começando em 1.
 Na D (GO, 5 telas, 10 linhas cada): 12 colunas configuradas,
 `colunas_ausentes` vazio e uma célula de marcadores com marcador por
-tela; lista e posição da D lidas nas 5. Colheita: 75.358 linhas em 699
+tela; lista e posição da D lidas nas 5. Colheita: 75.358 linhas em 701
 telas, todas com `href`.
 
 ## Páginas publicadas (múltiplas páginas)
@@ -94,14 +94,14 @@ exibida e terminar em `min(total, 2 × tamanho)`.
 |---|---|---:|---:|---:|---:|---|---|
 | recebidos | unb | 265 | 0 | 0 | 1 |  | 0 de 0 |
 | recebidos | ufrj | 83 | 39 | 113 | 2 | 100 | 39 de 39 |
-| recebidos | go | 73 | 73 | 402 | 41 | 10 | 73 de 73 |
+| recebidos | go | 75 | 73 | 402 | 41 | 10 | 73 de 73 |
 | recebidos | pen1 | 68 | 32 | 106 | 2 | 100 | 32 de 32 |
 | recebidos | pen2 | 65 | 65 | 493 | 5 | 100 | 65 de 65 |
 | recebidos | pen3 | 72 | 72 | 168 | 2 | 100 | 72 de 72 |
 | recebidos | pen4 | 68 | 68 | 157 | 2 | 100 | 68 de 68 |
 | gerados | unb | 265 | 0 | 0 | 1 |  | 0 de 0 |
 | gerados | ufrj | 83 | 0 | 0 | 1 |  | 0 de 0 |
-| gerados | go | 73 | 73 | 7950 | 795 | 10 | 73 de 73 |
+| gerados | go | 75 | 73 | 7950 | 795 | 10 | 73 de 73 |
 | gerados | pen1 | 68 | 68 | 218 | 3 | 100 | 68 de 68 |
 | gerados | pen2 | 65 | 65 | 203 | 3 | 100 | 65 de 65 |
 | gerados | pen3 | 72 | 60 | 123 | 2 | 100 | 60 de 60 |
@@ -165,7 +165,7 @@ faixa, ids diferentes) é a caixa mudando entre as requisições do cenário.
 | Mesma unidade da tela anterior | 212 | lido (nenhuma divergência de `juntar`) | as sete |
 | Tela de login (`sip/login.php`) pelo transporte do Controle | 12 | `pagina_de_login_recebida_no_controle` | UnB, UFRJ, PEN1 a PEN3 |
 | Filtro de marcador ativo (POST, passo 2 de `marcador-listar-processos-*`) | 7 | `filtro_de_marcador_ativo_no_controle` | as sete |
-| Unidade sem processos em GO (tabelas omitidas) | 2 | `tabela_ausente` (achado aberto 1) | GO |
+| Unidade sem processos em GO (tabelas omitidas, prova estrutural) | 2 | lida: `total_declarado: 0`, sem faixa (achado corrigido 3) | GO |
 | Tela de marcadores (`tipo_filtro=M`) | 21 | não aplicável | as sete |
 
 Nenhuma tela de login gravada como resposta de `procedimento_controlar`
@@ -192,16 +192,23 @@ reais passadas pelo mesmo transporte.
    filtro); evita recusar a lista de um processo só.
    [Contrato das páginas](../../contracts/cli/unidade-listar-processos-paginas.md).
 
+3. **Unidade vazia em GO** (`unidade-troca-e-volta-go#6`,
+   `bloco-devolver-go#38`, unidade `ABC/GECONT-18141`). As duas telas
+   são idênticas na estrutura: visão R, unidade identificada, nenhuma
+   `<table>`; `div{T}AreaTabela` e as duas `div{T}AreaPaginacao*` só
+   com espaços; `hdn{T}NroItens` e `hdn{T}PaginaAtual` únicos e `0`;
+   nenhuma mensagem de lista vazia. Antes `tabela_ausente` (2); agora
+   lidas, Recebidos e Gerados com `total_declarado: 0` e
+   `faixa_observada: null`, e `--pagina 2` é `pagina_fora_do_intervalo`
+   (`paginas: 1`). Falta qualquer parte, ou repetida, ou diferente de 0:
+   continua `tabela_ausente`. RED: 2 de 4 testes
+   (`paginas::tests_vazia`). A visão D vazia não está no acervo e não
+   foi inventada.
+
 ### Abertos
 
-1. **Unidade vazia em GO** (`unidade-troca-e-volta-go#6`,
-   `bloco-devolver-go#38`, unidade `ABC/GECONT-18141`): visão R com
-   `divRecebidosAreaTabela` e `divGeradosAreaTabela` vazias, sem
-   `<table>`, e `hdn{T}NroItens` 0. Hoje `tabela_ausente`; publicar
-   `total_declarado: 0` sem legenda exige decisão (a fonte seria o
-   oculto, não a legenda).
-2. **Filtro na visão D**: não observado; a recusa nova é só da R.
-3. **Página N real**: ver continuidade acima.
+1. **Filtro na visão D**: não observado; a recusa nova é só da R.
+2. **Página N real**: ver continuidade acima.
 
 ## Reproduzir
 

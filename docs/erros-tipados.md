@@ -57,7 +57,9 @@ código os inspeciona para decidir tratamento. Ver o
 (`bloqueio_de_seguranca_da_instalacao`) é o 403 com a página de bloqueio
 do WAF de GO (03/11/2026, depois de rajadas): `<title>Acesso Negado</title>`
 e a frase "bloqueada por nossa política de segurança" no texto visível
-do corpo. É reconhecimento de **tela** (como o da tela de login), feito
+do corpo; ou a do Cloudflare da PEN2 (04/11/2026, segundo GET de
+`ies login`): `<title>Attention Required! | Cloudflare</title>` e
+"Sorry, you have been blocked". É reconhecimento de **tela** (como o da tela de login), feito
 na camada de transporte para todos os comandos Web
 (`src/transporte/bloqueio_de_seguranca.rs`), não leitura da mensagem para
 decidir tratamento. Expõe `status_http` 403 e a mensagem saneada com o

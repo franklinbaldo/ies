@@ -24,6 +24,15 @@ na [forma única](unidade-recebidos-gerados.md):
   intervalo e linhas iguais ao total (`3 registros:`, ou `1 registro:` e
   `(1 registro):` no singular, este na UFRJ), a faixa é `1..total`.
   Tabela com zero registros publica `faixa_observada: null`.
+- **Lista vazia sem tabela** (GO 5.0.3, unidade sem processos, replay de
+  04/11/2026): o SEI omite `tbl{T}`. A lista é publicada com
+  `total_declarado: 0`, `faixa_observada: null` e nenhum processo **só**
+  com a prova estrutural inteira: visão R e `lnkInfraUnidade`
+  identificados; `div{T}AreaTabela`, `div{T}AreaPaginacaoSuperior` e
+  `div{T}AreaPaginacaoInferior` únicas e só com espaços; `hdn{T}NroItens`
+  e `hdn{T}PaginaAtual` únicos e com valor `0`. Faltando, repetida ou
+  diferente qualquer parte, `tabela_ausente`. `--pagina 2` é
+  `pagina_fora_do_intervalo` (`paginas: 1`). A D vazia não foi observada.
 - No replay de páginas capturadas, a faixa é a união contígua das
   páginas recebidas, em qualquer ponto da lista.
 - A faixa pode não começar em 1: o servidor lembra a página pedida na
@@ -86,7 +95,8 @@ Usar só em instalação de treinamento autorizada. Ensaio live da sintaxe
 `recebidos|gerados --pagina N` em 04/11/2026 ([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): PASS na
 UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista) e na UFRJ
 4.1.5 (uma página, depois da correção do singular), 1 GET + 0 ou 1 POST
-medidos, página lembrada por lista; PEN2 NOT_RUN (login com 503).
+medidos, página lembrada por lista; PEN2 e GO NOT_RUN (login recusado
+ou interrompido; [GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
 
 | Recusa antes do POST | Subcódigo |
 | --- | --- |

@@ -227,4 +227,5 @@ UnB 4.0.9 (R→D, 1 GET + 1 POST; a UnB volta à R a cada GET) e na PEN1
 regimes da tabela, com as requisições contadas e a página da D lembrada.
 UFRJ 4.1.5: D de uma página com `hdnDetalhadoPaginaAtual=0`, sem
 paginador e legenda sem intervalo; recusada na rodada e **PASS** depois
-da correção (o índice `0` sozinho não é paginação). PEN2 e GO **NOT_RUN**.
+da correção (o índice `0` sozinho não é paginação). PEN2 e GO **NOT_RUN** (segunda tentativa:
+[GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).

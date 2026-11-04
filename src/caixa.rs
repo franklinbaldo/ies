@@ -4,6 +4,9 @@ use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
+mod vazia;
+pub(crate) use vazia::lista_vazia_comprovada;
+
 /// Lido da fonte da tag; tag ilegível não vira atributo ausente.
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroCaixa> {
     valor_do_atributo(tag, nome).map_err(|_| ErroCaixa::HtmlInvalido)
@@ -68,6 +71,7 @@ fn ler_linhas(
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
     let candidatas = nos_com_id(dom, table_id).map_err(|_| ErroCaixa::HtmlInvalido)?;
     let primeira = match candidatas.as_slice() {
+        [] if vazia::lista_vazia_comprovada(dom, categoria)? => return Ok((Some(0), Vec::new())),
         [] => return Err(ErroCaixa::TabelaAusente { categoria }),
         [primeira] => *primeira,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
