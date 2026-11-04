@@ -81,7 +81,7 @@ recusa até haver captura.
 
 ## Limitações e revisão
 
-Validação live **NOT_RUN** até o agente pai rodar `ies processo` na PEN1.
+Validação live **PASS** na PEN1 ([relatório](../../validacao-live/2026-11-04-processo-obter-movidos.md)).
 Uma instalação só: rever se outra servir o nó noutra forma, se o `.html`
 vier sem link (sem acesso ao destino, por exemplo), se aparecer movido
 em pasta ou se o link do destino com `id_documento` não abrir a tela do
