@@ -21,8 +21,8 @@ na [forma única](unidade-recebidos-gerados.md):
 ```
 
 - A faixa vem da legenda (`(114 registros - 1 a 100):`). Com legenda sem
-  intervalo e linhas iguais ao total (`3 registros:`), a faixa é `1..total`;
-  o singular `(1 registro):` (UFRJ) vale igual.
+  intervalo e linhas iguais ao total (`3 registros:`, ou `1 registro:` e
+  `(1 registro):` no singular, este na UFRJ), a faixa é `1..total`.
   Tabela com zero registros publica `faixa_observada: null`.
 - No replay de páginas capturadas, a faixa é a união contígua das
   páginas recebidas, em qualquer ponto da lista.
@@ -38,6 +38,7 @@ Continuam recusas tipadas, antes de publicar ou exportar:
 | Legenda sem intervalo e total diferente das linhas | `legenda_sem_faixa_com_total_diferente_das_linhas` |
 | Paginador da tabela publicado e legenda sem intervalo | `paginador_da_tabela_sem_faixa_na_legenda` |
 | Faixa inválida, alterada ou páginas não contíguas | `faixa_invalida`, `faixa_alterada`, `faixa_descontinua` |
+| Filtro de marcador ativo (`hdnIdMarcador{unidade}` com valor; a lista é só a do marcador) | `filtro_de_marcador_ativo_no_controle` |
 
 Paginadores por tabela reconhecidos pelo `id`: `lnk{T}ProximaPagina*`,
 `lnk{T}PaginaAnterior*`, `lnk{T}PrimeiraPagina*`, `lnk{T}UltimaPagina*` e

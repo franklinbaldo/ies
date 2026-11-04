@@ -2,10 +2,10 @@
 //! `ler_arvore_da_pagina` (árvore, vínculo, movidos e os três links da
 //! página) ou, com `abrir_pastas=1` na URL servida, a de
 //! `aberta_inteira_da_pagina`; depois pastas, situação e natureza.
-use super::gravacao::{self, Resposta};
 use super::leitores::Cassette;
 use super::{Leitor, Registro, Resultado};
 use crate::arvore_processo::{AbertoEm, ErroArvore, MotivoAbertoEm, ler_acao_de_abrir_pastas};
+use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::processo_obter::abertura::{ArvoreAberta, ler_arvore_da_pagina};
 use crate::processo_obter::pastas::aberta_inteira_da_pagina;
 

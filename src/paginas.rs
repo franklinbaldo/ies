@@ -21,7 +21,7 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         .replace("&nbsp;", " ")
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
-    // Singular com um registro (UFRJ: `(1 registro):`).
+    // Singular (`1 registro:`, UFRJ `(1 registro):`), como a visão D já lê.
     let Some((antes, depois)) = normalizada.trim().split_once(" registro") else {
         return Ok(None);
     };
@@ -300,6 +300,11 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
     if contexto_inicial.eh_resumida() && controles_de_paginacao(&paginas[0])? {
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
+    for html in paginas {
+        if crate::controle_contexto::filtro_de_marcador_ativo(html)? {
+            return Err(ErroCaixa::FiltroDeMarcadorAtivoNoControle);
+        }
+    }
     if let Some(esperada) = unidade_esperada
         && contexto_inicial
             .unidade
@@ -370,3 +375,6 @@ mod tests;
 
 #[cfg(test)]
 mod tests_faixa;
+
+#[cfg(test)]
+mod tests_filtro;

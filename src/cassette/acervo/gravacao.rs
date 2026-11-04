@@ -4,15 +4,15 @@
 use crate::instalacao::Instalacao;
 use serde_json::Value;
 
-pub(super) struct Resposta<'a> {
-    pub(super) passo: usize,
-    pub(super) operacao: &'a str,
-    pub(super) metodo: &'a str,
-    pub(super) status: u64,
-    pub(super) item: &'a Value,
+pub(crate) struct Resposta<'a> {
+    pub(crate) passo: usize,
+    pub(crate) operacao: &'a str,
+    pub(crate) metodo: &'a str,
+    pub(crate) status: u64,
+    pub(crate) item: &'a Value,
 }
 
-pub(super) fn respostas(json: &Value) -> Vec<Resposta<'_>> {
+pub(crate) fn respostas(json: &Value) -> Vec<Resposta<'_>> {
     let Some(lista) = json["interactions"].as_array() else {
         return Vec::new();
     };
@@ -30,7 +30,7 @@ pub(super) fn respostas(json: &Value) -> Vec<Resposta<'_>> {
 }
 
 /// Valores do parâmetro `nome` na consulta da URL servida.
-pub(super) fn parametro<'a>(item: &'a Value, nome: &str) -> Vec<&'a str> {
+pub(crate) fn parametro<'a>(item: &'a Value, nome: &str) -> Vec<&'a str> {
     let url = item["response"]["url"].as_str().unwrap_or("");
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
     consulta
@@ -43,13 +43,13 @@ pub(super) fn parametro<'a>(item: &'a Value, nome: &str) -> Vec<&'a str> {
 
 /// O `id_procedimento` da URL servida: um único valor decimal (repetido
 /// igual é aceito, como em `arvore_visualizar`).
-pub(super) fn id_procedimento(item: &Value) -> Option<String> {
+pub(crate) fn id_procedimento(item: &Value) -> Option<String> {
     decimal_unico(&parametro(item, "id_procedimento"))
 }
 
 /// O id da tela aberta pela pesquisa rápida: `id_protocolo`, a mesma
 /// chave que `conferir_trabalho` lê do 302 (`OrigemDoTrabalho::PesquisaRapida`).
-pub(super) fn id_da_pesquisa_rapida(item: &Value) -> Option<String> {
+pub(crate) fn id_da_pesquisa_rapida(item: &Value) -> Option<String> {
     (parametro(item, "acao_origem") == ["protocolo_pesquisa_rapida"])
         .then(|| decimal_unico(&parametro(item, "id_protocolo")))
         .flatten()
@@ -62,7 +62,7 @@ fn decimal_unico(valores: &[&str]) -> Option<String> {
 }
 
 /// A instalação da gravação: `sei_root` e o caminho de `controlador.php`.
-pub(super) fn instalacao(json: &Value) -> Option<Instalacao> {
+pub(crate) fn instalacao(json: &Value) -> Option<Instalacao> {
     let raiz = json["sei_root"].as_str()?;
     let caminho = json["interactions"]
         .as_array()?
@@ -74,7 +74,7 @@ pub(super) fn instalacao(json: &Value) -> Option<Instalacao> {
 }
 
 /// O `Location` de um 302 gravado.
-pub(super) fn localizacao(item: &Value) -> Option<&str> {
+pub(crate) fn localizacao(item: &Value) -> Option<&str> {
     let cabecalhos = item["response"]["headers"].as_object()?;
     cabecalhos
         .iter()
