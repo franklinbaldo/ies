@@ -79,7 +79,7 @@ restaurar custava requisições e o efeito residual é cosmético):
 Orçamento: 1 GET + 1 POST (R); com `--pagina N` diferente da página
 mostrada, 1 GET + 2 POST (R, página N). A recusa de página depois do POST
 R tem a mesma mensagem da sessão já na R. Ensaio live de 04/11/2026
-([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9, na PEN1 4.0.12 e na PEN3 e PEN4
+([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9, na PEN1, na PEN3 e na PEN4
 5.0.4, com e sem `--pagina N` e nas duas ordens, e na UFRJ 4.1.5 (uma
 página, legenda `(1 registro):` aceita depois da correção); PEN2 (login
 com 503, depois 403 do Cloudflare) e GO (login interrompido pelo proxy do

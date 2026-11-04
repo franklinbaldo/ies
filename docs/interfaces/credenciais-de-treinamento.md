@@ -17,7 +17,7 @@ Divergência entre esta tabela e a fonte: vale a fonte.
 | Chave | Instalação | Origem (`IES_ORIGEM_FILE`) | Usuário | Senha | Órgão | Fonte |
 | --- | --- | --- | --- | --- | --- | --- |
 | `unb` | UnB 4.0.9 | `https://sei.treinamento.unb.br/sei` | `aluno1` | `aluno1` | `UnB` | [fonte](https://portalsei.unb.br/ambiente-de-treinamento-do-sei-v-4-0/) |
-| `pen1` | PEN1 4.0.12 (Tramita) | `https://sei.orgao1.tramita.processoeletronico.gov.br/sei` | `orgao1` | `orgao1` | `ORGAO1` | [fonte](https://wiki.processoeletronico.gov.br/pt-br/latest/Tramita_GOV_BR/Perguntas_frequentes/Ambientes_de_Homologacao_e_de%20_Producao.html) |
+| `pen1` | PEN1 5.0.4 (Tramita) | `https://sei.orgao1.tramita.processoeletronico.gov.br/sei` | `orgao1` | `orgao1` | `ORGAO1` | [fonte](https://wiki.processoeletronico.gov.br/pt-br/latest/Tramita_GOV_BR/Perguntas_frequentes/Ambientes_de_Homologacao_e_de%20_Producao.html) |
 | `pen2` | PEN2 (Tramita) | `https://sei.orgao2.tramita.processoeletronico.gov.br/sei` | `orgao2` | `orgao2` | `ORGAO2` | [fonte](https://wiki.processoeletronico.gov.br/pt-br/latest/Tramita_GOV_BR/Perguntas_frequentes/Ambientes_de_Homologacao_e_de%20_Producao.html) |
 | `pen3` | PEN3 5.0.4 (Tramita) | `https://sei.orgao3.tramita.processoeletronico.gov.br/sei` | `orgao3` | `orgao3` | `ORGAO` | [fonte](https://wiki.processoeletronico.gov.br/pt-br/latest/Tramita_GOV_BR/Perguntas_frequentes/Ambientes_de_Homologacao_e_de%20_Producao.html) |
 | `pen4` | PEN4 5.0.4 (Tramita) | `https://sei.orgao4.tramita.processoeletronico.gov.br/sei` | `orgao4` | `orgao4` | `ORGAO4` | [fonte](https://wiki.processoeletronico.gov.br/pt-br/latest/Tramita_GOV_BR/Perguntas_frequentes/Ambientes_de_Homologacao_e_de%20_Producao.html) |

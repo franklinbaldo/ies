@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN da colheita sem requisição extra no login e da 
 
 # Ensaio live da colheita do Controle — 03/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Colheita do Controle no [índice local](../arquitetura/0003-indice-local.md)
 e passo 1b de [`ies processo NUP`](../../contracts/cli/processo-obter-arvore.md),
 binário em release do ramo do PR, índice novo por instalação, ritmo

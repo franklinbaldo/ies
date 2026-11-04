@@ -108,7 +108,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 ## Evidência própria do IES (documentos movidos)
 
-- Captura privada ao vivo da PEN1 4.0.12 (04/11/2026, `0600`,
+- Captura privada ao vivo da PEN1 5.0.4 (04/11/2026, `0600`,
   `iso-8859-1`, lida só pela estrutura): árvore de 4 nós de 16
   argumentos, 1 `PROCESSO`, 2 `DOCUMENTO` e 1 `DOCUMENTO_MOVIDO` com a1
   `<n>-<m>`, a2 igual ao id do processo, a3 igual ao do nó `PROCESSO` e
@@ -168,7 +168,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 ## Evidência própria do IES (situação e natureza)
 
 - Capturas privadas das árvores da UnB 4.0.9 (seis), de GO 5.0.3 (uma) e
-  da PEN1 4.0.12 (uma), `0600`, `iso-8859-1`, lidas só pela estrutura: o
+  da PEN1 5.0.4 (uma), `0600`, `iso-8859-1`, lidas só pela estrutura: o
   `.html` do nó `PROCESSO` em seis formas (somente na unidade, com e sem
   atribuição; nas unidades, com e sem atribuição; sem andamentos abertos;
   aviso de anexação) e sete radicais de ícone de documento, um cancelado

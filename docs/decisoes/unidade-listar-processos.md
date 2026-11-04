@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: Controle de Processos Web com sessão existente; listar-processos pela visão detalhada com troca de visão sem restauração, colunas do Nível de detalhe (só leitura) e recebidos/gerados com --pagina N
 selected_strategy: web-session-readonly
 alternatives: web-session-readonly,rest-wssei,soap-official
-evidence_level: replays-offline-e-contratos-documentados
-live_validation: nao-realizada-neste-recorte
+evidence_level: replay-do-acervo-ensaios-live-e-contratos-documentados
+live_validation: pass-unb-pen1-pen3-pen4-ufrj-0411-go-pen2-not-run
 ---
 
 # Leitura da caixa da unidade
@@ -147,7 +147,8 @@ PEN1, PEN3 e PEN4 (5.0.4) e Goiás (5.0.3) chamam
 define `infraAcaoPaginar` **não** foi capturado: que a função só grava
 `hdn{T}PaginaAtual` e chama `submit()` vem do oráculo Todos (listas comuns),
 não da caixa. Ensaio offline do plano e da derivação nas capturas: PASS
-(PEN1, PEN3, PEN4, Goiás; UnB e UFRJ sem paginação). Ensaio live: **NOT_RUN**.
+(PEN1, PEN3, PEN4, Goiás; UnB e UFRJ sem paginação). Ensaio live: PASS em
+04/11/2026 ([relatório](../validacao-live/2026-11-04-unidade-paginacao.md)).
 
 Sem restauração da página 1: a faixa publicada mostra qual página a tela
 traz, e a restauração seria outro POST com o mesmo efeito. Revisar se o
@@ -173,7 +174,7 @@ com uma categoria inexistente no SEI; descartado também um campo
 GET, mesmo POST da #146, mesmas recusas; `--unidade` é conferido pela
 mesma leitura. A exportação `--saida` e a importação `--caixa-local`
 passam ao array; o formato anterior é recusado. Ensaio live da nova
-sintaxe: **NOT_RUN** (o ensaio de 02/11/2026 usou `--categoria`).
+sintaxe: PASS em 04/11/2026 (o ensaio de 02/11/2026 usou `--categoria`).
 
 ## Visão detalhada por padrão (decisão do proprietário, 02/11/2026)
 
@@ -247,7 +248,8 @@ Testes: [visão e sequência](../../src/visao_do_controle/tests_fluxo.rs),
 02/11/2026 em PEN1, UnB e GO
 ([relato](../validacao-live/2026-11-02-leitura-controle.md)), com a versão
 que restaurava: troca e restauração da visão PASS; `colunas` na UnB FAIL,
-corrigido. Fluxo sem restauração: **NOT_RUN**. Revisar se o live mostrar 302
+corrigido. Fluxo sem restauração: PASS em UnB, PEN1, PEN3, PEN4 e UFRJ
+(04/11/2026; GO e PEN2 NOT_RUN). Revisar se o live mostrar 302
 na troca ou colunas de ícone ausentes.
 
 ## Sem restauração (decisão do proprietário, 02/11/2026)

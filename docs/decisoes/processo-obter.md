@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; documentos movidos fora dos documentos, com o destino pelo link do nó; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio; marcadores pela tela andamento_marcador_gerenciar da barra, sempre lista (apêndice)
 selected_strategy: web-indice-pesquisa-rapida-arvore
 alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo,web-propriedades-da-barra,web-propriedades-todas-as-telas,web-propriedades-listas-ocultas,web-movidos-pelo-link-do-no,web-movidos-pela-dica,web-marcadores-da-barra,web-marcadores-da-celula-do-controle
-evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
-live_validation: pass-unb-go-pen1-fatias-1-e-2
+evidence_level: capturas-privadas-estrutura-replay-do-acervo-ensaios-live-e-testes-sinteticos
+live_validation: pass-unb-go-pen1-todas-as-fatias-ufrj-pen3-pen4-not-run
 ---
 
 # Ler processo: resumo na caixa e árvore com índice local
@@ -301,7 +301,7 @@ numa instalação nova, e por isso `--sem-propriedades` existe.
 
 ## Documentos movidos
 
-`DOCUMENTO_MOVIDO` (PEN1 4.0.12) fica fora dos documentos; o destino sai
+`DOCUMENTO_MOVIDO` (PEN1 5.0.4) fica fora dos documentos; o destino sai
 do link assinado do `.html` do nó (**web-movidos-pelo-link-do-no**), nunca
 da frase da dica (**web-movidos-pela-dica**, rejeitada). 0 requisições a
 mais. Alternativas e trade-offs no

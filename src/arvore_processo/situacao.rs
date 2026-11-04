@@ -1,6 +1,6 @@
 //! Onde o processo está aberto: o `.html` do nó `PROCESSO` (Refs #59;
 //! contracts/cli/processo-obter-situacao.md). Formas observadas na `UnB`
-//! 4.0.9, em GO 5.0.3 e na PEN1 4.0.12: "Processo aberto somente na
+//! 4.0.9, em GO 5.0.3 e na PEN1 5.0.4: "Processo aberto somente na
 //! unidade <a>", "Processo aberto nas unidades:<br /><a>…" (com
 //! atribuição por unidade) e "Processo não possui andamentos abertos.";
 //! nas sete instalações do acervo, "Processo sobrestado na unidade <a>."

@@ -117,8 +117,12 @@ Invariante de **toda** leitura paginada da CLI:
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
 
-`processo NUP`, `documento NUMERO` e a escrita remota continuam
-como stubs. A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
+Continuam como stubs `documento DOC` (obtenção Web), `documento buscar`,
+`documento salvar --confirmar` remoto, `processo enviar`, `processo
+concluir` e `documento assinar`. `processo NUP` lê pela árvore
+([contrato](cli/processo-obter-arvore.md)) e `unidade colunas --definir
+--confirmar` é a escrita remota implementada
+([contrato](cli/unidade-definir-colunas.md)). A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
 ensaios por cassette e por instalação.
 
 

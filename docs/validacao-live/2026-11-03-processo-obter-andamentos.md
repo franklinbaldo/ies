@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN do histórico resumido e completo, do índice que
 
 # Ensaio live dos andamentos de `ies processo NUP` — 03/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Recorte 2 da #59 ([contrato](../../contracts/cli/processo-obter-andamentos.md)),
 binário em release do ramo do PR, [índice local](../arquitetura/0003-indice-local.md)
 novo por instalação. Ritmo espaçado (pausas de 2 a 3 s), depois do

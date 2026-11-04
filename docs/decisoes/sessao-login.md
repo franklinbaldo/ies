@@ -7,8 +7,8 @@ status: adopted-for-scope
 scope: ies login [--forcar] na instalação configurada; credenciais em arquivo privado 0600; um GET de conferência da sessão gravada; login pela raiz com redirecionamentos só no host; um POST derivado do frmLogin servido; gravação atômica de cookie, URL e marcador de geração sob lock; sem login automático em outros comandos
 selected_strategy: ies-login-web-nativo
 alternatives: ies-login-web-nativo,todos-como-harness-externo,rest-wssei-token,soap-official
-evidence_level: comportamento-do-todos-e-telas-publicas-de-login-sem-credencial
-live_validation: nao-realizada-neste-recorte
+evidence_level: comportamento-do-todos-telas-publicas-de-login-e-ensaios-live
+live_validation: pass-unb-pen1-pen3-pen4-ufrj-go-pen2-bloqueada-pelo-ambiente
 ---
 
 # Login Web nativo do IES
@@ -91,6 +91,12 @@ tipada de sessão vencida, uma vez, nunca em laço).
   binário em `src/sessao_login/tests_*.rs` (telas sintéticas por família e
   sequência exata de pedidos).
 - [Roteiro live do operador](../validacao-live/roteiro-login.md).
+- Ensaios live com `ies login`: PASS em UnB e PEN1
+  ([colheita, 03/11/2026](../validacao-live/2026-11-03-colheita-do-controle.md)),
+  GO ([árvore, 03/11/2026](../validacao-live/2026-11-03-processo-obter-arvore.md)),
+  PEN3, PEN4 e UFRJ ([paginação, 04/11/2026](../validacao-live/2026-11-04-unidade-paginacao.md));
+  PEN2 recusada pelo ambiente (503 e 403 do Cloudflare,
+  [2ª tentativa](../validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
 
 ## Limitações e revisão
 

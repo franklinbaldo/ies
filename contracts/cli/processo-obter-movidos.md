@@ -14,7 +14,7 @@ e [movido presente](../../docs/decisoes/processo-obter/movido-presente.md).
 
 ## Nó aceito
 
-Forma observada na PEN1 4.0.12 (04/11/2026) e no acervo público (GO,
+Forma observada na PEN1 5.0.4 (04/11/2026) e no acervo público (GO,
 PEN1, PEN2, PEN3), a única aceita: `DOCUMENTO_MOVIDO` com 16 argumentos,
 a1 composto `<decimal>-<decimal>` (opaco; na captura, a primeira parte é
 o `id_documento` do link do destino e a segunda o
