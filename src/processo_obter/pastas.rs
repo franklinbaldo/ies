@@ -27,7 +27,8 @@ pub(super) fn objeto(id: &str) -> String {
     format!("{id}:abrir_pastas")
 }
 
-/// A árvore já conferida, completada se tem pasta fechada. Depois da
+/// A árvore já conferida, completada se tem pasta fechada (e o documento
+/// procurado, se houver, não está à vista). Depois da
 /// primeira árvore a identidade está provada: tudo aqui é erro, não palpite.
 pub(super) fn completar<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
@@ -35,7 +36,14 @@ pub(super) fn completar<V: EnvioDoProcesso>(
     html: &str,
     aberta: ArvoreAberta,
 ) -> Result<ArvoreAberta, E> {
-    if !aberta.arvore.pastas_nao_carregadas {
+    let procurado_visivel = contexto.documento_procurado.is_some_and(|numero| {
+        aberta
+            .arvore
+            .documentos
+            .iter()
+            .any(|d| d.numero_sei.as_deref() == Some(numero))
+    });
+    if !aberta.arvore.pastas_nao_carregadas || procurado_visivel {
         return Ok(aberta);
     }
     let id = aberta.arvore.processo.id.clone();

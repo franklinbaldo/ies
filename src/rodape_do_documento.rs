@@ -1,0 +1,96 @@
+//! O rodapé que o `documento_visualizar` serve abaixo do conteúdo (Refs
+//! #88; contracts/cli/documento-obter-versoes.md): um
+//! `<div unselectable="on">` com `Criado por <a>U</a>, versão N por <a>U</a>
+//! em DATA.`, gerado pelo SEI (não é texto editável). Visto em todas as 96
+//! respostas `documento_visualizar` do acervo (`UnB`, PEN1 a PEN4) e na
+//! PEN4 5.0.4 ao vivo, inclusive na versão N lida pela lista (`versão N`).
+//! Só a forma exata conta: nenhum ou mais de um rodapé é "não servido".
+use crate::documento_versoes::VersaoDocumento;
+use crate::html_atributos::atributos;
+
+/// A versão que o rodapé declara para o conteúdo servido; `None` se não há
+/// exatamente um rodapé na forma observada.
+pub(crate) fn versao_do_rodape(html: &str) -> Option<VersaoDocumento> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let parser = dom.parser();
+    let mut achadas = Vec::new();
+    for no in dom.query_selector("div")?.filter_map(|h| h.get(parser)) {
+        let Some(tag) = no.as_tag() else {
+            continue;
+        };
+        let lidos = atributos(tag).ok()?;
+        if lidos.valor("unselectable").ok()? != Some("on") {
+            continue;
+        }
+        let texto = crate::entidades_html::decodificar_texto(&no.inner_text(parser));
+        let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
+        if let Some(versao) = versao_da_linha(&texto) {
+            achadas.push(versao);
+        }
+    }
+    match achadas.as_slice() {
+        [uma] => Some(*uma),
+        _ => None,
+    }
+}
+
+/// `Criado por X, versão N por Y em DATA.` → N.
+fn versao_da_linha(texto: &str) -> Option<VersaoDocumento> {
+    let resto = texto.strip_prefix("Criado por ")?;
+    let mut partes = resto.split(", versão ");
+    let (_, depois) = (partes.next()?, partes.next()?);
+    if partes.next().is_some() {
+        return None;
+    }
+    let (numero, resto) = depois.split_once(" por ")?;
+    let (_, data) = resto.rsplit_once(" em ")?;
+    if data.is_empty() || !data.ends_with('.') {
+        return None;
+    }
+    VersaoDocumento::interpretar(numero).ok()
+}
+
+#[cfg(test)]
+pub(crate) mod testes {
+    use super::*;
+
+    /// O rodapé na forma servida pela PEN4 5.0.4 (04/11/2026).
+    pub(crate) fn rodape(versao: &str) -> String {
+        format!(
+            "<div unselectable=\"on\" style=\"user-select:none;\">\n<hr style=\"border:1px solid #c0c0c0;\" />Criado por <a onclick=\"alert('Usuário Teste')\" title=\"Usuário Teste\">USUARIO</a>, versão {versao} por <a onclick=\"alert('Usuário Teste')\" title=\"Usuário Teste\">USUARIO</a> em 20/10/2026 14:07:04.\n</div>"
+        )
+    }
+
+    fn pagina(corpo: &str) -> String {
+        format!(
+            "<html><head><title>SEI/X - 0007 - Despacho</title></head><body><p>Texto, versão 9 por alguém.</p>{corpo}</body></html>"
+        )
+    }
+
+    #[test]
+    fn rodape_servido_declara_a_versao() {
+        assert_eq!(
+            versao_do_rodape(&pagina(&rodape("2"))).map(VersaoDocumento::numero),
+            Some(2)
+        );
+        let com_entidade = rodape("3").replace("versão", "vers&atilde;o");
+        assert_eq!(
+            versao_do_rodape(&pagina(&com_entidade)).map(VersaoDocumento::numero),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn sem_rodape_repetido_ou_fora_da_forma_nao_ha_versao() {
+        assert_eq!(versao_do_rodape(&pagina("")), None);
+        let dois = format!("{}{}", rodape("2"), rodape("3"));
+        assert_eq!(versao_do_rodape(&pagina(&dois)), None);
+        for fora in ["0", "2a", ""] {
+            assert_eq!(versao_do_rodape(&pagina(&rodape(fora))), None, "{fora}");
+        }
+        let selecionavel = rodape("2").replace("unselectable=\"on\"", "class=\"x\"");
+        assert_eq!(versao_do_rodape(&pagina(&selecionavel)), None);
+        let sem_data = rodape("2").replace(" em 20/10/2026 14:07:04.", ".");
+        assert_eq!(versao_do_rodape(&pagina(&sem_data)), None);
+    }
+}

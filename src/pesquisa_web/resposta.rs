@@ -51,6 +51,8 @@ pub(crate) enum ErroRespostaDaPesquisa {
     FaixaDaBarraDeContagemImpossivel,
     LinhasDaTabelaDiferentesDaFaixaDaBarra,
     Resultado(ErroResultadoPesquisa),
+    /// Linha da pesquisa em documentos (`ies documento buscar`).
+    Documento(super::documentos::ErroDocumentoDaPesquisa),
     AtributoHtml(ErroAtributoHtml),
 }
 
@@ -78,6 +80,7 @@ impl ErroRespostaDaPesquisa {
                 "linhas_da_tabela_diferentes_da_faixa_da_barra"
             }
             Self::Resultado(erro) => erro.subcodigo(),
+            Self::Documento(erro) => erro.subcodigo(),
             Self::AtributoHtml(erro) => erro.subcodigo(),
         }
     }
@@ -106,32 +109,63 @@ pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
 }
 
 /// "Exibindo I - F de N", com espaços colapsados; nada antes ou depois.
-fn ler_barra(texto: &str) -> Result<(FaixaDaPesquisa, u64), ErroRespostaDaPesquisa> {
+/// "N resultados" (sem faixa) volta como `Ok((None, N))`.
+fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
     let palavras: Vec<&str> = texto.split_whitespace().collect();
     let numero = |t: &str| ler_contagem(t).ok_or(E::NumeroDaBarraDeContagemForaDoFormato);
     // "Exibindo I - F de N" pagina; "N resultados" é a lista que cabe numa
-    // página, sem `navegar()` (`UnB`, 2 e 9 resultados). O singular não foi
+    // página, sem `navegar()` (`UnB`, 2 e 9 resultados), ou a última página
+    // na PEN3 5.0.4 (`pesquisa-paginas-pen3`, passo 9). O singular não foi
     // observado e continua fora do formato.
     let (inicio, fim, total) = match palavras.as_slice() {
         ["Exibindo", inicio, "-", fim, "de", total] => {
             (numero(inicio)?, numero(fim)?, numero(total)?)
         }
-        [total, "resultados"] => {
-            let total = numero(total)?;
-            (1.min(total), total, total)
-        }
+        [total, "resultados"] => return Ok((None, numero(total)?)),
         _ => return Err(E::TextoDaBarraDeContagemForaDoFormato),
     };
     if inicio == 0 || inicio > fim || fim > total {
         return Err(E::FaixaDaBarraDeContagemImpossivel);
     }
-    Ok((FaixaDaPesquisa { inicio, fim }, total))
+    Ok((Some(FaixaDaPesquisa { inicio, fim }), total))
+}
+
+/// A página `numero` marcada no paginador (`div.pesquisaPaginaSelecionada`).
+pub(crate) fn pagina_selecionada(
+    dom: &tl::VDom<'_>,
+) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
+    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")
+        .map_err(ErroRespostaDaPesquisa::AtributoHtml)?;
+    Ok(match marcadas.as_slice() {
+        [uma] => ler_contagem(texto_visivel(*uma, dom.parser()).trim()),
+        _ => None,
+    })
+}
+
+/// A resposta 200 classificada, com as linhas lidas pelo leitor da operação.
+pub(crate) enum Classificada<T> {
+    SemResultado,
+    Lista {
+        itens: Vec<T>,
+        total_declarado: u64,
+        faixa: FaixaDaPesquisa,
+    },
 }
 
 /// Classifica a resposta 200 (já sem validação da Infra) em lista ou
 /// "sem resultado"; o 302 é interpretado antes, em `formulario_pesquisa`.
-pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+/// `ler` lê as linhas (processos ou documentos); a barra e a contagem são
+/// as mesmas.
+///
+/// `na_pagina` é a faixa esperada e o número da página pedida por
+/// `--pagina N`: na última página a PEN3 5.0.4 mostra "N resultados", que
+/// só vale essa faixa quando ela termina em N e o paginador marca a página.
+pub(crate) fn classificar_resposta<T>(
+    html: &str,
+    na_pagina: Option<(FaixaDaPesquisa, u64)>,
+    ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
+) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
@@ -142,7 +176,7 @@ pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRe
     let barras =
         nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD").map_err(E::AtributoHtml)?;
     match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
-        (true, 1, true) => return Ok(RespostaDaPesquisa::SemResultado),
+        (true, 1, true) => return Ok(Classificada::SemResultado),
         (true, 1, false) => return Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
         (true, _, _) => return Err(E::RespostaDaPesquisaNaoReconhecida),
         (false, 0, _) => {}
@@ -154,16 +188,62 @@ pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRe
         _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
     };
     let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
-    let (faixa, total_declarado) = ler_barra(&texto)?;
-    let processos = ler_resultados(html).map_err(E::Resultado)?;
-    if processos.len() as u64 != faixa.fim - faixa.inicio + 1 {
+    let (faixa, total_declarado) = match ler_barra(&texto)? {
+        (Some(faixa), total) => (faixa, total),
+        (None, total) => match na_pagina {
+            Some((esperada, numero))
+                if esperada.inicio > 1
+                    && esperada.fim == total
+                    && pagina_selecionada(&dom)? == Some(numero) =>
+            {
+                (esperada, total)
+            }
+            _ => (
+                FaixaDaPesquisa {
+                    inicio: 1.min(total),
+                    fim: total,
+                },
+                total,
+            ),
+        },
+    };
+    if faixa.inicio == 0 {
+        return Err(E::FaixaDaBarraDeContagemImpossivel);
+    }
+    let itens = ler(html)?;
+    if itens.len() as u64 != faixa.fim - faixa.inicio + 1 {
         return Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra);
     }
-    Ok(RespostaDaPesquisa::Lista(ListaDaPesquisa {
-        processos,
+    Ok(Classificada::Lista {
+        itens,
         total_declarado,
         faixa,
-    }))
+    })
+}
+
+/// A resposta 200 da pesquisa em processos.
+pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+    ler_resposta_na_pagina(html, None)
+}
+
+/// [`ler_resposta_html`] da resposta de `--pagina N` (faixa esperada e N).
+pub(crate) fn ler_resposta_na_pagina(
+    html: &str,
+    na_pagina: Option<(FaixaDaPesquisa, u64)>,
+) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+    let ler = |html: &str| ler_resultados(html).map_err(ErroRespostaDaPesquisa::Resultado);
+    Ok(match classificar_resposta(html, na_pagina, ler)? {
+        Classificada::SemResultado => RespostaDaPesquisa::SemResultado,
+        Classificada::Lista {
+            itens,
+            total_declarado,
+            faixa,
+        } => RespostaDaPesquisa::Lista(ListaDaPesquisa {
+            processos: itens,
+            total_declarado,
+            faixa,
+        }),
+    })
 }
 
 #[cfg(test)]

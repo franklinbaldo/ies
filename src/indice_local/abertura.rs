@@ -60,6 +60,21 @@ const MIGRACOES: &[&str] = &[
         observado_em REAL NOT NULL,
         PRIMARY KEY (origem, geracao_sessao, unidade, acao, objeto)
     ) STRICT;",
+    // 1 → 2 (Refs #60, fatia 2): número SEI ↔ (processo, documento) e o
+    // aceite da entrada por id com `id_documento`, medido à parte.
+    "CREATE TABLE documento (
+        origem TEXT NOT NULL,
+        numero_sei TEXT NOT NULL,
+        id_procedimento TEXT NOT NULL,
+        id_documento TEXT NOT NULL,
+        observado_em REAL NOT NULL,
+        PRIMARY KEY (origem, numero_sei),
+        UNIQUE (origem, id_documento)
+    ) STRICT;
+    ALTER TABLE instalacao ADD COLUMN entrada_com_documento INTEGER
+        CHECK (entrada_com_documento IN (0, 1));
+    ALTER TABLE instalacao ADD COLUMN entrada_com_documento_testado_em REAL;
+    ALTER TABLE instalacao ADD COLUMN recusas_com_documento INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub(super) fn versao_do_esquema() -> i64 {

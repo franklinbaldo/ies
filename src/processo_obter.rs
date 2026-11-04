@@ -9,8 +9,14 @@
 mod abertura;
 #[cfg(test)]
 mod acervo;
+#[cfg(test)]
+mod acervo_documento;
+#[cfg(test)]
+mod acervo_versoes;
 mod andamentos;
 mod controle;
+mod documento;
+mod documento_indice;
 pub(crate) mod erro;
 mod fluxo;
 mod login;
@@ -33,6 +39,14 @@ mod tests_colheita;
 #[cfg(test)]
 mod tests_controle;
 #[cfg(test)]
+mod tests_documento;
+#[cfg(test)]
+mod tests_documento_externo;
+#[cfg(test)]
+mod tests_documento_indice;
+#[cfg(test)]
+mod tests_documento_versoes;
+#[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
 mod tests_indice;
@@ -54,10 +68,19 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
+use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+#[cfg(test)]
+pub(crate) use documento::{
+    CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento, obter_documento,
+};
+pub(crate) use documento::{
+    DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
+    obter_documento_com_versoes,
+};
 pub(crate) use erro::ErroProcessoObter;
-pub(crate) use fluxo::obter_processo;
+pub(crate) use fluxo::{abrir_para_concluir, obter_processo};
 use std::path::Path;
 
 /// GET que devolve também o `Location` (302 como dado, nunca seguido).
@@ -67,6 +90,15 @@ pub(crate) trait EnvioDoProcesso: EnvioDoControle {
         url: &str,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
+
+    /// GET binário do link do anexo (Refs #60, fatia 3): `limite` é o do
+    /// total em `chunked`; 3xx volta como dado, nunca seguido.
+    fn get_binario(
+        &mut self,
+        url: &str,
+        cookie: &str,
+        limite: usize,
+    ) -> Result<RespostaBinaria<Self::Corpo>, FalhaTransporte>;
 }
 
 impl EnvioDoProcesso for EnvioHttps {
@@ -76,6 +108,15 @@ impl EnvioDoProcesso for EnvioHttps {
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         crate::transporte::envio_post::get_com_localizacao(url, cookie)
+    }
+
+    fn get_binario(
+        &mut self,
+        url: &str,
+        cookie: &str,
+        limite: usize,
+    ) -> Result<RespostaBinaria<Self::Corpo>, FalhaTransporte> {
+        crate::transporte::resposta_binaria::get_binario(url, cookie, limite)
     }
 }
 
@@ -96,6 +137,9 @@ pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) propriedades: bool,
     /// `false` com `--sem-marcadores`.
     pub(crate) marcadores: bool,
+    /// Pula o link guardado da árvore (passo 1), que não publica a unidade:
+    /// quem escreve precisa da unidade da sessão (`processo concluir`).
+    pub(crate) unidade_exigida: bool,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou
@@ -113,6 +157,8 @@ pub(crate) enum ResolvidoPor {
     IndiceLink,
     IndiceTrabalhar,
     IndiceEntrada,
+    /// A entrada por id com `id_documento` (`documento DOC`, fatia 2).
+    IndiceEntradaDocumento,
     PesquisaRapida,
     Caixa,
 }
@@ -123,6 +169,7 @@ impl ResolvidoPor {
             Self::IndiceLink => "indice_link",
             Self::IndiceTrabalhar => "indice_trabalhar",
             Self::IndiceEntrada => "indice_entrada",
+            Self::IndiceEntradaDocumento => "indice_entrada_documento",
             Self::PesquisaRapida => "pesquisa_rapida",
             Self::Caixa => "caixa",
         }

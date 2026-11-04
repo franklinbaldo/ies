@@ -38,7 +38,10 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
-- `ies documento NUMERO`
+- `ies documento NUMERO [--versao N] [--saida DIR] [--sem-copia]` (versão N
+  pela lista da barra; cópia de trabalho `DOC.vN.html`, Refs #88)
+- `ies documento buscar TERMO [--pagina N]` (a mesma pesquisa Web, em
+  documentos: GET + GET + POST; `--pagina N` acrescenta um POST)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
   a sessão fica na D, sem restaurar; decisões do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
@@ -61,7 +64,12 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
   resultado").
-- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos;
+  [versões e cópia de trabalho](cli/documento-obter-versoes.md).
+  O externo usa o [GET binário](cli/documento-obter-externo.md), com
+  subcódigos próprios (`tipo_de_anexo_nao_permitido`,
+  `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
+- [documento.buscar](cli/documento-buscar.md): pesquisa Web em documentos pelo número SEI.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
   [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),
@@ -117,11 +125,14 @@ Invariante de **toda** leitura paginada da CLI:
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
 
-Continuam como stubs `documento DOC` (obtenção Web), `documento buscar`,
-`documento salvar --confirmar` remoto, `processo enviar`, `processo
-concluir` e `documento assinar`. `processo NUP` lê pela árvore
-([contrato](cli/processo-obter-arvore.md)) e `unidade colunas --definir
---confirmar` é a escrita remota implementada
+`documento DOC` lê documentos internos e externos pela Web (#60 fatias 1 a 3;
+[contrato](cli/documento-obter-web.md)). Continuam como stubs
+`documento salvar --confirmar` remoto, `processo enviar` e `documento
+assinar`. `processo concluir` escreve com prévia e verificação
+([contrato](cli/processo-concluir.md)); `documento DOC --versao N` está
+implementado ([contrato](cli/documento-obter-versoes.md)). `processo NUP`
+lê pela árvore ([contrato](cli/processo-obter-arvore.md)) e `unidade
+colunas --definir --confirmar` também escreve
 ([contrato](cli/unidade-definir-colunas.md)). A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
 ensaios por cassette e por instalação.
 
@@ -313,3 +324,18 @@ Testado offline com proxy falso local (`TcpListener`) e camada TLS
 substituída pela identidade: `CONNECT`, pedido no túnel, ausência de
 segundo pedido, `NO_PROXY`, 3xx, limites e subcódigos. O TLS real
 através do túnel não tem teste automatizado; validação live: `NOT_RUN`.
+
+## Concluir o processo (Refs #172)
+
+`ies processo concluir NUP [--confirmar]` é a primeira escrita de estado do
+processo ([contrato](cli/processo-concluir.md)): prévia só com a abertura;
+uma escrita pela forma que a barra publica; verificação por `aberto_em`
+numa leitura nova. Subcódigos próprios: `situacao_do_processo_nao_lida_antes_de_concluir`,
+`unidade_da_sessao_ausente_da_situacao`, `conclusao_nao_publicada_na_barra`,
+os da barra (`formas_de_concluir_repetidas_na_barra`,
+`endereco_da_conclusao_nao_reconhecido`, `endereco_da_tela_do_no_nao_reconhecido`, …),
+os da tela (`campo_nao_previsto_na_tela_de_conclusao`,
+`opcao_somente_concluir_nao_marcada`, `tela_de_conclusao_com_reabertura_preenchida`, …),
+os da função (`funcao_de_concluir_ausente_na_tela_do_no`, …),
+`conclusao_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
+`efeito_incerto_na_conclusao` (`efeito_incerto`, saída 3).

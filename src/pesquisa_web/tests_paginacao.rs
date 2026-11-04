@@ -35,6 +35,7 @@ fn pagina_2_usa_o_tamanho_da_barra() {
     assert_eq!(
         planejar(&html, &resposta, 2),
         Ok(Some(PedidoDePaginaDaPesquisa {
+            numero: 2,
             inicio: 10,
             total: 1234,
             esperada: faixa(11, 20),
@@ -48,6 +49,7 @@ fn ultima_pagina_tem_faixa_parcial_e_a_seguinte_esta_fora() {
     assert_eq!(
         planejar(&html, &resposta, 124),
         Ok(Some(PedidoDePaginaDaPesquisa {
+            numero: 124,
             inicio: 1230,
             total: 1234,
             esperada: faixa(1231, 1234),
@@ -160,6 +162,7 @@ fn varias_paginas_sem_links_de_navegar_e_paginador_nao_publicado() {
 
 fn pedido() -> PedidoDePaginaDaPesquisa {
     PedidoDePaginaDaPesquisa {
+        numero: 2,
         inicio: 10,
         total: 1234,
         esperada: faixa(11, 20),

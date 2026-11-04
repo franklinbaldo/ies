@@ -48,8 +48,10 @@ de leitura, sessão nova por caso, controle positivo antes e depois):
 
 Consequência: a **única** entrada sem assinatura é `procedimento_trabalhar`
 por id do processo, opcionalmente com o do documento (17 formas medidas,
-2 aceitas). O módulo monta só a forma com `id_procedimento`; a variante
-com documento fica para quando houver uso. Todo o resto vem da
+2 aceitas). O módulo monta só essas duas formas: a com `id_procedimento`
+(`processo NUP`) e, desde a fatia 2 do #60, a com `&id_documento=M`
+(`documento DOC` pelo índice), cada uma com o aceite registrado à parte
+na tabela `instalacao` (a com documento só foi medida na UnB). Todo o resto vem da
 tabela `link_assinado` da sessão. O Todos mediu ainda que os links do
 menu deixam de valer depois de trocar de unidade (o hash cobre
 `infra_unidade_atual`): a unidade é parte da chave do link.
@@ -84,19 +86,26 @@ versão mais nova que o binário desliga o índice sem tocar nele.
 | `instalacao` | `origem` | durável; recusa expira em 30 dias | a instalação aceita a entrada por id? |
 | `processo` | `(origem, nup)`, `(origem, id_procedimento)` únicos | durável até divergir | NUP ↔ id |
 | `link_assinado` | `(origem, geracao_sessao, unidade, acao, objeto)` | só a geração de sessão em que foi visto | URL assinada **literal** |
+| `documento` (versão 2) | `(origem, numero_sei)`, `(origem, id_documento)` únicos | durável até divergir | número SEI ↔ (`id_procedimento`, `id_documento`) |
 
 `origem` é a identidade publicada da instalação (`https://host[/base]`,
 de `Instalacao::url_base`). O NUP é texto opaco, comparado byte a byte,
 sem normalização. O `id_procedimento` também é opaco, mas só se guarda
 quando é dígito ASCII (1 a 20): ele vai para uma URL montada pelo
-chamador e não pode carregar `&` ou `=`.
+chamador e não pode carregar `&` ou `=`. O mesmo vale para o
+`id_documento`. O número SEI é opaco (zeros à esquerda contam) e nunca
+vai para URL. A tabela `documento` aprende de toda árvore conferida
+(`processo NUP` e `documento DOC`), numa transação; número ou id repetido
+na mesma árvore é pulado. A migração 1 → 2 cria a tabela e as colunas
+`entrada_com_documento`, `entrada_com_documento_testado_em` e
+`recusas_com_documento` de `instalacao`.
 
 ### Regras de operação
 
 - **O servidor vence.** O índice é um palpite barato, validado a cada
   uso pelo chamador (a árvore aberta tem de mostrar o NUP pedido; o link
   guardado tem de responder com a tela esperada). Divergência apaga a
-  linha (`esquecer_processo`, `esquecer_link`) e o comando segue pelo
+  linha (`esquecer_processo`, `esquecer_link`, `esquecer_documento`) e o comando segue pelo
   caminho sem índice.
 - **Nunca uma requisição só para alimentá-lo.** Ele aprende com
   respostas que o comando já leu.
@@ -122,11 +131,13 @@ chamador e não pode carregar `&` ou `=`.
 Uma recusa derruba a sessão **para todos os agentes da conta**, não só
 para o comando que tentou. Por isso:
 
-- o módulo torna impossível montar outra URL sem assinatura: uma função
-  só, `url_da_entrada_por_id(instalacao, id_procedimento)`, sem outros
-  parâmetros, com o id restrito a dígitos ASCII; um teste confere a forma
-  exata e outro que nenhum outro arquivo do módulo contém
-  `controlador.php?acao=`;
+- o módulo torna impossível montar outra URL sem assinatura:
+  `url_da_entrada_por_id(instalacao, id_procedimento)` e
+  `url_da_entrada_por_id_com_documento(instalacao, id_procedimento,
+  id_documento)`, que só acrescenta `&id_documento=M` à primeira, com os
+  ids restritos a dígitos ASCII; testes conferem as formas exatas e que
+  nenhum outro arquivo do módulo contém `controlador.php?acao=`;
+- a forma com documento só é tentada onde nenhuma das duas foi recusada;
 - a entrada por id só é usada onde `entrada_por_id` devolve `Some(true)`;
 - instalação desconhecida (`None`) aprende **uma vez**: o primeiro
   comando que precisaria da pesquisa tenta a entrada por id e registra

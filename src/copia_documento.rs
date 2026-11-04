@@ -86,6 +86,12 @@ pub enum FonteHtml<'a> {
         assinado: bool,
     },
     VisualizacaoHistorica,
+    /// O HTML que o `documento_visualizar` serviu da versão atual, com a
+    /// barra da árvore declarando `editarConteudo('N')` e sem `infra_hash`
+    /// (Refs #88, contracts/cli/documento-obter-versoes.md).
+    LeituraAtualNaoAssinada {
+        html: &'a str,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -161,7 +167,8 @@ pub fn preparar(
         FonteHtml::EditorVerificado {
             html,
             assinado: false,
-        } => html.as_bytes(),
+        }
+        | FonteHtml::LeituraAtualNaoAssinada { html } => html.as_bytes(),
         FonteHtml::EditorVerificado { assinado: true, .. } => {
             return Err(ErroCopia::DocumentoAssinado);
         }
@@ -359,6 +366,29 @@ mod testes {
             Err(ErroCopia::ArquivoExistente)
         );
         assert_eq!(fs::read(&paths.base).unwrap(), b"<p>original</p>");
+        fs::remove_dir_all(pasta).unwrap();
+    }
+    #[test]
+    fn leitura_atual_nao_assinada_prepara_copia_e_base_privadas() {
+        let pasta = diretorio();
+        let id = contexto();
+        let html = "<html><head><title>SEI/X - 0011519 - Despacho</title></head><body><p>a</p></body></html>";
+        let fonte = FonteHtml::LeituraAtualNaoAssinada { html };
+        let paths = preparar(&pasta, &id, fonte).unwrap();
+        assert_eq!(fs::read(&paths.trabalho).unwrap(), html.as_bytes());
+        assert!(!previa(&pasta, &id).unwrap().alterado);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            for alvo in [&paths.trabalho, &paths.base, &paths.manifesto] {
+                let modo = fs::metadata(alvo).unwrap().permissions().mode() & 0o777;
+                assert_eq!(modo, 0o600);
+            }
+        }
+        assert_eq!(
+            preparar(&pasta, &id, fonte),
+            Err(ErroCopia::ArquivoExistente)
+        );
         fs::remove_dir_all(pasta).unwrap();
     }
     #[test]

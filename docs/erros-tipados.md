@@ -68,3 +68,56 @@ código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
 sessão continuou válida: não há relogin, retry nem pausa automática. O
 403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
 ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
+
+## Anexo do documento externo
+
+`ErroAnexo` (`src/anexo_documento.rs`, Refs #60 fatia 3) tem uma
+variante por fato da resposta de `documento_download_anexo`: sem tipo,
+tipo fora da lista observada, cabeçalho repetido, `Content-Disposition`
+fora da forma, acima do limite, vazio, exceção do SEI (com status 200 e a
+mensagem saneada como apresentação) e as falhas de gravação do parcial.
+Status, rede e charset continuam `FalhaTransporte`; a tela de login, a
+sessão encerrada de `processo NUP`. Lista no
+[contrato](../contracts/cli/documento-obter-externo.md).
+
+## Pesquisa em documentos
+
+`ies documento buscar` ([contrato](../contracts/cli/documento-buscar.md))
+reaproveita as variantes de `processo buscar` e acrescenta, cada uma pelo
+fato verificável: na tela, `ErroRegraDoFormularioDePesquisa` com a opção
+`#optDocumentos` (`opcao_de_documentos_*`), as caixas de tipo
+(`caixa_de_tipo_de_documento_ausente_na_tela`,
+`caixas_de_tipo_de_documento_repetidas_na_tela`,
+`caixa_de_tipo_de_documento_sem_valor_na_tela`,
+`nenhum_tipo_de_documento_marcado_na_tela`) e
+`assinante_oculto_preenchido_na_pesquisa_em_documentos`; no 302,
+`ErroRedirecionamentoDaPesquisa::IdDocumento*`
+(`id_documento_ausente_no_redirecionamento`, `…_repetido_…`,
+`…_nao_decimal_…`); na linha, `ErroDocumentoDaPesquisa`, que embute a
+recusa comum do link do processo (`ErroResultadoPesquisa`) em vez de
+repeti-la. O termo inválido é `TermoDeDocumentoInvalido`
+(`termo_de_documento_vazio`, `termo_de_documento_contem_controle`).
+
+## Concluir o processo
+
+`ErroConcluir` (`src/processo_concluir/erro.rs`) separa o que impede a
+escrita (abertura, situação não lida, barra, tela, função, derivação:
+saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
+(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
+com `VerificacaoDaConclusao`). `FalhaDoEnvio` classifica a resposta não
+esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
+sem retry ([contrato](../contracts/cli/processo-concluir.md)).
+
+## Versões de documento (Refs #88)
+
+`ErroDocumentoObter` ganhou `BarraDoDocumento(ErroBarraDoDocumento)`
+(`barra_do_documento_fora_da_forma_observada`,
+`barras_do_documento_repetidas_na_arvore`,
+`link_das_versoes_repetido_na_barra`, `link_das_versoes_nao_reconhecido`,
+`link_das_versoes_de_outro_documento`),
+`ListaDeVersoesNaoPublicadaNaArvore`
+(`lista_de_versoes_nao_publicada_na_arvore`), `Versoes(ErroVersao)`
+(os subcódigos do leitor da lista, inclusive `versao_nao_observada`) e
+`VersaoServidaDiferenteDaPedida` (`versao_servida_diferente_da_pedida`).
+Cópia não preparada não é erro: sai como `copia_motivo`
+([contrato](../contracts/cli/documento-obter-versoes.md)).

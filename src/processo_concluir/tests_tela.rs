@@ -1,0 +1,133 @@
+//! RED/GREEN da tela "Conclusão de Processo" (lista fechada de controles,
+//! opção e processo), do corpo derivado pelo primitivo e do 302 esperado.
+//! Telas sintéticas na forma das cinco instalações 4.1/5.0.
+use super::erro::ErroTelaDeConclusao as E;
+use super::tela::{
+    CAMPOS_DO_ENVIO, CONCLUIR_PROCESSO, conferir_tela_de_conclusao, redirecionamento_esperado,
+};
+use super::tests_apoio::*;
+use crate::arvore_processo::tests_tela::instalacao;
+use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+
+fn conferir(html: &str) -> Result<(), E> {
+    conferir_tela_de_conclusao(html, ID)
+}
+
+#[test]
+fn tela_observada_passa_e_o_corpo_e_o_do_navegador() {
+    let html = tela_de_conclusao(ID);
+    assert_eq!(conferir(&html), Ok(()));
+    let url = absoluta(&link_de_concluir(ID));
+    let tela = TelaServida {
+        url: &url,
+        html: &html,
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    let submissao = derivar_submissao(
+        &CONCLUIR_PROCESSO,
+        &instalacao(),
+        &tela,
+        UNIDADE,
+        &CAMPOS_DO_ENVIO,
+    )
+    .unwrap();
+    assert_eq!(submissao.url(), absoluta(&action_de_concluir()));
+    assert_eq!(
+        String::from_utf8(submissao.corpo().to_vec()).unwrap(),
+        CORPO_DA_CONCLUSAO
+    );
+}
+
+#[test]
+fn controle_fora_da_lista_e_recusado() {
+    let html = tela_de_conclusao(ID);
+    let extra = html.replace(
+        "</form>",
+        "<input type=\"text\" name=\"txtMotivo\" value=\"\" /></form>",
+    );
+    assert_eq!(conferir(&extra), Err(E::CampoNaoPrevistoNaTelaDeConclusao));
+    let oculto = html.replace(
+        "</form>",
+        "<input type=\"hidden\" name=\"hdnOutro\" value=\"1\" /></form>",
+    );
+    assert_eq!(conferir(&oculto), Err(E::CampoNaoPrevistoNaTelaDeConclusao));
+    // Botão `button` e controle desabilitado não participam do envio.
+    let neutros = html.replace(
+        "</form>",
+        "<button type=\"button\" name=\"btnX\">x</button><input type=\"text\" name=\"txtY\" disabled=\"disabled\" /></form>",
+    );
+    assert_eq!(conferir(&neutros), Ok(()));
+}
+
+#[test]
+fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
+    assert_eq!(
+        conferir("<html><body></body></html>"),
+        Err(E::FormularioDeConclusaoAusente)
+    );
+    assert_eq!(
+        conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),
+        Err(E::TelaDeConclusaoDeOutroProcesso)
+    );
+    let html = tela_de_conclusao(ID);
+    let desmarcada = html.replace("value=\"S\" checked=\"checked\"", "value=\"S\"");
+    assert_eq!(
+        conferir(&desmarcada),
+        Err(E::OpcaoSomenteConcluirNaoMarcada)
+    );
+    let agendar = desmarcada.replace("value=\"V\" ", "value=\"V\" checked=\"checked\" ");
+    assert_eq!(conferir(&agendar), Err(E::OpcaoSomenteConcluirNaoMarcada));
+    let sem_s = html.replace(
+        "value=\"S\" checked=\"checked\"",
+        "value=\"X\" checked=\"checked\"",
+    );
+    assert_eq!(conferir(&sem_s), Err(E::OpcaoSomenteConcluirNaoMarcada));
+}
+
+#[test]
+fn reabertura_preenchida_ou_processo_selecionado_e_recusa() {
+    let html = tela_de_conclusao(ID);
+    for preenchida in [
+        html.replace(
+            "value=\"1\" class=\"infraRadio\"/>",
+            "value=\"1\" class=\"infraRadio\" checked=\"checked\"/>",
+        ),
+        html.replace(
+            "class=\"infraText\" value=\"\" tabindex=\"505\"",
+            "class=\"infraText\" value=\"01/01/2027\" tabindex=\"505\"",
+        ),
+        html.replace(
+            "class=\"infraCheckbox\"  tabindex",
+            "class=\"infraCheckbox\" checked=\"checked\" tabindex",
+        ),
+        html.replace(
+            &format!("<option value=\"{ID}\">"),
+            &format!("<option value=\"{ID}\" selected=\"selected\">"),
+        ),
+    ] {
+        assert_eq!(
+            conferir(&preenchida),
+            Err(E::TelaDeConclusaoComReaberturaPreenchida)
+        );
+    }
+}
+
+#[test]
+fn redirecionamento_esperado_so_para_a_arvore_ou_o_controle_desta_conclusao() {
+    let arvore = volta_a_arvore();
+    assert!(redirecionamento_esperado(Some(&arvore), ID));
+    // Só a forma relativa observada.
+    assert!(!redirecionamento_esperado(Some(&absoluta(&arvore)), ID));
+    let principal = arvore.replace("acao=arvore_visualizar", "acao=principal");
+    assert!(redirecionamento_esperado(Some(&principal), ID));
+    assert!(!redirecionamento_esperado(None, ID));
+    assert!(!redirecionamento_esperado(Some(&arvore), "11"));
+    let outra_origem = arvore.replace("acao_origem=procedimento_concluir", "acao_origem=x");
+    assert!(!redirecionamento_esperado(Some(&outra_origem), ID));
+    let outro_destino = arvore.replace("acao=arvore_visualizar", "acao=procedimento_controlar");
+    assert!(!redirecionamento_esperado(Some(&outro_destino), ID));
+    assert!(!redirecionamento_esperado(
+        Some("https://sip.exemplo.gov.br/sip/login.php"),
+        ID
+    ));
+}

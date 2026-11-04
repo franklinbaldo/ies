@@ -426,6 +426,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         andamentos,
         propriedades: !comando.sem_propriedades,
         marcadores: !comando.sem_marcadores,
+        unidade_exigida: false,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {

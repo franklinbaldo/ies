@@ -42,6 +42,13 @@ pub(crate) enum PreferenciaDoUsuario {
     ColunasDaVisaoDetalhada,
 }
 
+/// Estado do processo no SEI que uma escrita altera.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDoProcesso {
+    /// O andamento aberto na unidade da sessão (concluir fecha).
+    AndamentoAbertoNaUnidade,
+}
+
 /// Avaliação obrigatória por operação, sem valor padrão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EfeitoAvaliado {
@@ -55,6 +62,11 @@ pub(crate) enum EfeitoAvaliado {
     /// confirmação e verificação por leitura.
     AlteraPreferenciaDoUsuario {
         o_que: PreferenciaDoUsuario,
+    },
+    /// Escrita: muda o estado do processo para todos os usuários; exige
+    /// prévia, confirmação e verificação por leitura.
+    AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso,
     },
     Desconhecido,
 }

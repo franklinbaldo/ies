@@ -1,26 +1,28 @@
-//! `ies processo buscar TERMO [--pagina N]` (contracts/cli/processo-buscar.md):
+//! `ies processo buscar TERMO [--pagina N]` (contracts/cli/processo-buscar.md)
+//! e `ies documento buscar TERMO [--pagina N]` (contracts/cli/documento-buscar.md):
 //! GET do Controle → link do menu `protocolo_pesquisar` → GET da tela →
 //! POST da pesquisa → (N > 1) POST de `navegar(inicio)`. Cada chamada do
 //! envio é uma requisição real única, sem retry nem redirect seguido; a
 //! sessão fica na página/filtro em que a pesquisa a deixou.
+use super::alvo::AlvoDaPesquisa;
+#[cfg(test)]
+use super::alvo::EmProcessos;
 use super::erro_busca::ErroBuscaDeProcesso;
 use super::formulario_pesquisa::{
-    ErroPesquisaProtocolo, derivar_pagina_da_pesquisa, derivar_pesquisa_de_protocolo,
-    falha_do_envio, interpretar_envio,
+    ErroPesquisaProtocolo, derivar_pagina_em, derivar_pesquisa_em, falha_do_envio,
 };
 use super::link_da_pesquisa::link_da_pesquisa;
 use super::paginacao::{
-    ErroPaginacaoDaPesquisa, conferir_pagina, conferir_protocolo_servido, planejar_pagina,
+    ErroPaginacaoDaPesquisa, conferir_contagem, conferir_protocolo_servido, planejar_pagina_por,
 };
 use super::redirecionamento::UrlDeTrabalho;
-use super::resposta::{RespostaDaPesquisa, ler_resposta_html};
+use super::resposta::RespostaDaPesquisa;
 use crate::colheita_do_controle::Colheita;
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo::NumeroProcesso;
 use crate::transporte::decodificar_resposta;
 use crate::transporte::envio_post::{TelaDoControle, ler_tela_via};
 use crate::visao_do_controle::{EnvioDoControle, TelaAtual};
@@ -34,18 +36,19 @@ pub(crate) struct SessaoDaBusca<'a> {
     pub(crate) cookie_file: &'a Path,
 }
 
-/// O que o usuário pediu: termo, página opcional e `--unidade` conferida.
+/// O que o usuário pediu: termo (já validado pela borda), página opcional
+/// e `--unidade` conferida.
 pub(crate) struct PedidoDeBusca<'a> {
-    pub(crate) termo: &'a NumeroProcesso,
+    pub(crate) termo: &'a str,
     pub(crate) pagina: Option<u32>,
     pub(crate) unidade: Option<&'a str>,
 }
 
 /// Resposta observada, unidade do Controle e requisições feitas.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct BuscaRealizada {
+pub(crate) struct BuscaRealizada<R = RespostaDaPesquisa> {
     pub(crate) unidade: String,
-    pub(crate) resposta: RespostaDaPesquisa,
+    pub(crate) resposta: R,
     pub(crate) requisicoes: u8,
     /// URL de `procedimento_trabalhar` do 302, conferida e nunca seguida
     /// aqui; `processo buscar` a descarta, `processo NUP` a abre.
@@ -89,29 +92,29 @@ pub(crate) fn buscar_processo<V: EnvioDoControle>(
     pedido: &PedidoDeBusca<'_>,
     envio: &mut V,
 ) -> Result<BuscaRealizada, ErroBuscaDeProcesso> {
-    buscar_processo_colhendo(sessao, pedido, &Colheita::nenhuma(), envio)
+    buscar_colhendo::<EmProcessos, V>(sessao, pedido, &Colheita::nenhuma(), envio)
 }
 
-/// [`buscar_processo`] com a colheita do Controle lido (nenhuma
-/// requisição a mais).
-pub(crate) fn buscar_processo_colhendo<V: EnvioDoControle>(
+/// [`buscar_processo`] em `A` (processos ou documentos), com a colheita do
+/// Controle lido (nenhuma requisição a mais).
+pub(crate) fn buscar_colhendo<A: AlvoDaPesquisa, V: EnvioDoControle>(
     sessao: &SessaoDaBusca<'_>,
     pedido: &PedidoDeBusca<'_>,
     colheita: &Colheita<'_>,
     envio: &mut V,
-) -> Result<BuscaRealizada, ErroBuscaDeProcesso> {
+) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     let controle = ler_controle(sessao, pedido.unidade, envio)?;
     colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
-    pesquisar_a_partir_do_controle(&controle, sessao.cookie_file, pedido, envio)
+    pesquisar_a_partir_do_controle::<A, V>(&controle, sessao.cookie_file, pedido, envio)
 }
 
 /// Requisições 2 em diante, a partir do Controle já lido (que conta como 1).
-pub(crate) fn pesquisar_a_partir_do_controle<V: EnvioDoControle>(
+pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoControle>(
     controle: &ControleLido,
     cookie_file: &Path,
     pedido: &PedidoDeBusca<'_>,
     envio: &mut V,
-) -> Result<BuscaRealizada, ErroBuscaDeProcesso> {
+) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
     let unidade = &controle.unidade;
     let controle = &controle.tela;
@@ -121,11 +124,11 @@ pub(crate) fn pesquisar_a_partir_do_controle<V: EnvioDoControle>(
     // 2. GET da tela de pesquisa pelo link publicado.
     let tela = obter_tela(cookie_file, &url_da_tela, envio)?;
     // 3. POST da pesquisa.
-    let termo = pedido.termo.as_str();
-    let submissao = derivar_pesquisa_de_protocolo(instalacao, &servida(&tela)?, unidade, termo)
+    let termo = pedido.termo;
+    let submissao = derivar_pesquisa_em(A::EM, instalacao, &servida(&tela)?, (unidade, termo))
         .map_err(E::Pesquisa)?;
     let (enviada, resultado) = enviar(cookie_file, envio, submissao)?;
-    let interpretado = interpretar_envio(enviada, instalacao).map_err(E::Pesquisa)?;
+    let interpretado = A::interpretar(enviada, instalacao).map_err(E::Pesquisa)?;
     let (resposta, html) = (interpretado.resposta, interpretado.html);
     let pronta = |resposta, requisicoes, trabalho| BuscaRealizada {
         unidade: unidade.clone(),
@@ -136,8 +139,9 @@ pub(crate) fn pesquisar_a_partir_do_controle<V: EnvioDoControle>(
     let Some(solicitada) = pedido.pagina else {
         return Ok(pronta(resposta, 3, interpretado.trabalho));
     };
+    let contagem = A::contagem(&resposta);
     let Some(pagina) =
-        planejar_pagina(&resposta, html.as_deref(), solicitada).map_err(E::Paginacao)?
+        planejar_pagina_por(contagem, html.as_deref(), solicitada).map_err(E::Paginacao)?
     else {
         return Ok(pronta(resposta, 3, interpretado.trabalho));
     };
@@ -151,11 +155,11 @@ pub(crate) fn pesquisar_a_partir_do_controle<V: EnvioDoControle>(
         html,
         mime: resultado.mime,
     };
-    let submissao = derivar_pagina_da_pesquisa(
+    let submissao = derivar_pagina_em(
+        A::EM,
         instalacao,
         &servida(&tela_do_resultado)?,
-        unidade,
-        termo,
+        (unidade, termo),
         pagina.inicio,
     )
     .map_err(E::Pesquisa)?;
@@ -165,11 +169,11 @@ pub(crate) fn pesquisar_a_partir_do_controle<V: EnvioDoControle>(
                 ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa,
             ));
         }
-        RespostaDoEnvio::Html(html) => ler_resposta_html(&html)
+        RespostaDoEnvio::Html(html) => A::ler_pagina(&html, (pagina.esperada, pagina.numero))
             .map_err(|erro| E::Pesquisa(ErroPesquisaProtocolo::Resposta(erro)))?,
     };
-    let lista = conferir_pagina(&pagina, resposta).map_err(E::Paginacao)?;
-    Ok(pronta(RespostaDaPesquisa::Lista(lista), 4, None))
+    conferir_contagem(&pagina, A::contagem(&resposta)).map_err(E::Paginacao)?;
+    Ok(pronta(resposta, 4, None))
 }
 
 /// URL e `Content-Type` da resposta de um POST, para derivar o seguinte.
@@ -232,4 +236,4 @@ fn enviar<V: EnvioDoControle>(
 
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
-mod tests;
+pub(crate) mod tests;

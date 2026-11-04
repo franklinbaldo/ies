@@ -29,6 +29,9 @@ impl<R> Resposta<R> {
 pub(crate) struct Corpo<R> {
     leitor: R,
     modo: Modo,
+    /// Total de `chunked` além do qual o pedaço seguinte nem é lido: 8 MB
+    /// no HTML; o GET binário (`resposta_binaria`) define o seu.
+    limite: usize,
 }
 
 enum Modo {
@@ -54,9 +57,14 @@ impl<R> Corpo<R> {
             _ => None,
         }
     }
+
+    /// Troca o limite do total em `chunked` (o do GET binário).
+    pub(crate) fn limitar_em_pedacos(&mut self, limite: usize) {
+        self.limite = limite;
+    }
 }
 
-/// Marca o erro de leitura de um pedaço que levaria o corpo além de 8 MB.
+/// Marca o erro de leitura de um pedaço que levaria o corpo além do limite.
 #[derive(Debug)]
 struct CorpoExcessivo;
 
@@ -101,6 +109,26 @@ fn ler_linha_io<R: BufRead>(leitor: &mut R) -> io::Result<String> {
 
 fn ler_linha<R: BufRead>(leitor: &mut R) -> Result<String, FalhaTransporte> {
     ler_linha_io(leitor).map_err(|_| FalhaTransporte::Rede)
+}
+
+/// Linha de cabeçalho: UTF-8 ou, se não for, ISO-8859-1 (o nome do
+/// arquivo no `Content-Disposition` pode vir assim, Refs #60). Sem isso,
+/// um nome acentuado derrubaria a resposta inteira como falha de rede.
+fn ler_linha_de_cabecalho<R: BufRead>(leitor: &mut R) -> Result<String, FalhaTransporte> {
+    let mut bytes = Vec::new();
+    leitor
+        .take(MAX_LINHA as u64 + 1)
+        .read_until(b'\n', &mut bytes)
+        .map_err(|_| FalhaTransporte::Rede)?;
+    if bytes.len() > MAX_LINHA || !bytes.ends_with(b"\n") {
+        return Err(FalhaTransporte::Rede);
+    }
+    bytes.pop();
+    if bytes.ends_with(b"\r") {
+        bytes.pop();
+    }
+    Ok(String::from_utf8(bytes)
+        .unwrap_or_else(|erro| erro.into_bytes().into_iter().map(char::from).collect()))
 }
 
 fn status_da_linha(linha: &str) -> Option<u16> {
@@ -157,7 +185,7 @@ impl<R: BufRead> Corpo<R> {
                 };
                 return Ok(0);
             }
-            if total.saturating_add(tamanho) > crate::MAX_HTML_BYTES {
+            if total.saturating_add(tamanho) > self.limite {
                 return Err(io::Error::other(CorpoExcessivo));
             }
             tamanho
@@ -207,7 +235,7 @@ impl<R: BufRead> Resposta<R> {
         let status = status_da_linha(&ler_linha(&mut leitor)?).ok_or(FalhaTransporte::Rede)?;
         let mut cabecalhos = Vec::new();
         loop {
-            let linha = ler_linha(&mut leitor)?;
+            let linha = ler_linha_de_cabecalho(&mut leitor)?;
             if linha.is_empty() {
                 break;
             }
@@ -223,6 +251,7 @@ impl<R: BufRead> Resposta<R> {
             corpo: Corpo {
                 leitor,
                 modo: Modo::Vazio,
+                limite: crate::MAX_HTML_BYTES,
             },
         };
         if (300..400).contains(&status) {
