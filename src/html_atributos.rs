@@ -38,4 +38,3 @@ pub(crate) fn com_booleano_antes_dos_atributos(html: &str) -> String {
     saida.push_str(&html[inicio..]);
     saida
 }
-
