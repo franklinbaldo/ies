@@ -5,7 +5,7 @@ use crate::arvore_processo::{
 };
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
-use crate::processo_obter::{Andamentos, Propriedades, ResolvidoPor};
+use crate::processo_obter::{Andamentos, Marcadores, Propriedades, ResolvidoPor};
 
 pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
     ProcessoAberto {
@@ -39,6 +39,7 @@ pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
         resolvido_por: ResolvidoPor::Caixa,
         andamentos: Andamentos::Omitidos,
         propriedades: Propriedades::Omitidas,
+        marcadores: Marcadores::Omitidos,
         requisicoes: 3,
     }
 }
@@ -152,6 +153,7 @@ fn forma_do_json() {
             "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
             "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos",
+            "marcadores_nao_lidos_motivo": "omitidos_por_sem_marcadores",
             "propriedades_nao_lidas_motivo": "omitidas_por_sem_propriedades"
         })
     );

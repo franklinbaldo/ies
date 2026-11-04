@@ -92,16 +92,14 @@ fn texto_humano_diz_as_propriedades_e_o_que_nao_foi_lido() {
     assert!(texto.contains("nível restrito"), "{texto}");
     assert!(texto.contains("000.01 - Assunto sintetico"), "{texto}");
     assert!(
-        texto.contains("Não lidos nesta versão: marcadores."),
+        texto.contains("Marcadores não lidos (omitidos_por_sem_marcadores)."),
         "{texto}"
     );
+    assert!(!texto.contains("Não lidos nesta versão"), "{texto}");
     let sem = humano(&nup(), &aberto(None), true);
     assert!(
         sem.contains("Propriedades não lidas (omitidas_por_sem_propriedades)."),
         "{sem}"
     );
-    assert!(
-        sem.contains("Não lidos nesta versão: marcadores e propriedades."),
-        "{sem}"
-    );
+    assert!(!sem.contains("Não lidos nesta versão"), "{sem}");
 }

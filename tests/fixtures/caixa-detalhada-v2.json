@@ -5,8 +5,7 @@
       "anotacao",
       "especificacao",
       "prioridade",
-      "observacao",
-      "marcadores"
+      "observacao"
     ],
     "faixa_observada": {
       "fim": 2,
@@ -22,6 +21,22 @@
           "interessados": [
             "Interessado A",
             "Interessado B"
+          ],
+          "marcadores": [
+            {
+              "cor": "amarelo",
+              "id": "31",
+              "nome": "Marcador A",
+              "rotulo": "31#Marcador A",
+              "texto": "Texto sintético"
+            },
+            {
+              "cor": "azul",
+              "id": "32",
+              "nome": "Marcador B",
+              "rotulo": "32#Marcador B",
+              "texto": null
+            }
           ],
           "tipo": "Tipo sintético",
           "ultima_movimentacao": "3"
@@ -40,6 +55,7 @@
             "Interessado A",
             "Interessado B"
           ],
+          "marcadores": [],
           "tipo": "Tipo sintético",
           "ultima_movimentacao": "3"
         },

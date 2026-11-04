@@ -4,9 +4,9 @@ title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo h
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; documentos movidos fora dos documentos, com o destino pelo link do nó; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; documentos movidos fora dos documentos, com o destino pelo link do nó; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio; marcadores pela tela andamento_marcador_gerenciar da barra, sempre lista (apêndice)
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo,web-propriedades-da-barra,web-propriedades-todas-as-telas,web-propriedades-listas-ocultas,web-movidos-pelo-link-do-no,web-movidos-pela-dica
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo,web-propriedades-da-barra,web-propriedades-todas-as-telas,web-propriedades-listas-ocultas,web-movidos-pelo-link-do-no,web-movidos-pela-dica,web-marcadores-da-barra,web-marcadores-da-celula-do-controle
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
@@ -310,8 +310,8 @@ mais. Alternativas e trade-offs no
 ## Limitações e revisão
 
 Propriedades: validação live **PASS** na UnB e na PEN1 ([PEN1](../validacao-live/2026-11-04-processo-obter-movidos.md), [relatório](../validacao-live/2026-11-04-processo-obter-propriedades.md)).
-Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
-ficam para a próxima fatia; pastas: validação live
+Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores:
+[apêndice](processo-obter/marcadores.md), validação live PASS na UnB; pastas: validação live
 **PASS** na UnB, frio, quente e sessão nova, com o servidor sem lembrar as pastas abertas ([relatório](../validacao-live/2026-11-03-processo-obter-pastas.md)).
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**

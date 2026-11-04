@@ -138,6 +138,24 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   [observação](../../docs/como-o-sei-funciona/propriedades-do-processo.md).
   Validação live: **NOT_RUN**.
 
+## Evidência própria do IES (marcadores)
+
+- Capturas privadas ao vivo da UnB 4.0.9 (04/11/2026, `0600`,
+  `iso-8859-1`, lidas só pela estrutura): a barra do nó `PROCESSO` das
+  três árvores completas publica `andamento_marcador_gerenciar`; o GET
+  respondeu 200 com `<title>SEI - Marcadores do Processo <NUP>`,
+  `form#frmGerenciarMarcador`, `btnAdicionar`/`btnRemover` (escrita, não
+  tocada) e `table#tblMarcadores` com legenda `(2 registros)` e duas
+  linhas (checkbox com o id, ícone `svg/marcador_<cor>.svg`, nome, texto
+  vazio numa e preenchido na outra, sigla em `a.ancoraSigla`, data/hora).
+  A célula Marcadores da visão detalhada do mesmo processo tem duas
+  `a.ancMarcador` com `#ID-<n>` iguais aos ids da tela. Os dois leitores
+  deram dois marcadores em teste local temporário, apagado.
+- [Contrato](../cli/processo-obter-marcadores.md),
+  [observação](../../docs/como-o-sei-funciona/marcadores-do-processo.md)
+  e [decisão](../../docs/decisoes/processo-obter/marcadores.md).
+  Validação live: **NOT_RUN**.
+
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
 Confronte os hashes com o manifesto atual antes de alegar paridade.
