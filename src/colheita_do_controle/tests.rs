@@ -330,3 +330,54 @@ fn indice_desligado_e_nenhuma_nao_fazem_nada() {
     Colheita::nenhuma().colher(&html, Some(MIME));
     assert!(!desligado.ligado());
 }
+
+fn arquivos_da_colheita(pasta: &Pasta) -> ArquivosDeAcesso {
+    let arquivos = ArquivosDeAcesso {
+        origem: pasta.0.join("origem"),
+        url_controle: pasta.0.join("controle"),
+        cookie: pasta.0.join("sessao"),
+    };
+    gravar(&arquivos.origem, ORIGEM);
+    gravar(&arquivos.url_controle, &url_controle());
+    gravar(&arquivos.cookie, &["sessao", "=primeira"].concat());
+    arquivos
+}
+
+fn gravar(caminho: &std::path::Path, texto: &str) {
+    std::fs::write(caminho, texto).unwrap();
+    crate::indice_local::tests::definir_modo(caminho, 0o600);
+}
+
+// Caso de todos tests/test_sessao_global_contrato.py @323eb01
+#[test]
+fn nova_leitura_reflete_a_geracao_atual() {
+    let (pasta, indice) = indice();
+    let arquivos = arquivos_da_colheita(&pasta);
+    let primeira = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
+    gravar(&arquivos.cookie, &["sessao", "=segunda"].concat());
+    let segunda = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
+    assert!(primeira.geracao != segunda.geracao);
+}
+
+// Caso de todos tests/v07/test_security_boundaries.py @323eb01
+#[test]
+fn colheita_recusa_origem_divergente_e_cookie_invalido() {
+    let (pasta, indice) = indice();
+    let arquivos = arquivos_da_colheita(&pasta);
+    gravar(&arquivos.origem, "https://outro.exemplo.gov.br/sei");
+    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+
+    gravar(&arquivos.origem, ORIGEM);
+    gravar(&arquivos.cookie, "linha\ninvalida");
+    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+}
+
+// Caso de todos tests/test_sessao_em_arquivo_010.py @323eb01
+#[cfg(unix)]
+#[test]
+fn colheita_recusa_arquivo_de_sessao_com_permissao_aberta() {
+    let (pasta, indice) = indice();
+    let arquivos = arquivos_da_colheita(&pasta);
+    crate::indice_local::tests::definir_modo(&arquivos.cookie, 0o644);
+    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+}

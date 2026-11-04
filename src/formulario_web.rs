@@ -399,7 +399,8 @@ pub(crate) enum RespostaDoEnvio {
 }
 
 /// Envio injetável: `FnOnce` recebe (e consome) a submissão e o cookie,
-/// uma única vez. O cookie é lido do arquivo privado só depois da derivação.
+/// uma única vez. A submissão já traz o destino autorizado pela derivação.
+/// Só se lê o cookie privado, pois o destino pode vir de uma tela intermediária.
 /// Nenhum 3xx é seguido; só o 302 volta como dado, para a operação interpretar.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,
