@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Onde o processo está aberto e natureza dos documentos pela árvore
-description: ies processo NUP publica, sem requisição a mais, as unidades onde o processo está aberto (o .html do nó PROCESSO) e o ícone e o cancelamento de cada documento (a6 a a9 do nó DOCUMENTO), lidos da árvore já conferida
+description: ies processo NUP publica, sem requisição a mais, as unidades onde o processo está aberto ou sobrestado (o .html do nó PROCESSO) e o ícone e o cancelamento de cada documento (a6 a a9 do nó DOCUMENTO), lidos da árvore já conferida
 ---
 
 # Situação e natureza na árvore de `ies processo NUP` (Refs #59)
@@ -19,7 +19,7 @@ Fonte: o literal da linha `Nos[i].html = '<texto>';` do nó `PROCESSO`
 (sozinha ou seguida da declaração seguinte), lido pelo leitor de
 literais JS da árvore; nada é executado. O `<texto>` é lido pelo `tl`
 só no primeiro nível, e cada `<a>` pelo tokenizador de atributos. São
-aceitas **só** estas três formas, peça por peça, sem sobra:
+aceitas **só** estas quatro formas, peça por peça, sem sobra:
 
 1. `Processo aberto somente na unidade ` + âncora + `.` + `<br />`; ou
    `Processo aberto somente na unidade ` + âncora +
@@ -28,6 +28,8 @@ aceitas **só** estas três formas, peça por peça, sem sobra:
    (âncora + `<br />`, ou âncora + ` (atribuído para ` + âncora + `)` +
    `<br />`) + um `<br />` final.
 3. `Processo não possui andamentos abertos.` + `<br />`: lista vazia.
+4. `Processo sobrestado na unidade ` + âncora + `.` + `<br />`: o
+   sobrestamento (ver `sobrestado_em`); `aberto_em` não é publicado.
 
 Âncora é `<a>` com exatamente os atributos `alt`, `title` e `class`,
 `class` igual a `ancoraSigla`, `alt` igual a `title` (entidades
@@ -43,22 +45,40 @@ peças, comentário ou qualquer outra forma: forma não observada.
               {"sigla": "ACE", "nome": "Arquivo Central", "atribuido_a": null}]
 ```
 
-`[]` só para a forma 3. Fora das três formas, `"aberto_em": null`,
+`[]` só para a forma 3. Na forma 4 e fora das quatro, `"aberto_em": null`,
 `"aberto_em"` em `nao_lidos` e `aberto_em_nao_lido_motivo`:
 
 | Motivo | Quando |
 | --- | --- |
 | `raiz_publica_o_vinculo_de_anexacao` | o processo é anexado (`anexado_a` conferido): o `.html` da raiz é o aviso do vínculo |
+| `raiz_publica_o_sobrestamento` | forma 4: a frase diz onde está sobrestado, não onde está aberto |
 | `html_da_raiz_nao_publicado` | nenhuma linha `.html` para o nó `PROCESSO` |
 | `html_da_raiz_fora_da_forma_observada` | qualquer outro texto |
 
 Nunca é falha do comando: a árvore já provou a identidade. `aberto_em`
-sai **sempre** (também com `--sem-documentos`), em ordem de serviço. O
-campo `unidade` (a unidade da sessão publicada na tela) não muda.
+e `sobrestado_em` saem **sempre** (também com `--sem-documentos`), em
+ordem de serviço. O campo `unidade` (a unidade da sessão publicada na
+tela) não muda.
+
+## Onde o processo está sobrestado (`sobrestado_em`)
+
+Só na forma 4: lista com a unidade da âncora, `{"sigla", "nome"}`, lida
+como as de `aberto_em` (sem atribuição, que a frase não traz).
+Em qualquer outra forma, `"sobrestado_em": null`: **não observado**, não
+"não sobrestado"; não entra em `nao_lidos` (o que não foi lido é
+`aberto_em`, com o motivo). Sobrestamento com atribuição, em várias
+unidades ou com outra frase: fora da forma 4, `aberto_em` não lido com
+`html_da_raiz_fora_da_forma_observada`.
+
+```json
+"aberto_em": null, "aberto_em_nao_lido_motivo": "raiz_publica_o_sobrestamento",
+"sobrestado_em": [{"sigla": "Unidade1", "nome": "Unidade1"}]
+```
 
 Texto humano, uma linha logo depois da primeira:
 `Aberto em: Unidade1 (atribuído a aluno2), ACE.`,
-`Sem andamentos abertos.` ou `Aberto em: não lido (<motivo>).`
+`Sem andamentos abertos.`, `Sobrestado em: Unidade1.` ou
+`Aberto em: não lido (<motivo>).`
 
 ## Natureza dos documentos
 
@@ -103,5 +123,5 @@ Passa a ser, na ordem: `aberto_em` (se não lido), `andamentos`,
 `marcadores`, `propriedades` (se não lidos) e `documentos_dos_anexados`.
 
 Validação live: **PASS** na UnB (unidade única, plural com atribuição,
-anexado, quente; 0 requisições a mais); cancelado, GO e PEN1 ao vivo
-**NOT_RUN** ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
+anexado, quente; 0 requisições a mais); cancelado, sobrestado, GO e PEN1
+ao vivo **NOT_RUN** ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).

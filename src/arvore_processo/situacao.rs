@@ -2,8 +2,9 @@
 //! contracts/cli/processo-obter-situacao.md). Formas observadas na `UnB`
 //! 4.0.9, em GO 5.0.3 e na PEN1 4.0.12: "Processo aberto somente na
 //! unidade <a>", "Processo aberto nas unidades:<br /><a>…" (com
-//! atribuição por unidade) e "Processo não possui andamentos abertos.".
-//! O texto vem do leitor de literais; as âncoras, do tokenizador de
+//! atribuição por unidade) e "Processo não possui andamentos abertos.";
+//! nas sete instalações do acervo, "Processo sobrestado na unidade <a>."
+//! (sem `aberto_em`: a frase não publica unidades abertas). O texto vem do leitor de literais; as âncoras, do tokenizador de
 //! atributos. Qualquer outra forma é "não lida", nunca falha.
 use super::vinculo::texto_unico;
 use crate::formulario_web::decodificar_atributo;
@@ -26,10 +27,19 @@ pub(crate) struct UnidadeAberta {
     pub(crate) atribuido_a: Option<Atribuicao>,
 }
 
+/// A unidade onde o processo está sobrestado: sigla (texto do link) e
+/// nome (`alt` = `title`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct UnidadeSobrestada {
+    pub(crate) sigla: String,
+    pub(crate) nome: String,
+}
+
 /// Por que `aberto_em` não foi lido.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MotivoAbertoEm {
     RaizPublicaOVinculoDeAnexacao,
+    RaizPublicaOSobrestamento,
     HtmlDaRaizNaoPublicado,
     HtmlDaRaizForaDaFormaObservada,
 }
@@ -38,6 +48,7 @@ impl MotivoAbertoEm {
     pub(crate) fn como_texto(self) -> &'static str {
         match self {
             Self::RaizPublicaOVinculoDeAnexacao => "raiz_publica_o_vinculo_de_anexacao",
+            Self::RaizPublicaOSobrestamento => "raiz_publica_o_sobrestamento",
             Self::HtmlDaRaizNaoPublicado => "html_da_raiz_nao_publicado",
             Self::HtmlDaRaizForaDaFormaObservada => "html_da_raiz_fora_da_forma_observada",
         }
@@ -45,9 +56,12 @@ impl MotivoAbertoEm {
 }
 
 /// `Unidades(vec![])`: "Processo não possui andamentos abertos.".
+/// `Sobrestado`: "Processo sobrestado na unidade <a>."; `aberto_em` sai
+/// `null` com [`MotivoAbertoEm::RaizPublicaOSobrestamento`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum AbertoEm {
     Unidades(Vec<UnidadeAberta>),
+    Sobrestado(Vec<UnidadeSobrestada>),
     NaoLido(MotivoAbertoEm),
 }
 
@@ -56,10 +70,12 @@ pub(crate) enum AbertoEm {
 pub(super) fn ler_aberto_em(html: &str) -> AbertoEm {
     match super::vinculo::html_da_raiz(html) {
         Ok(None) => AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizNaoPublicado),
-        Ok(Some(texto)) => ler_unidades(&texto).map_or(
-            AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada),
-            AbertoEm::Unidades,
-        ),
+        Ok(Some(texto)) => ler_unidades(&texto)
+            .map(AbertoEm::Unidades)
+            .or_else(|| ler_sobrestamento(&texto).map(AbertoEm::Sobrestado))
+            .unwrap_or(AbertoEm::NaoLido(
+                MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada,
+            )),
         Err(_) => AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada),
     }
 }
@@ -67,6 +83,7 @@ pub(super) fn ler_aberto_em(html: &str) -> AbertoEm {
 const SOMENTE: &str = "Processo aberto somente na unidade ";
 const NAS_UNIDADES: &str = "Processo aberto nas unidades:";
 const NENHUMA: &str = "Processo não possui andamentos abertos.";
+const SOBRESTADO: &str = "Processo sobrestado na unidade ";
 const ATRIBUIDO: &str = " (atribuído para ";
 
 /// Uma peça do primeiro nível do texto.
@@ -102,6 +119,23 @@ pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
     siglas.sort_unstable();
     siglas.dedup();
     (siglas.len() == unidades.len()).then_some(unidades)
+}
+
+/// A unidade de "Processo sobrestado na unidade <a>.<br />", ou `None`
+/// fora dessa forma (única observada: uma unidade, sem atribuição).
+pub(super) fn ler_sobrestamento(texto: &str) -> Option<Vec<UnidadeSobrestada>> {
+    match pecas(texto)?.as_slice() {
+        [
+            Peca::Texto(frase),
+            Peca::Ancora { sigla, nome },
+            Peca::Texto(ponto),
+            Peca::Quebra,
+        ] if frase == SOBRESTADO && ponto == "." => Some(vec![UnidadeSobrestada {
+            sigla: sigla.clone(),
+            nome: nome.clone(),
+        }]),
+        _ => None,
+    }
 }
 
 /// Uma ou mais unidades, cada uma terminada por `<br />` (com atribuição,

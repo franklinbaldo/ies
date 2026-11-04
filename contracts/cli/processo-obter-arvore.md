@@ -179,6 +179,7 @@ com o destino do link do nó e `presente_entre_os_documentos`.
  "anexado": false, "anexado_a": null,
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "aberto_em": [{"sigla": "…", "nome": "…", "atribuido_a": {"sigla": "…", "nome": "…"}}],
+ "sobrestado_em": null,
  "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
                  "pasta": "PASTA1 ou null", "icone": "documento_interno",
                  "cancelado": false, "motivo_do_cancelamento": null}],

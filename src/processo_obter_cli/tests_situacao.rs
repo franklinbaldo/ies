@@ -4,7 +4,7 @@
 use super::tests::aberto;
 use super::*;
 use crate::arvore_processo::{
-    AbertoEm, Atribuicao, MotivoAbertoEm, NaturezaDoDocumento, UnidadeAberta,
+    AbertoEm, Atribuicao, MotivoAbertoEm, NaturezaDoDocumento, UnidadeAberta, UnidadeSobrestada,
 };
 
 fn nup() -> NumeroProcesso {
@@ -85,6 +85,44 @@ fn nao_lido_e_null_com_motivo_e_primeiro_em_nao_lidos() {
         humano(&nup(), &processo, true)
             .contains("\nAberto em: não lido (raiz_publica_o_vinculo_de_anexacao).")
     );
+}
+
+#[test]
+fn sobrestado_publica_a_unidade_e_aberto_em_null_com_motivo() {
+    let processo = com_aberto_em(AbertoEm::Sobrestado(vec![UnidadeSobrestada {
+        sigla: "Unidade1".into(),
+        nome: "Unidade Um".into(),
+    }]));
+    let valor = json_do_processo(&nup(), &processo, true);
+    assert_eq!(
+        valor["sobrestado_em"],
+        json!([{"sigla": "Unidade1", "nome": "Unidade Um"}])
+    );
+    assert!(valor["aberto_em"].is_null());
+    assert_eq!(
+        valor["aberto_em_nao_lido_motivo"],
+        "raiz_publica_o_sobrestamento"
+    );
+    assert_eq!(
+        valor["nao_lidos"],
+        json!(["aberto_em", "andamentos", "marcadores", "propriedades"])
+    );
+    let texto = humano(&nup(), &processo, true);
+    assert!(texto.contains("\nSobrestado em: Unidade1."), "{texto}");
+    assert!(!texto.contains("Aberto em"), "{texto}");
+}
+
+#[test]
+fn sobrestado_em_sai_null_fora_da_frase_do_sobrestamento() {
+    let casos = [
+        duas_unidades(),
+        AbertoEm::Unidades(Vec::new()),
+        AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada),
+    ];
+    for caso in casos {
+        let valor = json_do_processo(&nup(), &com_aberto_em(caso), false);
+        assert_eq!(valor.get("sobrestado_em"), Some(&Value::Null), "{valor}");
+    }
 }
 
 #[test]

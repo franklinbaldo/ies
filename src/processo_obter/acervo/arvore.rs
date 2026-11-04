@@ -123,6 +123,14 @@ fn situacao(c: &Cassette<'_>, r: &Resposta<'_>, aberto_em: &AbertoEm) -> Registr
             };
             (Resultado::Lido, Some(forma))
         }
+        AbertoEm::Sobrestado(unidades) => {
+            let forma = if unidades.len() == 1 {
+                "sobrestado_numa_unidade"
+            } else {
+                "sobrestado_em_varias_unidades"
+            };
+            (Resultado::Lido, Some(forma.to_owned()))
+        }
         AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada) => (
             Resultado::Recusado(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada.como_texto()),
             None,
