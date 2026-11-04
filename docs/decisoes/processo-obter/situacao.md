@@ -6,9 +6,9 @@ implementation: partial
 status: adopted-for-scope
 scope: apêndice da decisão de processo.obter (Refs #59); ies processo NUP passa a publicar aberto_em (do .html do nó PROCESSO) e icone, cancelado e motivo_do_cancelamento de cada DOCUMENTO (a6 a a9), sem requisição a mais e sem falhar o comando por forma desconhecida
 selected_strategy: web-situacao-da-arvore-estrita
-alternatives: web-situacao-da-arvore-estrita,web-situacao-pelo-texto-livre,web-situacao-pelo-andamento,web-natureza-com-dica,web-natureza-traduzida
-evidence_level: capturas-privadas-estrutura-unb-go-pen1-e-testes-sinteticos
-live_validation: pass-unb-cancelado-go-pen1-not-run
+alternatives: web-situacao-da-arvore-estrita,web-situacao-pelo-texto-livre,web-situacao-pelo-andamento,web-natureza-com-dica,web-natureza-traduzida,sobrestado-em-lista,sobrestado-como-aberto,sobrestado-aberto-em-vazio,sobrestado-enum-de-situacao,sobrestado-objeto-unico
+evidence_level: capturas-privadas-estrutura-unb-go-pen1-acervo-publico-sete-instalacoes-e-testes-sinteticos
+live_validation: pass-unb-cancelado-sobrestado-go-pen1-not-run
 ---
 
 # Onde o processo está aberto e natureza dos documentos
@@ -88,6 +88,51 @@ sai em `dica` quando difere do rótulo (ver web-natureza-com-dica).
 
 **Efeito.** Nenhum além do GET da árvore já declarado.
 
+## Processo sobrestado (`sobrestado_em`)
+
+O [replay do acervo](../../validacao-replay/2026-11-04-processo-obter-acervo.md)
+achou 21 árvores (`processo-sobrestar-retomar-*`, as sete instalações)
+com `aberto_em` não lido: todas com a mesma frase, `Processo sobrestado
+na unidade <a …>SIGLA</a>.<br />`, uma unidade, sem atribuição
+([observação](../../como-o-sei-funciona/situacao-na-arvore.md)).
+
+- **sobrestado-em-lista** (escolhida): a frase vira a forma 4;
+  `sobrestado_em: [{sigla, nome}]`, `aberto_em: null` com motivo
+  `raiz_publica_o_sobrestamento` (como o anexado: a raiz publica outra
+  coisa) e `aberto_em` em `nao_lidos`. Fora da forma 4, `sobrestado_em:
+  null` (não observado). Lista, como `aberto_em`, para que uma forma
+  plural, se aparecer, entre sem mudar o tipo; hoje só uma unidade é
+  aceita.
+- **sobrestado-como-aberto**: publicar a unidade em `aberto_em`.
+  Rejeitada: a frase não diz "aberto"; o agente trataria o processo
+  suspenso como em andamento.
+- **sobrestado-aberto-em-vazio**: `aberto_em: []` mais `sobrestado_em`.
+  Rejeitada: `[]` é a frase "não possui andamentos abertos"; afirmaria
+  que o processo não está aberto em lugar nenhum, o que a tela não disse.
+- **sobrestado-enum-de-situacao**: um campo `situacao` (`aberto`,
+  `sem_andamentos_abertos`, `sobrestado`) ao lado das listas. Rejeitada:
+  duplica o que as listas já dizem e nomeia estados que o SEI não
+  enumera (concluído, arquivado, misto não observados).
+- **sobrestado-objeto-unico**: `sobrestado_em: {sigla, nome}`. Rejeitada
+  por pouco: espelha exatamente a frase singular, mas um plural futuro
+  mudaria o tipo do campo.
+
+| Critério | Lista | Como aberto | `[]` + lista | Enum | Objeto |
+| --- | --- | --- | --- | --- | --- |
+| Afirma o não observado | não | **sim** | **sim** | **sim** | não |
+| Forma do `aberto_em` | igual | igual | igual | igual | igual |
+| Plural futuro sem quebra | sim | sim | sim | — | **não** |
+
+`sobrestado_em: null` fora da forma 4 não nega o sobrestamento (o
+`null` do projeto é "não observado") e não entra em `nao_lidos`: o
+campo não lido continua sendo `aberto_em`, com o motivo. Sobrestamento
+com atribuição, em várias unidades ou com outra frase continua `aberto_em`
+não lido com `html_da_raiz_fora_da_forma_observada`. Texto humano:
+`Sobrestado em: SIGLA.` no lugar da linha de `aberto_em`. 0 requisições a
+mais. Validação: replay do acervo (21 de 21 lidas); ao vivo **NOT_RUN**
+(nenhum processo sobrestado à mão na sessão da UnB; criar um exige
+sobrestar, uma escrita fora do escopo).
+
 ## Evidências verificáveis
 
 - Capturas privadas da UnB, de GO e da PEN1 descritas na
@@ -103,7 +148,9 @@ sai em `dica` quando difere do rótulo (ver web-natureza-com-dica).
 Validação live **PASS** na UnB (unidade única, plural com atribuição,
 anexado, quente), sem requisição a mais; documento cancelado, GO e PEN1
 **NOT_RUN** ao vivo ([relatório](../../validacao-live/2026-11-04-processo-obter-situacao.md)).
-Não observados: processo sobrestado ou concluído em todas as unidades,
-5.0.x fora de GO, documento cancelado fora de GO, ícone fora de `svg/`.
+Não observados: sobrestamento com atribuição ou em várias unidades,
+processo concluído em todas fora da frase "não possui andamentos
+abertos", 5.0.x fora de GO e da PEN3/PEN4, documento cancelado fora de
+GO, ícone fora de `svg/`.
 Revisar se uma instalação publicar outra frase, âncora sem
 `ancoraSigla` ou ícones diferentes entre a7 e a9.

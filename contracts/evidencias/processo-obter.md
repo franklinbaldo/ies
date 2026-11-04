@@ -124,6 +124,11 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 - [Contrato](../cli/processo-obter-arvore.md) e
   [observação](../../docs/como-o-sei-funciona/arvore-do-processo.md).
   Validação live: **NOT_RUN**.
+- Cassettes públicas `documento-mover-cancelar-{go,pen1,pen2,pen3}`
+  (replay offline): documento movido de A para B e de volta; as 8
+  árvores seguintes de A trazem o movido `n-m` e o `DOCUMENTO` `n`.
+  [Contrato dos movidos](../cli/processo-obter-movidos.md),
+  [relatório](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md).
 
 ## Evidência própria do IES (propriedades)
 

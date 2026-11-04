@@ -2,7 +2,7 @@
 //! observadas na `UnB` 4.0.9, em GO 5.0.3 e na PEN1 4.0.12 (conteúdo das
 //! telas de treinamento; nenhuma URL ou hash), e as formas recusadas, que
 //! viram "não lido" sem falhar a árvore.
-use super::situacao::{ler_aberto_em, ler_unidades};
+use super::situacao::{ler_aberto_em, ler_sobrestamento, ler_unidades};
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_anexado_a::{ID_PAI, NUP_PAI, href_do_pai, html_do_anexado};
 use super::*;
@@ -212,14 +212,84 @@ fn motivos_tem_nome_estavel() {
     assert_eq!(
         [
             MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao,
+            MotivoAbertoEm::RaizPublicaOSobrestamento,
             MotivoAbertoEm::HtmlDaRaizNaoPublicado,
             MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada,
         ]
         .map(MotivoAbertoEm::como_texto),
         [
             "raiz_publica_o_vinculo_de_anexacao",
+            "raiz_publica_o_sobrestamento",
             "html_da_raiz_nao_publicado",
             "html_da_raiz_fora_da_forma_observada",
         ]
     );
+}
+
+fn sobrestado(ancora_da_unidade: &str) -> String {
+    format!("Processo sobrestado na unidade {ancora_da_unidade}.<br />")
+}
+
+fn sobrestada(sigla: &str, nome: &str) -> UnidadeSobrestada {
+    UnidadeSobrestada {
+        sigla: sigla.into(),
+        nome: nome.into(),
+    }
+}
+
+/// A frase das 21 árvores de `processo-sobrestar-retomar-*` (`UnB`, GO,
+/// UFRJ e PEN1 a PEN4): uma unidade, sem atribuição.
+#[test]
+fn sobrestado_numa_unidade_nas_formas_do_acervo() {
+    let casos = [
+        ("Unidade1", "Unidade1"),
+        ("TESTE", "Unidade de Teste 1"),
+        ("CAXIAS", "Campus Duque de Caxias"),
+        ("SEAD/CDE-09516", "CANSILHA DI DISINVALVUMINTA DA ISTODA"),
+    ];
+    for (sigla, nome) in casos {
+        let html = sobrestado(&ancora(nome, sigla));
+        assert_eq!(
+            ler_sobrestamento(&html),
+            Some(vec![sobrestada(sigla, nome)]),
+            "{html}"
+        );
+        // Não é unidade aberta: a frase não diz onde o processo está aberto.
+        assert_eq!(ler_unidades(&html), None, "{html}");
+    }
+    let lida = ler_arvore(
+        &com_html(&sobrestado(&ancora("Unidade1", "Unidade1"))),
+        NUP,
+        "10",
+    )
+    .unwrap();
+    assert_eq!(
+        lida.aberto_em,
+        AbertoEm::Sobrestado(vec![sobrestada("Unidade1", "Unidade1")])
+    );
+    assert_eq!(lida.documentos.len(), 1);
+}
+
+#[test]
+fn sobrestamento_fora_da_forma_observada_nao_e_lido() {
+    let u1 = ancora("Unidade1", "Unidade1");
+    let u2 = ancora("Unidade2", "Unidade2");
+    let casos = [
+        "Processo sobrestado.<br />".to_owned(),
+        format!("Processo sobrestado na unidade {u1}<br />"),
+        format!("Processo sobrestado na unidade {u1}."),
+        format!("{}x", sobrestado(&u1)),
+        format!("Processo sobrestado na unidade {u1} (atribuído para {u2}).<br />"),
+        format!("Processo sobrestado nas unidades:<br />{u1}<br />{u2}<br /><br />"),
+        format!("Processo sobrestado na unidade {u1}{u2}.<br />"),
+        sobrestado("<a alt=\"A\" title=\"B\" class=\"ancoraSigla\">U</a>"),
+        somente(&u1),
+    ];
+    for caso in casos {
+        assert_eq!(ler_sobrestamento(&caso), None, "{caso}");
+        assert!(
+            !matches!(ler_aberto_em(&com_html(&caso)), AbertoEm::Sobrestado(_)),
+            "{caso}"
+        );
+    }
 }

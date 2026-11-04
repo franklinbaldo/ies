@@ -59,7 +59,6 @@ pub(crate) enum ErroArvore {
     DocumentoMovidoForaDaFormaObservada,
     DocumentoMovidoComPaiDiferenteDoProcesso,
     DocumentoMovidoRepetidoNaArvore,
-    DocumentoMovidoPresenteEntreOsDocumentos,
     DestinoDoDocumentoMovidoForaDaFormaObservada,
     DestinosDoDocumentoMovidoRepetidos,
 }
@@ -166,9 +165,6 @@ impl ErroArvore {
                 "documento_movido_com_pai_diferente_do_processo"
             }
             Self::DocumentoMovidoRepetidoNaArvore => "documento_movido_repetido_na_arvore",
-            Self::DocumentoMovidoPresenteEntreOsDocumentos => {
-                "documento_movido_presente_entre_os_documentos"
-            }
             Self::DestinoDoDocumentoMovidoForaDaFormaObservada => {
                 "destino_do_documento_movido_fora_da_forma_observada"
             }

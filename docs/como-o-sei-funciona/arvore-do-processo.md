@@ -187,8 +187,15 @@ com exatamente um `<a>`; o texto é o mesmo NUP da dica. `n` não é id de
 nenhum `DOCUMENTO` da árvore, a15 não repete o de nenhum deles e o id do
 destino não aparece em outro nó: o movido não está mais no processo. Não
 havia pastas; movido dentro de pasta não foi observado. O Todos não
-menciona esse nó. Leitura do IES:
-[contrato](../../contracts/cli/processo-obter-arvore.md).
+menciona esse nó.
+
+**Ida e volta** (cassettes públicas `documento-mover-cancelar-*` de GO,
+PEN1, PEN2 e PEN3): movido de A para B e de B para A, a árvore de A
+mantém o movido `n-m1` (destino B) e traz logo depois o `DOCUMENTO` `n`,
+com o mesmo rótulo e o mesmo a15; a de B fica com o movido `n-m2`
+(destino A). A segunda parte muda a cada movimento. O histórico resumido
+não mostra os movimentos. Leitura do IES:
+[contrato dos movidos](../../contracts/cli/processo-obter-movidos.md).
 
 Veja também [rotas e árvore](rotas-e-arvore.md) e
 [efeitos e verificação](efeitos-e-verificacao.md).

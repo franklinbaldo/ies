@@ -86,6 +86,7 @@ fn movido_nao_e_documento_do_processo() {
             rotulo: "Oficio Sintetico (0000103)".into(),
             numero_sei: Some("0000103".into()),
             destino: None,
+            presente_entre_os_documentos: false,
         }]
     );
     assert!(!format!("{lida:?}").contains("motivo sintetico"));
@@ -229,10 +230,6 @@ fn no_movido_fora_da_forma_e_recusa() {
             E::DocumentoMovidoRepetidoNaArvore,
         ),
         (
-            vec![p(), d(), m("21-41", "10")],
-            E::DocumentoMovidoPresenteEntreOsDocumentos,
-        ),
-        (
             vec![
                 p(),
                 d(),
@@ -305,7 +302,6 @@ fn subcodigos_estaveis() {
         E::DocumentoMovidoForaDaFormaObservada,
         E::DocumentoMovidoComPaiDiferenteDoProcesso,
         E::DocumentoMovidoRepetidoNaArvore,
-        E::DocumentoMovidoPresenteEntreOsDocumentos,
         E::DestinoDoDocumentoMovidoForaDaFormaObservada,
         E::DestinosDoDocumentoMovidoRepetidos,
     ]
@@ -318,7 +314,6 @@ fn subcodigos_estaveis() {
             "documento_movido_fora_da_forma_observada",
             "documento_movido_com_pai_diferente_do_processo",
             "documento_movido_repetido_na_arvore",
-            "documento_movido_presente_entre_os_documentos",
             "destino_do_documento_movido_fora_da_forma_observada",
             "destinos_do_documento_movido_repetidos",
         ]

@@ -64,6 +64,15 @@ fn arvore(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Registro
                 .count() as u64,
         ),
     ];
+    for movido in &a.documentos_movidos {
+        registro
+            .formas
+            .push(if movido.presente_entre_os_documentos {
+                "movido_presente_entre_os_documentos".into()
+            } else {
+                "movido_ausente_dos_documentos".into()
+            });
+    }
     registro
 }
 
@@ -113,6 +122,14 @@ fn situacao(c: &Cassette<'_>, r: &Resposta<'_>, aberto_em: &AbertoEm) -> Registr
                 _ => "varias_unidades_com_atribuicao".to_owned(),
             };
             (Resultado::Lido, Some(forma))
+        }
+        AbertoEm::Sobrestado(unidades) => {
+            let forma = if unidades.len() == 1 {
+                "sobrestado_numa_unidade"
+            } else {
+                "sobrestado_em_varias_unidades"
+            };
+            (Resultado::Lido, Some(forma.to_owned()))
         }
         AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada) => (
             Resultado::Recusado(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada.como_texto()),

@@ -1,8 +1,11 @@
 //! RED/GREEN do JSON dos documentos movidos: id composto opaco, rótulo,
 //! número SEI e o destino (`{numero, id_procedimento}` ou `null`), sem URL
-//! nem a dica; `[]` sem movido; some com `--sem-documentos`.
+//! nem a dica; `[]` sem movido; some com `--sem-documentos`. O movido
+//! cujo documento está entre os documentos sai com
+//! `presente_entre_os_documentos: true` e marcado no texto humano.
 use super::tests::aberto;
 use super::*;
+use crate::arvore_processo::tests_movido_presente::arvore_de_ida_e_volta;
 use crate::arvore_processo::tests_movidos::{
     ID_DESTINO, NUP_DESTINO, ORIGEM, arvore_com_movido, href_do_destino, html_do_movido,
 };
@@ -37,7 +40,8 @@ fn movido_publica_o_destino_sem_url_nem_dica() {
             "id": "31-41",
             "rotulo": "Oficio Sintetico (0000103)",
             "numero_sei": "0000103",
-            "destino": {"numero": NUP_DESTINO, "id_procedimento": ID_DESTINO}
+            "destino": {"numero": NUP_DESTINO, "id_procedimento": ID_DESTINO},
+            "presente_entre_os_documentos": false
         }])
     );
     let texto = valor.to_string();
@@ -72,4 +76,25 @@ fn texto_humano_lista_o_movido_com_a_dica() {
         "{sem_link}"
     );
     assert!(!humano(&nup, &aberto(None), false).contains("movido"));
+}
+
+#[test]
+fn movido_presente_sai_marcado_no_json_e_no_texto() {
+    let nup = NumeroProcesso::novo(NUP).unwrap();
+    let aberto = com_movidos(&arvore_de_ida_e_volta());
+    let valor = json_do_processo(&nup, &aberto, false);
+    assert_eq!(valor["documentos_movidos"][0]["id"], "21-41");
+    assert_eq!(
+        valor["documentos_movidos"][0]["presente_entre_os_documentos"],
+        true
+    );
+    let texto = humano(&nup, &aberto, false);
+    assert!(
+        texto.contains(&format!(
+            "(id 21-41): movido para {NUP_DESTINO}, ies processo {NUP_DESTINO} (o documento está de novo neste processo)"
+        )),
+        "{texto}"
+    );
+    let ausente = humano(&nup, &com_destino(), false);
+    assert!(!ausente.contains("de novo"), "{ausente}");
 }
