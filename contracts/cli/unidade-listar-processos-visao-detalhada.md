@@ -151,8 +151,8 @@ visível na próxima leitura. Requisições, sem retry:
 | R | ausente ou igual à página lembrada da D | 1 GET + 1 POST (D) |
 | R | N diferente da página lembrada da D | 1 GET + 2 POST (D, página N) |
 
-Regime estável: depois da primeira troca a sessão está na D (PEN1 e GO
-lembram a D; a UnB 4.0.9 volta à R no GET seguinte), e
+Regime estável: depois da primeira troca a sessão está na D (PEN1, PEN3,
+PEN4 e GO lembram a D; a UnB 4.0.9 volta à R no GET seguinte), e
 `listar-processos` custa **1 GET**.
 
 1. **GET** do Controle (travas existentes). Visão nem R nem D:
@@ -223,5 +223,6 @@ Ensaio live de 02/11/2026 (PEN1, UnB, GO; [validação](../../docs/validacao-liv
 troca, leitura e restauração da visão PASS, com a versão que restaurava.
 Fluxo sem restauração acima ([ensaio de 04/11/2026](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na
 UnB 4.0.9 (R→D, 1 GET + 1 POST; a UnB volta à R a cada GET) e na PEN1
-4.0.12, nos quatro regimes da tabela, com as requisições contadas e a
-página da D lembrada; GO, PEN3 e PEN4 **NOT_RUN**.
+4.0.12, PEN3 e PEN4 5.0.4 (D com 3 páginas, lembra a D), nos quatro
+regimes da tabela, com as requisições contadas e a página da D lembrada;
+GO **NOT_RUN**.
