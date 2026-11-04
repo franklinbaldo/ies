@@ -224,11 +224,10 @@ fn unidade_listar_processos_nao_exporta_sem_sessao_autorizada() {
 }
 
 #[test]
-fn busca_documento_permanece_subcomando() {
+fn busca_documento_permanece_subcomando_sem_assunto() {
+    // `--assunto` nunca foi implementado; a busca é `buscar TERMO` (Refs #61).
     let output = ies(&["documento", "buscar", "--assunto", "previdencia", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
+    assert_eq!(output.status.code(), Some(2));
 }
 
 #[test]

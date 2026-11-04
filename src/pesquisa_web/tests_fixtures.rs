@@ -7,7 +7,7 @@
 
 pub(crate) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
 pub(crate) const UNIDADE: &str = "UNIDADE TESTE";
-const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
+pub(crate) const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
 
 pub(crate) fn hash(c: char) -> String {
     c.to_string().repeat(64)
@@ -84,6 +84,8 @@ pub(crate) fn formulario(protocolo: &str, processos_marcado: bool, conteudo: &st
          <input type=\"radio\" id=\"optProcessos\" name=\"rdoPesquisarEm\" value=\"P\"{p} />\
          <input type=\"checkbox\" id=\"chkSinConsiderarDocumentos\" name=\"chkSinConsiderarDocumentos\" value=\"S\" />\
          <input type=\"radio\" id=\"optDocumentos\" name=\"rdoPesquisarEm\" value=\"D\"{d} />\
+         <input type=\"checkbox\" id=\"chkSinDocumentosGerados\" name=\"chkSinDocumentosGerados\" value=\"S\" checked=\"checked\" />\
+         <input type=\"checkbox\" id=\"chkSinDocumentosRecebidos\" name=\"chkSinDocumentosRecebidos\" value=\"S\" checked=\"checked\" />\
          <input type=\"text\" id=\"q\" name=\"q\" value=\"\" />\
          <select style=\"display: none\" multiple id=\"selOrgaoPesquisa\" name=\"selOrgaoPesquisa[]\">\
          <option value=\"0\" selected=\"selected\">ORGAO</option><option value=\"9\">OUTRO</option></select>\
@@ -101,7 +103,7 @@ pub(crate) fn formulario(protocolo: &str, processos_marcado: bool, conteudo: &st
     )
 }
 
-fn pagina(corpo: &str) -> String {
+pub(crate) fn pagina(corpo: &str) -> String {
     format!(
         "<html><head>{SCRIPT_NAVEGAR}</head><body>\
          <a id=\"lnkInfraUnidade\">{UNIDADE}</a>{corpo}</body></html>"
@@ -153,6 +155,17 @@ pub(crate) fn milhar(n: u64) -> String {
 /// Barra, tabela com as linhas `inicio..=fim` e paginador `navegar()`.
 pub(crate) fn conteudo_da_lista(inicio: u64, fim: u64, total: &str, tamanho: u64) -> String {
     let linhas: String = (inicio..=fim).map(linha).collect();
+    conteudo_com_linhas(inicio, fim, total, tamanho, &linhas)
+}
+
+/// [`conteudo_da_lista`] com as linhas já montadas (processos ou documentos).
+pub(crate) fn conteudo_com_linhas(
+    inicio: u64,
+    fim: u64,
+    total: &str,
+    tamanho: u64,
+    linhas: &str,
+) -> String {
     let numerico: u64 = total.replace('.', "").parse().unwrap_or(0);
     let mut links = String::new();
     for k in (0..10u64).map(|n| n * tamanho) {

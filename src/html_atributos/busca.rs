@@ -59,7 +59,7 @@ pub(crate) fn nos_por_elemento_e_classe(
     elemento: &str,
     classe: &str,
 ) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    filtrar_por_classe(dom, raiz, elemento, classe, false)
+    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::Recusada)
 }
 
 /// Como `nos_por_elemento_e_classe`, aceitando `class` repetido com valores
@@ -70,7 +70,28 @@ pub(crate) fn nos_por_elemento_e_classe_com_repeticao_identica(
     elemento: &str,
     classe: &str,
 ) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    filtrar_por_classe(dom, raiz, elemento, classe, true)
+    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::Identica)
+}
+
+/// Como `nos_por_elemento_e_classe`, aceitando `class` repetido quando
+/// **todas** as ocorrências contêm `classe` (PEN3 5.0.4 serve
+/// `class="protocoloNormal processoVisitado" … class="protocoloNormal"` no
+/// link do processo já visitado); uma ocorrência sem ela é erro.
+pub(crate) fn nos_por_elemento_e_classe_em_todas_as_ocorrencias(
+    dom: &tl::VDom<'_>,
+    raiz: Option<&tl::HTMLTag<'_>>,
+    elemento: &str,
+    classe: &str,
+) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
+    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::ContendoAClasse)
+}
+
+/// O que fazer com o atributo `class` repetido na mesma tag.
+#[derive(Clone, Copy)]
+enum Repeticao {
+    Recusada,
+    Identica,
+    ContendoAClasse,
 }
 
 fn filtrar_por_classe(
@@ -78,7 +99,7 @@ fn filtrar_por_classe(
     raiz: Option<&tl::HTMLTag<'_>>,
     elemento: &str,
     classe: &str,
-    repeticao_identica: bool,
+    repeticao: Repeticao,
 ) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
     let parser = dom.parser();
     let candidatos: Vec<tl::NodeHandle> = match raiz {
@@ -95,10 +116,10 @@ fn filtrar_por_classe(
             continue;
         };
         let lidos = atributos(tag)?;
-        let tem = if repeticao_identica {
-            lidos.tem_classe_com_repeticao_identica(classe)?
-        } else {
-            lidos.tem_classe(classe)?
+        let tem = match repeticao {
+            Repeticao::Recusada => lidos.tem_classe(classe)?,
+            Repeticao::Identica => lidos.tem_classe_com_repeticao_identica(classe)?,
+            Repeticao::ContendoAClasse => lidos.tem_classe_em_todas_as_ocorrencias(classe)?,
         };
         if tem {
             achados.push(candidato);

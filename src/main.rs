@@ -14,6 +14,7 @@ mod controle_reconhecido;
 mod copia_documento;
 mod copia_listagem;
 mod documento;
+mod documento_buscar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -210,9 +211,17 @@ enum DocumentoAcao {
         #[arg(long, conflicts_with_all = ["versao", "confirmar"])]
         listar_copias: bool,
     },
+    /// Pesquisa documento na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
-        #[arg(long)]
-        assunto: Option<String>,
+        /// Número SEI exato ou parcial, como digitado no campo Protocolo
+        termo: String,
+        /// Pede a página N do resultado (um POST que altera a página lembrada)
+        #[arg(
+            long,
+            value_name = "N",
+            value_parser = clap::value_parser!(u32).range(1..)
+        )]
+        pagina: Option<u32>,
     },
     Assinar {
         numero: String,
@@ -327,6 +336,7 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_buscar_cli::tentar_buscar(cli)
+        .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))

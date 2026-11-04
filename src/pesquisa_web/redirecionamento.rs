@@ -41,6 +41,11 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     AcaoDeOrigemInesperadaNoRedirecionamento,
     /// O id endereçado não é o pedido (entrada por id, linha do Controle).
     IdProcedimentoDoRedirecionamentoDiferenteDoPedido,
+    /// Pesquisa em documentos: o 302 do número SEI traz `id_documento`
+    /// decimal; vazio (a forma do processo) ou ausente não é documento.
+    IdDocumentoAusenteNoRedirecionamento,
+    IdDocumentoRepetidoNoRedirecionamento,
+    IdDocumentoNaoDecimalNoRedirecionamento,
 }
 
 impl ErroRedirecionamentoDaPesquisa {
@@ -116,6 +121,15 @@ impl ErroRedirecionamentoDaPesquisa {
             }
             Self::IdProcedimentoDoRedirecionamentoDiferenteDoPedido => {
                 "id_procedimento_do_redirecionamento_diferente_do_pedido"
+            }
+            Self::IdDocumentoAusenteNoRedirecionamento => {
+                "id_documento_ausente_no_redirecionamento"
+            }
+            Self::IdDocumentoRepetidoNoRedirecionamento => {
+                "id_documento_repetido_no_redirecionamento"
+            }
+            Self::IdDocumentoNaoDecimalNoRedirecionamento => {
+                "id_documento_nao_decimal_no_redirecionamento"
             }
         }
     }
@@ -380,6 +394,21 @@ pub(crate) fn conferir_trabalho(
         id,
         trabalho: UrlDeTrabalho(absoluta),
     })
+}
+
+/// O `id_documento` da URL de trabalho já conferida (302 da pesquisa em
+/// documentos): exatamente um, decimal e não vazio.
+pub(crate) fn documento_do_trabalho(
+    trabalho: &UrlDeTrabalho,
+) -> Result<String, ErroRedirecionamentoDaPesquisa> {
+    let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
+    let pares = parametros(consulta)?;
+    match valores(&pares, "id_documento").as_slice() {
+        [] | [""] => Err(E::IdDocumentoAusenteNoRedirecionamento),
+        [id] if decimal(id) => Ok((*id).to_owned()),
+        [_] => Err(E::IdDocumentoNaoDecimalNoRedirecionamento),
+        _ => Err(E::IdDocumentoRepetidoNoRedirecionamento),
+    }
 }
 
 #[cfg(test)]

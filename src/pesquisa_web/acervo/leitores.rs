@@ -26,9 +26,12 @@ use std::path::{Path, PathBuf};
 /// termo não muda a resposta já gravada; só precisa caber no `maxlength`.
 pub(super) const TERMO_DE_PROVA: &str = "0";
 
+mod documentos;
+
 /// O que a gravação estabeleceu até o passo atual.
 #[derive(Default)]
 struct Estado {
+    em_documentos: documentos::EstadoEmDocumentos,
     unidade: Option<String>,
     pendente: Option<SubmissaoDerivada>,
     /// A última resposta da Pesquisa foi uma tela de resultado (200 do POST).
@@ -78,8 +81,18 @@ pub(super) fn replay(card: &str, instalacao_nome: &str, json: &serde_json::Value
     for r in gravacao::respostas(json) {
         match (r.operacao, r.metodo) {
             ("procedimento_controlar", "GET") => registros.push(controle(&c, &r, &mut estado)),
-            ("protocolo_pesquisar", "GET") => registros.push(tela(&c, &r, &mut estado)),
-            ("protocolo_pesquisar", "POST") => registros.extend(envio(&c, &r, &mut estado)),
+            ("protocolo_pesquisar", "GET") => {
+                registros.push(tela(&c, &r, &mut estado));
+                let unidade = estado.unidade.as_deref();
+                let d = &mut estado.em_documentos;
+                registros.push(documentos::tela(&c, &r, unidade, d));
+            }
+            ("protocolo_pesquisar", "POST") => {
+                let unidade = estado.unidade.clone();
+                let d = &mut estado.em_documentos;
+                registros.extend(documentos::envio(&c, &r, unidade.as_deref(), d));
+                registros.extend(envio(&c, &r, &mut estado));
+            }
             _ => {}
         }
     }
@@ -271,7 +284,7 @@ fn plano(
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Opcao {
+pub(super) enum Opcao {
     Processos,
     Documentos,
     Indeterminada,
