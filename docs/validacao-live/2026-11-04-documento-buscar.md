@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
 title: Ensaio live de documento buscar na PEN3 5.0.4
-description: PASS/FAIL/NOT_RUN de ies documento buscar na PEN3 (NUP com um e com dois documentos, parcial, --pagina 2 e última, fora do intervalo, inexistente, texto, --unidade divergente, saída humana), 04/11/2026
+description: PASS/FAIL/NOT_RUN de ies documento buscar na PEN3 (NUP com um e com dois documentos, parcial, --pagina 2 e última, fora do intervalo, inexistente, texto, --unidade divergente, saída humana, número SEI e NUP só de dígitos), 04/11/2026
 ---
 
 # Ensaio live de `ies documento buscar` — PEN3 5.0.4 — 04/11/2026
@@ -47,7 +47,9 @@ e segue a [decisão](../decisoes/documento-buscar.md).
 | 8 | `Despacho` (texto no Protocolo) | resposta observada | `sem_resultado`, saída 0 | 3 | **PASS** |
 | 9 | `--unidade OUTRA` | recusa depois do GET do Controle | `unidade_da_tela_diferente_da_solicitada`, saída 1 | 1 | **PASS** |
 | 10 | `98390.000014/2026-29` sem `--json` | texto humano | 2 de 2, com número SEI, rótulo e NUP | 3 | **PASS** |
-| — | número SEI exato ou parcial só de dígitos (`0001018`) | `documento_unico` | — | 0 | **NOT_RUN** |
+| 11 | `0001018` (número SEI exato, só dígitos) | `documento_unico` | `documento_unico`, ids 1518 / 1517 | 3 | **PASS** |
+| 12 | `1018` (o mesmo sem zeros à esquerda) | resposta observada | `documento_unico`, ids 1518 / 1517 | 3 | **PASS** |
+| 13 | `98390000036202699` (NUP do caso 1 só com dígitos) | resposta observada | `sem_resultado`, saída 0 | 3 | **PASS** |
 
 ## Observações
 
@@ -68,12 +70,46 @@ e segue a [decisão](../decisoes/documento-buscar.md).
   `q` não é enviado. `sem_resultado` é resposta observada, não
   inexistência.
 
+## Termos só de dígitos (Cloudflare)
+
+Rodada autorizada pelo proprietário, 18:24–18:41 UTC, binário do ramo
+`slice-busca-compat` (commit `1cc78b2`), mesma sessão, **≥ 60 s** entre o
+fim de um comando e o início do seguinte, sem retry, 7 comandos e 19
+túneis contados no relay CONNECT. Comandos 1, 5 e 6 são os casos 11–13
+acima; 2, 3, 4 e 5 são de `processo buscar` e estão no
+[relatório dele](2026-11-04-processo-buscar.md#termos-só-de-dígitos-cloudflare).
+
+| # | Início (UTC) | Comando | Túneis | Resposta |
+| ---: | --- | --- | ---: | --- |
+| 1 | 18:24:02 | `documento buscar 0001018` | 3 | 302 → `documento_unico` |
+| 2 | 18:25:18 | `processo buscar 98390.000039/2026-22` (controle) | 3 | 302 → `processo_unico` |
+| 3 | 18:26:37 | `processo buscar 98390000039202622` | 1 | **403 Cloudflare no GET do Controle** |
+| — | — | espera de 10 min 53 s | — | — |
+| 4 | 18:37:30 | `processo buscar 98390.000038/2026-88` (controle) | 3 | 302 → `processo_unico` |
+| 5 | 18:38:46 | `processo buscar 98390000038202688` | 3 | 302 → `processo_unico` (o mesmo id do 4) |
+| 6 | 18:40:01 | `documento buscar 1018` | 3 | 302 → `documento_unico` |
+| 7 | 18:41:14 | `documento buscar 98390000036202699` | 3 | `sem_resultado` |
+
+- **O termo não causa o bloqueio.** No comando 3 o 403 veio na
+  **primeira** requisição, o GET do Controle (1 túnel, 1.286 bytes
+  enviados, como em todos os GETs), que não leva o termo; o POST nem foi
+  enviado. O IES publicou `bloqueio_de_seguranca_da_instalacao`, saída 1,
+  sem repetir. Os outros quatro POSTs só de dígitos (7 e 17 dígitos)
+  passaram. A borda da PEN3 bloqueia pela origem ou pelo ritmo agregado
+  (a saída HTTPS é compartilhada com outras sessões, não medidas aqui),
+  não pelo texto pesquisado.
+- **Número SEI exato.** `0001018` e `1018` respondem o mesmo 302 com
+  `id_documento=1518` (`id_procedimento=1517`): a PEN3 casa o número SEI
+  sem exigir os zeros à esquerda. O IES envia o termo como digitado.
+- **NUP só de dígitos em documentos** não casa (`sem_resultado`), embora
+  o NUP formatado (caso 1) case; em processos, o NUP só de dígitos casa
+  (comando 5). `sem_resultado` continua resposta observada.
+
 ## Não executado
 
-- **Número SEI só de dígitos** (exato `0001018` ou parcial): **NOT_RUN**
-  de propósito, para não provocar de novo o bloqueio da borda da PEN3. A
-  forma do 302 está nas sete cassettes `documento-numero-e-busca-*` e no
-  replay; falta autorização para ensaiar o termo numérico.
+- Número SEI **parcial** que case mais de um documento (lista por
+  número): **NOT_RUN**.
 - UnB, UFRJ, GO, PEN1, PEN2 e PEN4: **NOT_RUN** (fora do escopo desta
   rodada). A issue pede UnB e GO; GO publica menos linhas que a faixa e
-  hoje seria recusado (ver a decisão).
+  era recusado; agora sai com `linhas_ausentes_da_faixa` (ver a decisão),
+  ainda não ensaiado ao vivo.

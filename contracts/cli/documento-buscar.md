@@ -134,4 +134,5 @@ validação, 302, barra, paginação, transporte e
   [decisão](../../docs/decisoes/documento-buscar.md).
 - [Replay do acervo](../../docs/validacao-replay/2026-11-04-documento-buscar-acervo.md).
 - [Superfície da CLI](../../tests/documento_buscar_web.rs).
-- [Ensaio live na PEN3](../../docs/validacao-live/2026-11-04-documento-buscar.md).
+- [Ensaio live na PEN3](../../docs/validacao-live/2026-11-04-documento-buscar.md),
+  inclusive número SEI exato só de dígitos (302 → `documento_unico`).
