@@ -94,7 +94,7 @@ fn ler_controle_interno<V: EnvioDoControle>(
         sessao.cookie_file,
         sessao.origem,
         |url, cookie| {
-            if let Some(contagem) = requisicoes.as_deref_mut() {
+            if let Some(contagem) = requisicoes.take() {
                 contagem.registrar();
             }
             envio.get(url, cookie)
