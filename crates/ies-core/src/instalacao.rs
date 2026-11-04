@@ -6,6 +6,7 @@ use std::fmt;
 pub struct VersaoSei(Vec<u32>);
 
 impl VersaoSei {
+    #[must_use]
     pub fn interpretar(valor: &str) -> Option<Self> {
         if valor.len() > 32 {
             return None;
@@ -45,6 +46,7 @@ pub struct Instalacao {
     versao: Option<VersaoSei>,
 }
 
+#[must_use]
 pub fn host_valido(host: &str) -> bool {
     host.len() <= 253
         && !host.is_empty()
@@ -60,6 +62,7 @@ pub fn host_valido(host: &str) -> bool {
 impl Instalacao {
     /// Arquivo privado: base HTTPS na primeira linha e, opcionalmente,
     /// `versao=5.0.4` na segunda. Versão é declarada, não detectada.
+    #[must_use]
     pub fn interpretar(config: &str) -> Option<Self> {
         let mut linhas = config.lines();
         let url = linhas.next()?.trim();
@@ -106,12 +109,14 @@ impl Instalacao {
     }
 
     /// Host (em minúsculas) da instalação.
-    pub(crate) fn host(&self) -> &str {
+    #[must_use]
+    pub fn host(&self) -> &str {
         &self.host
     }
 
     /// `https://host[/base]`, sem a versão declarada: a identidade publicada.
-    pub(crate) fn url_base(&self) -> String {
+    #[must_use]
+    pub fn url_base(&self) -> String {
         if self.base.is_empty() {
             format!("https://{}", self.host)
         } else {
@@ -121,6 +126,7 @@ impl Instalacao {
 
     /// Mesmo host não é suficiente: caminhos distintos podem ser
     /// instalações distintas. Nenhuma versão concede capacidades.
+    #[must_use]
     pub fn autoriza_controlador(&self, host: &str, caminho: &str) -> bool {
         if !host.eq_ignore_ascii_case(&self.host) {
             return false;
