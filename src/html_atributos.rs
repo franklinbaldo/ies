@@ -12,7 +12,6 @@ mod tokenizador;
 
 pub(crate) use busca::{
     nos_com_id, nos_com_id_em, nos_por_elemento_e_classe,
-    nos_por_elemento_e_classe_com_repeticao_identica,
     nos_por_elemento_e_classe_em_todas_as_ocorrencias,
 };
 pub(crate) use tokenizador::tokenizar_tag_de_abertura;
@@ -103,24 +102,6 @@ impl<'a> AtributosDaTag<'a> {
             .is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe)))
     }
 
-    /// Como `valor`, mas aceita o atributo repetido quando **todas** as
-    /// ocorrências trazem o mesmo valor bruto: a `UnB` 4.0.9 serve
-    /// `class="protocoloNormal" … class="protocoloNormal"` no link da
-    /// pesquisa. Valores diferentes continuam recusados.
-    pub(crate) fn valor_com_repeticao_identica(
-        &self,
-        nome: &'static str,
-    ) -> Result<Option<&'a str>, ErroAtributoHtml> {
-        let mut achados = self.pares.iter().filter(|(chave, _)| chave == nome);
-        let Some((_, primeiro)) = achados.next() else {
-            return Ok(None);
-        };
-        if achados.any(|(_, valor)| valor != primeiro) {
-            return Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: nome });
-        }
-        Ok(*primeiro)
-    }
-
     /// `class` (talvez repetido) contém `classe`: falso se nenhuma ocorrência
     /// a contém; erro se umas contêm e outras não.
     pub(crate) fn tem_classe_em_todas_as_ocorrencias(
@@ -138,16 +119,6 @@ impl<'a> AtributosDaTag<'a> {
             (true, true) => Ok(true),
             (true, false) => Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }),
         }
-    }
-
-    /// `tem_classe` sobre `valor_com_repeticao_identica("class")`.
-    pub(crate) fn tem_classe_com_repeticao_identica(
-        &self,
-        classe: &str,
-    ) -> Result<bool, ErroAtributoHtml> {
-        Ok(self
-            .valor_com_repeticao_identica("class")?
-            .is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe)))
     }
 }
 

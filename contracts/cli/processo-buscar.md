@@ -146,8 +146,12 @@ tamanho da página. O IES exige essas duas linhas literais e todo link
 Em cada página, cada linha da tabela tem um `a.protocoloNormal` com
 `procedimento_trabalhar`; a UnB 4.0.9 publica também um `a.arvore` com o
 **mesmo** `href` e repete o atributo `class` idêntico no
-`a.protocoloNormal`. Ambos são aceitos só nessa forma; `href` diferente,
-mais de um `a.arvore` por linha ou `class` repetido com valores diferentes
+`a.protocoloNormal`. O processo já visitado pela sessão vem, na PEN3 e na
+PEN4 5.0.4, com `class="protocoloNormal processoVisitado" …
+class="protocoloNormal"` (visto ao vivo na PEN4 em 04/11/2026, que antes
+saía `html_de_pesquisa_nao_interpretado`). O `class` repetido é aceito
+quando **todas** as ocorrências contêm a classe procurada; `href`
+diferente, mais de um `a.arvore` por linha ou uma ocorrência sem a classe
 falham fechado.
 
 Em Goiás, a linha cujo acerto é um **documento** do processo leva
@@ -171,5 +175,9 @@ número do processo; o documento não sai.
 - Ensaio live do comando IES: PASS na UnB e em GO
   ([03/11/2026](../../docs/validacao-live/2026-11-03-processo-buscar.md))
   e na PEN3 ([04/11/2026](../../docs/validacao-live/2026-11-04-processo-buscar.md));
-  PEN1 responde `sem_resultado` até para NUP da unidade; UFRJ, PEN2 e
-  PEN4: **NOT_RUN**.
+  PEN1 responde `sem_resultado` até para NUP da unidade; PEN2: **NOT_RUN**.
+- [Varredura de 04/11/2026](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md):
+  UFRJ 4.1.5 PASS (dentro e fora da caixa, lista, `--pagina 2`; NUP
+  gerado no dia sai `sem_resultado`); PEN4 PASS em NUP dentro e fora da
+  caixa e `sem_resultado`, lista **FAIL → corrigido offline** (processo
+  visitado), lista ao vivo depois da correção NOT_RUN.

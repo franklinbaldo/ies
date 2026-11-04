@@ -105,6 +105,7 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
+| `arquivo_texto_documento_ja_existe`, `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `escrita_texto_documento_falhou` | `--saida`: `DOC.txt` já existe, o diretório falta ou passa por link simbólico, ou a escrita falhou; conferido depois de todos lidos (as requisições já foram gastas) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
 subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive
@@ -117,3 +118,7 @@ Leitura. A pesquisa rápida pode ficar lembrada na sessão; o GET da
 abrir as pastas pode ficar lembrado (como em `processo NUP`).
 Se o GET do conteúdo marca o documento como visitado não foi medido. O
 IES não restaura a tela.
+
+Validação live: **PASS** na UnB e, em 04/11/2026, na UFRJ 4.1.5, na PEN3 e
+na PEN4 5.0.4 (pesquisa rápida, link da árvore, `--processo`, `--saida`;
+[varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
