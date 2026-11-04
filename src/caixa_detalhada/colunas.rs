@@ -26,6 +26,8 @@ pub(crate) enum ValorDaColuna {
     Texto(Option<String>),
     /// Itens separados pelo HTML (`div.divRotuloItemCelula`).
     Itens(Vec<String>),
+    /// Um objeto por `a.ancMarcador`; célula vazia é `[]`.
+    Marcadores(Vec<super::celula_marcadores::MarcadorDaCelula>),
 }
 
 /// Colunas configuradas observadas numa linha, na ordem do cabeçalho.
@@ -183,6 +185,7 @@ pub(super) fn valor_da_celula(
     dom: &tl::VDom<'_>,
     celula: &tl::HTMLTag<'_>,
     coluna: ColunaDoDetalhe,
+    id_procedimento: &str,
 ) -> Result<ValorDaColuna, ErroDetalhada> {
     let parser = dom.parser();
     let rotulo = valor_do_atributo(celula, "data-label")
@@ -193,6 +196,10 @@ pub(super) fn valor_da_celula(
         coluna.cabecalho();
     if rotulo.is_some_and(|r| r != cabecalho) {
         return Err(ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho);
+    }
+    if coluna == ColunaDoDetalhe::Marcadores {
+        return super::celula_marcadores::marcadores_da_celula(celula, parser, id_procedimento)
+            .map(ValorDaColuna::Marcadores);
     }
     let completo = texto(celula, parser);
     if coluna.tem_itens() {

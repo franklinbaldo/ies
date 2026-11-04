@@ -1,14 +1,16 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
 //! índice local, abre o processo e publica identidade, anexados, documentos
-//! e pastas da árvore, andamentos e propriedades
-//! (processo-obter-propriedades.md). Nunca URL, hash ou HTML.
+//! e pastas da árvore, andamentos, propriedades
+//! (processo-obter-propriedades.md) e marcadores
+//! (processo-obter-marcadores.md). Nunca URL, hash ou HTML.
 use crate::arvore_processo::{DocumentoMovido, PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
+use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
-    Andamentos, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, Propriedades,
+    Andamentos, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, Propriedades,
     SessaoDoProcesso, obter_processo,
 };
 use crate::propriedades_processo::PropriedadesLidas;
@@ -17,9 +19,6 @@ use crate::{Cli, Domain, Processo, configuracao, erro_fonte, saida_erro, transpo
 use serde_json::{Value, json};
 use std::fmt::Write as _;
 use std::process::ExitCode;
-
-/// Dados que o comando ainda não lê (`null` seria "não observado").
-const NAO_LIDOS: [&str; 1] = ["marcadores"];
 
 /// As propriedades lidas; ids de assunto e de contato não são publicados.
 fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
@@ -39,6 +38,56 @@ fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
         "data_de_geracao": lidas.data_de_geracao,
         "fonte": lidas.fonte.acao(),
     })
+}
+
+/// Os marcadores lidos (sempre lista), o total da legenda e a faixa lida.
+fn inserir_marcadores(objeto: &mut serde_json::Map<String, Value>, lidos: &MarcadoresLidos) {
+    let itens: Vec<Value> = lidos
+        .itens
+        .iter()
+        .map(|m| {
+            json!({
+                "id": m.id,
+                "nome": m.nome,
+                "cor": m.cor,
+                "texto": m.texto,
+                "usuario": m.usuario,
+                "data_hora": m.data_hora,
+            })
+        })
+        .collect();
+    let faixa = (!itens.is_empty()).then(|| json!({"inicio": 1, "fim": itens.len()}));
+    objeto.insert("marcadores".to_owned(), Value::Array(itens));
+    objeto.insert(
+        "marcadores_total_declarado".to_owned(),
+        json!(lidos.total_declarado),
+    );
+    objeto.insert("marcadores_faixa_observada".to_owned(), json!(faixa));
+}
+
+/// Linhas do texto humano dos marcadores: uma por marcador.
+fn humano_dos_marcadores(marcadores: &Marcadores, texto: &mut String) {
+    let Marcadores::Lidos(lidos) = marcadores else {
+        let _ = write!(
+            texto,
+            "\nMarcadores não lidos ({}).",
+            marcadores.motivo().unwrap_or_default()
+        );
+        return;
+    };
+    let _ = write!(
+        texto,
+        "\nMarcadores: {} de {} declarados{}",
+        lidos.itens.len(),
+        lidos.total_declarado,
+        if lidos.itens.is_empty() { "." } else { ":" }
+    );
+    for m in &lidos.itens {
+        let _ = write!(texto, "\n- {} [{}]", m.nome, m.cor);
+        if let Some(t) = &m.texto {
+            let _ = write!(texto, ": {t}");
+        }
+    }
 }
 
 /// Linhas do texto humano das propriedades.
@@ -115,7 +164,8 @@ fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta
         .find(|v| regras.contains(v))
 }
 
-/// Andamentos e propriedades: objeto, `null` com motivo ou ausente (omitidos).
+/// Andamentos, marcadores e propriedades: valor, `null` com motivo ou
+/// ausente (omitidos); `nao_lidos` em ordem alfabética.
 fn inserir_leituras(
     objeto: &mut serde_json::Map<String, Value>,
     aberto: &ProcessoAberto,
@@ -130,8 +180,19 @@ fn inserir_leituras(
         objeto.insert("andamentos".to_owned(), valor);
     }
     if let Some(motivo) = aberto.andamentos.motivo() {
-        nao_lidos.insert(0, "andamentos");
+        nao_lidos.push("andamentos");
         objeto.insert("andamentos_nao_lidos_motivo".to_owned(), json!(motivo));
+    }
+    match &aberto.marcadores {
+        Marcadores::Lidos(lidos) => inserir_marcadores(objeto, lidos),
+        Marcadores::NaoPublicadosNaBarra | Marcadores::TabelaNaoPublicada => {
+            objeto.insert("marcadores".to_owned(), Value::Null);
+        }
+        Marcadores::Omitidos => {}
+    }
+    if let Some(motivo) = aberto.marcadores.motivo() {
+        nao_lidos.push("marcadores");
+        objeto.insert("marcadores_nao_lidos_motivo".to_owned(), json!(motivo));
     }
     let propriedades = match &aberto.propriedades {
         Propriedades::Lidas(lidas) => Some(json_das_propriedades(lidas)),
@@ -148,8 +209,8 @@ fn inserir_leituras(
 }
 
 /// O JSON publicado; `anexados` sai sempre; `documentos` some com `--sem-documentos`,
-/// `andamentos` com `--sem-andamentos` e `propriedades` com `--sem-propriedades`
-/// (link não publicado: `null`).
+/// `andamentos` com `--sem-andamentos`, `propriedades` com `--sem-propriedades`
+/// e `marcadores` com `--sem-marcadores` (link não publicado: `null`).
 pub(crate) fn json_do_processo(
     nup: &NumeroProcesso,
     aberto: &ProcessoAberto,
@@ -164,7 +225,7 @@ pub(crate) fn json_do_processo(
         "resolvido_por": aberto.resolvido_por.como_texto(),
         "requisicoes": aberto.requisicoes,
     });
-    let mut nao_lidos: Vec<&str> = NAO_LIDOS.to_vec();
+    let mut nao_lidos: Vec<&str> = Vec::new();
     if let Some(objeto) = valor.as_object_mut() {
         inserir_leituras(objeto, aberto, &mut nao_lidos);
         let anexados = &aberto.arvore.anexados;
@@ -336,11 +397,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         }
     }
     humano_das_propriedades(&aberto.propriedades, &mut texto);
-    texto.push_str(if aberto.propriedades.motivo().is_some() {
-        "\nNão lidos nesta versão: marcadores e propriedades."
-    } else {
-        "\nNão lidos nesta versão: marcadores."
-    });
+    humano_dos_marcadores(&aberto.marcadores, &mut texto);
     texto
 }
 
@@ -417,6 +474,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         unidade: cli.unidade.as_deref(),
         andamentos,
         propriedades: !comando.sem_propriedades,
+        marcadores: !comando.sem_marcadores,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {
@@ -464,6 +522,9 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
 #[cfg(test)]
 #[path = "processo_obter_cli/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "processo_obter_cli/tests_marcadores.rs"]
+mod tests_marcadores;
 #[cfg(test)]
 #[path = "processo_obter_cli/tests_movidos.rs"]
 mod tests_movidos;

@@ -3,6 +3,7 @@
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
+use crate::marcadores_processo::ErroMarcadores;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::propriedades_processo::ErroPropriedades;
@@ -43,6 +44,8 @@ pub(crate) enum ErroProcessoObter {
     FormularioDoHistorico(ErroSubmissaoFormulario),
     /// O link das propriedades na barra ou a tela delas.
     Propriedades(ErroPropriedades),
+    /// O link dos marcadores na barra ou a tela deles.
+    Marcadores(ErroMarcadores),
 }
 
 impl ErroProcessoObter {
@@ -70,6 +73,7 @@ impl ErroProcessoObter {
             Self::LinkDoHistorico(erro) => erro.subcodigo(),
             Self::Andamentos(erro) => erro.subcodigo(),
             Self::Propriedades(erro) => erro.subcodigo(),
+            Self::Marcadores(erro) => erro.subcodigo(),
         }
     }
 
@@ -125,6 +129,17 @@ impl ErroProcessoObter {
                 | ErroPropriedades::IdDasPropriedadesDiferenteDoAberto,
             ) => "a tela de propriedades é de outro processo",
             Self::Propriedades(_) => "a tela de propriedades não foi servida na forma observada",
+            Self::Marcadores(erro) if erro.do_link() => {
+                "o link dos marcadores na barra do processo não foi reconhecido"
+            }
+            Self::Marcadores(
+                ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado
+                | ErroMarcadores::IdDosMarcadoresDiferenteDoAberto,
+            ) => "a tela de marcadores é de outro processo",
+            Self::Marcadores(ErroMarcadores::MarcadoresAlemDoTotalDeclarado) => {
+                "a tela de marcadores mostrou mais linhas que o total declarado"
+            }
+            Self::Marcadores(_) => "a tela de marcadores não foi servida na forma observada",
         }
     }
 

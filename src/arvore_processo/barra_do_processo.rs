@@ -1,4 +1,4 @@
-//! O link das propriedades na barra do nó `PROCESSO` (Refs #59;
+//! Os links das propriedades e dos marcadores na barra do nó `PROCESSO` (Refs #59;
 //! contracts/cli/processo-obter-propriedades.md). Forma observada na `UnB`
 //! 4.0.9 (03 e 04/11/2026): a linha `Nos[i].acoes = '<literal>';` do nó
 //! raiz, com `<a href="controlador.php?acao=procedimento_alterar&…">` (ou
@@ -10,6 +10,7 @@ use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
+use crate::marcadores_processo::{self, EnderecoDosMarcadores, ErroMarcadores};
 use crate::propriedades_processo::{
     EnderecoDasPropriedades, ErroPropriedades as E, FonteDasPropriedades,
 };
@@ -22,22 +23,12 @@ pub(crate) fn ler_link_das_propriedades(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDasPropriedades>, E> {
-    let Some(texto) = barra_da_raiz(html)? else {
-        return Ok(None);
+    let falha = |f: FalhaDaBarra| match f {
+        FalhaDaBarra::Fora => E::BarraDoProcessoForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => E::BarrasDoProcessoRepetidasNaArvore,
     };
-    let fora = E::BarraDoProcessoForaDaFormaObservada;
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora)?;
-    let parser = dom.parser();
     let (mut alterar, mut consultar) = (Vec::new(), Vec::new());
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(bruto) = lidos.valor("href").map_err(|_| fora)? else {
-            continue;
-        };
-        let href = decodificar_atributo(bruto).ok_or(fora)?;
+    for href in hrefs_da_barra(html).map_err(falha)? {
         match acao_do_href(&href) {
             Some(acao) if acao == FonteDasPropriedades::Alterar.acao() => alterar.push(href),
             Some(acao) if acao == FonteDasPropriedades::Consultar.acao() => consultar.push(href),
@@ -62,6 +53,64 @@ pub(crate) fn ler_link_das_propriedades(
         })
 }
 
+/// O link da tela "Marcadores do Processo" (`andamento_marcador_gerenciar`)
+/// publicado na barra do processo `id`; `Ok(None)` se a barra não o publica
+/// (contracts/cli/processo-obter-marcadores.md).
+pub(crate) fn ler_link_dos_marcadores(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<EnderecoDosMarcadores>, ErroMarcadores> {
+    let hrefs = hrefs_da_barra(html).map_err(|f| match f {
+        FalhaDaBarra::Fora => ErroMarcadores::BarraDoProcessoForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => ErroMarcadores::BarrasDoProcessoRepetidasNaArvore,
+    })?;
+    let achados: Vec<_> = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some(marcadores_processo::ACAO))
+        .collect();
+    let href = match achados.as_slice() {
+        [] => return Ok(None),
+        [href] => href,
+        _ => return Err(ErroMarcadores::LinksDosMarcadoresRepetidosNaBarra),
+    };
+    conferir_endereco_relativo(instalacao, href, marcadores_processo::ACAO, id)
+        .map(|url| Some(EnderecoDosMarcadores::novo(url)))
+        .map_err(|recusa| match recusa {
+            EnderecoRecusado::NaoReconhecido => ErroMarcadores::EnderecoDosMarcadoresNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso
+            }
+        })
+}
+
+/// Barra fora da forma observada, ou duas barras para o nó `PROCESSO`.
+enum FalhaDaBarra {
+    Fora,
+    Repetidas,
+}
+
+/// Os `href` (entidades decodificadas) das tags `<a>` da barra do nó
+/// `PROCESSO`, na ordem servida; sem barra, nenhum.
+fn hrefs_da_barra(html: &str) -> Result<Vec<String>, FalhaDaBarra> {
+    let Some(texto) = barra_da_raiz(html)? else {
+        return Ok(Vec::new());
+    };
+    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| FalhaDaBarra::Fora)?;
+    let parser = dom.parser();
+    let mut hrefs = Vec::new();
+    for no in dom.query_selector("a").into_iter().flatten() {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let lidos = atributos(tag).map_err(|_| FalhaDaBarra::Fora)?;
+        let Some(bruto) = lidos.valor("href").map_err(|_| FalhaDaBarra::Fora)? else {
+            continue;
+        };
+        hrefs.push(decodificar_atributo(bruto).ok_or(FalhaDaBarra::Fora)?);
+    }
+    Ok(hrefs)
+}
 /// O primeiro `acao=` da consulta do `href` (a conferência recusa dois).
 fn acao_do_href(href: &str) -> Option<&str> {
     let (_, consulta) = href.split_once('?')?;
@@ -71,11 +120,10 @@ fn acao_do_href(href: &str) -> Option<&str> {
 }
 
 /// O texto da barra do nó `PROCESSO`; duas barras para ele são recusa.
-fn barra_da_raiz(html: &str) -> Result<Option<String>, E> {
-    let fora = E::BarraDoProcessoForaDaFormaObservada;
+fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
     let mut raiz = None;
     for linha in html.split('\n') {
-        if let Some((i, argumentos)) = ler_declaracao(linha).map_err(|_| fora)?
+        if let Some((i, argumentos)) = ler_declaracao(linha).map_err(|_| FalhaDaBarra::Fora)?
             && argumentos.first() == Some(&Literal::Texto("PROCESSO".into()))
         {
             raiz = Some(i);
@@ -90,11 +138,11 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, E> {
         if indice_da_barra(linha) != Some(raiz) {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha).map_err(|_| fora)? else {
-            return Err(fora);
+        let Some((_, lido)) = ler_barra(linha).map_err(|_| FalhaDaBarra::Fora)? else {
+            return Err(FalhaDaBarra::Fora);
         };
         if texto.is_some() {
-            return Err(E::BarrasDoProcessoRepetidasNaArvore);
+            return Err(FalhaDaBarra::Repetidas);
         }
         texto = Some(lido);
     }

@@ -12,6 +12,7 @@ mod controle;
 pub(crate) mod erro;
 mod fluxo;
 mod login;
+mod marcadores;
 mod pastas;
 mod propriedades;
 
@@ -36,6 +37,8 @@ mod tests_indice;
 #[cfg(test)]
 mod tests_login;
 #[cfg(test)]
+mod tests_marcadores;
+#[cfg(test)]
 mod tests_movidos;
 #[cfg(test)]
 mod tests_pastas;
@@ -45,6 +48,7 @@ mod tests_propriedades;
 use crate::arvore_processo::ArvoreLida;
 use crate::formulario_web::RespostaDoPost;
 use crate::historico_processo::AndamentosLidos;
+use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
@@ -88,6 +92,8 @@ pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) andamentos: PedidoDeAndamentos,
     /// `false` com `--sem-propriedades`.
     pub(crate) propriedades: bool,
+    /// `false` com `--sem-marcadores`.
+    pub(crate) marcadores: bool,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou
@@ -132,6 +138,7 @@ pub(crate) struct ProcessoAberto {
     pub(crate) resolvido_por: ResolvidoPor,
     pub(crate) andamentos: Andamentos,
     pub(crate) propriedades: Propriedades,
+    pub(crate) marcadores: Marcadores,
     pub(crate) requisicoes: u8,
 }
 
@@ -183,6 +190,32 @@ impl Propriedades {
             Self::Lidas(_) => None,
             Self::Omitidas => Some("omitidas_por_sem_propriedades"),
             Self::NaoPublicadasNaBarra => Some("tela_de_propriedades_nao_publicada_na_barra"),
+        }
+    }
+}
+
+/// O que se sabe dos marcadores depois do comando (lidos: sempre lista).
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Marcadores {
+    Lidos(MarcadoresLidos),
+    /// `--sem-marcadores`: nenhum pedido à tela.
+    Omitidos,
+    /// A barra do processo não publica `andamento_marcador_gerenciar`;
+    /// não é recusa.
+    NaoPublicadosNaBarra,
+    /// A tela é a deste processo, mas sem `table#tblMarcadores`: a forma
+    /// de zero marcadores não foi observada, então nada se afirma.
+    TabelaNaoPublicada,
+}
+
+impl Marcadores {
+    /// `marcadores_nao_lidos_motivo` publicado quando não foram lidos.
+    pub(crate) fn motivo(&self) -> Option<&'static str> {
+        match self {
+            Self::Lidos(_) => None,
+            Self::Omitidos => Some("omitidos_por_sem_marcadores"),
+            Self::NaoPublicadosNaBarra => Some("tela_de_marcadores_nao_publicada_na_barra"),
+            Self::TabelaNaoPublicada => Some("tabela_de_marcadores_nao_publicada_na_tela"),
         }
     }
 }

@@ -5,7 +5,8 @@ use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_destinos_dos_movidos,
-    ler_link_das_propriedades, ler_tela_do_processo, ler_vinculo_de_anexacao,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -15,6 +16,7 @@ use crate::formulario_web::{
 use crate::historico_processo::{EnderecoDoHistorico, ErroLinkDoHistorico, ler_link_do_historico};
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
+use crate::marcadores_processo::{EnderecoDosMarcadores, ErroMarcadores};
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::redirecionamento::{
     OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
@@ -113,6 +115,8 @@ pub(super) struct ArvoreAberta {
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
     /// O link das propriedades na barra (a falha só pesa se forem pedidas).
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
+    /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
+    pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -125,10 +129,12 @@ pub(super) fn ler_arvore_aberta(
     ler_destinos_dos_movidos(&contexto.instalacao, html, &mut arvore)?;
     let historico = ler_link_do_historico(&contexto.instalacao, html, id);
     let propriedades = ler_link_das_propriedades(&contexto.instalacao, html, id);
+    let marcadores = ler_link_dos_marcadores(&contexto.instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         historico,
         propriedades,
+        marcadores,
     })
 }
 

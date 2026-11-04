@@ -117,7 +117,8 @@ impl TelaR {
 }
 
 /// Cabeçalho D no estilo de GO/PEN1: seleção, ícones, Processo, Atribuição,
-/// Tipo, Interessados, Controle de Prazo (ícone), Última Mov. e ações.
+/// Tipo, Interessados, Controle de Prazo (ícone), Última Mov., Marcadores
+/// (forma da `UnB`; dois no processo 1, nenhum nos outros) e ações.
 pub(super) const CABECALHO_D: &str = "<tr>\
     <th class='infraTh'><a id='lnkInfraCheck'><img title='Selecionar Tudo' class='infraImg'></a></th>\
     <th class='infraTh'>&nbsp;</th>\
@@ -129,9 +130,20 @@ pub(super) const CABECALHO_D: &str = "<tr>\
     <th class='infraTh'><div class='infraDivOrdenacao'><div class='infraDivRotuloOrdenacao'>\
       <img aria-label='Controle de Prazo' onmouseover=\"return infraTooltipMostrar('Controle de Prazo');\" class='infraImg'></div></div></th>\
     <th class='infraTh'><div class='infraDivOrdenacao'><div class='infraDivRotuloOrdenacao'>Última&nbsp;Mov.</div></div></th>\
+    <th class='infraTh'>Marcadores</th>\
     <th class='infraTh'>&nbsp;</th></tr>";
 
 pub(super) fn linha_d(id: u32) -> String {
+    use crate::caixa_detalhada::tests_marcadores::ancora;
+    let marcadores = if id == 1 {
+        format!(
+            "{}{}",
+            ancora("1", "31", "amarelo", "Texto sintético", "Marcador A"),
+            ancora("1", "32", "azul", "", "Marcador B")
+        )
+    } else {
+        "&nbsp;".to_owned()
+    };
     format!(
         "<tr id='P{id}'><td><input type='checkbox' id='chkDetalhadoItem{id}' name='chkDetalhadoItem{id}' value='{id}'></td>\
          <td data-label='&nbsp;'></td>\
@@ -143,7 +155,8 @@ pub(super) fn linha_d(id: u32) -> String {
            <div class='divItemCelula'><div class='divIconeItemCelula'><img></div><div class='divRotuloItemCelula'>Interessado A</div></div>\
            <div class='divItemCelula'><div class='divIconeItemCelula'><img></div><div class='divRotuloItemCelula'>Interessado&nbsp;B</div></div>\
          </div></td>\
-         <td></td><td data-label='Última Mov.'>3</td><td data-label='&nbsp;'></td></tr>"
+         <td></td><td data-label='Última Mov.'>3</td>\
+         <td align=\"left\" valign=\"top\">{marcadores}</td><td data-label='&nbsp;'></td></tr>"
     )
 }
 

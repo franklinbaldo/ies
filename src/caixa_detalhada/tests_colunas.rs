@@ -3,7 +3,7 @@
 //! e da `UnB` (4.0.9, tooltip, sem `data-label`).
 use super::*;
 
-fn rotulo(texto: &str) -> String {
+pub(super) fn rotulo(texto: &str) -> String {
     format!(
         "<th class='infraTh'><div class='infraDivOrdenacao'><div class='infraDivRotuloOrdenacao'>{texto}</div>\
          <div class='infraDivSetaOrdenacao'><a><img title='Ordenar' class='infraImgOrdenacao'></a></div></div></th>"
@@ -26,7 +26,7 @@ fn icone_tooltip(texto: &str) -> String {
 
 /// Tabela D de uma linha (P7) com os cabeçalhos e células dados, depois de
 /// seleção e ícones (sem rótulo) e antes da coluna final de ações.
-fn tabela(cabecalhos: &[String], celulas: &[&str]) -> String {
+pub(super) fn tabela(cabecalhos: &[String], celulas: &[&str]) -> String {
     let cabecalho: String = cabecalhos.concat();
     let linha: String = celulas.concat();
     format!(
@@ -44,7 +44,7 @@ fn tabela(cabecalhos: &[String], celulas: &[&str]) -> String {
     )
 }
 
-fn ler(html: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
+pub(super) fn ler(html: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
     ler_paginas(&[html.to_owned()], Some("PPI"))
 }
 
@@ -151,7 +151,8 @@ fn as_nove_colunas_de_texto_presentes_nao_deixam_ausentes() {
     assert_eq!(leitura.colunas_ausentes().len(), 0);
     let json = serde_json::to_value(&leitura.processos[0]).unwrap();
     assert_eq!(json["colunas"]["interessados"], serde_json::json!([]));
-    assert!(json["colunas"]["marcadores"].is_null());
+    // Marcadores é lista (um processo pode ter vários): célula vazia é `[]`.
+    assert_eq!(json["colunas"]["marcadores"], serde_json::json!([]));
 }
 
 #[test]
@@ -199,6 +200,13 @@ fn celula_fora_do_lugar_ou_com_itens_inesperados_e_recusada() {
     assert_eq!(
         ler(&tabela(
             &[rotulo("Marcadores")],
+            &["<td><div class='divItemCelula'><div class='divRotuloItemCelula'>M</div></div></td>"]
+        )),
+        Err(ErroDetalhada::TextoForaDosMarcadoresNaCelula)
+    );
+    assert_eq!(
+        ler(&tabela(
+            &[rotulo("Observação")],
             &["<td><div class='divItemCelula'><div class='divRotuloItemCelula'>M</div></div></td>"]
         )),
         Err(ErroDetalhada::ItensNaoPrevistosNaCelula)

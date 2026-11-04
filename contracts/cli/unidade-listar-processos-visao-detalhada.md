@@ -27,7 +27,12 @@ mais `colunas_ausentes`:
   "processos": [{"id": "42", "numero": "000042/2026", "visualizado": true,
                  "sigiloso": false, "categoria": "recebidos",
                  "colunas": {"atribuicao": "fulano", "tipo": "Ofício",
-                             "interessados": ["Interessado A", "Interessado B"]}}]}]
+                             "interessados": ["Interessado A", "Interessado B"],
+                             "marcadores": [
+                               {"nome": "Pendente", "cor": "amarelo",
+                                "texto": "texto do marcador", "id": "31"},
+                               {"nome": "Revisão", "cor": "azul",
+                                "texto": null, "id": "32"}]}}]}]
 ```
 
 - `categoria` da **lista** é `null`: D é modo de exibição, não categoria.
@@ -47,9 +52,10 @@ mais `colunas_ausentes`:
   `ultima_movimentacao`, `marcadores`; ordem alfabética no JSON). Texto da célula com espaços
   colapsados (inclusive `&nbsp;`); célula vazia é `null`. `interessados` é
   um **array** com o texto de cada `div.divRotuloItemCelula` (itens
-  separados pelo HTML, PEN1); célula vazia é `[]`. As demais colunas são
-  texto único: `marcadores` não teve item observado (texto, até haver
-  evidência). Colunas sem rótulo (seleção, ícones, ações) não entram.
+  separados pelo HTML, PEN1); célula vazia é `[]`. `marcadores` é um
+  **array** de objetos, um por marcador (um processo pode ter vários):
+  ver [Marcadores](#marcadores). As demais colunas são texto único.
+  Colunas sem rótulo (seleção, ícones, ações) não entram.
 - `colunas_ausentes`: chaves das **nove** colunas configuráveis de
   cabeçalho de texto do catálogo que não vieram no cabeçalho; `[]` quando
   todas estão presentes (máximo = 9 + Processo, decisão do proprietário).
@@ -62,6 +68,45 @@ mais `colunas_ausentes`:
   aqui. A saída humana sugere marcá-las no Nível de detalhe; `ies unidade
   colunas` mostra a configuração (não há comando de escrita).
 
+### Marcadores
+
+Forma observada na UnB 4.0.9 (04/11/2026, todas as colunas do Nível de
+detalhe marcadas): a célula tem **uma** `a.ancMarcador` **por marcador**,
+`<a class="ancMarcador" href="controlador.php?acao=andamento_marcador_gerenciar&…&id_procedimento=<id>&…#ID-<n>"
+onmouseover="return infraTooltipMostrar('<texto>');" …><div><img src="svg/marcador_<cor>.svg?…" class="imagemStatus"/></div><div><nome></div></a>`;
+sem marcador, `&nbsp;`. Cada âncora vira
+`{"nome", "cor", "texto", "id"}`, na ordem servida:
+
+- `nome`: texto do segundo `div` (entidades decodificadas, espaços
+  colapsados), não vazio.
+- `cor`: `<cor>` de `svg/marcador_<cor>.svg` (minúsculas ASCII e `_`),
+  único `img` do primeiro `div`.
+- `texto`: o literal JS de aspas simples do `onmouseover`, na forma exata
+  `return infraTooltipMostrar('<literal>');` (escapes `\'`, `\"`, `\\`,
+  `\/`, `\n`, `\r`, `\t`; nenhum JavaScript executado), espaços
+  colapsados; vazio ou sem `onmouseover`: `null`.
+- `id`: `<n>` do fragmento `#ID-<n>` (decimal; o mesmo id da linha da
+  tela de marcadores do processo); sem fragmento: `null`.
+- O `href` precisa ser `controlador.php?` com uma `acao` igual a
+  `andamento_marcador_gerenciar` e `id_procedimento` igual ao da linha. O
+  link não é seguido nem publicado.
+
+Célula vazia é `[]`. Texto ou tag fora das âncoras é recusa
+(`texto_fora_dos_marcadores_na_celula_detalhada`); âncora fora dessa
+forma, recusa (`marcador_da_celula_detalhada_fora_da_forma_observada`).
+Só a UnB tinha marcadores nas capturas; GO, PEN1 e PEN4 sem marcador na
+D capturada, então outra forma é recusa até ser observada.
+
+**Mudança incompatível (04/11/2026).** Até esta versão `marcadores` saía
+como **texto único**, e uma célula com dois marcadores publicava os
+nomes colados numa string só (medido ao vivo na UnB 4.0.9).
+Agora é **array** de objetos; vazio era `null` e passa a `[]`. Quem lia a
+string precisa ler a lista. As demais chaves e o arquivo de `--saida`
+lido por `--caixa-local` (que ignora `colunas`) não mudam; `ies unidade
+recebidos|gerados` (visão R) não publica colunas e não muda. A colheita do
+Controle no índice usa a mesma leitura e as mesmas recusas: com âncoras
+na forma observada colhe os links como antes.
+
 Recusas da tabela D, além das do contrato da operação:
 
 | Fato observado | Subcódigo |
@@ -71,6 +116,8 @@ Recusas da tabela D, além das do contrato da operação:
 | `data-label` da célula diferente do cabeçalho da coluna | `rotulo_da_celula_detalhada_diferente_do_cabecalho` |
 | Interessados com texto fora de `divRotuloItemCelula` | `itens_da_celula_detalhada_nao_separados` |
 | Itens `divItemCelula` em coluna de texto único | `itens_nao_previstos_na_celula_detalhada` |
+| Marcadores com texto ou tag fora de `a.ancMarcador` | `texto_fora_dos_marcadores_na_celula_detalhada` |
+| `a` da célula Marcadores fora da forma observada | `marcador_da_celula_detalhada_fora_da_forma_observada` |
 
 Rótulo do cabeçalho: texto de `div.infraDivRotuloOrdenacao` (ou do `th`);
 sem texto, o `aria-label` do ícone (SEI 5.0.x) ou o argumento de
