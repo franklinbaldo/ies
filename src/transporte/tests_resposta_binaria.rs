@@ -54,7 +54,7 @@ fn nome_em_iso_8859_1_no_cabecalho_e_lido_e_set_cookie_e_descartado() {
         ["inline; filename=\"Ofício.pdf\""]
     );
     assert_eq!(r.valores("content-length"), ["4"]);
-    assert!(r.valores("set-cookie").is_empty());
+    assert_eq!(r.valores("set-cookie"), Vec::<&str>::new());
     assert!(
         !r.cabecalhos
             .iter()

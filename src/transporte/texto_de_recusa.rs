@@ -66,6 +66,13 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     Some(decodificar_entidades(&partes.join(" — ")))
 }
 
+/// A página traz o contêiner de exceção do SEI (`divInfraExcecao`,
+/// `div.infraExcecao` ou `div.infraMensagemErro`): é a tela de recusa,
+/// não um conteúdo (Refs #60, fatia 3: o HTML recebido de um anexo).
+pub(crate) fn e_excecao_do_sei(html: &str) -> bool {
+    tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| conteiner_de_erro(&dom).is_some())
+}
+
 fn conteiner_de_erro(dom: &tl::VDom<'_>) -> Option<tl::NodeHandle> {
     if let Some(handle) = nos_com_id(dom, "divInfraExcecao").ok()?.first() {
         return Some(*handle);

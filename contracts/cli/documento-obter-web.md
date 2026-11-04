@@ -13,6 +13,10 @@ documento **interno** (editor do SEI) pelo número SEI. Opções ainda sem
 implementação (`--processo`, `--versao`, `--sem-copia`,
 `--com-propriedades`, `--ocultar-inacessiveis`) continuam no stub
 (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
+O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
+HTML recebido) é lido pelo [GET binário](documento-obter-externo.md)
+(fatia 3); o subcódigo `documento_externo_por_download_de_anexo` foi
+aposentado.
 
 ## Caminho e requisições
 
@@ -70,7 +74,6 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | `documento_ausente_da_arvore` / `documento_em_pasta_nao_carregada` | o id não está na árvore (com pasta fechada, o segundo) |
 | `conteudo_nao_publicado_na_arvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
-| `documento_externo_por_download_de_anexo` | `.src` para `documento_download_anexo` (PDF, TXT, HTML recebido): fatia futura |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
 

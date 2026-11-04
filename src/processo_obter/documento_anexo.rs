@@ -17,14 +17,42 @@ pub(crate) struct PedidoDoAnexo<'a> {
     pub(crate) saida: Option<&'a Path>,
 }
 
-pub(super) fn ler_anexo_do_link<V: EnvioDoProcesso>(
+/// O quinto pedido e a leitura: tipo vazio, o texto (tipos de texto sem
+/// `--saida`) e o arquivo.
+pub(super) fn ler<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     endereco: &EnderecoDoConteudo,
     numero: &str,
     pedido: PedidoDoAnexo<'_>,
-) -> Result<AnexoLido, E> {
-    let _ = (rede, endereco, numero, pedido);
-    let _ = (fora_de_palpite, ler_anexo::<std::io::Empty>);
-    let _: Option<(DestinoDoAnexo, ErroAnexo, ErroProcessoObter)> = None;
-    todo!()
+) -> Result<(String, String, Option<AnexoLido>), E> {
+    let transporte = |falha| E::Processo(ErroProcessoObter::Transporte(falha));
+    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    let resposta = rede
+        .envio
+        .get_binario(
+            endereco.as_str(),
+            &rede.cookie,
+            pedido.limite.para_o_transporte(),
+        )
+        .map_err(transporte)?;
+    if resposta.status == 302 {
+        let local = resposta
+            .valores("location")
+            .first()
+            .map(|v| (*v).to_owned());
+        return Err(E::Processo(fora_de_palpite(local.as_deref())));
+    }
+    let destino = pedido
+        .saida
+        .map_or(DestinoDoAnexo::SoMetadados, DestinoDoAnexo::Diretorio);
+    let lido = ler_anexo(resposta, numero, pedido.limite, destino).map_err(|erro| match erro {
+        ErroAnexo::TelaDeLogin => E::Processo(ErroProcessoObter::SessaoEncerrada),
+        ErroAnexo::Transporte(falha) => transporte(falha),
+        outro => E::Anexo(outro),
+    })?;
+    Ok((
+        String::new(),
+        lido.texto.clone().unwrap_or_default(),
+        Some(lido),
+    ))
 }

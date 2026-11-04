@@ -105,7 +105,14 @@ pub(crate) fn ler_conteudo_na_arvore(
         return Ok(ConteudoNaArvore::Vazio);
     }
     match acao_unica(src) {
-        Some(DOWNLOAD) => Err(E::EnderecoDoConteudoNaoReconhecido),
+        Some(DOWNLOAD) => {
+            // O link não traz `id_documento`: o id conferido é o `id_anexo`
+            // único e decimal do próprio link; a ligação é o nó (Refs #60).
+            let id_anexo = id_anexo_unico(src).ok_or(E::EnderecoDoConteudoNaoReconhecido)?;
+            conferir_endereco_relativo_por(instalacao, src, DOWNLOAD, "id_anexo", id_anexo)
+                .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
+                .map_err(|_| E::EnderecoDoConteudoNaoReconhecido)
+        }
         Some(VISUALIZAR) => conferir_endereco_relativo_por(
             instalacao,
             src,
@@ -120,6 +127,16 @@ pub(crate) fn ler_conteudo_na_arvore(
         }),
         _ => Err(E::EnderecoDoConteudoNaoReconhecido),
     }
+}
+
+/// O `id_anexo` único e decimal de `controlador.php?…`.
+fn id_anexo_unico(src: &str) -> Option<&str> {
+    let consulta = src.strip_prefix("controlador.php?")?;
+    let mut ids = consulta
+        .split('&')
+        .filter_map(|par| par.strip_prefix("id_anexo="));
+    let id = ids.next()?;
+    (ids.next().is_none() && !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
 }
 
 /// A `acao` única de `controlador.php?…`, sem conferir o resto.

@@ -62,6 +62,9 @@ legado do Todos faz parte do contrato público por pressuposição.
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
   resultado").
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+  O externo usa o [GET binário](cli/documento-obter-externo.md), com
+  subcódigos próprios (`tipo_de_anexo_nao_permitido`,
+  `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
   [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),

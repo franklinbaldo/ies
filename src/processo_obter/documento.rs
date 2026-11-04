@@ -141,17 +141,9 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         match ler_conteudo_na_arvore(&contexto.instalacao, &html, &id_documento)
             .map_err(E::Conteudo)?
         {
-            ConteudoNaArvore::Visualizar(endereco) => {
-                let (tipo, texto) = ler_conteudo(&mut rede, &endereco, numero)?;
-                (tipo, texto, None)
-            }
-            ConteudoNaArvore::DownloadDeAnexo(endereco) => {
-                let lido = anexo::ler_anexo_do_link(&mut rede, &endereco, numero, pedido.anexo)?;
-                (
-                    String::new(),
-                    lido.texto.clone().unwrap_or_default(),
-                    Some(lido),
-                )
+            ConteudoNaArvore::Visualizar(e) => ler_conteudo(&mut rede, &e, numero)?,
+            ConteudoNaArvore::DownloadDeAnexo(e) => {
+                anexo::ler(&mut rede, &e, numero, pedido.anexo)?
             }
             ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
                 return Err(E::DocumentoCancelado);
@@ -173,12 +165,15 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     })
 }
 
+/// Tipo do título, texto e, no externo, o arquivo lido.
+type ConteudoLido = (String, String, Option<crate::anexo_documento::AnexoLido>);
+
 /// GET do link assinado; o título tem de ser do mesmo número SEI.
 fn ler_conteudo<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     endereco: &EnderecoDoConteudo,
     numero: &str,
-) -> Result<(String, String), E> {
+) -> Result<ConteudoLido, E> {
     let html = match rede.get(endereco.as_str()).map_err(E::Processo)? {
         Lida::Html { html, .. } => html,
         outra => return Err(E::Processo(fora_do_html(outra))),
@@ -188,7 +183,7 @@ fn ler_conteudo<V: EnvioDoProcesso>(
         return Err(E::TituloDeOutroDocumento);
     }
     let texto = texto_do_corpo(&html).map_err(E::Corpo)?;
-    Ok((identidade.tipo, texto))
+    Ok((identidade.tipo, texto, None))
 }
 
 /// Resposta que não é HTML: 302, login ou falha de transporte.

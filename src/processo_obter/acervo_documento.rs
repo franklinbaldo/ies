@@ -2,7 +2,9 @@
 //! (Refs #60): as respostas gravadas de tela por pesquisa rápida, árvore e
 //! `documento_visualizar` passam pelos **mesmos leitores** do comando,
 //! offline. Por documento de cada árvore, a forma do `Nos[i].src` por
-//! ícone; por conteúdo, título e texto. Só contagens e formas, nunca URL.
+//! ícone; por conteúdo, título e texto; por `documento_download_anexo`
+//! gravado (fatia 3), o leitor do anexo com os cabeçalhos gravados. Só
+//! contagens e formas, nunca URL.
 //! `#[ignore]`: lê os ZIPs do cache local (`IES_ACERVO_CACHE`).
 use crate::arvore_processo::{
     ConteudoNaArvore, ler_arvore, ler_conteudo_na_arvore, ler_tela_do_documento,
@@ -59,6 +61,42 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
         .collect()
 }
 
+/// A resposta gravada do anexo pelo leitor do comando, sem `--saida`.
+fn anexo(item: &serde_json::Value) -> String {
+    use crate::anexo_documento::{DestinoDoAnexo, LimiteDoAnexo, ler_anexo};
+    use crate::transporte::resposta_binaria::RespostaBinaria;
+    let cabecalhos = item["response"]["headers"]
+        .as_object()
+        .map(|mapa| {
+            mapa.iter()
+                .filter_map(|(n, v)| Some((n.to_ascii_lowercase(), v.as_str()?.to_owned())))
+                .collect()
+        })
+        .unwrap_or_default();
+    let resposta = RespostaBinaria {
+        status: u16::try_from(item["response"]["status_code"].as_u64().unwrap_or(0)).unwrap_or(0),
+        cabecalhos,
+        corpo: std::io::Cursor::new(gravacao::corpo(item)),
+    };
+    match ler_anexo(
+        resposta,
+        "0",
+        LimiteDoAnexo::default(),
+        DestinoDoAnexo::SoMetadados,
+    ) {
+        Ok(lido) => format!(
+            "`{}` lido, {}",
+            lido.mime,
+            if lido.texto.is_some() {
+                "com texto"
+            } else {
+                "sem texto"
+            }
+        ),
+        Err(erro) => format!("`{}`", erro.subcodigo()),
+    }
+}
+
 fn conteudo(html: &str) -> String {
     match identidade_do_titulo(html) {
         Err(erro) => format!("`{}`", erro.subcodigo()),
@@ -77,9 +115,14 @@ fn replay_de_documento_no_acervo() {
         "procedimento_trabalhar",
         "procedimento_visualizar",
         "documento_visualizar",
+        "documento_download_anexo",
     ];
     let lidos = percorrer(&operacoes, |_, instalacao, json| {
         for r in gravacao::respostas(json) {
+            if r.operacao == "documento_download_anexo" {
+                somar(&mut contagem, "anexo", anexo(r.item), instalacao);
+                continue;
+            }
             if r.status != 200 {
                 continue;
             }

@@ -1,7 +1,7 @@
 //! RED/GREEN da leitura do anexo (Refs #60, fatia 3). Respostas
 //! SINTÉTICAS com a forma observada: `text/html;;charset=iso-8859-1` do
 //! HTML recebido gravado em PEN1/PEN2/PEN4, `application/pdf` com
-//! `inline; filename="…"` (UnB, pelo oráculo Todos) e `text/plain` do
+//! `inline; filename="…"` (`UnB`, pelo oráculo Todos) e `text/plain` do
 //! ícone `documento_txt`. Nenhum valor real.
 use super::*;
 use std::io::{self, Cursor};
@@ -205,6 +205,7 @@ fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
 
 #[test]
 fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
+    use ErroAnexo as E;
     let sem_ler = |cabecalhos: &[(&str, &str)]| {
         let r = RespostaBinaria {
             status: 200,
@@ -222,7 +223,6 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
         )
         .unwrap_err()
     };
-    use ErroAnexo as E;
     assert_eq!(sem_ler(&[]), E::SemTipoDeConteudo);
     assert_eq!(sem_ler(&[("content-type", " ")]), E::SemTipoDeConteudo);
     for fora in [

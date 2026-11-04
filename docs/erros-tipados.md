@@ -68,3 +68,14 @@ código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
 sessão continuou válida: não há relogin, retry nem pausa automática. O
 403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
 ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
+
+## Anexo do documento externo
+
+`ErroAnexo` (`src/anexo_documento.rs`, Refs #60 fatia 3) tem uma
+variante por fato da resposta de `documento_download_anexo`: sem tipo,
+tipo fora da lista observada, cabeçalho repetido, `Content-Disposition`
+fora da forma, acima do limite, vazio, exceção do SEI (com status 200 e a
+mensagem saneada como apresentação) e as falhas de gravação do parcial.
+Status, rede e charset continuam `FalhaTransporte`; a tela de login, a
+sessão encerrada de `processo NUP`. Lista no
+[contrato](../contracts/cli/documento-obter-externo.md).
