@@ -80,8 +80,11 @@ fn mais_de_oito_redirecionamentos_param_a_cadeia() {
 // Caso de todos tests/test_redirect_seguro_010.py @323eb01
 #[test]
 fn redirecionamento_307_depois_do_post_nao_repete_as_credenciais() {
-    let localizacao = LOGIN_SIP.replacen("https://", "http://", 1);
-    for codigo in [307, 308] {
+    let em_http = LOGIN_SIP.replacen("https://", "http://", 1);
+    for (codigo, localizacao) in [307, 308]
+        .into_iter()
+        .flat_map(|codigo| [(codigo, LOGIN_SIP.to_owned()), (codigo, em_http.clone())])
+    {
         let (erro, roteiro) = erro_com(vec![
             r302(LOGIN_SIP, &[]),
             r200(&tela_acessar(), &[]),
