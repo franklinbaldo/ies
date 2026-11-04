@@ -251,12 +251,12 @@ impl Roteiro {
             .map(|c| u8::try_from(c).unwrap_or(b'?'))
             .collect();
         RespostaDoPost {
-            resposta: RespostaWeb {
+            resposta: crate::transporte::testes_http::resposta(
                 status_code,
-                mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: Some(corpo.len()),
-                corpo: Cursor::new(corpo),
-            },
+                "text/html; charset=iso-8859-1",
+                corpo.clone(),
+                Some(corpo.len()),
+            ),
             localizacao,
         }
     }
