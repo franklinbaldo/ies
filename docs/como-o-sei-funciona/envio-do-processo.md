@@ -86,12 +86,30 @@ POST a `controlador_ajax.php` (a URL do script), resposta 200
 "TESTE" devolve `SEAD/SUPTESTE-15887 - …` e `TESTE - Unidade de Teste`).
 Sem resultado, `<itens></itens>` (medido pelo Todos na `UnB`).
 
+### No GO 5.0.3: órgãos, a `/` e o corte
+
+O `selOrgao` do GO tem 64 opções: `null`, "Todos" (`""`) e 62 órgãos,
+cada rótulo uma vez (`ABC` = `28`, `SEAD`, `CASA CIVIL`, `GOIAS TURISMO`…);
+as siglas das unidades começam pelo órgão sem espaço
+(`CASACIVIL/GECONT-18148`). Gravado (`grupo-envio-ciclo-go`, tela de
+grupo, mesma `acao_ajax`): uma resposta `<itens></itens>` seguida de 39
+itens `…/GECONT-…` de 35 órgãos, sem nenhum `ABC/…`. Medido pelo Todos (o
+corpo não foi gravado): a sigla inteira `ABC/GECONT-18141` não devolve
+nada, porque a busca se parte na `/`; `GECONT` devolve as GECONT de
+outros órgãos; com "Todos" a lista corta em 50 itens. Ao vivo
+(04/11/2026, unidade `SEAD/CDE-09516`): `ABC/GECONT-18141` no órgão `28`
+e em "Todos" vieram vazias, e `GECONT` em "Todos" devolveu os mesmos 39
+itens gravados ([relatório](../validacao-live/2026-11-04-processo-enviar-go.md)).
+
 ## O POST e a resposta
 
 O navegador envia o formulário com `hdnUnidades=ID±DESCRIÇÃO` (vários
 destinos separados por `¥`; medido pelo Todos no PEN1 4.0.12), `selOrgao`
 e, marcada, `chkSinManterAberto=on`. Os 27 POST gravados responderam 302
 com `Location: controlador.php?acao=arvore_visualizar&acao_origem=procedimento_enviar&atualizar_arvore=1&arvore=1&id_procedimento=ID&…`.
+Todos relativos, os 3 do GO inclusive; o Todos mediu no GO `Location` de
+escrita em `http://` no mesmo host (issue #766), forma que as cassettes
+do GO só gravam no `infra_trocar_unidade` e no `procedimento_controlar`.
 
 ## A árvore relida
 

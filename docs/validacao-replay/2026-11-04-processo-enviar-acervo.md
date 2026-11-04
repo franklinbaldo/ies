@@ -50,3 +50,34 @@ unidade nova do `aberto_em` relido é escolhida pela sigla entre os itens da
   consulta; e o reenvio às mesmas unidades, sem unidade nova), fora do
   escopo; o reenvio é o caso que o comando recusa antes de escrever
   (`processo_ja_aberto_no_destino`).
+
+## Busca do destino (GO) — rodada de 04/11/2026, à noite
+
+Releitura com o ramo `slice-enviar-go`: a tabela acima saiu **idêntica**
+(nenhuma regressão), e o replay do 302 de `processo concluir` também (32
+no GO, todos relativos e esperados). Um segundo replay
+(`cargo test --bin ies replay_da_busca_do_destino -- --ignored`) lê as 34
+cassettes com a tela de envio ou a consulta (de qualquer tela): as opções
+do `selOrgao` (`orgaos` da tela conferida) e quantas o filtro pelo prefixo
+escolheria (`orgao_da_sigla`); cada resposta, se veio logo depois de uma
+vazia (a forma do termo alargado), e quantas siglas com `/` da resposta a
+regra exata escolhe só por elas. O corpo das consultas não foi gravado:
+termo e órgão de cada uma não são conhecidos.
+
+| Leitor | Classe | unb | ufrj | go | pen1 | pen2 | pen3 | pen4 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| resposta da consulta | depois de uma vazia: 2 a 49 itens; siglas com `/` escolhidas pela exata: 39 de 39 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| resposta da consulta | primeira ou depois de não vazia: 2 a 49 itens; siglas com `/` escolhidas pela exata: 1 de 1 | 0 | 0 | 8 | 0 | 0 | 0 | 0 |
+| resposta da consulta | primeira ou depois de não vazia: 2 a 49 itens; siglas com `/` escolhidas pela exata: 4 de 4 | 0 | 7 | 0 | 0 | 0 | 0 | 0 |
+| resposta da consulta | primeira ou depois de não vazia: nenhum item; siglas com `/` escolhidas pela exata: 0 de 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| resposta da consulta | primeira ou depois de não vazia: um item; siglas com `/` escolhidas pela exata: 0 de 0 | 11 | 2 | 0 | 12 | 8 | 10 | 8 |
+| resposta da consulta | primeira ou depois de não vazia: um item; siglas com `/` escolhidas pela exata: 1 de 1 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| selOrgao | 3 opções; 1 órgãos escolhíveis pelo prefixo; órgão da tela `` | 7 | 0 | 0 | 0 | 4 | 6 | 4 |
+| selOrgao | 4 opções; 2 órgãos escolhíveis pelo prefixo; órgão da tela `` | 0 | 5 | 0 | 7 | 0 | 0 | 0 |
+| selOrgao | 64 opções; 62 órgãos escolhíveis pelo prefixo; órgão da tela `` | 0 | 0 | 4 | 0 | 0 | 0 | 0 |
+- O `selOrgao` do GO tem 64 opções e 62 órgãos escolhíveis (rótulos
+  únicos); as outras instalações, 1 ou 2.
+- As 2 respostas "depois de uma vazia" são as 39 GECONT do grupo de envio
+  do GO; cada uma das 39 siglas é escolhida só pela sigla exata, e nenhuma
+  é `ABC/…`. Nenhuma resposta tem 50 ou mais itens: o corte é só do
+  Todos.

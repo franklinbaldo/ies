@@ -60,16 +60,27 @@ da tela declara.
    (abaixo); fora da forma, 1 sem POST.
 5. **Consulta do autocomplete** (`unidade_auto_completar_envio_processo`,
    POST ao `controlador_ajax.php`, URL do `infraAjaxAutoCompletar` da
-   tela): o corpo do `prepararExecucao` servido, `palavras_pesquisa=SIGLA`,
-   `id_orgao=` o órgão efetivo do `selOrgao` e, quando o script o traz,
-   `unidade_atual=0`. É leitura (`ConsultaSemEfeitoObservado`). A resposta
-   precisa ser XML 200 `<itens><item id descricao/>…</itens>`, senão 1.
-6. **Escolhe o destino**: os itens cuja sigla (o texto de `descricao` antes
-   de ` - `) é igual a `SIGLA`, sem distinguir maiúsculas ASCII. Nenhum: 1,
-   `destino_nao_oferecido_pelo_sei` (`oferecidos`: as descrições servidas);
-   mais de um: 1, `varios_destinos_com_a_sigla` (`candidatos`). Destino já
-   em `aberto_em`: 1, `processo_ja_aberto_no_destino` (a leitura não
-   distinguiria o efeito).
+   tela): o corpo do `prepararExecucao` servido, `palavras_pesquisa=TERMO`,
+   `id_orgao=ÓRGÃO` e, quando o script o traz, `unidade_atual=0`. É
+   leitura (`ConsultaSemEfeitoObservado`). Cada resposta precisa ser XML
+   200 `<itens><item id descricao/>…</itens>`, senão 1 e a busca para (sem
+   repetir nem seguir para a próxima consulta).
+6. **Busca e escolha do destino**: em cada resposta valem só os itens
+   cuja sigla (o texto de `descricao` antes de ` - `) é igual a `SIGLA`,
+   sem distinguir maiúsculas ASCII. No máximo três consultas, cada uma uma
+   vez, nesta ordem:
+
+| # | Quando | Termo | Órgão | Depois |
+| --- | --- | --- | --- | --- |
+| 1 | `SIGLA` tem `/` e o prefixo antes da primeira `/` é o rótulo de uma única opção do `selOrgao` (espaços colapsados, sem caixa; fora `""` e `null`), diferente do órgão da tela | `SIGLA` | o `value` dessa opção | um item exato: destino; vários: recusa; nenhum: consulta 2 |
+| 2 | sempre | `SIGLA` | o efetivo do `selOrgao` | com itens: decide aqui; vazia e com termo alargado: consulta 3 |
+| 3 | `SIGLA` tem `/` e a consulta 2 veio vazia | o último segmento sem o sufixo `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`), se não vazio | o efetivo | decide aqui |
+
+   Nenhum item exato: 1, `destino_nao_oferecido_pelo_sei` (`oferecidos`:
+   as descrições da **última** resposta lida); mais de um: 1,
+   `varios_destinos_com_a_sigla` (`candidatos`). Sem `/` só há a consulta
+   2, como antes. Destino já em `aberto_em`: 1,
+   `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
    e o plano. Nenhum POST de escrita.
 8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
@@ -115,7 +126,10 @@ a janela não publica `lnkInfraUnidade` (`NaTelaDeOrigemDoLink`).
 
 **Esperada**: 302 (não seguido) com `Location`
 `controlador.php?acao=arvore_visualizar…`, `acao_origem=procedimento_enviar`
-e o `id_procedimento` aberto (27 de 27 envios gravados). Qualquer outra
+e o `id_procedimento` aberto (27 de 27 envios gravados, todos relativos).
+O `Location` é dado: relativo, ou `http(s)://` no host e na pasta do POST
+(o Todos mediu `http://` no mesmo host no GO); outro host, porta ou pasta
+não é o esperado. Qualquer outra
 (rede, tempo, status, outro destino, HTML 200, login, validação da Infra)
 é `falha_do_envio` e **não** repete a escrita.
 
@@ -166,11 +180,19 @@ Abertura = a de `processo concluir` (3 GET a frio pela linha do Controle,
 | Uso inválido | 0 |
 | Recusa pela situação ou pela barra | abertura |
 | Tela recusada | abertura + 1 GET |
-| Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + 1 POST (consulta) |
-| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + 2 POST + verificação |
+| Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + C POST (consultas) |
+| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação |
 
-A frio: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os testes
-conferem a sequência exata.
+C, as consultas da busca (passo 6):
+
+| `SIGLA` | C |
+| --- | --- |
+| sem `/` | 1 |
+| com `/`, sem órgão do prefixo | 1 (a consulta 2 com itens) ou 2 (vazia, mais a 3) |
+| com `/` e órgão do prefixo | 1 (item exato ou vários na 1), 2 (a 2 decide) ou 3 (a 2 vazia, mais a 3) |
+
+A frio e sem `/`: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
+testes conferem a sequência exata de cada caminho.
 
 ## Fora do escopo
 
@@ -183,5 +205,7 @@ programados, a lupa de unidades, enviar vários processos.
 [Evidência da operação](../evidencias/processo-enviar.md) (Todos, sete
 instalações), [observação](../../docs/como-o-sei-funciona/envio-do-processo.md)
 e [decisão](../../docs/decisoes/processo-enviar.md). Live: prévia **PASS** na UFRJ
-4.1.5; escrita **NOT_RUN** (aguarda autorização,
+4.1.5; GO 5.0.3: as três consultas com a recusa tipada **PASS**, o destino
+`ABC/GECONT-18141` não achado (**FAIL**,
+[relatório](../../docs/validacao-live/2026-11-04-processo-enviar-go.md)); escrita **NOT_RUN** (aguarda autorização,
 [relatório](../../docs/validacao-live/2026-11-04-processo-enviar.md)).
