@@ -16,10 +16,10 @@ use crate::historico_processo::{EnderecoDoHistorico, ErroLinkDoHistorico, ler_li
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::pesquisa_web::redirecionamento::{
     OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use std::path::Path;
 

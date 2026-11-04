@@ -8,12 +8,13 @@ description: ies processo NUP sem --resumo abre o processo com o mínimo de requ
 
 Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
 `--resumo`, `ies processo NUP [--sem-documentos] [--sem-andamentos |
---andamentos-completos] [--json] [--unidade SIGLA]` usa a sessão de
+--andamentos-completos] [--sem-propriedades] [--json] [--unidade SIGLA]` usa a sessão de
 `ies login`, abre o processo e publica a identidade, os documentos da
 árvore, inclusive os de pastas ([pastas](processo-obter-pastas.md)), os
-processos anexados e os andamentos
-([seção própria](processo-obter-andamentos.md)). Marcadores e
-propriedades não são lidos. `--resumo` não muda.
+processos anexados, os andamentos
+([seção própria](processo-obter-andamentos.md)) e as propriedades
+([seção própria](processo-obter-propriedades.md)). Marcadores não são
+lidos. `--resumo` não muda.
 
 ## Resolução (ordem aprovada pelo proprietário)
 
@@ -179,7 +180,12 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
                 "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
- "nao_lidos": ["marcadores", "propriedades", "documentos_dos_anexados"]}
+ "propriedades": {"tipo": "…", "especificacao": "…", "interessados": [],
+                  "assuntos": [{"codigo": "… ou null", "descricao": "…"}],
+                  "observacoes": "", "nivel_de_acesso": "publico",
+                  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa",
+                  "fonte": "procedimento_alterar"},
+ "nao_lidos": ["marcadores", "documentos_dos_anexados"]}
 ```
 
 `anexados` sai **sempre**, na ordem dos nós (`[]` sem anexado), também
@@ -191,13 +197,17 @@ processo, não documento. Com algum anexado, `nao_lidos` termina em
 o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
 As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
-[andamentos](processo-obter-andamentos.md).
+[andamentos](processo-obter-andamentos.md); as de `propriedades`, em
+[propriedades](processo-obter-propriedades.md). `nao_lidos` é, na ordem:
+`andamentos` (se não lidos), `marcadores` (sempre, nesta versão),
+`propriedades` (se não lidas) e `documentos_dos_anexados`.
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
 pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
 em e-mails traz remetente e destinatários. `--sem-documentos` tira as
 chaves `documentos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
-`--sem-marcadores` e `--sem-propriedades` são aceitos sem efeito.
+`--sem-marcadores` é aceito sem efeito; `--sem-propriedades` não pede a
+tela de propriedades.
 `--sem-andamentos` com `--andamentos-completos` sai com 2
 (`sem_andamentos_incompativel_com_andamentos_completos`).
 
@@ -246,6 +256,7 @@ Anexados: `processo_anexado_fora_da_forma_observada`,
 `html_do_no_do_processo_fora_da_forma_observada`.
 
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
+Propriedades: os do [contrato das propriedades](processo-obter-propriedades.md).
 Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 
 Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).

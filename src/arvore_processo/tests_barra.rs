@@ -82,7 +82,9 @@ fn barra_vazia_ou_sem_os_links_nao_publica() {
 fn entidade_no_href_e_decodificada() {
     let href = link_das_propriedades("procedimento_alterar", "10").replace('&', "&amp;");
     assert_eq!(
-        ler(&com_acoes(&[acao_da_barra(&href)])).unwrap().map(|(_, u)| u),
+        ler(&com_acoes(&[acao_da_barra(&href)]))
+            .unwrap()
+            .map(|(_, u)| u),
         Some(absoluta("procedimento_alterar"))
     );
 }
@@ -116,7 +118,10 @@ fn endereco_de_outro_processo_ou_fora_da_regra_e_recusa() {
         ler(&com_acoes(&[acao_da_barra(&curto)])),
         Err(E::EnderecoDasPropriedadesNaoReconhecido)
     );
-    let absoluto = format!("{ORIGEM}/{}", link_das_propriedades("procedimento_alterar", "10"));
+    let absoluto = format!(
+        "{ORIGEM}/{}",
+        link_das_propriedades("procedimento_alterar", "10")
+    );
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&absoluto)])),
         Err(E::EnderecoDasPropriedadesNaoReconhecido)

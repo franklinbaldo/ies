@@ -4,8 +4,8 @@ use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::propriedades_processo::ErroPropriedades;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
+use crate::propriedades_processo::ErroPropriedades;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -184,7 +184,10 @@ fn link_invalido_na_barra_so_pesa_quando_as_propriedades_sao_lidas() {
         erro,
         E::Propriedades(ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso)
     );
-    assert_eq!(erro.subcodigo(), "endereco_das_propriedades_de_outro_processo");
+    assert_eq!(
+        erro.subcodigo(),
+        "endereco_das_propriedades_de_outro_processo"
+    );
     assert_eq!(pedidos.len(), 3);
 }
 
@@ -313,10 +316,12 @@ fn guardado_velho_e_esquecido_e_o_da_arvore_segue() {
         r302(LOGIN),
         r302(&absoluta("controlador.php?acao=outra")),
         ok("<html><body>Link sem assinatura</body></html>".to_owned()),
-        ok(crate::propriedades_processo::tests_apoio::tela_das_propriedades(
-            "00009.000009/2026-09",
-            ID,
-        )),
+        ok(
+            crate::propriedades_processo::tests_apoio::tela_das_propriedades(
+                "00009.000009/2026-09",
+                ID,
+            ),
+        ),
     ];
     for velho in velhos {
         let amb = ambiente();
@@ -354,10 +359,7 @@ fn guardado_nao_e_usado_quando_a_barra_nao_publica_a_tela() {
         true,
         vec![ok(arvore_de(ID, NUP))],
     );
-    assert_eq!(
-        r.unwrap().propriedades,
-        Propriedades::NaoPublicadasNaBarra
-    );
+    assert_eq!(r.unwrap().propriedades, Propriedades::NaoPublicadasNaBarra);
     assert_eq!(pedidos, [get(&url_arvore(ID))]);
 }
 

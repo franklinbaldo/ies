@@ -93,14 +93,22 @@ fn sigiloso_pelo_valor_2() {
 #[test]
 fn identidade_e_conferida() {
     assert_eq!(
-        ler_propriedades(&padrao(), "00009.000009/2026-09", ID, FonteDasPropriedades::Alterar),
+        ler_propriedades(
+            &padrao(),
+            "00009.000009/2026-09",
+            ID,
+            FonteDasPropriedades::Alterar
+        ),
         Err(E::NumeroDasPropriedadesDiferenteDoSolicitado)
     );
     assert_eq!(
         ler_propriedades(&padrao(), NUP, "11", FonteDasPropriedades::Alterar),
         Err(E::IdDasPropriedadesDiferenteDoAberto)
     );
-    let sem = trocar("id=\"hdnProtocoloFormatado\" name=\"hdnProtocoloFormatado\"", "");
+    let sem = trocar(
+        "id=\"hdnProtocoloFormatado\" name=\"hdnProtocoloFormatado\"",
+        "",
+    );
     assert_eq!(ler(&sem), Err(E::CampoDasPropriedadesAusente));
     let repetido = padrao().replace(
         "</form>",
@@ -178,7 +186,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
         "",
     );
-    assert!(ler(&sem).unwrap().interessados.is_empty());
+    assert_eq!(ler(&sem).unwrap().interessados, Vec::<String>::new());
 }
 
 #[test]
