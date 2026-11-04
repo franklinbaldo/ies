@@ -273,11 +273,6 @@ impl Roteiro {
             pedidos: Vec::new(),
         }
     }
-    fn proxima(&mut self) -> Result<RespostaHttp, FalhaTransporte> {
-        self.respostas
-            .pop_front()
-            .unwrap_or_else(|| panic!("pedido além do roteiro: {:?}", self.pedidos.last()))
-    }
     pub(super) fn sequencia(&self) -> Vec<String> {
         self.pedidos
             .iter()
@@ -291,7 +286,7 @@ impl Roteiro {
 
 impl TransporteDeLogin for Roteiro {
     fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaHttp, FalhaTransporte> {
-        self.pedidos.push(Pedido {
+        let pedido = Pedido {
             metodo: "GET",
             url: url.to_owned(),
             cookie: cookie.to_owned(),
@@ -299,8 +294,8 @@ impl TransporteDeLogin for Roteiro {
             corpo: String::new(),
             origem: String::new(),
             referer: String::new(),
-        });
-        self.proxima()
+        };
+        crate::transporte::testes_http::atender(&mut self.pedidos, &mut self.respostas, pedido)
     }
 
     fn post(
@@ -308,7 +303,7 @@ impl TransporteDeLogin for Roteiro {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaHttp, FalhaTransporte> {
-        self.pedidos.push(Pedido {
+        let pedido = Pedido {
             metodo: "POST",
             url: submissao.url().to_owned(),
             cookie: cookie.to_owned(),
@@ -316,8 +311,8 @@ impl TransporteDeLogin for Roteiro {
             corpo: String::from_utf8(submissao.corpo().to_vec()).expect("corpo ASCII"),
             origem: submissao.origem(),
             referer: submissao.referer().to_owned(),
-        });
-        self.proxima()
+        };
+        crate::transporte::testes_http::atender(&mut self.pedidos, &mut self.respostas, pedido)
     }
 }
 
