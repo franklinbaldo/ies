@@ -199,7 +199,9 @@ fn tela_de_login_na_caixa_indica_sessao_vencida_sem_repetir() {
         "https://sei.treinamento.unb.br/sei",
         |_, _| {
             chamadas.set(chamadas.get() + 1);
-            Ok(resposta("<form id='frmLogin'><input name='txtUsuario'></form>"))
+            Ok(resposta(
+                "<form id='frmLogin'><input name='txtUsuario'></form>",
+            ))
         },
     );
     fs::remove_dir_all(pasta).unwrap();

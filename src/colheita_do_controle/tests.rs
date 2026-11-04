@@ -356,7 +356,8 @@ fn nova_leitura_reflete_a_geracao_atual() {
     let primeira = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
     gravar(&arquivos.cookie, &["sessao", "=segunda"].concat());
     let segunda = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
-    assert!(primeira.geracao != segunda.geracao);
+    let geracoes = std::collections::HashSet::from([primeira.geracao, segunda.geracao]);
+    assert_eq!(geracoes.len(), 2);
 }
 
 // Caso de todos tests/v07/test_security_boundaries.py @323eb01
