@@ -48,53 +48,14 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
         cookie_file: sessao.cookie_file,
+        documento_procurado: None,
     };
     let mut rede = Rede {
         envio,
         cookie,
         requisicoes: 0,
     };
-    let aberto = match link_da_arvore(&contexto, &mut rede)? {
-        Some(aberto) => aberto,
-        None => match link_de_trabalho(&contexto, &mut rede)? {
-            Some(aberto) => aberto,
-            None => match entrada_por_id(&contexto, &mut rede)? {
-                Some(aberto) => aberto,
-                None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
-                    Some(aberto) => aberto,
-                    None => pelo_controle(&contexto, sessao, &mut rede)?,
-                },
-            },
-        },
-    };
-    let (arvore_lida, unidade, resolvido_por) = aberto;
-    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
-    for anexado in &arvore_lida.arvore.anexados {
-        let _ = indice.registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
-    }
-    // Aberto um anexado: o pai e o link dele, para o passo 1b.
-    if let Some(pai) = &arvore_lida.arvore.anexado_a {
-        let _ = indice.registrar_processo(&contexto.instalacao, &pai.numero, &pai.id_procedimento);
-        contexto.aprender_link(
-            "procedimento_trabalhar",
-            &pai.id_procedimento,
-            pai.trabalhar.as_str(),
-        );
-    }
-    // Cada movido com destino conferido: o par e o link assinado do destino.
-    let destinos = arvore_lida.arvore.documentos_movidos.iter();
-    for destino in destinos.filter_map(|m| m.destino.as_ref()) {
-        let _ = indice.registrar_processo(
-            &contexto.instalacao,
-            &destino.numero,
-            &destino.id_procedimento,
-        );
-        contexto.aprender_link(
-            "procedimento_trabalhar",
-            &destino.id_procedimento,
-            destino.trabalhar.as_str(),
-        );
-    }
+    let (arvore_lida, unidade, resolvido_por) = abrir_processo(&contexto, sessao, &mut rede)?;
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,
@@ -130,10 +91,72 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     })
 }
 
+/// A cadeia de passos até a árvore conferida (com as pastas), e o que ela
+/// ensina ao índice sem requisição: anexados, pai, movidos e documentos.
+/// Também a abertura de `documento DOC --processo NUP`.
+pub(super) fn abrir_processo<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+    let aberto = match link_da_arvore(contexto, rede)? {
+        Some(aberto) => aberto,
+        None => match link_de_trabalho(contexto, rede)? {
+            Some(aberto) => aberto,
+            None => match entrada_por_id(contexto, rede)? {
+                Some(aberto) => aberto,
+                None => match pesquisa_guardada(contexto, sessao, rede)? {
+                    Some(aberto) => aberto,
+                    None => pelo_controle(contexto, sessao, rede)?,
+                },
+            },
+        },
+    };
+    let (arvore_lida, unidade, resolvido_por) = aberto;
+    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
+    for anexado in &arvore_lida.arvore.anexados {
+        let _ = contexto
+            .indice
+            .registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
+    }
+    // Aberto um anexado: o pai e o link dele, para o passo 1b.
+    if let Some(pai) = &arvore_lida.arvore.anexado_a {
+        let _ = contexto.indice.registrar_processo(
+            &contexto.instalacao,
+            &pai.numero,
+            &pai.id_procedimento,
+        );
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &pai.id_procedimento,
+            pai.trabalhar.as_str(),
+        );
+    }
+    // Cada movido com destino conferido: o par e o link assinado do destino.
+    let destinos = arvore_lida.arvore.documentos_movidos.iter();
+    for destino in destinos.filter_map(|m| m.destino.as_ref()) {
+        let _ = contexto.indice.registrar_processo(
+            &contexto.instalacao,
+            &destino.numero,
+            &destino.id_procedimento,
+        );
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &destino.id_procedimento,
+            destino.trabalhar.as_str(),
+        );
+    }
+    contexto.aprender_documentos(&arvore_lida.arvore);
+    Ok((arvore_lida, unidade, resolvido_por))
+}
+
 /// Passo 1, link guardado nesta geração e unidade: o de "Abrir todas as
 /// Pastas", se houver, e senão o da árvore; um GET. A árvore não publica a
 /// unidade; com `--unidade` o passo é pulado.
-fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+pub(super) fn link_da_arvore<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Passo {
     const ACAO: &str = "procedimento_visualizar";
     if contexto.unidade_pedida.is_some() {
         return Ok(None);
@@ -175,7 +198,10 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
 /// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
 /// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
 /// GET da tela do processo e GET da árvore.
-fn link_de_trabalho<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Passo {
     const ACAO: &str = "procedimento_trabalhar";
     let instalacao = &contexto.instalacao;
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {

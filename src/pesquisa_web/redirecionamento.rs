@@ -41,6 +41,8 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     AcaoDeOrigemInesperadaNoRedirecionamento,
     /// O id endereçado não é o pedido (entrada por id, linha do Controle).
     IdProcedimentoDoRedirecionamentoDiferenteDoPedido,
+    /// A entrada com documento respondeu sem o `id_documento` pedido, uma vez.
+    IdDocumentoDoRedirecionamentoDiferenteDoPedido,
 }
 
 impl ErroRedirecionamentoDaPesquisa {
@@ -117,6 +119,9 @@ impl ErroRedirecionamentoDaPesquisa {
             Self::IdProcedimentoDoRedirecionamentoDiferenteDoPedido => {
                 "id_procedimento_do_redirecionamento_diferente_do_pedido"
             }
+            Self::IdDocumentoDoRedirecionamentoDiferenteDoPedido => {
+                "id_documento_do_redirecionamento_diferente_do_pedido"
+            }
         }
     }
 }
@@ -158,6 +163,9 @@ pub(crate) enum OrigemDoTrabalho<'a> {
     /// 302 da entrada sem assinatura (ADR 0003): sem `acao_origem`, mesmo id;
     /// a URL pedida não tem unidade nem sistema para comparar.
     EntradaPorId { id: &'a str },
+    /// A mesma entrada com `id_documento` (ADR 0003): sem `acao_origem`, os
+    /// dois ids iguais aos pedidos.
+    EntradaPorIdComDocumento { id: &'a str, documento: &'a str },
     /// `href` da linha `tr#P{id}` do Controle: `acao_origem=procedimento_controlar`.
     Controle { id: &'a str },
 }
@@ -167,7 +175,7 @@ impl OrigemDoTrabalho<'_> {
         match self {
             Self::Pesquisa => Some("protocolo_pesquisar"),
             Self::PesquisaRapida => Some("protocolo_pesquisa_rapida"),
-            Self::EntradaPorId { .. } => None,
+            Self::EntradaPorId { .. } | Self::EntradaPorIdComDocumento { .. } => None,
             Self::Controle { .. } => Some("procedimento_controlar"),
         }
     }
@@ -345,11 +353,17 @@ pub(crate) fn conferir_trabalho(
         }
         _ => return Err(E::IdProcedimentoRepetidoNoRedirecionamento),
     };
-    if let OrigemDoTrabalho::EntradaPorId { id: pedido } | OrigemDoTrabalho::Controle { id: pedido } =
-        origem
+    if let OrigemDoTrabalho::EntradaPorId { id: pedido }
+    | OrigemDoTrabalho::Controle { id: pedido }
+    | OrigemDoTrabalho::EntradaPorIdComDocumento { id: pedido, .. } = origem
         && id.as_str() != pedido
     {
         return Err(E::IdProcedimentoDoRedirecionamentoDiferenteDoPedido);
+    }
+    if let OrigemDoTrabalho::EntradaPorIdComDocumento { documento, .. } = origem
+        && valores(&pares, "id_documento") != [documento]
+    {
+        return Err(E::IdDocumentoDoRedirecionamentoDiferenteDoPedido);
     }
     match valores(&pares, "infra_hash").as_slice() {
         [] => return Err(E::InfraHashAusenteNoRedirecionamento),
@@ -362,7 +376,10 @@ pub(crate) fn conferir_trabalho(
         [unidade] => *unidade,
         _ => return Err(E::UnidadeAtualRepetidaNoRedirecionamento),
     };
-    let sem_referencia = matches!(origem, OrigemDoTrabalho::EntradaPorId { .. });
+    let sem_referencia = matches!(
+        origem,
+        OrigemDoTrabalho::EntradaPorId { .. } | OrigemDoTrabalho::EntradaPorIdComDocumento { .. }
+    );
     if !sem_referencia && unidade != unidade_do_envio(url_base)? {
         return Err(E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio);
     }

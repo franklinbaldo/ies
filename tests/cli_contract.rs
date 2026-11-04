@@ -35,7 +35,7 @@ fn substantivo_sozinho_mostra_ajuda() {
 
 #[test]
 fn comando_sem_execucao_retorna_falha_estruturada() {
-    let output = ies(&["documento", "77782513", "--processo", "1", "--json"]);
+    let output = ies(&["documento", "77782513", "--versao", "1", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
@@ -49,6 +49,15 @@ fn leitura_web_de_documento_le_a_sessao_antes_da_rede() {
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+/// `--processo` com NUP inválido é entrada inválida, sem rede (Refs #60).
+#[test]
+fn processo_invalido_do_documento_e_recusado_sem_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "--processo", "sei://1", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "referencia_processo_legada");
 }
 
 /// O mesmo número duas vezes é entrada inválida (zeros à esquerda contam:

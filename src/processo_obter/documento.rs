@@ -1,23 +1,27 @@
-//! `ies documento DOC` pela Web (Refs #60, fatia 1;
-//! contracts/cli/documento-obter-web.md): pesquisa rápida do número SEI
-//! (o `action` guardado, senão o do Controle) → 302 para
-//! `procedimento_trabalhar` com o `id_protocolo` do documento → tela com a
-//! árvore que seleciona esse `id_documento` → árvore conferida (NUP do nó
-//! `PROCESSO`, documento de mesmo id e número SEI **igual** ao pedido) →
-//! GET do `Nos[i].src` assinado (`documento_visualizar`) → título e texto
-//! conferidos. Nenhuma URL é montada (ADR 0003); sem retry, sem redirect.
-use super::abertura::{Contexto, Lida, Rede, fora_de_palpite};
+//! `ies documento DOC` pela Web (Refs #60; contracts/cli/documento-obter-web.md).
+//! Caminho mais barato: com `--processo NUP`, a abertura de `processo NUP`
+//! e o documento na árvore; senão o índice (número SEI → processo e
+//! documento: link da árvore, link de trabalho, entrada por id com
+//! documento) e, sem ele ou com palpite desmentido, a pesquisa rápida do
+//! número (o `action` guardado, senão o do Controle) → 302 com o
+//! `id_protocolo` do documento → tela que seleciona esse `id_documento` →
+//! árvore conferida (NUP do nó `PROCESSO`, documento de mesmo id e número
+//! SEI **igual** ao pedido; pastas abertas se ele não estiver à vista) →
+//! GET do `Nos[i].src` assinado → título e texto conferidos. Só a URL sem
+//! assinatura da lista branca é montada (ADR 0003); sem retry nem redirect.
+use super::abertura::{Contexto, Lida, Rede, concluir, fora_de_palpite, ler_arvore_aberta};
 use super::fluxo::{ler_controle_colhido, pesquisar_no_controle, pesquisar_pela_guardada};
-use super::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso};
+use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{
-    ConteudoNaArvore, EnderecoDoConteudo, ErroArvore, ErroConteudoNaArvore, NaturezaDoDocumento,
-    ProcessoNaArvore, ler_arvore, ler_conteudo_na_arvore, ler_tela_do_documento,
+    ConteudoNaArvore, DocumentoNaArvore, EnderecoDoConteudo, ErroArvore, ErroConteudoNaArvore,
+    NaturezaDoDocumento, ProcessoNaArvore, ler_conteudo_na_arvore, ler_tela_do_documento,
     nup_declarado_na_arvore,
 };
 use crate::documento::NumeroDocumento;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
+use crate::processo::NumeroProcesso;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
 
 #[path = "documento_erro.rs"]
@@ -29,16 +33,19 @@ use erro::ErroDocumentoObter as E;
 mod anexo;
 pub(crate) use anexo::PedidoDoAnexo;
 
-/// O número SEI pedido e a `--unidade` (conferida na tela).
+/// O número SEI pedido, a `--unidade` (conferida na tela), o
+/// `--processo NUP` e o limite e `--saida` do documento externo.
 pub(crate) struct PedidoDoDocumento<'a> {
     pub(crate) numero: &'a NumeroDocumento,
     pub(crate) unidade: Option<&'a str>,
+    pub(crate) processo: Option<&'a NumeroProcesso>,
     /// Limite e `--saida` do documento externo (fatia 3).
     pub(crate) anexo: PedidoDoAnexo<'a>,
 }
 
 /// O documento lido: identidade da árvore e do título, processo, unidade
-/// da tela, texto visível e requisições feitas.
+/// da tela (`None` pelo link da árvore, que não a publica), passo que o
+/// abriu, texto visível e requisições feitas (inclusive as dos palpites).
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct DocumentoObtido {
     pub(crate) numero: String,
@@ -50,7 +57,8 @@ pub(crate) struct DocumentoObtido {
     pub(crate) natureza: NaturezaDoDocumento,
     pub(crate) pasta: Option<String>,
     pub(crate) processo: ProcessoNaArvore,
-    pub(crate) unidade: String,
+    pub(crate) unidade: Option<String>,
+    pub(crate) resolvido_por: ResolvidoPor,
     pub(crate) texto: String,
     /// Documento externo (`documento_download_anexo`, fatia 3): o arquivo
     /// lido; `tipo` fica vazio e `texto`, o dos tipos de texto.
@@ -64,7 +72,6 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
-    let processo = |erro| E::Processo(erro);
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
@@ -81,17 +88,46 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
         cookie_file: sessao.cookie_file,
+        documento_procurado: Some(numero),
     };
     let mut rede = Rede {
         envio,
         cookie,
         requisicoes: 0,
     };
-    let redirecionado = match pesquisar_pela_guardada(&contexto, sessao, &mut rede, numero) {
+    if let Some(nup) = pedido.processo {
+        let contexto = contexto.com_nup(nup.as_str());
+        return super::documento_indice::pelo_processo(
+            &contexto,
+            sessao,
+            &mut rede,
+            numero,
+            pedido.anexo,
+        );
+    }
+    if let Some(obtido) =
+        super::documento_indice::pelo_indice(&contexto, &mut rede, numero, pedido.anexo)?
+    {
+        return Ok(obtido);
+    }
+    pela_pesquisa(&contexto, sessao, &mut rede, numero, pedido.anexo)
+}
+
+/// Fatia 1: pesquisa rápida, tela, árvore (e pastas, se o documento não
+/// está à vista) e conteúdo.
+fn pela_pesquisa<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+    numero: &str,
+    anexo: PedidoDoAnexo<'_>,
+) -> Result<DocumentoObtido, E> {
+    let processo = |erro| E::Processo(erro);
+    let redirecionado = match pesquisar_pela_guardada(contexto, sessao, rede, numero) {
         Ok(Some(redirecionado)) => redirecionado,
         Ok(None) => {
-            let controle = ler_controle_colhido(&contexto, sessao, &mut rede).map_err(processo)?;
-            pesquisar_no_controle(&contexto, &controle, &mut rede, numero).map_err(sem_trabalho)?
+            let controle = ler_controle_colhido(contexto, sessao, rede).map_err(processo)?;
+            pesquisar_no_controle(contexto, &controle, rede, numero).map_err(sem_trabalho)?
         }
         Err(erro) => return Err(sem_trabalho(erro)),
     };
@@ -101,9 +137,13 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         Lida::Html { html, mime } => (html, mime),
         outra => return Err(E::Processo(fora_do_html(outra))),
     };
-    let (tela, id_procedimento) =
-        ler_tela_do_documento(&contexto.instalacao, &html, &id_documento, pedido.unidade)
-            .map_err(|e| E::Processo(ErroProcessoObter::Tela(e)))?;
+    let (tela, id_procedimento) = ler_tela_do_documento(
+        &contexto.instalacao,
+        &html,
+        &id_documento,
+        contexto.unidade_pedida,
+    )
+    .map_err(|e| E::Processo(ErroProcessoObter::Tela(e)))?;
     contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
     let html = match rede.get(tela.arvore.as_str()).map_err(processo)? {
         Lida::Html { html, .. } => html,
@@ -112,39 +152,73 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     let arvore_erro = |e| E::Processo(ErroProcessoObter::Arvore(e));
     let nup = nup_declarado_na_arvore(&html)
         .ok_or(arvore_erro(ErroArvore::NoDoProcessoAusenteNaArvore))?;
-    let arvore = ler_arvore(&html, &nup, &id_procedimento).map_err(arvore_erro)?;
+    let contexto = contexto.com_nup(&nup);
+    let aberta = ler_arvore_aberta(&contexto, &html, &id_procedimento).map_err(arvore_erro)?;
     // A árvore confirmou o processo: o par e o link dela, como em processo NUP.
-    let _ = indice.registrar_processo(&contexto.instalacao, &nup, &id_procedimento);
-    contexto.aprender_link(
-        "procedimento_visualizar",
-        &id_procedimento,
-        tela.arvore.as_str(),
-    );
-    let Some(no) = arvore.documentos.iter().find(|d| d.id == id_documento) else {
-        return Err(if arvore.pastas_nao_carregadas {
-            E::DocumentoEmPastaNaoCarregada
-        } else {
-            E::Conteudo(ErroConteudoNaArvore::DocumentoAusenteDaArvore)
-        });
+    concluir(&contexto, &aberta.arvore, None, tela.arvore.as_str());
+    let aberta = super::pastas::completar(&contexto, rede, &html, aberta).map_err(processo)?;
+    contexto.aprender_documentos(&aberta.arvore);
+    let Some(no) = aberta
+        .arvore
+        .documentos
+        .iter()
+        .find(|d| d.id == id_documento)
+    else {
+        return Err(E::Conteudo(ErroConteudoNaArvore::DocumentoAusenteDaArvore));
     };
     if no.numero_sei.as_deref() != Some(numero) {
         return Err(E::NumeroSeiDaArvoreDiferenteDoPedido);
     }
-    let repetidos = arvore
-        .documentos
+    localizar(&aberta.arvore.documentos, numero)?;
+    let lido = NoLido {
+        html: &aberta.html,
+        no,
+        processo: &aberta.arvore.processo,
+        unidade: Some(tela.unidade),
+        resolvido_por: ResolvidoPor::PesquisaRapida,
+        anexo,
+    };
+    ler_do_no(&contexto.instalacao, rede, lido, numero)
+}
+
+/// O único `DOCUMENTO` da árvore com o número SEI (a15) pedido.
+pub(super) fn localizar<'a>(
+    documentos: &'a [DocumentoNaArvore],
+    numero: &str,
+) -> Result<Option<&'a DocumentoNaArvore>, E> {
+    let mut com_numero = documentos
         .iter()
         .filter(|d| d.numero_sei.as_deref() == Some(numero));
-    if repetidos.count() > 1 {
+    let primeiro = com_numero.next();
+    if com_numero.next().is_some() {
         return Err(E::NumeroSeiRepetidoNaArvore);
     }
+    Ok(primeiro)
+}
+
+/// O nó já conferido na árvore lida e o que a abertura soube.
+pub(super) struct NoLido<'a> {
+    pub(super) html: &'a str,
+    pub(super) no: &'a DocumentoNaArvore,
+    pub(super) processo: &'a ProcessoNaArvore,
+    pub(super) unidade: Option<String>,
+    pub(super) resolvido_por: ResolvidoPor,
+    /// Limite e `--saida`, se o nó for um documento externo.
+    pub(super) anexo: PedidoDoAnexo<'a>,
+}
+
+/// O `.src` do nó e o GET do conteúdo.
+pub(super) fn ler_do_no<V: EnvioDoProcesso>(
+    instalacao: &Instalacao,
+    rede: &mut Rede<'_, V>,
+    lido: NoLido<'_>,
+    numero: &str,
+) -> Result<DocumentoObtido, E> {
+    let no = lido.no;
     let (tipo, texto, anexo) =
-        match ler_conteudo_na_arvore(&contexto.instalacao, &html, &id_documento)
-            .map_err(E::Conteudo)?
-        {
-            ConteudoNaArvore::Visualizar(e) => ler_conteudo(&mut rede, &e, numero)?,
-            ConteudoNaArvore::DownloadDeAnexo(e) => {
-                anexo::ler(&mut rede, &e, numero, pedido.anexo)?
-            }
+        match ler_conteudo_na_arvore(instalacao, lido.html, &no.id).map_err(E::Conteudo)? {
+            ConteudoNaArvore::Visualizar(e) => ler_conteudo(rede, &e, numero)?,
+            ConteudoNaArvore::DownloadDeAnexo(e) => anexo::ler(rede, &e, numero, lido.anexo)?,
             ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
                 return Err(E::DocumentoCancelado);
             }
@@ -152,13 +226,14 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
-        id_documento,
+        id_documento: no.id.clone(),
         rotulo: no.rotulo.clone(),
         tipo,
         natureza: no.natureza.clone(),
         pasta: no.pasta.clone(),
-        processo: arvore.processo,
-        unidade: tela.unidade,
+        processo: lido.processo.clone(),
+        unidade: lido.unidade,
+        resolvido_por: lido.resolvido_por,
         texto,
         anexo,
         requisicoes: rede.requisicoes,

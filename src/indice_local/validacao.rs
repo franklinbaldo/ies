@@ -10,6 +10,7 @@ use std::fmt;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RegistroRecusado {
     NupInvalido,
+    NumeroSeiInvalido,
     IdProcedimentoInvalido,
     GeracaoInvalida,
     UnidadeInvalida,
@@ -29,6 +30,7 @@ impl RegistroRecusado {
     pub(crate) fn subcodigo(self) -> &'static str {
         match self {
             Self::NupInvalido => "indice_nup_invalido",
+            Self::NumeroSeiInvalido => "indice_numero_sei_invalido",
             Self::IdProcedimentoInvalido => "indice_id_procedimento_invalido",
             Self::GeracaoInvalida => "indice_geracao_invalida",
             Self::UnidadeInvalida => "indice_unidade_invalida",
@@ -81,6 +83,15 @@ fn imprimivel(valor: &str, maximo: usize) -> bool {
 pub(super) fn conferir_nup(nup: &str) -> Result<(), RegistroRecusado> {
     if nup.is_empty() || !texto_sem_controle(nup, 128) {
         return Err(RegistroRecusado::NupInvalido);
+    }
+    Ok(())
+}
+
+/// Número SEI opaco (zeros à esquerda inclusos): não vazio, sem controle.
+/// Nunca vai para URL; é só a chave da busca.
+pub(super) fn conferir_numero_sei(numero: &str) -> Result<(), RegistroRecusado> {
+    if numero.is_empty() || !texto_sem_controle(numero, 64) {
+        return Err(RegistroRecusado::NumeroSeiInvalido);
     }
     Ok(())
 }

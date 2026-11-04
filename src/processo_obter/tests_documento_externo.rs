@@ -116,6 +116,15 @@ fn rodar(
     anexo: RespostaBinaria<Cursor<Vec<u8>>>,
     pedido_do_anexo: PedidoDoAnexo<'_>,
 ) -> (Result<DocumentoObtido, ErroDocumentoObter>, ComAnexo) {
+    rodar_com(amb, ate_a_arvore(), anexo, pedido_do_anexo)
+}
+
+fn rodar_com(
+    amb: &Ambiente,
+    respostas: Vec<Resposta>,
+    anexo: RespostaBinaria<Cursor<Vec<u8>>>,
+    pedido_do_anexo: PedidoDoAnexo<'_>,
+) -> (Result<DocumentoObtido, ErroDocumentoObter>, ComAnexo) {
     let url = url_controle();
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
@@ -126,10 +135,11 @@ fn rodar(
     let pedido = PedidoDoDocumento {
         numero: &numero,
         unidade: None,
+        processo: None,
         anexo: pedido_do_anexo,
     };
     let mut envio = ComAnexo {
-        roteiro: Roteiro::novo(ate_a_arvore()),
+        roteiro: Roteiro::novo(respostas),
         anexo: Some(anexo),
         limite_pedido: None,
     };
@@ -260,4 +270,35 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
         r.unwrap_err(),
         ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
     );
+}
+
+/// Fatia 2 + 3: o índice já sabe o número e guarda o link da árvore; o
+/// externo custa o mesmo que o interno por esse caminho, com o GET
+/// binário no lugar do GET do conteúdo.
+#[test]
+fn externo_pelo_link_da_arvore_guardado_em_duas() {
+    let amb = ambiente();
+    let (inst, g) = (instalacao(), geracao());
+    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice
+        .registrar_documentos(&inst, ID, &[(DOC, ID_DOC)])
+        .unwrap();
+    amb.indice
+        .registrar_link(
+            &inst,
+            chave(&g, "procedimento_visualizar", ID),
+            &url_arvore(ID),
+        )
+        .unwrap();
+    let arvore = ate_a_arvore().pop().unwrap();
+    let (r, envio) = rodar_com(&amb, vec![arvore], pdf(), PedidoDoAnexo::default());
+    let d = r.unwrap();
+    assert_eq!(
+        envio.roteiro.pedidos,
+        [get(&url_arvore(ID)), get(&absoluta(&src_anexo()))]
+    );
+    assert_eq!(d.requisicoes, 2);
+    assert_eq!(d.resolvido_por, ResolvidoPor::IndiceLink);
+    assert_eq!((d.id_documento.as_str(), d.unidade), (ID_DOC, None));
+    assert_eq!(d.anexo.expect("anexo").mime, "application/pdf");
 }

@@ -17,8 +17,9 @@ pub(crate) enum ErroDocumentoObter {
     NumeroSeiDaArvoreDiferenteDoPedido,
     /// Mais de um `DOCUMENTO` da árvore com o número pedido.
     NumeroSeiRepetidoNaArvore,
-    /// O documento não está na árvore e alguma pasta veio fechada.
-    DocumentoEmPastaNaoCarregada,
+    /// `--processo NUP`: a árvore do processo, com as pastas abertas, não
+    /// tem `DOCUMENTO` com o número pedido.
+    NumeroSeiAusenteDoProcesso,
     /// O `.src` do nó (ausente, repetido, fora da forma observada).
     Conteudo(ErroConteudoNaArvore),
     /// `.src` vazio num nó com ícone e dica de cancelado.
@@ -42,7 +43,7 @@ impl ErroDocumentoObter {
             Self::PesquisaRapidaNaoAbriuODocumento(_) => "pesquisa_rapida_nao_abriu_o_documento",
             Self::NumeroSeiDaArvoreDiferenteDoPedido => "numero_sei_da_arvore_diferente_do_pedido",
             Self::NumeroSeiRepetidoNaArvore => "numero_sei_repetido_na_arvore",
-            Self::DocumentoEmPastaNaoCarregada => "documento_em_pasta_nao_carregada",
+            Self::NumeroSeiAusenteDoProcesso => "numero_sei_ausente_da_arvore_do_processo",
             Self::Conteudo(erro) => erro.subcodigo(),
             Self::DocumentoCancelado => "documento_cancelado_sem_conteudo_na_arvore",
             Self::ConteudoNaoPublicadoNaArvore => "conteudo_nao_publicado_na_arvore",
@@ -63,8 +64,8 @@ impl ErroDocumentoObter {
                 "o documento aberto não tem o número SEI pedido"
             }
             Self::NumeroSeiRepetidoNaArvore => "o número SEI aparece mais de uma vez na árvore",
-            Self::DocumentoEmPastaNaoCarregada => {
-                "o documento não está na árvore e há pasta fechada"
+            Self::NumeroSeiAusenteDoProcesso => {
+                "o número SEI não está na árvore do processo informado"
             }
             Self::Conteudo(_) => "o link do conteúdo na árvore não foi reconhecido",
             Self::DocumentoCancelado => {

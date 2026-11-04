@@ -20,7 +20,9 @@ canônicas (forma das cassettes de PEN1, PEN2 e PEN4: `acao_origem`,
 `id_anexo`, `arvore`, `infra_sistema`, `infra_unidade_atual`,
 `infra_hash`). O link não traz `id_documento`: a ligação com o documento
 é o próprio nó da árvore já conferido (id e número SEI). O IES nunca monta
-esse link (ADR 0003). Custo igual ao do interno: 4 ou 5 requisições.
+esse link (ADR 0003). Custo igual ao do interno em qualquer caminho da
+leitura Web (índice: 2, 3 ou 4; `--processo NUP`; pesquisa rápida: 4 ou
+5): o GET binário toma o lugar do GET do conteúdo.
 
 ## Transporte binário
 

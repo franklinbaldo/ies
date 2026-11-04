@@ -4,18 +4,23 @@ title: Ler documento pelo número SEI via pesquisa rápida, árvore e link assin
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: Refs #60 fatia 1; texto e metadados de documentos internos pelo número SEI, pela pesquisa rápida (action guardado ou do Controle), a tela que seleciona o documento, a árvore conferida e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --processo, --versao, --sem-copia, --com-propriedades e --ocultar-inacessiveis continuam stub
-selected_strategy: web-pesquisa-rapida-arvore-src
-alternatives: web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
+scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo número SEI, pelo caminho mais barato (--processo NUP pela abertura de processo NUP; índice número SEI → processo e documento pelo link da árvore, pelo link de trabalho ou pela entrada por id com documento da lista branca; pesquisa rápida), a árvore conferida (pastas abertas só se o documento não está à vista) e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao, --sem-copia, --com-propriedades e --ocultar-inacessiveis continuam stub
+selected_strategy: web-indice-arvore-src-com-pesquisa-rapida
+alternatives: web-indice-arvore-src-com-pesquisa-rapida,web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-unb
-live_validation: pass-unb-4-0-9
+live_validation: pass-unb-4-0-9-fatias-1-e-2
 ---
 
 # Ler documento pelo número SEI
 
 ## Alternativas consideradas
 
-- **web-pesquisa-rapida-arvore-src** (escolhida): POST do número SEI na
+- **web-indice-arvore-src-com-pesquisa-rapida** (escolhida, fatia 2):
+  `--processo NUP` pela abertura de `processo NUP`; senão o índice
+  (número SEI → P e M) pelo link da árvore, pelo link de trabalho ou
+  pela entrada por id com documento; senão, ou com o palpite
+  desmentido, a pesquisa rápida da fatia 1.
+- **web-pesquisa-rapida-arvore-src** (fatia 1): POST do número SEI na
   pesquisa rápida → 302 com o `id_protocolo` do documento → tela cujo
   `iframe#ifrArvore` seleciona esse `id_documento` → árvore → GET do
   `Nos[i].src` (`documento_visualizar`) assinado do nó.
@@ -50,12 +55,27 @@ live_validation: pass-unb-4-0-9
   índice souber `P` e `M` do número SEI (2 requisições em vez de 4).
 - **Pesquisa avançada:** custa uma requisição a mais e a lista não é lida
   (decisão de [`processo.obter`](processo-obter.md)).
-- **`--processo NUP`:** mais barato (2 GET com o link da árvore
-  guardado) e precisa de uma tabela de documentos no índice; fica para a
-  fatia 2. Sem ele, o número SEI sozinho não leva ao processo.
+- **`--processo NUP` e índice (fatia 2):** com o link da árvore guardado
+  a leitura custa 2 (árvore e conteúdo); com o link de trabalho, 3; pela
+  entrada com documento, 4 — o mesmo da pesquisa com `action` guardado
+  (e 1 a menos que pelo Controle). A entrada vem antes da pesquisa: GET
+  sem POST (a pesquisa pode ficar lembrada), forma da lista branca
+  medida na UnB, aceite e recusa registrados por instalação, e só onde
+  nenhuma das formas foi recusada. O 302 não leva direto à árvore: a
+  tela é necessária para o link assinado dela, por isso 4 e não 2.
+- **Pasta fechada:** aberta só se o número não está à vista. Medido na
+  UnB: a tela com `id_documento` (entrada com documento ou pesquisa do
+  número) já serve a árvore com a pasta do documento carregada; o link
+  da árvore guardado e a abertura pelo NUP, não (+1).
+- **Guardar o `.src`** e pular a árvore (1 requisição) rejeitado por ora:
+  rótulo, natureza, pasta e processo vêm da árvore, e o `.src` sozinho
+  não prova que o documento ainda está no processo.
 
-Custo: **4** requisições com o `action` da pesquisa guardado, **5** sem
-ele (Controle). Lote: soma por documento.
+Custo: **2** pelo link da árvore guardado, **3** pelo link de trabalho,
+**4** pela entrada com documento ou pela pesquisa com `action` guardado,
+**5** pelo Controle; **+1** com pasta fechada que esconde o documento;
+palpite desmentido soma o que gastou e cai uma vez na pesquisa. Com
+`--processo`, o custo de `processo NUP` + 1. Lote: soma por documento.
 
 ## Decisão
 
@@ -80,23 +100,29 @@ fatia, com recusa tipada.
 - [Matriz por instalação](../../contracts/evidencias/documento-obter.md)
 - [Testes de superfície](../../tests/cli_contract.rs)
 - Testes do fluxo com transporte roteirizado em
-  `src/processo_obter/tests_documento.rs`; leitores em
+  `src/processo_obter/tests_documento.rs` e, da fatia 2, em
+  `src/processo_obter/tests_documento_indice.rs` (sequências exatas de
+  cada caminho) e `src/indice_local/tests_documentos.rs`; leitores em
   `src/arvore_processo/tests_conteudo.rs`; entidades em
   `src/entidades_html.rs` e `src/documento_web.rs`.
 - RED observado com shims compiláveis: 12 testes falhando (leitores,
-  fluxo e entidades), 1041 passando; GREEN: todos passam.
+  fluxo e entidades), 1041 passando; GREEN: todos passam. Fatia 2: 16
+  falhando (tabela `documento`, `nup_por_id`, migração e os caminhos do
+  índice e de `--processo`), 1041 passando; GREEN: 1057.
 - Replay do acervo `src/processo_obter/acervo_documento.rs` (ignorado no
   CI) e [relatório](../validacao-replay/2026-11-04-documento-obter-acervo.md).
 - [Ensaio live na UnB](../validacao-live/2026-11-04-documento-obter.md).
 
 ## Limitações e revisão
 
-- Externos (`documento_download_anexo`), `--processo`, `--versao`,
-  `--com-propriedades`, `--ocultar-inacessiveis` e documento em pasta
-  fechada: não lidos.
+- Externos (`documento_download_anexo`), `--versao`,
+  `--com-propriedades` e `--ocultar-inacessiveis`: não lidos.
+- A entrada com documento só foi medida na UnB; noutra instalação o
+  primeiro uso aprende (uma recusa derruba a sessão de todos e fica
+  registrada).
 - O texto é uma linha com os espaços colapsados; parágrafos e tabelas
   não são preservados.
-- Repetir um documento custa 4 requisições: o índice ainda não guarda
-  DOC ↔ `id_documento` nem o `.src` (fatia 2).
+- Lote com `--processo` abre o processo por documento (2 cada, com o
+  link da árvore já guardado pelo primeiro).
 - Rever se uma instalação responder a pesquisa por número SEI de outra
   forma, ou se o GET do conteúdo tiver efeito medido.

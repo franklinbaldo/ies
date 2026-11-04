@@ -23,6 +23,21 @@ impl IndiceLocal {
         id.filter(|id| conferir_id_procedimento(id).is_ok())
     }
 
+    /// O NUP já visto para este `id_procedimento` (o mesmo palpite).
+    pub(crate) fn nup_por_id(&self, instalacao: &Instalacao, id: &str) -> Option<String> {
+        conferir_id_procedimento(id).ok()?;
+        let origem = instalacao.url_base();
+        self.executar(None, |banco, _| {
+            banco
+                .query_row(
+                    "SELECT nup FROM processo WHERE origem = ?1 AND id_procedimento = ?2",
+                    [&origem, id],
+                    |l| l.get(0),
+                )
+                .optional()
+        })
+    }
+
     /// Nova observação: apaga, na mesma transação, a linha do mesmo NUP e a
     /// do mesmo id antes de gravar.
     pub(crate) fn registrar_processo(

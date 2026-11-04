@@ -56,6 +56,7 @@ fn rodar_doc(
         numero: &numero,
         unidade: None,
         anexo: PedidoDoAnexo::default(),
+        processo: None,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_documento(&sessao, &pedido, &amb.indice, &mut roteiro);
@@ -99,7 +100,7 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
     assert_eq!(d.tipo, "Despacho");
     assert_eq!(d.processo.nup, NUP);
     assert_eq!(d.processo.id, ID);
-    assert_eq!(d.unidade, UNIDADE);
+    assert_eq!(d.unidade.as_deref(), Some(UNIDADE));
     assert_eq!(d.texto, "Texto do despacho.");
     assert_eq!(d.requisicoes, 5);
     assert_eq!(d.natureza.icone.as_deref(), Some("documento_interno"));
@@ -130,6 +131,8 @@ fn segundo_documento_usa_a_pesquisa_guardada_em_quatro() {
     let mut primeira = ate_a_arvore(arvore_com(&src_visualizar(ID_DOC)));
     primeira.push(ok(conteudo(DOC)));
     rodar_doc(&amb, DOC, primeira).0.unwrap();
+    // Sem o número no índice (fatia 2: com ele, 2 pelo link da árvore).
+    amb.indice.esquecer_documento(&instalacao(), DOC);
     let (r, pedidos) = rodar_doc(
         &amb,
         DOC,

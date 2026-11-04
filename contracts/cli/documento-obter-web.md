@@ -1,16 +1,16 @@
 ---
 type: Contract
 title: Ler documento pela Web
-description: ies documento DOC lê pela sessão Web o texto e os metadados de documentos internos, pela pesquisa rápida do número SEI, a árvore e o link assinado do conteúdo, com recusa tipada para os demais casos
+description: ies documento DOC lê pela sessão Web o texto e os metadados de documentos internos pelo caminho mais barato (processo informado, índice local ou pesquisa rápida do número SEI), a árvore e o link assinado do conteúdo, com recusa tipada para os demais casos
 ---
 
-# `ies documento DOC` pela Web (Refs #60, fatia 1)
+# `ies documento DOC` pela Web (Refs #60, fatias 1 e 2)
 
 Complementa o [contrato de `documento.obter`](documento-obter.md).
-`ies documento DOC [DOC ...] [--saida DIR] [--json] [--unidade SIGLA]` usa
-a sessão de `ies login` e lê, na ordem pedida, o conteúdo de cada
-documento **interno** (editor do SEI) pelo número SEI. Opções ainda sem
-implementação (`--processo`, `--versao`, `--sem-copia`,
+`ies documento DOC [DOC ...] [--processo NUP] [--saida DIR] [--json]
+[--unidade SIGLA]` usa a sessão de `ies login` e lê, na ordem pedida, o
+conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
+Opções ainda sem implementação (`--versao`, `--sem-copia`,
 `--com-propriedades`, `--ocultar-inacessiveis`) continuam no stub
 (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
 O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
@@ -20,37 +20,59 @@ aposentado.
 
 ## Caminho e requisições
 
-Por documento, sem retry e sem seguir redirect:
+Por documento, sem retry e sem seguir redirect, o primeiro que se aplica:
 
-1. pesquisa rápida do número SEI exatamente como pedido: POST ao
-   `action` guardado no [índice local](../../docs/arquitetura/0003-indice-local.md)
-   ou, sem ele, GET do Controle e POST pelo `form#frmProtocoloPesquisaRapida`
-   servido (o Controle lido é colhido no índice);
-2. 302 para `procedimento_trabalhar` com `id_protocolo` (o id do
-   documento), conferido como no `processo NUP`;
-3. GET da tela; o `src` do `iframe#ifrArvore` tem de trazer
-   `id_documento` igual a esse id e um `id_procedimento`;
-4. GET da árvore, conferida pelo NUP do próprio nó `PROCESSO` e pelo id
-   do processo; o `DOCUMENTO` de mesmo id tem de ter o número SEI (a15)
-   **igual** ao pedido (opaco, zeros à esquerda inclusos);
-5. GET do `Nos[i].src` assinado que a árvore publica
-   (`documento_visualizar` com o mesmo `id_documento`); o título
-   `SEI/… - DOC - tipo` tem de ser do número pedido.
+1. **`--processo NUP`:** o processo pelo caminho mais barato de
+   [`processo NUP`](processo-obter-arvore.md) (link da árvore guardado:
+   1 GET); na árvore, o **único** `DOCUMENTO` com o número SEI (a15)
+   pedido; GET do `.src` dele. Custo: o de `processo NUP` + 1.
+2. **Índice** ([ADR 0003](../../docs/arquitetura/0003-indice-local.md)):
+   toda árvore lida (`processo NUP` e `documento DOC`) ensina número SEI
+   ↔ (`id_procedimento` P, `id_documento` M). Com o palpite e o NUP de P
+   no índice: (a) link da árvore de P guardado nesta geração e unidade
+   (2 requisições: árvore e conteúdo); (b) link `procedimento_trabalhar`
+   de P guardado (3: tela, árvore, conteúdo); (c) a entrada sem
+   assinatura `procedimento_trabalhar&id_procedimento=P&id_documento=M`
+   da lista branca, só onde nenhuma das duas formas foi recusada: 302
+   para a mesma ação assinada, sem `acao_origem`, com os **dois** ids
+   iguais aos pedidos, `infra_hash` de 64 hex, unidade e sistema; tela que
+   seleciona M no processo P; árvore; conteúdo (4). Na árvore, o
+   documento é o único nó com o número pedido (servidor vence: id
+   diferente é reaprendido). Palpite desmentido (número fora da árvore,
+   302 ou tela de outro id, árvore de outro NUP) é esquecido e o comando
+   cai **uma vez** no passo 3.
+3. **Pesquisa rápida** do número SEI exatamente como pedido: POST ao
+   `action` guardado no índice ou, sem ele, GET do Controle e POST pelo
+   `form#frmProtocoloPesquisaRapida` servido (o Controle lido é colhido);
+   302 para `procedimento_trabalhar` com `id_protocolo` (o id do
+   documento), conferido como no `processo NUP`; GET da tela, cujo
+   `iframe#ifrArvore` tem de trazer `id_documento` igual a esse id e um
+   `id_procedimento`; GET da árvore, conferida pelo NUP do nó `PROCESSO`
+   e pelo id do processo, e o `DOCUMENTO` de mesmo id com o número SEI
+   **igual** ao pedido (opaco, zeros à esquerda inclusos); GET do
+   `Nos[i].src` assinado (`documento_visualizar` do mesmo id), cujo
+   título `SEI/… - DOC - tipo` tem de ser do número pedido. Custo: 4 com
+   o `action` guardado, 5 sem ele.
 
-Custo: **4** requisições com o `action` guardado, **5** sem ele. URL sem
-assinatura só da lista branca medida na ADR 0003
-(`procedimento_trabalhar&id_procedimento=P`, opcionalmente
-`&id_documento=M`); `documento_visualizar`, `documento_imprimir_web` e
-afins sem assinatura derrubam a sessão de todos. A entrada
-`procedimento_trabalhar` com o documento, a partir do índice, é a fatia 2. O índice aprende o par NUP ↔ id, o link da árvore e o
-`action` da pesquisa rápida da tela.
+Pasta fechada (`AGUARDE`) só é aberta se o número pedido não estiver à
+vista: um GET de "Abrir todas as Pastas" publicado na árvore, como em
+[`processo NUP`](processo-obter-pastas.md) (+1). O aceite da forma com
+documento é registrado por instalação, à parte da forma só com o
+processo (medida na UnB; a recusa característica derruba a sessão de
+todos e para o comando). Nenhuma outra URL sem assinatura é montada:
+`documento_visualizar`, `documento_imprimir_web` e afins sem assinatura
+derrubam a sessão de todos. O índice nunca causa requisição só para
+aprendê-lo; falha do banco nunca derruba o comando.
 
 ## Saída
 
 JSON `{"documentos": [...], "requisicoes": N}`; cada documento traz
 `numero`, `id_documento`, `rotulo` (a5), `tipo` (do título), `icone`,
 `cancelado`, `pasta`, `processo` (`nup`, `id`, `tipo`), `unidade` (da
-tela), `resolvido_por: "pesquisa_rapida"`, `requisicoes`,
+tela; `null` pelo link da árvore, que não a publica), `resolvido_por`
+(`indice_link`, `indice_trabalhar`, `indice_entrada_documento`,
+`pesquisa_rapida` e, com `--processo`, também `indice_entrada` e
+`caixa`), `requisicoes` (inclusive as dos palpites desmentidos),
 `fonte: "documento_visualizar"`, `versao_atual: null` e `texto` (o texto
 visível do corpo, com as entidades HTML decodificadas). Sem `--json`, uma
 linha por documento e o texto. Nunca URL, `infra_hash`, cookie ou HTML.
@@ -67,23 +89,28 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | Subcódigo | Fato |
 | --- | --- |
 | `numero_documento_repetido` (saída 2) | o mesmo número duas vezes no pedido |
+| `numero_processo_vazio` / `numero_processo_controle` / `referencia_processo_legada` (saída 2) | `--processo` inválido, como em `processo NUP` |
+| `numero_sei_ausente_da_arvore_do_processo` | `--processo`: a árvore do processo (pastas abertas) não tem o número |
+| `entrada_por_id_recusada_rode_ies_login` | a entrada com documento foi recusada ("Link sem assinatura"): a sessão morreu; a recusa fica no índice |
+| `id_documento_do_redirecionamento_diferente_do_pedido` | interno: a entrada com documento endereçou outro id; o palpite é esquecido e o comando segue pela pesquisa |
 | `pesquisa_rapida_nao_abriu_o_documento` | a pesquisa não respondeu o 302 (visto com número inexistente; o resultado não é lido) |
 | `endereco_da_arvore_de_outro_documento` | a tela não seleciona o documento pesquisado (o número era de um processo) |
 | `numero_sei_da_arvore_diferente_do_pedido` | o nó tem outro a15 (por exemplo `11505` pedido, `0011505` na árvore) |
 | `numero_sei_repetido_na_arvore` | dois `DOCUMENTO` com o número pedido |
-| `documento_ausente_da_arvore` / `documento_em_pasta_nao_carregada` | o id não está na árvore (com pasta fechada, o segundo) |
+| `documento_ausente_da_arvore` | o id não está na árvore, nem com as pastas abertas |
 | `conteudo_nao_publicado_na_arvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
 
-Sessão, Controle, formulário, 302, tela e árvore usam os subcódigos de
-[`processo NUP`](processo-obter-arvore.md), inclusive
+Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
+subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive
 `sessao_encerrada_rode_ies_login`.
 
 ## Efeitos
 
 Leitura. A pesquisa rápida pode ficar lembrada na sessão; o GET da
-árvore pode marcar o processo como visualizado (medido em GO no #59).
+árvore pode marcar o processo como visualizado (medido em GO no #59);
+abrir as pastas pode ficar lembrado (como em `processo NUP`).
 Se o GET do conteúdo marca o documento como visitado não foi medido. O
 IES não restaura a tela.

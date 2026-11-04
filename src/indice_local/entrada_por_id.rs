@@ -2,9 +2,11 @@
 //!
 //! Medido pelo IES na `UnB` 4.0.9 (03/11/2026, sessão nova por caso): só
 //! `procedimento_trabalhar&id_procedimento=N` sem hash é aceita (302 para a
-//! mesma ação assinada pelo servidor); toda outra forma testada foi recusada
-//! com "Link sem assinatura" e derrubou a sessão. Por isso este é o **único**
-//! lugar do IES que monta uma URL sem assinatura, e só nesta forma.
+//! mesma ação assinada pelo servidor), opcionalmente com `&id_documento=M`;
+//! toda outra forma testada foi recusada com "Link sem assinatura" e
+//! derrubou a sessão. Por isso este é o **único** lugar do IES que monta uma
+//! URL sem assinatura, e só nessas duas formas. O aceite de cada forma é
+//! guardado à parte: a com documento só foi medida na `UnB`.
 use super::IndiceLocal;
 use super::validacao::conferir_id_procedimento;
 use crate::instalacao::Instalacao;
@@ -32,16 +34,71 @@ pub(crate) fn url_da_entrada_por_id(
     ))
 }
 
+/// A mesma entrada com o documento: `…&id_procedimento=P&id_documento=M`,
+/// exatamente (302 para a ação assinada com os dois ids, documento
+/// selecionado). `None` se algum id não for só dígitos ASCII (1 a 20).
+pub(crate) fn url_da_entrada_por_id_com_documento(
+    instalacao: &Instalacao,
+    id_procedimento: &str,
+    id_documento: &str,
+) -> Option<String> {
+    conferir_id_procedimento(id_documento).ok()?;
+    let mut url = url_da_entrada_por_id(instalacao, id_procedimento)?;
+    url.push_str("&id_documento=");
+    url.push_str(id_documento);
+    Some(url)
+}
+
+/// As colunas do aceite de cada forma medida.
+#[derive(Clone, Copy)]
+enum Forma {
+    Processo,
+    ComDocumento,
+}
+
+impl Forma {
+    /// (estado, testado em, recusas seguidas): nomes fixos, nunca entrada.
+    fn colunas(self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            Self::Processo => ("entrada_por_id", "entrada_por_id_testado_em", "recusas"),
+            Self::ComDocumento => (
+                "entrada_com_documento",
+                "entrada_com_documento_testado_em",
+                "recusas_com_documento",
+            ),
+        }
+    }
+}
+
 impl IndiceLocal {
     /// A instalação aceita a entrada por `id_procedimento` sem hash?
     /// `None`: não se sabe (nunca testada, recusa expirada ou índice desligado).
     pub(crate) fn entrada_por_id(&self, instalacao: &Instalacao) -> Option<bool> {
+        self.aceite(instalacao, Forma::Processo)
+    }
+
+    /// A instalação aceita a forma com `id_documento`? Mesma regra.
+    pub(crate) fn entrada_por_id_com_documento(&self, instalacao: &Instalacao) -> Option<bool> {
+        self.aceite(instalacao, Forma::ComDocumento)
+    }
+
+    /// Registro do 302 ou da recusa da forma com documento (mesma regra de
+    /// [`Self::registrar_entrada_por_id`], contada à parte).
+    pub(crate) fn registrar_entrada_por_id_com_documento(
+        &self,
+        instalacao: &Instalacao,
+        aceita: bool,
+    ) {
+        self.registrar_aceite(instalacao, Forma::ComDocumento, aceita);
+    }
+
+    fn aceite(&self, instalacao: &Instalacao, forma: Forma) -> Option<bool> {
+        let (estado, testado, _) = forma.colunas();
         let origem = instalacao.url_base();
         self.executar(None, |banco, agora| {
             let linha = banco
                 .query_row(
-                    "SELECT entrada_por_id, entrada_por_id_testado_em FROM instalacao \
-                     WHERE origem = ?1",
+                    &format!("SELECT {estado}, {testado} FROM instalacao WHERE origem = ?1"),
                     [&origem],
                     |l| Ok((l.get::<_, Option<i64>>(0)?, l.get::<_, Option<f64>>(1)?)),
                 )
@@ -62,6 +119,11 @@ impl IndiceLocal {
     /// ou de recusa expirada é recusada na primeira; a já aceita, só depois
     /// de `RECUSAS_PARA_REBAIXAR_ACEITA` seguidas.
     pub(crate) fn registrar_entrada_por_id(&self, instalacao: &Instalacao, aceita: bool) {
+        self.registrar_aceite(instalacao, Forma::Processo, aceita);
+    }
+
+    fn registrar_aceite(&self, instalacao: &Instalacao, forma: Forma, aceita: bool) {
+        let (coluna, testado, contagem) = forma.colunas();
         let origem = instalacao.url_base();
         self.executar((), |banco, agora| {
             banco.execute(
@@ -69,7 +131,7 @@ impl IndiceLocal {
                 [&origem],
             )?;
             let (estado, recusas): (Option<i64>, i64) = banco.query_row(
-                "SELECT entrada_por_id, recusas FROM instalacao WHERE origem = ?1",
+                &format!("SELECT {coluna}, {contagem} FROM instalacao WHERE origem = ?1"),
                 [&origem],
                 |l| Ok((l.get(0)?, l.get(1)?)),
             )?;
@@ -81,8 +143,10 @@ impl IndiceLocal {
                 (i64::from(segue_aceita), recusas)
             };
             banco.execute(
-                "UPDATE instalacao SET entrada_por_id = ?2, entrada_por_id_testado_em = ?3, \
-                 recusas = ?4 WHERE origem = ?1",
+                &format!(
+                    "UPDATE instalacao SET {coluna} = ?2, {testado} = ?3, {contagem} = ?4 \
+                     WHERE origem = ?1"
+                ),
                 rusqlite::params![origem, novo, agora, recusas],
             )?;
             Ok(())

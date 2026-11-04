@@ -14,6 +14,7 @@ mod acervo_documento;
 mod andamentos;
 mod controle;
 mod documento;
+mod documento_indice;
 pub(crate) mod erro;
 mod fluxo;
 mod login;
@@ -39,6 +40,8 @@ mod tests_controle;
 mod tests_documento;
 #[cfg(test)]
 mod tests_documento_externo;
+#[cfg(test)]
+mod tests_documento_indice;
 #[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
@@ -142,6 +145,8 @@ pub(crate) enum ResolvidoPor {
     IndiceLink,
     IndiceTrabalhar,
     IndiceEntrada,
+    /// A entrada por id com `id_documento` (`documento DOC`, fatia 2).
+    IndiceEntradaDocumento,
     PesquisaRapida,
     Caixa,
 }
@@ -152,6 +157,7 @@ impl ResolvidoPor {
             Self::IndiceLink => "indice_link",
             Self::IndiceTrabalhar => "indice_trabalhar",
             Self::IndiceEntrada => "indice_entrada",
+            Self::IndiceEntradaDocumento => "indice_entrada_documento",
             Self::PesquisaRapida => "pesquisa_rapida",
             Self::Caixa => "caixa",
         }
