@@ -220,5 +220,8 @@ D da UnB (59 linhas, ícones pelo tooltip), PEN1 (páginas 1 e 2, Interessados
 até 6 itens) e GO (12 colunas, `colunas_ausentes: []`); derivação da troca
 nos formulários R e D das três.
 Ensaio live de 02/11/2026 (PEN1, UnB, GO; [validação](../../docs/validacao-live/2026-11-02-leitura-controle.md)):
-troca, leitura e restauração da visão PASS, com a versão que restaurava;
-o fluxo sem restauração acima: reensaio **NOT_RUN**.
+troca, leitura e restauração da visão PASS, com a versão que restaurava.
+Fluxo sem restauração acima ([ensaio de 04/11/2026](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na
+UnB 4.0.9 (R→D, 1 GET + 1 POST; a UnB volta à R a cada GET) e na PEN1
+4.0.12, nos quatro regimes da tabela, com as requisições contadas e a
+página da D lembrada; GO, PEN3 e PEN4 **NOT_RUN**.
