@@ -20,8 +20,8 @@ as demais opções continuam stub.
 
 - `DOC [DOC ...]`: um ou mais números de documento.
 - `--processo NUP`: contexto opcional, quando informado.
-- `--versao N`: índice positivo de versão histórica solicitado; continua indisponível sem árvore e sessão Web verificadas. Não implica listagem pública.
-- `--sem-copia`: leitura sem preparação de cópia local; hoje não altera o stub.
+- `--versao N`: lê a versão N pela lista que a barra do documento publica ([contrato de versões](documento-obter-versoes.md), Refs #88). Não implica listagem pública.
+- `--sem-copia`: com `--saida`, não prepara a cópia de trabalho `DOC.vN.html`.
 - `--saida DIR`: diretório de saída para conteúdo baixado.
 - `--ocultar-inacessiveis`: não expor documentos que a sessão não pode acessar.
 - `--com-propriedades`: inclui os metadados do cadastro do documento.
@@ -45,8 +45,8 @@ original**, são recusados com variante Rust `Controle` e subcódigo
 Caracteres não ASCII/dígitos misturados continuam retornando
 `numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida segue para a [leitura Web](documento-obter-web.md),
 que tipa sessão, ausência, inacessibilidade, cancelamento e documento
-externo; com `--processo`, `--versao`, `--sem-copia`,
-`--com-propriedades` ou `--ocultar-inacessiveis`, ainda retorna
+externo; com `--processo`, `--com-propriedades` ou
+`--ocultar-inacessiveis`, ainda retorna
 `nao_implementado` e código 1.
 
 [documento.obter](../evidencias/documento-obter.md) e

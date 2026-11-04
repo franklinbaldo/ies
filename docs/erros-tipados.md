@@ -68,3 +68,17 @@ código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
 sessão continuou válida: não há relogin, retry nem pausa automática. O
 403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
 ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
+
+## Versões de documento (Refs #88)
+
+`ErroDocumentoObter` ganhou `BarraDoDocumento(ErroBarraDoDocumento)`
+(`barra_do_documento_fora_da_forma_observada`,
+`barras_do_documento_repetidas_na_arvore`,
+`link_das_versoes_repetido_na_barra`, `link_das_versoes_nao_reconhecido`,
+`link_das_versoes_de_outro_documento`),
+`ListaDeVersoesNaoPublicadaNaArvore`
+(`lista_de_versoes_nao_publicada_na_arvore`), `Versoes(ErroVersao)`
+(os subcódigos do leitor da lista, inclusive `versao_nao_observada`) e
+`VersaoServidaDiferenteDaPedida` (`versao_servida_diferente_da_pedida`).
+Cópia não preparada não é erro: sai como `copia_motivo`
+([contrato](../contracts/cli/documento-obter-versoes.md)).

@@ -38,7 +38,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
-- `ies documento NUMERO`
+- `ies documento NUMERO [--versao N] [--saida DIR] [--sem-copia]` (versão N
+  pela lista da barra; cópia de trabalho `DOC.vN.html`, Refs #88)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
   a sessão fica na D, sem restaurar; decisões do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
@@ -61,7 +62,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
   resultado").
-- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos;
+  [versões e cópia de trabalho](cli/documento-obter-versoes.md).
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
   [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),

@@ -9,10 +9,12 @@ description: ies documento DOC lê pela sessão Web o texto e os metadados de do
 Complementa o [contrato de `documento.obter`](documento-obter.md).
 `ies documento DOC [DOC ...] [--saida DIR] [--json] [--unidade SIGLA]` usa
 a sessão de `ies login` e lê, na ordem pedida, o conteúdo de cada
-documento **interno** (editor do SEI) pelo número SEI. Opções ainda sem
-implementação (`--processo`, `--versao`, `--sem-copia`,
-`--com-propriedades`, `--ocultar-inacessiveis`) continuam no stub
-(`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
+documento **interno** (editor do SEI) pelo número SEI. `--versao N`,
+`versao_atual` e a cópia de trabalho (`--saida`, `--sem-copia`) estão no
+[contrato de versões](documento-obter-versoes.md) (Refs #88). Opções
+ainda sem implementação (`--processo`, `--com-propriedades`,
+`--ocultar-inacessiveis`) continuam no stub (`nao_implementado`, saída
+1). `--html-privado` segue o recorte local.
 
 ## Caminho e requisições
 
@@ -47,7 +49,8 @@ JSON `{"documentos": [...], "requisicoes": N}`; cada documento traz
 `numero`, `id_documento`, `rotulo` (a5), `tipo` (do título), `icone`,
 `cancelado`, `pasta`, `processo` (`nup`, `id`, `tipo`), `unidade` (da
 tela), `resolvido_por: "pesquisa_rapida"`, `requisicoes`,
-`fonte: "documento_visualizar"`, `versao_atual: null` e `texto` (o texto
+`fonte: "documento_visualizar"`, os campos de versão e cópia do
+[contrato de versões](documento-obter-versoes.md) e `texto` (o texto
 visível do corpo, com as entidades HTML decodificadas). Sem `--json`, uma
 linha por documento e o texto. Nunca URL, `infra_hash`, cookie ou HTML.
 

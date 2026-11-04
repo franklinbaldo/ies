@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Ler versão de documento e preparar cópia de trabalho
-description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual só sai quando a lista foi lida; com --saida, a leitura prepara DOC.vN.html quando a árvore declara o documento editável e não assinado
+description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual sai do rodapé servido ou da lista lida, nunca de um GET só para ela; com --saida, a leitura prepara DOC.vN.html quando a árvore declara o documento editável e não assinado
 ---
 
 # Versões e cópia de trabalho de `ies documento DOC` (Refs #88)
@@ -32,6 +32,14 @@ da árvore trata `'N'` como não assinado na montagem da tela) ou
 o conteúdo não é editável pela sessão. O IES não segue nenhum desses
 links e nunca abre o editor (`editor_montar`).
 
+O conteúdo (`documento_visualizar`, atual ou da versão N) serve abaixo do
+texto um rodapé gerado pelo SEI, fora do conteúdo editável:
+`<div unselectable="on">…Criado por <a>U</a>, versão N por <a>U</a> em DATA.</div>`.
+Visto nas 91 respostas HTML do acervo (UnB, PEN1 a PEN4; UFRJ e GO não
+gravaram `documento_visualizar`) e ao vivo na PEN4 5.0.4, onde a versão 1
+lida pela lista declarou `versão 1` e a atual `versão 2`. Só um rodapé
+nessa forma exata conta; nenhum ou dois é "não servido".
+
 A tela da lista (`table.infraTable` com legenda única
 `Lista de Versões (N registros):`) traz, por linha, versão, usuário,
 unidade, data e, em Ações, **um** link `documento_visualizar` assinado
@@ -43,29 +51,32 @@ célula (`href="#ID-N"` do "Recuperar Versão", cujo link fica no
 
 ## Caminhos e requisições
 
-Sem retry e sem seguir redirect. `G` = 4 com o `action` guardado, 5 sem
-ele (passos 1 a 4 da leitura Web).
+Sem retry e sem seguir redirect. `G` = 3 com o `action` guardado, 4 sem
+ele (passos 1 a 4 da leitura Web: Controle, POST da pesquisa, tela,
+árvore).
 
 | Pedido | Requisições | O que se lê |
 | --- | --- | --- |
-| sem `--versao`, sem `--saida` (ou com `--sem-copia`) | G + 1 | o conteúdo atual (`Nos[i].src`); a lista não é lida |
-| `--saida DIR` sem `--sem-copia`, barra com lista e `editarConteudo('N')` | G + 2 | conteúdo atual e a lista (para saber N) |
-| `--saida DIR` sem `--sem-copia`, barra sem lista ou sem edição não assinada | G + 1 | só o conteúdo; cópia não preparada, com motivo |
+| sem `--versao` (com ou sem `--saida`) | G + 1 | o conteúdo atual (`Nos[i].src`); a versão vem do rodapé |
+| `--saida DIR` sem `--sem-copia`, sem rodapé, barra com lista e `editarConteudo('N')` | G + 2 | conteúdo atual e a lista (para saber N) |
 | `--versao N` | G + 2 | a lista e o `documento_visualizar` da linha N; o conteúdo atual **não** é pedido |
 
-Decisão de custo (proprietário, 04/11/2026): `versao_atual` custa 1 GET
-e só é publicada quando a leitura já pediu a lista; nenhuma tela lida
-nos passos 1 a 5 traz o número da versão.
+Decisão de custo (proprietário, 04/11/2026): `versao_atual` é `null`
+salvo quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
+servido na tela do conteúdo, então sai sem GET a mais; a lista (1 GET)
+só é pedida por `--versao N` ou pela cópia quando falta o rodapé.
 
 ## Saída
 
 Cada documento do JSON da leitura Web ganha:
 
-- `versao`: N lido com `--versao N`, senão `null`;
-- `versao_atual`: a maior versão da lista, quando lida, senão `null`;
-- `versao_atual_motivo`: `null` quando publicada; senão `nao_pedida`,
-  `lista_de_versoes_nao_publicada_na_arvore` ou `copia_nao_preparavel`
-  (a cópia não era possível, então a lista não foi pedida);
+- `versao`: a versão do texto publicado (N de `--versao N` ou a do
+  rodapé), senão `null`;
+- `versao_atual`: a maior versão da lista, quando lida, ou a do rodapé
+  do conteúdo atual; senão `null`;
+- `versao_atual_motivo`: `null` quando publicada; senão
+  `nao_servida_no_conteudo` (sem rodapé, lista não pedida) ou
+  `lista_de_versoes_nao_publicada_na_arvore` (a cópia precisava dela);
 - `copia`: `{"arquivo": "DOC.vN.html", "bytes": B}` ou `null`;
 - `copia_motivo`: `null` quando gravada; senão `nao_pedida` (sem
   `--saida` ou com `--sem-copia`), `lista_de_versoes_nao_publicada_na_arvore`,
@@ -82,9 +93,9 @@ lidos e do `DOC.txt`, a leitura grava `DOC.vN.html` (o HTML servido do
 conteúdo, em UTF-8), a base `.DOC.vN.base.html` e o manifesto
 `.DOC.vN.meta.json` (documento, id, instalação, versão, SHA-256 da base),
 0600, sem sobrescrever nem seguir symlink — o formato de
-[`documento salvar`](documento-salvar.md). Só quando seguro: a barra
-publica a lista **e** `editarConteudo('N')`, a versão lida é a atual e o
-HTML não contém `infra_hash`. O `'N'` é a declaração da árvore na
+[`documento salvar`](documento-salvar.md), cuja prévia local a lê. Só
+quando seguro: a barra publica `editarConteudo('N')`, a versão lida é a
+atual (do rodapé ou da lista) e o HTML não contém `infra_hash`. O `'N'` é a declaração da árvore na
 montagem; o próprio SEI ainda confere a assinatura por AJAX antes de
 editar, e o `salvar` remoto (#89) terá de conferir de novo.
 
@@ -95,6 +106,7 @@ editar, e o `salvar` remoto (#89) terá de conferir de novo.
 | `versao_documento_invalida` | `--versao 0` (antes de qualquer rede) |
 | `lista_de_versoes_nao_publicada_na_arvore` | `--versao N` e a barra do documento não publica a lista |
 | `versao_nao_observada` | N não está entre as linhas da lista |
+| `versao_servida_diferente_da_pedida` | o rodapé da versão servida declara outra versão |
 | `link_das_versoes_*`, `barra_do_documento_*` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
 | `historico_documento_ausente`, `lista_versoes_incompleta`, `colunas_historico_inesperadas`, `linha_historico_incompleta`, `link_versao_ausente_ou_ambiguo`, `link_versao_inseguro`, `identidade_documento_divergente`, `versao_documento_duplicada`, `legendas_historico_versoes_repetidas` | a lista servida fora da forma observada |
 | `titulo_do_conteudo_de_outro_documento` | a versão servida é de outro número SEI |

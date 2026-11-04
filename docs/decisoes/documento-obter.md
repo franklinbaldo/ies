@@ -4,7 +4,7 @@ title: Ler documento pelo número SEI via pesquisa rápida, árvore e link assin
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: Refs #60 fatia 1; texto e metadados de documentos internos pelo número SEI, pela pesquisa rápida (action guardado ou do Controle), a tela que seleciona o documento, a árvore conferida e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --processo, --versao, --sem-copia, --com-propriedades e --ocultar-inacessiveis continuam stub
+scope: Refs #60 fatia 1; texto e metadados de documentos internos pelo número SEI, pela pesquisa rápida (action guardado ou do Controle), a tela que seleciona o documento, a árvore conferida e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao N, versao_atual e cópia de trabalho no apêndice de versões (Refs #88); --processo, --com-propriedades e --ocultar-inacessiveis continuam stub
 selected_strategy: web-pesquisa-rapida-arvore-src
 alternatives: web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-unb
@@ -91,9 +91,10 @@ fatia, com recusa tipada.
 
 ## Limitações e revisão
 
-- Externos (`documento_download_anexo`), `--processo`, `--versao`,
+- Externos (`documento_download_anexo`), `--processo`,
   `--com-propriedades`, `--ocultar-inacessiveis` e documento em pasta
-  fechada: não lidos.
+  fechada: não lidos. `--versao N`, `versao_atual` e a cópia de trabalho:
+  [apêndice de versões](documento-obter/versoes.md) (Refs #88).
 - O texto é uma linha com os espaços colapsados; parágrafos e tabelas
   não são preservados.
 - Repetir um documento custa 4 requisições: o índice ainda não guarda
