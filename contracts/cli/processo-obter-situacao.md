@@ -1,0 +1,99 @@
+---
+type: Contract
+title: Onde o processo está aberto e natureza dos documentos pela árvore
+description: ies processo NUP publica, sem requisição a mais, as unidades onde o processo está aberto (o .html do nó PROCESSO) e o ícone e o cancelamento de cada documento (a6 a a9 do nó DOCUMENTO), lidos da árvore já conferida
+---
+
+# Situação e natureza na árvore de `ies processo NUP` (Refs #59)
+
+Complementa o [contrato da árvore](processo-obter-arvore.md). As duas
+leituras vêm da **mesma** árvore já pedida e conferida: **0
+requisições a mais** em qualquer caminho, com ou sem `--sem-*`.
+Estrutura em
+[situação na árvore](../../docs/como-o-sei-funciona/situacao-na-arvore.md);
+decisão em [processo.obter](../../docs/decisoes/processo-obter/situacao.md).
+
+## Onde o processo está aberto (`aberto_em`)
+
+Fonte: o literal da linha `Nos[i].html = '<texto>';` do nó `PROCESSO`
+(sozinha ou seguida da declaração seguinte), lido pelo leitor de
+literais JS da árvore; nada é executado. O `<texto>` é lido pelo `tl`
+só no primeiro nível, e cada `<a>` pelo tokenizador de atributos. São
+aceitas **só** estas três formas, peça por peça, sem sobra:
+
+1. `Processo aberto somente na unidade ` + âncora + `.` + `<br />`; ou
+   `Processo aberto somente na unidade ` + âncora +
+   ` (atribuído para ` + âncora + `).` + `<br />`.
+2. `Processo aberto nas unidades:` + `<br />` + uma ou mais vezes
+   (âncora + `<br />`, ou âncora + ` (atribuído para ` + âncora + `)` +
+   `<br />`) + um `<br />` final.
+3. `Processo não possui andamentos abertos.` + `<br />`: lista vazia.
+
+Âncora é `<a>` com exatamente os atributos `alt`, `title` e `class`,
+`class` igual a `ancoraSigla`, `alt` igual a `title` (entidades
+decodificadas, não vazio, sem espaço nas pontas) e um único filho de
+texto não vazio, sem espaço nas pontas, entidade ou tag. O texto é a
+`sigla`; o `alt` é o `nome`. Na atribuição, a sigla é o login e o nome o
+da pessoa. Sigla de unidade repetida, outra tag, outro texto entre as
+peças, comentário ou qualquer outra forma: forma não observada.
+
+```json
+"aberto_em": [{"sigla": "Unidade1", "nome": "Unidade1",
+               "atribuido_a": {"sigla": "aluno2", "nome": "aluno2"}},
+              {"sigla": "ACE", "nome": "Arquivo Central", "atribuido_a": null}]
+```
+
+`[]` só para a forma 3. Fora das três formas, `"aberto_em": null`,
+`"aberto_em"` em `nao_lidos` e `aberto_em_nao_lido_motivo`:
+
+| Motivo | Quando |
+| --- | --- |
+| `raiz_publica_o_vinculo_de_anexacao` | o processo é anexado (`anexado_a` conferido): o `.html` da raiz é o aviso do vínculo |
+| `html_da_raiz_nao_publicado` | nenhuma linha `.html` para o nó `PROCESSO` |
+| `html_da_raiz_fora_da_forma_observada` | qualquer outro texto |
+
+Nunca é falha do comando: a árvore já provou a identidade. `aberto_em`
+sai **sempre** (também com `--sem-documentos`), em ordem de serviço. O
+campo `unidade` (a unidade da sessão publicada na tela) não muda.
+
+Texto humano, uma linha logo depois da primeira:
+`Aberto em: Unidade1 (atribuído a aluno2), ACE.`,
+`Sem andamentos abertos.` ou `Aberto em: não lido (<motivo>).`
+
+## Natureza dos documentos
+
+Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
+`DOCUMENTO_MOVIDO` não muda), três campos novos:
+
+- `icone`: o radical de a7 quando a7, a8 e a9 são o mesmo texto
+  `svg/<radical>.svg`, com ou sem `?<decimal>`, e o radical só tem
+  minúsculas ASCII, dígitos e `_`. Senão, `null`. Valor **opaco**: o IES
+  não traduz `documento_pdf` em "externo" nem `documento_email` em
+  "e-mail" (ver a [observação](../../docs/como-o-sei-funciona/situacao-na-arvore.md)).
+- `cancelado`: `true` quando o `icone` é `documento_cancelado` **e** a
+  dica (a6) começa por `Documento Cancelado:`; `false` quando nenhuma das
+  duas ocorre; `null` quando só uma ocorre ou o `icone` é `null` (não
+  observado: não se afirma nem se nega).
+- `motivo_do_cancelamento`: com `cancelado: true`, o resto da dica depois
+  de `Documento Cancelado:`, sem espaços nas pontas; senão `null`.
+
+A dica em si **continua não publicada**: nos e-mails ela traz data,
+remetente e destinatários (dado pessoal), e fora de e-mail e cancelado só
+repetiu o rótulo nas capturas.
+
+```json
+{"id_documento": "D", "rotulo": "Consulta Jurídica 8441007", "numero_sei": "8441007",
+ "pasta": null, "icone": "documento_cancelado", "cancelado": true,
+ "motivo_do_cancelamento": "erro"}
+```
+
+Texto humano: `[cancelado: <motivo>]` no fim da linha do documento, ou
+`[cancelamento não confirmado]` com `cancelado: null`.
+
+## `nao_lidos`
+
+Passa a ser, na ordem: `aberto_em` (se não lido), `andamentos`,
+`marcadores`, `propriedades` (se não lidos) e `documentos_dos_anexados`.
+
+Validação live: **NOT_RUN** até o relatório
+([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).

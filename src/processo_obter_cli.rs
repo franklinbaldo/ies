@@ -4,7 +4,7 @@
 //! e pastas da árvore, andamentos, propriedades
 //! (processo-obter-propriedades.md) e marcadores
 //! (processo-obter-marcadores.md). Nunca URL, hash ou HTML.
-use crate::arvore_processo::{DocumentoMovido, PastaNaArvore, VerificacaoDaPasta};
+use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::{MarcadoresLidos, rotulo_do_marcador};
@@ -171,7 +171,8 @@ fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta
 }
 
 /// Andamentos, marcadores e propriedades: valor, `null` com motivo ou
-/// ausente (omitidos); `nao_lidos` em ordem alfabética.
+/// ausente (omitidos); `nao_lidos` em ordem alfabética (depois de
+/// `aberto_em`).
 fn inserir_leituras(
     objeto: &mut serde_json::Map<String, Value>,
     aberto: &ProcessoAberto,
@@ -233,6 +234,7 @@ pub(crate) fn json_do_processo(
     });
     let mut nao_lidos: Vec<&str> = Vec::new();
     if let Some(objeto) = valor.as_object_mut() {
+        saida_da_arvore::inserir_aberto_em(objeto, &aberto.arvore.aberto_em, &mut nao_lidos);
         inserir_leituras(objeto, aberto, &mut nao_lidos);
         let anexados = &aberto.arvore.anexados;
         if !anexados.is_empty() {
@@ -255,36 +257,7 @@ pub(crate) fn json_do_processo(
         );
     }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
-        let documentos: Vec<Value> = aberto
-            .arvore
-            .documentos
-            .iter()
-            .map(|d| {
-                json!({
-                    "id_documento": d.id,
-                    "rotulo": d.rotulo,
-                    "numero_sei": d.numero_sei,
-                    "pasta": d.pasta,
-                })
-            })
-            .collect();
-        objeto.insert("documentos".to_owned(), Value::Array(documentos));
-        let movidos: Vec<Value> = aberto
-            .arvore
-            .documentos_movidos
-            .iter()
-            .map(|m| {
-                json!({
-                    "id": m.id,
-                    "rotulo": m.rotulo,
-                    "numero_sei": m.numero_sei,
-                    "destino": m.destino.as_ref().map(
-                        |d| json!({"numero": d.numero, "id_procedimento": d.id_procedimento}),
-                    ),
-                })
-            })
-            .collect();
-        objeto.insert("documentos_movidos".to_owned(), Value::Array(movidos));
+        saida_da_arvore::inserir_documentos(objeto, &aberto.arvore);
         let pastas: Vec<Value> = aberto
             .arvore
             .pastas
@@ -330,6 +303,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         aberto.resolvido_por.como_texto(),
         aberto.requisicoes,
     );
+    saida_da_arvore::humano_do_aberto_em(&aberto.arvore.aberto_em, &mut texto);
     if let Some(pai) = &aberto.arvore.anexado_a {
         let _ = write!(
             texto,
@@ -363,17 +337,8 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 .map(|v| format!(" conferidas {}", v.como_texto()))
                 .unwrap_or_default()
         );
-        for documento in &arvore.documentos {
-            let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);
-            let pasta = documento
-                .pasta
-                .as_ref()
-                .and_then(|id| arvore.pastas.iter().find(|p| &p.id == id));
-            if let Some(pasta) = pasta {
-                let _ = write!(texto, " [pasta {}]", pasta.rotulo);
-            }
-        }
-        humano_dos_movidos(&arvore.documentos_movidos, &mut texto);
+        saida_da_arvore::humano_dos_documentos(arvore, &mut texto);
+        saida_da_arvore::humano_dos_movidos(&arvore.documentos_movidos, &mut texto);
     }
     match &aberto.andamentos {
         Andamentos::Lidos(lidos) => {
@@ -405,26 +370,6 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
     humano_das_propriedades(&aberto.propriedades, &mut texto);
     humano_dos_marcadores(&aberto.marcadores, &mut texto);
     texto
-}
-
-fn humano_dos_movidos(movidos: &[DocumentoMovido], texto: &mut String) {
-    if movidos.is_empty() {
-        return;
-    }
-    let _ = write!(
-        texto,
-        "\n{} documento(s) movido(s) para outro processo:",
-        movidos.len()
-    );
-    for m in movidos {
-        let _ = write!(texto, "\n- {} (id {}): ", m.rotulo, m.id);
-        match &m.destino {
-            Some(d) => {
-                let _ = write!(texto, "movido para {}, ies processo {}", d.numero, d.numero);
-            }
-            None => texto.push_str("destino não publicado"),
-        }
-    }
 }
 
 fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
@@ -525,6 +470,9 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     Some(obter(cli, comando, &nup))
 }
 
+#[path = "processo_obter_cli/saida_da_arvore.rs"]
+mod saida_da_arvore;
+
 #[cfg(test)]
 #[path = "processo_obter_cli/tests.rs"]
 mod tests;
@@ -537,3 +485,6 @@ mod tests_movidos;
 #[cfg(test)]
 #[path = "processo_obter_cli/tests_propriedades.rs"]
 mod tests_propriedades;
+#[cfg(test)]
+#[path = "processo_obter_cli/tests_situacao.rs"]
+mod tests_situacao;
