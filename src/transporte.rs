@@ -329,6 +329,9 @@ pub(crate) mod resposta_binaria;
 #[path = "transporte/sessao.rs"]
 pub(crate) mod sessao;
 
+#[path = "transporte/contagem.rs"]
+pub(crate) mod contagem;
+
 #[cfg(test)]
 #[path = "transporte/tests.rs"]
 mod tests;

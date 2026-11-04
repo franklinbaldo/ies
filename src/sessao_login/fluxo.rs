@@ -11,18 +11,19 @@ use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{SubmissaoDerivada, TelaServida};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
+use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::{self, FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 
 /// Conta cada pedido feito, sem alterar nenhum.
 struct Contador<'t, T> {
     transporte: &'t mut T,
-    pedidos: usize,
+    pedidos: ContagemDeRequisicoes,
 }
 
 impl<T: TransporteDeLogin> TransporteDeLogin for Contador<'_, T> {
     fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaHttp, FalhaTransporte> {
-        self.pedidos += 1;
+        self.pedidos.registrar();
         self.transporte.get(url, cookie)
     }
     fn post(
@@ -30,7 +31,7 @@ impl<T: TransporteDeLogin> TransporteDeLogin for Contador<'_, T> {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaHttp, FalhaTransporte> {
-        self.pedidos += 1;
+        self.pedidos.registrar();
         self.transporte.post(submissao, cookie)
     }
 }
@@ -334,7 +335,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     let mut contador = Contador {
         transporte,
-        pedidos: 0,
+        pedidos: ContagemDeRequisicoes::default(),
     };
     if !pedido.forcar
         && let Some(gravada) = conferir_sessao_gravada(pedido, origem, &mut contador)?
@@ -350,7 +351,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
             instalacao: instalacao.url_base(),
             unidade_exibida: gravada.unidade,
             conexao: Conexao::SessaoExistenteValida,
-            requisicoes: contador.pedidos,
+            requisicoes: contador.pedidos.total(),
         });
     }
     let caminho = pedido
@@ -376,7 +377,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
         instalacao: instalacao.url_base(),
         unidade_exibida: obtida.unidade,
         conexao: Conexao::LoginRealizado,
-        requisicoes: contador.pedidos,
+        requisicoes: contador.pedidos.total(),
     })
 }
 
