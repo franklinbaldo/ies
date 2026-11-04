@@ -12,7 +12,7 @@
 //!   à vista.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::documento::{
-    DocumentoObtido, ErroDocumentoObter as E, NoLido, PedidoDoAnexo, ler_do_no, localizar,
+    DocumentoObtido, ErroDocumentoObter as E, LeituraDoNo, NoLido, ler_do_no, localizar,
 };
 use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
@@ -31,7 +31,7 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    anexo: PedidoDoAnexo<'_>,
+    leitura: LeituraDoNo<'_>,
 ) -> Result<Option<DocumentoObtido>, E> {
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let Some(guardado) = indice.documento_por_numero(instalacao, numero) else {
@@ -66,7 +66,7 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso>(
         processo: &arvore_aberta.arvore.processo,
         unidade,
         resolvido_por,
-        anexo,
+        leitura,
     };
     ler_do_no(instalacao, rede, lido, numero).map(Some)
 }
@@ -78,7 +78,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    anexo: PedidoDoAnexo<'_>,
+    leitura: LeituraDoNo<'_>,
 ) -> Result<DocumentoObtido, E> {
     let (aberta, unidade, resolvido_por) =
         abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
@@ -89,7 +89,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso>(
         processo: &aberta.arvore.processo,
         unidade,
         resolvido_por,
-        anexo,
+        leitura,
     };
     ler_do_no(&contexto.instalacao, rede, lido, numero)
 }

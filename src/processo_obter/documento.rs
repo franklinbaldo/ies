@@ -9,16 +9,16 @@
 //! SEI **igual** ao pedido; pastas abertas se ele não estiver à vista) →
 //! GET do `Nos[i].src` assinado → título e texto conferidos. Só a URL sem
 //! assinatura da lista branca é montada (ADR 0003); sem retry nem redirect.
+//! `--versao N` e a cópia de trabalho (#88) partem da árvore que o caminho
+//! abriu (contracts/cli/documento-obter-versoes.md).
 use super::abertura::{Contexto, Lida, Rede, concluir, fora_de_palpite, ler_arvore_aberta};
 use super::fluxo::{ler_controle_colhido, pesquisar_no_controle, pesquisar_pela_guardada};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{
-    ConteudoNaArvore, DocumentoNaArvore, EnderecoDoConteudo, ErroArvore, ErroConteudoNaArvore,
-    NaturezaDoDocumento, ProcessoNaArvore, ler_conteudo_na_arvore, ler_tela_do_documento,
-    nup_declarado_na_arvore,
+    ConteudoNaArvore, DocumentoNaArvore, ErroArvore, ErroConteudoNaArvore, NaturezaDoDocumento,
+    ProcessoNaArvore, ler_conteudo_na_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
 };
 use crate::documento::NumeroDocumento;
-use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -32,6 +32,19 @@ use erro::ErroDocumentoObter as E;
 #[path = "documento_anexo.rs"]
 mod anexo;
 pub(crate) use anexo::PedidoDoAnexo;
+
+#[path = "documento_versao.rs"]
+mod versao;
+#[cfg(test)]
+pub(crate) use versao::{CopiaDeTrabalho, SemCopia, SemVersaoAtual};
+pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
+
+/// O que se lê do nó além do texto: o anexo do externo e as versões.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct LeituraDoNo<'a> {
+    pub(super) anexo: PedidoDoAnexo<'a>,
+    pub(super) versoes: PedidoDeVersoes,
+}
 
 /// O número SEI pedido, a `--unidade` (conferida na tela), o
 /// `--processo NUP` e o limite e `--saida` do documento externo.
@@ -64,11 +77,26 @@ pub(crate) struct DocumentoObtido {
     /// lido; `tipo` fica vazio e `texto`, o dos tipos de texto.
     pub(crate) anexo: Option<crate::anexo_documento::AnexoLido>,
     pub(crate) requisicoes: u8,
+    /// Versão lida, atual e cópia de trabalho (Refs #88).
+    pub(crate) versoes: VersoesDoDocumento,
 }
 
+#[cfg(test)]
 pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoDocumento<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<DocumentoObtido, E> {
+    obter_documento_com_versoes(sessao, pedido, PedidoDeVersoes::default(), indice, envio)
+}
+
+/// Como [`obter_documento`], com a versão N ou a cópia de trabalho
+/// (contracts/cli/documento-obter-versoes.md), por qualquer caminho.
+pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    versoes: PedidoDeVersoes,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
@@ -95,22 +123,22 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         cookie,
         requisicoes: 0,
     };
+    let leitura = LeituraDoNo {
+        anexo: pedido.anexo,
+        versoes,
+    };
     if let Some(nup) = pedido.processo {
         let contexto = contexto.com_nup(nup.as_str());
         return super::documento_indice::pelo_processo(
-            &contexto,
-            sessao,
-            &mut rede,
-            numero,
-            pedido.anexo,
+            &contexto, sessao, &mut rede, numero, leitura,
         );
     }
     if let Some(obtido) =
-        super::documento_indice::pelo_indice(&contexto, &mut rede, numero, pedido.anexo)?
+        super::documento_indice::pelo_indice(&contexto, &mut rede, numero, leitura)?
     {
         return Ok(obtido);
     }
-    pela_pesquisa(&contexto, sessao, &mut rede, numero, pedido.anexo)
+    pela_pesquisa(&contexto, sessao, &mut rede, numero, leitura)
 }
 
 /// Fatia 1: pesquisa rápida, tela, árvore (e pastas, se o documento não
@@ -120,7 +148,7 @@ fn pela_pesquisa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    anexo: PedidoDoAnexo<'_>,
+    leitura: LeituraDoNo<'_>,
 ) -> Result<DocumentoObtido, E> {
     let processo = |erro| E::Processo(erro);
     let redirecionado = match pesquisar_pela_guardada(contexto, sessao, rede, numero) {
@@ -176,7 +204,7 @@ fn pela_pesquisa<V: EnvioDoProcesso>(
         processo: &aberta.arvore.processo,
         unidade: Some(tela.unidade),
         resolvido_por: ResolvidoPor::PesquisaRapida,
-        anexo,
+        leitura,
     };
     ler_do_no(&contexto.instalacao, rede, lido, numero)
 }
@@ -203,11 +231,12 @@ pub(super) struct NoLido<'a> {
     pub(super) processo: &'a ProcessoNaArvore,
     pub(super) unidade: Option<String>,
     pub(super) resolvido_por: ResolvidoPor,
-    /// Limite e `--saida`, se o nó for um documento externo.
-    pub(super) anexo: PedidoDoAnexo<'a>,
+    /// Limite e `--saida` do externo; versão N e cópia.
+    pub(super) leitura: LeituraDoNo<'a>,
 }
 
-/// O `.src` do nó e o GET do conteúdo.
+/// O `.src` do nó e o GET do conteúdo (a versão N, se pedida, no lugar
+/// do atual); a barra do nó vem da árvore lida.
 pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     instalacao: &Instalacao,
     rede: &mut Rede<'_, V>,
@@ -215,15 +244,31 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     numero: &str,
 ) -> Result<DocumentoObtido, E> {
     let no = lido.no;
-    let (tipo, texto, anexo) =
-        match ler_conteudo_na_arvore(instalacao, lido.html, &no.id).map_err(E::Conteudo)? {
-            ConteudoNaArvore::Visualizar(e) => ler_conteudo(rede, &e, numero)?,
-            ConteudoNaArvore::DownloadDeAnexo(e) => anexo::ler(rede, &e, numero, lido.anexo)?,
-            ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
-                return Err(E::DocumentoCancelado);
-            }
-            ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
-        };
+    let conferido = versao::NoConferido {
+        instalacao,
+        numero,
+        html: lido.html,
+        id_documento: &no.id,
+        id_procedimento: &lido.processo.id,
+    };
+    let pedido = lido.leitura;
+    let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)
+        .map_err(E::Conteudo)?
+    {
+        ConteudoNaArvore::Visualizar(e) => {
+            let (tipo, texto, versoes) = versao::ler_versoes(rede, &conferido, &e, pedido.versoes)?;
+            (tipo, texto, None, versoes)
+        }
+        ConteudoNaArvore::DownloadDeAnexo(e) => {
+            let versoes = versao::do_externo(&conferido, pedido.versoes)?;
+            let (tipo, texto, anexo) = anexo::ler(rede, &e, numero, pedido.anexo)?;
+            (tipo, texto, anexo, versoes)
+        }
+        ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
+            return Err(E::DocumentoCancelado);
+        }
+        ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
+    };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
         id_documento: no.id.clone(),
@@ -237,28 +282,8 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         texto,
         anexo,
         requisicoes: rede.requisicoes,
+        versoes,
     })
-}
-
-/// Tipo do título, texto e, no externo, o arquivo lido.
-type ConteudoLido = (String, String, Option<crate::anexo_documento::AnexoLido>);
-
-/// GET do link assinado; o título tem de ser do mesmo número SEI.
-fn ler_conteudo<V: EnvioDoProcesso>(
-    rede: &mut Rede<'_, V>,
-    endereco: &EnderecoDoConteudo,
-    numero: &str,
-) -> Result<ConteudoLido, E> {
-    let html = match rede.get(endereco.as_str()).map_err(E::Processo)? {
-        Lida::Html { html, .. } => html,
-        outra => return Err(E::Processo(fora_do_html(outra))),
-    };
-    let identidade = identidade_do_titulo(&html).map_err(E::Titulo)?;
-    if identidade.numero != numero {
-        return Err(E::TituloDeOutroDocumento);
-    }
-    let texto = texto_do_corpo(&html).map_err(E::Corpo)?;
-    Ok((identidade.tipo, texto, None))
 }
 
 /// Resposta que não é HTML: 302, login ou falha de transporte.

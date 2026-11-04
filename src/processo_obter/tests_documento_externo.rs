@@ -176,6 +176,10 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
     assert_eq!(anexo.disposicao, Some(Disposicao::Inline));
     assert_eq!(anexo.texto, None);
     assert!(!format!("{d:?}").contains(HASH_CONTEUDO));
+    // #88: o arquivo não serve rodapé; sem `--versao`, a barra não é lida.
+    assert_eq!(d.versoes.lida, None);
+    assert_eq!(d.versoes.atual, Err(SemVersaoAtual::NaoServidaNoConteudo));
+    assert_eq!(d.versoes.copia, Err(SemCopia::NaoPedida));
 }
 
 #[test]

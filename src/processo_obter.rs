@@ -11,6 +11,8 @@ mod abertura;
 mod acervo;
 #[cfg(test)]
 mod acervo_documento;
+#[cfg(test)]
+mod acervo_versoes;
 mod andamentos;
 mod controle;
 mod documento;
@@ -43,6 +45,8 @@ mod tests_documento_externo;
 #[cfg(test)]
 mod tests_documento_indice;
 #[cfg(test)]
+mod tests_documento_versoes;
+#[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
 mod tests_indice;
@@ -67,8 +71,13 @@ use crate::transporte::FalhaTransporte;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+#[cfg(test)]
 pub(crate) use documento::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, obter_documento,
+    CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento, obter_documento,
+};
+pub(crate) use documento::{
+    DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
+    obter_documento_com_versoes,
 };
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::{abrir_para_concluir, obter_processo};

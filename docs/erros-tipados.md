@@ -107,3 +107,17 @@ saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
 com `VerificacaoDaConclusao`). `FalhaDoEnvio` classifica a resposta não
 esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
 sem retry ([contrato](../contracts/cli/processo-concluir.md)).
+
+## Versões de documento (Refs #88)
+
+`ErroDocumentoObter` ganhou `BarraDoDocumento(ErroBarraDoDocumento)`
+(`barra_do_documento_fora_da_forma_observada`,
+`barras_do_documento_repetidas_na_arvore`,
+`link_das_versoes_repetido_na_barra`, `link_das_versoes_nao_reconhecido`,
+`link_das_versoes_de_outro_documento`),
+`ListaDeVersoesNaoPublicadaNaArvore`
+(`lista_de_versoes_nao_publicada_na_arvore`), `Versoes(ErroVersao)`
+(os subcódigos do leitor da lista, inclusive `versao_nao_observada`) e
+`VersaoServidaDiferenteDaPedida` (`versao_servida_diferente_da_pedida`).
+Cópia não preparada não é erro: sai como `copia_motivo`
+([contrato](../contracts/cli/documento-obter-versoes.md)).

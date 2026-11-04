@@ -4,7 +4,7 @@ title: Ler documento pelo número SEI via pesquisa rápida, árvore e link assin
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo número SEI, pelo caminho mais barato (--processo NUP pela abertura de processo NUP; índice número SEI → processo e documento pelo link da árvore, pelo link de trabalho ou pela entrada por id com documento da lista branca; pesquisa rápida), a árvore conferida (pastas abertas só se o documento não está à vista) e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao, --sem-copia, --com-propriedades e --ocultar-inacessiveis continuam stub
+scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo número SEI, pelo caminho mais barato (--processo NUP pela abertura de processo NUP; índice número SEI → processo e documento pelo link da árvore, pelo link de trabalho ou pela entrada por id com documento da lista branca; pesquisa rápida), a árvore conferida (pastas abertas só se o documento não está à vista) e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com DOC.txt 0600; recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao N, versao_atual e cópia de trabalho no apêndice de versões (Refs #88), sobre qualquer caminho; --com-propriedades e --ocultar-inacessiveis continuam stub
 selected_strategy: web-indice-arvore-src-com-pesquisa-rapida
 alternatives: web-indice-arvore-src-com-pesquisa-rapida,web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-unb
@@ -115,8 +115,10 @@ fatia, com recusa tipada.
 
 ## Limitações e revisão
 
-- Externos (`documento_download_anexo`), `--versao`,
+- Externos (`documento_download_anexo`): [apêndice](documento-obter/documento-externo.md);
   `--com-propriedades` e `--ocultar-inacessiveis`: não lidos.
+  `--versao N`, `versao_atual` e a cópia de trabalho:
+  [apêndice de versões](documento-obter/versoes.md) (Refs #88).
 - A entrada com documento só foi medida na UnB; noutra instalação o
   primeiro uso aprende (uma recusa derruba a sessão de todos e fica
   registrada).

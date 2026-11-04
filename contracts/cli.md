@@ -38,7 +38,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
-- `ies documento NUMERO`
+- `ies documento NUMERO [--versao N] [--saida DIR] [--sem-copia]` (versão N
+  pela lista da barra; cópia de trabalho `DOC.vN.html`, Refs #88)
 - `ies documento buscar TERMO [--pagina N]` (a mesma pesquisa Web, em
   documentos: GET + GET + POST; `--pagina N` acrescenta um POST)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
@@ -63,7 +64,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
   resultado").
-- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
+- [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos;
+  [versões e cópia de trabalho](cli/documento-obter-versoes.md).
   O externo usa o [GET binário](cli/documento-obter-externo.md), com
   subcódigos próprios (`tipo_de_anexo_nao_permitido`,
   `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
@@ -125,10 +127,12 @@ unidade ou contexto divergente) continuam recusas tipadas.
 
 `documento DOC` lê documentos internos e externos pela Web (#60 fatias 1 a 3;
 [contrato](cli/documento-obter-web.md)). Continuam como stubs
-`documento salvar --confirmar` remoto, `processo enviar`, `processo
-concluir` e `documento assinar`. `processo NUP` lê pela árvore
-([contrato](cli/processo-obter-arvore.md)) e `unidade colunas --definir
---confirmar` é a escrita remota implementada
+`documento salvar --confirmar` remoto, `processo enviar` e `documento
+assinar`. `processo concluir` escreve com prévia e verificação
+([contrato](cli/processo-concluir.md)); `documento DOC --versao N` está
+implementado ([contrato](cli/documento-obter-versoes.md)). `processo NUP`
+lê pela árvore ([contrato](cli/processo-obter-arvore.md)) e `unidade
+colunas --definir --confirmar` também escreve
 ([contrato](cli/unidade-definir-colunas.md)). A prévia local de `documento salvar` não acessa o SEI. A autorização e a equivalência de outras rotas exigem
 ensaios por cassette e por instalação.
 

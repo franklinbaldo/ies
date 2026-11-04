@@ -125,8 +125,12 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
             "infra_hash" => &mut hash,
             _ => continue,
         };
-        if slot.replace(valor).is_some() {
-            return Err(ErroVersao::LinkInseguro);
+        // `id_documento` servido duas vezes com o mesmo valor (sete
+        // instalações); valores diferentes ou outra chave repetida: recusa.
+        match slot.replace(valor) {
+            Some(anterior) if chave == "id_documento" && anterior == valor => {}
+            Some(_) => return Err(ErroVersao::LinkInseguro),
+            None => {}
         }
     }
     if acao != Some("documento_visualizar")
@@ -206,9 +210,11 @@ fn linhas_do_historico(
             .filter_map(tl::Node::as_tag)
         {
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
+            // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
+            // `onclick`) não é link de versão e nunca é seguida.
             let href =
                 valor_do_atributo(a, "href").map_err(|_| ErroVersao::LinkAusenteOuAmbiguo)?;
-            links.extend(href);
+            links.extend(href.filter(|h| !h.starts_with('#')));
         }
         if links.len() != 1 {
             return Err(ErroVersao::LinkAusenteOuAmbiguo);
@@ -303,7 +309,7 @@ pub fn interpretar_historico(
 }
 
 #[cfg(test)]
-mod testes {
+pub(crate) mod testes {
     use super::*;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {
         use std::fmt::Write as _;
@@ -320,6 +326,67 @@ mod testes {
             numeros.len()
         )
     }
+    /// A forma servida nas sete instalações (`liberacoes-e-versoes-leitura-*`):
+    /// `id_documento` duas vezes com o mesmo valor, `id_procedimento`, e nas
+    /// versões anteriores a âncora "Recuperar Versão" (`href="#ID-N"`, link
+    /// no `onclick`, nunca seguido).
+    pub(crate) fn pagina_servida(id: &str, outro_id: &str, numeros: &[u32]) -> String {
+        use std::fmt::Write as _;
+        let hash = "d".repeat(64);
+        let atual = numeros.iter().copied().max().unwrap_or(0);
+        let mut linhas = String::new();
+        for &n in numeros {
+            let recuperar = if n == atual {
+                String::new()
+            } else {
+                format!(
+                    "<a href=\"#ID-{n}\" onclick=\"acaoRecuperar('{n}','N','controlador.php?acao=documento_versao_recuperar&versao={n}&id_documento={id}&infra_hash={hash}');\" tabindex=\"1006\"><img title=\"Recuperar Versão\" /></a>&nbsp;"
+                )
+            };
+            let _ = write!(
+                linhas,
+                "<tr class=\"infraTrClara\"><td valign=\"center\"><a id=\"lnkInfraID-{n}\" name=\"ID-{n}\"></a><input class=\"infraCheckbox\" type=\"checkbox\" value=\"{n}\"/></td><td align=\"center\">{n}</td>\n<td align=\"center\"><a alt=\"Usuário Teste\" title=\"Usuário Teste\" class=\"ancoraSigla\">USUARIO</a></td>\n<td align=\"center\"><a alt=\"Unidade de Teste 1\" title=\"Unidade de Teste 1\" class=\"ancoraSigla\">TESTE</a></td><td align=\"center\">20/10/2026 14:07:0{n}</td><td align=\"center\"><a target=\"_blank\" onclick=\"infraLimparFormatarTrAcessada(this.parentNode.parentNode);\" href=\"controlador.php?acao=documento_visualizar&acao_origem=documento_versao_listar&acao_retorno=documento_versao_listar&versao={n}&id_documento={id}&arvore=1&id_procedimento=10&id_documento={outro_id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"1003\"><img src=\"svg/documento_interno.svg?25\" title=\"Visualizar Versão\" /></a>&nbsp;{recuperar}</td></tr>\n"
+            );
+        }
+        format!(
+            "<html><body><form><div><table width=\"99%\" class=\"infraTable\" summary=\"Tabela de Versões.\">\n<caption class=\"infraCaption\">Lista de Versões ({} registros):</caption><tr><th class=\"infraTh\" width=\"1%\"><a href=\"javascript:void(0);\" id=\"lnkInfraCheck\"><img title=\"Selecionar Tudo\" alt=\"Selecionar Tudo\" class=\"infraImg\"/></a></th>\n<th class=\"infraTh\">Versão</th>\n<th class=\"infraTh\">Usuário</th>\n<th class=\"infraTh\">Unidade</th>\n<th class=\"infraTh\">Última Modificação</th>\n<th class=\"infraTh\">Ações</th>\n</tr>\n{linhas}</table></div><input type=\"hidden\" id=\"hdnInfraNroItens\" value=\"{}\"/></form></body></html>",
+            numeros.len(),
+            numeros.len()
+        )
+    }
+
+    #[test]
+    fn forma_servida_com_id_repetido_e_ancora_de_recuperar_e_lida() {
+        let doc = NumeroDocumento::novo("0007").unwrap();
+        let h =
+            interpretar_historico(&pagina_servida("42", "42", &[2, 1]), &doc, "42", None).unwrap();
+        assert_eq!(h.atual().unwrap().numero(), 2);
+        assert_eq!(h.len(), 2);
+        let v1 = h.selecionar(VersaoDocumento::nova(1).unwrap()).unwrap();
+        assert!(v1.link_privado().contains("versao=1&"));
+        assert!(!v1.link_privado().contains("documento_versao_recuperar"));
+        assert_eq!(v1.usuario, "USUARIO");
+        assert_eq!(v1.unidade, "TESTE");
+    }
+
+    #[test]
+    fn id_repetido_com_valores_diferentes_e_recusado() {
+        let doc = NumeroDocumento::novo("0007").unwrap();
+        assert_eq!(
+            interpretar_historico(&pagina_servida("42", "43", &[1]), &doc, "42", None),
+            Err(ErroVersao::LinkInseguro)
+        );
+        // Uma âncora a mais que não é fragmento continua ambígua.
+        let extra = pagina_servida("42", "42", &[1]).replace(
+            "&nbsp;</td></tr>",
+            "<a href=\"controlador.php?acao=outra\">x</a></td></tr>",
+        );
+        assert_eq!(
+            interpretar_historico(&extra, &doc, "42", None),
+            Err(ErroVersao::LinkAusenteOuAmbiguo)
+        );
+    }
+
     #[test]
     fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
         let doc = NumeroDocumento::novo("0007").unwrap();

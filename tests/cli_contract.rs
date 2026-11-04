@@ -35,7 +35,7 @@ fn substantivo_sozinho_mostra_ajuda() {
 
 #[test]
 fn comando_sem_execucao_retorna_falha_estruturada() {
-    let output = ies(&["documento", "77782513", "--versao", "1", "--json"]);
+    let output = ies(&["documento", "77782513", "--com-propriedades", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
@@ -435,11 +435,21 @@ fn documento_versao_zero_rejeitada_sem_rede() {
 }
 
 #[test]
-fn documento_sem_copia_nao_prepara_arquivo_sem_sessao() {
-    let output = ies(&["documento", "0011519", "--sem-copia", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
+fn documento_sem_copia_e_versao_seguem_a_leitura_web_e_falham_sem_sessao() {
+    // Refs #88: `--versao N` e `--sem-copia` saíram do stub; sem arquivos
+    // de sessão a leitura Web falha tipada antes da rede.
+    for args in [
+        ["documento", "0011519", "--sem-copia", "--json"].as_slice(),
+        ["documento", "0011519", "--versao", "2", "--json"].as_slice(),
+    ] {
+        let output = ies_sem_sessao(args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            value["subcodigo"], "caminho_url_controle_nao_informado",
+            "{args:?}"
+        );
+    }
 }
 
 #[test]

@@ -3,7 +3,8 @@
 //! verificável do documento (contracts/cli/documento-obter-web.md).
 use super::super::ErroProcessoObter;
 use crate::anexo_documento::ErroAnexo;
-use crate::arvore_processo::ErroConteudoNaArvore;
+use crate::arvore_processo::{ErroBarraDoDocumento, ErroConteudoNaArvore};
+use crate::documento_versoes::ErroVersao;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
 use crate::transporte::StatusHttpRecusado;
 
@@ -34,6 +35,15 @@ pub(crate) enum ErroDocumentoObter {
     TituloDeOutroDocumento,
     /// O corpo do HTML servido.
     Corpo(ErroCorpoDocumento),
+    /// A barra do `DOCUMENTO` fora da forma observada (Refs #88).
+    BarraDoDocumento(ErroBarraDoDocumento),
+    /// `--versao N` e a barra do documento não publica a lista de versões
+    /// (inclusive no externo, recusado antes do GET do anexo).
+    ListaDeVersoesNaoPublicadaNaArvore,
+    /// A lista de versões servida, ou N fora dela.
+    Versoes(ErroVersao),
+    /// O rodapé da versão servida declara outra versão.
+    VersaoServidaDiferenteDaPedida,
 }
 
 impl ErroDocumentoObter {
@@ -51,6 +61,10 @@ impl ErroDocumentoObter {
             Self::Titulo(erro) => erro.subcodigo(),
             Self::TituloDeOutroDocumento => "titulo_do_conteudo_de_outro_documento",
             Self::Corpo(erro) => erro.subcodigo(),
+            Self::BarraDoDocumento(erro) => erro.subcodigo(),
+            Self::ListaDeVersoesNaoPublicadaNaArvore => "lista_de_versoes_nao_publicada_na_arvore",
+            Self::Versoes(erro) => erro.subcodigo(),
+            Self::VersaoServidaDiferenteDaPedida => "versao_servida_diferente_da_pedida",
         }
     }
 
@@ -78,6 +92,17 @@ impl ErroDocumentoObter {
             Self::Titulo(_) => "o título do conteúdo não foi reconhecido",
             Self::TituloDeOutroDocumento => "o conteúdo servido é de outro número SEI",
             Self::Corpo(_) => "o corpo do conteúdo não foi reconhecido",
+            Self::BarraDoDocumento(_) => "a barra do documento na árvore não foi reconhecida",
+            Self::ListaDeVersoesNaoPublicadaNaArvore => {
+                "a árvore não publica a lista de versões deste documento para a sessão"
+            }
+            Self::Versoes(ErroVersao::VersaoNaoObservada) => {
+                "a versão pedida não está na lista de versões do documento"
+            }
+            Self::Versoes(_) => "a lista de versões não foi reconhecida",
+            Self::VersaoServidaDiferenteDaPedida => {
+                "o rodapé do conteúdo servido declara outra versão"
+            }
         }
     }
 

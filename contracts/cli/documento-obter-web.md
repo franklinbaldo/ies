@@ -10,9 +10,11 @@ Complementa o [contrato de `documento.obter`](documento-obter.md).
 `ies documento DOC [DOC ...] [--processo NUP] [--saida DIR] [--json]
 [--unidade SIGLA]` usa a sessão de `ies login` e lê, na ordem pedida, o
 conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
-Opções ainda sem implementação (`--versao`, `--sem-copia`,
-`--com-propriedades`, `--ocultar-inacessiveis`) continuam no stub
-(`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
+`--versao N`, `versao_atual` e a cópia de trabalho (`--saida`,
+`--sem-copia`) estão no [contrato de versões](documento-obter-versoes.md)
+(Refs #88), sobre qualquer caminho que abriu a árvore. Opções ainda sem
+implementação (`--com-propriedades`, `--ocultar-inacessiveis`) continuam
+no stub (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
 O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
 HTML recebido) é lido pelo [GET binário](documento-obter-externo.md)
 (fatia 3); o subcódigo `documento_externo_por_download_de_anexo` foi
@@ -73,7 +75,8 @@ tela; `null` pelo link da árvore, que não a publica), `resolvido_por`
 (`indice_link`, `indice_trabalhar`, `indice_entrada_documento`,
 `pesquisa_rapida` e, com `--processo`, também `indice_entrada` e
 `caixa`), `requisicoes` (inclusive as dos palpites desmentidos),
-`fonte: "documento_visualizar"`, `versao_atual: null` e `texto` (o texto
+`fonte: "documento_visualizar"`, os campos de versão e cópia do
+[contrato de versões](documento-obter-versoes.md) e `texto` (o texto
 visível do corpo, com as entidades HTML decodificadas). Sem `--json`, uma
 linha por documento e o texto. Nunca URL, `infra_hash`, cookie ou HTML.
 

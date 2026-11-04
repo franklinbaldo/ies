@@ -6,14 +6,16 @@
 //! texto visível; nunca URL, hash, cookie ou HTML. Com `--saida`, grava
 //! `DOC.txt` (0600, sem sobrescrever) só depois de todos lidos; o externo
 //! (fatia 3) liga o parcial `DOC.pdf`/`.txt`/`.html` gravado na leitura.
+//! `--versao N` e a cópia de trabalho: contracts/cli/documento-obter-versoes.md (#88).
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
+use crate::documento_versao_cli::{self, CopiaGravada};
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
-    obter_documento,
+    DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
+    SessaoDoProcesso, obter_documento_com_versoes,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
@@ -68,17 +70,15 @@ pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
 }
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
-/// opções desta operação ainda não implementadas (`--versao`,
-/// `--sem-copia`, `--com-propriedades`, `--ocultar-inacessiveis`, que
-/// seguem para o stub). Número inválido fica para a validação comum; NUP
-/// inválido em `--processo` é entrada inválida (saída 2).
+/// opções desta operação ainda não implementadas (`--com-propriedades`,
+/// `--ocultar-inacessiveis`, que seguem para o stub). Número inválido e
+/// `--versao 0` ficam para a validação comum; NUP inválido em `--processo`
+/// é entrada inválida (saída 2).
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(
         comando @ Documento {
             acao: None,
             html_privado: None,
-            versao: None,
-            sem_copia: false,
             ocultar_inacessiveis: false,
             com_propriedades: false,
             ..
@@ -101,6 +101,8 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
             return Some(invalida(cli.json, "numero_documento_repetido", mensagem));
         }
     }
+    let saida = comando.saida.as_deref().map(Path::new);
+    let versoes = documento_versao_cli::pedido(comando.versao, saida.is_some(), comando.sem_copia)?;
     let processo = match comando.processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(nup)) => Some(nup),
@@ -109,12 +111,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
             return Some(invalida(cli.json, erro.subcodigo(), mensagem));
         }
     };
-    Some(obter(
-        cli,
-        &numeros,
-        processo.as_ref(),
-        comando.saida.as_deref().map(Path::new),
-    ))
+    Some(obter(cli, &numeros, processo.as_ref(), saida, versoes))
 }
 
 fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
@@ -139,6 +136,7 @@ fn obter(
     numeros: &[NumeroDocumento],
     processo: Option<&NumeroProcesso>,
     saida: Option<&Path>,
+    versoes: PedidoDeVersoes,
 ) -> ExitCode {
     let Some(limite) = LimiteDoAnexo::do_ambiente() else {
         return anexo::limite_invalido(cli.json);
@@ -168,12 +166,12 @@ fn obter(
             processo,
             anexo: PedidoDoAnexo { limite, saida },
         };
-        match obter_documento(&sessao, &pedido, &indice, &mut EnvioHttps) {
+        match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
             Ok(obtido) => obtidos.push(obtido),
             Err(erro) => return falha(cli.json, numero.as_str(), obtidos.len(), &erro),
         }
     }
-    publicar(cli.json, obtidos, saida)
+    publicar(cli.json, obtidos, saida, sessao.origem)
 }
 
 /// A falha do documento `numero`; os já lidos não são publicados.
@@ -233,12 +231,27 @@ fn gravar(
     Ok(gravados)
 }
 
-fn publicar(json_mode: bool, mut obtidos: Vec<DocumentoObtido>, saida: Option<&Path>) -> ExitCode {
+fn publicar(
+    json_mode: bool,
+    mut obtidos: Vec<DocumentoObtido>,
+    saida: Option<&Path>,
+    origem: &str,
+) -> ExitCode {
     let mut gravados = Vec::new();
+    let mut copias: Vec<Option<CopiaGravada>> = Vec::new();
     if let Some(diretorio) = saida {
         match gravar(json_mode, &mut obtidos, diretorio) {
             Ok(lista) => gravados = lista,
             Err(codigo) => return codigo,
+        }
+        for d in &obtidos {
+            match documento_versao_cli::gravar_copia(diretorio, origem, d) {
+                Ok(copia) => copias.push(copia),
+                Err(erro) => {
+                    let mensagem = "a cópia de trabalho não foi gravada";
+                    return erro_fonte(json_mode, erro.subcodigo(), mensagem);
+                }
+            }
         }
     }
     let total: u32 = obtidos.iter().map(|d| u32::from(d.requisicoes)).sum();
@@ -248,6 +261,8 @@ fn publicar(json_mode: bool, mut obtidos: Vec<DocumentoObtido>, saida: Option<&P
             .enumerate()
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
+                let copia = copias.get(i).and_then(Option::as_ref);
+                documento_versao_cli::inserir_campos(&mut objeto, d, copia);
                 if let Some((nome, bytes)) = gravados.get(i) {
                     objeto.insert("arquivo".to_owned(), json!(nome));
                     objeto.insert("bytes".to_owned(), json!(bytes));
@@ -269,6 +284,10 @@ fn publicar(json_mode: bool, mut obtidos: Vec<DocumentoObtido>, saida: Option<&P
     } else {
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
+            let copia = copias.get(i).and_then(Option::as_ref);
+            if let Some(linha) = documento_versao_cli::linha_humana(d, copia) {
+                println!("{linha}");
+            }
             let gravado = gravados.get(i);
             if let Some(a) = &d.anexo {
                 println!("{}", anexo::linha_do_anexo(a, gravado.is_some()));
