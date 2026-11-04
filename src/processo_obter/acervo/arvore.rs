@@ -64,6 +64,15 @@ fn arvore(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Registro
                 .count() as u64,
         ),
     ];
+    for movido in &a.documentos_movidos {
+        registro
+            .formas
+            .push(if movido.presente_entre_os_documentos {
+                "movido_presente_entre_os_documentos".into()
+            } else {
+                "movido_ausente_dos_documentos".into()
+            });
+    }
     registro
 }
 

@@ -51,6 +51,7 @@ UnB, `?25` em GO e na PEN1). Radicais vistos (contagem de nós):
 | `documento_email_cco` | — | 1 | — |
 | `documento_circular` | — | 1 | — |
 | `documento_cancelado` | — | 1 | — |
+| `documento_txt` | — | [replay](../validacao-replay/2026-11-04-processo-obter-acervo.md) | replay (também PEN3, PEN4) |
 
 A dica (a6) repetiu o rótulo (a5) em todos os nós, menos três, em GO:
 

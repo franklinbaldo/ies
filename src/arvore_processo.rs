@@ -31,6 +31,8 @@ mod tests_barra_marcadores;
 #[cfg(test)]
 mod tests_literais;
 #[cfg(test)]
+pub(crate) mod tests_movido_presente;
+#[cfg(test)]
 pub(crate) mod tests_movidos;
 #[cfg(test)]
 mod tests_natureza;
@@ -168,6 +170,8 @@ pub(crate) struct DocumentoMovido {
     pub(crate) rotulo: String,
     pub(crate) numero_sei: Option<String>,
     pub(crate) destino: Option<DestinoDoMovido>,
+    /// A primeira parte do id é o id de um `DOCUMENTO` desta árvore.
+    pub(crate) presente_entre_os_documentos: bool,
 }
 
 /// O processo para onde o documento foi movido: NUP (texto do link), id e o

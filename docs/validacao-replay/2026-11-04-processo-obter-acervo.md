@@ -17,7 +17,7 @@ regras de identidade em
 Nenhuma requisição ao SEI; só o download dos 29 ZIPs do Internet Archive,
 cada um conferido pelo `archive_sha1` dos cards.
 
-**Escopo.** 280 cards com alguma dessas operações (de 495); 13.092
+**Escopo.** 280 cards com alguma dessas operações (de 495); 13.252
 leituras. Replay offline não é ensaio live: prova que cada tela gravada
 é lida ou recusada com subcódigo, não o fluxo HTTP do IES.
 
@@ -40,12 +40,12 @@ a identidade, ou o próprio fluxo não pediria a tela (motivo da CLI).
 | tela do processo | **todas** | 467 | 457 | 10 (`arvore_ausente_na_tela_do_processo` 2; `endereco_da_arvore_de_outro_processo` 8) | 0 |
 | árvore | unb | 397 | 396 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
 | árvore | ufrj | 386 | 385 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
-| árvore | go | 276 | 267 | 9 (`documento_movido_presente_entre_os_documentos` 8; `no_do_processo_ausente_na_arvore` 1) | 0 |
-| árvore | pen1 | 249 | 240 | 9 (`documento_movido_presente_entre_os_documentos` 8; `no_do_processo_ausente_na_arvore` 1) | 0 |
-| árvore | pen2 | 253 | 244 | 9 (`documento_movido_presente_entre_os_documentos` 8; `no_do_processo_ausente_na_arvore` 1) | 0 |
-| árvore | pen3 | 254 | 245 | 9 (`documento_movido_presente_entre_os_documentos` 8; `no_do_processo_ausente_na_arvore` 1) | 0 |
+| árvore | go | 276 | 275 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
+| árvore | pen1 | 249 | 248 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
+| árvore | pen2 | 253 | 252 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
+| árvore | pen3 | 254 | 253 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
 | árvore | pen4 | 258 | 257 | 1 (`no_do_processo_ausente_na_arvore` 1) | 0 |
-| árvore | **todas** | 2073 | 2034 | 39 (`documento_movido_presente_entre_os_documentos` 32; `no_do_processo_ausente_na_arvore` 7) | 0 |
+| árvore | **todas** | 2073 | 2066 | 7 (`no_do_processo_ausente_na_arvore` 7) | 0 |
 | pastas | unb | 24 | 24 | 0 | 0 |
 | pastas | ufrj | 18 | 18 | 0 | 0 |
 | pastas | **todas** | 42 | 42 | 0 | 0 |
@@ -96,10 +96,6 @@ a identidade, ou o próprio fluxo não pediria a tela (motivo da CLI).
 | tela do processo | `endereco_da_arvore_de_outro_processo` | pen4 | 1 | documento-numero-e-busca-pen4--831054375369#2 |
 | tela do processo | `endereco_da_arvore_de_outro_processo` | ufrj | 1 | documento-numero-e-busca-ufrj--d0b23f01b824#2 |
 | tela do processo | `endereco_da_arvore_de_outro_processo` | unb | 2 | documento-numero-e-busca-unb--f1b386d8e7bc#2, documento-propriedades-unb--4f50b7e8fb79#2 |
-| árvore | `documento_movido_presente_entre_os_documentos` | go | 8 | documento-mover-cancelar-go--a152c0306b45#53, documento-mover-cancelar-go--a152c0306b45#55, documento-mover-cancelar-go--a152c0306b45#64 |
-| árvore | `documento_movido_presente_entre_os_documentos` | pen1 | 8 | documento-mover-cancelar-pen1--0c59af5df1ba#46, documento-mover-cancelar-pen1--0c59af5df1ba#49, documento-mover-cancelar-pen1--0c59af5df1ba#58 |
-| árvore | `documento_movido_presente_entre_os_documentos` | pen2 | 8 | documento-mover-cancelar-pen2--2375a0354d05#53, documento-mover-cancelar-pen2--2375a0354d05#56, documento-mover-cancelar-pen2--2375a0354d05#65 |
-| árvore | `documento_movido_presente_entre_os_documentos` | pen3 | 8 | documento-mover-cancelar-pen3--60eb468849de#53, documento-mover-cancelar-pen3--60eb468849de#56, documento-mover-cancelar-pen3--60eb468849de#65 |
 | árvore | `no_do_processo_ausente_na_arvore` | go | 1 | processo-excluir-go--1588cdeda71d#11 |
 | árvore | `no_do_processo_ausente_na_arvore` | pen1 | 1 | processo-excluir-pen1--fc4c8d59a2b2#10 |
 | árvore | `no_do_processo_ausente_na_arvore` | pen2 | 1 | processo-excluir-pen2--85da3ad2ec15#11 |
@@ -113,11 +109,11 @@ no teste):
 
 | Leitor | Instalação | Total | Lido | Recusado | Não aplicável |
 |---|---|---:|---:|---|---|
-| situação (aberto_em) | **todas** | 2034 | 2013 | 21 (`html_da_raiz_fora_da_forma_observada` 21) | 0 |
-| natureza | **todas** | 2034 | 2034 | 0 | 0 |
-| link do histórico | **todas** | 2034 | 2034 | 0 | 0 |
-| link das propriedades | **todas** | 2034 | 2034 | 0 | 0 |
-| link dos marcadores | **todas** | 2034 | 1743 | 0 | 291 (`tela_de_marcadores_nao_publicada_na_barra` 291) |
+| situação (aberto_em) | **todas** | 2066 | 2045 | 21 (`html_da_raiz_fora_da_forma_observada` 21) | 0 |
+| natureza | **todas** | 2066 | 2066 | 0 | 0 |
+| link do histórico | **todas** | 2066 | 2066 | 0 | 0 |
+| link das propriedades | **todas** | 2066 | 2066 | 0 | 0 |
+| link dos marcadores | **todas** | 2066 | 1771 | 0 | 295 (`tela_de_marcadores_nao_publicada_na_barra` 295) |
 
 ## Destaques
 
@@ -180,21 +176,23 @@ disso, paginação continua **NOT_RUN**.
 
 | Leitor | Forma | Ocorrências | Instalações |
 |---|---|---:|---|
+| árvore | `movido_ausente_dos_documentos` | 16 | go, pen1, pen2, pen3 |
+| árvore | `movido_presente_entre_os_documentos` | 32 | go, pen1, pen2, pen3 |
 | pastas | `aberta_por_abrir_pastas` | 15 | ufrj, unb |
 | pastas | `fechada_com_acao_de_abrir` | 27 | ufrj, unb |
 | pastas | `mista` | 4 | ufrj, unb |
 | pastas | `por_identidade` | 71 | ufrj, unb |
 | situação (aberto_em) | `nenhum_andamento_aberto` | 231 | go, pen1, pen2, pen3, pen4, ufrj, unb |
-| situação (aberto_em) | `uma_unidade` | 1659 | go, pen1, pen2, pen3, pen4, ufrj, unb |
+| situação (aberto_em) | `uma_unidade` | 1671 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | situação (aberto_em) | `uma_unidade_com_atribuicao` | 41 | go, pen1, pen2, pen3, pen4, ufrj, unb |
-| situação (aberto_em) | `varias_unidades` | 81 | go, pen1, pen2, pen3, pen4, ufrj, unb |
+| situação (aberto_em) | `varias_unidades` | 101 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | situação (aberto_em) | `varias_unidades_com_atribuicao` | 1 | go |
-| natureza | `icone:documento_cancelado` | 6 | pen4, ufrj |
+| natureza | `icone:documento_cancelado` | 18 | go, pen1, pen2, pen3, pen4, ufrj |
 | natureza | `icone:documento_email` | 30 | go, pen1, pen2, pen4, ufrj |
-| natureza | `icone:documento_html` | 81 | pen1, pen2, pen3, pen4, ufrj |
-| natureza | `icone:documento_interno` | 2965 | go, pen1, pen2, pen3, pen4, ufrj, unb |
+| natureza | `icone:documento_html` | 105 | pen1, pen2, pen3, pen4, ufrj |
+| natureza | `icone:documento_interno` | 2985 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | natureza | `icone:documento_pdf` | 75 | pen3, pen4, ufrj, unb |
-| natureza | `icone:documento_txt` | 19 | go, pen1, pen3, pen4 |
+| natureza | `icone:documento_txt` | 27 | go, pen1, pen3, pen4 |
 | natureza | `icone:documento_zip` | 6 | pen4 |
 | andamentos | `get_completo` | 2 | unb |
 | andamentos | `get_resumido` | 110 | go, pen1, pen2, pen3, pen4, ufrj, unb |
@@ -230,13 +228,17 @@ forma nova (abaixo).
 
 ### Abertos (próximas fatias)
 
-1. **Documento movido de volta** (GO, PEN1, PEN2, PEN3;
-   `documento_movido_presente_entre_os_documentos`, 32 árvores de
-   `documento-mover-cancelar-*`). O documento foi movido para outro
-   processo e depois devolvido: a árvore traz o `DOCUMENTO_MOVIDO`
-   (`<id>-<rel>`, "Documento movido para o processo …") **e** o
-   `DOCUMENTO` de mesmo id. A recusa é a regra contratada; aceitar exige
-   decidir o que `documentos_movidos` publica quando o documento voltou.
+1. **Documento movido de volta** (GO, PEN1, PEN2, PEN3; 32 árvores de
+   `documento-mover-cancelar-*`): **resolvido**. A árvore traz o
+   `DOCUMENTO_MOVIDO` `<n>-<m>` (destino publicado) **e** o `DOCUMENTO`
+   `n`, de mesmo rótulo e número SEI; antes, recusa
+   `documento_movido_presente_entre_os_documentos`. Agora o documento sai
+   em `documentos` e o movido em `documentos_movidos` com
+   `presente_entre_os_documentos: true` (forma
+   `movido_presente_entre_os_documentos`, 32; `movido_ausente_dos_documentos`,
+   16). RED: 5 de 16 testes de movidos. Depois: GO 275/276, PEN1 248/249,
+   PEN2 252/253, PEN3 253/254 árvores lidas.
+   [Contrato dos movidos](../../contracts/cli/processo-obter-movidos.md).
 2. **Processo sobrestado** (todas as sete instalações, 21 árvores de
    `processo-sobrestar-retomar-*`): o `.html` da raiz é
    `Processo sobrestado na unidade <a …>SIGLA</a>.<br />`. Hoje

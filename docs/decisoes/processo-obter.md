@@ -305,7 +305,8 @@ numa instalação nova, e por isso `--sem-propriedades` existe.
 do link assinado do `.html` do nó (**web-movidos-pelo-link-do-no**), nunca
 da frase da dica (**web-movidos-pela-dica**, rejeitada). 0 requisições a
 mais. Alternativas e trade-offs no
-[apêndice](processo-obter/documentos-movidos.md).
+[apêndice](processo-obter/documentos-movidos.md); documento de novo no
+processo: [apêndice](processo-obter/movido-presente.md).
 
 ## Situação e natureza
 

@@ -88,6 +88,7 @@ pub(super) fn inserir_documentos(objeto: &mut Map<String, Value>, arvore: &Arvor
                 "destino": m.destino.as_ref().map(
                     |d| json!({"numero": d.numero, "id_procedimento": d.id_procedimento}),
                 ),
+                "presente_entre_os_documentos": m.presente_entre_os_documentos,
             })
         })
         .collect();
@@ -142,6 +143,9 @@ pub(super) fn humano_dos_movidos(movidos: &[DocumentoMovido], texto: &mut String
                 let _ = write!(texto, "movido para {}, ies processo {}", d.numero, d.numero);
             }
             None => texto.push_str("destino não publicado"),
+        }
+        if m.presente_entre_os_documentos {
+            texto.push_str(" (o documento está de novo neste processo)");
         }
     }
 }

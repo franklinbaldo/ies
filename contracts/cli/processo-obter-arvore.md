@@ -168,35 +168,9 @@ um `id_procedimento_anexado` igual ao aberto e texto não vazio, sem
 espaço nas pontas, entidade ou tag: o NUP do pai. Nenhuma candidata:
 `anexado: false`. A frase em volta e o ícone não classificam nada.
 
-**Documentos movidos.** Forma observada na PEN1 4.0.12 (04/11/2026), a
-única aceita: `DOCUMENTO_MOVIDO` com 16 argumentos, a1 composto
-`<decimal>-<decimal>` (opaco; na captura, a primeira parte é o
-`id_documento` do link do destino e a segunda o
-`id_rel_protocolo_protocolo` da barra), a2 igual ao id do processo (pasta
-ou outro pai é recusa), a3 começando por `controlador.php?` com uma
-`acao=arvore_visualizar`, um `id_procedimento` igual a a2 e nenhum
-`id_documento`, a5 rótulo não vazio e a15 número SEI ou `null`. O movido
-**não** é documento do processo: não entra em `documentos`, nas pastas
-nem nas conferências delas. Composto repetido, primeira parte repetida
-entre movidos ou igual ao id de um `DOCUMENTO` são recusa. A dica (a6,
-frase com o NUP e o motivo digitado) e a barra (`.acoes`) não são lidas.
-O destino vem do `.html` do nó (mesmo leitor de literais e de atributos
-do vínculo): uma tag `<a>` com `href` é o link do destino, conferido como
-os outros links assinados (uma `acao=procedimento_trabalhar`, um
-`infra_hash` de 64 hex, um `id_procedimento` decimal diferente do aberto),
-com um `id_documento` igual à primeira parte de a1, sem
-`id_procedimento_anexado`, e texto não vazio, sem espaço nas pontas,
-entidade ou tag, diferente do NUP aberto: o NUP do destino. Nenhuma tag
-`<a>` com `href` (ou nenhum `.html`): `destino: null`, não observado.
-Para ler o destino: `ies processo <NUP do destino>`, que sai pelo passo 1b.
-
-**Efeito declarado.** Em GO, o GET da árvore marcou como visualizado um
-processo recebido não visualizado (o de `procedimento_trabalhar`, sozinho,
-não). O IES não restaura esse estado. Lançamento de andamento: não medido.
-
-## Saída
-
-JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
+**Documentos movidos.** `DOCUMENTO_MOVIDO` segue o
+[contrato dos movidos](processo-obter-movidos.md): fora de `documentos`,
+com o destino do link do nó e `presente_entre_os_documentos`.
 
 ```json
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
@@ -209,7 +183,8 @@ JSON (sem URL, `infra_hash`, cookie ou HTML; `null` é "não observado"):
                  "pasta": "PASTA1 ou null", "icone": "documento_interno",
                  "cancelado": false, "motivo_do_cancelamento": null}],
  "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15 ou null",
-                         "destino": {"numero": "NUP", "id_procedimento": "N"}}],
+                         "destino": {"numero": "NUP", "id_procedimento": "N"},
+                         "presente_entre_os_documentos": false}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
  "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
@@ -247,9 +222,7 @@ e `documentos_dos_anexados`.
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
 pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) sai em `dica` quando
 difere do rótulo, e o cancelamento é lido dela
-([situação](processo-obter-situacao.md)). `documentos_movidos` segue a ordem dos nós (`[]` sem movido; `destino`
-`null` sem link); o texto humano lista cada um com
-`movido para <NUP>, ies processo <NUP>` ou `destino não publicado`.
+([situação](processo-obter-situacao.md)). `documentos_movidos`: [movidos](processo-obter-movidos.md).
 `--sem-documentos` tira as
 chaves `documentos`, `documentos_movidos`, `pastas` e `verificacao_das_pastas*` (a árvore continua lida: é ela que prova a identidade).
 `--sem-marcadores` não pede a tela de marcadores; `--sem-propriedades`
@@ -301,13 +274,7 @@ Anexados: `processo_anexado_fora_da_forma_observada`,
 `vinculos_de_anexacao_repetidos` (duas candidatas ou dois `.html` da raiz),
 `html_do_no_do_processo_fora_da_forma_observada`.
 
-Movidos: `documento_movido_fora_da_forma_observada`,
-`documento_movido_com_pai_diferente_do_processo`,
-`documento_movido_repetido_na_arvore`,
-`documento_movido_presente_entre_os_documentos`,
-`destino_do_documento_movido_fora_da_forma_observada`,
-`destinos_do_documento_movido_repetidos` (duas tags `<a>` com `href` ou
-dois `.html` do nó).
+Movidos: os do [contrato dos movidos](processo-obter-movidos.md).
 
 Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
 Propriedades: os do [contrato das propriedades](processo-obter-propriedades.md).
@@ -322,6 +289,6 @@ Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 Documentos movidos: **PASS** na PEN1 ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-movidos.md)).
 Situação e natureza: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
 Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
-Replay offline do acervo público: 2.034 de 2.073 árvores lidas nas sete
+Replay offline do acervo público: 2.066 de 2.073 árvores lidas nas sete
 instalações; recusas e achados no [relatório](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

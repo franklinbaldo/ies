@@ -6,6 +6,8 @@
 //! nó tem um único `<a>`, o `procedimento_trabalhar` assinado do destino
 //! (com o `id_documento` da primeira parte de a1), cujo texto é o NUP do
 //! destino. A dica (a6) e a barra não são lidas; a frase não classifica.
+//! Primeira parte igual ao id de um `DOCUMENTO` (ida e volta, cassettes
+//! `documento-mover-cancelar-*`) é `presente_entre_os_documentos`.
 use super::endereco::conferir_endereco_relativo;
 use super::literais::{Literal, indice_do_html, ler_declaracao, ler_html};
 use super::vinculo::{pares, texto_unico};
@@ -51,6 +53,7 @@ pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroAr
             rotulo: rotulo.to_owned(),
             numero_sei: super::texto_ou_nulo(&a[15])?.map(str::to_owned),
             destino: None,
+            presente_entre_os_documentos: false,
         },
     })
 }
@@ -79,8 +82,8 @@ fn endereco_observado(url: &str, pai: &str) -> bool {
     acoes == 1 && ids == 1
 }
 
-/// Confere os movidos contra o processo e os documentos; devolve-os na
-/// ordem da árvore.
+/// Confere os movidos contra o processo e marca os cuja primeira parte é
+/// id de um `DOCUMENTO` da árvore; devolve-os na ordem da árvore.
 pub(super) fn conferir_movidos(
     processo: &ProcessoNaArvore,
     lidos: Vec<MovidoLido>,
@@ -96,11 +99,19 @@ pub(super) fn conferir_movidos(
         if !vistos.insert(documento) {
             return Err(E::DocumentoMovidoRepetidoNaArvore);
         }
-        if documentos.iter().any(|d| d.documento.id == documento) {
-            return Err(E::DocumentoMovidoPresenteEntreOsDocumentos);
-        }
     }
-    Ok(lidos.into_iter().map(|l| l.movido).collect())
+    Ok(lidos
+        .into_iter()
+        .map(|l| {
+            let documento = documento_do_composto(&l.movido.id).unwrap_or_default();
+            DocumentoMovido {
+                presente_entre_os_documentos: documentos
+                    .iter()
+                    .any(|d| d.documento.id == documento),
+                ..l.movido
+            }
+        })
+        .collect())
 }
 
 /// Preenche o destino de cada movido cujo `.html` publica o link.

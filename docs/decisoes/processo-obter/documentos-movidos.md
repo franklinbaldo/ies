@@ -63,9 +63,10 @@ em 2 GET. Sem `<a>` com `href` no `.html` (ou sem `.html`), `destino` é
 Movido com pai numa pasta não foi observado e é recusa
 (`documento_movido_com_pai_diferente_do_processo`); como o movido nunca
 entra em `documentos`, as conferências de `Pastas[k]['protocolos']` não
-o veem. Primeira parte do a1 repetida entre movidos ou igual ao id de um
-`DOCUMENTO` (um documento movido e devolvido, por exemplo) também é
-recusa até haver captura.
+o veem. Primeira parte do a1 repetida entre movidos também é recusa até
+haver captura. Igual ao id de um `DOCUMENTO` era recusa; o acervo mostrou
+o documento movido e trazido de volta, e agora é aceito
+([movido presente](movido-presente.md)).
 
 ## Evidências verificáveis
 
