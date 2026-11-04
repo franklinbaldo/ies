@@ -153,6 +153,7 @@ fn forma_do_json() {
             "anexado_a": null,
             "anexados": [],
             "aberto_em": [{"sigla": "UNIDADE TESTE", "nome": "Unidade Teste", "atribuido_a": null}],
+            "sobrestado_em": null,
             "documentos": [
                 {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null,
                  "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,

@@ -70,10 +70,12 @@ pub(crate) enum AbertoEm {
 pub(super) fn ler_aberto_em(html: &str) -> AbertoEm {
     match super::vinculo::html_da_raiz(html) {
         Ok(None) => AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizNaoPublicado),
-        Ok(Some(texto)) => ler_unidades(&texto).map_or(
-            AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada),
-            AbertoEm::Unidades,
-        ),
+        Ok(Some(texto)) => ler_unidades(&texto)
+            .map(AbertoEm::Unidades)
+            .or_else(|| ler_sobrestamento(&texto).map(AbertoEm::Sobrestado))
+            .unwrap_or(AbertoEm::NaoLido(
+                MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada,
+            )),
         Err(_) => AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada),
     }
 }
@@ -119,11 +121,21 @@ pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
     (siglas.len() == unidades.len()).then_some(unidades)
 }
 
-/// A unidade da frase do sobrestamento, ou `None` fora da forma
-/// observada. (Shim: ainda não lê.)
+/// A unidade de "Processo sobrestado na unidade <a>.<br />", ou `None`
+/// fora dessa forma (única observada: uma unidade, sem atribuição).
 pub(super) fn ler_sobrestamento(texto: &str) -> Option<Vec<UnidadeSobrestada>> {
-    let _ = (texto, SOBRESTADO);
-    None
+    match pecas(texto)?.as_slice() {
+        [
+            Peca::Texto(frase),
+            Peca::Ancora { sigla, nome },
+            Peca::Texto(ponto),
+            Peca::Quebra,
+        ] if frase == SOBRESTADO && ponto == "." => Some(vec![UnidadeSobrestada {
+            sigla: sigla.clone(),
+            nome: nome.clone(),
+        }]),
+        _ => None,
+    }
 }
 
 /// Uma ou mais unidades, cada uma terminada por `<br />` (com atribuição,

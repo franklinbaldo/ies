@@ -1,11 +1,13 @@
 //! Saída do que vem só da árvore: documentos (com a natureza), movidos e
 //! `aberto_em` (contracts/cli/processo-obter-situacao.md).
-use crate::arvore_processo::{AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore};
+use crate::arvore_processo::{
+    AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore, MotivoAbertoEm,
+};
 use serde_json::{Map, Value, json};
 use std::fmt::Write as _;
 
 /// `aberto_em` (lista ou `null`) e, se não lido, o motivo e a entrada
-/// em `nao_lidos`.
+/// em `nao_lidos`; `sobrestado_em` (lista só na frase do sobrestamento).
 pub(super) fn inserir_aberto_em(
     objeto: &mut Map<String, Value>,
     aberto_em: &AbertoEm,
@@ -29,7 +31,7 @@ pub(super) fn inserir_aberto_em(
         AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => {
             let motivo = match aberto_em {
                 AbertoEm::NaoLido(motivo) => *motivo,
-                _ => crate::arvore_processo::MotivoAbertoEm::RaizPublicaOSobrestamento,
+                _ => MotivoAbertoEm::RaizPublicaOSobrestamento,
             };
             nao_lidos.push("aberto_em");
             objeto.insert(
@@ -40,9 +42,19 @@ pub(super) fn inserir_aberto_em(
         }
     };
     objeto.insert("aberto_em".to_owned(), valor);
+    let sobrestado_em = match aberto_em {
+        AbertoEm::Sobrestado(unidades) => Value::Array(
+            unidades
+                .iter()
+                .map(|u| json!({"sigla": u.sigla, "nome": u.nome}))
+                .collect(),
+        ),
+        _ => Value::Null,
+    };
+    objeto.insert("sobrestado_em".to_owned(), sobrestado_em);
 }
 
-/// Uma linha: as unidades, a lista vazia ou o motivo.
+/// Uma linha: as unidades, a lista vazia, o sobrestamento ou o motivo.
 pub(super) fn humano_do_aberto_em(aberto_em: &AbertoEm, texto: &mut String) {
     match aberto_em {
         AbertoEm::Unidades(unidades) if unidades.is_empty() => {
@@ -58,7 +70,10 @@ pub(super) fn humano_do_aberto_em(aberto_em: &AbertoEm, texto: &mut String) {
                 .collect();
             let _ = write!(texto, "\nAberto em: {}.", lista.join(", "));
         }
-        AbertoEm::Sobrestado(_) => {}
+        AbertoEm::Sobrestado(unidades) => {
+            let siglas: Vec<&str> = unidades.iter().map(|u| u.sigla.as_str()).collect();
+            let _ = write!(texto, "\nSobrestado em: {}.", siglas.join(", "));
+        }
         AbertoEm::NaoLido(motivo) => {
             let _ = write!(texto, "\nAberto em: não lido ({}).", motivo.como_texto());
         }

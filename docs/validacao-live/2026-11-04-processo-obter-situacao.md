@@ -23,6 +23,7 @@ binário em release do ramo `slice-situacao`, sessão e índice já existentes
 | `dica` (depois da decisão do proprietário), unidade única, quente | **PASS**: 1 req., `documento_interno` com `dica: null` (dica igual ao rótulo) |
 | `dica` diferente do rótulo ao vivo (e-mail) | NOT_RUN: nenhum e-mail nos processos da UnB à mão; coberto pela captura de GO (teste sintético) |
 | Documento cancelado ao vivo | NOT_RUN: nenhum processo da UnB à mão com cancelado; coberto pela captura de GO (teste sintético e teste local temporário) |
+| Processo sobrestado (`sobrestado_em`) ao vivo | NOT_RUN: nenhum processo sobrestado à mão na sessão da UnB; criar um exige sobrestar (escrita), fora do escopo. Evidência: replay do acervo, 21 de 21 árvores `processo-sobrestar-retomar-*` lidas nas sete instalações |
 | GO e PEN1 ao vivo | NOT_RUN: GO por WAF e ritmo, PEN1 fora do escopo desta rodada; as formas de ambas vêm das capturas (offline) |
 
 Nenhuma saída trouxe URL, `infra_hash` ou cookie. As contagens de

@@ -237,7 +237,7 @@ fn sobrestada(sigla: &str, nome: &str) -> UnidadeSobrestada {
     }
 }
 
-/// A frase das 21 árvores de `processo-sobrestar-retomar-*` (UnB, GO,
+/// A frase das 21 árvores de `processo-sobrestar-retomar-*` (`UnB`, GO,
 /// UFRJ e PEN1 a PEN4): uma unidade, sem atribuição.
 #[test]
 fn sobrestado_numa_unidade_nas_formas_do_acervo() {

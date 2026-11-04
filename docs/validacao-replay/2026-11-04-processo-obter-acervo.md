@@ -113,7 +113,7 @@ no teste):
 
 | Leitor | Instalação | Total | Lido | Recusado | Não aplicável |
 |---|---|---:|---:|---|---|
-| situação (aberto_em) | **todas** | 2034 | 2013 | 21 (`html_da_raiz_fora_da_forma_observada` 21) | 0 |
+| situação (aberto_em) | **todas** | 2034 | 2034 | 0 | 0 |
 | natureza | **todas** | 2034 | 2034 | 0 | 0 |
 | link do histórico | **todas** | 2034 | 2034 | 0 | 0 |
 | link das propriedades | **todas** | 2034 | 2034 | 0 | 0 |
@@ -185,6 +185,7 @@ disso, paginação continua **NOT_RUN**.
 | pastas | `mista` | 4 | ufrj, unb |
 | pastas | `por_identidade` | 71 | ufrj, unb |
 | situação (aberto_em) | `nenhum_andamento_aberto` | 231 | go, pen1, pen2, pen3, pen4, ufrj, unb |
+| situação (aberto_em) | `sobrestado_numa_unidade` | 21 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | situação (aberto_em) | `uma_unidade` | 1659 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | situação (aberto_em) | `uma_unidade_com_atribuicao` | 41 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 | situação (aberto_em) | `varias_unidades` | 81 | go, pen1, pen2, pen3, pen4, ufrj, unb |
@@ -209,8 +210,8 @@ disso, paginação continua **NOT_RUN**.
 | marcadores | `tabela` | 28 | go, pen1, pen2, pen3, pen4, ufrj, unb |
 
 Ícones: sete radicais, todos na forma `svg/<radical>.svg`; nenhum
-documento com ícone não lido. `aberto_em`: quatro formas lidas e uma
-forma nova (abaixo).
+documento com ícone não lido. `aberto_em`: todas as árvores lidas,
+o sobrestamento desde o achado 2 (abaixo).
 
 ## Achados
 
@@ -237,11 +238,17 @@ forma nova (abaixo).
    (`<id>-<rel>`, "Documento movido para o processo …") **e** o
    `DOCUMENTO` de mesmo id. A recusa é a regra contratada; aceitar exige
    decidir o que `documentos_movidos` publica quando o documento voltou.
-2. **Processo sobrestado** (todas as sete instalações, 21 árvores de
-   `processo-sobrestar-retomar-*`): o `.html` da raiz é
-   `Processo sobrestado na unidade <a …>SIGLA</a>.<br />`. Hoje
-   `aberto_em: null` com `html_da_raiz_fora_da_forma_observada`, como o
-   contrato manda; publicar o sobrestamento é decisão de contrato.
+2. **Processo sobrestado — corrigido** (todas as sete instalações, 21
+   árvores de `processo-sobrestar-retomar-*`): o `.html` da raiz é
+   `Processo sobrestado na unidade <a …>SIGLA</a>.<br />`, a **única**
+   forma fora das lidas nas 21 (uma unidade, sem atribuição, nenhum
+   plural). Era `aberto_em: null` com
+   `html_da_raiz_fora_da_forma_observada`; agora `sobrestado_em` com a
+   unidade e `aberto_em: null` com `raiz_publica_o_sobrestamento`
+   ([decisão](../decisoes/processo-obter/situacao.md)). RED: 3 de 4
+   testes novos (`arvore_processo::tests_situacao`,
+   `processo_obter_cli::tests_situacao`). Depois: situação 2034/2034
+   lidas, forma `sobrestado_numa_unidade` 21.
 3. **Tela de marcadores sem tabela** (PEN2, 1 leitura de
    `marcador-escritas-pen2`, depois de remover marcadores): GET 200 com
    `divInfraAreaTabela` vazia e `hdnInfraNroItens` 0, não o 302 de zero
