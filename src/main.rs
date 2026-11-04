@@ -47,6 +47,7 @@ mod processo_historico_privado_cli;
 mod processo_obter;
 mod processo_obter_cli;
 mod processo_pesquisa_privada_cli;
+mod propriedades_processo;
 mod processo_resumo_cli;
 mod replay_args;
 mod replay_busca_documento;

@@ -13,6 +13,7 @@ pub(crate) mod erro;
 mod fluxo;
 mod login;
 mod pastas;
+mod propriedades;
 
 #[cfg(test)]
 mod tests_andamentos;
@@ -36,11 +37,14 @@ mod tests_indice;
 mod tests_login;
 #[cfg(test)]
 mod tests_pastas;
+#[cfg(test)]
+mod tests_propriedades;
 
 use crate::arvore_processo::ArvoreLida;
 use crate::formulario_web::RespostaDoPost;
 use crate::historico_processo::AndamentosLidos;
 use crate::processo::NumeroProcesso;
+use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
@@ -80,6 +84,8 @@ pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) nup: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
     pub(crate) andamentos: PedidoDeAndamentos,
+    /// `false` com `--sem-propriedades`.
+    pub(crate) propriedades: bool,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou
@@ -123,6 +129,7 @@ pub(crate) struct ProcessoAberto {
     pub(crate) unidade: Option<String>,
     pub(crate) resolvido_por: ResolvidoPor,
     pub(crate) andamentos: Andamentos,
+    pub(crate) propriedades: Propriedades,
     pub(crate) requisicoes: u8,
 }
 
@@ -152,6 +159,28 @@ impl Andamentos {
             Self::Lidos(_) => None,
             Self::Omitidos => Some("omitidos_por_sem_andamentos"),
             Self::LinkNaoPublicadoNaArvore => Some("link_do_historico_nao_publicado_na_arvore"),
+        }
+    }
+}
+
+/// O que se sabe das propriedades depois do comando.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Propriedades {
+    Lidas(PropriedadesLidas),
+    /// `--sem-propriedades`: nenhum pedido à tela.
+    Omitidas,
+    /// A barra do processo não publica `procedimento_alterar` nem
+    /// `procedimento_consultar`; não é recusa.
+    NaoPublicadasNaBarra,
+}
+
+impl Propriedades {
+    /// `propriedades_nao_lidas_motivo` publicado quando não foram lidas.
+    pub(crate) fn motivo(&self) -> Option<&'static str> {
+        match self {
+            Self::Lidas(_) => None,
+            Self::Omitidas => Some("omitidas_por_sem_propriedades"),
+            Self::NaoPublicadasNaBarra => Some("tela_de_propriedades_nao_publicada_na_barra"),
         }
     }
 }
