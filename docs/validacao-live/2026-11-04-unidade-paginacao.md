@@ -207,12 +207,17 @@ aceitar o singular, como a D já aceitava. RED: 1 teste
 (`legenda_no_singular_comprova_a_faixa_de_um_registro`) falhando antes da
 correção; reensaio a′ **PASS**.
 
-**D de uma página com índice oculto (FAIL, não corrigido).** A D da UFRJ
-publica `hdnDetalhadoPaginaAtual=0` sem paginador e legenda sem intervalo.
-O parser da D trata o índice oculto como paginação visível e exige
-`- inicio a fim`. A R já não conta `hdn{T}PaginaAtual`; a D precisaria
-contar só os paginadores `lnkDetalhado*`/`selDetalhado*`, que hoje não
-reconhece. Fica para outra fatia (uma correção por rodada).
+**D de uma página com índice oculto (corrigido na fatia seguinte).** A D
+da UFRJ publica `hdnDetalhadoPaginaAtual=0` sem paginador e legenda sem
+intervalo, e o parser da D tratava o índice oculto como paginação. Agora
+o índice `0` sozinho não é paginação (como `hdn{T}PaginaAtual` na R);
+índice diferente de `0`, os paginadores `lnkInfra*`/`selInfra*` e os
+`lnkDetalhado*`/`selDetalhado*` (que antes não eram reconhecidos)
+continuam exigindo `- inicio a fim`. RED: 1 teste
+(`indice_oculto_zero_sem_paginador_nao_e_paginacao`) falhando antes da
+correção. Replay do acervo sem regressão (as 5 D de GO seguem lidas).
+Reensaio d′ na UFRJ: **PASS**, 10 de 10, `colunas_ausentes` com 5 chaves
+(requisições não contadas: rodada sem o relé).
 
 **Mensagem da recusa de página vinda da D (corrigido).** Em o, o
 subcódigo estava certo, mas a mensagem era a genérica da troca de visão,
@@ -240,5 +245,5 @@ D só é conhecido depois de vê-la. Custa 1 POST e deixa a sessão na D.
 | --- | --- |
 | GO 5.0.3 | WAF devolve 403 "Acesso Negado" em rajadas; fora desta rodada |
 | PEN2 | login recusado com 503 (`status_http_de_erro_do_servidor`) |
-| UFRJ, D e várias páginas | D falha na leitura (Achados); uma página por lista |
+| UFRJ, várias páginas e casos e–i, l, n, q | uma página por lista e na D; casos da D não rodados na rodada (o d′ passou depois da correção) |
 | UnB, várias páginas | a unidade tem uma página por lista e a D sem paginação |

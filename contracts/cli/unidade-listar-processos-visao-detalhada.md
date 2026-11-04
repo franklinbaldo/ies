@@ -225,6 +225,6 @@ Fluxo sem restauração acima ([ensaio de 04/11/2026](../../docs/validacao-live/
 UnB 4.0.9 (R→D, 1 GET + 1 POST; a UnB volta à R a cada GET) e na PEN1
 4.0.12, PEN3 e PEN4 5.0.4 (D com 3 páginas, lembra a D), nos quatro
 regimes da tabela, com as requisições contadas e a página da D lembrada.
-**FAIL** na UFRJ 4.1.5: D de uma página com `hdnDetalhadoPaginaAtual` e
-legenda sem intervalo recusada com `faixa_detalhada_sem_intervalo_com_paginacao`
-(1 GET + 1 POST, a sessão fica na D). PEN2 e GO **NOT_RUN**.
+UFRJ 4.1.5: D de uma página com `hdnDetalhadoPaginaAtual=0`, sem
+paginador e legenda sem intervalo; recusada na rodada e **PASS** depois
+da correção (o índice `0` sozinho não é paginação). PEN2 e GO **NOT_RUN**.

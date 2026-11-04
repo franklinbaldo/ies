@@ -250,9 +250,11 @@ Para cada linha aceita, exigir `tr id=P<dígitos>`, um cabeçalho `Processo`
 duplicidade, preservando zeros. A página que não cobre o total publica a
 `faixa_observada`, sem afirmar lista integral. Não executar links nem JS.
 
-Se uma tela detalhada publicar `hdnDetalhadoPaginaAtual` ou controles
-`lnkInfraProximaPagina*`, `lnkInfraPaginaAnterior*` ou
-`selInfraPaginacao*`, sua legenda deve declarar o **intervalo explícito**:
+Se uma tela detalhada publicar `hdnDetalhadoPaginaAtual` diferente de `0`
+ou controles `lnkInfraProximaPagina*`, `lnkInfraPaginaAnterior*`,
+`selInfraPaginacao*`, `lnkDetalhado{Proxima,Anterior,Primeira,Ultima}Pagina*`
+ou `selDetalhadoPaginacao*`, sua legenda deve declarar o **intervalo explícito**
+(o índice `0` sozinho, UFRJ 4.1.5 numa D de uma página, não é paginação):
 coincidência entre total e linhas sem faixa não comprova cobertura e falha
 com `faixa_detalhada_sem_intervalo_com_paginacao`.
 
