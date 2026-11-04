@@ -35,10 +35,42 @@ fn substantivo_sozinho_mostra_ajuda() {
 
 #[test]
 fn comando_sem_execucao_retorna_falha_estruturada() {
-    let output = ies(&["documento", "77782513", "--json"]);
+    let output = ies(&["documento", "77782513", "--com-propriedades", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
+}
+
+/// `ies documento DOC` lê a sessão Web (Refs #60): sem os arquivos de
+/// sessão, falha tipada antes de qualquer rede.
+#[test]
+fn leitura_web_de_documento_le_a_sessao_antes_da_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+/// `--processo` com NUP inválido é entrada inválida, sem rede (Refs #60).
+#[test]
+fn processo_invalido_do_documento_e_recusado_sem_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "--processo", "sei://1", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "referencia_processo_legada");
+}
+
+/// O mesmo número duas vezes é entrada inválida (zeros à esquerda contam:
+/// `011354` e `0011354` são números diferentes, e ambos seguem).
+#[test]
+fn numero_de_documento_repetido_e_recusado_sem_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "0011354", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "numero_documento_repetido");
+    let output = ies_sem_sessao(&["documento", "011354", "0011354", "--json"]);
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 #[test]
@@ -201,11 +233,10 @@ fn unidade_listar_processos_nao_exporta_sem_sessao_autorizada() {
 }
 
 #[test]
-fn busca_documento_permanece_subcomando() {
+fn busca_documento_permanece_subcomando_sem_assunto() {
+    // `--assunto` nunca foi implementado; a busca é `buscar TERMO` (Refs #61).
     let output = ies(&["documento", "buscar", "--assunto", "previdencia", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
+    assert_eq!(output.status.code(), Some(2));
 }
 
 #[test]
@@ -404,11 +435,21 @@ fn documento_versao_zero_rejeitada_sem_rede() {
 }
 
 #[test]
-fn documento_sem_copia_nao_prepara_arquivo_sem_sessao() {
-    let output = ies(&["documento", "0011519", "--sem-copia", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
+fn documento_sem_copia_e_versao_seguem_a_leitura_web_e_falham_sem_sessao() {
+    // Refs #88: `--versao N` e `--sem-copia` saíram do stub; sem arquivos
+    // de sessão a leitura Web falha tipada antes da rede.
+    for args in [
+        ["documento", "0011519", "--sem-copia", "--json"].as_slice(),
+        ["documento", "0011519", "--versao", "2", "--json"].as_slice(),
+    ] {
+        let output = ies_sem_sessao(args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            value["subcodigo"], "caminho_url_controle_nao_informado",
+            "{args:?}"
+        );
+    }
 }
 
 #[test]

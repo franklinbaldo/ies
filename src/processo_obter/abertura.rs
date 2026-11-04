@@ -4,9 +4,10 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ErroArvore, MotivoAbertoEm, TelaDoProcesso, ler_arvore,
-    ler_destinos_dos_movidos, ler_link_das_propriedades, ler_link_dos_marcadores,
-    ler_tela_do_processo, ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, MotivoAbertoEm,
+    TelaDoProcesso, ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -55,9 +56,27 @@ pub(super) struct Contexto<'a> {
     pub(super) unidade_id: Option<String>,
     pub(super) indice: &'a IndiceLocal,
     pub(super) cookie_file: &'a Path,
+    /// `documento DOC`: o número SEI procurado. Visível na árvore, as pastas
+    /// fechadas não são abertas (a requisição a mais não é necessária).
+    pub(super) documento_procurado: Option<&'a str>,
 }
 
 impl Contexto<'_> {
+    /// O mesmo contexto para o processo `nup` (o de `documento DOC`, que
+    /// nasce com o número SEI, quando a árvore ou o índice dão o NUP).
+    pub(super) fn com_nup<'c>(&'c self, nup: &'c str) -> Contexto<'c> {
+        Contexto {
+            instalacao: self.instalacao.clone(),
+            nup,
+            unidade_pedida: self.unidade_pedida,
+            geracao: self.geracao.clone(),
+            unidade_id: self.unidade_id.clone(),
+            indice: self.indice,
+            cookie_file: self.cookie_file,
+            documento_procurado: self.documento_procurado,
+        }
+    }
+
     pub(super) fn chave<'c>(&'c self, acao: &'c str, objeto: &'c str) -> Option<ChaveDoLink<'c>> {
         Some(ChaveDoLink {
             geracao_sessao: &self.geracao,
@@ -78,6 +97,19 @@ impl Contexto<'_> {
         if let Some(chave) = self.chave(acao, objeto) {
             self.indice.esquecer_link(&self.instalacao, chave);
         }
+    }
+
+    /// Cada `DOCUMENTO` da árvore conferida com número SEI: o índice aprende
+    /// número ↔ (processo, documento), sem requisição (Refs #60, fatia 2).
+    pub(super) fn aprender_documentos(&self, arvore: &ArvoreLida) {
+        let documentos: Vec<(&str, &str)> = arvore
+            .documentos
+            .iter()
+            .filter_map(|d| Some((d.numero_sei.as_deref()?, d.id.as_str())))
+            .collect();
+        let _ =
+            self.indice
+                .registrar_documentos(&self.instalacao, &arvore.processo.id, &documentos);
     }
 
     /// O `action` da pesquisa rápida publicado nesta tela, se houver.
@@ -112,11 +144,16 @@ impl Contexto<'_> {
 /// do link só pesa se os andamentos forem pedidos).
 pub(super) struct ArvoreAberta {
     pub(super) arvore: ArvoreLida,
+    /// A página lida (a de "Abrir todas as Pastas", se aberta): o `.src` de
+    /// cada documento sai dela.
+    pub(super) html: String,
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
     /// O link das propriedades na barra (a falha só pesa se forem pedidas).
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// A ação de concluir na barra (só pesa em `processo concluir`).
+    pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -145,11 +182,14 @@ pub(super) fn ler_arvore_da_pagina(
     let historico = ler_link_do_historico(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let concluir = ler_concluir_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
+        html: html.to_owned(),
         historico,
         propriedades,
         marcadores,
+        concluir,
     })
 }
 

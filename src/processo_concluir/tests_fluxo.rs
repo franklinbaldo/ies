@@ -1,0 +1,348 @@
+//! RED/GREEN do fluxo de `processo concluir`: sequências exatas de
+//! requisições (orçamento do contrato), decisão antes de escrever, uma
+//! escrita nas duas formas e a tabela de reconciliação. Telas sintéticas.
+use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoDaConclusao as V};
+use super::tests_apoio::*;
+use super::{FormaDaConclusao, ProcessoConcluido};
+use crate::arvore_processo::{ErroFuncaoDeConcluir, MotivoAbertoEm};
+use crate::transporte::FalhaTransporte;
+
+fn siglas(lista: &[&str]) -> Vec<String> {
+    lista.iter().map(|s| (*s).to_owned()).collect()
+}
+
+fn com(mut base: Vec<Resposta>, depois: Vec<Resposta>) -> Vec<Resposta> {
+    base.extend(depois);
+    base
+}
+
+fn pedidos(depois: Vec<Pedido>) -> Vec<Pedido> {
+    let mut todos = pedidos_da_abertura();
+    todos.extend(depois);
+    todos
+}
+
+/// Os pedidos da escrita pela tela: GET da tela, POST, GET da verificação.
+fn pela_tela_e_verificacao() -> Vec<Pedido> {
+    pedidos(vec![
+        get(&links().0),
+        post(&absoluta(&action_de_concluir()), CORPO_DA_CONCLUSAO),
+        get(&url_arvore()),
+    ])
+}
+
+/// Os pedidos da escrita pela função: tela do nó, GET da função, verificação.
+fn pela_funcao_e_verificacao() -> Vec<Pedido> {
+    pedidos(vec![get(&links().1), get(&links().2), get(&url_arvore())])
+}
+
+fn previa(forma: Option<FormaDaConclusao>, aberto_em: &[&str]) -> ProcessoConcluido {
+    ProcessoConcluido {
+        nup: NUP.into(),
+        id_procedimento: ID.into(),
+        unidade: UNIDADE.into(),
+        confirmado: false,
+        alterado: false,
+        forma,
+        aberto_em: siglas(aberto_em),
+        depois: None,
+        reconciliado_por: None,
+        requisicoes: 3,
+    }
+}
+
+fn concluido(forma: FormaDaConclusao, aberto_em: &[&str], depois: &[&str]) -> ProcessoConcluido {
+    ProcessoConcluido {
+        confirmado: true,
+        alterado: true,
+        depois: Some(siglas(depois)),
+        requisicoes: 6,
+        ..previa(Some(forma), aberto_em)
+    }
+}
+
+#[test]
+fn previa_pela_tela_so_abre_o_processo() {
+    let amb = ambiente();
+    let (r, feitos) = rodar(&amb, false, abertura(arvore(&[UNIDADE], &tela())));
+    let feito = r.unwrap();
+    assert_eq!(feito, previa(Some(FormaDaConclusao::Tela), &[UNIDADE]));
+    assert_eq!(feito.depois_esperado(), Vec::<String>::new());
+    assert_eq!(feitos, pedidos_da_abertura());
+}
+
+#[test]
+fn previa_pela_funcao_nao_pede_a_tela_do_no() {
+    let amb = ambiente();
+    let html = arvore(&["OUTRA", UNIDADE], &funcao());
+    let (r, feitos) = rodar(&amb, false, abertura(html));
+    let feito = r.unwrap();
+    assert_eq!(
+        feito,
+        previa(Some(FormaDaConclusao::Funcao), &["OUTRA", UNIDADE])
+    );
+    assert_eq!(feito.depois_esperado(), siglas(&["OUTRA"]));
+    assert_eq!(feitos, pedidos_da_abertura());
+}
+
+#[test]
+fn confirmar_pela_tela_um_post_e_verificacao_pela_arvore() {
+    let amb = ambiente();
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &tela())),
+        vec![
+            ok(tela_de_conclusao(ID)),
+            r302(&volta_a_arvore()),
+            ok(arvore(&[], vazio())),
+        ],
+    );
+    let (r, feitos) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r.unwrap(),
+        concluido(FormaDaConclusao::Tela, &[UNIDADE], &[])
+    );
+    assert_eq!(feitos, pela_tela_e_verificacao());
+}
+
+#[test]
+fn confirmar_pela_tela_volta_ao_controle_tambem_e_esperada() {
+    let amb = ambiente();
+    let principal = volta_a_arvore().replace("acao=arvore_visualizar", "acao=principal");
+    let respostas = com(
+        abertura(arvore(&["OUTRA", UNIDADE], &tela())),
+        vec![
+            ok(tela_de_conclusao(ID)),
+            r302(&principal),
+            ok(arvore(&["OUTRA"], vazio())),
+        ],
+    );
+    let (r, _) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r.unwrap(),
+        concluido(FormaDaConclusao::Tela, &["OUTRA", UNIDADE], &["OUTRA"])
+    );
+}
+
+#[test]
+fn confirmar_pela_funcao_o_get_da_funcao_e_a_escrita() {
+    let amb = ambiente();
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &funcao())),
+        vec![
+            ok(tela_do_no(ID)),
+            ok(resposta_da_funcao()),
+            ok(arvore(&[], vazio())),
+        ],
+    );
+    let (r, feitos) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r.unwrap(),
+        concluido(FormaDaConclusao::Funcao, &[UNIDADE], &[])
+    );
+    assert_eq!(feitos, pela_funcao_e_verificacao());
+}
+
+#[test]
+fn ja_fechado_na_unidade_e_sem_acao_e_sucesso_sem_escrita() {
+    for confirmar in [false, true] {
+        let amb = ambiente();
+        let (r, feitos) = rodar(&amb, confirmar, abertura(arvore(&["OUTRA"], vazio())));
+        assert_eq!(
+            r.unwrap(),
+            ProcessoConcluido {
+                confirmado: confirmar,
+                ..previa(None, &["OUTRA"])
+            }
+        );
+        assert_eq!(feitos, pedidos_da_abertura());
+    }
+}
+
+#[test]
+fn recusas_antes_de_escrever_so_custam_a_abertura() {
+    let casos: Vec<(String, C)> = vec![
+        (
+            arvore(&["OUTRA"], &tela()),
+            C::UnidadeDaSessaoAusenteDaSituacao {
+                aberto_em: siglas(&["OUTRA"]),
+            },
+        ),
+        (
+            arvore(&[UNIDADE], vazio()),
+            C::ConclusaoNaoPublicadaNaBarra {
+                aberto_em: siglas(&[UNIDADE]),
+            },
+        ),
+        (
+            arvore_para_concluir(
+                ID,
+                NUP,
+                &format!("Processo sobrestado na unidade {}.<br />", ancora(UNIDADE)),
+                &tela(),
+            ),
+            C::SituacaoDoProcessoNaoLidaAntesDeConcluir {
+                motivo: MotivoAbertoEm::RaizPublicaOSobrestamento,
+            },
+        ),
+        (
+            arvore(&[UNIDADE], &[tela()[0].clone(), ACAO_FUNCAO.to_owned()]),
+            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra),
+        ),
+    ];
+    for (html, erro) in casos {
+        let amb = ambiente();
+        let (r, feitos) = rodar(&amb, true, abertura(html));
+        assert_eq!(r, Err(erro));
+        assert_eq!(feitos, pedidos_da_abertura());
+    }
+}
+
+#[test]
+fn tela_recusada_ou_redirecionada_nao_envia_o_post() {
+    let outro = tela_de_conclusao("11");
+    let marcada = tela_de_conclusao(ID).replace(
+        "class=\"infraCheckbox\"  tabindex",
+        "class=\"infraCheckbox\" checked=\"checked\" tabindex",
+    );
+    let casos = vec![
+        (
+            ok(outro),
+            C::TelaDeConclusao(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso),
+        ),
+        (
+            ok(marcada),
+            C::TelaDeConclusao(
+                super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida,
+            ),
+        ),
+        (r302(&volta_a_arvore()), C::TelaDaEscritaRedirecionada),
+    ];
+    for (resposta, erro) in casos {
+        let amb = ambiente();
+        let respostas = com(abertura(arvore(&[UNIDADE], &tela())), vec![resposta]);
+        let (r, feitos) = rodar(&amb, true, respostas);
+        assert_eq!(r, Err(erro));
+        assert_eq!(feitos, pedidos(vec![get(&links().0)]));
+    }
+}
+
+#[test]
+fn tela_do_no_sem_a_funcao_nao_escreve() {
+    let amb = ambiente();
+    let sem = tela_do_no(ID).replace("function concluirProcesso(){", "function outra(){");
+    let respostas = com(abertura(arvore(&[UNIDADE], &funcao())), vec![ok(sem)]);
+    let (r, feitos) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r,
+        Err(C::FuncaoDeConcluir(
+            ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo
+        ))
+    );
+    assert_eq!(feitos, pedidos(vec![get(&links().1)]));
+}
+
+/// A forma `tela` com `resposta` ao POST e `depois` na verificação.
+fn tela_com(resposta: Resposta, depois: Resposta) -> (Result<ProcessoConcluido, C>, Vec<Pedido>) {
+    let amb = ambiente();
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &tela())),
+        vec![ok(tela_de_conclusao(ID)), resposta, depois],
+    );
+    rodar(&amb, true, respostas)
+}
+
+#[test]
+fn resposta_nao_esperada_e_unidade_fechada_reconcilia_pela_leitura() {
+    let (r, feitos) = tela_com(ok("<html></html>".into()), ok(arvore(&[], vazio())));
+    let feito = r.unwrap();
+    assert!(feito.alterado);
+    assert_eq!(
+        feito.reconciliado_por,
+        Some(FalhaDoEnvio::RespostaSemRedirecionamento)
+    );
+    assert_eq!(feitos, pela_tela_e_verificacao());
+    let (r, _) = tela_com(Ok((503, String::new(), None)), ok(arvore(&[], vazio())));
+    assert!(matches!(
+        r.unwrap().reconciliado_por,
+        Some(FalhaDoEnvio::Envio(_))
+    ));
+}
+
+#[test]
+fn unidade_ainda_aberta_depois_e_nao_aplicada() {
+    let (r, feitos) = tela_com(r302(&volta_a_arvore()), ok(arvore(&[UNIDADE], &tela())));
+    assert_eq!(
+        r,
+        Err(C::ConclusaoNaoAplicada {
+            aberto_em: siglas(&[UNIDADE]),
+            depois: siglas(&[UNIDADE]),
+            falha_do_envio: None,
+        })
+    );
+    assert_eq!(feitos, pela_tela_e_verificacao());
+    let fora = volta_a_arvore().replace("acao=arvore_visualizar", "acao=procedimento_controlar");
+    let (r, _) = tela_com(r302(&fora), ok(arvore(&[UNIDADE], &tela())));
+    assert_eq!(
+        r,
+        Err(C::ConclusaoNaoAplicada {
+            aberto_em: siglas(&[UNIDADE]),
+            depois: siglas(&[UNIDADE]),
+            falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+        })
+    );
+}
+
+#[test]
+fn leitura_que_falha_ou_nao_le_a_situacao_e_efeito_incerto() {
+    let (r, feitos) = tela_com(r302(&volta_a_arvore()), Err(FalhaTransporte::Rede));
+    let Err(erro @ C::EfeitoIncertoNaConclusao { .. }) = r else {
+        panic!("esperava efeito incerto: {r:?}");
+    };
+    assert_eq!(erro.saida(), 3);
+    let C::EfeitoIncertoNaConclusao { verificacao, .. } = &erro else {
+        unreachable!()
+    };
+    assert_eq!(
+        **verificacao,
+        V::LeituraFalhou(crate::processo_obter::ErroProcessoObter::Transporte(
+            FalhaTransporte::Rede
+        ))
+    );
+    assert_eq!(feitos, pela_tela_e_verificacao());
+    let sobrestado = arvore_para_concluir(
+        ID,
+        NUP,
+        &format!("Processo sobrestado na unidade {}.<br />", ancora(UNIDADE)),
+        vazio(),
+    );
+    let (r, _) = tela_com(r302(&volta_a_arvore()), ok(sobrestado));
+    assert_eq!(
+        r,
+        Err(C::EfeitoIncertoNaConclusao {
+            aberto_em: siglas(&[UNIDADE]),
+            falha_do_envio: None,
+            verificacao: Box::new(V::SituacaoNaoLida(
+                MotivoAbertoEm::RaizPublicaOSobrestamento
+            )),
+        })
+    );
+}
+
+#[test]
+fn falha_no_get_da_funcao_nao_repete_e_reconcilia() {
+    let amb = ambiente();
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &funcao())),
+        vec![
+            ok(tela_do_no(ID)),
+            Err(FalhaTransporte::Rede),
+            ok(arvore(&[], vazio())),
+        ],
+    );
+    let (r, feitos) = rodar(&amb, true, respostas);
+    assert_eq!(
+        r.unwrap().reconciliado_por,
+        Some(FalhaDoEnvio::Transporte(FalhaTransporte::Rede))
+    );
+    assert_eq!(feitos, pela_funcao_e_verificacao());
+}

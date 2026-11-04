@@ -330,6 +330,9 @@ mod acervo;
 // (docs/arquitetura/0002); `ies processo buscar` a usa pelo `fluxo`.
 pub(crate) mod formulario_pesquisa;
 
+// Pesquisa em documentos (`ies documento buscar`): linhas, 302 e resposta.
+pub(crate) mod documentos;
+
 // O 302 da pesquisa é interpretado pela própria operação, nunca seguido.
 pub(crate) mod redirecionamento;
 
@@ -341,6 +344,7 @@ pub(crate) mod paginacao;
 pub(crate) mod resposta;
 
 // Link do menu da pesquisa no Controle e o fluxo do comando.
+pub(crate) mod alvo;
 pub(crate) mod erro_busca;
 pub(crate) mod fluxo;
 pub(crate) mod link_da_pesquisa;

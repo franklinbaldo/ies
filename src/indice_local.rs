@@ -4,6 +4,7 @@
 //! - `instalacao`: a instalação aceita a entrada sem assinatura
 //!   `procedimento_trabalhar&id_procedimento=N`? (recusa expira em 30 dias);
 //! - `processo`: identidade durável NUP ↔ `id_procedimento`;
+//! - `documento`: número SEI ↔ (`id_procedimento`, `id_documento`);
 //! - `link_assinado`: URLs assinadas **literais**, válidas só na geração de
 //!   sessão (e unidade) em que foram vistas.
 //!
@@ -12,6 +13,7 @@
 //! Nenhuma requisição é feita para alimentá-lo e nenhuma transação atravessa
 //! HTTP: cada chamada abre, roda uma transação minúscula e fecha.
 mod abertura;
+mod documentos;
 mod entrada_por_id;
 mod identidade;
 mod links;
@@ -19,6 +21,8 @@ mod validacao;
 
 #[cfg(test)]
 pub(crate) mod tests;
+#[cfg(test)]
+mod tests_documentos;
 #[cfg(test)]
 mod tests_entrada;
 #[cfg(test)]
@@ -31,7 +35,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 // Lido por `ies processo NUP`; alimentado também pela colheita do Controle.
-pub(crate) use entrada_por_id::url_da_entrada_por_id;
+pub(crate) use documentos::DocumentoGuardado;
+pub(crate) use entrada_por_id::{url_da_entrada_por_id, url_da_entrada_por_id_com_documento};
 pub(crate) use links::{ChaveDoLink, unidade_dos_links};
 #[allow(unused_imports)]
 pub(crate) use validacao::{RegistroRecusado, UrlAssinada};
@@ -145,6 +150,21 @@ impl IndiceLocal {
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             Ok((processos, links))
+        })
+    }
+
+    /// A tabela `documento` inteira, ordenada: `(origem, número, processo,
+    /// documento)`.
+    #[cfg(test)]
+    pub(crate) fn documentos(&self) -> Vec<[String; 4]> {
+        self.executar(Vec::new(), |banco, _| {
+            let mut consulta = banco.prepare(
+                "SELECT origem, numero_sei, id_procedimento, id_documento FROM documento \
+                 ORDER BY origem, numero_sei",
+            )?;
+            consulta
+                .query_map([], |l| Ok([l.get(0)?, l.get(1)?, l.get(2)?, l.get(3)?]))?
+                .collect()
         })
     }
 

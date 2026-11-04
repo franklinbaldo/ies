@@ -32,6 +32,8 @@ pub(crate) enum ErroArvore {
     ProtocolosDeclaradosParaPastaAusente,
     PastaSemProtocolosDeclarados,
     BarraDeNoForaDaFormaObservada,
+    /// `Nos[i].src = …` fora de um literal de texto único (Refs #60).
+    SrcDeNoForaDaFormaObservada,
     IdentidadesDivergentesNaBarraDoDocumento,
     DocumentoDaPastaSemIdentidadeNaBarra,
     DocumentoDaPastaNaoDeclarado,
@@ -113,6 +115,7 @@ impl ErroArvore {
             }
             Self::PastaSemProtocolosDeclarados => "pasta_sem_protocolos_declarados",
             Self::BarraDeNoForaDaFormaObservada => "barra_de_no_fora_da_forma_observada",
+            Self::SrcDeNoForaDaFormaObservada => "src_de_no_fora_da_forma_observada",
             Self::IdentidadesDivergentesNaBarraDoDocumento => {
                 "identidades_divergentes_na_barra_do_documento"
             }

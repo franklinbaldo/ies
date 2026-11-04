@@ -13,6 +13,7 @@ mod tokenizador;
 pub(crate) use busca::{
     nos_com_id, nos_com_id_em, nos_por_elemento_e_classe,
     nos_por_elemento_e_classe_com_repeticao_identica,
+    nos_por_elemento_e_classe_em_todas_as_ocorrencias,
 };
 pub(crate) use tokenizador::tokenizar_tag_de_abertura;
 
@@ -118,6 +119,25 @@ impl<'a> AtributosDaTag<'a> {
             return Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: nome });
         }
         Ok(*primeiro)
+    }
+
+    /// `class` (talvez repetido) contém `classe`: falso se nenhuma ocorrência
+    /// a contém; erro se umas contêm e outras não.
+    pub(crate) fn tem_classe_em_todas_as_ocorrencias(
+        &self,
+        classe: &str,
+    ) -> Result<bool, ErroAtributoHtml> {
+        let contem: Vec<bool> = self
+            .pares
+            .iter()
+            .filter(|(chave, _)| *chave == "class")
+            .map(|(_, valor)| valor.is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe)))
+            .collect();
+        match (contem.iter().any(|c| *c), contem.iter().all(|c| *c)) {
+            (false, _) => Ok(false),
+            (true, true) => Ok(true),
+            (true, false) => Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }),
+        }
     }
 
     /// `tem_classe` sobre `valor_com_repeticao_identica("class")`.

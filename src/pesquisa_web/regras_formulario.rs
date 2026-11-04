@@ -28,6 +28,18 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     /// `maxlength` do termo servido fora de um inteiro decimal não negativo.
     MaxlengthDoTermoIlegivelNaTela,
     CamposDoTermoRepetidosNaTela,
+    /// Pesquisa em documentos: `#optDocumentos` como `#optProcessos`.
+    OpcaoDeDocumentosAusenteNaTela,
+    OpcoesDeDocumentosRepetidasNaTela,
+    OpcaoDeDocumentosSemValorNaTela,
+    OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
+    /// `chkSinDocumentosGerados`/`Recebidos`, que `onSubmitForm()` lê por id.
+    CaixaDeTipoDeDocumentoAusenteNaTela,
+    CaixasDeTipoDeDocumentoRepetidasNaTela,
+    CaixaDeTipoDeDocumentoSemValorNaTela,
+    /// Nenhuma das duas servida marcada: `onSubmitForm()` não envia.
+    NenhumTipoDeDocumentoMarcadoNaTela,
+    AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
     /// Tag de abertura que o tokenizador de atributos recusou.
     AtributoHtml(ErroAtributoHtml),
 }
@@ -66,15 +78,46 @@ impl ErroRegraDoFormularioDePesquisa {
             Self::TermoAcimaDoMaxlengthDaTela { .. } => "termo_acima_do_maxlength_da_tela",
             Self::MaxlengthDoTermoIlegivelNaTela => "maxlength_do_termo_ilegivel_na_tela",
             Self::CamposDoTermoRepetidosNaTela => "campos_do_termo_repetidos_na_tela",
+            Self::OpcaoDeDocumentosAusenteNaTela => "opcao_de_documentos_ausente_na_tela",
+            Self::OpcoesDeDocumentosRepetidasNaTela => "opcoes_de_documentos_repetidas_na_tela",
+            Self::OpcaoDeDocumentosSemValorNaTela => "opcao_de_documentos_sem_valor_na_tela",
+            Self::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm => {
+                "opcao_de_documentos_com_nome_diferente_de_rdo_pesquisar_em"
+            }
+            Self::CaixaDeTipoDeDocumentoAusenteNaTela => {
+                "caixa_de_tipo_de_documento_ausente_na_tela"
+            }
+            Self::CaixasDeTipoDeDocumentoRepetidasNaTela => {
+                "caixas_de_tipo_de_documento_repetidas_na_tela"
+            }
+            Self::CaixaDeTipoDeDocumentoSemValorNaTela => {
+                "caixa_de_tipo_de_documento_sem_valor_na_tela"
+            }
+            Self::NenhumTipoDeDocumentoMarcadoNaTela => "nenhum_tipo_de_documento_marcado_na_tela",
+            Self::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos => {
+                "assinante_oculto_preenchido_na_pesquisa_em_documentos"
+            }
             Self::AtributoHtml(falha) => falha.subcodigo(),
         }
     }
 }
 
+/// Onde pesquisar: o rádio `rdoPesquisarEm` que a operação marca.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PesquisarEm {
+    /// `#optProcessos` (`ies processo buscar`).
+    Processos,
+    /// `#optDocumentos` (`ies documento buscar`), com as caixas de tipo.
+    Documentos,
+}
+
 /// Valores que o `onsubmit` exige e que a operação lê da tela servida.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct RegrasDaTela {
-    pub(crate) opcao_de_processos: String,
+    /// Valor servido do rádio da opção pedida.
+    pub(crate) opcao: String,
+    /// Em documentos: as caixas de tipo servidas marcadas (nome, valor).
+    pub(crate) caixas_de_documento: Vec<(&'static str, String)>,
     pub(crate) orgaos_selecionados: Vec<String>,
     /// `maxlength` servido no campo do termo; `None` quando não publicado.
     pub(crate) maxlength_do_termo: Option<u32>,
@@ -95,34 +138,89 @@ fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
     tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
 }
 
-/// `onSubmitForm()` exige rádio marcado; `D` exigiria checkboxes que a
-/// derivação não envia, então a operação usa `#optProcessos` como servido.
-fn opcao_de_processos(tags: &[&tl::HTMLTag<'_>]) -> Result<String, E> {
+/// `onSubmitForm()` exige rádio marcado; com `P`, a operação usa
+/// `#optProcessos` como servido; com `D`, `#optDocumentos` (e as caixas).
+fn opcao(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<String, E> {
+    let (id, ausente, repetidas, sem_valor, outro_nome) = match em {
+        PesquisarEm::Processos => (
+            "optProcessos",
+            E::OpcaoDeProcessosAusenteNaTela,
+            E::OpcoesDeProcessosRepetidasNaTela,
+            E::OpcaoDeProcessosSemValorNaTela,
+            E::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
+        ),
+        PesquisarEm::Documentos => (
+            "optDocumentos",
+            E::OpcaoDeDocumentosAusenteNaTela,
+            E::OpcoesDeDocumentosRepetidasNaTela,
+            E::OpcaoDeDocumentosSemValorNaTela,
+            E::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
+        ),
+    };
     let mut achadas = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "input")) {
-        if atributo(tag, "id")?.as_deref() == Some("optProcessos") {
+        if atributo(tag, "id")?.as_deref() == Some(id) {
             achadas.push(*tag);
         }
     }
     let radio = match achadas.as_slice() {
-        [] => return Err(E::OpcaoDeProcessosAusenteNaTela),
+        [] => return Err(ausente),
         [radio] => *radio,
-        _ => return Err(E::OpcoesDeProcessosRepetidasNaTela),
+        _ => return Err(repetidas),
     };
     if atributo(radio, "name")?.as_deref() != Some("rdoPesquisarEm") {
-        return Err(E::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm);
+        return Err(outro_nome);
     }
-    atributo(radio, "value")?.ok_or(E::OpcaoDeProcessosSemValorNaTela)
+    atributo(radio, "value")?.ok_or(sem_valor)
 }
 
-/// Com `P`, `tratarCamposDocumento()` esvazia `hdnIdAssinante`; `navegar()`
-/// só reescreve `hdnInicio` na paginação. Ocultos saem como servidos.
-fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>]) -> Result<(), E> {
+/// Caixas que `onSubmitForm()` lê por id com `D`: cada uma servida uma vez,
+/// com `name` igual ao id; vão as marcadas, com o valor servido, como o
+/// navegador enviaria. Nenhuma marcada: `onSubmitForm()` recusaria.
+const CAIXAS_DE_DOCUMENTO: [&str; 2] = ["chkSinDocumentosGerados", "chkSinDocumentosRecebidos"];
+
+fn caixas_de_documento(tags: &[&tl::HTMLTag<'_>]) -> Result<Vec<(&'static str, String)>, E> {
+    let mut marcadas = Vec::new();
+    for caixa in CAIXAS_DE_DOCUMENTO {
+        let mut achadas = Vec::new();
+        for tag in tags.iter().filter(|t| eh(t, "input")) {
+            let id = atributo(tag, "id")?;
+            let nome = atributo(tag, "name")?;
+            if id.as_deref() == Some(caixa) || nome.as_deref() == Some(caixa) {
+                achadas.push((*tag, id, nome));
+            }
+        }
+        let (tag, id, nome) = match achadas.as_slice() {
+            [] => return Err(E::CaixaDeTipoDeDocumentoAusenteNaTela),
+            [achada] => achada,
+            _ => return Err(E::CaixasDeTipoDeDocumentoRepetidasNaTela),
+        };
+        if id.as_deref() != Some(caixa) || nome.as_deref() != Some(caixa) {
+            return Err(E::CaixaDeTipoDeDocumentoAusenteNaTela);
+        }
+        if presente(tag, "checked")? {
+            let valor = atributo(tag, "value")?.ok_or(E::CaixaDeTipoDeDocumentoSemValorNaTela)?;
+            marcadas.push((caixa, valor));
+        }
+    }
+    if marcadas.is_empty() {
+        return Err(E::NenhumTipoDeDocumentoMarcadoNaTela);
+    }
+    Ok(marcadas)
+}
+
+/// Com `P`, `tratarCamposDocumento()` esvazia `hdnIdAssinante`; com `D`, o
+/// servido preenchido filtraria em silêncio. `navegar()` só reescreve
+/// `hdnInicio` na paginação. Ocultos saem como servidos.
+fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<(), E> {
     for tag in tags.iter().filter(|t| eh(t, "input")) {
         let valor = || atributo(tag, "value").map(Option::unwrap_or_default);
         match atributo(tag, "name")?.as_deref() {
             Some("hdnIdAssinante") if !valor()?.is_empty() => {
-                return Err(E::AssinanteOcultoPreenchidoNaPesquisaEmProcessos);
+                return Err(match em {
+                    PesquisarEm::Processos => E::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
+                    PesquisarEm::Documentos => E::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
+                });
             }
             Some("hdnInicio") if valor()? != "0" => {
                 return Err(E::InicioDaPaginacaoDiferenteDeZeroNaTela);
@@ -226,6 +324,7 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<Option<u32>, E> {
 pub(crate) fn ler_regras_da_tela(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
+    em: PesquisarEm,
 ) -> Result<RegrasDaTela, ErroRegraDoFormularioDePesquisa> {
     let tags: Vec<_> = form
         .children()
@@ -233,12 +332,17 @@ pub(crate) fn ler_regras_da_tela(
         .iter()
         .filter_map(tl::Node::as_tag)
         .collect();
-    let opcao_de_processos = opcao_de_processos(&tags)?;
-    conferir_ocultos(&tags)?;
+    let opcao = opcao(&tags, em)?;
+    let caixas_de_documento = match em {
+        PesquisarEm::Processos => Vec::new(),
+        PesquisarEm::Documentos => caixas_de_documento(&tags)?,
+    };
+    conferir_ocultos(&tags, em)?;
     let orgaos_selecionados = orgaos_selecionados(&tags, parser)?;
     let maxlength_do_termo = maxlength_do_termo(&tags)?;
     Ok(RegrasDaTela {
-        opcao_de_processos,
+        opcao,
+        caixas_de_documento,
         orgaos_selecionados,
         maxlength_do_termo,
     })

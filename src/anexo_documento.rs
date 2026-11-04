@@ -1,0 +1,459 @@
+//! Leitura do arquivo de um documento externo (Refs #60, fatia 3;
+//! contracts/cli/documento-obter-externo.md): a resposta do GET binário de
+//! `documento_download_anexo` é conferida (status, cabeçalhos únicos, tipo
+//! na lista observada, `Content-Disposition`, limite) e o corpo é lido em
+//! blocos, com SHA-256, para um parcial 0600 em `--saida` ou só para o
+//! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
+use crate::documento_web::ErroCorpoDocumento;
+use crate::transporte::resposta_binaria::RespostaBinaria;
+use crate::transporte::resposta_http::falha_de_leitura;
+use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, recusar_status};
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+
+mod cabecalhos;
+
+/// Limite padrão do PDF: 64 MiB.
+pub(crate) const LIMITE_PADRAO: u64 = 64 * 1024 * 1024;
+/// Maior limite aceito em `IES_LIMITE_ANEXO_BYTES`: 2 GiB.
+pub(crate) const LIMITE_MAXIMO: u64 = 2 * 1024 * 1024 * 1024;
+pub(crate) const VARIAVEL_DO_LIMITE: &str = "IES_LIMITE_ANEXO_BYTES";
+
+/// Bytes aceitos no anexo binário (o texto fica também abaixo de 8 MB).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct LimiteDoAnexo(u64);
+
+impl LimiteDoAnexo {
+    /// De 1 a [`LIMITE_MAXIMO`].
+    pub(crate) fn novo(bytes: u64) -> Option<Self> {
+        (1..=LIMITE_MAXIMO).contains(&bytes).then_some(Self(bytes))
+    }
+
+    /// O valor de `IES_LIMITE_ANEXO_BYTES` (só dígitos), ou o padrão sem
+    /// ela; `None` é entrada inválida.
+    pub(crate) fn do_texto(texto: Option<&str>) -> Option<Self> {
+        let Some(texto) = texto else {
+            return Some(Self::default());
+        };
+        if texto.is_empty() || !texto.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        texto.parse().ok().and_then(Self::novo)
+    }
+
+    /// Lido do ambiente do processo.
+    pub(crate) fn do_ambiente() -> Option<Self> {
+        let valor = std::env::var_os(VARIAVEL_DO_LIMITE);
+        match valor {
+            None => Some(Self::default()),
+            Some(valor) => Self::do_texto(Some(valor.to_str()?)),
+        }
+    }
+
+    /// O limite do total em `chunked` pedido ao transporte.
+    pub(crate) fn para_o_transporte(self) -> usize {
+        usize::try_from(self.0).unwrap_or(usize::MAX)
+    }
+
+    pub(crate) fn bytes(self) -> u64 {
+        self.0
+    }
+}
+
+impl Default for LimiteDoAnexo {
+    fn default() -> Self {
+        Self(LIMITE_PADRAO)
+    }
+}
+
+/// Onde o corpo vai: só hash (e texto) ou um parcial no diretório.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum DestinoDoAnexo<'a> {
+    SoMetadados,
+    Diretorio(&'a Path),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Disposicao {
+    Inline,
+    Attachment,
+}
+
+impl Disposicao {
+    pub(crate) fn como_texto(self) -> &'static str {
+        match self {
+            Self::Inline => "inline",
+            Self::Attachment => "attachment",
+        }
+    }
+}
+
+/// O arquivo lido.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct AnexoLido {
+    /// Tipo principal, em minúsculas.
+    pub(crate) mime: String,
+    pub(crate) tamanho: u64,
+    pub(crate) sha256: String,
+    pub(crate) nome_original: Option<String>,
+    pub(crate) disposicao: Option<Disposicao>,
+    /// Só tipos de texto, sem `--saida`.
+    pub(crate) texto: Option<String>,
+    /// Com `--saida`: o parcial ainda não ligado ao nome final.
+    pub(crate) arquivo: Option<ArquivoParcial>,
+}
+
+/// `DIR/.DOC.ext.parcial-PID`, removido no `Drop` se não for concluído.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ArquivoParcial {
+    parcial: PathBuf,
+    destino: PathBuf,
+    nome: String,
+}
+
+impl ArquivoParcial {
+    /// `DOC.ext`.
+    pub(crate) fn nome(&self) -> &str {
+        &self.nome
+    }
+
+    /// Liga o parcial a `DOC.ext` sem sobrescrever (`hard_link` falha se
+    /// o destino existe) e remove o parcial (no `Drop`).
+    pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
+        std::fs::hard_link(&self.parcial, &self.destino).map_err(|erro| {
+            if erro.kind() == std::io::ErrorKind::AlreadyExists {
+                ErroAnexo::ArquivoJaExiste
+            } else {
+                ErroAnexo::EscritaFalhou
+            }
+        })
+    }
+}
+
+impl Drop for ArquivoParcial {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.parcial);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ErroAnexo {
+    /// Status, rede, limite de `chunked`, charset.
+    Transporte(FalhaTransporte),
+    /// HTML 200 que é a tela de login.
+    TelaDeLogin,
+    SemTipoDeConteudo,
+    TipoNaoPermitido,
+    CabecalhoRepetido,
+    DisposicaoForaDaFormaObservada,
+    AcimaDoLimite,
+    Vazio,
+    /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
+    RecusadoPeloSei(StatusHttpRecusado),
+    /// O texto visível do HTML recebido.
+    Corpo(ErroCorpoDocumento),
+    DiretorioAusente,
+    DiretorioLinkSimbolico,
+    ArquivoJaExiste,
+    EscritaFalhou,
+}
+
+impl ErroAnexo {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Transporte(falha) => falha.subcodigo(),
+            Self::TelaDeLogin => "sessao_encerrada_rode_ies_login",
+            Self::SemTipoDeConteudo => "anexo_sem_tipo_de_conteudo",
+            Self::TipoNaoPermitido => "tipo_de_anexo_nao_permitido",
+            Self::CabecalhoRepetido => "cabecalho_do_anexo_repetido",
+            Self::DisposicaoForaDaFormaObservada => "disposicao_do_anexo_fora_da_forma_observada",
+            Self::AcimaDoLimite => "anexo_acima_do_limite",
+            Self::Vazio => "anexo_vazio",
+            Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
+            Self::Corpo(erro) => erro.subcodigo(),
+            Self::DiretorioAusente => "diretorio_do_anexo_ausente",
+            Self::DiretorioLinkSimbolico => "diretorio_do_anexo_link_simbolico",
+            Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
+            Self::EscritaFalhou => "escrita_do_anexo_falhou",
+        }
+    }
+
+    pub(crate) fn mensagem(&self) -> &'static str {
+        match self {
+            Self::Transporte(falha) => falha.mensagem(),
+            Self::TelaDeLogin => "a sessão foi encerrada; rode ies login",
+            Self::SemTipoDeConteudo => "o anexo veio sem Content-Type",
+            Self::TipoNaoPermitido => "o tipo do anexo não está na lista observada",
+            Self::CabecalhoRepetido => "cabeçalho do anexo repetido",
+            Self::DisposicaoForaDaFormaObservada => {
+                "o Content-Disposition do anexo não tem a forma observada"
+            }
+            Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
+            Self::Vazio => "o anexo veio vazio",
+            Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
+            Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
+            Self::DiretorioAusente => "o diretório de --saida não existe",
+            Self::DiretorioLinkSimbolico => "o diretório de --saida passa por link simbólico",
+            Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
+            Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
+        }
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            Self::RecusadoPeloSei(status) => Some(status),
+            _ => None,
+        }
+    }
+}
+
+/// Lê a resposta de `documento_download_anexo` do documento `numero`.
+/// 3xx não chega aqui: quem chama o trata como no resto do fluxo.
+pub(crate) fn ler_anexo<R: Read>(
+    resposta: RespostaBinaria<R>,
+    numero: &str,
+    limite: LimiteDoAnexo,
+    destino: DestinoDoAnexo<'_>,
+) -> Result<AnexoLido, ErroAnexo> {
+    if resposta.status != 200 {
+        // As mesmas recusas de status do transporte (corpo até 64 KiB).
+        let mime = resposta
+            .valores("content-type")
+            .first()
+            .map_or_else(String::new, |v| (*v).to_owned());
+        return Err(ErroAnexo::Transporte(recusar_status(RespostaWeb {
+            status_code: i32::from(resposta.status),
+            mime,
+            content_length: None,
+            corpo: resposta.corpo,
+        })));
+    }
+    let conferido = conferir(&resposta, limite)?;
+    let RespostaBinaria { corpo, .. } = resposta;
+    let mut arquivo = match destino {
+        DestinoDoAnexo::SoMetadados => None,
+        DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, conferido.extensao)?),
+    };
+    let texto = cabecalhos::e_texto(&conferido.mime);
+    let mut guardado = Vec::new();
+    let mut hasher = Sha256::new();
+    let mut tamanho = 0u64;
+    let mut leitor = corpo.take(conferido.limite.saturating_add(1));
+    let mut bloco = vec![0u8; BLOCO];
+    loop {
+        let lido = match leitor.read(&mut bloco) {
+            Ok(0) => break,
+            Ok(lido) => lido,
+            Err(erro) if erro.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(erro) => {
+                return Err(match falha_de_leitura(&erro) {
+                    FalhaTransporte::RespostaExcessiva => ErroAnexo::AcimaDoLimite,
+                    falha => ErroAnexo::Transporte(falha),
+                });
+            }
+        };
+        tamanho += lido as u64;
+        if tamanho > conferido.limite {
+            return Err(ErroAnexo::AcimaDoLimite);
+        }
+        hasher.update(&bloco[..lido]);
+        if let Some((_, aberto)) = &mut arquivo {
+            aberto
+                .write_all(&bloco[..lido])
+                .map_err(|_| ErroAnexo::EscritaFalhou)?;
+        }
+        if texto {
+            guardado.extend_from_slice(&bloco[..lido]);
+        }
+    }
+    if tamanho == 0 {
+        return Err(ErroAnexo::Vazio);
+    }
+    if conferido.mime == "text/html" {
+        conferir_html(&guardado, &conferido.valor_do_tipo)?;
+    }
+    let arquivo = match arquivo {
+        Some((parcial, aberto)) => {
+            aberto.sync_all().map_err(|_| ErroAnexo::EscritaFalhou)?;
+            Some(parcial)
+        }
+        None => None,
+    };
+    let texto = if texto && arquivo.is_none() {
+        Some(texto_do_anexo(
+            &conferido.mime,
+            &guardado,
+            &conferido.valor_do_tipo,
+        )?)
+    } else {
+        None
+    };
+    Ok(AnexoLido {
+        mime: conferido.mime,
+        tamanho,
+        sha256: format!("{:x}", hasher.finalize()),
+        nome_original: conferido.nome_original,
+        disposicao: conferido.disposicao,
+        texto,
+        arquivo,
+    })
+}
+
+/// Bloco de leitura e gravação.
+const BLOCO: usize = 64 * 1024;
+
+/// O que os cabeçalhos decidem antes de qualquer byte do corpo.
+struct Conferido {
+    mime: String,
+    valor_do_tipo: String,
+    extensao: &'static str,
+    nome_original: Option<String>,
+    disposicao: Option<Disposicao>,
+    limite: u64,
+}
+
+fn unico<'a, R>(
+    resposta: &'a RespostaBinaria<R>,
+    nome: &str,
+) -> Result<Option<&'a str>, ErroAnexo> {
+    match resposta.valores(nome).as_slice() {
+        [] => Ok(None),
+        [um] => Ok(Some(um)),
+        _ => Err(ErroAnexo::CabecalhoRepetido),
+    }
+}
+
+fn conferir<R: Read>(
+    resposta: &RespostaBinaria<R>,
+    limite: LimiteDoAnexo,
+) -> Result<Conferido, ErroAnexo> {
+    let tipo = unico(resposta, "content-type")?;
+    let tamanho = unico(resposta, "content-length")?;
+    let disposicao = unico(resposta, "content-disposition")?;
+    let valor_do_tipo = tipo.unwrap_or_default().to_owned();
+    let mime = cabecalhos::tipo_principal(&valor_do_tipo).ok_or(ErroAnexo::SemTipoDeConteudo)?;
+    let extensao = cabecalhos::extensao(&mime).ok_or(ErroAnexo::TipoNaoPermitido)?;
+    let (disposicao, nome_original) = match disposicao {
+        Some(valor) => {
+            let (d, nome) = cabecalhos::ler_disposicao(valor)
+                .map_err(|()| ErroAnexo::DisposicaoForaDaFormaObservada)?;
+            (Some(d), nome)
+        }
+        None => (None, None),
+    };
+    let limite = if cabecalhos::e_texto(&mime) {
+        limite.bytes().min(crate::MAX_HTML_BYTES as u64)
+    } else {
+        limite.bytes()
+    };
+    if let Some(declarado) = tamanho.and_then(|t| t.trim().parse::<u64>().ok())
+        && declarado > limite
+    {
+        return Err(ErroAnexo::AcimaDoLimite);
+    }
+    Ok(Conferido {
+        mime,
+        valor_do_tipo,
+        extensao,
+        nome_original,
+        disposicao,
+        limite,
+    })
+}
+/// Cria `DIR/.DOC.ext.parcial-PID` (0600, novo) depois de conferir o
+/// diretório e que `DOC.ext` ainda não existe.
+fn abrir_parcial(
+    dir: &Path,
+    numero: &str,
+    extensao: &str,
+) -> Result<(ArquivoParcial, File), ErroAnexo> {
+    use crate::arquivo_texto_documento::{ErroArquivoTexto, conferir_diretorios};
+    let nome = format!("{numero}.{extensao}");
+    let destino = dir.join(&nome);
+    if !dir.is_dir() {
+        return Err(ErroAnexo::DiretorioAusente);
+    }
+    conferir_diretorios(&destino).map_err(|erro| match erro {
+        ErroArquivoTexto::DiretorioLinkSimbolico => ErroAnexo::DiretorioLinkSimbolico,
+        _ => ErroAnexo::DiretorioAusente,
+    })?;
+    if std::fs::symlink_metadata(&destino).is_ok() {
+        return Err(ErroAnexo::ArquivoJaExiste);
+    }
+    let parcial = dir.join(format!(".{nome}.parcial-{}", std::process::id()));
+    let mut opcoes = std::fs::OpenOptions::new();
+    opcoes.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opcoes.mode(0o600);
+    }
+    let aberto = opcoes
+        .open(&parcial)
+        .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    Ok((
+        ArquivoParcial {
+            parcial,
+            destino,
+            nome,
+        },
+        aberto,
+    ))
+}
+
+/// HTML que é a tela de login ou a exceção do SEI não é o arquivo. A
+/// decodificação aqui é tolerante: só serve para reconhecer a tela.
+fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
+    use crate::transporte::corpo_de_recusa::decodificar;
+    use crate::transporte::texto_de_recusa::{e_excecao_do_sei, texto_do_html};
+    let html = decodificar(bytes, tipo);
+    if crate::tela_login::e_tela_login(&html) {
+        return Err(ErroAnexo::TelaDeLogin);
+    }
+    if e_excecao_do_sei(&html) {
+        let mensagem = texto_do_html(&html).and_then(|t| crate::transporte::saneamento::sanear(&t));
+        return Err(ErroAnexo::RecusadoPeloSei(StatusHttpRecusado {
+            status: 200,
+            mensagem_do_servidor: mensagem,
+        }));
+    }
+    Ok(())
+}
+
+/// O texto publicado: `text/plain` no charset declarado (ISO-8859-1) ou
+/// UTF-8 estrito, `\r\n` → `\n` e outros controles (fora `\n`, `\t`)
+/// → `�`; `text/html` pelo texto visível do corpo.
+fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAnexo> {
+    let declarado = tipo.to_ascii_lowercase();
+    let latin1 = ["8859-1", "latin1", "latin-1", "windows-1252", "cp1252"]
+        .iter()
+        .any(|nome| declarado.contains(nome));
+    let texto = if latin1 {
+        bytes.iter().copied().map(char::from).collect()
+    } else {
+        String::from_utf8(bytes.to_vec()).map_err(|_| {
+            ErroAnexo::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        })?
+    };
+    if mime == "text/html" {
+        return crate::documento_web::texto_do_corpo(&texto).map_err(ErroAnexo::Corpo);
+    }
+    Ok(texto
+        .replace("\r\n", "\n")
+        .chars()
+        .map(|c| {
+            if c.is_control() && c != '\n' && c != '\t' {
+                '\u{fffd}'
+            } else {
+                c
+            }
+        })
+        .collect())
+}
+
+#[cfg(test)]
+#[path = "anexo_documento/tests.rs"]
+mod tests;

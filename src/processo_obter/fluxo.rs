@@ -11,7 +11,9 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
+use crate::arvore_processo::{
+    ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroTelaDoProcesso, ler_tela_do_processo,
+};
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
@@ -20,9 +22,9 @@ use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id}
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::pesquisa_web::fluxo::{SessaoDaBusca, ler_controle};
+use crate::pesquisa_web::fluxo::{ControleLido, SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
-    ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, conferir_trabalho,
+    ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
 
@@ -35,6 +37,20 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoAberto, E> {
+    abrir_para_concluir(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
+}
+
+/// A ação de concluir lida na barra da árvore aberta.
+pub(crate) type ConcluirLido = Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>;
+
+/// Como [`obter_processo`], devolvendo também a ação de concluir da barra
+/// da árvore lida (contracts/cli/processo-concluir.md).
+pub(crate) fn abrir_para_concluir<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoProcesso<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<(ProcessoAberto, ConcluirLido), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
     let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(E::Transporte)?;
@@ -48,53 +64,15 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
         cookie_file: sessao.cookie_file,
+        documento_procurado: None,
     };
     let mut rede = Rede {
         envio,
         cookie,
         requisicoes: 0,
     };
-    let aberto = match link_da_arvore(&contexto, &mut rede)? {
-        Some(aberto) => aberto,
-        None => match link_de_trabalho(&contexto, &mut rede)? {
-            Some(aberto) => aberto,
-            None => match entrada_por_id(&contexto, &mut rede)? {
-                Some(aberto) => aberto,
-                None => match pesquisa_guardada(&contexto, sessao, &mut rede)? {
-                    Some(aberto) => aberto,
-                    None => pelo_controle(&contexto, sessao, &mut rede)?,
-                },
-            },
-        },
-    };
-    let (arvore_lida, unidade, resolvido_por) = aberto;
-    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
-    for anexado in &arvore_lida.arvore.anexados {
-        let _ = indice.registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
-    }
-    // Aberto um anexado: o pai e o link dele, para o passo 1b.
-    if let Some(pai) = &arvore_lida.arvore.anexado_a {
-        let _ = indice.registrar_processo(&contexto.instalacao, &pai.numero, &pai.id_procedimento);
-        contexto.aprender_link(
-            "procedimento_trabalhar",
-            &pai.id_procedimento,
-            pai.trabalhar.as_str(),
-        );
-    }
-    // Cada movido com destino conferido: o par e o link assinado do destino.
-    let destinos = arvore_lida.arvore.documentos_movidos.iter();
-    for destino in destinos.filter_map(|m| m.destino.as_ref()) {
-        let _ = indice.registrar_processo(
-            &contexto.instalacao,
-            &destino.numero,
-            &destino.id_procedimento,
-        );
-        contexto.aprender_link(
-            "procedimento_trabalhar",
-            &destino.id_procedimento,
-            destino.trabalhar.as_str(),
-        );
-    }
+    let (arvore_lida, unidade, resolvido_por) =
+        abrir_processo(&contexto, sessao, &mut rede, pedido.unidade_exigida)?;
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,
@@ -119,7 +97,7 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         pedido.marcadores,
         resolvido_por == ResolvidoPor::IndiceLink,
     )?;
-    Ok(ProcessoAberto {
+    let aberto = ProcessoAberto {
         arvore: arvore_lida.arvore,
         unidade,
         resolvido_por,
@@ -127,13 +105,84 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         propriedades,
         marcadores,
         requisicoes: rede.requisicoes,
-    })
+    };
+    Ok((aberto, arvore_lida.concluir))
+}
+
+/// A cadeia de passos até a árvore conferida (com as pastas), e o que ela
+/// ensina ao índice sem requisição: anexados, pai, movidos e documentos.
+/// Também a abertura de `documento DOC --processo NUP`. Com
+/// `unidade_exigida` (`processo concluir`), o passo 1 é pulado: o link
+/// guardado da árvore não publica a unidade.
+pub(super) fn abrir_processo<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+    unidade_exigida: bool,
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+    let primeiro = if unidade_exigida {
+        None
+    } else {
+        link_da_arvore(contexto, rede)?
+    };
+    let aberto = match primeiro {
+        Some(aberto) => aberto,
+        None => match link_de_trabalho(contexto, rede)? {
+            Some(aberto) => aberto,
+            None => match entrada_por_id(contexto, rede)? {
+                Some(aberto) => aberto,
+                None => match pesquisa_guardada(contexto, sessao, rede)? {
+                    Some(aberto) => aberto,
+                    None => pelo_controle(contexto, sessao, rede)?,
+                },
+            },
+        },
+    };
+    let (arvore_lida, unidade, resolvido_por) = aberto;
+    // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
+    for anexado in &arvore_lida.arvore.anexados {
+        let _ = contexto
+            .indice
+            .registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
+    }
+    // Aberto um anexado: o pai e o link dele, para o passo 1b.
+    if let Some(pai) = &arvore_lida.arvore.anexado_a {
+        let _ = contexto.indice.registrar_processo(
+            &contexto.instalacao,
+            &pai.numero,
+            &pai.id_procedimento,
+        );
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &pai.id_procedimento,
+            pai.trabalhar.as_str(),
+        );
+    }
+    // Cada movido com destino conferido: o par e o link assinado do destino.
+    let destinos = arvore_lida.arvore.documentos_movidos.iter();
+    for destino in destinos.filter_map(|m| m.destino.as_ref()) {
+        let _ = contexto.indice.registrar_processo(
+            &contexto.instalacao,
+            &destino.numero,
+            &destino.id_procedimento,
+        );
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &destino.id_procedimento,
+            destino.trabalhar.as_str(),
+        );
+    }
+    contexto.aprender_documentos(&arvore_lida.arvore);
+    Ok((arvore_lida, unidade, resolvido_por))
 }
 
 /// Passo 1, link guardado nesta geração e unidade: o de "Abrir todas as
 /// Pastas", se houver, e senão o da árvore; um GET. A árvore não publica a
 /// unidade; com `--unidade` o passo é pulado.
-fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+pub(super) fn link_da_arvore<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Passo {
     const ACAO: &str = "procedimento_visualizar";
     if contexto.unidade_pedida.is_some() {
         return Ok(None);
@@ -175,7 +224,10 @@ fn link_da_arvore<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
 /// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
 /// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
 /// GET da tela do processo e GET da árvore.
-fn link_de_trabalho<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'_, V>) -> Passo {
+pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Passo {
     const ACAO: &str = "procedimento_trabalhar";
     let instalacao = &contexto.instalacao;
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
@@ -280,6 +332,25 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
+    let Some(redirecionado) = pesquisar_pela_guardada(contexto, sessao, rede, contexto.nup)? else {
+        return Ok(None);
+    };
+    let (arvore, unidade) = rede.abrir(
+        contexto,
+        redirecionado.trabalho.as_str(),
+        redirecionado.id.as_str(),
+    )?;
+    Ok(Some((arvore, Some(unidade), ResolvidoPor::PesquisaRapida)))
+}
+
+/// POST de `valor` (NUP ou número SEI) ao `action` da pesquisa rápida
+/// guardado; `Ok(None)`: não há guardado ou ele envelheceu (esquecido).
+pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+    valor: &str,
+) -> Result<Option<ProcessoRedirecionado>, E> {
     let acao = PESQUISA_RAPIDA.acao;
     let Some(link) = contexto
         .chave(acao, "")
@@ -292,10 +363,10 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
         &contexto.instalacao,
         link.url(),
         sessao.url_do_controle,
-        &[(CAMPO, contexto.nup)],
+        &[(CAMPO, valor)],
     ) {
         Ok(submissao) => submissao,
-        // NUP fora do ASCII: o charset da tela não foi guardado.
+        // Valor fora do ASCII: o charset da tela não foi guardado.
         Err(ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }) => return Ok(None),
         Err(_) => {
             contexto.esquecer_link(acao, "");
@@ -306,12 +377,7 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
         contexto.esquecer_link(acao, "");
         return Ok(None);
     };
-    let (arvore, unidade) = rede.abrir(
-        contexto,
-        redirecionado.trabalho.as_str(),
-        redirecionado.id.as_str(),
-    )?;
-    Ok(Some((arvore, Some(unidade), ResolvidoPor::PesquisaRapida)))
+    Ok(Some(redirecionado))
 }
 
 /// Passo 4, GET do Controle: (a) a linha do NUP exato; (b) senão, a pesquisa
@@ -321,29 +387,8 @@ fn pelo_controle<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
-    let busca = SessaoDaBusca {
-        url_do_controle: sessao.url_do_controle,
-        origem: sessao.origem,
-        cookie_file: sessao.cookie_file,
-    };
-    rede.requisicoes = rede.requisicoes.saturating_add(1);
-    let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
-        |erro| match erro {
-            ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
-                E::SessaoEncerrada
-            }
-            outro => E::Controle(outro),
-        },
-    )?;
+    let controle = ler_controle_colhido(contexto, sessao, rede)?;
     let tela = &controle.tela;
-    // Linhas, link da pesquisa e `action` da pesquisa rápida, sem requisição.
-    Colheita::com_geracao(
-        contexto.indice,
-        &contexto.instalacao,
-        &contexto.geracao,
-        sessao.url_do_controle,
-    )
-    .colher(&tela.html, Some(&tela.mime));
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
@@ -360,6 +405,54 @@ fn pelo_controle<V: EnvioDoProcesso>(
             })?;
         return Ok((arvore, Some(unidade), ResolvidoPor::Caixa));
     }
+    let redirecionado = pesquisar_no_controle(contexto, &controle, rede, contexto.nup)?;
+    let (arvore, unidade) = rede.abrir(
+        contexto,
+        redirecionado.trabalho.as_str(),
+        redirecionado.id.as_str(),
+    )?;
+    Ok((arvore, Some(unidade), ResolvidoPor::PesquisaRapida))
+}
+
+/// GET do Controle; linhas, link da pesquisa e `action` da pesquisa rápida
+/// colhidos no índice, sem requisição.
+pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Result<ControleLido, E> {
+    let busca = SessaoDaBusca {
+        url_do_controle: sessao.url_do_controle,
+        origem: sessao.origem,
+        cookie_file: sessao.cookie_file,
+    };
+    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
+        |erro| match erro {
+            ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
+                E::SessaoEncerrada
+            }
+            outro => E::Controle(outro),
+        },
+    )?;
+    Colheita::com_geracao(
+        contexto.indice,
+        &contexto.instalacao,
+        &contexto.geracao,
+        sessao.url_do_controle,
+    )
+    .colher(&controle.tela.html, Some(&controle.tela.mime));
+    Ok(controle)
+}
+
+/// POST de `valor` pelo formulário rápido servido no Controle lido.
+pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    controle: &ControleLido,
+    rede: &mut Rede<'_, V>,
+    valor: &str,
+) -> Result<ProcessoRedirecionado, E> {
+    let tela = &controle.tela;
     let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
@@ -371,16 +464,9 @@ fn pelo_controle<V: EnvioDoProcesso>(
         &contexto.instalacao,
         &servida,
         &controle.unidade,
-        &[(CAMPO, contexto.nup)],
+        &[(CAMPO, valor)],
     )
     .map_err(E::Formulario)?;
-    let redirecionado = rede
-        .pesquisar(contexto, submissao)?
-        .ok_or(E::SessaoEncerrada)?;
-    let (arvore, unidade) = rede.abrir(
-        contexto,
-        redirecionado.trabalho.as_str(),
-        redirecionado.id.as_str(),
-    )?;
-    Ok((arvore, Some(unidade), ResolvidoPor::PesquisaRapida))
+    rede.pesquisar(contexto, submissao)?
+        .ok_or(E::SessaoEncerrada)
 }

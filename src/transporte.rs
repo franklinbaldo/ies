@@ -325,6 +325,9 @@ pub(crate) mod cliente_https;
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;
 
+#[path = "transporte/resposta_binaria.rs"]
+pub(crate) mod resposta_binaria;
+
 #[cfg(test)]
 #[path = "transporte/tests.rs"]
 mod tests;

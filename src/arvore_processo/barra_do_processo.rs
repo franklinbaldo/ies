@@ -85,7 +85,7 @@ pub(crate) fn ler_link_dos_marcadores(
 }
 
 /// Barra fora da forma observada, ou duas barras para o nó `PROCESSO`.
-enum FalhaDaBarra {
+pub(super) enum FalhaDaBarra {
     Fora,
     Repetidas,
 }
@@ -93,26 +93,49 @@ enum FalhaDaBarra {
 /// Os `href` (entidades decodificadas) das tags `<a>` da barra do nó
 /// `PROCESSO`, na ordem servida; sem barra, nenhum.
 fn hrefs_da_barra(html: &str) -> Result<Vec<String>, FalhaDaBarra> {
+    Ok(ancoras_da_barra(html)?
+        .into_iter()
+        .filter_map(|a| a.href)
+        .collect())
+}
+
+/// Uma `<a>` da barra: `href` e `onclick`, entidades decodificadas.
+pub(super) struct AncoraDaBarra {
+    pub(super) href: Option<String>,
+    pub(super) onclick: Option<String>,
+}
+
+/// As tags `<a>` da barra do nó `PROCESSO`, na ordem servida; sem barra,
+/// nenhuma.
+pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, FalhaDaBarra> {
     let Some(texto) = barra_da_raiz(html)? else {
         return Ok(Vec::new());
     };
     let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| FalhaDaBarra::Fora)?;
     let parser = dom.parser();
-    let mut hrefs = Vec::new();
+    let mut ancoras = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
         let lidos = atributos(tag).map_err(|_| FalhaDaBarra::Fora)?;
-        let Some(bruto) = lidos.valor("href").map_err(|_| FalhaDaBarra::Fora)? else {
-            continue;
+        let decodificado = |nome: &'static str| -> Result<Option<String>, FalhaDaBarra> {
+            match lidos.valor(nome).map_err(|_| FalhaDaBarra::Fora)? {
+                None => Ok(None),
+                Some(bruto) => decodificar_atributo(bruto)
+                    .map(Some)
+                    .ok_or(FalhaDaBarra::Fora),
+            }
         };
-        hrefs.push(decodificar_atributo(bruto).ok_or(FalhaDaBarra::Fora)?);
+        ancoras.push(AncoraDaBarra {
+            href: decodificado("href")?,
+            onclick: decodificado("onclick")?,
+        });
     }
-    Ok(hrefs)
+    Ok(ancoras)
 }
 /// O primeiro `acao=` da consulta do `href` (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<&str> {
+pub(super) fn acao_do_href(href: &str) -> Option<&str> {
     let (_, consulta) = href.split_once('?')?;
     consulta
         .split('&')

@@ -23,7 +23,7 @@ impl ErroArquivoTexto {
 }
 /// Rejeita atalhos de diretório em qualquer ancestral conhecido do destino.
 /// Não estabelece exclusividade contra alterações concorrentes do caminho.
-fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
+pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
     let pai = destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?;
     for ancestral in pai.ancestors() {
         if ancestral.as_os_str().is_empty() {
