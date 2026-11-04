@@ -408,16 +408,16 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
     };
-    let lidos = transporte::arquivo_privado(&arquivos.url_controle, 8_192).and_then(|url| {
-        transporte::arquivo_privado(&arquivos.origem, 512).map(|origem| (url, origem))
-    });
-    let (url, origem) = match lidos {
-        Ok(lidos) => lidos,
+    let referencias = match transporte::sessao::ReferenciasDaSessao::ler(
+        &arquivos.url_controle,
+        &arquivos.origem,
+    ) {
+        Ok(referencias) => referencias,
         Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
     };
     let sessao = SessaoDoProcesso {
-        url_do_controle: url.trim(),
-        origem: origem.trim(),
+        url_do_controle: referencias.url_do_controle(),
+        origem: referencias.origem(),
         cookie_file: &arquivos.cookie,
     };
     let pedido = PedidoDoProcesso {
