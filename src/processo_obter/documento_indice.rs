@@ -11,9 +11,7 @@
 //!   árvore pelo número (a15), com as pastas abertas só se ele não estiver
 //!   à vista.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::documento::{
-    DocumentoObtido, ErroDocumentoObter as E, LeituraDoNo, NoLido, ler_do_no, localizar,
-};
+use super::documento::{ErroDocumentoObter as E, FimDaLeitura, NoLido, localizar};
 use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
@@ -27,12 +25,12 @@ use crate::transporte::StatusHttpRecusado;
 type Aberto = (ArvoreAberta, Option<String>, ResolvidoPor);
 
 /// `Ok(None)`: sem palpite no índice, ou palpite desmentido (esquecido).
-pub(super) fn pelo_indice<V: EnvioDoProcesso>(
+pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    leitura: LeituraDoNo<'_>,
-) -> Result<Option<DocumentoObtido>, E> {
+    leitura: F,
+) -> Result<Option<F::Saida>, E> {
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let Some(guardado) = indice.documento_por_numero(instalacao, numero) else {
         return Ok(None);
@@ -66,20 +64,19 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso>(
         processo: &arvore_aberta.arvore.processo,
         unidade,
         resolvido_por,
-        leitura,
     };
-    ler_do_no(instalacao, rede, lido, numero).map(Some)
+    leitura.concluir(instalacao, rede, lido, numero).map(Some)
 }
 
 /// `--processo NUP`: o processo pelo caminho mais barato de `processo NUP`
 /// e o único documento da árvore com o número pedido.
-pub(super) fn pelo_processo<V: EnvioDoProcesso>(
+pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    leitura: LeituraDoNo<'_>,
-) -> Result<DocumentoObtido, E> {
+    leitura: F,
+) -> Result<F::Saida, E> {
     let (aberta, unidade, resolvido_por) =
         abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
     let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
@@ -89,9 +86,8 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso>(
         processo: &aberta.arvore.processo,
         unidade,
         resolvido_por,
-        leitura,
     };
-    ler_do_no(&contexto.instalacao, rede, lido, numero)
+    leitura.concluir(&contexto.instalacao, rede, lido, numero)
 }
 
 /// A entrada sem assinatura com documento (ADR 0003, lista branca): 302
