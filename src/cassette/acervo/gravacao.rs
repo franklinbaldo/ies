@@ -81,3 +81,25 @@ pub(crate) fn localizacao(item: &Value) -> Option<&str> {
         .find(|(nome, _)| nome.eq_ignore_ascii_case("location"))
         .and_then(|(_, valor)| valor.as_str())
 }
+
+/// O corpo gravado (base64), vazio se ausente ou ilegível.
+pub(crate) fn corpo(item: &Value) -> Vec<u8> {
+    use base64::Engine as _;
+    item["response"]["body_base64"]
+        .as_str()
+        .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
+        .unwrap_or_default()
+}
+
+/// O `Content-Type` gravado, vazio se ausente.
+pub(crate) fn mime(item: &Value) -> String {
+    item["response"]["headers"]
+        .as_object()
+        .and_then(|h| {
+            h.iter()
+                .find(|(nome, _)| nome.eq_ignore_ascii_case("content-type"))
+                .and_then(|(_, v)| v.as_str())
+        })
+        .unwrap_or("")
+        .to_owned()
+}

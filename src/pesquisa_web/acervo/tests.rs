@@ -30,7 +30,13 @@ fn do_controle() -> Value {
 }
 
 fn da_tela() -> Value {
-    passo("protocolo_pesquisar", "GET", 200, &url_da_tela(), &tela_de_pesquisa())
+    passo(
+        "protocolo_pesquisar",
+        "GET",
+        200,
+        &url_da_tela(),
+        &tela_de_pesquisa(),
+    )
 }
 
 fn do_envio(html: &str) -> Value {
@@ -66,7 +72,7 @@ fn controle_tela_e_302_sao_lidos_pelas_pecas_do_comando() {
         de(&r, Leitor::Envio),
         [(Resultado::Lido, Some("processo_unico"))]
     );
-    assert!(de(&r, Leitor::PlanoDaPagina).is_empty());
+    assert_eq!(de(&r, Leitor::PlanoDaPagina).len(), 0);
 }
 
 #[test]
@@ -103,7 +109,7 @@ fn sem_resultado_e_lido_como_resposta_observada() {
         de(&r, Leitor::Envio),
         [(Resultado::Lido, Some("sem_resultado"))]
     );
-    assert!(de(&r, Leitor::PlanoDaPagina).is_empty());
+    assert_eq!(de(&r, Leitor::PlanoDaPagina).len(), 0);
 }
 
 #[test]
@@ -135,7 +141,10 @@ fn controle_sem_menu_da_pesquisa_e_recusado() {
     let r = cassette(&[sem_menu, da_tela()]);
     assert_eq!(
         de(&r, Leitor::Controle),
-        [(Resultado::Recusado("link_da_pesquisa_ausente_no_controle"), None)]
+        [(
+            Resultado::Recusado("link_da_pesquisa_ausente_no_controle"),
+            None
+        )]
     );
     // Sem Controle lido, a unidade que a tela confere não foi gravada.
     assert_eq!(
@@ -194,7 +203,7 @@ fn sem_resultado_da_pesquisa_em_documentos_e_lido_pelo_aviso() {
 }
 
 #[test]
-fn post_depois_de_uma_lista_e_de_pagina_sem_pedido_gravado() {
+fn post_da_tela_de_resultado_nao_tem_corpo_gravado() {
     let r = cassette(&[
         do_controle(),
         da_tela(),
@@ -203,9 +212,9 @@ fn post_depois_de_uma_lista_e_de_pagina_sem_pedido_gravado() {
     ]);
     assert_eq!(de(&r, Leitor::Envio).len(), 1);
     assert_eq!(
-        de(&r, Leitor::PostDePagina),
+        de(&r, Leitor::PostDaTelaDeResultado),
         [(
-            Resultado::NaoAplicavel("pagina_solicitada_nao_gravada_no_post"),
+            Resultado::NaoAplicavel("post_da_tela_de_resultado_sem_corpo_gravado"),
             None
         )]
     );

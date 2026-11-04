@@ -24,7 +24,7 @@ pub(super) enum Leitor {
     Tela,
     Envio,
     PlanoDaPagina,
-    PostDePagina,
+    PostDaTelaDeResultado,
 }
 
 impl Leitor {
@@ -34,7 +34,7 @@ impl Leitor {
             Self::Tela => "tela da pesquisa (POST derivado)",
             Self::Envio => "resposta do envio",
             Self::PlanoDaPagina => "plano da página 2",
-            Self::PostDePagina => "POST de página",
+            Self::PostDaTelaDeResultado => "POST da tela de resultado",
         }
     }
 }
