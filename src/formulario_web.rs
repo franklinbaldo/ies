@@ -10,10 +10,7 @@ mod login;
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{
-    FalhaTransporte, RespostaWeb, StatusHttpRecusado, arquivo_privado, decodificar_resposta,
-    validar_cookie,
-};
+use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
@@ -413,9 +410,9 @@ where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     use ErroSubmissaoFormulario as E;
-    let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie).map_err(E::Transporte)?;
+    let cookie_lido =
+        crate::transporte::sessao::cookie_privado_validado(cookie_file).map_err(E::Transporte)?;
+    let cookie = cookie_lido.as_str();
     let resultado = submissao.resultado;
     let url_do_envio = submissao.url.clone();
     let RespostaDoPost {

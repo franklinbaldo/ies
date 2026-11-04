@@ -22,7 +22,7 @@ use crate::documento::NumeroDocumento;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "documento_erro.rs"]
 mod erro;
@@ -103,10 +103,8 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
-    let texto = arquivo_privado(sessao.cookie_file, 8_192)
+    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
         .map_err(|f| E::Processo(ErroProcessoObter::Transporte(f)))?;
-    let cookie = texto.trim().to_owned();
-    validar_cookie(&cookie).map_err(|f| E::Processo(ErroProcessoObter::Transporte(f)))?;
     let numero = pedido.numero.as_str();
     let contexto = Contexto {
         instalacao,

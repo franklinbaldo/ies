@@ -20,10 +20,7 @@ use crate::processo_obter::{
     abrir_para_concluir, obter_processo,
 };
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{
-    FalhaTransporte, RespostaWeb, StatusHttpRecusado, arquivo_privado, decodificar_resposta,
-    validar_cookie,
-};
+use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
 
 /// Sem rede além da abertura na prévia; uma escrita, nunca repetida.
@@ -130,10 +127,7 @@ fn siglas_abertas(aberto_em: &AbertoEm) -> Result<Vec<String>, MotivoAbertoEm> {
 
 fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, C> {
     let falha = |f| C::Formulario(ErroSubmissaoFormulario::Transporte(f));
-    let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(falha)?;
-    let cookie = texto.trim().to_owned();
-    validar_cookie(&cookie).map_err(falha)?;
-    Ok(cookie)
+    crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file).map_err(falha)
 }
 
 /// GET de uma tela antes da escrita (a de conclusão ou a do nó): HTML 200.
