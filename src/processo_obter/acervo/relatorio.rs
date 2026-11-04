@@ -4,36 +4,6 @@ use super::{Leitor, Registro, Resultado};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
-const INSTALACOES: [&str; 7] = ["unb", "ufrj", "go", "pen1", "pen2", "pen3", "pen4"];
-
-#[derive(Default)]
-struct Linha {
-    total: usize,
-    lido: usize,
-    recusado: BTreeMap<&'static str, usize>,
-    nao_aplicavel: BTreeMap<&'static str, usize>,
-}
-
-impl Linha {
-    fn somar(&mut self, resultado: &Resultado) {
-        self.total += 1;
-        match resultado {
-            Resultado::Lido => self.lido += 1,
-            Resultado::Recusado(s) => *self.recusado.entry(s).or_default() += 1,
-            Resultado::NaoAplicavel(m) => *self.nao_aplicavel.entry(m).or_default() += 1,
-        }
-    }
-}
-
-fn detalhe(mapa: &BTreeMap<&'static str, usize>) -> String {
-    let total: usize = mapa.values().sum();
-    if total == 0 {
-        return "0".into();
-    }
-    let partes: Vec<String> = mapa.iter().map(|(k, v)| format!("`{k}` {v}")).collect();
-    format!("{total} ({})", partes.join("; "))
-}
-
 pub(super) fn markdown(cassettes: usize, registros: &[Registro]) -> String {
     let mut s = String::new();
     let _ = writeln!(
@@ -71,33 +41,17 @@ pub(super) fn markdown(cassettes: usize, registros: &[Registro]) -> String {
 }
 
 fn tabela(s: &mut String, registros: &[Registro]) {
-    let mut linhas: BTreeMap<(Leitor, usize), Linha> = BTreeMap::new();
-    for r in registros {
-        let i = INSTALACOES
-            .iter()
-            .position(|n| *n == r.instalacao)
-            .unwrap_or(INSTALACOES.len());
-        linhas.entry((r.leitor, i)).or_default().somar(&r.resultado);
-        linhas
-            .entry((r.leitor, INSTALACOES.len() + 1))
-            .or_default()
-            .somar(&r.resultado);
-    }
-    s.push_str("| Leitor | Instalação | Total | Lido | Recusado | Não aplicável |\n");
-    s.push_str("|---|---|---:|---:|---|---|\n");
-    for ((leitor, i), l) in &linhas {
-        let instalacao = INSTALACOES.get(*i).copied().unwrap_or("**todas**");
-        let _ = writeln!(
-            s,
-            "| {} | {instalacao} | {} | {} | {} | {} |",
-            leitor.nome(),
-            l.total,
-            l.lido,
-            detalhe(&l.recusado),
-            detalhe(&l.nao_aplicavel)
-        );
-    }
-    s.push('\n');
+    crate::cassette::acervo::tabela(
+        s,
+        registros.iter().map(|r| {
+            (
+                r.leitor as usize,
+                r.leitor.nome(),
+                r.instalacao.as_str(),
+                &r.resultado,
+            )
+        }),
+    );
 }
 
 fn maiores(s: &mut String, registros: &[Registro], leitor: Leitor, chave: &str, outras: &[&str]) {

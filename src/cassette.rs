@@ -1,5 +1,7 @@
 //! Replay offline seguro de resposta HTTP a partir de cassette pública.
 use std::path::Path;
+#[cfg(test)]
+pub(crate) mod acervo;
 mod conferencia;
 pub(crate) use conferencia::ZipDoAcervo;
 #[cfg(test)]

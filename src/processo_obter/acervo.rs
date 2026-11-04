@@ -10,14 +10,12 @@
 //! do acervo inteiro é `#[ignore]` (precisa dos ZIPs no cache local); o CI
 //! roda só os testes sintéticos da classificação.
 mod arvore;
-mod gravacao;
 mod leitores;
 mod relatorio;
 mod tests;
 
-use crate::cassette::{ZipDoAcervo, conferir_cassette_ate};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+pub(super) use crate::cassette::acervo::Resultado;
+use crate::cassette::acervo::{percorrer, publicar};
 
 /// Qual leitor de produção leu a resposta.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -53,13 +51,6 @@ impl Leitor {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) enum Resultado {
-    Lido,
-    Recusado(&'static str),
-    NaoAplicavel(&'static str),
-}
-
 /// Uma leitura de uma resposta gravada. Nada aqui guarda URL, cookie nem
 /// `infra_hash`: só contagens e formas.
 #[derive(Clone, Debug)]
@@ -92,67 +83,12 @@ const OPERACOES: [&str; 6] = [
     "andamento_marcador_gerenciar",
 ];
 
-fn cache() -> PathBuf {
-    if let Some(dir) = std::env::var_os("IES_ACERVO_CACHE") {
-        return PathBuf::from(dir);
-    }
-    let casa = std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE");
-    Path::new(&casa).join(".cache/ies")
-}
-
-fn cards() -> Vec<PathBuf> {
-    let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
-    let mut cards = Vec::new();
-    for instalacao in std::fs::read_dir(&raiz).expect("cassettes/") {
-        let pasta = instalacao.expect("entrada").path();
-        for card in std::fs::read_dir(&pasta).expect("pasta da instalação") {
-            let card = card.expect("card").path();
-            if card.extension().is_some_and(|e| e == "md") {
-                cards.push(card);
-            }
-        }
-    }
-    cards.sort();
-    cards
-}
-
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_do_acervo_inteiro() {
-    let cache = cache();
-    let mut zips: HashMap<String, ZipDoAcervo> = HashMap::new();
     let mut registros = Vec::new();
-    let mut lidos = 0usize;
-    for card in cards() {
-        let texto = std::fs::read_to_string(&card).expect("card");
-        if !OPERACOES
-            .iter()
-            .any(|op| texto.contains(&format!("- `{op}`")))
-        {
-            continue;
-        }
-        let nome_zip = crate::cassette::archive_filename(&card).expect("origem do card");
-        let zip = zips.entry(nome_zip.clone()).or_insert_with(|| {
-            ZipDoAcervo::ler(&cache.join(&nome_zip))
-                .unwrap_or_else(|e| panic!("{nome_zip}: {e} (baixe-o para {})", cache.display()))
-        });
-        let conferida =
-            conferir_cassette_ate(&card, zip, 120_000_000).unwrap_or_else(|e| panic!("{e}"));
-        let nome = card
-            .file_stem()
-            .expect("nome")
-            .to_string_lossy()
-            .into_owned();
-        registros.extend(leitores::replay(
-            &nome,
-            &conferida.instalacao,
-            &conferida.json,
-        ));
-        lidos += 1;
-    }
-    let texto = relatorio::markdown(lidos, &registros);
-    match std::env::var_os("IES_ACERVO_SAIDA") {
-        Some(saida) => std::fs::write(saida, texto).expect("saída"),
-        None => println!("{texto}"),
-    }
+    let lidos = percorrer(&OPERACOES, |nome, instalacao, json| {
+        registros.extend(leitores::replay(nome, instalacao, json));
+    });
+    publicar(&relatorio::markdown(lidos, &registros));
 }
