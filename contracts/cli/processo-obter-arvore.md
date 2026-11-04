@@ -245,8 +245,8 @@ não lidos), `marcadores` (se não lidos), `propriedades` (se não lidas)
 e `documentos_dos_anexados`.
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
-pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) **não** é publicada:
-em e-mails traz remetente e destinatários; só o cancelamento é lido dela
+pasta conferida pela identidade dos protocolos declarados. A dica dos documentos (a6) sai em `dica` quando
+difere do rótulo, e o cancelamento é lido dela
 ([situação](processo-obter-situacao.md)). `documentos_movidos` segue a ordem dos nós (`[]` sem movido; `destino`
 `null` sem link); o texto humano lista cada um com
 `movido para <NUP>, ies processo <NUP>` ou `destino não publicado`.

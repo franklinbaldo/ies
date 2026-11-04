@@ -69,6 +69,7 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
         "icone": d.natureza.icone,
         "cancelado": d.natureza.cancelado,
         "motivo_do_cancelamento": d.natureza.motivo_do_cancelamento,
+        "dica": d.natureza.dica,
     })
 }
 
@@ -114,6 +115,13 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
                 texto.push_str(" [cancelamento não confirmado]");
             }
             _ => {}
+        }
+        if natureza.cancelado != Some(true)
+            && let Some(dica) = &natureza.dica
+        {
+            for linha in dica.lines().filter(|l| !l.trim().is_empty()) {
+                let _ = write!(texto, "\n    {}", linha.trim());
+            }
         }
     }
 }

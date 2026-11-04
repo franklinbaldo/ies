@@ -155,9 +155,11 @@ fn forma_do_json() {
             "aberto_em": [{"sigla": "UNIDADE TESTE", "nome": "Unidade Teste", "atribuido_a": null}],
             "documentos": [
                 {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null,
-                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null},
+                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                 "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"},
                 {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null,
-                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null}
+                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                 "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"}
             ],
             "documentos_movidos": [],
             "pastas": [],

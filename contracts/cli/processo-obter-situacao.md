@@ -63,7 +63,7 @@ Texto humano, uma linha logo depois da primeira:
 ## Natureza dos documentos
 
 Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
-`DOCUMENTO_MOVIDO` não muda), três campos novos:
+`DOCUMENTO_MOVIDO` não muda), quatro campos novos:
 
 - `icone`: o radical de a7 quando a7, a8 e a9 são o mesmo texto
   `svg/<radical>.svg`, com ou sem `?<decimal>`, e o radical só tem
@@ -77,18 +77,25 @@ Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
 - `motivo_do_cancelamento`: com `cancelado: true`, o resto da dica depois
   de `Documento Cancelado:`, sem espaços nas pontas; senão `null`.
 
-A dica em si **continua não publicada**: nos e-mails ela traz data,
-remetente e destinatários (dado pessoal), e fora de e-mail e cancelado só
-repetiu o rótulo nas capturas.
+- `dica`: a6 decodificada pelo leitor de literais (`\n` vira quebra de
+  linha), quando difere do rótulo (a5); igual ao rótulo, `null` (nada a
+  acrescentar). Nos e-mails traz `Data de Envio`, `De`, `Para` (ou `Para
+  (com cópia oculta)`) e `Assunto`, uma linha cada; no cancelado, a frase
+  `Documento Cancelado: <motivo>`. O IES não interpreta a dica: o texto
+  sai como servido (decisão do proprietário, 04/11/2026: as instalações de
+  treinamento são públicas; revoga a recusa anterior do contrato da
+  árvore).
 
 ```json
 {"id_documento": "D", "rotulo": "Consulta Jurídica 8441007", "numero_sei": "8441007",
  "pasta": null, "icone": "documento_cancelado", "cancelado": true,
- "motivo_do_cancelamento": "erro"}
+ "motivo_do_cancelamento": "erro", "dica": "Documento Cancelado: erro"}
 ```
 
 Texto humano: `[cancelado: <motivo>]` no fim da linha do documento, ou
-`[cancelamento não confirmado]` com `cancelado: null`.
+`[cancelamento não confirmado]` com `cancelado: null`. Fora do cancelado,
+cada linha não vazia da dica sai abaixo do documento, recuada em quatro
+espaços.
 
 ## `nao_lidos`
 

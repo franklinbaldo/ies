@@ -20,6 +20,8 @@ binário em release do ramo `slice-situacao`, sessão e índice já existentes
 | O mesmo, quente | **PASS**: `indice_link`, 1 req., mesma saída |
 | Processo anexado (23106.001554/2026-99) | **PASS**: 3 req., `anexado_a` 23106.001559/2026-11, `aberto_em: null`, motivo `raiz_publica_o_vinculo_de_anexacao`, `aberto_em` primeiro em `nao_lidos` |
 | Texto humano, outro processo (23106.001850/2026-90, quente) | **PASS**: 1 req., linha `Aberto em: Unidade1 (atribuído a aluno2), Unidade2.`, forma plural com atribuição por unidade |
+| `dica` (depois da decisão do proprietário), unidade única, quente | **PASS**: 1 req., `documento_interno` com `dica: null` (dica igual ao rótulo) |
+| `dica` diferente do rótulo ao vivo (e-mail) | NOT_RUN: nenhum e-mail nos processos da UnB à mão; coberto pela captura de GO (teste sintético) |
 | Documento cancelado ao vivo | NOT_RUN: nenhum processo da UnB à mão com cancelado; coberto pela captura de GO (teste sintético e teste local temporário) |
 | GO e PEN1 ao vivo | NOT_RUN: GO por WAF e ritmo, PEN1 fora do escopo desta rodada; as formas de ambas vêm das capturas (offline) |
 

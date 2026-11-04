@@ -27,6 +27,14 @@ fn esperada(
         icone: icone.map(str::to_owned),
         cancelado,
         motivo_do_cancelamento: motivo.map(str::to_owned),
+        dica: None,
+    }
+}
+
+fn com_dica(natureza: NaturezaDoDocumento, dica: &str) -> NaturezaDoDocumento {
+    NaturezaDoDocumento {
+        dica: Some(dica.to_owned()),
+        ..natureza
     }
 }
 
@@ -50,7 +58,10 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             "Documento Cancelado: erro",
             [CANCELADO; 3]
         )),
-        esperada(Some("documento_cancelado"), Some(true), Some("erro"))
+        com_dica(
+            esperada(Some("documento_cancelado"), Some(true), Some("erro")),
+            "Documento Cancelado: erro"
+        )
     );
     assert_eq!(
         natureza(documento(
@@ -58,10 +69,13 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             "Documento Cancelado:  enviado em duplicidade ",
             [CANCELADO; 3]
         )),
-        esperada(
-            Some("documento_cancelado"),
-            Some(true),
-            Some("enviado em duplicidade")
+        com_dica(
+            esperada(
+                Some("documento_cancelado"),
+                Some(true),
+                Some("enviado em duplicidade")
+            ),
+            "Documento Cancelado:  enviado em duplicidade "
         )
     );
 }
@@ -82,7 +96,10 @@ fn meia_marca_de_cancelamento_e_null() {
             "Documento Cancelado: erro",
             [PDF; 3]
         )),
-        esperada(Some("documento_pdf"), None, None)
+        com_dica(
+            esperada(Some("documento_pdf"), None, None),
+            "Documento Cancelado: erro"
+        )
     );
 }
 
@@ -107,7 +124,7 @@ fn icone_fora_da_forma_e_null_sem_recusar_a_arvore() {
 }
 
 #[test]
-fn email_publica_so_o_icone_e_nunca_a_dica() {
+fn email_publica_o_icone_e_a_dica_decodificada() {
     let email = documento(
         "E-mail 0000101",
         "Data de Envio: 01/01/2026 10:00:00\\nDe: pessoa@exemplo.gov.br\\nPara: outra@exemplo.gov.br\\nAssunto: x\\n",
@@ -116,9 +133,14 @@ fn email_publica_so_o_icone_e_nunca_a_dica() {
     let lida = ler_arvore(&arvore(&[no_processo(0, "10", NUP), email]), NUP, "10").unwrap();
     assert_eq!(
         lida.documentos[0].natureza,
-        esperada(Some("documento_email"), Some(false), None)
+        NaturezaDoDocumento {
+            dica: Some(
+                "Data de Envio: 01/01/2026 10:00:00\nDe: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br\nAssunto: x\n"
+                    .into()
+            ),
+            ..esperada(Some("documento_email"), Some(false), None)
+        }
     );
-    assert!(!format!("{lida:?}").contains("pessoa@"));
 }
 
 #[test]

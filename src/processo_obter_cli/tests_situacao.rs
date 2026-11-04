@@ -94,11 +94,13 @@ fn documento_cancelado_publica_motivo_e_meia_marca_e_null() {
         icone: Some("documento_cancelado".into()),
         cancelado: Some(true),
         motivo_do_cancelamento: Some("erro".into()),
+        dica: Some("Documento Cancelado: erro".into()),
     };
     processo.arvore.documentos[1].natureza = NaturezaDoDocumento {
         icone: Some("documento_cancelado".into()),
         cancelado: None,
         motivo_do_cancelamento: None,
+        dica: None,
     };
     let valor = json_do_processo(&nup(), &processo, false);
     assert_eq!(valor["documentos"][0]["icone"], "documento_cancelado");
@@ -112,6 +114,31 @@ fn documento_cancelado_publica_motivo_e_meia_marca_e_null() {
     );
     assert!(
         texto.contains("- E-mail (id 22) [cancelamento não confirmado]"),
+        "{texto}"
+    );
+}
+
+#[test]
+fn dica_sai_no_json_e_cada_linha_no_texto_humano() {
+    let mut processo = aberto(None);
+    processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
+        icone: Some("documento_email".into()),
+        cancelado: Some(false),
+        motivo_do_cancelamento: None,
+        dica: Some("Data de Envio: 01/01/2026 10:00:00\nDe: a@x\nAssunto: y\n".into()),
+    };
+    processo.arvore.documentos[1].natureza.dica = None;
+    let valor = json_do_processo(&nup(), &processo, false);
+    assert_eq!(
+        valor["documentos"][0]["dica"],
+        "Data de Envio: 01/01/2026 10:00:00\nDe: a@x\nAssunto: y\n"
+    );
+    assert!(valor["documentos"][1]["dica"].is_null());
+    let texto = humano(&nup(), &processo, false);
+    assert!(
+        texto.contains(
+            "(id 21)\n    Data de Envio: 01/01/2026 10:00:00\n    De: a@x\n    Assunto: y"
+        ),
         "{texto}"
     );
 }

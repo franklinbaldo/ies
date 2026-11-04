@@ -39,9 +39,11 @@ dica). Lê-las custa **0 requisições**.
   Rejeitada: é inferência sobre regras de tramitação, depende do
   histórico completo (+1 POST) e some com `--sem-andamentos`.
 - **web-natureza-com-dica**: publicar a dica (a6) quando difere do
-  rótulo. Rejeitada: nas capturas ela só diferiu em e-mails (data,
-  remetente, destinatários: dado pessoal que o contrato da árvore já
-  recusava publicar) e no cancelado, cujo motivo sai em campo próprio.
+  rótulo. Rejeitada na primeira versão (os e-mails trazem endereços, que o
+  contrato da árvore recusava publicar); **adotada** em seguida, no mesmo
+  PR, por decisão do proprietário (04/11/2026): as instalações de
+  treinamento são públicas e os metadados do e-mail têm valor para o
+  agente. A dica sai como servida, sem interpretação.
 - **web-natureza-traduzida**: traduzir o ícone (`documento_pdf` →
   "externo"). Rejeitada: o significado não foi demonstrado; o radical sai
   opaco e a leitura provável fica marcada como inferência na observação.
@@ -52,7 +54,7 @@ dica). Lê-las custa **0 requisições**.
 | --- | --- | --- | --- | --- | --- |
 | Requisições | 0 | 0 | 0 a +2 | 0 | 0 |
 | Estrutura publicada | lista de objetos | frase | inferida | sim | sim |
-| Dado pessoal de e-mail | não | não | não | **sim** | não |
+| Metadados do e-mail | não | não | não | **sim** | não |
 | Afirma o não observado | não | não | **sim** | não | **sim** |
 | Forma nova | `null` + motivo | vaza | — | — | — |
 
@@ -78,7 +80,8 @@ para não publicar como unidade um link que não seja de unidade.
 `documento_cancelado` e dica `Documento Cancelado:`). Meia marca
 (uma sem a outra, nunca observada) dá `cancelado: null`: afirmar `true`
 publicaria um cancelamento sem a segunda prova, e `false` negaria a
-marca vista. Ícone fora da forma dá `icone: null` sem recusa.
+marca vista. Ícone fora da forma dá `icone: null` sem recusa. A dica
+sai em `dica` quando difere do rótulo (ver web-natureza-com-dica).
 
 **Orçamento.** Nenhuma requisição nova; os testes de orçamento de
 `processo_obter` passam sem mudança.

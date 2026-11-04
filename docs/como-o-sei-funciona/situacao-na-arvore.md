@@ -64,5 +64,6 @@ A dica (a6) repetiu o rótulo (a5) em todos os nós, menos três, em GO:
 
 **Inferência, não observação:** `documento_pdf` parece ser documento
 externo (anexado como arquivo) e `documento_interno` documento gerado no
-editor do SEI; o IES publica só o radical. Leitura do IES:
+editor do SEI; o IES publica só o radical, e a dica como servida quando
+difere do rótulo. Leitura do IES:
 [contrato](../../contracts/cli/processo-obter-situacao.md).
