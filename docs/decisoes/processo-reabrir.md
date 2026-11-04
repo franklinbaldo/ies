@@ -8,7 +8,7 @@ scope: ies processo reabrir NUP com prévia sem requisição além da abertura; 
 selected_strategy: web-url-da-tela-do-no-verificada-pela-situacao
 alternatives: web-url-da-tela-do-no-verificada-pela-situacao,web-so-forma-funcao,web-url-guardada-da-conclusao,rest-wssei
 evidence_level: cassettes-publicas-sete-instalacoes-e-testes-sinteticos
-live_validation: ufrj-0415-unb-0409-ver-relatorio
+live_validation: escrita-pass-ufrj-0415-variavel-unb-0409-funcao
 ---
 
 # Reabrir o processo (Refs #172)
@@ -92,6 +92,8 @@ página (só as duas formas exatas).
 O `.js` que define `reabrirProcesso()` no 4.1/5.0 não foi gravado: que ele
 navega para `linkReabrirProcesso` é inferido do efeito. A reabertura com o
 processo aberto noutra unidade e a recusa do SEI não foram gravadas.
+Escrita live **PASS** na UFRJ 4.1.5 (`variavel`) e na UnB 4.0.9
+(`funcao`), com as requisições do orçamento.
 Revisar se o ensaio mostrar: resposta diferente de HTML 200, a variável
 noutra forma, a função com `confirm` ativo, a PEN1 5.0.4 com outra forma,
 ou situação que muda só depois de outra navegação.

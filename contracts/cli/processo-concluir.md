@@ -163,6 +163,7 @@ sessão.
 
 [Evidência da operação](../evidencias/processo-concluir.md) (Todos, sete
 instalações) e [observação estrutural](../../docs/como-o-sei-funciona/conclusao-do-processo.md);
-[decisão](../../docs/decisoes/processo-concluir.md). Live: prévia somente
-leitura na UFRJ 4.1.5; escrita **NOT_RUN** até autorização do proprietário
-([relatório e plano](../../docs/validacao-live/2026-11-04-processo-concluir.md)).
+[decisão](../../docs/decisoes/processo-concluir.md). Live: prévia e escrita
+**PASS** na UFRJ 4.1.5 (forma `tela`) e na UnB 4.0.9 (forma `funcao`),
+com as requisições do orçamento
+([relatório](../../docs/validacao-live/2026-11-04-processo-concluir.md)).

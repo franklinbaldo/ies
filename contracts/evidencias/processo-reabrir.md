@@ -16,7 +16,8 @@ Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
 ([contrato](../cli/processo-reabrir.md), Refs #172): prévia, o GET da URL
 `procedimento_reabrir` que a tela do nó publica (corpo de
 `reabrirProcesso()` no 4.0, `var linkReabrirProcesso` no 4.1/5.0) e
-verificação por `aberto_em`. Os estados abaixo pertencem ao Todos, não são
+verificação por `aberto_em`; escrita live PASS na UFRJ 4.1.5 (variável) e
+na UnB 4.0.9 (função). Os estados abaixo pertencem ao Todos, não são
 vereditos do IES.
 
 ## Evidência própria do IES

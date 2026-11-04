@@ -8,7 +8,7 @@ scope: ies processo concluir NUP com prévia sem requisição além da abertura;
 selected_strategy: web-acao-da-barra-verificada-pela-situacao
 alternatives: web-acao-da-barra-verificada-pela-situacao,web-verificada-pela-barra,web-so-forma-tela,rest-wssei
 evidence_level: cassettes-publicas-sete-instalacoes-e-testes-sinteticos
-live_validation: previa-ufrj-0411-escrita-not-run
+live_validation: escrita-pass-ufrj-0415-tela-unb-0409-funcao
 ---
 
 # Concluir o processo (Refs #172)
@@ -89,8 +89,9 @@ sabe se a página reflete o gravado); aceitar "Concluir e agendar".
 Sem corpo de POST nas cassettes: os campos vêm do formulário servido e do
 teste do Todos. A forma da PEN1 5.0.4 não foi observada. A resposta da
 forma `funcao` não tem sinal próprio (só HTML 200); a verificação decide.
-Escrita live **NOT_RUN**: falta autorização para concluir processo em conta
-de treinamento compartilhada. Revisar se o ensaio mostrar: tela de
+Escrita live **PASS** na UFRJ 4.1.5 (`tela`) e na UnB 4.0.9 (`funcao`),
+autorizada pelo proprietário ([relatório](../validacao-live/2026-11-04-processo-concluir.md)).
+Revisar se o ensaio mostrar: tela de
 conclusão com outro controle, resposta diferente de 302 na forma `tela`,
 situação que muda só depois de outra navegação, siglas de `lnkInfraUnidade`
 diferentes das de `aberto_em`, ou recusa do SEI na própria tela.
