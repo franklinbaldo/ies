@@ -22,7 +22,6 @@ fn espaco(b: u8) -> bool {
 /// Tokeniza `<nome atributos...>`; ignora o que vem depois do `>`.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn tokenizar_tag_de_abertura(fonte: &str) -> Result<AtributosDaTag<'_>, E> {
     let bytes = fonte.as_bytes();
     if bytes.first() != Some(&b'<') || !bytes.get(1).is_some_and(u8::is_ascii_alphabetic) {
