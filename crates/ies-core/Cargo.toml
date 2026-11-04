@@ -1,0 +1,6 @@
+[package]
+name = "ies-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Identidades estaveis do IES, sem rede e sem dependencias externas"
