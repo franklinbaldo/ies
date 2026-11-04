@@ -125,6 +125,9 @@ impl ErroPaginaDoControle {
         }
     }
 
+    /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
+    pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
+
     /// Status e mensagem do SEI quando o POST foi recusado pelo status.
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {

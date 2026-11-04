@@ -38,7 +38,7 @@ impl ErroPaginaWeb {
         match self {
             Self::Transporte(erro) => erro.mensagem(),
             Self::Caixa(_) => "Controle de Processos não reconhecido",
-            Self::Pagina(_) => "a página pedida do Controle não foi obtida",
+            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
             Self::Visao(erro) => erro.mensagem(),
         }
     }
