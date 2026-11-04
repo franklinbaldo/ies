@@ -51,6 +51,8 @@ mod processo;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
+mod processo_enviar;
+mod processo_enviar_cli;
 mod processo_obter;
 mod processo_obter_cli;
 mod processo_reabrir;
@@ -163,10 +165,16 @@ enum ProcessoAcao {
         )]
         pagina: Option<u32>,
     },
+    /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
+    /// verificação por leitura)
     Enviar {
         numero: String,
+        /// Sigla da unidade de destino, como o SEI a oferece
         #[arg(long, required = true)]
         para: Vec<String>,
+        /// Marca "Manter processo aberto na unidade atual"
+        #[arg(long)]
+        manter_aberto: bool,
         #[arg(long)]
         confirmar: bool,
     },
@@ -364,6 +372,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
+        .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.

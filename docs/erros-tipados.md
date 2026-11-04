@@ -146,3 +146,16 @@ derivação: saída 1, nada enviado) do resultado depois dela:
 `resposta_da_assinatura_sem_finalizacao` ou o erro do primitivo) não
 decide o efeito: a leitura decide, uma vez, sem retry
 ([contrato](../contracts/cli/documento-assinar.md)).
+
+## Enviar o processo
+
+`ErroEnviar` (`src/processo_enviar/erro.rs`) segue a divisão de concluir:
+antes do POST (abertura, situação, barra `ErroEnviarNaBarra`, tela
+`ErroTelaDeEnvio`, consulta `FalhaDaConsulta`, destino não oferecido ou
+repetido, já aberto no destino, derivação: saída 1, nada enviado) e depois
+dele: `EnvioNaoAplicado` (sem o destino), `SituacaoDaOrigemDiferenteDaPedidaAposEnvio`
+(o destino abriu, mas a unidade da sessão não ficou como `--manter-aberto`
+pediu) e `EfeitoIncertoNoEnvio` (saída 3). A resposta não esperada é a
+`FalhaDoEnvio` de concluir, com `RedirecionamentoNaoReconhecidoAposEnviar`
+e `RespostaDoEnvioSemRedirecionamento`
+([contrato](../contracts/cli/processo-enviar.md)).

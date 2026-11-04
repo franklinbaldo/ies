@@ -128,13 +128,24 @@ impl Instalacao {
     /// instalações distintas. Nenhuma versão concede capacidades.
     #[must_use]
     pub fn autoriza_controlador(&self, host: &str, caminho: &str) -> bool {
+        self.autoriza_rota(host, caminho, "controlador.php")
+    }
+
+    /// O `controlador_ajax.php` da mesma instalação: só as consultas que uma
+    /// tela já servida declara (autocomplete da tela de envio).
+    #[must_use]
+    pub fn autoriza_controlador_ajax(&self, host: &str, caminho: &str) -> bool {
+        self.autoriza_rota(host, caminho, "controlador_ajax.php")
+    }
+
+    fn autoriza_rota(&self, host: &str, caminho: &str, arquivo: &str) -> bool {
         if !host.eq_ignore_ascii_case(&self.host) {
             return false;
         }
         let esperado = if self.base.is_empty() {
-            "controlador.php".to_owned()
+            arquivo.to_owned()
         } else {
-            format!("{}/controlador.php", self.base)
+            format!("{}/{arquivo}", self.base)
         };
         caminho == esperado
     }
@@ -175,6 +186,9 @@ mod tests {
         assert!(!a.autoriza_controlador("sei.exemplo", "dois/sei/controlador.php"));
         assert!(b.autoriza_controlador("SEI.EXEMPLO", "dois/sei/controlador.php"));
         assert!(!b.autoriza_controlador("outro.exemplo", "dois/sei/controlador.php"));
+        assert!(b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador_ajax.php"));
+        assert!(!b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador.php"));
+        assert!(!b.autoriza_controlador("sei.exemplo", "dois/sei/controlador_ajax.php"));
         assert!(a.to_string().contains("4.1.5"));
         assert!(b.to_string().contains("5.0.4"));
     }

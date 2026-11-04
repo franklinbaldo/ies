@@ -191,7 +191,13 @@ impl Roteiro {
         Ok(RespostaDoPost {
             resposta: RespostaWeb {
                 status_code,
-                mime: "text/html; charset=iso-8859-1".to_owned(),
+                // A consulta do autocomplete (processo enviar) responde XML.
+                mime: if html.starts_with("<?xml") {
+                    "application/xml; charset=iso-8859-1"
+                } else {
+                    "text/html; charset=iso-8859-1"
+                }
+                .to_owned(),
                 content_length: Some(corpo.len()),
                 corpo: Cursor::new(corpo),
             },
