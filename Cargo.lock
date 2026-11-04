@@ -319,6 +319,7 @@ dependencies = [
  "base64",
  "clap",
  "ies-core",
+ "ies-web",
  "native-tls",
  "rusqlite",
  "serde",
@@ -332,6 +333,13 @@ dependencies = [
 [[package]]
 name = "ies-core"
 version = "0.1.0"
+
+[[package]]
+name = "ies-web"
+version = "0.1.0"
+dependencies = [
+ "tl",
+]
 
 [[package]]
 name = "indexmap"
