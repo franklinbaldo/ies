@@ -1,12 +1,14 @@
-//! `ies documento DOC [DOC ...] [--saida DIR] [--json] [--unidade SIGLA]`
-//! pela Web (Refs #60, fatia 1; contracts/cli/documento-obter-web.md): um
-//! documento por vez, na ordem pedida, cada um pela pesquisa rápida do
-//! número SEI, a árvore e o link assinado do conteúdo. Publica metadados e
+//! `ies documento DOC [DOC ...] [--processo NUP] [--saida DIR] [--json]
+//! [--unidade SIGLA]` pela Web (Refs #60; contracts/cli/documento-obter-web.md):
+//! um documento por vez, na ordem pedida, cada um pelo caminho mais barato
+//! (processo informado, índice ou pesquisa rápida), a árvore e o link
+//! assinado do conteúdo. Publica metadados e
 //! texto visível; nunca URL, hash, cookie ou HTML. Com `--saida`, grava
 //! `DOC.txt` (0600, sem sobrescrever) só depois de todos lidos.
 use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
+use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
 };
@@ -28,7 +30,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         "pasta": d.pasta,
         "processo": {"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo},
         "unidade": d.unidade,
-        "resolvido_por": "pesquisa_rapida",
+        "resolvido_por": d.resolvido_por.como_texto(),
         "requisicoes": d.requisicoes,
         "fonte": "documento_visualizar",
         "versao_atual": null,
@@ -41,22 +43,26 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
 
 /// Primeira linha humana de um documento.
 pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
+    let unidade = d
+        .unidade
+        .as_deref()
+        .map_or_else(String::new, |u| format!(", unidade {u}"));
     format!(
-        "IES: documento {} ({}; {}) do processo {}, unidade {}; {} requisições.",
-        d.numero, d.rotulo, d.tipo, d.processo.nup, d.unidade, d.requisicoes
+        "IES: documento {} ({}; {}) do processo {}{unidade}; {} requisições.",
+        d.numero, d.rotulo, d.tipo, d.processo.nup, d.requisicoes
     )
 }
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
-/// opções desta operação ainda não implementadas (`--processo`, `--versao`,
+/// opções desta operação ainda não implementadas (`--versao`,
 /// `--sem-copia`, `--com-propriedades`, `--ocultar-inacessiveis`, que
-/// seguem para o stub). Número inválido fica para a validação comum.
+/// seguem para o stub). Número inválido fica para a validação comum; NUP
+/// inválido em `--processo` é entrada inválida (saída 2).
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(
         comando @ Documento {
             acao: None,
             html_privado: None,
-            processo: None,
             versao: None,
             sem_copia: false,
             ocultar_inacessiveis: false,
@@ -77,35 +83,49 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         .collect::<Option<Vec<_>>>()?;
     for (i, numero) in numeros.iter().enumerate() {
         if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
-            return Some(repetido(cli.json));
+            let mensagem = "o mesmo número SEI foi pedido mais de uma vez";
+            return Some(invalida(cli.json, "numero_documento_repetido", mensagem));
         }
     }
+    let processo = match comando.processo.as_deref().map(NumeroProcesso::novo) {
+        None => None,
+        Some(Ok(nup)) => Some(nup),
+        Some(Err(erro)) => {
+            let mensagem = "número de processo inválido";
+            return Some(invalida(cli.json, erro.subcodigo(), mensagem));
+        }
+    };
     Some(obter(
         cli,
         &numeros,
+        processo.as_ref(),
         comando.saida.as_deref().map(Path::new),
     ))
 }
 
-fn repetido(json_mode: bool) -> ExitCode {
-    let mensagem = "o mesmo número SEI foi pedido mais de uma vez";
+fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": "numero_documento_repetido",
+                "subcodigo": subcodigo,
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [numero_documento_repetido]");
+        eprintln!("IES: {mensagem} [{subcodigo}]");
     }
     ExitCode::from(2)
 }
 
-fn obter(cli: &Cli, numeros: &[NumeroDocumento], saida: Option<&Path>) -> ExitCode {
+fn obter(
+    cli: &Cli,
+    numeros: &[NumeroDocumento],
+    processo: Option<&NumeroProcesso>,
+    saida: Option<&Path>,
+) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
@@ -128,6 +148,7 @@ fn obter(cli: &Cli, numeros: &[NumeroDocumento], saida: Option<&Path>) -> ExitCo
         let pedido = PedidoDoDocumento {
             numero,
             unidade: cli.unidade.as_deref(),
+            processo,
         };
         match obter_documento(&sessao, &pedido, &indice, &mut EnvioHttps) {
             Ok(obtido) => obtidos.push(obtido),

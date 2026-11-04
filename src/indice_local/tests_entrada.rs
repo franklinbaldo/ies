@@ -19,6 +19,23 @@ fn entrada_por_id_tem_exatamente_a_forma_medida() {
 }
 
 #[test]
+fn entrada_com_documento_tem_exatamente_a_forma_medida() {
+    assert_eq!(
+        url_da_entrada_por_id_com_documento(&instalacao(), "123", "456").as_deref(),
+        Some(
+            "https://sei.exemplo/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=123&id_documento=456"
+        )
+    );
+    for (processo, documento) in [("123", ""), ("", "456"), ("1", "4&x=1"), ("1", "4#")] {
+        assert_eq!(
+            url_da_entrada_por_id_com_documento(&instalacao(), processo, documento),
+            None,
+            "{processo} {documento}"
+        );
+    }
+}
+
+#[test]
 fn entrada_por_id_recusa_id_que_nao_e_digito() {
     for id in [
         "",
