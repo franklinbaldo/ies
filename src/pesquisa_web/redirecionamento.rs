@@ -126,6 +126,7 @@ impl ErroRedirecionamentoDaPesquisa {
             }
             Self::IdDocumentoDoRedirecionamentoDiferenteDoPedido => {
                 "id_documento_do_redirecionamento_diferente_do_pedido"
+            }
             Self::IdDocumentoAusenteNoRedirecionamento => {
                 "id_documento_ausente_no_redirecionamento"
             }
