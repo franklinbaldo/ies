@@ -5,15 +5,25 @@ operation: processo.concluir
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 203
 unresolved_steps: 0
 ---
 
 # processo.concluir
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
+([contrato](../cli/processo-concluir.md), Refs #172): prévia, uma escrita
+pela forma que a barra publica (tela "Conclusão de Processo" no 4.1/5.0,
+`concluirProcesso()` no 4.0) e verificação por `aberto_em`; escrita live
+NOT_RUN. Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+
+## Evidência própria do IES
+
+- [Observação estrutural](../../docs/como-o-sei-funciona/conclusao-do-processo.md)
+  das 232 GET e 161 POST de `procedimento_concluir` gravados.
+- [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-concluir-acervo.md):
+  190 cassettes, as 219 escritas aceitas e verificadas pela situação.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

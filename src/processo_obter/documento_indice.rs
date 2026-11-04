@@ -81,7 +81,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso>(
     anexo: PedidoDoAnexo<'_>,
 ) -> Result<DocumentoObtido, E> {
     let (aberta, unidade, resolvido_por) =
-        abrir_processo(contexto, sessao, rede).map_err(E::Processo)?;
+        abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
     let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
     let lido = NoLido {
         html: &aberta.html,

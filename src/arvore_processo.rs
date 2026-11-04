@@ -8,6 +8,7 @@
 //! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
 mod barra_do_processo;
+mod concluir;
 mod conteudo;
 pub(crate) mod endereco;
 mod erro;
@@ -29,6 +30,8 @@ pub(crate) mod tests_anexados;
 mod tests_barra;
 #[cfg(test)]
 mod tests_barra_marcadores;
+#[cfg(test)]
+pub(crate) mod tests_concluir;
 #[cfg(test)]
 pub(crate) mod tests_conteudo;
 #[cfg(test)]
@@ -52,6 +55,10 @@ pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use concluir::{
+    ACAO_DE_CONCLUIR, ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
+};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };

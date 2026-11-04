@@ -11,7 +11,9 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
+use crate::arvore_processo::{
+    ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroTelaDoProcesso, ler_tela_do_processo,
+};
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
@@ -35,6 +37,20 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoAberto, E> {
+    abrir_para_concluir(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
+}
+
+/// A ação de concluir lida na barra da árvore aberta.
+pub(crate) type ConcluirLido = Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>;
+
+/// Como [`obter_processo`], devolvendo também a ação de concluir da barra
+/// da árvore lida (contracts/cli/processo-concluir.md).
+pub(crate) fn abrir_para_concluir<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoProcesso<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<(ProcessoAberto, ConcluirLido), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
     let texto = arquivo_privado(sessao.cookie_file, 8_192).map_err(E::Transporte)?;
@@ -55,7 +71,8 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         cookie,
         requisicoes: 0,
     };
-    let (arvore_lida, unidade, resolvido_por) = abrir_processo(&contexto, sessao, &mut rede)?;
+    let (arvore_lida, unidade, resolvido_por) =
+        abrir_processo(&contexto, sessao, &mut rede, pedido.unidade_exigida)?;
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,
@@ -80,7 +97,7 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         pedido.marcadores,
         resolvido_por == ResolvidoPor::IndiceLink,
     )?;
-    Ok(ProcessoAberto {
+    let aberto = ProcessoAberto {
         arvore: arvore_lida.arvore,
         unidade,
         resolvido_por,
@@ -88,18 +105,27 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         propriedades,
         marcadores,
         requisicoes: rede.requisicoes,
-    })
+    };
+    Ok((aberto, arvore_lida.concluir))
 }
 
 /// A cadeia de passos até a árvore conferida (com as pastas), e o que ela
 /// ensina ao índice sem requisição: anexados, pai, movidos e documentos.
-/// Também a abertura de `documento DOC --processo NUP`.
+/// Também a abertura de `documento DOC --processo NUP`. Com
+/// `unidade_exigida` (`processo concluir`), o passo 1 é pulado: o link
+/// guardado da árvore não publica a unidade.
 pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
+    unidade_exigida: bool,
 ) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
-    let aberto = match link_da_arvore(contexto, rede)? {
+    let primeiro = if unidade_exigida {
+        None
+    } else {
+        link_da_arvore(contexto, rede)?
+    };
+    let aberto = match primeiro {
         Some(aberto) => aberto,
         None => match link_de_trabalho(contexto, rede)? {
             Some(aberto) => aberto,

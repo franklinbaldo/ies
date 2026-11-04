@@ -97,3 +97,13 @@ fato verificável: na tela, `ErroRegraDoFormularioDePesquisa` com a opção
 recusa comum do link do processo (`ErroResultadoPesquisa`) em vez de
 repeti-la. O termo inválido é `TermoDeDocumentoInvalido`
 (`termo_de_documento_vazio`, `termo_de_documento_contem_controle`).
+
+## Concluir o processo
+
+`ErroConcluir` (`src/processo_concluir/erro.rs`) separa o que impede a
+escrita (abertura, situação não lida, barra, tela, função, derivação:
+saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
+(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
+com `VerificacaoDaConclusao`). `FalhaDoEnvio` classifica a resposta não
+esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
+sem retry ([contrato](../contracts/cli/processo-concluir.md)).
