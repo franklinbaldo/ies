@@ -38,7 +38,17 @@ fn numero_sei_opaco_aprendido_por_instalacao() {
     // Zeros à esquerda contam: 101 não é 0000101.
     assert_eq!(indice.documento_por_numero(&inst, "101"), None);
     let outra = Instalacao::interpretar("https://outro.exemplo/sei").unwrap();
-    assert_eq!(indice.documento_por_numero(&outra, "0000101"), None);
+    indice
+        .registrar_documentos(&outra, "90", &[("0000101", "91")])
+        .unwrap();
+    assert_eq!(
+        indice.documento_por_numero(&outra, "0000101"),
+        Some(guardado("90", "91"))
+    );
+    assert_eq!(
+        indice.documento_por_numero(&inst, "0000101"),
+        Some(guardado("10", "21"))
+    );
     assert_eq!(
         indice.documentos(),
         [linha("0000101", "10", "21"), linha("0000102", "10", "22")]
@@ -61,7 +71,28 @@ fn servidor_vence_numero_ou_documento_reaprendido_substitui() {
         [linha("0000101", "11", "31"), linha("0000109", "11", "22")]
     );
     indice.esquecer_documento(&inst, "0000101");
+    assert_eq!(indice.documento_por_numero(&inst, "0000101"), None);
     assert_eq!(indice.documentos(), [linha("0000109", "11", "22")]);
+}
+
+#[test]
+fn par_de_documento_contestado_pelo_servidor_nao_e_reutilizado() {
+    let indice = indice("doc-contestado");
+    let inst = instalacao();
+    indice
+        .registrar_documentos(&inst, "10", &[("0000101", "21")])
+        .unwrap();
+
+    // O servidor respondeu com outro par para o mesmo número SEI.
+    indice
+        .registrar_documentos(&inst, "11", &[("0000101", "31")])
+        .unwrap();
+
+    assert_eq!(
+        indice.documento_por_numero(&inst, "0000101"),
+        Some(guardado("11", "31"))
+    );
+    assert_eq!(indice.documentos(), [linha("0000101", "11", "31")]);
 }
 
 #[test]
