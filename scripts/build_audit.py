@@ -3,7 +3,6 @@
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -18,20 +17,20 @@ def executar(comando, pasta):
     inicio = time.perf_counter()
     resultado = subprocess.run(
         comando, cwd=pasta, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True, check=False, timeout=900
+        stderr=subprocess.PIPE, text=True, check=False, timeout=900
     )
     segundos = round(time.perf_counter() - inicio, 3)
     if resultado.returncode:
         raise RuntimeError(
             f"Falhou ({resultado.returncode}): {' '.join(comando)}\n"
-            f"{resultado.stdout[-6000:]}"
+            f"STDOUT: {resultado.stdout[-3000:]}\nSTDERR: {resultado.stderr[-3000:]}"
         )
     return segundos, resultado.stdout
 
 
 def grafo_do_workspace(pasta):
     _, saida = executar(
-        ["cargo", "metadata", "--locked", "--offline", "--no-deps", "--format-version", "1"],
+        ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1"],
         pasta,
     )
     metadata = json.loads(saida)
