@@ -8,7 +8,7 @@ scope: apêndice da decisão de documento.obter (Refs #60 fatia 3); o .src docum
 selected_strategy: web-get-binario-do-src-da-arvore
 alternatives: web-get-binario-do-src-da-arvore,web-get-html-com-limite-de-8-mb,web-zip-do-processo,web-url-montada-por-id-anexo
 evidence_level: acervo-publico-oraculo-todos-testes-sinteticos-e-live-pen1
-live_validation: ver-relatorio-live-pen1-5-0-4
+live_validation: pass-pen1-5-0-4-html-recebido-pdf-e-txt-not-run
 ---
 
 # Ler documento externo
@@ -42,7 +42,8 @@ contrato em [documento externo](../../../contracts/cli/documento-obter-externo.m
   sem `Content-Disposition`/`Content-Length` gravados (as cassettes
   guardam só `content-type` e `location`). O oráculo Todos mediu na UnB
   `application/pdf` com `Content-Disposition: inline; filename="…"` e
-  registra que o cabeçalho não é garantido em toda instalação.
+  registra que o cabeçalho não é garantido em toda instalação. Ao vivo,
+  a PEN1 5.0.4 serviu o HTML recebido com `inline; filename="…"`.
 - **Memória e disco.** O binário é lido em blocos de 64 KiB com SHA-256;
   com `--saida` vai para um parcial criado novo em 0600 e só ganha o
   nome final (por `hard_link`, que nunca sobrescreve) depois de todos os
