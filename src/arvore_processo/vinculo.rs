@@ -60,7 +60,7 @@ pub(super) fn texto_unico(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Str
 }
 
 /// O texto do `.html` do nó `PROCESSO`; dois `.html` para ele são recusa.
-fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
+pub(super) fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
     let mut raiz = None;
     let mut texto = None;
     for linha in html.split('\n') {

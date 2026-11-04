@@ -129,7 +129,7 @@ fn documentos_de_pasta_tambem_tem_natureza() {
         super::tests_pastas::ID,
     )
     .unwrap();
-    assert!(!lida.documentos.is_empty());
+    assert_eq!(lida.documentos.len(), 4);
     for documento in &lida.documentos {
         assert!(documento.pasta.is_some());
         assert_eq!(documento.natureza, interno());

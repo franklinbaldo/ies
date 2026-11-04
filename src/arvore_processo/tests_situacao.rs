@@ -26,7 +26,7 @@ fn somente(ancora_da_unidade: &str) -> String {
     format!("Processo aberto somente na unidade {ancora_da_unidade}.<br />")
 }
 
-/// Forma plural da UnB (quatro unidades, nenhuma atribuída).
+/// Forma plural da `UnB` (quatro unidades, nenhuma atribuída).
 fn plural_unb() -> String {
     format!(
         "Processo aberto nas unidades:<br />{}<br />{}<br />{}<br />{}<br /><br />",

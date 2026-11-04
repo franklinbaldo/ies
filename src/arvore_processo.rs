@@ -52,7 +52,9 @@ use movidos::{MovidoLido, conferir_movidos, ler_movido};
 pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
-pub(crate) use situacao::{AbertoEm, Atribuicao, MotivoAbertoEm, UnidadeAberta};
+pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
+#[cfg(test)]
+pub(crate) use situacao::{Atribuicao, UnidadeAberta};
 pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
 pub(crate) use vinculo::ler_vinculo_de_anexacao;
 

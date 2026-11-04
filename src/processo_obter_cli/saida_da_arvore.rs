@@ -7,14 +7,58 @@ use std::fmt::Write as _;
 /// `aberto_em` (lista ou `null`) e, se não lido, o motivo e a entrada
 /// em `nao_lidos`.
 pub(super) fn inserir_aberto_em(
-    _objeto: &mut Map<String, Value>,
-    _aberto_em: &AbertoEm,
-    _nao_lidos: &mut Vec<&str>,
+    objeto: &mut Map<String, Value>,
+    aberto_em: &AbertoEm,
+    nao_lidos: &mut Vec<&str>,
 ) {
+    let valor = match aberto_em {
+        AbertoEm::Unidades(unidades) => Value::Array(
+            unidades
+                .iter()
+                .map(|u| {
+                    json!({
+                        "sigla": u.sigla,
+                        "nome": u.nome,
+                        "atribuido_a": u.atribuido_a.as_ref().map(
+                            |p| json!({"sigla": p.sigla, "nome": p.nome}),
+                        ),
+                    })
+                })
+                .collect(),
+        ),
+        AbertoEm::NaoLido(motivo) => {
+            nao_lidos.push("aberto_em");
+            objeto.insert(
+                "aberto_em_nao_lido_motivo".to_owned(),
+                json!(motivo.como_texto()),
+            );
+            Value::Null
+        }
+    };
+    objeto.insert("aberto_em".to_owned(), valor);
 }
 
 /// Uma linha: as unidades, a lista vazia ou o motivo.
-pub(super) fn humano_do_aberto_em(_aberto_em: &AbertoEm, _texto: &mut String) {}
+pub(super) fn humano_do_aberto_em(aberto_em: &AbertoEm, texto: &mut String) {
+    match aberto_em {
+        AbertoEm::Unidades(unidades) if unidades.is_empty() => {
+            texto.push_str("\nSem andamentos abertos.");
+        }
+        AbertoEm::Unidades(unidades) => {
+            let lista: Vec<String> = unidades
+                .iter()
+                .map(|u| match &u.atribuido_a {
+                    Some(p) => format!("{} (atribuído a {})", u.sigla, p.sigla),
+                    None => u.sigla.clone(),
+                })
+                .collect();
+            let _ = write!(texto, "\nAberto em: {}.", lista.join(", "));
+        }
+        AbertoEm::NaoLido(motivo) => {
+            let _ = write!(texto, "\nAberto em: não lido ({}).", motivo.como_texto());
+        }
+    }
+}
 
 fn json_do_documento(d: &DocumentoNaArvore) -> Value {
     json!({
@@ -22,6 +66,9 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
         "rotulo": d.rotulo,
         "numero_sei": d.numero_sei,
         "pasta": d.pasta,
+        "icone": d.natureza.icone,
+        "cancelado": d.natureza.cancelado,
+        "motivo_do_cancelamento": d.natureza.motivo_do_cancelamento,
     })
 }
 
@@ -56,6 +103,17 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
             .and_then(|id| arvore.pastas.iter().find(|p| &p.id == id));
         if let Some(pasta) = pasta {
             let _ = write!(texto, " [pasta {}]", pasta.rotulo);
+        }
+        let natureza = &documento.natureza;
+        match natureza.cancelado {
+            Some(true) => {
+                let motivo = natureza.motivo_do_cancelamento.as_deref().unwrap_or("");
+                let _ = write!(texto, " [cancelado: {motivo}]");
+            }
+            None if natureza.icone.is_some() => {
+                texto.push_str(" [cancelamento não confirmado]");
+            }
+            _ => {}
         }
     }
 }
