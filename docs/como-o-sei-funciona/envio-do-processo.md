@@ -96,10 +96,12 @@ grupo, mesma `acao_ajax`): uma resposta `<itens></itens>` seguida de 39
 itens `…/GECONT-…` de 35 órgãos, sem nenhum `ABC/…`. Medido pelo Todos (o
 corpo não foi gravado): a sigla inteira `ABC/GECONT-18141` não devolve
 nada, porque a busca se parte na `/`; `GECONT` devolve as GECONT de
-outros órgãos; com "Todos" a lista corta em 50 itens. Ao vivo
-(04/11/2026, unidade `SEAD/CDE-09516`): `ABC/GECONT-18141` no órgão `28`
-e em "Todos" vieram vazias, e `GECONT` em "Todos" devolveu os mesmos 39
-itens gravados ([relatório](../validacao-live/2026-11-04-processo-enviar-go.md)).
+outros órgãos; com "Todos" a lista corta em 50 itens. Segundo o
+changelog do Todos, `ABC/GECONT-18141` não existe. Ao vivo (04/11/2026,
+unidade `SEAD/CDE-09516`): ela veio vazia no órgão `28` e em "Todos", e
+`GECONT` em "Todos" devolveu os mesmos 39 itens gravados;
+`CBM/GECONT-18149` no órgão `11` e `DETRAN/GECONT-18166` no `25` vieram
+com um item, o pedido ([relatório](../validacao-live/2026-11-04-processo-enviar-go.md)).
 
 ## O POST e a resposta
 

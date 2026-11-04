@@ -67,19 +67,22 @@ da tela declara.
    repetir nem seguir para a próxima consulta).
 6. **Busca e escolha do destino**: em cada resposta valem só os itens
    cuja sigla (o texto de `descricao` antes de ` - `) é igual a `SIGLA`,
-   sem distinguir maiúsculas ASCII. No máximo três consultas, cada uma uma
-   vez, nesta ordem:
+   sem distinguir maiúsculas ASCII; vale também para o termo alargado, que
+   só amplia a busca. A ordem é a do Todos, no máximo quatro consultas,
+   cada uma uma vez; a seguinte só sai se a anterior veio vazia ou sem a
+   sigla exata. Um item exato decide; vários recusam.
 
-| # | Quando | Termo | Órgão | Depois |
-| --- | --- | --- | --- | --- |
-| 1 | `SIGLA` tem `/` e o prefixo antes da primeira `/` é o rótulo de uma única opção do `selOrgao` (espaços colapsados, sem caixa; fora `""` e `null`), diferente do órgão da tela | `SIGLA` | o `value` dessa opção | um item exato: destino; vários: recusa; nenhum: consulta 2 |
-| 2 | sempre | `SIGLA` | o efetivo do `selOrgao` | com itens: decide aqui; vazia e com termo alargado: consulta 3 |
-| 3 | `SIGLA` tem `/` e a consulta 2 veio vazia | o último segmento sem o sufixo `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`), se não vazio | o efetivo | decide aqui |
+| # | Quando | Termo | Órgão |
+| --- | --- | --- | --- |
+| 1 | `SIGLA` tem `/` e o prefixo antes da primeira `/` é o rótulo de uma única opção do `selOrgao` (espaços colapsados, sem caixa; fora `""` e `null`), diferente do órgão da tela | `SIGLA` | o `value` dessa opção |
+| 2 | como 1, e há termo alargado | o último segmento sem o sufixo `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`), se não vazio | o mesmo de 1 |
+| 3 | sempre | `SIGLA` | o efetivo do `selOrgao` |
+| 4 | `SIGLA` tem `/` e há termo alargado | o termo alargado | o efetivo |
 
    Nenhum item exato: 1, `destino_nao_oferecido_pelo_sei` (`oferecidos`:
    as descrições da **última** resposta lida); mais de um: 1,
    `varios_destinos_com_a_sigla` (`candidatos`). Sem `/` só há a consulta
-   2, como antes. Destino já em `aberto_em`: 1,
+   3, como antes. Destino já em `aberto_em`: 1,
    `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
    e o plano. Nenhum POST de escrita.
@@ -188,8 +191,8 @@ C, as consultas da busca (passo 6):
 | `SIGLA` | C |
 | --- | --- |
 | sem `/` | 1 |
-| com `/`, sem órgão do prefixo | 1 (a consulta 2 com itens) ou 2 (vazia, mais a 3) |
-| com `/` e órgão do prefixo | 1 (item exato ou vários na 1), 2 (a 2 decide) ou 3 (a 2 vazia, mais a 3) |
+| com `/`, sem órgão do prefixo | 1 (a consulta 3 decide) ou 2 (mais a 4) |
+| com `/` e órgão do prefixo | 1 a 4, a primeira com a sigla exata (ou vários) encerra |
 
 A frio e sem `/`: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
 testes conferem a sequência exata de cada caminho.
@@ -205,7 +208,7 @@ programados, a lupa de unidades, enviar vários processos.
 [Evidência da operação](../evidencias/processo-enviar.md) (Todos, sete
 instalações), [observação](../../docs/como-o-sei-funciona/envio-do-processo.md)
 e [decisão](../../docs/decisoes/processo-enviar.md). Live: prévia **PASS** na UFRJ
-4.1.5; GO 5.0.3: as três consultas com a recusa tipada **PASS**, o destino
-`ABC/GECONT-18141` não achado (**FAIL**,
+4.1.5; GO 5.0.3: `CBM/GECONT-18149` e `DETRAN/GECONT-18166` achados na consulta 1
+(**PASS**), `ABC/GECONT-18141`, inexistente, recusado (**PASS**,
 [relatório](../../docs/validacao-live/2026-11-04-processo-enviar-go.md)); escrita **NOT_RUN** (aguarda autorização,
 [relatório](../../docs/validacao-live/2026-11-04-processo-enviar.md)).

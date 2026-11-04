@@ -4,11 +4,11 @@ title: Envio do processo pela tela que a barra publica, com o destino do autocom
 operation: processo.enviar
 implementation: partial
 status: adopted-for-scope
-scope: ies processo enviar NUP --para SIGLA [--manter-aberto] com prévia que pede a tela Enviar Processo e a consulta do autocomplete declarada nela, até três com sigla com / (órgão do prefixo, órgão da tela, termo alargado; nenhum POST de escrita); --confirmar com um POST derivado pelo primitivo (hdnUnidades com o item escolhido) e verificação pelo destino e pela unidade da sessão em aberto_em de uma leitura nova da árvore
+scope: ies processo enviar NUP --para SIGLA [--manter-aberto] com prévia que pede a tela Enviar Processo e a consulta do autocomplete declarada nela, até quatro com sigla com / (a ordem do Todos, sigla e termo alargado no órgão do prefixo, depois no da tela; nenhum POST de escrita); --confirmar com um POST derivado pelo primitivo (hdnUnidades com o item escolhido) e verificação pelo destino e pela unidade da sessão em aberto_em de uma leitura nova da árvore
 selected_strategy: web-tela-e-autocomplete-verificada-pela-situacao
 alternatives: web-tela-e-autocomplete-verificada-pela-situacao,web-previa-sem-tela,web-lupa-de-unidades,web-verificada-pelo-historico,rest-wssei
 evidence_level: cassettes-publicas-sete-instalacoes-todos-go-e-testes-sinteticos
-live_validation: previa-ufrj-0415-pass-go-503-busca-sem-destino-escrita-not-run
+live_validation: previa-ufrj-0415-pass-go-503-pass-escrita-not-run
 ---
 
 # Enviar o processo (Refs #173)
@@ -99,42 +99,46 @@ conta isso.
 
 **Alternativas.**
 
-1. **Até três consultas: órgão do prefixo com a sigla, órgão da tela com
-   a sigla, órgão da tela com o termo alargado** (escolhida).
-2. **A ordem do Todos, até quatro**: cada órgão com os dois termos.
-3. **Só o termo alargado**: uma consulta a menos quando a sigla inteira
-   não casa, mas troca o termo também onde a busca inteira funciona (UFRJ:
-   `ADCENTRAL/GR` casa inteira).
+1. **A ordem do Todos, até quatro consultas** (escolhida): a sigla e o
+   termo alargado no órgão do prefixo, depois a sigla e o termo alargado
+   no órgão da tela (`_unidade_de_destino` chama `unidade_pelo_autocomplete`,
+   que tenta os dois termos, em cada órgão).
+2. **Até três**, sem o termo alargado no órgão do prefixo (a primeira
+   versão desta fatia): uma consulta a menos, mas não acha uma unidade que
+   só o trecho acha dentro do órgão.
+3. **Só o termo alargado**: troca o termo também onde a busca inteira
+   funciona (UFRJ: `ADCENTRAL/GR` casa inteira).
 4. **Lupa de unidades por órgão**: lista paginada sem gravação de uso.
 5. **Consulta única** (antes): não acha no GO o que o Todos acha.
 
 | Critério | 1 | 2 | 3 | 5 |
 | --- | --- | --- | --- | --- |
-| Consultas, pior caso | 3 | 4 | 2 | 1 |
+| Consultas, pior caso | 4 | 3 | 2 | 1 |
 | Sem `/`, como antes | sim | sim | sim | sim |
-| Cobre o corte em 50 (Todos) | sim | sim | não | não |
-| Cobre a quebra na `/` (gravada) | sim, no órgão da tela | sim, nos dois | sim | não |
+| Cobre o corte em 50 (Todos) | sim | só com a sigla inteira | não | não |
+| Cobre a quebra na `/` (gravada) | nos dois órgãos | no da tela | sim | não |
 
-**Decisão.** A ordem é a do Todos sem a quarta consulta (o termo
-alargado no órgão do prefixo): o filtro existe pelo corte da lista longa,
-e o termo alargado já devolve, no órgão da tela, a lista gravada (39
-itens). A primeira consulta usa o órgão do prefixo só quando ele é outro
-que o da tela; nenhum item exato ali leva à segunda; vários exatos
-recusam (não há o que escolher no outro órgão). A terceira só sai quando
-a segunda vem vazia, e dela vale só a sigla exata, nunca um parcial único
-(medido no GO: `GECONT GERAL` devolve uma unidade de outro órgão). Uma
-falha de consulta encerra a busca. `oferecidos` é a última resposta lida:
-é a que o comando teve para decidir. A regra do rótulo não remove espaços
-(como o Todos): `CASACIVIL/…` não escolhe `CASA CIVIL` e cai na segunda
-consulta.
+**Decisão.** A ordem do Todos, sem inventar outra. A seguinte consulta só
+sai se a anterior veio vazia ou sem a sigla exata (o Todos só alarga com
+a inteira vazia; aqui a falta da sigla exata também alarga, porque o IES
+nunca aceita um parcial único). A primeira e a segunda só existem quando
+o órgão do prefixo é outro que o da tela. De todas, e em especial do
+termo alargado, vale só a sigla exata (medido no GO: `GECONT GERAL`
+devolve uma unidade de outro órgão); vários exatos recusam. Uma falha de
+consulta encerra a busca. `oferecidos` é a última resposta lida: é a que
+o comando teve para decidir. A regra do rótulo não remove espaços (como o
+Todos): `CASACIVIL/…` não escolhe `CASA CIVIL` e vai às consultas 3 e 4.
 
-**Trade-off medido ao vivo.** Na prévia do GO para `ABC/GECONT-18141`
-(o caso do Todos), as três consultas saíram e nenhuma trouxe a unidade:
-o órgão `28` com a sigla inteira veio vazio, e o termo alargado devolveu
-os mesmos 39 itens gravados
-([relatório](../validacao-live/2026-11-04-processo-enviar-go.md)). Se a
-unidade existe como destino, só a quarta consulta da alternativa 2 (ou a
-lupa) poderia achá-la; isso não foi medido.
+**Ao vivo** ([relatório](../validacao-live/2026-11-04-processo-enviar-go.md)).
+O primeiro alvo, `ABC/GECONT-18141`, veio dos testes do Todos; o
+changelog do Todos (`changelog/changes/unidade-pesquisar.md`, medido com
+o autocomplete `unidade_auto_completar_todas`) diz que ele **não existe**
+e que `CBM/GECONT-18149` "acha direto". A recusa tipada de
+`ABC/GECONT-18141` (com a versão de três consultas) é, portanto, a
+recusa correta de uma unidade inexistente. Com a ordem do Todos,
+`CBM/GECONT-18149` e `DETRAN/GECONT-18166` foram achados na primeira
+consulta (órgão do prefixo, sigla inteira). Uma unidade que só o termo
+alargado acha dentro do órgão não foi observada.
 
 **`Location` do 302.** O Todos mediu no GO o `Location` de escritas em
 `http://` no mesmo host (issue #766). As cassettes gravam a forma
@@ -168,5 +172,5 @@ destino de outro órgão não foram gravados. Escrita live **NOT_RUN**:
 desfazer um envio exige sessão na unidade de destino (plano no relatório
 live). Revisar se o ensaio mostrar: resposta diferente do 302, a origem
 saindo também com manter aberto, `aberto_em` só atualizado depois de
-outra navegação, ou a quarta consulta (termo alargado no órgão do
-prefixo) medida e achando o destino que a busca atual não acha no GO.
+outra navegação, uma resposta do GO com 50 itens (o corte, só do Todos)
+ou uma unidade que só o termo alargado acha dentro do órgão.
