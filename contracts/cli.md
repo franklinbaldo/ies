@@ -264,7 +264,7 @@ mensagem; 3xx continua `redirecionamento_recusado`, com `status_http`.
 O 403 com a página de bloqueio de segurança da instalação (`<title>Acesso
 Negado</title>` e "bloqueada por nossa política de segurança" no texto
 visível; visto em GO), ou a do Cloudflare (`<title>Attention Required! |
-Cloudflare</title>` e "Sorry, you have been blocked"; visto na PEN2), é
+Cloudflare</title>` e "Sorry, you have been blocked"; visto na PEN2 e na PEN3), é
 `bloqueio_de_seguranca_da_instalacao`, com
 `status_http` 403 e a mensagem saneada, que traz o código de bloqueio. A
 sessão não venceu: `ies login` não reloga por ele, e nada é repetido.

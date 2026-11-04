@@ -150,6 +150,14 @@ Nas duas fatias, cada linha da tabela tem um `a.protocoloNormal` com
 mais de um `a.arvore` por linha ou `class` repetido com valores diferentes
 falham fechado.
 
+Em Goiás, a linha cujo acerto é um **documento** do processo leva
+`id_documento` no link do processo e mais dois `a.protocoloNormal`
+(nome e número SEI do documento) que abrem `documento_visualizar`. Esses
+links são aceitos só com uma `acao=documento_visualizar` e o **mesmo**
+`id_documento` decimal do link do processo; senão,
+`link_do_documento_da_linha_diferente_do_processo`. A linha publica só o
+número do processo; o documento não sai.
+
 ## Evidência e validação
 
 - [Matriz Todos](../evidencias/processo-buscar.md) e ensaio estrutural da
@@ -157,5 +165,11 @@ falham fechado.
 - [Parser e fluxo](../../src/pesquisa_web.rs), com testes de sequência de
   requisições por transporte injetável e
   [superfície da CLI](../../tests/processo_buscar_web.rs).
-- UnB live do comando IES: **NOT_RUN** até o ensaio do operador;
-  UFRJ/GO/PEN: **NOT_RUN**.
+- [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-buscar-acervo.md)
+  (04/11/2026): Controle, tela, envio e plano da página 2 das 52
+  cassettes com a Pesquisa, nas sete instalações, pelas peças do comando.
+- Ensaio live do comando IES: PASS na UnB e em GO
+  ([03/11/2026](../../docs/validacao-live/2026-11-03-processo-buscar.md))
+  e na PEN3 ([04/11/2026](../../docs/validacao-live/2026-11-04-processo-buscar.md));
+  PEN1 responde `sem_resultado` até para NUP da unidade; UFRJ, PEN2 e
+  PEN4: **NOT_RUN**.

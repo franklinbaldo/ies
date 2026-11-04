@@ -1,5 +1,6 @@
-//! RED/GREEN das linhas da `UnB` 4.0.9: `a.arvore` com o mesmo `href` do
-//! `a.protocoloNormal`, e `class` repetido idêntico neste. HTML sintético.
+//! RED/GREEN das linhas da `UnB` 4.0.9 (`a.arvore` com o mesmo `href` do
+//! `a.protocoloNormal`, `class` repetido idêntico neste) e das linhas de
+//! Goiás com acerto em documento. HTML sintético.
 use super::*;
 use crate::pesquisa_web::tests_fixtures::{linha, numero};
 
@@ -63,5 +64,59 @@ fn link_de_trabalho_fora_da_arvore_e_do_protocolo_continua_recusado() {
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida)
+    );
+}
+
+/// Linha cujo acerto é um documento do processo, na forma de Goiás
+/// (`processo-busca-go`, passos 2 e 4): o link do processo leva
+/// `id_documento`, e dois `a.protocoloNormal` (nome e número SEI do
+/// documento) abrem `documento_visualizar` com o mesmo `id_documento`.
+fn linha_com_documento(posicao: u64, documento: &str, no_documento: &str) -> String {
+    let original = linha(posicao);
+    let id = 1000 + posicao;
+    let original = original.replace(
+        &format!("id_procedimento={id}&"),
+        &format!("id_procedimento={id}&id_documento={documento}&"),
+    );
+    let link = format!(
+        "<a onclick=\"x(this);\" target=\"_blank\" class=\"protocoloNormal\" \
+         href=\"controlador.php?acao=documento_visualizar&acao_origem=protocolo_pesquisar&id_documento={no_documento}&infra_sistema=1&infra_hash={}\" title=\"Despacho\">",
+        "e".repeat(64)
+    );
+    original.replacen(
+            "</a></td><td class=\"pesquisaTituloDireita\"></td>",
+            &format!("</a> ({link}Despacho</a>)</td><td class=\"pesquisaTituloDireita\">{link}0000101</a></td>"),
+            1,
+        )
+}
+
+#[test]
+fn linha_com_acerto_em_documento_publica_so_o_processo() {
+    let com_documento = linha_com_documento(2, "77", "77");
+    assert_eq!(com_documento.matches("documento_visualizar").count(), 2);
+    let html = tabela(&format!("{}{com_documento}{}", linha(1), linha(3)));
+    let lidos = ler_resultados(&html).unwrap();
+    let numeros: Vec<&str> = lidos.iter().map(|r| r.numero.as_str()).collect();
+    assert_eq!(numeros, [numero(1), numero(2), numero(3)]);
+}
+
+#[test]
+fn documento_da_linha_diferente_do_link_do_processo_e_recusado() {
+    let html = tabela(&linha_com_documento(1, "77", "78"));
+    assert_eq!(
+        ler_resultados(&html),
+        Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso)
+    );
+}
+
+#[test]
+fn documento_na_linha_sem_id_documento_no_processo_e_recusado() {
+    let html = tabela(&linha_com_documento(1, "77", "77").replace(
+        "&id_documento=77&infra_sistema=100000100",
+        "&infra_sistema=100000100",
+    ));
+    assert_eq!(
+        ler_resultados(&html),
+        Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso)
     );
 }
