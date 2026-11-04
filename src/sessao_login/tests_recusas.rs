@@ -293,6 +293,7 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
     assert_eq!(posts(&roteiro), 1);
 }
 
+// Caso de todos tests/sei_replay.py @323eb01 (sequência exata, sem retry)
 #[test]
 fn falha_de_rede_no_post_nao_repete() {
     let ambiente = Ambiente::novo();

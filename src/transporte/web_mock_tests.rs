@@ -35,12 +35,12 @@ fn arquivo_privado_temporario() -> (PathBuf, PathBuf) {
 }
 
 fn resposta(html: &str) -> RespostaWeb<Cursor<Vec<u8>>> {
-    RespostaWeb {
-        status_code: 200,
-        mime: "text/html; charset=utf-8".to_owned(),
-        content_length: Some(html.len()),
-        corpo: Cursor::new(html.as_bytes().to_vec()),
-    }
+    super::testes_http::resposta(
+        200,
+        "text/html; charset=utf-8",
+        html.as_bytes().to_vec(),
+        Some(html.len()),
+    )
 }
 
 fn html_caixa(n: usize) -> String {
@@ -58,19 +58,22 @@ fn html_caixa(n: usize) -> String {
     )
 }
 
+// Caso de todos tests/sei_falso.py @323eb01
 #[test]
 fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     let (pasta, cookie) = arquivo_privado_temporario();
-    let chamadas = Cell::new(0u32);
+    let mut pedidos = Vec::new();
     let html = html_caixa(20);
+    let url = url_controle();
+    let mut respostas = std::collections::VecDeque::from([Ok(resposta(&html))]);
     let lido = read_box_via(
-        &url_controle(),
+        &url,
         &cookie,
         "https://sei.treinamento.unb.br/sei",
-        |_, header_cookie| {
+        |destino, header_cookie| {
             assert_eq!(header_cookie, "PHPSESSID=SINTETICO");
-            chamadas.set(chamadas.get() + 1);
-            Ok(resposta(&html))
+            assert!(super::validar_origem(destino, "https://sei.treinamento.unb.br/sei").is_ok());
+            super::testes_http::atender(&mut pedidos, &mut respostas, "GET")
         },
     )
     .unwrap();
@@ -83,7 +86,8 @@ fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     let json = serde_json::to_string(&saida).unwrap();
     assert!(!json.contains("infra_hash"));
     assert!(!json.contains("PHPSESSID"));
-    assert_eq!(chamadas.get(), 1);
+    assert_eq!(pedidos, ["GET"]);
+    assert!(respostas.is_empty());
     fs::remove_dir_all(pasta).unwrap();
 }
 
