@@ -21,6 +21,8 @@ pub(crate) struct ListaDaPesquisa {
     pub(crate) processos: Vec<ResultadoPesquisa>,
     pub(crate) total_declarado: u64,
     pub(crate) faixa: FaixaDaPesquisa,
+    /// Posições da faixa da barra sem linha na tabela (Goiás 5.0.3).
+    pub(crate) linhas_ausentes_da_faixa: u64,
 }
 
 /// As três respostas observadas do envio da pesquisa.
@@ -150,6 +152,7 @@ pub(crate) enum Classificada<T> {
         itens: Vec<T>,
         total_declarado: u64,
         faixa: FaixaDaPesquisa,
+        linhas_ausentes_da_faixa: u64,
     },
 }
 
@@ -188,15 +191,17 @@ pub(crate) fn classificar_resposta<T>(
         _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
     };
     let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
-    let (faixa, total_declarado) = match ler_barra(&texto)? {
-        (Some(faixa), total) => (faixa, total),
+    // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só
+    // implica a faixa e não admite linha ausente.
+    let (faixa, total_declarado, escrita) = match ler_barra(&texto)? {
+        (Some(faixa), total) => (faixa, total, true),
         (None, total) => match na_pagina {
             Some((esperada, numero))
                 if esperada.inicio > 1
                     && esperada.fim == total
                     && pagina_selecionada(&dom)? == Some(numero) =>
             {
-                (esperada, total)
+                (esperada, total, false)
             }
             _ => (
                 FaixaDaPesquisa {
@@ -204,6 +209,7 @@ pub(crate) fn classificar_resposta<T>(
                     fim: total,
                 },
                 total,
+                false,
             ),
         },
     };
@@ -211,13 +217,20 @@ pub(crate) fn classificar_resposta<T>(
         return Err(E::FaixaDaBarraDeContagemImpossivel);
     }
     let itens = ler(html)?;
-    if itens.len() as u64 != faixa.fim - faixa.inicio + 1 {
+    // Goiás 5.0.3 publica menos registros que a faixa escrita na barra (9
+    // de "1 - 10", tabela vazia em "1 - 10 de 3.300"): o HTML não tem as
+    // linhas, `tr` = 3 por registro lido. Publica-se o que veio e quantas
+    // posições faltam; nunca mais linhas que a faixa.
+    let na_faixa = faixa.fim - faixa.inicio + 1;
+    let lidas = itens.len() as u64;
+    if lidas > na_faixa || (lidas < na_faixa && !escrita) {
         return Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra);
     }
     Ok(Classificada::Lista {
         itens,
         total_declarado,
         faixa,
+        linhas_ausentes_da_faixa: na_faixa - lidas,
     })
 }
 
@@ -238,10 +251,12 @@ pub(crate) fn ler_resposta_na_pagina(
             itens,
             total_declarado,
             faixa,
+            linhas_ausentes_da_faixa,
         } => RespostaDaPesquisa::Lista(ListaDaPesquisa {
             processos: itens,
             total_declarado,
             faixa,
+            linhas_ausentes_da_faixa,
         }),
     })
 }

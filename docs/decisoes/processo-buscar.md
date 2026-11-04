@@ -153,6 +153,42 @@ o POST assim mesmo (03/11/2026); nas outras instalações, medir isso exige a
 [coleta do formato de POST](../coleta-formato-post.md) ou ablação em
 treinamento autorizado.
 
+## Linhas ausentes da faixa
+
+Decisão do proprietário (04/11/2026): compatibilidade com o máximo de
+instalações e versões. Goiás 5.0.3 (`processo-busca-go#4`) responde
+"Exibindo 1 - 10 de 966" com 9 registros. O HTML gravado tem 27 `tr`
+(três por registro), nenhum link de processo fora dos registros lidos e
+nenhuma forma de linha diferente: a linha não está na resposta, e o
+leitor não a pula.
+
+- **Alternativas:** (a) recusar como antes
+  (`linhas_da_tabela_diferentes_da_faixa_da_barra`); (b) publicar as
+  linhas presentes como se fossem a faixa; (c) publicar as linhas
+  presentes, a faixa da barra e quantas posições faltam.
+- **Escolha: (c).** A lista sai com `faixa_observada` = a faixa
+  **escrita** na barra, `total_declarado` da barra e
+  `linhas_ausentes_da_faixa` = `F - I + 1 -` linhas lidas (0 quando
+  completa). Nunca se diz que a página está completa; `--pagina N`
+  continua contando pela barra (tamanho e `hdnInicio`), e a página N
+  confere a faixa da barra contra a esperada.
+- **Fora da regra:** mais linhas que a faixa e qualquer diferença quando a
+  barra é "N resultados" (a faixa é só implícita) continuam
+  `linhas_da_tabela_diferentes_da_faixa_da_barra`. As conferências de
+  link (`link_de_processo_fora_da_linha_de_pesquisa`,
+  `link_de_processo_sem_classe_reconhecida`) seguem impedindo que uma
+  linha com link seja perdida em silêncio.
+- **Trade-off:** uma linha com forma nova **sem** nenhum link de
+  processo seria contada como ausente em vez de recusada; o campo a
+  expõe, e a regra vale também para `ies documento buscar`.
+- **Revisão:** se uma instalação mostrar por que a linha falta (aviso,
+  marcador de sigilo), trocar a contagem pelo fato.
+- **RED:** 6 testes falhando (resposta com 9 de 10, tabela vazia com
+  barra, documentos, página 2 de documentos e o texto humano das duas
+  CLIs) antes da implementação; o replay do acervo passou de 5 recusas
+  de Goiás a 0 ([processo](../validacao-replay/2026-11-04-processo-buscar-acervo.md),
+  [documento](../validacao-replay/2026-11-04-documento-buscar-acervo.md)).
+
 ## Limitações e revisão
 
 - Ensaio live **do comando IES** (03/11/2026,
@@ -162,8 +198,9 @@ treinamento autorizado.
   PEN3 5.0.4 (04/11/2026,
   [relatório](../validacao-live/2026-11-04-processo-buscar.md)): PASS,
   inclusive NUP fora da caixa da unidade. UFRJ, PEN2 e PEN4: NOT_RUN.
-- Linhas a menos que a faixa da barra (`processo-busca-go#4`: 9 linhas
-  para 1–10) continuam falha fechada; a causa não está na tela.
+- Linhas a menos que a faixa da barra são publicadas com
+  `linhas_ausentes_da_faixa` (ver abaixo); a causa (filtro de acesso
+  depois da contagem do índice, presumido) não está na tela.
 - A página N e a barra acima de 999 (`3.441`, `15.835`) foram vistas ao
   vivo; uma barra sem separador continua falhando fechada.
 - Não há filtros além do protocolo. O termo obedece ao `maxlength`
