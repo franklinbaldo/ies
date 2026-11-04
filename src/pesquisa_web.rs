@@ -35,6 +35,9 @@ pub enum ErroResultadoPesquisa {
     IdentificadorDoProcessoRepetidoNaPesquisa,
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
+    /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
+    /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
+    LinkDoDocumentoDaLinhaDiferenteDoProcesso,
 }
 
 impl ErroResultadoPesquisa {
@@ -77,6 +80,9 @@ impl ErroResultadoPesquisa {
             }
             Self::NumeroDePesquisa(erro) => erro.subcodigo(),
             Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
+            Self::LinkDoDocumentoDaLinhaDiferenteDoProcesso => {
+                "link_do_documento_da_linha_diferente_do_processo"
+            }
         }
     }
 }
