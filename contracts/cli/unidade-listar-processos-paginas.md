@@ -80,7 +80,9 @@ Sequência e orçamento:
 Total: **1 GET + 0 ou 1 POST**. Sem retry, sem outra página, sem
 restauração. Efeito avaliado: `AlteraEstadoDaSessao::PaginaOuFiltroLembrado`.
 O GET seguinte pode mostrar a página N da tabela; a faixa publicada diz qual.
-Usar só em instalação de treinamento autorizada.
+Usar só em instalação de treinamento autorizada. Ensaio live da sintaxe
+`recebidos|gerados --pagina N` em 04/11/2026 ([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): PASS na
+UnB e na PEN1, 1 GET + 0 ou 1 POST medidos, página lembrada por lista.
 
 | Recusa antes do POST | Subcódigo |
 | --- | --- |

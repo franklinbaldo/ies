@@ -77,7 +77,10 @@ restaurar custava requisições e o efeito residual é cosmético):
    como com a sessão já na R; `faixa_observada` diz qual é.
 
 Orçamento: 1 GET + 1 POST (R); com `--pagina N` diferente da página
-mostrada, 1 GET + 2 POST (R, página N). Regime estável: depois da troca a
+mostrada, 1 GET + 2 POST (R, página N). A recusa de página depois do POST
+R tem a mesma mensagem da sessão já na R. Ensaio live de 04/11/2026
+([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9 e na PEN1 4.0.12, com e sem
+`--pagina N` e nas duas ordens; GO, PEN3 e PEN4 **NOT_RUN**. Regime estável: depois da troca a
 sessão está na R, e `recebidos|gerados` custa 1 GET (mais o POST de página,
 se pedido). Uma falha é publicada como está, sem lista; não há POST de
 volta. As recusas `visao_do_controle_nao_restaurada` e
