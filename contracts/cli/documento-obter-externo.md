@@ -102,3 +102,7 @@ como na leitura interna.
 
 Leitura. Se o GET do anexo marca o documento como visitado não foi
 medido.
+
+Live: PDF **PASS** na UnB 4.0.9 em 04/11/2026, com e sem `--saida`
+(2 requisições pelo link guardado, SHA-256 do arquivo igual ao publicado;
+[varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)).

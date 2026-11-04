@@ -95,8 +95,8 @@ Usar só em instalação de treinamento autorizada. Ensaio live da sintaxe
 `recebidos|gerados --pagina N` em 04/11/2026 ([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): PASS na
 UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista) e na UFRJ
 4.1.5 (uma página, depois da correção do singular), 1 GET + 0 ou 1 POST
-medidos, página lembrada por lista; PEN2 e GO NOT_RUN (login recusado
-ou interrompido; [GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
+medidos, página lembrada por lista; GO 5.0.3 PASS (página de 10) na
+terceira tentativa e PEN2 NOT_RUN ([GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
 
 | Recusa antes do POST | Subcódigo |
 | --- | --- |

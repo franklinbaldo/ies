@@ -132,3 +132,7 @@ externo), `barra_do_documento_fora_da_forma_observada`.
 Leitura. A lista e a versão são GET de telas publicadas; se marcam algo
 como visitado não foi medido. Nenhuma escrita, nenhum editor, nenhuma
 recuperação de versão.
+
+Live na UnB 4.0.9 (04/11/2026, [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)): `--versao 1` **PASS**
+(versão 1 de 3, 4 requisições); processo concluído ou aberto só em outra
+unidade não publica a lista na barra (`lista_de_versoes_nao_publicada_na_arvore`).
