@@ -51,7 +51,16 @@ fn numero_sei_opaco_aprendido_por_instalacao() {
     );
     assert_eq!(
         indice.documentos(),
-        [linha("0000101", "10", "21"), linha("0000102", "10", "22")]
+        [
+            [
+                "https://outro.exemplo/sei".to_owned(),
+                "0000101".to_owned(),
+                "90".to_owned(),
+                "91".to_owned(),
+            ],
+            linha("0000101", "10", "21"),
+            linha("0000102", "10", "22"),
+        ]
     );
 }
 
