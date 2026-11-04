@@ -38,7 +38,8 @@ texto um rodapé gerado pelo SEI, fora do conteúdo editável:
 `<div unselectable="on">…Criado por <a>U</a>, versão N por <a>U</a> em DATA.</div>`.
 Visto nas 91 respostas HTML do acervo (UnB, PEN1 a PEN4; UFRJ e GO não
 gravaram `documento_visualizar`) e ao vivo na PEN4 5.0.4, onde a versão 1
-lida pela lista declarou `versão 1` e a atual `versão 2`. Só um rodapé
+lida pela lista declarou `versão 1` e a atual `versão 2`, e depois
+(04/11/2026) na PEN3 5.0.4 e na UFRJ 4.1.5 ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)). Só um rodapé
 nessa forma exata conta; nenhum ou dois é "não servido".
 
 A tela da lista (`table.infraTable` com legenda única
@@ -132,3 +133,10 @@ externo), `barra_do_documento_fora_da_forma_observada`.
 Leitura. A lista e a versão são GET de telas publicadas; se marcam algo
 como visitado não foi medido. Nenhuma escrita, nenhum editor, nenhuma
 recuperação de versão.
+
+Validação live: `--versao N` **PASS** na PEN4, na PEN3 e na UFRJ 4.1.5
+(G + 2); cópia `DOC.vN.html` **PASS** na UFRJ
+([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
+Com `--saida`, o texto da versão N vai para o mesmo `DOC.txt` do texto
+atual: num diretório que já tem `DOC.txt` a leitura gasta G + 2 e sai
+`arquivo_texto_documento_ja_existe` (visto na PEN4).
