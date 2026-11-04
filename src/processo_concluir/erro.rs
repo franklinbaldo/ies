@@ -47,6 +47,8 @@ pub(crate) enum FalhaDoEnvio {
     RespostaSemRedirecionamento,
     /// 302 em vez do HTML 200 (forma `funcao`).
     RedirecionamentoNaFuncao,
+    /// 302 em vez do HTML 200 (GET de reabrir).
+    RedirecionamentoNaReabertura,
 }
 
 impl FalhaDoEnvio {
@@ -60,6 +62,7 @@ impl FalhaDoEnvio {
             }
             Self::RespostaSemRedirecionamento => "resposta_do_concluir_sem_redirecionamento",
             Self::RedirecionamentoNaFuncao => "redirecionamento_na_conclusao_pela_funcao",
+            Self::RedirecionamentoNaReabertura => "redirecionamento_na_reabertura",
         }
     }
 
@@ -67,9 +70,9 @@ impl FalhaDoEnvio {
         match self {
             Self::Envio(erro) => erro.status_http().cloned(),
             Self::Transporte(falha) => falha.status_http().cloned(),
-            Self::RedirecionamentoNaoReconhecido | Self::RedirecionamentoNaFuncao => {
-                Some(StatusHttpRecusado::sem_mensagem(302))
-            }
+            Self::RedirecionamentoNaoReconhecido
+            | Self::RedirecionamentoNaFuncao
+            | Self::RedirecionamentoNaReabertura => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::LoginAposEscrita | Self::RespostaSemRedirecionamento => None,
         }
     }
@@ -77,14 +80,14 @@ impl FalhaDoEnvio {
 
 /// O que a leitura de verificação, feita uma vez, mostrou.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum VerificacaoDaConclusao {
+pub(crate) enum VerificacaoPorLeitura {
     /// Siglas de `aberto_em`.
     Lida(Vec<String>),
     SituacaoNaoLida(MotivoAbertoEm),
     LeituraFalhou(ErroProcessoObter),
 }
 
-impl VerificacaoDaConclusao {
+impl VerificacaoPorLeitura {
     /// Subcódigo (leitura) ou motivo (situação não lida).
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
@@ -131,7 +134,7 @@ pub(crate) enum ErroConcluir {
     EfeitoIncertoNaConclusao {
         aberto_em: Vec<String>,
         falha_do_envio: Option<FalhaDoEnvio>,
-        verificacao: Box<VerificacaoDaConclusao>,
+        verificacao: Box<VerificacaoPorLeitura>,
     },
 }
 

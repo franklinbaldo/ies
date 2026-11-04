@@ -16,6 +16,7 @@ mod literais;
 mod movidos;
 mod natureza;
 mod pastas;
+mod reabrir;
 mod situacao;
 mod tela;
 mod vinculo;
@@ -49,6 +50,8 @@ mod tests_pastas_concatenacao;
 #[cfg(test)]
 mod tests_pastas_integridade;
 #[cfg(test)]
+pub(crate) mod tests_reabrir;
+#[cfg(test)]
 mod tests_situacao;
 #[cfg(test)]
 pub(crate) mod tests_tela;
@@ -69,6 +72,10 @@ use movidos::{MovidoLido, conferir_movidos, ler_movido};
 pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
+pub(crate) use reabrir::{
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
+    ler_endereco_de_reabrir, ler_reabrir_da_barra,
+};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};

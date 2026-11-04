@@ -75,6 +75,17 @@ ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
 escrita (abertura, situação não lida, barra, tela, função, derivação:
 saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
 (a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
-com `VerificacaoDaConclusao`). `FalhaDoEnvio` classifica a resposta não
+com `VerificacaoPorLeitura`). `FalhaDoEnvio` classifica a resposta não
 esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
 sem retry ([contrato](../contracts/cli/processo-concluir.md)).
+
+## Reabrir o processo
+
+`ErroReabrir` (`src/processo_reabrir/erro.rs`) segue a mesma divisão: o
+que impede a escrita (abertura, situação não lida, barra, tela do nó,
+cookie: saída 1, nada enviado) e o resultado depois dela,
+`ReaberturaNaoAplicada` (a leitura não lista a unidade) e
+`EfeitoIncertoNaReabertura` (saída 3). A resposta não esperada é a mesma
+`FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
+a verificação é a mesma `VerificacaoPorLeitura`
+([contrato](../contracts/cli/processo-reabrir.md)).

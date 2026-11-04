@@ -117,9 +117,8 @@ repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
 
 `EfeitoAvaliado::AlteraEstadoDoProcesso { AndamentoAbertoNaUnidade }`:
 fecha o andamento do processo na unidade da sessão; as outras unidades
-continuam como estavam (observado). O IES não desfaz: reabrir
-(`reabrirProcesso()`, observado nas sete instalações) não está neste
-contrato.
+continuam como estavam (observado). Desfaz-se com
+[`ies processo reabrir`](processo-reabrir.md).
 
 ## Saída
 
@@ -156,7 +155,7 @@ A frio, com a árvore guardada pela abertura: 5 GET + 1 POST (`tela`) ou
 
 ## Fora do escopo
 
-Reabrir, "Concluir e agendar reabertura" (`rdoConcluir=V`), concluir
+Reabrir (outro comando: [`processo reabrir`](processo-reabrir.md)), "Concluir e agendar reabertura" (`rdoConcluir=V`), concluir
 vários processos (`selProcedimentos`), concluir noutra unidade sem trocar a
 sessão.
 

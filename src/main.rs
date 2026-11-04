@@ -48,6 +48,8 @@ mod processo_concluir;
 mod processo_concluir_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_reabrir;
+mod processo_reabrir_cli;
 mod propriedades_processo;
 mod replay_args;
 mod replay_busca_documento;
@@ -163,6 +165,11 @@ enum ProcessoAcao {
         confirmar: bool,
     },
     Concluir {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Reabrir {
         numero: String,
         #[arg(long)]
         confirmar: bool,
@@ -335,6 +342,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
+        .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.

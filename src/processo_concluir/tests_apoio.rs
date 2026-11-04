@@ -4,8 +4,8 @@
 //! barra, tela "Conclusão de Processo" das cinco instalações 4.1/5.0, tela
 //! do nó da `UnB` 4.0.9). Hosts, hashes, ids e números inventados.
 use super::{ErroConcluir, PedidoDaConclusao, ProcessoConcluido, concluir_processo};
-pub(super) use crate::arvore_processo::tests::NUP;
-pub(super) use crate::arvore_processo::tests_concluir::{
+pub(crate) use crate::arvore_processo::tests::NUP;
+pub(crate) use crate::arvore_processo::tests_concluir::{
     ACAO_FUNCAO, absoluta, arvore_para_concluir, link_da_funcao, link_da_tela_do_no,
     link_de_concluir, pela_tela, tela_do_no,
 };
@@ -21,22 +21,22 @@ use std::fmt::Write as _;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-pub(super) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
-pub(super) const UNIDADE: &str = "TESTE";
-pub(super) const ID: &str = "10";
+pub(crate) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
+pub(crate) const UNIDADE: &str = "TESTE";
+pub(crate) const ID: &str = "10";
 const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
 const COOKIE: &str = "PHPSESSID=SINTETICO";
-pub(super) const HASH_ACTION: &str =
+pub(crate) const HASH_ACTION: &str =
     "9999999999999999999999999999999999999999999999999999999999999999";
 
-pub(super) fn url_controle() -> String {
+pub(crate) fn url_controle() -> String {
     format!(
         "{ORIGEM}/controlador.php?acao=procedimento_controlar&{CONTEXTO}&infra_hash={}",
         "a".repeat(64)
     )
 }
 
-pub(super) fn trabalhar_controle(id: &str) -> String {
+pub(crate) fn trabalhar_controle(id: &str) -> String {
     format!(
         "controlador.php?acao=procedimento_trabalhar&acao_origem=procedimento_controlar&acao_retorno=procedimento_controlar&id_procedimento={id}&{CONTEXTO}&infra_hash={}",
         "d".repeat(64)
@@ -44,7 +44,7 @@ pub(super) fn trabalhar_controle(id: &str) -> String {
 }
 
 /// Controle (visão resumida) com o processo `ID` em Recebidos.
-pub(super) fn controle() -> String {
+pub(crate) fn controle() -> String {
     format!(
         "<html><body><a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
          <table id=\"tblProcessosRecebidos\"><caption>1 registros - 1 a 1):</caption>\
@@ -54,22 +54,22 @@ pub(super) fn controle() -> String {
     )
 }
 
-pub(super) fn trabalhar() -> String {
+pub(crate) fn trabalhar() -> String {
     tela_do_processo(UNIDADE, &[src_da_arvore(ID)])
 }
 
-pub(super) fn url_arvore() -> String {
+pub(crate) fn url_arvore() -> String {
     absoluta(&src_da_arvore(ID))
 }
 
-pub(super) fn ancora(sigla: &str) -> String {
+pub(crate) fn ancora(sigla: &str) -> String {
     format!(
         "<a alt=\"Unidade {sigla}\" title=\"Unidade {sigla}\" class=\"ancoraSigla\">{sigla}</a>"
     )
 }
 
 /// O `.html` da raiz com as unidades abertas (forma `UnB`/GO/PEN).
-pub(super) fn situacao(siglas: &[&str]) -> String {
+pub(crate) fn situacao(siglas: &[&str]) -> String {
     match siglas {
         [] => "Processo não possui andamentos abertos.<br />".to_owned(),
         [uma] => format!("Processo aberto somente na unidade {}.<br />", ancora(uma)),
@@ -85,18 +85,18 @@ pub(super) fn situacao(siglas: &[&str]) -> String {
 }
 
 /// Árvore com a situação `siglas` e a barra com `acoes`.
-pub(super) fn arvore(siglas: &[&str], acoes: &[String]) -> String {
+pub(crate) fn arvore(siglas: &[&str], acoes: &[String]) -> String {
     arvore_para_concluir(ID, NUP, &situacao(siglas), acoes)
 }
 
-pub(super) fn action_de_concluir() -> String {
+pub(crate) fn action_de_concluir() -> String {
     format!(
         "controlador.php?acao=procedimento_concluir&acao_origem=procedimento_concluir&id_procedimento={ID}&arvore=1&{CONTEXTO}&infra_hash={HASH_ACTION}"
     )
 }
 
 /// Tela "Conclusão de Processo" na forma das cinco instalações 4.1/5.0.
-pub(super) fn tela_de_conclusao(id: &str) -> String {
+pub(crate) fn tela_de_conclusao(id: &str) -> String {
     format!(
         "<html><head><title>SEI - Concluir Processo</title><script>function validarConcluir(){{ return true; }}</script></head><body>\
          <div id=\"divInfraBarraLocalizacao\" class=\"infraBarraLocalizacao\">Conclusão de Processo</div>\
@@ -122,10 +122,10 @@ pub(super) fn tela_de_conclusao(id: &str) -> String {
 }
 
 /// O corpo que o navegador envia (ordem do documento).
-pub(super) const CORPO_DA_CONCLUSAO: &str = "hdnInfraTipoPagina=2&sbmSalvar=Salvar&rdoConcluir=S&txtPrazoReaberturaProgramada=&txtDiasReaberturaProgramada=&hdnIdProtocolos=10&hdnIdProcedimentoDestino=";
+pub(crate) const CORPO_DA_CONCLUSAO: &str = "hdnInfraTipoPagina=2&sbmSalvar=Salvar&rdoConcluir=S&txtPrazoReaberturaProgramada=&txtDiasReaberturaProgramada=&hdnIdProtocolos=10&hdnIdProcedimentoDestino=";
 
 /// `Location` do 302 observado depois do POST.
-pub(super) fn volta_a_arvore() -> String {
+pub(crate) fn volta_a_arvore() -> String {
     format!(
         "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_concluir&atualizar_arvore=1&id_procedimento={ID}&arvore=1&{CONTEXTO}&infra_hash={}",
         "b".repeat(64)
@@ -133,18 +133,18 @@ pub(super) fn volta_a_arvore() -> String {
 }
 
 /// Página que a forma 4.0 devolve ao GET da função (molde da tela do nó).
-pub(super) fn resposta_da_funcao() -> String {
+pub(crate) fn resposta_da_funcao() -> String {
     tela_do_no(ID).replace("SEI - Visualizar Árvore", "SEI - ")
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(super) struct Pedido {
-    pub(super) metodo: &'static str,
-    pub(super) url: String,
-    pub(super) corpo: Option<String>,
+pub(crate) struct Pedido {
+    pub(crate) metodo: &'static str,
+    pub(crate) url: String,
+    pub(crate) corpo: Option<String>,
 }
 
-pub(super) fn get(url: &str) -> Pedido {
+pub(crate) fn get(url: &str) -> Pedido {
     Pedido {
         metodo: "GET",
         url: url.to_owned(),
@@ -152,7 +152,7 @@ pub(super) fn get(url: &str) -> Pedido {
     }
 }
 
-pub(super) fn post(url: &str, corpo: &str) -> Pedido {
+pub(crate) fn post(url: &str, corpo: &str) -> Pedido {
     Pedido {
         metodo: "POST",
         url: url.to_owned(),
@@ -161,21 +161,21 @@ pub(super) fn post(url: &str, corpo: &str) -> Pedido {
 }
 
 /// Status, HTML e `Location`; ou falha de transporte.
-pub(super) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
+pub(crate) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
 
 #[allow(clippy::unnecessary_wraps)] // `Resposta` também carrega falhas de transporte.
-pub(super) fn ok(html: String) -> Resposta {
+pub(crate) fn ok(html: String) -> Resposta {
     Ok((200, html, None))
 }
 
 #[allow(clippy::unnecessary_wraps)]
-pub(super) fn r302(localizacao: &str) -> Resposta {
+pub(crate) fn r302(localizacao: &str) -> Resposta {
     Ok((302, String::new(), Some(localizacao.to_owned())))
 }
 
-pub(super) struct Roteiro {
+pub(crate) struct Roteiro {
     respostas: VecDeque<Resposta>,
-    pub(super) pedidos: Vec<Pedido>,
+    pub(crate) pedidos: Vec<Pedido>,
 }
 
 impl Roteiro {
@@ -236,10 +236,10 @@ impl EnvioDoProcesso for Roteiro {
 }
 
 /// Diretório temporário com o cookie (0600) e o índice.
-pub(super) struct Ambiente {
+pub(crate) struct Ambiente {
     pasta: PathBuf,
     cookie: PathBuf,
-    pub(super) indice: IndiceLocal,
+    pub(crate) indice: IndiceLocal,
 }
 
 impl Drop for Ambiente {
@@ -248,7 +248,7 @@ impl Drop for Ambiente {
     }
 }
 
-pub(super) fn ambiente() -> Ambiente {
+pub(crate) fn ambiente() -> Ambiente {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -269,12 +269,13 @@ pub(super) fn ambiente() -> Ambiente {
     }
 }
 
-/// Roda `processo concluir` com `respostas`; confere que todas foram usadas.
-pub(super) fn rodar(
+/// Roda `executar` com `respostas` na sessão sintética; confere que todas
+/// foram usadas (também a de `processo reabrir`).
+pub(crate) fn rodar_com<T>(
     amb: &Ambiente,
-    confirmar: bool,
     respostas: Vec<Resposta>,
-) -> (Result<ProcessoConcluido, ErroConcluir>, Vec<Pedido>) {
+    executar: impl FnOnce(&SessaoDoProcesso<'_>, &NumeroProcesso, &IndiceLocal, &mut Roteiro) -> T,
+) -> (T, Vec<Pedido>) {
     let url = url_controle();
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
@@ -282,26 +283,37 @@ pub(super) fn rodar(
         cookie_file: &amb.cookie,
     };
     let nup = NumeroProcesso::novo(NUP).unwrap();
-    let pedido = PedidoDaConclusao {
-        nup: &nup,
-        unidade: None,
-        confirmar,
-    };
     let mut roteiro = Roteiro {
         respostas: respostas.into(),
         pedidos: Vec::new(),
     };
-    let r = concluir_processo(&sessao, &pedido, &amb.indice, &mut roteiro);
+    let r = executar(&sessao, &nup, &amb.indice, &mut roteiro);
     assert!(roteiro.respostas.is_empty(), "respostas não consumidas");
     (r, roteiro.pedidos)
 }
 
+/// Roda `processo concluir` com `respostas`; confere que todas foram usadas.
+pub(crate) fn rodar(
+    amb: &Ambiente,
+    confirmar: bool,
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoConcluido, ErroConcluir>, Vec<Pedido>) {
+    rodar_com(amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = PedidoDaConclusao {
+            nup,
+            unidade: None,
+            confirmar,
+        };
+        concluir_processo(sessao, &pedido, indice, roteiro)
+    })
+}
+
 /// Abertura a frio pela linha do Controle: as três respostas e os pedidos.
-pub(super) fn abertura(arvore: String) -> Vec<Resposta> {
+pub(crate) fn abertura(arvore: String) -> Vec<Resposta> {
     vec![ok(controle()), ok(trabalhar()), ok(arvore)]
 }
 
-pub(super) fn pedidos_da_abertura() -> Vec<Pedido> {
+pub(crate) fn pedidos_da_abertura() -> Vec<Pedido> {
     vec![
         get(&url_controle()),
         get(&absoluta(&trabalhar_controle(ID))),
@@ -309,20 +321,20 @@ pub(super) fn pedidos_da_abertura() -> Vec<Pedido> {
     ]
 }
 
-pub(super) fn vazio() -> &'static [String] {
+pub(crate) fn vazio() -> &'static [String] {
     &[]
 }
 
-pub(super) fn funcao() -> Vec<String> {
+pub(crate) fn funcao() -> Vec<String> {
     vec![ACAO_FUNCAO.to_owned()]
 }
 
-pub(super) fn tela() -> Vec<String> {
+pub(crate) fn tela() -> Vec<String> {
     vec![pela_tela(ID)]
 }
 
 #[allow(dead_code)]
-pub(super) fn links() -> (String, String, String) {
+pub(crate) fn links() -> (String, String, String) {
     (
         absoluta(&link_de_concluir(ID)),
         absoluta(&link_da_tela_do_no(ID)),

@@ -8,6 +8,7 @@ use crate::processo_concluir::{
     ErroConcluir, FalhaDoEnvio, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
 };
 use crate::processo_obter::SessaoDoProcesso;
+use crate::transporte::StatusHttpRecusado;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{
     Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, saida_erro, transporte,
@@ -30,7 +31,7 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<ExitCode> {
     })
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str) -> ExitCode {
+pub(crate) fn erro_de_uso(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
@@ -47,7 +48,13 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
+/// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha
+/// de configuração sai com 1 `fonte_invalida`, sem rede (também a de
+/// `processo reabrir`).
+pub(crate) fn com_sessao(
+    cli: &Cli,
+    executar: impl FnOnce(&SessaoDoProcesso<'_>, &IndiceLocal) -> ExitCode,
+) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
@@ -64,13 +71,28 @@ fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
         origem: origem.trim(),
         cookie_file: &arquivos.cookie,
     };
+    executar(&sessao, &IndiceLocal::da_configuracao(&arquivos))
+}
+
+fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
+    com_sessao(cli, |sessao, indice| {
+        concluir_na_sessao(cli, sessao, indice, nup, confirmar)
+    })
+}
+
+fn concluir_na_sessao(
+    cli: &Cli,
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &IndiceLocal,
+    nup: &NumeroProcesso,
+    confirmar: bool,
+) -> ExitCode {
     let pedido = PedidoDaConclusao {
         nup,
         unidade: cli.unidade.as_deref(),
         confirmar,
     };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    match concluir_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {
+    match concluir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
                 println!(
@@ -92,7 +114,7 @@ fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
     }
 }
 
-fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
+pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
     let mut valor = Map::new();
     valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
     if let Some(http) = falha.status_http() {
@@ -128,18 +150,21 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
     valor
 }
 
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
+/// O corpo comum das falhas depois da abertura (também as de `processo
+/// reabrir`): códigos, mensagem e o status HTTP, quando houver.
+pub(crate) fn json_base_da_falha(
+    codigo: &str,
+    subcodigo: &str,
+    mensagem: &str,
+    status: Option<StatusHttpRecusado>,
+) -> Value {
     let mut valor = json!({
-        "codigo": erro.codigo(),
-        "subcodigo": erro.subcodigo(),
-        "erro": erro.mensagem(),
+        "codigo": codigo,
+        "subcodigo": subcodigo,
+        "erro": mensagem,
         "retentavel": false,
     });
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    if let Some(http) = erro.status_http() {
+    if let (Some(http), Some(objeto)) = (status, valor.as_object_mut()) {
         if http.status != 200 {
             objeto.insert("status_http".to_owned(), json!(http.status));
         }
@@ -147,6 +172,20 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
             objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
         }
     }
+    valor
+}
+
+/// JSON da falha depois da abertura.
+pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
+    let mut valor = json_base_da_falha(
+        erro.codigo(),
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    );
+    let Some(objeto) = valor.as_object_mut() else {
+        return valor;
+    };
     match erro {
         ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo } => {
             objeto.insert("motivo".to_owned(), json!(motivo.como_texto()));
@@ -183,11 +222,20 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
 }
 
 fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
-    let valor = json_de_falha(erro);
+    publicar_valor_da_falha(json_mode, &json_de_falha(erro), erro.saida())
+}
+
+/// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
+/// a mensagem, as listas, a resposta da escrita e a verificação no stderr.
+pub(crate) fn publicar_valor_da_falha(json_mode: bool, valor: &Value, saida: u8) -> ExitCode {
     if json_mode {
         println!("{valor}");
     } else {
-        eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
+        eprintln!(
+            "IES: {} [{}]",
+            valor["erro"].as_str().unwrap_or_default(),
+            valor["subcodigo"].as_str().unwrap_or_default()
+        );
         for campo in ["aberto_em", "depois"] {
             if let Some(lista) = valor[campo].as_array() {
                 let siglas: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
@@ -201,10 +249,10 @@ fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
             eprintln!("IES: verificação: {motivo}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(saida)
 }
 
-fn lista_humana(siglas: &[&str]) -> String {
+pub(crate) fn lista_humana(siglas: &[&str]) -> String {
     if siglas.is_empty() {
         "(nenhuma unidade)".to_owned()
     } else {

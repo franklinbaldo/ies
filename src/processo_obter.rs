@@ -65,7 +65,7 @@ pub(crate) use documento::{
     DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, obter_documento,
 };
 pub(crate) use erro::ErroProcessoObter;
-pub(crate) use fluxo::{abrir_para_concluir, obter_processo};
+pub(crate) use fluxo::{abrir_para_escrever, obter_processo};
 use std::path::Path;
 
 /// GET que devolve também o `Location` (302 como dado, nunca seguido).

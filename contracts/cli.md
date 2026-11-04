@@ -328,3 +328,18 @@ os da tela (`campo_nao_previsto_na_tela_de_conclusao`,
 os da função (`funcao_de_concluir_ausente_na_tela_do_no`, …),
 `conclusao_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
 `efeito_incerto_na_conclusao` (`efeito_incerto`, saída 3).
+
+## Reabrir o processo (Refs #172)
+
+`ies processo reabrir NUP [--confirmar]` é o espelho de `processo concluir`
+([contrato](cli/processo-reabrir.md)): prévia só com a abertura; o GET da
+tela do nó e o GET da URL de reabrir lida nela (a escrita); verificação
+por `aberto_em` numa leitura nova. Subcódigos próprios:
+`situacao_do_processo_nao_lida_antes_de_reabrir`,
+`unidade_da_sessao_ja_na_situacao`, `reabertura_nao_publicada_na_barra`,
+`funcoes_de_reabrir_repetidas_na_barra`, os da tela do nó
+(`endereco_de_reabrir_ausente_na_tela_do_no`,
+`enderecos_de_reabrir_repetidos_na_tela_do_no`, …),
+`tela_do_no_redirecionada`, `redirecionamento_na_reabertura` (resposta),
+`reabertura_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
+`efeito_incerto_na_reabertura` (`efeito_incerto`, saída 3).
