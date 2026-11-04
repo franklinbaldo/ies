@@ -33,6 +33,7 @@ mod html_atributos;
 #[allow(dead_code)] // Índice local (ADR 0003); a integração vem depois.
 mod indice_local;
 mod instalacao;
+mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;
 mod pagina_do_controle;

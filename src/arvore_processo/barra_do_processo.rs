@@ -100,3 +100,15 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, E> {
     }
     Ok(texto)
 }
+
+/// Shim do RED: o link `andamento_marcador_gerenciar` da barra.
+pub(crate) fn ler_link_dos_marcadores(
+    _instalacao: &Instalacao,
+    _html: &str,
+    _id: &str,
+) -> Result<
+    Option<crate::marcadores_processo::EnderecoDosMarcadores>,
+    crate::marcadores_processo::ErroMarcadores,
+> {
+    Ok(None)
+}

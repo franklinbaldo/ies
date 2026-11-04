@@ -81,6 +81,8 @@ pub(crate) enum ErroDetalhada {
     ItensDaCelulaNaoSeparados,
     ItensNaoPrevistosNaCelula,
     CabecalhoDiferenteEntrePaginas,
+    MarcadorDaCelulaForaDaFormaObservada,
+    TextoForaDosMarcadoresNaCelula,
 }
 
 impl ErroDetalhada {
@@ -121,6 +123,10 @@ impl ErroDetalhada {
             Self::ItensDaCelulaNaoSeparados => "itens_da_celula_detalhada_nao_separados",
             Self::ItensNaoPrevistosNaCelula => "itens_nao_previstos_na_celula_detalhada",
             Self::CabecalhoDiferenteEntrePaginas => "cabecalho_detalhado_diferente_entre_paginas",
+            Self::MarcadorDaCelulaForaDaFormaObservada => {
+                "marcador_da_celula_detalhada_fora_da_forma_observada"
+            }
+            Self::TextoForaDosMarcadoresNaCelula => "texto_fora_dos_marcadores_na_celula_detalhada",
         }
     }
 }
@@ -479,3 +485,6 @@ mod tests;
 
 #[cfg(test)]
 mod tests_colunas;
+
+#[cfg(test)]
+pub(crate) mod tests_marcadores;

@@ -380,6 +380,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         unidade: cli.unidade.as_deref(),
         andamentos,
         propriedades: !comando.sem_propriedades,
+        marcadores: !comando.sem_marcadores,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {
@@ -427,6 +428,9 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
 #[cfg(test)]
 #[path = "processo_obter_cli/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "processo_obter_cli/tests_marcadores.rs"]
+mod tests_marcadores;
 #[cfg(test)]
 #[path = "processo_obter_cli/tests_propriedades.rs"]
 mod tests_propriedades;

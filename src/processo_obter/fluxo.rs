@@ -98,12 +98,20 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
         pedido.propriedades,
         resolvido_por == ResolvidoPor::IndiceLink,
     )?;
+    let marcadores = super::marcadores::ler(
+        &contexto,
+        &mut rede,
+        &arvore_lida,
+        pedido.marcadores,
+        resolvido_por == ResolvidoPor::IndiceLink,
+    )?;
     Ok(ProcessoAberto {
         arvore: arvore_lida.arvore,
         unidade,
         resolvido_por,
         andamentos,
         propriedades,
+        marcadores,
         requisicoes: rede.requisicoes,
     })
 }
