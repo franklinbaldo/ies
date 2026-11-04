@@ -23,6 +23,7 @@ use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
+use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::decodificar_resposta;
 use crate::transporte::envio_post::{TelaDoControle, ler_tela_via};
 use crate::visao_do_controle::{EnvioDoControle, TelaAtual};
@@ -69,12 +70,35 @@ pub(crate) fn ler_controle<V: EnvioDoControle>(
     unidade_pedida: Option<&str>,
     envio: &mut V,
 ) -> Result<ControleLido, ErroBuscaDeProcesso> {
+    ler_controle_interno(sessao, unidade_pedida, None, envio)
+}
+
+fn ler_controle_com_contagem<V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    unidade_pedida: Option<&str>,
+    requisicoes: &mut ContagemDeRequisicoes,
+    envio: &mut V,
+) -> Result<ControleLido, ErroBuscaDeProcesso> {
+    ler_controle_interno(sessao, unidade_pedida, Some(requisicoes), envio)
+}
+
+fn ler_controle_interno<V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    unidade_pedida: Option<&str>,
+    mut requisicoes: Option<&mut ContagemDeRequisicoes>,
+    envio: &mut V,
+) -> Result<ControleLido, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
     let tela = ler_tela_via(
         sessao.url_do_controle,
         sessao.cookie_file,
         sessao.origem,
-        |url, cookie| envio.get(url, cookie),
+        |url, cookie| {
+            if let Some(contagem) = requisicoes.take() {
+                contagem.registrar();
+            }
+            envio.get(url, cookie)
+        },
     )
     .map_err(E::Transporte)?;
     let unidade = unidade_do_controle(&tela.html).map_err(E::Controle)?;
@@ -103,9 +127,28 @@ pub(crate) fn buscar_colhendo<A: AlvoDaPesquisa, V: EnvioDoControle>(
     colheita: &Colheita<'_>,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    let controle = ler_controle(sessao, pedido.unidade, envio)?;
+    let mut requisicoes = ContagemDeRequisicoes::default();
+    buscar_colhendo_contado::<A, V>(sessao, pedido, colheita, &mut requisicoes, envio)
+}
+
+/// Variante que deixa a contagem disponível também quando uma tentativa
+/// falha, para que o chamador e os testes observem o custo real do fluxo.
+pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    pedido: &PedidoDeBusca<'_>,
+    colheita: &Colheita<'_>,
+    requisicoes: &mut ContagemDeRequisicoes,
+    envio: &mut V,
+) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
+    let controle = ler_controle_com_contagem(sessao, pedido.unidade, requisicoes, envio)?;
     colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
-    pesquisar_a_partir_do_controle::<A, V>(&controle, sessao.cookie_file, pedido, envio)
+    pesquisar_a_partir_do_controle::<A, V>(
+        &controle,
+        sessao.cookie_file,
+        pedido,
+        requisicoes,
+        envio,
+    )
 }
 
 /// Requisições 2 em diante, a partir do Controle já lido (que conta como 1).
@@ -113,6 +156,7 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
     controle: &ControleLido,
     cookie_file: &Path,
     pedido: &PedidoDeBusca<'_>,
+    requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
@@ -122,28 +166,32 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
     let url_da_tela =
         link_da_pesquisa(instalacao, &controle.url, &controle.html).map_err(E::Link)?;
     // 2. GET da tela de pesquisa pelo link publicado.
-    let tela = obter_tela(cookie_file, &url_da_tela, envio)?;
+    let tela = obter_tela(cookie_file, &url_da_tela, requisicoes, envio)?;
     // 3. POST da pesquisa.
     let termo = pedido.termo;
     let submissao = derivar_pesquisa_em(A::EM, instalacao, &servida(&tela)?, (unidade, termo))
         .map_err(E::Pesquisa)?;
-    let (enviada, resultado) = enviar(cookie_file, envio, submissao)?;
+    let (enviada, resultado) = enviar(cookie_file, envio, requisicoes, submissao)?;
     let interpretado = A::interpretar(enviada, instalacao).map_err(E::Pesquisa)?;
     let (resposta, html) = (interpretado.resposta, interpretado.html);
-    let pronta = |resposta, requisicoes, trabalho| BuscaRealizada {
-        unidade: unidade.clone(),
-        resposta,
-        requisicoes,
-        trabalho,
-    };
     let Some(solicitada) = pedido.pagina else {
-        return Ok(pronta(resposta, 3, interpretado.trabalho));
+        return Ok(BuscaRealizada {
+            unidade: unidade.clone(),
+            resposta,
+            requisicoes: requisicoes.total_u8(),
+            trabalho: interpretado.trabalho,
+        });
     };
     let contagem = A::contagem(&resposta);
     let Some(pagina) =
         planejar_pagina_por(contagem, html.as_deref(), solicitada).map_err(E::Paginacao)?
     else {
-        return Ok(pronta(resposta, 3, interpretado.trabalho));
+        return Ok(BuscaRealizada {
+            unidade: unidade.clone(),
+            resposta,
+            requisicoes: requisicoes.total_u8(),
+            trabalho: interpretado.trabalho,
+        });
     };
     // 4. POST de `navegar(inicio)` derivado da tela de resultado.
     let html = html.ok_or(E::Paginacao(
@@ -163,7 +211,7 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
         pagina.inicio,
     )
     .map_err(E::Pesquisa)?;
-    let resposta = match enviar(cookie_file, envio, submissao)?.0 {
+    let resposta = match enviar(cookie_file, envio, requisicoes, submissao)?.0 {
         RespostaDoEnvio::Redirecionamento(_) => {
             return Err(E::Paginacao(
                 ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa,
@@ -173,7 +221,12 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
             .map_err(|erro| E::Pesquisa(ErroPesquisaProtocolo::Resposta(erro)))?,
     };
     conferir_contagem(&pagina, A::contagem(&resposta)).map_err(E::Paginacao)?;
-    Ok(pronta(resposta, 4, None))
+    Ok(BuscaRealizada {
+        unidade: unidade.clone(),
+        resposta,
+        requisicoes: requisicoes.total_u8(),
+        trabalho: None,
+    })
 }
 
 /// URL e `Content-Type` da resposta de um POST, para derivar o seguinte.
@@ -196,11 +249,13 @@ fn servida(tela: &TelaAtual) -> Result<TelaServida<'_>, ErroBuscaDeProcesso> {
 fn obter_tela<V: EnvioDoControle>(
     cookie_file: &Path,
     url: &str,
+    requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<TelaAtual, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
     let cookie =
         crate::transporte::sessao::cookie_privado_validado(cookie_file).map_err(E::Transporte)?;
+    requisicoes.registrar();
     let resposta = envio.get(url, &cookie).map_err(E::Transporte)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
@@ -215,11 +270,13 @@ fn obter_tela<V: EnvioDoControle>(
 fn enviar<V: EnvioDoControle>(
     cookie_file: &Path,
     envio: &mut V,
+    requisicoes: &mut ContagemDeRequisicoes,
     submissao: SubmissaoDerivada,
 ) -> Result<(RespostaDoEnvio, Resultado), ErroBuscaDeProcesso> {
     let url = submissao.url().to_owned();
     let mime = RefCell::new(String::new());
     let resposta = enviar_submissao_via(submissao, cookie_file, |s, c| {
+        requisicoes.registrar();
         let resposta = envio.post(s, c)?;
         mime.replace(resposta.resposta.mime.clone());
         Ok(resposta)
