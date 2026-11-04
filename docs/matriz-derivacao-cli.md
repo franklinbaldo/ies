@@ -38,7 +38,7 @@ não altera o contrato público nem impede correções de segurança necessária
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
-| `ies processo NUP` | **PARCIAL WEB** (#59 cumprida) pela árvore; PARCIAL LOCAL/WEB em `--resumo`, `--historico-privado` e `--resultado-pesquisa-file` | Abre pelo caminho mais barato do índice (link da árvore 1, link colhido do Controle 2, entrada por id 3) ou pela pesquisa rápida/linha do Controle (3–4); documentos com pastas, movidos (também de volta), ícone e cancelamento, anexados, pai do anexado, onde está aberto ou sobrestado (0 req.), andamentos, propriedades e marcadores em lista (custos nos contratos); o Controle lido é colhido no índice | Live PASS UnB, GO, PEN1 (propriedades e movidos: UnB/PEN1; marcadores: UnB); [replay do acervo](validacao-replay/2026-11-04-processo-obter-acervo.md) | [contrato](../contracts/cli/processo-obter-arvore.md), [andamentos](../contracts/cli/processo-obter-andamentos.md), [pastas](../contracts/cli/processo-obter-pastas.md), [movidos](../contracts/cli/processo-obter-movidos.md), [propriedades](../contracts/cli/processo-obter-propriedades.md), [marcadores](../contracts/cli/processo-obter-marcadores.md), [situação](../contracts/cli/processo-obter-situacao.md), [#59](https://github.com/franklinbaldo/ies/issues/59) |
+| `ies processo NUP` | **PARCIAL WEB** (#59 cumprida) pela árvore; `--resumo` e as opções de captura privada aposentados em 04/11/2026 (decisão do proprietário) | Abre pelo caminho mais barato do índice (link da árvore 1, link colhido do Controle 2, entrada por id 3) ou pela pesquisa rápida/linha do Controle (3–4); documentos com pastas, movidos (também de volta), ícone e cancelamento, anexados, pai do anexado, onde está aberto ou sobrestado (0 req.), andamentos, propriedades e marcadores em lista (custos nos contratos); o Controle lido é colhido no índice | Live PASS UnB, GO, PEN1 (propriedades e movidos: UnB/PEN1; marcadores: UnB); [replay do acervo](validacao-replay/2026-11-04-processo-obter-acervo.md) | [contrato](../contracts/cli/processo-obter-arvore.md), [andamentos](../contracts/cli/processo-obter-andamentos.md), [pastas](../contracts/cli/processo-obter-pastas.md), [movidos](../contracts/cli/processo-obter-movidos.md), [propriedades](../contracts/cli/processo-obter-propriedades.md), [marcadores](../contracts/cli/processo-obter-marcadores.md), [situação](../contracts/cli/processo-obter-situacao.md), [#59](https://github.com/franklinbaldo/ies/issues/59) |
 | `ies processo buscar TERMO [--pagina N]` | **PARCIAL WEB** (#58, núcleo em main) | Pesquisa por protocolo pela sessão de `ies login`: link `protocolo_pesquisar` do Controle, GET da tela, POST derivado; 302 → `processo_unico` (só o id), lista com `total_declarado` e `faixa_observada` (separador de milhar), `sem_resultado` (saída 0); `--pagina N` por `navegar()`. Página 1: GET + GET + POST; página N: + 1 POST | Live: PASS UnB e GO, PEN1 sem índice, UFRJ/PEN2–4 NOT_RUN; filtros além do protocolo; número formatado após o 302 (abrir o processo é #59) | [contrato](../contracts/cli/processo-buscar.md), [#58](https://github.com/franklinbaldo/ies/issues/58) |
 | `ies processo enviar NUP --para SIGLA` | **STUB** | Entrada/confirmar declarados | Prévia, autorização, destinatários, efeito e conferência pós-escrita, sem retry cego | [evidência](../contracts/evidencias/processo-enviar.md) |
 | `ies processo concluir NUP` | **STUB** | Entrada/confirmar declarados | Prévia e execução controlada, verificação independente do resultado; efeito incerto tipado | [evidência](../contracts/evidencias/processo-concluir.md) |
@@ -63,16 +63,15 @@ complementos locais ausentes, inseguros ou acima do limite antes de acessar
 a sessão ou executar GET potencialmente administrativo. O teto agregado
 de 48 MB é conferido novamente após o GET, reutilizando os bytes já lidos.
 Para complemento inviável, elimina um GET evitável (até 1 → 0); com
-complementos válidos mantém até 1 GET e 0 POST. Os gates Rust/OKF/20 KB e
-GitGuardian passaram no HEAD revisado. Não habilita paginação ativa, não
-promove `PARCIAL WEB` e não equivale a validação live.
+complementos válidos mantém até 1 GET e 0 POST. (Superada: a opção saiu de
+`listar-processos` em 02/11/2026 e de `processo NUP --resumo` em
+04/11/2026.)
 
 **Atualização #141 (integrada):** existe, só offline, o primitivo que deriva
 o POST de um formulário servido ([decisão 0002](arquitetura/0002-submeter-formulario-observado.md)),
 com envio injetável e sem cliente HTTP real. Nenhum comando o usa:
-`processo buscar` segue **STUB** e `--resultado-pesquisa-file`, **PARCIAL
-LOCAL**. Validação live: **NOT_RUN**. (Superada: `processo buscar` está em
-main pela #58.)
+`processo buscar` seguia **STUB**. (Superada: `processo buscar` está em main
+pela #58; `--resultado-pesquisa-file` foi aposentado em 04/11/2026.)
 
 **Atualização #58 (integrada em #142/#143):** a pesquisa de protocolo
 interpreta o 302 da busca exata, com o `Location` relativo para

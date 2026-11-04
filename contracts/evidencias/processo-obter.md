@@ -12,8 +12,9 @@ unresolved_steps: 0
 
 # processo.obter
 
-Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL LOCAL/WEB
-em `--resumo` e PARCIAL WEB na leitura pela árvore
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB na
+leitura pela árvore (`--resumo` e as opções de captura privada foram
+aposentados em 04/11/2026)
 ([contrato](../cli/processo-obter-arvore.md), Refs #59, fatia 1) e dos
 andamentos ([contrato](../cli/processo-obter-andamentos.md), fatia 2) e
 das pastas ([contrato](../cli/processo-obter-pastas.md), fatia 3).
@@ -45,7 +46,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 - Capturas privadas `0600` (03/11/2026), só estrutura: árvore da UnB
   (link na função `consultarAndamento`) e de GO (link no `onclick`),
   histórico `R` da UnB e `P` de GO (49 e 17 linhas) passaram pelo leitor
-  do link, pelo leitor de `--historico-privado`, pela legenda e pela regra
+  do link, pelo leitor do histórico (`src/historico.rs`), pela legenda e pela regra
   de `verHistorico`; o POST `P` derivou pelo primitivo de formulário.
 - Medições do agente pai: visão `P` inteira até 75 linhas em 14 processos
   de GO, sem paginador; duas árvores de GO sem o link; um 503 no

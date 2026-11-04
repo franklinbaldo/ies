@@ -1,17 +1,17 @@
 ---
 type: ImplementationDecision
-title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo histórico
+title: Ler processo pela árvore com índice local e pelo histórico
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; documentos movidos fora dos documentos, com o destino pelo link do nó; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio; marcadores pela tela andamento_marcador_gerenciar da barra, sempre lista (apêndice)
+scope: leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; documentos movidos fora dos documentos, com o destino pelo link do nó; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio; marcadores pela tela andamento_marcador_gerenciar da barra, sempre lista (apêndice)
 selected_strategy: web-indice-pesquisa-rapida-arvore
 alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo,web-propriedades-da-barra,web-propriedades-todas-as-telas,web-propriedades-listas-ocultas,web-movidos-pelo-link-do-no,web-movidos-pela-dica,web-marcadores-da-barra,web-marcadores-da-celula-do-controle
 evidence_level: capturas-privadas-estrutura-replay-do-acervo-ensaios-live-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-todas-as-fatias-ufrj-pen3-pen4-not-run
 ---
 
-# Ler processo: resumo na caixa e árvore com índice local
+# Ler processo pela árvore com índice local
 
 ## Alternativas consideradas
 
@@ -25,8 +25,9 @@ live_validation: pass-unb-go-pen1-todas-as-fatias-ufrj-pen3-pen4-not-run
 - **rest-wssei:** módulo REST opcional, ausente em muitas instalações
   ([ADR 0001](../arquitetura/0001-rotas-por-evidencia.md)).
 
-O `--resumo` continua a decisão anterior: um GET da caixa, sem abrir o
-processo nem enviar POST.
+`--resumo` (**web-caixa-somente** num GET) e as opções de captura
+privada foram aposentados em 04/11/2026 por decisão do proprietário
+([apêndice](processo-obter/opcoes-aposentadas.md)).
 
 ## Comparação
 
@@ -56,7 +57,7 @@ do Controle **4**. Um palpite que falha soma suas requisições.
 
 ## Decisão
 
-`ies processo NUP` sem `--resumo` segue a ordem aprovada pelo
+`ies processo NUP` segue a ordem aprovada pelo
 proprietário, definida no
 [contrato da árvore](../../contracts/cli/processo-obter-arvore.md), lê
 a árvore com um leitor de literais JS escrito à mão (sem regex, sem
@@ -110,8 +111,8 @@ ocultos, nenhum botão). Medições do agente pai: a visão `P` de 14
 processos de GO veio inteira até 75 linhas, sem paginador; a ablação na
 UnB mostrou que `hdnInfraNroItens` e `hdnInfraPaginaAtual` não paginam o
 histórico. Duas árvores de GO não publicaram o link: isso sai como
-`andamentos: null` com motivo, não como falha. O leitor de linhas de
-`--historico-privado` (`src/historico.rs`) leu as páginas reais sem
+`andamentos: null` com motivo, não como falha. O leitor de linhas do
+histórico (`src/historico.rs`, o de `ies replay`) leu as páginas reais sem
 mudança.
 
 **Orçamento.** Padrão +1 GET; `--andamentos-completos` +1 GET +1 POST

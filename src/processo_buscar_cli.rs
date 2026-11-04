@@ -18,13 +18,6 @@ use std::process::ExitCode;
 /// Opções de leitura de `ies processo NUP` que não combinam com `buscar`.
 fn opcoes_de_leitura_presentes(comando: &Processo) -> bool {
     comando.numero.is_some()
-        || comando.resumo
-        || comando.historico_privado.is_some()
-        || comando.resultado_pesquisa_file.is_some()
-        || comando.saida.is_some()
-        || comando.caixa_local.is_some()
-        || comando.observado_na_pagina
-        || !comando.paginas_capturadas.is_empty()
         || comando.sem_documentos
         || comando.sem_marcadores
         || comando.sem_andamentos

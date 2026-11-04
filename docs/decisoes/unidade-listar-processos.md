@@ -173,7 +173,7 @@ com uma categoria inexistente no SEI; descartado também um campo
 `visualizacao`, pois a lista única sem categoria já identifica o caso). A operação e a estratégia não mudam: mesmo
 GET, mesmo POST da #146, mesmas recusas; `--unidade` é conferido pela
 mesma leitura. A exportação `--saida` e a importação `--caixa-local`
-passam ao array; o formato anterior é recusado. Ensaio live da nova
+(aposentada em 04/11/2026) passam ao array; o formato anterior é recusado. Ensaio live da nova
 sintaxe: PASS em 04/11/2026 (o ensaio de 02/11/2026 usou `--categoria`).
 
 ## Visão detalhada por padrão (decisão do proprietário, 02/11/2026)

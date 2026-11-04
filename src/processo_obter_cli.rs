@@ -1,4 +1,4 @@
-//! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
+//! `ies processo NUP` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
 //! índice local, abre o processo e publica identidade, anexados, documentos
 //! e pastas da árvore, andamentos, propriedades
@@ -450,15 +450,12 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     }
 }
 
-/// `Some` só para `ies processo NUP` sem `--resumo` nem fonte offline; NUP
-/// inválido fica para a validação comum (saída 2).
+/// `Some` só para `ies processo NUP`; NUP inválido fica para a validação
+/// comum (saída 2).
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(
         comando @ Processo {
             numero: Some(numero),
-            resumo: false,
-            historico_privado: None,
-            resultado_pesquisa_file: None,
             acao: None,
             ..
         },
@@ -468,6 +465,33 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     };
     let nup = NumeroProcesso::novo(numero).ok()?;
     Some(obter(cli, comando, &nup))
+}
+
+/// NUP inválido de `ies processo NUP`: saída 2 tipada, antes da configuração.
+pub(crate) fn validar_numero(cli: &Cli) -> Option<ExitCode> {
+    let Domain::Processo(Processo {
+        numero: Some(numero),
+        acao: None,
+        ..
+    }) = &cli.command
+    else {
+        return None;
+    };
+    let erro = NumeroProcesso::novo(numero).err()?;
+    if cli.json {
+        println!(
+            "{}",
+            json!({
+                "codigo": "entrada_invalida",
+                "subcodigo": erro.subcodigo(),
+                "erro": "número de processo inválido",
+                "retentavel": false
+            })
+        );
+    } else {
+        eprintln!("IES: número de processo inválido [{}]", erro.subcodigo());
+    }
+    Some(ExitCode::from(2))
 }
 
 #[path = "processo_obter_cli/saida_da_arvore.rs"]

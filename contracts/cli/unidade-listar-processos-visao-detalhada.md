@@ -112,7 +112,7 @@ como **texto único**, e uma célula com dois marcadores publicava os
 nomes colados numa string só (medido ao vivo na UnB 4.0.9).
 Agora é **array** de objetos; vazio era `null` e passa a `[]`. Quem lia a
 string precisa ler a lista. As demais chaves e o arquivo de `--saida`
-lido por `--caixa-local` (que ignora `colunas`) não mudam; `ies unidade
+não mudam; `ies unidade
 recebidos|gerados` (visão R) não publica colunas e não muda. A colheita do
 Controle no índice usa a mesma leitura e as mesmas recusas: com âncoras
 na forma observada colhe os links como antes.
@@ -207,8 +207,8 @@ novo da mesma conta abriu na D, efeito cosmético) e
 
 ## Opções
 
-`--saida ARQUIVO` exporta o mesmo array, depois das verificações; `processo NUP --resumo --caixa-local` o lê (categoria por
-processo preservada, `colunas` ignoradas). `--pagina-arquivo` foi
+`--saida ARQUIVO` exporta o mesmo array, depois das verificações
+(categoria por processo preservada). `--pagina-arquivo` foi
 **removida** (erro de uso, saída 2): unia capturas privadas sem POST e não
 tem semântica junto da troca de visão, cujas telas são de outra geração.
 Capturas continuam legíveis offline por `ies replay`.

@@ -13,8 +13,8 @@ unresolved_steps: 0
 # processo.buscar
 
 Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
-(`ies processo buscar TERMO [--pagina N]`) e PARCIAL LOCAL
-(`--resultado-pesquisa-file`); ver [contrato](../cli/processo-buscar.md).
+(`ies processo buscar TERMO [--pagina N]`; o recorte local
+`--resultado-pesquisa-file` foi aposentado em 04/11/2026); ver [contrato](../cli/processo-buscar.md).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

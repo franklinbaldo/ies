@@ -27,11 +27,11 @@ tela mostra com `total_declarado` e `faixa_observada` por tabela, zero POST;
 faz no máximo um POST do paginador da tabela,
 com efeito `PaginaOuFiltroLembrado` e sem restauração. Live PASS em
 04/11/2026 (linhas acima). Inventário das outras leituras paginadas, ainda fora da
-[regra geral](../contracts/cli.md): `processo NUP --resumo` e
-`replay --numero-processo` recusam página parcial
-(`paginas_do_controle_nao_obtidas`) porque ausência numa página não prova
-ausência na caixa; `--resultado-pesquisa-file` e `--historico-privado` não
-leem total nem faixa da resposta; a lista de versões de documento só
+[regra geral](../contracts/cli.md): `replay --numero-processo` recusa
+página parcial (`paginas_do_controle_nao_obtidas`) porque ausência numa
+página não prova ausência na caixa (`processo NUP --resumo`,
+`--resultado-pesquisa-file` e `--historico-privado` foram aposentados em
+04/11/2026); a lista de versões de documento só
 aceita legenda igual às linhas. Alinhar cada uma exige evidência da
 legenda e, para `--pagina N`, do paginador daquela tela.
 

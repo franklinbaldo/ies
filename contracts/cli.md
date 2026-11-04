@@ -60,7 +60,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
 - [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
-  resultado") e NUP exato em resposta HTML privada, offline.
+  resultado").
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
@@ -212,7 +212,7 @@ e nunca decidem tratamento.
 
 Todo comando que faz o GET do Controle ou o POST do paginador (`status
 --verificar-controle-web`, `unidade atual`, `listar-processos`,
-`recebidos`/`gerados [--pagina N]`, `colunas`, `processo NUP --resumo`), inclusive nos POSTs da troca de visão, publica,
+`recebidos`/`gerados [--pagina N]`, `colunas`), inclusive nos POSTs da troca de visão, publica,
 no JSON da falha `fonte_invalida`, dois campos a mais:
 
 | Campo | Quando | Conteúdo |

@@ -1,4 +1,4 @@
-//! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md):
+//! `ies processo NUP` (contracts/cli/processo-obter-arvore.md):
 //! abre o processo pelo caminho mais barato que o índice local permite e lê
 //! a árvore, com as pastas. Ordem aprovada: link da árvore guardado →
 //! link `procedimento_trabalhar` guardado (colhido do Controle) → entrada

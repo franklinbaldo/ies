@@ -10,14 +10,14 @@ source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
 
 # Busca de processo pela pesquisa Web (Refs #58, #56)
 
-Dois recortes da mesma operação, sem relogin automático e sem REST/SOAP:
-
-- **live:** `ies processo buscar TERMO [--pagina N] [--json]` executa a
-  pesquisa Web por protocolo com a sessão dos arquivos privados gravados
-  por [`ies login`](sessao-login.md) (`IES_ORIGEM_FILE`, `IES_COOKIE_FILE`,
-  `IES_URL_CONTROLE_FILE` ou `IES_CONFIG_FILE`);
-- **offline:** `ies processo NUP --resultado-pesquisa-file HTML_PRIVADO`
-  interpreta uma resposta já capturada, sem rede (seção própria abaixo).
+Sem relogin automático e sem REST/SOAP, `ies processo buscar TERMO
+[--pagina N] [--json]` executa a pesquisa Web por protocolo com a sessão
+dos arquivos privados gravados por [`ies login`](sessao-login.md)
+(`IES_ORIGEM_FILE`, `IES_COOKIE_FILE`, `IES_URL_CONTROLE_FILE` ou
+`IES_CONFIG_FILE`). O recorte offline `ies processo NUP
+--resultado-pesquisa-file` foi aposentado em 04/11/2026 (decisão do
+proprietário, [processo.obter](processo-obter.md)); respostas capturadas
+seguem lidas por `ies replay --resultado-pesquisa`.
 
 O stub anterior `ies processo buscar [--assunto]` foi substituído: o
 verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
@@ -29,7 +29,7 @@ verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
 `NumeroProcesso`: controles recusados antes de aparar espaços, vazio e
 `sei://` recusados, saída 2 (`entrada_invalida`) **antes** de ler a
 configuração. `--pagina N` é inteiro ≥ 1. Opções de leitura de
-`ies processo NUP` (`--resumo`, `--historico-privado`, filtros…) junto com
+`ies processo NUP` (`--sem-documentos`, `--andamentos-completos`…) junto com
 `buscar` são `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é
 pré-condição conferida na tela do Controle, não rótulo ecoado.
 
@@ -135,15 +135,9 @@ tamanho da página. O IES exige essas duas linhas literais e todo link
   mesmo total e faixa `inicio = hdnInicio + 1`,
   `fim = min(hdnInicio + tamanho, N)`.
 
-## Busca offline em resposta HTML privada
+## Links das linhas do resultado
 
-`ies processo NUP --resultado-pesquisa-file HTML_PRIVADO [--json]` continua
-como antes: arquivo regular `0600` (≤ 8 MB, sem symlink final), uma única
-`pesquisaResultado`, correspondência **exata** do NUP, saída com
-`escopo: resposta_pesquisa_html_privado_offline`, `requisicoes: 0`, e
-`numero_nao_observado` (não `processo_inexistente`) quando ausente.
-
-Nas duas fatias, cada linha da tabela tem um `a.protocoloNormal` com
+Em cada página, cada linha da tabela tem um `a.protocoloNormal` com
 `procedimento_trabalhar`; a UnB 4.0.9 publica também um `a.arvore` com o
 **mesmo** `href` e repete o atributo `class` idêntico no
 `a.protocoloNormal`. Ambos são aceitos só nessa forma; `href` diferente,
