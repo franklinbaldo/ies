@@ -24,6 +24,7 @@ pub(crate) struct Pedido {
 pub(crate) struct Roteiro {
     respostas: VecDeque<(i32, String, Option<String>)>,
     pub(crate) pedidos: Vec<Pedido>,
+    falhar_na: Option<usize>,
 }
 
 impl Roteiro {
@@ -31,6 +32,20 @@ impl Roteiro {
         Self {
             respostas: respostas.into(),
             pedidos: Vec::new(),
+            falhar_na: None,
+        }
+    }
+
+    fn falhar_na(mut self, chamada: usize) -> Self {
+        self.falhar_na = Some(chamada);
+        self
+    }
+
+    fn falha_se_programada(&self) -> Result<(), FalhaTransporte> {
+        if self.falhar_na == Some(self.pedidos.len()) {
+            Err(FalhaTransporte::Rede)
+        } else {
+            Ok(())
         }
     }
 
@@ -65,6 +80,7 @@ impl EnvioDoControle for Roteiro {
             url: submissao.url().to_owned(),
             corpo: Some(String::from_utf8(submissao.corpo().to_vec()).unwrap()),
         });
+        self.falha_se_programada()?;
         let (resposta, localizacao) = self.proxima();
         Ok(RespostaDoPost {
             resposta,
@@ -82,6 +98,7 @@ impl EnvioDoControle for Roteiro {
             url: url.to_owned(),
             corpo: None,
         });
+        self.falha_se_programada()?;
         Ok(self.proxima().0)
     }
 }
@@ -139,6 +156,38 @@ fn buscar(
     let mut roteiro = Roteiro::novo(respostas);
     let r = buscar_processo(&sessao, &pedido, &mut roteiro);
     (r, roteiro.pedidos)
+}
+
+#[test]
+fn tentativa_com_falha_na_segunda_requisicao_permanece_contada() {
+    let (_pasta, arquivo) = cookie();
+    let url = url_controle();
+    let sessao = SessaoDaBusca {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie_file: &arquivo,
+    };
+    let termo = NumeroProcesso::novo("00001").unwrap();
+    let pedido = PedidoDeBusca {
+        termo: termo.as_str(),
+        pagina: None,
+        unidade: None,
+    };
+    let colheita = Colheita::nenhuma();
+    let mut requisicoes = crate::transporte::contagem::ContagemDeRequisicoes::default();
+    let mut roteiro = Roteiro::novo(vec![ok(controle_com_menu())]).falhar_na(2);
+
+    let resultado = buscar_colhendo_contado::<EmProcessos, _>(
+        &sessao,
+        &pedido,
+        &colheita,
+        &mut requisicoes,
+        &mut roteiro,
+    );
+
+    assert!(resultado.is_err());
+    assert_eq!(roteiro.pedidos.len(), 2);
+    assert_eq!(requisicoes.total(), 2);
 }
 
 pub(crate) fn controle_com_menu() -> String {

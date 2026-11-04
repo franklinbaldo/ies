@@ -13,7 +13,7 @@ use super::erro::ErroTelaDeConclusao as E;
 use crate::arvore_processo::ACAO_DE_CONCLUIR;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
+    OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
@@ -132,10 +132,15 @@ fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E>
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`
-/// ou `acao=principal` (relativo, como servido), com
+/// ou `acao=principal` (relativo, como gravado, ou no host e na pasta do
+/// POST: ver `consulta_do_controlador`), com
 /// `acao_origem=procedimento_concluir` e o id, cada chave uma vez.
-pub(crate) fn redirecionamento_esperado(localizacao: Option<&str>, id: &str) -> bool {
-    let Some(consulta) = localizacao.and_then(|l| l.strip_prefix("controlador.php?")) else {
+pub(crate) fn redirecionamento_esperado(
+    localizacao: Option<&str>,
+    url_do_envio: &str,
+    id: &str,
+) -> bool {
+    let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {

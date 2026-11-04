@@ -77,17 +77,29 @@ fn mais_de_oito_redirecionamentos_param_a_cadeia() {
     assert_eq!(roteiro.pedidos.len(), 9);
 }
 
+// Caso de todos tests/test_redirect_seguro_010.py @323eb01
 #[test]
 fn redirecionamento_307_depois_do_post_nao_repete_as_credenciais() {
-    for codigo in [307, 308] {
+    let em_http = LOGIN_SIP.replacen("https://", "http://", 1);
+    for (codigo, localizacao) in [307, 308]
+        .into_iter()
+        .flat_map(|codigo| [(codigo, LOGIN_SIP.to_owned()), (codigo, em_http.clone())])
+    {
         let (erro, roteiro) = erro_com(vec![
             r302(LOGIN_SIP, &[]),
             r200(&tela_acessar(), &[]),
-            status(codigo, Some(LOGIN_SIP), &[], "", "text/html"),
+            status(codigo, Some(&localizacao), &[], "", "text/html"),
         ]);
         assert_eq!(erro, ErroLogin::RedirecionamentoQueRepetiriaOEnvioDoLogin);
-        assert_eq!(posts(&roteiro), 1);
-        assert_eq!(roteiro.pedidos.len(), 3);
+        assert_eq!(
+            roteiro.sequencia(),
+            [
+                format!("GET {RAIZ}"),
+                format!("GET {LOGIN_SIP}"),
+                format!("POST {LOGIN_SIP}"),
+            ]
+        );
+        assert!(roteiro.esgotado());
     }
 }
 
@@ -293,6 +305,7 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
     assert_eq!(posts(&roteiro), 1);
 }
 
+// Caso de todos tests/sei_replay.py @323eb01 (sequência exata, sem retry)
 #[test]
 fn falha_de_rede_no_post_nao_repete() {
     let ambiente = Ambiente::novo();

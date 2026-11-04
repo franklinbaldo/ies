@@ -25,15 +25,13 @@ pub(crate) fn resolver_no_host(
     let caminho_atual = caminho_da_url(atual).ok_or(Ilegivel)?;
     let resto_absoluto = absoluta(referencia).or_else(|| referencia.strip_prefix("//"));
     let caminho_e_consulta = if let Some(resto) = resto_absoluto {
-        let fim = resto.find(['/', '?']).unwrap_or(resto.len());
-        let autoridade = &resto[..fim];
-        if autoridade.contains(['@', ':']) || !host_valido(autoridade) {
-            return Err(Ilegivel);
-        }
-        if !autoridade.eq_ignore_ascii_case(host) {
-            return Err(ErroLogin::RedirecionamentoParaForaDaInstalacao);
-        }
-        match &resto[fim..] {
+        let depois = sufixo_da_mesma_origem(resto, host, esquema_http(referencia)).map_err(
+            |erro| match erro {
+                ErroDeOrigem::AutoridadeInvalida => Ilegivel,
+                ErroDeOrigem::OutroHost => ErroLogin::RedirecionamentoParaForaDaInstalacao,
+            },
+        )?;
+        match depois {
             "" => "/".to_owned(),
             depois if depois.starts_with('?') => format!("/{depois}"),
             depois => depois.to_owned(),
@@ -62,6 +60,40 @@ pub(crate) fn resolver_no_host(
         "https://{}{caminho_e_consulta}",
         host.to_ascii_lowercase()
     ))
+}
+
+pub(crate) enum ErroDeOrigem {
+    AutoridadeInvalida,
+    OutroHost,
+}
+
+/// Valida a autoridade de uma referência absoluta ou iniciada por `//`.
+/// O chamador identifica o esquema e continua responsável pelo caminho.
+pub(crate) fn sufixo_da_mesma_origem<'a>(
+    resto: &'a str,
+    host: &str,
+    http: bool,
+) -> Result<&'a str, ErroDeOrigem> {
+    let fim = resto.find(['/', '?']).unwrap_or(resto.len());
+    let autoridade = &resto[..fim];
+    let autoridade = if http {
+        autoridade.strip_suffix(":80").unwrap_or(autoridade)
+    } else {
+        autoridade
+    };
+    if !host_valido(autoridade) {
+        return Err(ErroDeOrigem::AutoridadeInvalida);
+    }
+    if !autoridade.eq_ignore_ascii_case(host) {
+        return Err(ErroDeOrigem::OutroHost);
+    }
+    Ok(&resto[fim..])
+}
+
+pub(crate) fn esquema_http(referencia: &str) -> bool {
+    referencia
+        .split_once("://")
+        .is_some_and(|(esquema, _)| esquema.eq_ignore_ascii_case("http"))
 }
 
 /// O resto depois de `https://` ou `http://` (esquema sem distinção de

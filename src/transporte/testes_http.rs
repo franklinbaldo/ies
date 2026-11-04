@@ -3,6 +3,7 @@
 //! A política de cada operação (302, login, efeitos) fica nos testes dela.
 use super::RespostaWeb;
 use crate::formulario_web::RespostaDoPost;
+use std::collections::VecDeque;
 use std::io::Cursor;
 
 /// Monta a resposta com bytes EXATOS: os testes escolhem charset e
@@ -33,6 +34,12 @@ pub(crate) fn resposta_post(
         resposta: resposta(status_code, mime, corpo, content_length),
         localizacao,
     }
+}
+
+/// Registra a tentativa antes de consumir a resposta, inclusive em falhas.
+pub(crate) fn atender<P, R>(pedidos: &mut Vec<P>, respostas: &mut VecDeque<R>, pedido: P) -> R {
+    pedidos.push(pedido);
+    respostas.pop_front().expect("requisição além do roteiro")
 }
 
 #[cfg(test)]

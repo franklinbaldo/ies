@@ -120,3 +120,28 @@ fn documento_na_linha_sem_id_documento_no_processo_e_recusado() {
         Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso)
     );
 }
+
+#[test]
+fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
+    // PEN4 5.0.4 ao vivo (04/11/2026) e PEN3 na cassette: o link do processo
+    // já visitado vem com `class="protocoloNormal processoVisitado" …
+    // class="protocoloNormal"`.
+    let visitado = linha(1).replacen(
+        "target=\"_blank\" class=\"protocoloNormal\" ",
+        "target=\"_blank\" class=\"protocoloNormal processoVisitado\" ",
+        1,
+    );
+    assert_ne!(visitado, linha(1));
+    let lidos = ler_resultados(&tabela(&format!("{visitado}{}", linha(2)))).unwrap();
+    assert_eq!(lidos.len(), 2);
+    assert_eq!(lidos[0].numero.as_str(), numero(1));
+    let sem_a_classe = linha(1).replacen(
+        "target=\"_blank\" class=\"protocoloNormal\" ",
+        "target=\"_blank\" class=\"processoVisitado\" ",
+        1,
+    );
+    assert_eq!(
+        ler_resultados(&tabela(&sem_a_classe)),
+        Err(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
+    );
+}

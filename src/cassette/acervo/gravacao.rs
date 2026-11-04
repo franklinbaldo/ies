@@ -73,6 +73,13 @@ pub(crate) fn instalacao(json: &Value) -> Option<Instalacao> {
     Instalacao::interpretar(&format!("{raiz}{base}"))
 }
 
+/// A URL (sem consulta, que não é gravada) da requisição de `item`.
+pub(crate) fn url_sem_consulta(json: &Value, item: &Value) -> String {
+    let raiz = json["sei_root"].as_str().unwrap_or_default();
+    let caminho = item["request"]["pathname"].as_str().unwrap_or_default();
+    format!("{raiz}{caminho}")
+}
+
 /// O `Location` de um 302 gravado.
 pub(crate) fn localizacao(item: &Value) -> Option<&str> {
     let cabecalhos = item["response"]["headers"].as_object()?;

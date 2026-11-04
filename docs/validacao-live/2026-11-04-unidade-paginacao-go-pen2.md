@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
 title: Ensaio live da paginação da caixa em GO e na PEN2
-description: Segunda tentativa, 04/11/2026, de listar-processos, recebidos e gerados em Goiás 5.0.3 e na PEN2; os dois logins falharam (GO por túnel do proxy do ambiente, PEN2 por bloqueio do Cloudflare), casos NOT_RUN, requisições contadas e correção do reconhecimento do bloqueio
+description: Segunda tentativa, 04/11/2026, de listar-processos, recebidos e gerados em Goiás 5.0.3 e na PEN2; os dois logins falharam (GO por túnel do proxy do ambiente, PEN2 por bloqueio do Cloudflare), com correção do reconhecimento do bloqueio; na terceira tentativa, à noite, a caixa de GO passou
 ---
 
 # Paginação da caixa em GO e na PEN2 — 04/11/2026
@@ -74,5 +74,25 @@ textos observados) falhando antes da correção.
 
 | Instalação | Motivo | Próximo passo |
 | --- | --- | --- |
-| GO 5.0.3 | login interrompido pelo proxy do ambiente (`falha_de_rede`) | nova rodada com `ies login` uma vez, mesmo orçamento |
+| GO 5.0.3 | login interrompido pelo proxy do ambiente (`falha_de_rede`) | feito na terceira tentativa (abaixo) |
 | PEN2 | 403 do Cloudflare no login (antes, 503 do nginx) | tentar de outra origem de rede ou mais tarde; sem repetição na mesma rodada |
+
+## Terceira tentativa em GO — 04/11/2026, 21h
+
+Mesmo orçamento (até 12 comandos, 90 s ou mais entre eles), binário do
+ramo `slice-varredura-b` (base `7a8b332`), na
+[varredura da UnB e de GO](2026-11-04-varredura-unb-go.md), que traz
+também `processo NUP` e `documento buscar`.
+
+| Caso | Pedidos ao SEI | Resultado |
+| --- | --- | --- |
+| `ies login` | 7 | **PASS**: `login_realizado` (sessão de 03/11 vencida); túnel do ambiente sem queda |
+| `recebidos` | 1 GET | **PASS**: R, faixa 1–10 de 131 |
+| `gerados --pagina 2` | 1 GET + 1 POST | **PASS**: faixa 11–20 de 8.021 |
+| `listar-processos` (R→D) | 1 GET + 1 POST | **PASS**: faixa 1–10 de 8.152, 12 colunas, `colunas_ausentes: []` |
+| `listar-processos --pagina 2` | 1 GET + 1 POST | **PASS**: D lembrada, faixa 11–20 |
+| `recebidos --pagina 99` (D→R) | 1 GET + 1 POST | **PASS**: `pagina_fora_do_intervalo` antes do POST de página |
+
+Página de 10 linhas nas três listas. Nenhum 403 do WAF com o ritmo de
+90 s entre comandos e pedidos em sequência dentro de cada um. PEN2 segue
+**NOT_RUN**.

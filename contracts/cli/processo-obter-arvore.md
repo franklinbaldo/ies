@@ -281,7 +281,8 @@ Andamentos: os subcódigos da [seção própria](processo-obter-andamentos.md).
 Propriedades: os do [contrato das propriedades](processo-obter-propriedades.md).
 Pastas: os do [contrato das pastas](processo-obter-pastas.md).
 
-Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md)).
+Validação live da fatia 1: **PASS** na UnB, em GO e na PEN1 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-arvore.md));
+frio (5 req.) e quente (4) com andamentos, propriedades, marcadores, `aberto_em` e ícones **PASS** na UFRJ 4.1.5, PEN3 e PEN4 ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
 Fatia 2 (andamentos): **PASS** ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-andamentos.md)).
 Fatia 3 (pastas): **PASS** na UnB, frio, quente e sessão nova
 ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-pastas.md)).

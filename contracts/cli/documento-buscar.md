@@ -136,3 +136,9 @@ validação, 302, barra, paginação, transporte e
 - [Superfície da CLI](../../tests/documento_buscar_web.rs).
 - [Ensaio live na PEN3](../../docs/validacao-live/2026-11-04-documento-buscar.md),
   inclusive número SEI exato só de dígitos (302 → `documento_unico`).
+- Live **PASS** na UnB 4.0.9 (pedaço de NUP e número SEI exato) e em GO
+  5.0.3 (página de 9 linhas na faixa 1–10, `linhas_ausentes_da_faixa: 1`):
+  [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md).
+- [Varredura de 04/11/2026](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md):
+  fragmento de NUP formatado (`lista`) e número SEI exato
+  (`documento_unico`) **PASS** na UFRJ 4.1.5 e na PEN4; fragmento na PEN3.

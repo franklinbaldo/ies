@@ -12,6 +12,7 @@
 //! Só existe em `cfg(test)`. O teste do acervo inteiro é `#[ignore]`
 //! (precisa dos ZIPs no cache local); o CI roda os testes sintéticos.
 mod leitores;
+mod rapida;
 mod relatorio;
 mod tests;
 
@@ -30,6 +31,7 @@ pub(super) enum Leitor {
     EnvioEmDocumentos,
     PlanoEmDocumentos,
     PaginaEmDocumentos,
+    PesquisaRapida,
 }
 
 impl Leitor {
@@ -44,6 +46,7 @@ impl Leitor {
             Self::EnvioEmDocumentos => "resposta do envio em documentos",
             Self::PlanoEmDocumentos => "plano da página 2 em documentos",
             Self::PaginaEmDocumentos => "página seguinte em documentos",
+            Self::PesquisaRapida => "302 da pesquisa rápida",
         }
     }
 }
@@ -59,17 +62,29 @@ pub(super) struct Registro {
     pub(super) resultado: Resultado,
     pub(super) forma: Option<&'static str>,
     pub(super) total_declarado: Option<u64>,
+    pub(super) faixa: Option<(u64, u64)>,
+    pub(super) linhas_ausentes: u64,
 }
 
 /// Só os cards que gravaram a tela de Pesquisa.
-const OPERACOES: [&str; 1] = ["protocolo_pesquisar"];
+const OPERACOES: [&str; 2] = ["protocolo_pesquisar", "protocolo_pesquisa_rapida"];
 
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_do_acervo_inteiro() {
     let mut registros = Vec::new();
     let lidos = percorrer(&OPERACOES, |nome, instalacao, json| {
-        registros.extend(leitores::replay(nome, instalacao, json));
+        registros.extend(rapida::replay(nome, instalacao, json));
+        if gravacoes_da_pesquisa_avancada(json) {
+            registros.extend(leitores::replay(nome, instalacao, json));
+        }
     });
+    assert!(registros.iter().any(|r| r.leitor == Leitor::PesquisaRapida));
     publicar(&relatorio::markdown(lidos, &registros));
+}
+
+fn gravacoes_da_pesquisa_avancada(json: &serde_json::Value) -> bool {
+    crate::cassette::acervo::gravacao::respostas(json)
+        .iter()
+        .any(|r| r.operacao == "protocolo_pesquisar")
 }

@@ -31,7 +31,8 @@ uma tentativa, sem seguir redirect (3xx é recusa com o status):
 
 - só status 200; os demais usam as recusas de status do transporte;
 - `Content-Type` obrigatório e único; o tipo principal tem de estar na
-  lista observada: `application/pdf` (UnB, pelo oráculo Todos), `text/plain`
+  lista observada: `application/pdf` (UnB, pelo oráculo Todos; ao vivo na
+  PEN3 e na PEN4 5.0.4, `inline`, em 04/11/2026), `text/plain`
   (ícone `documento_txt`) e `text/html` (HTML recebido, gravado em PEN1,
   PEN2 e PEN4 como `text/html;;charset=iso-8859-1`; parâmetros vazios são
   tolerados);
@@ -102,3 +103,11 @@ como na leitura interna.
 
 Leitura. Se o GET do anexo marca o documento como visitado não foi
 medido.
+
+Live: PDF **PASS** na UnB 4.0.9 em 04/11/2026, com e sem `--saida`
+(2 requisições pelo link guardado, SHA-256 do arquivo igual ao publicado;
+[varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)).
+
+Validação live: PDF **PASS** na PEN3 e na PEN4 5.0.4 e HTML recebido na
+PEN4, frio e quente; TXT **NOT_RUN**; UFRJ só recusa tipada (PDF de outra unidade)
+([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).

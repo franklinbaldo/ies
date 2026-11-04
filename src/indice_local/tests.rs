@@ -3,6 +3,7 @@
 use super::*;
 use crate::instalacao::Instalacao;
 use std::fs;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -201,6 +202,74 @@ fn duas_conexoes_concorrentes_gravam_sem_perder_linhas() {
     }
 }
 
+/// Executado em subprocessos pelo teste abaixo. Sem as variáveis privadas de
+/// teste, o harness o executa como teste vazio normalmente.
+#[test]
+fn grava_linhas_em_processo_auxiliar() {
+    let (Ok(caminho), Ok(prefixo), Ok(base_id)) = (
+        std::env::var("IES_TEST_SQLITE_CHILD_PATH"),
+        std::env::var("IES_TEST_SQLITE_CHILD_PREFIX"),
+        std::env::var("IES_TEST_SQLITE_CHILD_BASE_ID"),
+    ) else {
+        return;
+    };
+    let indice = IndiceLocal::em(PathBuf::from(caminho));
+    let base_id: u32 = base_id.parse().unwrap();
+    for n in 0..40 {
+        indice
+            .registrar_processo(
+                &instalacao(),
+                &format!("{prefixo}{n}"),
+                &(base_id + n).to_string(),
+            )
+            .unwrap();
+    }
+    assert!(indice.ligado());
+}
+
+#[test]
+fn dois_processos_gravam_no_mesmo_banco_sem_perder_linhas() {
+    let raiz = pasta("processos-concorrentes");
+    let caminho = raiz.join(NOME_DO_ARQUIVO);
+    IndiceLocal::em(caminho.clone()).registrar_entrada_por_id(&instalacao(), true);
+    let executavel = std::env::current_exe().unwrap();
+    let filhos: Vec<_> = [("A", "1000"), ("B", "2000")]
+        .into_iter()
+        .map(|(prefixo, base_id)| {
+            Command::new(&executavel)
+                .arg("grava_linhas_em_processo_auxiliar")
+                .env("IES_TEST_SQLITE_CHILD_PATH", &caminho)
+                .env("IES_TEST_SQLITE_CHILD_PREFIX", prefixo)
+                .env("IES_TEST_SQLITE_CHILD_BASE_ID", base_id)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap()
+        })
+        .collect();
+    for filho in filhos {
+        let saida = filho.wait_with_output().unwrap();
+        assert!(
+            saida.status.success(),
+            "subprocesso SQLite falhou: {}{}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
+        );
+    }
+
+    let leitor = IndiceLocal::em(caminho);
+    for n in 0..40 {
+        assert_eq!(
+            leitor.id_por_nup(&instalacao(), &format!("A{n}")),
+            Some((1000 + n).to_string())
+        );
+        assert_eq!(
+            leitor.id_por_nup(&instalacao(), &format!("B{n}")),
+            Some((2000 + n).to_string())
+        );
+    }
+}
+
 fn concorrencia_numa_pasta_nova(nome: &str) {
     let raiz = pasta(nome);
     let caminho = raiz.join(NOME_DO_ARQUIVO);
@@ -272,6 +341,40 @@ fn nup_opaco_comparado_exatamente_e_por_instalacao() {
         indice.id_por_nup(&sei, "23106.000001/2026-01").as_deref(),
         Some("7")
     );
+}
+
+#[test]
+fn mesmo_nup_e_id_ficam_isolados_entre_hosts() {
+    let raiz = pasta("origem-outro-host");
+    let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
+    let sei = instalacao();
+    let outro_host = Instalacao::interpretar("https://outro.exemplo/sei").unwrap();
+    indice.registrar_processo(&sei, "NUP-IGUAL", "71").unwrap();
+    indice
+        .registrar_processo(&outro_host, "NUP-IGUAL", "82")
+        .unwrap();
+
+    assert_eq!(indice.id_por_nup(&sei, "NUP-IGUAL").as_deref(), Some("71"));
+    assert_eq!(
+        indice.id_por_nup(&outro_host, "NUP-IGUAL").as_deref(),
+        Some("82")
+    );
+    assert_eq!(indice.nup_por_id(&sei, "82"), None);
+    assert_eq!(indice.nup_por_id(&outro_host, "71"), None);
+}
+
+#[test]
+fn identidade_contestada_pelo_servidor_deixa_de_ser_reutilizavel() {
+    let raiz = pasta("servidor-contestou-identidade");
+    let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
+    let sei = instalacao();
+    indice.registrar_processo(&sei, "NUP-ALVO", "71").unwrap();
+
+    // O chamador abriu o id guardado e o servidor mostrou outro NUP.
+    indice.esquecer_processo(&sei, "NUP-ALVO");
+
+    assert_eq!(indice.id_por_nup(&sei, "NUP-ALVO"), None);
+    assert_eq!(indice.nup_por_id(&sei, "71"), None);
 }
 
 #[test]

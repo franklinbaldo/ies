@@ -1,16 +1,19 @@
 //! Submissão derivada de formulário HTML servido pelo SEI, sem rede.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
+mod ajax;
 mod codificacao;
 mod erro;
 mod guardada;
 mod leitura;
 mod login;
+mod redirecionamento;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
@@ -18,6 +21,7 @@ pub(crate) use guardada::derivar_submissao_guardada;
 pub(crate) use leitura::localizar_formulario;
 use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
 pub(crate) use login::derivar_submissao_de_login;
+pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -44,6 +48,11 @@ pub(crate) enum PreferenciaDoUsuario {
 pub(crate) enum EstadoDoProcesso {
     /// O andamento aberto na unidade da sessão (concluir fecha).
     AndamentoAbertoNaUnidade,
+    /// A assinatura do usuário no documento (não se desfaz).
+    AssinaturaDoDocumento,
+    /// As unidades com o processo aberto (enviar abre no destino e, sem
+    /// "manter aberto", fecha na da sessão).
+    UnidadesComOProcessoAberto,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.
@@ -399,7 +408,8 @@ pub(crate) enum RespostaDoEnvio {
 }
 
 /// Envio injetável: `FnOnce` recebe (e consome) a submissão e o cookie,
-/// uma única vez. O cookie é lido do arquivo privado só depois da derivação.
+/// uma única vez. A submissão já traz o destino autorizado pela derivação.
+/// Só se lê o cookie privado, pois o destino pode vir de uma tela intermediária.
 /// Nenhum 3xx é seguido; só o 302 volta como dado, para a operação interpretar.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,

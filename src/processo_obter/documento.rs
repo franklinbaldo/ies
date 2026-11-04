@@ -100,6 +100,110 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
+    let leitura = LeituraDoNo {
+        anexo: pedido.anexo,
+        versoes,
+    };
+    abrir(sessao, pedido, leitura, indice, envio)
+}
+
+/// O documento aberto até a árvore conferida, sem o GET do conteúdo: o
+/// começo de uma escrita no documento (`documento assinar`, Refs #174).
+pub(crate) fn abrir_documento_na_arvore<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<DocumentoNaArvoreAberto, E> {
+    abrir(sessao, pedido, SoArvore, indice, envio)
+}
+
+/// O documento conferido na árvore e o HTML dela (com URLs assinadas:
+/// `Debug` redigido).
+#[derive(PartialEq, Eq)]
+pub(crate) struct DocumentoNaArvoreAberto {
+    pub(crate) numero: String,
+    pub(crate) id_documento: String,
+    pub(crate) rotulo: String,
+    pub(crate) natureza: NaturezaDoDocumento,
+    pub(crate) processo: ProcessoNaArvore,
+    pub(crate) unidade: Option<String>,
+    pub(crate) resolvido_por: ResolvidoPor,
+    pub(crate) html: String,
+    pub(crate) requisicoes: u8,
+}
+
+impl std::fmt::Debug for DocumentoNaArvoreAberto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentoNaArvoreAberto")
+            .field("numero", &self.numero)
+            .field("id_documento", &self.id_documento)
+            .field("processo", &self.processo)
+            .field("html", &"<redigido>")
+            .finish_non_exhaustive()
+    }
+}
+
+/// O fim da leitura depois da árvore conferida, comum aos três caminhos.
+pub(super) trait FimDaLeitura: Copy {
+    type Saida;
+    fn concluir<V: EnvioDoProcesso>(
+        self,
+        instalacao: &Instalacao,
+        rede: &mut Rede<'_, V>,
+        lido: NoLido<'_>,
+        numero: &str,
+    ) -> Result<Self::Saida, E>;
+}
+
+impl FimDaLeitura for LeituraDoNo<'_> {
+    type Saida = DocumentoObtido;
+    fn concluir<V: EnvioDoProcesso>(
+        self,
+        instalacao: &Instalacao,
+        rede: &mut Rede<'_, V>,
+        lido: NoLido<'_>,
+        numero: &str,
+    ) -> Result<DocumentoObtido, E> {
+        ler_do_no(instalacao, rede, lido, self, numero)
+    }
+}
+
+/// Só a árvore: nenhum GET do conteúdo.
+#[derive(Clone, Copy)]
+pub(super) struct SoArvore;
+
+impl FimDaLeitura for SoArvore {
+    type Saida = DocumentoNaArvoreAberto;
+    fn concluir<V: EnvioDoProcesso>(
+        self,
+        _: &Instalacao,
+        rede: &mut Rede<'_, V>,
+        lido: NoLido<'_>,
+        numero: &str,
+    ) -> Result<DocumentoNaArvoreAberto, E> {
+        Ok(DocumentoNaArvoreAberto {
+            numero: numero.to_owned(),
+            id_documento: lido.no.id.clone(),
+            rotulo: lido.no.rotulo.clone(),
+            natureza: lido.no.natureza.clone(),
+            processo: lido.processo.clone(),
+            unidade: lido.unidade,
+            resolvido_por: lido.resolvido_por,
+            html: lido.html.to_owned(),
+            requisicoes: rede.requisicoes.total_u8(),
+        })
+    }
+}
+
+/// Os três caminhos (processo informado, índice, pesquisa) até o nó.
+fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    leitura: F,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<F::Saida, E> {
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
@@ -121,10 +225,6 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
         cookie,
         requisicoes: crate::transporte::contagem::ContagemDeRequisicoes::default(),
     };
-    let leitura = LeituraDoNo {
-        anexo: pedido.anexo,
-        versoes,
-    };
     if let Some(nup) = pedido.processo {
         let contexto = contexto.com_nup(nup.as_str());
         return super::documento_indice::pelo_processo(
@@ -141,13 +241,13 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
 
 /// Fatia 1: pesquisa rápida, tela, árvore (e pastas, se o documento não
 /// está à vista) e conteúdo.
-fn pela_pesquisa<V: EnvioDoProcesso>(
+fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     numero: &str,
-    leitura: LeituraDoNo<'_>,
-) -> Result<DocumentoObtido, E> {
+    leitura: F,
+) -> Result<F::Saida, E> {
     let processo = |erro| E::Processo(erro);
     let redirecionado = match pesquisar_pela_guardada(contexto, sessao, rede, numero) {
         Ok(Some(redirecionado)) => redirecionado,
@@ -202,9 +302,8 @@ fn pela_pesquisa<V: EnvioDoProcesso>(
         processo: &aberta.arvore.processo,
         unidade: Some(tela.unidade),
         resolvido_por: ResolvidoPor::PesquisaRapida,
-        leitura,
     };
-    ler_do_no(&contexto.instalacao, rede, lido, numero)
+    leitura.concluir(&contexto.instalacao, rede, lido, numero)
 }
 
 /// O único `DOCUMENTO` da árvore com o número SEI (a15) pedido.
@@ -229,8 +328,6 @@ pub(super) struct NoLido<'a> {
     pub(super) processo: &'a ProcessoNaArvore,
     pub(super) unidade: Option<String>,
     pub(super) resolvido_por: ResolvidoPor,
-    /// Limite e `--saida` do externo; versão N e cópia.
-    pub(super) leitura: LeituraDoNo<'a>,
 }
 
 /// O `.src` do nó e o GET do conteúdo (a versão N, se pedida, no lugar
@@ -239,6 +336,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     instalacao: &Instalacao,
     rede: &mut Rede<'_, V>,
     lido: NoLido<'_>,
+    pedido: LeituraDoNo<'_>,
     numero: &str,
 ) -> Result<DocumentoObtido, E> {
     let no = lido.no;
@@ -249,7 +347,6 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         id_documento: &no.id,
         id_procedimento: &lido.processo.id,
     };
-    let pedido = lido.leitura;
     let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)
         .map_err(E::Conteudo)?
     {

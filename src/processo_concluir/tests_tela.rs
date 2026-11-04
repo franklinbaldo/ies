@@ -114,19 +114,31 @@ fn reabertura_preenchida_ou_processo_selecionado_e_recusa() {
 
 #[test]
 fn redirecionamento_esperado_so_para_a_arvore_ou_o_controle_desta_conclusao() {
+    let post = absoluta("controlador.php?acao=procedimento_concluir");
+    let esperado = |l: Option<&str>, id: &str| redirecionamento_esperado(l, &post, id);
     let arvore = volta_a_arvore();
-    assert!(redirecionamento_esperado(Some(&arvore), ID));
-    // Só a forma relativa observada.
-    assert!(!redirecionamento_esperado(Some(&absoluta(&arvore)), ID));
+    assert!(esperado(Some(&arvore), ID));
+    // A forma gravada é a relativa; no host e na pasta do POST, `http://`
+    // (medido pelo Todos no GO, issue #766) ou `https://`, é o mesmo
+    // controlador. Outro host não é.
+    assert!(esperado(Some(&absoluta(&arvore)), ID));
+    assert!(esperado(
+        Some(&absoluta(&arvore).replacen("https://", "http://", 1)),
+        ID
+    ));
+    assert!(!esperado(
+        Some(&absoluta(&arvore).replacen("sei.exemplo.gov.br", "outro.exemplo.gov.br", 1)),
+        ID
+    ));
     let principal = arvore.replace("acao=arvore_visualizar", "acao=principal");
-    assert!(redirecionamento_esperado(Some(&principal), ID));
-    assert!(!redirecionamento_esperado(None, ID));
-    assert!(!redirecionamento_esperado(Some(&arvore), "11"));
+    assert!(esperado(Some(&principal), ID));
+    assert!(!esperado(None, ID));
+    assert!(!esperado(Some(&arvore), "11"));
     let outra_origem = arvore.replace("acao_origem=procedimento_concluir", "acao_origem=x");
-    assert!(!redirecionamento_esperado(Some(&outra_origem), ID));
+    assert!(!esperado(Some(&outra_origem), ID));
     let outro_destino = arvore.replace("acao=arvore_visualizar", "acao=procedimento_controlar");
-    assert!(!redirecionamento_esperado(Some(&outro_destino), ID));
-    assert!(!redirecionamento_esperado(
+    assert!(!esperado(Some(&outro_destino), ID));
+    assert!(!esperado(
         Some("https://sip.exemplo.gov.br/sip/login.php"),
         ID
     ));

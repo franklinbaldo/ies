@@ -49,8 +49,11 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade colunas` (Nível de detalhe, só leitura) e
   `ies unidade colunas --definir todas|LISTA [--confirmar]` (escrita da
   preferência de colunas, com prévia, confirmação e verificação)
-- `ies processo enviar NUP --para SIGLA`
-- `ies documento assinar NUMERO`
+- `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
+  ([contrato](cli/processo-enviar.md))
+- `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
+  com a senha do login, prévia e verificação pela caneta da árvore;
+  [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
@@ -126,9 +129,10 @@ Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
 
 `documento DOC` lê documentos internos e externos pela Web (#60 fatias 1 a 3;
-[contrato](cli/documento-obter-web.md)). Continuam como stubs
-`documento salvar --confirmar` remoto, `processo enviar` e `documento
-assinar`. `processo concluir` escreve com prévia e verificação
+[contrato](cli/documento-obter-web.md)). Continua como stub
+`documento salvar --confirmar` remoto; `processo enviar`
+([contrato](cli/processo-enviar.md)) e `documento assinar`
+([contrato](cli/documento-assinar.md)) escrevem com prévia e verificação. `processo concluir` escreve com prévia e verificação
 ([contrato](cli/processo-concluir.md)); `documento DOC --versao N` está
 implementado ([contrato](cli/documento-obter-versoes.md)). `processo NUP`
 lê pela árvore ([contrato](cli/processo-obter-arvore.md)) e `unidade
@@ -272,3 +276,23 @@ por `aberto_em` numa leitura nova. Subcódigos próprios:
 `tela_do_no_redirecionada`, `redirecionamento_na_reabertura` (resposta),
 `reabertura_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
 `efeito_incerto_na_reabertura` (`efeito_incerto`, saída 3).
+
+## Enviar o processo (Refs #173)
+
+`ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
+([contrato](cli/processo-enviar.md)): prévia com a abertura, a tela
+"Enviar Processo" e a consulta do autocomplete que ela declara (POST de
+leitura, nenhum de escrita); um POST e verificação pelo destino e pela
+unidade da sessão em `aberto_em`. Uso inválido (2):
+`sigla_de_destino_invalida`, `mais_de_um_destino_nao_suportado`.
+Subcódigos próprios: `situacao_do_processo_nao_lida_antes_de_enviar`,
+`processo_nao_aberto_na_unidade_da_sessao`, `envio_nao_publicado_na_barra`,
+`links_de_enviar_repetidos_na_barra`, os da tela
+(`campo_nao_previsto_na_tela_de_envio`, `tela_de_envio_com_opcoes_preenchidas`,
+`autocompletar_de_unidade_nao_declarado`, …), os da consulta
+(`resposta_do_autocompletar_nao_xml`, …), `destino_nao_oferecido_pelo_sei`
+(`oferecidos`), `varios_destinos_com_a_sigla` (`candidatos`),
+`processo_ja_aberto_no_destino`, `envio_nao_aplicado`
+(`escrita_nao_aplicada`, 1), `situacao_da_origem_diferente_da_pedida_apos_envio`
+(`escrita_diferente_da_solicitada`, 1) e `efeito_incerto_no_envio`
+(`efeito_incerto`, 3).

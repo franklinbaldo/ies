@@ -49,6 +49,10 @@ pub(crate) enum FalhaDoEnvio {
     RedirecionamentoNaFuncao,
     /// 302 em vez do HTML 200 (GET de reabrir).
     RedirecionamentoNaReabertura,
+    /// POST de enviar: 302 para destino fora do observado (`arvore_visualizar`).
+    RedirecionamentoNaoReconhecidoAposEnviar,
+    /// POST de enviar: HTML 200 em vez do 302.
+    RespostaDoEnvioSemRedirecionamento,
 }
 
 impl FalhaDoEnvio {
@@ -63,6 +67,10 @@ impl FalhaDoEnvio {
             Self::RespostaSemRedirecionamento => "resposta_do_concluir_sem_redirecionamento",
             Self::RedirecionamentoNaFuncao => "redirecionamento_na_conclusao_pela_funcao",
             Self::RedirecionamentoNaReabertura => "redirecionamento_na_reabertura",
+            Self::RedirecionamentoNaoReconhecidoAposEnviar => {
+                "redirecionamento_nao_reconhecido_apos_enviar"
+            }
+            Self::RespostaDoEnvioSemRedirecionamento => "resposta_do_envio_sem_redirecionamento",
         }
     }
 
@@ -72,8 +80,13 @@ impl FalhaDoEnvio {
             Self::Transporte(falha) => falha.status_http().cloned(),
             Self::RedirecionamentoNaoReconhecido
             | Self::RedirecionamentoNaFuncao
-            | Self::RedirecionamentoNaReabertura => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::LoginAposEscrita | Self::RespostaSemRedirecionamento => None,
+            | Self::RedirecionamentoNaReabertura
+            | Self::RedirecionamentoNaoReconhecidoAposEnviar => {
+                Some(StatusHttpRecusado::sem_mensagem(302))
+            }
+            Self::LoginAposEscrita
+            | Self::RespostaSemRedirecionamento
+            | Self::RespostaDoEnvioSemRedirecionamento => None,
         }
     }
 }

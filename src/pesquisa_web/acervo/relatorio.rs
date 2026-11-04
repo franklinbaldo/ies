@@ -70,7 +70,15 @@ fn totais(s: &mut String, registros: &[Registro]) {
     let mut algum = false;
     for r in registros {
         if let Some(total) = r.total_declarado {
-            let _ = writeln!(s, "- {} `{}#{}`: {total}", r.instalacao, r.card, r.passo);
+            let _ = write!(s, "- {} `{}#{}`: {total}", r.instalacao, r.card, r.passo);
+            if let Some((inicio, fim)) = r.faixa {
+                let _ = write!(
+                    s,
+                    ", faixa {inicio}–{fim}, linhas ausentes {}",
+                    r.linhas_ausentes
+                );
+            }
+            s.push('\n');
             algum = true;
         }
     }

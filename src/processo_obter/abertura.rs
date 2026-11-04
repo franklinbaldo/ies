@@ -4,10 +4,11 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroReabrirNaBarra,
-    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_arvore, ler_concluir_da_barra,
-    ler_destinos_dos_movidos, ler_link_das_propriedades, ler_link_dos_marcadores,
-    ler_reabrir_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra,
+    ErroEnviarNaBarra, ErroReabrirNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso,
+    ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -157,6 +158,8 @@ pub(super) struct ArvoreAberta {
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
     pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    /// O link da tela de envio na barra (só pesa em `processo enviar`).
+    pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -187,6 +190,7 @@ pub(super) fn ler_arvore_da_pagina(
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
+    let enviar = ler_enviar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         html: html.to_owned(),
@@ -195,6 +199,7 @@ pub(super) fn ler_arvore_da_pagina(
         marcadores,
         concluir,
         reabrir,
+        enviar,
     })
 }
 

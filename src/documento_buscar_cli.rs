@@ -174,16 +174,15 @@ fn buscar(cli: &Cli, comando: &Documento, termo: &str, pagina: Option<u32>) -> E
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
     };
-    let lidos = transporte::arquivo_privado(&arquivos.url_controle, 8_192).and_then(|url| {
-        transporte::arquivo_privado(&arquivos.origem, 512).map(|origem| (url, origem))
-    });
-    let (url, origem) = match lidos {
-        Ok(lidos) => lidos,
+    let lidos =
+        transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem);
+    let referencias = match lidos {
+        Ok(referencias) => referencias,
         Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
     };
     let sessao = SessaoDaBusca {
-        url_do_controle: url.trim(),
-        origem: origem.trim(),
+        url_do_controle: referencias.url_do_controle(),
+        origem: referencias.origem(),
         cookie_file: &arquivos.cookie,
     };
     let pedido = PedidoDeBusca {

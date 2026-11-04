@@ -168,4 +168,4 @@ Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 
-Validação live: **PASS** na UnB, inclusive o processo sem marcador ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-marcadores.md)); PEN1 e GO NOT_RUN.
+Validação live: **PASS** na UnB, inclusive o processo sem marcador ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-marcadores.md)), e em GO (lista vazia, total 0; [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)); PEN1 NOT_RUN.

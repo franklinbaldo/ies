@@ -161,8 +161,10 @@ fn enviar<V: EnvioDoProcesso>(
     });
     match resposta {
         Ok(RespostaDoEnvio::Redirecionamento(r)) => {
-            Ok((!redirecionamento_esperado(r.localizacao(), id))
-                .then_some(FalhaDoEnvio::RedirecionamentoNaoReconhecido))
+            Ok(
+                (!redirecionamento_esperado(r.localizacao(), r.url_do_envio(), id))
+                    .then_some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+            )
         }
         Ok(RespostaDoEnvio::Html(_)) => Ok(Some(FalhaDoEnvio::RespostaSemRedirecionamento)),
         Err(erro) if enviado => Ok(Some(FalhaDoEnvio::Envio(erro))),
