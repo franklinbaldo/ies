@@ -210,5 +210,7 @@ instalações), [observação](../../docs/como-o-sei-funciona/envio-do-processo.
 e [decisão](../../docs/decisoes/processo-enviar.md). Live: prévia **PASS** na UFRJ
 4.1.5; GO 5.0.3: `CBM/GECONT-18149` e `DETRAN/GECONT-18166` achados na consulta 1
 (**PASS**), `ABC/GECONT-18141`, inexistente, recusado (**PASS**,
-[relatório](../../docs/validacao-live/2026-11-04-processo-enviar-go.md)); escrita **NOT_RUN** (aguarda autorização,
-[relatório](../../docs/validacao-live/2026-11-04-processo-enviar.md)).
+[relatório](../../docs/validacao-live/2026-11-04-processo-enviar-go.md)); escrita **PASS** na UFRJ 4.1.5 em 04/11/2026: com `--manter-aberto` o processo fica
+aberto no destino e na origem; sem ele, só no destino (a caixa desmarcada tira o
+processo da origem), 6 requisições cada
+([relatório](../../docs/validacao-live/2026-11-04-processo-enviar-escrita.md)).
