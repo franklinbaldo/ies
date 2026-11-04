@@ -103,3 +103,81 @@ pub(crate) fn escolher_destino(
         }),
     }
 }
+
+/// O `value` da única opção do `selOrgao` (fora `""` e `null`) cujo rótulo
+/// é o prefixo da sigla antes da primeira `/` (`ABC` de
+/// `ABC/GECONT-18141`), comparados com espaços colapsados e sem caixa.
+pub(crate) fn orgao_da_sigla<'a>(para: &str, orgaos: &'a [(String, String)]) -> Option<&'a str> {
+    let (prefixo, _) = para.split_once('/')?;
+    let prefixo = chave(prefixo);
+    if prefixo.is_empty() {
+        return None;
+    }
+    let achados: Vec<&str> = orgaos
+        .iter()
+        .filter(|(valor, rotulo)| !valor.is_empty() && valor != "null" && chave(rotulo) == prefixo)
+        .map(|(valor, _)| valor.as_str())
+        .collect();
+    match achados.as_slice() {
+        [valor] => Some(valor),
+        _ => None,
+    }
+}
+
+/// Espaços colapsados, sem caixa.
+fn chave(texto: &str) -> String {
+    texto
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+/// O termo alargado de uma sigla com `/`: o último segmento sem o sufixo
+/// `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`); nenhum se vazio ou igual
+/// à sigla.
+pub(crate) fn termo_alargado(para: &str) -> Option<String> {
+    let para = para.trim();
+    let (_, ultimo) = para.rsplit_once('/')?;
+    let sem_numero = match ultimo.rsplit_once('-') {
+        Some((antes, numero))
+            if !numero.is_empty() && numero.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            antes
+        }
+        _ => ultimo,
+    };
+    let termo = sem_numero.trim();
+    (!termo.is_empty() && termo != para).then(|| termo.to_owned())
+}
+
+/// As consultas planejadas e a escolha (decisão em
+/// docs/decisoes/processo-enviar.md), cada uma no máximo uma vez e nesta
+/// ordem: (1) a sigla no órgão do prefixo, quando ele é outro que o da
+/// tela; (2) a sigla no órgão da tela; (3) só se (2) veio vazia, o termo
+/// alargado no órgão da tela. `consultar(termo, orgao)` faz um POST e
+/// devolve os itens; uma falha encerra a busca, sem repetir nada.
+pub(crate) fn resolver_destino<F>(
+    para: &str,
+    orgao_da_tela: &str,
+    orgaos: &[(String, String)],
+    mut consultar: F,
+) -> Result<Destino, ErroEnviar>
+where
+    F: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
+{
+    let para = para.trim();
+    if let Some(filtro) = orgao_da_sigla(para, orgaos).filter(|f| *f != orgao_da_tela) {
+        match escolher_destino(para, &consultar(para, filtro)?) {
+            Err(ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) => {}
+            decidido => return decidido,
+        }
+    }
+    let itens = consultar(para, orgao_da_tela)?;
+    match termo_alargado(para) {
+        Some(termo) if itens.is_empty() => {
+            escolher_destino(para, &consultar(&termo, orgao_da_tela)?)
+        }
+        _ => escolher_destino(para, &itens),
+    }
+}

@@ -272,3 +272,29 @@ pub(crate) fn previa(aberto_em: &[&str], manter_aberto: bool) -> ProcessoEnviado
         requisicoes: 5,
     }
 }
+
+/// A tela do GO 5.0.3 (64 opções no `selOrgao`, a ABC é a `28`; rótulos
+/// com espaço como `CASA CIVIL`), recortada: a estrutura da forma 4.1/5.0
+/// com outros órgãos.
+pub(crate) fn tela_de_envio_go(id: &str) -> String {
+    tela_de_envio(Versao::V41, id).replace(
+        "<option value=\"0\">ORGAO</option>\n",
+        "<option value=\"28\">ABC</option>\n<option value=\"31\">AGEHAB</option>\n\
+         <option value=\"30\">CASA CIVIL</option>\n<option value=\"5\">SEAD</option>\n",
+    )
+}
+
+/// O corpo da consulta do 4.1/5.0 com `termo` (já codificado) e `orgao`.
+pub(crate) fn corpo_da_consulta_com(termo: &str, orgao: &str) -> String {
+    format!("palavras_pesquisa={termo}&id_orgao={orgao}&unidade_atual=0")
+}
+
+/// Abertura, tela e uma consulta por corpo, na ordem.
+pub(crate) fn pedidos_da_busca(corpos: &[String]) -> Vec<Pedido> {
+    let mut todos = pedidos_da_abertura();
+    todos.push(get(&url_da_tela()));
+    for corpo in corpos {
+        todos.push(post(&absoluta(&autocompletar()), corpo));
+    }
+    todos
+}

@@ -12,7 +12,11 @@ mod tela;
 #[cfg(test)]
 mod acervo;
 #[cfg(test)]
+mod acervo_busca;
+#[cfg(test)]
 pub(crate) mod tests_apoio;
+#[cfg(test)]
+mod tests_busca;
 #[cfg(test)]
 mod tests_destino;
 #[cfg(test)]

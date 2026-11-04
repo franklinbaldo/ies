@@ -3,11 +3,11 @@
 //! destino, um POST e a leitura de verificação, com a tabela de
 //! reconciliação do contrato. Nenhum 302 é seguido; nenhuma escrita é
 //! repetida.
-use super::destino::{escolher_destino, ler_resposta_da_consulta};
+use super::destino::{ler_resposta_da_consulta, resolver_destino};
 use super::erro::{ErroEnviar as C, FalhaDaConsulta};
 use super::tela::{
-    AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta, campos_do_envio,
-    conferir_tela_de_envio, redirecionamento_esperado,
+    AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
+    campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
 };
 use super::{Destino, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
@@ -126,7 +126,8 @@ fn ler_tela<V: EnvioDoProcesso>(
     })
 }
 
-/// O POST da consulta do autocomplete (leitura) e a escolha do destino.
+/// Os POST da consulta do autocomplete (leitura) que a busca planeja e a
+/// escolha do destino.
 fn consultar_destino<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
@@ -139,20 +140,22 @@ fn consultar_destino<V: EnvioDoProcesso>(
         html: &tela.html,
         codificacao: tela.codificacao,
     };
-    let campos = campos_da_consulta(&tela.conferida, para);
-    let consulta = derivar_consulta_ajax(
-        &AUTOCOMPLETAR_UNIDADE,
-        instalacao,
-        &servida,
-        &tela.conferida.autocompletar,
-        &campos,
-    )
-    .map_err(|erro| C::Consulta(FalhaDaConsulta::Derivacao(erro)))?;
-    let resposta = rede
-        .post(consulta, cookie)
-        .map_err(|falha| C::Consulta(FalhaDaConsulta::Transporte(falha)))?;
-    let itens = ler_resposta_da_consulta(resposta).map_err(C::Consulta)?;
-    escolher_destino(para, &itens)
+    let conferida = &tela.conferida;
+    resolver_destino(para, &conferida.orgao, &conferida.orgaos, |termo, orgao| {
+        let campos = campos_da_consulta_no_orgao(conferida, termo, orgao);
+        let consulta = derivar_consulta_ajax(
+            &AUTOCOMPLETAR_UNIDADE,
+            instalacao,
+            &servida,
+            &conferida.autocompletar,
+            &campos,
+        )
+        .map_err(|erro| C::Consulta(FalhaDaConsulta::Derivacao(erro)))?;
+        let resposta = rede
+            .post(consulta, cookie)
+            .map_err(|falha| C::Consulta(FalhaDaConsulta::Transporte(falha)))?;
+        ler_resposta_da_consulta(resposta).map_err(C::Consulta)
+    })
 }
 
 /// Um único POST. `Ok(None)`: o 302 esperado; `Ok(Some(falha))`: o pedido

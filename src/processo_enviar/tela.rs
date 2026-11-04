@@ -19,6 +19,7 @@ use crate::formulario_web::{
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
+use crate::transporte::texto_de_recusa::decodificar_entidades;
 
 pub(crate) const FORMULARIO_DE_ENVIO: &str = "frmAtividadeListar";
 const BOTAO_ENVIAR: &str = "sbmEnviar";
@@ -103,6 +104,9 @@ pub(crate) const AUTOCOMPLETAR_UNIDADE: ConsultaAjax = ConsultaAjax {
 pub(crate) struct TelaDeEnvio {
     /// O valor efetivo do `selOrgao` (a última opção `selected`).
     pub(crate) orgao: String,
+    /// `(value, rótulo)` de cada opção do `selOrgao`, na ordem servida
+    /// (rótulo com entidades decodificadas e espaços colapsados).
+    pub(crate) orgaos: Vec<(String, String)>,
     /// Os textos de prazo servidos, na ordem da lista fechada.
     pub(crate) textos: Vec<&'static str>,
     /// A URL relativa que o script declara (assinada: nunca publicada).
@@ -124,6 +128,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     let mut selecao: Option<String> = None;
     let mut orgao: Option<String> = None;
     let mut orgao_primeira: Option<String> = None;
+    let mut orgaos = Vec::new();
     for tag in form
         .children()
         .all(parser)
@@ -137,6 +142,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             match selecao.as_deref() {
                 Some(ORGAO) => {
                     orgao_primeira.get_or_insert_with(|| valor.clone());
+                    orgaos.push((valor.clone(), rotulo(tag, parser)));
                     if marcada {
                         orgao = Some(valor);
                     }
@@ -204,6 +210,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     let (autocompletar, unidade_atual) = ler_script(html)?;
     Ok(TelaDeEnvio {
         orgao,
+        orgaos,
         textos,
         autocompletar,
         unidade_atual,
@@ -245,6 +252,14 @@ fn ler_script(html: &str) -> Result<(String, bool), E> {
     }
 }
 
+/// O texto visível da opção: entidades decodificadas, espaços colapsados.
+fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
+    decodificar_entidades(&opcao.inner_text(parser))
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
     atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
 }
@@ -258,14 +273,22 @@ fn decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<Stri
 
 /// Os pares do `prepararExecucao`: a sigla, o órgão efetivo e, no 4.1/5.0,
 /// `unidade_atual=0`.
+#[cfg(test)]
 pub(crate) fn campos_da_consulta<'a>(
     tela: &'a TelaDeEnvio,
     sigla: &'a str,
 ) -> Vec<(&'static str, &'a str)> {
-    let mut campos = vec![
-        ("palavras_pesquisa", sigla),
-        ("id_orgao", tela.orgao.as_str()),
-    ];
+    campos_da_consulta_no_orgao(tela, sigla, &tela.orgao)
+}
+
+/// Os mesmos pares com `id_orgao` = `orgao` (o da tela ou o de uma opção
+/// do `selOrgao`, como o navegador mandaria com ela escolhida).
+pub(crate) fn campos_da_consulta_no_orgao<'a>(
+    tela: &TelaDeEnvio,
+    termo: &'a str,
+    orgao: &'a str,
+) -> Vec<(&'static str, &'a str)> {
+    let mut campos = vec![("palavras_pesquisa", termo), ("id_orgao", orgao)];
     if tela.unidade_atual {
         campos.push(("unidade_atual", "0"));
     }
