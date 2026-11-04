@@ -68,7 +68,24 @@ pub(crate) struct ControleLido {
 pub(crate) fn ler_controle<V: EnvioDoControle>(
     sessao: &SessaoDaBusca<'_>,
     unidade_pedida: Option<&str>,
+    envio: &mut V,
+) -> Result<ControleLido, ErroBuscaDeProcesso> {
+    ler_controle_interno(sessao, unidade_pedida, None, envio)
+}
+
+fn ler_controle_com_contagem<V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    unidade_pedida: Option<&str>,
     requisicoes: &mut ContagemDeRequisicoes,
+    envio: &mut V,
+) -> Result<ControleLido, ErroBuscaDeProcesso> {
+    ler_controle_interno(sessao, unidade_pedida, Some(requisicoes), envio)
+}
+
+fn ler_controle_interno<V: EnvioDoControle>(
+    sessao: &SessaoDaBusca<'_>,
+    unidade_pedida: Option<&str>,
+    mut requisicoes: Option<&mut ContagemDeRequisicoes>,
     envio: &mut V,
 ) -> Result<ControleLido, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
@@ -77,7 +94,9 @@ pub(crate) fn ler_controle<V: EnvioDoControle>(
         sessao.cookie_file,
         sessao.origem,
         |url, cookie| {
-            requisicoes.registrar();
+            if let Some(contagem) = requisicoes.as_deref_mut() {
+                contagem.registrar();
+            }
             envio.get(url, cookie)
         },
     )
@@ -121,7 +140,7 @@ pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    let controle = ler_controle(sessao, pedido.unidade, requisicoes, envio)?;
+    let controle = ler_controle_com_contagem(sessao, pedido.unidade, requisicoes, envio)?;
     colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
     pesquisar_a_partir_do_controle::<A, V>(
         &controle,
