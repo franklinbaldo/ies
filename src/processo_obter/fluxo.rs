@@ -27,6 +27,7 @@ use crate::pesquisa_web::fluxo::{ControleLido, SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
@@ -75,7 +76,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     let mut rede = Rede {
         envio,
         cookie,
-        requisicoes: 0,
+        requisicoes: ContagemDeRequisicoes::default(),
     };
     let (arvore_lida, unidade, resolvido_por) =
         abrir_processo(&contexto, sessao, &mut rede, pedido.unidade_exigida)?;
@@ -110,7 +111,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         andamentos,
         propriedades,
         marcadores,
-        requisicoes: rede.requisicoes,
+        requisicoes: rede.requisicoes.total_u8(),
     };
     let acoes = AcoesDeEstado {
         concluir: arvore_lida.concluir,
@@ -436,7 +437,7 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
         origem: sessao.origem,
         cookie_file: sessao.cookie_file,
     };
-    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    rede.requisicoes.registrar();
     let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
         |erro| match erro {
             ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {

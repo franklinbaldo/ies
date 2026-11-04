@@ -149,7 +149,7 @@ fn ver_completo<V: EnvioDoProcesso>(
         &[(CAMPO_TIPO, "P")],
     )
     .map_err(E::FormularioDoHistorico)?;
-    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    rede.requisicoes.registrar();
     let envio = &mut *rede.envio;
     let html = match enviar_submissao_via(submissao, contexto.cookie_file, |s, c| envio.post(s, c))
     {

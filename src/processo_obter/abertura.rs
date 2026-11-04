@@ -23,6 +23,7 @@ use crate::pesquisa_web::redirecionamento::{
     OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
 use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
+use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use std::path::Path;
 
@@ -201,7 +202,7 @@ pub(super) fn ler_arvore_da_pagina(
 pub(super) struct Rede<'v, V> {
     pub(super) envio: &'v mut V,
     pub(super) cookie: String,
-    pub(super) requisicoes: u8,
+    pub(super) requisicoes: ContagemDeRequisicoes,
 }
 
 /// Uma resposta lida sem seguir 302.
@@ -214,7 +215,7 @@ pub(super) enum Lida {
 
 impl<V: EnvioDoProcesso> Rede<'_, V> {
     pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
-        self.requisicoes = self.requisicoes.saturating_add(1);
+        self.requisicoes.registrar();
         let resposta = self
             .envio
             .get_sem_seguir(url, &self.cookie)
@@ -236,7 +237,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         submissao: SubmissaoDerivada,
     ) -> Result<Option<ProcessoRedirecionado>, E> {
-        self.requisicoes = self.requisicoes.saturating_add(1);
+        self.requisicoes.registrar();
         let envio = &mut *self.envio;
         let resposta =
             enviar_submissao_via(submissao, contexto.cookie_file, |s, c| envio.post(s, c));

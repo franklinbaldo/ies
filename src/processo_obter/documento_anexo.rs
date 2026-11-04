@@ -26,7 +26,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     pedido: PedidoDoAnexo<'_>,
 ) -> Result<(String, String, Option<AnexoLido>), E> {
     let transporte = |falha| E::Processo(ErroProcessoObter::Transporte(falha));
-    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    rede.requisicoes.registrar();
     let resposta = rede
         .envio
         .get_binario(

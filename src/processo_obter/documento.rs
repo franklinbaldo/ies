@@ -119,7 +119,7 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     let mut rede = Rede {
         envio,
         cookie,
-        requisicoes: 0,
+        requisicoes: crate::transporte::contagem::ContagemDeRequisicoes::default(),
     };
     let leitura = LeituraDoNo {
         anexo: pedido.anexo,
@@ -279,7 +279,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         resolvido_por: lido.resolvido_por,
         texto,
         anexo,
-        requisicoes: rede.requisicoes,
+        requisicoes: rede.requisicoes.total_u8(),
         versoes,
     })
 }
