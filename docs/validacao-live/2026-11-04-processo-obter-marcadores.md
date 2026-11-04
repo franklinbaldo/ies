@@ -36,5 +36,6 @@ detalhe ligadas (`ies unidade colunas --definir todas --confirmar`).
   processo. A primeira versão recusava (`redirecionamento_nao_reconhecido`);
   agora o 302 conferido vira lista vazia, sem ser seguido.
 - **PEN1:** NOT_RUN. O `--definir todas --confirmar` saiu com efeito
-  incerto e a leitura mostrou que não aplicou; não foi repetido.
+  incerto e a leitura mostrou que não aplicou; não foi repetido
+  ([análise](2026-11-04-definir-colunas-pen1.md)).
 - GO: NOT_RUN (WAF; ritmo).

@@ -8,7 +8,7 @@ scope: Nível de detalhe do Controle de Processos Web com sessão existente; ies
 selected_strategy: web-escrita-explicita-unica
 alternatives: web-escrita-explicita-unica,web-salvar-e-restaurar-por-listagem,rest-wssei,soap-official
 evidence_level: ensaio-live-do-proprietario-e-testes-sinteticos
-live_validation: nao-realizada-neste-recorte
+live_validation: pass-pen1-unb-0211-saida-3-pen1-0411
 ---
 
 # Colunas do Nível de detalhe por escrita explícita
@@ -56,9 +56,10 @@ sessão, sem troca de backend:
   novas do primitivo, por operação: `ConferenciaDaUnidade::NaTelaDeOrigemDoLink`
   (a janela não publica `lnkInfraUnidade`; a unidade é a da D conferida na
   mesma sessão, e se a janela publicar o rótulo ele também é conferido) e
-  `ResultadoDoEnvio::ConferidoPorLeituraPosterior` (não há marcador de
-  sucesso observado; HTML 200 sem login é a resposta esperada, e o efeito
-  só é afirmado pela leitura).
+  `ResultadoDoEnvio::ConferidoPorLeituraPosterior` (o primitivo aceita HTML
+  200 sem login, e o efeito só é afirmado pela leitura). Desde 04/11/2026 a
+  **operação** também lê o sinal de gravação da resposta (`inicializar()`
+  com `if ('1'=='1'){`; ver Revisão); sem ele, a resposta não é a esperada.
 - Efeito novo `EfeitoAvaliado::AlteraPreferenciaDoUsuario`
   (`ColunasDaVisaoDetalhada`): preferência persistente, distinta do estado
   de sessão.
@@ -77,8 +78,9 @@ sessão, sem troca de backend:
   `--confirmar`, verificação, efeito incerto) não muda.
 
 Descartado: aceitar o formulário com campos desconhecidos (enviaria um POST
-diferente do observado) e classificar a resposta por um marcador inventado
-(o HTML exato não foi registrado). `ies setup` não aplica `--definir todas`
+diferente do observado) e classificar a resposta por um marcador inventado.
+Trocar o GET de verificação pelas caixas da própria resposta também foi
+descartado: não se sabe se o SEI as monta do que gravou ou do que recebeu. `ies setup` não aplica `--definir todas`
 nesta PR; fica como integração futura possível.
 
 ## Evidências verificáveis
@@ -99,12 +101,27 @@ nesta PR; fica como integração futura possível.
 ## Limitações e revisão
 
 Testes só com telas sintéticas modeladas na estrutura observada (12 e 11
-opções); live do comando **NOT_RUN**. A resposta de sucesso não tem marcador;
-um servidor que processe o POST depois do GET de verificação não é
-detectável. Revisar se o ensaio live mostrar: `lnkInfraUnidade` na janela,
+opções). Live: PASS na PEN1 5.0.4 e na UnB 4.0.9 (02/11/2026) e na UnB
+(04/11/2026); saída 3 sem efeito na PEN1 (04/11/2026). Um servidor que
+processe o POST depois do GET de verificação não é detectável. Revisar se o ensaio live mostrar: `lnkInfraUnidade` na janela,
 mais de um `sbmSalvar`, controle além dos observados, resposta diferente de
 200, mudança que só aparece depois de outra navegação, limite de opções
 marcadas (`validarNumeroCriterios` no `onchange` das caixas não foi
-capturado), ou outro catálogo de opções. Capturar a estrutura da resposta
-do salvar para, se estável, trocar a leitura obrigatória por um marcador
-mais a leitura.
+capturado), ou outro catálogo de opções. O sinal de gravação só foi visto na
+resposta da PEN1 5.0.4: conferir a resposta na 4.x e na 5.0.3.
+
+## Revisão de 04/11/2026: saída 3 na PEN1
+
+`--definir todas --confirmar` saiu com 3 na PEN1 e a leitura seguinte
+mostrou as marcas de antes. Pela tabela de reconciliação, essa combinação
+só ocorre se o **GET de verificação falhou**; a causa (subcódigos de
+`falha_do_salvar` e `verificacao`) não foi guardada. O corpo do POST é,
+byte a byte, o do salvar que gravou na mesma instalação em 02/11/2026
+(teste em `src/nivel_de_detalhe/tests_salvar.rs`), então a derivação está
+descartada. A [análise](../validacao-live/2026-11-04-definir-colunas-pen1.md)
+registra as hipóteses e o reensaio. Mudança adotada: a resposta do salvar
+só é a esperada com o sinal de gravação, de modo que uma resposta 200 que
+o SEI não confirmou aparece em `falha_do_salvar`
+(`nivel_de_detalhe_devolvido_sem_sinal_de_gravacao` ou
+`resposta_do_salvar_nao_reconhecida`) em vez de passar por esperada. A
+verificação por GET, o POST único e a ausência de retry não mudam.

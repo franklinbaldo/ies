@@ -19,7 +19,8 @@ pub(crate) use alvo::{
     planejar,
 };
 pub(crate) use salvar::{
-    SALVAR_NIVEL_DE_DETALHE, campos_do_envio, conferir_controles_do_formulario,
+    SALVAR_NIVEL_DE_DETALHE, SinalDoSalvar, campos_do_envio, conferir_controles_do_formulario,
+    sinal_do_salvar,
 };
 pub(crate) use tela::{
     ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, ler_nivel_de_detalhe, texto_colapsado,
@@ -233,3 +234,6 @@ pub(crate) mod tests;
 
 #[cfg(test)]
 pub(crate) mod tests_alvo;
+
+#[cfg(test)]
+pub(crate) mod tests_salvar;

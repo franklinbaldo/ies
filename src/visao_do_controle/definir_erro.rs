@@ -6,13 +6,18 @@ use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
 use crate::transporte::StatusHttpRecusado;
 
 /// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
-/// tela de login). O pedido saiu: o efeito é incerto até a leitura.
+/// tela de login, com o sinal de gravação). O pedido saiu: o efeito é
+/// incerto até a leitura.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum FalhaDoSalvar {
     /// Rede, tempo esgotado, 5xx, outro status, MIME, charset, tamanho, login.
     Envio(ErroSubmissaoFormulario),
     /// 302 recebido e não seguido.
     Redirecionamento302,
+    /// HTML 200 com a tela do Nível sem o sinal de gravação (`''=='1'`).
+    NivelDevolvidoSemSinalDeGravacao,
+    /// HTML 200 sem o `inicializar()` observado da tela do Nível.
+    RespostaDoSalvarNaoReconhecida,
 }
 
 impl FalhaDoSalvar {
@@ -20,6 +25,10 @@ impl FalhaDoSalvar {
         match self {
             Self::Envio(erro) => erro.subcodigo(),
             Self::Redirecionamento302 => "redirecionamento_ao_salvar_nivel_de_detalhe",
+            Self::NivelDevolvidoSemSinalDeGravacao => {
+                "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"
+            }
+            Self::RespostaDoSalvarNaoReconhecida => "resposta_do_salvar_nao_reconhecida",
         }
     }
 
@@ -28,6 +37,7 @@ impl FalhaDoSalvar {
         match self {
             Self::Envio(erro) => erro.status_http().cloned(),
             Self::Redirecionamento302 => Some(StatusHttpRecusado::sem_mensagem(302)),
+            Self::NivelDevolvidoSemSinalDeGravacao | Self::RespostaDoSalvarNaoReconhecida => None,
         }
     }
 }

@@ -30,6 +30,12 @@ passos correspondentes.
 
 ## Limite da evidência
 
-Não há cassette pública da tela nem da resposta do POST. O HTML exato da
-resposta de sucesso não foi registrado: o IES confere o efeito por GET.
-Nenhum ensaio do comando `--definir` do IES foi feito.
+Não há cassette pública da tela nem da resposta do POST (nenhuma
+interação `procedimento_configurar_detalhe` nos 29 ZIPs, conferido em
+04/11/2026). A resposta de sucesso só existe em captura privada da PEN1
+5.0.4 (02/11/2026): a mesma tela com o sinal de gravação no
+`inicializar()`, que o IES lê para classificar a resposta; o efeito
+continua conferido por GET. Ensaios do comando: PASS na PEN1 e na UnB
+(02/11/2026) e na UnB (04/11/2026); saída 3 sem efeito na PEN1 em
+04/11/2026, com causa não registrada
+([análise](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md)).
