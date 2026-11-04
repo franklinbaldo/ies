@@ -17,6 +17,7 @@ const CONSTRUTOR: &str = "new infraArvoreNo(";
 /// `Nos[0].html = '…';Nos[1] = new infraArvoreNo("PASTA",…);`.
 const HTML_ANTES: &str = ".html = ";
 const BARRA: &str = ".acoes = ";
+const SRC: &str = ".src = ";
 const PROTOCOLOS: &str = "['protocolos'] = ";
 
 /// `Ok(None)`: a linha não declara nó (nem contém `new infraArvoreNo(`).
@@ -94,6 +95,30 @@ pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvo
         return Ok(None);
     };
     let fora = ErroArvore::BarraDeNoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|_| fora)? {
+        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        _ => Err(fora),
+    }
+}
+
+/// O `i` de uma linha `Nos[i].src = …`, sem ler o resto.
+pub(super) fn indice_do_src(linha: &str) -> Option<usize> {
+    let (indice, resto) = indice_entre(linha, "Nos[")?;
+    resto.starts_with(SRC).then_some(indice)
+}
+
+/// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].src = '<texto>';`
+/// (o link do conteúdo do nó, Refs #60); `Ok(None)` se a linha não atribui
+/// `.src` a um nó.
+pub(super) fn ler_src(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+    let linha = linha.strip_suffix('\r').unwrap_or(linha);
+    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
+        return Ok(None);
+    };
+    let Some(resto) = resto.strip_prefix(SRC) else {
+        return Ok(None);
+    };
+    let fora = ErroArvore::SrcDeNoForaDaFormaObservada;
     match ler_literal(resto).map_err(|_| fora)? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
         _ => Err(fora),

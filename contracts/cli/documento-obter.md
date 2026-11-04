@@ -4,14 +4,17 @@ title: Ler documento SEI
 operation: documento.obter
 command: ies documento DOC
 effect: read
-implementation: stub
+implementation: partial
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 ---
 
 # Ler documento SEI
 
 `ies documento DOC [DOC ...]` lê um ou mais documentos pelo número SEI
-visível. A implementação atual permanece um stub sem acesso à rede.
+visível. A leitura Web de documentos internos (texto e metadados, pela
+pesquisa rápida, a árvore e o link assinado do conteúdo) está no
+[contrato da leitura Web](documento-obter-web.md) (Refs #60, fatia 1);
+as demais opções continuam stub.
 
 ## Entradas
 
@@ -40,9 +43,11 @@ Espaços externos comuns podem ser aparados. Caracteres de controle
 original**, são recusados com variante Rust `Controle` e subcódigo
 `numero_documento_controle`, antes de qualquer normalização.
 Caracteres não ASCII/dígitos misturados continuam retornando
-`numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida ainda retorna `nao_implementado` e
-código 1. Arquivo inacessível, ausência de documento e sessão inválida
-precisarão de contratos de erro específicos antes de implementar HTTP.
+`numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida segue para a [leitura Web](documento-obter-web.md),
+que tipa sessão, ausência, inacessibilidade, cancelamento e documento
+externo; com `--processo`, `--versao`, `--sem-copia`,
+`--com-propriedades` ou `--ocultar-inacessiveis`, ainda retorna
+`nao_implementado` e código 1.
 
 [documento.obter](../evidencias/documento-obter.md) e
 [formulários e payloads](../../docs/como-o-sei-funciona/formularios.md)
@@ -103,10 +108,9 @@ A saída é `escopo: html_privado_offline`, `autenticacao_remota: false`
 e `versao_atual: null`. Não afirmar atualidade, assinatura, integridade
 criptográfica, identidade da sessão nem versão do documento. Opções
 remotas como `--versao` ou `--com-propriedades` são recusadas
-no modo local, assim como vários DOCs (um arquivo só). O comando
-`ies documento DOC` sem `--html-privado` continua stub; a etapa
-de resolução da árvore e GET autenticado exige evidência e teste live
-independentes. Nenhum login, GET, POST nem escrita no SEI.
+no modo local, assim como vários DOCs (um arquivo só). Sem
+`--html-privado`, `ies documento DOC` faz a [leitura Web](documento-obter-web.md).
+Este modo local não faz login, GET, POST nem escrita no SEI.
 
 
 ## Exportação de texto do HTML privado (Refs #60)
@@ -122,8 +126,8 @@ Na exportação, a saída JSON informa documento, escopo
 `html_privado_texto_exportado_offline`, bytes e
 `versao_atual: null`, mas **não** devolve o texto no terminal.
 Sem `--saida`, permanece a leitura offline de texto existente.
-Esta opção não equivale a `--saida DIR` da futura leitura Web;
-a capacidade remota de `documento.obter` continua stub.
+A `--saida DIR` da [leitura Web](documento-obter-web.md) grava o
+mesmo `DOC.txt` 0600, sem sobrescrever.
 
 ## Texto visível versus decoração HTML (Refs #60)
 

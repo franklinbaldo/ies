@@ -20,9 +20,9 @@ use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id}
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::pesquisa_web::fluxo::{SessaoDaBusca, ler_controle};
+use crate::pesquisa_web::fluxo::{ControleLido, SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
-    ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, conferir_trabalho,
+    ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
 
@@ -280,6 +280,25 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
+    let Some(redirecionado) = pesquisar_pela_guardada(contexto, sessao, rede, contexto.nup)? else {
+        return Ok(None);
+    };
+    let (arvore, unidade) = rede.abrir(
+        contexto,
+        redirecionado.trabalho.as_str(),
+        redirecionado.id.as_str(),
+    )?;
+    Ok(Some((arvore, Some(unidade), ResolvidoPor::PesquisaRapida)))
+}
+
+/// POST de `valor` (NUP ou número SEI) ao `action` da pesquisa rápida
+/// guardado; `Ok(None)`: não há guardado ou ele envelheceu (esquecido).
+pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+    valor: &str,
+) -> Result<Option<ProcessoRedirecionado>, E> {
     let acao = PESQUISA_RAPIDA.acao;
     let Some(link) = contexto
         .chave(acao, "")
@@ -292,10 +311,10 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
         &contexto.instalacao,
         link.url(),
         sessao.url_do_controle,
-        &[(CAMPO, contexto.nup)],
+        &[(CAMPO, valor)],
     ) {
         Ok(submissao) => submissao,
-        // NUP fora do ASCII: o charset da tela não foi guardado.
+        // Valor fora do ASCII: o charset da tela não foi guardado.
         Err(ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }) => return Ok(None),
         Err(_) => {
             contexto.esquecer_link(acao, "");
@@ -306,12 +325,7 @@ fn pesquisa_guardada<V: EnvioDoProcesso>(
         contexto.esquecer_link(acao, "");
         return Ok(None);
     };
-    let (arvore, unidade) = rede.abrir(
-        contexto,
-        redirecionado.trabalho.as_str(),
-        redirecionado.id.as_str(),
-    )?;
-    Ok(Some((arvore, Some(unidade), ResolvidoPor::PesquisaRapida)))
+    Ok(Some(redirecionado))
 }
 
 /// Passo 4, GET do Controle: (a) a linha do NUP exato; (b) senão, a pesquisa
@@ -321,29 +335,8 @@ fn pelo_controle<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
-    let busca = SessaoDaBusca {
-        url_do_controle: sessao.url_do_controle,
-        origem: sessao.origem,
-        cookie_file: sessao.cookie_file,
-    };
-    rede.requisicoes = rede.requisicoes.saturating_add(1);
-    let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
-        |erro| match erro {
-            ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
-                E::SessaoEncerrada
-            }
-            outro => E::Controle(outro),
-        },
-    )?;
+    let controle = ler_controle_colhido(contexto, sessao, rede)?;
     let tela = &controle.tela;
-    // Linhas, link da pesquisa e `action` da pesquisa rápida, sem requisição.
-    Colheita::com_geracao(
-        contexto.indice,
-        &contexto.instalacao,
-        &contexto.geracao,
-        sessao.url_do_controle,
-    )
-    .colher(&tela.html, Some(&tela.mime));
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
@@ -360,6 +353,54 @@ fn pelo_controle<V: EnvioDoProcesso>(
             })?;
         return Ok((arvore, Some(unidade), ResolvidoPor::Caixa));
     }
+    let redirecionado = pesquisar_no_controle(contexto, &controle, rede, contexto.nup)?;
+    let (arvore, unidade) = rede.abrir(
+        contexto,
+        redirecionado.trabalho.as_str(),
+        redirecionado.id.as_str(),
+    )?;
+    Ok((arvore, Some(unidade), ResolvidoPor::PesquisaRapida))
+}
+
+/// GET do Controle; linhas, link da pesquisa e `action` da pesquisa rápida
+/// colhidos no índice, sem requisição.
+pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Rede<'_, V>,
+) -> Result<ControleLido, E> {
+    let busca = SessaoDaBusca {
+        url_do_controle: sessao.url_do_controle,
+        origem: sessao.origem,
+        cookie_file: sessao.cookie_file,
+    };
+    rede.requisicoes = rede.requisicoes.saturating_add(1);
+    let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
+        |erro| match erro {
+            ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
+                E::SessaoEncerrada
+            }
+            outro => E::Controle(outro),
+        },
+    )?;
+    Colheita::com_geracao(
+        contexto.indice,
+        &contexto.instalacao,
+        &contexto.geracao,
+        sessao.url_do_controle,
+    )
+    .colher(&controle.tela.html, Some(&controle.tela.mime));
+    Ok(controle)
+}
+
+/// POST de `valor` pelo formulário rápido servido no Controle lido.
+pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
+    contexto: &Contexto<'_>,
+    controle: &ControleLido,
+    rede: &mut Rede<'_, V>,
+    valor: &str,
+) -> Result<ProcessoRedirecionado, E> {
+    let tela = &controle.tela;
     let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
@@ -371,16 +412,9 @@ fn pelo_controle<V: EnvioDoProcesso>(
         &contexto.instalacao,
         &servida,
         &controle.unidade,
-        &[(CAMPO, contexto.nup)],
+        &[(CAMPO, valor)],
     )
     .map_err(E::Formulario)?;
-    let redirecionado = rede
-        .pesquisar(contexto, submissao)?
-        .ok_or(E::SessaoEncerrada)?;
-    let (arvore, unidade) = rede.abrir(
-        contexto,
-        redirecionado.trabalho.as_str(),
-        redirecionado.id.as_str(),
-    )?;
-    Ok((arvore, Some(unidade), ResolvidoPor::PesquisaRapida))
+    rede.pesquisar(contexto, submissao)?
+        .ok_or(E::SessaoEncerrada)
 }

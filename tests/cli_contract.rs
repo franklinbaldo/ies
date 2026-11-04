@@ -35,10 +35,33 @@ fn substantivo_sozinho_mostra_ajuda() {
 
 #[test]
 fn comando_sem_execucao_retorna_falha_estruturada() {
-    let output = ies(&["documento", "77782513", "--json"]);
+    let output = ies(&["documento", "77782513", "--processo", "1", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["codigo"], "nao_implementado");
+}
+
+/// `ies documento DOC` lê a sessão Web (Refs #60): sem os arquivos de
+/// sessão, falha tipada antes de qualquer rede.
+#[test]
+fn leitura_web_de_documento_le_a_sessao_antes_da_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+}
+
+/// O mesmo número duas vezes é entrada inválida (zeros à esquerda contam:
+/// `011354` e `0011354` são números diferentes, e ambos seguem).
+#[test]
+fn numero_de_documento_repetido_e_recusado_sem_rede() {
+    let output = ies_sem_sessao(&["documento", "0011354", "0011354", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "numero_documento_repetido");
+    let output = ies_sem_sessao(&["documento", "011354", "0011354", "--json"]);
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 #[test]

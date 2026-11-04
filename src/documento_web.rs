@@ -327,6 +327,7 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     }
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
+    // Entidades decodificadas antes de juntar espaços: `&nbsp;` é espaço.
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
     if texto.is_empty() {
         return Err(ErroCorpoDocumento::CorpoVazio);
@@ -339,6 +340,19 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
 #[cfg(test)]
 mod testes_texto {
     use super::*;
+
+    /// O corpo servido pelo `documento_visualizar` traz entidades nomeadas
+    /// do Latin-1 (`&aacute;`, `&nbsp;`, `&ordm;`), observadas ao vivo na
+    /// `UnB` (Refs #60): o texto publicado é o decodificado.
+    #[test]
+    fn entidades_do_corpo_sao_decodificadas_no_texto() {
+        let html = "<body><p>Coordena&ccedil;&atilde;o&nbsp;&nbsp;de Gest&atilde;o</p>\
+                    <p>Processo n&ordm; 1 &amp; SEI n&#186; 2 &eacute; &desconhecida;</p></body>";
+        assert_eq!(
+            texto_do_corpo(html),
+            Ok("Coordenação de Gestão Processo nº 1 & SEI nº 2 é &desconhecida;".to_owned())
+        );
+    }
 
     #[test]
     fn elementos_executaveis_visiveis_continuam_recusados_por_tipo() {

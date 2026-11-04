@@ -8,6 +8,7 @@
 //! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
 mod barra_do_processo;
+mod conteudo;
 pub(crate) mod endereco;
 mod erro;
 mod literais;
@@ -29,6 +30,8 @@ mod tests_barra;
 #[cfg(test)]
 mod tests_barra_marcadores;
 #[cfg(test)]
+pub(crate) mod tests_conteudo;
+#[cfg(test)]
 mod tests_literais;
 #[cfg(test)]
 pub(crate) mod tests_movido_presente;
@@ -49,6 +52,9 @@ pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use conteudo::{
+    ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
+};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
@@ -59,7 +65,10 @@ use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};
-pub(crate) use tela::{EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_processo};
+pub(crate) use tela::{
+    EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_documento,
+    ler_tela_do_processo,
+};
 pub(crate) use vinculo::ler_vinculo_de_anexacao;
 
 /// O nó `PROCESSO` (ou um `PROCESSO_ANEXADO`): id (a1), NUP (a5, igual a
@@ -370,9 +379,10 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
     })
 }
 
-/// O NUP (a5) do nó `PROCESSO` declarado, sem conferência: só o replay do
-/// acervo o usa, para tirar da própria gravação a identidade pedida.
-#[cfg(test)]
+/// O NUP (a5) do nó `PROCESSO` declarado, sem conferência: o replay do
+/// acervo o usa para tirar da gravação a identidade pedida, e a leitura de
+/// documento (Refs #60) para conferir a árvore aberta por número SEI, que
+/// não conhece o NUP antes dela; [`ler_arvore`] confere o resto.
 pub(crate) fn nup_declarado_na_arvore(html: &str) -> Option<String> {
     html.split('\n').find_map(|linha| {
         let (_, argumentos) = ler_declaracao(linha).ok()??;
