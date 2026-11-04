@@ -1,0 +1,9 @@
+[package]
+name = "ies-web"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Leitores puros de HTML do IES, sem transporte ou estado de sessao"
+
+[dependencies]
+tl = "0.7.8"
