@@ -233,6 +233,9 @@ pub(crate) fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTranspor
 /// A única chamada GET é injetável em testes; URL, origem e cookie passam
 /// pelas mesmas validações que o transporte real, antes de qualquer conexão.
 /// A closure `FnOnce` impede retries ocultos ou consultas adicionais.
+/// Só nos testes: é a bancada das validações de origem, cookie e resposta
+/// (o resumo pela caixa, que a usava, foi aposentado em 04/11/2026).
+#[cfg(test)]
 fn read_box_via<R: Read, F>(
     url: &str,
     cookie_file: &Path,
@@ -250,6 +253,7 @@ where
     decodificar_resposta(resposta)
 }
 
+#[cfg(all(test, unix))] // só o teste de link simbólico
 pub fn read_box(
     url: &str,
     cookie_file: &Path,
@@ -279,6 +283,7 @@ pub(crate) fn get_https_via<S: Read + std::io::Write>(
         .map(cliente_https::resposta_web)
 }
 
+#[cfg(all(test, unix))] // só o teste de link simbólico
 pub fn read_box_from_file(
     url_file: &Path,
     cookie_file: &Path,

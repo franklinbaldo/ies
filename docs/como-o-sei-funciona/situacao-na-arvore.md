@@ -8,7 +8,7 @@ description: O .html do nó PROCESSO publica as unidades onde o processo está a
 
 Observado em capturas privadas `0600` (`iso-8859-1`) da árvore
 (`procedimento_visualizar`) na UnB 4.0.9 (03/11/2026, seis árvores), em
-GO 5.0.3 (03/11/2026, uma) e na PEN1 4.0.12 (04/11/2026, uma), lidas só
+GO 5.0.3 (03/11/2026, uma) e na PEN1 5.0.4 (04/11/2026, uma), lidas só
 pela estrutura; o sobrestamento, no
 [acervo público](../validacao-replay/2026-11-04-processo-obter-acervo.md). Os nomes abaixo são conteúdo das telas de treinamento;
 nenhuma URL, hash ou e-mail. Declaração dos nós em

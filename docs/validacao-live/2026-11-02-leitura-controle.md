@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN de status, unidade atual e listar-processos com G
 
 # Ensaio live da leitura do Controle — 02/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Primeiro ensaio **autenticado** do IES em instalações reais. Só
 leitura: login + 3 GETs do IES por instalação, **zero POST, zero
 escrita**. Binário `ies` em release a partir de `main` + #144.

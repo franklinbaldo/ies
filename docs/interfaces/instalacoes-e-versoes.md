@@ -76,10 +76,20 @@ verificados, não o conjunto inteiro de operações do SEI:
 | UnB | 4.0.9 | Replay de caixa |
 | UFRJ | 4.1.5 | Replay de caixa |
 | Goiás | 5.0.3 | Replay de caixa |
-| PEN1 | 4.0.12 | Replay de caixa |
+| PEN1 | 4.0.12.15 (5.0.4 desde 02/11/2026, abaixo) | Replay de caixa |
 | PEN2 | 4.1.5 | Replay de caixa |
 | PEN3 | 5.0.4 | Replay de caixa |
 | PEN4 | 5.0.4 | Replay de caixa |
+
+**PEN1 atualizada para 5.0.4.** A versão está na própria tela: o logotipo
+`spnInfraIdentificacaoSistema` leva `title="Sistema Eletrônico de
+Informações - Versão …"` e os recursos (CSS, JS, SVG) são servidos com
+`?VERSAO-INFRA`. As cassettes de outubro (captura do Todos até
+19/10/2026) declaram `Versão 4.0.12.15` e `?4.0.12.15-2.0.18`; todas as
+capturas privadas dos ensaios de 02 a 04/11/2026 declaram `Versão 5.0.4`
+e `?5.0.4-2.45.1-…`, como a PEN3 e a PEN4. Os relatórios live de 02 a
+04/11 que escrevem "PEN1 4.0.12" referem-se à 5.0.4. As demais
+instalações conferem com a tabela nas duas fontes.
 
 Esses valores são registros históricos, não detecção live. Para
 cada nova funcionalidade, usar o contrato da CLI, os testes Rust e

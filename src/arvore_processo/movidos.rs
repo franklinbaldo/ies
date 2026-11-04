@@ -1,5 +1,5 @@
 //! Documentos movidos para outro processo (Refs #59;
-//! contracts/cli/processo-obter-arvore.md). Forma observada na PEN1 4.0.12
+//! contracts/cli/processo-obter-arvore.md). Forma observada na PEN1 5.0.4
 //! (04/11/2026): `DOCUMENTO_MOVIDO` com 16 argumentos, a1 composto
 //! `<id_documento>-<id_rel_protocolo_protocolo>`, a2 o processo, a3 o
 //! `arvore_visualizar` do próprio processo e a15 o número SEI; o `.html` do

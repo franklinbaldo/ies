@@ -20,7 +20,9 @@ live_validation: pass-unb-go-pen3-pen1-sem-indice
   pesquisa e, na página N, um POST de `navegar()`, com a sessão gravada por
   `ies login`. Orçamento: 3 requisições na página 1 e 4 na página N.
 - **web-captured-offline:** resposta HTML já obtida pelo operador, parser
-  estrito e zero requisições (`--resultado-pesquisa-file`, mantido).
+  estrito e zero requisições (`--resultado-pesquisa-file`, aposentado em
+  04/11/2026 por decisão do proprietário; a leitura offline fica em
+  `ies replay --resultado-pesquisa`).
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.
 
@@ -70,8 +72,7 @@ forma, pelo tokenizador de `src/html_atributos`
 - [Contrato](../../contracts/cli/processo-buscar.md)
 - [Matriz](../../contracts/evidencias/processo-buscar.md)
 - [Observação da pesquisa](../como-o-sei-funciona/pesquisa-de-protocolo.md)
-- [Superfície da CLI](../../tests/processo_buscar_web.rs) e
-  [testes de integração offline](../../tests/processo_pesquisa_privada.rs)
+- [Superfície da CLI](../../tests/processo_buscar_web.rs)
 - Testes unitários: [fluxo](../../src/pesquisa_web/tests_fluxo.rs) (sequência
   exata de requisições), [resposta](../../src/pesquisa_web/tests_resposta.rs),
   [paginação](../../src/pesquisa_web/tests_paginacao.rs),

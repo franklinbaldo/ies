@@ -1,5 +1,5 @@
 //! RED/GREEN de `aberto_em`: o `.html` do nó `PROCESSO` nas formas
-//! observadas na `UnB` 4.0.9, em GO 5.0.3 e na PEN1 4.0.12 (conteúdo das
+//! observadas na `UnB` 4.0.9, em GO 5.0.3 e na PEN1 5.0.4 (conteúdo das
 //! telas de treinamento; nenhuma URL ou hash), e as formas recusadas, que
 //! viram "não lido" sem falhar a árvore.
 use super::situacao::{ler_aberto_em, ler_sobrestamento, ler_unidades};

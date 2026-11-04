@@ -4,7 +4,6 @@ mod arquivo_texto_documento;
 mod arvore_processo;
 mod caixa;
 mod caixa_detalhada;
-mod caixa_local;
 mod cassette;
 mod classe_link_processo;
 mod colheita_do_controle;
@@ -39,16 +38,12 @@ mod nivel_de_detalhe;
 mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
-mod paginas_capturadas;
 mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_buscar_cli;
-mod processo_historico_privado_cli;
 mod processo_obter;
 mod processo_obter_cli;
-mod processo_pesquisa_privada_cli;
-mod processo_resumo_cli;
 mod propriedades_processo;
 mod replay_args;
 mod replay_busca_documento;
@@ -57,8 +52,6 @@ mod replay_consulta;
 mod replay_documento_cli;
 mod replay_pesquisa_cli;
 mod replay_versoes_cli;
-mod resumo_exportacao;
-mod resumo_pagina;
 mod resumo_processo;
 mod saida;
 mod saida_erro;
@@ -125,31 +118,6 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Processo {
     numero: Option<String>,
-    /// Consulta somente a identidade já exibida na Caixa de Entrada
-    #[arg(long)]
-    resumo: bool,
-    /// Interpreta histórico HTML privado previamente capturado, sem rede
-    #[arg(long = "historico-privado", value_name = "ARQUIVO")]
-    historico_privado: Option<PathBuf>,
-    /// Interpreta HTML de resposta de pesquisa previamente capturada (sem rede)
-    #[arg(long = "resultado-pesquisa-file", value_name = "HTML_PRIVADO")]
-    resultado_pesquisa_file: Option<PathBuf>,
-    /// Salva resumo da caixa em novo arquivo privado sem expor o conteúdo no terminal
-    #[arg(long, requires = "resumo")]
-    saida: Option<PathBuf>,
-    /// Lê resumo de caixa previamente exportada, sem conectar ao SEI
-    #[arg(long, requires = "resumo", conflicts_with = "saida")]
-    caixa_local: Option<PathBuf>,
-    /// Relata NUP na primeira página sem alegar cobertura da caixa
-    #[arg(long, requires = "resumo", conflicts_with = "caixa_local")]
-    observado_na_pagina: bool,
-    /// Une HTML privado previamente capturado ao único GET de resumo
-    #[arg(
-        long = "pagina-arquivo",
-        requires = "resumo",
-        conflicts_with_all = ["caixa_local", "observado_na_pagina"]
-    )]
-    paginas_capturadas: Vec<PathBuf>,
     /// Omite documentos da leitura
     #[arg(long)]
     sem_documentos: bool,
@@ -357,12 +325,9 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_buscar_cli::tentar_buscar(cli)
-        .or_else(|| processo_pesquisa_privada_cli::tentar_consultar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
-        .or_else(|| processo_historico_privado_cli::tentar_ler(cli))
-        .or_else(|| processo_resumo_cli::tentar_resumo(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
 }
 
@@ -443,7 +408,7 @@ fn run(cli: &Cli) -> ExitCode {
     {
         return status;
     }
-    if let Some(status) = processo_resumo_cli::validar_numero(cli) {
+    if let Some(status) = processo_obter_cli::validar_numero(cli) {
         return status;
     }
     match &cli.command {

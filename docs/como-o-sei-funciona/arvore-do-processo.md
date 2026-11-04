@@ -7,7 +7,7 @@ description: Estrutura observada de procedimento_trabalhar, ifrArvore e das decl
 # Tela de trabalho e árvore do processo
 
 Observado na UnB 4.0.9 e em Goiás (treinamento, 03/11/2026; documentos
-movidos na PEN1 4.0.12, 04/11/2026), em
+movidos na PEN1 5.0.4, 04/11/2026), em
 capturas privadas `0600` lidas só pela estrutura. Nenhum valor real
 aparece aqui ou nas fixtures.
 
@@ -162,7 +162,7 @@ com exatamente um `<a>`; o texto do link é o NUP do pai. Leitura do IES:
 
 ## Documentos movidos
 
-Observado ao vivo na PEN1 4.0.12 (04/11/2026), numa captura privada
+Observado ao vivo na PEN1 5.0.4 (04/11/2026), numa captura privada
 `iso-8859-1` lida só pela estrutura: árvore com 1 `PROCESSO`, 2
 `DOCUMENTO` e 1 `DOCUMENTO_MOVIDO`, um documento movido para outro
 processo:

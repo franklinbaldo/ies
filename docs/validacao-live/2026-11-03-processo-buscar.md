@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN de ies processo buscar (NUP exato, inexistente, p
 
 # Ensaio live de `ies processo buscar` — 03/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Primeiro ensaio do comando pela sessão de `ies login`, binário em release
 do ramo de #58. Só pesquisa: o efeito é `PaginaOuFiltroLembrado` (a
 pesquisa e a página ficam lembradas na conta); sem restauração. Nenhum

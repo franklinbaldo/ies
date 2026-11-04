@@ -79,7 +79,7 @@ restaurar custava requisições e o efeito residual é cosmético):
 Orçamento: 1 GET + 1 POST (R); com `--pagina N` diferente da página
 mostrada, 1 GET + 2 POST (R, página N). A recusa de página depois do POST
 R tem a mesma mensagem da sessão já na R. Ensaio live de 04/11/2026
-([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9, na PEN1 4.0.12 e na PEN3 e PEN4
+([relatório](../../docs/validacao-live/2026-11-04-unidade-paginacao.md)): **PASS** na UnB 4.0.9, na PEN1, na PEN3 e na PEN4
 5.0.4, com e sem `--pagina N` e nas duas ordens, e na UFRJ 4.1.5 (uma
 página, legenda `(1 registro):` aceita depois da correção); PEN2 (login
 com 503, depois 403 do Cloudflare) e GO (login interrompido pelo proxy do
@@ -92,21 +92,9 @@ deixaram de existir.
 
 `ies replay CENARIO` (caixa resumida) usa o array `[recebidos, gerados]`;
 `listar-processos --saida`, o array `[lista D]`.
-`processo NUP --resumo --caixa-local` lê esse array: `[recebidos, gerados]`
-ou, exportado da visão D, `[lista com categoria null]`, cujas ocorrências
-saem com `categoria: null`. Uma exportação no formato anterior (objeto
-com `recebidos`/`gerados`) ou a lista única `categoria: "detalhada"`
-gravada pela `main` da PR #146 (pré-1.0, sem alias) é recusada com
-`formato_do_arquivo_da_caixa_invalido`. Recusas novas da importação:
-
-| Fato no arquivo | Subcódigo |
-| --- | --- |
-| Array diferente de `[recebidos, gerados]` e de `[null]` | `listas_do_arquivo_da_caixa_nao_sao_recebidos_e_gerados` |
-| Lista sem categoria: total diferente das linhas | `total_da_lista_sem_categoria_do_arquivo_nao_comprovado` |
-| Lista sem categoria: `id` inválido ou repetido | `id_da_lista_sem_categoria_do_arquivo_invalido`, `id_da_lista_sem_categoria_do_arquivo_repetido` |
-| Lista sem categoria: `numero` inválido | `numero_da_lista_sem_categoria_do_arquivo_invalido` |
-| Listas com `unidade` diferentes | `unidade_das_listas_do_arquivo_da_caixa_diferente` |
-| Listas com `origem` diferentes | `origem_das_listas_do_arquivo_da_caixa_diferente` |
+O leitor desses arquivos (`processo NUP --resumo --caixa-local`) foi
+aposentado em 04/11/2026 com o `--resumo`
+([processo.obter](processo-obter.md)); a exportação não muda.
 
 ## Opções
 

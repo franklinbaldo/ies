@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN dos quatro caminhos de abertura de ies processo N
 
 # Ensaio live de `ies processo NUP` — 03/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Primeiro ensaio do [recorte 1 da #59](../decisoes/processo-obter.md),
 binário em release do ramo do PR. Cada instalação usou um
 [índice local](../arquitetura/0003-indice-local.md) novo em pasta `0700`

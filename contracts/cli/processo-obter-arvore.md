@@ -1,13 +1,13 @@
 ---
 type: Contract
 title: Abrir processo pela árvore
-description: ies processo NUP sem --resumo abre o processo com o mínimo de requisições, lê o primeiro nível da árvore, os processos anexados, os andamentos, as propriedades e os marcadores e aprende no índice local
+description: ies processo NUP abre o processo com o mínimo de requisições, lê o primeiro nível da árvore, os processos anexados, os andamentos, as propriedades e os marcadores e aprende no índice local
 ---
 
 # `ies processo NUP` pela árvore (Refs #59, fatias 1 a 4)
 
-Complementa o [contrato de `processo.obter`](processo-obter.md). Sem
-`--resumo`, `ies processo NUP [--sem-documentos] [--sem-andamentos |
+Complementa o [contrato de `processo.obter`](processo-obter.md).
+`ies processo NUP [--sem-documentos] [--sem-andamentos |
 --andamentos-completos] [--sem-propriedades] [--sem-marcadores] [--json] [--unidade SIGLA]` usa a sessão de
 `ies login`, abre o processo e publica a identidade, os documentos da
 árvore, inclusive os de pastas ([pastas](processo-obter-pastas.md)), os
@@ -16,8 +16,8 @@ processos anexados, os andamentos
 ([seção própria](processo-obter-propriedades.md)) e os marcadores, sempre
 como lista ([seção própria](processo-obter-marcadores.md)), onde o
 processo está aberto e a natureza de cada documento, sem requisição a
-mais ([seção própria](processo-obter-situacao.md)). `--resumo`
-não muda.
+mais ([seção própria](processo-obter-situacao.md)). `--resumo` foi
+aposentado em 04/11/2026 ([contrato](processo-obter.md)).
 
 ## Resolução (ordem aprovada pelo proprietário)
 

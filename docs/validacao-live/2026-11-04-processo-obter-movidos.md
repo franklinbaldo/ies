@@ -6,6 +6,8 @@ description: PASS/FAIL/NOT_RUN da árvore com DOCUMENTO_MOVIDO, do destino apren
 
 # Ensaio live dos documentos movidos — 04/11/2026
 
+> Nota (04/11/2026): a PEN1 deste ensaio já servia o SEI 5.0.4; "4.0.12" é a versão das cassettes de outubro ([evidência](../interfaces/instalacoes-e-versoes.md)).
+
 Documentos movidos ([contrato](../../contracts/cli/processo-obter-arvore.md)),
 binário em release do ramo do PR, índice novo, sessão nova, ritmo espaçado.
 O processo é o mesmo que bloqueava as propriedades na PEN1. Só formas e
