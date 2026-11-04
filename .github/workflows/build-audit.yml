@@ -1,0 +1,44 @@
+name: Auditoria comparativa de build
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/ies-core/**"
+      - "src/instalacao.rs"
+      - "scripts/build_audit.py"
+      - ".github/workflows/build-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-audit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  comparar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout da proposta
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: proposta
+          persist-credentials: false
+      - name: Checkout da base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - name: Instalar Rust pinado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Medir build da base
+        run: python3 proposta/scripts/build_audit.py medir --workspace base --saida base-build.json
+      - name: Medir build da proposta
+        run: python3 proposta/scripts/build_audit.py medir --workspace proposta --saida proposta-build.json
+      - name: Comparar tempos e grafo
+        run: python3 proposta/scripts/build_audit.py comparar --base base-build.json --proposta proposta-build.json --sumario "$GITHUB_STEP_SUMMARY"
