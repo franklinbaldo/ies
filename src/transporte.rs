@@ -152,12 +152,9 @@ pub fn verificar_sessao_local_de_arquivos(
     cookie_file: &Path,
     origem_file: &Path,
 ) -> Result<(), FalhaTransporte> {
-    let url = arquivo_privado(url_file, 8_192)?;
-    let origem = arquivo_privado(origem_file, 512)?;
+    let referencias = sessao::ReferenciasDaSessao::ler(url_file, origem_file)?;
     // Bloquear destino divergente ANTES de abrir o cookie confidencial.
-    validar_origem(url.trim(), origem.trim())?;
-    let cookie = arquivo_privado(cookie_file, 8_192)?;
-    validar_cookie(cookie.trim())
+    referencias.cookie_validado(cookie_file).map(|_| ())
 }
 
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
@@ -246,10 +243,8 @@ where
     F: FnOnce(&str, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
 {
     validar_origem(url, origem_autorizada)?;
-    let texto = arquivo_privado(cookie_file, 8_192)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie)?;
-    let resposta = requisitar(url, cookie)?;
+    let cookie = sessao::cookie_privado_validado(cookie_file)?;
+    let resposta = requisitar(url, &cookie)?;
     decodificar_resposta(resposta)
 }
 
@@ -289,9 +284,12 @@ pub fn read_box_from_file(
     cookie_file: &Path,
     origem_file: &Path,
 ) -> Result<String, FalhaTransporte> {
-    let url = arquivo_privado(url_file, 8_192)?;
-    let origem = arquivo_privado(origem_file, 512)?;
-    read_box(url.trim(), cookie_file, origem.trim())
+    let referencias = sessao::ReferenciasDaSessao::ler(url_file, origem_file)?;
+    read_box(
+        referencias.url_do_controle(),
+        cookie_file,
+        referencias.origem(),
+    )
 }
 
 #[path = "transporte/corpo_de_recusa.rs"]
@@ -324,6 +322,9 @@ pub(crate) mod cliente_https;
 
 #[path = "transporte/envio_post.rs"]
 pub(crate) mod envio_post;
+
+#[path = "transporte/sessao.rs"]
+pub(crate) mod sessao;
 
 #[cfg(test)]
 #[path = "transporte/tests.rs"]
