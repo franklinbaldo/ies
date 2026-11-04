@@ -289,17 +289,17 @@ impl EnvioRoteirizado {
     fn proxima(&mut self) -> RespostaWeb<Cursor<Vec<u8>>> {
         assert!(!self.respostas.is_empty(), "requisição além do orçamento");
         let (status_code, html) = self.respostas.remove(0);
-        RespostaWeb {
+        // O corpo vai em ISO-8859-1, como o `Content-Type` declara.
+        let corpo = html
+            .chars()
+            .map(|c| u8::try_from(u32::from(c)).expect("ISO-8859-1"))
+            .collect();
+        crate::transporte::testes_http::resposta(
             status_code,
-            mime: "text/html; charset=iso-8859-1".to_owned(),
-            content_length: None,
-            // O corpo vai em ISO-8859-1, como o `Content-Type` declara.
-            corpo: Cursor::new(
-                html.chars()
-                    .map(|c| u8::try_from(u32::from(c)).expect("ISO-8859-1"))
-                    .collect(),
-            ),
-        }
+            "text/html; charset=iso-8859-1",
+            corpo,
+            None,
+        )
     }
 }
 
