@@ -8,7 +8,7 @@ scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo núm
 selected_strategy: web-indice-arvore-src-com-pesquisa-rapida
 alternatives: web-indice-arvore-src-com-pesquisa-rapida,web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-unb
-live_validation: pass-unb-4-0-9
+live_validation: pass-unb-4-0-9-fatias-1-e-2
 ---
 
 # Ler documento pelo número SEI
@@ -63,6 +63,10 @@ live_validation: pass-unb-4-0-9
   medida na UnB, aceite e recusa registrados por instalação, e só onde
   nenhuma das formas foi recusada. O 302 não leva direto à árvore: a
   tela é necessária para o link assinado dela, por isso 4 e não 2.
+- **Pasta fechada:** aberta só se o número não está à vista. Medido na
+  UnB: a tela com `id_documento` (entrada com documento ou pesquisa do
+  número) já serve a árvore com a pasta do documento carregada; o link
+  da árvore guardado e a abertura pelo NUP, não (+1).
 - **Guardar o `.src`** e pular a árvore (1 requisição) rejeitado por ora:
   rótulo, natureza, pasta e processo vêm da árvore, e o `.src` sozinho
   não prova que o documento ainda está no processo.
