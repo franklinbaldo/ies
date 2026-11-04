@@ -17,6 +17,9 @@ O IES registra disponibilidade separadamente para cada combinação
 **instalação + identidade/sistema + unidade + operação + protocolo**.
 Uma instalação não recebe um único atributo global "suporta REST".
 
+As contas Web públicas de cada instalação de treinamento, com a fonte, estão
+em [credenciais públicas](credenciais-de-treinamento.md).
+
 ## Estados observáveis
 
 | Estado | Quando atribuir | Consequência |
