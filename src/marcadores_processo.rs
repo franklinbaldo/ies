@@ -69,7 +69,8 @@ pub(crate) struct MarcadoresLidos {
 pub(crate) enum TelaDosMarcadores {
     Lidos(MarcadoresLidos),
     /// A tela é a deste processo, mas sem `table#tblMarcadores` (forma de
-    /// zero marcadores não observada: não se publica `[]`).
+    /// zero marcadores é o 302 para `andamento_marcador_cadastrar`, tratado
+    /// pelo fluxo; esta forma não foi observada e não vira `[]`).
     SemTabela,
 }
 

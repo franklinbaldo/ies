@@ -396,3 +396,51 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_barra() {
     assert!(matches!(r.unwrap_err(), E::Transporte(_)));
     assert_eq!(pedidos.len(), 2);
 }
+
+/// Sem marcador, a tela de marcadores responde 302 para o formulário de
+/// adicionar (`andamento_marcador_cadastrar`) do mesmo processo (`UnB`
+/// 4.0.9, 04/11/2026). Vira lista vazia com total 0, sem seguir o 302.
+fn cadastrar(id: &str) -> String {
+    format!(
+        "controlador.php?acao=andamento_marcador_cadastrar&acao_origem=andamento_marcador_gerenciar&acao_retorno=arvore_visualizar&id_procedimento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        hash('c')
+    )
+}
+
+#[test]
+fn redirecionamento_para_adicionar_marcador_e_lista_vazia_sem_seguir() {
+    for local in [cadastrar(ID), absoluta(&cadastrar(ID))] {
+        let amb = ambiente();
+        let (r, pedidos) = rodar_marc(
+            &amb,
+            PedidoDeAndamentos::Omitidos,
+            SO_MARCADORES,
+            frio(arvore_completa(ID), vec![r302(&local)]),
+        );
+        let r = r.unwrap();
+        assert_eq!(
+            r.marcadores,
+            Marcadores::Lidos(crate::marcadores_processo::MarcadoresLidos {
+                total_declarado: 0,
+                itens: Vec::new(),
+            })
+        );
+        assert_eq!(pedidos.len(), 4, "o 302 não é seguido");
+        assert_eq!(guardado(&amb), Some(url_marcadores()));
+    }
+}
+
+#[test]
+fn redirecionamento_para_adicionar_marcador_de_outro_processo_e_recusa() {
+    let amb = ambiente();
+    let (r, _) = rodar_marc(
+        &amb,
+        PedidoDeAndamentos::Omitidos,
+        SO_MARCADORES,
+        frio(arvore_completa(ID), vec![r302(&cadastrar("999"))]),
+    );
+    assert!(
+        matches!(r.unwrap_err(), E::RedirecionamentoNaoReconhecido(_)),
+        "302 de outro processo não prova zero marcadores"
+    );
+}

@@ -83,7 +83,10 @@ mudança de estado observada. Nada a restaurar.
 
 ## Não observado
 
-A tela sem marcador (sem tabela ou com `0 registros`), paginação da
+Processo sem marcador (UnB 4.0.9, 04/11/2026): o GET da tela responde 302
+para `andamento_marcador_cadastrar` assinado do mesmo processo (o título
+do destino é "SEI - Adicionar Marcador", sem `tblMarcadores`). Ainda não
+observados: tabela com `0 registros`, paginação da
 tabela, marcadores de outras unidades e outra forma da célula em 5.0.x.
 O leitor publica `null` com motivo onde não há observação e recusa formas
 novas.

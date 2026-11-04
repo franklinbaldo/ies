@@ -7,7 +7,28 @@
 //! tocada.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::{EnvioDoProcesso, ErroProcessoObter as E, Marcadores};
-use crate::marcadores_processo::{ACAO, TelaDosMarcadores, ler_marcadores};
+use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::marcadores_processo::{ACAO, MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
+
+/// O formulário de adicionar marcador, destino do 302 da tela de marcadores
+/// quando o processo não tem nenhum (`UnB` 4.0.9, 04/11/2026).
+const ACAO_ADICIONAR: &str = "andamento_marcador_cadastrar";
+
+/// 302 para `andamento_marcador_cadastrar` assinado do mesmo processo:
+/// a tela não tem o que listar. Nunca é seguido.
+fn sem_marcadores(contexto: &Contexto<'_>, local: Option<&str>, id: &str) -> bool {
+    let Some(local) = local else { return false };
+    let base = format!("{}/", contexto.instalacao.url_base());
+    let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
+    conferir_endereco_relativo(&contexto.instalacao, relativo, ACAO_ADICIONAR, id).is_ok()
+}
+
+fn vazia() -> TelaDosMarcadores {
+    TelaDosMarcadores::Lidos(MarcadoresLidos {
+        total_declarado: 0,
+        itens: Vec::new(),
+    })
+}
 
 pub(super) fn ler<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
@@ -66,6 +87,9 @@ fn pelo_guardado<V: EnvioDoProcesso>(
             }
             Err(erro) => Err(E::Marcadores(erro)),
         },
+        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+            Ok(Some((url, vazia())))
+        }
         Lida::Login | Lida::Redirecionamento(_) => {
             contexto.esquecer_link(ACAO, id);
             Ok(None)
@@ -82,6 +106,9 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
 ) -> Result<TelaDosMarcadores, E> {
     match rede.get(url)? {
         Lida::Html { html, .. } => ler_marcadores(&html, contexto.nup, id).map_err(E::Marcadores),
+        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+            Ok(vazia())
+        }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
         Lida::Login => Err(E::SessaoEncerrada),
         Lida::Falha(falha) => Err(E::Transporte(falha)),

@@ -72,8 +72,16 @@ pelo tokenizador de atributos, sem regex e sem JavaScript:
   não alega completude (a tela não mostrou paginação; não é pedida outra
   página).
 
+**Processo sem marcador** (observado na UnB 4.0.9, 04/11/2026): a tela
+responde **302** para o formulário de adicionar marcador
+(`andamento_marcador_cadastrar`) assinado **do mesmo processo**. O 302
+não é seguido e vira `"marcadores": []`, `marcadores_total_declarado: 0`
+e `marcadores_faixa_observada: null`, sem requisição a mais. Um 302 para
+`andamento_marcador_cadastrar` de outro processo continua recusa
+(`redirecionamento_nao_reconhecido`).
+
 **Tela sem tabela.** A tela deste processo sem `table#tblMarcadores`
-(forma provável de zero marcadores, **não observada**): sai
+(forma não observada): sai
 `"marcadores": null`, `"marcadores"` fica em `nao_lidos` e o motivo é
 `"tabela_de_marcadores_nao_publicada_na_tela"`. Nunca `[]` sem
 observação.
@@ -152,5 +160,4 @@ Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 
-Validação live: **NOT_RUN** (sem execução do comando nesta fatia; o
-agente pai valida na UnB).
+Validação live: **PASS** na UnB, inclusive o processo sem marcador ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-marcadores.md)); PEN1 e GO NOT_RUN.

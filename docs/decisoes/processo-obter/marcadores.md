@@ -97,8 +97,10 @@ escrita (`btnAdicionar`, `btnRemover` → `andamento_marcador_remover`,
 
 ## Limitações e revisão
 
-Validação live **NOT_RUN** (sem execução do comando nesta fatia; o agente
-pai valida na UnB). Não observados: tela sem marcador, paginação da
+Validação live **PASS** na UnB ([relatório](../../validacao-live/2026-11-04-processo-obter-marcadores.md)). O processo sem marcador responde 302 para
+`andamento_marcador_cadastrar` do mesmo processo, publicado como `[]` com
+total 0 (alternativa rejeitada: seguir o 302, uma requisição a mais que
+não acrescenta nada). Não observados: paginação da
 tabela, marcadores de outras unidades e a célula em 5.0.x. Revisar se a
 tela publicar paginação, se a célula do Controle trouxer outra forma, ou
 se a barra publicar a ação noutra forma.
