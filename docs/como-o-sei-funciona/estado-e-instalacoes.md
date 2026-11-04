@@ -54,6 +54,14 @@ continuou válida. O IES a classifica como
 execuções ao vivo (alguns segundos entre comandos) e mantenha o orçamento
 declarado; o limiar não foi medido.
 
+**Bloqueio do Cloudflare (PEN2, 04/11/2026).** O segundo GET de `ies
+login`, o primeiro da rodada depois de horas sem pedidos, recebeu HTTP 403
+com a página do Cloudflare (`<title>Attention Required! |
+Cloudflare</title>`, "Sorry, you have been blocked"); horas antes, o mesmo
+passo recebeu 503 do nginx. Mesma classificação, mesma regra de não
+repetir; a causa (rajada, origem do proxy ou regra do site) não foi
+determinada.
+
 Uma recusa porque **a ação não apareceu para aquele recurso**
 não comprova ausência da capacidade em toda a instalação.
 Antes de atribuir comportamento à versão, compare com outra

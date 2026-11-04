@@ -76,3 +76,40 @@ fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
     let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
     assert_eq!(texto.subcodigo(), "sessao_nao_autorizada");
 }
+
+/// Bloqueio do Cloudflare da PEN2 (Tramita, 04/11/2026), no segundo GET de
+/// `ies login`: HTTP 403, título `Attention Required! | Cloudflare` e, no
+/// texto visível, "Sorry, you have been blocked" e "You are unable to
+/// access processoeletronico.gov.br". Página SINTÉTICA com esses textos
+/// observados; marcação e textos de apoio inventados.
+const CLOUDFLARE: &str = "<!DOCTYPE html><html lang=\"en-US\"><head><title>Attention Required! | Cloudflare</title>\
+    <meta charset=\"UTF-8\"></head><body><div id=\"cf-wrapper\">\
+    <div class=\"cf-alert\" id=\"cf-error-details\">Please enable cookies.</div>\
+    <h1>Sorry, you have been blocked</h1><h2>You are unable to access processoeletronico.gov.br</h2>\
+    <h2>Why have I been blocked?</h2><p>This website is using a security service to protect itself \
+    from online attacks.</p><p>Ray ID: <strong>0000000000000000</strong></p></div></body></html>";
+
+#[test]
+fn bloqueio_do_cloudflare_observado_na_pen2_e_bloqueio_de_seguranca() {
+    assert!(e_bloqueio_de_seguranca(CLOUDFLARE));
+    let falha =
+        decodificar_resposta(resposta(403, "text/html; charset=UTF-8", CLOUDFLARE)).unwrap_err();
+    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
+    assert_eq!(falha.status_http().unwrap().status, 403);
+}
+
+#[test]
+fn titulo_do_cloudflare_sem_a_frase_do_bloqueio_nao_e_bloqueio() {
+    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
+        "Sorry, you have been blocked",
+        "Checking your browser"
+    )));
+    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
+        "Attention Required! | Cloudflare",
+        "Just a moment..."
+    )));
+    // A frase de um par com o título do outro não conta.
+    assert!(!e_bloqueio_de_seguranca(
+        &CLOUDFLARE.replace("Attention Required! | Cloudflare", "Acesso Negado")
+    ));
+}

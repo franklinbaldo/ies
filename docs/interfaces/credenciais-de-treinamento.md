@@ -25,7 +25,9 @@ Divergência entre esta tabela e a fonte: vale a fonte.
 | `go` | Goiás 5.0.3 | `https://seitreinamento.go.gov.br/sei` | `aluno05` | `abc123456` | `SEAD` | [fonte](https://sei.goias.gov.br/material_para_treinamento.php) |
 
 Goiás tem WAF: rajadas recebem 403 "Acesso Negado"
-(`bloqueio_de_seguranca_da_instalacao`); espaçar os comandos.
+(`bloqueio_de_seguranca_da_instalacao`); espaçar os comandos. A PEN2 fica
+atrás do Cloudflare, que em 04/11/2026 bloqueou o login com 403 (mesmo
+subcódigo).
 
 ## Arquivo de credenciais do `ies login`
 
