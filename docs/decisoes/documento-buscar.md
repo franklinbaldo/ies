@@ -8,7 +8,7 @@ scope: pesquisa em documentos pelo campo Protocolo (número SEI exato ou parcial
 selected_strategy: web-post-authorized
 alternatives: web-post-authorized,web-captured-offline,rest-wssei,soap-official
 evidence_level: replay-do-acervo-sete-instalacoes-e-ensaio-live-pen3
-live_validation: ver docs/validacao-live/2026-11-04-documento-buscar.md
+live_validation: pass-pen3-termo-numerico-not-run
 ---
 
 # Decisão de implementação de documento.buscar
