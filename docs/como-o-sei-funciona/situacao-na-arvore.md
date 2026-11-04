@@ -24,6 +24,7 @@ seguido da declaração da primeira `PASTA` na mesma linha). Formas vistas:
 | UnB | `Processo aberto somente na unidade <a … class="ancoraSigla">Unidade1</a> (atribuído para <a alt="aluno2" title="aluno2" class="ancoraSigla">aluno2</a>).<br />` |
 | UnB (2 árvores) | `Processo aberto nas unidades:<br /><a alt="Arquivo Central" title="Arquivo Central" class="ancoraSigla">ACE</a><br />…<a … >Unidade4</a><br /><br />` (quatro unidades) |
 | GO | a mesma forma plural com quatro unidades (siglas com `/`, `-` e dígitos, nomes com acento) e, numa delas, ` (atribuído para <a alt="<nome da pessoa>" title="<nome da pessoa>" class="ancoraSigla">aluno05</a>)` antes do `<br />` |
+| UnB (ao vivo, 04/11/2026) | a forma plural com duas unidades, a primeira atribuída (` (atribuído para <a …>aluno2</a>)`) |
 | UnB | `Processo não possui andamentos abertos.<br />` |
 | UnB (anexado) | `<div style="font-size:.875rem;display:inline;">Processo anexado ao processo <a href="…" …>NUP do pai</a>.</div>`: o [vínculo de anexação](arvore-do-processo.md), sem unidades |
 

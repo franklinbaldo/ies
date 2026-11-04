@@ -95,5 +95,6 @@ Texto humano: `[cancelado: <motivo>]` no fim da linha do documento, ou
 Passa a ser, na ordem: `aberto_em` (se não lido), `andamentos`,
 `marcadores`, `propriedades` (se não lidos) e `documentos_dos_anexados`.
 
-Validação live: **NOT_RUN** até o relatório
-([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
+Validação live: **PASS** na UnB (unidade única, plural com atribuição,
+anexado, quente; 0 requisições a mais); cancelado, GO e PEN1 ao vivo
+**NOT_RUN** ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).

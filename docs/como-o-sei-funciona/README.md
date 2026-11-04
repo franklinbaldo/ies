@@ -21,6 +21,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [URLs assinadas e infra_hash](infra-hash.md)
 - [Rotas, links e árvore do processo](rotas-e-arvore.md)
 - [Tela de trabalho e declarações da árvore](arvore-do-processo.md)
+- [Onde o processo está aberto e natureza dos documentos](situacao-na-arvore.md)
 - [Histórico do processo e troca de visão](historico-do-processo.md)
 - [Propriedades do processo](propriedades-do-processo.md)
 - [Marcadores do processo](marcadores-do-processo.md)

@@ -8,7 +8,7 @@ scope: apêndice da decisão de processo.obter (Refs #59); ies processo NUP pass
 selected_strategy: web-situacao-da-arvore-estrita
 alternatives: web-situacao-da-arvore-estrita,web-situacao-pelo-texto-livre,web-situacao-pelo-andamento,web-natureza-com-dica,web-natureza-traduzida
 evidence_level: capturas-privadas-estrutura-unb-go-pen1-e-testes-sinteticos
-live_validation: not-run
+live_validation: pass-unb-cancelado-go-pen1-not-run
 ---
 
 # Onde o processo está aberto e natureza dos documentos
@@ -97,8 +97,9 @@ marca vista. Ícone fora da forma dá `icone: null` sem recusa.
 
 ## Limitações e revisão
 
-Validação live: ver o
-[relatório](../../validacao-live/2026-11-04-processo-obter-situacao.md).
+Validação live **PASS** na UnB (unidade única, plural com atribuição,
+anexado, quente), sem requisição a mais; documento cancelado, GO e PEN1
+**NOT_RUN** ao vivo ([relatório](../../validacao-live/2026-11-04-processo-obter-situacao.md)).
 Não observados: processo sobrestado ou concluído em todas as unidades,
 5.0.x fora de GO, documento cancelado fora de GO, ícone fora de `svg/`.
 Revisar se uma instalação publicar outra frase, âncora sem
