@@ -23,8 +23,8 @@ use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
+use crate::transporte::decodificar_resposta;
 use crate::transporte::envio_post::{TelaDoControle, ler_tela_via};
-use crate::transporte::{arquivo_privado, decodificar_resposta, validar_cookie};
 use crate::visao_do_controle::{EnvioDoControle, TelaAtual};
 use std::cell::RefCell;
 use std::path::Path;
@@ -199,10 +199,9 @@ fn obter_tela<V: EnvioDoControle>(
     envio: &mut V,
 ) -> Result<TelaAtual, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
-    let texto = arquivo_privado(cookie_file, 8_192).map_err(E::Transporte)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie).map_err(E::Transporte)?;
-    let resposta = envio.get(url, cookie).map_err(E::Transporte)?;
+    let cookie =
+        crate::transporte::sessao::cookie_privado_validado(cookie_file).map_err(E::Transporte)?;
+    let resposta = envio.get(url, &cookie).map_err(E::Transporte)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
     Ok(TelaAtual {

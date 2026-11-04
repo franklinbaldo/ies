@@ -3,10 +3,8 @@
 //! sem redirects, 8 MB durante o recebimento e uma única tentativa.
 use super::cliente_https::{self, CorpoHttps, Envio};
 use super::resposta_http::{Corpo, Resposta};
-use super::{
-    FalhaTransporte, RespostaWeb, arquivo_privado, decodificar_resposta, get_https, validar_cookie,
-    validar_origem,
-};
+use super::sessao::{ReferenciasDaSessao, cookie_privado_validado};
+use super::{FalhaTransporte, RespostaWeb, decodificar_resposta, get_https, validar_origem};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
 use std::io::Read;
@@ -45,10 +43,8 @@ where
     validar_origem(url, origem_autorizada)?;
     let instalacao =
         Instalacao::interpretar(origem_autorizada).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
-    let texto = arquivo_privado(cookie_file, 8_192)?;
-    let cookie = texto.trim();
-    validar_cookie(cookie)?;
-    let resposta = requisitar(url, cookie)?;
+    let cookie = cookie_privado_validado(cookie_file)?;
+    let resposta = requisitar(url, &cookie)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta)?;
     Ok(TelaDoControle {
@@ -65,9 +61,13 @@ pub(crate) fn ler_tela_do_controle(
     cookie_file: &Path,
     origem_file: &Path,
 ) -> Result<TelaDoControle, FalhaTransporte> {
-    let url = arquivo_privado(url_file, 8_192)?;
-    let origem = arquivo_privado(origem_file, 512)?;
-    ler_tela_via(url.trim(), cookie_file, origem.trim(), get_https)
+    let referencias = ReferenciasDaSessao::ler(url_file, origem_file)?;
+    ler_tela_via(
+        referencias.url_do_controle(),
+        cookie_file,
+        referencias.origem(),
+        get_https,
+    )
 }
 
 /// POST HTTPS único pelo cliente HTTPS (com o proxy do ambiente), sem
