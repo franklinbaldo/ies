@@ -17,6 +17,7 @@ mod documento;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
+mod documento_versao_cli;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;

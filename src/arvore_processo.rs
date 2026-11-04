@@ -7,6 +7,7 @@
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
+mod barra_do_documento;
 mod barra_do_processo;
 mod conteudo;
 pub(crate) mod endereco;
@@ -27,6 +28,8 @@ pub(crate) mod tests_anexado_a;
 pub(crate) mod tests_anexados;
 #[cfg(test)]
 mod tests_barra;
+#[cfg(test)]
+pub(crate) mod tests_barra_documento;
 #[cfg(test)]
 mod tests_barra_marcadores;
 #[cfg(test)]
@@ -51,6 +54,10 @@ mod tests_situacao;
 pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
+pub(crate) use barra_do_documento::{
+    BarraDoDocumento, EdicaoNaBarra, EnderecoDasVersoes, ErroBarraDoDocumento,
+    ler_barra_do_documento,
+};
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,

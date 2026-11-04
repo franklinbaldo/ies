@@ -24,6 +24,11 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, va
 mod erro;
 pub(crate) use erro::ErroDocumentoObter;
 use erro::ErroDocumentoObter as E;
+#[path = "documento_versao.rs"]
+mod versao;
+pub(crate) use versao::{
+    CopiaDeTrabalho, PedidoDeVersoes, SemCopia, SemVersaoAtual, VersoesDoDocumento,
+};
 
 /// O número SEI pedido e a `--unidade` (conferida na tela).
 pub(crate) struct PedidoDoDocumento<'a> {
@@ -47,11 +52,25 @@ pub(crate) struct DocumentoObtido {
     pub(crate) unidade: String,
     pub(crate) texto: String,
     pub(crate) requisicoes: u8,
+    /// Versão lida, atual e cópia de trabalho (Refs #88).
+    pub(crate) versoes: VersoesDoDocumento,
 }
 
 pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoDocumento<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<DocumentoObtido, E> {
+    obter_documento_com_versoes(sessao, pedido, PedidoDeVersoes::default(), indice, envio)
+}
+
+/// Como [`obter_documento`], com a versão N ou a cópia de trabalho
+/// (contracts/cli/documento-obter-versoes.md).
+pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    versoes: PedidoDeVersoes,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
@@ -138,7 +157,15 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         }
         ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
     };
-    let (tipo, texto) = ler_conteudo(&mut rede, &endereco, numero)?;
+    let no_conferido = versao::NoConferido {
+        instalacao: &contexto.instalacao,
+        arvore: &html,
+        id_documento: &id_documento,
+        id_procedimento: &id_procedimento,
+        numero,
+        conteudo: &endereco,
+    };
+    let (tipo, texto, versoes) = versao::ler_conteudo_e_versoes(&mut rede, &no_conferido, versoes)?;
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
         id_documento,
@@ -150,6 +177,7 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         unidade: tela.unidade,
         texto,
         requisicoes: rede.requisicoes,
+        versoes,
     })
 }
 
