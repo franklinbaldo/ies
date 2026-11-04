@@ -318,6 +318,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "clap",
+ "ies-core",
  "native-tls",
  "rusqlite",
  "serde",
@@ -327,6 +328,10 @@ dependencies = [
  "tl",
  "zip",
 ]
+
+[[package]]
+name = "ies-core"
+version = "0.1.0"
 
 [[package]]
 name = "indexmap"

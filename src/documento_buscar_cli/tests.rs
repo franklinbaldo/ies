@@ -62,16 +62,21 @@ fn lista_publica_total_faixa_e_documentos_observados() {
         total_declarado: 16,
         faixa: FaixaDaPesquisa {
             inicio: 11,
-            fim: 11,
+            fim: 12,
         },
+        linhas_ausentes_da_faixa: 1,
     };
+    let realizada = busca(RespostaDeDocumentos::Lista(lista), 4);
+    // Goiás: a faixa da barra é publicada com as posições sem linha.
+    assert!(humano("0001", &realizada).contains("faixa 11 a 12, 1 sem linha na tabela"));
     assert_eq!(
-        json_da_busca("0001", &busca(RespostaDeDocumentos::Lista(lista), 4)),
+        json_da_busca("0001", &realizada),
         com(
             base("lista", 4),
             &json!({
                 "total_declarado": 16,
-                "faixa_observada": {"inicio": 11, "fim": 11},
+                "faixa_observada": {"inicio": 11, "fim": 12},
+                "linhas_ausentes_da_faixa": 1,
                 "documentos": [{
                     "numero_sei": "0001018",
                     "rotulo": "Despacho",

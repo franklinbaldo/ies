@@ -51,10 +51,14 @@ fn lista_publica_total_faixa_e_numeros() {
         total_declarado: 1234,
         faixa: FaixaDaPesquisa {
             inicio: 11,
-            fim: 11,
+            fim: 12,
         },
+        linhas_ausentes_da_faixa: 1,
     };
-    let valor = json_da_busca(&termo(), &busca(RespostaDaPesquisa::Lista(lista), 4));
+    let realizada = busca(RespostaDaPesquisa::Lista(lista), 4);
+    // Goiás: a faixa da barra é publicada com as posições sem linha.
+    assert!(humano(&termo(), &realizada).contains("faixa 11 a 12, 1 sem linha na tabela"));
+    let valor = json_da_busca(&termo(), &realizada);
     assert_eq!(
         valor,
         json!({
@@ -64,7 +68,8 @@ fn lista_publica_total_faixa_e_numeros() {
             "origem": "web",
             "requisicoes": 4,
             "total_declarado": 1234,
-            "faixa_observada": {"inicio": 11, "fim": 11},
+            "faixa_observada": {"inicio": 11, "fim": 12},
+            "linhas_ausentes_da_faixa": 1,
             "processos": [{"numero": "00001.000011/2026-00"}]
         })
     );

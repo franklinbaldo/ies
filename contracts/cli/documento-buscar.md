@@ -65,9 +65,12 @@ Todas têm `resultado`, `termo` (aparado), `unidade` (do Controle),
   `id_documento_ausente_no_redirecionamento`.
 - **200 com `table.pesquisaResultado`**: `{"resultado":"lista",
   "total_declarado":N,"faixa_observada":{"inicio":I,"fim":F},
-  "documentos":[{"numero_sei":"…","rotulo":"…","processo":"…",
-  "unidade":"…","inclusao":"dd/mm/aaaa","anexo":false}]}`. Barra, faixa e
-  contagem de linhas com as mesmas regras de `processo buscar`.
+  "linhas_ausentes_da_faixa":A,"documentos":[{"numero_sei":"…",
+  "rotulo":"…","processo":"…","unidade":"…","inclusao":"dd/mm/aaaa",
+  "anexo":false}]}`. Barra, faixa e
+  contagem de linhas com as mesmas regras de `processo buscar`, inclusive
+  `linhas_ausentes_da_faixa` (A) quando a tabela tem menos registros
+  que a faixa escrita na barra.
   `numero_sei` e `processo` são opacos, como servidos; `rotulo` é o
   texto do link do documento (tipo e número na árvore); `unidade` e
   `inclusao` são `null` quando a linha não os mostra; `anexo` diz se o
@@ -131,4 +134,5 @@ validação, 302, barra, paginação, transporte e
   [decisão](../../docs/decisoes/documento-buscar.md).
 - [Replay do acervo](../../docs/validacao-replay/2026-11-04-documento-buscar-acervo.md).
 - [Superfície da CLI](../../tests/documento_buscar_web.rs).
-- [Ensaio live na PEN3](../../docs/validacao-live/2026-11-04-documento-buscar.md).
+- [Ensaio live na PEN3](../../docs/validacao-live/2026-11-04-documento-buscar.md),
+  inclusive número SEI exato só de dígitos (302 → `documento_unico`).

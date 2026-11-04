@@ -8,6 +8,7 @@ description = "CLI Rust para interacao com o SEI, guiada por contratos de domini
 [dependencies]
 base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }
+ies-core = { path = "crates/ies-core" }
 native-tls = "0.2.18"
 rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
@@ -18,5 +19,5 @@ tl = "0.7.8"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 
 [workspace]
-members = ["xtask"]
+members = ["xtask", "crates/ies-core"]
 resolver = "3"

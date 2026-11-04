@@ -333,6 +333,10 @@ pub(crate) mod sessao;
 pub(crate) mod contagem;
 
 #[cfg(test)]
+#[path = "transporte/testes_http.rs"]
+pub(crate) mod testes_http;
+
+#[cfg(test)]
 #[path = "transporte/tests.rs"]
 mod tests;
 

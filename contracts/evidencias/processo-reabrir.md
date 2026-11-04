@@ -5,15 +5,27 @@ operation: processo.reabrir
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 11
 unresolved_steps: 0
 ---
 
 # processo.reabrir
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
+([contrato](../cli/processo-reabrir.md), Refs #172): prévia, o GET da URL
+`procedimento_reabrir` que a tela do nó publica (corpo de
+`reabrirProcesso()` no 4.0, `var linkReabrirProcesso` no 4.1/5.0) e
+verificação por `aberto_em`; escrita live PASS na UFRJ 4.1.5 (variável) e
+na UnB 4.0.9 (função). Os estados abaixo pertencem ao Todos, não são
+vereditos do IES.
+
+## Evidência própria do IES
+
+- [Observação estrutural](../../docs/como-o-sei-funciona/reabertura-do-processo.md)
+  das 11 GET de `procedimento_reabrir` e das 431 telas do nó gravadas.
+- [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-reabrir-acervo.md):
+  190 cassettes, as 11 escritas aceitas e verificadas pela situação.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.

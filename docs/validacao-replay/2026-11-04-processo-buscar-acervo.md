@@ -28,9 +28,18 @@ listas de `processo-busca-go` foram recusadas com
 documento). Depois da correção, o passo 2 é lido e o passo 4 continua
 recusado, agora por publicar 9 linhas para a faixa 1–10.
 
+**Linhas ausentes da faixa (Goiás, decisão do proprietário de 04/11/2026).**
+O HTML do passo 4 tem 9 registros (27 `tr`, três por registro; nenhum
+`tr` ou link fora dos registros lidos): a linha não existe na resposta,
+não é uma forma que o leitor pule. Antes, o passo 4 era recusado com
+`linhas_da_tabela_diferentes_da_faixa_da_barra`; depois, é lido como
+`lista_com_linhas_ausentes` (9 processos, faixa 1–10 da barra,
+`linhas_ausentes_da_faixa: 1`) e o plano da página 2 sai dele, como no
+passo 2. Regra em [processo buscar](../decisoes/processo-buscar.md#linhas-ausentes-da-faixa).
+
 ## Resultado
 
-Cassettes lidas: 52; leituras registradas: 273.
+Cassettes lidas: 52; leituras registradas: 274.
 
 | Leitor | Instalação | Total | Lido | Recusado | Não aplicável |
 |---|---|---:|---:|---|---|
@@ -52,20 +61,20 @@ Cassettes lidas: 52; leituras registradas: 273.
 | tela da pesquisa (POST derivado) | **todas** | 128 | 128 | 0 | 0 |
 | resposta do envio | unb | 11 | 5 | 1 (`resposta_da_pesquisa_nao_reconhecida` 1) | 5 (`lista_da_pesquisa_em_documentos` 5) |
 | resposta do envio | ufrj | 8 | 6 | 0 | 2 (`lista_da_pesquisa_em_documentos` 2) |
-| resposta do envio | go | 10 | 4 | 1 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 1) | 5 (`lista_da_pesquisa_em_documentos` 5) |
+| resposta do envio | go | 10 | 5 | 0 | 5 (`lista_da_pesquisa_em_documentos` 5) |
 | resposta do envio | pen1 | 8 | 5 | 0 | 3 (`lista_da_pesquisa_em_documentos` 3) |
 | resposta do envio | pen2 | 8 | 5 | 0 | 3 (`lista_da_pesquisa_em_documentos` 3) |
 | resposta do envio | pen3 | 12 | 8 | 0 | 4 (`lista_da_pesquisa_em_documentos` 4) |
 | resposta do envio | pen4 | 9 | 5 | 0 | 4 (`lista_da_pesquisa_em_documentos` 4) |
-| resposta do envio | **todas** | 66 | 38 | 2 (`linhas_da_tabela_diferentes_da_faixa_da_barra` 1; `resposta_da_pesquisa_nao_reconhecida` 1) | 26 (`lista_da_pesquisa_em_documentos` 26) |
+| resposta do envio | **todas** | 66 | 39 | 1 (`resposta_da_pesquisa_nao_reconhecida` 1) | 26 (`lista_da_pesquisa_em_documentos` 26) |
 | plano da página 2 | unb | 2 | 2 | 0 | 0 |
 | plano da página 2 | ufrj | 2 | 2 | 0 | 0 |
-| plano da página 2 | go | 1 | 1 | 0 | 0 |
+| plano da página 2 | go | 2 | 2 | 0 | 0 |
 | plano da página 2 | pen1 | 2 | 2 | 0 | 0 |
 | plano da página 2 | pen2 | 2 | 2 | 0 | 0 |
 | plano da página 2 | pen3 | 2 | 2 | 0 | 0 |
 | plano da página 2 | pen4 | 2 | 2 | 0 | 0 |
-| plano da página 2 | **todas** | 13 | 13 | 0 | 0 |
+| plano da página 2 | **todas** | 14 | 14 | 0 | 0 |
 | POST da tela de resultado | unb | 2 | 0 | 0 | 2 (`post_da_tela_de_resultado_sem_corpo_gravado` 2) |
 | POST da tela de resultado | ufrj | 2 | 0 | 0 | 2 (`post_da_tela_de_resultado_sem_corpo_gravado` 2) |
 | POST da tela de resultado | go | 3 | 0 | 0 | 3 (`post_da_tela_de_resultado_sem_corpo_gravado` 3) |
@@ -80,14 +89,16 @@ Formas lidas por instalação:
 | Leitor | Forma | unb | ufrj | go | pen1 | pen2 | pen3 | pen4 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | resposta do envio | `lista` | 2 | 2 | 1 | 2 | 2 | 2 | 2 |
+| resposta do envio | `lista_com_linhas_ausentes` | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
 | resposta do envio | `processo_unico` | 3 | 3 | 3 | 3 | 3 | 4 | 3 |
 | resposta do envio | `sem_resultado_em_documentos` | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
-| plano da página 2 | `pagina_2_planejada` | 2 | 2 | 1 | 2 | 2 | 1 | 2 |
+| plano da página 2 | `pagina_2_planejada` | 2 | 2 | 2 | 2 | 2 | 1 | 2 |
 | plano da página 2 | `uma_pagina_so` | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 
 Totais declarados das listas lidas (`cassette#passo`):
 
 - go `processo-busca-go--a7182b2ab8d7#2`: 1220
+- go `processo-busca-go--a7182b2ab8d7#4`: 966 (9 linhas na faixa 1–10)
 - pen1 `processo-busca-pen1--c06d64484496#2`: 2140
 - pen1 `processo-busca-pen1--c06d64484496#4`: 937
 - pen2 `processo-busca-pen2--d577a6abc93e#2`: 286
@@ -103,7 +114,6 @@ Totais declarados das listas lidas (`cassette#passo`):
 
 Recusas por subcódigo:
 
-- `linhas_da_tabela_diferentes_da_faixa_da_barra` (1): `processo-busca-go--a7182b2ab8d7#4` (resposta do envio)
 - `resposta_da_pesquisa_nao_reconhecida` (1): `documento-numero-e-busca-unb--f1b386d8e7bc#11` (resposta do envio)
 
 ## Leitura
@@ -116,7 +126,8 @@ Recusas por subcódigo:
 - **302.** Os 22 redirecionamentos para `procedimento_trabalhar` são
   conferidos contra a URL derivada da tela gravada (7 deles saem de
   `documento-numero-e-busca`, pesquisa pelo número de um documento).
-- **Listas de processos.** 13 páginas 1 lidas, com total e faixa da
+- **Listas de processos.** 14 páginas 1 lidas (uma de Goiás com uma
+  linha ausente da faixa), com total e faixa da
   barra, inclusive "N resultados" (PEN3, 5); o plano da página 2 deriva
   o POST de `navegar()` em todas as que têm mais de uma página.
 - **Sem cobertura gravada:** "sem resultado" e páginas N > 1 da pesquisa
