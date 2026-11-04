@@ -26,7 +26,11 @@ pub(super) fn inserir_aberto_em(
                 })
                 .collect(),
         ),
-        AbertoEm::NaoLido(motivo) => {
+        AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => {
+            let motivo = match aberto_em {
+                AbertoEm::NaoLido(motivo) => *motivo,
+                _ => crate::arvore_processo::MotivoAbertoEm::RaizPublicaOSobrestamento,
+            };
             nao_lidos.push("aberto_em");
             objeto.insert(
                 "aberto_em_nao_lido_motivo".to_owned(),
@@ -54,6 +58,7 @@ pub(super) fn humano_do_aberto_em(aberto_em: &AbertoEm, texto: &mut String) {
                 .collect();
             let _ = write!(texto, "\nAberto em: {}.", lista.join(", "));
         }
+        AbertoEm::Sobrestado(_) => {}
         AbertoEm::NaoLido(motivo) => {
             let _ = write!(texto, "\nAberto em: não lido ({}).", motivo.como_texto());
         }
