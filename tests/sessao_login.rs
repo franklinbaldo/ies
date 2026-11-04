@@ -5,9 +5,14 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 fn privado(caminho: &Path, conteudo: &str, modo: u32) {
-    use std::os::unix::fs::PermissionsExt;
     std::fs::write(caminho, conteudo).unwrap();
-    std::fs::set_permissions(caminho, std::fs::Permissions::from_mode(modo)).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(caminho, std::fs::Permissions::from_mode(modo)).unwrap();
+    }
+    #[cfg(not(unix))]
+    let _ = modo;
 }
 
 struct Pasta(PathBuf);

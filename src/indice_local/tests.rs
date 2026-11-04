@@ -3,7 +3,6 @@
 use super::*;
 use crate::instalacao::Instalacao;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -15,18 +14,32 @@ pub(super) fn pasta(nome: &str) -> PathBuf {
     ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir(&dir).unwrap();
-    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+    definir_modo(&dir, 0o700);
     dir
+}
+
+/// Modo Unix do arquivo; fora do Unix não há modo e nada muda.
+pub(crate) fn definir_modo(caminho: &Path, modo: u32) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(caminho, fs::Permissions::from_mode(modo)).unwrap();
+    }
+    #[cfg(not(unix))]
+    let _ = (caminho, modo);
 }
 
 pub(super) fn instalacao() -> Instalacao {
     Instalacao::interpretar("https://sei.exemplo/sei").unwrap()
 }
 
+#[cfg(unix)]
 fn modo(caminho: &Path) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
     fs::metadata(caminho).unwrap().permissions().mode() & 0o777
 }
 
+#[cfg(unix)]
 #[test]
 fn cria_diretorio_0700_e_banco_0600_com_wal_herdando() {
     let raiz = pasta("permissoes");
@@ -50,12 +63,13 @@ fn cria_diretorio_0700_e_banco_0600_com_wal_herdando() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn banco_link_simbolico_desliga_sem_tocar_no_alvo() {
     let raiz = pasta("symlink");
     let alvo = raiz.join("alvo");
     fs::write(&alvo, b"").unwrap();
-    fs::set_permissions(&alvo, fs::Permissions::from_mode(0o600)).unwrap();
+    definir_modo(&alvo, 0o600);
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     std::os::unix::fs::symlink(&alvo, &caminho).unwrap();
     let indice = IndiceLocal::em(caminho);
@@ -65,6 +79,7 @@ fn banco_link_simbolico_desliga_sem_tocar_no_alvo() {
     assert_eq!(fs::metadata(&alvo).unwrap().len(), 0);
 }
 
+#[cfg(unix)]
 #[test]
 fn wal_link_simbolico_desliga() {
     let raiz = pasta("wal-symlink");
@@ -78,10 +93,11 @@ fn wal_link_simbolico_desliga() {
     assert!(!indice.ligado());
 }
 
+#[cfg(unix)]
 #[test]
 fn diretorio_aberto_a_outros_desliga_e_nao_cria_banco() {
     let raiz = pasta("dir-aberto");
-    fs::set_permissions(&raiz, fs::Permissions::from_mode(0o755)).unwrap();
+    definir_modo(&raiz, 0o755);
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     let indice = IndiceLocal::em(caminho.clone());
     indice.registrar_entrada_por_id(&instalacao(), true);
@@ -89,12 +105,13 @@ fn diretorio_aberto_a_outros_desliga_e_nao_cria_banco() {
     assert!(!caminho.exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn banco_existente_com_bits_de_grupo_desliga() {
     let raiz = pasta("banco-aberto");
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     IndiceLocal::em(caminho.clone()).registrar_entrada_por_id(&instalacao(), true);
-    fs::set_permissions(&caminho, fs::Permissions::from_mode(0o640)).unwrap();
+    definir_modo(&caminho, 0o640);
     let indice = IndiceLocal::em(caminho);
     assert_eq!(indice.entrada_por_id(&instalacao()), None);
     assert!(!indice.ligado());
@@ -134,7 +151,7 @@ fn arquivo_corrompido_desliga_sem_erro_e_sem_apagar() {
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     let lixo = vec![b'x'; 8192];
     fs::write(&caminho, &lixo).unwrap();
-    fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
+    definir_modo(&caminho, 0o600);
     let indice = IndiceLocal::em(caminho.clone());
     indice.registrar_entrada_por_id(&instalacao(), true);
     assert_eq!(indice.entrada_por_id(&instalacao()), None);

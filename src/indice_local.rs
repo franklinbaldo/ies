@@ -18,7 +18,7 @@ mod links;
 mod validacao;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 #[cfg(test)]
 mod tests_entrada;
 #[cfg(test)]

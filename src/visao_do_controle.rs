@@ -174,6 +174,7 @@ impl ErroVisaoDoControle {
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
+            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
             Self::Transporte(erro) => erro.mensagem(),
             _ => "a visão do Controle de Processos não foi obtida como esperado",
         }

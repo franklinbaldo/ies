@@ -128,7 +128,6 @@ impl Drop for Pasta {
 }
 
 pub(crate) fn indice() -> (Pasta, IndiceLocal) {
-    use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -138,7 +137,7 @@ pub(crate) fn indice() -> (Pasta, IndiceLocal) {
     ));
     let _ = std::fs::remove_dir_all(&pasta);
     std::fs::create_dir_all(&pasta).unwrap();
-    std::fs::set_permissions(&pasta, std::fs::Permissions::from_mode(0o700)).unwrap();
+    crate::indice_local::tests::definir_modo(&pasta, 0o700);
     let indice = IndiceLocal::em(pasta.join("ies.sqlite3"));
     (Pasta(pasta), indice)
 }

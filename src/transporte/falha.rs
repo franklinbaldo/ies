@@ -27,6 +27,7 @@ pub enum FalhaTransporte {
     SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
     ArquivoPrivadoAusenteOuInacessivel,
+    #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
     ArquivoPrivadoLinkSimbolico,

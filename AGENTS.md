@@ -60,11 +60,13 @@ O que falta implementar e em que ordem está na
 ## Limites invioláveis
 
 - Só instalações de **treinamento ou homologação**; nunca produção.
-- Senhas, cookies, URLs assinadas e `infra_hash` (credenciais de sessão)
-  nunca vão para argumentos, logs, commits, fixtures ou saídas. Sessão e
-  credenciais só em arquivos privados `0600`. O conteúdo das telas das
-  instalações de treinamento, que são públicas, pode aparecer em
-  fixtures, commits e relatórios.
+- Cookies, URLs assinadas e `infra_hash` (credenciais de sessão) nunca
+  vão para argumentos, logs, commits, fixtures ou saídas; senhas nunca
+  vão para argumentos, logs ou saídas. Sessão e senha em uso só em
+  arquivos privados `0600`. As contas que as instalações de treinamento
+  publicam ficam em [credenciais públicas](docs/interfaces/credenciais-de-treinamento.md),
+  com a fonte; o conteúdo das telas dessas instalações, que são
+  públicas, pode aparecer em fixtures, commits e relatórios.
 - GET também pode ter efeito (abrir processo registra recebimento);
   avalie o efeito de toda requisição antes de enviá-la.
 
