@@ -88,7 +88,7 @@ pub(super) const LOGIN_RECUSA: &str = "https://sei.exemplo.gov.br/sip/login.php?
 pub(super) const LOGIN: &str =
     "https://sei.exemplo.gov.br/sip/login.php?sigla_orgao_sistema=ORG&sigla_sistema=SEI";
 
-fn formulario_rapido() -> String {
+pub(super) fn formulario_rapido() -> String {
     format!(
         "<form class=\"form-inline\" id=\"frmProtocoloPesquisaRapida\" method=\"post\" action=\"{}\">\
          <div class=\"input-group\"><input type=\"text\" id=\"txtPesquisaRapida\" name=\"txtPesquisaRapida\" class=\"form-control\" placeholder=\"Pesquisar...\" tabindex=\"52\" />\
@@ -234,6 +234,10 @@ impl Roteiro {
             respostas: respostas.into(),
             pedidos: Vec::new(),
         }
+    }
+
+    pub(super) fn respostas_restantes(&self) -> usize {
+        self.respostas.len()
     }
 
     fn proxima(&mut self) -> RespostaDoPost<Cursor<Vec<u8>>> {

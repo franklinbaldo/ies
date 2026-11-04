@@ -19,6 +19,18 @@ pub(crate) fn conferir_endereco_relativo(
     acao: &str,
     id: &str,
 ) -> Result<String, EnderecoRecusado> {
+    conferir_endereco_relativo_por(instalacao, src, acao, "id_procedimento", id)
+}
+
+/// Como [`conferir_endereco_relativo`], com o id na chave `chave_do_id`
+/// (`id_documento` no `Nos[i].src` de um documento, Refs #60).
+pub(crate) fn conferir_endereco_relativo_por(
+    instalacao: &Instalacao,
+    src: &str,
+    acao: &str,
+    chave_do_id: &str,
+    id: &str,
+) -> Result<String, EnderecoRecusado> {
     use EnderecoRecusado as E;
     let consulta = src
         .strip_prefix("controlador.php?")
@@ -41,7 +53,7 @@ pub(crate) fn conferir_endereco_relativo(
                 hashes += 1;
             }
             "acao" | "acao_ajax" | "infra_hash" => return Err(E::NaoReconhecido),
-            "id_procedimento" => ids.push(valor),
+            _ if nome == chave_do_id => ids.push(valor),
             _ => {}
         }
     }

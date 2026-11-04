@@ -39,6 +39,8 @@ pub(crate) enum ErroTelaDoProcesso {
     ArvoresRepetidasNaTelaDoProcesso,
     EnderecoDaArvoreNaoReconhecido,
     EnderecoDaArvoreDeOutroProcesso,
+    /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
+    EnderecoDaArvoreDeOutroDocumento,
 }
 
 impl ErroTelaDoProcesso {
@@ -55,6 +57,7 @@ impl ErroTelaDoProcesso {
             Self::ArvoresRepetidasNaTelaDoProcesso => "arvores_repetidas_na_tela_do_processo",
             Self::EnderecoDaArvoreNaoReconhecido => "endereco_da_arvore_nao_reconhecido",
             Self::EnderecoDaArvoreDeOutroProcesso => "endereco_da_arvore_de_outro_processo",
+            Self::EnderecoDaArvoreDeOutroDocumento => "endereco_da_arvore_de_outro_documento",
         }
     }
 }
@@ -67,6 +70,57 @@ pub(crate) fn ler_tela_do_processo(
     id: &str,
     unidade: Option<&str>,
 ) -> Result<TelaDoProcesso, ErroTelaDoProcesso> {
+    let (publicada, src) = unidade_e_src(html, unidade)?;
+    let arvore = conferir_endereco(instalacao, &src, id)?;
+    Ok(TelaDoProcesso {
+        unidade: publicada,
+        arvore,
+    })
+}
+
+/// A tela aberta pela pesquisa rápida de um número SEI (forma das oito
+/// cassettes `documento-numero-e-busca-*` e `documento-propriedades-unb`):
+/// o `src` da árvore traz `id_procedimento` do processo e `id_documento`
+/// igual ao protocolo pesquisado. Devolve a tela e o id do processo.
+pub(crate) fn ler_tela_do_documento(
+    instalacao: &Instalacao,
+    html: &str,
+    id_documento: &str,
+    unidade: Option<&str>,
+) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
+    use ErroTelaDoProcesso as E;
+    let (publicada, src) = unidade_e_src(html, unidade)?;
+    let valores = |chave: &str| -> Vec<String> {
+        src.split_once('?')
+            .map_or("", |(_, consulta)| consulta)
+            .split('&')
+            .filter_map(|par| par.split_once('='))
+            .filter(|(nome, _)| *nome == chave)
+            .map(|(_, valor)| valor.to_owned())
+            .collect()
+    };
+    if valores("id_documento") != [id_documento] {
+        return Err(E::EnderecoDaArvoreDeOutroDocumento);
+    }
+    let [id_procedimento] = valores("id_procedimento")
+        .try_into()
+        .map_err(|_| E::EnderecoDaArvoreNaoReconhecido)?;
+    let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
+    Ok((
+        TelaDoProcesso {
+            unidade: publicada,
+            arvore,
+        },
+        id_procedimento,
+    ))
+}
+
+/// A unidade publicada (conferida com `--unidade`) e o `src` decodificado
+/// do único `iframe#ifrArvore`.
+fn unidade_e_src(
+    html: &str,
+    unidade: Option<&str>,
+) -> Result<(String, String), ErroTelaDoProcesso> {
     use ErroTelaDoProcesso as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
@@ -97,11 +151,7 @@ pub(crate) fn ler_tela_do_processo(
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
     let src = crate::formulario_web::decodificar_atributo(&src)
         .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
-    let arvore = conferir_endereco(instalacao, &src, id)?;
-    Ok(TelaDoProcesso {
-        unidade: publicada,
-        arvore,
-    })
+    Ok((publicada, src))
 }
 
 /// O `src` da árvore: `acao=procedimento_visualizar`, conferido pela regra

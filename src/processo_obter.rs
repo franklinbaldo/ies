@@ -9,8 +9,11 @@
 mod abertura;
 #[cfg(test)]
 mod acervo;
+#[cfg(test)]
+mod acervo_documento;
 mod andamentos;
 mod controle;
+mod documento;
 pub(crate) mod erro;
 mod fluxo;
 mod login;
@@ -32,6 +35,8 @@ mod tests_apoio;
 mod tests_colheita;
 #[cfg(test)]
 mod tests_controle;
+#[cfg(test)]
+mod tests_documento;
 #[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
@@ -56,6 +61,9 @@ use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+pub(crate) use documento::{
+    DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, obter_documento,
+};
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::obter_processo;
 use std::path::Path;

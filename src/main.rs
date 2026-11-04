@@ -15,11 +15,13 @@ mod copia_documento;
 mod copia_listagem;
 mod documento;
 mod documento_html_privado_cli;
+mod documento_obter_cli;
 mod documento_salvar_cli;
 #[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;
 mod dominio;
+mod entidades_html;
 mod erro_web;
 mod esquema_cli;
 mod filtro_andamentos;
@@ -328,6 +330,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
+        .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
 }
 
