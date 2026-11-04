@@ -119,3 +119,21 @@ fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
     assert_eq!(valor["subcodigo"], "coluna_indisponivel_nesta_instalacao");
     assert_eq!(valor["coluna"], "prioridade");
 }
+
+#[test]
+fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
+    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        plano: Box::new(plano()),
+        falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
+        verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
+            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
+        )),
+    };
+    let valor = json_de_falha(&erro);
+    assert_eq!(
+        valor["falha_do_salvar"],
+        json!({"subcodigo": "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"})
+    );
+    assert_eq!(valor["verificacao"], "falha_de_rede");
+    assert_eq!(valor.get("status_http"), None);
+}

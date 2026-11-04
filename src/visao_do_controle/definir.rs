@@ -16,8 +16,8 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{
     AlvoDasColunas, ColunaDoDetalhe, ColunaIndisponivelNestaInstalacao, PlanoDasColunas,
-    SALVAR_NIVEL_DE_DETALHE, campos_do_envio, conferir_controles_do_formulario,
-    ler_nivel_de_detalhe, planejar,
+    SALVAR_NIVEL_DE_DETALHE, SinalDoSalvar, campos_do_envio, conferir_controles_do_formulario,
+    ler_nivel_de_detalhe, planejar, sinal_do_salvar,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
 use std::path::Path;
@@ -122,8 +122,9 @@ fn derivar_salvar<V: EnvioDoControle>(
     .map_err(E::Submissao)
 }
 
-/// Um único POST. `Ok(None)`: resposta esperada; `Ok(Some(falha))`: o
-/// pedido saiu e a resposta não é a esperada; `Err`: nada saiu.
+/// Um único POST. `Ok(None)`: resposta esperada (HTML com o sinal de
+/// gravação); `Ok(Some(falha))`: o pedido saiu e a resposta não é a
+/// esperada; `Err`: nada saiu.
 fn salvar<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     submissao: SubmissaoDerivada,
@@ -135,7 +136,13 @@ fn salvar<V: EnvioDoControle>(
         envio.post(s, c)
     });
     match resposta {
-        Ok(RespostaDoEnvio::Html(_)) => Ok(None),
+        Ok(RespostaDoEnvio::Html(html)) => Ok(match sinal_do_salvar(&html) {
+            SinalDoSalvar::GravacaoSinalizada => None,
+            SinalDoSalvar::TelaDevolvidaSemSinal => {
+                Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao)
+            }
+            SinalDoSalvar::NaoReconhecido => Some(FalhaDoSalvar::RespostaDoSalvarNaoReconhecida),
+        }),
         Ok(RespostaDoEnvio::Redirecionamento(_)) => Ok(Some(FalhaDoSalvar::Redirecionamento302)),
         Err(erro) if enviado => Ok(Some(FalhaDoSalvar::Envio(erro))),
         Err(erro) => Err(D::Leitura(E::Submissao(erro))),

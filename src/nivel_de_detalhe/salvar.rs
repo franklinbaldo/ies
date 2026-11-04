@@ -114,3 +114,24 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
     }
     Ok(())
 }
+
+/// O que a resposta HTML 200 do salvar sinaliza no `inicializar()` da
+/// própria tela. Observado (capturas privadas estruturais): no GET,
+/// `if (''=='1'){` (PEN1 5.0.4, GO 5.0.3, `UnB` 4.0.9); na resposta do
+/// salvar que gravou, `if ('1'=='1'){` seguido de `window.parent.location`
+/// e `infraFecharJanelaModal()` (PEN1 5.0.4, 02/11/2026). Só classifica a
+/// resposta: o efeito continua conferido pelo GET de verificação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SinalDoSalvar {
+    /// `'1'=='1'`: o SEI sinalizou a gravação e manda fechar a janela.
+    GravacaoSinalizada,
+    /// `''=='1'`: a tela voltou como no GET, sem o sinal de gravação.
+    TelaDevolvidaSemSinal,
+    /// Nenhuma (ou mais de uma) `function inicializar(){` nessa forma.
+    NaoReconhecido,
+}
+
+/// Lê o sinal por forma exata, sem executar JavaScript.
+pub(crate) fn sinal_do_salvar(_html: &str) -> SinalDoSalvar {
+    SinalDoSalvar::GravacaoSinalizada
+}
