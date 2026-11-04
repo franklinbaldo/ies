@@ -102,6 +102,23 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   igual ao NUP do pai, sem escape nem entidade.
 - Validação live do comando com anexado: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
 
+## Evidência própria do IES (propriedades)
+
+- Captura privada ao vivo da UnB 4.0.9 (04/11/2026, `0600`, `iso-8859-1`,
+  lida só pela estrutura): `GET procedimento_alterar` da barra respondeu
+  200 com `form#frmProcedimentoCadastro`; `hdnProtocoloFormatado` e
+  `hdnIdProcedimento` dão a identidade; tipo em `option selected` com
+  `hdnIdTipoProcedimento` igual; 1 assunto em `selAssuntos` (texto
+  `<código> - <descrição>`), 0 interessados, `txaObservacoes` vazio,
+  `optPublico` marcado, `selHipoteseLegal` sem opções, `hdnDtaGeracao`
+  `dd/mm/aaaa`; `hdnAssuntos` e `hdnInteressadosProcedimento` vazios. O
+  leitor aceitou a tela e as seis árvores capturadas (quatro com
+  `procedimento_alterar`, duas com `procedimento_consultar`) em teste
+  local temporário, apagado.
+- [Contrato](../cli/processo-obter-propriedades.md) e
+  [observação](../../docs/como-o-sei-funciona/propriedades-do-processo.md).
+  Validação live: **NOT_RUN**.
+
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
 Confronte os hashes com o manifesto atual antes de alegar paridade.

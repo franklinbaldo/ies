@@ -166,6 +166,26 @@ pub(super) fn historico(tipo: char, total: u64, linhas: usize) -> String {
     pagina_do_historico(NUP, ID, tipo, total, linhas)
 }
 
+/// Árvore com o histórico (forma GO) e, na barra do processo, o link
+/// `acao` das propriedades.
+pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: &str) -> String {
+    use crate::propriedades_processo::tests_apoio::{
+        acao_da_barra, barra, com_barra, link_das_propriedades,
+    };
+    let acoes = [acao_da_barra(&link_das_propriedades(acao, id))];
+    com_barra(&arvore_com_historico(id, nup), 0, &barra(&acoes))
+}
+
+/// URL absoluta das propriedades publicada pela barra sintética.
+pub(super) fn url_propriedades(acao: &str, id: &str) -> String {
+    absoluta(&crate::propriedades_processo::tests_apoio::link_das_propriedades(acao, id))
+}
+
+/// Tela de propriedades sintética do NUP e id padrão.
+pub(super) fn propriedades() -> String {
+    crate::propriedades_processo::tests_apoio::tela_das_propriedades(NUP, ID)
+}
+
 /// Uma requisição vista pelo transporte.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Pedido {
@@ -348,6 +368,26 @@ pub(super) fn rodar_nup(
     andamentos: PedidoDeAndamentos,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
+    rodar_tudo(amb, nup, unidade, (andamentos, true), respostas)
+}
+
+/// Como [`rodar_com`], dizendo também se as propriedades são lidas.
+pub(super) fn rodar_props(
+    amb: &Ambiente,
+    andamentos: PedidoDeAndamentos,
+    propriedades: bool,
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
+    rodar_tudo(amb, NUP, None, (andamentos, propriedades), respostas)
+}
+
+fn rodar_tudo(
+    amb: &Ambiente,
+    nup: &str,
+    unidade: Option<&str>,
+    (andamentos, propriedades): (PedidoDeAndamentos, bool),
+    respostas: Vec<Resposta>,
+) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
     let url = url_controle();
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
@@ -359,6 +399,7 @@ pub(super) fn rodar_nup(
         nup: &nup,
         unidade,
         andamentos,
+        propriedades,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);

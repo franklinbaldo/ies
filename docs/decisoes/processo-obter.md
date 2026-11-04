@@ -4,9 +4,9 @@ title: Ler processo pela caixa (resumo), pela árvore com índice local e pelo h
 operation: processo.obter
 implementation: partial
 status: adopted-for-scope
-scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz
+scope: resumo na caixa sem abrir o processo; leitura do primeiro nível da árvore abrindo o processo pelo caminho mais barato do índice local (Refs #59, fatia 1); andamentos pelo link do histórico publicado na árvore, visão servida ou completa (fatia 2); pastas abertas por Abrir todas as Pastas e conferidas pela identidade dos protocolos (fatia 3); colheita do Controle no índice e passo 1b pelo link procedimento_trabalhar colhido (fatia 4); processos anexados lidos do nó PROCESSO_ANEXADO da mesma árvore, sem os documentos deles, e o pai do processo anexado lido do link do nó raiz; propriedades pelo formulário procedimento_alterar (ou procedimento_consultar) publicado na barra do nó do processo, sem envio
 selected_strategy: web-indice-pesquisa-rapida-arvore
-alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo
+alternatives: web-indice-pesquisa-rapida-arvore,web-pesquisa-avancada-arvore,web-caixa-somente,rest-wssei,web-historico-link-da-arvore,web-historico-url-montada,web-abrir-todas-as-pastas,web-paginar-pasta-por-post,web-colheita-do-controle,web-get-extra-para-o-indice,web-anexados-do-no-da-arvore,web-abrir-cada-anexado,web-vinculo-recusa-fechada,web-vinculo-nulo-com-motivo,web-propriedades-da-barra,web-propriedades-todas-as-telas,web-propriedades-listas-ocultas
 evidence_level: capturas-privadas-estrutura-cassettes-go-e-testes-sinteticos
 live_validation: pass-unb-go-pen1-fatias-1-e-2
 ---
@@ -82,6 +82,10 @@ não. O IES não restaura esse estado. Lançamento de andamento: não medido.
   `src/colheita_do_controle/tests.rs`; leitor da árvore em
   `src/arvore_processo/tests*.rs`.
 - [Contrato das pastas](../../contracts/cli/processo-obter-pastas.md)
+- [Contrato das propriedades](../../contracts/cli/processo-obter-propriedades.md);
+  testes em `src/processo_obter/tests_propriedades.rs`,
+  `src/propriedades_processo/tests_tela.rs` e
+  `src/arvore_processo/tests_barra.rs`
 - Capturas privadas `0600` (UnB e GO) lidas só pela estrutura: tela do
   processo, árvore e o formulário rápido e as linhas do Controle de seis
   instalações passaram pelos leitores; nenhum valor foi copiado.
@@ -250,10 +254,56 @@ candidato malformado, `anexado: false` seria afirmação falsa e (b)
 exigiria um terceiro estado; o leitor da árvore inteira já falha fechado,
 e a recusa diz o fato.
 
+## Propriedades
+
+**Alternativas.** (a) **web-propriedades-da-barra** (escolhida): um GET
+do `procedimento_alterar` assinado que a barra do nó `PROCESSO` publica
+(ou de `procedimento_consultar`, quando alterar não é oferecido), lendo os
+controles servidos de `form#frmProcedimentoCadastro`, sem envio. (b)
+**web-propriedades-todas-as-telas**: as quatro telas do Todos (metadados,
+anotação, atribuição, relacionamentos); rejeitada nesta fatia, 4 GETs e
+três telas nunca capturadas pelo IES. (c)
+**web-propriedades-listas-ocultas**: ler `hdnAssuntos` e
+`hdnInteressadosProcedimento`; rejeitada: vêm vazias no HTML servido (o
+`infraLupaSelect` as monta no navegador), então o `select` é a única
+fonte; lista servida preenchida é recusa até ser observada.
+
+**Evidência.** Captura privada `0600` da UnB 4.0.9 (04/11/2026), só
+estrutura ([observação](../como-o-sei-funciona/propriedades-do-processo.md)):
+a tela passou pelo leitor (tipo marcado, 1 assunto com código, 0
+interessados, observação vazia, `publico`, sem hipótese, data); as seis
+árvores capturadas publicaram o link (quatro alterar, duas consultar,
+processos abertos só noutra unidade); teste local temporário, apagado.
+Oráculo: `todos/propriedades.py` lê os mesmos controles e troca alterar
+por consultar com o processo fechado (UFRJ 4.1).
+
+**Forma publicada.** `assuntos` saem como `{codigo, descricao}` porque o
+texto servido é `<código> - <descrição>` com código de dígitos e pontos;
+fora disso `codigo` é `null` e o texto inteiro é a descrição, sem
+palpite. `tipo` e `hipotese_legal` são a `option` marcada (nenhuma:
+`null`); `hdnIdTipoProcedimento` confere o tipo. Ids de assunto e de
+contato não são publicados. `fonte` diz qual tela foi lida.
+
+**Orçamento.** +1 GET; `--sem-propriedades` +0; barra sem o link +0.
+Repetição quente no caminho 1: árvore, histórico e propriedades
+guardados, **3** (**2** com `--sem-andamentos`, **1** com os dois
+`--sem-*`). Guardado só da `acao` que a barra recém-lida oferece:
+diferente dos andamentos, a barra decide qual tela vale (alterar some
+quando o processo fecha na unidade).
+
+**Efeito.** GET de formulário de edição, declarado leitura (o Todos o
+usa como leitura); nunca POST, nunca `btnSalvar`. Nada a restaurar.
+
+**Trade-offs.** Ler o formulário de edição em vez de uma tela de
+consulta custa o mesmo GET e publica o que o SEI gravou; recusar formas
+não observadas (listas ocultas, nível sem marca) pode derrubar o comando
+numa instalação nova, e por isso `--sem-propriedades` existe.
+
 ## Limitações e revisão
 
+Propriedades: validação live **PASS** na UnB, PEN1 NOT_RUN por `DOCUMENTO_MOVIDO` ([relatório](../validacao-live/2026-11-04-processo-obter-propriedades.md)).
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
-e propriedades ficam para as próximas fatias; pastas: validação live
+ficam para a próxima fatia; pastas: validação live
 **PASS** na UnB, frio, quente e sessão nova, com o servidor sem lembrar as pastas abertas ([relatório](../validacao-live/2026-11-03-processo-obter-pastas.md)).
 Andamentos: validação live **PASS** na UnB e na PEN1 (frio, quente,
 completo, `--sem-andamentos`) e em GO (frio), com a visão `P` **lembrada**

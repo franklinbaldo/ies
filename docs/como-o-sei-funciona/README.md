@@ -22,6 +22,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [Rotas, links e árvore do processo](rotas-e-arvore.md)
 - [Tela de trabalho e declarações da árvore](arvore-do-processo.md)
 - [Histórico do processo e troca de visão](historico-do-processo.md)
+- [Propriedades do processo](propriedades-do-processo.md)
 - [Formulários e JavaScript](formularios.md)
 - [Mensagem de validação da Infra](validacao-da-infra.md)
 - [Tabelas e paginação](tabelas-e-paginacao.md)

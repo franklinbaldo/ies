@@ -7,6 +7,7 @@
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `PASTA` e `AGUARDE`; qualquer outro é
 //! recusa.
 mod anexados;
+mod barra_do_processo;
 pub(crate) mod endereco;
 mod erro;
 mod literais;
@@ -21,6 +22,8 @@ pub(crate) mod tests_anexado_a;
 #[cfg(test)]
 pub(crate) mod tests_anexados;
 #[cfg(test)]
+mod tests_barra;
+#[cfg(test)]
 mod tests_literais;
 #[cfg(test)]
 pub(crate) mod tests_pastas;
@@ -30,6 +33,7 @@ mod tests_pastas_integridade;
 pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
+pub(crate) use barra_do_processo::ler_link_das_propriedades;
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;

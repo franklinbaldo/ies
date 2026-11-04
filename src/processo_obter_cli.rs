@@ -1,15 +1,17 @@
 //! `ies processo NUP` sem `--resumo` (contracts/cli/processo-obter-arvore.md
 //! e processo-obter-andamentos.md): lê os arquivos privados da sessão e o
 //! índice local, abre o processo e publica identidade, anexados, documentos
-//! e pastas da árvore e andamentos. Nunca URL, hash ou HTML.
+//! e pastas da árvore, andamentos e propriedades
+//! (processo-obter-propriedades.md). Nunca URL, hash ou HTML.
 use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
-    Andamentos, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, SessaoDoProcesso,
-    obter_processo,
+    Andamentos, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, Propriedades,
+    SessaoDoProcesso, obter_processo,
 };
+use crate::propriedades_processo::PropriedadesLidas;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, configuracao, erro_fonte, saida_erro, transporte};
 use serde_json::{Value, json};
@@ -17,7 +19,70 @@ use std::fmt::Write as _;
 use std::process::ExitCode;
 
 /// Dados que o comando ainda não lê (`null` seria "não observado").
-const NAO_LIDOS: [&str; 2] = ["marcadores", "propriedades"];
+const NAO_LIDOS: [&str; 1] = ["marcadores"];
+
+/// As propriedades lidas; ids de assunto e de contato não são publicados.
+fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
+    let assuntos: Vec<Value> = lidas
+        .assuntos
+        .iter()
+        .map(|a| json!({"codigo": a.codigo, "descricao": a.descricao}))
+        .collect();
+    json!({
+        "tipo": lidas.tipo,
+        "especificacao": lidas.especificacao,
+        "interessados": lidas.interessados,
+        "assuntos": assuntos,
+        "observacoes": lidas.observacoes,
+        "nivel_de_acesso": lidas.nivel_de_acesso.como_texto(),
+        "hipotese_legal": lidas.hipotese_legal,
+        "data_de_geracao": lidas.data_de_geracao,
+        "fonte": lidas.fonte.acao(),
+    })
+}
+
+/// Linhas do texto humano das propriedades.
+fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut String) {
+    let Propriedades::Lidas(lidas) = propriedades else {
+        let _ = write!(
+            texto,
+            "\nPropriedades não lidas ({}).",
+            propriedades.motivo().unwrap_or_default()
+        );
+        return;
+    };
+    let _ = write!(
+        texto,
+        "\nPropriedades ({}): tipo {}, nível {}, gerado em {}.",
+        lidas.fonte.acao(),
+        lidas.tipo.as_deref().unwrap_or("não observado"),
+        lidas.nivel_de_acesso.como_texto(),
+        lidas
+            .data_de_geracao
+            .as_deref()
+            .unwrap_or("data não observada"),
+    );
+    if let Some(hipotese) = &lidas.hipotese_legal {
+        let _ = write!(texto, "\nHipótese legal: {hipotese}");
+    }
+    let _ = write!(texto, "\nEspecificação: {}", lidas.especificacao);
+    for a in &lidas.assuntos {
+        match &a.codigo {
+            Some(codigo) => {
+                let _ = write!(texto, "\n- assunto {codigo} - {}", a.descricao);
+            }
+            None => {
+                let _ = write!(texto, "\n- assunto {}", a.descricao);
+            }
+        }
+    }
+    for interessado in &lidas.interessados {
+        let _ = write!(texto, "\n- interessado {interessado}");
+    }
+    if !lidas.observacoes.is_empty() {
+        let _ = write!(texto, "\nObservações: {}", lidas.observacoes);
+    }
+}
 
 fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
     let itens: Vec<Value> = lidos
@@ -50,8 +115,41 @@ fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta
         .find(|v| regras.contains(v))
 }
 
-/// O JSON publicado; `anexados` sai sempre; `documentos` some com `--sem-documentos` e
-/// `andamentos` com `--sem-andamentos` (link não publicado: `null`).
+/// Andamentos e propriedades: objeto, `null` com motivo ou ausente (omitidos).
+fn inserir_leituras(
+    objeto: &mut serde_json::Map<String, Value>,
+    aberto: &ProcessoAberto,
+    nao_lidos: &mut Vec<&str>,
+) {
+    let andamentos = match &aberto.andamentos {
+        Andamentos::Lidos(lidos) => Some(json_dos_andamentos(lidos)),
+        Andamentos::LinkNaoPublicadoNaArvore => Some(Value::Null),
+        Andamentos::Omitidos => None,
+    };
+    if let Some(valor) = andamentos {
+        objeto.insert("andamentos".to_owned(), valor);
+    }
+    if let Some(motivo) = aberto.andamentos.motivo() {
+        nao_lidos.insert(0, "andamentos");
+        objeto.insert("andamentos_nao_lidos_motivo".to_owned(), json!(motivo));
+    }
+    let propriedades = match &aberto.propriedades {
+        Propriedades::Lidas(lidas) => Some(json_das_propriedades(lidas)),
+        Propriedades::NaoPublicadasNaBarra => Some(Value::Null),
+        Propriedades::Omitidas => None,
+    };
+    if let Some(valor) = propriedades {
+        objeto.insert("propriedades".to_owned(), valor);
+    }
+    if let Some(motivo) = aberto.propriedades.motivo() {
+        nao_lidos.push("propriedades");
+        objeto.insert("propriedades_nao_lidas_motivo".to_owned(), json!(motivo));
+    }
+}
+
+/// O JSON publicado; `anexados` sai sempre; `documentos` some com `--sem-documentos`,
+/// `andamentos` com `--sem-andamentos` e `propriedades` com `--sem-propriedades`
+/// (link não publicado: `null`).
 pub(crate) fn json_do_processo(
     nup: &NumeroProcesso,
     aberto: &ProcessoAberto,
@@ -68,19 +166,7 @@ pub(crate) fn json_do_processo(
     });
     let mut nao_lidos: Vec<&str> = NAO_LIDOS.to_vec();
     if let Some(objeto) = valor.as_object_mut() {
-        match &aberto.andamentos {
-            Andamentos::Lidos(lidos) => {
-                objeto.insert("andamentos".to_owned(), json_dos_andamentos(lidos));
-            }
-            Andamentos::LinkNaoPublicadoNaArvore => {
-                objeto.insert("andamentos".to_owned(), Value::Null);
-            }
-            Andamentos::Omitidos => {}
-        }
-        if let Some(motivo) = aberto.andamentos.motivo() {
-            nao_lidos.insert(0, "andamentos");
-            objeto.insert("andamentos_nao_lidos_motivo".to_owned(), json!(motivo));
-        }
+        inserir_leituras(objeto, aberto, &mut nao_lidos);
         let anexados = &aberto.arvore.anexados;
         if !anexados.is_empty() {
             nao_lidos.push("documentos_dos_anexados");
@@ -232,7 +318,12 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
             );
         }
     }
-    texto.push_str("\nNão lidos nesta versão: marcadores e propriedades.");
+    humano_das_propriedades(&aberto.propriedades, &mut texto);
+    texto.push_str(if aberto.propriedades.motivo().is_some() {
+        "\nNão lidos nesta versão: marcadores e propriedades."
+    } else {
+        "\nNão lidos nesta versão: marcadores."
+    });
     texto
 }
 
@@ -288,6 +379,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         nup,
         unidade: cli.unidade.as_deref(),
         andamentos,
+        propriedades: !comando.sem_propriedades,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {
@@ -335,3 +427,6 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
 #[cfg(test)]
 #[path = "processo_obter_cli/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "processo_obter_cli/tests_propriedades.rs"]
+mod tests_propriedades;

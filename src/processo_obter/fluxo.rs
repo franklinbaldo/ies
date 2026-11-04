@@ -91,11 +91,19 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
             unidade: unidade.as_deref(),
         },
     )?;
+    let propriedades = super::propriedades::ler(
+        &contexto,
+        &mut rede,
+        &arvore_lida,
+        pedido.propriedades,
+        resolvido_por == ResolvidoPor::IndiceLink,
+    )?;
     Ok(ProcessoAberto {
         arvore: arvore_lida.arvore,
         unidade,
         resolvido_por,
         andamentos,
+        propriedades,
         requisicoes: rede.requisicoes,
     })
 }

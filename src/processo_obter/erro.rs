@@ -5,6 +5,7 @@ use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
+use crate::propriedades_processo::ErroPropriedades;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,6 +41,8 @@ pub(crate) enum ErroProcessoObter {
     Andamentos(ErroAndamentos),
     /// Derivação ou envio do formulário `verHistorico('P')`.
     FormularioDoHistorico(ErroSubmissaoFormulario),
+    /// O link das propriedades na barra ou a tela delas.
+    Propriedades(ErroPropriedades),
 }
 
 impl ErroProcessoObter {
@@ -66,6 +69,7 @@ impl ErroProcessoObter {
             Self::Arvore(erro) => erro.subcodigo(),
             Self::LinkDoHistorico(erro) => erro.subcodigo(),
             Self::Andamentos(erro) => erro.subcodigo(),
+            Self::Propriedades(erro) => erro.subcodigo(),
         }
     }
 
@@ -113,6 +117,14 @@ impl ErroProcessoObter {
             }
             Self::Andamentos(_) => "o histórico não foi servido na forma observada",
             Self::FormularioDoHistorico(_) => "o histórico completo não foi pedido como observado",
+            Self::Propriedades(erro) if erro.do_link() => {
+                "o link das propriedades na barra do processo não foi reconhecido"
+            }
+            Self::Propriedades(
+                ErroPropriedades::NumeroDasPropriedadesDiferenteDoSolicitado
+                | ErroPropriedades::IdDasPropriedadesDiferenteDoAberto,
+            ) => "a tela de propriedades é de outro processo",
+            Self::Propriedades(_) => "a tela de propriedades não foi servida na forma observada",
         }
     }
 

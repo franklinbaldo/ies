@@ -24,8 +24,8 @@ O recorte `--resumo` pode localizar o número **somente na caixa
 inteira da unidade**, sem abrir o processo. Sem `--resumo`, o comando
 abre o processo pela sessão de `ies login` e publica identidade e
 documentos do primeiro nível da árvore
-(seção "Leitura pela árvore") e os andamentos; marcadores
-e propriedades ainda não são lidos.
+(seção "Leitura pela árvore"), os andamentos e as propriedades;
+marcadores ainda não são lidos.
 
 ## Entradas
 
@@ -35,8 +35,9 @@ e propriedades ainda não são lidos.
 - `--sem-documentos`: omite `documentos` e `pastas` (a árvore continua
   sendo lida, porque é ela que confirma a identidade;
   [pastas](processo-obter-pastas.md)).
-- `--sem-marcadores`, `--sem-propriedades`: aceitos e sem efeito (dados
-  ainda não lidos).
+- `--sem-marcadores`: aceito e sem efeito (dado ainda não lido).
+- `--sem-propriedades`: não pede a tela de propriedades
+  ([propriedades](processo-obter-propriedades.md)).
 - `--sem-andamentos`: não pede o histórico; `--andamentos-completos`: pede
   a visão completa ([andamentos](processo-obter-andamentos.md)). Juntos
   saem com 2.

@@ -5,9 +5,9 @@ use crate::arvore_processo::{
 };
 use crate::historico_processo::{AndamentosLidos, TipoDoHistorico};
 use crate::processo::Andamento;
-use crate::processo_obter::{Andamentos, ResolvidoPor};
+use crate::processo_obter::{Andamentos, Propriedades, ResolvidoPor};
 
-fn aberto(unidade: Option<&str>) -> ProcessoAberto {
+pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
     ProcessoAberto {
         arvore: ArvoreLida {
             processo: ProcessoNaArvore {
@@ -37,6 +37,7 @@ fn aberto(unidade: Option<&str>) -> ProcessoAberto {
         unidade: unidade.map(str::to_owned),
         resolvido_por: ResolvidoPor::Caixa,
         andamentos: Andamentos::Omitidos,
+        propriedades: Propriedades::Omitidas,
         requisicoes: 3,
     }
 }
@@ -148,7 +149,8 @@ fn forma_do_json() {
             "pastas": [],
             "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
-            "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"
+            "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos",
+            "propriedades_nao_lidas_motivo": "omitidas_por_sem_propriedades"
         })
     );
 }

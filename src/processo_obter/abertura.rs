@@ -4,8 +4,8 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_tela_do_processo,
-    ler_vinculo_de_anexacao,
+    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_link_das_propriedades,
+    ler_tela_do_processo, ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -19,6 +19,7 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::redirecionamento::{
     OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use std::path::Path;
 
@@ -110,6 +111,8 @@ impl Contexto<'_> {
 pub(super) struct ArvoreAberta {
     pub(super) arvore: ArvoreLida,
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
+    /// O link das propriedades na barra (a falha só pesa se forem pedidas).
+    pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -120,7 +123,12 @@ pub(super) fn ler_arvore_aberta(
     let mut arvore = ler_arvore(html, contexto.nup, id)?;
     arvore.anexado_a = ler_vinculo_de_anexacao(&contexto.instalacao, html, id)?;
     let historico = ler_link_do_historico(&contexto.instalacao, html, id);
-    Ok(ArvoreAberta { arvore, historico })
+    let propriedades = ler_link_das_propriedades(&contexto.instalacao, html, id);
+    Ok(ArvoreAberta {
+        arvore,
+        historico,
+        propriedades,
+    })
 }
 
 /// Cookie lido uma vez e as requisições feitas (inclusive as que falharam).
