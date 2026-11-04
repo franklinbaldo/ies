@@ -50,7 +50,7 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
             let icone = d.natureza.icone.as_deref().unwrap_or("?");
             let forma = match ler_conteudo_na_arvore(&instalacao, html, &d.id) {
                 Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar",
-                Ok(ConteudoNaArvore::DownloadDeAnexo) => "documento_download_anexo",
+                Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo",
                 Ok(ConteudoNaArvore::Vazio) => "vazio",
                 Err(erro) => erro.subcodigo(),
             };

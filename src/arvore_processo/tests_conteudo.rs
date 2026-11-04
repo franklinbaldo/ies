@@ -70,7 +70,37 @@ fn link_de_documento_interno_conferido_e_redigido() {
 fn src_vazio_e_download_de_anexo() {
     let html = com_src(&base(), 2, &src_anexo());
     assert_eq!(ler(&html, "21"), Ok(ConteudoNaArvore::Vazio));
-    assert_eq!(ler(&html, "22"), Ok(ConteudoNaArvore::DownloadDeAnexo));
+    let Ok(ConteudoNaArvore::DownloadDeAnexo(endereco)) = ler(&html, "22") else {
+        panic!("esperado documento_download_anexo");
+    };
+    assert_eq!(
+        endereco.as_str(),
+        format!("https://sei.exemplo.gov.br/sei/{}", src_anexo())
+    );
+    assert!(!format!("{endereco:?}").contains(HASH_CONTEUDO));
+}
+
+/// Fatia 3: o link do anexo é conferido como o do interno, com um único
+/// `id_anexo` decimal no lugar do `id_documento` (o link não traz o id do
+/// documento; a ligação é o nó da árvore).
+#[test]
+fn link_do_anexo_fora_da_forma_e_recusado() {
+    use ErroConteudoNaArvore as E;
+    let com = |src: String| ler(&com_src(&base(), 2, &src), "22");
+    for ruim in [
+        src_anexo().replace("&id_anexo=901", ""),
+        src_anexo().replace("id_anexo=901", "id_anexo=901&id_anexo=902"),
+        src_anexo().replace("id_anexo=901", "id_anexo=9a1"),
+        src_anexo().replace("id_anexo=901", "id_anexo="),
+        src_anexo().replace(HASH_CONTEUDO, "x"),
+        src_anexo().replace("controlador.php?", "controlador_externo.php?"),
+    ] {
+        assert_eq!(
+            com(ruim.clone()),
+            Err(E::EnderecoDoConteudoNaoReconhecido),
+            "{ruim}"
+        );
+    }
 }
 
 #[test]

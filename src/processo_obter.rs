@@ -38,6 +38,8 @@ mod tests_controle;
 #[cfg(test)]
 mod tests_documento;
 #[cfg(test)]
+mod tests_documento_externo;
+#[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
 mod tests_indice;
@@ -59,10 +61,11 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
+use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
 pub(crate) use documento::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, obter_documento,
+    DocumentoObtido, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, obter_documento,
 };
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::obter_processo;
@@ -75,6 +78,15 @@ pub(crate) trait EnvioDoProcesso: EnvioDoControle {
         url: &str,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
+
+    /// GET binário do link do anexo (Refs #60, fatia 3): `limite` é o do
+    /// total em `chunked`; 3xx volta como dado, nunca seguido.
+    fn get_binario(
+        &mut self,
+        url: &str,
+        cookie: &str,
+        limite: usize,
+    ) -> Result<RespostaBinaria<Self::Corpo>, FalhaTransporte>;
 }
 
 impl EnvioDoProcesso for EnvioHttps {
@@ -84,6 +96,15 @@ impl EnvioDoProcesso for EnvioHttps {
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         crate::transporte::envio_post::get_com_localizacao(url, cookie)
+    }
+
+    fn get_binario(
+        &mut self,
+        url: &str,
+        cookie: &str,
+        limite: usize,
+    ) -> Result<RespostaBinaria<Self::Corpo>, FalhaTransporte> {
+        crate::transporte::resposta_binaria::get_binario(url, cookie, limite)
     }
 }
 

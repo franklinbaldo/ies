@@ -1,13 +1,13 @@
 //! RED/GREEN de `ies documento DOC` pela Web (Refs #60): sequência exata
 //! das requisições, aprendizado no índice e uma recusa tipada por caso
-//! observado (conteúdo, sem acesso, cancelado, externo, duplicidade,
+//! observado (conteúdo, sem acesso, cancelado, duplicidade,
 //! número com zeros diferente, título de outro documento). Telas
 //! SINTÉTICAS com a forma das cassettes `documento-numero-e-busca-*`.
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
-    HASH_CONTEUDO, com_src, src_anexo, src_da_arvore_do_documento, src_visualizar,
+    HASH_CONTEUDO, com_src, src_da_arvore_do_documento, src_visualizar,
 };
 use crate::arvore_processo::tests_tela::tela_do_processo;
 use crate::documento::NumeroDocumento;
@@ -55,6 +55,7 @@ fn rodar_doc(
     let pedido = PedidoDoDocumento {
         numero: &numero,
         unidade: None,
+        anexo: PedidoDoAnexo::default(),
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_documento(&sessao, &pedido, &amb.indice, &mut roteiro);
@@ -151,7 +152,7 @@ fn recusa(arvore: String) -> ErroDocumentoObter {
 }
 
 #[test]
-fn sem_acesso_cancelado_e_externo_sao_recusas_tipadas_sem_get_do_conteudo() {
+fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
     use ErroDocumentoObter as E;
     assert_eq!(recusa(arvore_com("")), E::ConteudoNaoPublicadoNaArvore);
     let cancelado = arvore_com("")
@@ -161,11 +162,6 @@ fn sem_acesso_cancelado_e_externo_sao_recusas_tipadas_sem_get_do_conteudo() {
             "Documento Cancelado: teste",
         );
     assert_eq!(recusa(cancelado), E::DocumentoCancelado);
-    assert_eq!(recusa(arvore_com(&src_anexo())), E::DocumentoExterno);
-    assert_eq!(
-        E::DocumentoExterno.subcodigo(),
-        "documento_externo_por_download_de_anexo"
-    );
 }
 
 #[test]

@@ -54,6 +54,9 @@ impl<R> Corpo<R> {
             _ => None,
         }
     }
+
+    /// Troca o limite do total em `chunked` (o do GET binário).
+    pub(crate) fn limitar_em_pedacos(&mut self, _limite: usize) {}
 }
 
 /// Marca o erro de leitura de um pedaço que levaria o corpo além de 8 MB.

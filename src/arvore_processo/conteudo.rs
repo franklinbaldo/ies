@@ -34,8 +34,9 @@ impl std::fmt::Debug for EnderecoDoConteudo {
 pub(crate) enum ConteudoNaArvore {
     /// `documento_visualizar` do mesmo `id_documento`, conferido.
     Visualizar(EnderecoDoConteudo),
-    /// `documento_download_anexo` (documento externo): não é seguido.
-    DownloadDeAnexo,
+    /// `documento_download_anexo` (documento externo) com um único
+    /// `id_anexo` decimal, conferido (Refs #60, fatia 3).
+    DownloadDeAnexo(EnderecoDoConteudo),
     /// `''`: a árvore não publica conteúdo (sem acesso ou cancelado).
     Vazio,
 }
@@ -104,7 +105,7 @@ pub(crate) fn ler_conteudo_na_arvore(
         return Ok(ConteudoNaArvore::Vazio);
     }
     match acao_unica(src) {
-        Some(DOWNLOAD) => Ok(ConteudoNaArvore::DownloadDeAnexo),
+        Some(DOWNLOAD) => Err(E::EnderecoDoConteudoNaoReconhecido),
         Some(VISUALIZAR) => conferir_endereco_relativo_por(
             instalacao,
             src,

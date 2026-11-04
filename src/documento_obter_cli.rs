@@ -8,7 +8,8 @@ use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
+    DocumentoObtido, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
+    obter_documento,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
@@ -128,6 +129,7 @@ fn obter(cli: &Cli, numeros: &[NumeroDocumento], saida: Option<&Path>) -> ExitCo
         let pedido = PedidoDoDocumento {
             numero,
             unidade: cli.unidade.as_deref(),
+            anexo: PedidoDoAnexo::default(),
         };
         match obter_documento(&sessao, &pedido, &indice, &mut EnvioHttps) {
             Ok(obtido) => obtidos.push(obtido),

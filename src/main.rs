@@ -1,3 +1,4 @@
+mod anexo_documento;
 mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_texto_documento;

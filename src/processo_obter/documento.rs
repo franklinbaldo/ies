@@ -25,10 +25,16 @@ mod erro;
 pub(crate) use erro::ErroDocumentoObter;
 use erro::ErroDocumentoObter as E;
 
+#[path = "documento_anexo.rs"]
+mod anexo;
+pub(crate) use anexo::PedidoDoAnexo;
+
 /// O número SEI pedido e a `--unidade` (conferida na tela).
 pub(crate) struct PedidoDoDocumento<'a> {
     pub(crate) numero: &'a NumeroDocumento,
     pub(crate) unidade: Option<&'a str>,
+    /// Limite e `--saida` do documento externo (fatia 3).
+    pub(crate) anexo: PedidoDoAnexo<'a>,
 }
 
 /// O documento lido: identidade da árvore e do título, processo, unidade
@@ -46,6 +52,9 @@ pub(crate) struct DocumentoObtido {
     pub(crate) processo: ProcessoNaArvore,
     pub(crate) unidade: String,
     pub(crate) texto: String,
+    /// Documento externo (`documento_download_anexo`, fatia 3): o arquivo
+    /// lido; `tipo` fica vazio e `texto`, o dos tipos de texto.
+    pub(crate) anexo: Option<crate::anexo_documento::AnexoLido>,
     pub(crate) requisicoes: u8,
 }
 
@@ -128,17 +137,27 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     if repetidos.count() > 1 {
         return Err(E::NumeroSeiRepetidoNaArvore);
     }
-    let endereco = match ler_conteudo_na_arvore(&contexto.instalacao, &html, &id_documento)
-        .map_err(E::Conteudo)?
-    {
-        ConteudoNaArvore::Visualizar(endereco) => endereco,
-        ConteudoNaArvore::DownloadDeAnexo => return Err(E::DocumentoExterno),
-        ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
-            return Err(E::DocumentoCancelado);
-        }
-        ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
-    };
-    let (tipo, texto) = ler_conteudo(&mut rede, &endereco, numero)?;
+    let (tipo, texto, anexo) =
+        match ler_conteudo_na_arvore(&contexto.instalacao, &html, &id_documento)
+            .map_err(E::Conteudo)?
+        {
+            ConteudoNaArvore::Visualizar(endereco) => {
+                let (tipo, texto) = ler_conteudo(&mut rede, &endereco, numero)?;
+                (tipo, texto, None)
+            }
+            ConteudoNaArvore::DownloadDeAnexo(endereco) => {
+                let lido = anexo::ler_anexo_do_link(&mut rede, &endereco, numero, pedido.anexo)?;
+                (
+                    String::new(),
+                    lido.texto.clone().unwrap_or_default(),
+                    Some(lido),
+                )
+            }
+            ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
+                return Err(E::DocumentoCancelado);
+            }
+            ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
+        };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
         id_documento,
@@ -149,6 +168,7 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
         processo: arvore.processo,
         unidade: tela.unidade,
         texto,
+        anexo,
         requisicoes: rede.requisicoes,
     })
 }

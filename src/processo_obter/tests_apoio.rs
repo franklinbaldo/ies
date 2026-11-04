@@ -295,6 +295,17 @@ impl EnvioDoProcesso for Roteiro {
         self.pedidos.push(get(url));
         Ok(self.proxima())
     }
+
+    /// O anexo tem roteiro próprio (`tests_documento_externo`).
+    fn get_binario(
+        &mut self,
+        _: &str,
+        _: &str,
+        _: usize,
+    ) -> Result<crate::transporte::resposta_binaria::RespostaBinaria<Self::Corpo>, FalhaTransporte>
+    {
+        panic!("GET binário fora do roteiro")
+    }
 }
 
 /// Diretório temporário com o cookie (0600) e o caminho do índice.

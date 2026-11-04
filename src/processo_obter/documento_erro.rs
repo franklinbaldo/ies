@@ -2,6 +2,7 @@
 //! processo (reaproveitadas de `processo NUP`) e uma variante por fato
 //! verificável do documento (contracts/cli/documento-obter-web.md).
 use super::super::ErroProcessoObter;
+use crate::anexo_documento::ErroAnexo;
 use crate::arvore_processo::ErroConteudoNaArvore;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
 use crate::transporte::StatusHttpRecusado;
@@ -24,8 +25,8 @@ pub(crate) enum ErroDocumentoObter {
     DocumentoCancelado,
     /// `.src` vazio: a árvore não publica o conteúdo para esta sessão.
     ConteudoNaoPublicadoNaArvore,
-    /// `.src` para `documento_download_anexo`: externo, fora desta fatia.
-    DocumentoExterno,
+    /// O arquivo do documento externo (`documento_download_anexo`, fatia 3).
+    Anexo(ErroAnexo),
     /// O título do HTML servido.
     Titulo(ErroTituloDocumento),
     /// O título servido é de outro número SEI.
@@ -45,7 +46,7 @@ impl ErroDocumentoObter {
             Self::Conteudo(erro) => erro.subcodigo(),
             Self::DocumentoCancelado => "documento_cancelado_sem_conteudo_na_arvore",
             Self::ConteudoNaoPublicadoNaArvore => "conteudo_nao_publicado_na_arvore",
-            Self::DocumentoExterno => "documento_externo_por_download_de_anexo",
+            Self::Anexo(erro) => erro.subcodigo(),
             Self::Titulo(erro) => erro.subcodigo(),
             Self::TituloDeOutroDocumento => "titulo_do_conteudo_de_outro_documento",
             Self::Corpo(erro) => erro.subcodigo(),
@@ -72,9 +73,7 @@ impl ErroDocumentoObter {
             Self::ConteudoNaoPublicadoNaArvore => {
                 "a árvore não publica o conteúdo deste documento para a sessão"
             }
-            Self::DocumentoExterno => {
-                "documento externo (download de anexo) ainda não é lido por esta fatia"
-            }
+            Self::Anexo(erro) => erro.mensagem(),
             Self::Titulo(_) => "o título do conteúdo não foi reconhecido",
             Self::TituloDeOutroDocumento => "o conteúdo servido é de outro número SEI",
             Self::Corpo(_) => "o corpo do conteúdo não foi reconhecido",
@@ -85,6 +84,7 @@ impl ErroDocumentoObter {
         match self {
             Self::Processo(erro) => erro.status_http(),
             Self::PesquisaRapidaNaoAbriuODocumento(status) => Some(status),
+            Self::Anexo(erro) => erro.status_http(),
             _ => None,
         }
     }
