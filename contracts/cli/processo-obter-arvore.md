@@ -322,4 +322,6 @@ Fatia 4 (colheita do Controle e passo 1b): **PASS** na UnB e na PEN1
 Documentos movidos: **PASS** na PEN1 ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-movidos.md)).
 Situação e natureza: **PASS** na UnB ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-situacao.md)).
 Anexados: **PASS** na UnB nos dois sentidos ([relatório](../../docs/validacao-live/2026-11-03-processo-obter-anexados.md)).
+Replay offline do acervo público: 2.034 de 2.073 árvores lidas nas sete
+instalações; recusas e achados no [relatório](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md).
 Decisão em [processo.obter](../../docs/decisoes/processo-obter.md).

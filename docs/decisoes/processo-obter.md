@@ -312,6 +312,8 @@ mais. Alternativas e trade-offs no
 `aberto_em` e ícone/cancelamento dos documentos saem da árvore já lida,
 0 requisições, só nas formas observadas
 ([apêndice](processo-obter/situacao.md)).
+Conformidade offline com o acervo público:
+[apêndice](processo-obter/replay-do-acervo.md).
 
 ## Limitações e revisão
 
