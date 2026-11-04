@@ -132,6 +132,22 @@ pub(crate) enum SinalDoSalvar {
 }
 
 /// Lê o sinal por forma exata, sem executar JavaScript.
-pub(crate) fn sinal_do_salvar(_html: &str) -> SinalDoSalvar {
-    SinalDoSalvar::GravacaoSinalizada
+pub(crate) fn sinal_do_salvar(html: &str) -> SinalDoSalvar {
+    const FUNCAO: &str = "function inicializar(){";
+    let mut ocorrencias = html.match_indices(FUNCAO);
+    let (Some((inicio, _)), None) = (ocorrencias.next(), ocorrencias.next()) else {
+        return SinalDoSalvar::NaoReconhecido;
+    };
+    let Some((valor, resto)) = html[inicio + FUNCAO.len()..]
+        .trim_start()
+        .strip_prefix("if ('")
+        .and_then(|resto| resto.split_once('\''))
+    else {
+        return SinalDoSalvar::NaoReconhecido;
+    };
+    match (valor, resto.starts_with("=='1'){")) {
+        ("1", true) => SinalDoSalvar::GravacaoSinalizada,
+        ("", true) => SinalDoSalvar::TelaDevolvidaSemSinal,
+        _ => SinalDoSalvar::NaoReconhecido,
+    }
 }
