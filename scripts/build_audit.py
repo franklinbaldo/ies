@@ -11,6 +11,8 @@ from pathlib import Path
 
 COMANDO = ["cargo", "build", "--locked", "-p", "ies", "--bin", "ies", "--timings"]
 ARQUIVO_ALTERADO = "src/processo_obter/fluxo.rs"
+PARSER_ORIGINAL = "src/html_atributos/tokenizador.rs"
+PARSER_EXTRAIDO = "crates/ies-web/src/html_atributos/tokenizador.rs"
 
 
 def executar(comando, pasta):
@@ -63,12 +65,19 @@ def medir(workspace, saida):
         with alterado.open("a", encoding="utf-8") as codigo:
             codigo.write("\n// Auditoria do build: comentário sintético e descartável.\n")
         incremental, _ = executar(COMANDO, copia)
+        parser = copia / (PARSER_EXTRAIDO if (copia / PARSER_EXTRAIDO).exists() else PARSER_ORIGINAL)
+        if not parser.is_file():
+            raise ValueError(f"Parser de atributos ausente: {parser}")
+        with parser.open("a", encoding="utf-8") as codigo:
+            codigo.write("\n// Auditoria do parser: comentário sintético e descartável.\n")
+        parser_incremental, _ = executar(COMANDO, copia)
     resultado = {
         "cenario": ARQUIVO_ALTERADO,
+        "cenario_parser": PARSER_EXTRAIDO if (workspace / PARSER_EXTRAIDO).exists() else PARSER_ORIGINAL,
         "comando": COMANDO,
         "tempos_segundos": {
             "limpo": limpo, "sem_mudanca": sem_mudanca,
-            "operacao_alterada": incremental,
+            "operacao_alterada": incremental, "parser_alterado": parser_incremental,
         },
         "grafo": grafo,
         "observacao": "Mesmo executor; cópias e targets separados; sem SEI; sem baseline de release.",
@@ -94,6 +103,7 @@ def comparar(base, proposta, sumario):
         ("limpo", "Build limpo"),
         ("sem_mudanca", "Build sem alterações"),
         ("operacao_alterada", "Mudança em operação"),
+        ("parser_alterado", "Mudança em parser HTML"),
     ]:
         antes = anterior["tempos_segundos"][chave]
         depois = nova["tempos_segundos"][chave]
