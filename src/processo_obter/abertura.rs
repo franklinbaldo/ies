@@ -4,9 +4,10 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ErroArvore, MotivoAbertoEm, TelaDoProcesso, ler_arvore,
-    ler_destinos_dos_movidos, ler_link_das_propriedades, ler_link_dos_marcadores,
-    ler_tela_do_processo, ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, MotivoAbertoEm,
+    TelaDoProcesso, ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -117,6 +118,8 @@ pub(super) struct ArvoreAberta {
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// A ação de concluir na barra (só pesa em `processo concluir`).
+    pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -145,11 +148,13 @@ pub(super) fn ler_arvore_da_pagina(
     let historico = ler_link_do_historico(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let concluir = ler_concluir_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         historico,
         propriedades,
         marcadores,
+        concluir,
     })
 }
 

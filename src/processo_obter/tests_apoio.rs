@@ -420,6 +420,7 @@ fn rodar_tudo(
         andamentos,
         propriedades,
         marcadores,
+        unidade_exigida: false,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);

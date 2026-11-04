@@ -65,7 +65,7 @@ pub(crate) use documento::{
     DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, obter_documento,
 };
 pub(crate) use erro::ErroProcessoObter;
-pub(crate) use fluxo::obter_processo;
+pub(crate) use fluxo::{abrir_para_concluir, obter_processo};
 use std::path::Path;
 
 /// GET que devolve também o `Location` (302 como dado, nunca seguido).
@@ -104,6 +104,9 @@ pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) propriedades: bool,
     /// `false` com `--sem-marcadores`.
     pub(crate) marcadores: bool,
+    /// Pula o link guardado da árvore (passo 1), que não publica a unidade:
+    /// quem escreve precisa da unidade da sessão (`processo concluir`).
+    pub(crate) unidade_exigida: bool,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou

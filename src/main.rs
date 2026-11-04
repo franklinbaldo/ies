@@ -44,6 +44,8 @@ mod pesquisa_web;
 #[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_buscar_cli;
+mod processo_concluir;
+mod processo_concluir_cli;
 mod processo_obter;
 mod processo_obter_cli;
 mod propriedades_processo;
@@ -332,6 +334,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_concluir_cli::tentar_concluir(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.
