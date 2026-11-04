@@ -3,7 +3,7 @@
 use super::{humano, json_de_falha, json_de_sucesso};
 use crate::arvore_processo::MotivoAbertoEm;
 use crate::processo_concluir::{
-    ErroConcluir, FalhaDoEnvio, FormaDaConclusao, ProcessoConcluido, VerificacaoDaConclusao,
+    ErroConcluir, FalhaDoEnvio, FormaDaConclusao, ProcessoConcluido, VerificacaoPorLeitura,
 };
 use serde_json::json;
 
@@ -60,7 +60,7 @@ fn efeito_incerto_sai_com_tres_e_a_verificacao() {
     let erro = ErroConcluir::EfeitoIncertoNaConclusao {
         aberto_em: vec!["TESTE".into()],
         falha_do_envio: None,
-        verificacao: Box::new(VerificacaoDaConclusao::SituacaoNaoLida(
+        verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
             MotivoAbertoEm::HtmlDaRaizNaoPublicado,
         )),
     };

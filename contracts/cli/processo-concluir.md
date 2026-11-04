@@ -117,9 +117,8 @@ repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
 
 `EfeitoAvaliado::AlteraEstadoDoProcesso { AndamentoAbertoNaUnidade }`:
 fecha o andamento do processo na unidade da sessão; as outras unidades
-continuam como estavam (observado). O IES não desfaz: reabrir
-(`reabrirProcesso()`, observado nas sete instalações) não está neste
-contrato.
+continuam como estavam (observado). Desfaz-se com
+[`ies processo reabrir`](processo-reabrir.md).
 
 ## Saída
 
@@ -156,7 +155,7 @@ A frio, com a árvore guardada pela abertura: 5 GET + 1 POST (`tela`) ou
 
 ## Fora do escopo
 
-Reabrir, "Concluir e agendar reabertura" (`rdoConcluir=V`), concluir
+Reabrir (outro comando: [`processo reabrir`](processo-reabrir.md)), "Concluir e agendar reabertura" (`rdoConcluir=V`), concluir
 vários processos (`selProcedimentos`), concluir noutra unidade sem trocar a
 sessão.
 
@@ -164,6 +163,7 @@ sessão.
 
 [Evidência da operação](../evidencias/processo-concluir.md) (Todos, sete
 instalações) e [observação estrutural](../../docs/como-o-sei-funciona/conclusao-do-processo.md);
-[decisão](../../docs/decisoes/processo-concluir.md). Live: prévia somente
-leitura na UFRJ 4.1.5; escrita **NOT_RUN** até autorização do proprietário
-([relatório e plano](../../docs/validacao-live/2026-11-04-processo-concluir.md)).
+[decisão](../../docs/decisoes/processo-concluir.md). Live: prévia e escrita
+**PASS** na UFRJ 4.1.5 (forma `tela`) e na UnB 4.0.9 (forma `funcao`),
+com as requisições do orçamento
+([relatório](../../docs/validacao-live/2026-11-04-processo-concluir.md)).
