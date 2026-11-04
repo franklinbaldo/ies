@@ -15,9 +15,9 @@ comportamento**, não arquitetura a portar.
 
 1. **Observar.** Toda capacidade parte de comportamento real: cassettes,
    capturas privadas ou experimento ao vivo numa instalação de
-   treinamento. Leia a tela pela **estrutura** (ids, campos, JS servido),
-   nunca copie valores. Não invente operação, campo ou regra que a tela
-   não mostrou; uma instalação não prova as outras.
+   treinamento. Leia a tela pela **estrutura** (ids, campos, JS servido).
+   Não invente operação, campo ou regra que a tela não mostrou; uma
+   instalação não prova as outras.
 2. **Contratar.** Contrato OKF da operação, erros tipados, shim compilável
    e [decisão por operação](docs/decisoes/unidade-listar-processos.md)
    (alternativas, evidência, trade-offs, revisão; o gate `check_design`
@@ -60,9 +60,11 @@ O que falta implementar e em que ordem está na
 ## Limites invioláveis
 
 - Só instalações de **treinamento ou homologação**; nunca produção.
-- Senhas, cookies, URLs assinadas, `infra_hash` e HTML autenticado nunca
-  vão para argumentos, logs, commits, fixtures ou saídas. Sessão e
-  credenciais só em arquivos privados `0600`.
+- Senhas, cookies, URLs assinadas e `infra_hash` (credenciais de sessão)
+  nunca vão para argumentos, logs, commits, fixtures ou saídas. Sessão e
+  credenciais só em arquivos privados `0600`. O conteúdo das telas das
+  instalações de treinamento, que são públicas, pode aparecer em
+  fixtures, commits e relatórios.
 - GET também pode ter efeito (abrir processo registra recebimento);
   avalie o efeito de toda requisição antes de enviá-la.
 
