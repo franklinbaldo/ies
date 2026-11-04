@@ -52,6 +52,19 @@ os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 Para medir gargalos sem especular, execute `cargo build --timings` num
 executor adequado; não mantenha o HTML de timings versionado.
 
+A auditoria de build em PRs que alteram a arquitetura (`build-audit.yml`)
+usa `scripts/build_audit.py` para compilar base e proposta no mesmo runner,
+em cópias descartáveis e com diretórios `target` isolados: build limpo,
+sem mudança e com comentário sintético em `processo_obter/fluxo.rs`.
+O relatório lista dependências internas do workspace e diferenças de tempo.
+A ordem base→proposta e a variabilidade do cache tornam os números
+exploratórios, não uma prova de aceleração. Nunca faz requisições ao SEI.
+
+Primeira fronteira: `ies-core` contém a identidade de instalação e a versão
+declarada (apenas `std`); o antigo `src/instalacao.rs` é compatibilidade de
+caminhos internos. Próximas extrações exigem avaliar o grafo e a invalidação
+incremental antes de acrescentar novos crates.
+
 ## Compatibilidade da saída JSON
 
 Os goldens `tests/fixtures/caixa-v2.json` (resumida) e
