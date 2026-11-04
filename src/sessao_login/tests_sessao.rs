@@ -48,6 +48,7 @@ fn credenciais_recusam_campo_ausente_repetido_vazio_ou_desconhecido() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn credenciais_inseguras_sao_recusadas_pelo_arquivo_privado() {
     use std::os::unix::fs::PermissionsExt;
@@ -261,6 +262,7 @@ fn mensagem_de_recusa_ignora_o_aviso_de_navegador() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn gravacao_substitui_link_simbolico_nunca_o_segue() {
     let ambiente = Ambiente::novo();

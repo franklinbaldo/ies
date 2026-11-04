@@ -5,11 +5,11 @@
 //! `-shm` herdam o modo do banco. Diretório existente aberto a grupo/outros,
 //! ou banco/lateral que seja link simbólico, não regular ou aberto a
 //! grupo/outros, é falha: o índice se desliga. O IES não muda o modo do que
-//! não criou.
+//! não criou. Fora do Unix não há modo de arquivo: vale a ACL do perfil do
+//! usuário, como nos arquivos de sessão (`configuracao`, `sessao_login`).
 use rusqlite::{Connection, OpenFlags};
 use std::fs::{self, DirBuilder, OpenOptions};
 use std::io::ErrorKind;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -67,22 +67,56 @@ pub(super) fn versao_do_esquema() -> i64 {
 }
 
 /// Sem bits de grupo nem de outros (a mesma regra dos arquivos de sessão).
-fn privado(modo: u32) -> bool {
-    let aberto_a_outros = modo & 0o077 != 0;
+#[cfg(unix)]
+fn privado(info: &fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    let aberto_a_outros = info.permissions().mode() & 0o077 != 0;
     !aberto_a_outros
+}
+
+/// Sem modo de arquivo fora do Unix: a ACL do perfil decide.
+#[cfg(not(unix))]
+fn privado(_info: &fs::Metadata) -> bool {
+    true
+}
+
+fn criar_diretorio(diretorio: &Path) -> std::io::Result<()> {
+    let mut construtor = DirBuilder::new();
+    construtor.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        construtor.mode(0o700);
+    }
+    construtor.create(diretorio)
+}
+
+/// `0600` no Unix e, no Linux, `O_NOFOLLOW` (o último componente não pode
+/// ser link simbólico; o mesmo valor da gravação da sessão).
+fn opcoes_privadas(opcoes: &mut OpenOptions, sem_seguir_link: bool) -> &mut OpenOptions {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opcoes.mode(0o600);
+    }
+    #[cfg(target_os = "linux")]
+    if sem_seguir_link {
+        use std::os::unix::fs::OpenOptionsExt;
+        opcoes.custom_flags(0o400_000);
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = sem_seguir_link;
+    opcoes
 }
 
 fn conferir_diretorio(diretorio: &Path) -> Result<(), Falha> {
     match fs::metadata(diretorio) {
-        Ok(info) if info.is_dir() && privado(info.permissions().mode()) => Ok(()),
+        Ok(info) if info.is_dir() && privado(&info) => Ok(()),
         Ok(_) => Err(Falha),
         Err(erro) if erro.kind() == ErrorKind::NotFound => {
-            DirBuilder::new()
-                .recursive(true)
-                .mode(0o700)
-                .create(diretorio)?;
+            criar_diretorio(diretorio)?;
             let info = fs::metadata(diretorio)?;
-            if info.is_dir() && privado(info.permissions().mode()) {
+            if info.is_dir() && privado(&info) {
                 Ok(())
             } else {
                 Err(Falha)
@@ -97,10 +131,7 @@ fn conferir_diretorio(diretorio: &Path) -> Result<(), Falha> {
 fn arquivo_privado_existente(caminho: &Path) -> Result<bool, Falha> {
     match fs::symlink_metadata(caminho) {
         Ok(info) => {
-            if info.file_type().is_symlink()
-                || !info.is_file()
-                || !privado(info.permissions().mode())
-            {
+            if info.file_type().is_symlink() || !info.is_file() || !privado(&info) {
                 return Err(Falha);
             }
             Ok(true)
@@ -118,11 +149,8 @@ fn lateral(caminho: &Path, sufixo: &str) -> PathBuf {
 
 fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
     if !arquivo_privado_existente(caminho)? {
-        let criado = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(caminho);
+        let criado =
+            opcoes_privadas(OpenOptions::new().write(true).create_new(true), false).open(caminho);
         match criado {
             Ok(_) => {}
             // Outro `ies` criou ao mesmo tempo: confere o dele.
@@ -176,13 +204,11 @@ struct TravaDaPreparacao {
 
 impl TravaDaPreparacao {
     fn obter(banco: &Path) -> Result<Self, Falha> {
-        let arquivo = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .custom_flags(libc_o_nofollow())
-            .open(lateral(banco, ".lock"))?;
+        let arquivo = opcoes_privadas(
+            OpenOptions::new().write(true).create(true).truncate(false),
+            true,
+        )
+        .open(lateral(banco, ".lock"))?;
         let limite = std::time::Instant::now() + ESPERA_DO_LOCK;
         loop {
             match arquivo.try_lock() {
@@ -194,11 +220,6 @@ impl TravaDaPreparacao {
             }
         }
     }
-}
-
-/// `O_NOFOLLOW` do Linux (o mesmo valor usado na gravação da sessão).
-const fn libc_o_nofollow() -> i32 {
-    0o400_000
 }
 
 /// O esquema e as migrações numa transação só: o que falhar no meio desfaz

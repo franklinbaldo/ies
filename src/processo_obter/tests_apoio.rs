@@ -307,7 +307,6 @@ impl Drop for Ambiente {
 }
 
 pub(super) fn ambiente() -> Ambiente {
-    use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -316,10 +315,10 @@ pub(super) fn ambiente() -> Ambiente {
         N.fetch_add(1, Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&pasta).unwrap();
-    std::fs::set_permissions(&pasta, std::fs::Permissions::from_mode(0o700)).unwrap();
+    crate::indice_local::tests::definir_modo(&pasta, 0o700);
     let cookie = pasta.join("cookie");
     std::fs::write(&cookie, format!("{COOKIE}\n")).unwrap();
-    std::fs::set_permissions(&cookie, std::fs::Permissions::from_mode(0o600)).unwrap();
+    crate::indice_local::tests::definir_modo(&cookie, 0o600);
     let indice = IndiceLocal::em(pasta.join("indice").join("ies.sqlite3"));
     Ambiente {
         pasta,

@@ -72,6 +72,7 @@ fn sip_com_acessar_loga_pela_raiz_e_grava_a_sessao() {
         url_do_controle()
     );
     assert_eq!(Ambiente::ler(&ambiente.arquivos.origem).trim(), ORIGEM);
+    #[cfg(unix)]
     for arquivo in [
         &ambiente.arquivos.cookie,
         &ambiente.arquivos.url_controle,

@@ -329,9 +329,8 @@ pub(super) struct Ambiente {
 }
 
 pub(super) fn privado(caminho: &Path, conteudo: &str) {
-    use std::os::unix::fs::PermissionsExt;
     std::fs::write(caminho, conteudo).unwrap();
-    std::fs::set_permissions(caminho, std::fs::Permissions::from_mode(0o600)).unwrap();
+    crate::indice_local::tests::definir_modo(caminho, 0o600);
 }
 
 impl Ambiente {
@@ -383,6 +382,7 @@ impl Ambiente {
         super::gravacao::caminho_ao_lado(&self.arquivos.url_controle, ".geracao")
     }
 
+    #[cfg(unix)]
     pub(super) fn modo(caminho: &Path) -> u32 {
         use std::os::unix::fs::PermissionsExt;
         std::fs::metadata(caminho).unwrap().permissions().mode() & 0o777
