@@ -1,5 +1,6 @@
 //! Leitura da visão detalhada já retornada pelo Controle Web.
 //! Não executa paginação POST, comandos JS nem atribui categorias fictícias.
+mod celula_marcadores;
 mod colunas;
 
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
@@ -253,7 +254,10 @@ fn ler_linha(
         match papel {
             colunas::PapelDaColuna::Processo => celula = Some(*td),
             colunas::PapelDaColuna::Configurada(coluna) => {
-                configuradas.push((*coluna, colunas::valor_da_celula(dom, td, *coluna)?));
+                configuradas.push((
+                    *coluna,
+                    colunas::valor_da_celula(dom, td, *coluna, id.as_str())?,
+                ));
             }
             colunas::PapelDaColuna::SemRotulo => {}
         }

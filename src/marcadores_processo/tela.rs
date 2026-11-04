@@ -1,7 +1,325 @@
 //! A tela "Marcadores do Processo" (`andamento_marcador_gerenciar`), lida
-//! sem envio. Shim do RED: ainda não lê.
-use super::{ErroMarcadores as E, TelaDosMarcadores};
+//! sem envio: `btnAdicionar`, `btnRemover`, `acaoRemover` e o `action` do
+//! `form#frmGerenciarMarcador` nunca participam além da conferência de
+//! identidade. Atributos pelo tokenizador de `html_atributos`; aninhamento
+//! pelo `tl`; sem regex e sem JavaScript.
+use super::{ACAO, ErroMarcadores as E, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
+use crate::formulario_web::decodificar_atributo;
+use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
+use crate::nivel_de_detalhe::texto_colapsado;
+use std::collections::HashSet;
 
-pub(crate) fn ler_marcadores(_html: &str, _nup: &str, _id: &str) -> Result<TelaDosMarcadores, E> {
-    Err(E::HtmlDosMarcadoresNaoInterpretado)
+type Tag<'p> = &'p tl::HTMLTag<'p>;
+
+const TITULO: &str = "SEI - Marcadores do Processo ";
+const CABECALHO: [&str; 6] = [
+    "",
+    "Marcador",
+    "Texto",
+    "Usu\u{e1}rio",
+    "Data/Hora",
+    "A\u{e7}\u{f5}es",
+];
+
+const ILEGIVEL: E = E::HtmlDosMarcadoresNaoInterpretado;
+const LINHA: E = E::LinhaDoMarcadorForaDaFormaObservada;
+
+/// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
+/// qualquer linha.
+pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosMarcadores, E> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ILEGIVEL)?;
+    let parser = dom.parser();
+    conferir_identidade(&dom, nup, id)?;
+    let tabela = match nos_com_id(&dom, "tblMarcadores")
+        .map_err(|_| ILEGIVEL)?
+        .as_slice()
+    {
+        [] => return Ok(TelaDosMarcadores::SemTabela),
+        [unica] => unica
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ILEGIVEL)?,
+        _ => return Err(E::TabelasDosMarcadoresRepetidas),
+    };
+    if tabela.name() != "table" || !descendentes(tabela, parser, "table").is_empty() {
+        return Err(E::TabelasDosMarcadoresRepetidas);
+    }
+    let total_declarado = legenda(tabela, parser)?;
+    let mut ths = descendentes(tabela, parser, "th").into_iter();
+    let cabecalho_ok = ths.len() == CABECALHO.len()
+        && CABECALHO.iter().enumerate().all(|(i, esperado)| {
+            ths.next()
+                .is_some_and(|th| rotulo_do_th(th, parser, i == 0).as_deref() == Ok(*esperado))
+        });
+    if !cabecalho_ok {
+        return Err(E::CabecalhoDosMarcadoresNaoReconhecido);
+    }
+    let mut itens = Vec::new();
+    let mut ids = HashSet::new();
+    for tr in descendentes(tabela, parser, "tr") {
+        let celulas = filhos(tr, parser, "td");
+        if celulas.is_empty() {
+            continue;
+        }
+        let marcador = linha(&celulas, parser)?;
+        if !ids.insert(marcador.id.clone()) {
+            return Err(E::MarcadorRepetidoNaTela);
+        }
+        itens.push(marcador);
+    }
+    if itens.len() > total_declarado {
+        return Err(E::MarcadoresAlemDoTotalDeclarado);
+    }
+    Ok(TelaDosMarcadores::Lidos(MarcadoresLidos {
+        total_declarado,
+        itens,
+    }))
+}
+
+/// O único `title` começa por "SEI - Marcadores do Processo " seguido do
+/// NUP; o único `form#frmGerenciarMarcador` tem `action` com uma
+/// `acao=andamento_marcador_gerenciar` e o `id_procedimento` aberto.
+fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E> {
+    let parser = dom.parser();
+    let titulos: Vec<_> = dom
+        .query_selector("title")
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .collect();
+    let [titulo] = titulos.as_slice() else {
+        return Err(E::TelaDosMarcadoresAusente);
+    };
+    let titulo = texto(titulo, parser).map_err(|_| E::TelaDosMarcadoresAusente)?;
+    let numero = titulo
+        .strip_prefix(TITULO)
+        .ok_or(E::TelaDosMarcadoresAusente)?;
+    if numero != nup {
+        return Err(E::NumeroDosMarcadoresDiferenteDoSolicitado);
+    }
+    let formularios = nos_com_id(dom, "frmGerenciarMarcador").map_err(|_| ILEGIVEL)?;
+    let [formulario] = formularios.as_slice() else {
+        return Err(E::TelaDosMarcadoresAusente);
+    };
+    let formulario = formulario
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ILEGIVEL)?;
+    if formulario.name() != "form" {
+        return Err(E::TelaDosMarcadoresAusente);
+    }
+    let action = atributo(formulario, "action")
+        .map_err(|_| ILEGIVEL)?
+        .ok_or(E::TelaDosMarcadoresAusente)?;
+    let consulta = action
+        .strip_prefix("controlador.php?")
+        .ok_or(E::TelaDosMarcadoresAusente)?;
+    let valores = |chave: &str| -> Vec<&str> {
+        consulta
+            .split('&')
+            .filter_map(|par| par.strip_prefix(chave)?.strip_prefix('='))
+            .collect()
+    };
+    if valores("acao") != [ACAO] {
+        return Err(E::TelaDosMarcadoresAusente);
+    }
+    if valores("id_procedimento") != [id] {
+        return Err(E::IdDosMarcadoresDiferenteDoAberto);
+    }
+    Ok(())
+}
+
+/// `Marcadores (N registro):` ou `Marcadores (N registros):`, sem faixa.
+fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
+    let fora = E::LegendaDosMarcadoresForaDaFormaObservada;
+    let [caption] = descendentes(tabela, parser, "caption")[..] else {
+        return Err(fora);
+    };
+    let legenda = texto(caption, parser).map_err(|_| fora)?;
+    let (numero, palavra) = legenda
+        .strip_prefix("Marcadores (")
+        .and_then(|r| r.strip_suffix("):"))
+        .and_then(|r| r.split_once(' '))
+        .ok_or(fora)?;
+    if !matches!(palavra, "registro" | "registros")
+        || numero.is_empty()
+        || numero.len() > 9
+        || !numero.bytes().all(|b| b.is_ascii_digit())
+    {
+        return Err(fora);
+    }
+    numero.parse().map_err(|_| fora)
+}
+
+/// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`
+/// sem texto com `#lnkInfraCheck`.
+fn rotulo_do_th(th: Tag<'_>, parser: &tl::Parser<'_>, selecao: bool) -> Result<String, E> {
+    let fora = E::CabecalhoDosMarcadoresNaoReconhecido;
+    if selecao {
+        let marcado = nos_com_id_em(th, parser, "lnkInfraCheck").map_err(|_| fora)?;
+        if marcado.len() != 1 {
+            return Err(fora);
+        }
+    }
+    let rotulos = nos_por_elemento_e_classe_em(th, parser, "div", "infraDivRotuloOrdenacao")?;
+    match rotulos.as_slice() {
+        [] => texto(th, parser),
+        [div] => texto(div, parser),
+        _ => Err(fora),
+    }
+}
+
+fn nos_por_elemento_e_classe_em<'p>(
+    raiz: Tag<'_>,
+    parser: &'p tl::Parser<'p>,
+    elemento: &str,
+    classe: &str,
+) -> Result<Vec<Tag<'p>>, E> {
+    let mut achados = Vec::new();
+    for tag in descendentes(raiz, parser, elemento) {
+        if atributos(tag)
+            .and_then(|a| a.tem_classe(classe))
+            .map_err(|_| ILEGIVEL)?
+        {
+            achados.push(tag);
+        }
+    }
+    Ok(achados)
+}
+
+/// Uma linha: seleção, Marcador, Texto, Usuário, Data/Hora, Ações.
+fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProcesso, E> {
+    let [selecao, marcador, texto_td, usuario, data_hora, _acoes] = celulas[..] else {
+        return Err(LINHA);
+    };
+    // Seleção: um `input.infraCheckbox` com `value` decimal.
+    let caixas = nos_por_elemento_e_classe_em(selecao, parser, "input", "infraCheckbox")?;
+    let [caixa] = caixas.as_slice() else {
+        return Err(LINHA);
+    };
+    let id = atributo(caixa, "value")?.ok_or(LINHA)?;
+    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(LINHA);
+    }
+    for ancora in descendentes(selecao, parser, "a") {
+        if let Some(id_ancora) = atributo(ancora, "id")?
+            && id_ancora
+                .strip_prefix("lnkInfraID-")
+                .is_some_and(|resto| resto != id)
+        {
+            return Err(LINHA);
+        }
+    }
+    if atributo(texto_td, "id")?.is_some_and(|v| v != format!("tdAndamentoMarcador{id}")) {
+        return Err(LINHA);
+    }
+    // Marcador: o texto da célula; o ícone dá a cor; os `title`, quando
+    // presentes, repetem o nome.
+    let nome = texto(marcador, parser)?;
+    if nome.is_empty() {
+        return Err(LINHA);
+    }
+    let [icone] = descendentes(marcador, parser, "img")[..] else {
+        return Err(LINHA);
+    };
+    let cor = cor(&atributo(icone, "src")?.ok_or(LINHA)?)?;
+    for tag in [icone, *caixa] {
+        if let Some(titulo) = atributo(tag, "title")?
+            && texto_colapsado(&titulo) != nome
+        {
+            return Err(LINHA);
+        }
+    }
+    let texto_lido = texto(texto_td, parser)?;
+    let data_hora = texto(data_hora, parser)?;
+    if !eh_data_hora(&data_hora) {
+        return Err(LINHA);
+    }
+    Ok(MarcadorDoProcesso {
+        id,
+        nome,
+        cor,
+        texto: (!texto_lido.is_empty()).then_some(texto_lido),
+        usuario: sigla(usuario, parser)?,
+        data_hora,
+    })
+}
+
+/// Célula vazia: `None`; senão, exatamente um `a.ancoraSigla` com todo o texto.
+fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, E> {
+    let completo = texto(celula, parser)?;
+    let ancoras = nos_por_elemento_e_classe_em(celula, parser, "a", "ancoraSigla")?;
+    match ancoras.as_slice() {
+        [] if completo.is_empty() => Ok(None),
+        [ancora] if !completo.is_empty() && texto(ancora, parser)? == completo => {
+            Ok(Some(completo))
+        }
+        _ => Err(LINHA),
+    }
+}
+
+/// `<cor>` de `svg/marcador_<cor>.svg` (com `?…` opcional).
+fn cor(src: &str) -> Result<String, E> {
+    let resto = src.strip_prefix("svg/marcador_").ok_or(LINHA)?;
+    let (cor, depois) = resto.split_once(".svg").ok_or(LINHA)?;
+    if cor.is_empty()
+        || !cor.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+        || !(depois.is_empty() || depois.starts_with('?'))
+    {
+        return Err(LINHA);
+    }
+    Ok(cor.to_owned())
+}
+
+/// `dd/mm/aaaa hh:mm`, só a forma (o valor é opaco).
+fn eh_data_hora(texto: &str) -> bool {
+    let b = texto.as_bytes();
+    b.len() == 16
+        && b.iter().enumerate().all(|(i, c)| match i {
+            2 | 5 => *c == b'/',
+            10 => *c == b' ',
+            13 => *c == b':',
+            _ => c.is_ascii_digit(),
+        })
+}
+
+/// Valor do atributo com entidades decodificadas.
+fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+    let lidos = atributos(tag).map_err(|_| ILEGIVEL)?;
+    lidos
+        .valor(nome)
+        .map_err(|_| ILEGIVEL)?
+        .map(|v| decodificar(v).ok_or(LINHA))
+        .transpose()
+}
+
+/// Entidades decodificadas (`&nbsp;` como espaço inseparável).
+fn decodificar(bruto: &str) -> Option<String> {
+    decodificar_atributo(&bruto.replace("&nbsp;", "\u{a0}"))
+}
+
+/// Texto visível, entidades decodificadas e espaços colapsados.
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, E> {
+    decodificar(&tag.inner_text(parser))
+        .map(|t| texto_colapsado(&t))
+        .ok_or(LINHA)
+}
+
+/// Descendentes `elemento` de `raiz`, na ordem do documento.
+fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, elemento: &str) -> Vec<Tag<'p>> {
+    raiz.query_selector(parser, elemento)
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .collect()
+}
+
+/// Filhos diretos `elemento` de `pai`.
+fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, elemento: &str) -> Vec<Tag<'p>> {
+    pai.children()
+        .top()
+        .iter()
+        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
+        .filter(|t| t.name() == elemento)
+        .collect()
 }

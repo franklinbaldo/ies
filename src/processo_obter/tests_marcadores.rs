@@ -125,9 +125,13 @@ fn sem_marcadores_nao_pede_a_tela() {
     assert_eq!(guardado(&amb), None);
 }
 
+/// Andamentos, (propriedades, marcadores), respostas depois da árvore e
+/// URLs esperadas depois da árvore.
+type Caso = (PedidoDeAndamentos, (bool, bool), Vec<Resposta>, Vec<String>);
+
 #[test]
 fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
-    let casos: [(PedidoDeAndamentos, (bool, bool), Vec<Resposta>, Vec<String>); 4] = [
+    let casos: [Caso; 4] = [
         (
             PedidoDeAndamentos::Omitidos,
             TODOS,

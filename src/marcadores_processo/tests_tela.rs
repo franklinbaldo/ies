@@ -1,6 +1,6 @@
 //! RED/GREEN da tela "Marcadores do Processo": identidade (título e
 //! `form#frmGerenciarMarcador`), linhas da `tblMarcadores` como lista,
-//! legenda contra linhas e recusas. Telas SINTÉTICAS (tests_apoio).
+//! legenda contra linhas e recusas. Telas SINTÉTICAS (`tests_apoio`).
 use super::tests_apoio::{Linha, dois, legenda, linha, tabela, tela_com, tela_dos_marcadores};
 use super::{ErroMarcadores as E, MarcadorDoProcesso, TelaDosMarcadores, ler_marcadores};
 use crate::arvore_processo::tests::NUP;
