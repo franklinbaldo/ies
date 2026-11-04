@@ -132,3 +132,17 @@ cookie: saída 1, nada enviado) e o resultado depois dela,
 `FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
 a verificação é a mesma `VerificacaoPorLeitura`
 ([contrato](../contracts/cli/processo-reabrir.md)).
+
+## Assinar o documento (Refs #174)
+
+`ErroAssinar` (`src/documento_assinar/erro.rs`) separa o que impede a
+escrita (abertura, credenciais, `ErroAssinaturaNaArvore` da ação e da
+caneta, tela do documento, `ErroLinkDeAssinar`, `ErroTelaDeAssinatura`,
+`cargo_nao_oferecido_pela_tela`, `documento_assinado_por_outro_usuario`,
+derivação: saída 1, nada enviado) do resultado depois dela:
+`AssinaturaNaoAplicada` (a caneta relida é a de antes) e
+`EfeitoIncertoNaAssinatura` (saída 3, com `VerificacaoDaAssinatura`).
+`FalhaDoEnvio` da assinatura (`redirecionamento_apos_assinar`,
+`resposta_da_assinatura_sem_finalizacao` ou o erro do primitivo) não
+decide o efeito: a leitura decide, uma vez, sem retry
+([contrato](../contracts/cli/documento-assinar.md)).
