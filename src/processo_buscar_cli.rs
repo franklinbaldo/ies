@@ -59,6 +59,7 @@ pub(crate) fn json_da_busca(termo: &NumeroProcesso, busca: &BuscaRealizada) -> V
             "resultado": "lista",
             "total_declarado": lista.total_declarado,
             "faixa_observada": {"inicio": lista.faixa.inicio, "fim": lista.faixa.fim},
+            "linhas_ausentes_da_faixa": lista.linhas_ausentes_da_faixa,
             "processos": lista
                 .processos
                 .iter()
@@ -86,8 +87,12 @@ fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
         }
         RespostaDaPesquisa::Lista(lista) => {
             let numeros: Vec<&str> = lista.processos.iter().map(|p| p.numero.as_str()).collect();
+            let ausentes = match lista.linhas_ausentes_da_faixa {
+                0 => String::new(),
+                n => format!(", {n} sem linha na tabela"),
+            };
             format!(
-                "{} de {} declarado(s), faixa {} a {}: {}",
+                "{} de {} declarado(s), faixa {} a {}{ausentes}: {}",
                 numeros.len(),
                 lista.total_declarado,
                 lista.faixa.inicio,

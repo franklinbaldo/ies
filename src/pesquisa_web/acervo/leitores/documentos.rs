@@ -124,7 +124,12 @@ fn primeiro_envio(
         }
         RespostaDeDocumentos::SemResultado => vec![c.lido(leitor, r.passo, "sem_resultado")],
         RespostaDeDocumentos::Lista(ref lista) => {
-            let mut lido = c.lido(leitor, r.passo, "lista");
+            let forma = if lista.linhas_ausentes_da_faixa > 0 {
+                "lista_com_linhas_ausentes"
+            } else {
+                "lista"
+            };
+            let mut lido = c.lido(leitor, r.passo, forma);
             lido.total_declarado = Some(lista.total_declarado);
             let contagem = EmDocumentos::contagem(&interpretado.resposta);
             let html = interpretado.html.unwrap_or_default();
@@ -204,9 +209,15 @@ fn pagina_seguinte(
         Ok(resposta) => resposta,
         Err(erro) => return recusa(erro.subcodigo()),
     };
+    let forma = match &resposta {
+        RespostaDeDocumentos::Lista(l) if l.linhas_ausentes_da_faixa > 0 => {
+            "pagina_seguinte_conferida_com_linhas_ausentes"
+        }
+        _ => "pagina_seguinte_conferida",
+    };
     Some(
         match conferir_contagem(&pedido, EmDocumentos::contagem(&resposta)) {
-            Ok(()) => c.lido(leitor, r.passo, "pagina_seguinte_conferida"),
+            Ok(()) => c.lido(leitor, r.passo, forma),
             Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(erro.subcodigo())),
         },
     )

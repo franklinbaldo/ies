@@ -153,6 +153,37 @@ fn pagina_3_envia_um_post_de_navegar_em_documentos() {
     assert_eq!(pedidos, esperados);
 }
 
+/// Goiás 5.0.3 (`pesquisa-paginas-go`, passo 4): a página 2 "Exibindo 11 -
+/// 20 de 27.338" com 1 registro; a conferência da faixa usa a barra.
+#[test]
+fn pagina_seguinte_com_linhas_ausentes_confere_a_faixa_da_barra() {
+    let pagina_2 = resultado_de_documentos("00050", 11, 11, "27.338")
+        .replace("Exibindo 11 - 11 de", "Exibindo 11 - 20 de");
+    let (r, pedidos) = buscar(
+        "00050",
+        Some(2),
+        vec![
+            ok(controle_com_menu()),
+            ok(tela_de_pesquisa()),
+            ok(resultado_de_documentos("00050", 1, 10, "27.338")),
+            ok(pagina_2),
+        ],
+    );
+    let RespostaDeDocumentos::Lista(lista) = r.unwrap().resposta else {
+        panic!("esperada lista");
+    };
+    assert_eq!(
+        lista.faixa,
+        FaixaDaPesquisa {
+            inicio: 11,
+            fim: 20
+        }
+    );
+    assert_eq!(lista.documentos.len(), 1);
+    assert_eq!(lista.linhas_ausentes_da_faixa, 9);
+    assert_eq!(pedidos.len(), 4);
+}
+
 #[test]
 fn pagina_fora_do_intervalo_e_recusada_antes_do_post_de_pagina() {
     let (r, pedidos) = buscar(

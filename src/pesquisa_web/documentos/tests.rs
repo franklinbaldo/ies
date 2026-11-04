@@ -64,12 +64,29 @@ fn resposta_classifica_lista_com_total_e_faixa_e_sem_resultado() {
     );
 }
 
+/// Goiás 5.0.3 (`documento-numero-e-busca-go`, passo 13): "Exibindo 1 - 10
+/// de 225.304" com 4 registros no HTML; publicadas as 4 e as 6 ausentes.
 #[test]
-fn menos_linhas_que_a_faixa_e_recusado_como_em_processos() {
-    // Goiás publica "Exibindo 1 - 10 de 3.300" com menos linhas: falha fechada.
-    let html = resultado_com("x", &tabela(1, 10, "3.300", &linhas(1, 4)));
+fn menos_linhas_que_a_faixa_publicam_as_ausentes_como_em_processos() {
+    let html = resultado_com("x", &tabela(1, 10, "225.304", &linhas(1, 4)));
+    let RespostaDeDocumentos::Lista(lista) = ler_resposta_de_documentos(&html, None).unwrap()
+    else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.documentos.len(), 4);
+    assert_eq!(lista.total_declarado, 225_304);
+    assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 10 });
+    assert_eq!(lista.linhas_ausentes_da_faixa, 6);
+    let vazia = resultado_com("x", &tabela(1, 10, "3.300", ""));
+    let RespostaDeDocumentos::Lista(lista) = ler_resposta_de_documentos(&vazia, None).unwrap()
+    else {
+        panic!("esperada lista");
+    };
+    assert_eq!(lista.documentos.len(), 0);
+    assert_eq!(lista.linhas_ausentes_da_faixa, 10);
+    let mais = resultado_com("x", &tabela(1, 10, "3.300", &linhas(1, 11)));
     assert_eq!(
-        ler_resposta_de_documentos(&html, None).unwrap_err(),
+        ler_resposta_de_documentos(&mais, None).unwrap_err(),
         ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra
     );
 }

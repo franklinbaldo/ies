@@ -26,10 +26,12 @@ pub(crate) fn ler_resposta_de_documentos(
             itens,
             total_declarado,
             faixa,
+            linhas_ausentes_da_faixa,
         } => RespostaDeDocumentos::Lista(ListaDeDocumentos {
             documentos: itens,
             total_declarado,
             faixa,
+            linhas_ausentes_da_faixa,
         }),
     })
 }

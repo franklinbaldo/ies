@@ -225,7 +225,12 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
         }
         RespostaDaPesquisa::SemResultado => vec![c.lido(Leitor::Envio, r.passo, "sem_resultado")],
         RespostaDaPesquisa::Lista(ref lista) => {
-            let mut lido = c.lido(Leitor::Envio, r.passo, "lista");
+            let forma = if lista.linhas_ausentes_da_faixa > 0 {
+                "lista_com_linhas_ausentes"
+            } else {
+                "lista"
+            };
+            let mut lido = c.lido(Leitor::Envio, r.passo, forma);
             lido.total_declarado = Some(lista.total_declarado);
             let unidade = estado.unidade.as_deref().unwrap_or_default();
             let plano = plano(c, r, &interpretado.resposta, &url_do_envio, unidade);
