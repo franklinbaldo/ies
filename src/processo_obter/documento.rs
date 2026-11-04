@@ -10,12 +10,10 @@ use super::abertura::{Contexto, Lida, Rede, fora_de_palpite};
 use super::fluxo::{ler_controle_colhido, pesquisar_no_controle, pesquisar_pela_guardada};
 use super::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso};
 use crate::arvore_processo::{
-    ConteudoNaArvore, EnderecoDoConteudo, ErroArvore, ErroConteudoNaArvore, NaturezaDoDocumento,
-    ProcessoNaArvore, ler_arvore, ler_conteudo_na_arvore, ler_tela_do_documento,
-    nup_declarado_na_arvore,
+    ConteudoNaArvore, ErroArvore, ErroConteudoNaArvore, NaturezaDoDocumento, ProcessoNaArvore,
+    ler_arvore, ler_conteudo_na_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
 };
 use crate::documento::NumeroDocumento;
-use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, arquivo_privado, validar_cookie};
@@ -26,9 +24,9 @@ pub(crate) use erro::ErroDocumentoObter;
 use erro::ErroDocumentoObter as E;
 #[path = "documento_versao.rs"]
 mod versao;
-pub(crate) use versao::{
-    CopiaDeTrabalho, PedidoDeVersoes, SemCopia, SemVersaoAtual, VersoesDoDocumento,
-};
+#[cfg(test)]
+pub(crate) use versao::{CopiaDeTrabalho, SemCopia, SemVersaoAtual};
+pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
 
 /// O número SEI pedido e a `--unidade` (conferida na tela).
 pub(crate) struct PedidoDoDocumento<'a> {
@@ -56,6 +54,7 @@ pub(crate) struct DocumentoObtido {
     pub(crate) versoes: VersoesDoDocumento,
 }
 
+#[cfg(test)]
 pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoDocumento<'_>,
@@ -157,15 +156,8 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
         }
         ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
     };
-    let no_conferido = versao::NoConferido {
-        instalacao: &contexto.instalacao,
-        arvore: &html,
-        id_documento: &id_documento,
-        id_procedimento: &id_procedimento,
-        numero,
-        conteudo: &endereco,
-    };
-    let (tipo, texto, versoes) = versao::ler_conteudo_e_versoes(&mut rede, &no_conferido, versoes)?;
+    let alvo = versao::NoConferido(&contexto, &html, &id_documento, &id_procedimento);
+    let (tipo, texto, versoes) = versao::ler_versoes(&mut rede, &alvo, &endereco, versoes)?;
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
         id_documento,
@@ -179,24 +171,6 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes,
         versoes,
     })
-}
-
-/// GET do link assinado; o título tem de ser do mesmo número SEI.
-fn ler_conteudo<V: EnvioDoProcesso>(
-    rede: &mut Rede<'_, V>,
-    endereco: &EnderecoDoConteudo,
-    numero: &str,
-) -> Result<(String, String), E> {
-    let html = match rede.get(endereco.as_str()).map_err(E::Processo)? {
-        Lida::Html { html, .. } => html,
-        outra => return Err(E::Processo(fora_do_html(outra))),
-    };
-    let identidade = identidade_do_titulo(&html).map_err(E::Titulo)?;
-    if identidade.numero != numero {
-        return Err(E::TituloDeOutroDocumento);
-    }
-    let texto = texto_do_corpo(&html).map_err(E::Corpo)?;
-    Ok((identidade.tipo, texto))
 }
 
 /// Resposta que não é HTML: 302, login ou falha de transporte.

@@ -56,6 +56,7 @@ mod replay_documento_cli;
 mod replay_pesquisa_cli;
 mod replay_versoes_cli;
 mod resumo_processo;
+mod rodape_do_documento;
 mod saida;
 mod saida_erro;
 mod sessao_login;

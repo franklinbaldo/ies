@@ -125,8 +125,12 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
             "infra_hash" => &mut hash,
             _ => continue,
         };
-        if slot.replace(valor).is_some() {
-            return Err(ErroVersao::LinkInseguro);
+        // `id_documento` servido duas vezes com o mesmo valor (sete
+        // instalações); valores diferentes ou outra chave repetida: recusa.
+        match slot.replace(valor) {
+            Some(anterior) if chave == "id_documento" && anterior == valor => {}
+            Some(_) => return Err(ErroVersao::LinkInseguro),
+            None => {}
         }
     }
     if acao != Some("documento_visualizar")
@@ -206,9 +210,11 @@ fn linhas_do_historico(
             .filter_map(tl::Node::as_tag)
         {
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
+            // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
+            // `onclick`) não é link de versão e nunca é seguida.
             let href =
                 valor_do_atributo(a, "href").map_err(|_| ErroVersao::LinkAusenteOuAmbiguo)?;
-            links.extend(href);
+            links.extend(href.filter(|h| !h.starts_with('#')));
         }
         if links.len() != 1 {
             return Err(ErroVersao::LinkAusenteOuAmbiguo);

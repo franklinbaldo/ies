@@ -11,6 +11,8 @@ mod abertura;
 mod acervo;
 #[cfg(test)]
 mod acervo_documento;
+#[cfg(test)]
+mod acervo_versoes;
 mod andamentos;
 mod controle;
 mod documento;
@@ -63,12 +65,13 @@ use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+#[cfg(test)]
 pub(crate) use documento::{
-    CopiaDeTrabalho, PedidoDeVersoes, SemCopia, SemVersaoAtual, VersoesDoDocumento,
-    obter_documento_com_versoes,
+    CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento, obter_documento,
 };
 pub(crate) use documento::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, obter_documento,
+    DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoDocumento,
+    obter_documento_com_versoes,
 };
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::obter_processo;

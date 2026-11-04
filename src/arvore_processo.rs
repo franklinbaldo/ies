@@ -54,10 +54,7 @@ mod tests_situacao;
 pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
-pub(crate) use barra_do_documento::{
-    BarraDoDocumento, EdicaoNaBarra, EnderecoDasVersoes, ErroBarraDoDocumento,
-    ler_barra_do_documento,
-};
+pub(crate) use barra_do_documento::{EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento};
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,

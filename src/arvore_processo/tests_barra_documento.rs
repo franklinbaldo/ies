@@ -84,12 +84,11 @@ fn assinado_sem_edicao_e_sem_link() {
     );
     let outro = barra("10", "21", None).replace("editarConteudo", "x");
     let outra_forma = barra("10", "21", Some('X'));
-    assert_eq!(
+    assert!(
         ler(&com_barra(&base(), 1, &outro))
             .unwrap()
             .versoes
-            .is_some(),
-        true
+            .is_some()
     );
     assert_eq!(
         ler(&com_barra(&base(), 1, &outra_forma)).unwrap().edicao,

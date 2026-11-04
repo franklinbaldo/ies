@@ -3,14 +3,11 @@
 //! `--versao`, `--saida` e `--sem-copia`; os campos `versao`,
 //! `versao_atual`, `copia` e motivos; e a gravação de `DOC.vN.html` (com a
 //! base e o manifesto de `documento salvar`), 0600, sem sobrescrever.
-use crate::copia_documento::ErroCopia;
-#[cfg(test)]
+use crate::copia_documento::{self, ErroCopia, FonteHtml, IdentidadeCopia};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use crate::processo_obter::{DocumentoObtido, PedidoDeVersoes};
-#[cfg(test)]
-use serde_json::json;
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use std::path::Path;
 
 /// A cópia gravada: nome relativo a `--saida` e bytes da cópia.
@@ -38,9 +35,22 @@ pub(crate) fn gravar_copia(
     origem: &str,
     d: &DocumentoObtido,
 ) -> Result<Option<CopiaGravada>, ErroCopia> {
-    // RED: shim que não grava.
-    let _ = (diretorio, origem, d);
-    Ok(None)
+    let Ok(copia) = &d.versoes.copia else {
+        return Ok(None);
+    };
+    let documento = NumeroDocumento::novo(&d.numero).map_err(|_| ErroCopia::IdentidadeInvalida)?;
+    let identidade = IdentidadeCopia {
+        documento,
+        id_interno: d.id_documento.clone(),
+        instalacao: origem.to_owned(),
+        versao: copia.versao,
+    };
+    let fonte = FonteHtml::LeituraAtualNaoAssinada { html: &copia.html };
+    copia_documento::preparar(diretorio, &identidade, fonte)?;
+    Ok(Some(CopiaGravada {
+        arquivo: format!("{}.v{}.html", d.numero, copia.versao.numero()),
+        bytes: copia.html.len(),
+    }))
 }
 
 /// `versao`, `versao_atual`, `versao_atual_motivo`, `copia` e `copia_motivo`.
@@ -49,9 +59,22 @@ pub(crate) fn inserir_campos(
     d: &DocumentoObtido,
     gravada: Option<&CopiaGravada>,
 ) {
-    // RED: shim só com o campo antigo.
-    let _ = (d, gravada);
-    objeto.insert("versao_atual".into(), Value::Null);
+    let v = &d.versoes;
+    objeto.insert("versao".into(), json!(v.lida.map(VersaoDocumento::numero)));
+    let (atual, motivo) = match v.atual {
+        Ok(n) => (json!(n.numero()), Value::Null),
+        Err(sem) => (Value::Null, json!(sem.motivo())),
+    };
+    objeto.insert("versao_atual".into(), atual);
+    objeto.insert("versao_atual_motivo".into(), motivo);
+    let (copia, motivo) = match (&v.copia, gravada) {
+        (Ok(_), Some(g)) => (json!({"arquivo": g.arquivo, "bytes": g.bytes}), Value::Null),
+        // Preparada, mas sem `--saida` não há onde gravar.
+        (Ok(_), None) => (Value::Null, json!("nao_pedida")),
+        (Err(sem), _) => (Value::Null, json!(sem.motivo())),
+    };
+    objeto.insert("copia".into(), copia);
+    objeto.insert("copia_motivo".into(), motivo);
 }
 
 /// Linha humana sobre versão e cópia, quando há algo a dizer.
@@ -198,13 +221,16 @@ mod testes {
         assert_eq!(objeto["copia_motivo"], json!("versao_historica"));
         let nao = documento(VersoesDoDocumento {
             lida: None,
-            atual: Err(SemVersaoAtual::NaoPedida),
+            atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
             copia: Err(SemCopia::NaoPedida),
         });
         let mut objeto = Map::new();
         inserir_campos(&mut objeto, &nao, None);
         assert_eq!(objeto["versao_atual"], Value::Null);
-        assert_eq!(objeto["versao_atual_motivo"], json!("nao_pedida"));
+        assert_eq!(
+            objeto["versao_atual_motivo"],
+            json!("nao_servida_no_conteudo")
+        );
         assert_eq!(linha_humana(&nao, None), None);
         std::fs::remove_dir_all(pasta).unwrap();
     }

@@ -167,13 +167,12 @@ pub fn preparar(
         FonteHtml::EditorVerificado {
             html,
             assinado: false,
-        } => html.as_bytes(),
+        }
+        | FonteHtml::LeituraAtualNaoAssinada { html } => html.as_bytes(),
         FonteHtml::EditorVerificado { assinado: true, .. } => {
             return Err(ErroCopia::DocumentoAssinado);
         }
         FonteHtml::VisualizacaoHistorica => return Err(ErroCopia::FonteNaoEditavel),
-        // RED: ainda recusada.
-        FonteHtml::LeituraAtualNaoAssinada { .. } => return Err(ErroCopia::FonteNaoEditavel),
     };
     if html.is_empty() || html.len() > 8_000_000 {
         return Err(ErroCopia::FonteNaoEditavel);

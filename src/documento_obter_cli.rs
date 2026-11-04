@@ -3,12 +3,15 @@
 //! documento por vez, na ordem pedida, cada um pela pesquisa rápida do
 //! número SEI, a árvore e o link assinado do conteúdo. Publica metadados e
 //! texto visível; nunca URL, hash, cookie ou HTML. Com `--saida`, grava
-//! `DOC.txt` (0600, sem sobrescrever) só depois de todos lidos.
+//! `DOC.txt` (0600, sem sobrescrever) só depois de todos lidos. `--versao N`
+//! e a cópia de trabalho: contracts/cli/documento-obter-versoes.md (#88).
 use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
+use crate::documento_versao_cli::{self, CopiaGravada};
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::{
-    DocumentoObtido, ErroDocumentoObter, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
+    DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoDocumento, SessaoDoProcesso,
+    obter_documento_com_versoes,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
@@ -48,17 +51,15 @@ pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
 }
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
-/// opções desta operação ainda não implementadas (`--processo`, `--versao`,
-/// `--sem-copia`, `--com-propriedades`, `--ocultar-inacessiveis`, que
-/// seguem para o stub). Número inválido fica para a validação comum.
+/// opções desta operação ainda não implementadas (`--processo`,
+/// `--com-propriedades`, `--ocultar-inacessiveis`, que seguem para o
+/// stub). Número inválido fica para a validação comum.
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(
         comando @ Documento {
             acao: None,
             html_privado: None,
             processo: None,
-            versao: None,
-            sem_copia: false,
             ocultar_inacessiveis: false,
             com_propriedades: false,
             ..
@@ -80,11 +81,9 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
             return Some(repetido(cli.json));
         }
     }
-    Some(obter(
-        cli,
-        &numeros,
-        comando.saida.as_deref().map(Path::new),
-    ))
+    let saida = comando.saida.as_deref().map(Path::new);
+    let versoes = documento_versao_cli::pedido(comando.versao, saida.is_some(), comando.sem_copia)?;
+    Some(obter(cli, &numeros, saida, versoes))
 }
 
 fn repetido(json_mode: bool) -> ExitCode {
@@ -105,7 +104,12 @@ fn repetido(json_mode: bool) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn obter(cli: &Cli, numeros: &[NumeroDocumento], saida: Option<&Path>) -> ExitCode {
+fn obter(
+    cli: &Cli,
+    numeros: &[NumeroDocumento],
+    saida: Option<&Path>,
+    versoes: PedidoDeVersoes,
+) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
@@ -129,12 +133,12 @@ fn obter(cli: &Cli, numeros: &[NumeroDocumento], saida: Option<&Path>) -> ExitCo
             numero,
             unidade: cli.unidade.as_deref(),
         };
-        match obter_documento(&sessao, &pedido, &indice, &mut EnvioHttps) {
+        match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
             Ok(obtido) => obtidos.push(obtido),
             Err(erro) => return falha(cli.json, numero.as_str(), obtidos.len(), &erro),
         }
     }
-    publicar(cli.json, &obtidos, saida)
+    publicar(cli.json, &obtidos, saida, sessao.origem)
 }
 
 /// A falha do documento `numero`; os já lidos não são publicados.
@@ -156,8 +160,14 @@ fn falha(json_mode: bool, numero: &str, lidos: usize, erro: &ErroDocumentoObter)
     ExitCode::from(1)
 }
 
-fn publicar(json_mode: bool, obtidos: &[DocumentoObtido], saida: Option<&Path>) -> ExitCode {
+fn publicar(
+    json_mode: bool,
+    obtidos: &[DocumentoObtido],
+    saida: Option<&Path>,
+    origem: &str,
+) -> ExitCode {
     let mut gravados = Vec::new();
+    let mut copias: Vec<Option<CopiaGravada>> = Vec::new();
     if let Some(diretorio) = saida {
         for d in obtidos {
             let destino = diretorio.join(format!("{}.txt", d.numero));
@@ -165,6 +175,15 @@ fn publicar(json_mode: bool, obtidos: &[DocumentoObtido], saida: Option<&Path>) 
                 Ok(bytes) => gravados.push(bytes),
                 Err(erro) => {
                     return erro_fonte(json_mode, erro.subcodigo(), "o texto não foi gravado");
+                }
+            }
+        }
+        for d in obtidos {
+            match documento_versao_cli::gravar_copia(diretorio, origem, d) {
+                Ok(copia) => copias.push(copia),
+                Err(erro) => {
+                    let mensagem = "a cópia de trabalho não foi gravada";
+                    return erro_fonte(json_mode, erro.subcodigo(), mensagem);
                 }
             }
         }
@@ -176,6 +195,8 @@ fn publicar(json_mode: bool, obtidos: &[DocumentoObtido], saida: Option<&Path>) 
             .enumerate()
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
+                let copia = copias.get(i).and_then(Option::as_ref);
+                documento_versao_cli::inserir_campos(&mut objeto, d, copia);
                 match gravados.get(i) {
                     Some(bytes) => {
                         objeto.insert("arquivo".to_owned(), json!(format!("{}.txt", d.numero)));
@@ -196,6 +217,10 @@ fn publicar(json_mode: bool, obtidos: &[DocumentoObtido], saida: Option<&Path>) 
     } else {
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
+            let copia = copias.get(i).and_then(Option::as_ref);
+            if let Some(linha) = documento_versao_cli::linha_humana(d, copia) {
+                println!("{linha}");
+            }
             match gravados.get(i) {
                 Some(bytes) => println!("Texto gravado em {}.txt ({bytes} bytes).", d.numero),
                 None => println!("{}", d.texto),

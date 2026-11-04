@@ -1,8 +1,9 @@
 //! RED/GREEN de `ies documento DOC --versao N` e da cópia de trabalho
 //! (Refs #88; contracts/cli/documento-obter-versoes.md): sequência e
-//! orçamento exatos das requisições, `versao_atual` só com a lista lida e
-//! uma recusa tipada por caso. Telas SINTÉTICAS com a forma das cassettes
-//! `liberacoes-e-versoes-leitura-*` (barra do nó e lista de versões).
+//! orçamento exatos das requisições, `versao_atual` só do rodapé servido
+//! ou da lista lida, e uma recusa tipada por caso. Telas SINTÉTICAS com a
+//! forma das cassettes `liberacoes-e-versoes-leitura-*` (barra do nó e
+//! lista de versões) e do rodapé servido na PEN4 5.0.4.
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
@@ -13,6 +14,7 @@ use crate::arvore_processo::tests_conteudo::{
 use crate::arvore_processo::tests_tela::tela_do_processo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::{ErroVersao, VersaoDocumento};
+use crate::rodape_do_documento::testes::rodape;
 
 const DOC: &str = "0000101";
 const ID_DOC: &str = "21";
@@ -39,6 +41,14 @@ fn conteudo(numero: &str, texto: &str) -> String {
     format!(
         "<html><head><title>SEI/EXEMPLO - {numero} - Despacho</title></head>\
          <body><p>{texto}</p></body></html>"
+    )
+}
+
+/// Conteúdo com o rodapé `Criado por …, versão N por … em ….`.
+fn conteudo_v(numero: &str, texto: &str, versao: u32) -> String {
+    conteudo(numero, texto).replace(
+        "</body>",
+        &format!("{}</body>", rodape(&versao.to_string())),
     )
 }
 
@@ -106,11 +116,18 @@ const COPIA: PedidoDeVersoes = PedidoDeVersoes {
     copia: true,
 };
 
+fn n(versoes: &VersoesDoDocumento) -> (Option<u32>, Result<u32, SemVersaoAtual>) {
+    (
+        versoes.lida.map(VersaoDocumento::numero),
+        versoes.atual.map(VersaoDocumento::numero),
+    )
+}
+
 #[test]
 fn versao_n_le_a_lista_e_a_linha_n_sem_o_conteudo_atual_em_seis() {
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(lista(&[2, 1])));
-    respostas.push(ok(conteudo(DOC, "Texto da versão 1.")));
+    respostas.push(ok(conteudo_v(DOC, "Texto da versão 1.", 1)));
     let (r, pedidos) = rodar(respostas, versao(1));
     let d = r.unwrap();
     let mut esperado = primeiros();
@@ -118,18 +135,33 @@ fn versao_n_le_a_lista_e_a_linha_n_sem_o_conteudo_atual_em_seis() {
     esperado.push(get(&url_da_versao(1)));
     assert_eq!(pedidos, esperado);
     assert_eq!(d.requisicoes, 6);
-    assert_eq!(d.texto, "Texto da versão 1.");
-    assert_eq!(d.versoes.lida.map(VersaoDocumento::numero), Some(1));
-    assert_eq!(d.versoes.atual.map(VersaoDocumento::numero), Ok(2));
+    assert!(d.texto.starts_with("Texto da versão 1."));
+    assert_eq!(n(&d.versoes), (Some(1), Ok(2)));
     assert_eq!(d.versoes.copia, Err(SemCopia::NaoPedida));
     assert!(!format!("{d:?}").contains(&"d".repeat(64)));
+}
+
+#[test]
+fn rodape_de_outra_versao_e_recusa_e_sem_rodape_vale_a_lista() {
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(lista(&[2, 1])));
+    respostas.push(ok(conteudo_v(DOC, "Atual.", 2)));
+    let (r, _) = rodar(respostas, versao(1));
+    let erro = r.unwrap_err();
+    assert_eq!(erro, ErroDocumentoObter::VersaoServidaDiferenteDaPedida);
+    assert_eq!(erro.subcodigo(), "versao_servida_diferente_da_pedida");
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(lista(&[2, 1])));
+    respostas.push(ok(conteudo(DOC, "Sem rodapé.")));
+    let (r, _) = rodar(respostas, versao(1));
+    assert_eq!(n(&r.unwrap().versoes), (Some(1), Ok(2)));
 }
 
 #[test]
 fn versao_atual_com_copia_prepara_a_copia_do_html_servido() {
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(lista(&[2, 1])));
-    respostas.push(ok(conteudo(DOC, "Atual.")));
+    respostas.push(ok(conteudo_v(DOC, "Atual.", 2)));
     let mut pedido = versao(2);
     pedido.copia = true;
     let (r, _) = rodar(respostas, pedido);
@@ -139,7 +171,7 @@ fn versao_atual_com_copia_prepara_a_copia_do_html_servido() {
     // Versão anterior: cópia recusada com motivo, leitura mantida.
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(lista(&[2, 1])));
-    respostas.push(ok(conteudo(DOC, "Antiga.")));
+    respostas.push(ok(conteudo_v(DOC, "Antiga.", 1)));
     let mut pedido = versao(1);
     pedido.copia = true;
     let (r, _) = rodar(respostas, pedido);
@@ -185,7 +217,21 @@ fn externo_com_versao_e_recusado_antes_da_barra() {
 }
 
 #[test]
-fn copia_le_conteudo_e_lista_em_seis_e_publica_a_atual() {
+fn copia_pelo_rodape_em_cinco_sem_a_lista() {
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(conteudo_v(DOC, "Atual.", 3)));
+    let (r, pedidos) = rodar(respostas, COPIA);
+    let mut esperado = primeiros();
+    esperado.push(get(&absoluta(&src_visualizar(ID_DOC))));
+    assert_eq!(pedidos, esperado);
+    let d = r.unwrap();
+    assert_eq!(d.requisicoes, 5);
+    assert_eq!(n(&d.versoes), (Some(3), Ok(3)));
+    assert_eq!(d.versoes.copia.unwrap().versao.numero(), 3);
+}
+
+#[test]
+fn copia_sem_rodape_le_a_lista_em_seis() {
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(conteudo(DOC, "Atual.")));
     respostas.push(ok(lista(&[1, 2, 3])));
@@ -195,55 +241,51 @@ fn copia_le_conteudo_e_lista_em_seis_e_publica_a_atual() {
     esperado.push(get(&absoluta(&href_versoes(ID, ID_DOC))));
     assert_eq!(pedidos, esperado);
     let d = r.unwrap();
-    assert_eq!(d.requisicoes, 6);
-    assert_eq!(d.versoes.lida, None);
-    assert_eq!(d.versoes.atual.map(VersaoDocumento::numero), Ok(3));
+    assert_eq!(n(&d.versoes), (None, Ok(3)));
     assert_eq!(d.versoes.copia.unwrap().versao.numero(), 3);
+    // Sem rodapé e sem lista na barra: nenhuma cópia, nenhum GET a mais.
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), false));
+    respostas.push(ok(conteudo(DOC, "Atual.")));
+    let (r, pedidos) = rodar(respostas, COPIA);
+    assert_eq!(pedidos.len(), 5);
+    let d = r.unwrap();
+    assert_eq!(
+        d.versoes.atual,
+        Err(SemVersaoAtual::ListaNaoPublicadaNaArvore)
+    );
+    assert_eq!(d.versoes.copia, Err(SemCopia::ListaNaoPublicadaNaArvore));
 }
 
 #[test]
 fn copia_insegura_nao_pede_a_lista() {
-    for (edicao, lista_na_barra, sem_atual, sem_copia) in [
-        (
-            Some('S'),
-            true,
-            SemVersaoAtual::CopiaNaoPreparavel,
-            SemCopia::DocumentoAssinado,
-        ),
-        (
-            None,
-            true,
-            SemVersaoAtual::CopiaNaoPreparavel,
-            SemCopia::EdicaoNaoPublicadaNaArvore,
-        ),
-        (
-            Some('N'),
-            false,
-            SemVersaoAtual::ListaNaoPublicadaNaArvore,
-            SemCopia::ListaNaoPublicadaNaArvore,
-        ),
+    for (edicao, sem_copia) in [
+        (Some('S'), SemCopia::DocumentoAssinado),
+        (None, SemCopia::EdicaoNaoPublicadaNaArvore),
     ] {
-        let mut respostas = ate_a_arvore(arvore_com_barra(edicao, lista_na_barra));
+        let mut respostas = ate_a_arvore(arvore_com_barra(edicao, true));
         respostas.push(ok(conteudo(DOC, "Atual.")));
         let (r, pedidos) = rodar(respostas, COPIA);
         assert_eq!(pedidos.len(), 5, "{edicao:?}");
         let d = r.unwrap();
-        assert_eq!(d.versoes.atual, Err(sem_atual));
+        assert_eq!(d.versoes.atual, Err(SemVersaoAtual::NaoServidaNoConteudo));
         assert_eq!(d.versoes.copia, Err(sem_copia));
     }
-    let comlink = conteudo(DOC, "<a href=\"controlador.php?acao=x&infra_hash=1\">x</a>");
+    let comlink = conteudo_v(
+        DOC,
+        "<a href=\"controlador.php?acao=x&infra_hash=1\">x</a>",
+        2,
+    );
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(comlink));
     let (r, pedidos) = rodar(respostas, COPIA);
     assert_eq!(pedidos.len(), 5);
-    assert_eq!(
-        r.unwrap().versoes.copia,
-        Err(SemCopia::ConteudoComLinkAssinado)
-    );
+    let d = r.unwrap();
+    assert_eq!(n(&d.versoes), (Some(2), Ok(2)));
+    assert_eq!(d.versoes.copia, Err(SemCopia::ConteudoComLinkAssinado));
 }
 
 #[test]
-fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_fica_nula() {
+fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_vem_do_rodape() {
     // Barra repetida (recusa se lida) não muda a leitura sem pedido.
     let html = arvore_com_barra(Some('N'), true).replacen(
         "Nos[1].src = ",
@@ -251,12 +293,19 @@ fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_fica_nula() {
         1,
     );
     let mut respostas = ate_a_arvore(html.clone());
-    respostas.push(ok(conteudo(DOC, "Atual.")));
+    respostas.push(ok(conteudo_v(DOC, "Atual.", 4)));
     let (r, pedidos) = rodar(respostas, PedidoDeVersoes::default());
     assert_eq!(pedidos.len(), 5);
     let d = r.unwrap();
-    assert_eq!(d.versoes.atual, Err(SemVersaoAtual::NaoPedida));
+    assert_eq!(n(&d.versoes), (Some(4), Ok(4)));
     assert_eq!(d.versoes.copia, Err(SemCopia::NaoPedida));
+    let mut respostas = ate_a_arvore(html.clone());
+    respostas.push(ok(conteudo(DOC, "Atual.")));
+    let (r, _) = rodar(respostas, PedidoDeVersoes::default());
+    assert_eq!(
+        r.unwrap().versoes.atual,
+        Err(SemVersaoAtual::NaoServidaNoConteudo)
+    );
     let (r, pedidos) = rodar(ate_a_arvore(html), versao(1));
     assert_eq!(pedidos.len(), 4);
     assert_eq!(

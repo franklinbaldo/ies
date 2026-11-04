@@ -78,12 +78,85 @@ pub(crate) fn ler_barra_do_documento(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<BarraDoDocumento, ErroBarraDoDocumento> {
-    // RED: shim sem leitura.
-    let _ = (instalacao, html, id_documento, id_procedimento);
-    Err(ErroBarraDoDocumento::BarraForaDaFormaObservada)
+    use ErroBarraDoDocumento as E;
+    let nada = BarraDoDocumento {
+        versoes: None,
+        edicao: EdicaoNaBarra::NaoPublicada,
+    };
+    let Some(texto) = barra_do_no(html, id_documento)? else {
+        return Ok(nada);
+    };
+    let dom = tl::parse(&texto, tl::ParserOptions::default())
+        .map_err(|_| E::BarraForaDaFormaObservada)?;
+    let parser = dom.parser();
+    let (mut links, mut edicoes) = (Vec::new(), Vec::new());
+    for no in dom.query_selector("a").into_iter().flatten() {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let lidos = atributos(tag).map_err(|_| E::BarraForaDaFormaObservada)?;
+        let valor = |nome| -> Result<Option<String>, E> {
+            match lidos
+                .valor(nome)
+                .map_err(|_| E::BarraForaDaFormaObservada)?
+            {
+                Some(bruto) => decodificar_atributo(bruto)
+                    .map(Some)
+                    .ok_or(E::BarraForaDaFormaObservada),
+                None => Ok(None),
+            }
+        };
+        if let Some(href) = valor("href")?
+            && acao_do_href(&href) == Some(ACAO_DAS_VERSOES)
+        {
+            links.push(href);
+        }
+        if let Some(onclick) = valor("onclick")?
+            && onclick.contains("editarConteudo")
+        {
+            edicoes.push(match onclick.as_str() {
+                "editarConteudo('N');" => EdicaoNaBarra::NaoAssinado,
+                "editarConteudo('S');" => EdicaoNaBarra::Assinado,
+                _ => EdicaoNaBarra::ForaDaForma,
+            });
+        }
+    }
+    let edicao = match edicoes.as_slice() {
+        [] => EdicaoNaBarra::NaoPublicada,
+        [uma] => *uma,
+        _ => EdicaoNaBarra::ForaDaForma,
+    };
+    let href = match links.as_slice() {
+        [] => return Ok(BarraDoDocumento { edicao, ..nada }),
+        [href] => href,
+        _ => return Err(E::LinksDasVersoesRepetidosNaBarra),
+    };
+    let recusa = |r| match r {
+        EnderecoRecusado::NaoReconhecido => E::EnderecoDasVersoesNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => E::EnderecoDasVersoesDeOutroDocumento,
+    };
+    conferir_endereco_relativo_por(
+        instalacao,
+        href,
+        ACAO_DAS_VERSOES,
+        "id_procedimento",
+        id_procedimento,
+    )
+    .map_err(recusa)?;
+    let url = conferir_endereco_relativo_por(
+        instalacao,
+        href,
+        ACAO_DAS_VERSOES,
+        "id_documento",
+        id_documento,
+    )
+    .map_err(recusa)?;
+    Ok(BarraDoDocumento {
+        versoes: Some(EnderecoDasVersoes(url)),
+        edicao,
+    })
 }
 
-#[allow(dead_code)]
 /// O primeiro `acao=` da consulta (a conferência recusa dois).
 fn acao_do_href(href: &str) -> Option<&str> {
     let (_, consulta) = href.split_once('?')?;
@@ -92,7 +165,6 @@ fn acao_do_href(href: &str) -> Option<&str> {
         .find_map(|par| par.strip_prefix("acao="))
 }
 
-#[allow(dead_code)]
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
 fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
     use ErroBarraDoDocumento as E;

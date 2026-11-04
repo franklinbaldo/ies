@@ -39,6 +39,8 @@ pub(crate) enum ErroDocumentoObter {
     ListaDeVersoesNaoPublicadaNaArvore,
     /// A lista de versões servida, ou N fora dela.
     Versoes(ErroVersao),
+    /// O rodapé da versão servida declara outra versão.
+    VersaoServidaDiferenteDaPedida,
 }
 
 impl ErroDocumentoObter {
@@ -59,6 +61,7 @@ impl ErroDocumentoObter {
             Self::BarraDoDocumento(erro) => erro.subcodigo(),
             Self::ListaDeVersoesNaoPublicadaNaArvore => "lista_de_versoes_nao_publicada_na_arvore",
             Self::Versoes(erro) => erro.subcodigo(),
+            Self::VersaoServidaDiferenteDaPedida => "versao_servida_diferente_da_pedida",
         }
     }
 
@@ -96,6 +99,9 @@ impl ErroDocumentoObter {
                 "a versão pedida não está na lista de versões do documento"
             }
             Self::Versoes(_) => "a lista de versões não foi reconhecida",
+            Self::VersaoServidaDiferenteDaPedida => {
+                "o rodapé do conteúdo servido declara outra versão"
+            }
         }
     }
 
