@@ -91,3 +91,10 @@ são gerados pelo gerenciador de pacotes e não podem ser divididos
 automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
+
+A segunda extração, `ies-web`, desloca a leitura de atributos HTML e as
+regras puras de MIME/entidades para um crate só com a dependência `tl`.
+A fachada em `src/html_atributos.rs` preserva a interface interna e mantém
+a transformação sintética usada pelos testes de regressão. O medidor
+compara também uma alteração descartável no tokenizador HTML, além da
+alteração na operação. Um resultado isolado não prova desempenho superior.
