@@ -92,6 +92,22 @@ fn lista_paginada_e_lida_e_a_pagina_2_e_planejada() {
 }
 
 #[test]
+fn lista_com_linha_ausente_registra_a_faixa_publicada() {
+    let html = crate::pesquisa_web::tests_fixtures::conteudo_da_lista(1, 9, "40", 10)
+        .replace("Exibindo 1 - 9 de", "Exibindo 1 - 10 de");
+    let html = format!(
+        "<html><body><a id=\"lnkInfraUnidade\">UNIDADE TESTE</a>{}</body></html>",
+        formulario("", true, &html)
+    );
+    let r = cassette(&[do_controle(), da_tela(), do_envio(&html)]);
+    assert_eq!(
+        de(&r, Leitor::Envio),
+        [(Resultado::Lido, Some("lista_com_linhas_ausentes"))]
+    );
+    assert!(relatorio::markdown(1, &r).contains("40, faixa 1–10, linhas ausentes 1"));
+}
+
+#[test]
 fn lista_numa_pagina_tem_plano_de_uma_pagina_so() {
     let html = resultado_numa_pagina("", 2, "2 resultados");
     let r = cassette(&[do_controle(), da_tela(), do_envio(&html)]);
@@ -227,4 +243,30 @@ fn relatorio_tem_a_tabela_e_nao_publica_url_nem_hash() {
     assert!(md.contains("| resposta do envio | unb | 1 | 1 |"), "{md}");
     assert!(md.contains("processo_unico"), "{md}");
     assert!(!md.contains("infra_hash") && !md.contains("controlador.php"));
+}
+
+#[test]
+fn pesquisa_rapida_classifica_o_302_sem_usar_o_corpo() {
+    let url = url_do_envio().replace("protocolo_pesquisar", "protocolo_pesquisa_rapida");
+    let mut resposta = passo("protocolo_pesquisa_rapida", "POST", 302, &url, "");
+    let local = localizacao("77")
+        .replace("protocolo_pesquisar", "protocolo_pesquisa_rapida")
+        .replace("id_procedimento=", "id_protocolo=");
+    resposta["response"]["headers"]["Location"] = Value::String(local);
+    let sem_location = passo("protocolo_pesquisa_rapida", "POST", 302, &url, "");
+    let json = json!({
+        "sei_root": RAIZ,
+        "interactions": [resposta, sem_location]
+    });
+    let registros = super::rapida::replay("sintetica", "unb", &json);
+    assert_eq!(
+        de(&registros, Leitor::PesquisaRapida),
+        [
+            (Resultado::Lido, None),
+            (
+                Resultado::Recusado("localizacao_do_redirecionamento_ausente"),
+                None
+            ),
+        ]
+    );
 }

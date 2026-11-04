@@ -55,6 +55,8 @@ impl Cassette<'_> {
             resultado,
             forma: None,
             total_declarado: None,
+            faixa: None,
+            linhas_ausentes: 0,
         }
     }
 
@@ -232,6 +234,8 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
             };
             let mut lido = c.lido(Leitor::Envio, r.passo, forma);
             lido.total_declarado = Some(lista.total_declarado);
+            lido.faixa = Some((lista.faixa.inicio, lista.faixa.fim));
+            lido.linhas_ausentes = lista.linhas_ausentes_da_faixa;
             let unidade = estado.unidade.as_deref().unwrap_or_default();
             let plano = plano(c, r, &interpretado.resposta, &url_do_envio, unidade);
             vec![lido, plano]
