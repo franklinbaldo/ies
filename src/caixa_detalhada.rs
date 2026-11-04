@@ -9,6 +9,8 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
 pub(crate) use colunas::ColunasDaLinha;
+#[cfg(test)]
+pub(crate) use colunas::ValorDaColuna;
 use serde::Serialize;
 use std::collections::HashSet;
 
