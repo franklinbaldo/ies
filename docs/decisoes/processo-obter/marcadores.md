@@ -104,3 +104,13 @@ não acrescenta nada). Não observados: paginação da
 tabela, marcadores de outras unidades e a célula em 5.0.x. Revisar se a
 tela publicar paginação, se a célula do Controle trouxer outra forma, ou
 se a barra publicar a ação noutra forma.
+
+**Rótulo `<id>#<nome>` (decisão do proprietário, 04/11/2026).** Cada
+marcador, no Controle e em `ies processo NUP`, ganha `rotulo` =
+`<id>#<nome>`, também na linha do texto humano: o agente lê o nome para a
+semântica e cita o id sem ambiguidade. `id` e `nome` continuam como campos
+separados (ninguém precisa partir a string). Alternativa rejeitada: só o
+rótulo, que obrigaria a parsear um nome que pode conter `#`. A captura da
+UnB mostrou que o id é do marcador da unidade (o mesmo id em processos
+diferentes), não da atribuição; a descrição anterior ("andamento do
+marcador") foi corrigida.

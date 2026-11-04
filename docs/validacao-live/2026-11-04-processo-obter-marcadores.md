@@ -22,8 +22,14 @@ detalhe ligadas (`ies unidade colunas --definir todas --confirmar`).
 | `--sem-marcadores` | **PASS**: 3 req., motivo `omitidos_por_sem_marcadores` |
 | Processo sem marcador | **PASS** (depois da correção): 3 req., `marcadores: []`, total 0, faixa `null` |
 | Texto humano | **PASS**: `Marcadores: 2 de 2 declarados:` e uma linha por marcador |
+| `rotulo` `<id>#<nome>` (`--sem-andamentos --sem-propriedades`, outro processo) | **PASS**: 3 req., 1 marcador, `"rotulo": "208#Diretor Assinar"` ao lado de `id` e `nome` |
 
 ## Observações
+
+- **Id do marcador:** é o do marcador da unidade, não o da atribuição. Na
+  célula do Controle, `#ID-237` aparece em dois processos e `#ID-279` em
+  outros dois; na tela, é o `value` do checkbox e o `id_marcador` do link
+  de alterar.
 
 - **Processo sem marcador:** a tela de marcadores responde **302** para
   `andamento_marcador_cadastrar` ("SEI - Adicionar Marcador") do mesmo

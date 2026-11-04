@@ -19,6 +19,12 @@ pub(crate) use tela::ler_marcadores;
 /// `acao` do link na barra, da tela e do link guardado no índice.
 pub(crate) const ACAO: &str = "andamento_marcador_gerenciar";
 
+/// `<id>#<nome>`: o nome para a semântica, o id (só dígitos, antes do
+/// primeiro `#`) para referência sem ambiguidade. O nome pode conter `#`.
+pub(crate) fn rotulo_do_marcador(id: &str, nome: &str) -> String {
+    format!("{id}#{nome}")
+}
+
 /// URL absoluta e assinada da tela: `Debug` redigido, sem `Display`.
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct EnderecoDosMarcadores {

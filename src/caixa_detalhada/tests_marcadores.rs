@@ -42,8 +42,8 @@ fn dois_marcadores_na_mesma_celula_saem_como_lista_de_dois() {
     assert_eq!(
         marcadores(&conteudo),
         json!([
-            {"nome": "Pendente", "cor": "amarelo", "texto": "Texto sintético", "id": "31"},
-            {"nome": "Revisão", "cor": "azul", "texto": null, "id": "32"}
+            {"nome": "Pendente", "cor": "amarelo", "texto": "Texto sintético", "id": "31", "rotulo": "31#Pendente"},
+            {"nome": "Revisão", "cor": "azul", "texto": null, "id": "32", "rotulo": "32#Revisão"}
         ])
     );
 }
@@ -77,8 +77,8 @@ fn sem_tooltip_ou_sem_fragmento_publica_null() {
     assert_eq!(
         marcadores(&format!("{sem_dica}{sem_id}")),
         json!([
-            {"nome": "M1", "cor": "verde", "texto": null, "id": "41"},
-            {"nome": "M2", "cor": "verde", "texto": null, "id": null}
+            {"nome": "M1", "cor": "verde", "texto": null, "id": "41", "rotulo": "41#M1"},
+            {"nome": "M2", "cor": "verde", "texto": null, "id": null, "rotulo": null}
         ])
     );
 }

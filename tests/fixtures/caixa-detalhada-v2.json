@@ -27,12 +27,14 @@
               "cor": "amarelo",
               "id": "31",
               "nome": "Marcador A",
+              "rotulo": "31#Marcador A",
               "texto": "Texto sintético"
             },
             {
               "cor": "azul",
               "id": "32",
               "nome": "Marcador B",
+              "rotulo": "32#Marcador B",
               "texto": null
             }
           ],

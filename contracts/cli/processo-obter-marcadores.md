@@ -118,9 +118,9 @@ o [contrato das propriedades](processo-obter-propriedades.md).
 
 ```json
 "marcadores": [
-  {"id": "501", "nome": "texto", "cor": "azul", "texto": null,
+  {"id": "501", "rotulo": "501#texto", "nome": "texto", "cor": "azul", "texto": null,
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"},
-  {"id": "502", "nome": "texto", "cor": "amarelo", "texto": "texto",
+  {"id": "502", "rotulo": "502#texto", "nome": "texto", "cor": "amarelo", "texto": "texto",
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"}],
 "marcadores_total_declarado": 2,
 "marcadores_faixa_observada": {"inicio": 1, "fim": 2}
@@ -130,7 +130,15 @@ Lidos, `"marcadores"` sai de `nao_lidos`; a faixa é `null` com zero
 linhas. `--sem-marcadores`: nenhum pedido; as chaves `marcadores*` somem,
 `"marcadores"` fica em `nao_lidos` e o motivo é
 `"omitidos_por_sem_marcadores"`. Texto humano: uma linha por marcador
-(`- <nome> [<cor>]: <texto>`).
+(`- <id>#<nome> [<cor>]: <texto>`).
+
+**Identidade.** `id` é o `id_marcador` do marcador da unidade (o
+`value` do checkbox, o `id_marcador` do link de alterar e o `#ID-<n>` da
+célula do Controle, iguais na UnB 4.0.9), não um id da atribuição ao
+processo. `rotulo` é `<id>#<nome>`: o nome dá a semântica, o id a
+referência sem ambiguidade (dois marcadores podem ter o mesmo nome em
+unidades diferentes). O id é o trecho decimal antes do primeiro `#`; o
+nome pode conter `#`.
 
 ## Efeitos
 

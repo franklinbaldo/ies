@@ -7,7 +7,7 @@
 use crate::arvore_processo::{DocumentoMovido, PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
-use crate::marcadores_processo::MarcadoresLidos;
+use crate::marcadores_processo::{MarcadoresLidos, rotulo_do_marcador};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     Andamentos, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, Propriedades,
@@ -48,6 +48,7 @@ fn inserir_marcadores(objeto: &mut serde_json::Map<String, Value>, lidos: &Marca
         .map(|m| {
             json!({
                 "id": m.id,
+                "rotulo": rotulo_do_marcador(&m.id, &m.nome),
                 "nome": m.nome,
                 "cor": m.cor,
                 "texto": m.texto,
@@ -83,7 +84,12 @@ fn humano_dos_marcadores(marcadores: &Marcadores, texto: &mut String) {
         if lidos.itens.is_empty() { "." } else { ":" }
     );
     for m in &lidos.itens {
-        let _ = write!(texto, "\n- {} [{}]", m.nome, m.cor);
+        let _ = write!(
+            texto,
+            "\n- {} [{}]",
+            rotulo_do_marcador(&m.id, &m.nome),
+            m.cor
+        );
         if let Some(t) = &m.texto {
             let _ = write!(texto, ": {t}");
         }

@@ -39,9 +39,9 @@ fn dois_marcadores_saem_como_lista_de_dois_objetos() {
     assert_eq!(
         valor["marcadores"],
         json!([
-            {"id": "501", "nome": "Revis\u{e3}o", "cor": "azul", "texto": null,
+            {"id": "501", "rotulo": "501#Revis\u{e3}o", "nome": "Revis\u{e3}o", "cor": "azul", "texto": null,
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"},
-            {"id": "502", "nome": "Pendente", "cor": "amarelo", "texto": "Texto sint\u{e9}tico",
+            {"id": "502", "rotulo": "502#Pendente", "nome": "Pendente", "cor": "amarelo", "texto": "Texto sint\u{e9}tico",
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"}
         ])
     );
@@ -101,9 +101,9 @@ fn nao_publicados_ou_sem_tabela_saem_null_com_motivo_e_omitidos_tiram_a_chave() 
 fn texto_humano_lista_cada_marcador_numa_linha() {
     let texto = humano(&nup(), &com_marcadores(2), true);
     assert!(texto.contains("Marcadores: 2 de 2 declarados:"), "{texto}");
-    assert!(texto.contains("\n- Revis\u{e3}o [azul]"), "{texto}");
+    assert!(texto.contains("\n- 501#Revis\u{e3}o [azul]"), "{texto}");
     assert!(
-        texto.contains("\n- Pendente [amarelo]: Texto sint\u{e9}tico"),
+        texto.contains("\n- 502#Pendente [amarelo]: Texto sint\u{e9}tico"),
         "{texto}"
     );
     let sem = humano(&nup(), &aberto(None), true);

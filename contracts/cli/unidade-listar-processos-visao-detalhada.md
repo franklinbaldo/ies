@@ -30,9 +30,11 @@ mais `colunas_ausentes`:
                              "interessados": ["Interessado A", "Interessado B"],
                              "marcadores": [
                                {"nome": "Pendente", "cor": "amarelo",
-                                "texto": "texto do marcador", "id": "31"},
+                                "texto": "texto do marcador", "id": "31",
+                                "rotulo": "31#Pendente"},
                                {"nome": "Revisão", "cor": "azul",
-                                "texto": null, "id": "32"}]}}]}]
+                                "texto": null, "id": "32",
+                                "rotulo": "32#Revisão"}]}}]}]
 ```
 
 - `categoria` da **lista** é `null`: D é modo de exibição, não categoria.
@@ -86,7 +88,15 @@ sem marcador, `&nbsp;`. Cada âncora vira
   `\/`, `\n`, `\r`, `\t`; nenhum JavaScript executado), espaços
   colapsados; vazio ou sem `onmouseover`: `null`.
 - `id`: `<n>` do fragmento `#ID-<n>` (decimal; o mesmo id da linha da
-  tela de marcadores do processo); sem fragmento: `null`.
+  tela de marcadores do processo); sem fragmento: `null`. É o
+  `id_marcador` do **marcador da unidade**, não da atribuição ao processo:
+  na UnB 4.0.9 o mesmo `#ID-<n>` aparece em linhas de processos
+  diferentes e é o `value` do checkbox e o `id_marcador` do link de
+  alterar na tela de marcadores.
+- `rotulo`: `<id>#<nome>` (por exemplo `31#Pendente`), para o agente ler
+  o nome e citar o marcador sem ambiguidade; o id é o trecho decimal antes
+  do primeiro `#` (o nome pode conter `#`). Sem `id`, `null`: o nome
+  sozinho não identifica.
 - O `href` precisa ser `controlador.php?` com uma `acao` igual a
   `andamento_marcador_gerenciar` e `id_procedimento` igual ao da linha. O
   link não é seguido nem publicado.

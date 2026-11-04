@@ -4,6 +4,7 @@
 use super::ErroDetalhada;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
+use crate::marcadores_processo::rotulo_do_marcador;
 use crate::nivel_de_detalhe::texto_colapsado;
 use serde::Serialize;
 
@@ -16,6 +17,8 @@ pub(crate) struct MarcadorDaCelula {
     pub(crate) texto: Option<String>,
     /// `<n>` de `#ID-<n>`; `None` sem fragmento.
     pub(crate) id: Option<String>,
+    /// `<id>#<nome>`; `None` sem id (o nome sozinho seria ambíguo).
+    pub(crate) rotulo: Option<String>,
 }
 
 const FORA: ErroDetalhada = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
@@ -168,11 +171,13 @@ fn marcador(
     if nome.is_empty() {
         return Err(FORA);
     }
+    let rotulo = id.as_deref().map(|id| rotulo_do_marcador(id, &nome));
     Ok(MarcadorDaCelula {
         nome,
         cor,
         texto,
         id,
+        rotulo,
     })
 }
 

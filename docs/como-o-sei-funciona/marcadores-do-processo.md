@@ -55,8 +55,11 @@ Cada `tr.infraTrClara` é **um marcador**, seis `td`:
 | Data/Hora | `dd/mm/aaaa hh:mm` |
 | Ações | alterar e remover (escrita) |
 
-O `<id>` é o do andamento do marcador: o mesmo `#ID-<id>` do link da
-célula do Controle. O NUP do `title` e o `id_procedimento` do `action`
+O `<id>` é o `id_marcador` do **marcador da unidade**, não da atribuição
+ao processo: é o `id_marcador` do link de alterar, o primeiro argumento de
+`acaoRemover` e o `#ID-<id>` da célula do Controle, e na UnB 4.0.9
+(04/11/2026) o mesmo id aparece em processos diferentes (dois processos
+com `237`, dois com `279`). O IES publica `rotulo` = `<id>#<nome>`. O NUP do `title` e o `id_procedimento` do `action`
 identificam o processo.
 
 ## A célula do Controle
