@@ -330,6 +330,10 @@ pub(crate) mod resposta_binaria;
 pub(crate) mod sessao;
 
 #[cfg(test)]
+#[path = "transporte/testes_http.rs"]
+pub(crate) mod testes_http;
+
+#[cfg(test)]
 #[path = "transporte/tests.rs"]
 mod tests;
 
