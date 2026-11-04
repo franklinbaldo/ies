@@ -26,6 +26,7 @@ pub(super) fn markdown(cassettes: usize, replay: &Replay) -> String {
             )
         }),
     );
+    somas(&mut s, &replay.registros);
     paginadas(&mut s, &replay.registros);
     continuidade(&mut s, replay);
     formas(&mut s, &replay.registros);
@@ -105,6 +106,23 @@ fn paginadas(s: &mut String, registros: &[Registro]) {
             e.plano_coerente,
             e.plano_coerente + e.plano_incoerente
         );
+    }
+    s.push('\n');
+}
+
+/// Soma e máximo de cada contagem dos leitores lidos.
+fn somas(s: &mut String, registros: &[Registro]) {
+    let mut mapa: BTreeMap<(Leitor, &str), (u64, u64)> = BTreeMap::new();
+    for r in registros.iter().filter(|r| r.resultado == Resultado::Lido) {
+        for (nome, valor) in &r.contagens {
+            let e = mapa.entry((r.leitor, nome)).or_default();
+            e.0 += valor;
+            e.1 = e.1.max(*valor);
+        }
+    }
+    s.push_str("| Leitor | Contagem | Soma | Máximo |\n|---|---|---:|---:|\n");
+    for ((leitor, nome), (soma, maximo)) in &mapa {
+        let _ = writeln!(s, "| {} | `{nome}` | {soma} | {maximo} |", leitor.nome());
     }
     s.push('\n');
 }
