@@ -81,6 +81,31 @@ fn location_absoluto_ou_de_raiz_na_mesma_instalacao_e_aceito() {
     }
 }
 
+// Caso de todos tests/test_resolve_http_mesmo_host_010.py @323eb01
+#[test]
+fn location_http_so_aceita_o_mesmo_host_sem_porta_alternativa() {
+    for (origem, esperado) in [
+        ("http://SEI.exemplo.gov.br", Ok(())),
+        ("http://SEI.exemplo.gov.br:80", Ok(())),
+        ("https://sei.exemplo.gov.br", Ok(())),
+        (
+            "http://outro.gov.br",
+            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
+        ),
+        (
+            "//outro.gov.br",
+            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
+        ),
+        (
+            "http://sei.exemplo.gov.br:8080",
+            Err(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps),
+        ),
+    ] {
+        let localizacao = format!("{origem}/sei/{}", observado());
+        assert_eq!(interpretar(Some(&localizacao)).map(|_| ()), esperado);
+    }
+}
+
 #[test]
 fn location_ausente_ou_vazio_e_recusado() {
     assert_eq!(
@@ -121,10 +146,6 @@ fn location_para_outro_host_ou_outro_caminho_e_recusado() {
 #[test]
 fn location_sem_https_com_fragmento_ou_caracteres_de_controle_e_recusado() {
     for localizacao in [
-        format!(
-            "http://sei.exemplo.gov.br/sei/controlador.php?{}",
-            consulta("7")
-        ),
         format!("javascript:controlador.php?{}", consulta("7")),
         format!("{}#ancora", observado()),
         format!("{} ", observado()),

@@ -8,8 +8,10 @@
 //! na mesma pasta (o Todos mediu no GO o `Location` de escritas em
 //! `http://` no mesmo host, issue #766; as cassettes do GO só o gravam
 //! no `infra_trocar_unidade` e no `procedimento_controlar`). Outro host,
-//! outra pasta, porta, credenciais ou outro esquema: nenhuma consulta.
+//! outra pasta, porta (salvo `:80` em `http://`, a padrão), credenciais ou
+//! outro esquema: nenhuma consulta.
 use super::leitura::UrlHttps;
+use crate::sessao_login::redirecionamento::sufixo_da_mesma_origem;
 
 /// A consulta depois de `controlador.php?`, se `localizacao` endereça o
 /// controlador de `url_do_envio` (URL HTTPS do POST).
@@ -28,10 +30,10 @@ pub(crate) fn consulta_do_controlador<'a>(
     if !(esquema.eq_ignore_ascii_case("http") || esquema.eq_ignore_ascii_case("https")) {
         return None;
     }
-    let (host, caminho_e_consulta) = resto.split_once('/')?;
-    if !host.eq_ignore_ascii_case(post.host) {
-        return None;
-    }
+    // A mesma regra de autoridade do login e da pesquisa (#201).
+    let http = esquema.eq_ignore_ascii_case("http");
+    let depois = sufixo_da_mesma_origem(resto, post.host, http).ok()?;
+    let caminho_e_consulta = depois.strip_prefix('/')?;
     let (caminho, consulta) = caminho_e_consulta.split_once('?')?;
     let pasta = post.caminho.rsplit_once('/').map(|(pasta, _)| pasta)?;
     (caminho.strip_prefix(pasta) == Some("/controlador.php")).then_some(consulta)

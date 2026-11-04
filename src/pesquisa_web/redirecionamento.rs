@@ -5,6 +5,7 @@
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::{Instalacao, host_valido};
+use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use ErroRedirecionamentoDaPesquisa as E;
 
@@ -229,16 +230,27 @@ fn tem_esquema(referencia: &str) -> bool {
 
 /// Resolve como o navegador resolveria, sem normalizar `..`: o caminho
 /// resultante precisa ser exatamente o controlador da instalação.
-fn resolver(localizacao: &str, url_do_envio: &str) -> Result<String, E> {
+fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<String, E> {
     if !localizacao.bytes().all(|b| (33..=126).contains(&b)) || localizacao.contains(['#', '\\']) {
         return Err(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
     }
     let (host, caminho, _) =
         partir_https(url_do_envio).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
-    Ok(if localizacao.starts_with("https://") {
-        localizacao.to_owned()
-    } else if let Some(resto) = localizacao.strip_prefix("//") {
-        format!("https://{resto}")
+    let http = aceita_http && esquema_http(localizacao);
+    let resto_absoluto = localizacao
+        .strip_prefix("https://")
+        .or_else(|| localizacao.strip_prefix("//"))
+        .or_else(|| {
+            http.then_some(localizacao)?
+                .split_once("://")
+                .map(|(_, resto)| resto)
+        });
+    Ok(if let Some(resto) = resto_absoluto {
+        let sufixo = sufixo_da_mesma_origem(resto, host, http).map_err(|erro| match erro {
+            ErroDeOrigem::OutroHost => E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+            ErroDeOrigem::AutoridadeInvalida => E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
+        })?;
+        format!("https://{host}{sufixo}")
     } else if localizacao.starts_with('/') {
         format!("https://{host}{localizacao}")
     } else if tem_esquema(localizacao) {
@@ -339,7 +351,8 @@ pub(crate) fn conferir_trabalho(
     if localizacao.len() > LIMITE_DA_LOCALIZACAO {
         return Err(E::LocalizacaoDoRedirecionamentoAcimaDoLimite);
     }
-    let absoluta = resolver(localizacao, url_base)?;
+    let aceita_http = !matches!(origem, OrigemDoTrabalho::Controle { .. });
+    let absoluta = resolver(localizacao, url_base, aceita_http)?;
     let (host, caminho, consulta) =
         partir_https(&absoluta).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(host, caminho) {

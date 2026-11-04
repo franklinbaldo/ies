@@ -11,7 +11,7 @@ mod erro;
 mod fluxo;
 mod gravacao;
 pub(crate) mod http;
-mod redirecionamento;
+pub(crate) mod redirecionamento;
 pub(crate) mod tela;
 
 pub(crate) use credenciais::Credenciais;
