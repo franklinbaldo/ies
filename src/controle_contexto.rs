@@ -115,6 +115,30 @@ pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa
         criterios_gerados: valor_oculto(&dom, "hdnGeradosHashCriterios")?,
     })
 }
+/// `hdnIdMarcador{id da unidade}` com valor: a visão R mostra só os
+/// processos do marcador escolhido (POST de "Listar processos com o
+/// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
+pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let parser = dom.parser();
+    for no in dom.query_selector("input").into_iter().flatten() {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let id = valor_do_atributo(tag, "id").map_err(ilegivel)?;
+        let do_marcador = id.as_deref().and_then(|i| i.strip_prefix("hdnIdMarcador"));
+        if do_marcador
+            .is_some_and(|resto| !resto.is_empty() && resto.bytes().all(|b| b.is_ascii_digit()))
+            && valor_do_atributo(tag, "value")
+                .map_err(ilegivel)?
+                .is_some_and(|valor| !valor.trim().is_empty())
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
