@@ -77,17 +77,26 @@ fn mais_de_oito_redirecionamentos_param_a_cadeia() {
     assert_eq!(roteiro.pedidos.len(), 9);
 }
 
+// Caso de todos tests/test_redirect_seguro_010.py @323eb01
 #[test]
 fn redirecionamento_307_depois_do_post_nao_repete_as_credenciais() {
+    let localizacao = LOGIN_SIP.replacen("https://", "http://", 1);
     for codigo in [307, 308] {
         let (erro, roteiro) = erro_com(vec![
             r302(LOGIN_SIP, &[]),
             r200(&tela_acessar(), &[]),
-            status(codigo, Some(LOGIN_SIP), &[], "", "text/html"),
+            status(codigo, Some(&localizacao), &[], "", "text/html"),
         ]);
         assert_eq!(erro, ErroLogin::RedirecionamentoQueRepetiriaOEnvioDoLogin);
-        assert_eq!(posts(&roteiro), 1);
-        assert_eq!(roteiro.pedidos.len(), 3);
+        assert_eq!(
+            roteiro.sequencia(),
+            [
+                format!("GET {RAIZ}"),
+                format!("GET {LOGIN_SIP}"),
+                format!("POST {LOGIN_SIP}"),
+            ]
+        );
+        assert!(roteiro.esgotado());
     }
 }
 
