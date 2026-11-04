@@ -68,3 +68,13 @@ código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
 sessão continuou válida: não há relogin, retry nem pausa automática. O
 403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
 ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
+
+## Concluir o processo
+
+`ErroConcluir` (`src/processo_concluir/erro.rs`) separa o que impede a
+escrita (abertura, situação não lida, barra, tela, função, derivação:
+saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
+(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
+com `VerificacaoDaConclusao`). `FalhaDoEnvio` classifica a resposta não
+esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
+sem retry ([contrato](../contracts/cli/processo-concluir.md)).

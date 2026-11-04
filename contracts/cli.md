@@ -313,3 +313,18 @@ Testado offline com proxy falso local (`TcpListener`) e camada TLS
 substituída pela identidade: `CONNECT`, pedido no túnel, ausência de
 segundo pedido, `NO_PROXY`, 3xx, limites e subcódigos. O TLS real
 através do túnel não tem teste automatizado; validação live: `NOT_RUN`.
+
+## Concluir o processo (Refs #172)
+
+`ies processo concluir NUP [--confirmar]` é a primeira escrita de estado do
+processo ([contrato](cli/processo-concluir.md)): prévia só com a abertura;
+uma escrita pela forma que a barra publica; verificação por `aberto_em`
+numa leitura nova. Subcódigos próprios: `situacao_do_processo_nao_lida_antes_de_concluir`,
+`unidade_da_sessao_ausente_da_situacao`, `conclusao_nao_publicada_na_barra`,
+os da barra (`formas_de_concluir_repetidas_na_barra`,
+`endereco_da_conclusao_nao_reconhecido`, `endereco_da_tela_do_no_nao_reconhecido`, …),
+os da tela (`campo_nao_previsto_na_tela_de_conclusao`,
+`opcao_somente_concluir_nao_marcada`, `tela_de_conclusao_com_reabertura_preenchida`, …),
+os da função (`funcao_de_concluir_ausente_na_tela_do_no`, …),
+`conclusao_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
+`efeito_incerto_na_conclusao` (`efeito_incerto`, saída 3).

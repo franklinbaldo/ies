@@ -67,7 +67,7 @@ fn previa_pela_tela_so_abre_o_processo() {
     let (r, feitos) = rodar(&amb, false, abertura(arvore(&[UNIDADE], &tela())));
     let feito = r.unwrap();
     assert_eq!(feito, previa(Some(FormaDaConclusao::Tela), &[UNIDADE]));
-    assert!(feito.depois_esperado().is_empty());
+    assert_eq!(feito.depois_esperado(), Vec::<String>::new());
     assert_eq!(feitos, pedidos_da_abertura());
 }
 
@@ -199,7 +199,7 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
 
 #[test]
 fn tela_recusada_ou_redirecionada_nao_envia_o_post() {
-    let outro = tela_de_conclusao("11").replace("value=\"11\" />", "value=\"11\" />");
+    let outro = tela_de_conclusao("11");
     let marcada = tela_de_conclusao(ID).replace(
         "class=\"infraCheckbox\"  tabindex",
         "class=\"infraCheckbox\" checked=\"checked\" tabindex",
@@ -207,11 +207,13 @@ fn tela_recusada_ou_redirecionada_nao_envia_o_post() {
     let casos = vec![
         (
             ok(outro),
-            C::TelaDeConclusao(super::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso),
+            C::TelaDeConclusao(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso),
         ),
         (
             ok(marcada),
-            C::TelaDeConclusao(super::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida),
+            C::TelaDeConclusao(
+                super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida,
+            ),
         ),
         (r302(&volta_a_arvore()), C::TelaDaEscritaRedirecionada),
     ];

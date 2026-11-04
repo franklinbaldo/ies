@@ -13,8 +13,9 @@ use super::erro::ErroTelaDeConclusao as E;
 use crate::arvore_processo::ACAO_DE_CONCLUIR;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio,
+    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
+use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 pub(crate) const FORMULARIO_DE_CONCLUSAO: &str = "frmDesentranharDocumento";
 pub(crate) const BOTAO_SALVAR: &str = "sbmSalvar";
@@ -51,15 +52,103 @@ pub(crate) const CONCLUIR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario 
 pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
     [(OPCAO, SOMENTE_CONCLUIR), (DATA, ""), (DIAS, "")];
 
-/// Confere a tela servida antes de qualquer POST.
+/// Confere a tela servida antes de qualquer POST: lista fechada de
+/// controles enviáveis, o processo, "Somente concluir" marcado e nada da
+/// reabertura programada preenchido.
 pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> {
-    let _ = (html, id, PRAZO, UTEIS, PROCESSOS);
-    todo!("RED")
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let parser = dom.parser();
+    let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
+        .map_err(|_| E::FormularioDeConclusaoAusente)?;
+    let mut somente_marcado = false;
+    let mut outra_marcada = false;
+    let mut preenchida = false;
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+        if elemento == "option" {
+            preenchida |= presente(tag, "selected")?;
+            continue;
+        }
+        if !matches!(
+            elemento.as_str(),
+            "input" | "button" | "select" | "textarea"
+        ) || presente(tag, "disabled")?
+        {
+            continue;
+        }
+        let Some(nome) = valor(tag, "name")?.filter(|n| !n.is_empty()) else {
+            continue;
+        };
+        let padrao = if elemento == "button" {
+            "submit"
+        } else {
+            "text"
+        };
+        let tipo =
+            valor(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let marcado = presente(tag, "checked")?;
+        let servido = valor(tag, "value")?.unwrap_or_default();
+        match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+            ("input", "hidden", "hdnIdProtocolos") if servido != id => {
+                return Err(E::TelaDeConclusaoDeOutroProcesso);
+            }
+            ("input", "hidden", n) if OCULTOS.contains(&n) => {}
+            // `button`/`reset` não participam do envio.
+            ("input" | "button", "button" | "reset", _)
+            | ("input" | "button", "submit", BOTAO_SALVAR)
+            | ("select", _, PROCESSOS) => {}
+            ("input", "radio", OPCAO) => {
+                if marcado && servido == SOMENTE_CONCLUIR {
+                    somente_marcado = true;
+                } else if marcado {
+                    outra_marcada = true;
+                }
+            }
+            ("input", "radio", PRAZO) | ("input", "checkbox", UTEIS) => preenchida |= marcado,
+            ("input", "text", DATA | DIAS) => preenchida |= !servido.is_empty(),
+            _ => return Err(E::CampoNaoPrevistoNaTelaDeConclusao),
+        }
+    }
+    if !somente_marcado || outra_marcada {
+        return Err(E::OpcaoSomenteConcluirNaoMarcada);
+    }
+    if preenchida {
+        return Err(E::TelaDeConclusaoComReaberturaPreenchida);
+    }
+    Ok(())
+}
+
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
+    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+}
+
+fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+    valor_do_atributo(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`
-/// ou `acao=principal`, com `acao_origem=procedimento_concluir` e o id.
+/// ou `acao=principal` (relativo, como servido), com
+/// `acao_origem=procedimento_concluir` e o id, cada chave uma vez.
 pub(crate) fn redirecionamento_esperado(localizacao: Option<&str>, id: &str) -> bool {
-    let _ = (localizacao, id);
-    todo!("RED")
+    let Some(consulta) = localizacao.and_then(|l| l.strip_prefix("controlador.php?")) else {
+        return false;
+    };
+    let valores = |chave: &str| -> Vec<&str> {
+        consulta
+            .split('&')
+            .filter_map(|par| par.split_once('='))
+            .filter(|(k, _)| *k == chave)
+            .map(|(_, v)| v)
+            .collect()
+    };
+    matches!(
+        valores("acao").as_slice(),
+        ["arvore_visualizar" | "principal"]
+    ) && valores("acao_origem") == [ACAO_DE_CONCLUIR]
+        && valores("id_procedimento") == [id]
 }

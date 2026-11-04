@@ -53,5 +53,5 @@ fn sem_configuracao_falha_fechado_sem_rede() {
 fn opcao_desconhecida_e_erro_de_uso_do_clap() {
     let saida = sem_sessao(&["processo", "concluir", "00001.000001/2026-01", "--agendar"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, b"");
 }

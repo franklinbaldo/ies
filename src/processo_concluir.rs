@@ -17,7 +17,9 @@ mod tests_fluxo;
 #[cfg(test)]
 mod tests_tela;
 
-pub(crate) use erro::{ErroConcluir, ErroTelaDeConclusao, FalhaDoEnvio, VerificacaoDaConclusao};
+#[cfg(test)]
+pub(crate) use erro::VerificacaoDaConclusao;
+pub(crate) use erro::{ErroConcluir, FalhaDoEnvio};
 pub(crate) use fluxo::concluir_processo;
 
 use crate::processo::NumeroProcesso;

@@ -81,18 +81,62 @@ pub(crate) fn ler_concluir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra> {
-    let _ = (
-        instalacao,
-        html,
-        id,
-        ONCLICK,
-        ancoras_da_barra,
-        acao_do_href,
-    );
-    let _: Option<FalhaDaBarra> = None;
-    let _ = (conferir_endereco_relativo, ler_declaracao);
-    let _: Option<(EnderecoRecusado, Literal)> = None;
-    Ok(None)
+    use ErroConcluirNaBarra as E;
+    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
+        FalhaDaBarra::Fora => E::BarraDoProcessoForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => E::BarrasDoProcessoRepetidasNaArvore,
+    })?;
+    let links: Vec<&str> = ancoras
+        .iter()
+        .filter_map(|a| a.href.as_deref())
+        .filter(|href| acao_do_href(href) == Some(ACAO_DE_CONCLUIR))
+        .collect();
+    let funcoes = ancoras
+        .iter()
+        .filter(|a| a.onclick.as_deref() == Some(ONCLICK))
+        .count();
+    match (links.as_slice(), funcoes) {
+        ([], 0) => Ok(None),
+        ([href], 0) => conferir_endereco_relativo(instalacao, href, ACAO_DE_CONCLUIR, id)
+            .map(|url| Some(ConcluirNaBarra::PelaTela(EnderecoDeEscrita(url))))
+            .map_err(|recusa| match recusa {
+                EnderecoRecusado::NaoReconhecido => E::EnderecoDaConclusaoNaoReconhecido,
+                EnderecoRecusado::DeOutroProcesso => E::EnderecoDaConclusaoDeOutroProcesso,
+            }),
+        ([], 1) => tela_do_no_da_raiz(instalacao, html, id)
+            .map(|tela_do_no| Some(ConcluirNaBarra::PelaFuncao { tela_do_no }))
+            .ok_or(E::EnderecoDaTelaDoNoNaoReconhecido),
+        _ => Err(E::FormasDeConcluirRepetidasNaBarra),
+    }
+}
+
+/// O `href` (a3) da declaração do nó `PROCESSO` do id, conferido como
+/// `arvore_visualizar` assinado do mesmo processo.
+fn tela_do_no_da_raiz(instalacao: &Instalacao, html: &str, id: &str) -> Option<EnderecoDeEscrita> {
+    let mut achados = Vec::new();
+    for linha in html.split('\n') {
+        let Ok(Some((_, argumentos))) = ler_declaracao(linha) else {
+            continue;
+        };
+        if let [
+            Literal::Texto(tipo),
+            Literal::Texto(no),
+            _,
+            Literal::Texto(href),
+            ..,
+        ] = argumentos.as_slice()
+            && tipo == "PROCESSO"
+            && no == id
+        {
+            achados.push(href.clone());
+        }
+    }
+    let [href] = achados.as_slice() else {
+        return None;
+    };
+    conferir_endereco_relativo(instalacao, href, ACAO_DA_TELA_DO_NO, id)
+        .ok()
+        .map(EnderecoDeEscrita)
 }
 
 /// Recusas da leitura de `concluirProcesso()` na tela do nó.
@@ -121,12 +165,43 @@ impl ErroFuncaoDeConcluir {
     }
 }
 
+const FUNCAO: &str = "function concluirProcesso(){";
+const CONFIRM: &str = "//if (confirm(";
+const LOCATION: &str = "location.href = '";
+
 /// A URL de `concluirProcesso()` na tela do nó do processo `id`, conferida.
+/// Forma observada: a linha da função, a do `confirm` comentado e a do
+/// `location.href = '…';`.
 pub(crate) fn ler_funcao_de_concluir(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroFuncaoDeConcluir> {
-    let _ = (instalacao, html, id);
-    Err(ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo)
+    use ErroFuncaoDeConcluir as E;
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
+    let mut achados = Vec::new();
+    for (i, linha) in linhas.iter().enumerate() {
+        if !linha.contains("function concluirProcesso") {
+            continue;
+        }
+        let confirm = linhas.get(i + 1).copied().unwrap_or_default();
+        let url = (*linha == FUNCAO && confirm.starts_with(CONFIRM) && confirm.ends_with("){"))
+            .then(|| linhas.get(i + 2))
+            .flatten()
+            .and_then(|l| l.strip_prefix(LOCATION))
+            .and_then(|resto| resto.strip_suffix("';"))
+            .ok_or(E::FuncaoDeConcluirForaDaFormaObservada)?;
+        achados.push(url);
+    }
+    let url = match achados.as_slice() {
+        [] => return Err(E::FuncaoDeConcluirAusenteNaTelaDoNo),
+        [url] => *url,
+        _ => return Err(E::FuncoesDeConcluirRepetidasNaTelaDoNo),
+    };
+    conferir_endereco_relativo(instalacao, url, ACAO_DE_CONCLUIR, id)
+        .map(EnderecoDeEscrita)
+        .map_err(|recusa| match recusa {
+            EnderecoRecusado::NaoReconhecido => E::EnderecoDaConclusaoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => E::EnderecoDaConclusaoDeOutroProcesso,
+        })
 }
