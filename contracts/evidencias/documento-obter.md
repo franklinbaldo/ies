@@ -5,14 +5,14 @@ operation: documento.obter
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 15
 unresolved_steps: 0
 ---
 
 # documento.obter
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB (documentos internos pela [leitura Web](../cli/documento-obter-web.md); live UnB em [validação](../../docs/validacao-live/2026-11-04-documento-obter.md)), PARCIAL LOCAL com `--html-privado`.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

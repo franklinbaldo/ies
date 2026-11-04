@@ -88,9 +88,6 @@ pub(crate) fn ler_tela_do_documento(
     id_documento: &str,
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
-    // RED (Refs #60): shim compilável, substituído no GREEN.
-    #[allow(unreachable_code)]
-    return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso);
     use ErroTelaDoProcesso as E;
     let (publicada, src) = unidade_e_src(html, unidade)?;
     let valores = |chave: &str| -> Vec<String> {

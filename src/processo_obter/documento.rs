@@ -55,9 +55,6 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
-    // RED (Refs #60): shim compilável, substituído no GREEN.
-    #[allow(unreachable_code)]
-    return Err(E::ConteudoNaoPublicadoNaArvore);
     let processo = |erro| E::Processo(erro);
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),

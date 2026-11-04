@@ -70,9 +70,6 @@ pub(crate) fn ler_conteudo_na_arvore(
     html: &str,
     id_documento: &str,
 ) -> Result<ConteudoNaArvore, ErroConteudoNaArvore> {
-    // RED (Refs #60): shim compilável, substituído no GREEN.
-    #[allow(unreachable_code)]
-    return Err(ErroConteudoNaArvore::DocumentoAusenteDaArvore);
     use ErroConteudoNaArvore as E;
     let indice = html
         .split('\n')
