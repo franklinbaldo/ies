@@ -4,12 +4,7 @@ use super::*;
 use std::io::Cursor;
 
 fn resposta(status_code: i32, mime: &str, corpo: &[u8]) -> RespostaWeb<Cursor<Vec<u8>>> {
-    RespostaWeb {
-        status_code,
-        mime: mime.to_owned(),
-        content_length: Some(corpo.len()),
-        corpo: Cursor::new(corpo.to_vec()),
-    }
+    testes_http::resposta(status_code, mime, corpo.to_vec(), Some(corpo.len()))
 }
 
 #[test]

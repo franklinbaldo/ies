@@ -39,13 +39,14 @@ impl Roteiro {
             .respostas
             .pop_front()
             .expect("requisição além do roteiro");
+        let tamanho = html.len();
         (
-            RespostaWeb {
+            crate::transporte::testes_http::resposta(
                 status_code,
-                mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: Some(html.len()),
-                corpo: Cursor::new(html.into_bytes()),
-            },
+                "text/html; charset=iso-8859-1",
+                html.into_bytes(),
+                Some(tamanho),
+            ),
             localizacao,
         )
     }

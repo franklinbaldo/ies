@@ -57,15 +57,13 @@ fn cookie(modo: u32) -> (Pasta, PathBuf) {
 }
 
 fn resposta(status_code: i32, html: &str) -> RespostaDoPost<Cursor<Vec<u8>>> {
-    RespostaDoPost {
-        resposta: RespostaWeb {
-            status_code,
-            mime: "text/html; charset=iso-8859-1".to_owned(),
-            content_length: Some(html.len()),
-            corpo: Cursor::new(html.as_bytes().to_vec()),
-        },
-        localizacao: None,
-    }
+    crate::transporte::testes_http::resposta_post(
+        status_code,
+        "text/html; charset=iso-8859-1",
+        html.as_bytes().to_vec(),
+        Some(html.len()),
+        None,
+    )
 }
 
 fn html(r: Result<RespostaDoEnvio, E>) -> Result<String, E> {
