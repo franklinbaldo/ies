@@ -221,6 +221,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     let mut ids_observados = HashSet::new();
     let mut resultados = Vec::new();
     let mut arvores = 0;
+    let mut links_de_documento = 0;
     for linha in linhas {
         let tag = linha
             .get(parser)
@@ -233,7 +234,10 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             "protocoloNormal",
         )
         .map_err(ilegivel)?;
-        let link_no = match links.as_slice() {
+        // Links que só abrem um documento (acerto em documento, Goiás) não
+        // disputam o lugar do link do processo.
+        let (candidatos, documentos) = documento_da_linha::separar(parser, links)?;
+        let link_no = match candidatos.as_slice() {
             [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
             [link] => *link,
             _ => return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso),
@@ -246,6 +250,13 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .map_err(ilegivel)?
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
         let primeiro_id = validar_href_de_processo(&href)?;
+        if !documentos.is_empty() {
+            let doc = documento_da_linha::documento_do_processo(&href);
+            if documentos.iter().any(|d| Some(d.as_str()) != doc) {
+                return Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso);
+            }
+        }
+        links_de_documento += documentos.len();
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
         if !observados.insert(numero.as_str().to_owned()) {
@@ -270,7 +281,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     )
     .map_err(ilegivel)?
     .len();
-    if links_da_tabela != resultados.len() {
+    if links_da_tabela != resultados.len() + links_de_documento {
         return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }
     // A classe CSS do link não é garantia de que ele seja o único link
@@ -307,6 +318,9 @@ mod tests_arvore;
 
 #[cfg(test)]
 pub(crate) mod tests_fixtures;
+
+// Linha com acerto em documento (Goiás): só o processo é publicado.
+mod documento_da_linha;
 
 // Replay de conformidade do acervo público pelas peças do comando (Refs #58).
 #[cfg(test)]
