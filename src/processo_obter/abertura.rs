@@ -124,16 +124,27 @@ pub(super) fn ler_arvore_aberta(
     html: &str,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    let mut arvore = ler_arvore(html, contexto.nup, id)?;
-    arvore.anexado_a = ler_vinculo_de_anexacao(&contexto.instalacao, html, id)?;
+    ler_arvore_da_pagina(&contexto.instalacao, contexto.nup, html, id)
+}
+
+/// A leitura da página da árvore, sem rede nem índice (também a do replay
+/// do acervo, docs/decisoes/processo-obter/replay-do-acervo.md).
+pub(super) fn ler_arvore_da_pagina(
+    instalacao: &Instalacao,
+    nup: &str,
+    html: &str,
+    id: &str,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let mut arvore = ler_arvore(html, nup, id)?;
+    arvore.anexado_a = ler_vinculo_de_anexacao(instalacao, html, id)?;
     if arvore.anexado_a.is_some() {
         // O `.html` da raiz é o aviso do vínculo, não a situação.
         arvore.aberto_em = AbertoEm::NaoLido(MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao);
     }
-    ler_destinos_dos_movidos(&contexto.instalacao, html, &mut arvore)?;
-    let historico = ler_link_do_historico(&contexto.instalacao, html, id);
-    let propriedades = ler_link_das_propriedades(&contexto.instalacao, html, id);
-    let marcadores = ler_link_dos_marcadores(&contexto.instalacao, html, id);
+    ler_destinos_dos_movidos(instalacao, html, &mut arvore)?;
+    let historico = ler_link_do_historico(instalacao, html, id);
+    let propriedades = ler_link_das_propriedades(instalacao, html, id);
+    let marcadores = ler_link_dos_marcadores(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         historico,

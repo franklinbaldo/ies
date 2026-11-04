@@ -1,4 +1,5 @@
 use super::*;
+use base64::Engine as _;
 
 #[test]
 fn historia_e_escolhida_pela_operacao_e_nao_pelo_nome() {

@@ -354,3 +354,20 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
         barra: Barra::NaoLida,
     })
 }
+
+/// O NUP (a5) do nó `PROCESSO` declarado, sem conferência: só o replay do
+/// acervo o usa, para tirar da própria gravação a identidade pedida.
+#[cfg(test)]
+pub(crate) fn nup_declarado_na_arvore(html: &str) -> Option<String> {
+    html.split('\n').find_map(|linha| {
+        let (_, argumentos) = ler_declaracao(linha).ok()??;
+        match argumentos.as_slice() {
+            [Literal::Texto(tipo), _, _, _, _, Literal::Texto(nup), ..]
+                if tipo == "PROCESSO" && argumentos.len() == ARGUMENTOS =>
+            {
+                Some(nup.clone())
+            }
+            _ => None,
+        }
+    })
+}
