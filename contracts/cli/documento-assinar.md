@@ -181,5 +181,8 @@ vários documentos, assinatura externa ([liberação](../evidencias/documento-li
 [Evidência da operação](../evidencias/documento-assinar.md) (Todos, sete
 instalações) e [observação estrutural](../../docs/como-o-sei-funciona/assinatura-do-documento.md);
 [decisão](../../docs/decisoes/documento-assinar.md). Live: prévia na PEN1
-5.0.4 e plano da escrita para o proprietário
-([relatório](../../docs/validacao-live/2026-11-04-documento-assinar.md)).
+5.0.4 ([relatório](../../docs/validacao-live/2026-11-04-documento-assinar.md));
+escrita **PASS** na PEN1 5.0.4 e na UnB 4.0.9 em 04/11/2026 (prévia 3 req.,
+`--confirmar` 5 req., verificação pela caneta sem reconciliação, segunda
+prévia `ja_assinado_pela_sessao`;
+[relatório](../../docs/validacao-live/2026-11-04-documento-assinar-escrita.md)).
