@@ -76,3 +76,35 @@ fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
     let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
     assert_eq!(texto.subcodigo(), "sessao_nao_autorizada");
 }
+
+/// Página de bloqueio da borda da PEN3 (Cloudflare), vista no POST da
+/// pesquisa com um termo só de dígitos (04/11/2026): HTTP 403, título
+/// "Attention Required! | Cloudflare" e "Sorry, you have been blocked" no
+/// texto visível. A pesquisa seguinte, 28 s depois, passou: a sessão
+/// continuou válida. Página SINTÉTICA com só essas duas marcas.
+const BLOQUEIO_DA_BORDA: &str = "<!DOCTYPE html><html lang=\"en-US\"><head>\
+    <title>Attention Required! | Cloudflare</title><meta charset=\"UTF-8\" /></head><body>\
+    <div id=\"cf-wrapper\"><div id=\"cf-error-details\"><h1>Sorry, you have been blocked</h1>\
+    <h2>You are unable to access exemplo.gov.br</h2><p>Why have I been blocked?</p>\
+    <p>This website is using a security service to protect itself from online attacks.</p>\
+    </div></div></body></html>";
+
+#[test]
+fn bloqueio_403_da_borda_tem_o_mesmo_subcodigo() {
+    assert!(e_bloqueio_de_seguranca(BLOQUEIO_DA_BORDA));
+    let falha = decodificar_resposta(resposta(403, "text/html; charset=UTF-8", BLOQUEIO_DA_BORDA))
+        .unwrap_err();
+    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
+    assert_eq!(falha.status_http().unwrap().status, 403);
+}
+
+#[test]
+fn titulo_da_borda_sem_a_frase_ou_frase_com_outro_titulo_nao_e_bloqueio() {
+    assert!(!e_bloqueio_de_seguranca(&BLOQUEIO_DA_BORDA.replace(
+        "Sorry, you have been blocked",
+        "Checking your browser"
+    )));
+    assert!(!e_bloqueio_de_seguranca(
+        &BLOQUEIO_DA_BORDA.replace("Attention Required! | Cloudflare", "Acesso Negado")
+    ));
+}
