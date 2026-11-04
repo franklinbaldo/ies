@@ -69,6 +69,10 @@ fn alargada() -> String {
     corpo_da_consulta_com("GECONT", "")
 }
 
+fn filtrada_alargada() -> String {
+    corpo_da_consulta_com("GECONT", "28")
+}
+
 #[test]
 fn tela_publica_os_orgaos_do_selorgao() {
     let tela = conferir_tela_de_envio(&tela_de_envio_go(ID), ID).unwrap();
@@ -134,27 +138,43 @@ fn filtro_pelo_orgao_acha_na_primeira_consulta() {
 }
 
 #[test]
-fn sem_a_sigla_no_orgao_volta_ao_orgao_da_tela() {
-    for no_orgao in [vazia(), gecont_de_outros()] {
-        let (r, feitos) = no_go(ABC, vec![no_orgao, da_abc()]);
-        assert_eq!(r.unwrap().destino, destino_abc());
-        assert_eq!(feitos, pedidos_da_busca(&[filtrada(), inteira()]));
-    }
-}
-
-#[test]
-fn termo_inteiro_sem_itens_alarga_e_aceita_so_a_sigla_exata() {
+fn alargado_no_orgao_e_a_segunda_consulta() {
+    // A ordem do Todos: os dois termos no órgão do prefixo, depois os dois
+    // no da tela. Do alargado vale só a sigla exata.
     let com_a_abc = resposta_xml(&[
         ("18440", "AGRODEFESA/GECONT-18440 - Gerencia"),
         ("18141", "abc/gecont-18141 - Gerencia"),
     ]);
-    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), com_a_abc]);
+    for no_orgao in [vazia(), gecont_de_outros()] {
+        let (r, feitos) = no_go(ABC, vec![no_orgao, com_a_abc.clone()]);
+        assert_eq!(r.unwrap().destino.id_unidade, "18141");
+        assert_eq!(feitos, pedidos_da_busca(&[filtrada(), filtrada_alargada()]));
+    }
+}
+
+#[test]
+fn sem_a_sigla_no_orgao_volta_ao_orgao_da_tela() {
+    let (r, feitos) = no_go(ABC, vec![vazia(), gecont_de_outros(), da_abc()]);
+    assert_eq!(r.unwrap().destino, destino_abc());
+    assert_eq!(
+        feitos,
+        pedidos_da_busca(&[filtrada(), filtrada_alargada(), inteira()])
+    );
+}
+
+#[test]
+fn quatro_consultas_no_maximo_e_so_a_sigla_exata() {
+    let com_a_abc = resposta_xml(&[
+        ("18440", "AGRODEFESA/GECONT-18440 - Gerencia"),
+        ("18141", "abc/gecont-18141 - Gerencia"),
+    ]);
+    let quatro = pedidos_da_busca(&[filtrada(), filtrada_alargada(), inteira(), alargada()]);
+    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), com_a_abc]);
     assert_eq!(r.unwrap().destino.id_unidade, "18141");
-    let tres = pedidos_da_busca(&[filtrada(), inteira(), alargada()]);
-    assert_eq!(feitos, tres);
-    // O alargado só amplia: sem a sigla exata, não oferecido, com a lista
-    // da última resposta (a alargada).
-    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), gecont_de_outros()]);
+    assert_eq!(feitos, quatro);
+    // Inexistente (o `ABC/GECONT-18141` do GO, medido pelo Todos): não
+    // oferecido, com a lista da última resposta (a alargada no da tela).
+    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), gecont_de_outros()]);
     assert_eq!(
         r,
         Err(R::DestinoNaoOferecidoPeloSei {
@@ -165,12 +185,24 @@ fn termo_inteiro_sem_itens_alarga_e_aceita_so_a_sigla_exata() {
             ]
         })
     );
-    assert_eq!(feitos, tres);
+    assert_eq!(feitos, quatro);
+    // Itens sem a sigla exata também passam à consulta seguinte.
+    let (r, feitos) = no_go(
+        ABC,
+        vec![
+            gecont_de_outros(),
+            gecont_de_outros(),
+            gecont_de_outros(),
+            vazia(),
+        ],
+    );
+    assert_eq!(r, Err(R::DestinoNaoOferecidoPeloSei { oferecidos: vec![] }));
+    assert_eq!(feitos, quatro);
     let dois = resposta_xml(&[
         ("1", "ABC/GECONT-18141 - Um"),
         ("2", "abc/gecont-18141 - Dois"),
     ]);
-    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), dois]);
+    let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), dois]);
     assert_eq!(
         r,
         Err(R::VariosDestinosComASigla {
@@ -180,17 +212,7 @@ fn termo_inteiro_sem_itens_alarga_e_aceita_so_a_sigla_exata() {
             ]
         })
     );
-    assert_eq!(feitos, tres);
-}
-
-#[test]
-fn termo_inteiro_com_itens_decide_sem_alargar() {
-    let (r, feitos) = no_go(ABC, vec![vazia(), gecont_de_outros()]);
-    assert!(
-        matches!(r, Err(R::DestinoNaoOferecidoPeloSei { ref oferecidos }) if oferecidos.len() == 3),
-        "{r:?}"
-    );
-    assert_eq!(feitos, pedidos_da_busca(&[filtrada(), inteira()]));
+    assert_eq!(feitos, quatro);
 }
 
 #[test]
@@ -219,7 +241,7 @@ fn falha_de_uma_consulta_encerra_a_busca() {
     );
     assert_eq!(
         feitos,
-        pedidos_da_busca(&[filtrada(), inteira(), alargada()])
+        pedidos_da_busca(&[filtrada(), filtrada_alargada(), inteira()])
     );
 }
 
@@ -235,6 +257,13 @@ fn sem_orgao_do_prefixo_a_busca_e_no_orgao_da_tela() {
         pedidos_da_busca(&[corpo_da_consulta_com(codificada, "")])
     );
     let (r, feitos) = no_go(sigla, vec![vazia(), gecont_de_outros()]);
+    assert_eq!(r.unwrap().destino.id_unidade, "18148");
+    assert_eq!(
+        feitos,
+        pedidos_da_busca(&[corpo_da_consulta_com(codificada, ""), alargada()])
+    );
+    let outra = resposta_xml(&[("12318", "CASACIVIL/COMSET-12318 - Outra")]);
+    let (r, feitos) = no_go(sigla, vec![outra, gecont_de_outros()]);
     assert_eq!(r.unwrap().destino.id_unidade, "18148");
     assert_eq!(
         feitos,

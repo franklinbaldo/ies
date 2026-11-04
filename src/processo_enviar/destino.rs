@@ -152,11 +152,13 @@ pub(crate) fn termo_alargado(para: &str) -> Option<String> {
 }
 
 /// As consultas planejadas e a escolha (decisão em
-/// docs/decisoes/processo-enviar.md), cada uma no máximo uma vez e nesta
-/// ordem: (1) a sigla no órgão do prefixo, quando ele é outro que o da
-/// tela; (2) a sigla no órgão da tela; (3) só se (2) veio vazia, o termo
-/// alargado no órgão da tela. `consultar(termo, orgao)` faz um POST e
-/// devolve os itens; uma falha encerra a busca, sem repetir nada.
+/// docs/decisoes/processo-enviar.md), a ordem do Todos: a sigla e o termo
+/// alargado no órgão do prefixo (quando é outro que o da tela), depois a
+/// sigla e o termo alargado no órgão da tela. No máximo quatro, cada uma
+/// uma vez; a seguinte só sai se a anterior não trouxe a sigla exata (vazia
+/// ou sem ela). Um item exato decide, vários recusam; nenhum em todas:
+/// não oferecido, com a última resposta. `consultar(termo, orgao)` faz um
+/// POST; uma falha encerra a busca, sem repetir nada.
 pub(crate) fn resolver_destino<F>(
     para: &str,
     orgao_da_tela: &str,
@@ -167,17 +169,22 @@ where
     F: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
 {
     let para = para.trim();
-    if let Some(filtro) = orgao_da_sigla(para, orgaos).filter(|f| *f != orgao_da_tela) {
-        match escolher_destino(para, &consultar(para, filtro)?) {
+    let alargado = termo_alargado(para);
+    let filtro = orgao_da_sigla(para, orgaos).filter(|f| *f != orgao_da_tela);
+    let mut passos: Vec<(&str, &str)> = Vec::with_capacity(4);
+    for orgao in filtro.into_iter().chain([orgao_da_tela]) {
+        passos.push((para, orgao));
+        if let Some(termo) = alargado.as_deref() {
+            passos.push((termo, orgao));
+        }
+    }
+    let mut ultima = Vec::new();
+    for (termo, orgao) in passos {
+        ultima = consultar(termo, orgao)?;
+        match escolher_destino(para, &ultima) {
             Err(ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) => {}
             decidido => return decidido,
         }
     }
-    let itens = consultar(para, orgao_da_tela)?;
-    match termo_alargado(para) {
-        Some(termo) if itens.is_empty() => {
-            escolher_destino(para, &consultar(&termo, orgao_da_tela)?)
-        }
-        _ => escolher_destino(para, &itens),
-    }
+    escolher_destino(para, &ultima)
 }
