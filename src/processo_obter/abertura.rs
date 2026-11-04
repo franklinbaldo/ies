@@ -4,8 +4,8 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_link_das_propriedades,
-    ler_tela_do_processo, ler_vinculo_de_anexacao,
+    ArvoreLida, ErroArvore, TelaDoProcesso, ler_arvore, ler_destinos_dos_movidos,
+    ler_link_das_propriedades, ler_tela_do_processo, ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -122,6 +122,7 @@ pub(super) fn ler_arvore_aberta(
 ) -> Result<ArvoreAberta, ErroArvore> {
     let mut arvore = ler_arvore(html, contexto.nup, id)?;
     arvore.anexado_a = ler_vinculo_de_anexacao(&contexto.instalacao, html, id)?;
+    ler_destinos_dos_movidos(&contexto.instalacao, html, &mut arvore)?;
     let historico = ler_link_do_historico(&contexto.instalacao, html, id);
     let propriedades = ler_link_das_propriedades(&contexto.instalacao, html, id);
     Ok(ArvoreAberta {

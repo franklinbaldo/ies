@@ -3,7 +3,7 @@
 //! índice local, abre o processo e publica identidade, anexados, documentos
 //! e pastas da árvore, andamentos e propriedades
 //! (processo-obter-propriedades.md). Nunca URL, hash ou HTML.
-use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
+use crate::arvore_processo::{DocumentoMovido, PastaNaArvore, VerificacaoDaPasta};
 use crate::historico_processo::AndamentosLidos;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -202,6 +202,22 @@ pub(crate) fn json_do_processo(
             })
             .collect();
         objeto.insert("documentos".to_owned(), Value::Array(documentos));
+        let movidos: Vec<Value> = aberto
+            .arvore
+            .documentos_movidos
+            .iter()
+            .map(|m| {
+                json!({
+                    "id": m.id,
+                    "rotulo": m.rotulo,
+                    "numero_sei": m.numero_sei,
+                    "destino": m.destino.as_ref().map(
+                        |d| json!({"numero": d.numero, "id_procedimento": d.id_procedimento}),
+                    ),
+                })
+            })
+            .collect();
+        objeto.insert("documentos_movidos".to_owned(), Value::Array(movidos));
         let pastas: Vec<Value> = aberto
             .arvore
             .pastas
@@ -290,6 +306,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 let _ = write!(texto, " [pasta {}]", pasta.rotulo);
             }
         }
+        humano_dos_movidos(&arvore.documentos_movidos, &mut texto);
     }
     match &aberto.andamentos {
         Andamentos::Lidos(lidos) => {
@@ -325,6 +342,26 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
         "\nNão lidos nesta versão: marcadores."
     });
     texto
+}
+
+fn humano_dos_movidos(movidos: &[DocumentoMovido], texto: &mut String) {
+    if movidos.is_empty() {
+        return;
+    }
+    let _ = write!(
+        texto,
+        "\n{} documento(s) movido(s) para outro processo:",
+        movidos.len()
+    );
+    for m in movidos {
+        let _ = write!(texto, "\n- {} (id {}): ", m.rotulo, m.id);
+        match &m.destino {
+            Some(d) => {
+                let _ = write!(texto, "movido para {}, ies processo {}", d.numero, d.numero);
+            }
+            None => texto.push_str("destino não publicado"),
+        }
+    }
 }
 
 fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {

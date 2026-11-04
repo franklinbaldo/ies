@@ -81,6 +81,20 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
             pai.trabalhar.as_str(),
         );
     }
+    // Cada movido com destino conferido: o par e o link assinado do destino.
+    let destinos = arvore_lida.arvore.documentos_movidos.iter();
+    for destino in destinos.filter_map(|m| m.destino.as_ref()) {
+        let _ = indice.registrar_processo(
+            &contexto.instalacao,
+            &destino.numero,
+            &destino.id_procedimento,
+        );
+        contexto.aprender_link(
+            "procedimento_trabalhar",
+            &destino.id_procedimento,
+            destino.trabalhar.as_str(),
+        );
+    }
     let andamentos = super::andamentos::ler(
         &contexto,
         &mut rede,

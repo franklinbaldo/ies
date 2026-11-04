@@ -3,7 +3,6 @@
 //! documentos e ensina ao índice o par NUP ↔ id e o link
 //! `procedimento_trabalhar` assinado do destino, sem requisição a mais.
 use super::tests_apoio::*;
-use super::*;
 use crate::arvore_processo::tests::NUP;
 use crate::arvore_processo::tests_movidos::{
     ID_DESTINO, NUP_DESTINO, arvore_com_movido, href_do_destino, html_do_movido,

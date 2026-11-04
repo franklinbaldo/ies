@@ -48,7 +48,7 @@ pub(crate) fn ler_vinculo_de_anexacao(
 
 /// O texto do link quando ele é o único filho (nó de texto cru); senão
 /// vazio, que a conferência recusa.
-fn texto_unico(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
+pub(super) fn texto_unico(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
     let filhos = tag.children();
     match filhos.top().as_slice() {
         [filho] => match filho.get(parser) {
@@ -85,7 +85,7 @@ fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
 }
 
 /// Os pares `chave=valor` da consulta de `href` (sem `?`, nenhum).
-fn pares(href: &str) -> impl Iterator<Item = (&str, &str)> {
+pub(super) fn pares(href: &str) -> impl Iterator<Item = (&str, &str)> {
     href.split_once('?')
         .map_or("", |(_, consulta)| consulta)
         .split('&')
