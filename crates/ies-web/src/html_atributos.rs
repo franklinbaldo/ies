@@ -57,7 +57,6 @@ impl<'a> AtributosDaTag<'a> {
 
     /// Nomes na ordem da fonte, inclusive repetidos.
     #[cfg(test)]
-    #[must_use]
     pub fn nomes(&self) -> impl Iterator<Item = &str> {
         self.pares.iter().map(|(nome, _)| nome.as_str())
     }
@@ -80,7 +79,6 @@ impl<'a> AtributosDaTag<'a> {
     /// ausente. Repetição não escolhe o primeiro nem o último: é recusada.
     /// # Errors
     /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-    #[must_use]
     pub fn valor(&self, nome: &'static str) -> Result<Option<&'a str>, ErroAtributoHtml> {
         let mut achados = self.pares.iter().filter(|(chave, _)| chave == nome);
         let primeiro = achados.next();
@@ -92,7 +90,6 @@ impl<'a> AtributosDaTag<'a> {
 
     /// Todos os valores de `nome`, inclusive repetidos, para regras que
     /// recusam quando **qualquer** ocorrência casa (detecção de login).
-    #[must_use]
     pub fn valores(&self, nome: &str) -> impl Iterator<Item = &'a str> {
         self.pares
             .iter()
@@ -112,7 +109,6 @@ impl<'a> AtributosDaTag<'a> {
     /// `class` contém `classe` entre os separadores de espaço HTML.
     /// # Errors
     /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-    #[must_use]
     pub fn tem_classe(&self, classe: &str) -> Result<bool, ErroAtributoHtml> {
         Ok(self
             .valor("class")?
@@ -125,7 +121,6 @@ impl<'a> AtributosDaTag<'a> {
     /// pesquisa. Valores diferentes continuam recusados.
     /// # Errors
     /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-    #[must_use]
     pub fn valor_com_repeticao_identica(
         &self,
         nome: &'static str,
@@ -144,7 +139,6 @@ impl<'a> AtributosDaTag<'a> {
     /// a contém; erro se umas contêm e outras não.
     /// # Errors
     /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-    #[must_use]
     pub fn tem_classe_em_todas_as_ocorrencias(
         &self,
         classe: &str,
@@ -165,7 +159,6 @@ impl<'a> AtributosDaTag<'a> {
     /// `tem_classe` sobre `valor_com_repeticao_identica("class")`.
     /// # Errors
     /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-    #[must_use]
     pub fn tem_classe_com_repeticao_identica(
         &self,
         classe: &str,
@@ -181,9 +174,10 @@ pub(super) fn eh_espaco_html(c: char) -> bool {
 }
 
 /// Tokeniza a tag de abertura de `tag` a partir da fonte original.
-pub fn atributos<'t>(
-    tag: &'t tl::HTMLTag<'_>,
-) -> Result<AtributosDaTag<'t>, ErroAtributoHtml> {
+///
+/// # Errors
+/// Retorna erro tipado quando a tag original não é UTF-8 válido ou é malformada.
+pub fn atributos<'t>(tag: &'t tl::HTMLTag<'_>) -> Result<AtributosDaTag<'t>, ErroAtributoHtml> {
     let fonte = std::str::from_utf8(tag.raw().as_bytes())
         .map_err(|_| ErroAtributoHtml::InicioDaTagDeAberturaAusente)?;
     tokenizar_tag_de_abertura(fonte)
@@ -192,7 +186,6 @@ pub fn atributos<'t>(
 /// Valor bruto e próprio de `nome` em `tag`.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn valor_do_atributo(
     tag: &tl::HTMLTag<'_>,
     nome: &'static str,
@@ -203,11 +196,7 @@ pub fn valor_do_atributo(
 /// Presença de atributo booleano em `tag`.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
-pub fn atributo_presente(
-    tag: &tl::HTMLTag<'_>,
-    nome: &str,
-) -> Result<bool, ErroAtributoHtml> {
+pub fn atributo_presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroAtributoHtml> {
     Ok(atributos(tag)?.presente(nome))
 }
 
