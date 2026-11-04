@@ -13,6 +13,8 @@ escrita** de preferência por instalação
 (5.0.4, sessões novas), depois GO e a UnB 4.0.9 (11 opções). A PEN1 só
 volta depois de um PASS nas outras
 ([análise da saída 3 de 04/11](2026-11-04-definir-colunas-pen1.md)).
+PEN4: PASS em 04/11/2026, 12 colunas com 1 POST e sem reconciliação
+([relatório](2026-11-04-definir-colunas-pen4.md)).
 
 **Não há restauração.** Todas as colunas são o estado final desejado
 (decisão do proprietário "B"; o IES não restaura tela, visão nem colunas).
