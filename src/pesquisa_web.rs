@@ -1,7 +1,7 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
 use crate::html_atributos::{
-    ErroAtributoHtml, nos_por_elemento_e_classe, nos_por_elemento_e_classe_com_repeticao_identica,
+    ErroAtributoHtml, nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
     valor_do_atributo,
 };
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
@@ -178,8 +178,9 @@ fn contar_arvore_da_linha(
     use ErroResultadoPesquisa as E;
     let ilegivel = |_: ErroAtributoHtml| E::HtmlDePesquisaNaoInterpretado;
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
-    let arvores = nos_por_elemento_e_classe_com_repeticao_identica(dom, Some(linha), "a", "arvore")
-        .map_err(ilegivel)?;
+    let arvores =
+        nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
+            .map_err(ilegivel)?;
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => *arvore,
@@ -227,7 +228,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let links = nos_por_elemento_e_classe_com_repeticao_identica(
+        let links = nos_por_elemento_e_classe_em_todas_as_ocorrencias(
             &dom,
             Some(tag),
             "a",
@@ -273,7 +274,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     // A seleção por classe das linhas pode omitir links reais se a versão
     // do SEI mudar o HTML. Nunca devolver subconjunto silencioso como se
     // representasse todos os links observáveis da tabela de resultados.
-    let links_da_tabela = nos_por_elemento_e_classe_com_repeticao_identica(
+    let links_da_tabela = nos_por_elemento_e_classe_em_todas_as_ocorrencias(
         &dom,
         Some(tabela),
         "a",

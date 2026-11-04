@@ -62,21 +62,12 @@ pub(crate) fn nos_por_elemento_e_classe(
     filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::Recusada)
 }
 
-/// Como `nos_por_elemento_e_classe`, aceitando `class` repetido com valores
-/// idênticos (link da pesquisa da `UnB` 4.0.9); valores diferentes são erro.
-pub(crate) fn nos_por_elemento_e_classe_com_repeticao_identica(
-    dom: &tl::VDom<'_>,
-    raiz: Option<&tl::HTMLTag<'_>>,
-    elemento: &str,
-    classe: &str,
-) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::Identica)
-}
-
 /// Como `nos_por_elemento_e_classe`, aceitando `class` repetido quando
-/// **todas** as ocorrências contêm `classe` (PEN3 5.0.4 serve
-/// `class="protocoloNormal processoVisitado" … class="protocoloNormal"` no
-/// link do processo já visitado); uma ocorrência sem ela é erro.
+/// **todas** as ocorrências contêm `classe`: a `UnB` 4.0.9 repete
+/// `class="protocoloNormal"` idêntico no link da pesquisa, e a PEN3 e a PEN4
+/// 5.0.4 servem `class="protocoloNormal processoVisitado" …
+/// class="protocoloNormal"` no link do processo já visitado (pesquisa de
+/// processos e de documentos); uma ocorrência sem ela é erro.
 pub(crate) fn nos_por_elemento_e_classe_em_todas_as_ocorrencias(
     dom: &tl::VDom<'_>,
     raiz: Option<&tl::HTMLTag<'_>>,
@@ -90,7 +81,6 @@ pub(crate) fn nos_por_elemento_e_classe_em_todas_as_ocorrencias(
 #[derive(Clone, Copy)]
 enum Repeticao {
     Recusada,
-    Identica,
     ContendoAClasse,
 }
 
@@ -118,7 +108,6 @@ fn filtrar_por_classe(
         let lidos = atributos(tag)?;
         let tem = match repeticao {
             Repeticao::Recusada => lidos.tem_classe(classe)?,
-            Repeticao::Identica => lidos.tem_classe_com_repeticao_identica(classe)?,
             Repeticao::ContendoAClasse => lidos.tem_classe_em_todas_as_ocorrencias(classe)?,
         };
         if tem {
