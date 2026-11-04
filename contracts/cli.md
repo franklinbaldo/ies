@@ -50,7 +50,9 @@ legado do Todos faz parte do contrato público por pressuposição.
   `ies unidade colunas --definir todas|LISTA [--confirmar]` (escrita da
   preferência de colunas, com prévia, confirmação e verificação)
 - `ies processo enviar NUP --para SIGLA`
-- `ies documento assinar NUMERO`
+- `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
+  com a senha do login, prévia e verificação pela caneta da árvore;
+  [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
@@ -127,8 +129,8 @@ unidade ou contexto divergente) continuam recusas tipadas.
 
 `documento DOC` lê documentos internos e externos pela Web (#60 fatias 1 a 3;
 [contrato](cli/documento-obter-web.md)). Continuam como stubs
-`documento salvar --confirmar` remoto, `processo enviar` e `documento
-assinar`. `processo concluir` escreve com prévia e verificação
+`documento salvar --confirmar` remoto e `processo enviar`; `documento
+assinar` escreve com prévia e verificação ([contrato](cli/documento-assinar.md)). `processo concluir` escreve com prévia e verificação
 ([contrato](cli/processo-concluir.md)); `documento DOC --versao N` está
 implementado ([contrato](cli/documento-obter-versoes.md)). `processo NUP`
 lê pela árvore ([contrato](cli/processo-obter-arvore.md)) e `unidade

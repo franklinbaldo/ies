@@ -15,6 +15,8 @@ mod controle_reconhecido;
 mod copia_documento;
 mod copia_listagem;
 mod documento;
+mod documento_assinar;
+mod documento_assinar_cli;
 mod documento_buscar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
@@ -235,9 +237,14 @@ enum DocumentoAcao {
         )]
         pagina: Option<u32>,
     },
+    /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
     Assinar {
         numero: String,
-        #[arg(long)]
+        /// Cargo/função exatamente como uma opção da tela de assinatura
+        #[arg(long, value_name = "TEXTO")]
+        cargo: Option<String>,
+        /// Assina (não se desfaz); exige --cargo
+        #[arg(long, requires = "cargo")]
         confirmar: bool,
     },
 }
@@ -356,6 +363,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| documento_assinar_cli::tentar_assinar(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.

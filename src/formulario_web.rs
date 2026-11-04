@@ -44,6 +44,8 @@ pub(crate) enum PreferenciaDoUsuario {
 pub(crate) enum EstadoDoProcesso {
     /// O andamento aberto na unidade da sessão (concluir fecha).
     AndamentoAbertoNaUnidade,
+    /// A assinatura do usuário no documento (não se desfaz).
+    AssinaturaDoDocumento,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.

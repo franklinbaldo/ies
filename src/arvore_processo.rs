@@ -7,6 +7,7 @@
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
+mod assinatura;
 mod barra_do_documento;
 mod barra_do_processo;
 mod concluir;
@@ -28,6 +29,8 @@ pub(crate) mod tests;
 pub(crate) mod tests_anexado_a;
 #[cfg(test)]
 pub(crate) mod tests_anexados;
+#[cfg(test)]
+pub(crate) mod tests_assinatura;
 #[cfg(test)]
 mod tests_barra;
 #[cfg(test)]
@@ -60,6 +63,10 @@ mod tests_situacao;
 pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
+pub(crate) use assinatura::{
+    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
+    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
+};
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
