@@ -132,10 +132,29 @@ fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E>
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`
-/// ou `acao=principal` (relativo, como servido), com
+/// ou `acao=principal`, na mesma origem e no mesmo controlador, com
 /// `acao_origem=procedimento_concluir` e o id, cada chave uma vez.
-pub(crate) fn redirecionamento_esperado(localizacao: Option<&str>, id: &str) -> bool {
-    let Some(consulta) = localizacao.and_then(|l| l.strip_prefix("controlador.php?")) else {
+pub(crate) fn redirecionamento_esperado(
+    localizacao: Option<&str>,
+    url_do_envio: &str,
+    instalacao: &crate::instalacao::Instalacao,
+    id: &str,
+) -> bool {
+    use crate::sessao_login::redirecionamento::{caminho_da_url, resolver_no_host};
+
+    let Some(localizacao) = localizacao.filter(|l| !l.contains('#')) else {
+        return false;
+    };
+    let Ok(destino) = resolver_no_host(url_do_envio, localizacao, instalacao.host()) else {
+        return false;
+    };
+    let Some(caminho) = caminho_da_url(&destino).and_then(|c| c.strip_prefix('/')) else {
+        return false;
+    };
+    if !instalacao.autoriza_controlador(instalacao.host(), caminho) {
+        return false;
+    }
+    let Some((_, consulta)) = destino.split_once('?') else {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {

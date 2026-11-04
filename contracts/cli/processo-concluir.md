@@ -96,7 +96,8 @@ unidade é a conferida na tela do processo
 
 **Esperada**: na forma `tela`, 302 (não seguido) com `Location`
 `controlador.php?acao=arvore_visualizar…` ou `controlador.php?acao=principal…`,
-com `acao_origem=procedimento_concluir` e o `id_procedimento` aberto; na
+com `acao_origem=procedimento_concluir` e o `id_procedimento` aberto. Uma
+referência absoluta HTTP ao mesmo host e controlador também é aceita; na
 forma `funcao`, HTML 200 sem tela de login nem validação da Infra.
 Qualquer outra (rede, tempo, status, 302 para outro destino, HTML 200 na
 forma `tela`, login) é `falha_do_envio` e **não** repete a escrita: a

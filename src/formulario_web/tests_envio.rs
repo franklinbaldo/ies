@@ -190,14 +190,17 @@ impl std::io::Read for CorpoQueNaoDeveSerLido {
     }
 }
 
-fn enviar_302(localizacao: Option<&str>) -> (Result<RespostaDoEnvio, E>, usize) {
+fn enviar_com_redirecionamento(
+    status: u16,
+    localizacao: Option<&str>,
+) -> (Result<RespostaDoEnvio, E>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
         chamadas.set(chamadas.get() + 1);
         Ok(RespostaDoPost {
             resposta: RespostaWeb {
-                status_code: 302,
+                status_code: i32::from(status),
                 mime: "text/html; charset=ISO-8859-1".to_owned(),
                 content_length: Some(0),
                 corpo: CorpoQueNaoDeveSerLido,
@@ -212,7 +215,7 @@ const LOCALIZACAO: &str = "controlador.php?acao=procedimento_trabalhar&id_proced
 
 #[test]
 fn resposta_302_volta_como_dado_sem_seguir_nem_ler_o_corpo() {
-    let (r, n) = enviar_302(Some(LOCALIZACAO));
+    let (r, n) = enviar_com_redirecionamento(302, Some(LOCALIZACAO));
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = r.unwrap() else {
         panic!("esperado 302 como dado");
     };
@@ -221,9 +224,37 @@ fn resposta_302_volta_como_dado_sem_seguir_nem_ler_o_corpo() {
     assert_eq!(redirecionamento.url_do_envio(), submissao().url());
 }
 
+// Caso de todos tests/test_redirect_seguro_010.py @323eb01
+#[test]
+fn location_http_do_302_e_entregue_sem_segunda_requisicao() {
+    let local = "http://sei.exemplo.gov.br/sei/controlador.php";
+    let (resposta, chamadas) = enviar_com_redirecionamento(302, Some(local));
+    let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta.unwrap() else {
+        panic!("esperado 302 como dado");
+    };
+    assert_eq!(chamadas, 1);
+    assert_eq!(redirecionamento.localizacao(), Some(local));
+}
+
+// Caso de todos tests/test_redirect_seguro_010.py @323eb01
+#[test]
+fn post_com_307_ou_308_nao_reenvia_o_formulario() {
+    for status in [307, 308] {
+        let (resposta, chamadas) = enviar_com_redirecionamento(
+            status,
+            Some("http://sei.exemplo.gov.br/sei/controlador.php"),
+        );
+        let Err(E::Transporte(falha)) = resposta else {
+            panic!("esperada recusa tipada");
+        };
+        assert_eq!(falha.status_http().map(|s| s.status), Some(status));
+        assert_eq!(chamadas, 1);
+    }
+}
+
 #[test]
 fn resposta_302_sem_location_volta_para_a_operacao_decidir() {
-    let (r, _) = enviar_302(None);
+    let (r, _) = enviar_com_redirecionamento(302, None);
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = r.unwrap() else {
         panic!("esperado 302 como dado");
     };
@@ -232,7 +263,7 @@ fn resposta_302_sem_location_volta_para_a_operacao_decidir() {
 
 #[test]
 fn debug_do_302_nao_imprime_location_nem_url_assinada() {
-    let (r, _) = enviar_302(Some(LOCALIZACAO));
+    let (r, _) = enviar_com_redirecionamento(302, Some(LOCALIZACAO));
     let texto = format!("{:?}", r.unwrap());
     assert!(!texto.contains("dddd"), "{texto}");
     assert!(!texto.contains("cccc"), "{texto}");

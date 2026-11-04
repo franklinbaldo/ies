@@ -92,7 +92,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
                 &id,
                 &feito.unidade,
             )?;
-            enviar(&mut rede, sessao, submissao, &id)?
+            enviar(&mut rede, sessao, submissao, &instalacao, &id)?
         }
         ConcluirNaBarra::PelaFuncao { tela_do_no } => {
             let (html, _) = obter_tela(&mut rede, &cookie, tela_do_no.as_str()).map_err(da_tela)?;
@@ -152,6 +152,7 @@ fn enviar<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
     submissao: SubmissaoDerivada,
+    instalacao: &Instalacao,
     id: &str,
 ) -> Result<Option<FalhaDoEnvio>, C> {
     let mut enviado = false;
@@ -161,8 +162,10 @@ fn enviar<V: EnvioDoProcesso>(
     });
     match resposta {
         Ok(RespostaDoEnvio::Redirecionamento(r)) => {
-            Ok((!redirecionamento_esperado(r.localizacao(), id))
-                .then_some(FalhaDoEnvio::RedirecionamentoNaoReconhecido))
+            Ok(
+                (!redirecionamento_esperado(r.localizacao(), r.url_do_envio(), instalacao, id))
+                    .then_some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+            )
         }
         Ok(RespostaDoEnvio::Html(_)) => Ok(Some(FalhaDoEnvio::RespostaSemRedirecionamento)),
         Err(erro) if enviado => Ok(Some(FalhaDoEnvio::Envio(erro))),
