@@ -117,7 +117,8 @@ Invariante de **toda** leitura paginada da CLI:
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
 
-Continuam como stubs `documento DOC` (obtenção Web), `documento buscar`,
+`documento DOC` lê documentos internos pela Web (#60 fatias 1 e 2;
+[contrato](cli/documento-obter-web.md)). Continuam como stubs `documento buscar`,
 `documento salvar --confirmar` remoto, `processo enviar`, `processo
 concluir` e `documento assinar`. `processo NUP` lê pela árvore
 ([contrato](cli/processo-obter-arvore.md)) e `unidade colunas --definir
