@@ -302,6 +302,10 @@ mod tests_arvore;
 #[cfg(test)]
 pub(crate) mod tests_fixtures;
 
+// Replay de conformidade do acervo público pelas peças do comando (Refs #58).
+#[cfg(test)]
+mod acervo;
+
 // A declaração do formulário fica com a pesquisa, não num catálogo do primitivo
 // (docs/arquitetura/0002); `ies processo buscar` a usa pelo `fluxo`.
 pub(crate) mod formulario_pesquisa;
