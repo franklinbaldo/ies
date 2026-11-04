@@ -34,18 +34,13 @@ fn handle(indice: usize) -> tl::NodeHandle {
 /// Uma tag ilegível em qualquer ponto impede afirmar unicidade: erro.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
-pub fn nos_com_id(
-    dom: &tl::VDom<'_>,
-    id: &str,
-) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
+pub fn nos_com_id(dom: &tl::VDom<'_>, id: &str) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
     filtrar_por_id(dom.parser(), (0..dom.nodes().len()).map(handle), id)
 }
 
 /// Descendentes de `tag` cujo `id` é exatamente `id`, em ordem.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn nos_com_id_em(
     tag: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
@@ -61,7 +56,6 @@ pub fn nos_com_id_em(
 /// ou entre os descendentes de `raiz`. A seleção por nome é a do `tl`.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn nos_por_elemento_e_classe(
     dom: &tl::VDom<'_>,
     raiz: Option<&tl::HTMLTag<'_>>,
@@ -75,7 +69,6 @@ pub fn nos_por_elemento_e_classe(
 /// idênticos (link da pesquisa da `UnB` 4.0.9); valores diferentes são erro.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn nos_por_elemento_e_classe_com_repeticao_identica(
     dom: &tl::VDom<'_>,
     raiz: Option<&tl::HTMLTag<'_>>,
@@ -91,7 +84,6 @@ pub fn nos_por_elemento_e_classe_com_repeticao_identica(
 /// link do processo já visitado); uma ocorrência sem ela é erro.
 /// # Errors
 /// Retorna erro tipado quando a marcação HTML não pode ser interpretada com segurança.
-#[must_use]
 pub fn nos_por_elemento_e_classe_em_todas_as_ocorrencias(
     dom: &tl::VDom<'_>,
     raiz: Option<&tl::HTMLTag<'_>>,
