@@ -79,9 +79,11 @@ fn uso_invalido_falha_antes_da_execucao() {
     assert_eq!(output.status.code(), Some(2));
 }
 
+/// `processo enviar` é escrita implementada (Refs #173): sem sessão, falha
+/// fechado antes da rede (nunca com os arquivos do ambiente).
 #[test]
 fn escrita_reconhecida_nao_executa_sei() {
-    let output = ies(&[
+    let output = ies_sem_sessao(&[
         "processo",
         "enviar",
         "123",
@@ -92,7 +94,7 @@ fn escrita_reconhecida_nao_executa_sei() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["codigo"], "nao_implementado");
+    assert_eq!(result["codigo"], "fonte_invalida");
 }
 
 #[test]

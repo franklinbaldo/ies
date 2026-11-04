@@ -1,6 +1,7 @@
 //! Submissão derivada de formulário HTML servido pelo SEI, sem rede.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
+mod ajax;
 mod codificacao;
 mod erro;
 mod guardada;
@@ -11,6 +12,7 @@ use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
@@ -44,6 +46,9 @@ pub(crate) enum PreferenciaDoUsuario {
 pub(crate) enum EstadoDoProcesso {
     /// O andamento aberto na unidade da sessão (concluir fecha).
     AndamentoAbertoNaUnidade,
+    /// As unidades com o processo aberto (enviar abre no destino e, sem
+    /// "manter aberto", fecha na da sessão).
+    UnidadesComOProcessoAberto,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.

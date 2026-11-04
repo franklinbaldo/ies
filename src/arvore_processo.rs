@@ -12,6 +12,7 @@ mod barra_do_processo;
 mod concluir;
 mod conteudo;
 pub(crate) mod endereco;
+mod enviar;
 mod erro;
 mod literais;
 mod movidos;
@@ -65,12 +66,13 @@ pub(crate) use barra_do_documento::{
 };
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
 pub(crate) use concluir::{
-    ACAO_DE_CONCLUIR, ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir,
-    ler_concluir_da_barra, ler_funcao_de_concluir,
+    ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
+    ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
+pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;

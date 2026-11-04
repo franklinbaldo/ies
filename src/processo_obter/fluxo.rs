@@ -12,8 +12,8 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, ErroArvore, ErroConcluirNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso,
-    ReabrirNaBarra, ler_tela_do_processo,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra,
+    ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
@@ -49,6 +49,8 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
     pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    /// contracts/cli/processo-enviar.md
+    pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -116,6 +118,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     let acoes = AcoesDeEstado {
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
+        enviar: arvore_lida.enviar,
     };
     Ok((aberto, acoes))
 }

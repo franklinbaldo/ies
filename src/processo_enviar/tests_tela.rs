@@ -1,0 +1,205 @@
+//! RED/GREEN da conferência da tela "Enviar Processo", da consulta que o
+//! script declara e dos pares do POST, nas duas famílias observadas.
+use super::erro::ErroTelaDeEnvio as E;
+use super::tela::{
+    ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta, campos_do_envio, conferir_tela_de_envio,
+    redirecionamento_esperado,
+};
+use super::tests_apoio::*;
+use crate::arvore_processo::tests_tela::instalacao;
+use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+use crate::processo_concluir::tests_apoio::{ID, NUP};
+
+fn conferida(versao: Versao) -> TelaDeEnvio {
+    conferir_tela_de_envio(&tela_de_envio(versao, ID), ID).unwrap()
+}
+
+#[test]
+fn tela_das_duas_familias_e_conferida() {
+    let v40 = conferida(Versao::V40);
+    assert_eq!(v40.orgao, "");
+    assert_eq!(v40.textos, ["txtPrazo", "txtDias"]);
+    assert_eq!(v40.autocompletar, autocompletar());
+    assert!(!v40.unidade_atual);
+    let v41 = conferida(Versao::V41);
+    assert_eq!(
+        v41.textos,
+        [
+            "txtPrazoRetornoProgramado",
+            "txtDiasRetornoProgramado",
+            "txtPrazoReaberturaProgramada",
+            "txtDiasReaberturaProgramada"
+        ]
+    );
+    assert!(v41.unidade_atual);
+}
+
+#[test]
+fn consulta_leva_o_corpo_do_prepararexecucao() {
+    let v40 = conferida(Versao::V40);
+    assert_eq!(
+        campos_da_consulta(&v40, DESTINO),
+        [("palavras_pesquisa", DESTINO), ("id_orgao", "")]
+    );
+    let v41 = conferida(Versao::V41);
+    assert_eq!(
+        campos_da_consulta(&v41, DESTINO),
+        [
+            ("palavras_pesquisa", DESTINO),
+            ("id_orgao", ""),
+            ("unidade_atual", "0")
+        ]
+    );
+}
+
+#[test]
+fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
+    for versao in [Versao::V40, Versao::V41] {
+        for manter in [false, true] {
+            let html = tela_de_envio(versao, ID);
+            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let campos = campos_do_envio(&tela, &destino(), manter);
+            let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
+            let url = url_da_tela();
+            let servida = TelaServida {
+                url: &url,
+                html: &html,
+                codificacao: CodificacaoDaTela::Iso88591,
+            };
+            let s =
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+            assert_eq!(
+                String::from_utf8(s.corpo().to_vec()).unwrap(),
+                corpo_do_envio(versao, manter)
+            );
+        }
+    }
+}
+
+#[test]
+#[allow(clippy::too_many_lines)] // Uma tabela de casos.
+fn recusas_da_tela_antes_de_qualquer_post() {
+    let base = tela_de_envio(Versao::V41, ID);
+    let trocar = |de: &str, para: &str| {
+        assert!(base.contains(de), "{de}");
+        base.replacen(de, para, 1)
+    };
+    let casos = [
+        (
+            trocar("frmAtividadeListar", "frmOutro"),
+            E::FormularioDeEnvioAusente,
+        ),
+        (
+            trocar(
+                "name=\"hdnIdProtocolos\" value=\"10\"",
+                "name=\"hdnIdProtocolos\" value=\"11\"",
+            ),
+            E::TelaDeEnvioDeOutroProcesso,
+        ),
+        (
+            trocar(
+                "<input type=\"hidden\" id=\"hdnUnidades\"",
+                "<input type=\"text\" name=\"txtNovo\" value=\"\" /><input type=\"hidden\" id=\"hdnUnidades\"",
+            ),
+            E::CampoNaoPrevistoNaTelaDeEnvio,
+        ),
+        (
+            trocar(
+                "name=\"chkSinManterAberto\" class",
+                "name=\"chkSinManterAberto\" checked=\"checked\" class",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "name=\"chkSinEnviarEmailNotificacao\" class",
+                "name=\"chkSinEnviarEmailNotificacao\" checked class",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "id=\"optDiasRetornoProgramado\" value=\"2\"",
+                "id=\"optDiasRetornoProgramado\" value=\"2\" checked=\"checked\"",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"\"",
+                "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"5\"",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "name=\"hdnUnidades\" value=\"\"",
+                "name=\"hdnUnidades\" value=\"1±X\"",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n",
+                "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n<option value=\"9\">X - Y</option>\n",
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                &format!("<option value=\"{ID}\">"),
+                &format!("<option value=\"{ID}\" selected=\"selected\">"),
+            ),
+            E::TelaDeEnvioComOpcoesPreenchidas,
+        ),
+        (
+            trocar(
+                "<option value=\"\" selected=\"selected\">Todos</option>",
+                "<option value=\"\">Todos</option>",
+            ),
+            E::OrgaoDaTelaDeEnvioNaoSelecionado,
+        ),
+        (
+            trocar(
+                "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','",
+                "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdOutro','txtUnidade','",
+            ),
+            E::AutocompletarDeUnidadeNaoDeclarado,
+        ),
+        (
+            trocar("+'&unidade_atual=0';", "+'&unidade_atual=1';"),
+            E::ConsultaDoAutocompletarForaDaFormaObservada,
+        ),
+    ];
+    for (html, erro) in casos {
+        assert_eq!(conferir_tela_de_envio(&html, ID), Err(erro), "{erro:?}");
+    }
+    // Duas declarações do autocomplete: nenhuma é escolhida.
+    let linha = format!(
+        "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','{}');",
+        autocompletar()
+    );
+    let repetida = base.replacen(&linha, &format!("{linha}\n{linha}"), 1);
+    assert_eq!(
+        conferir_tela_de_envio(&repetida, ID),
+        Err(E::AutocompletarDeUnidadeNaoDeclarado)
+    );
+    let _ = NUP;
+}
+
+#[test]
+fn redirecionamento_do_envio_observado() {
+    assert!(redirecionamento_esperado(
+        Some(&volta_a_arvore_do_envio()),
+        ID
+    ));
+    for outro in [
+        volta_a_arvore_do_envio().replace("acao_origem=procedimento_enviar", "acao_origem=x"),
+        volta_a_arvore_do_envio().replace("id_procedimento=10", "id_procedimento=11"),
+        volta_a_arvore_do_envio().replace("acao=arvore_visualizar", "acao=procedimento_enviar"),
+        format!("https://outro/{}", volta_a_arvore_do_envio()),
+    ] {
+        assert!(!redirecionamento_esperado(Some(&outro), ID), "{outro}");
+    }
+    assert!(!redirecionamento_esperado(None, ID));
+}

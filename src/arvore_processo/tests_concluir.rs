@@ -47,10 +47,11 @@ pub(crate) fn absoluta(relativa: &str) -> String {
 /// O `<a>` da forma 4.0, como servido.
 pub(crate) const ACAO_FUNCAO: &str = "<a href=\"#\" onclick=\"concluirProcesso();\" tabindex=\"451\" ><img src=\"svg/processo_concluir.svg?11\" alt=\"Concluir Processo\" title=\"Concluir Processo\" /></a>";
 
-/// Uma ação vizinha qualquer, para a barra não ter só a conclusão.
+/// Uma ação vizinha qualquer, para a barra não ter só a conclusão (não a
+/// de enviar, que `processo enviar` lê: os testes dele a põem uma vez).
 fn vizinha() -> String {
     acao_da_barra(&format!(
-        "controlador.php?acao=procedimento_enviar&acao_origem=arvore_visualizar&id_procedimento=10&arvore=1&{CONTEXTO}&infra_hash={}",
+        "controlador.php?acao=procedimento_enviar_email&acao_origem=arvore_visualizar&id_procedimento=10&arvore=1&{CONTEXTO}&infra_hash={}",
         "4".repeat(64)
     ))
 }
