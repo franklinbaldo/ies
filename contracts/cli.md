@@ -39,6 +39,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
 - `ies documento NUMERO`
+- `ies documento buscar TERMO [--pagina N]` (a mesma pesquisa Web, em
+  documentos: GET + GET + POST; `--pagina N` acrescenta um POST)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
   a sessão fica na D, sem restaurar; decisões do proprietário, 02/11/2026)
 - `ies unidade recebidos [--pagina N]` e `ies unidade gerados [--pagina N]`
@@ -65,6 +67,7 @@ legado do Todos faz parte do contrato público por pressuposição.
   O externo usa o [GET binário](cli/documento-obter-externo.md), com
   subcódigos próprios (`tipo_de_anexo_nao_permitido`,
   `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
+- [documento.buscar](cli/documento-buscar.md): pesquisa Web em documentos pelo número SEI.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
   [visão detalhada](cli/unidade-listar-processos-visao-detalhada.md),
@@ -120,8 +123,8 @@ Invariante de **toda** leitura paginada da CLI:
 Contradições reais (faixa inválida ou não contígua, total ausente,
 unidade ou contexto divergente) continuam recusas tipadas.
 
-`documento DOC` lê documentos internos pela Web (#60 fatias 1 e 2;
-[contrato](cli/documento-obter-web.md)). Continuam como stubs `documento buscar`,
+`documento DOC` lê documentos internos e externos pela Web (#60 fatias 1 a 3;
+[contrato](cli/documento-obter-web.md)). Continuam como stubs
 `documento salvar --confirmar` remoto, `processo enviar`, `processo
 concluir` e `documento assinar`. `processo NUP` lê pela árvore
 ([contrato](cli/processo-obter-arvore.md)) e `unidade colunas --definir

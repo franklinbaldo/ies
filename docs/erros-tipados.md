@@ -79,3 +79,21 @@ mensagem saneada como apresentação) e as falhas de gravação do parcial.
 Status, rede e charset continuam `FalhaTransporte`; a tela de login, a
 sessão encerrada de `processo NUP`. Lista no
 [contrato](../contracts/cli/documento-obter-externo.md).
+
+## Pesquisa em documentos
+
+`ies documento buscar` ([contrato](../contracts/cli/documento-buscar.md))
+reaproveita as variantes de `processo buscar` e acrescenta, cada uma pelo
+fato verificável: na tela, `ErroRegraDoFormularioDePesquisa` com a opção
+`#optDocumentos` (`opcao_de_documentos_*`), as caixas de tipo
+(`caixa_de_tipo_de_documento_ausente_na_tela`,
+`caixas_de_tipo_de_documento_repetidas_na_tela`,
+`caixa_de_tipo_de_documento_sem_valor_na_tela`,
+`nenhum_tipo_de_documento_marcado_na_tela`) e
+`assinante_oculto_preenchido_na_pesquisa_em_documentos`; no 302,
+`ErroRedirecionamentoDaPesquisa::IdDocumento*`
+(`id_documento_ausente_no_redirecionamento`, `…_repetido_…`,
+`…_nao_decimal_…`); na linha, `ErroDocumentoDaPesquisa`, que embute a
+recusa comum do link do processo (`ErroResultadoPesquisa`) em vez de
+repeti-la. O termo inválido é `TermoDeDocumentoInvalido`
+(`termo_de_documento_vazio`, `termo_de_documento_contem_controle`).

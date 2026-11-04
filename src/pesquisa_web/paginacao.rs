@@ -4,7 +4,9 @@
 //! `document.getElementById('frmPesquisaProtocolo').submit();` (sem botão),
 //! com links `javascript:navegar('10')`…`navegar('90')` e "Próxima".
 use super::formulario_pesquisa::CAMPOS_OCULTOS_DA_PESQUISA;
-use super::resposta::{FaixaDaPesquisa, ListaDaPesquisa, RespostaDaPesquisa};
+#[cfg(test)]
+use super::resposta::ListaDaPesquisa;
+use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     decodificar_atributo, localizar_formulario,
@@ -70,9 +72,37 @@ impl ErroPaginacaoDaPesquisa {
     }
 }
 
+/// O que a paginação precisa da resposta da página 1, em processos ou em
+/// documentos: a forma e, na lista, a faixa e o total da barra.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Contagem {
+    SemResultado,
+    /// 302 interpretado: uma página só.
+    Unico,
+    Lista {
+        faixa: FaixaDaPesquisa,
+        total: u64,
+    },
+}
+
+impl RespostaDaPesquisa {
+    pub(crate) fn contagem(&self) -> Contagem {
+        match self {
+            Self::SemResultado => Contagem::SemResultado,
+            Self::ProcessoUnico { .. } => Contagem::Unico,
+            Self::Lista(lista) => Contagem::Lista {
+                faixa: lista.faixa,
+                total: lista.total_declarado,
+            },
+        }
+    }
+}
+
 /// O POST de página a enviar: `hdnInicio` e a faixa que a resposta deve ter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PedidoDePaginaDaPesquisa {
+    /// A página pedida (N de `--pagina N`).
+    pub(crate) numero: u64,
     pub(crate) inicio: u64,
     pub(crate) total: u64,
     pub(crate) esperada: FaixaDaPesquisa,
@@ -81,8 +111,18 @@ pub(crate) struct PedidoDePaginaDaPesquisa {
 /// Página N a partir da resposta da página 1, sem rede. `Ok(None)`: a
 /// resposta já é a página pedida (N = 1). N fora do intervalo é erro antes
 /// de qualquer POST de página.
+#[cfg(test)]
 pub(crate) fn planejar_pagina(
     resposta: &RespostaDaPesquisa,
+    html_da_resposta: Option<&str>,
+    solicitada: u32,
+) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
+    planejar_pagina_por(resposta.contagem(), html_da_resposta, solicitada)
+}
+
+/// [`planejar_pagina`] pela contagem da página 1 (processos ou documentos).
+pub(crate) fn planejar_pagina_por(
+    contagem: Contagem,
     html_da_resposta: Option<&str>,
     solicitada: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
@@ -94,21 +134,20 @@ pub(crate) fn planejar_pagina(
         solicitada,
         paginas,
     };
-    let lista = match resposta {
-        RespostaDaPesquisa::SemResultado => return Err(fora(0)),
-        RespostaDaPesquisa::ProcessoUnico { .. } => return Err(fora(1)),
-        RespostaDaPesquisa::Lista(lista) => lista,
+    let (faixa, total) = match contagem {
+        Contagem::SemResultado => return Err(fora(0)),
+        Contagem::Unico => return Err(fora(1)),
+        Contagem::Lista { faixa, total } => (faixa, total),
     };
     // O POST da pesquisa envia `hdnInicio=0`: a página 1 começa em 1.
-    if lista.faixa.inicio != 1 {
+    if faixa.inicio != 1 {
         return Err(E::FaixaDaPesquisaDiferenteDaPaginaSolicitada);
     }
-    let total = lista.total_declarado;
-    if lista.faixa.fim >= total {
+    if faixa.fim >= total {
         return Err(fora(1));
     }
     // Página 1 incompleta só existe quando é a única (`fim = total`).
-    let tamanho = lista.faixa.fim;
+    let tamanho = faixa.fim;
     let paginas = total.div_ceil(tamanho);
     if u64::from(solicitada) > paginas {
         return Err(fora(paginas));
@@ -120,6 +159,7 @@ pub(crate) fn planejar_pagina(
     conferir_links_de_navegar(html, tamanho, total)?;
     let inicio = (u64::from(solicitada) - 1) * tamanho;
     Ok(Some(PedidoDePaginaDaPesquisa {
+        numero: u64::from(solicitada),
         inicio,
         total,
         esperada: FaixaDaPesquisa {
@@ -212,21 +252,34 @@ pub(crate) fn conferir_protocolo_servido(
 }
 
 /// Confere a resposta do POST de página contra o pedido.
+#[cfg(test)]
 pub(crate) fn conferir_pagina(
     pedido: &PedidoDePaginaDaPesquisa,
     resposta: RespostaDaPesquisa,
 ) -> Result<ListaDaPesquisa, ErroPaginacaoDaPesquisa> {
-    use ErroPaginacaoDaPesquisa as E;
+    conferir_contagem(pedido, resposta.contagem())?;
     match resposta {
-        RespostaDaPesquisa::ProcessoUnico { .. } => Err(E::RedirecionamentoAoPaginarAPesquisa),
-        RespostaDaPesquisa::SemResultado => Err(E::PaginaDaPesquisaSemResultadoAposPaginar),
-        RespostaDaPesquisa::Lista(lista) if lista.total_declarado != pedido.total => {
+        RespostaDaPesquisa::Lista(lista) => Ok(lista),
+        _ => unreachable!("só a lista passa na conferência"),
+    }
+}
+
+/// [`conferir_pagina`] pela contagem (processos ou documentos).
+pub(crate) fn conferir_contagem(
+    pedido: &PedidoDePaginaDaPesquisa,
+    contagem: Contagem,
+) -> Result<(), ErroPaginacaoDaPesquisa> {
+    use ErroPaginacaoDaPesquisa as E;
+    match contagem {
+        Contagem::Unico => Err(E::RedirecionamentoAoPaginarAPesquisa),
+        Contagem::SemResultado => Err(E::PaginaDaPesquisaSemResultadoAposPaginar),
+        Contagem::Lista { total, .. } if total != pedido.total => {
             Err(E::TotalDaPesquisaAlteradoAposPaginar)
         }
-        RespostaDaPesquisa::Lista(lista) if lista.faixa != pedido.esperada => {
+        Contagem::Lista { faixa, .. } if faixa != pedido.esperada => {
             Err(E::FaixaDaPesquisaDiferenteDaPaginaSolicitada)
         }
-        RespostaDaPesquisa::Lista(lista) => Ok(lista),
+        Contagem::Lista { .. } => Ok(()),
     }
 }
 

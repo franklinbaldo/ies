@@ -5,14 +5,15 @@ operation: documento.buscar
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 36
 unresolved_steps: 0
 ---
 
 # documento.buscar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
+(`ies documento buscar TERMO [--pagina N]`); ver [contrato](../cli/documento-buscar.md).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

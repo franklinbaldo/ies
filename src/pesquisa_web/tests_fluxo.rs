@@ -7,26 +7,27 @@ use crate::pesquisa_web::tests_fixtures::{
     ORIGEM, UNIDADE, controle, href_do_menu, localizacao, menu, resultado, resultado_numa_pagina,
     sem_resultado, tela_de_pesquisa, url_controle, url_da_tela, url_do_envio, validacao,
 };
+use crate::processo::NumeroProcesso;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::collections::VecDeque;
 use std::io::Cursor;
 
 /// Uma requisição vista pelo transporte: método, URL e, no POST, o corpo.
 #[derive(Debug, PartialEq, Eq)]
-struct Pedido {
-    metodo: &'static str,
-    url: String,
-    corpo: Option<String>,
+pub(crate) struct Pedido {
+    pub(crate) metodo: &'static str,
+    pub(crate) url: String,
+    pub(crate) corpo: Option<String>,
 }
 
 /// Resposta roteirizada: status, HTML e `Location`.
-struct Roteiro {
+pub(crate) struct Roteiro {
     respostas: VecDeque<(i32, String, Option<String>)>,
-    pedidos: Vec<Pedido>,
+    pub(crate) pedidos: Vec<Pedido>,
 }
 
 impl Roteiro {
-    fn novo(respostas: Vec<(i32, String, Option<String>)>) -> Self {
+    pub(crate) fn novo(respostas: Vec<(i32, String, Option<String>)>) -> Self {
         Self {
             respostas: respostas.into(),
             pedidos: Vec::new(),
@@ -84,7 +85,7 @@ impl EnvioDoControle for Roteiro {
     }
 }
 
-struct Pasta(std::path::PathBuf);
+pub(crate) struct Pasta(std::path::PathBuf);
 
 impl Drop for Pasta {
     fn drop(&mut self) {
@@ -92,7 +93,7 @@ impl Drop for Pasta {
     }
 }
 
-fn cookie() -> (Pasta, std::path::PathBuf) {
+pub(crate) fn cookie() -> (Pasta, std::path::PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -111,7 +112,7 @@ fn cookie() -> (Pasta, std::path::PathBuf) {
     (Pasta(pasta), arquivo)
 }
 
-fn ok(html: String) -> (i32, String, Option<String>) {
+pub(crate) fn ok(html: String) -> (i32, String, Option<String>) {
     (200, html, None)
 }
 
@@ -130,7 +131,7 @@ fn buscar(
     };
     let termo = NumeroProcesso::novo(termo).unwrap();
     let pedido = PedidoDeBusca {
-        termo: &termo,
+        termo: termo.as_str(),
         pagina,
         unidade,
     };
@@ -139,11 +140,11 @@ fn buscar(
     (r, roteiro.pedidos)
 }
 
-fn controle_com_menu() -> String {
+pub(crate) fn controle_com_menu() -> String {
     controle(&menu(&href_do_menu()))
 }
 
-fn get(url: String) -> Pedido {
+pub(crate) fn get(url: String) -> Pedido {
     Pedido {
         metodo: "GET",
         url,
@@ -387,7 +388,7 @@ fn origem_de_outra_instalacao_nao_envia_nada() {
     };
     let termo = NumeroProcesso::novo("1").unwrap();
     let pedido = PedidoDeBusca {
-        termo: &termo,
+        termo: termo.as_str(),
         pagina: None,
         unidade: None,
     };
@@ -501,7 +502,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
     };
     let termo = NumeroProcesso::novo("00001").unwrap();
     let pedido = PedidoDeBusca {
-        termo: &termo,
+        termo: termo.as_str(),
         pagina: None,
         unidade: None,
     };
@@ -510,7 +511,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
         ok(tela_de_pesquisa()),
         (302, String::new(), Some(localizacao("4321"))),
     ]);
-    let r = buscar_processo_colhendo(&sessao, &pedido, &colheita, &mut roteiro);
+    let r = buscar_colhendo::<EmProcessos, _>(&sessao, &pedido, &colheita, &mut roteiro);
     assert_eq!(r.unwrap().requisicoes, 3);
     assert_eq!(roteiro.pedidos, tres_pedidos());
     let geracao = crate::sessao_login::geracao_da_sessao("PHPSESSID=SINTETICO");
