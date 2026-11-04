@@ -301,7 +301,7 @@ numa instalação nova, e por isso `--sem-propriedades` existe.
 
 ## Limitações e revisão
 
-Propriedades: validação live **NOT_RUN** ([contrato](../../contracts/cli/processo-obter-propriedades.md)).
+Propriedades: validação live **PASS** na UnB, PEN1 NOT_RUN por `DOCUMENTO_MOVIDO` ([relatório](../validacao-live/2026-11-04-processo-obter-propriedades.md)).
 Validação live: **PASS** na UnB, em GO e na PEN1 nos caminhos 1, 2, 3 e 4a, e na UnB também no 4b ([relatório](../validacao-live/2026-11-03-processo-obter-arvore.md)); recusa da entrada por id NOT_RUN ao vivo. Marcadores
 ficam para a próxima fatia; pastas: validação live
 **PASS** na UnB, frio, quente e sessão nova, com o servidor sem lembrar as pastas abertas ([relatório](../validacao-live/2026-11-03-processo-obter-pastas.md)).

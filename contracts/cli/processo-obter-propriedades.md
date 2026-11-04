@@ -134,4 +134,4 @@ Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 
-Validação live: **NOT_RUN** até a execução do agente pai.
+Validação live: **PASS** na UnB, PEN1 NOT_RUN ([relatório](../../docs/validacao-live/2026-11-04-processo-obter-propriedades.md)).
