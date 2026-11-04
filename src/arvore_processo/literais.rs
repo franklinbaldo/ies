@@ -72,6 +72,17 @@ pub(super) fn indice_da_barra(linha: &str) -> Option<usize> {
     resto.starts_with(BARRA).then_some(indice)
 }
 
+/// O `i` da linha inteira `Nos[i].acoes = Nos[i].acoes.concat('');`, servida
+/// na UFRJ e em GO depois do `.html` de cada documento (só o literal vazio
+/// foi observado: com conteúdo, a linha é lida por [`ler_barra`] e recusada).
+pub(super) fn concatenacao_vazia_da_barra(linha: &str) -> Option<usize> {
+    let linha = linha.strip_suffix('\r').unwrap_or(linha);
+    let (indice, resto) = indice_entre(linha, "Nos[")?;
+    let resto = resto.strip_prefix(BARRA)?;
+    let (mesmo, resto) = indice_entre(resto, "Nos[")?;
+    (mesmo == indice && resto == ".acoes.concat('');").then_some(indice)
+}
+
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].acoes = '<texto>';`;
 /// `Ok(None)` se a linha não atribui `.acoes` a um nó.
 pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {

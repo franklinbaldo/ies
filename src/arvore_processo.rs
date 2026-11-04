@@ -37,6 +37,8 @@ mod tests_natureza;
 #[cfg(test)]
 pub(crate) mod tests_pastas;
 #[cfg(test)]
+mod tests_pastas_concatenacao;
+#[cfg(test)]
 mod tests_pastas_integridade;
 #[cfg(test)]
 mod tests_situacao;
@@ -209,6 +211,15 @@ pub(crate) fn ler_arvore(
     for linha in html.split('\n') {
         if let Some(declarados) = ler_protocolos(linha)? {
             protocolos.push(declarados);
+            continue;
+        }
+        // A concatenação vazia não muda a barra já lida do documento.
+        if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
+            if let Some(&posicao) = de_pasta.get(&i)
+                && documentos[posicao].barra == Barra::NaoLida
+            {
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+            }
             continue;
         }
         if let Some(i) = literais::indice_da_barra(linha)
