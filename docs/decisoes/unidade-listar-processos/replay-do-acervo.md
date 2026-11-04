@@ -94,3 +94,16 @@ com o [ensaio live](../../validacao-live/); o replay prova o plano da
 página 2 de cada lista paginada e o verificador de continuidade, com
 testes sintéticos. Rever quando o acervo ganhar cassettes de página N,
 ou se um leitor do Controle mudar de forma aceita.
+
+## Lista vazia sem tabela (decisão do proprietário, 04/11/2026)
+
+O replay achou duas telas de GO (unidade sem processos) sem `tbl{T}`.
+Alternativas: (a) manter `tabela_ausente`; (b) publicar a lista vazia
+sempre que a tabela faltar; (c) publicar `total_declarado: 0` e
+`faixa_observada: null` só com a prova estrutural inteira observada nas
+duas telas (visão R, unidade identificada, áreas da tabela e dos
+paginadores vazias, `hdn{T}NroItens` e `hdn{T}PaginaAtual` únicos e 0).
+O proprietário escolheu (c): (a) recusa uma resposta legítima e (b)
+publicaria como vazia uma tela quebrada. Custo: a fonte do total é o
+oculto, não a legenda. Teste: `paginas::tests_vazia`. Rever se a D vazia
+for observada ou outra instalação omitir a tabela de outro jeito.

@@ -24,6 +24,15 @@ na [forma única](unidade-recebidos-gerados.md):
   intervalo e linhas iguais ao total (`3 registros:`, ou `1 registro:` e
   `(1 registro):` no singular, este na UFRJ), a faixa é `1..total`.
   Tabela com zero registros publica `faixa_observada: null`.
+- **Lista vazia sem tabela** (GO 5.0.3, unidade sem processos, replay de
+  04/11/2026): o SEI omite `tbl{T}`. A lista é publicada com
+  `total_declarado: 0`, `faixa_observada: null` e nenhum processo **só**
+  com a prova estrutural inteira: visão R e `lnkInfraUnidade`
+  identificados; `div{T}AreaTabela`, `div{T}AreaPaginacaoSuperior` e
+  `div{T}AreaPaginacaoInferior` únicas e só com espaços; `hdn{T}NroItens`
+  e `hdn{T}PaginaAtual` únicos e com valor `0`. Faltando, repetida ou
+  diferente qualquer parte, `tabela_ausente`. `--pagina 2` é
+  `pagina_fora_do_intervalo` (`paginas: 1`). A D vazia não foi observada.
 - No replay de páginas capturadas, a faixa é a união contígua das
   páginas recebidas, em qualquer ponto da lista.
 - A faixa pode não começar em 1: o servidor lembra a página pedida na

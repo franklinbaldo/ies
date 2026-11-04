@@ -73,6 +73,15 @@ fn faixa_da_tabela(
         .map_err(|_| ErroCaixa::HtmlInvalido)?
         .as_slice()
     {
+        // Lista vazia comprovada pela estrutura: a mesma faixa de `0 registros:`.
+        [] if crate::caixa::lista_vazia_comprovada(&dom, categoria)? => {
+            return Ok(Some(Faixa {
+                total: 0,
+                inicio: 1,
+                fim: 0,
+                explicita: false,
+            }));
+        }
         [] => return Err(ErroCaixa::TabelaAusente { categoria }),
         [tabela] => *tabela,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
@@ -378,3 +387,6 @@ mod tests_faixa;
 
 #[cfg(test)]
 mod tests_filtro;
+
+#[cfg(test)]
+mod tests_vazia;

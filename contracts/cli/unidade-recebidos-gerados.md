@@ -125,7 +125,10 @@ provisório anterior a 1.0: **sem alias de compatibilidade**.
 
 `recebidos` e `gerados` aplicam à sua tabela as mesmas recusas da caixa
 (total, faixa, paginador sem intervalo) e exigem `lnkInfraUnidade`:
-sem ele, `identificacao_da_unidade_ausente_no_controle`. A outra tabela
+sem ele, `identificacao_da_unidade_ausente_no_controle`. Tabela da
+categoria ausente é `tabela_ausente`, salvo a lista vazia comprovada pela
+estrutura (GO; [páginas da caixa](unidade-listar-processos-paginas.md)),
+publicada com `total_declarado: 0`. A outra tabela
 continua interpretada e verificada estruturalmente pela leitura da tela.
 `--unidade SIGLA` diferente do rótulo publicado falha como em
 `listar-processos`.
