@@ -44,7 +44,8 @@ do cadastro da gravação pelos campos enviados.
 | Abrir visualização e conteúdo de documento interno, lista de versões e conteúdo de versão selecionada | Leitura de documento. Sem declaração de efeito para esses destinos. | [Documento](../../src/processo_obter/documento.rs), [versões](../../src/processo_obter/documento_versao.rs) e [rotas da árvore](rotas-e-arvore.md). |
 | Baixar documento externo | Leitura binária. Sem declaração de efeito remoto. | [Transporte binário](../../src/transporte/resposta_binaria.rs). |
 | Abrir tela de nível de detalhe e reler depois de salvar | Leitura das marcas. Sem declaração de efeito para a abertura ou releitura. | [Fluxo de nível de detalhe](../../src/nivel_de_detalhe.rs) e [verificação](efeitos-e-verificacao.md). |
-| Disparar reabertura por link servido e reler processo | O disparo altera o estado do processo. A releitura é outra abertura, com risco de registrar recebimento. | [Implementação](../../src/processo_reabrir.rs) e [observação da reabertura](reabertura-do-processo.md). |
+| Abrir tela do nó para derivar a reabertura | Leitura da tela intermediária. Sem declaração de efeito. | [Fluxo da reabertura](../../src/processo_reabrir/fluxo.rs). |
+| Disparar reabertura por link servido e reler a árvore | O disparo altera o estado do processo. A leitura posterior confere a unidade na árvore. | [Implementação](../../src/processo_reabrir.rs) e [observação da reabertura](reabertura-do-processo.md). |
 
 ## Representação proposta
 
