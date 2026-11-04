@@ -187,3 +187,27 @@ fn web_mock_benchmark_p50_p95_inclui_transporte_parser_e_json() {
     }
     fs::remove_dir_all(pasta).unwrap();
 }
+
+// Caso de todos tests/test_predicados_de_sessao_010.py @323eb01
+#[test]
+fn tela_de_login_na_caixa_indica_sessao_vencida_sem_repetir() {
+    let (pasta, cookie) = arquivo_privado_temporario();
+    let chamadas = Cell::new(0);
+    let resultado = read_box_via(
+        &url_controle(),
+        &cookie,
+        "https://sei.treinamento.unb.br/sei",
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Ok(resposta(
+                "<form id='frmLogin'><input name='txtUsuario'></form>",
+            ))
+        },
+    );
+    fs::remove_dir_all(pasta).unwrap();
+    assert_eq!(
+        resultado,
+        Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+    );
+    assert_eq!(chamadas.get(), 1);
+}

@@ -87,22 +87,20 @@ impl<'i> Colheita<'i> {
     /// GET, para a chave ser a do cookie que o GET vai usar). Qualquer
     /// falha: nada é colhido; o comando falha, se for o caso, pela leitura dele.
     pub(crate) fn da_sessao(indice: &'i IndiceLocal, arquivos: &ArquivosDeAcesso) -> Self {
-        use crate::transporte::arquivo_privado;
+        use crate::transporte::sessao::ReferenciasDaSessao;
         if !indice.ligado() {
             return Self::nenhuma();
         }
-        let lidos = arquivo_privado(&arquivos.origem, 512).and_then(|origem| {
-            let url = arquivo_privado(&arquivos.url_controle, 8_192)?;
-            let cookie = arquivo_privado(&arquivos.cookie, 8_192)?;
-            Ok((origem, url, cookie))
-        });
-        let Ok((origem, url, cookie)) = lidos else {
+        let Ok(sessao) = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem) else {
             return Self::nenhuma();
         };
-        let Some(instalacao) = Instalacao::interpretar(origem.trim()) else {
+        let Some(instalacao) = Instalacao::interpretar(sessao.origem()) else {
             return Self::nenhuma();
         };
-        Self::do_cookie(indice, &instalacao, cookie.trim(), url.trim())
+        let Ok(cookie) = sessao.cookie_validado(&arquivos.cookie) else {
+            return Self::nenhuma();
+        };
+        Self::do_cookie(indice, &instalacao, &cookie, sessao.url_do_controle())
     }
 
     /// Colhe uma página do Controle já lida. `mime` é o `Content-Type` da

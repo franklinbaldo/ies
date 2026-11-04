@@ -78,6 +78,8 @@ fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
 }
 
 /// Um arquivo da sessão gravada; ausente ou vazio vale "sem sessão".
+/// O login precisa ler URL e cookie para conferir a geração antes de
+/// validar a sintaxe. Arquivos de gerações diferentes valem sessão ausente.
 fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin> {
     match transporte::arquivo_privado(caminho, 8_192) {
         Ok(texto) => Ok(Some(texto.trim().to_owned())),
