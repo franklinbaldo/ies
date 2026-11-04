@@ -21,9 +21,11 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         .replace("&nbsp;", " ")
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
-    let Some((antes, depois)) = normalizada.trim().split_once(" registros") else {
+    // Singular com um registro (UFRJ: `(1 registro):`).
+    let Some((antes, depois)) = normalizada.trim().split_once(" registro") else {
         return Ok(None);
     };
+    let depois = depois.strip_prefix('s').unwrap_or(depois);
     let total = antes
         .split_whitespace()
         .last()

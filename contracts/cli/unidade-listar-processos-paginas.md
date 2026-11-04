@@ -21,7 +21,8 @@ na [forma única](unidade-recebidos-gerados.md):
 ```
 
 - A faixa vem da legenda (`(114 registros - 1 a 100):`). Com legenda sem
-  intervalo e linhas iguais ao total (`3 registros:`), a faixa é `1..total`.
+  intervalo e linhas iguais ao total (`3 registros:`), a faixa é `1..total`;
+  o singular `(1 registro):` (UFRJ) vale igual.
   Tabela com zero registros publica `faixa_observada: null`.
 - No replay de páginas capturadas, a faixa é a união contígua das
   páginas recebidas, em qualquer ponto da lista.

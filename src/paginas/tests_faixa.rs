@@ -188,3 +188,29 @@ fn faixa_na_pagina_le_total_e_intervalo_de_uma_tabela() {
     let zero = pagina(&vazia("Recebidos"), &vazia("Gerados"));
     assert_eq!(faixa_na_pagina(&zero, Categoria::Recebidos), Ok(None));
 }
+
+#[test]
+fn legenda_no_singular_comprova_a_faixa_de_um_registro() {
+    // UFRJ, 04/11/2026: `Processos recebidos (1 registro):`, uma linha.
+    let rec = tabela("Recebidos", "Processos recebidos (1 registro):", &[1], "");
+    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
+    assert_eq!(leitura.recebidos.faixa_observada(), Some((1, 1)));
+    assert_eq!(
+        conferir_faixa_publicavel(
+            Categoria::Recebidos,
+            &leitura.caixa.recebidos,
+            &leitura.recebidos
+        ),
+        Ok(())
+    );
+    let parcial = tabela("Recebidos", "(1 registro - 1 a 1):", &[1], "");
+    let html = pagina(&parcial, &vazia("Gerados"));
+    assert_eq!(
+        faixa_na_pagina(&html, Categoria::Recebidos),
+        Ok(Some(FaixaNaPagina {
+            total: 1,
+            inicio: 1,
+            fim: 1
+        }))
+    );
+}
