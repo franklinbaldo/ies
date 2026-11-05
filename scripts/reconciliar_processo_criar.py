@@ -107,7 +107,9 @@ def reconciliar(
                 and isinstance(propriedades, dict)
                 and propriedades.get("especificacao") == ESPECIFICACAO
                 and isinstance(encontrado.get("id_procedimento"), str)
-                and encontrado["id_procedimento"]):
+                and 1 <= len(encontrado["id_procedimento"]) <= 32
+                and encontrado["id_procedimento"].isascii()
+                and encontrado["id_procedimento"].isdigit()):
             correspondencias.append({"nup": nup,
                                      "id_procedimento": encontrado["id_procedimento"]})
     # É sempre 'possível' e nunca 'confirmado': correspondência não prova
