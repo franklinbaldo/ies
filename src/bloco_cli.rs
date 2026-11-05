@@ -124,11 +124,11 @@ fn executar_leitura(
     if let Some(numero) = numero
         && (numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()))
     {
-            return erro_uso(
-                cli.json,
-                "numero_do_bloco_invalido",
-                "número de bloco deve ser decimal",
-            );
+        return erro_uso(
+            cli.json,
+            "numero_do_bloco_invalido",
+            "número de bloco deve ser decimal",
+        );
     }
     if pagina.is_some_and(|p| p != 1) {
         return erro_fonte(
@@ -273,11 +273,19 @@ mod tests_fluxo {
             let pasta = std::env::temp_dir().join(format!(
                 "ies-bloco-teste-{}-{}",
                 std::process::id(),
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
             ));
             std::fs::create_dir(&pasta).unwrap();
             let arquivos = [
-                ("controle", format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}")),
+                (
+                    "controle",
+                    format!(
+                        "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"
+                    ),
+                ),
                 ("origem", ORIGEM.to_owned()),
                 ("cookie", "PHPSESSID=SINTETICO".to_owned()),
             ];
@@ -287,12 +295,16 @@ mod tests_fluxo {
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
-                    std::fs::set_permissions(&caminho, std::fs::Permissions::from_mode(0o600)).unwrap();
+                    std::fs::set_permissions(&caminho, std::fs::Permissions::from_mode(0o600))
+                        .unwrap();
                 }
             }
             let sessao = ReferenciasDaSessao::ler(
-                &pasta.join("controle"), &pasta.join("origem"), &pasta.join("cookie")
-            ).unwrap();
+                &pasta.join("controle"),
+                &pasta.join("origem"),
+                &pasta.join("cookie"),
+            )
+            .unwrap();
             Self { pasta, sessao }
         }
     }
@@ -308,18 +320,26 @@ mod tests_fluxo {
     impl EnvioDoControle for EnvioFalso {
         type Corpo = Cursor<Vec<u8>>;
         fn post(
-            &mut self, _: SubmissaoDerivada, _: &str
+            &mut self,
+            _: SubmissaoDerivada,
+            _: &str,
         ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             panic!("leitura de blocos nunca pode fazer POST")
         }
-        fn get(&mut self, url: &str, cookie: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        fn get(
+            &mut self,
+            url: &str,
+            cookie: &str,
+        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
             assert_eq!(cookie, "PHPSESSID=SINTETICO");
             let (esperada, html) = self.telas.pop_front().expect("GET não previsto");
             assert_eq!(url, esperada);
             self.urls.push(url.to_owned());
             Ok(RespostaWeb {
-                status_code: 200, mime: "text/html; charset=utf-8".to_owned(),
-                content_length: None, localizacao: None,
+                status_code: 200,
+                mime: "text/html; charset=utf-8".to_owned(),
+                content_length: None,
+                localizacao: None,
                 corpo: Cursor::new(html.into_bytes()),
             })
         }
@@ -338,8 +358,14 @@ mod tests_fluxo {
              <td>Gerado</td><td>Treinamento</td></tr></table>"
         );
         let mut telas = VecDeque::from([
-            (format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"),controle),
-            (format!("{ORIGEM}/controlador.php?acao=bloco_assinatura_listar&infra_hash={HASH}"),lista),
+            (
+                format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"),
+                controle,
+            ),
+            (
+                format!("{ORIGEM}/controlador.php?acao=bloco_assinatura_listar&infra_hash={HASH}"),
+                lista,
+            ),
         ]);
         if detalhe {
             let html = "<table id='tblProtocolosBlocos'><caption>Lista (1 registros):</caption>\
@@ -350,14 +376,25 @@ mod tests_fluxo {
                 html.to_owned(),
             ));
         }
-        EnvioFalso { telas, urls: Vec::new() }
+        EnvioFalso {
+            telas,
+            urls: Vec::new(),
+        }
     }
     #[test]
     fn lista_sao_exatamente_dois_get_sem_post() {
         // Caso de Todos tests/paginas_reais/menu_blocos.html @323eb01.
         let arquivos = Arquivos::criar();
         let mut envio = envio(false);
-        let valor = ler_via(&arquivos.sessao, Some("PPI"), TipoBloco::Assinatura, None, None, &mut envio).unwrap();
+        let valor = ler_via(
+            &arquivos.sessao,
+            Some("PPI"),
+            TipoBloco::Assinatura,
+            None,
+            None,
+            &mut envio,
+        )
+        .unwrap();
         assert_eq!(envio.urls.len(), 2);
         assert!(envio.telas.is_empty());
         assert_eq!(valor["requisicoes"], 2);
@@ -370,7 +407,15 @@ mod tests_fluxo {
         // Caso de Todos tests/paginas_reais/bloco_com_documentos.html @323eb01.
         let arquivos = Arquivos::criar();
         let mut envio = envio(true);
-        let valor = ler_via(&arquivos.sessao, Some("PPI"), TipoBloco::Assinatura, Some("2195"), None, &mut envio).unwrap();
+        let valor = ler_via(
+            &arquivos.sessao,
+            Some("PPI"),
+            TipoBloco::Assinatura,
+            Some("2195"),
+            None,
+            &mut envio,
+        )
+        .unwrap();
         assert_eq!(envio.urls.len(), 3);
         assert!(envio.telas.is_empty());
         assert_eq!(valor["requisicoes"], 3);
@@ -380,8 +425,17 @@ mod tests_fluxo {
     fn unidade_diferente_interrompe_antes_do_link_de_bloco() {
         let arquivos = Arquivos::criar();
         let mut envio = envio(false);
-        let erro = ler_via(&arquivos.sessao, Some("ERRADA"), TipoBloco::Assinatura, None, None, &mut envio).err().unwrap();
+        let erro = ler_via(
+            &arquivos.sessao,
+            Some("ERRADA"),
+            TipoBloco::Assinatura,
+            None,
+            None,
+            &mut envio,
+        )
+        .err()
+        .unwrap();
         assert!(matches!(erro, FalhaLeitura::UnidadeInesperada));
-        assert_eq!(envio.urls.len(),1);
+        assert_eq!(envio.urls.len(), 1);
     }
 }

@@ -71,7 +71,8 @@ impl ErroBloco {
         match self {
             Self::BlocoNaoEncontradoNaPagina => "bloco não observado nesta página da unidade",
             Self::PaginaDeBlocosNaoImplementada => "página de blocos sem navegação Web comprovada",
-            Self::LinkDeBlocosAusente | Self::LinksDeBlocosRepetidos
+            Self::LinkDeBlocosAusente
+            | Self::LinksDeBlocosRepetidos
             | Self::LinkDeBlocosNaoReconhecido => "link de blocos ausente ou ambíguo na tela",
             _ => "a tela de blocos não comprovou a lista solicitada",
         }
