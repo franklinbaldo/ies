@@ -3,7 +3,8 @@ use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario as E, OperacaoDeFormulario};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::url_observada::{UrlHttps, pasta, tem_esquema};
+pub(super) use crate::url_observada::UrlHttps;
+use crate::url_observada::{pasta, tem_esquema};
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 use std::collections::HashSet;
 
