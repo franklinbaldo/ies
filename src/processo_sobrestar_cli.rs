@@ -89,20 +89,20 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                         })
                     );
                 } else if previa.confirmado {
-                        println!(
-                            "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
-                            previa.nup,
-                            previa.acao.como_texto(),
-                            previa.requisicoes
-                        );
+                    println!(
+                        "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
+                        previa.nup,
+                        previa.acao.como_texto(),
+                        previa.requisicoes
+                    );
                 } else {
                     println!(
-                            "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
-                            previa.acao.como_texto(),
-                            previa.nup,
-                            previa.unidade,
-                            previa.requisicoes
-                        );
+                        "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
+                        previa.acao.como_texto(),
+                        previa.nup,
+                        previa.unidade,
+                        previa.requisicoes
+                    );
                 }
                 ExitCode::SUCCESS
             }
