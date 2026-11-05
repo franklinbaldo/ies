@@ -18,6 +18,13 @@ Operação: `documento.criar`, issue
 | Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
 | Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
 
+## Continuidade 🐙 — 302 sem Location (05/11/2026)
+
+- **Observação anterior ao RED:** `enviar_submissao_via` trata 302 como dado e não segue redirecionamentos. Um 302 **sem Location** não comprova consequência da escrita; outra sessão poderia ter alterado a árvore entre as leituras.
+- **RED observado:** commit de teste `7f0ab34` precedeu a correção. [CI 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459): `prek` FAIL; **1 teste novo falhou**, 1.610 aprovados, 17 ignorados. O teste exige `EfeitoIncerto`, com **1 POST + 1 releitura**, sem retry. Release PASS.
+- **GREEN a verificar:** no commit `bda36d9`, `postar_e_verificar` só aceita 302 com Location não vazia. Mantém a leitura única mesmo após efeito incerto. O CI anterior [42127145672](https://github.com/franklinbaldo/ies/actions/runs/42127145672) era PASS mas não cobre a nova correção. Rust/Cargo e gate local NOT_RUN por falta de toolchain e DNS.
+- **Live:** login NOT_RUN; prévia NOT_RUN; confirmação NOT_RUN; releitura NOT_RUN; **0 requisições reais, 0 POST criador, nenhum resíduo**. Sandbox sem acesso à instalação de treinamento; nenhuma execução em produção.
+
 ## Estado consolidado — retomada 🐙 (05/11/2026)
 
 - **Fatia funcional:** a confirmação pública usa um POST derivado e uma releitura verificadora; testes sintéticos do transporte completo afirmam prévia com **5 GET e 0 POST**, confirmação com **6 GET e 1 POST criador**, efeito incerto diante de dois documentos novos e nenhuma repetição de escrita. Essas contagens são **sintéticas**, não medições live.

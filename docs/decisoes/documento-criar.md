@@ -66,8 +66,8 @@ novo" como êxito. Qualquer inconclusividade depois de enviar é 3.
 
 [Contrato](../../contracts/cli/documento-criar.md);
 [observação](../como-o-sei-funciona/inclusao-documento-interno.md).
-O acervo comprova a existência de interações, mas o conteúdo bruto
-ainda não foi reexecutado no IES. Sem replay e validação do cadastro
-de cada versão, **não** se deve habilitar escrita por adivinhação.
-A decisão deverá ser revista após o RED e a conferência em instalações
-de treinamento. A escrita foi autorizada em 05/11, exclusivamente no SEI de treinamento; porém segue **NOT_RUN** nesta execução. O fluxo de envio e conferência é WIP sem compilação, replay ou live comprovados; não declarar GREEN até os gates passarem.
+O acervo GO foi reproduzido no CI obrigatório com ZIP e membros verificados (15 respostas-alvo: 3 lidas, 5 recusadas, 7 não aplicáveis; [run 42127145672](https://github.com/franklinbaldo/ies/actions/runs/42127145672)). Isso não comprova a criação ao vivo nem as demais instalações.
+
+Os testes sintéticos integrados cobrem 5 GET sem POST na prévia e 6 GET + 1 POST na confirmação com releitura. Um 302 sem Location, mesmo diante de alteração simultânea na árvore, não demonstra a consequência do POST: [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) seguido de correção para `EfeitoIncerto`, sem segundo POST. A compilação e os gates dessa correção precisam ser conferidos no head final.
+
+A decisão será revista após validação autenticada em treinamento: prévia → um `--confirmar` → leitura independente, com número SEI, requisições e resíduo. Escrita autorizada em 05/11 exclusivamente em treinamento, ainda **NOT_RUN**; nenhuma requisição real nesta sessão.

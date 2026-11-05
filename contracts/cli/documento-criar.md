@@ -102,5 +102,8 @@ e [decisão](../../docs/decisoes/documento-criar.md).
 Oráculo: Todos `src/todos/documentos.py` (`criar`,
 `_criar_na_arvore`, `cadastrar_da_tela`, `_depois_de_enviado`).
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
-Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; novos testes sintéticos cobrem a escolha 4.1, o POST de navegação, a rejeição de scripts alterados e redirects fora do processo/origem, mas não foram executados localmente por ausência de Rust e DNS. Contagem RED observada: **não aferida**. O CI do head precisa ser confirmado antes de considerar GREEN.
-Escrita live: **AUTORIZADA exclusivamente em treinamento**, mas **NOT_RUN**. A autorização está na issue #246; executar apenas depois de validar o branch, fazer prévia ao vivo e comprovar a leitura posterior, registrando o resíduo. Nenhum documento foi criado nesta sessão.
+O replay GO das duas cassettes é **obrigatório no CI**: ZIP e membros conferidos por hash; 15 respostas-alvo (3 lidas, 5 recusadas e 7 não aplicáveis). [CI 42127145672](https://github.com/franklinbaldo/ies/actions/runs/42127145672): PASS em prek, Release e replay (head `6603a36`).
+
+Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e efeito incerto sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
+
+**Live:** login, prévia, escrita e releitura em treinamento **NOT_RUN**, 0 requisições, 0 POSTs e nenhum resíduo nesta sessão. A escrita está autorizada só em treinamento; falta a sequência prévia observada → uma única confirmação → leitura independente, com número SEI e resíduo registrados.
