@@ -1,7 +1,8 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
+use super::confirmacao::{FotoDaCriacao, postar_e_verificar};
 use super::{
-    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_criacao,
+    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro,
     conferir_tipo, escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
 };
 use crate::arvore_processo::ErroLinkIncluirDocumento;
@@ -291,34 +292,25 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         .map_err(E::Formulario)?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
-    let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
-        rede.post(post, cookie)
-    });
-    let depois = obter_processo(
-        sessao,
-        &leitura(pedido.nup, pedido.unidade, false),
-        indice,
+    let foto_antes = FotoDaCriacao::da_arvore(&aberto.arvore);
+    let numero = postar_e_verificar(
         &mut rede,
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
-    if depois.arvore.pastas_nao_carregadas || aberto.arvore.processo.id != depois.arvore.processo.id
-    {
-        return Err(E::EfeitoIncerto);
-    }
-    let numero = conferir_criacao(
-        &aberto.arvore.documentos,
-        &depois.arvore.documentos,
+        submissao,
+        sessao.cookie,
+        &foto_antes,
         pedido.tipo,
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
-    // O HTML/302 recebido não é seguido. Uma recusa ou falha no envio
-    // permanece efeito incerto mesmo com a árvore aparentemente alterada.
-    if !matches!(
-        resposta,
-        Ok(RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_))
-    ) {
-        return Err(E::EfeitoIncerto);
-    }
+        |rede, post, cookie| rede.post(post, cookie),
+        |rede| {
+            obter_processo(
+                sessao,
+                &leitura(pedido.nup, pedido.unidade, false),
+                indice,
+                rede,
+            )
+            .map(|depois| FotoDaCriacao::da_arvore(&depois.arvore))
+            .map_err(|_| ())
+        },
+    )?;
     feito.confirmado = true;
     feito.numero_sei = Some(numero);
     feito.requisicoes = rede.feitas();
@@ -328,3 +320,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_confirmacao.rs"]
+mod tests_confirmacao;
