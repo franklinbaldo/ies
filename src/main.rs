@@ -24,6 +24,8 @@ mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
 mod documento_buscar_cli;
+mod documento_cancelar;
+mod documento_cancelar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -227,6 +229,14 @@ enum DocumentoAcao {
         #[arg(long, value_name = "DD/MM/AAAA")]
         ate: Option<String>,
     },
+    /// Cancela um documento com motivo, prévia e confirmação irreversível
+    Cancelar {
+        numero: String,
+        #[arg(long, required = true)]
+        motivo: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
     Assinar {
         numero: String,
@@ -377,6 +387,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
+        .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }

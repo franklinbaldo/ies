@@ -64,6 +64,7 @@ legado do Todos faz parte do contrato público por pressuposição.
   prévia Web funcional, `--confirmar` ainda bloqueado na PR #279)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
+- `ies documento cancelar NUMERO --motivo TEXTO [--confirmar]` (prévia e cancelamento Web irreversível, um POST com verificação pela árvore; [contrato](cli/documento-cancelar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
   com a senha do login, prévia e verificação pela caneta da árvore;
   [contrato](cli/documento-assinar.md))
