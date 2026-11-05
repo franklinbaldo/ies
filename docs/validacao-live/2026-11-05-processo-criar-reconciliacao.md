@@ -83,3 +83,58 @@ usada para repetir a criação real.
 requisições observadas; quantidade interna da confirmação incerta
 **não observada**, portanto total HTTP global **desconhecido**.
 Nenhuma produção foi acessada.
+
+## Fatia de reconciliação somente leitura — Coruja (05/11/2026)
+
+**Motivação:** a confirmação da UnB em [run 42115596616](https://github.com/franklinbaldo/ies/actions/runs/42115596616)
+devolveu `efeito_incerto_na_criacao` (saída 3), sem NUP. A prévia anterior
+mostrou outro texto de especificação que o POST de ensaio; não usar essa
+prévia histórica como prova de igualdade dos argumentos da confirmação.
+A escrita **não** será repetida.
+
+**Código entregue:** `scripts/reconciliar_processo_criar.py` e 12 testes
+sintéticos `scripts/tests/test_reconciliar_processo_criar.py`. O coletor
+faz uma leitura de `unidade gerados` e até **12 consultas independentes**
+`ies processo NUP --sem-documentos --sem-marcadores --sem-andamentos`,
+com intervalo mínimo de 30 segundos; aceita só NUPs sem caracteres de
+controle, IDs/números observados, lista da categoria e unidade conferidas.
+Compara NUP, ID, unidade e especificação. Não executa `processo criar`,
+`--confirmar`, retry, scripts JS nem requer REST/SOAP. Cada abertura de
+processo pode marcar o processo como visualizado: a conciliação é uma
+**leitura com efeito declarado**, não leitura sem efeito algum.
+
+Um candidato encontrado é `POSSIVEL_RESIDUO`, não prova de causalidade
+do POST anterior. Ausência ou varredura parcial é `INCONCLUSIVO`, nunca
+`resíduo zero`. Falha na leitura interrompe a coleta sem repetição.
+As contagens HTTP vêm somente das respostas, permanecendo `null`
+quando não observadas. Nenhum conteúdo bruto de resposta ou subcódigo
+que não corresponda à forma tipada é impresso.
+
+**RED local:** 1 teste novo falhou antes da filtragem de subcódigo
+inseguro na evidência da conciliação; a saída sintética continha uma
+URL com marcador sensível e a versão inicial a publicava. **GREEN local:**
+12/12 testes Python aprovados, `compileall` PASS. São testes
+sintéticos, sem acesso ao SEI. Testes incluídos no job canônico
+`replay-processo-criar` do CI. **Rust local: NOT_RUN**, sem
+`cargo`/`rustc` e com DNS GitHub indisponível no sandbox;
+**CI do novo head: a verificar**, sem inferir resultado de SHA anterior.
+
+O workflow temporário `temporary-245-readonly-reconcile.yml`
+passou a exigir `workflow_dispatch` explícito, sem gatilho `push` e
+sem `--confirmar`; utiliza esse módulo e não imprime dados brutos
+da CLI. **Não foi disparado nesta retomada** para não repetir
+requisições sem conhecer o histórico de falhas da reconciliação anterior.
+Deve ser retirado antes de integrar a PR conforme AGENTS.md.
+
+| Etapa nesta fatia | Status | Requisições reais | Resíduo |
+| --- | --- | ---: | --- |
+| Testes Python de reconciliação | PASS (12/12 sintéticos) | 0 | nenhum adicional |
+| Conciliação na UnB | NOT_RUN (sem execução autenticada nova) | 0 | **DESCONHECIDO**, herdado da confirmação incerta |
+| Outro `--confirmar` | **BLOQUEADO**, não executar | 0 | **DESCONHECIDO** |
+| Releitura independente live | NOT_RUN nesta fatia | 0 | **DESCONHECIDO** |
+
+**Próximo passo:** antes de qualquer nova criação, conferir se a
+reconciliação de leitura já foi executada e, se não houve falha nem
+requisição repetida, executar **uma vez** a varredura de Gerados em
+treinamento, registrar o resultado parcial e o orçamento observado.
+Mesmo `INCONCLUSIVO` não autoriza repetir o POST de efeito incerto.
