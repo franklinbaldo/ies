@@ -3,8 +3,8 @@
 //! Estrutura derivada da UnB em Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use super::{ErroAcompanhar, TABELA, campo};
-use crate::instalacao::Instalacao;
 use crate::html_atributos::atributo_presente;
+use crate::instalacao::Instalacao;
 
 const FORMULARIO: &str = "frmGerenciarAcompanhamento";
 const OCULTO: &str = "hdnInfraItemId";
