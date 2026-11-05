@@ -220,3 +220,60 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
     );
 }
 
+
+#[test]
+fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
+    // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01 (UFRJ 4.1.5).
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let html = r##"<html><head><script>
+        function escolher(id) {
+            document.getElementById('hdnIdSerie').value = id;
+            document.getElementById('frmDocumentoEscolherTipo').submit();
+        }
+        </script></head><body>
+        <form id="frmDocumentoEscolherTipo" method="post">
+            <input type="hidden" id="hdnIdSerie" name="hdnIdSerie" value="">
+        </form>
+        <table id="tblSeries"><tr><td>
+            <a href="#" onclick="escolher(291)">Despacho</a>
+            <a href="#" onclick="escolher(-1)">Externo</a>
+        </td></tr></table></body></html>"##;
+    assert_eq!(tipos_oferecidos(html).unwrap(), ["Despacho"]);
+    assert_eq!(
+        escolha_do_tipo(&instalacao, html, "4864", "Despacho"),
+        Ok(EscolhaDoDocumento::Formulario("291".into()))
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, html, "4864", "Externo"),
+        Err(ErroCriar::TipoAusente)
+    );
+}
+
+#[test]
+fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let original = r##"<script>
+    function escolher(id) {
+        document.getElementById('hdnIdSerie').value = id;
+        document.getElementById('frmDocumentoEscolherTipo').submit();
+    }</script>
+    <table id="tblSeries"><tr><td>
+        <a href="#" onclick="escolher(291)">Despacho</a>
+    </td></tr></table>"##;
+    let com_efeito_extra = original.replace(
+        "document.getElementById('frmDocumentoEscolherTipo').submit();",
+        "alert('extra'); document.getElementById('frmDocumentoEscolherTipo').submit();",
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &com_efeito_extra, "4864", "Despacho"),
+        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &original.replace("function escolher", "function outro"), "4864", "Despacho"),
+        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &original.replace("escolher(291)", "escolher(291); excluir()"), "4864", "Despacho"),
+        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+    );
+}
