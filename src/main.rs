@@ -7,6 +7,7 @@ mod arvore_processo;
 mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
+mod ciencia;
 #[cfg(test)]
 mod cassette;
 mod classe_link_processo;
