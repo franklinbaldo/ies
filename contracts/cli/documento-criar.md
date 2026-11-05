@@ -38,7 +38,7 @@ resolvidas. Derivar exatamente um formulário `documento_gerar` do
 HTML servido pelo primitivo `formulario_web`, com `EfeitoAvaliado`.
 Não construir URL assinada, executar JS, enviar campos fora da lista
 observada, repetir POST nem fazer fallback.
-Quando o cadastro exigir controles HTML `required`, recusar a escrita antes do POST se algum controle ativo não puder ser atendido pela CLI, inclusive descrição vazia. Controles `hidden` e desabilitados não exigem escolha do usuário. Depois da tentativa,
+Quando o cadastro exigir controles HTML `required`, recusar a escrita antes do POST se algum controle ativo não puder ser atendido pela CLI, inclusive descrição vazia. Controles `hidden` e desabilitados não exigem escolha do usuário. Antes da tentativa, recusar sem POST uma árvore inicial incompleta, um processo sem ID ou IDs de documentos repetidos ou vazios. Depois da tentativa,
 reabrir o processo e conferir a diferença entre as árvores.
 
 Uma escrita comprovada exige **exatamente um novo documento** (id
@@ -77,6 +77,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `nivel_de_documento_requer_hipotese_legal` | Nível não público exige resolver a hipótese legal antes da escrita |
 | `submissao_do_documento_nao_observada` | Cadastro não contém a regra observada de submissão |
 | `arvore_de_documentos_incompleta` | Pasta fechada impede comparação de documentos |
+| `foto_inicial_de_documentos_inconsistente` | Antes do POST, a árvore contém IDs de documento repetidos/vazios ou ID de processo ausente; nenhuma escrita é enviada |
 | `criacao_de_documento_ainda_nao_validada` | Subcódigo histórico da etapa anterior, não emitido pelo novo fluxo |
 | `tipo_de_documento_vazio` | O tipo informado está vazio |
 | `parametro_de_criacao_invalido` | Falha de validação de entrada |
