@@ -14,11 +14,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          # O gate wip-ignores exige o merge de PR com primeiro pai na main.
-          ref: refs/pull/293/merge
-          fetch-depth: 2
+          # Checkout do commit real: o ref /merge do PR pode estar desatualizado.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
         with:
           version: "0.13.5"
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Montar merge real da main em branch temporario (base como primeiro pai)
+        run: |
+          git config user.email "ci@example.invalid"
+          git config user.name "IES CI"
+          git switch -c ci-base origin/main
+          git merge --no-ff --no-edit "${GITHUB_SHA}"
+          echo "HEAD testado: $(git rev-parse HEAD)"
+          echo "Pais: $(git rev-list --parents -n 1 HEAD)"
       - run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
