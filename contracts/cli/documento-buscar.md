@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar documento pela pesquisa Web do SEI
 operation: documento.buscar
-command: ies documento buscar TERMO [--pagina N] [--json]
+command: ies documento buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: db34008
@@ -142,3 +142,18 @@ validação, 302, barra, paginação, transporte e
 - [Varredura de 04/11/2026](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md):
   fragmento de NUP formatado (`lista`) e número SEI exato
   (`documento_unico`) **PASS** na UFRJ 4.1.5 e na PEN4; fragmento na PEN3.
+
+
+## Filtros experimentais (#247)
+
+As flags `--tipo TIPO`, `--assunto TEXTO`, `--de DD/MM/AAAA` e
+`--ate DD/MM/AAAA` também são aceitas por `documento buscar`. O tipo
+é o nome **exato** da série na lista `selSeriePesquisa` da própria tela;
+período deriva de `txtDataInicio` e `txtDataFim`. A ausência de controle
+é `criterio_nao_oferecido_pela_tela` sem POST; nome sem opção exata é
+`tipo_nao_oferecido_pela_tela`. A busca continua com 3 requisições (4 com
+página maior que 1), sem retries.
+
+`--assunto` ainda falha fechado: o autocompletar depende do
+`hdnIdAssunto` resolvido, não do texto solto. Testes live: **NOT_RUN**;
+a presença desses filtros varia por instalação.
