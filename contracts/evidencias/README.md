@@ -121,6 +121,7 @@ Passos sem cassette indexada: 0.
 - [processo.exportar](processo-exportar.md)
 - [processo.juntar](processo-juntar.md)
 - [processo.liberar_acesso_externo](processo-liberar_acesso_externo.md)
+- [processo.marcar](processo-marcar.md) — agregado documental de marcador.aplicar e marcador.remover (14 referências do Todos; escrita IES não validada)
 - [processo.obter](processo-obter.md)
 - [processo.ponto_de_controle](processo-ponto_de_controle.md)
 - [processo.pontos_de_controle](processo-pontos_de_controle.md)
