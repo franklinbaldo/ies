@@ -173,7 +173,7 @@ fn obter(
                 numero,
                 unidade: cli.unidade.as_deref(),
                 processo,
-                anexo: PedidoDoAnexo { limite, saida },
+                anexo: PedidoDoAnexo { cache_host: None,  limite, saida },
             };
             match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
                 Ok(obtido) => obtidos.push(obtido),
