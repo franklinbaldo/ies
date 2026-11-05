@@ -207,6 +207,7 @@ fn ler_versao<V: EnvioDoProcesso>(
         return Err(E::ConteudoComLinkAssinado);
     }
     let cache_html = cache.then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     if versao_do_rodape(&html).is_some_and(|servida| servida != n) {
         return Err(E::VersaoServidaDiferenteDaPedida);
     }
