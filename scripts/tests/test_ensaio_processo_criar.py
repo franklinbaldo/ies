@@ -35,7 +35,7 @@ class EnsaioUmaVez(unittest.TestCase):
 
     def respostas_validas(self):
         return [
-            (0, {"tipo": "Ensaio", "nivel": "publico", "confirmado": False, "requisicoes": 3}),
+            (0, {"tipo": "Ensaio", "especificacao": "Teste sintético", "nivel": "publico", "confirmado": False, "requisicoes": 3}),
             (0, {"confirmado": True, "nup": NUP, "requisicoes": 6}),
             (0, {"numero": NUP, "id_procedimento": "10", "requisicoes": 2}),
         ]
@@ -142,6 +142,31 @@ class EnsaioUmaVez(unittest.TestCase):
                      + " | UnB | https://sei.treinamento.unb.br/sei | user | pass | org | fonte |\n")
         with self.assertRaises(ValueError):
             origens_de_treinamento(f)
+
+
+    def test_previa_divergente_na_especificacao_recusa_antes_da_escrita(self):
+        respostas = self.respostas_validas()
+        respostas[0][1]["especificacao"] = "Especificação diferente da solicitada"
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertEqual(len(self.chamadas), 1)
+        self.assertFalse(self.registro.exists())
+
+    def test_previa_sem_especificacao_observada_recusa_antes_da_escrita(self):
+        respostas = self.respostas_validas()
+        respostas[0][1].pop("especificacao", None)
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertEqual(len(self.chamadas), 1)
+        self.assertFalse(self.registro.exists())
+
+    def test_contagem_booleana_nao_autoriza_escrita(self):
+        respostas = self.respostas_validas()
+        respostas[0][1]["requisicoes"] = True
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertEqual(len(self.chamadas), 1)
+        self.assertFalse(self.registro.exists())
 
 
 if __name__ == "__main__":
