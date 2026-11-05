@@ -8,6 +8,7 @@ mod guardada;
 mod leitura;
 mod login;
 mod redirecionamento;
+mod unidade;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
@@ -25,6 +26,7 @@ pub(crate) use login::derivar_submissao_de_login;
 pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
 use std::io::Read;
+use unidade::conferir_unidade;
 
 /// Estado de sessão que uma operação pode alterar, mesmo quando consulta.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -216,29 +218,6 @@ impl fmt::Debug for SubmissaoDerivada {
             .field("efeito", &self.efeito)
             .finish_non_exhaustive()
     }
-}
-
-fn conferir_unidade(dom: &tl::VDom<'_>, solicitada: &str) -> Result<(), ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
-    // Tag ilegível sai com o erro do tokenizador; depois disso `unidade_html`
-    // só falha por identificações repetidas fora do par móvel/desktop.
-    nos_com_id(dom, "lnkInfraUnidade")?;
-    let publicada = crate::controle_contexto::unidade_html(dom)
-        .map_err(|_| {
-            E::Html(crate::erro_html::ErroHtml::repetido(
-                "identificacoes_da_unidade_repetidas_na_tela",
-                "o elemento aparece mais de uma vez",
-            ))
-        })?
-        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela",
-            "a tela não tem o elemento observado",
-        )))?;
-    let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
-    if publicada != solicitada {
-        return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
-    }
-    Ok(())
 }
 
 fn ordenar_campos<'c>(

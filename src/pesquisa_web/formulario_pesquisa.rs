@@ -327,3 +327,7 @@ mod tests;
 #[cfg(test)]
 #[path = "tests_pesquisa_envio.rs"]
 mod tests_envio;
+
+#[cfg(test)]
+#[path = "tests_termo_pesquisa.rs"]
+mod tests_termo;
