@@ -1,7 +1,9 @@
 //! Entrada da CLI para `ies processo ciente NUP [--confirmar]`.
 //! A prévia não dispara o GET que grava a ciência; o resultado não contém
 //! URL, cookie, assinatura ou hash.
-use crate::ciencia::{CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo};
+use crate::ciencia::{
+    CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
+};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::transporte::StatusHttpRecusado;
@@ -12,8 +14,10 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_ciente(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Ciente { numero, confirmar }), ..
-    }) = &cli.command else {
+        acao: Some(ProcessoAcao::Ciente { numero, confirmar }),
+        ..
+    }) = &cli.command
+    else {
         return None;
     };
     Some(match NumeroProcesso::novo(numero) {
@@ -49,24 +53,38 @@ fn publicar_sucesso(json_mode: bool, feito: &CienciaDoProcesso) -> ExitCode {
     if json_mode {
         println!("{}", json_de_sucesso(feito));
     } else if feito.verificado {
-        println!("Ciência no processo {} verificada na lista (atividade {}). Requisições: {}.",
-            feito.nup, feito.id_atividade.as_deref().unwrap_or("não observada"), feito.requisicoes);
+        println!(
+            "Ciência no processo {} verificada na lista (atividade {}). Requisições: {}.",
+            feito.nup,
+            feito.id_atividade.as_deref().unwrap_or("não observada"),
+            feito.requisicoes
+        );
     } else {
-        println!("Prévia: registrar ciência no processo {} na unidade {}. Uma ciência por dia, por usuário. Para executar: --confirmar. Requisições: {}.",
-            feito.nup, feito.unidade, feito.requisicoes);
+        println!(
+            "Prévia: registrar ciência no processo {} na unidade {}. Uma ciência por dia, por usuário. Para executar: --confirmar. Requisições: {}.",
+            feito.nup, feito.unidade, feito.requisicoes
+        );
     }
     ExitCode::SUCCESS
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
-    let codigo = if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" };
+    let codigo = if erro.saida() == 3 {
+        "efeito_incerto"
+    } else {
+        "fonte_invalida"
+    };
     let mut objeto = json!({
         "codigo": codigo,
         "subcodigo": erro.subcodigo(),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaProcesso::EfeitoIncerto { motivo, requisicoes } = erro {
+    if let ErroCienciaProcesso::EfeitoIncerto {
+        motivo,
+        requisicoes,
+    } = erro
+    {
         objeto["verificacao"] = json!(motivo);
         objeto["requisicoes"] = json!(requisicoes);
     }
@@ -88,7 +106,10 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     } else {
         eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
         if let Some(requisicoes) = erro.requisicoes() {
-            eprintln!("IES: {} requisições, não repetir a escrita; verificar no SEI", requisicoes);
+            eprintln!(
+                "IES: {} requisições, não repetir a escrita; verificar no SEI",
+                requisicoes
+            );
         }
     }
     ExitCode::from(erro.saida())
