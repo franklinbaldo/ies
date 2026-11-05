@@ -221,3 +221,35 @@ Não registrar PASS para esse head antes de nova execução do
 gate canônico e do replay. As mudanças foram enviadas na mesma
 PR Draft para revisão e retomada; nenhuma regra de segurança
 foi enfraquecida para obter verde.
+
+## Retomada 🦉 Coruja — proteção de hipóteses AJAX (05/11/2026)
+
+| Prova / etapa | Status | Requisições reais ao SEI | Resíduo |
+| --- | --- | ---: | --- |
+| Testes sintéticos RED de ID/nome AJAX não publicáveis | NOT_RUN — `cargo`/`rustc` ausentes, DNS do sandbox indisponível | 0 | Nenhum |
+| GREEN/compilação Rust local | NOT_RUN — ambiente sem compilador Rust | 0 | Nenhum |
+| Gate canônico e replay no novo head da PR #283 | NOT_RUN — não apareceu workflow do novo SHA na consulta ao GitHub | 0 | Nenhum |
+| Prévia autenticada UnB e outra instalação de treinamento | NOT_RUN — sem conectividade/sessão autenticada | 0 | Nenhum |
+| Uma única confirmação `--confirmar` em treinamento | NOT_RUN — não houve prévia ao vivo | 0 | Nenhum |
+| Releitura verificadora do NUP | NOT_RUN — nenhuma criação efetuada | 0 | Nenhum |
+
+Os testes Rust foram **publicados antes da correção**, em commits
+`c979189` (2 testes unitários) e `be2fb9c` (1 teste de transporte
+com orçamento exato de 3 GET + 1 POST AJAX consultivo, zero POST
+criador). O teste integrado exige saída tipada
+`hipotese_legal_ajax_resposta_nao_reconhecida` quando o XML anuncia
+uma URL como identificador. O código anterior selecionava tal valor
+por unicidade ou por `ID#NOME`; a execução RED ainda não foi
+observada — **não confundir dedução do código com RED executado**.
+
+A implementação no head seguinte recusa ID/nome não publicável tanto
+no caso de uma única opção quanto na escolha explícita. Há também
+teste de recusa da escolha segura sobre uma lista contaminada. A
+correção não introduz requisição nem escrita. Executar os gates e
+o replay antes de integrar; os últimos CI verdes citados acima
+pertencem a SHAs anteriores e não comprovam o estado atual.
+
+**Total live nesta retomada: 0 requisições ao SEI, 0 POST criador,
+0 processos criados/alterados e nenhum resíduo.** A autorização de
+escrita permanece válida apenas em treinamento; a sequência
+prévia → um único `--confirmar` → releitura ainda não aconteceu.
