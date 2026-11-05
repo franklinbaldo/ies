@@ -1,6 +1,6 @@
 //! Validação pura da oferta de exclusão do Acompanhamento Especial (#254).
 //! A função `acaoExcluir` é examinada como texto; nunca é executada.
-//! Estrutura derivada da UnB em Todos `tests/test_processo_acompanhar_010.py` @323eb01.
+//! Estrutura derivada da `UnB` em Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use super::{ErroAcompanhar, TABELA, campo};
 use crate::html_atributos::atributo_presente;
@@ -34,10 +34,8 @@ pub(super) fn conferir_oferta_exclusao(
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(E::HtmlInvalido)?;
-        if campo(tag, "id")?.as_deref() == Some(FORMULARIO) {
-            if form.replace(tag).is_some() {
-                return Err(sem_oferta);
-            }
+        if campo(tag, "id")?.as_deref() == Some(FORMULARIO) && form.replace(tag).is_some() {
+            return Err(sem_oferta);
         }
     }
     let form = form.ok_or(sem_oferta)?;
@@ -92,7 +90,17 @@ pub(super) fn conferir_oferta_exclusao(
     if ocultos != 1 || tabelas.len() != 1 {
         return Err(sem_oferta);
     }
-    let tabela = tabelas[0];
+    conferir_linha(tabelas[0], parser, id_alvo)?;
+    conferir_script(instalacao, &dom, id_procedimento)
+}
+
+
+fn conferir_linha(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    id_alvo: &str,
+) -> Result<(), ErroAcompanhar> {
+    let sem_oferta = ErroAcompanhar::ExclusaoNaoOferecida;
     let prefixo = format!("acaoExcluir('{id_alvo}',");
     let mut linhas_do_alvo = 0;
     for no in tabela.children().all(parser) {
@@ -114,14 +122,12 @@ pub(super) fn conferir_oferta_exclusao(
             {
                 alvo = true;
             }
-            if tag.name() == "a" {
-                if let Some(onclick) = campo(tag, "onclick")? {
-                    let onclick = crate::formulario_web::decodificar_atributo(&onclick)
-                        .ok_or(sem_oferta)?;
-                    let onclick = onclick.trim();
-                    if onclick.starts_with(&prefixo) && onclick.ends_with(");") {
-                        links += 1;
-                    }
+            if tag.name() == "a" && let Some(onclick) = campo(tag, "onclick")? {
+                let onclick =
+                    crate::formulario_web::decodificar_atributo(&onclick).ok_or(sem_oferta)?;
+                let onclick = onclick.trim();
+                if onclick.starts_with(&prefixo) && onclick.ends_with(");") {
+                    links += 1;
                 }
             }
         }
@@ -136,6 +142,16 @@ pub(super) fn conferir_oferta_exclusao(
         return Err(sem_oferta);
     }
 
+    Ok(())
+}
+
+fn conferir_script(
+    instalacao: &Instalacao,
+    dom: &tl::VDom<'_>,
+    id_procedimento: &str,
+) -> Result<(), ErroAcompanhar> {
+    let sem_oferta = ErroAcompanhar::ExclusaoNaoOferecida;
+    let parser = dom.parser();
     let mut scripts = Vec::new();
     for no in dom.query_selector("script").into_iter().flatten() {
         let tag = no
