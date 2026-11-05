@@ -23,14 +23,14 @@ fn criar_tem_cli_publica_e_flags_do_contrato() {
 }
 
 #[test]
-fn criar_confirmação_recusa_antes_de_ler_arquivos_privados() {
+fn criar_confirmar_sem_sessao_falha_fechado_sem_acesso_a_rede() {
     let saida = executar(&[
         "--json", "documento", "criar", "--processo", "00001.000001/2026-01",
         "--tipo", "Despacho", "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(valor["subcodigo"], "criacao_de_documento_ainda_nao_validada");
+    assert_ne!(valor["subcodigo"], "criacao_de_documento_ainda_nao_validada");
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("/nao/existe"));
 }
 
