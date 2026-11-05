@@ -127,7 +127,7 @@ sem romper orçamento. Não se altera o termo, a paginação ou os 3/4 pedidos.
 RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
 [Contrato de processo](../contracts/cli/processo-buscar.md) ·
 [contrato de documento](../contracts/cli/documento-buscar.md) ·
-[decisão](decisoes/pesquisa-filtros.md).
+[decisão](decisoes/processo-buscar.md).
 
 ## Gate manual para PRs de capacidade
 
