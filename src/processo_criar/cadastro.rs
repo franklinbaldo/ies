@@ -108,6 +108,24 @@ pub(crate) fn conferir_cadastro(
         _ => return Err(E::NivelNaoOferecido),
     }
 
+    let (id_assunto, assunto, hipotese_legal) = conferir_listas(form, parser, nivel)?;
+    Ok(CadastroObservado {
+        id_tipo: id_tipo.to_owned(),
+        assunto,
+        id_assunto,
+        nivel: nivel.to_owned(),
+        hipotese_legal,
+    })
+}
+
+/// Lê apenas listas publicadas dentro do mesmo formulário, sem inferir
+/// itens ausentes. Dois assuntos não equivalem a um sugerido único.
+fn conferir_listas(
+    form: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    nivel: &str,
+) -> Result<(String, String, Option<String>), ErroCadastro> {
+    use ErroCadastro as E;
     let mut assuntos = Vec::new();
     let mut hipotese = Vec::new();
     let mut selects_assunto = 0;
@@ -157,13 +175,7 @@ pub(crate) fn conferir_cadastro(
     } else {
         None
     };
-    Ok(CadastroObservado {
-        id_tipo: id_tipo.to_owned(),
-        assunto: assunto.clone(),
-        id_assunto: id_assunto.clone(),
-        nivel: nivel.to_owned(),
-        hipotese_legal,
-    })
+    Ok((id_assunto.clone(), assunto.clone(), hipotese_legal))
 }
 
 #[cfg(test)]
