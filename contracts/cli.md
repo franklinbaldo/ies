@@ -150,6 +150,10 @@ As recusas de resposta do GET (uma variante por fato) e o status e a
 mensagem do SEI nas recusas HTTP estão em
 [recusas HTTP](cli/recusas-http.md).
 
+## Registro de andamento
+
+[Contrato experimental do comando processo andamento](cli/processo-andamento.md): prévia Web, POST único e confirmação por histórico relido. Não é capacidade aprovada até CI, replay e live.
+
 ## Partes do contrato
 
 - [Leituras paginadas](cli/leituras-paginadas.md): página observada por padrão e --pagina N nas leituras do Controle.
