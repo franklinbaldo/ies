@@ -7,7 +7,8 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro};
+use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro_com_ajax_pendente};
+use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
 use crate::processo_criar_interessados::{
     ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
 };
@@ -83,6 +84,7 @@ pub(crate) enum ErroCriar {
     TipoSemIdentificador,
     EscolhaInesperada,
     Interessado(ErroInteressado),
+    Hipotese(ErroHipotese),
     EfeitoIncerto,
 }
 
@@ -98,6 +100,7 @@ impl ErroCriar {
             Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
             Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
             Self::Interessado(erro) => erro.subcodigo(),
+            Self::Hipotese(erro) => erro.subcodigo(),
             Self::EfeitoIncerto => "efeito_incerto_na_criacao",
         }
     }
@@ -105,6 +108,7 @@ impl ErroCriar {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
+            Self::Hipotese(erro) => erro.status_http(),
             _ => None,
         }
     }
@@ -379,14 +383,22 @@ pub(crate) fn criar<V: EnvioDoControle>(
             (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
         }
     };
-    let observado =
-        conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel).map_err(E::Cadastro)?;
+    let mut observado = conferir_cadastro_com_ajax_pendente(&cadastro.html, &id_tipo, pedido.nivel)
+        .map_err(E::Cadastro)?;
     let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
     let servida = TelaServida {
         url: &cadastro.url,
         html: &cadastro.html,
         codificacao,
     };
+    // O select restrito pode nascer vazio. Sua única opção deve vir
+    // da consulta AJAX literalmente publicada pela tela, antes da escrita.
+    if pedido.nivel == "restrito" && observado.hipotese_legal.is_none() {
+        observado.hipotese_legal = Some(
+            resolver_hipotese(envio, &instalacao, &servida, cookie_valor, &mut requisicoes)
+                .map_err(E::Hipotese)?,
+        );
+    }
     let interessados = resolver_interessados(
         envio,
         &instalacao,
