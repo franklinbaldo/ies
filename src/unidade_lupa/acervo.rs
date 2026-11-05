@@ -37,6 +37,17 @@ fn replay_da_lupa_go_no_acervo() {
                 .unwrap_or_else(|_| panic!("cadastro ilegível no passo {}", resposta.passo));
             // GO: ação da lupa no literal servido pelo cadastro. Não executar JS,
             // não publicar nem comparar o hash assinado da cassette.
+            let candidatos = super::fluxo::candidatos(
+                &html,
+                "unidade_selecionar_envio_processo",
+            )
+            .expect("HTML do cadastro fora da forma observada");
+            assert_eq!(
+                candidatos.len(), 1,
+                "cadastro GO passo {} precisa de um literal único da lupa",
+                resposta.passo
+            );
+            let link = &candidatos[0];
             assert!(
                 super::fluxo::destino(
                     &html,
@@ -45,8 +56,12 @@ fn replay_da_lupa_go_no_acervo() {
                     "unidade_selecionar_envio_processo"
                 )
                 .is_ok(),
-                "cadastro GO passo {} sem link único autorizado da lupa",
-                resposta.passo
+                "cadastro GO passo {} sem link autorizado: relativo={} duplicacao={} fragmento={} escape={}",
+                resposta.passo,
+                link.starts_with("controlador.php?"),
+                link.contains(".."),
+                link.contains('#'),
+                link.contains('\\'),
             );
             cadastros_com_lupa += 1;
         }
