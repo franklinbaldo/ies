@@ -36,7 +36,7 @@ jobs:
           base=pathlib.Path(os.environ["IES_TEST_DIR"])
           md=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
           row=next(line for line in md.splitlines() if line.startswith("| `unb` |"))
-          parts=[s.strip() for s in row.split("|")]
+          parts=[s.strip().strip("`") for s in row.split("|")]
           origem,usuario,senha,orgao=parts[3:7]
           files={"credenciais":f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n", "origem":origem+"\n", "url":"", "cookie":""}
           for name,value in files.items():
