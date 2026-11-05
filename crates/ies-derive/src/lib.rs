@@ -23,10 +23,26 @@ use std::fmt::Write as _;
 struct Atributos {
     nome: Option<String>,
     acao: Option<String>,
-    interna: bool,
-    transparente: bool,
-    fonte: bool,
-    http: bool,
+    ligacoes: Vec<Ligacao>,
+}
+
+/// Como a variante se liga ao campo: no máximo uma por variante.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Ligacao {
+    Interna,
+    Transparente,
+    Fonte,
+    Http,
+}
+
+impl Atributos {
+    fn tem(&self, ligacao: Ligacao) -> bool {
+        self.ligacoes.contains(&ligacao)
+    }
+    /// `transparente` compõe como `interna`.
+    fn interna(&self) -> bool {
+        self.tem(Ligacao::Interna) || self.tem(Ligacao::Transparente)
+    }
 }
 
 enum Forma {
@@ -171,13 +187,10 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
             continue;
         };
         match chave.to_string().as_str() {
-            "interna" => destino.interna = true,
-            "transparente" => {
-                destino.interna = true;
-                destino.transparente = true;
-            }
-            "fonte" => destino.fonte = true,
-            "http" => destino.http = true,
+            "interna" => destino.ligacoes.push(Ligacao::Interna),
+            "transparente" => destino.ligacoes.push(Ligacao::Transparente),
+            "fonte" => destino.ligacoes.push(Ligacao::Fonte),
+            "http" => destino.ligacoes.push(Ligacao::Http),
             chave @ ("nome" | "acao") => {
                 let igual = args.next();
                 let valor = args.next();
@@ -208,16 +221,16 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
 
 fn validar(v: &Variante) -> Result<(), String> {
     let um_campo = matches!(v.forma, Forma::Tupla(1));
-    let ligados = [v.atributos.interna, v.atributos.fonte, v.atributos.http];
-    if ligados.iter().any(|b| *b) && !um_campo {
+    let ligados = &v.atributos.ligacoes;
+    if !ligados.is_empty() && !um_campo {
         return Err(format!(
-            "Causa: {} com interna/fonte/http precisa ser tupla de um campo",
+            "Causa: {} com interna/transparente/fonte/http precisa ser tupla de um campo",
             v.ident
         ));
     }
-    if ligados.iter().filter(|b| **b).count() > 1 {
+    if ligados.len() > 1 {
         return Err(format!(
-            "Causa: {} aceita só um de interna/fonte/http",
+            "Causa: {} aceita só um de interna/transparente/fonte/http",
             v.ident
         ));
     }
@@ -283,15 +296,15 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
     let mut folha = String::new();
     for v in variantes {
         let rotulo = v.atributos.nome.clone().unwrap_or_else(|| snake(&v.ident));
-        let compoe = v.atributos.interna || v.atributos.fonte;
-        let ligado = compoe || v.atributos.http;
+        let compoe = v.atributos.interna() || v.atributos.tem(Ligacao::Fonte);
+        let ligado = compoe || v.atributos.tem(Ligacao::Http);
         let p = padrao(v, ligado);
-        if v.atributos.interna {
+        if v.atributos.interna() {
             let _ = writeln!(folha, "{p} => {T}::Causa::folha(interna),");
         } else {
             let _ = writeln!(folha, "{} => {rotulo:?},", padrao(v, false));
         }
-        if v.atributos.transparente {
+        if v.atributos.tem(Ligacao::Transparente) {
             let _ = writeln!(caminho, "{p} => {T}::Causa::caminho(interna, c),");
         } else if compoe {
             let _ = writeln!(
@@ -312,7 +325,7 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
             (None, false) => format!("{T}::Acao::Reportar"),
         };
         let _ = writeln!(acao, "{} => {a},", padrao(v, compoe));
-        if v.atributos.http {
+        if v.atributos.tem(Ligacao::Http) {
             let _ = writeln!(http, "{p} => Some(interna),");
         } else if compoe {
             let _ = writeln!(http, "{p} => {T}::Causa::status_http(interna),");
@@ -322,11 +335,11 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
     // Tipo repetido em duas variantes indica duas etapas achatadas num
     // nível: separe-as em tipos próprios em vez de escolher uma.
     let mut conversoes = String::new();
-    for v in variantes.iter().filter(|v| v.atributos.interna) {
+    for v in variantes.iter().filter(|v| v.atributos.interna()) {
         let Some(tipo) = &v.campo else { continue };
         let repetido = variantes
             .iter()
-            .filter(|o| o.atributos.interna && o.campo.as_ref() == Some(tipo))
+            .filter(|o| o.atributos.interna() && o.campo.as_ref() == Some(tipo))
             .count()
             > 1;
         if !repetido {

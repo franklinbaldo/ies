@@ -199,9 +199,10 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
             [link] => *link,
             _ => {
-                return Err(
-                    ErroHtml::repetido("linha_de_pesquisa_com_mais_de_um_link_do_processo").into(),
-                );
+                return Err(ErroHtml::repetido(
+                    "linha_de_pesquisa_com_mais_de_um_link_do_processo",
+                )
+                .into());
             }
         };
         let link = link_no
@@ -247,6 +248,19 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     if links_da_tabela != resultados.len() + links_de_documento {
         return Err(ErroHtml::valor("link_de_processo_fora_da_linha_de_pesquisa").into());
     }
+    let links_de_trabalho = links_de_trabalho(parser, tabela)?;
+    if links_de_trabalho != resultados.len() + arvores {
+        return Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida);
+    }
+    Ok(resultados)
+}
+
+/// Todos os links da tabela que abrem `procedimento_trabalhar`, com ou sem
+/// a classe esperada.
+fn links_de_trabalho(
+    parser: &tl::Parser<'_>,
+    tabela: &tl::HTMLTag<'_>,
+) -> Result<usize, ErroResultadoPesquisa> {
     // A classe CSS do link não é garantia de que ele seja o único link
     // de trabalho na tabela. Uma versão diferente do SEI pode perder
     // essa classe e ocultar processos na projeção: falhar fechado.
@@ -256,7 +270,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             continue;
         };
         let abre_processo = valor_do_atributo(tag, "href")
-            .map_err(ilegivel)?
+            .map_err(|_| ErroHtml::html("html_de_pesquisa_nao_interpretado"))?
             .is_some_and(|href| {
                 href.strip_prefix("controlador.php?").is_some_and(|query| {
                     query.split('&').enumerate().any(|(indice, campo)| {
@@ -267,10 +281,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             });
         links_de_trabalho += usize::from(abre_processo);
     }
-    if links_de_trabalho != resultados.len() + arvores {
-        return Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida);
-    }
-    Ok(resultados)
+    Ok(links_de_trabalho)
 }
 
 #[cfg(test)]

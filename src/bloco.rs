@@ -47,7 +47,7 @@ impl ErroBloco {
         match self {
             Self::Html(e) => e.mensagem,
             Self::PaginaDeBlocosNaoImplementada => "página de blocos sem navegação Web comprovada",
-            _ => "a tela de blocos não comprovou a lista solicitada",
+            Self::FaixaDeBlocosIncoerente => "a tela de blocos não comprovou a lista solicitada",
         }
     }
 }

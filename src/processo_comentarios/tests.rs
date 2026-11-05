@@ -151,8 +151,10 @@ fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
             "<input type=\"checkbox\" value=\"42\">",
             "<input type=\"checkbox\" value=\"42\" value=\"43\">"
         )),
-        Err(ErroComentarios::Html(ErroHtml::html(
-            "html_dos_comentarios_nao_interpretado"
+        // A tag ilegível sobe como causa (`Problema::Atributo`); `onde` fica.
+        Err(ErroComentarios::Html(ErroHtml::atributo(
+            "html_dos_comentarios_nao_interpretado",
+            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
         )))
     );
 }
