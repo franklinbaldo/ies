@@ -139,7 +139,10 @@ defeito no parser; o job dedicado executa obrigatoriamente o replay.
 **RED no sandbox:** um erro de coleta/importação ao executar
 `python3 -m unittest discover -s scripts/tests` com os testes novos
 antes do downloader existir (0 casos individuais executados).
-**GREEN no sandbox:** 5/5 testes Python sintéticos para manifesto,
+Em seguida, um teste sintético **falhou de verdade** ao retirar um
+card de um manifesto de 15 cassettes (5 testes aprovados,
+1 falha). O leitor anteriormente não detectava a redução do acervo.
+**GREEN no sandbox:** 6/6 testes Python sintéticos para manifesto,
 origem/hash, cache e atomicidade. `compileall` Python PASS.
 **Compilação Rust local:** NOT_RUN, indisponibilidade de `cargo`.
 A validação Rust integral depende do job dedicado do CI deste head;
