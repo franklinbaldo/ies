@@ -1,6 +1,8 @@
 """Testes sintéticos do ensaio #245: nenhuma rede, login ou escrita."""
 import json
 from pathlib import Path
+import os
+from unittest.mock import patch
 import tempfile
 import unittest
 
@@ -122,6 +124,17 @@ class EnsaioUmaVez(unittest.TestCase):
         )
         self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
         self.assertEqual(len(self.chamadas), 2)
+
+    def test_configuracao_local_nao_pode_substituir_origem_permitida(self):
+        origem = Path(self.tmp.name) / "origem"
+        origem.write_text(ORIGEM + "\n")
+        origem.chmod(0o600)
+        with patch.dict(os.environ, {
+            "IES_ORIGEM_FILE": str(origem),
+            "IES_CONFIG_FILE": "/nao/deve/substituir/sessao.json",
+        }):
+            with self.assertRaises(ValueError):
+                origem_privada_permitida({ORIGEM})
 
     def test_origens_exigem_sete_ambientes_explicitos(self):
         f = Path(self.tmp.name) / "tabela.md"
