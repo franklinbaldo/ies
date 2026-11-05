@@ -4,6 +4,7 @@
 use super::abertura::{
     ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede, concluir, ler_arvore_aberta,
 };
+pub(crate) use super::acoes::AcoesDeEstado;
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::pastas::{self, Guardado};
@@ -11,12 +12,7 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroAcompanharNaBarra,
-    ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore, ErroAtribuirNaBarra, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroRelacionarNaBarra, ErroTelaDoProcesso,
-    ReabrirNaBarra, ler_tela_do_processo,
-};
+use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
@@ -42,26 +38,6 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<ProcessoAberto, E> {
     abrir_para_escrever(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
-}
-
-/// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
-/// só pesa no comando que a usa.
-pub(crate) struct AcoesDeEstado {
-    /// contracts/cli/processo-concluir.md
-    pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
-    /// contracts/cli/processo-reabrir.md
-    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
-    pub(crate) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
-    pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
-    /// contracts/cli/processo-enviar.md
-    pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
-    pub(crate) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
-    /// Atribuição do processo na unidade atual.
-    pub(crate) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
-    /// Ação de registrar andamento, lida da barra do processo.
-    pub(crate) andamento: Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra>,
-    pub(crate) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
-    pub(crate) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -131,6 +107,8 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         sobrestar: arvore_lida.sobrestar,
         retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
+        ciencia: arvore_lida.ciencia,
+        lista_ciencias: arvore_lida.lista_ciencias,
         anexar: arvore_lida.anexar,
         atribuir: arvore_lida.atribuir,
         andamento: arvore_lida.andamento,

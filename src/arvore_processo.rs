@@ -14,6 +14,7 @@ mod assinatura;
 mod atribuir;
 mod barra_do_documento;
 mod barra_do_processo;
+mod ciencia;
 mod concluir;
 mod conteudo;
 pub(crate) mod endereco;
@@ -87,6 +88,9 @@ pub(crate) use barra_do_documento::{
 #[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use ciencia::{
+    ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
+};
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,

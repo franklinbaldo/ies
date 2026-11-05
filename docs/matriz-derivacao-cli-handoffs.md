@@ -51,3 +51,17 @@ a escrita única e a verificação independente. RED local, replay, live:
 NOT_RUN. Sem residuo no SEI.
 [Contrato](../contracts/cli/processo-relacionar.md) ·
 [decisão](decisoes/processo-relacionar.md).
+
+## Fatia de ciência #271 (PR #280)
+
+`ies processo ciente NUP [--confirmar]`, integrado pela
+[PR #280](https://github.com/franklinbaldo/ies/pull/280) como **PARCIAL**:
+prévia apenas pela abertura do processo; confirmação com um único GET
+mutador de `procedimento_ciencia` derivado da tela servida; nova leitura da
+árvore e conferência da `id_atividade` no checkbox da Lista de Ciências.
+Testes do fluxo contam o orçamento exato (3 GET na prévia a frio e 7 GET
+na escrita seguida de verificação no caso sintético). A CLI de
+`documento ciente`, a conferência do usuário na lista, o replay e o ensaio
+live ainda não foram entregues.
+[Contrato](../contracts/cli/processo-ciente.md) ·
+[decisão](decisoes/processo-ciente.md).

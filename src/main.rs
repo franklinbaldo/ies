@@ -12,6 +12,8 @@ mod caixa;
 mod caixa_detalhada;
 #[cfg(test)]
 mod cassette;
+mod ciencia;
+mod ciencia_cli;
 mod classe_link_processo;
 mod cli_processo;
 mod colheita_do_controle;
@@ -384,6 +386,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))

@@ -132,6 +132,12 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Registra ciência do usuário no processo: prévia e um GET mutador conferido.
+    Ciente {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     Sobrestar {
         numero: String,
         #[arg(long)]
