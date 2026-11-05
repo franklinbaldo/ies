@@ -33,7 +33,9 @@ impl ErroCienciaNaArvore {
             Self::EnderecoDaCienciaNaoReconhecido => "endereco_da_ciencia_nao_reconhecido",
             Self::ListaDeCienciasRepetidaNaArvore => "lista_de_ciencias_repetida_na_arvore",
             Self::ListaDeCienciasForaDaForma => "lista_de_ciencias_fora_da_forma",
-            Self::EnderecoDaListaDeCienciasNaoReconhecido => "endereco_da_lista_de_ciencias_nao_reconhecido",
+            Self::EnderecoDaListaDeCienciasNaoReconhecido => {
+                "endereco_da_lista_de_ciencias_nao_reconhecido"
+            }
         }
     }
 }
@@ -49,10 +51,15 @@ pub(crate) fn ciencia_da_barra(
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
         FalhaDaBarra::Fora | FalhaDaBarra::Repetidas => E::BarraDeCienciaForaDaForma,
     })?;
-    let total = ancoras.iter().filter(|a| a.onclick.as_deref() == Some("cienciaProcesso();")).count();
+    let total = ancoras
+        .iter()
+        .filter(|a| a.onclick.as_deref() == Some("cienciaProcesso();"))
+        .count();
     match total {
         0 => Ok(None),
-        1 => tela_do_no_da_raiz(instalacao, html, id).map(Some).ok_or(E::TelaDeCienciaNaoPublicada),
+        1 => tela_do_no_da_raiz(instalacao, html, id)
+            .map(Some)
+            .ok_or(E::TelaDeCienciaNaoPublicada),
         _ => Err(E::CienciaRepetidaNaBarra),
     }
 }
@@ -73,8 +80,13 @@ pub(crate) fn lista_do_processo(
         let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
             .ok_or(E::ListaDeCienciasForaDaForma)?;
         match argumentos.as_slice() {
-            [Literal::Texto(tipo), Literal::Texto(codigo), Literal::Texto(alvo), Literal::Texto(url), ..]
-                if tipo == "CIENCIAS" && codigo == "C" && alvo == id => urls.push(url.clone()),
+            [
+                Literal::Texto(tipo),
+                Literal::Texto(codigo),
+                Literal::Texto(alvo),
+                Literal::Texto(url),
+                ..,
+            ] if tipo == "CIENCIAS" && codigo == "C" && alvo == id => urls.push(url.clone()),
             [Literal::Texto(tipo), ..] if tipo == "CIENCIAS" => {
                 // A ação CD... é do documento e não confere ciência no processo.
             }
