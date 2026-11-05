@@ -205,7 +205,7 @@ fn publicar_previa(
         if !solicitado.is_null() {
             println!("Prévia: {solicitado}. Para aplicar, --confirmar (ainda bloqueado).");
         }
-        println!("Requisições: {}", requisicoes);
+        println!("Requisições: {requisicoes}");
     }
     ExitCode::SUCCESS
 }
