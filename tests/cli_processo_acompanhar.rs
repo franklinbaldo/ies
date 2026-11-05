@@ -64,11 +64,18 @@ fn previa_exige_sessao_privada_e_nunca_vira_stub() {
     assert_ne!(valor["codigo"], "nao_implementado");
 }
 
-
 #[test]
 fn inclusao_confirmada_nao_e_stub_e_exige_sessao() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
-    let saida = sem_sessao(&["processo", "acompanhar", NUP, "--grupo", "G", "--confirmar", "--json"]);
+    let saida = sem_sessao(&[
+        "processo",
+        "acompanhar",
+        NUP,
+        "--grupo",
+        "G",
+        "--confirmar",
+        "--json",
+    ]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
