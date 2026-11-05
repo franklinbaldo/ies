@@ -110,14 +110,7 @@ pub(crate) fn trocar(
     // A saída histórica é u32; a contagem real satura em vez de transbordar.
     let pedidos = u32::try_from(envio.pedidos.total()).unwrap_or(u32::MAX);
     match resultado {
-        Ok(troca) => concluir(
-            json_mode,
-            &arquivos,
-            &indice,
-            &instalacao,
-            &troca,
-            pedidos,
-        ),
+        Ok(troca) => concluir(json_mode, &arquivos, &indice, &instalacao, &troca, pedidos),
         Err(erro) => {
             if matches!(erro, ErroTroca::EfeitoIncerto { .. }) {
                 // A unidade pode ter mudado: nada da anterior é reaproveitado.
