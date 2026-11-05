@@ -182,8 +182,10 @@ fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<St
                 acoes += 1;
                 invalida |= valor != acao;
             }
-            if chave == "infra_hash" && valor.len() == 64
-                && valor.bytes().all(|b| b.is_ascii_hexdigit()) {hashes+=1}
+            if chave == "infra_hash" {
+                hashes += 1;
+                invalida |= valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit());
+            }
         }
         if acoes == 1 && hashes == 1 && !invalida {
             let segura = crate::url_observada::UrlHttps::interpretar(&url)
@@ -211,7 +213,7 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
             achados += 1
         }
     }
-    if achados != 1 {
+    if achados == 0 {
         return Err(FalhaDaLupa::LinkAusente);
     }
     destino(html, url, origem, "grupo_unidade_cadastrar")
