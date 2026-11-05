@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar processo pela pesquisa Web do SEI
 operation: processo.buscar
-command: ies processo buscar TERMO [--pagina N] [--json]
+command: ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
@@ -109,7 +109,7 @@ Controle), `origem: "web"` e `requisicoes`.
   `numero_da_barra_de_contagem_fora_do_formato`,
   `faixa_da_barra_de_contagem_impossivel`,
   `linhas_da_tabela_diferentes_da_faixa_da_barra`.
-- Paginação: `pagina_fora_do_intervalo` (antes do POST de página),
+- Paginação: `pagina_da_pesquisa_fora_do_intervalo` (antes do POST de página),
   `regra_de_navegacao_da_pesquisa_nao_observada`,
   `paginador_da_pesquisa_nao_publicado`,
   `link_de_paginacao_da_pesquisa_fora_da_regra`,
@@ -135,7 +135,7 @@ tamanho da página. O IES exige essas duas linhas literais e todo link
   (observado: 10). Páginas = ⌈N / tamanho⌉; com `F = N`, uma página.
 - `--pagina 1` não envia POST extra. N > páginas (inclusive em
   `sem_resultado`, 0 páginas, e `processo_unico`, 1 página) é
-  `pagina_fora_do_intervalo` **antes** do POST de página.
+  `pagina_da_pesquisa_fora_do_intervalo` **antes** do POST de página.
 - O POST de página deriva da tela de resultado (mesmo formulário, termo
   servido igual ao pesquisado), sem `sbmPesquisar`, com
   `hdnInicio = (N - 1) × tamanho`. A resposta precisa ser lista com o
@@ -182,3 +182,33 @@ número do processo; o documento não sai.
   gerado no dia sai `sem_resultado`); PEN4 PASS em NUP dentro e fora da
   caixa e `sem_resultado`, lista **FAIL → corrigido offline** (processo
   visitado), lista ao vivo depois da correção NOT_RUN.
+
+
+## Filtros experimentais (#247)
+
+`ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO]
+[--de DD/MM/AAAA] [--ate DD/MM/AAAA]` preserva o termo e o fluxo
+Web anterior. `--tipo` procura o texto **exato** de uma opção de
+`selTipoProcedimentoPesquisa`, usando o seu `value` servido no mesmo
+POST. `--de` e `--ate` usam `txtDataInicio` e `txtDataFim`, somente
+quando presentes na tela. Datas inválidas e período invertido são entrada
+inválida antes da rede. Os filtros não acrescentam GET nem POST (3
+requisições na primeira página; 4 na página N).
+
+A opção `--assunto` existe na borda, mas **recusa por enquanto** com
+`criterio_nao_oferecido_pela_tela`: `txtAssunto` e `hdnIdAssunto`
+formam um autocompletar dependente de identificador, e enviar apenas texto
+não filtra. Não há consulta adicional autorizada para resolver esse ID.
+Também se recusa qualquer campo ausente da tela; tipo sem opção exata é
+`tipo_nao_oferecido_pela_tela`; controles repetidos ou valor diferente
+na página seguinte são recusados. O ensaio live UnB/PEN3 para os novos
+filtros está **NOT_RUN**; não inferir suporte universal.
+
+### Recusas próprias dos filtros
+
+- `criterio_nao_oferecido_pela_tela`: controle inexistente ou assunto sem ID resolvido.
+- `tipo_nao_oferecido_pela_tela`: lista sem a opção exata solicitada.
+- `controle_de_filtro_ambiguo`: campos ou opções repetidos.
+- `atributo_do_filtro_ilegivel`: atributo HTML do filtro inválido.
+- `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
+- `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.

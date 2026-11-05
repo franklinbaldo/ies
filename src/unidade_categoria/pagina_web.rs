@@ -98,9 +98,9 @@ pub(super) fn obter(
             categoria,
             pagina,
             sessao.cookie(),
-            &mut EnvioColhendo {
+            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
                 colheita: &colheita,
-            },
+            }),
         )
         .map_err(ErroPaginaWeb::Visao);
     }

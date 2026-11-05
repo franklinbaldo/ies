@@ -124,3 +124,14 @@ Live: PDF **PASS** na UnB 4.0.9 em 04/11/2026, com e sem `--saida`
 Validação live: PDF **PASS** na PEN3 e na PEN4 5.0.4 e HTML recebido na
 PEN4, frio e quente; TXT **NOT_RUN**; UFRJ só recusa tipada (PDF de outra unidade)
 ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
+
+## Cache do original (#236)
+
+Por padrão os bytes do GET binário são gravados em cache privado
+`ies/<host>/<DOC>/x-<sha256[:16]>.<pdf|txt|html>`, sem processo
+no caminho, com escrita em fluxo e nenhuma requisição adicional.
+Com `--saida`, o arquivo opcional é derivado do cache por ligação
+física ou cópia, sem substituir conteúdo divergente.
+A extensão vem do MIME e nunca do nome do servidor.
+`--sem-cache` ou `IES_CACHE_DOCUMENTOS=0` preservam a leitura
+sem cache, com `--saida` explícita ainda disponível.

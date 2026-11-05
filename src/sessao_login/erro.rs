@@ -92,7 +92,7 @@ impl ErroLogin {
             Self::LoginEmAndamentoEmOutroProcesso => "login_em_andamento_em_outro_processo",
             Self::ArquivoDeLockDoLoginInacessivel => "arquivo_de_lock_do_login_inacessivel",
             Self::ControleDaSessaoExistenteNaoReconhecido(_) => "controle_web_nao_reconhecido",
-            Self::RedirecionamentoSemLocalizacao => "redirecionamento_sem_localizacao",
+            Self::RedirecionamentoSemLocalizacao => "redirecionamento_do_login_sem_localizacao",
             Self::LocalizacaoDeRedirecionamentoNaoInterpretavel => {
                 "localizacao_de_redirecionamento_nao_interpretavel"
             }

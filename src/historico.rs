@@ -23,12 +23,12 @@ pub enum ErroHistorico {
 impl ErroHistorico {
     pub fn subcodigo(self) -> &'static str {
         match self {
-            Self::HtmlInvalido => "html_invalido",
+            Self::HtmlInvalido => "html_do_historico_invalido",
             Self::TituloAusente => "titulo_ausente",
             Self::TitulosRepetidos => "titulos_do_historico_repetidos",
             Self::CabecalhosHtmlRepetidos => "cabecalhos_html_do_historico_repetidos",
             Self::TituloInvalido => "titulo_invalido",
-            Self::NumeroInvalido => "numero_invalido",
+            Self::NumeroInvalido => "numero_do_historico_invalido",
             Self::NumeroDoHistoricoDiferenteDoSolicitado => {
                 "numero_do_historico_diferente_do_solicitado"
             }

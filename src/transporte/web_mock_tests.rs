@@ -216,3 +216,138 @@ fn tela_de_login_na_caixa_indica_sessao_vencida_sem_repetir() {
     );
     assert_eq!(chamadas.get(), 1);
 }
+
+/// Matriz sintética #237: cada recusa ocorre antes de abrir o cookie
+/// (arquivo deliberadamente inexistente) e antes de invocar o transporte.
+#[test]
+fn matriz_url_host_porta_userinfo_hash_e_duplicatas_sem_cookie() {
+    let origem = "https://sei.treinamento.unb.br/sei";
+    let hash = "a".repeat(64);
+    let base = format!(
+        "https://sei.treinamento.unb.br/sei/controlador.php?acao=procedimento_controlar&infra_hash={hash}"
+    );
+    let casos = [
+        base.replace("sei.treinamento.unb.br", "outro.exemplo.test"),
+        base.replace("sei.treinamento.unb.br", "sei.treinamento.unb.br:8443"),
+        base.replace("https://sei", "https://usuario@sei"),
+        format!(
+            "//outro.exemplo.test/sei/controlador.php?acao=procedimento_controlar&infra_hash={hash}"
+        ),
+        base.replace(&hash, "nao-hexadecimal"),
+        format!("{base}&infra_hash={hash}"),
+        format!("{base}&acao=procedimento_controlar"),
+    ];
+    for (indice, url) in casos.iter().enumerate() {
+        let chamadas = Cell::new(0usize);
+        let obtido = read_box_via(
+            url,
+            Path::new("/arquivo/privado/inexistente"),
+            origem,
+            |_, _| {
+                chamadas.set(chamadas.get() + 1);
+                Ok(resposta("<html></html>"))
+            },
+        );
+        assert!(
+            matches!(
+                obtido,
+                Err(FalhaTransporte::UrlInvalida | FalhaTransporte::OrigemNaoAutorizada)
+            ),
+            "caso {indice} deveria recusar a URL antes do cookie: {obtido:?}"
+        );
+        assert_eq!(chamadas.get(), 0, "caso {indice} enviou cookie");
+    }
+}
+
+#[test]
+fn matriz_get_3xx_nao_302_recusados_sem_follow() {
+    let (pasta, cookie) = arquivo_privado_temporario();
+    for codigo in [301, 303, 307, 308] {
+        let chamadas = Cell::new(0usize);
+        let resultado = read_box_via(
+            &url_controle(),
+            &cookie,
+            "https://sei.treinamento.unb.br/sei",
+            |_, _| {
+                chamadas.set(chamadas.get() + 1);
+                Ok(super::testes_http::resposta(
+                    codigo,
+                    "text/html",
+                    Vec::new(),
+                    Some(0),
+                ))
+            },
+        );
+        let Err(FalhaTransporte::Redirecionamento(status)) = resultado else {
+            panic!("esperada recusa tipada de {codigo}");
+        };
+        assert_eq!(i32::from(status.status), codigo);
+        assert_eq!(chamadas.get(), 1);
+    }
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn matriz_get_erro_de_transporte_nao_repete_pedido() {
+    let (pasta, cookie) = arquivo_privado_temporario();
+    let chamadas = Cell::new(0usize);
+    let resultado = read_box_via::<Cursor<Vec<u8>>, _>(
+        &url_controle(),
+        &cookie,
+        "https://sei.treinamento.unb.br/sei",
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Err(FalhaTransporte::Rede)
+        },
+    );
+    assert_eq!(resultado, Err(FalhaTransporte::Rede));
+    assert_eq!(chamadas.get(), 1);
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn matriz_get_limite_em_stream_sem_content_length() {
+    let (pasta, cookie) = arquivo_privado_temporario();
+    let chamadas = Cell::new(0usize);
+    let resultado = read_box_via(
+        &url_controle(),
+        &cookie,
+        "https://sei.treinamento.unb.br/sei",
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Ok(super::testes_http::resposta(
+                200,
+                "text/html",
+                vec![b'x'; crate::MAX_HTML_BYTES + 1],
+                None,
+            ))
+        },
+    );
+    assert_eq!(resultado, Err(FalhaTransporte::RespostaExcessiva));
+    assert_eq!(chamadas.get(), 1);
+    fs::remove_dir_all(pasta).unwrap();
+}
+
+/// Regressão documentada na #241: parâmetro não reservado duplicado
+/// é aceito pela validação de URL antes da leitura do cookie.
+/// Mantido ignorado até a correção independente do código de produção.
+#[test]
+#[ignore = "issue #241: rejeitar parâmetros genéricos duplicados"]
+fn parametro_generico_duplicado_deve_ser_recusado_antes_do_cookie() {
+    let url = format!("{}&parametro=1&parametro=2", url_controle());
+    let chamadas = Cell::new(0usize);
+    let resultado = read_box_via(
+        &url,
+        Path::new("/arquivo/privado/inexistente"),
+        "https://sei.treinamento.unb.br/sei",
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Ok(resposta("<html></html>"))
+        },
+    );
+    assert!(
+        matches!(resultado, Err(FalhaTransporte::UrlInvalida)),
+        "URL duplicada não recusada: {resultado:?}"
+    );
+    assert_eq!(chamadas.get(), 0);
+}

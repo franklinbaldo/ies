@@ -1,0 +1,111 @@
+//! Contrato da CLI #255: valida entradas sem configuração, sem rede nem sessão.
+use std::process::{Command, Output};
+
+fn sem_sessao(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(args)
+        .env_remove("IES_CONFIG_FILE")
+        .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
+        .env("IES_COOKIE_FILE", "/nao/existe/cookie")
+        .env("IES_ORIGEM_FILE", "/nao/existe/origem")
+        .env("IES_INDICE_FILE", "/nao/existe/ies.sqlite3")
+        .output()
+        .expect("IES deve iniciar")
+}
+fn json(saida: &Output) -> serde_json::Value {
+    serde_json::from_slice(&saida.stdout).expect("resposta JSON")
+}
+#[test]
+fn marcador_invalido_sai_2_antes_de_ler_sessao() {
+    for (rotulo, subcodigo) in [
+        ("sem-separador", "rotulo_do_marcador_sem_separador"),
+        ("x#Nome", "id_do_marcador_nao_decimal"),
+        ("501# ", "nome_do_marcador_vazio"),
+    ] {
+        let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", rotulo, "--json"]);
+        assert_eq!(saida.status.code(), Some(2), "{rotulo}");
+        assert_eq!(json(&saida)["subcodigo"], subcodigo);
+    }
+}
+#[test]
+fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
+    for confirmar in [false, true] {
+        let mut args = vec![
+            "processo",
+            "marcar",
+            "NUP",
+            "--retirar",
+            "501#Teste",
+            "--json",
+        ];
+        if confirmar {
+            args.push("--confirmar");
+        }
+        let saida = sem_sessao(&args);
+        assert_eq!(saida.status.code(), Some(1), "{args:?}");
+        let valor = json(&saida);
+        assert_eq!(valor["codigo"], "fonte_invalida");
+        assert_ne!(valor["subcodigo"], "nao_implementado");
+    }
+}
+#[test]
+fn clap_rejeita_sem_operacao_duas_operacoes_e_texto_na_retirada() {
+    for args in [
+        vec!["processo", "marcar", "NUP"],
+        vec![
+            "processo",
+            "marcar",
+            "NUP",
+            "--marcador",
+            "1#A",
+            "--retirar",
+            "1#A",
+        ],
+        vec![
+            "processo",
+            "marcar",
+            "NUP",
+            "--retirar",
+            "1#A",
+            "--texto",
+            "X",
+        ],
+    ] {
+        let saida = sem_sessao(&args);
+        assert_eq!(saida.status.code(), Some(2), "{args:?}");
+    }
+}
+
+#[test]
+fn texto_de_marcador_que_o_sei_nao_suporta_sai_2_sem_abrir_sessao() {
+    for (texto, esperado) in [
+        ("ABC\nDEF", "texto_do_marcador_com_controle"),
+        ("😀", "texto_do_marcador_fora_do_latin1"),
+    ] {
+        let saida = sem_sessao(&[
+            "processo",
+            "marcar",
+            "NUP",
+            "--marcador",
+            "501#A",
+            "--texto",
+            texto,
+            "--json",
+        ]);
+        assert_eq!(saida.status.code(), Some(2));
+        assert_eq!(json(&saida)["subcodigo"], esperado);
+    }
+    let longo = "A".repeat(251);
+    let saida = sem_sessao(&[
+        "processo",
+        "marcar",
+        "NUP",
+        "--marcador",
+        "501#A",
+        "--texto",
+        &longo,
+        "--json",
+    ]);
+    assert_eq!(saida.status.code(), Some(2));
+    assert_eq!(json(&saida)["subcodigo"], "texto_do_marcador_longo");
+}

@@ -35,9 +35,9 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
             &atual,
             unidade,
             sessao.cookie(),
-            &mut EnvioColhendo {
+            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
                 colheita: &colheita,
-            },
+            }),
         )
     });
     let ((rotulo, nivel), nota) = match lido {

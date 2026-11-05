@@ -119,7 +119,7 @@ do host e `Referer` = URL da tela.
 O cliente HTTPS único do IES (`native-tls`, todos os cabeçalhos
 guardados, inclusive cada `Set-Cookie`) atravessa um proxy declarado no
 ambiente. O login e **todos os outros comandos** usam o mesmo cliente e
-as mesmas regras ([transporte HTTPS](../cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
+as mesmas regras ([transporte HTTPS](transporte-https.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
 
 - Variável: a primeira **não vazia** de `https_proxy`, `HTTPS_PROXY`,
   `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS; `http_proxy` não
@@ -190,7 +190,7 @@ rodar de novo resolve). Todas as requisições do comando e a colheita do
 `linha_das_credenciais_sem_campo_conhecido`, os de arquivo privado
 (`arquivo_privado_*`), `login_em_andamento_em_outro_processo`,
 `arquivo_de_lock_do_login_inacessivel`, `controle_web_nao_reconhecido`
-(sessão existente), `redirecionamento_sem_localizacao`,
+(sessão existente), `redirecionamento_do_login_sem_localizacao`,
 `localizacao_de_redirecionamento_nao_interpretavel`,
 `redirecionamento_para_fora_da_instalacao`,
 `redirecionamentos_acima_do_limite`,
