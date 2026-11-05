@@ -4,9 +4,10 @@
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::Redirecionamento302;
-use crate::instalacao::{Instalacao, host_valido};
+use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use ErroRedirecionamentoDaPesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -208,24 +209,8 @@ const LIMITE_DA_LOCALIZACAO: usize = 8_192;
 
 /// Host, caminho e consulta de uma URL `https://` absoluta.
 fn partir_https(url: &str) -> Option<(&str, &str, &str)> {
-    let (host, resto) = url.strip_prefix("https://")?.split_once('/')?;
-    if !host_valido(host) {
-        return None;
-    }
-    let (caminho, consulta) = resto.split_once('?').unwrap_or((resto, ""));
-    Some((host, caminho, consulta))
-}
-
-fn tem_esquema(referencia: &str) -> bool {
-    let fim = referencia.find(['/', '?']).unwrap_or(referencia.len());
-    referencia[..fim]
-        .split_once(':')
-        .is_some_and(|(esquema, _)| {
-            !esquema.is_empty()
-                && esquema
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
-        })
+    let partes = partes_https(url)?;
+    Some((partes.host, partes.caminho, partes.consulta.unwrap_or("")))
 }
 
 /// Resolve como o navegador resolveria, sem normalizar `..`: o caminho
@@ -241,8 +226,8 @@ fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<
         .strip_prefix("https://")
         .or_else(|| localizacao.strip_prefix("//"))
         .or_else(|| {
-            http.then_some(localizacao)?
-                .split_once("://")
+            http.then_some(localizacao)
+                .and_then(esquema_e_resto)
                 .map(|(_, resto)| resto)
         });
     Ok(if let Some(resto) = resto_absoluto {
@@ -256,8 +241,8 @@ fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<
     } else if tem_esquema(localizacao) {
         return Err(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
     } else {
-        match caminho.rsplit_once('/') {
-            Some((pasta, _)) => format!("https://{host}/{pasta}/{localizacao}"),
+        match pasta(caminho) {
+            Some(diretorio) => format!("https://{host}/{diretorio}/{localizacao}"),
             None => format!("https://{host}/{localizacao}"),
         }
     })

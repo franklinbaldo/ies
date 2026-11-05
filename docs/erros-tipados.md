@@ -178,3 +178,21 @@ pediu) e `EfeitoIncertoNoEnvio` (saída 3). A resposta não esperada é a
 `FalhaDoEnvio` de concluir, com `RedirecionamentoNaoReconhecidoAposEnviar`
 e `RespostaDoEnvioSemRedirecionamento`
 ([contrato](../contracts/cli/processo-enviar.md)).
+
+## Configuração local: causas tipadas (#212)
+
+`ler_configuracao_local` devolve `Result`, com causas internas
+separadas para ausência, metadados, link simbólico, não regular, tamanho
+excessivo, permissão aberta, leitura, JSON e campos inválidos. Não inclui
+caminhos nem conteúdo no erro ou na saída pública.
+
+O subcódigo legado `arquivo_configuracao_nao_pode_ser_lido` permanece
+para arquivo ausente, não regular, excessivo ou ilegível. Novas causas
+com remediação própria: `arquivo_configuracao_link_simbolico`,
+`arquivo_configuracao_permissoes_inseguras`,
+`arquivo_configuracao_json_invalido` e
+`arquivo_configuracao_campo_invalido`. O campo inválido inclui
+caminho ausente, não textual, vazio ou relativo. Não há fallback
+para variáveis individuais quando `IES_CONFIG_FILE` é informado.
+A verificação usa `symlink_metadata` antes da abertura e confere
+o arquivo aberto, sem consumir ou registrar dados de sessão.
