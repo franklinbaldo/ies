@@ -34,7 +34,9 @@ pub fn conferir_efeito(
         return Err(FalhaDaConferencia::IdDoAceiteAusente);
     }
     let mut achados = relidos.itens.iter().filter(|item| item.id == id_aceite);
-    let item = achados.next().ok_or(FalhaDaConferencia::ComentarioNaoVisivelNaReleitura)?;
+    let item = achados
+        .next()
+        .ok_or(FalhaDaConferencia::ComentarioNaoVisivelNaReleitura)?;
     if achados.next().is_some() {
         return Err(FalhaDaConferencia::ComentarioNovoRepetido);
     }
