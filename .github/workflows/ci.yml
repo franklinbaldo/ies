@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, codex/244-unidades-indice-local]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
