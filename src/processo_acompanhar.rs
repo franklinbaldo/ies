@@ -6,6 +6,7 @@ use crate::entidades_html::decodificar_texto;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 mod fluxo;
+mod submissao;
 pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
 
 const FORMULARIO: &str = "frmAcompanhamentoCadastro";
