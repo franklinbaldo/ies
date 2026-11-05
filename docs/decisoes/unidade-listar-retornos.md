@@ -41,9 +41,14 @@ filtro, nem GET de restauracao.
 ## Decisão
 
 Cada tabela exige colunas e total da legenda que confira suas linhas.
-A falta de uma das duas tabelas so e aceita se a area com ID proprio
-publicar explicitamente `Nenhum registro encontrado.`; sem isso,
-a lista e parcial e o leitor falha fechado.
+O primeiro replay conferido encontrou, em todas as sete cassettes,
+uma pagina mensal com apenas `aguardando`, dentro de
+`divAguardandoAreaTabela` e sem area de `devolver`. Recusar essa
+forma real produziria sete falsos `lista_de_retornos_incompleta`.
+A excecao so vale na moldura integral da lista, com uma unica
+situacao `aguardando` e contagem conferida. Uma tabela isolada,
+sem a area observada, continua recusada. Areas explicitamente vazias
+continuam valendo como ausencia comprovada.
 Mês com texto literal `Nenhum registro encontrado.` na area de tabela
 e vazio. A pagina que apresenta paginador nao demonstrado e recusada:
 nao afirma total nem completa lista parcial.
