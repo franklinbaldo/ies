@@ -322,14 +322,14 @@ mod tests {
         fn post(&mut self, envio: SubmissaoDerivada, _cookie: &str)
             -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             assert_eq!(envio.url(), url("unidade_selecionar_envio_processo"));
-            let pagina = self.posts;
+            let indice_pagina = self.posts;
             assert!(String::from_utf8_lossy(envio.corpo()).contains(
-                &format!("hdnInfraPaginaAtual={pagina}")
+                &format!("hdnInfraPaginaAtual={indice_pagina}")
             ));
             self.posts += 1;
-            let ids: &[&str] = if pagina == 0 {&["1","2"]}
+            let ids: &[&str] = if indice_pagina == 0 {&["1","2"]}
                 else if self.repetir {&["1"]} else {&["3"]};
-            Ok(resposta(pagina(pagina,ids)))
+            Ok(resposta(pagina(indice_pagina,ids)))
         }
     }
     #[test]
