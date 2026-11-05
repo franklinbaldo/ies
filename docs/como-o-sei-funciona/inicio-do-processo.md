@@ -1,5 +1,5 @@
 ---
-type: InterfaceObservation
+type: SEIObservation
 title: Iniciar processo pela Web do SEI
 operation: processo.criar
 source: todos-src-e-capturas-publicas
