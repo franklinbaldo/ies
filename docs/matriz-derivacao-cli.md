@@ -130,13 +130,18 @@ RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
 [contrato de documento](../contracts/cli/documento-buscar.md) ·
 [decisão](decisoes/processo-buscar.md).
 
-## Handoff #269 — sobrestar e retomar (PR Draft #279)
+## Handoff #269 — sobrestar e retomar (PR Draft #284)
 
-As prévias Web de `processo sobrestar NUP --motivo TEXTO` e
-`processo retomar NUP` validam a unidade, situação e ação
-assinada da barra sem escrita, usando só a abertura do processo.
-`--confirmar` ainda está bloqueado antes da rede. RED inicial:
-5 testes falhando. Replay: NOT_RUN; live: NOT_RUN, 0 requisições.
+A PR integrada #279 entregou prévia com três GET e sem escrita;
+a PR Draft #284 implementa `--confirmar` para sobrestar e retomar:
+uma única escrita derivada do formulário ou função do SEI,
+seguida de releitura obrigatória do estado; saída 3 quando incerto.
+Orçamento em teste sintético frio: seis requisições para cada
+operação, sendo um POST no sobrestar e um GET mutável no retomar.
+RED da #284: quatro falhas novas antes do código.
+**Ainda pendentes**: replay do acervo e escrita autenticada em
+treinamento. Live NOT_RUN, zero requisições. Não computar como
+capacidade da `main` enquanto PR Draft.
 [Contrato](../contracts/cli/processo-sobrestar.md) ·
 [decisão](decisoes/processo-sobrestar.md).
 
