@@ -1,6 +1,6 @@
 //! Seleção, cadastro e reconciliação offline (#246); prévia Web no módulo fluxo.
 mod fluxo;
-pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, obter_previa};
+pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
