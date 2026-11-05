@@ -27,6 +27,11 @@ nem consulta ao vivo nesta etapa.
 2. A seleção usa a tabela `table#tblSeries`. O nome do tipo vem do texto
    do link. Nas formas descritas pelo oráculo, SEI 4.0 publica link para
    `documento_gerar`; SEI 4.1/5.0 publica `escolher(<id>)`.
+   A verificação do Todos `tests/test_escolha_na_lista_010.py` @323eb01
+   usa cassette da UFRJ (4.1.5): `escolher(291)` grava `hdnIdSerie`
+   e submete `frmDocumentoEscolherTipo`, gerando POST de navegação,
+   302 para `documento_gerar` e GET do cadastro. Isso não cria documento.
+   A função é lida como estrutura literal e jamais executada.
    O item "Externo" não representa documento interno. Nome repetido
    impede escolha segura. A lista pode ter "Exibir todos", que usa
    `hdnFiltroSerie=T` em um POST: esse POST é de filtro, não de inclusão,
