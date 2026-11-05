@@ -1,5 +1,9 @@
 ---
-type: Guide
+type: OperationEvidence
+operation: bloco.listar
+source: todos-demonstration-matrix
+source_commit: 323eb01
+unresolved_steps: 3
 title: Evidências dos comandos Web de blocos
 description: Casos derivados de Todos e limites de observação para bloco.listar
 ---
@@ -22,3 +26,5 @@ UnB e Goiás: **NOT_RUN**, sem requisições reais; nenhuma alteração no
 SEI. Replay das cassettes `bloco-lista-obter-buscar-*` e
 `bloco-interno-ciclo-*`: NOT_RUN. RED local: NOT_RUN por falta
 de Rust em sandbox; gates do CI são a fonte de confirmação de testes.
+
+PENDENTE_DE_CASSETTE: replay integral, paginação e observação ao vivo em UnB/GO.
