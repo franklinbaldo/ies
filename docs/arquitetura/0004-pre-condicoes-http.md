@@ -10,11 +10,10 @@ decision: document preconditions first; preserve distinct redirect and binary re
 
 ## Escopo
 
-Inventário da `main@7a8b332`, antes de qualquer refatoração. Os caminhos
-abaixo incluem os pedidos iniciados pelos comandos atuais e os adaptadores
-que os enviam. Replays de cassette não fazem rede. Os fluxos ainda abertos
-de `processo enviar` e `documento assinar` precisam ser conferidos depois que
-as alterações do Claude Code entrarem na base.
+Inventário original de `main@7a8b332`, atualizado para os fluxos de escrita
+integrados até `main@8a25a5e` e para o handoff #237 (base #233). A tabela
+inicial preserva o retrato histórico; a matriz complementar abaixo distingue
+as pré-condições atuais, sem afirmar validação live ou cobertura integral.
 
 O transporte comum em [`cliente_https.rs`](../../src/transporte/cliente_https.rs)
 abre uma conexão por pedido, usa HTTPS, timeout de 30 s, não segue redirects
@@ -64,3 +63,34 @@ Fontes conferidas: `transporte/cliente_https.rs`, `transporte/envio_post.rs`,
 `pesquisa_web/fluxo.rs`, `processo_obter/{abertura,fluxo,pastas,andamentos,propriedades,marcadores,documento_indice,documento_versao}.rs`,
 `visao_do_controle/{envio,nivel}.rs` e `pagina_do_controle/envio.rs`. O GET de
 anexo está descrito a partir do contrato existente; seu código não foi alterado.
+
+## Complemento: escritas integradas e fronteiras (#237)
+
+Os fluxos abaixo são distintos, embora compartilhem partes do transporte.
+A URL assinada continua sendo tratada como credencial de sessão; nunca
+se reconstrói seu valor nem se faz retry de operação potencialmente efetiva.
+
+| Fluxo | Leitura e proveniência | Envio e resposta | Efeito e verificação |
+| --- | --- | --- | --- |
+| Concluir | `processo_concluir/fluxo.rs`: abre o processo e confere a barra; na modalidade por tela, lê HTML, MIME, charset e deriva o formulário observado. | `enviar_submissao_via` emite um POST; o 302 é dado. A modalidade por função usa GET do link conferido, sem seguir redirect. | Após confirmação, relê a situação na árvore; falha após o envio pode resultar em efeito incerto. |
+| Reabrir | `processo_reabrir/fluxo.rs`: abre o processo, lê a tela do nó e extrai a função servida. | GET pela função validada, nunca acompanhado de retry; 3xx não é seguido. | Relê a árvore e reconcilia a situação da unidade. |
+| Enviar | `processo_enviar/fluxo.rs`: abre o processo, lê a tela de envio, consulta o autocomplete por POST derivado (consulta, não envio de processo) e resolve a unidade. | O POST efetivo deriva campos, charset e action da tela; 302 retorna como dado. | Relê a árvore e concilia o envio, mesmo se houve falha após a tentativa. |
+| Assinar | `documento_assinar/fluxo.rs`: obtém a tela e deriva o formulário com cargo/assinante. | Envia POST derivado sem repetir. A resposta esperada é HTML com confirmação; 302 é recusado pelo fluxo. | Reabre o documento na árvore e compara assinaturas. Senha e cookies não podem aparecer em logs ou fixtures. |
+| Trocar unidade | `unidade_trocar.rs`: lê o Controle e a tela de troca; extrai a unidade e a action servidas. | Um POST derivado, seguido apenas dos saltos 302 explicitamente verificados; cada GET valida o destino na operação. | Confere o Controle da unidade nova; desvios após o POST são efeito incerto. |
+
+### Matriz sintética e resultado observável
+
+| Caso | Bancada | Garantia de teste |
+| --- | --- | --- |
+| Outro host, porta, userinfo e referência `//host` | `transporte/web_mock_tests.rs::matriz_url_host_porta_userinfo_hash_e_duplicatas_sem_cookie` | Rejeição antes de ler cookie ou chamar o transporte. |
+| `infra_hash` inválido/repetido e `acao` repetida | Mesma bancada | Rejeição de URL antes de GET. |
+| 301, 303, 307 e 308 | `transporte/web_mock_tests.rs::matriz_get_3xx_nao_302_recusados_sem_follow` e `formulario_web/tests_envio.rs::post_com_307_ou_308_nao_reenvia_o_formulario` | Recusa tipada, uma tentativa, nenhum follow. |
+| MIME inesperado e corpo acima do limite | `web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry` e `matriz_get_limite_em_stream_sem_content_length` | Recusa do GET com ou sem `Content-Length`. |
+| Falha de transporte | `matriz_get_erro_de_transporte_nao_repete_pedido` e `formulario_web/tests_envio.rs::falha_de_rede_nao_repete_o_envio` | Erro tipado sem retry. |
+| Origin, Referer e corpo do POST | `formulario_web/tests_envio.rs::closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao` | Campos preservados do formulário servido na bancada de pesquisa. |
+| Charset e ausência de reconstrução de hash | `formulario_web` e testes por operação | Ainda requer assertivas específicas em todos os fluxos; não inferir cobertura apenas da infraestrutura. |
+
+A matriz acima não equivale à comprovação cruzada integral por operação.
+O RED local, o CI e a validação live devem ser relatados separadamente.
+Testes de leitura em instalações de treinamento só podem receber PASS após
+execução, respeitando o orçamento e as restrições do AGENTS.md.
