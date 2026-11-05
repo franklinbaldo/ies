@@ -86,5 +86,9 @@ e a prévia não podem enviar o POST criador.
 
 Faltam captura e replay IES por versão, orçamento preciso medido
 por cenário, validação de campos obrigatórios em cada instalação
-e prévia live autenticada. Nenhuma escrita em treinamento está
-autorizada nesta issue até o texto literal “escrita autorizada”.
+e prévia live autenticada. Em 05/11/2026, o proprietário
+autorizou escrita **somente em instalações de treinamento** na issue #245.
+A autorização não comprova execução: a validação live segue NOT_RUN.
+Antes de criar, é obrigatório observar a prévia, enviar um único
+`--confirmar` e verificar o novo processo por leitura; documentar
+qualquer resíduo no ambiente de treinamento.
