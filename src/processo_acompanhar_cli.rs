@@ -24,8 +24,9 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
-            // Não abrir credenciais nem rede quando a escrita está bloqueada.
-            if *confirmar {
+            // A exclusão ainda não possui formulário de envio validado.
+            // Bloqueá-la antes de ler credenciais ou abrir conexão.
+            if *confirmar && *deixar {
                 return Some(publicar_erro(
                     cli.json,
                     &ErroPrevia::ConfirmacaoNaoImplementada,
@@ -62,8 +63,8 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
                 "observacao": plano.observacao,
                 "id_acompanhamento": plano.id_de_remocao,
                 "ja_estava": plano.ja_estava,
-                "confirmado": false,
-                "alterado": false,
+                "confirmado": plano.confirmado,
+                "alterado": plano.alterado,
                 "origem": "web",
                 "requisicoes": plano.requisicoes,
             })
@@ -81,20 +82,27 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             println!("Incluíria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         }
-        println!(
-            "Nenhuma escrita executada. Requisições: {}",
-            plano.requisicoes
-        );
+        if plano.alterado {
+            println!("Acompanhamento incluído e confirmado por leitura.");
+        } else {
+            println!("Nenhuma escrita executada.");
+        }
+        println!("Requisições: {}", plano.requisicoes);
     }
     ExitCode::SUCCESS
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
+    let incerto = matches!(erro, ErroPrevia::EfeitoIncerto);
     let valor = json!({
-        "codigo": "operacao_recusada",
+        "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
         "subcodigo": erro.subcodigo(),
-        "erro": "Não foi possível conferir a prévia do Acompanhamento Especial; nenhuma escrita foi enviada.",
+        "erro": if incerto {
+            "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
+        } else {
+            "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
+        },
         "retentavel": false
     });
-    publicar_valor_da_falha(json_mode, &valor, 1)
+    publicar_valor_da_falha(json_mode, &valor, if incerto { 3 } else { 1 })
 }
