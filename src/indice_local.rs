@@ -17,6 +17,7 @@ mod documentos;
 mod entrada_por_id;
 mod identidade;
 mod links;
+mod unidades;
 mod validacao;
 
 #[cfg(test)]
@@ -38,6 +39,8 @@ use std::path::{Path, PathBuf};
 pub(crate) use documentos::DocumentoGuardado;
 pub(crate) use entrada_por_id::{url_da_entrada_por_id, url_da_entrada_por_id_com_documento};
 pub(crate) use links::{ChaveDoLink, unidade_dos_links};
+#[allow(unused_imports)]
+pub(crate) use unidades::{ListaGuardada, UnidadeGuardada};
 #[allow(unused_imports)]
 pub(crate) use validacao::{RegistroRecusado, UrlAssinada};
 
