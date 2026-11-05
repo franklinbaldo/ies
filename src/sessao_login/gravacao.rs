@@ -91,13 +91,7 @@ pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
 }
 
 fn sha256(texto: &str) -> String {
-    use std::fmt::Write as _;
-    Sha256::digest(texto.trim().as_bytes())
-        .iter()
-        .fold(String::new(), |mut hex, byte| {
-            let _ = write!(hex, "{byte:02x}");
-            hex
-        })
+    crate::hex::hex_minusculo(&Sha256::digest(texto.trim().as_bytes()))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

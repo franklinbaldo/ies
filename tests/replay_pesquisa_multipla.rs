@@ -1,3 +1,5 @@
+mod hex;
+
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
@@ -52,9 +54,9 @@ fn acervo_de_pesquisa(numeros: &[&str]) -> PathBuf {
     fs::write(
         card,
         format!(
-            "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: pesquisa-unb.json\narchive_sha1: {:x}\ncassette_sha256_lf: {:x}\n---\n",
-            Sha1::digest(fs::read(&zip).unwrap()),
-            Sha256::digest(dados.as_bytes())
+            "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: pesquisa-unb.json\narchive_sha1: {}\ncassette_sha256_lf: {}\n---\n",
+            hex::hex_minusculo(&Sha1::digest(fs::read(&zip).unwrap())),
+            hex::hex_minusculo(&Sha256::digest(dados.as_bytes()))
         ),
     )
     .unwrap();

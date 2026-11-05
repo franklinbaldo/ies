@@ -32,6 +32,7 @@ mod esquema_cli;
 mod filtro_andamentos;
 #[allow(dead_code)] // Primitivo offline; nenhum comando envia POST nesta fatia.
 mod formulario_web;
+mod hex;
 mod historico;
 mod historico_cli;
 mod historico_processo;
