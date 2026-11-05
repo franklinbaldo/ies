@@ -46,15 +46,15 @@ mod paginas;
 mod pesquisa_web;
 mod processo;
 mod processo_buscar_cli;
+mod processo_concluir;
+mod processo_concluir_cli;
+#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
+#[path = "processo_criar/cadastro.rs"]
+mod processo_criar_cadastro;
 mod processo_criar_cli;
 #[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
 #[path = "processo_criar/lista.rs"]
 mod processo_criar_lista;
-#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
-#[path = "processo_criar/cadastro.rs"]
-mod processo_criar_cadastro;
-mod processo_concluir;
-mod processo_concluir_cli;
 mod processo_enviar;
 mod processo_enviar_cli;
 mod processo_obter;
