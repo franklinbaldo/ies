@@ -1,6 +1,6 @@
 //! Controle de prazo da tela Web observada nas cassettes UnB/GO/UFRJ.
 //! O núcleo não faz rede, não avalia JavaScript e não publica URLs assinadas.
-//! Caso de testes: Todos tests/test_ciclo_prazo_010.py @323eb01.
+//! Caso de testes: `Todos` tests/test_ciclo_prazo_010.py @323eb01.
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PedidoDePrazo {
@@ -148,6 +148,16 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
         _ => return Err(E::TelaNaoObservada),
     }
 
+    ler_controles_da_tela(form, &dom, id_procedimento)
+}
+
+/// Confere os nomes e tipos publicados na tela antes de derivar qualquer escrita.
+fn ler_controles_da_tela(
+    form: &tl::HTMLTag<'_>,
+    dom: &tl::VDom<'_>,
+    id_procedimento: &str,
+) -> Result<TelaDoPrazo, ErroPrazo> {
+    use ErroPrazo as E;
     let mut vistos = std::collections::HashSet::new();
     let mut radios = std::collections::HashSet::new();
     let mut marcada: Option<String> = None;
@@ -225,7 +235,6 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
     }
     let estado = match marcada.as_deref() {
         Some("1") if data_valida(&data) => EstadoDoPrazo::Data(data),
-        Some("1" | "2") => return Err(E::TelaNaoObservada),
         Some("3") => EstadoDoPrazo::Concluido,
         None => EstadoDoPrazo::SemPrazo,
         _ => return Err(E::TelaNaoObservada),
