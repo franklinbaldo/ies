@@ -12,10 +12,23 @@ Operação: `documento.criar`, issue
 | Ensaio | Resultado | Requisições |
 | --- | --- | --- |
 | Leitura das fontes do Todos e das capturas | PASS documental | 0 |
-| Testes sintéticos do núcleo Rust | Dependente do CI da PR #248 | 0 |
-| Replay integral das cassettes públicas | NOT_RUN | 0 |
-| Prévia Web em treinamento | NOT_RUN | 0 |
-| Criação ao vivo no SEI | NOT_RUN — autorizado somente em treinamento, sem execução | 0 |
+| Rustfmt, Clippy, testes Rust, OKF, subcódigos, 20 KB e binário Release | PASS no CI 42126453441 (head b99670a) | 0 ao SEI |
+| Replay obrigatório de 2 cassettes GO com hashes conferidos | PASS no CI 42126453441; 15 respostas-alvo | 0 ao SEI |
+| Replay das demais cassettes/instalações | NOT_RUN | 0 ao SEI |
+| Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
+| Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
+
+## Estado consolidado — retomada 🐙 (05/11/2026)
+
+- **Fatia funcional:** a confirmação pública usa um POST derivado e uma releitura verificadora; testes sintéticos do transporte completo afirmam prévia com **5 GET e 0 POST**, confirmação com **6 GET e 1 POST criador**, efeito incerto diante de dois documentos novos e nenhuma repetição de escrita. Essas contagens são **sintéticas**, não medições live.
+- **RED:** antes da correção da guarda pré-rede, **1 falha nova** no CI [42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295). Na retomada presente, **3 verificações estruturais locais** do workflow de replay falharam antes da alteração (job obrigatório, SHA-1 do ZIP, execução do teste Rust). RED e compilação **Rust locais NOT_RUN**, pois este sandbox não possui cargo/rustc e não resolve DNS para instalá-los.
+- **GREEN:** replay agora é um job **obrigatório** em PR e main, com download do ZIP público GO, conferência do SHA-1 e do SHA-256 dos membros pelo leitor real, execução explícita do teste antes ignorado na suíte normal. Em [42126453441](https://github.com/franklinbaldo/ies/actions/runs/42126453441), **prek, compilação Release e replay PASS**. Resultado GO: **15 respostas alvo, 3 lidas, 5 recusadas, 7 não aplicáveis**; nenhuma comunicação ao SEI. O [CI intermediário 42125923058](https://github.com/franklinbaldo/ies/actions/runs/42125923058) passou suíte Rust/Clippy/replay e mostrou apenas erro Rustfmt, corrigido no head b99670a.
+- **Integração de código:** branch antigo reconciliado com a `main` 8e58ad2 por merge sem rebase/force push; preservados o mesmo branch e a PR Draft #248. A PR passou de `mergeable=false` a `mergeable=true`. As enumerações de estado de formulário passaram para `src/formulario_web/estado.rs` para respeitar o limite de 20 KB.
+- **LIVE:** login **NOT_RUN**, prévia **NOT_RUN**, `--confirmar` **NOT_RUN**, releitura independente **NOT_RUN**. Nesta retomada **0 requisições ao SEI, 0 POSTs criadores, 0 documentos criados/alterados e nenhum resíduo**. Não existe comprovação de escrita real. O ensaio remoto em treinamento não foi autorizado pelo mecanismo de execução desta sessão; não tentar contornar esse bloqueio nem repetir confirmação que tenha efeito incerto.
+- **Falta para concluir:** prévia autenticada em uma instalação de treinamento, exatamente um `--confirmar` caso a prévia passe e a operação seja segura, releitura e documentação do número SEI/resíduo; ampliar verificação a outras instalações e níveis apenas quando observados. Não usar produção.
+
+Os registros abaixo são cronológicos e descrevem heads anteriores; não
+substituem o estado consolidado acima.
 
 ## Alcance
 
