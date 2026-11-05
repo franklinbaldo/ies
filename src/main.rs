@@ -35,6 +35,7 @@ mod hex;
 mod historico;
 mod historico_processo;
 mod html_atributos;
+mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
 mod marcadores_processo;
@@ -102,6 +103,8 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
+    /// Inspeciona a localização do índice SQLite local, sem rede
+    Indice(Indice),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -242,6 +245,18 @@ enum DocumentoAcao {
         #[arg(long, requires = "cargo")]
         confirmar: bool,
     },
+}
+
+#[derive(Debug, Args)]
+struct Indice {
+    #[command(subcommand)]
+    acao: Option<IndiceAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum IndiceAcao {
+    /// Mostra o caminho configurado do SQLite; não abre o banco
+    Caminho,
 }
 
 #[derive(Debug, Args)]
@@ -399,6 +414,9 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
+        Domain::Indice(Indice {
+            acao: Some(IndiceAcao::Caminho),
+        }) => return indice_caminho_cli::mostrar(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
@@ -459,6 +477,10 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Unidade(Unidade { acao: None }) => {
             esquema_cli::show_noun_help("unidade");
+            return ExitCode::SUCCESS;
+        }
+        Domain::Indice(Indice { acao: None }) => {
+            println!("ies indice caminho");
             return ExitCode::SUCCESS;
         }
         _ => {}
