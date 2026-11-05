@@ -4,7 +4,7 @@ use crate::arvore_processo::ErroAndamentoNaBarra;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    derivar_submissao, enviar_submissao_via, localizar_formulario, consulta_do_controlador,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
 use crate::historico_processo::AndamentosLidos;
 use crate::html_atributos::valor_do_atributo;
@@ -69,28 +69,45 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     let mut atividade = 0;
     let mut descricao = 0;
     let mut salvar = 0;
-    for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
-        if !matches!(elemento.as_str(), "input" | "textarea" | "button" | "select") {
+        if !matches!(
+            elemento.as_str(),
+            "input" | "textarea" | "button" | "select"
+        ) {
             continue;
         }
         let attr = |nome| valor_do_atributo(tag, nome).map_err(|_| E::HtmlInvalido);
         let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
             continue;
         };
-        let tipo = attr("type")?.unwrap_or_else(|| {
-            if elemento == "button" { "submit" } else { "text" }.to_owned()
-        }).to_ascii_lowercase();
+        let tipo = attr("type")?
+            .unwrap_or_else(|| {
+                if elemento == "button" {
+                    "submit"
+                } else {
+                    "text"
+                }
+                .to_owned()
+            })
+            .to_ascii_lowercase();
         if attr("disabled")?.is_some() {
             continue;
         }
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
-            ("input", "hidden", "hdnIdProtocolo") => protocolo.push(attr("value")?.unwrap_or_default()),
+            ("input", "hidden", "hdnIdProtocolo") => {
+                protocolo.push(attr("value")?.unwrap_or_default())
+            }
             ("input", "hidden", "hdnIdAtividade") => atividade += 1,
             ("textarea", _, TEXTO) => descricao += 1,
             ("input" | "button", "submit", BOTAO) => salvar += 1,
-            ("input", "hidden", _) => {},
-            ("input" | "button", "button" | "reset", _) => {},
+            ("input", "hidden", _) => {}
+            ("input" | "button", "button" | "reset", _) => {}
             _ => return Err(E::CampoInesperado),
         }
     }
@@ -111,7 +128,9 @@ fn normalizar(texto: &str) -> String {
 }
 /// Novo topo e as linhas anteriores deslocadas, inclusive em caso de texto igual.
 pub(crate) fn inserido_uma_vez(
-    antes: &AndamentosLidos, depois: &AndamentosLidos, texto: &str,
+    antes: &AndamentosLidos,
+    depois: &AndamentosLidos,
+    texto: &str,
 ) -> bool {
     if antes.tipo != depois.tipo
         || depois.total_declarado != antes.total_declarado.saturating_add(1)
@@ -129,8 +148,12 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {
-        consulta.split('&').filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave).map(|(_, v)| v).collect()
+        consulta
+            .split('&')
+            .filter_map(|par| par.split_once('='))
+            .filter(|(k, _)| *k == chave)
+            .map(|(_, v)| v)
+            .collect()
     };
     valores("acao") == [HISTORICO] && valores("id_procedimento") == [id]
 }
@@ -176,47 +199,77 @@ impl Erro {
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::EfeitoIncerto => "A escrita pode ter sido aplicada; confira o histórico antes de qualquer nova tentativa",
+            Self::EfeitoIncerto => {
+                "A escrita pode ter sido aplicada; confira o histórico antes de qualquer nova tentativa"
+            }
             _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
         }
     }
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto) {
+            3
+        } else {
+            1
+        }
     }
 }
 /// Fluxo injetável, sem retries, sem redirecionamentos seguidos.
 pub(crate) fn registrar<V: EnvioDoProcesso>(
-    sessao: &SessaoDoProcesso<'_>, numero: &NumeroProcesso, texto: &str,
-    confirmar: bool, unidade: Option<&str>, indice: &IndiceLocal, envio: &mut V,
+    sessao: &SessaoDoProcesso<'_>,
+    numero: &NumeroProcesso,
+    texto: &str,
+    confirmar: bool,
+    unidade: Option<&str>,
+    indice: &IndiceLocal,
+    envio: &mut V,
 ) -> Result<Resultado, Erro> {
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(Erro::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let pedido = PedidoDoProcesso {
-        nup: numero, unidade, andamentos: PedidoDeAndamentos::VisaoServida,
-        propriedades: false, marcadores: false, unidade_exigida: true,
+        nup: numero,
+        unidade,
+        andamentos: PedidoDeAndamentos::VisaoServida,
+        propriedades: false,
+        marcadores: false,
+        unidade_exigida: true,
     };
-    let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, &mut rede)
-        .map_err(Erro::Abertura)?;
-    let endereco = acoes.andamento.map_err(Erro::Barra)?
+    let (aberto, acoes) =
+        abrir_para_escrever(sessao, &pedido, indice, &mut rede).map_err(Erro::Abertura)?;
+    let endereco = acoes
+        .andamento
+        .map_err(Erro::Barra)?
         .ok_or(Erro::AcaoNaoOferecida)?;
     let antes = match aberto.andamentos {
         Andamentos::Lidos(lidos) => lidos,
         _ => return Err(Erro::HistoricoNaoPublicado),
     };
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
-    let cookie = ler_cookie(sessao)
-        .map_err(|e| Erro::Formulario(ErroSubmissaoFormulario::Transporte(e)))?;
+    let cookie =
+        ler_cookie(sessao).map_err(|e| Erro::Formulario(ErroSubmissaoFormulario::Transporte(e)))?;
     let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(Erro::Tela)?;
     conferir_formulario(&html, &aberto.arvore.processo.id).map_err(Erro::FormatoDaTela)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;
-    let tela = TelaServida { url: endereco.as_str(), html: &html, codificacao };
+    let tela = TelaServida {
+        url: endereco.as_str(),
+        html: &html,
+        codificacao,
+    };
     let submissao = derivar_submissao(
-        &REGISTRAR, &instalacao, &tela, &unidade, &[(TEXTO, texto.trim())]
-    ).map_err(Erro::Formulario)?;
+        &REGISTRAR,
+        &instalacao,
+        &tela,
+        &unidade,
+        &[(TEXTO, texto.trim())],
+    )
+    .map_err(Erro::Formulario)?;
     let mut resultado = Resultado {
-        numero: numero.as_str().to_owned(), texto: texto.trim().to_owned(),
-        confirmado: confirmar, requisicoes: rede.feitas(),
-        total_antes: antes.total_declarado, total_depois: None, resposta_inesperada: None,
+        numero: numero.as_str().to_owned(),
+        texto: texto.trim().to_owned(),
+        confirmado: confirmar,
+        requisicoes: rede.feitas(),
+        total_antes: antes.total_declarado,
+        total_depois: None,
+        resposta_inesperada: None,
     };
     if !confirmar {
         return Ok(resultado);
@@ -228,14 +281,21 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     });
     resultado.resposta_inesperada = match resposta {
         Ok(RespostaDoEnvio::Redirecionamento(r))
-            if localizacao_esperada(r.localizacao(), r.url_do_envio(), &aberto.arvore.processo.id) => None,
+            if localizacao_esperada(
+                r.localizacao(),
+                r.url_do_envio(),
+                &aberto.arvore.processo.id,
+            ) =>
+        {
+            None
+        }
         Ok(_) => Some("resposta_do_andamento_nao_esperada"),
         Err(e) if !enviado => return Err(Erro::Formulario(e)),
         Err(_) => Some("resposta_do_andamento_recusada"),
     };
     // A escrita saiu: mesmo se o POST falhou, jamais repetir.
-    let depois = obter_processo(sessao, &pedido, indice, &mut rede)
-        .map_err(|_| Erro::EfeitoIncerto)?;
+    let depois =
+        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::EfeitoIncerto)?;
     let Andamentos::Lidos(depois) = depois.andamentos else {
         return Err(Erro::EfeitoIncerto);
     };
@@ -253,20 +313,35 @@ mod tests {
     use crate::historico_processo::TipoDoHistorico;
     use crate::processo::Andamento;
     fn linha(texto: &str) -> Andamento {
-        Andamento { ocorrido_em: Some("01/11/2026 10:00".into()),
-            unidade: Some("A".into()), usuario: Some("aluno".into()), descricao: texto.into() }
+        Andamento {
+            ocorrido_em: Some("01/11/2026 10:00".into()),
+            unidade: Some("A".into()),
+            usuario: Some("aluno".into()),
+            descricao: texto.into(),
+        }
     }
     fn lista(total: u64, textos: &[&str]) -> AndamentosLidos {
-        AndamentosLidos { tipo: TipoDoHistorico::Resumido,
-            total_declarado: total, itens: textos.iter().map(|x| linha(x)).collect() }
+        AndamentosLidos {
+            tipo: TipoDoHistorico::Resumido,
+            total_declarado: total,
+            itens: textos.iter().map(|x| linha(x)).collect(),
+        }
     }
     // Caso: Todos andamento.py::_inserido_no_topo @323eb01.
     #[test]
     fn texto_igual_exige_nova_linha_e_total_incrementado() {
         let antes = lista(2, &["igual", "antigo"]);
-        assert!(inserido_uma_vez(&antes, &lista(3, &["igual", "igual", "antigo"]), "igual"));
+        assert!(inserido_uma_vez(
+            &antes,
+            &lista(3, &["igual", "igual", "antigo"]),
+            "igual"
+        ));
         assert!(!inserido_uma_vez(&antes, &antes, "igual"));
-        assert!(!inserido_uma_vez(&antes, &lista(3, &["igual", "outro"]), "igual"));
+        assert!(!inserido_uma_vez(
+            &antes,
+            &lista(3, &["igual", "outro"]),
+            "igual"
+        ));
     }
     #[test]
     fn historico_trocado_ou_total_igual_nao_prova_escrita() {
@@ -274,7 +349,11 @@ mod tests {
         let mut depois = lista(11, &["novo", "antigo"]);
         depois.tipo = TipoDoHistorico::Completo;
         assert!(!inserido_uma_vez(&antes, &depois, "novo"));
-        assert!(!inserido_uma_vez(&antes, &lista(10, &["novo", "antigo"]), "novo"));
+        assert!(!inserido_uma_vez(
+            &antes,
+            &lista(10, &["novo", "antigo"]),
+            "novo"
+        ));
     }
     #[test]
     fn texto_vazio_e_maior_que_500_caracteres_falham() {
@@ -283,23 +362,34 @@ mod tests {
         assert!(!texto_valido(&"á".repeat(501)));
     }
     fn formulario(id: &str) -> String {
-        format!("<form id='frmAtividadeListar' method='post'>\
+        format!(
+            "<form id='frmAtividadeListar' method='post'>\
             <input type='hidden' name='hdnIdProtocolo' value='{id}'>\
             <input type='hidden' name='hdnIdAtividade' value=''>\
             <textarea name='txaDescricao'></textarea>\
-            <input type='submit' name='sbmSalvar' value='Salvar'></form>")
+            <input type='submit' name='sbmSalvar' value='Salvar'></form>"
+        )
     }
     #[test]
     fn formulario_exige_identidade_unica() {
         let html = formulario("123");
         assert_eq!(conferir_formulario(&html, "123"), Ok(()));
-        assert_eq!(conferir_formulario(&html, "124"), Err(ErroTela::ProtocoloDiferente));
-        assert_eq!(conferir_formulario(&format!("{html}{html}"), "123"),
-            Err(ErroTela::FormularioAusenteOuDuplicado));
+        assert_eq!(
+            conferir_formulario(&html, "124"),
+            Err(ErroTela::ProtocoloDiferente)
+        );
+        assert_eq!(
+            conferir_formulario(&format!("{html}{html}"), "123"),
+            Err(ErroTela::FormularioAusenteOuDuplicado)
+        );
     }
     #[test]
     fn campo_inesperado_nao_pode_ser_enviado() {
-        let html = formulario("123").replace("</form>", "<input name='acao' value='invasor'></form>");
-        assert_eq!(conferir_formulario(&html, "123"), Err(ErroTela::CampoInesperado));
+        let html =
+            formulario("123").replace("</form>", "<input name='acao' value='invasor'></form>");
+        assert_eq!(
+            conferir_formulario(&html, "123"),
+            Err(ErroTela::CampoInesperado)
+        );
     }
 }
