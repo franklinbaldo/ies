@@ -51,6 +51,9 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
+    pub(crate) ciencia: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(crate) lista_ciencias: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -118,6 +121,8 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
         enviar: arvore_lida.enviar,
+        ciencia: arvore_lida.ciencia,
+        lista_ciencias: arvore_lida.lista_ciencias,
     };
     Ok((aberto, acoes))
 }
