@@ -179,11 +179,12 @@ pub(crate) struct Roteiro {
 }
 
 impl Roteiro {
-    fn proxima(&mut self) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
-        let (status_code, html, localizacao) = self
-            .respostas
-            .pop_front()
-            .expect("requisição além do roteiro")?;
+    fn proxima(&mut self, pedido: Pedido) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
+        let (status_code, html, localizacao) = crate::transporte::testes_http::atender(
+            &mut self.pedidos,
+            &mut self.respostas,
+            pedido,
+        )?;
         let corpo: Vec<u8> = html
             .chars()
             .map(|c| u8::try_from(c).unwrap_or(b'?'))
@@ -216,8 +217,7 @@ impl EnvioDoControle for Roteiro {
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
         let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
-        self.pedidos.push(post(submissao.url(), &corpo));
-        self.proxima()
+        self.proxima(post(submissao.url(), &corpo))
     }
     fn get(
         &mut self,
@@ -225,8 +225,7 @@ impl EnvioDoControle for Roteiro {
         cookie: &str,
     ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
-        self.pedidos.push(get(url));
-        self.proxima().map(|r| r.resposta)
+        self.proxima(get(url)).map(|r| r.resposta)
     }
 }
 
@@ -237,8 +236,7 @@ impl EnvioDoProcesso for Roteiro {
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
-        self.pedidos.push(get(url));
-        self.proxima()
+        self.proxima(get(url))
     }
     /// A conclusão não lê anexo.
     fn get_binario(
@@ -357,4 +355,79 @@ pub(crate) fn links() -> (String, String, String) {
         absoluta(&link_da_tela_do_no(ID)),
         absoluta(&link_da_funcao(ID)),
     )
+}
+
+
+/// Cobertura da contagem real (issue #184), inclusive recusas e falha de rede.
+/// A bancada registra o pedido antes da resposta; parsing e índice não entram.
+#[cfg(test)]
+mod tests_contagem {
+    use super::*;
+    use crate::processo_concluir::escrita::Contador;
+
+    #[test]
+    fn get_200_conta_uma_tentativa() {
+        let mut roteiro = Roteiro {
+            respostas: vec![ok("<html></html>".to_owned())].into(),
+            pedidos: Vec::new(),
+        };
+        let mut rede = Contador::novo(&mut roteiro);
+        let resposta = rede.get_sem_seguir(ORIGEM, COOKIE).unwrap();
+        assert_eq!(resposta.resposta.status_code, 200);
+        assert_eq!(rede.feitas(), 1);
+        drop(rede);
+        assert_eq!(roteiro.pedidos, vec![get(ORIGEM)]);
+    }
+
+    #[test]
+    fn redirecionamento_302_e_dado_e_nao_dispara_outra_requisicao() {
+        let mut roteiro = Roteiro {
+            respostas: vec![r302("controlador.php?acao=teste")].into(),
+            pedidos: Vec::new(),
+        };
+        let mut rede = Contador::novo(&mut roteiro);
+        let resposta = rede.get_sem_seguir(ORIGEM, COOKIE).unwrap();
+        assert_eq!(resposta.resposta.status_code, 302);
+        assert_eq!(resposta.localizacao.as_deref(), Some("controlador.php?acao=teste"));
+        assert_eq!(rede.feitas(), 1);
+        drop(rede);
+        assert_eq!(roteiro.pedidos, vec![get(ORIGEM)]);
+    }
+
+    #[test]
+    fn falha_na_segunda_tentativa_tambem_conta_sem_retry() {
+        let mut roteiro = Roteiro {
+            respostas: vec![
+                ok("<html></html>".to_owned()),
+                Err(FalhaTransporte::Rede),
+            ]
+            .into(),
+            pedidos: Vec::new(),
+        };
+        let mut rede = Contador::novo(&mut roteiro);
+        assert!(rede.get_sem_seguir(ORIGEM, COOKIE).is_ok());
+        assert!(matches!(
+            rede.get_sem_seguir(ORIGEM, COOKIE),
+            Err(FalhaTransporte::Rede)
+        ));
+        assert_eq!(rede.feitas(), 2);
+        drop(rede);
+        assert_eq!(roteiro.pedidos, vec![get(ORIGEM), get(ORIGEM)]);
+    }
+
+    #[test]
+    fn post_recusado_tambem_conta_no_sucesso_reconciliado() {
+        let amb = ambiente();
+        let mut respostas = abertura(arvore(&[UNIDADE], &tela()));
+        respostas.extend([
+            ok(tela_de_conclusao(ID)),
+            Ok((503, String::new(), None)),
+            ok(arvore(&[], vazio())),
+        ]);
+        let (resultado, pedidos) = rodar(&amb, true, respostas);
+        let feito = resultado.unwrap();
+        assert_eq!(feito.requisicoes, 6);
+        assert_eq!(pedidos.len(), 6);
+        assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+    }
 }
