@@ -12,7 +12,7 @@ requests: 0
 
 **Estado: NOT_RUN. Requisições: 0.**
 
-Este registro corresponde somente à preparação documental da
+Este registro corresponde à implementação e à validação sintética da
 [issue #236](https://github.com/franklinbaldo/ies/issues/236).
 Não foi feita leitura em instalação de treinamento nem login; nenhum
 dado de sessão, senha, cookie ou URL assinada foi coletado.
@@ -33,7 +33,7 @@ uma única vez somente quando necessário. Ante
 
 ## Bloqueio
 
-O sandbox local não dispõe de acesso DNS a github.com e não contém
-checkout do projeto ou Rust instalado. A preparação usou o conector
-GitHub, sem compilação ou execução. Não há resultado RED/GREEN, gate
-prek ou CI a declarar para a implementação.
+O sandbox local não dispõe de acesso DNS a github.com nem de Rust;
+a compilação e os testes são executados pelo CI oficial da PR, com
+rustc 1.99.1. O estado final do CI deve ser verificado na PR antes
+de considerar a implementação validada. Não houve consulta live.
