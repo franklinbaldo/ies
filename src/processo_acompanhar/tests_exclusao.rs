@@ -111,7 +111,11 @@ fn exclusao_recusa_codigo_morto_ao_redor_da_confirmacao() {
     // O formulário não deve ser tido como oferecido se o ramo observado
     // está protegido por uma condição adicional não comprovada.
     let html = lista_observada("831")
-        .replacen("function acaoExcluir(id,desc){", "function acaoExcluir(id,desc){if(false){", 1)
+        .replacen(
+            "function acaoExcluir(id,desc){",
+            "function acaoExcluir(id,desc){if(false){",
+            1,
+        )
         .replacen("</script>", "}</script>", 1);
     assert_eq!(
         conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
