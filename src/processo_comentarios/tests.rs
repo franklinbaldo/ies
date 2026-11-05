@@ -45,7 +45,10 @@ fn lista_de_4x_liga_linha_de_texto_ao_comentario() {
     assert_eq!(lidos.visao, VisaoDosComentarios::Processo);
     assert_eq!(lidos.itens[0].id, "42");
     assert_eq!(lidos.itens[0].unidade, "ADC");
-    assert_eq!(lidos.itens[0].texto, "Comentário fictício do teste automatizado do Todos.");
+    assert_eq!(
+        lidos.itens[0].texto,
+        "Comentário fictício do teste automatizado do Todos."
+    );
     assert_eq!(lidos.itens[0].protocolo, None);
 }
 
@@ -66,7 +69,10 @@ fn cadastro_de_lista_vazia_nao_se_confunde_com_tela_desconhecida() {
       <textarea name="txaDescricao"></textarea>
       <input name="sbmCadastrarComentario" type="submit" value="Salvar">
       </form>"#;
-    assert_eq!(ler_tela(html), Ok(TelaDosComentarios::CadastroSemComentarios));
+    assert_eq!(
+        ler_tela(html),
+        Ok(TelaDosComentarios::CadastroSemComentarios)
+    );
     assert_eq!(
         ler_tela("<form id='frmComentarioCadastro'></form>"),
         Err(ErroComentarios::TelaNaoReconhecida)
@@ -94,7 +100,10 @@ fn dois_comentarios_com_mesmo_id_sao_recusados() {
     let html = lista_41()
         .replace("(1 registro)", "(2 registros)")
         .replace("</tbody>", &format!("{linha}</tbody>"));
-    assert_eq!(ler_tela(&html), Err(ErroComentarios::IdDoComentarioRepetido));
+    assert_eq!(
+        ler_tela(&html),
+        Err(ErroComentarios::IdDoComentarioRepetido)
+    );
 }
 
 #[test]
