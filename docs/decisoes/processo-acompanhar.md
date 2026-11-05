@@ -1,11 +1,11 @@
 ---
 type: ImplementationDecision
 title: Acompanhamento Especial pela barra e cadastro da interface Web
-description: Estratégia parcial para a prévia da inclusão e retirada com seleção tipada
+description: Estratégia Web de prévia, POST único e releitura da inclusão, mantendo retirada bloqueada
 operation: processo.acompanhar
 implementation: partial
 status: adopted-for-scope
-scope: ies processo acompanhar NUP sem confirmar, com seleção do grupo oferecido, conferência da lista e prévia de inclusão ou retirada; a escrita permanece bloqueada até POST único e leitura de verificação
+scope: ies processo acompanhar NUP com inclusão confirmada por um POST e uma releitura, além de prévia de retirada; confirmação da retirada ainda bloqueada
 selected_strategy: web-barra-cadastro-tabela
 alternatives: web-barra-cadastro-tabela,rest-acompanhamento,simular-estado
 evidence_level: todos-unb-e-indices-de-cassettes
@@ -50,12 +50,22 @@ uma URL se tiver exatamente um link válido, conferido pelo leitor
 `arvore_processo::acompanhar`. O gerenciador fornece a tabela ou o
 302 para cadastro. A prévia valida a identidade do formulário, escolhe
 nome exato ou branco observado, e exige identidade única na remoção.
-A contagem inclui todos os GETs. **Nenhum POST é enviado nesta fatia**;
-`--confirmar` falha antes de ler a sessão privada.
+A contagem inclui todos os GETs. Para incluir, a prévia também
+confere se o primitivo `formulario_web` pode derivar o POST exato da
+tela; somente `--confirmar` consome a submissão uma vez. O formulário
+é escolhido pelo identificador `frmAcompanhamentoCadastro` e a
+submissão reenvia ocultos, grupo, observação e botão conforme servidos.
+Nenhum 302 é seguido e nenhuma falha de rede dispara retry.
+O gerente é relido uma vez após o POST; só uma linha nova com
+grupo/observação correspondentes e linhas anteriores preservadas
+comprova sucesso. Sem prova, a saída é 3. A confirmação de retirada
+continua bloqueada antes da sessão.
 
-A reconciliação pura, com testes de identidade e rejeição de alterações
-não solicitadas, está preparada para a próxima fatia. Não é
-evidência de reconciliação da escrita ao vivo.
+A suíte injetada mede 5 GETs para prévia e 3 GETs de abertura +
+GET de gerenciar + GET de cadastro + POST + GET de releitura (7
+requisições) para inclusão. Uma falha na resposta do POST não elimina
+a necessidade de verificação. Testes sintéticos não substituem a
+validação nas instalações de treinamento.
 
 ## Evidências verificáveis
 
@@ -63,6 +73,7 @@ evidência de reconciliação da escrita ao vivo.
 - [Matriz de evidências](../../contracts/evidencias/processo-acompanhar.md).
 - [Testes de interface](../../tests/cli_processo_acompanhar.rs).
 - [Testes de parsing e reconciliação](../../src/processo_acompanhar_tests.rs).
+- [Testes de fluxo e orçamento](../../src/processo_acompanhar/tests_fluxo.rs).
 - [Índice da gravação da UnB](../../cassettes/unb/processo-acompanhar-unb--4e19a6146bc4.md):
   45 interações, das quais 39 GET e 6 POST; o índice não prova os corpos.
 - [Relatório live](../validacao-live/2026-11-05-processo-acompanhar.md).
@@ -74,8 +85,8 @@ o head ao qual estiver vinculado. Replay das cassettes e validação
 live na UnB e numa segunda instalação: NOT_RUN, 0 requisições ao SEI.
 Nenhuma escrita e nenhum resíduo foram produzidos.
 
-Antes de liberar `--confirmar`, implementar o POST único derivado
-do formulário servido, validação da resposta (inclusive 302 e
-recusas da Infra), uma nova leitura do mesmo processo/unidade,
-conciliação tipada com saída 3 para efeito incerto, testes de orçamento
-exato e ensaio exclusivamente em treinamento.
+Ainda faltam replay integral do acervo e teste ao vivo em
+treinamento, com prévia anterior ao `--confirmar`, envio único,
+releitura e registro de resíduo. A retirada exige derivar a
+`acompanhamento_excluir` da linha e conferir sua identidade, sem
+copiar a arquitetura do Todos. A versão parcial permanece DRAFT.
