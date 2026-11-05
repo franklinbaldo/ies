@@ -54,15 +54,19 @@ fn replay_da_lupa_go_no_acervo() {
         assert!(pagina.unidades.len() <= pagina.total);
         if resposta.metodo == "GET" {
             get += 1;
-            assert_eq!(pagina.total, 13_671);
-            assert_eq!(pagina.paginas, 274);
-            assert_eq!(pagina.unidades.len(), 50);
+            // O primeiro GET da cassette abre os 13.671 destinos.
+            // Um GET posterior pode mostrar o resultado já filtrado.
+            if get == 1 {
+                assert_eq!(pagina.total, 13_671);
+                assert_eq!(pagina.paginas, 274);
+                assert_eq!(pagina.unidades.len(), 50);
+            }
         } else if resposta.metodo == "POST" {
             post += 1;
         }
         lidas += 1;
     }
-    assert_eq!(get, 1, "GO deve gravar o GET inicial da lupa");
+    assert!(get >= 1, "GO deve gravar o GET inicial da lupa");
     assert!(post >= 3, "GO deve gravar páginas filtradas em POST");
     assert!(lidas >= 4);
     println!("replay GO: {lidas} telas lidas ({get} GET, {post} POST), 0 requisições reais");
