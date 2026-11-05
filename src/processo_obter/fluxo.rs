@@ -12,9 +12,9 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroAndamentoNaBarra, ErroArvore, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
-    ler_tela_do_processo,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroAcompanharNaBarra,
+    ErroAndamentoNaBarra, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
+    ErroRelacionarNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
@@ -50,10 +50,14 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
     pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(crate) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
+    pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
     /// Ação de registrar andamento, lida da barra do processo.
     pub(crate) andamento: Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra>,
+    pub(crate) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
+    pub(crate) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -120,8 +124,12 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     let acoes = AcoesDeEstado {
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
+        sobrestar: arvore_lida.sobrestar,
+        retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
         andamento: arvore_lida.andamento,
+        relacionar: arvore_lida.relacionar,
+        acompanhar: arvore_lida.acompanhar,
     };
     Ok((aberto, acoes))
 }

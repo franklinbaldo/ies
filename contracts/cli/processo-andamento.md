@@ -1,7 +1,7 @@
 ---
 type: CommandContract
 title: Registro de andamento no processo
-operation: processo.andamento.registrar
+operation: processo.andamento
 command: ies processo andamento NUP --texto T [--confirmar]
 effect: write-process-history
 implementation: partial
@@ -17,7 +17,7 @@ NUP e texto são validados antes de consultar a sessão. Texto vazio ou acima de
 
 ## Escrita e verificação
 
-Com --confirmar, envia um único POST no charset e action observados, sem seguir 302 e nunca repetir. Resposta esperada: 302 para procedimento_consultar_historico do mesmo processo. O 302 não prova escrita. Relê processo/histórico e exige visão igual, total_declarado acrescido de um, primeiro item com o texto normalizado por espaços e demais linhas antigas deslocadas em uma posição. A regra vale quando o texto já existia. Sem essa prova, saída 3 (efeito_incerto_no_andamento); não repetir sem conferência.
+**Nesta fatia WIP, `--confirmar` recusa `escrita_de_andamento_ainda_fechada` antes de abrir a sessão** (os testes sintéticos da confirmação ainda não fecham). O desenho previsto: com --confirmar, envia um único POST no charset e action observados, sem seguir 302 e nunca repetir. Resposta esperada: 302 para procedimento_consultar_historico do mesmo processo. O 302 não prova escrita. Relê processo/histórico e exige visão igual, total_declarado acrescido de um, primeiro item com o texto normalizado por espaços e demais linhas antigas deslocadas em uma posição. A regra vale quando o texto já existia. Sem essa prova, saída 3 (efeito_incerto_no_andamento); não repetir sem conferência.
 
 ## Orçamento
 
@@ -36,6 +36,7 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 | `campo_inesperado_no_formulario_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
 | `charset_do_andamento_nao_suportado` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
 | `controles_do_andamento_ausentes_ou_duplicados` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `escrita_de_andamento_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, nada enviado. |
 | `efeito_incerto_no_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
 | `endereco_de_atualizar_andamento_de_outro_processo` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
 | `endereco_de_atualizar_andamento_nao_reconhecido` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |

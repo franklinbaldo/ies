@@ -55,6 +55,10 @@ pub(crate) enum EstadoDoProcesso {
     UnidadesComOProcessoAberto,
     /// Registro de uma linha nova no histórico do processo.
     AndamentoNoHistorico,
+    /// Inclusão ou remoção de Acompanhamento Especial na unidade.
+    AcompanhamentoEspecial,
+    /// Cadastro de novo processo na unidade ativa, com identidade conferida.
+    ProcessoCriadoNaUnidade,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.

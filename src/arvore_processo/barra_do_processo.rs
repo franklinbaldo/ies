@@ -11,6 +11,7 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{self, EnderecoDosMarcadores, ErroMarcadores};
+use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{
     EnderecoDasPropriedades, ErroPropriedades as E, FonteDasPropriedades,
 };
@@ -81,6 +82,36 @@ pub(crate) fn ler_link_dos_marcadores(
             EnderecoRecusado::DeOutroProcesso => {
                 ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso
             }
+        })
+}
+
+/// Link assinado de `comentario_listar` da própria barra do processo.
+/// Não forma URL, não executa JS e não segue links de documentos.
+#[allow(dead_code)] // ligado ao fluxo Web de comentários na próxima fatia (#257)
+pub(crate) fn ler_link_dos_comentarios(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
+    use ErroLinkDosComentarios as E;
+    let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
+        FalhaDaBarra::Fora => E::BarraForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => E::BarrasRepetidasNaArvore,
+    })?;
+    let achados: Vec<_> = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some("comentario_listar"))
+        .collect();
+    let href = match achados.as_slice() {
+        [] => return Ok(None),
+        [unico] => unico,
+        _ => return Err(E::LinksRepetidosNaBarra),
+    };
+    conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
+        .map(|url| Some(EnderecoDosComentarios::novo(url)))
+        .map_err(|falha| match falha {
+            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
         })
 }
 
