@@ -18,7 +18,7 @@ jobs:
         id: guard
         shell: bash
         run: |
-          if [ "$(git log -1 --format=%s)" = "live(#253): rodada unica de leitura em GO e PEN3" ]; then
+          if [ "$(git log -1 --format=%s)" = "live(#253): primeira leitura PEN3 sem repetir GO" ]; then
             echo 'executar=true' >> "$GITHUB_OUTPUT"
           else
             echo 'executar=false' >> "$GITHUB_OUTPUT"
@@ -30,13 +30,15 @@ jobs:
       - name: Compilar binario release
         if: steps.guard.outputs.executar == 'true'
         run: cargo build --locked --release
-      - name: Leitura de treinamento, apenas GO e PEN3, sem retry e sem vazar sessao
+      - name: Leitura de treinamento PEN3 (GO ja tentado), sem retry nem vazar sessao
         if: steps.guard.outputs.executar == 'true'
         shell: bash
         run: |
+          set +e
           set -u
           umask 077
-          for inst in go pen3; do
+          falhas=0
+          for inst in pen3; do
             echo "INSTALACAO=$inst"
             D=$(mktemp -d)
             python3 -I - "$inst" "$D" <<'PY'
@@ -78,6 +80,7 @@ jobs:
           PY
             if [ "$rc" -ne 0 ]; then
               echo "$inst: NOT_RUN retornos (login recusado; sem nova tentativa)"
+              falhas=1
               rm -rf "$D"
               sleep 65
               continue
@@ -96,6 +99,10 @@ jobs:
           print(sys.argv[2], sys.argv[4], "saida", sys.argv[3],
                 {k: o[k] for k in permitido if k in o})
           PY
+            if [ "$rc" -ne 0 ]; then
+              falhas=1
+            fi
             rm -rf "$D"
             sleep 65
           done
+          exit "$falhas"
