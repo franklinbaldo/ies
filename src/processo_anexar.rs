@@ -1,6 +1,6 @@
 //! Tela de Anexação de Processos do SEI, sem rede nem escrita.
-//! Oráculo: Todos src/todos/anexacao.py @323eb01 (UnB 4.0.9).
-//! Nenhum JavaScript executado, atributos só via html_atributos.
+//! Oráculo: Todos src/todos/anexacao.py @323eb01 (`UnB` 4.0.9).
+//! Nenhum JavaScript executado, atributos só via `html_atributos`.
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::valor_do_atributo;
 use crate::transporte::texto_de_recusa::decodificar_entidades;
@@ -32,12 +32,20 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
     let form = localizar_formulario(&dom, "frmProcedimentoAnexar")
         .map_err(|_| "formulario_de_anexacao_ausente_ou_repetido")?;
     let esperados = [
-        "txtProtocolo", "txtIdentificacaoProtocolo", "hdnIdProtocolo",
-        "hdnAnexacao", "sbmAnexar",
+        "txtProtocolo",
+        "txtIdentificacaoProtocolo",
+        "hdnIdProtocolo",
+        "hdnAnexacao",
+        "sbmAnexar",
     ];
     let mut vistos = [0usize; 5];
     let mut tabelas = Vec::new();
-    for tag in form.children().all(parser).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         if tag.name().as_utf8_str().eq_ignore_ascii_case("input")
             && let Some(nome) = atributo(tag, "name")?
         {
@@ -45,9 +53,15 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
                 vistos[pos] += 1;
                 let tipo = atributo(tag, "type")?;
                 let valido = match pos {
-                    0 | 1 => tipo.as_deref().is_none_or(|v| v.eq_ignore_ascii_case("text")),
-                    2 | 3 => tipo.as_deref().is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
-                    _ => tipo.as_deref().is_some_and(|v| v.eq_ignore_ascii_case("submit")),
+                    0 | 1 => tipo
+                        .as_deref()
+                        .is_none_or(|v| v.eq_ignore_ascii_case("text")),
+                    2 | 3 => tipo
+                        .as_deref()
+                        .is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
+                    _ => tipo
+                        .as_deref()
+                        .is_some_and(|v| v.eq_ignore_ascii_case("submit")),
                 };
                 if !valido {
                     return Err("controles_da_anexacao_ausentes_ou_repetidos");
@@ -64,13 +78,22 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
         return Err("controles_da_anexacao_ausentes_ou_repetidos");
     }
     let tabela = match tabelas.as_slice() {
-        [] => return Ok(TelaDeAnexacao { anexados: Vec::new() }),
+        [] => {
+            return Ok(TelaDeAnexacao {
+                anexados: Vec::new(),
+            });
+        }
         [unica] => unica,
         _ => return Err("listas_de_anexados_repetidas"),
     };
     let mut anexados = Vec::new();
     let mut ids = HashSet::new();
-    for tag in tabela.children().all(parser).iter().filter_map(tl::Node::as_tag) {
+    for tag in tabela
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
             || !atributo(tag, "type")?.is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
         {
@@ -86,12 +109,21 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
     }
     Ok(TelaDeAnexacao { anexados })
 }
-/// Consulta protocolo_RI1023: ID, NUP e tipo únicos.
+/// Consulta `protocolo_RI1023`: ID, NUP e tipo únicos.
 pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
     let valores = ler_complementos(xml)?;
-    let ids: Vec<_> = valores.iter().filter(|(n, _)| n == "IdProcedimento").collect();
-    let nups: Vec<_> = valores.iter().filter(|(n, _)| n == "ProtocoloProcedimentoFormatado").collect();
-    let tipos: Vec<_> = valores.iter().filter(|(n, _)| n == "NomeTipoProcedimento").collect();
+    let ids: Vec<_> = valores
+        .iter()
+        .filter(|(n, _)| n == "IdProcedimento")
+        .collect();
+    let nups: Vec<_> = valores
+        .iter()
+        .filter(|(n, _)| n == "ProtocoloProcedimentoFormatado")
+        .collect();
+    let tipos: Vec<_> = valores
+        .iter()
+        .filter(|(n, _)| n == "NomeTipoProcedimento")
+        .collect();
     if ids.is_empty() || nups.is_empty() {
         return Err("processo_a_anexar_nao_identificado");
     }
@@ -109,7 +141,7 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
         tipo: tipos.first().map_or("", |v| v.1.trim()).to_owned(),
     })
 }
-/// Consulta procedimento_anexacao_verificar: S=tudo assinado, N=há pendência.
+/// Consulta `procedimento_anexacao_verificar`: S=tudo assinado, N=há pendência.
 pub(crate) fn ler_confirmacao(xml: &str) -> Result<bool, &'static str> {
     let valores = ler_complementos(xml)?;
     let encontrados: Vec<_> = valores.iter().filter(|(n, _)| n == "Anexacao").collect();
@@ -123,7 +155,13 @@ fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, &'static str> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
         .map_err(|_| "complementos_da_anexacao_nao_interpretados")?;
     let parser = dom.parser();
-    if dom.query_selector("erros").into_iter().flatten().next().is_some() {
+    if dom
+        .query_selector("erros")
+        .into_iter()
+        .flatten()
+        .next()
+        .is_some()
+    {
         return Err("processo_a_anexar_nao_identificado");
     }
     let mut valores = Vec::new();
@@ -139,12 +177,15 @@ fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, &'static str> {
 }
 /// Recusa identidade igual ou já anexada antes da operação irreversível.
 pub(crate) fn decidir(
-    principal: &str, id_principal: &str, anexar: &Destino, existentes: &[String],
+    principal: &str,
+    id_principal: &str,
+    anexar: &Destino,
+    existentes: &[String],
 ) -> Result<bool, &'static str> {
     if principal == anexar.nup || id_principal == anexar.id {
         return Err("anexacao_ao_mesmo_processo");
     }
-    if existentes.iter().any(|id| *id == anexar.id) {
+    if existentes.contains(&anexar.id) {
         return Err("processo_ja_anexado");
     }
     Ok(true)
