@@ -21,6 +21,11 @@ do IES em 05/11/2026. Ela nao constitui observacao ao vivo do IES.
   outro mes. Cada dia e link GET com `data_atual=DD/MM/AAAA`.
   O primeiro dia dos meses vizinhos e link para mudar o mes.
 - O dia de hoje do **SEI** tem a classe CSS `diaHoje`.
+  Os testes do Todos @323eb01 exercitam o caso em que a tela abre no
+  mes anteriormente visitado, inclusive na virada UTC de dia/mes:
+  a data local da maquina nao prova qual e o dia marcado pelo SEI.
+  A procura no mes candidato (e vizinho na virada) usa somente links
+  GET publicados; sem `diaHoje` inequivoco o IES falha fechado.
 - O link `Ver todo o mes` contem
   `data_inicial=01/MM/AAAA` e
   `data_final=DD/MM/AAAA` (ultimo dia do mes).
