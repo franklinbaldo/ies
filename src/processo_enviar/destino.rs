@@ -5,6 +5,7 @@
 //! quando nada casa). A sigla é o texto de `descricao` antes de ` - `.
 use super::Destino;
 use super::erro::{ErroEnviar, FalhaDaConsulta as F};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{RespostaDoPost, decodificar_atributo};
 use crate::html_atributos::valor_do_atributo;
 use crate::transporte::{FalhaTransporte, ler_limitado, recusar_status};
@@ -45,29 +46,35 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
 pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, F> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| F::RespostaDoAutocompletarForaDaForma)?;
+        .map_err(|_| ErroHtml::valor("resposta_do_autocompletar_fora_da_forma_observada"))?;
     let parser = dom.parser();
     let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
     if contar("itens") != 1 || contar("erro") != 0 {
-        return Err(F::RespostaDoAutocompletarForaDaForma);
+        return Err(ErroHtml::valor("resposta_do_autocompletar_fora_da_forma_observada").into());
     }
     let mut itens = Vec::new();
     for no in dom.query_selector("item").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(F::RespostaDoAutocompletarForaDaForma)?;
+            .ok_or(ErroHtml::valor(
+                "resposta_do_autocompletar_fora_da_forma_observada",
+            ))?;
         let lido = |nome: &'static str| {
             valor_do_atributo(tag, nome)
                 .ok()
                 .flatten()
                 .and_then(|bruto| decodificar_atributo(&bruto))
                 .filter(|valor| !valor.trim().is_empty())
-                .ok_or(F::RespostaDoAutocompletarForaDaForma)
+                .ok_or(F::Html(ErroHtml::valor(
+                    "resposta_do_autocompletar_fora_da_forma_observada",
+                )))
         };
         itens.push((lido("id")?, lido("descricao")?));
         if itens.len() > MAXIMO_DE_ITENS {
-            return Err(F::RespostaDoAutocompletarForaDaForma);
+            return Err(
+                ErroHtml::valor("resposta_do_autocompletar_fora_da_forma_observada").into(),
+            );
         }
     }
     Ok(itens)

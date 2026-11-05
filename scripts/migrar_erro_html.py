@@ -41,6 +41,9 @@ ENV = dict(os.environ, CARGO_TARGET_DIR=os.environ.get('CARGO_TARGET_DIR', str(P
 
 # --- compilador -----------------------------------------------------------
 
+AVISOS = []
+
+
 def cargo(*args):
     r = subprocess.run(['cargo', *args, '-q', '--offline', '--message-format=json'], cwd=RAIZ, env=ENV,
                        capture_output=True, text=True, check=False)
@@ -52,6 +55,8 @@ def cargo(*args):
             continue
         if m.get('reason') == 'compiler-message' and m['message']['level'] == 'error':
             erros.append(m['message'])
+        elif m.get('reason') == 'compiler-message' and m['message']['level'] == 'warning':
+            AVISOS.append(m['message'])
     if r.returncode and not erros:
         print(r.stderr[-3000:])
         raise SystemExit('cargo falhou sem diagnóstico')
@@ -125,6 +130,23 @@ def corrigir_interrogacao(plano, erros):
                 mexeu = True
         a.write_text('\n'.join(linhas), encoding='utf-8')
     return mexeu
+
+
+def remover_usos_mortos():
+    """`use E as X;` que só servia às variantes migradas (agora `ErroHtml`)."""
+    linhas_mortas = {}
+    for m in AVISOS:
+        if not m['message'].startswith('unused import'):
+            continue
+        for sp in m['spans']:
+            if sp['is_primary']:
+                linhas_mortas.setdefault(RAIZ / sp['file_name'], set()).add(sp['line_start'])
+    for a, numeros in linhas_mortas.items():
+        linhas = a.read_text(encoding='utf-8').split('\n')
+        for n in sorted(numeros, reverse=True):
+            if re.fullmatch(r'\s*use \w+ as \w+;', linhas[n - 1]):
+                del linhas[n - 1]
+        a.write_text('\n'.join(linhas), encoding='utf-8')
 
 
 def corrigir_metodos(erros):
@@ -231,6 +253,10 @@ def main():
         erros = cargo('build') + cargo('test', '--no-run')
         if not (corrigir_interrogacao(plano, erros) or corrigir_metodos(erros)):
             break
+    AVISOS.clear()
+    cargo('build')
+    cargo('test', '--no-run')
+    remover_usos_mortos()
     migradas = sum(map(len, plano.migra.values()))
     print(f'migradas {migradas} variantes; {len(plano.some)} enum somem ({sorted(plano.some)}); '
           f'{contadas} map_err com ErroAtributoHtml; {len(excluidos)} excluídas')

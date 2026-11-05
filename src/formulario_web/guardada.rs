@@ -9,6 +9,7 @@ use super::{
     CodificacaoDaTela, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     OperacaoDeFormulario, SubmissaoDerivada, codificar_corpo,
 };
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 
@@ -30,15 +31,16 @@ pub(crate) fn derivar_submissao_guardada(
         || !operacao.campos_ocultos_exigidos.is_empty()
         || !operacao.campos_ocultos_reescritos.is_empty()
     {
-        return Err(E::FormularioAusenteNaTela);
+        return Err(ErroHtml::ausente("formulario_ausente_na_tela").into());
     }
     let alvo = UrlHttps::interpretar(url_guardada).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
-    let servida =
-        UrlHttps::interpretar(referer).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida = UrlHttps::interpretar(referer).ok_or(E::Transporte(FalhaTransporte::Html(
+        ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
+    )))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }

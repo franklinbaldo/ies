@@ -10,6 +10,7 @@ use super::{
     Barra, DocumentoLido, ErroArvore, Literal, PastaNaArvore, VerificacaoDaPasta,
     tela::EnderecoDaArvore,
 };
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -56,14 +57,14 @@ pub(super) fn pai_do_documento(pai: &str) -> Result<Pai, ErroArvore> {
 pub(super) fn ler_no_de_pasta(a: &[Literal; 15]) -> Result<NoDePasta, ErroArvore> {
     let texto = super::texto;
     if texto(&a[0])? == "AGUARDE" {
-        let fora = ErroArvore::AguardeForaDaFormaObservada;
+        let fora = ErroArvore::Html(ErroHtml::valor("aguarde_fora_da_forma_observada"));
         let k = numero_depois(texto(&a[1])?, "AGUARDE").ok_or(fora)?;
         if numero_depois(texto(&a[2])?, "PASTA") != Some(k) || a[3] != Literal::Nulo {
             return Err(fora);
         }
         return Ok(NoDePasta::Aguarde { k });
     }
-    let fora = ErroArvore::PastaForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor("pasta_fora_da_forma_observada"));
     let k = numero_depois(texto(&a[1])?, "PASTA").ok_or(fora)?;
     if texto(&a[3])? != format!("javascript:abrirFecharPasta('PASTA{k}');") || a[4] != Literal::Nulo
     {
@@ -93,7 +94,7 @@ pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArv
             .unwrap_or(resto.len());
         let valor = &resto[..fim];
         if !super::decimal(valor) {
-            return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+            return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
         }
         match achado {
             Some(anterior) if anterior != valor => {
@@ -107,7 +108,9 @@ pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArv
 
 /// `'<p1>,<p2>,…'`: decimais, não vazia, sem repetição.
 fn protocolos_declarados(texto: &str) -> Result<Vec<&str>, ErroArvore> {
-    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor(
+        "protocolos_da_pasta_fora_da_forma_observada",
+    ));
     let lista: Vec<&str> = texto.split(',').collect();
     let unicos: HashSet<&str> = lista.iter().copied().collect();
     if !lista.iter().all(|p| super::decimal(p)) || unicos.len() != lista.len() {
@@ -129,7 +132,7 @@ pub(super) fn conferir_pastas(
     for no in nos {
         if let NoDePasta::Pasta { k, pai, rotulo } = no {
             if pastas.iter().any(|(j, _)| j == k) {
-                return Err(E::PastaRepetidaNaArvore);
+                return Err(ErroHtml::repetido("pasta_repetida_na_arvore").into());
             }
             if pai != processo {
                 return Err(E::PastaComPaiDiferenteDoProcesso);
@@ -145,7 +148,7 @@ pub(super) fn conferir_pastas(
                 return Err(E::AguardeComPaiDiferenteDePasta);
             }
             if !fechadas.insert(*k) {
-                return Err(E::AguardeForaDaFormaObservada);
+                return Err(ErroHtml::valor("aguarde_fora_da_forma_observada").into());
             }
         }
     }
@@ -153,11 +156,13 @@ pub(super) fn conferir_pastas(
     for (k, texto) in protocolos {
         let lista = protocolos_declarados(texto)?;
         if declarados.insert(*k, lista).is_some() {
-            return Err(E::ProtocolosDaPastaDeclaradosMaisDeUmaVez);
+            return Err(
+                ErroHtml::repetido("protocolos_da_pasta_declarados_mais_de_uma_vez").into(),
+            );
         }
     }
     if declarados.keys().any(|k| !existe(*k)) {
-        return Err(E::ProtocolosDeclaradosParaPastaAusente);
+        return Err(ErroHtml::ausente("protocolos_declarados_para_pasta_ausente").into());
     }
     if pastas.iter().any(|(k, _)| !declarados.contains_key(k)) {
         return Err(E::PastaSemProtocolosDeclarados);
@@ -219,14 +224,14 @@ fn conferir_pasta(
                     return Err(E::DocumentoDaPastaNaoDeclarado);
                 }
                 if !vistos.insert(identidade) {
-                    return Err(E::ProtocoloRepetidoNaPasta);
+                    return Err(ErroHtml::repetido("protocolo_repetido_na_pasta").into());
                 }
             }
         }
     }
     if declarados.len() - vistos.len() != sem_identidade {
         return Err(if sem_identidade == 0 {
-            E::ProtocoloDeclaradoAusenteDaPasta
+            E::Html(ErroHtml::ausente("protocolo_declarado_ausente_da_pasta"))
         } else {
             E::ContagemDaPastaDiferenteDaDeclarada
         });
@@ -252,7 +257,9 @@ pub(crate) fn ler_acao_de_abrir_pastas(
     use ErroArvore as E;
     let mut achado = None;
     for linha in html.split('\n').filter(|l| l.contains(ACAO_DE_ABRIR)) {
-        let fora = E::AcaoDeAbrirPastasForaDaFormaObservada;
+        let fora = E::Html(ErroHtml::valor(
+            "acao_de_abrir_pastas_fora_da_forma_observada",
+        ));
         let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or(fora)?;
         let [
             _,
@@ -271,7 +278,7 @@ pub(crate) fn ler_acao_de_abrir_pastas(
             return Err(fora);
         }
         if achado.is_some() {
-            return Err(E::AcoesDeAbrirPastasRepetidas);
+            return Err(ErroHtml::repetido("acoes_de_abrir_pastas_repetidas").into());
         }
         achado = Some(conferir_url_de_abrir(instalacao, url, id)?);
     }
@@ -285,7 +292,7 @@ fn conferir_url_de_abrir(
     url: &str,
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroArvore> {
-    let recusa = ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
+    let recusa = ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido"));
     let absoluta = conferir_endereco_relativo(instalacao, url, "procedimento_visualizar", id)
         .map_err(|_| recusa)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);

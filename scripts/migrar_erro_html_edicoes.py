@@ -4,8 +4,9 @@
 
 import re
 
+from migrar_erro_html_curta import forma_curta, nome_curto
 from migrar_erro_html_plano import (
-    TIPO, TIPOS_DE_PADRAO, atributos_antes, linha_inteira, mesmo, nos, texto,
+    TIPO, TIPOS_DE_PADRAO, atributos_antes, em_teste, linha_inteira, mesmo, nos, texto,
 )
 
 
@@ -79,7 +80,8 @@ def ocorrencias(plano, fase_b):
                 novo = plano.padrao(nome, v, prefixo, apel)
                 deixada = not fase_b
             else:
-                novo = plano.construcao(nome, v, prefixo, apel)
+                novo = plano.construcao(nome, v, prefixo, apel, curta=forma_curta(plano, a, f, s, nome),
+                                         teste=em_teste(s, f, a))
                 deixada = not fase_b and em_igualdade(s)
             saida.append((a, s.start_byte, s.end_byte, novo, (nome, v), deixada))
         saida.extend(variantes_importadas(plano, a, f, arv, fase_b))
@@ -102,7 +104,7 @@ def ocorrencias(plano, fase_b):
                 if eh_padrao_de_matches(bruto, ini - base, macro):
                     novo = plano.padrao(nome, v, prefixo, apel)
                 else:
-                    novo = plano.construcao(nome, v, prefixo, apel)
+                    novo = plano.construcao(nome, v, prefixo, apel, teste=em_teste(tt, f, a))
                 saida.append((a, ini, fim, novo, (nome, v), not fase_b))
     return saida
 
@@ -152,7 +154,7 @@ def variantes_importadas(plano, a, f, arv, fase_b):
             if contexto_de_padrao(i) or i.parent.type in ('match_pattern', 'or_pattern'):
                 novo = plano.padrao(nome, v, prefixo, apel)
             else:
-                novo = plano.construcao(nome, v, prefixo, apel)
+                novo = plano.construcao(nome, v, prefixo, apel, teste=em_teste(i, f, a))
                 APELIDOS_DE_VARIANTE[(a, i.start_byte)] = (nome, v, prefixo, apel)
             saida.append((a, i.start_byte, i.end_byte, novo, (nome, v), False))
     return saida
@@ -340,7 +342,8 @@ def edicoes_de_map_err(plano):
             tipo = plano.origens.get((str(a), linha)) or plano.origens.get((str(a), c.start_point[0] + 1))
             if tipo is None or tipo.split('::')[-1] != 'ErroAtributoHtml':
                 continue
-            novo = plano.construcao(nome, v, prefixo, apel, causa='e')
+            novo = plano.construcao(nome, v, prefixo, apel, causa='e', curta=forma_curta(plano, a, f, corpo, nome),
+                                     teste=em_teste(corpo, f, a))
             saida.append((a, clo.start_byte, clo.end_byte, f'|e| {novo}'))
             contadas += 1
     return saida, contadas
@@ -357,7 +360,7 @@ def aplicar_edicoes(fontes, edicoes):
     deslocamentos = {}
     for a, conjunto in por_arquivo.items():
         mantidas, fim_atual = [], -1
-        for ini, fim, novo in sorted(conjunto, key=lambda x: (x[0], -x[1])):
+        for ini, fim, novo in sorted(conjunto, key=lambda x: (x[0], x[0] != x[1], -x[1])):
             if ini < fim_atual:
                 continue
             mantidas.append((ini, fim, novo))
@@ -383,6 +386,7 @@ def transformar(plano, fase_b):
     # a closure do map_err já carrega a construção
     edicoes = [e for e in edicoes if not any(e[0] == a and i <= e[1] < j for a, i, j in sobrepostas)]
     edicoes += mapa + edicoes_de_mensagem(plano) + edicoes_de_enum(plano) + edicoes_de_eliminacao(plano)
+    edicoes = nome_curto(plano, edicoes)
     desl = aplicar_edicoes(plano.fontes, edicoes)
     deixadas = [(a, nova_posicao(desl, a, ini), chave_) for a, ini, fim, _, chave_, d in ocs if d]
     return deixadas, contadas

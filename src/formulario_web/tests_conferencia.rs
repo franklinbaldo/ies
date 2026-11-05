@@ -3,6 +3,7 @@
 //! sem marcador observado, conferida por leitura posterior.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
 use ErroSubmissaoFormulario as E;
 use std::io::Cursor;
@@ -35,7 +36,9 @@ fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDeriv
 fn janela_sem_unidade_exige_a_declaracao_da_operacao() {
     assert_eq!(
         derivar(&OPERACAO, JANELA).unwrap_err(),
-        E::IdentificacaoDaUnidadeAusenteNaTela
+        E::Html(ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela"
+        ))
     );
     let s = derivar(&NA_ORIGEM, JANELA).unwrap();
     assert_eq!(

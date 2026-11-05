@@ -19,6 +19,7 @@ use crate::arvore_processo::{
     ProcessoNaArvore, ler_conteudo_na_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
 };
 use crate::documento::NumeroDocumento;
+use crate::erro_html::ErroHtml;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -293,7 +294,9 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         .iter()
         .find(|d| d.id == id_documento)
     else {
-        return Err(E::Conteudo(ErroConteudoNaArvore::DocumentoAusenteDaArvore));
+        return Err(E::Conteudo(ErroConteudoNaArvore::Html(ErroHtml::ausente(
+            "documento_ausente_da_arvore",
+        ))));
     };
     if no.numero_sei.as_deref() != Some(numero) {
         return Err(E::NumeroSeiDaArvoreDiferenteDoPedido);
@@ -319,7 +322,9 @@ pub(super) fn localizar<'a>(
         .filter(|d| d.numero_sei.as_deref() == Some(numero));
     let primeiro = com_numero.next();
     if com_numero.next().is_some() {
-        return Err(E::NumeroSeiRepetidoNaArvore);
+        return Err(ErroHtml::repetido("numero_sei_repetido_na_arvore")
+            .com_mensagem("o número SEI aparece mais de uma vez na árvore")
+            .into());
     }
     Ok(primeiro)
 }

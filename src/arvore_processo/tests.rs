@@ -3,6 +3,7 @@
 //! `.src` e `.html` entre as declarações). Nenhum valor real.
 use super::ErroArvore as E;
 use super::*;
+use crate::erro_html::ErroHtml;
 use std::fmt::Write as _;
 
 pub(crate) const NUP: &str = "00001.000001/2026-01";
@@ -135,7 +136,7 @@ fn recusas_estruturais() {
         ),
         (
             vec![p(), no_processo(1, "11", NUP)],
-            E::NosDoProcessoRepetidosNaArvore,
+            E::Html(ErroHtml::repetido("nos_do_processo_repetidos_na_arvore")),
         ),
         // `PASTA` tem 15 argumentos; outro tipo é recusa.
         (
@@ -153,7 +154,7 @@ fn recusas_estruturais() {
                 no_documento(1, "21", "10", "1"),
                 no_documento(2, "21", "10", "2"),
             ],
-            E::DocumentoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("documento_repetido_na_arvore")),
         ),
         (
             vec![p(), no_documento(1, "2a", "10", "1")],
@@ -177,11 +178,11 @@ fn recusas_estruturais() {
         ),
         (
             vec![p().replace("Nos[0]", "Nos[1]")],
-            E::IndiceDeNoForaDaSequencia,
+            E::Html(ErroHtml::valor("indice_de_no_fora_da_sequencia")),
         ),
         (
             vec![p(), no_documento(2, "21", "10", "1")],
-            E::IndiceDeNoForaDaSequencia,
+            E::Html(ErroHtml::valor("indice_de_no_fora_da_sequencia")),
         ),
     ];
     for (nos, esperado) in casos {
@@ -199,7 +200,9 @@ fn declaracao_fora_da_forma_em_qualquer_linha_e_recusa() {
     html.push_str("\n  var y = new infraArvoreNo(\"DOCUMENTO\");\n");
     assert_eq!(
         ler_arvore(&html, NUP, "10"),
-        Err(E::DeclaracaoDeNoForaDaFormaObservada)
+        Err(E::Html(ErroHtml::valor(
+            "declaracao_de_no_fora_da_forma_observada"
+        )))
     );
     // CRLF no fim da linha é tolerado.
     let crlf = padrao().replace('\n', "\r\n");

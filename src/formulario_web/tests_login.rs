@@ -2,6 +2,7 @@
 //! com regra declarada, botão desabilitado pelo `onsubmit` servido e não
 //! enviado, tela e `action` fora do host recusados.
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::sessao_login::tela::{ENTRAR_COM_ACESSAR, ENTRAR_COM_SBM_ACESSAR};
 
 fn instalacao() -> Instalacao {
@@ -73,7 +74,7 @@ fn botao_desabilitado_pelo_onsubmit_e_exigido_mas_nao_enviado() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+        ErroSubmissaoFormulario::Html(ErroHtml::ausente("botao_de_envio_ausente_no_formulario"))
     );
 }
 
@@ -102,7 +103,7 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))
     );
     let ponto = html.replace("action='login.php?s=1'", "action='../sei/login.php'");
     assert_eq!(
@@ -113,6 +114,6 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))
     );
 }

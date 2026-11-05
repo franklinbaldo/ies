@@ -3,6 +3,7 @@
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, tela_do_no_da_raiz};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 const ACAO_SOBRESTAR: &str = "procedimento_sobrestar";
@@ -10,22 +11,16 @@ const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcaoSobrestar {
-    #[causa(nome = "barra_do_sobrestamento_nao_interpretada")]
-    BarraInvalida,
-    #[causa(nome = "acoes_de_sobrestamento_repetidas_na_barra")]
-    AcoesRepetidas,
-    #[causa(nome = "endereco_do_sobrestamento_nao_reconhecido")]
-    EnderecoNaoReconhecido,
     #[causa(nome = "endereco_do_sobrestamento_de_outro_processo")]
     OutroProcesso,
-    #[causa(nome = "tela_do_no_da_retomada_nao_reconhecida")]
-    TelaDoNoNaoReconhecida,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroAcaoSobrestar {}
 
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
-    ErroAcaoSobrestar::BarraInvalida
+    ErroAcaoSobrestar::Html(ErroHtml::valor("barra_do_sobrestamento_nao_interpretada"))
 }
 
 /// Link para o formulário de sobrestamento: não é uma escrita.
@@ -46,10 +41,12 @@ pub(crate) fn ler_sobrestar_da_barra(
             .map(EnderecoDeEscrita::novo)
             .map(Some)
             .map_err(|erro| match erro {
-                EnderecoRecusado::NaoReconhecido => ErroAcaoSobrestar::EnderecoNaoReconhecido,
+                EnderecoRecusado::NaoReconhecido => ErroAcaoSobrestar::Html(ErroHtml::valor(
+                    "endereco_do_sobrestamento_nao_reconhecido",
+                )),
                 EnderecoRecusado::DeOutroProcesso => ErroAcaoSobrestar::OutroProcesso,
             }),
-        _ => Err(ErroAcaoSobrestar::AcoesRepetidas),
+        _ => Err(ErroHtml::repetido("acoes_de_sobrestamento_repetidas_na_barra").into()),
     }
 }
 
@@ -69,8 +66,10 @@ pub(crate) fn ler_retomar_da_barra(
         0 => Ok(None),
         1 => tela_do_no_da_raiz(instalacao, html, id)
             .map(Some)
-            .ok_or(ErroAcaoSobrestar::TelaDoNoNaoReconhecida),
-        _ => Err(ErroAcaoSobrestar::AcoesRepetidas),
+            .ok_or(ErroAcaoSobrestar::Html(ErroHtml::valor(
+                "tela_do_no_da_retomada_nao_reconhecida",
+            ))),
+        _ => Err(ErroHtml::repetido("acoes_de_sobrestamento_repetidas_na_barra").into()),
     }
 }
 
@@ -78,16 +77,10 @@ pub(crate) fn ler_retomar_da_barra(
 /// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnderecoDeRetomar {
-    #[causa(nome = "endereco_de_retomar_ausente_na_tela")]
-    Ausente,
-    #[causa(nome = "endereco_de_retomar_fora_da_forma")]
-    ForaDaForma,
-    #[causa(nome = "enderecos_de_retomar_repetidos_na_tela")]
-    Repetido,
-    #[causa(nome = "endereco_de_retomar_nao_reconhecido")]
-    NaoReconhecido,
     #[causa(nome = "endereco_de_retomar_de_outro_processo")]
     OutroProcesso,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 pub(crate) fn ler_endereco_de_retomar(
@@ -97,7 +90,7 @@ pub(crate) fn ler_endereco_de_retomar(
 ) -> Result<EnderecoDeEscrita, ErroEnderecoDeRetomar> {
     use ErroEnderecoDeRetomar as E;
     let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
-        .map_err(|_| E::ForaDaForma)?;
+        .map_err(|_| ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
     let mut variaveis = Vec::new();
     for linha in html.lines().map(str::trim) {
         if !linha.starts_with("var linkRemoverSobrestamentoProcesso") {
@@ -106,18 +99,20 @@ pub(crate) fn ler_endereco_de_retomar(
         let url = linha
             .strip_prefix("var linkRemoverSobrestamentoProcesso = '")
             .and_then(|s| s.strip_suffix("';"))
-            .ok_or(E::ForaDaForma)?;
+            .ok_or(ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
         variaveis.push(url);
     }
     let url = match (funcoes.as_slice(), variaveis.as_slice()) {
-        ([], []) => return Err(E::Ausente),
+        ([], []) => return Err(ErroHtml::ausente("endereco_de_retomar_ausente_na_tela").into()),
         ([url], []) | ([], [url]) => *url,
-        _ => return Err(E::Repetido),
+        _ => return Err(ErroHtml::repetido("enderecos_de_retomar_repetidos_na_tela").into()),
     };
     conferir_endereco_relativo(instalacao, url, "procedimento_remover_sobrestamento", id)
         .map(EnderecoDeEscrita::novo)
         .map_err(|e| match e {
-            EnderecoRecusado::NaoReconhecido => E::NaoReconhecido,
+            EnderecoRecusado::NaoReconhecido => {
+                E::Html(ErroHtml::valor("endereco_de_retomar_nao_reconhecido"))
+            }
             EnderecoRecusado::DeOutroProcesso => E::OutroProcesso,
         })
 }

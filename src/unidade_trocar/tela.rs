@@ -5,6 +5,7 @@
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca as E;
 use crate::entidades_html::decodificar_texto;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
@@ -71,23 +72,36 @@ pub(crate) fn link_da_troca(
     url_da_tela: &str,
     html: &str,
 ) -> Result<String, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::LinkDeTrocaAusente)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroHtml::ausente("link_de_troca_de_unidade_ausente")
+            .com_mensagem("o Controle não publica o link de troca de unidade")
+    })?;
     let parser = dom.parser();
-    let nos =
-        nos_com_id(&dom, "lnkInfraUnidade").map_err(|_| E::LinkDeTrocaForaDaFormaObservada)?;
+    let nos = nos_com_id(&dom, "lnkInfraUnidade").map_err(|e| {
+        ErroHtml::atributo("link_de_troca_de_unidade_fora_da_forma_observada", e)
+            .com_mensagem("o link de troca de unidade não tem a forma observada")
+    })?;
     let mut onclicks = Vec::new();
     for no in nos {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        if let Some(bruto) =
-            valor_do_atributo(tag, "onclick").map_err(|_| E::LinkDeTrocaForaDaFormaObservada)?
-        {
-            onclicks.push(decodificar_atributo(&bruto).ok_or(E::LinkDeTrocaForaDaFormaObservada)?);
+        if let Some(bruto) = valor_do_atributo(tag, "onclick").map_err(|e| {
+            ErroHtml::atributo("link_de_troca_de_unidade_fora_da_forma_observada", e)
+                .com_mensagem("o link de troca de unidade não tem a forma observada")
+        })? {
+            onclicks.push(
+                decodificar_atributo(&bruto).ok_or(
+                    ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                        .com_mensagem("o link de troca de unidade não tem a forma observada"),
+                )?,
+            );
         }
     }
     let Some(primeiro) = onclicks.first() else {
-        return Err(E::LinkDeTrocaAusente);
+        return Err(ErroHtml::ausente("link_de_troca_de_unidade_ausente")
+            .com_mensagem("o Controle não publica o link de troca de unidade")
+            .into());
     };
     if onclicks.iter().any(|o| o != primeiro) {
         return Err(E::LinksDeTrocaDivergentes);
@@ -96,27 +110,47 @@ pub(crate) fn link_da_troca(
         .trim()
         .strip_prefix("window.location.href='")
         .and_then(|r| r.strip_suffix("';"))
-        .ok_or(E::LinkDeTrocaForaDaFormaObservada)?;
-    let consulta = relativo
-        .strip_prefix("controlador.php?")
-        .ok_or(E::LinkDeTrocaForaDaFormaObservada)?;
+        .ok_or(
+            ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                .com_mensagem("o link de troca de unidade não tem a forma observada"),
+        )?;
+    let consulta = relativo.strip_prefix("controlador.php?").ok_or(
+        ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+            .com_mensagem("o link de troca de unidade não tem a forma observada"),
+    )?;
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
-        return Err(E::LinkDeTrocaForaDaFormaObservada);
+        return Err(
+            ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                .com_mensagem("o link de troca de unidade não tem a forma observada")
+                .into(),
+        );
     }
-    conferir_consulta(consulta, ACAO_DE_TROCAR, |h| h.len() == 64)
-        .map_err(|ConsultaForaDaForma| E::LinkDeTrocaForaDaFormaObservada)?;
+    conferir_consulta(consulta, ACAO_DE_TROCAR, |h| h.len() == 64).map_err(
+        |ConsultaForaDaForma| {
+            ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                .com_mensagem("o link de troca de unidade não tem a forma observada")
+        },
+    )?;
     let base = url_da_tela.split('?').next().unwrap_or_default();
-    let (pasta, _) = base
-        .rsplit_once('/')
-        .ok_or(E::LinkDeTrocaForaDaFormaObservada)?;
+    let (pasta, _) = base.rsplit_once('/').ok_or(
+        ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+            .com_mensagem("o link de troca de unidade não tem a forma observada"),
+    )?;
     let url = format!("{pasta}/{relativo}");
     let (host, caminho) = url
         .strip_prefix("https://")
         .and_then(|r| r.split_once('?'))
         .and_then(|(antes, _)| antes.split_once('/'))
-        .ok_or(E::LinkDeTrocaForaDaFormaObservada)?;
+        .ok_or(
+            ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                .com_mensagem("o link de troca de unidade não tem a forma observada"),
+        )?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(E::LinkDeTrocaForaDaFormaObservada);
+        return Err(
+            ErroHtml::valor("link_de_troca_de_unidade_fora_da_forma_observada")
+                .com_mensagem("o link de troca de unidade não tem a forma observada")
+                .into(),
+        );
     }
     Ok(url)
 }
@@ -173,10 +207,13 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     match valor_do_atributo(tag, nome) {
         Ok(None) => Ok(None),
-        Ok(Some(bruto)) => decodificar_atributo(&bruto)
-            .map(Some)
-            .ok_or(E::LinhaDeUnidadeForaDaFormaObservada),
-        Err(_) => Err(E::LinhaDeUnidadeForaDaFormaObservada),
+        Ok(Some(bruto)) => decodificar_atributo(&bruto).map(Some).ok_or(E::Html(
+            ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+        )),
+        Err(_) => Err(ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+            .com_mensagem("uma linha da lista de unidades não tem a forma observada")
+            .into()),
     }
 }
 
@@ -206,9 +243,10 @@ fn total_da_legenda(legenda: &str) -> Option<usize> {
 fn tabela_da_lista<'d>(dom: &'d tl::VDom<'d>) -> Result<(&'d tl::HTMLTag<'d>, usize), E> {
     let parser = dom.parser();
     let mut achada = None;
-    for h in nos_por_elemento_e_classe(dom, None, "table", "infraTable")
-        .map_err(|_| E::TelaDeTrocaNaoReconhecida)?
-    {
+    for h in nos_por_elemento_e_classe(dom, None, "table", "infraTable").map_err(|e| {
+        ErroHtml::atributo("tela_de_troca_de_unidade_nao_reconhecida", e)
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+    })? {
         let Some(tabela) = h.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
@@ -223,12 +261,17 @@ fn tabela_da_lista<'d>(dom: &'d tl::VDom<'d>) -> Result<(&'d tl::HTMLTag<'d>, us
             continue;
         }
         if achada.is_some() || legendas.len() != 1 {
-            return Err(E::TelaDeTrocaNaoReconhecida);
+            return Err(ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+                .com_mensagem("a tela de troca de unidade não foi reconhecida")
+                .into());
         }
         let total = total_da_legenda(&legendas[0]).ok_or(E::ListaDeUnidadesIncompleta)?;
         achada = Some((tabela, total));
     }
-    achada.ok_or(E::TelaDeTrocaNaoReconhecida)
+    achada.ok_or(E::Html(
+        ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida"),
+    ))
 }
 
 /// Uma linha de dados: o rádio e as células Sigla e Descrição.
@@ -236,7 +279,6 @@ fn ler_linha(
     tr: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
 ) -> Result<Option<(UnidadeOferecida, bool)>, E> {
-    use E::LinhaDeUnidadeForaDaFormaObservada as Fora;
     let celulas: Vec<_> = tr
         .query_selector(parser, "td")
         .into_iter()
@@ -253,24 +295,42 @@ fn ler_linha(
         }
     }
     let [radio] = radios.as_slice() else {
-        return Err(Fora);
+        return Err(E::Html(
+            ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+        ));
     };
-    let id = atributo(radio, "value")?.ok_or(Fora)?;
+    let id = atributo(radio, "value")?.ok_or(E::Html(
+        ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+            .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+    ))?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(Fora);
+        return Err(E::Html(
+            ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+        ));
     }
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
     if atributo(radio, "type")?.as_deref() != Some("radio")
         || atributo(radio, "onclick")?.as_deref().map(str::trim) != Some(esperado.as_str())
         || celulas.len() < 3
     {
-        return Err(Fora);
+        return Err(E::Html(
+            ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+        ));
     }
     let sigla = texto(celulas[1], parser);
     if sigla.is_empty() || atributo(radio, "title")?.as_deref() != Some(sigla.as_str()) {
-        return Err(Fora);
+        return Err(E::Html(
+            ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada"),
+        ));
     }
-    let marcada = atributo_presente(radio, "checked").map_err(|_| Fora)?;
+    let marcada = atributo_presente(radio, "checked").map_err(|e| {
+        ErroHtml::atributo("linha_de_unidade_fora_da_forma_observada", e)
+            .com_mensagem("uma linha da lista de unidades não tem a forma observada")
+    })?;
     let descricao = texto(celulas[2], parser);
     Ok(Some((
         UnidadeOferecida {
@@ -286,17 +346,27 @@ fn ler_linha(
 /// navegador seleciona (a última com `selected`; sem nenhuma, a primeira).
 fn filtro(dom: &tl::VDom<'_>, nome: &'static str) -> Result<(&'static str, String), E> {
     let parser = dom.parser();
-    let nos = nos_com_id(dom, nome).map_err(|_| E::TelaDeTrocaNaoReconhecida)?;
+    let nos = nos_com_id(dom, nome).map_err(|e| {
+        ErroHtml::atributo("tela_de_troca_de_unidade_nao_reconhecida", e)
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+    })?;
     let [no] = nos.as_slice() else {
-        return Err(E::TelaDeTrocaNaoReconhecida);
+        return Err(ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+            .into());
     };
-    let tag = no
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(E::TelaDeTrocaNaoReconhecida)?;
+    let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(
+        ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida"),
+    )?;
     let valor = |t: &tl::HTMLTag<'_>| -> Result<String, E> {
         Ok(atributo(t, "value")
-            .map_err(|_| E::TelaDeTrocaNaoReconhecida)?
+            .map_err(|_| {
+                E::Html(
+                    ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+                        .com_mensagem("a tela de troca de unidade não foi reconhecida"),
+                )
+            })?
             .unwrap_or_default())
     };
     if tag.name() != "select" {
@@ -305,11 +375,17 @@ fn filtro(dom: &tl::VDom<'_>, nome: &'static str) -> Result<(&'static str, Strin
     let opcoes = tags(tag, parser, "option");
     let mut escolhida = opcoes.first().copied();
     for opcao in &opcoes {
-        if atributo_presente(opcao, "selected").map_err(|_| E::TelaDeTrocaNaoReconhecida)? {
+        if atributo_presente(opcao, "selected").map_err(|e| {
+            ErroHtml::atributo("tela_de_troca_de_unidade_nao_reconhecida", e)
+                .com_mensagem("a tela de troca de unidade não foi reconhecida")
+        })? {
             escolhida = Some(opcao);
         }
     }
-    let opcao = escolhida.ok_or(E::TelaDeTrocaNaoReconhecida)?;
+    let opcao = escolhida.ok_or(
+        ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida"),
+    )?;
     Ok((nome, valor(opcao)?))
 }
 
@@ -329,13 +405,19 @@ fn publica_selecao_por_script(html: &str) -> bool {
 
 /// Lê e confere a tela Trocar Unidade.
 pub(crate) fn ler_tela_de_troca(html: &str) -> Result<TelaDeTroca, E> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaDeTrocaNaoReconhecida)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+    })?;
     let parser = dom.parser();
-    let formularios =
-        nos_com_id(&dom, "frmInfraSelecaoUnidade").map_err(|_| E::TelaDeTrocaNaoReconhecida)?;
+    let formularios = nos_com_id(&dom, "frmInfraSelecaoUnidade").map_err(|e| {
+        ErroHtml::atributo("tela_de_troca_de_unidade_nao_reconhecida", e)
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+    })?;
     if formularios.len() != 1 {
-        return Err(E::TelaDeTrocaNaoReconhecida);
+        return Err(ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")
+            .com_mensagem("a tela de troca de unidade não foi reconhecida")
+            .into());
     }
     let (tabela, total) = tabela_da_lista(&dom)?;
     if !publica_selecao_por_script(html) {
@@ -348,7 +430,9 @@ pub(crate) fn ler_tela_de_troca(html: &str) -> Result<TelaDeTroca, E> {
             continue;
         };
         if unidades.iter().any(|u| u.id_unidade == unidade.id_unidade) {
-            return Err(E::LinhaDeUnidadeForaDaFormaObservada);
+            return Err(ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")
+                .com_mensagem("uma linha da lista de unidades não tem a forma observada")
+                .into());
         }
         if marcada {
             marcadas.push(unidade.clone());

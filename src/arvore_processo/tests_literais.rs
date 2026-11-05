@@ -2,6 +2,7 @@
 //! que não declaram nó. Linhas sintéticas na forma observada.
 use super::ErroArvore as E;
 use super::literais::{Literal as L, ler_declaracao};
+use crate::erro_html::ErroHtml;
 
 fn texto(s: &str) -> L {
     L::Texto(s.to_owned())
@@ -61,29 +62,29 @@ fn formas_recusadas() {
         // Indentada ou com texto antes.
         (
             r#"  Nos[0] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"x=1;Nos[0] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Sem o fechamento exato, ou com algo depois.
         (
             r#"Nos[0] = new infraArvoreNo("A")"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A"); x();"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Índice que não é decimal.
         (
             r#"Nos[i] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"Nos[] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Expressões, identificadores e concatenação não são literais.
         (
@@ -117,11 +118,11 @@ fn formas_recusadas() {
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\x41");"#,
-            E::EscapeDeNoNaoReconhecido,
+            E::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\u{41}");"#,
-            E::EscapeDeNoNaoReconhecido,
+            E::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\");"#,

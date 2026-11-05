@@ -1,4 +1,5 @@
 //! Exportação local de caixa verificada, nunca sobrepõe arquivo preexistente.
+use crate::erro_html::ErroHtml;
 use serde_json::Value;
 use std::path::Path;
 
@@ -6,12 +7,12 @@ use std::path::Path;
 pub enum ErroArquivoCaixa {
     #[causa(nome = "destino_da_caixa_sem_nome_de_arquivo")]
     DestinoSemNomeDeArquivo,
-    #[causa(nome = "diretorio_do_arquivo_da_caixa_ausente")]
-    DiretorioDeDestinoAusente,
     #[causa(nome = "arquivo_da_caixa_ja_existe")]
     DestinoJaExiste,
     #[causa(nome = "escrita_de_arquivo_da_caixa_falhou")]
     EscritaDeArquivoFalhou,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 impl ErroArquivoCaixa {
     pub fn subcodigo(self) -> &'static str {
@@ -19,8 +20,8 @@ impl ErroArquivoCaixa {
     }
     pub fn mensagem(self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
-            Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
         }
@@ -37,7 +38,9 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     }
     // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
-        return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
+        return Err(ErroHtml::ausente("diretorio_do_arquivo_da_caixa_ausente")
+            .com_mensagem("diretório de destino não existe")
+            .into());
     }
     let bytes =
         serde_json::to_vec_pretty(valor).map_err(|_| ErroArquivoCaixa::EscritaDeArquivoFalhou)?;
@@ -48,7 +51,10 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     )
     .map_err(|falha| match falha {
         F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
-        F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        F::DiretorioAusente => ErroArquivoCaixa::Html(
+            ErroHtml::ausente("diretorio_do_arquivo_da_caixa_ausente")
+                .com_mensagem("diretório de destino não existe"),
+        ),
         F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         F::DiretorioGravavelPorOutros
@@ -105,7 +111,9 @@ mod tests {
         let dir = pasta();
         assert_eq!(
             gravar(&dir.join("ausente/caixa.json"), &serde_json::json!({})),
-            Err(ErroArquivoCaixa::DiretorioDeDestinoAusente)
+            Err(ErroArquivoCaixa::Html(ErroHtml::ausente(
+                "diretorio_do_arquivo_da_caixa_ausente"
+            )))
         );
         fs::remove_dir_all(dir).unwrap();
     }

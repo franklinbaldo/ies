@@ -6,6 +6,7 @@ use crate::anexo_documento::ErroAnexo;
 use crate::arvore_processo::{ErroBarraDoDocumento, ErroConteudoNaArvore};
 use crate::documento_versoes::ErroVersao;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
+use crate::erro_html::ErroHtml;
 use crate::transporte::StatusHttpRecusado;
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -17,12 +18,6 @@ pub(crate) enum ErroDocumentoObter {
     PesquisaRapidaNaoAbriuODocumento(StatusHttpRecusado),
     /// O nó do `id_documento` aberto traz outro número SEI (a15).
     NumeroSeiDaArvoreDiferenteDoPedido,
-    /// Mais de um `DOCUMENTO` da árvore com o número pedido.
-    NumeroSeiRepetidoNaArvore,
-    /// `--processo NUP`: a árvore do processo, com as pastas abertas, não
-    /// tem `DOCUMENTO` com o número pedido.
-    #[causa(nome = "numero_sei_ausente_da_arvore_do_processo")]
-    NumeroSeiAusenteDoProcesso,
     /// O `.src` do nó (ausente, repetido, fora da forma observada).
     #[causa(interna)]
     Conteudo(ErroConteudoNaArvore),
@@ -56,6 +51,8 @@ pub(crate) enum ErroDocumentoObter {
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroDocumentoObter {
@@ -65,16 +62,13 @@ impl ErroDocumentoObter {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Processo(erro) => erro.mensagem(),
             Self::PesquisaRapidaNaoAbriuODocumento(_) => {
                 "a pesquisa rápida não abriu o documento (resultado não é lido)"
             }
             Self::NumeroSeiDaArvoreDiferenteDoPedido => {
                 "o documento aberto não tem o número SEI pedido"
-            }
-            Self::NumeroSeiRepetidoNaArvore => "o número SEI aparece mais de uma vez na árvore",
-            Self::NumeroSeiAusenteDoProcesso => {
-                "o número SEI não está na árvore do processo informado"
             }
             Self::Conteudo(_) => "o link do conteúdo na árvore não foi reconhecido",
             Self::DocumentoCancelado => {

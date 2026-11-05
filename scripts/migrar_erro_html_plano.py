@@ -347,15 +347,22 @@ class Plano:
                         return False
         return True
 
-    def construcao(self, nome, v, prefixo, apelido, causa=None):
-        """`ErroHtml::<problema>("onde")`; a mensagem só vai se não é a genérica."""
+    def construcao(self, nome, v, prefixo, apelido, causa=None, curta=None, teste=False):
+        """`ErroHtml::<problema>("onde")`; a mensagem só vai se não é a genérica.
+
+        `curta` ('try' ou 'into'): o `From<ErroHtml>` derivado converte, e a
+        variante `Html` não precisa ser escrita. Em teste a mensagem não vai:
+        a igualdade de `ErroHtml` não a compara.
+        """
         p, onde, msg = self.migra[nome][v]
         ctor = p if causa is None else 'atributo'
         args = f'"{onde}"' + (f', {causa}' if causa else '')
-        propria = '' if msg == GENERICA[p] else f'.com_mensagem({msg})'
+        propria = '' if teste or msg == GENERICA[p] else f'.com_mensagem({msg})'
         if nome in self.some:
             base = prefixo if apelido else TIPO
             return f'{base}::{ctor}({args}){propria}'
+        if curta:
+            return f'{TIPO}::{ctor}({args}){propria}' + ('.into()' if curta == 'into' else '')
         return f'{prefixo}::Html({TIPO}::{ctor}({args}){propria})'
 
     def padrao(self, nome, v, prefixo, apelido):

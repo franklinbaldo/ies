@@ -1,6 +1,7 @@
 //! Cada recusa de resposta do GET tem variante própria: status 5xx, 429,
 //! outro status, tipo não HTML e corpo não decodificável no charset.
 use super::*;
+use crate::erro_html::ErroHtml;
 use std::io::Cursor;
 
 fn resposta(status_code: i32, mime: &str, corpo: &[u8]) -> RespostaWeb<Cursor<Vec<u8>>> {
@@ -39,7 +40,9 @@ fn tipo_de_conteudo_nao_html_tem_variante_propria() {
     ] {
         assert_eq!(
             decodificar_resposta(resposta(200, mime, b"<html>")),
-            Err(FalhaTransporte::TipoDeConteudoNaoHtml),
+            Err(FalhaTransporte::Html(ErroHtml::html(
+                "tipo_de_conteudo_nao_html"
+            ))),
             "mime {mime:?}"
         );
     }
@@ -70,7 +73,7 @@ fn subcodigos_das_recusas_de_resposta_sao_distintos() {
         FalhaTransporte::StatusHttpDeErroDoServidor(recusa()),
         FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa()),
         FalhaTransporte::StatusHttpDiferenteDe200(recusa()),
-        FalhaTransporte::TipoDeConteudoNaoHtml,
+        FalhaTransporte::Html(ErroHtml::html("tipo_de_conteudo_nao_html")),
         FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
     ];
     let mut subcodigos: Vec<_> = variantes.iter().map(FalhaTransporte::subcodigo).collect();
