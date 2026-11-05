@@ -137,3 +137,61 @@ fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
         Err(ErroComentarios::HtmlNaoInterpretado)
     );
 }
+
+// A barra da árvore é a fonte da URL, não uma URL montada a partir do NUP.
+// Caso Todos tests/test_comentarios_010.py @323eb01 (ação oferecida).
+fn arvore_com_comentarios(acoes: &[String]) -> String {
+    use crate::arvore_processo::tests::{NUP, arvore, no_processo};
+    use crate::propriedades_processo::tests_apoio::{barra, com_barra};
+    let base = arvore(&[no_processo(0, "10", NUP)]);
+    com_barra(&base, 0, &barra(acoes))
+}
+
+fn link_comentarios(id: &str) -> String {
+    use crate::propriedades_processo::tests_apoio::{acao_da_barra, link_das_propriedades};
+    acao_da_barra(&link_das_propriedades("comentario_listar", id))
+}
+
+fn link_da_arvore(
+    html: &str,
+) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
+    let instalacao = crate::instalacao::Instalacao::interpretar(
+        "https://sei.exemplo.gov.br/sei",
+    )
+    .expect("origem sintética");
+    crate::arvore_processo::ler_link_dos_comentarios(&instalacao, html, "10")
+}
+
+#[test]
+fn pega_o_link_de_comentarios_assinado_da_barra_do_processo() {
+    let href = "controlador.php?acao=comentario_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento=10&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash=".to_owned()
+        + &"3".repeat(64);
+    let extraido = link_da_arvore(&arvore_com_comentarios(&[link_comentarios("10")]))
+        .expect("link da barra")
+        .expect("ação publicada");
+    assert_eq!(
+        extraido.as_str(),
+        format!("https://sei.exemplo.gov.br/sei/{href}")
+    );
+    assert_eq!(format!("{extraido:?}"), "EnderecoDosComentarios(<redigido>)");
+}
+
+#[test]
+fn comentario_em_outro_processo_ou_repetido_e_recusa() {
+    assert_eq!(
+        link_da_arvore(&arvore_com_comentarios(&[link_comentarios("11")])),
+        Err(ErroLinkDosComentarios::EnderecoDeOutroProcesso)
+    );
+    assert_eq!(
+        link_da_arvore(&arvore_com_comentarios(&[
+            link_comentarios("10"),
+            link_comentarios("10"),
+        ])),
+        Err(ErroLinkDosComentarios::LinksRepetidosNaBarra)
+    );
+}
+
+#[test]
+fn barra_sem_comentarios_nao_inventa_endereco() {
+    assert_eq!(link_da_arvore(&arvore_com_comentarios(&[])), Ok(None));
+}
