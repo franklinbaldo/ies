@@ -17,7 +17,12 @@ fn controle() -> String {
 fn link_publicado_para_outra_acao_pode_ser_lido_com_hash_valido() {
     let consulta = format!("acao=grupo_unidade_listar&infra_hash={HASH}");
     assert_eq!(
-        destino(&link(&consulta), &controle(), ORIGEM, "grupo_unidade_listar"),
+        destino(
+            &link(&consulta),
+            &controle(),
+            ORIGEM,
+            "grupo_unidade_listar"
+        ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
     );
 }
@@ -25,9 +30,15 @@ fn link_publicado_para_outra_acao_pode_ser_lido_com_hash_valido() {
 #[test]
 fn link_com_hash_repetido_valido_ou_invalido_eh_recusado() {
     for adicional in [HASH, "invalido", ""] {
-        let consulta = format!("acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash={adicional}");
+        let consulta =
+            format!("acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash={adicional}");
         assert_eq!(
-            destino(&link(&consulta), &controle(), ORIGEM, "grupo_unidade_listar"),
+            destino(
+                &link(&consulta),
+                &controle(),
+                ORIGEM,
+                "grupo_unidade_listar"
+            ),
             Err(FalhaDaLupa::LinkAusente),
         );
     }
@@ -43,7 +54,12 @@ fn consulta_malformada_ou_com_chave_nao_canonica_eh_recusada() {
     ];
     for consulta in exemplos {
         assert_eq!(
-            destino(&link(&consulta), &controle(), ORIGEM, "grupo_unidade_listar"),
+            destino(
+                &link(&consulta),
+                &controle(),
+                ORIGEM,
+                "grupo_unidade_listar"
+            ),
             Err(FalhaDaLupa::LinkAusente),
             "uma consulta malformada nunca deve autorizar a leitura"
         );
@@ -56,9 +72,8 @@ fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
         status: 503,
         mensagem_do_servidor: Some("indisponivel".to_owned()),
     };
-    let falha = FalhaDaLupa::Transporte(
-        FalhaTransporte::StatusHttpDeErroDoServidor(recusa.clone()),
-    );
+    let falha =
+        FalhaDaLupa::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(recusa.clone()));
     assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(falha.status_http(), Some(&recusa));
     let json = crate::saida_erro::json_de_erro_fonte(
@@ -78,7 +93,9 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
     use crate::transporte::RespostaWeb;
     use std::io::Cursor;
 
-    struct UnicaLeitura { gets: usize }
+    struct UnicaLeitura {
+        gets: usize,
+    }
     impl TransporteLupa for UnicaLeitura {
         type Corpo = Cursor<Vec<u8>>;
         fn get(
@@ -88,9 +105,8 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
         ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             self.gets += 1;
             assert_eq!(self.gets, 1, "um link inseguro nao pode causar outro GET");
-            let consulta = format!(
-                "acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash=invalido"
-            );
+            let consulta =
+                format!("acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash=invalido");
             let resposta = RespostaWeb {
                 status_code: 200,
                 mime: "text/html; charset=utf-8".to_owned(),
@@ -98,7 +114,10 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
                 localizacao: None,
                 corpo: Cursor::new(link(&consulta).into_bytes()),
             };
-            Ok(RespostaDoPost { resposta, localizacao: None })
+            Ok(RespostaDoPost {
+                resposta,
+                localizacao: None,
+            })
         }
         fn post(
             &mut self,
