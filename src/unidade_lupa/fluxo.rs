@@ -45,7 +45,7 @@ pub(crate) enum FalhaDaLupa {
 impl FalhaDaLupa {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::Transporte(_) => "lupa_transporte_recusado",
+            Self::Transporte(codigo) => codigo,
             Self::Tela(ErroLupa::PaginasDivergentes) => "lista_unidades_incompleta",
             Self::Tela(_) => "pagina_da_lupa_fora_da_forma",
             Self::LinkAusente => "link_da_lupa_ausente",
@@ -104,7 +104,7 @@ fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
         .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
     let parser = dom.parser();
     let mut urls = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
+    for no in dom.query_selector("a, button, input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {continue};
         for atributo in ["href", "onclick"] {
             let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
@@ -150,14 +150,14 @@ fn destino(
         } else {continue};
         if validar_origem(&url, origem).is_err() {continue}
         let Some((_,consulta)) = url.split_once('?') else {continue};
-        let mut acoes = 0;let mut hashes = 0;
+        let mut acoes = 0;let mut hashes = 0;let mut invalida = false;
         for item in consulta.split('&') {
             let Some((chave,valor)) = item.split_once('=') else {continue};
-            if chave == "acao" && valor == acao {acoes+=1}
+            if chave == "acao" {\n                acoes += 1;\n                invalida |= valor != acao;\n            }
             if chave == "infra_hash" && valor.len() == 64
                 && valor.bytes().all(|b| b.is_ascii_hexdigit()) {hashes+=1}
         }
-        if acoes == 1 && hashes == 1 {aceitos.insert(url);}
+        if acoes == 1 && hashes == 1 && !invalida {\n            let segura = crate::url_observada::UrlHttps::interpretar(&url)\n                .is_some_and(|u| Instalacao::interpretar(origem)\n                    .is_some_and(|i| i.autoriza_controlador(u.host, u.caminho)));\n            if segura {aceitos.insert(url);}\n        }
     }
     match aceitos.len() {
         0 => Err(FalhaDaLupa::LinkAusente),
