@@ -48,8 +48,7 @@ pub(crate) fn conferir_cadastro(
 ) -> Result<CadastroObservado, ErroCadastro> {
     use ErroCadastro as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
-    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
-        .map_err(|_| E::HtmlInvalido)?;
+    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro").map_err(|_| E::HtmlInvalido)?;
     let [formulario] = formularios.as_slice() else {
         return Err(E::FormularioAusenteOuRepetido);
     };
@@ -66,7 +65,10 @@ pub(crate) fn conferir_cadastro(
     let mut descricoes = 0;
     let mut radios = Vec::new();
     for handle in form.query_selector(parser, "input").into_iter().flatten() {
-        let tag = handle.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let tag = handle
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         let nome = valor_do_atributo(tag, "name").map_err(|_| E::HtmlInvalido)?;
         match nome.as_deref() {
             Some("hdnIdTipoProcedimento") => {
@@ -80,8 +82,8 @@ pub(crate) fn conferir_cadastro(
             }
             Some("rdoNivelAcesso") => {
                 let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
-                let desabilitado = atributo_presente(tag, "disabled")
-                    .map_err(|_| E::HtmlInvalido)?;
+                let desabilitado =
+                    atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)?;
                 radios.push((valor, desabilitado));
             }
             _ => {}
@@ -131,7 +133,10 @@ fn conferir_listas(
     let mut selects_assunto = 0;
     let mut selects_hipotese = 0;
     for handle in form.query_selector(parser, "select").into_iter().flatten() {
-        let select = handle.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let select = handle
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         let nome = valor_do_atributo(select, "name").map_err(|_| E::HtmlInvalido)?;
         let destino = match nome.as_deref() {
             Some("selAssuntos") => {
@@ -144,15 +149,21 @@ fn conferir_listas(
             }
             _ => continue,
         };
-        for opcao in select.query_selector(parser, "option").into_iter().flatten() {
-            let tag = opcao.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        for opcao in select
+            .query_selector(parser, "option")
+            .into_iter()
+            .flatten()
+        {
+            let tag = opcao
+                .get(parser)
+                .and_then(tl::Node::as_tag)
+                .ok_or(E::HtmlInvalido)?;
             if atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)? {
                 continue;
             }
             let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
-            let titulo = crate::transporte::texto_de_recusa::decodificar_entidades(
-                &tag.inner_text(parser),
-            );
+            let titulo =
+                crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
             if let Some(valor) = valor.filter(|v| !v.is_empty()) {
                 destino.push((valor, titulo.trim().to_owned()));
             }
@@ -215,7 +226,10 @@ mod tests {
 
     #[test]
     fn nao_inventa_assunto_unico() {
-        for opcoes in ["", "<option value='1'>Um</option><option value='2'>Outro</option>"] {
+        for opcoes in [
+            "",
+            "<option value='1'>Um</option><option value='2'>Outro</option>",
+        ] {
             assert_eq!(
                 conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
                 Err(ErroCadastro::AssuntoSugeridoNaoUnico)
@@ -233,7 +247,10 @@ mod tests {
 
     #[test]
     fn restrito_sem_hipotese_determinada_eh_recusado() {
-        for opcoes in ["", "<option value='1'>Uma</option><option value='2'>Outra</option>"] {
+        for opcoes in [
+            "",
+            "<option value='1'>Uma</option><option value='2'>Outra</option>",
+        ] {
             assert_eq!(
                 conferir_cadastro(&tela(ASSUNTO, "", opcoes), "12", "restrito"),
                 Err(ErroCadastro::HipoteseLegalNaoIdentificada)
