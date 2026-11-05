@@ -41,6 +41,9 @@ filtro, nem GET de restauracao.
 ## Decisão
 
 Cada tabela exige colunas e total da legenda que confira suas linhas.
+A falta de uma das duas tabelas so e aceita se a area com ID proprio
+publicar explicitamente `Nenhum registro encontrado.`; sem isso,
+a lista e parcial e o leitor falha fechado.
 Mês com texto literal `Nenhum registro encontrado.` na area de tabela
 e vazio. A pagina que apresenta paginador nao demonstrado e recusada:
 nao afirma total nem completa lista parcial.
