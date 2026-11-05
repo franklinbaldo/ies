@@ -129,7 +129,11 @@ fn erro_de_envio_exibe_sugestoes_guardadas_no_modo_humano() {
     });
     assert_eq!(
         super::texto_das_sugestoes(&erro).as_deref(),
-        Some("IES: sugestões guardadas (não confirmadas pelo SEI): ABC/GECONT - Contabilidade, ABC/GECONT-18141 - Contabilidade regional")
+        Some(concat!(
+            "IES: sugestões guardadas (não confirmadas pelo SEI): ",
+            "ABC/GECONT - Contabilidade, ",
+            "ABC/GECONT-18141 - Contabilidade regional"
+        ))
     );
     assert_eq!(super::texto_das_sugestoes(&json!({})), None);
     assert_eq!(
