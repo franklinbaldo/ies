@@ -263,16 +263,19 @@ fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos>
     encontrado.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
 }
 
+/// O SEI e a unica fonte da data observada; ausencia de diaHoje nao
+/// autoriza usar a data UTC como se fosse data do SEI.
 fn hoje_na_tela(
     html: &str,
     servida: &str,
     instalacao: &Instalacao,
-) -> Result<(u16, u8), ErroLeituraRetornos> {
+) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
     use ErroLeituraRetornos as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::CalendarioDosRetornosDesconhecido)?;
     let parser = dom.parser();
-    let mut meses = HashSet::new();
+    let mut marcado = None;
+    let mut celulas_marcadas = 0;
     for no in dom.query_selector("td").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
@@ -285,6 +288,7 @@ fn hoje_na_tela(
         {
             continue;
         }
+        celulas_marcadas += 1;
         for filho in tag.query_selector(parser, "a").into_iter().flatten() {
             let Some(a) = filho.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
@@ -295,18 +299,17 @@ fn hoje_na_tela(
                 continue;
             };
             let link = conferir_link(&href, servida, instalacao)?;
-            if let Some((ano, mes, _)) = link.valor("data_atual").and_then(data_da_consulta) {
-                meses.insert((ano, mes));
+            if let Some(data) = link.valor("data_atual").and_then(data_da_consulta) {
+                if marcado.replace(data).is_some() {
+                    return Err(E::CalendarioDosRetornosDesconhecido);
+                }
             }
         }
     }
-    if meses.len() == 1 {
-        meses
-            .into_iter()
-            .next()
-            .ok_or(E::CalendarioDosRetornosDesconhecido)
-    } else {
-        Err(E::CalendarioDosRetornosDesconhecido)
+    match (celulas_marcadas, marcado) {
+        (0, None) => Ok(None),
+        (1, Some((ano, mes, _))) => Ok(Some((ano, mes))),
+        _ => Err(E::CalendarioDosRetornosDesconhecido),
     }
 }
 
@@ -321,6 +324,83 @@ fn mes_vizinho((a, m): (u16, u8), rumo: i32) -> Option<(u16, u8)> {
 }
 fn posicao((a, m): (u16, u8)) -> i32 {
     i32::from(a) * 12 + i32::from(m)
+}
+
+/// Data civil UTC, apenas pista de navegacao. O mes publicado na saida
+/// vem exclusivamente da celula diaHoje do SEI, nunca deste relogio.
+fn data_utc_de_dias(dias: i64) -> Option<(u16, u8, u8)> {
+    let z = dias.checked_add(719_468)?;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let dia = doy - (153 * mp + 2) / 5 + 1;
+    let mes = mp + if mp < 10 { 3 } else { -9 };
+    let ano = y + i64::from(mes <= 2);
+    Some((
+        u16::try_from(ano).ok()?,
+        u8::try_from(mes).ok()?,
+        u8::try_from(dia).ok()?,
+    ))
+}
+fn data_utc_agora() -> Option<(u16, u8, u8)> {
+    let segundos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+    data_utc_de_dias(i64::try_from(segundos / 86_400).ok()?)
+}
+
+/// So segue o primeiro dia do mes vizinho se o proprio SEI publicou
+/// a URL. Duas ancoras com href identico significam um unico destino.
+/// Um GET para cada transicao, sem retry ou restauracao de tela.
+fn navegar_ate_mes<F>(
+    tela: &mut String,
+    servida: &mut String,
+    instalacao: &Instalacao,
+    alvo: (u16, u8),
+    get: &mut F,
+    requisicoes: &mut u8,
+) -> Result<(), ErroLeituraRetornos>
+where
+    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
+{
+    use ErroLeituraRetornos as E;
+    let mut vistos = HashSet::new();
+    for _ in 0..=24 {
+        let candidatos = links(tela, servida, instalacao)?;
+        let (atual, _) = mes_inteiro(&candidatos)?;
+        if atual == alvo {
+            return Ok(());
+        }
+        if !vistos.insert(atual) || *requisicoes >= 26 {
+            return Err(E::MesDosRetornosInacessivel);
+        }
+        let rumo = if posicao(alvo) > posicao(atual) {
+            1
+        } else {
+            -1
+        };
+        let proximo = mes_vizinho(atual, rumo).ok_or(E::MesDosRetornosInacessivel)?;
+        let mut escolhido: Option<&str> = None;
+        for link in candidatos.iter().filter(|link| {
+            link.valor("data_atual").and_then(data_da_consulta)
+                == Some((proximo.0, proximo.1, 1))
+        }) {
+            match escolhido {
+                Some(url) if url == link.url => {}
+                Some(_) => return Err(E::CalendarioDosRetornosDesconhecido),
+                None => escolhido = Some(link.url.as_str()),
+            }
+        }
+        let proxima_url = escolhido.ok_or(E::MesDosRetornosInacessivel)?.to_owned();
+        *tela = get(&proxima_url)?;
+        *servida = proxima_url;
+        *requisicoes += 1;
+    }
+    Err(E::MesDosRetornosInacessivel)
 }
 
 pub(crate) struct Leitura {
@@ -342,17 +422,24 @@ pub(crate) fn ler_com<F>(
 where
     F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
 {
-    ler_com_data_utc(controle_url, controle_html, instalacao, mes, (1970, 1, 1), get)
+    // Nao consulta o relogio quando o pedido ja indicou o mes.
+    let hoje_utc = if mes.is_some() {
+        (1970, 1, 1)
+    } else {
+        data_utc_agora().ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?
+    };
+    ler_com_data_utc(controle_url, controle_html, instalacao, mes, hoje_utc, get)
 }
 
-// Shim de teste: o relogio UTC sera injetado para exercitar viradas de mes
-// sem alterar o relogio do CI. O RED comprovara a lacuna de navegacao.
+/// A data UTC injetavel evita dependencia do relogio nos testes. Quando
+/// diaHoje nao esta na tela aberta, procura no mes UTC e, apenas na
+/// virada do dia, no mes vizinho. Nao atribui o relogio UTC ao SEI.
 fn ler_com_data_utc<F>(
     controle_url: &str,
     controle_html: &str,
     instalacao: &Instalacao,
     mes: Option<(u16, u8)>,
-    _hoje_utc: (u16, u8, u8),
+    hoje_utc: (u16, u8, u8),
     mut get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
@@ -363,45 +450,62 @@ where
     let mut tela = get(&url)?;
     let mut servida = url;
     let mut requisicoes: u8 = 2; // Controle e tela do menu
-    let alvo = match mes {
-        Some(v) => v,
-        None => hoje_na_tela(&tela, &servida, instalacao)?,
-    };
-    let mut vistos = HashSet::new();
-    for _ in 0..=24 {
-        let candidatos = links(&tela, &servida, instalacao)?;
-        let (atual, link_mes) = mes_inteiro(&candidatos)?;
-        if atual == alvo {
-            let html = get(link_mes)?;
-            requisicoes = requisicoes.saturating_add(1);
-            let itens = unidade_retornos::extrair_retornos(&html).map_err(E::Tabela)?;
-            return Ok(Leitura {
-                mes: format!("{:04}-{:02}", alvo.0, alvo.1),
-                itens,
-                requisicoes,
-            });
-        }
-        if !vistos.insert(atual) {
-            return Err(E::MesDosRetornosInacessivel);
-        }
-        let rumo = if posicao(alvo) > posicao(atual) {
-            1
-        } else {
-            -1
-        };
-        let proximo = mes_vizinho(atual, rumo).ok_or(E::MesDosRetornosInacessivel)?;
-        let mut dia_primeiro = candidatos.iter().filter(|link| {
-            link.valor("data_atual").and_then(data_da_consulta) == Some((proximo.0, proximo.1, 1))
-        });
-        let link = dia_primeiro.next().ok_or(E::MesDosRetornosInacessivel)?;
-        if dia_primeiro.next().is_some() {
+    let alvo = if let Some(mes) = mes {
+        mes
+    } else if let Some(observado) = hoje_na_tela(&tela, &servida, instalacao)? {
+        observado
+    } else {
+        let (ano, mes, dia) = hoje_utc;
+        if !unidade_retornos::data_valida(&format!("{dia:02}/{mes:02}/{ano:04}")) {
             return Err(E::CalendarioDosRetornosDesconhecido);
         }
-        tela = get(&link.url)?;
-        servida.clone_from(&link.url);
-        requisicoes = requisicoes.saturating_add(1);
+        let mut candidatos = vec![(ano, mes)];
+        if dia == 1 && let Some(anterior) = mes_vizinho((ano, mes), -1) {
+            candidatos.push(anterior);
+        }
+        if Some(dia) == unidade_retornos::ultimo_dia(ano, mes)
+            && let Some(seguinte) = mes_vizinho((ano, mes), 1)
+        {
+            candidatos.push(seguinte);
+        }
+        let mut hoje_do_sei = None;
+        for candidato in candidatos {
+            navegar_ate_mes(
+                &mut tela,
+                &mut servida,
+                instalacao,
+                candidato,
+                &mut get,
+                &mut requisicoes,
+            )?;
+            if let Some(observado) = hoje_na_tela(&tela, &servida, instalacao)? {
+                hoje_do_sei = Some(observado);
+                break;
+            }
+        }
+        hoje_do_sei.ok_or(E::CalendarioDosRetornosDesconhecido)?
+    };
+    navegar_ate_mes(
+        &mut tela,
+        &mut servida,
+        instalacao,
+        alvo,
+        &mut get,
+        &mut requisicoes,
+    )?;
+    let candidatos = links(&tela, &servida, instalacao)?;
+    let (atual, link_mes) = mes_inteiro(&candidatos)?;
+    if atual != alvo {
+        return Err(E::MesDosRetornosInacessivel);
     }
-    Err(E::MesDosRetornosInacessivel)
+    let html = get(link_mes)?;
+    requisicoes += 1;
+    let itens = unidade_retornos::extrair_retornos(&html).map_err(E::Tabela)?;
+    Ok(Leitura {
+        mes: format!("{:04}-{:02}", alvo.0, alvo.1),
+        itens,
+        requisicoes,
+    })
 }
 
 #[cfg(test)]
