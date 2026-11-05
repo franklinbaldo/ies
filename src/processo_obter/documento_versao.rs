@@ -152,7 +152,6 @@ fn ler_atual<V: EnvioDoProcesso>(
     let cache_html = cache.then(|| html.clone());
     let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
-        crc_rodape: None,
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
@@ -217,7 +216,7 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
-        crc_rodape: None,
+        crc_rodape,
         lida: Some(n),
         atual: Ok(atual),
         foto,
