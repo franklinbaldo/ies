@@ -50,3 +50,17 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 - Testes sintéticos src/processo_relacionar/tests.rs.
 - RED local NOT_RUN; CI a verificar. Live PEN1/UnB NOT_RUN (0 pedidos);
   escrita NOT_RUN, resíduo nenhum.
+
+## Subcódigos tipados da fatia
+
+- `confirmacao_de_relacionamento_nao_validada`: condição observável distinta que impede a operação.
+- `endereco_de_relacionar_de_outro_processo`: condição observável distinta que impede a operação.
+- `endereco_de_relacionar_nao_reconhecido`: condição observável distinta que impede a operação.
+- `links_de_relacionar_repetidos_na_barra`: condição observável distinta que impede a operação.
+- `relacionamento_consigo_mesmo`: condição observável distinta que impede a operação.
+- `relacionar_nao_publicado_na_barra`: condição observável distinta que impede a operação.
+- `remocao_de_relacionamento_nao_oferecida`: condição observável distinta que impede a operação.
+- `tela_de_relacionamentos_redirecionada`: condição observável distinta que impede a operação.
+
+Outros subcódigos já definidos pelo transporte, abertura e primitivo de
+formulário conservam sua identidade. Recusas não autorizam retry.
