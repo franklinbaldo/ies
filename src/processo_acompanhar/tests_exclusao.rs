@@ -107,6 +107,26 @@ fn exclusao_recusa_trechos_inalcancaveis_fora_da_funcao() {
 }
 
 #[test]
+fn exclusao_recusa_codigo_morto_ao_redor_da_confirmacao() {
+    // O formulário não deve ser tido como oferecido se o ramo observado
+    // está protegido por uma condição adicional não comprovada.
+    let html = lista_observada("831")
+        .replacen("function acaoExcluir(id,desc){", "function acaoExcluir(id,desc){if(false){", 1)
+        .replacen("</script>", "}</script>", 1);
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_aceita_chave_de_bloco_dentro_do_texto_da_confirmacao() {
+    // Delimitadores em strings não encerram o corpo da função.
+    let html = lista_observada("831").replace("Excluir?", "Excluir } ?");
+    assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
+}
+
+#[test]
 fn exclusao_recusa_oculto_sem_id_associado_ao_script() {
     // Mesmo nome enviável, mas o JS escreveria em outro elemento.
     let html = lista_observada("831").replace(
