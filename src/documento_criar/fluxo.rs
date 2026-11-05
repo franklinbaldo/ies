@@ -329,6 +329,72 @@ mod tests {
         )
     }
 
+    fn lista_41() -> String {
+        // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01.
+        let hash = "a".repeat(64);
+        format!(
+            r#"<html><head><script>
+            function escolher(id) {{
+                document.getElementById('hdnIdSerie').value = id;
+                document.getElementById('frmDocumentoEscolherTipo').submit();
+            }}
+            </script></head><body>
+            <form id="frmDocumentoEscolherTipo" method="post"
+              action="controlador.php?acao=documento_escolher_tipo&amp;infra_hash={hash}">
+              <input type="hidden" id="hdnIdSerie" name="hdnIdSerie" value="">
+              <input type="hidden" name="hdnInfraTipoPagina" value="2">
+            </form>
+            <table id="tblSeries"><tr><td><a href="#" onclick="escolher(291)">Despacho</a>
+            </td></tr></table></body></html>"#
+        )
+    }
+
+    fn derivar_escolha(
+        html: &str,
+    ) -> Result<crate::formulario_web::SubmissaoDerivada, ErroSubmissaoFormulario> {
+        let url = format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_escolher_tipo&infra_hash={}",
+            "b".repeat(64)
+        );
+        let tela = TelaServida {
+            url: &url,
+            html,
+            codificacao: CodificacaoDaTela::Iso88591,
+        };
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        derivar_submissao(
+            &ESCOLHER_TIPO,
+            &instalacao,
+            &tela,
+            "UNIDADE TESTE",
+            &[("hdnIdSerie", "291")],
+        )
+    }
+
+    #[test]
+    fn navegar_tipo_41_deriva_post_de_leitura_antes_do_get_cadastro() {
+        let envio = derivar_escolha(&lista_41()).unwrap();
+        assert_eq!(
+            envio.nomes_dos_campos(),
+            ["hdnIdSerie", "hdnInfraTipoPagina"]
+        );
+        assert_eq!(envio.corpo(), b"hdnIdSerie=291&hdnInfraTipoPagina=2");
+        assert_eq!(envio.efeito(), ESCOLHER_TIPO.efeito);
+        assert_eq!(crate::formulario_web::SubmissaoDerivada::METODO, "POST");
+    }
+
+    #[test]
+    fn navegar_tipo_41_recusa_campo_id_repetido() {
+        let html = lista_41().replace(
+            "</form>",
+            "<input type='hidden' name='hdnIdSerie' value='292'></form>",
+        );
+        assert_eq!(
+            derivar_escolha(&html).unwrap_err().subcodigo(),
+            "campo_oculto_repetido_no_formulario"
+        );
+    }
+
     #[test]
     fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
         let erro = ErroPreviaCriacao::NivelNaoInformado;
