@@ -49,6 +49,8 @@ mod processo;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
+pub mod processo_comentar;
+pub mod processo_comentarios;
 mod processo_enviar;
 mod processo_enviar_cli;
 mod processo_obter;
