@@ -10,6 +10,7 @@ use std::io::Cursor;
 #[derive(Default)]
 struct RedeSintetica {
     chamadas: Vec<&'static str>,
+    submissoes: Vec<crate::formulario_web::SubmissaoDerivada>,
 }
 fn documento(id: &str, numero: &str, tipo: &str) -> DocumentoNaArvore {
     DocumentoNaArvore {
@@ -89,6 +90,7 @@ fn escrever_ok(
     if submissao.efeito() != CADASTRAR.efeito {
         return Err(FalhaTransporte::UrlInvalida);
     }
+    rede.submissoes.push(submissao);
     Ok(resposta_ok())
 }
 #[test]
@@ -109,6 +111,7 @@ fn confirma_com_um_post_e_uma_releitura_sem_retry() {
     );
     assert!(matches!(numero, Ok(ref numero) if numero == "0000002"));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
 fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
@@ -120,8 +123,9 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
         &cookie,
         &foto(0),
         "Despacho",
-        |rede, _, _| {
+        |rede, submissao, _| {
             rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
             Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::UrlInvalida)
         },
         |rede| {
@@ -131,6 +135,7 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     );
     assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
 fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
@@ -150,6 +155,7 @@ fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
     );
     assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
 fn leitura_posterior_falha_sem_segunda_escrita() {
@@ -169,4 +175,5 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     );
     assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
 }
