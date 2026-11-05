@@ -12,8 +12,8 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroArvore, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroArvore,
+    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
     ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
@@ -54,6 +54,7 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    pub(crate) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -123,6 +124,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         sobrestar: arvore_lida.sobrestar,
         retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
+        acompanhar: arvore_lida.acompanhar,
     };
     Ok((aberto, acoes))
 }
