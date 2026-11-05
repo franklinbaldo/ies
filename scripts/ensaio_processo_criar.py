@@ -56,6 +56,11 @@ def chamar_ies(ies: str, argumentos: list[str]) -> tuple[int, dict]:
     return resultado.returncode, documento if isinstance(documento, dict) else {}
 
 
+def contagem_observada(valor: object) -> int | None:
+    """Só registra números de requisições observados, nunca texto bruto da CLI."""
+    return valor if type(valor) is int and valor >= 0 else None
+
+
 def ensaiar(
     *, ies: str, registro: Path, tipo: str, especificacao: str,
     nivel: str, hipotese: str | None, origem: str,
@@ -78,10 +83,12 @@ def ensaiar(
         return 1, {"estado": "PREVIA_FAIL", "requisicoes_previa": None}
     if (codigo != 0 or previa.get("tipo") != tipo
             or previa.get("nivel") != nivel
+            or previa.get("especificacao") != especificacao
             or previa.get("confirmado") is not False
-            or not isinstance(previa.get("requisicoes"), int)
+            or type(previa.get("requisicoes")) is not int
             or previa["requisicoes"] <= 0):
-        return 1, {"estado": "PREVIA_FAIL", "requisicoes_previa": previa.get("requisicoes")}
+        return 1, {"estado": "PREVIA_FAIL",
+                   "requisicoes_previa": contagem_observada(previa.get("requisicoes"))}
     relatorio = {"estado": "CONFIRMACAO_INICIADA", "origem": origem,
                  "requisicoes_previa": previa["requisicoes"],
                  "requisicoes_confirmacao": None, "requisicoes_verificacao": None,
@@ -103,7 +110,7 @@ def ensaiar(
         try:
             pausa(60 if "tramita.processoeletronico.gov.br" in origem else 30)
             codigo, criado = executar(ies, base + ["--confirmar"])
-            relatorio["requisicoes_confirmacao"] = criado.get("requisicoes")
+            relatorio["requisicoes_confirmacao"] = contagem_observada(criado.get("requisicoes"))
             # Com os mesmos argumentos, confirmar apenas soma o POST
             # criador e as duas leituras verificadoras ao orçamento da prévia.
             orcamento_consistente = (
@@ -122,7 +129,7 @@ def ensaiar(
             gravar()
             pausa(60 if "tramita.processoeletronico.gov.br" in origem else 30)
             codigo, lido = executar(ies, ["processo", nup])
-            relatorio["requisicoes_verificacao"] = lido.get("requisicoes")
+            relatorio["requisicoes_verificacao"] = contagem_observada(lido.get("requisicoes"))
             if (codigo != 0 or lido.get("numero") != nup
                     or not lido.get("id_procedimento")
                     or type(lido.get("requisicoes")) is not int
