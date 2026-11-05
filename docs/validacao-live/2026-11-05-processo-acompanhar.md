@@ -79,3 +79,23 @@ anterior foi ignorado ou enfraquecido.
 - **Prévia autenticada, confirmação, releitura e replay de cassettes:**
   `NOT_RUN`; 0 GETs ao SEI, 0 POSTs ao SEI; resíduo: **nenhum**.
   `--deixar --confirmar` ainda recusa antes de ler sessão ou abrir rede.
+
+## Terceira fatia — 🐢 Tartaruga: escopo real de `acaoExcluir`
+
+- **Observação antes dos testes:** `Todos tests/test_processo_acompanhar_010.py`
+  @323eb01 mostra o corpo `acaoExcluir(id,desc)`, o `if(confirm(...))`,
+  o oculto `hdnInfraItemId`, a URL de exclusão e o `submit()`.
+- **Regressão corrigida:** a validação anterior buscava instruções no
+  `script` inteiro, mesmo fora da função. Agora delimita o corpo por
+  chaves e strings e exige a forma servida, sem código adicional.
+- **Testes sintéticos:** comandos deslocados para outra função, trechos
+  fora da função, condição adicional inatingível e chave em texto de
+  confirmação; não há teste pulado ou enfraquecido.
+- **RED dos testes novos:** `NOT_RUN` como falha comprovada. O CI do
+  commit de testes isolados foi cancelado ao chegar a implementação;
+  o RED histórico da fatia anterior segue em 1 teste falhando.
+- **Live:** prévia `NOT_RUN` (0 GET); confirmação `NOT_RUN` (0 POST);
+  releitura `NOT_RUN` (0 GET). Replay do acervo `NOT_RUN`.
+  **Resíduo no SEI: nenhum.** Nenhuma instalação foi acessada.
+- **Segurança:** `--deixar --confirmar` permanece bloqueado antes de
+  carregar a sessão; falta derivar o POST único e validar a conferência.
