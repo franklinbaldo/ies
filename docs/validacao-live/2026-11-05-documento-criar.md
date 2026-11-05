@@ -43,3 +43,10 @@ orçamento e intervalos da issue. A escrita em treinamento **foi autorizada pelo
 - A CLI já tem caminho para confirmação somente na tela 4.0 com link direto, nível público e regra de submissão observada. A implementação deriva um único POST, nunca o repete, e exige releitura antes de declarar sucesso. Falha posterior vira saída 3. **Ainda não compilado ou testado neste sandbox**; não usar como comprovação de segurança.
 - Prévia em instalação de treinamento: **NOT_RUN**, 0 requisições desta sessão. Confirmação: **NOT_RUN**, 0 escritas; verificação ao vivo **NOT_RUN**, nenhum resíduo criado ou observado.
 - Próximo passo: corrigir eventuais gates, executar replay das cassettes, ampliar navegação `escolher(id)`, validar campos obrigatórios/hipóteses legais e fazer prévia ao vivo antes de qualquer escrita.
+
+### Handoff da sessão atual
+
+- Novo RED publicado antes do GREEN no branch: 2 testes de unicidade de snapshots, 1 de valor de rádio inesperado e 3 de formulário; mais um caso de nível explícito. **RED local NOT_RUN; falhas observadas: indeterminadas**, pois não há Rust/Cargo e a resolução DNS para instalação falhou.
+- O fluxo de confirmação está implementado em WIP e usa o mesmo branch da PR #248, **sem prova de compilação ou CI do head**. Não considerar pronto para merge/revisão final; confirmar gates antes de qualquer teste ao vivo.
+- Prévia, POST de escrita e verificação live no SEI: **NOT_RUN, 0 requisições, 0 documentos criados**, sem resíduo desta sessão. Autorização restrita a treinamento permanece válida.
+- Pendências: compilação, rustfmt/Clippy/testes/OKF/subcódigos; replay; teste de integração com orçamento exato; validação dos campos obrigatórios e hipóteses legais; navegação de `escolher(id)`; prévia e escrita única em treinamento com releitura e resíduo registrado.
