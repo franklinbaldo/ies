@@ -25,6 +25,54 @@ jobs:
             --output "$RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" \
             "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-e01c45d573ff1591.zip"
           echo "e01c45d573ff15912f0a5d018165aa3edbf24c89  $RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" | sha1sum --check
+      - name: Diagnosticar forma sem publicar URLs ou hashes assinados
+        run: |
+          python3 - <<'PY'
+          import json, os, base64, zipfile
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Forma(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.script = False
+                  self.scripts = []
+                  self.atributos = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      self.script = True
+                      self.scripts.append("")
+                  for k,v in attrs:
+                      if v and "unidade_selecionar_envio_processo" in v:
+                          self.atributos.append((tag,k))
+              def handle_endtag(self, tag):
+                  if tag == "script":
+                      self.script = False
+              def handle_data(self, data):
+                  if self.script and self.scripts:
+                      self.scripts[-1] += data
+          alvo="unidade_selecionar_envio_processo"
+          with zipfile.ZipFile(Path(os.environ["RUNNER_TEMP"])/"ies-acervo/lote-e01c45d573ff1591.zip") as z:
+              obj=json.loads(z.read("unidade-listar-destinos-go.json"))
+          for idx,it in enumerate(obj["interactions"]):
+              if it["request"].get("operation") != "grupo_unidade_cadastrar" or it["response"].get("status_code") != 200:
+                  continue
+              html=base64.b64decode(it["response"].get("body_base64","")).decode("latin-1")
+              f=Forma();f.feed(html)
+              literais=[]
+              for s in f.scripts:
+                  for quote in ("'", '"'):
+                      p=s.split(quote)
+                      for piece in p[1::2]:
+                          if alvo not in piece:
+                              continue
+                          literais.append({"tamanho":len(piece),"controlador": "controlador.php?" in piece,
+                            "https":piece.startswith("https://"),"prefixo_dois_pontos":piece.startswith(".."),
+                            "amp_html":"&amp;" in piece,"barra_inicial":piece.startswith("/"),
+                            "escape_barra":"\\\\ " in piece,"acao":alvo in piece})
+              print(json.dumps({"passo":idx,"acao_no_html":html.count(alvo),
+                "scripts":len(f.scripts),"acao_nos_scripts":sum(s.count(alvo) for s in f.scripts),
+                "ocorrencias_em_atributos":f.atributos,"literais":literais}))
+          PY
       - name: Replay offline da lupa GO sem pedidos ao SEI
         env:
           IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo
