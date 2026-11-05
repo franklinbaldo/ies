@@ -40,9 +40,19 @@ Nas quatro: `frmLogin`, `txtUsuario`, `pwdSenha`, `selOrgao`, `hdnAcao`
 oculto e `onsubmit="return acaoLogin(2);"`. Várias respostas trazem mais de
 um `Set-Cookie`.
 
+## Login e relogin de leitura no IES
+
+- [Ensaio live de relogin na PEN4](../../docs/validacao-live/2026-11-05-relogin.md):
+  **PASS** para login forçado, sessão desconhecida na leitura de processo,
+  reaproveitamento da geração atualizada, 302 do Controle para o login
+  e relogin único; a prévia de escrita não relogou (**PASS**).
+- O vencimento **natural** da sessão, segunda falha em sequência e
+  relogin live em outras instalações seguem **NOT_RUN** nesse ensaio.
+
 ## Limite da evidência
 
-Nenhum login autenticado foi feito pelo IES até este card. Sucesso,
-Painel de Controle, recusa de credencial, captcha exigido e 2FA vêm do
-comportamento do Todos e de telas sintéticas, não de gravação do IES. A
-validação live fica no roteiro do operador.
+As observações públicas de 02/11 não incluíram autenticação. O
+relatório live de 05/11 comprova apenas os cenários de login/relogin
+acima na PEN4, não a cobertura universal das instalações. Recusa de
+credencial, captcha exigido e 2FA seguem sustentados pelo Todos e por
+testes sintéticos, sem validação live correspondente neste card.
