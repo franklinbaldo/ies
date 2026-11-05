@@ -68,6 +68,7 @@ pub(crate) enum ErroPreviaCriacao {
     Tela(FalhaDaTela),
     Tipo(ErroCriar),
     Formulario(ErroSubmissaoFormulario),
+    NivelNaoInformado,
     NivelRestritoSemHipotese,
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
@@ -88,6 +89,7 @@ impl ErroPreviaCriacao {
             Self::Tela(FalhaDaTela::SessaoEncerrada) => "sessao_encerrada_rode_ies_login",
             Self::Tipo(erro) => erro.subcodigo(),
             Self::Formulario(erro) => erro.subcodigo(),
+            Self::NivelNaoInformado => "nivel_de_documento_nao_informado_para_escrita",
             Self::NivelRestritoSemHipotese => "nivel_de_documento_requer_hipotese_legal",
             Self::SubmissaoNaoComprovada => "submissao_do_documento_nao_observada",
             Self::ArvoreIncompleta => "arvore_de_documentos_incompleta",
@@ -161,8 +163,10 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     }
     // O cadastro restrito exige escolha de hipótese legal. Enquanto a
     // operação não resolver esse controle, apenas o nível público é seguro.
-    if pedido.nivel.is_some_and(|nivel| nivel != "publico") {
-        return Err(E::NivelRestritoSemHipotese);
+    match pedido.nivel {
+        Some("publico") => {}
+        None => return Err(E::NivelNaoInformado),
+        _ => return Err(E::NivelRestritoSemHipotese),
     }
     conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, Some("publico"))
         .map_err(E::Tipo)?;
@@ -271,6 +275,12 @@ mod tests {
                 ("txtDescricao", "Ensaio"),
             ],
         )
+    }
+
+    #[test]
+    fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
+        let erro = ErroPreviaCriacao::NivelNaoInformado;
+        assert_eq!(erro.subcodigo(), "nivel_de_documento_nao_informado_para_escrita");
     }
 
     #[test]
