@@ -130,6 +130,16 @@ RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
 [contrato de documento](../contracts/cli/documento-buscar.md) ·
 [decisão](decisoes/processo-buscar.md).
 
+## Handoff #269 — sobrestar e retomar (PR Draft #279)
+
+As prévias Web de `processo sobrestar NUP --motivo TEXTO` e
+`processo retomar NUP` validam a unidade, situação e ação
+assinada da barra sem escrita, usando só a abertura do processo.
+`--confirmar` ainda está bloqueado antes da rede. RED inicial:
+5 testes falhando. Replay: NOT_RUN; live: NOT_RUN, 0 requisições.
+[Contrato](../contracts/cli/processo-sobrestar.md) ·
+[decisão](decisoes/processo-sobrestar.md).
+
 ## Gate manual para PRs de capacidade
 
 Antes de abrir uma PR, preencher na descrição:
