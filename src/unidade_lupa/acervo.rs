@@ -1,5 +1,5 @@
 //! Replay de telas reais da lupa de unidades da cassette GO (#244).
-//! Teste ignorado: exige ZIP público conferido em IES_ACERVO_CACHE.
+//! Teste ignorado: exige ZIP público conferido em `IES_ACERVO_CACHE`.
 //! Nunca executa HTTP nem revela cookie, URL assinada ou HTML.
 use super::ler_pagina;
 use crate::cassette::acervo::gravacao;
@@ -30,15 +30,22 @@ fn replay_da_lupa_go_no_acervo() {
     let mut get = 0usize;
     let mut post = 0usize;
     for resposta in gravacao::respostas(&conferida.json) {
-        if resposta.operacao != "unidade_selecionar_envio_processo"
-            || resposta.status != 200
-        {
+        if resposta.operacao != "unidade_selecionar_envio_processo" || resposta.status != 200 {
             continue;
         }
         let html = html_da_resposta(resposta.item)
             .unwrap_or_else(|_| panic!("corpo HTML inválido no passo {}", resposta.passo));
-        let pagina = ler_pagina(&html)
-            .unwrap_or_else(|e| panic!("lupa GO passo {}: {e:?}", resposta.passo));
+        let pagina = ler_pagina(&html).unwrap_or_else(|e| {
+            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("HTML da cassette");
+            let legends: Vec<_> = dom
+                .query_selector("caption")
+                .into_iter()
+                .flatten()
+                .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
+                .map(|tag| super::texto_da_tag(tag, dom.parser()))
+                .collect();
+            panic!("lupa GO passo {}: {e:?}; legendas públicas: {legends:?}", resposta.passo)
+        });
         assert!(pagina.paginas >= 1);
         assert!(pagina.pagina < pagina.paginas);
         assert!(pagina.unidades.len() <= pagina.total);
