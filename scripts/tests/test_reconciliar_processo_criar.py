@@ -96,6 +96,12 @@ class ConciliacaoSomenteLeitura(unittest.TestCase):
         self.assertFalse(r["cobertura_total"])
         self.assertEqual(len(self.pausas), 12)
 
+    def test_id_de_processo_invalido_ou_url_nao_pode_ser_publicado(self):
+        r = self.rodar([(0, lista([NUP])),
+                       (0, processo(id_procedimento="https://example.invalid/?infra_hash=x"))])
+        self.assertEqual(r["estado"], "INCONCLUSIVO")
+        self.assertEqual(r["correspondencias"], [])
+
     def test_subcodigo_de_resposta_nao_pode_vazar_url_no_log(self):
         r = self.rodar([(1, {"subcodigo": "https://example.invalid/?infra_hash=segredo",
                              "requisicoes": -1})])
