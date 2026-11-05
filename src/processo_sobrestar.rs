@@ -215,6 +215,6 @@ mod tela;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod tests_tela;
-#[cfg(test)]
 mod tests_escrita;
+#[cfg(test)]
+mod tests_tela;
