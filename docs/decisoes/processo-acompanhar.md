@@ -62,7 +62,8 @@ comprova sucesso. Sem prova, a saída é 3. A confirmação de retirada
 continua bloqueada antes da sessão. A nova prévia de retirada não se
 baseia somente numa checkbox: exige a oferta `acaoExcluir` na linha,
 o formulário `frmGerenciarAcompanhamento`, o oculto reescrito pelo
-script `hdnInfraItemId` e a ação assinada `acompanhamento_excluir`
+script `hdnInfraItemId` (nome e ID únicos no DOM, não desabilitado)
+e a ação assinada `acompanhamento_excluir`
 para o mesmo processo. Esses elementos são examinados como texto e DOM,
 sem executar JavaScript ou publicar hash. Falha fechada nas variantes
 não observadas; o POST de exclusão continua fechado até derivação
