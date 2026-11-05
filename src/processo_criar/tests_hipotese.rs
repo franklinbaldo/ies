@@ -18,22 +18,27 @@ fn controle_de_criacao() -> String {
 }
 
 fn lista() -> String {
-    format!("<form id='frmProcedimentoEscolherTipo' method='post' action='controlador.php?acao=procedimento_escolher_tipo&infra_hash={HASH}'>\
+    format!(
+        "<form id='frmProcedimentoEscolherTipo' method='post' action='controlador.php?acao=procedimento_escolher_tipo&infra_hash={HASH}'>\
     <input type='hidden' name='hdnIdTipoProcedimento' value=''>\
     <input type='hidden' name='hdnFiltroTipoProcedimento' value='U'></form>\
     <a onclick=\"exibirTiposProcedimento('U')\">Todos</a>\
     <table id='tblTipoProcedimento'><tr><td>\
     <a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12&amp;infra_hash={HASH}'>{TIPO}</a>\
-    </td></tr></table>")
+    </td></tr></table>"
+    )
 }
 
 fn cadastro(com_ajax: bool) -> String {
     let script = if com_ajax {
-        format!("\n<script>\nobjAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal&infra_hash={HASH}');\n</script>")
+        format!(
+            "\n<script>\nobjAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal&infra_hash={HASH}');\n</script>"
+        )
     } else {
         String::new()
     };
-    format!("<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>\
+    format!(
+        "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>\
         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>\
         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>\
         <input type='hidden' name='hdnAssuntos' value=''>\
@@ -42,7 +47,8 @@ fn cadastro(com_ajax: bool) -> String {
         <input type='radio' name='rdoNivelAcesso' value='1'>\
         <select name='selAssuntos'><option value='21'>Assunto Teste</option></select>\
         <select name='selHipoteseLegal'><option value='null'> </option></select>\
-        </form>{script}")
+        </form>{script}"
+    )
 }
 
 fn restrito(confirmar: bool) -> PedidoCriar<'static> {
@@ -56,7 +62,7 @@ fn restrito(confirmar: bool) -> PedidoCriar<'static> {
     }
 }
 
-/// Cenário: Todos/src/todos/documentos.py::hipoteses_do_cadastro @323eb01.
+/// Cenário: `Todos/src/todos/documentos.py::hipoteses_do_cadastro` @323eb01.
 /// No cadastro restrito o select começa vazio; uma consulta AJAX observada
 /// oferece uma única opção. A prévia retorna sem POST criador.
 #[test]
@@ -69,7 +75,13 @@ fn previa_restrita_liga_ajax_publicado_e_nao_cria() {
         ok(XML_UNICO.to_owned()),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &restrito(false), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(false),
+            rede,
+        )
     });
     let feito = resultado.expect("a unica opcao AJAX deve ser observada");
     assert_eq!(feito.nivel, "restrito");
@@ -77,14 +89,18 @@ fn previa_restrita_liga_ajax_publicado_e_nao_cria() {
     assert_eq!(feito.requisicoes, 4);
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 1);
-    assert!(pedidos[3].url.contains("acao_ajax=hipotese_legal_select_nome_base_legal"));
+    assert!(
+        pedidos[3]
+            .url
+            .contains("acao_ajax=hipotese_legal_select_nome_base_legal")
+    );
     let corpo = pedidos[3].corpo.as_deref().unwrap();
     assert!(corpo.contains("staNivelAcesso=1"));
     assert!(corpo.contains("primeiroItemValor=null"));
     assert!(corpo.contains("valorItemSelecionado="));
 }
 
-/// Cenário: Todos/tests/test_escritas_diretas_010.py @323eb01.
+/// Cenário: `Todos/tests/test_escritas_diretas_010.py` @323eb01.
 /// O AJAX não é o POST criador. Só se cria após uma hipótese unívoca
 /// conferida e se verifica NUP/ID por duas leituras frescas.
 #[test]
@@ -95,12 +111,20 @@ fn confirmacao_restrita_tem_ajax_uma_escrita_e_duas_releituras() {
         ok(lista()),
         ok(cadastro(true)),
         ok(XML_UNICO.to_owned()),
-        r302(&format!("controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}")),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
         ok(trabalhar()),
         ok(arvore(&[UNIDADE], &[])),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &restrito(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
     });
     let feito = resultado.expect("confirmacao verificada");
     assert!(feito.confirmado);
@@ -108,9 +132,19 @@ fn confirmacao_restrita_tem_ajax_uma_escrita_e_duas_releituras() {
     assert_eq!(feito.requisicoes, 7);
     assert_eq!(pedidos.len(), 7);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 2);
-    assert!(pedidos[3].url.contains("acao_ajax=hipotese_legal_select_nome_base_legal"));
+    assert!(
+        pedidos[3]
+            .url
+            .contains("acao_ajax=hipotese_legal_select_nome_base_legal")
+    );
     assert!(pedidos[4].url.contains("acao=procedimento_gerar"));
-    assert!(pedidos[4].corpo.as_deref().unwrap().contains("selHipoteseLegal=31"));
+    assert!(
+        pedidos[4]
+            .corpo
+            .as_deref()
+            .unwrap()
+            .contains("selHipoteseLegal=31")
+    );
     assert!(pedidos[5..].iter().all(|r| r.metodo == "GET"));
 }
 
@@ -126,28 +160,38 @@ fn ajax_com_duas_hipoteses_recusa_antes_do_post_criador() {
         ok(XML_DUPLO.to_owned()),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &restrito(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
     });
     let erro = resultado.expect_err("duas hipoteses devem ser recusadas");
     assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 1);
-    assert!(pedidos.iter().all(|r| {
-        r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar")
-    }));
+    assert!(
+        pedidos
+            .iter()
+            .all(|r| { r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar") })
+    );
 }
 
 /// Sem declaração literal de AJAX, nenhum endpoint pode ser inventado.
 #[test]
 fn ajax_nao_declarado_na_tela_recusa_sem_post() {
     let amb = ambiente();
-    let respostas = vec![
-        ok(controle_de_criacao()),
-        ok(lista()),
-        ok(cadastro(false)),
-    ];
+    let respostas = vec![ok(controle_de_criacao()), ok(lista()), ok(cadastro(false))];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &restrito(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
     });
     let erro = resultado.expect_err("consulta nao publicada na tela");
     assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_declarada");
