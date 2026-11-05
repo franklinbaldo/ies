@@ -48,7 +48,10 @@ impl std::fmt::Debug for LinkDeCancelamento {
 
 /// Único href `documento_cancelar` dentro da barra do documento pedido.
 pub(crate) fn ler_link_cancelar(
-    instalacao: &Instalacao, html: &str, documento: &str, processo: &str,
+    instalacao: &Instalacao,
+    html: &str,
+    documento: &str,
+    processo: &str,
 ) -> Result<Option<LinkDeCancelamento>, ErroLinkCancelar> {
     use ErroLinkCancelar as E;
     let Some(barra) = barra_do_no(html, documento).map_err(|_| E::BarraForaDaForma)? else {
