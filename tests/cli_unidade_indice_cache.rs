@@ -20,10 +20,8 @@ impl SessaoSintetica {
             .duration_since(UNIX_EPOCH)
             .expect("relógio")
             .as_nanos();
-        let pasta = std::env::temp_dir().join(format!(
-            "ies-244-cli-{}-{nanos}",
-            std::process::id()
-        ));
+        let pasta =
+            std::env::temp_dir().join(format!("ies-244-cli-{}-{nanos}", std::process::id()));
         fs::create_dir(&pasta).unwrap();
         #[cfg(unix)]
         {
@@ -44,8 +42,9 @@ impl SessaoSintetica {
         Self::privado(&origem, "https://sei.example/sei\n");
         Self::privado(&cookie, "PHPSESSID=SINTETICO\n");
         let banco = Connection::open(&indice).unwrap();
-        banco.execute_batch(
-            "PRAGMA user_version=3;
+        banco
+            .execute_batch(
+                "PRAGMA user_version=3;
              CREATE TABLE lista_unidade (
                 instalacao TEXT NOT NULL,
                 unidade_ativa TEXT NOT NULL,
@@ -62,33 +61,54 @@ impl SessaoSintetica {
                 orgao TEXT NOT NULL,
                 lida_em REAL NOT NULL,
                 PRIMARY KEY(instalacao, unidade_ativa, id)
-             ) STRICT;"
-        ).unwrap();
-        banco.execute(
-            "INSERT INTO lista_unidade VALUES (?1, ?2, ?3, ?4)",
-            params!["https://sei.example/sei", "7", 1234.0, 3_i64],
-        ).unwrap();
+             ) STRICT;",
+            )
+            .unwrap();
+        banco
+            .execute(
+                "INSERT INTO lista_unidade VALUES (?1, ?2, ?3, ?4)",
+                params!["https://sei.example/sei", "7", 1234.0, 3_i64],
+            )
+            .unwrap();
         for (id, sigla, descricao) in [
             ("10", "CDE/SEAD", "Coordenação de Ensino"),
             ("11", "CDE", "São Paulo"),
             ("12", "OUTRA", "Descrição"),
         ] {
-            banco.execute(
-                "INSERT INTO unidade VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params!["https://sei.example/sei", "7", id, sigla, descricao, "Órgão", 1234.0],
-            ).unwrap();
+            banco
+                .execute(
+                    "INSERT INTO unidade VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        "https://sei.example/sei",
+                        "7",
+                        id,
+                        sigla,
+                        descricao,
+                        "Órgão",
+                        1234.0
+                    ],
+                )
+                .unwrap();
         }
-        banco.execute(
-            "INSERT INTO lista_unidade VALUES (?1, ?2, ?3, ?4)",
-            params!["https://sei.example/sei", "8", 1235.0, 0_i64],
-        ).unwrap();
+        banco
+            .execute(
+                "INSERT INTO lista_unidade VALUES (?1, ?2, ?3, ?4)",
+                params!["https://sei.example/sei", "8", 1235.0, 0_i64],
+            )
+            .unwrap();
         drop(banco);
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
             fs::set_permissions(&indice, fs::Permissions::from_mode(0o600)).unwrap();
         }
-        Self { pasta, url, origem, cookie, indice }
+        Self {
+            pasta,
+            url,
+            origem,
+            cookie,
+            indice,
+        }
     }
 
     fn privado(caminho: &Path, texto: &str) {
@@ -124,7 +144,11 @@ impl Drop for SessaoSintetica {
 fn pesquisa_offline_aceita_acento_ignorado_e_sigla_exata_primeiro() {
     let sessao = SessaoSintetica::nova();
     let saida = sessao.executar(&["unidade", "pesquisar", "cde", "--json"]);
-    assert!(saida.status.success(), "{:?}", String::from_utf8_lossy(&saida.stderr));
+    assert!(
+        saida.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(valor["origem"], "indice");
     assert_eq!(valor["requisicoes"], 0);
@@ -150,7 +174,11 @@ fn pesquisa_offline_aceita_acento_ignorado_e_sigla_exata_primeiro() {
 fn listagem_distingue_snapshot_valido_e_unidade_sem_lista() {
     let sessao = SessaoSintetica::nova();
     let saida = sessao.executar(&["unidade", "listar", "--json"]);
-    assert!(saida.status.success(), "{:?}", String::from_utf8_lossy(&saida.stderr));
+    assert!(
+        saida.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(valor["total"], 3);
     assert_eq!(valor["requisicoes"], 0);
