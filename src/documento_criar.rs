@@ -24,6 +24,7 @@ pub(crate) enum ErroCriar {
     TipoDoCadastroDiferente,
     DescricaoNaoOferecida,
     NivelNaoOferecido,
+    CampoObrigatorioNaoAtendido,
 }
 impl ErroCriar {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -39,6 +40,7 @@ impl ErroCriar {
             Self::TipoDoCadastroDiferente => "tipo_do_cadastro_diferente_do_solicitado",
             Self::DescricaoNaoOferecida => "descricao_nao_oferecida_no_cadastro",
             Self::NivelNaoOferecido => "nivel_nao_oferecido_no_cadastro",
+            Self::CampoObrigatorioNaoAtendido => "campo_obrigatorio_do_cadastro_nao_atendido",
         }
     }
 }
@@ -428,6 +430,46 @@ pub(crate) fn conferir_cadastro(
                 .is_some()
         {
             return Err(E::NivelNaoOferecido);
+        }
+    }
+    // Regras HTML5 `required` da tela servida: não submeter um cadastro
+    // para o qual a CLI não tem valor. O nível explícito identifica a
+    // tentativa de preparar escrita; a prévia sem nível pode ser lida.
+    if nivel.is_some() {
+        for tag in formulario
+            .children()
+            .all(dom.parser())
+            .iter()
+            .filter_map(tl::Node::as_tag)
+        {
+            let nome_tag = tag.name().as_utf8_str();
+            if !nome_tag.eq_ignore_ascii_case("input")
+                && !nome_tag.eq_ignore_ascii_case("select")
+                && !nome_tag.eq_ignore_ascii_case("textarea")
+            {
+                continue;
+            }
+            let atributo = |nome| {
+                valor_do_atributo(tag, nome).map_err(|_| E::CadastroForaDaForma)
+            };
+            if atributo("required")?.is_none() || atributo("disabled")?.is_some() {
+                continue;
+            }
+            let tipo_controle = atributo("type")?;
+            if matches!(
+                tipo_controle.as_deref(),
+                Some("hidden" | "submit" | "button" | "reset" | "image")
+            ) {
+                continue;
+            }
+            let atendido = match atributo("name")?.as_deref() {
+                Some("txtDescricao") => descricao.is_some_and(|s| !s.trim().is_empty()),
+                Some("rdoNivelAcesso") => nivel.is_some(),
+                _ => false,
+            };
+            if !atendido {
+                return Err(E::CampoObrigatorioNaoAtendido);
+            }
         }
     }
     Ok(())
