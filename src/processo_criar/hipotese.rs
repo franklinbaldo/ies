@@ -28,6 +28,7 @@ pub(crate) enum ErroHipotese {
     ConsultaNaoDerivada,
     RespostaNaoReconhecida,
     OpcaoNaoUnica,
+    OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
     EscolhaInlineNaoVerificada,
     Transporte {
@@ -42,17 +43,20 @@ impl ErroHipotese {
             Self::ConsultaNaoDeclarada => "hipotese_legal_ajax_nao_declarada",
             Self::ConsultaNaoDerivada => "hipotese_legal_ajax_nao_derivada",
             Self::RespostaNaoReconhecida => "hipotese_legal_ajax_resposta_nao_reconhecida",
-            Self::OpcaoNaoUnica => "hipotese_legal_ajax_nao_unica",
+            Self::OpcaoNaoUnica | Self::OpcoesDisponiveis(_) => "hipotese_legal_ajax_nao_unica",
             Self::EscolhaNaoOferecida => "hipotese_legal_escolha_nao_oferecida",
             Self::EscolhaInlineNaoVerificada => "hipotese_legal_escolha_inline_nao_verificada",
             Self::Transporte { subcodigo, .. } => subcodigo,
         }
     }
 
-    /// Shim de contrato TDD: o RED exige que opções observadas sejam
-    /// disponibilizadas ao operador sem autorizar a escrita.
+    /// Somente opções distintas, habilitadas e imprimíveis realmente vistas no
+    /// AJAX podem ser oferecidas para uma próxima prévia com ID#NOME.
     pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
-        None
+        match self {
+            Self::OpcoesDisponiveis(opcoes) => Some(opcoes),
+            _ => None,
+        }
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
@@ -128,7 +132,18 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     let opcoes = opcoes(xml)?;
     match opcoes.as_slice() {
         [(id, _)] => Ok(id.clone()),
-        _ => Err(ErroHipotese::OpcaoNaoUnica),
+        [] => Err(ErroHipotese::OpcaoNaoUnica),
+        // Não oferecer valores que a própria CLI não consegue representar
+        // sem ambiguidade ou que possam controlar a saída humana.
+        _ if opcoes.iter().any(|(id, nome)| {
+            id.contains('#')
+                || id.chars().any(char::is_control)
+                || nome.chars().any(char::is_control)
+        }) => Err(ErroHipotese::OpcaoNaoUnica),
+        _ if opcoes.iter().enumerate().any(|(indice, (id, _))| {
+            opcoes[..indice].iter().any(|(anterior, _)| anterior == id)
+        }) => Err(ErroHipotese::OpcaoNaoUnica),
+        _ => Err(ErroHipotese::OpcoesDisponiveis(opcoes)),
     }
 }
 
@@ -265,7 +280,12 @@ mod tests {
         assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
         assert_eq!(
             erro.opcoes_para_escolha(),
-            Some(&[("31".to_owned(), "Base A".to_owned()), ("32".to_owned(), "Base B".to_owned())][..])
+            Some(
+                &[
+                    ("31".to_owned(), "Base A".to_owned()),
+                    ("32".to_owned(), "Base B".to_owned()),
+                ][..],
+            )
         );
     }
 
@@ -275,7 +295,12 @@ mod tests {
         let erro = opcao_selecionada(xml, None).expect_err("multiplas hipoteses");
         assert_eq!(
             erro.opcoes_para_escolha(),
-            Some(&[("31".to_owned(), "Base A".to_owned()), ("33".to_owned(), "Base C".to_owned())][..])
+            Some(
+                &[
+                    ("31".to_owned(), "Base A".to_owned()),
+                    ("33".to_owned(), "Base C".to_owned()),
+                ][..],
+            )
         );
     }
 
