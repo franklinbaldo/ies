@@ -33,12 +33,16 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     formulario: "frmDesentranharDocumento",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
     campos_ocultos_exigidos: &[
-        "hdnInfraTipoPagina", "hdnIdProtocolos", "hdnIdProcedimentoDestino",
+        "hdnInfraTipoPagina",
+        "hdnIdProtocolos",
+        "hdnIdProcedimentoDestino",
     ],
     campos_ocultos_reescritos: &[],
     campos_usuario: &[
-        "rdoSobrestar", "txtProcedimentoDestino",
-        "txtIdentificacaoProcedimentoDestino", "txaMotivo",
+        "rdoSobrestar",
+        "txtProcedimentoDestino",
+        "txtIdentificacaoProcedimentoDestino",
+        "txaMotivo",
     ],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
@@ -51,8 +55,7 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
     use ErroTela as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::NaoInterpretada)?;
-    let form = localizar_formulario(&dom, OPERACAO.formulario)
-        .map_err(|_| E::FormularioAusente)?;
+    let form = localizar_formulario(&dom, OPERACAO.formulario).map_err(|_| E::FormularioAusente)?;
     let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
         valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada)
     };
@@ -60,8 +63,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada)
     };
     let action = atributo(form, "action")?.ok_or(E::OutroProcesso)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(E::NaoInterpretada)?;
+    let action = crate::formulario_web::decodificar_atributo(&action).ok_or(E::NaoInterpretada)?;
     let ids: Vec<_> = action
         .split_once('?')
         .map(|(_, consulta)| consulta)
@@ -76,7 +78,12 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         return Err(E::CampoInesperado);
     }
     let mut vistos: HashMap<String, usize> = HashMap::new();
-    for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "fieldset" && presente(tag, "disabled")? {
             return Err(E::CampoInesperado);
@@ -87,7 +94,10 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             }
             continue;
         }
-        if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea") {
+        if !matches!(
+            elemento.as_str(),
+            "input" | "button" | "select" | "textarea"
+        ) {
             continue;
         }
         if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
@@ -95,46 +105,58 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         }
         let nome = atributo(tag, "name")?.ok_or(E::CampoInesperado)?;
         let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
-            if elemento == "button" { "submit" } else { "text" }.to_owned()
+            if elemento == "button" {
+                "submit"
+            } else {
+                "text"
+            }
+            .to_owned()
         });
         let valor = atributo(tag, "value")?.unwrap_or_default();
         *vistos.entry(nome.clone()).or_default() += 1;
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
-            ("input", "hidden", "hdnIdProtocolos") if valor != id =>
-                return Err(E::OutroProcesso),
-            ("input", "hidden", "hdnInfraTipoPagina") if valor == "2" => {},
-            ("input", "hidden", "hdnIdProtocolos") => {},
-            ("input", "hidden", "hdnIdProcedimentoDestino") if valor.is_empty() => {},
+            ("input", "hidden", "hdnIdProtocolos") if valor != id => return Err(E::OutroProcesso),
+            ("input", "hidden", "hdnInfraTipoPagina") if valor == "2" => {}
+            ("input", "hidden", "hdnIdProtocolos") => {}
+            ("input", "hidden", "hdnIdProcedimentoDestino") if valor.is_empty() => {}
             ("input", "radio", "rdoSobrestar")
-                if matches!(valor.as_str(), "S" | "V") && !presente(tag, "checked")? => {
-                    *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
-                }
+                if matches!(valor.as_str(), "S" | "V") && !presente(tag, "checked")? =>
+            {
+                *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
+            }
             ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino")
-                if valor.is_empty() => {},
-            ("textarea", _, "txaMotivo")
-                if tag.inner_text(dom.parser()).trim().is_empty() => {},
-            ("input" | "button", "submit", "sbmSalvar") if valor == "Salvar" => {},
-            ("input" | "button", "button", "btnCancelar") => {},
+                if valor.is_empty() => {}
+            ("textarea", _, "txaMotivo") if tag.inner_text(dom.parser()).trim().is_empty() => {}
+            ("input" | "button", "submit", "sbmSalvar") if valor == "Salvar" => {}
+            ("input" | "button", "button", "btnCancelar") => {}
             ("input", "hidden", "hdnIdProcedimentoDestino")
-            | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") =>
-                return Err(E::DestinoPreenchido),
+            | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") => {
+                return Err(E::DestinoPreenchido);
+            }
             ("input", "radio", "rdoSobrestar") => return Err(E::OpcaoNaoOferecida),
-            ("select", _, "selProcedimentos") if presente(tag, "multiple")? => {},
+            ("select", _, "selProcedimentos") if presente(tag, "multiple")? => {}
             _ => return Err(E::CampoInesperado),
         }
     }
     let esperados = [
-        ("hdnInfraTipoPagina", 1), ("hdnIdProtocolos", 1),
-        ("hdnIdProcedimentoDestino", 1), ("sbmSalvar", 1),
-        ("selProcedimentos", 1), ("txtProcedimentoDestino", 1),
-        ("txtIdentificacaoProcedimentoDestino", 1), ("txaMotivo", 1),
-        ("rdoSobrestar", 2), ("rdoSobrestar:S", 1), ("rdoSobrestar:V", 1),
+        ("hdnInfraTipoPagina", 1),
+        ("hdnIdProtocolos", 1),
+        ("hdnIdProcedimentoDestino", 1),
+        ("sbmSalvar", 1),
+        ("selProcedimentos", 1),
+        ("txtProcedimentoDestino", 1),
+        ("txtIdentificacaoProcedimentoDestino", 1),
+        ("txaMotivo", 1),
+        ("rdoSobrestar", 2),
+        ("rdoSobrestar:S", 1),
+        ("rdoSobrestar:V", 1),
     ];
-    if esperados.iter().all(|(nome, n)| vistos.get(*nome) == Some(n)) {
-        Ok(())
-    } else if vistos.get("rdoSobrestar:S") != Some(&1)
-        || vistos.get("rdoSobrestar:V") != Some(&1)
+    if esperados
+        .iter()
+        .all(|(nome, n)| vistos.get(*nome) == Some(n))
     {
+        Ok(())
+    } else if vistos.get("rdoSobrestar:S") != Some(&1) || vistos.get("rdoSobrestar:V") != Some(&1) {
         Err(E::OpcaoNaoOferecida)
     } else {
         Err(E::CampoInesperado)
@@ -148,13 +170,14 @@ pub(crate) fn redirecionamento_esperado(
     url_do_envio: &str,
     id: &str,
 ) -> bool {
-    let Some(consulta) = localizacao.and_then(|l| {
-        crate::formulario_web::consulta_do_controlador(l, url_do_envio)
-    }) else {
+    let Some(consulta) =
+        localizacao.and_then(|l| crate::formulario_web::consulta_do_controlador(l, url_do_envio))
+    else {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {
-        consulta.split('&')
+        consulta
+            .split('&')
             .filter_map(|par| par.split_once('='))
             .filter(|(k, _)| *k == chave)
             .map(|(_, v)| v)
