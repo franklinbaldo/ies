@@ -83,14 +83,16 @@ se reconstrói seu valor nem se faz retry de operação potencialmente efetiva.
 | Caso | Bancada | Garantia de teste |
 | --- | --- | --- |
 | Outro host, porta, userinfo e referência `//host` | `transporte/web_mock_tests.rs::matriz_url_host_porta_userinfo_hash_e_duplicatas_sem_cookie` | Rejeição antes de ler cookie ou chamar o transporte. |
-| `infra_hash` inválido/repetido e `acao` repetida | Mesma bancada | Rejeição de URL antes de GET. |
+| `infra_hash` inválido/repetido e `acao` repetida | Mesma bancada | Rejeição de URL antes de GET; duplicatas genéricas ficam em teste ignorado, pendentes na #241. |
 | 301, 303, 307 e 308 | `transporte/web_mock_tests.rs::matriz_get_3xx_nao_302_recusados_sem_follow` e `formulario_web/tests_envio.rs::post_com_307_ou_308_nao_reenvia_o_formulario` | Recusa tipada, uma tentativa, nenhum follow. |
 | MIME inesperado e corpo acima do limite | `web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry` e `matriz_get_limite_em_stream_sem_content_length` | Recusa do GET com ou sem `Content-Length`. |
 | Falha de transporte | `matriz_get_erro_de_transporte_nao_repete_pedido` e `formulario_web/tests_envio.rs::falha_de_rede_nao_repete_o_envio` | Erro tipado sem retry. |
 | Origin, Referer e corpo do POST | `formulario_web/tests_envio.rs::closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao` | Campos preservados do formulário servido na bancada de pesquisa. |
 | Charset e ausência de reconstrução de hash | `formulario_web` e testes por operação | Ainda requer assertivas específicas em todos os fluxos; não inferir cobertura apenas da infraestrutura. |
 
-A matriz acima não equivale à comprovação cruzada integral por operação.
+O teste específico `parametro_generico_duplicado_deve_ser_recusado_antes_do_cookie`
+está marcado `#[ignore]` por expor um bug documentado na #241, que deve
+ser corrigido em PR separada. A matriz acima não equivale à comprovação cruzada integral por operação.
 O RED local, o CI e a validação live devem ser relatados separadamente.
 Testes de leitura em instalações de treinamento só podem receber PASS após
 execução, respeitando o orçamento e as restrições do AGENTS.md.
