@@ -299,7 +299,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         sessao.cookie,
         &foto_antes,
         pedido.tipo,
-        |rede, post, cookie| rede.post(post, cookie),
+        crate::visao_do_controle::EnvioDoControle::post,
         |rede| {
             obter_processo(
                 sessao,
