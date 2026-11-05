@@ -219,6 +219,37 @@ fn red_recusa_ajax_ambigua_mas_publica_pares_observados() {
     );
 }
 
+/// Resposta AJAX sintética não confiável: ainda que haja opção única,
+/// um identificador com formato de URL não autoriza o POST criador.
+/// Orçamento de recusa: 3 GET + 1 POST AJAX consultivo, zero escrita.
+#[test]
+fn red_valor_ajax_com_url_recusa_sem_post_criador() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(controle_de_criacao()),
+        ok(lista()),
+        ok(cadastro(true)),
+        ok("<select><option value='https://example.invalid/marcador'>Base A</option></select>".to_owned()),
+    ];
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("identificador nao publicavel nao pode ser enviado");
+    assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_resposta_nao_reconhecida");
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 3);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+    assert!(pedidos.iter().all(|p|
+        p.metodo != "POST" || !p.url.contains("acao=procedimento_gerar")
+    ));
+}
+
 /// Sem declaração literal de AJAX, nenhum endpoint pode ser inventado.
 #[test]
 fn ajax_nao_declarado_na_tela_recusa_sem_post() {
