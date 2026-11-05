@@ -1,8 +1,8 @@
 //! Molde sintético da UnB, sem URLs assinadas de contas reais.
-//! Caso: todos tests/test_ciclo_sobrestar_010.py @323eb01.
+//! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use super::tela::{conferir_formulario, ErroTela as E};
 const ID: &str = "10";
-fn formulario() -> String {
+pub(super) fn formulario() -> String {
     format!(r#"<html><body>
 <form id="frmDesentranharDocumento" method="post" action="controlador.php?acao=procedimento_sobrestar&acao_origem=procedimento_sobrestar&id_procedimento={ID}&infra_hash={hash}">
 <input type="hidden" name="hdnInfraTipoPagina" value="2" />
