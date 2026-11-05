@@ -203,6 +203,7 @@ fn enviar_com_redirecionamento(
                 status_code: i32::from(status),
                 mime: "text/html; charset=ISO-8859-1".to_owned(),
                 content_length: Some(0),
+                localizacao: None,
                 corpo: CorpoQueNaoDeveSerLido,
             },
             localizacao: localizacao.map(str::to_owned),

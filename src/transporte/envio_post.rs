@@ -4,7 +4,10 @@
 use super::cliente_https::{self, CorpoHttps, Envio};
 use super::resposta_http::{Corpo, Resposta};
 use super::sessao::{ReferenciasDaSessao, cookie_privado_validado};
-use super::{FalhaTransporte, RespostaWeb, decodificar_resposta, get_https, validar_origem};
+use super::{
+    FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta, get_https,
+    validar_origem,
+};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
 use std::io::Read;
@@ -45,6 +48,17 @@ where
         Instalacao::interpretar(origem_autorizada).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
     let cookie = cookie_privado_validado(cookie_file)?;
     let resposta = requisitar(url, &cookie)?;
+    // O 302 é dado, nunca seguido: só a entrada do login da instalação
+    // vira sessão encerrada; qualquer outro 3xx continua recusado.
+    if resposta.status_code == 302
+        && resposta.localizacao.as_deref().is_some_and(|local| {
+            crate::sessao_login::entrada_do_login::aponta_para_o_login(&instalacao, url, local)
+        })
+    {
+        return Err(FalhaTransporte::ControleRedirecionadoParaOLogin(
+            StatusHttpRecusado::sem_mensagem(302),
+        ));
+    }
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta)?;
     Ok(TelaDoControle {
@@ -164,6 +178,7 @@ mod tests {
                 status_code: 200,
                 mime: "text/html; charset=iso-8859-1".to_owned(),
                 content_length: None,
+                localizacao: None,
                 corpo: Cursor::new(b"<html>ok</html>".to_vec()),
             })
         })

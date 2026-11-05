@@ -71,6 +71,7 @@ fn resposta(item: &serde_json::Value, status: u64) -> String {
             status_code: i32::try_from(status).unwrap_or(0),
             mime: gravacao::mime(item),
             content_length: Some(corpo.len()),
+            localizacao: None,
             corpo: Cursor::new(corpo),
         },
         localizacao: gravacao::localizacao(item).map(str::to_owned),

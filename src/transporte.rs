@@ -52,7 +52,11 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
         conferir_valor_de_consulta(valor)?;
         match nome {
             "acao" if valor == "procedimento_controlar" => actions += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            // 192: o Controle a que a troca de unidade redireciona (#205).
+            "infra_hash"
+                if matches!(valor.len(), 64 | 192)
+                    && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
+            {
                 hashes += 1;
             }
             "acao" | "infra_hash" | "acao_ajax" => {
@@ -175,6 +179,9 @@ pub(crate) struct RespostaWeb<R: Read> {
     pub(crate) status_code: i32,
     pub(crate) mime: String,
     pub(crate) content_length: Option<usize>,
+    /// `Location` da resposta, como dado: nunca seguido. Só o GET do
+    /// Controle o lê, para reconhecer o 302 para o login da instalação.
+    pub(crate) localizacao: Option<String>,
     pub(crate) corpo: R,
 }
 

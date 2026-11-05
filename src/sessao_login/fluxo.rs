@@ -66,6 +66,7 @@ fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
             .unwrap_or_default()
             .to_owned(),
         content_length: None,
+        localizacao: resposta.cabecalho("location").map(str::to_owned),
         corpo: Cursor::new(resposta.corpo),
     }
 }
@@ -356,11 +357,29 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
             requisicoes: contador.pedidos.total(),
         });
     }
+    let unidade = logar_e_gravar(pedido, &instalacao, origem, indice, &mut contador)?;
+    Ok(ResultadoDoLogin {
+        instalacao: instalacao.url_base(),
+        unidade_exibida: unidade,
+        conexao: Conexao::LoginRealizado,
+        requisicoes: contador.pedidos.total(),
+    })
+}
+
+/// Credenciais, login, unidade conferida, gravação da nova geração e
+/// colheita do Controle obtido; devolve a unidade. Com o lock obtido.
+fn logar_e_gravar<T: TransporteDeLogin>(
+    pedido: &PedidoDeLogin<'_>,
+    instalacao: &Instalacao,
+    origem: &str,
+    indice: &IndiceLocal,
+    transporte: &mut T,
+) -> Result<String, ErroLogin> {
     let caminho = pedido
         .credenciais
         .ok_or(ErroLogin::CaminhoDasCredenciaisNaoInformado)?;
     let credenciais = Credenciais::ler(caminho)?;
-    let obtida = autenticar(&instalacao, origem, &credenciais, &mut contador)?;
+    let obtida = autenticar(instalacao, origem, &credenciais, transporte)?;
     conferir_unidade(pedido, &obtida.unidade)?;
     gravacao::gravar(
         pedido.arquivos,
@@ -371,16 +390,42 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     // A chave é a do cookie e da URL que acabaram de ser gravados.
     colher(
         indice,
-        &instalacao,
+        instalacao,
         (&obtida.cookie, &obtida.url),
         &obtida.controle,
     );
-    Ok(ResultadoDoLogin {
-        instalacao: instalacao.url_base(),
-        unidade_exibida: obtida.unidade,
-        conexao: Conexao::LoginRealizado,
-        requisicoes: contador.pedidos.total(),
-    })
+    Ok(obtida.unidade)
+}
+
+/// Desfecho do relogin de uma leitura.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Relogado {
+    LoginRealizado,
+    /// Outro processo já gravou outra geração: nenhum login.
+    GeracaoJaTrocada,
+}
+
+/// Relogin de uma leitura que achou a sessão encerrada: sob o lock, a
+/// geração gravada é comparada com `inicial` (a do início do comando);
+/// se mudou, outro processo já relogou e nada é pedido. Senão, o login
+/// pela raiz, sem o GET de conferência (a leitura já viu a sessão vencida).
+pub(super) fn relogar<T: TransporteDeLogin>(
+    pedido: &PedidoDeLogin<'_>,
+    inicial: Option<&str>,
+    indice: &IndiceLocal,
+    transporte: &mut T,
+) -> Result<Relogado, ErroLogin> {
+    let origem =
+        transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
+    let origem = origem.trim();
+    let instalacao = Instalacao::interpretar(origem)
+        .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
+    let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
+    if gravacao::geracao_gravada(pedido.arquivos).as_deref() != inicial {
+        return Ok(Relogado::GeracaoJaTrocada);
+    }
+    logar_e_gravar(pedido, &instalacao, origem, indice, transporte)?;
+    Ok(Relogado::LoginRealizado)
 }
 
 /// Colheita do Controle já lido (nenhum pedido); nunca falha o login.

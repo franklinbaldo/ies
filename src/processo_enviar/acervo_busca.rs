@@ -95,6 +95,7 @@ fn replay_da_busca_do_destino_no_acervo() {
                             status_code: i32::try_from(r.status).unwrap_or(0),
                             mime: gravacao::mime(r.item),
                             content_length: Some(corpo.len()),
+                            localizacao: None,
                             corpo: Cursor::new(corpo),
                         },
                         localizacao: None,

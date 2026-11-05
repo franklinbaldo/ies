@@ -19,7 +19,7 @@ mod documento;
 mod documento_indice;
 pub(crate) mod erro;
 mod fluxo;
-mod login;
+pub(crate) mod login;
 mod marcadores;
 mod pastas;
 mod propriedades;

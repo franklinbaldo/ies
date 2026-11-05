@@ -213,4 +213,7 @@ e [decisão](../../docs/decisoes/processo-enviar.md). Live: prévia **PASS** na 
 [relatório](../../docs/validacao-live/2026-11-04-processo-enviar-go.md)); escrita **PASS** na UFRJ 4.1.5 em 04/11/2026: com `--manter-aberto` o processo fica
 aberto no destino e na origem; sem ele, só no destino (a caixa desmarcada tira o
 processo da origem), 6 requisições cada
-([relatório](../../docs/validacao-live/2026-11-04-processo-enviar-escrita.md)).
+([relatório](../../docs/validacao-live/2026-11-04-processo-enviar-escrita.md)); escrita **PASS** na UnB
+4.0.9 (Unidade1 → Unidade2) e no PEN1 5.0.4 (TESTE → TESTE_1_1) em 04/11/2026, o mesmo
+padrão, prévia a frio 5 e `--confirmar` 6 requisições
+([relatório](../../docs/validacao-live/2026-11-05-processo-enviar-escrita-unb-pen1.md)).

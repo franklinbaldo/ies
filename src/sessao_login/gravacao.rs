@@ -74,14 +74,24 @@ pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
     sha256(cookie)
 }
 
+/// Geração dos arquivos de sessão como estão agora: os SHA-256 do cookie
+/// e da URL do Controle (os do marcador), sem rede. `None` se um deles
+/// falta ou está vazio. Comparada antes do relogin de uma leitura, vale
+/// também para a sessão preparada fora do `ies login` (sem marcador).
+pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
+    let ler = |caminho: &Path| {
+        crate::transporte::arquivo_privado(caminho, 8_192)
+            .ok()
+            .map(|texto| texto.trim().to_owned())
+            .filter(|texto| !texto.is_empty())
+    };
+    let cookie = ler(&arquivos.cookie)?;
+    let url = ler(&arquivos.url_controle)?;
+    Some(format!("{}:{}", sha256(&cookie), sha256(&url)))
+}
+
 fn sha256(texto: &str) -> String {
-    use std::fmt::Write as _;
-    Sha256::digest(texto.trim().as_bytes())
-        .iter()
-        .fold(String::new(), |mut hex, byte| {
-            let _ = write!(hex, "{byte:02x}");
-            hex
-        })
+    crate::hex::hex_minusculo(&Sha256::digest(texto.trim().as_bytes()))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -143,6 +153,63 @@ fn preparar(destino: &Path, conteudo: &str, papel: ArquivoPrivado) -> Result<Pat
         return Err(falha());
     }
     Ok(temporario)
+}
+
+/// Depois de `ies unidade trocar` (#205): a mesma sessão (cookie) passa a
+/// abrir pelo Controle da unidade nova. Grava a URL e, se houver marcador,
+/// o marcador com o mesmo número de geração, o mesmo cookie e a URL nova,
+/// para `ies login` reconhecer a sessão. O cookie não é regravado.
+/// Chamado com o lock do login obtido.
+pub(crate) fn regravar_url_do_controle(
+    arquivos: &ArquivosDeAcesso,
+    url: &str,
+    cookie: &str,
+) -> Result<(), ErroLogin> {
+    let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
+    let papel = ArquivoPrivado::UrlControle;
+    conferir_destino(&arquivos.url_controle, papel)?;
+    conferir_destino(&geracao_caminho, papel)?;
+    let marcador = ler_marcador(arquivos)
+        .map_err(|()| ErroLogin::GravacaoDaSessaoFalhou(papel))?
+        .map(|m| Marcador {
+            cookie_sha256: sha256(cookie),
+            url_controle_sha256: sha256(url),
+            ..m
+        });
+    let mut destinos = vec![(arquivos.url_controle.clone(), format!("{url}\n"))];
+    if let Some(m) = marcador {
+        let json =
+            serde_json::to_string(&m).map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(papel))?;
+        destinos.push((geracao_caminho, format!("{json}\n")));
+    }
+    let mut temporarios = Vec::new();
+    for (destino, conteudo) in &destinos {
+        match preparar(destino, conteudo, papel) {
+            Ok(t) => temporarios.push(t),
+            Err(erro) => {
+                for t in &temporarios {
+                    let _ = std::fs::remove_file(t);
+                }
+                return Err(erro);
+            }
+        }
+    }
+    for (i, ((destino, _), temporario)) in destinos.iter().zip(&temporarios).enumerate() {
+        if std::fs::rename(temporario, destino).is_err() {
+            for restante in &temporarios[i..] {
+                let _ = std::fs::remove_file(restante);
+            }
+            return Err(ErroLogin::GravacaoDaSessaoFalhou(papel));
+        }
+    }
+    if let Some(pasta) = arquivos
+        .url_controle
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+    {
+        let _ = File::open(pasta).and_then(|d| d.sync_all());
+    }
+    Ok(())
 }
 
 /// Grava cookie, URL e, por último, o marcador da nova geração. Chamado

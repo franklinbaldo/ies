@@ -5,10 +5,11 @@
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::IndiceLocal;
 use crate::pesquisa_web::documentos::{EmDocumentos, RespostaDeDocumentos};
+use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::fluxo::{BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_colhendo};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{
-    Cli, Documento, DocumentoAcao, Domain, configuracao, erro_fonte, saida_erro, transporte,
+    Cli, Documento, DocumentoAcao, Domain, configuracao, erro_fonte, relogin_cli, transporte,
 };
 use serde_json::{Value, json};
 use std::process::ExitCode;
@@ -174,40 +175,39 @@ fn buscar(cli: &Cli, comando: &Documento, termo: &str, pagina: Option<u32>) -> E
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
     };
-    let lidos =
-        transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem);
-    let referencias = match lidos {
-        Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
-    };
-    let sessao = SessaoDaBusca {
-        url_do_controle: referencias.url_do_controle(),
-        origem: referencias.origem(),
-        cookie_file: &arquivos.cookie,
-    };
     let pedido = PedidoDeBusca {
         termo,
         pagina,
         unidade: cli.unidade.as_deref(),
     };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    let colheita = Colheita::da_sessao(&indice, &arquivos);
-    match buscar_colhendo::<EmDocumentos, _>(&sessao, &pedido, &colheita, &mut EnvioHttps) {
-        Ok(busca) => {
+    // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
+    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
+        let referencias =
+            transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
+                .map_err(ErroBuscaDeProcesso::Transporte)?;
+        let sessao = SessaoDaBusca {
+            url_do_controle: referencias.url_do_controle(),
+            origem: referencias.origem(),
+            cookie_file: &arquivos.cookie,
+        };
+        let indice = IndiceLocal::da_configuracao(&arquivos);
+        let colheita = Colheita::da_sessao(&indice, &arquivos);
+        buscar_colhendo::<EmDocumentos, _>(&sessao, &pedido, &colheita, &mut EnvioHttps)
+    });
+    match lido {
+        Ok((mut busca, nota)) => {
+            busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
             if cli.json {
-                let valor = json_da_busca(termo, &busca);
+                let mut valor = json_da_busca(termo, &busca);
+                relogin_cli::anotar(&mut valor, nota.as_ref());
                 println!("{}", serde_json::to_string_pretty(&valor).unwrap());
             } else {
+                relogin_cli::avisar(cli.json, nota.as_ref());
                 println!("{}", humano(termo, &busca));
             }
             ExitCode::SUCCESS
         }
-        Err(erro) => saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            erro.status_http(),
-        ),
+        Err(falha) => relogin_cli::publicar_falha(cli.json, &falha),
     }
 }
 

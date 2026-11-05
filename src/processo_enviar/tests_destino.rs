@@ -25,6 +25,7 @@ fn resposta(status: i32, mime: &str, corpo: &str) -> RespostaDoPost<Cursor<Vec<u
             status_code: status,
             mime: mime.to_owned(),
             content_length: Some(bytes.len()),
+            localizacao: None,
             corpo: Cursor::new(bytes),
         },
         localizacao: None,

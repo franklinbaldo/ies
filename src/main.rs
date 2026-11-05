@@ -32,6 +32,7 @@ mod esquema_cli;
 mod filtro_andamentos;
 #[allow(dead_code)] // Primitivo offline; nenhum comando envia POST nesta fatia.
 mod formulario_web;
+mod hex;
 mod historico;
 mod historico_cli;
 mod historico_processo;
@@ -58,6 +59,7 @@ mod processo_obter_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod propriedades_processo;
+mod relogin_cli;
 mod replay_args;
 mod replay_busca_documento;
 mod replay_cli;
@@ -81,6 +83,8 @@ mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
+mod unidade_trocar;
+mod unidade_trocar_cli;
 mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
@@ -289,6 +293,14 @@ enum UnidadeAcao {
         #[arg(long, requires = "definir")]
         confirmar: bool,
     },
+    /// Troca a unidade ativa da sessão; vale para toda a sessão da conta (todos os agentes que a usam). Sem --confirmar, só prévia
+    Trocar {
+        /// Sigla como a tela Trocar Unidade a mostra (byte a byte)
+        sigla: String,
+        /// Envia a troca (um POST) e confere pelo Controle da unidade nova
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Lista Recebidos da unidade: a página observada, com total e faixa
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
@@ -441,6 +453,11 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
         }) => return colunas(cli, definir.as_deref(), *confirmar),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
+        }) => {
+            return unidade_trocar_cli::trocar(sigla, *confirmar, cli.unidade.as_deref(), cli.json);
+        }
         _ => {}
     }
     if let Domain::Documento(Documento {

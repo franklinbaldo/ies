@@ -87,6 +87,7 @@ pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte>
         status_code: i32::try_from(resp.status).unwrap_or(0),
         mime: mime(resp.item),
         content_length: None,
+        localizacao: None,
         corpo: corpo.as_slice(),
     })
 }

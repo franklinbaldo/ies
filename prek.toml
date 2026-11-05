@@ -59,8 +59,17 @@ stages = ["pre-push"]
 
 [[repos.hooks]]
 id = "scripts-python"
-name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR)"
+name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR, auditoria OSV)"
 entry = "python3 -I -m unittest discover -s scripts -p test_*.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "auditoria-osv"
+name = "Dependências crates.io sem avisos abertos no OSV"
+entry = "python3 -I scripts/osv_audit.py"
 language = "system"
 pass_filenames = false
 always_run = true

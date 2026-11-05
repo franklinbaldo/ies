@@ -10,12 +10,12 @@ use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::{MarcadoresLidos, rotulo_do_marcador};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
-    Andamentos, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, ProcessoAberto, Propriedades,
-    SessaoDoProcesso, obter_processo,
+    Andamentos, ErroProcessoObter, Marcadores, PedidoDeAndamentos, PedidoDoProcesso,
+    ProcessoAberto, Propriedades, SessaoDoProcesso, obter_processo,
 };
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, configuracao, erro_fonte, saida_erro, transporte};
+use crate::{Cli, Domain, Processo, configuracao, erro_fonte, relogin_cli, transporte};
 use serde_json::{Value, json};
 use std::fmt::Write as _;
 use std::process::ExitCode;
@@ -408,18 +408,6 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
     };
-    let referencias = match transporte::sessao::ReferenciasDaSessao::ler(
-        &arquivos.url_controle,
-        &arquivos.origem,
-    ) {
-        Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
-    };
-    let sessao = SessaoDoProcesso {
-        url_do_controle: referencias.url_do_controle(),
-        origem: referencias.origem(),
-        cookie_file: &arquivos.cookie,
-    };
     let pedido = PedidoDoProcesso {
         nup,
         unidade: cli.unidade.as_deref(),
@@ -428,26 +416,36 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         marcadores: !comando.sem_marcadores,
         unidade_exigida: false,
     };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    match obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps) {
-        Ok(aberto) => {
+    // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
+    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
+        let referencias =
+            transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
+                .map_err(ErroProcessoObter::Transporte)?;
+        let sessao = SessaoDoProcesso {
+            url_do_controle: referencias.url_do_controle(),
+            origem: referencias.origem(),
+            cookie_file: &arquivos.cookie,
+        };
+        let indice = IndiceLocal::da_configuracao(&arquivos);
+        obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps)
+    });
+    match lido {
+        Ok((mut aberto, nota)) => {
+            aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
             if cli.json {
-                let valor = json_do_processo(nup, &aberto, comando.sem_documentos);
+                let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
+                relogin_cli::anotar(&mut valor, nota.as_ref());
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&valor).unwrap_or_default()
                 );
             } else {
+                relogin_cli::avisar(cli.json, nota.as_ref());
                 println!("{}", humano(nup, &aberto, comando.sem_documentos));
             }
             ExitCode::SUCCESS
         }
-        Err(erro) => saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            erro.status_http(),
-        ),
+        Err(falha) => relogin_cli::publicar_falha(cli.json, &falha),
     }
 }
 

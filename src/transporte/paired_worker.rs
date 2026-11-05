@@ -70,6 +70,7 @@ fn paired_unit_worker() {
                 status_code: 200,
                 mime: job.mime.clone(),
                 content_length: Some(body.len()),
+                localizacao: None,
                 corpo: Cursor::new(&body),
             })
         })

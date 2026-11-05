@@ -84,6 +84,7 @@ fn enviar(operacao: &OperacaoDeFormulario, status: i32, corpo: &str) -> Result<R
                 status_code: status,
                 mime: "text/html; charset=iso-8859-1".to_owned(),
                 content_length: None,
+                localizacao: None,
                 corpo: Cursor::new(corpo.as_bytes().to_vec()),
             },
             localizacao: None,

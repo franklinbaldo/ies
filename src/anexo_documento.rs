@@ -228,6 +228,7 @@ pub(crate) fn ler_anexo<R: Read>(
             status_code: i32::from(resposta.status),
             mime,
             content_length: None,
+            localizacao: None,
             corpo: resposta.corpo,
         })));
     }
@@ -294,7 +295,7 @@ pub(crate) fn ler_anexo<R: Read>(
     Ok(AnexoLido {
         mime: conferido.mime,
         tamanho,
-        sha256: format!("{:x}", hasher.finalize()),
+        sha256: crate::hex::hex_minusculo(&hasher.finalize()),
         nome_original: conferido.nome_original,
         disposicao: conferido.disposicao,
         texto,

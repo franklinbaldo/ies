@@ -1,3 +1,5 @@
+mod hex;
+
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
@@ -56,9 +58,9 @@ fn preparar_fixture_com_html(html: &str) -> (PathBuf, PathBuf, PathBuf) {
     fs::write(
         &card,
         format!(
-            "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: {member}\narchive_sha1: {:x}\ncassette_sha256_lf: {:x}\n---\n\n# Replay\n",
-            Sha1::digest(fs::read(&zip).unwrap()),
-            Sha256::digest(json_bytes.as_bytes()),
+            "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: {member}\narchive_sha1: {}\ncassette_sha256_lf: {}\n---\n\n# Replay\n",
+            hex::hex_minusculo(&Sha1::digest(fs::read(&zip).unwrap())),
+            hex::hex_minusculo(&Sha256::digest(json_bytes.as_bytes())),
         ),
     )
     .unwrap();
@@ -204,9 +206,9 @@ fn preparar_fixture_paginas() -> PathBuf {
     fs::write(&card,format!(
         "---\ntype: Cassette\ninstallation: unb\n\
          source_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\n\
-         archive_member: {member}\narchive_sha1: {:x}\ncassette_sha256_lf: {:x}\n---\n",
-        Sha1::digest(fs::read(&zip).unwrap()),
-        Sha256::digest(bytes.as_bytes())
+         archive_member: {member}\narchive_sha1: {}\ncassette_sha256_lf: {}\n---\n",
+        hex::hex_minusculo(&Sha1::digest(fs::read(&zip).unwrap())),
+        hex::hex_minusculo(&Sha256::digest(bytes.as_bytes()))
     )).unwrap();
     folder
 }

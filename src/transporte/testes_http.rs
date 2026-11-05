@@ -18,6 +18,7 @@ pub(crate) fn resposta(
         status_code,
         mime: mime.to_owned(),
         content_length,
+        localizacao: None,
         corpo: Cursor::new(corpo),
     }
 }

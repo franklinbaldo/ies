@@ -4,6 +4,7 @@
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::colheita_do_controle::{Colheita, EnvioColhendo};
 use crate::indice_local::IndiceLocal;
+use crate::relogin_cli::{self, NotaDoRelogin};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, paginas, saida};
@@ -21,38 +22,34 @@ pub(super) fn listar_processos_da_unidade(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    let colheita = Colheita::da_sessao(&indice, &arquivos);
-    let tela =
-        match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
-            Ok(tela) => tela,
-            Err(falha) => {
-                return crate::saida_erro::erro_fonte_http(
-                    json_mode,
-                    falha.subcodigo(),
-                    falha.mensagem(),
-                    falha.status_http(),
-                );
-            }
+    // Cada tentativa relê a sessão e colhe na geração gravada agora.
+    let lido = relogin_cli::ler(&arquivos, unidade, || {
+        let indice = IndiceLocal::da_configuracao(&arquivos);
+        let colheita = Colheita::da_sessao(&indice, &arquivos);
+        let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
+            .map_err(ErroVisaoDoControle::Transporte)?;
+        colheita.colher(&tela.html, Some(&tela.mime));
+        let atual = TelaAtual {
+            url: tela.url,
+            html: tela.html,
+            mime: tela.mime,
         };
-    colheita.colher(&tela.html, Some(&tela.mime));
-    let atual = TelaAtual {
-        url: tela.url,
-        html: tela.html,
-        mime: tela.mime,
-    };
-    match visao_do_controle::listar_na_visao_detalhada(
-        &tela.instalacao,
-        &atual,
-        unidade,
-        pagina,
-        &arquivos.cookie,
-        &mut EnvioColhendo {
-            colheita: &colheita,
-        },
-    ) {
-        Ok(leitura) => mostrar_caixa_detalhada(&leitura, "web", json_mode, destino),
-        Err(erro) => erro_da_visao(json_mode, &erro),
+        visao_do_controle::listar_na_visao_detalhada(
+            &tela.instalacao,
+            &atual,
+            unidade,
+            pagina,
+            &arquivos.cookie,
+            &mut EnvioColhendo {
+                colheita: &colheita,
+            },
+        )
+    });
+    match lido {
+        Ok((leitura, nota)) => {
+            mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, nota.as_ref())
+        }
+        Err(falha) => relogin_cli::publicar_falha(json_mode, &falha),
     }
 }
 
@@ -99,21 +96,23 @@ pub(crate) fn mostrar_caixa_detalhada(
     origem: &str,
     json_mode: bool,
     destino: Option<&Path>,
+    nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
-    let saida = json_da_detalhada(leitura, origem);
+    let mut saida = json_da_detalhada(leitura, origem);
     if let Some(caminho) = destino {
+        // O arquivo guarda só a lista; `relogin` vai na linha de stdout.
         return match arquivo_caixa::gravar(caminho, &saida) {
             Ok(bytes) => {
                 if json_mode {
-                    println!(
-                        "{}",
-                        json!({
-                            "arquivo": "gravado",
-                            "bytes": bytes,
-                            "escopo": "caixa_detalhada_verificada"
-                        })
-                    );
+                    let mut valor = json!({
+                        "arquivo": "gravado",
+                        "bytes": bytes,
+                        "escopo": "caixa_detalhada_verificada"
+                    });
+                    relogin_cli::anotar_com_total(&mut valor, nota);
+                    println!("{valor}");
                 } else {
+                    relogin_cli::avisar(json_mode, nota);
                     println!("IES: caixa detalhada verificada gravada em arquivo privado.");
                 }
                 ExitCode::SUCCESS
@@ -122,8 +121,10 @@ pub(crate) fn mostrar_caixa_detalhada(
         };
     }
     if json_mode {
+        relogin_cli::anotar_com_total(&mut saida, nota);
         println!("{}", serde_json::to_string_pretty(&saida).unwrap());
     } else {
+        relogin_cli::avisar(json_mode, nota);
         println!("{}", humano_da_detalhada(leitura));
     }
     ExitCode::SUCCESS

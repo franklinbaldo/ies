@@ -24,6 +24,7 @@ fn resposta(status_code: i32, mime: &str, corpo: &[u8]) -> RespostaWeb<Cursor<Ve
         status_code,
         mime: mime.to_owned(),
         content_length: Some(corpo.len()),
+        localizacao: None,
         corpo: Cursor::new(corpo.to_vec()),
     }
 }
@@ -96,6 +97,7 @@ fn redirecionamento_expoe_o_status_sem_ler_o_corpo() {
         status_code: 307,
         mime: "text/html".to_owned(),
         content_length: None,
+        localizacao: None,
         corpo: CorpoProibido,
     })
     .unwrap_err();
@@ -110,6 +112,7 @@ fn corpo_enorme_da_recusa_consome_so_64_kib_e_nao_e_resposta_excessiva() {
         status_code: 502,
         mime: "text/plain".to_owned(),
         content_length: Some(crate::MAX_HTML_BYTES * 2),
+        localizacao: None,
         corpo: CorpoContado {
             entregues: &entregues,
             byte: b'y',

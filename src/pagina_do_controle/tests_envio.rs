@@ -42,6 +42,7 @@ fn resposta(status_code: i32, html: &str) -> RespostaDoPost<Cursor<Vec<u8>>> {
             status_code,
             mime: "text/html; charset=iso-8859-1".to_owned(),
             content_length: None,
+            localizacao: None,
             corpo: Cursor::new(html.as_bytes().to_vec()),
         },
         localizacao: None,

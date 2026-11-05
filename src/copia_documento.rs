@@ -109,7 +109,7 @@ pub fn caminhos(pasta: &Path, id: &IdentidadeCopia) -> CaminhosCopia {
     }
 }
 fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    crate::hex::hex_minusculo(&Sha256::digest(bytes))
 }
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
     let dados = fs::symlink_metadata(pasta).map_err(|_| ErroCopia::DestinoInseguro)?;

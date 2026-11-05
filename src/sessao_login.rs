@@ -7,11 +7,13 @@
 //! limitado; os GET/POST dos demais comandos continuam recusando 3xx.
 mod cookies;
 mod credenciais;
+pub(crate) mod entrada_do_login;
 mod erro;
 mod fluxo;
 mod gravacao;
 pub(crate) mod http;
 pub(crate) mod redirecionamento;
+pub(crate) mod relogin;
 pub(crate) mod tela;
 
 pub(crate) use credenciais::Credenciais;
@@ -20,6 +22,9 @@ pub(crate) use fluxo::entrar_colhendo;
 #[cfg(test)]
 pub(crate) use fluxo::entrar_via;
 pub(crate) use gravacao::geracao_da_sessao;
+#[cfg(test)]
+pub(crate) use gravacao::mesma_geracao;
+pub(crate) use gravacao::{TravaDoLogin, regravar_url_do_controle};
 
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
@@ -134,3 +139,11 @@ mod tests_proxy;
 #[cfg(test)]
 #[path = "sessao_login/tests_colheita.rs"]
 mod tests_colheita;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_relogin.rs"]
+mod tests_relogin;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_entrada_do_login.rs"]
+mod tests_entrada_do_login;

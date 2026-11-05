@@ -4,9 +4,8 @@
 use crate::colheita_do_controle::{Colheita, EnvioColhendo};
 use crate::indice_local::IndiceLocal;
 use crate::transporte::envio_post::ler_tela_do_controle;
-use crate::unidade_lista_cli::erro_da_visao;
-use crate::visao_do_controle::{self, TelaAtual};
-use crate::{configuracao, erro_fonte};
+use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
+use crate::{configuracao, erro_fonte, relogin_cli};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -15,42 +14,38 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    let colheita = Colheita::da_sessao(&indice, &arquivos);
-    let tela =
-        match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
-            Ok(tela) => tela,
-            Err(falha) => {
-                return crate::saida_erro::erro_fonte_http(
-                    json_mode,
-                    falha.subcodigo(),
-                    falha.mensagem(),
-                    falha.status_http(),
-                );
-            }
+    // Cada tentativa relê a sessão e colhe na geração gravada agora.
+    let lido = relogin_cli::ler(&arquivos, unidade, || {
+        let indice = IndiceLocal::da_configuracao(&arquivos);
+        let colheita = Colheita::da_sessao(&indice, &arquivos);
+        let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
+            .map_err(ErroVisaoDoControle::Transporte)?;
+        colheita.colher(&tela.html, Some(&tela.mime));
+        let atual = TelaAtual {
+            url: tela.url,
+            html: tela.html,
+            mime: tela.mime,
         };
-    colheita.colher(&tela.html, Some(&tela.mime));
-    let atual = TelaAtual {
-        url: tela.url,
-        html: tela.html,
-        mime: tela.mime,
-    };
-    let (rotulo, nivel) = match visao_do_controle::ler_colunas(
-        &tela.instalacao,
-        &atual,
-        unidade,
-        &arquivos.cookie,
-        &mut EnvioColhendo {
-            colheita: &colheita,
-        },
-    ) {
+        visao_do_controle::ler_colunas(
+            &tela.instalacao,
+            &atual,
+            unidade,
+            &arquivos.cookie,
+            &mut EnvioColhendo {
+                colheita: &colheita,
+            },
+        )
+    });
+    let ((rotulo, nivel), nota) = match lido {
         Ok(lido) => lido,
-        Err(erro) => return erro_da_visao(json_mode, &erro),
+        Err(falha) => return relogin_cli::publicar_falha(json_mode, &falha),
     };
     if json_mode {
-        let valor = json!({"unidade": rotulo, "origem": "web", "opcoes": nivel.json()});
+        let mut valor = json!({"unidade": rotulo, "origem": "web", "opcoes": nivel.json()});
+        relogin_cli::anotar_com_total(&mut valor, nota.as_ref());
         println!("{}", serde_json::to_string_pretty(&valor).unwrap());
     } else {
+        relogin_cli::avisar(json_mode, nota.as_ref());
         println!("IES: Nível de detalhe da unidade {rotulo}:");
         for opcao in &nivel.opcoes {
             let (marca, nota) = match (opcao.disponivel, opcao.marcada) {

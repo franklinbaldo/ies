@@ -146,6 +146,11 @@ manda; não é defeito.
 O IES ainda não troca de unidade; nada foi devolvido nem concluído por
 outra ferramenta.
 
+**Limpo em 05/11/2026** pelo IES (`unidade trocar`, #205): em PR-A,
+`processo concluir 99079.900901/2026-02` e `processo enviar
+99079.901790/2026-43 --para PR-P`; de volta a PR-P, os dois estão abertos
+só em PR-P ([relatório](2026-11-05-unidade-trocar.md)).
+
 | Processo | Estado agora | Limpeza sugerida |
 | --- | --- | --- |
 | `99079.900901/2026-02` | aberto em **PR-A** e em **PR-P** | trocar para PR-A e "Concluir" lá (ou devolver a PR-P) |

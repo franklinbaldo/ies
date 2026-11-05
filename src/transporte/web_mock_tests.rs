@@ -142,6 +142,7 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
                     status_code,
                     mime: mime.to_owned(),
                     content_length: size,
+                    localizacao: None,
                     corpo: Cursor::new(b"<html>".to_vec()),
                 })
             },

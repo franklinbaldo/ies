@@ -1,3 +1,5 @@
+mod hex;
+
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
@@ -53,10 +55,10 @@ fn acervo_com_historico(numero: &str) -> PathBuf {
         format!(
             "---\ntype: Cassette\ninstallation: unb\n\
              source_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\n\
-             archive_member: historico-sei-unb.json\narchive_sha1: {:x}\n\
-             cassette_sha256_lf: {:x}\n---\n",
-            Sha1::digest(fs::read(&arquivo_zip).unwrap()),
-            Sha256::digest(json.as_bytes())
+             archive_member: historico-sei-unb.json\narchive_sha1: {}\n\
+             cassette_sha256_lf: {}\n---\n",
+            hex::hex_minusculo(&Sha1::digest(fs::read(&arquivo_zip).unwrap())),
+            hex::hex_minusculo(&Sha256::digest(json.as_bytes()))
         ),
     )
     .unwrap();

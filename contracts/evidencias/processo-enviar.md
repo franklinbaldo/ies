@@ -15,8 +15,8 @@ unresolved_steps: 0
 Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
 ([contrato](../cli/processo-enviar.md), Refs #173): prévia com a tela
 "Enviar Processo" e a consulta do autocomplete (sem POST de escrita), um
-POST e verificação por `aberto_em`; escrita live NOT_RUN (aguarda
-autorização). Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+POST e verificação por `aberto_em`; escrita live PASS na UFRJ 4.1.5,
+na UnB 4.0.9 e no PEN1 5.0.4 (04 e 05/11/2026). Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 ## Evidência própria do IES
 

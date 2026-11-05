@@ -29,6 +29,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [Assinatura do documento](assinatura-do-documento.md)
 - [Reabertura do processo](reabertura-do-processo.md)
 - [Envio do processo](envio-do-processo.md)
+- [Troca de unidade](troca-de-unidade.md)
 - [Formulários e JavaScript](formularios.md)
 - [Mensagem de validação da Infra](validacao-da-infra.md)
 - [Tabelas e paginação](tabelas-e-paginacao.md)
