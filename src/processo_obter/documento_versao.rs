@@ -173,7 +173,6 @@ fn ler_atual<V: EnvioDoProcesso>(
             .atual()
             .ok_or(E::Versoes(ErroVersao::ListaIncompleta))?;
         versoes.atual = Ok(atual);
-        versoes.lida = Some(atual);
         atual
     };
     versoes.foto = Some(fotografar(versao, html)?);
