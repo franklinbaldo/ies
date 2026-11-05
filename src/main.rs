@@ -190,7 +190,7 @@ enum ProcessoAcao {
         marcador: Option<String>,
         #[arg(long, conflicts_with = "marcador")]
         retirar: Option<String>,
-        #[arg(long, requires = "marcador")]
+        #[arg(long, requires = "marcador", conflicts_with = "retirar")]
         texto: Option<String>,
         #[arg(long)]
         confirmar: bool,
