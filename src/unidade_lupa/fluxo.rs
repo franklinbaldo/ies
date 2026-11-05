@@ -423,6 +423,7 @@ mod tests {
         gets: usize,
         posts: usize,
         repetir: bool,
+        filtro_sobreposto: bool,
     }
     impl TransporteLupa for Fake {
         type Corpo = Cursor<Vec<u8>>;
@@ -477,7 +478,16 @@ mod tests {
             } else {
                 &["3"]
             };
-            Ok(resposta(pagina(indice_pagina, ids)))
+            let html = pagina(indice_pagina, ids);
+            let html = if self.filtro_sobreposto {
+                html.replace(
+                    "name='txtSiglaUnidade' value=''",
+                    "name='txtSiglaUnidade' value='FILTRADA'",
+                )
+            } else {
+                html
+            };
+            Ok(resposta(html))
         }
     }
     #[test]
@@ -486,6 +496,7 @@ mod tests {
             gets: 0,
             posts: 0,
             repetir: false,
+            filtro_sobreposto: false,
         };
         let lida = ler_integral(
             &mut rede,
@@ -499,11 +510,33 @@ mod tests {
         assert_eq!((rede.gets, rede.posts), (4, 2));
     }
     #[test]
+    fn filtro_restaurado_pelo_sei_nao_vira_lista_integral() {
+        // Caso do Todos tests/test_destinos_indice_010.py @323eb01:
+        // uma lista filtrada não substitui o snapshot integral.
+        let mut rede = Fake {
+            gets: 0,
+            posts: 0,
+            repetir: false,
+            filtro_sobreposto: true,
+        };
+        assert_eq!(
+            ler_integral(
+                &mut rede,
+                &url("procedimento_controlar"),
+                ORIGEM,
+                "PHPSESSID=SINTETICO",
+            ).err(),
+            Some(FalhaDaLupa::FormularioInesperado),
+        );
+        assert_eq!((rede.gets, rede.posts), (4, 1), "falha fechada sem novo POST");
+    }
+    #[test]
     fn pagina_repetida_recusa_antes_de_persistir() {
         let mut rede = Fake {
             gets: 0,
             posts: 0,
             repetir: true,
+            filtro_sobreposto: false,
         };
         let err = ler_integral(
             &mut rede,
