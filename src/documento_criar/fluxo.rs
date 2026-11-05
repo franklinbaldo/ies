@@ -437,6 +437,40 @@ mod tests {
     }
 
     #[test]
+    fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
+        // Caso de Todos src/todos/documentos.py::_escolha_do_tipo @323eb01.
+        let html = format!(
+            r#"<html><form id="frmDocumentoEscolherTipo" method="post"
+              action="controlador.php?acao=documento_escolher_tipo&amp;infra_hash={}">
+              <input type="hidden" name="hdnFiltroSerie" value="U">
+              <input type="hidden" name="hdnInfraTipoPagina" value="2">
+            </form></html>"#,
+            "a".repeat(64)
+        );
+        let url = format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_escolher_tipo&infra_hash={}",
+            "b".repeat(64)
+        );
+        let servida = TelaServida {
+            url: &url,
+            html: &html,
+            codificacao: CodificacaoDaTela::Iso88591,
+        };
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        let post = derivar_submissao(
+            &FILTRAR_TIPOS,
+            &instalacao,
+            &servida,
+            "UNIDADE TESTE",
+            &[("hdnFiltroSerie", "T")],
+        )
+        .unwrap();
+        assert_eq!(post.corpo(), b"hdnFiltroSerie=T&hdnInfraTipoPagina=2");
+        assert_eq!(post.efeito(), FILTRAR_TIPOS.efeito);
+        assert_eq!(crate::formulario_web::SubmissaoDerivada::METODO, "POST");
+    }
+
+    #[test]
     fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
         let erro = ErroPreviaCriacao::NivelNaoInformado;
         assert_eq!(
