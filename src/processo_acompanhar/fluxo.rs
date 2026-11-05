@@ -26,6 +26,7 @@ pub(crate) enum ErroPrevia {
     RedirecionamentoInesperado,
     TelaInesperada,
     Estrutura(ErroAcompanhar),
+    Formulario(crate::formulario_web::ErroSubmissaoFormulario),
     ConfirmacaoNaoImplementada,
     PedidoInvalido,
 }
@@ -42,6 +43,7 @@ impl ErroPrevia {
             Self::RedirecionamentoInesperado => "redirecionamento_de_acompanhamento_inesperado",
             Self::TelaInesperada => "tela_de_acompanhamento_inesperada",
             Self::Estrutura(erro) => erro.subcodigo(),
+            Self::Formulario(erro) => erro.subcodigo(),
             Self::ConfirmacaoNaoImplementada => "confirmacao_de_acompanhamento_ainda_bloqueada",
             Self::PedidoInvalido => "pedido_de_acompanhamento_invalido",
         }
