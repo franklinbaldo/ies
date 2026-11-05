@@ -20,6 +20,12 @@ na UnB 4.0.9 e no PEN1 5.0.4 (04 e 05/11/2026). Os estados abaixo pertencem ao T
 
 ## Evidência própria do IES
 
+- [Escrita live na UFRJ](../../docs/validacao-live/2026-11-04-processo-enviar-escrita.md):
+  **PASS** com e sem `--manter-aberto`, com leitura independente.
+- [Escrita live na UnB e PEN1](../../docs/validacao-live/2026-11-05-processo-enviar-escrita-unb-pen1.md):
+  **PASS** com e sem `--manter-aberto`, com leitura independente nas
+  duas instalações; escrita no GO e múltiplos destinos **NOT_RUN**.
+
 - [Observação estrutural](../../docs/como-o-sei-funciona/envio-do-processo.md)
   das 37 telas, 66 consultas e 27 POST de `procedimento_enviar` gravados.
 - [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-enviar-acervo.md):

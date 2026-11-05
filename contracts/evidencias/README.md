@@ -10,6 +10,28 @@ Estas operações vêm da matriz empírica do Todos e NÃO representam contratos
 já aprovados ou implementados no IES Rust. Um link aponta para uma
 cassette de mesmo cenário, não comprova identidade da revisão.
 
+## Validações próprias do IES (base eaf7d4a)
+
+Os estados herdados da matriz do Todos não equivalem a validação live do IES.
+Relatórios específicos que permitem distinguir essas fontes:
+
+- `processo.enviar`: escrita live **PASS** na
+  [UFRJ](../../docs/validacao-live/2026-11-04-processo-enviar-escrita.md)
+  e na [UnB/PEN1](../../docs/validacao-live/2026-11-05-processo-enviar-escrita-unb-pen1.md).
+- `documento.assinar`: escrita live **PASS** em PEN1 e UnB
+  ([relatório](../../docs/validacao-live/2026-11-04-documento-assinar-escrita.md)).
+- `unidade.trocar`: live **PASS** na UFRJ; UnB, GO e PEN **NOT_RUN** no ensaio
+  ([relatório](../../docs/validacao-live/2026-11-05-unidade-trocar.md)).
+- `processo.concluir` e `processo.reabrir`: escrita live **PASS**
+  na UFRJ e UnB
+  ([relatório](../../docs/validacao-live/2026-11-04-processo-concluir.md));
+  [replay concluir](../../docs/validacao-replay/2026-11-04-processo-concluir-acervo.md)
+  e [replay reabrir](../../docs/validacao-replay/2026-11-04-processo-reabrir-acervo.md)
+  são evidências offline distintas.
+- `sessao.login` / relogin de leitura: cenários específicos **PASS**
+  na PEN4; vencimento natural **NOT_RUN**
+  ([relatório](../../docs/validacao-live/2026-11-05-relogin.md)).
+
 Operações: 129. Passos: 2154.
 Passos sem cassette indexada: 0.
 
