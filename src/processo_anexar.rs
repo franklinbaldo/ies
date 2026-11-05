@@ -48,24 +48,23 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
     {
         if tag.name().as_utf8_str().eq_ignore_ascii_case("input")
             && let Some(nome) = atributo(tag, "name")?
+            && let Some(pos) = esperados.iter().position(|c| *c == nome)
         {
-            if let Some(pos) = esperados.iter().position(|c| *c == nome) {
-                vistos[pos] += 1;
-                let tipo = atributo(tag, "type")?;
-                let valido = match pos {
-                    0 | 1 => tipo
-                        .as_deref()
-                        .is_none_or(|v| v.eq_ignore_ascii_case("text")),
-                    2 | 3 => tipo
-                        .as_deref()
-                        .is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
-                    _ => tipo
-                        .as_deref()
-                        .is_some_and(|v| v.eq_ignore_ascii_case("submit")),
-                };
-                if !valido {
-                    return Err("controles_da_anexacao_ausentes_ou_repetidos");
-                }
+            vistos[pos] += 1;
+            let tipo = atributo(tag, "type")?;
+            let valido = match pos {
+                0 | 1 => tipo
+                    .as_deref()
+                    .is_none_or(|v| v.eq_ignore_ascii_case("text")),
+                2 | 3 => tipo
+                    .as_deref()
+                    .is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
+                _ => tipo
+                    .as_deref()
+                    .is_some_and(|v| v.eq_ignore_ascii_case("submit")),
+            };
+            if !valido {
+                return Err("controles_da_anexacao_ausentes_ou_repetidos");
             }
         }
         if tag.name().as_utf8_str().eq_ignore_ascii_case("table")
