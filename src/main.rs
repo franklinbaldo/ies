@@ -52,6 +52,9 @@ mod processo_concluir_cli;
 #[path = "processo_criar/cadastro.rs"]
 mod processo_criar_cadastro;
 mod processo_criar_cli;
+#[allow(dead_code)] // fluxo Web a integrar pela CLI
+#[path = "processo_criar/fluxo.rs"]
+mod processo_criar_fluxo;
 #[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
 #[path = "processo_criar/menu.rs"]
 mod processo_criar_menu;
