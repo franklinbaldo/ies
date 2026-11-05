@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn diferentes_versoes_nao_sobrescrevem() {
-        let raiz = std::env::temp_dir().join(format!("ies-cache-versoes-{}", std::process::id(),));
+        let raiz = std::env::temp_dir().join(format!("ies-cache-versoes-{}", std::process::id()));
         let um = gravar_em(&raiz, "sei.exemplo", "001", Some(1), "html", b"<p>um</p>").unwrap();
         let dois = gravar_em(&raiz, "sei.exemplo", "001", Some(2), "html", b"<p>dois</p>").unwrap();
         let desconhecida =
