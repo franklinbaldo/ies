@@ -229,7 +229,10 @@ fn red_valor_ajax_com_url_recusa_sem_post_criador() {
         ok(controle_de_criacao()),
         ok(lista()),
         ok(cadastro(true)),
-        ok("<select><option value='https://example.invalid/marcador'>Base A</option></select>".to_owned()),
+        ok(
+            "<select><option value='https://example.invalid/marcador'>Base A</option></select>"
+                .to_owned(),
+        ),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -241,13 +244,18 @@ fn red_valor_ajax_com_url_recusa_sem_post_criador() {
         )
     });
     let erro = resultado.expect_err("identificador nao publicavel nao pode ser enviado");
-    assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_resposta_nao_reconhecida");
+    assert_eq!(
+        erro.subcodigo(),
+        "hipotese_legal_ajax_resposta_nao_reconhecida"
+    );
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 3);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
-    assert!(pedidos.iter().all(|p|
-        p.metodo != "POST" || !p.url.contains("acao=procedimento_gerar")
-    ));
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| p.metodo != "POST" || !p.url.contains("acao=procedimento_gerar"))
+    );
 }
 
 /// Sem declaração literal de AJAX, nenhum endpoint pode ser inventado.
