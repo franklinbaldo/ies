@@ -53,8 +53,23 @@ fn opcao_de_sobrestar_desconhecida_recusada() {
 }
 #[test]
 fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
-    assert_eq!(conferir_formulario(&formulario().replace("name=\"hdnIdProcedimentoDestino\" value=\"\"", "name=\"hdnIdProcedimentoDestino\" value=\"99\""), ID), Err(E::DestinoPreenchido));
-    assert_eq!(conferir_formulario(&formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>"), ID), Err(E::CampoInesperado));
+    assert_eq!(
+        conferir_formulario(
+            &formulario().replace(
+                "name=\"hdnIdProcedimentoDestino\" value=\"\"",
+                "name=\"hdnIdProcedimentoDestino\" value=\"99\""
+            ),
+            ID
+        ),
+        Err(E::DestinoPreenchido)
+    );
+    assert_eq!(
+        conferir_formulario(
+            &formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>"),
+            ID
+        ),
+        Err(E::CampoInesperado)
+    );
 }
 
 #[test]
@@ -63,10 +78,22 @@ fn formulario_com_submissao_diferente_do_navegador_recusa() {
     let base = formulario();
     let casos = [
         base.replace("value=\"Salvar\"", "value=\"Salvar\" formmethod=\"get\""),
-        base.replace("value=\"Salvar\"", "value=\"Salvar\" formaction=\"controlador.php?acao=outro\""),
-        base.replace("value=\"Salvar\"", "value=\"Salvar\" formenctype=\"multipart/form-data\""),
-        base.replace("</form>", "</form><input name=\"x\" value=\"1\" form=\"frmDesentranharDocumento\" />"),
-        base.replace("<textarea id=\"txaMotivo\"", "<textarea readonly=\"readonly\" id=\"txaMotivo\""),
+        base.replace(
+            "value=\"Salvar\"",
+            "value=\"Salvar\" formaction=\"controlador.php?acao=outro\"",
+        ),
+        base.replace(
+            "value=\"Salvar\"",
+            "value=\"Salvar\" formenctype=\"multipart/form-data\"",
+        ),
+        base.replace(
+            "</form>",
+            "</form><input name=\"x\" value=\"1\" form=\"frmDesentranharDocumento\" />",
+        ),
+        base.replace(
+            "<textarea id=\"txaMotivo\"",
+            "<textarea readonly=\"readonly\" id=\"txaMotivo\"",
+        ),
     ];
     for formulario_alterado in casos {
         assert_eq!(
