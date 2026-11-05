@@ -48,7 +48,14 @@ e um POST por página, com filtros vazios e órgão "Todos", sem
 POST repetido. Conferir na resposta de cada página: identidade do
 formulário, página solicitada, total e número de páginas estáveis,
 IDs únicos entre páginas e soma final igual ao total declarado.
-Qualquer divergência aborta sem trocar o snapshot anterior.
+Qualquer divergência aborta sem trocar o snapshot anterior. Também
+é obrigatório conferir os filtros **devolvidos em cada POST**: sigla
+e descrição vazias e órgão efetivamente selecionado `Todos` (valor
+vazio). Se o SEI restaurar um filtro de outra operação, uma lista
+parcial pode ter total e paginação coerentes; portanto ela é recusada
+antes de ser persistida. Caso de regressão derivado de
+`tests/test_destinos_indice_010.py` e `tests/test_lupa_unidades_010.py`
+do Todos @323eb01; o replay da cassette original ainda está pendente.
 
 O orçamento completo do **comando** ainda precisa somar os GETs
 necessários para chegar à tela de cadastro e ao link da lupa.
