@@ -7,7 +7,7 @@ status: adopted-for-scope
 scope: leitura do mes no Retorno Programado pelo link do menu e links GET de calendario
 selected_strategy: web-calendario-mes-inteiro
 alternatives: web-calendario-mes-inteiro,web-um-dia-por-vez,rest-opcional
-evidence_level: todos-323eb01-tests-sinteticos-ci-sem-replay-live
+evidence_level: todos-323eb01-tests-sinteticos-replay-7-instalacoes-14-meses-pass
 live_validation: not-run-go-pen3
 ---
 
@@ -66,8 +66,11 @@ O [contrato](../../contracts/cli/unidade-listar-retornos.md), a
 [leitor](../../src/unidade_retornos.rs), o
 [fluxo](../../src/unidade_retornos_web.rs) e seus
 [testes](../../src/unidade_retornos_web/tests.rs)
-delimitam o recorte executavel. Sem replay real e sem validacao live
-GO/PEN3 (NOT_RUN), a capacidade nao esta homologada.
+delimitam o recorte executavel. O replay offline das sete
+cassettes originais passou nas 14 paginas mensais
+([relatorio](../validacao-replay/2026-11-05-unidade-retornos.md));
+a validacao live GO/PEN3 continua independente e a capacidade
+ainda nao esta homologada.
 
 ## Evidências verificáveis
 
@@ -75,6 +78,7 @@ GO/PEN3 (NOT_RUN), a capacidade nao esta homologada.
 - [Matriz de evidência](../../contracts/evidencias/unidade-listar_retornos.md)
 - [Teste Rust de CLI](../../tests/unidade_retornos.rs)
 - [Teste de navegação e orçamento](../../src/unidade_retornos_web/tests.rs)
+- [Replay Rust das sete cassettes](../../src/unidade_retornos/acervo.rs)
 
 ## Limitações e revisão
 
