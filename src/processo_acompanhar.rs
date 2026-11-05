@@ -5,6 +5,7 @@
 use crate::entidades_html::decodificar_texto;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
+mod exclusao;
 mod fluxo;
 mod submissao;
 pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
@@ -49,6 +50,8 @@ pub(crate) enum ErroAcompanhar {
     EscolhaDeAcompanhamentoAmbigua,
     #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     AcompanhamentoNaoConfirmado,
+    #[causa(nome = "exclusao_de_acompanhamento_nao_oferecida")]
+    ExclusaoNaoOferecida,
 }
 
 impl ErroAcompanhar {
