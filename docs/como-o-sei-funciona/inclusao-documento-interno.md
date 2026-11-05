@@ -47,6 +47,10 @@ nem consulta ao vivo nesta etapa.
    SEI publicado pela árvore. Falha de envio ou releitura com efeito
    não demonstrável deve resultar em saída 3, sem retry.
 
+## Orçamento da navegação 4.1/5.0
+
+Depois da leitura da árvore e da tela de seleção, uma escolha `escolher(id)` comprovada acrescenta **1 POST de navegação** (não de criação) e **1 GET do cadastro**; no 4.0 o link direto precisa apenas de **1 GET do cadastro**. A confirmação acrescenta **1 POST de criação**, nunca repetido, e uma leitura nova da árvore/processo. O número total da abertura depende dos atalhos observados no índice, não podendo ser declarado constante sem teste integrado. A derivação do corpo do POST de escolha é testada com fixture sintética e sem chamadas de rede; o replay e os totais live continuam NOT_RUN.
+
 ## Restrições para implementação
 
 A prévia só deve abrir telas avaliadas como leitura; em particular,
