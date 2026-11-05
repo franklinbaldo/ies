@@ -112,7 +112,6 @@ pub(super) fn do_externo(
         });
     }
     Ok(VersoesDoDocumento {
-            cache_html: None, 
         lida: None,
         atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
@@ -148,7 +147,6 @@ fn ler_atual<V: EnvioDoProcesso>(
     if cache && html.contains("infra_hash") { return Err(E::ConteudoComLinkAssinado); }
     let cache_html = cache.then(|| html.clone());
     let mut versoes = VersoesDoDocumento {
-            cache_html: None, 
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
@@ -183,6 +181,7 @@ fn ler_versao<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     n: VersaoDocumento,
     foto: bool,
+    cache: bool,
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     let barra = no.barra()?;
     let lista = barra.versoes.ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
@@ -210,7 +209,6 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
-            cache_html: None, 
         lida: Some(n),
         atual: Ok(atual),
         foto,
