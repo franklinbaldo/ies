@@ -31,7 +31,10 @@ fn ajuda_mostra_termo_e_pagina_sem_assunto() {
     let texto = String::from_utf8_lossy(&saida.stdout);
     assert!(texto.contains("<TERMO>"), "{texto}");
     assert!(texto.contains("--pagina <N>"), "{texto}");
-    assert!(!texto.contains("--assunto"), "{texto}");
+    assert!(texto.contains("--assunto <TEXTO>"), "{texto}");
+    assert!(texto.contains("--tipo <TIPO>"), "{texto}");
+    assert!(texto.contains("--de <DD/MM/AAAA>"), "{texto}");
+    assert!(texto.contains("--ate <DD/MM/AAAA>"), "{texto}");
 }
 
 #[test]
@@ -81,4 +84,39 @@ fn arquivos_de_sessao_ausentes_sao_falha_tipada() {
         json(&saida)["subcodigo"],
         "arquivo_privado_ausente_ou_inacessivel"
     );
+}
+
+#[test]
+fn data_invalida_e_recusada_antes_da_configuracao() {
+    let saida = ies(
+        &[
+            "--json",
+            "documento",
+            "buscar",
+            "0001",
+            "--de",
+            "31/02/2026",
+        ],
+        false,
+    );
+    assert_eq!(saida.status.code(), Some(2));
+    assert_eq!(json(&saida)["subcodigo"], "data_da_pesquisa_invalida");
+}
+#[test]
+fn periodo_invertido_e_recusado_antes_da_configuracao() {
+    let saida = ies(
+        &[
+            "--json",
+            "documento",
+            "buscar",
+            "0001",
+            "--de",
+            "02/01/2026",
+            "--ate",
+            "01/01/2026",
+        ],
+        false,
+    );
+    assert_eq!(saida.status.code(), Some(2));
+    assert_eq!(json(&saida)["subcodigo"], "periodo_da_pesquisa_invertido");
 }

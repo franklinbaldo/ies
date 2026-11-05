@@ -408,3 +408,63 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
         "campos_do_termo_repetidos_na_tela"
     );
 }
+
+#[test]
+fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
+    let html = observado()
+        .replace("<option value='null'>-</option></select>",
+                 "<option value='null'>-</option><option value='73'>Administrativo</option></select>")
+        .replace("<input type='hidden' id='hdnInicio'",
+                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'");
+    let url = url_servida();
+    let filtros = FiltrosDaPesquisa {
+        tipo: Some("Administrativo"),
+        de: Some("01/01/2026"),
+        ate: Some("31/12/2026"),
+        ..Default::default()
+    };
+    let envio = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &html),
+        ("UNIDADE TESTE", "0001"),
+        filtros,
+    )
+    .unwrap();
+    let corpo = String::from_utf8(envio.corpo().to_vec()).unwrap();
+    assert!(corpo.contains("selTipoProcedimentoPesquisa=73"), "{corpo}");
+    assert!(corpo.contains("txtDataInicio=01%2F01%2F2026"), "{corpo}");
+    assert!(corpo.contains("txtDataFim=31%2F12%2F2026"), "{corpo}");
+}
+#[test]
+fn filtro_ausente_na_tela_falha_antes_do_post() {
+    let url = url_servida();
+    let erro = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &observado()),
+        ("UNIDADE TESTE", "0001"),
+        FiltrosDaPesquisa {
+            de: Some("01/01/2026"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+}
+#[test]
+fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
+    let url = url_servida();
+    let erro = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &observado()),
+        ("UNIDADE TESTE", "0001"),
+        FiltrosDaPesquisa {
+            assunto: Some("023.1"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+}

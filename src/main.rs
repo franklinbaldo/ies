@@ -155,6 +155,18 @@ enum ProcessoAcao {
             value_parser = clap::value_parser!(u32).range(1..)
         )]
         pagina: Option<u32>,
+        /// Tipo exato da lista publicada na tela
+        #[arg(long, value_name = "TIPO")]
+        tipo: Option<String>,
+        /// Assunto publicado pela tela (autocompletar exige ID observado)
+        #[arg(long, value_name = "TEXTO")]
+        assunto: Option<String>,
+        /// Data inicial no formato DD/MM/AAAA
+        #[arg(long, value_name = "DD/MM/AAAA")]
+        de: Option<String>,
+        /// Data final no formato DD/MM/AAAA
+        #[arg(long, value_name = "DD/MM/AAAA")]
+        ate: Option<String>,
     },
     /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
     /// verificação por leitura)
@@ -235,6 +247,18 @@ enum DocumentoAcao {
             value_parser = clap::value_parser!(u32).range(1..)
         )]
         pagina: Option<u32>,
+        /// Tipo exato da lista publicada na tela
+        #[arg(long, value_name = "TIPO")]
+        tipo: Option<String>,
+        /// Assunto publicado pela tela (autocompletar exige ID observado)
+        #[arg(long, value_name = "TEXTO")]
+        assunto: Option<String>,
+        /// Data inicial no formato DD/MM/AAAA
+        #[arg(long, value_name = "DD/MM/AAAA")]
+        de: Option<String>,
+        /// Data final no formato DD/MM/AAAA
+        #[arg(long, value_name = "DD/MM/AAAA")]
+        ate: Option<String>,
     },
     /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
     Assinar {
