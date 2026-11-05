@@ -102,15 +102,14 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
         if let Some(opcoes) = erro.opcoes_para_escolha() {
             if json_mode {
-                let mut valor = json_de_erro_fonte(
-                    erro.subcodigo(),
-                    mensagem,
-                    erro.status_http(),
-                );
+                let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
                 valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
                 println!("{valor}");
             } else {
-                eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
+                eprintln!(
+                    "{}",
+                    linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+                );
                 eprintln!("IES: hipóteses legais ofertadas no AJAX:");
                 for (id, nome) in opcoes {
                     eprintln!("  {id}#{nome}");
@@ -120,12 +119,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             return ExitCode::from(1);
         }
         // Status e mensagem saneada do SEI vão para a saída quando houve.
-        return erro_fonte_http(
-            json_mode,
-            erro.subcodigo(),
-            mensagem,
-            erro.status_http(),
-        );
+        return erro_fonte_http(json_mode, erro.subcodigo(), mensagem, erro.status_http());
     }
     if json_mode {
         println!(
