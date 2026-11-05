@@ -10,7 +10,7 @@ mod fluxo;
 mod erro;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
-pub(crate) use fluxo::cancelar_documento;
+pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkCancelar {
