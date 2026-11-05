@@ -104,28 +104,37 @@ fn atualizar_por_web(
     instalacao: &str,
     unidade: &str,
 ) -> Result<(ListaGuardada, usize, bool), ErroLocal> {
-    let referencias = ReferenciasDaSessao::ler(
-        &arquivos.url_controle, &arquivos.origem, &arquivos.cookie,
-    ).map_err(|e| (e.subcodigo(), e.mensagem()))?;
-    referencias.conferir_controle()
+    let referencias =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+            .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+    referencias
+        .conferir_controle()
         .map_err(|e| (e.subcodigo(), e.mensagem()))?;
-    let cookie = referencias.cookie().valor()
+    let cookie = referencias
+        .cookie()
+        .valor()
         .map_err(|e| (e.subcodigo(), e.mensagem()))?;
     let lida = crate::unidade_lupa::ler_integral(
         &mut crate::unidade_lupa::HttpsLupa,
         referencias.url_do_controle(),
         referencias.origem(),
         cookie,
-    ).map_err(|e| (e.subcodigo(), "a lupa não devolveu uma lista integral verificável"))?;
+    )
+    .map_err(|e| {
+        (
+            e.subcodigo(),
+            "a lupa não devolveu uma lista integral verificável",
+        )
+    })?;
     let total = lida.total;
-    let persistida = indice.guardar_lista_de_unidades(
-        instalacao, unidade, &lida.unidades, total,
-    );
+    let persistida = indice.guardar_lista_de_unidades(instalacao, unidade, &lida.unidades, total);
     let lida_em = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0.0, |d| d.as_secs_f64());
     let lista = ListaGuardada {
-        unidades: lida.unidades, total, lida_em,
+        unidades: lida.unidades,
+        total,
+        lida_em,
     };
     Ok((lista, lida.requisicoes, persistida))
 }
@@ -148,7 +157,9 @@ fn executar(
         Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
-    let guardada = if atualizar {None} else {
+    let guardada = if atualizar {
+        None
+    } else {
         ler_guardadas(&indice, &instalacao, &unidade, termo).ok()
     };
     let (lista, origem, requisicoes, persistida) = if let Some(lista) = guardada {
@@ -196,7 +207,11 @@ pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar:
 
 pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
     if termo.trim().is_empty() {
-        return erro_fonte(json_mode, "termo_de_unidade_vazio", "termo de pesquisa vazio");
+        return erro_fonte(
+            json_mode,
+            "termo_de_unidade_vazio",
+            "termo de pesquisa vazio",
+        );
     }
     executar(json_mode, unidade_esperada, Some(termo), false)
 }
