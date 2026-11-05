@@ -20,6 +20,7 @@ mod movidos;
 mod natureza;
 mod pastas;
 mod reabrir;
+mod sobrestar;
 mod situacao;
 mod tela;
 mod vinculo;
@@ -58,6 +59,8 @@ mod tests_pastas_concatenacao;
 mod tests_pastas_integridade;
 #[cfg(test)]
 pub(crate) mod tests_reabrir;
+#[cfg(test)]
+mod tests_sobrestar;
 #[cfg(test)]
 mod tests_situacao;
 #[cfg(test)]
