@@ -121,6 +121,18 @@ Esses subcódigos precisam de tipos reais e integração a
 | `tipo_de_processo_sem_identificador` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `unidade_da_criacao_divergente` | Etapa observada não satisfeita; não repetir operação automaticamente |
 
+
+## Subcódigos do interessado
+
+| Subcódigo | Recusa |
+| --- | --- |
+| `interessado_controles_ausentes` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `interessado_autocompletar_nao_declarado` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `interessado_consulta_nao_derivada` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `interessado_resposta_nao_reconhecida` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `interessado_de_processo_nao_oferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `interessado_de_processo_ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+
 ## Orçamento e evidência
 
 Argumento rejeitado sem rede: 0. Prévia: consultas necessárias
