@@ -69,3 +69,51 @@ verificação de integridade antes de substituir o snapshot.
 
 **PR Draft:** [#250](https://github.com/franklinbaldo/ies/pull/250).
 Nenhuma escrita remota foi executada, nem foi feita afirmação de PASS live.
+
+## Retomada de 05/11 — revisão do leitor Web e validação do head
+
+Esta seção **atualiza** as limitações descritas acima: desde a primeira
+fatia offline, o branch passou a incluir a coleta Web integral e o fallback
+na ausência de snapshot; isso não equivale a validação ao vivo.
+
+- **PR/branch:** [#250](https://github.com/franklinbaldo/ies/pull/250),
+  `codex/244-unidades-indice-local`, ainda DRAFT.
+- **Correções de segurança:** URLs de ações servidas pela lupa passam por
+  validação da instalação/origem, unicidade de `acao` e `infra_hash` válido,
+  e rejeição de chave não canônica, separador ambíguo ou hash duplicado.
+  A URL do Controle conserva a validação própria do transporte. O botão
+  `btnNovo` duplicado não pode escolher um destino arbitrário.
+- **Erros tipados:** `FalhaDaLupa::Transporte` preserva a
+  `FalhaTransporte` completa até a CLI, incluindo `status_http` e
+  `mensagem_do_servidor` saneada quando a falha HTTP dispõe desses dados.
+  Nenhuma URL assinada nem cookie entra na saída.
+- **Testes sintéticos adicionais:** URLs válidas e duplicadas, consulta
+  malformada, proteção contra segundo GET após link recusado, HTTP 503
+  com dados de apresentação, botão repetido. O teste de CLI para
+  `--atualizar` sem sessão foi atualizado para exigir recusa de configuração
+  **antes** de qualquer acesso Web, em vez de esperar a recusa antiga
+  de funcionalidade pendente.
+- **Orçamento sintético:** 4 GETs de navegação e 1 POST por página;
+  em duas páginas, 6 requisições, sem retry. A comprovação em instalações
+  de treinamento continua pendente.
+- **CI canônico:** **PASS** no commit `32d178929f5e7bd80706f8c3806c7d555c8a0fc0`,
+  [run 42070714695](https://github.com/franklinbaldo/ies/actions/runs/42070714695).
+  Rustfmt, Clippy, suíte Rust, limite 20 KB, OKF, decisões e subcódigos
+  passaram. Runs intermediários vermelhos por seletor HTML `#btnNovo`,
+  Clippy, Rustfmt e expectativa legada foram diagnosticados e corrigidos.
+- **RED local:** NOT_RUN; contagem local não observada. O sandbox não
+  dispõe de Rust e a rede/DNS impede instalar o toolchain. A evidência
+  histórica de **3 falhas no CI antes do GREEN** continua sendo
+  [run 42063259438](https://github.com/franklinbaldo/ies/actions/runs/42063259438),
+  sem descrevê-la como RED local desta retomada.
+- **Replay do acervo:** NOT_RUN; pendente em cassettes reais.
+- **Live UnB:** NOT_RUN — 0 requisições.
+- **Live GO:** NOT_RUN — 0 requisições.
+- **Escrita no SEI:** NOT_RUN — nenhum objeto criado ou alterado, resíduo
+  nenhum; esta issue implementa leitura.
+
+A execução do CI citada comprova o commit indicado, **não** automaticamente
+commits subsequentes no mesmo branch. Para fechar a issue faltam o replay
+sobre cassettes reais e a leitura ao vivo em UnB/GO com orçamento contado,
+confirmação das telas e comportamento de todas as páginas. Não fazer merge
+nem marcar a PR como pronta enquanto isso não estiver observado.
