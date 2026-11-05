@@ -337,6 +337,22 @@ pub(crate) fn ler_com<F>(
     controle_html: &str,
     instalacao: &Instalacao,
     mes: Option<(u16, u8)>,
+    get: F,
+) -> Result<Leitura, ErroLeituraRetornos>
+where
+    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
+{
+    ler_com_data_utc(controle_url, controle_html, instalacao, mes, (1970, 1, 1), get)
+}
+
+// Shim de teste: o relogio UTC sera injetado para exercitar viradas de mes
+// sem alterar o relogio do CI. O RED comprovara a lacuna de navegacao.
+fn ler_com_data_utc<F>(
+    controle_url: &str,
+    controle_html: &str,
+    instalacao: &Instalacao,
+    mes: Option<(u16, u8)>,
+    _hoje_utc: (u16, u8, u8),
     mut get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
