@@ -16,8 +16,14 @@ Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB
 ([contrato](../cli/documento-assinar.md), Refs #174): prévia (árvore, tela
 do documento e tela de assinatura, sem POST), uma escrita com `--cargo`
 exato e a senha do arquivo privado, e verificação pela caneta da árvore;
-replay das 77 assinaturas gravadas pelos leitores do comando; escrita live
-NOT_RUN (aguarda autorização). Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+replay das 77 assinaturas gravadas pelos leitores do comando; escrita live **PASS** na PEN1 5.0.4 e na UnB 4.0.9. Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+
+## Evidência própria do IES
+
+- [Escrita live](../../docs/validacao-live/2026-11-04-documento-assinar-escrita.md):
+  **PASS** na PEN1 e UnB, com prévia, assinatura, leitura independente
+  e nova prévia confirmando a assinatura; demais instalações **NOT_RUN**
+  nesse ensaio. A demonstração do Todos não substitui a escrita live.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
