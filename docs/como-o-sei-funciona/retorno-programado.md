@@ -34,6 +34,25 @@ do IES em 05/11/2026. Ela nao constitui observacao ao vivo do IES.
   `Nenhum registro encontrado.`. Nao confundir uma pagina estranha
   sem tabelas com um mes vazio.
 
+## Evidencia adicional do calendario — replay de 05/11/2026
+
+O [diagnostico offline conferido](https://github.com/franklinbaldo/ies/actions/runs/42120788751)
+percorreu as respostas GET dos sete cards. Em UnB, UFRJ, GO e PEN1–4,
+os calendarios apresentaram normalmente **duas ancoras** mensais
+com `data_inicial` e `data_final`, mas **uma unica URL mensal
+distinta**. Isso foi observado inclusive nos calendarios de GO e PEN3.
+A quantidade de ancoras nao e a quantidade de escolhas: duas ancoras
+com href assinado identico significam uma unica oferta do mes.
+
+O leitor antigo de `mes_inteiro` recusava a segunda ancora mesmo com
+href identico, produzindo `calendario_dos_retornos_desconhecido`.
+A correcao da issue #253 aceita apenas duplicatas literalmente iguais;
+duas URLs assinadas diferentes continuam ambiguas. Nao foram impressos
+hrefs, hashes, cookies ou HTML da sessao. Essa observacao offline
+explica uma causa **plausivel**, mas nao prova sozinha que foi
+exatamente a causa da recusa live PEN3, pois essa tela nao foi
+capturada integralmente na tentativa anterior.
+
 ## Efeito e limites
 
 Somente leitura por GET; GET nao e tratado como isento de efeitos
