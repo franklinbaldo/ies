@@ -1,0 +1,166 @@
+//! `--saida` e a prévia de `documento salvar` sem sessão nem rede (#207):
+//! a foto `DOC.vN.html` conferida antes da rede e o par vN / v(N+1), offline.
+use std::process::Command;
+
+fn ies_sem_sessao(args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(args)
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .expect("IES deve iniciar")
+}
+
+#[test]
+fn documento_saida_confere_a_foto_e_o_diretorio_antes_da_sessao() {
+    // #207: com `--versao N` o nome `DOC.vN.html` é conhecido antes da
+    // rede; uma foto presente que declara outro documento é recusada.
+    let pasta = std::env::temp_dir().join(format!("ies-foto-versao-{}", std::process::id()));
+    std::fs::create_dir_all(&pasta).unwrap();
+    let outra =
+        "<html><head><title>SEI/X - 0099999 - Despacho</title></head><body><p>x</p></body></html>";
+    let alvo = pasta.join("0011519.v2.html");
+    std::fs::write(&alvo, outra).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&alvo, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let dir = pasta.to_str().unwrap();
+    let args = [
+        "documento",
+        "0011519",
+        "--versao",
+        "2",
+        "--saida",
+        dir,
+        "--json",
+    ];
+    let output = ies_sem_sessao(&args);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "foto_local_divergente");
+    let ausente = pasta.join("nao-existe");
+    let args = [
+        "documento",
+        "0011519",
+        "--saida",
+        ausente.to_str().unwrap(),
+        "--json",
+    ];
+    let output = ies_sem_sessao(&args);
+    assert_eq!(output.status.code(), Some(1));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["subcodigo"], "diretorio_texto_documento_ausente");
+    std::fs::remove_dir_all(pasta).unwrap();
+}
+
+/// Grava `DOC.vN.html` privado (0600) em `pasta`.
+fn versao_local(pasta: &std::path::Path, n: u32, corpo: &str) {
+    let alvo = pasta.join(format!("0011519.v{n}.html"));
+    std::fs::write(&alvo, corpo).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&alvo, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+}
+
+/// `ies documento salvar` no diretório `pasta`, sem nenhum arquivo de
+/// configuração ou sessão: `IES_CONFIG_FILE` aponta para um arquivo que
+/// não existe e as demais variáveis somem, como numa máquina limpa.
+fn salvar_offline(pasta: &std::path::Path, extra: &[&str]) -> (Option<i32>, serde_json::Value) {
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(pasta)
+        .env("IES_CONFIG_FILE", pasta.join("nao-existe.json"))
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .env("IES_INDICE_FILE", pasta.join("ies.sqlite3"))
+        .args(["documento", "salvar", "0011519", "--json"])
+        .args(extra)
+        .output()
+        .unwrap();
+    let value = serde_json::from_slice(&output.stdout).unwrap();
+    (output.status.code(), value)
+}
+
+fn pasta_vazia(rotulo: &str) -> std::path::PathBuf {
+    let pasta = std::env::temp_dir().join(format!("ies-salvar-{rotulo}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&pasta);
+    std::fs::create_dir_all(&pasta).unwrap();
+    pasta
+}
+
+#[test]
+fn salvar_previa_offline_sem_indice_nem_configuracao() {
+    // #207: o par `DOC.v2.html` / `DOC.v3.html` basta; nenhum índice nem
+    // sessão. A base não é verificada aqui (só a releitura ou o salvar
+    // remoto a conferem com o SEI), e a saída diz isso.
+    let pasta = pasta_vazia("offline");
+    versao_local(&pasta, 2, "<p>a</p>");
+    versao_local(&pasta, 3, "<p>b</p>");
+    let (codigo, value) = salvar_offline(&pasta, &[]);
+    assert_eq!(codigo, Some(0), "{value}");
+    let previa = &value["previa"];
+    assert_eq!(
+        (
+            previa["versao_base"].as_u64(),
+            previa["versao_editada"].as_u64()
+        ),
+        (Some(2), Some(3))
+    );
+    assert_eq!(previa["base_verificada"], false);
+    assert_eq!(previa["escrita_remota"], false);
+    assert_eq!(value["confirmado"], false);
+    assert!(!value.to_string().contains("<p>"));
+    assert!(!pasta.join("ies.sqlite3").exists());
+    let (codigo, value) = salvar_offline(&pasta, &["--listar-copias"]);
+    assert_eq!(codigo, Some(0), "{value}");
+    assert_eq!(value["escopo"], "arquivos_locais");
+    assert_eq!(value["versao_remota_confirmada"], false);
+    let copias = value["copias"].as_array().unwrap();
+    assert_eq!(copias.len(), 2);
+    for copia in copias {
+        let mut chaves: Vec<&str> = copia
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        chaves.sort_unstable();
+        assert_eq!(chaves, ["bytes", "documento", "versao"]);
+    }
+    std::fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
+    let pasta = pasta_vazia("recusas");
+    let (codigo, value) = salvar_offline(&pasta, &[]);
+    assert_eq!(
+        (codigo, value["subcodigo"].as_str()),
+        (Some(1), Some("base_versao_ausente"))
+    );
+    versao_local(&pasta, 3, "<p>b</p>");
+    let (codigo, value) = salvar_offline(&pasta, &["--versao", "2"]);
+    assert_eq!(
+        (codigo, value["subcodigo"].as_str()),
+        (Some(1), Some("base_versao_ausente"))
+    );
+    // Só v3: ela é a base e a edição v4 falta.
+    let (codigo, value) = salvar_offline(&pasta, &[]);
+    assert_eq!(
+        (codigo, value["subcodigo"].as_str()),
+        (Some(1), Some("versao_editada_ausente"))
+    );
+    versao_local(&pasta, 4, "<p>b</p>");
+    let (codigo, value) = salvar_offline(&pasta, &[]);
+    assert_eq!(
+        (codigo, value["subcodigo"].as_str()),
+        (Some(1), Some("versao_editada_igual_a_base"))
+    );
+    std::fs::remove_dir_all(pasta).unwrap();
+}

@@ -29,6 +29,7 @@ mod entidades_html;
 mod erro_web;
 mod esquema_cli;
 mod formulario_web;
+mod foto_documento;
 mod hex;
 mod historico;
 mod historico_processo;
@@ -188,9 +189,6 @@ struct Documento {
     /// Solicita exatamente esta versão histórica (requer transporte autorizado)
     #[arg(long)]
     versao: Option<u32>,
-    /// Não prepara cópia editável ao ler
-    #[arg(long)]
-    sem_copia: bool,
     /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
     html_privado: Option<PathBuf>,

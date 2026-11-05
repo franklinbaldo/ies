@@ -1,4 +1,6 @@
-//! Prévia segura: nunca executa confirmação Web.
+//! Prévia segura: nunca executa confirmação Web. O par local é
+//! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207. Offline:
+//! não lê índice, configuração nem sessão, e não verifica a base.
 use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
 use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
@@ -19,26 +21,20 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
                     "{}",
                     json!({
                         "copias": copias,
-                        "escopo": "copias_de_trabalho_locais_verificadas",
+                        "escopo": "arquivos_locais",
                         "versao_remota_confirmada": false,
                         "escrita_remota": false
                     })
                 );
             } else {
                 println!(
-                    "IES: {} cópia(s) local(is) verificadas; nenhuma versão remota confirmada.",
+                    "IES: {} arquivo(s) local(is); nenhuma versão conferida com o SEI.",
                     copias.len()
                 );
                 for copia in &copias {
                     println!(
-                        "  {} v{}: {}",
-                        copia.documento,
-                        copia.versao_base,
-                        if copia.alterado {
-                            "alterada"
-                        } else {
-                            "inalterada"
-                        }
+                        "  {} v{}: {} bytes",
+                        copia.documento, copia.versao, copia.bytes
                     );
                 }
             }
@@ -93,14 +89,12 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                 println!("{}", json!({"previa": dados, "confirmado": false}));
             } else {
                 println!(
-                    "IES: cópia local {} v{}: {} (sem escrita no SEI)",
+                    "IES: {} v{} editada sobre a v{} local ({} → {} bytes; base não verificada; sem escrita no SEI)",
                     dados.documento,
+                    dados.versao_editada,
                     dados.versao_base,
-                    if dados.alterado {
-                        "modificada"
-                    } else {
-                        "inalterada"
-                    }
+                    dados.bytes_base,
+                    dados.bytes_editada,
                 );
             }
             Some(ExitCode::SUCCESS)

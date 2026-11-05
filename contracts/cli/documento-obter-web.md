@@ -10,9 +10,9 @@ Complementa o [contrato de `documento.obter`](documento-obter.md).
 `ies documento DOC [DOC ...] [--processo NUP] [--saida DIR] [--json]
 [--unidade SIGLA]` usa a sessão de `ies login` e lê, na ordem pedida, o
 conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
-`--versao N`, `versao_atual` e a cópia de trabalho (`--saida`,
-`--sem-copia`) estão no [contrato de versões](documento-obter-versoes.md)
-(Refs #88), sobre qualquer caminho que abriu a árvore. Opções ainda sem
+`--versao N`, `versao_atual` e a foto `DOC.vN.html` de `--saida`
+estão no [contrato de versões](documento-obter-versoes.md)
+(Refs #88, #207), sobre qualquer caminho que abriu a árvore. Opções ainda sem
 implementação (`--com-propriedades`, `--ocultar-inacessiveis`) continuam
 no stub (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
 O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
@@ -75,15 +75,18 @@ tela; `null` pelo link da árvore, que não a publica), `resolvido_por`
 (`indice_link`, `indice_trabalhar`, `indice_entrada_documento`,
 `pesquisa_rapida` e, com `--processo`, também `indice_entrada` e
 `caixa`), `requisicoes` (inclusive as dos palpites desmentidos),
-`fonte: "documento_visualizar"`, os campos de versão e cópia do
+`fonte: "documento_visualizar"`, os campos de versão do
 [contrato de versões](documento-obter-versoes.md) e `texto` (o texto
 visível do corpo, com as entidades HTML decodificadas). Sem `--json`, uma
 linha por documento e o texto. Nunca URL, `infra_hash`, cookie ou HTML.
 
-Com `--saida DIR` (diretório existente), cada texto vai para `DOC.txt`
-0600, sem sobrescrever nem seguir symlink, **depois** de todos lidos; o
-JSON troca `texto` por `arquivo` e `bytes`. Com `--versao N` o nome é
-`DOC.vN.txt` ([versões](documento-obter-versoes.md), #204).
+Com `--saida DIR` (diretório existente, conferido antes da rede), cada
+interno grava só a foto `DOC.vN.html`, o HTML servido da versão lida,
+0600, sem seguir symlink e de forma idempotente (mesmo SHA-256: nada
+gravado, saída 0), **depois** de todos lidos; o JSON troca `texto` pelo
+objeto `arquivo` (`nome`, `bytes`, `sha256`, `gravado`, `motivo`).
+Nenhum `DOC.txt` nem `DOC.vN.txt` (substituídos em #207;
+[versões e foto](documento-obter-versoes.md)).
 
 ## Falhas tipadas
 
@@ -106,7 +109,8 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
-| `arquivo_texto_documento_ja_existe`, `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `escrita_texto_documento_falhou` | `--saida`: `DOC.txt` (ou `DOC.vN.txt`) já existe, o diretório falta ou passa por link simbólico, ou a escrita falhou; conferido depois de todos lidos (as requisições já foram gastas), salvo `DOC.vN.txt` com `--versao N`, conferido antes da rede (0 requisições) |
+| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico` | `--saida`: o diretório falta ou passa por link simbólico (antes da rede, 0 requisições) |
+| `foto_local_divergente`, `gravacao_foto_falhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
 subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive

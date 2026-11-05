@@ -132,7 +132,13 @@ sem retry ([contrato](../contracts/cli/processo-concluir.md)).
 (`lista_de_versoes_nao_publicada_na_arvore`), `Versoes(ErroVersao)`
 (os subcódigos do leitor da lista, inclusive `versao_nao_observada`) e
 `VersaoServidaDiferenteDaPedida` (`versao_servida_diferente_da_pedida`).
-Cópia não preparada não é erro: sai como `copia_motivo`
+Com #207, `ConteudoComLinkAssinado` (`conteudo_com_link_assinado`) e, sem
+rodapé nem lista, `ListaDeVersoesNaoPublicadaNaArvore` também recusam a
+foto de `--saida`. A gravação local é `ErroCopia`
+(`src/copia_documento.rs`): `foto_local_divergente`,
+`gravacao_foto_falhou` e, na prévia offline de `salvar`,
+`base_versao_ausente`, `versao_editada_ausente` e
+`versao_editada_igual_a_base` (a prévia não confere a base com o SEI)
 ([contrato](../contracts/cli/documento-obter-versoes.md)).
 
 ## Reabrir o processo

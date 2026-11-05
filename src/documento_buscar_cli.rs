@@ -47,7 +47,6 @@ fn opcoes_de_leitura_presentes(comando: &Documento) -> bool {
     !comando.numeros.is_empty()
         || comando.processo.is_some()
         || comando.versao.is_some()
-        || comando.sem_copia
         || comando.html_privado.is_some()
         || comando.saida.is_some()
         || comando.ocultar_inacessiveis

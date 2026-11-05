@@ -3,15 +3,15 @@
 //! um documento por vez, na ordem pedida, cada um pelo caminho mais barato
 //! (processo informado, índice ou pesquisa rápida), a árvore e o link
 //! assinado do conteúdo. Publica metadados e
-//! texto visível; nunca URL, hash, cookie ou HTML. Com `--saida`, grava
-//! `DOC.txt` (0600, sem sobrescrever) só depois de todos lidos; o externo
-//! (fatia 3) liga o parcial `DOC.pdf`/`.txt`/`.html` gravado na leitura.
-//! `--versao N` e a cópia de trabalho: contracts/cli/documento-obter-versoes.md (#88).
+//! texto visível; nunca URL, hash, cookie ou HTML no terminal. Com
+//! `--saida`, grava só a foto `DOC.vN.html` de cada interno (#207,
+//! idempotente) depois de todos lidos; o externo (fatia 3) liga o parcial
+//! `DOC.pdf`/`.txt`/`.html` gravado na leitura.
+//! `--versao N` e a foto: contracts/cli/documento-obter-versoes.md.
 use crate::anexo_documento::LimiteDoAnexo;
-use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
-use crate::documento_versao_cli::{self, CopiaGravada};
-use crate::documento_versoes::VersaoDocumento;
+use crate::documento_versao_cli;
+use crate::foto_documento::{self, FotoGravada};
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
@@ -104,7 +104,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
-    let versoes = documento_versao_cli::pedido(comando.versao, saida.is_some(), comando.sem_copia)?;
+    let versoes = documento_versao_cli::pedido(comando.versao, saida.is_some())?;
     let processo = match comando.processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(nup)) => Some(nup),
@@ -145,9 +145,9 @@ fn obter(
     };
     if let Some(diretorio) = saida
         && let Err(erro) =
-            documento_versao_cli::conferir_textos_antes_da_rede(diretorio, numeros, versoes.versao)
+            foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)
     {
-        return erro_fonte(cli.json, erro.subcodigo(), "o texto não foi gravado");
+        return erro_fonte(cli.json, erro.subcodigo(), "nenhum arquivo foi gravado");
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
@@ -183,17 +183,10 @@ fn obter(
                 }
             }
         }
-        Ok((obtidos, referencias.origem().to_owned()))
+        Ok(obtidos)
     });
     match lido {
-        Ok(((obtidos, origem), nota)) => publicar(
-            cli.json,
-            obtidos,
-            saida,
-            &origem,
-            versoes.versao,
-            nota.as_ref(),
-        ),
+        Ok((obtidos, nota)) => publicar(cli.json, obtidos, saida, nota.as_ref()),
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
@@ -267,42 +260,60 @@ fn falha(
     ExitCode::from(1)
 }
 
-/// O arquivo gravado de cada documento: nome em `DIR` e bytes.
-type Gravado = (String, u64);
+/// O arquivo de cada documento em `DIR`: nome, bytes, SHA-256 e se foi
+/// gravado agora (`false`: já existia igual).
+#[derive(Debug, PartialEq, Eq)]
+struct ArquivoDaSaida {
+    nome: String,
+    bytes: u64,
+    sha256: String,
+    gravado: bool,
+}
 
-/// Grava, na ordem, `DOC.txt` (ou `DOC.vN.txt` com `--versao N`, #204) dos
-/// internos e liga o parcial `DOC.ext` dos externos; para no primeiro que
-/// falha (os anteriores ficam).
+impl From<FotoGravada> for ArquivoDaSaida {
+    fn from(f: FotoGravada) -> Self {
+        Self {
+            nome: f.nome,
+            bytes: f.bytes as u64,
+            sha256: f.sha256,
+            gravado: f.gravado,
+        }
+    }
+}
+
+/// Confere as fotos do lote inteiro, liga o parcial `DOC.ext` dos externos
+/// e grava as fotos `DOC.vN.html` na ordem.
 fn gravar(
     json_mode: bool,
     obtidos: &mut [DocumentoObtido],
     diretorio: &Path,
-    pedida: Option<VersaoDocumento>,
-) -> Result<Vec<Gravado>, ExitCode> {
+) -> Result<Vec<Option<ArquivoDaSaida>>, ExitCode> {
+    let fotos = documento_versao_cli::gravar_fotos(diretorio, obtidos)
+        .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
     let mut gravados = Vec::new();
-    for d in obtidos {
-        if let Some(a) = &mut d.anexo {
-            let Some(arquivo) = a.arquivo.take() else {
-                continue;
-            };
-            let nome = arquivo.nome().to_owned();
-            arquivo
-                .concluir()
-                .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
-            gravados.push((nome, a.tamanho));
+    for (d, foto) in obtidos.iter_mut().zip(fotos) {
+        if let Some(foto) = foto {
+            gravados.push(Some(ArquivoDaSaida::from(foto)));
             continue;
         }
-        let nome = documento_versao_cli::nome_do_texto(&d.numero, pedida);
-        match arquivo_texto_documento::salvar(&diretorio.join(&nome), &d.texto) {
-            Ok(bytes) => gravados.push((nome, bytes as u64)),
-            Err(erro) => {
-                return Err(erro_fonte(
-                    json_mode,
-                    erro.subcodigo(),
-                    "o texto não foi gravado",
-                ));
-            }
-        }
+        let Some(a) = &mut d.anexo else {
+            gravados.push(None);
+            continue;
+        };
+        let Some(arquivo) = a.arquivo.take() else {
+            gravados.push(None);
+            continue;
+        };
+        let nome = arquivo.nome().to_owned();
+        arquivo
+            .concluir()
+            .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+        gravados.push(Some(ArquivoDaSaida {
+            nome,
+            bytes: a.tamanho,
+            sha256: a.sha256.clone(),
+            gravado: true,
+        }));
     }
     Ok(gravados)
 }
@@ -310,26 +321,14 @@ fn gravar(
 fn publicar(
     json_mode: bool,
     mut obtidos: Vec<DocumentoObtido>,
-    saida: Option<&Path>,
-    origem: &str,
-    pedida: Option<VersaoDocumento>,
+    destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
     let mut gravados = Vec::new();
-    let mut copias: Vec<Option<CopiaGravada>> = Vec::new();
-    if let Some(diretorio) = saida {
-        match gravar(json_mode, &mut obtidos, diretorio, pedida) {
+    if let Some(destino) = destino {
+        match gravar(json_mode, &mut obtidos, destino) {
             Ok(lista) => gravados = lista,
             Err(codigo) => return codigo,
-        }
-        for d in &obtidos {
-            match documento_versao_cli::gravar_copia(diretorio, origem, d) {
-                Ok(copia) => copias.push(copia),
-                Err(erro) => {
-                    let mensagem = "a cópia de trabalho não foi gravada";
-                    return erro_fonte(json_mode, erro.subcodigo(), mensagem);
-                }
-            }
         }
     }
     let antes = nota.map_or(0, |n| u32::try_from(n.antes).unwrap_or(u32::MAX));
@@ -338,17 +337,19 @@ fn publicar(
         .map(|d| u32::from(d.requisicoes))
         .sum::<u32>()
         .saturating_add(antes);
+    let gravado = |i: usize| gravados.get(i).and_then(Option::as_ref);
     if json_mode {
         let documentos: Vec<Value> = obtidos
             .iter()
             .enumerate()
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
-                let copia = copias.get(i).and_then(Option::as_ref);
-                documento_versao_cli::inserir_campos(&mut objeto, d, copia);
-                if let Some((nome, bytes)) = gravados.get(i) {
-                    objeto.insert("arquivo".to_owned(), json!(nome));
-                    objeto.insert("bytes".to_owned(), json!(bytes));
+                documento_versao_cli::inserir_campos(&mut objeto, d);
+                if let Some(g) = gravado(i) {
+                    let arquivo = documento_versao_cli::json_do_arquivo(
+                        &g.nome, g.bytes, &g.sha256, g.gravado,
+                    );
+                    objeto.insert("arquivo".to_owned(), arquivo);
                 } else {
                     let texto = match &d.anexo {
                         Some(a) => json!(a.texto),
@@ -369,19 +370,18 @@ fn publicar(
         relogin_cli::avisar(json_mode, nota);
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
-            let copia = copias.get(i).and_then(Option::as_ref);
-            if let Some(linha) = documento_versao_cli::linha_humana(d, copia) {
+            if let Some(linha) = documento_versao_cli::linha_humana(d) {
                 println!("{linha}");
             }
-            let gravado = gravados.get(i);
+            let g = gravado(i);
             if let Some(a) = &d.anexo {
-                println!("{}", anexo::linha_do_anexo(a, gravado.is_some()));
+                println!("{}", anexo::linha_do_anexo(a, g.is_some()));
             }
-            match (gravado, &d.anexo) {
-                (Some((nome, bytes)), Some(_)) => {
-                    println!("Arquivo gravado em {nome} ({bytes} bytes).");
+            match (g, &d.anexo) {
+                (Some(g), _) => {
+                    let linha = documento_versao_cli::linha_do_arquivo(&g.nome, g.bytes, g.gravado);
+                    println!("{linha}");
                 }
-                (Some((nome, bytes)), None) => println!("Texto gravado em {nome} ({bytes} bytes)."),
                 (None, Some(a)) => {
                     if let Some(texto) = &a.texto {
                         println!("{texto}");
@@ -397,28 +397,26 @@ fn publicar(
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::documento_versao_cli::testes::{diretorio, documento, v};
-    use crate::processo_obter::{SemCopia, VersoesDoDocumento};
+    use crate::documento_versao_cli::testes::{com_foto, diretorio};
+
+    const HTML: &str =
+        "<html><head><title>SEI/X - 0011519 - Despacho</title></head><body><p>a</p></body></html>";
 
     #[test]
-    fn versao_pedida_grava_doc_vn_txt_ao_lado_do_doc_txt() {
+    fn saida_grava_so_doc_vn_html_e_repetir_e_no_op() {
         let pasta = diretorio();
-        std::fs::write(pasta.join("0011519.txt"), "atual").unwrap();
-        let mut obtidos = vec![documento(VersoesDoDocumento {
-            lida: Some(v(1)),
-            atual: Ok(v(2)),
-            copia: Err(SemCopia::VersaoHistorica),
-        })];
-        let gravados = gravar(true, &mut obtidos, &pasta, Some(v(1))).unwrap();
-        assert_eq!(gravados, vec![("0011519.v1.txt".to_owned(), 1)]);
-        assert_eq!(
-            std::fs::read_to_string(pasta.join("0011519.v1.txt")).unwrap(),
-            "a"
-        );
-        assert_eq!(
-            std::fs::read_to_string(pasta.join("0011519.txt")).unwrap(),
-            "atual"
-        );
+        let mut obtidos = vec![com_foto("0011519", 1, HTML)];
+        let gravados = gravar(true, &mut obtidos, &pasta).unwrap();
+        let g = gravados[0].as_ref().unwrap();
+        assert_eq!((g.nome.as_str(), g.gravado), ("0011519.v1.html", true));
+        let de_novo = gravar(true, &mut obtidos, &pasta).unwrap();
+        assert!(!de_novo[0].as_ref().unwrap().gravado);
+        let mut nomes: Vec<String> = std::fs::read_dir(&pasta)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        nomes.sort();
+        assert_eq!(nomes, ["0011519.v1.html"]);
         std::fs::remove_dir_all(pasta).unwrap();
     }
 }

@@ -36,7 +36,7 @@ pub(crate) use anexo::PedidoDoAnexo;
 #[path = "documento_versao.rs"]
 mod versao;
 #[cfg(test)]
-pub(crate) use versao::{CopiaDeTrabalho, SemCopia, SemVersaoAtual};
+pub(crate) use versao::{FotoDaVersao, SemVersaoAtual};
 pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
 
 /// O que se lê do nó além do texto: o anexo do externo e as versões.

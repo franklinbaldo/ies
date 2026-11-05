@@ -9,84 +9,105 @@ effect: write
 
 # Prévia local e salvamento de documento
 
-`ies documento salvar DOC [--versao N] [--confirmar]` consulta a cópia
-local versionada no diretório atual. Sem `--versao`, seleciona a maior
-versão **local** observada; isso não afirma a versão remota atual.
+`ies documento salvar DOC [--versao N] [--confirmar]` compara, no
+diretório atual, o par local de #207: `DOC.vN.html`, a **foto** que
+`ies documento DOC --saida` gravou com o HTML servido da versão N
+([versões e foto](documento-obter-versoes.md)), e `DOC.v(N+1).html`, a
+edição que o agente cria a partir dela. Não há base nem manifesto
+ocultos: a base é a própria foto. A decisão do proprietário de
+05/11/2026 **substitui** o formato `DOC.vN.html` + `.DOC.vN.base.html` +
+`.DOC.vN.meta.json` de #88.
 
-Uma cópia segura exige `DOC.vN.html`, `.DOC.vN.base.html` e
-`.DOC.vN.meta.json`, com identidade de instalação, ID do documento,
-versão positiva e hash SHA-256 da base. O arquivo da visualização
-histórica (`DOC/versao-N.html`) nunca é uma cópia de trabalho.
+## Escolha do par
 
-A prévia é **offline**, compara a cópia com a base, não expõe o corpo,
-URLs assinadas ou cookies, e não abre o editor. Falhas de base,
-identidade, links simbólicos ou inconsistências têm subcódigos tipados.
+- `--versao N`: a base é `DOC.vN.html` e a edição `DOC.v(N+1).html`.
+- Sem `--versao`: a maior versão **local** M. Se `DOC.v(M−1).html`
+  existe, a base é M − 1 e a edição M; senão a base é M e a edição
+  M + 1 ainda falta. Só os nomes contam; isso não afirma a versão
+  remota atual.
+
+## Base não verificada
+
+A prévia é **puramente offline**: não lê o índice local, a configuração
+nem os arquivos de sessão, e por isso **não verifica** que `DOC.vN.html`
+ainda é o que o SEI serviu. Diz isso na saída: `base_verificada: false`
+no JSON e "base não verificada" no texto. A base é conferida com o SEI
+em dois outros pontos:
+
+- **releitura:** `ies documento DOC --saida` compara a foto local com o
+  HTML servido e recusa com `foto_local_divergente`
+  ([versões e foto](documento-obter-versoes.md));
+- **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
+  que ainda é a atual e comparará o hash com a vN local.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
+| `versao_editada_ausente` | `DOC.v(N+1).html` falta |
+| `versao_editada_igual_a_base` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
+| `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
+| `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
+
+A prévia não expõe o corpo, URLs assinadas ou cookies e não abre o
+editor. O JSON traz `previa` com `documento`, `versao_base`,
+`versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
+`base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
 `--confirmar` **não envia POST no SEI**: retorna
-`escrita_remota_nao_validada` após conferir a cópia. A escrita Web,
-mesclagem por seção, concorrência, assinatura e promoção para uma nova
-versão dependem de validação específica por instalação; não podem
-ser simuladas. O ciclo completo de #89 permanece pendente.
+`escrita_remota_nao_validada` após conferir o par. A escrita Web (#89)
+enviará o maior `vN` local que o SEI ainda não tem, depois de conferir
+ao vivo que a versão atual no SEI é a N; repetir depois de salvar não
+fará nada. Mesclagem por seção, concorrência, assinatura e promoção
+para uma nova versão dependem de validação por instalação.
 
 - [Evidências legadas](../evidencias/documento-salvar.md)
 - [Decisão arquitetural](../../docs/decisoes/documento-salvar.md)
-- [Testes de CLI](../../tests/cli_contract.rs)
+- [Testes de CLI](../../tests/cli_documento_saida.rs)
 
 ## Localização conservadora das alterações (Refs #89)
 
-A prévia local também publica `trecho_divergente`: quando o HTML de
-trabalho difere da base, informa os intervalos de linhas **zero-based,
-fim exclusivo** na base e no trabalho que contêm todas as alterações.
-Compara os prefixos e sufixos idênticos de linhas, sem precisar abrir
-a sessão SEI, sem imprimir conteúdo e com memória constante.
-Duas ou mais edições separadas podem produzir um único trecho contendo
-linhas inalteradas entre elas: **não** equivale a um diff mínimo nem
-prova equivalência com versão remota. Sem alteração, o campo é `null`.
-A comparação é por bytes separados por LF, inclusive com HTML não UTF-8,
-sem alterar o conteúdo de qualquer arquivo.
-
-A inspeção permanece offline, sempre submetida à conferência de
-metadados, identidade, hash da base e à recusa de arquivos simbólicos.
-Nenhuma opção de `salvar --confirmar` passa a executar escrita remota.
-
+`trecho_divergente` informa os intervalos de linhas **zero-based, fim
+exclusivo** na base (`base_*`) e na edição (`trabalho_*`) que contêm
+todas as alterações. Compara os prefixos e sufixos idênticos de linhas,
+sem sessão, sem imprimir conteúdo e com memória constante. Duas ou mais
+edições separadas podem produzir um único trecho com linhas inalteradas
+entre elas: **não** é um diff mínimo nem prova equivalência com a versão
+remota. A comparação é por bytes separados por LF, inclusive com HTML
+não UTF-8, sem alterar arquivo algum.
 
 ## Leitura privada dos arquivos locais (Refs #89)
 
-A prévia lê trabalho, base e manifesto como bytes, nunca como conteúdo
-remoto. Em Linux, cada arquivo deve ser aberto com proteção contra
-link simbólico no componente final e contra bloqueio em arquivo especial;
-a segurança (arquivo regular, limite 8 MB e permissão 0600/sem acesso
-a grupo ou terceiros) é conferida no **descritor já aberto**, e não apenas
-com `symlink_metadata` prévio. Um link simbólico retorna
-`copia_local_link_simbolico` e permissão excessiva retorna
-`copia_local_permissoes_inseguras`, ambos erros tipados antes
-de publicar qualquer prévia. Dados não UTF-8 permanecem bytes opacos.
-Não emitir o conteúdo de cópias na saída de diagnóstico.
+A prévia lê foto e edição como bytes. Em Linux, cada arquivo é aberto
+com proteção contra link simbólico no componente final e contra
+bloqueio em arquivo especial; a segurança (arquivo regular, limite 8 MB
+e permissão sem acesso a grupo ou terceiros) é conferida no
+**descritor já aberto**. Dados não UTF-8 permanecem bytes opacos. Os
+controles não defendem contra a troca de diretórios ancestrais nem
+contra alteração simultânea dos bytes depois da leitura.
 
-Os controles de Linux reduzem a janela de troca do componente final,
-mas **não** constituem defesa universal contra substituição de
-diretórios ancestrais ou alteração simultânea dos bytes após leitura.
-Não há operação Web, escrita no SEI ou afirmação de versão remota.
-
-
-## Inventário seguro de cópias locais (Refs #89)
+## Inventário das versões locais (Refs #89, #207)
 
 `ies documento salvar DOC --listar-copias [--json]` enumera **somente**
-cópias de trabalho `DOC.vN.html` observadas no diretório atual, em
-ordem **numérica** de versão, sem acesso à rede. Não recebe `--versao`
-nem `--confirmar`; não equivale a listar versões existentes no SEI.
+os `DOC.vN.html` do diretório atual, em ordem **numérica**, sem rede.
+Não recebe `--versao` nem `--confirmar`; não equivale a listar versões
+do SEI. Cada entrada traz `documento`, `versao` e `bytes`; não diz qual
+arquivo é foto e qual é edição, porque offline não há como saber. Um
+arquivo inseguro recusa a lista inteira, assim como diretório simbólico,
+nome inválido, duas grafias da mesma versão e mais de 128 versões
+(`limite_copias_locais`).
 
-Cada entrada precisa ter base `.DOC.vN.base.html` e manifesto
-`.DOC.vN.meta.json` válidos para o mesmo documento, ID interno,
-instalação e hash SHA-256 da base, seguindo exatamente as invariantes
-da prévia. Não descartar cópias corrompidas para retornar sucesso
-parcial; recusar a lista inteira com subcódigo tipado. Rejeitar
-diretório simbólico, versão inválida, duas grafias para a mesma
-versão e coleções além do limite local estabelecido.
+A saída JSON contém `copias`, `escopo: arquivos_locais`,
+`versao_remota_confirmada: false` e `escrita_remota: false`. Lista
+vazia significa só que não há arquivos desse número no diretório.
+Nunca publicar conteúdo HTML nem alegar versão atual no servidor.
 
-A saída JSON contém `copias` (projeção de `PreviaCopia`),
-`escopo: copias_de_trabalho_locais_verificadas`,
-`versao_remota_confirmada: false` e `escrita_remota: false`.
-Uma lista vazia significa apenas ausência de cópias para esse número
-no diretório observado. Nunca publicar conteúdo HTML nem alegar
-versão atual no servidor. Sem comandos Web adicionais.
+O escopo `arquivos_locais` diz o que a lista é: arquivos `DOC.vN.html`
+conferidos só quanto à segurança da leitura (regular, privado, nome na
+forma), sem conteúdo verificado com o SEI ou com registro algum; o
+antigo `versoes_locais_verificadas` sugeria uma verificação que não há.
+
+Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida
+([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
+Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
+essa conferência saiu da prévia e passou à releitura
+(`foto_local_divergente`) e ao salvar remoto.

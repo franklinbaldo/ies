@@ -1,17 +1,15 @@
-//! Inventário de cópias de trabalho locais, sem sessão, rede ou links de histórico.
-use crate::copia_documento::{self, ErroCopia, PreviaCopia};
+//! Inventário das versões locais `DOC.vN.html` (#207), sem sessão, rede,
+//! índice ou links de histórico: só os arquivos do diretório, sem dizer
+//! qual é foto e qual é edição, nem conferir nenhum com o SEI.
+use crate::arquivo_copia::ler_regular;
+use crate::copia_documento::{self, ErroCopia};
 use crate::documento::NumeroDocumento;
-use crate::documento_versoes::VersaoDocumento;
-use std::collections::BTreeSet;
-use std::fs;
+use crate::foto_documento::nome;
+use serde::Serialize;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ErroListagem {
-    DiretorioInseguro,
-    LeituraDoDiretorioFalhou,
-    NomeDaVersaoInvalido,
-    VersaoDuplicada,
     LimiteDeCopias,
     CopiaInvalida(ErroCopia),
 }
@@ -19,155 +17,108 @@ pub(crate) enum ErroListagem {
 impl ErroListagem {
     pub(crate) fn subcodigo(self) -> &'static str {
         match self {
-            Self::DiretorioInseguro => "diretorio_copias_inseguro",
-            Self::LeituraDoDiretorioFalhou => "leitura_diretorio_copias_falhou",
-            Self::NomeDaVersaoInvalido => "nome_versao_local_invalido",
-            Self::VersaoDuplicada => "versao_local_repetida",
             Self::LimiteDeCopias => "limite_copias_locais",
             Self::CopiaInvalida(erro) => erro.subcodigo(),
         }
     }
 }
 
-/// Consulta somente as cópias de trabalho para o número fornecido.
-/// Uma cópia insegura deve recusar a lista inteira, não ser omitida.
+/// Uma versão local, sem o conteúdo.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct VersaoLocal {
+    pub(crate) documento: String,
+    pub(crate) versao: u32,
+    pub(crate) bytes: usize,
+}
+
+/// Consulta somente os arquivos do número fornecido. Um arquivo inseguro
+/// recusa a lista inteira, não é omitido.
 pub(crate) fn listar(
     pasta: &Path,
     documento: &NumeroDocumento,
-) -> Result<Vec<PreviaCopia>, ErroListagem> {
-    copia_documento::pasta_segura(pasta).map_err(|_| ErroListagem::DiretorioInseguro)?;
-    let prefixo = format!("{}.v", documento.as_str());
-    let mut versoes = BTreeSet::new();
-    for item in fs::read_dir(pasta).map_err(|_| ErroListagem::LeituraDoDiretorioFalhou)? {
-        let item = item.map_err(|_| ErroListagem::LeituraDoDiretorioFalhou)?;
-        let nome_os = item.file_name();
-        let Some(nome) = nome_os.to_str() else {
-            continue;
-        };
-        let Some(digitos) = nome
-            .strip_prefix(&prefixo)
-            .and_then(|n| n.strip_suffix(".html"))
-        else {
-            continue;
-        };
-        let versao = VersaoDocumento::interpretar(digitos)
-            .map_err(|_| ErroListagem::NomeDaVersaoInvalido)?;
-        if !versoes.insert(versao) {
-            return Err(ErroListagem::VersaoDuplicada);
-        }
-        if versoes.len() > 128 {
-            return Err(ErroListagem::LimiteDeCopias);
-        }
+) -> Result<Vec<VersaoLocal>, ErroListagem> {
+    let versoes =
+        copia_documento::versoes_locais(pasta, documento).map_err(ErroListagem::CopiaInvalida)?;
+    if versoes.len() > 128 {
+        return Err(ErroListagem::LimiteDeCopias);
     }
-    let mut copias = Vec::with_capacity(versoes.len());
+    let mut lista = Vec::with_capacity(versoes.len());
     for versao in versoes {
-        copias.push(
-            copia_documento::previa_local(pasta, documento, Some(versao))
-                .map_err(ErroListagem::CopiaInvalida)?,
-        );
+        let alvo = pasta.join(nome(documento.as_str(), versao));
+        let bytes =
+            ler_regular(&alvo, ErroCopia::LeituraFalhou).map_err(ErroListagem::CopiaInvalida)?;
+        lista.push(VersaoLocal {
+            documento: documento.as_str().to_owned(),
+            versao: versao.numero(),
+            bytes: bytes.len(),
+        });
     }
-    Ok(copias)
+    Ok(lista)
 }
 
 #[cfg(test)]
 mod testes {
     use super::*;
-    use crate::copia_documento::{self, FonteHtml, IdentidadeCopia};
     use crate::documento_versoes::VersaoDocumento;
+    use crate::foto_documento::{gravar, tests::pasta};
     use std::fs;
-    use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn pasta() -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "ies-copias-listagem-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&path).unwrap();
-        path
+    const CORPO: &str = "<p>corpo de teste</p>";
+
+    fn listar_com(pasta: &Path, doc: &str) -> Result<Vec<VersaoLocal>, ErroListagem> {
+        listar(pasta, &NumeroDocumento::novo(doc).unwrap())
     }
 
-    fn criar(pasta: &Path, numero: &str, versao: u32) -> copia_documento::CaminhosCopia {
-        let id = IdentidadeCopia {
-            documento: NumeroDocumento::novo(numero).unwrap(),
-            id_interno: "42".to_owned(),
-            instalacao: "https://sei.exemplo/sei".to_owned(),
-            versao: VersaoDocumento::nova(versao).unwrap(),
-        };
-        copia_documento::preparar(
-            pasta,
-            &id,
-            FonteHtml::EditorVerificado {
-                html: "<p>corpo de teste</p>",
-                assinado: false,
-            },
-        )
-        .unwrap()
+    fn foto(pasta: &Path, numero: &str, n: u32) {
+        gravar(pasta, numero, VersaoDocumento::nova(n).unwrap(), CORPO).unwrap();
     }
 
     #[test]
-    fn lista_versoes_validas_ordenadas_e_alteracoes_sem_expor_texto() {
+    fn lista_versoes_locais_em_ordem_numerica_sem_expor_texto_nem_foto() {
         let pasta = pasta();
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        criar(&pasta, "0007", 10);
-        let paths = criar(&pasta, "0007", 2);
-        fs::write(&paths.trabalho, "<p>rascunho alterado sigiloso</p>").unwrap();
-        let copias = listar(&pasta, &doc).unwrap();
+        foto(&pasta, "0007", 2);
+        foto(&pasta, "0007", 10);
+        fs::write(pasta.join("0007.v3.html"), "editada").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let modo = fs::Permissions::from_mode(0o600);
+            fs::set_permissions(pasta.join("0007.v3.html"), modo).unwrap();
+        }
+        let lista = listar_com(&pasta, "0007").unwrap();
         assert_eq!(
-            copias.iter().map(|c| c.versao_base).collect::<Vec<_>>(),
-            [2, 10]
+            lista
+                .iter()
+                .map(|c| (c.versao, c.bytes))
+                .collect::<Vec<_>>(),
+            [(2, CORPO.len()), (3, 7), (10, CORPO.len())]
         );
-        assert!(copias[0].alterado);
-        assert!(!copias[1].alterado);
-        let serializado = serde_json::to_string(&copias).unwrap();
-        assert!(!serializado.contains("sigiloso"));
-        assert!(!serializado.contains("<p>"));
+        let serializado = serde_json::to_string(&lista).unwrap();
+        assert!(!serializado.contains("corpo") && !serializado.contains("<p>"));
+        assert!(!serializado.contains("foto"), "{serializado}");
         fs::remove_dir_all(pasta).unwrap();
     }
 
     #[test]
-    fn copia_sem_base_e_manifesto_nao_pode_sumir_da_listagem() {
+    fn duas_grafias_outro_numero_e_limite() {
         let pasta = pasta();
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        fs::write(pasta.join("0007.v2.html"), "corpo solto").unwrap();
-        assert_eq!(
-            listar(&pasta, &doc),
-            Err(ErroListagem::CopiaInvalida(ErroCopia::BaseAusente))
-        );
-        fs::remove_dir_all(pasta).unwrap();
-    }
-
-    #[test]
-    fn duas_grafias_para_a_mesma_versao_sao_ambiguas() {
-        let pasta = pasta();
-        let doc = NumeroDocumento::novo("0007").unwrap();
+        foto(&pasta, "0008", 1);
+        assert_eq!(listar_com(&pasta, "0007"), Ok(Vec::new()));
         fs::write(pasta.join("0007.v2.html"), "um").unwrap();
         fs::write(pasta.join("0007.v02.html"), "outro").unwrap();
-        assert_eq!(listar(&pasta, &doc), Err(ErroListagem::VersaoDuplicada));
-        fs::remove_dir_all(pasta).unwrap();
-    }
-
-    #[test]
-    fn sem_copias_do_numero_retorna_lista_vazia_sem_afirmar_ausencia_remota() {
-        let pasta = pasta();
-        criar(&pasta, "0008", 1);
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        assert_eq!(listar(&pasta, &doc), Ok(Vec::new()));
-        fs::remove_dir_all(pasta).unwrap();
-    }
-
-    #[test]
-    fn recusa_mais_de_128_copias_sem_tentar_abrir_todas() {
-        let pasta = pasta();
-        let doc = NumeroDocumento::novo("0007").unwrap();
+        assert_eq!(
+            listar_com(&pasta, "0007"),
+            Err(ErroListagem::CopiaInvalida(ErroCopia::VersaoDuplicada))
+        );
+        fs::remove_dir_all(&pasta).unwrap();
+        let pasta = crate::foto_documento::tests::pasta();
         for n in 1..=129 {
             fs::write(pasta.join(format!("0007.v{n}.html")), "teste").unwrap();
         }
-        assert_eq!(listar(&pasta, &doc), Err(ErroListagem::LimiteDeCopias));
+        assert_eq!(
+            listar_com(&pasta, "0007"),
+            Err(ErroListagem::LimiteDeCopias)
+        );
         fs::remove_dir_all(pasta).unwrap();
     }
 
@@ -178,8 +129,10 @@ mod testes {
         let pasta = pasta();
         let link = pasta.with_extension("atalho");
         symlink(&pasta, &link).unwrap();
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        assert_eq!(listar(&link, &doc), Err(ErroListagem::DiretorioInseguro));
+        assert_eq!(
+            listar_com(&link, "0007"),
+            Err(ErroListagem::CopiaInvalida(ErroCopia::DestinoInseguro))
+        );
         fs::remove_file(link).unwrap();
         fs::remove_dir_all(pasta).unwrap();
     }
