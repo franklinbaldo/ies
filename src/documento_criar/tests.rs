@@ -359,3 +359,43 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
 }
+
+#[test]
+fn cadastro_recusa_controle_obrigatorio_nao_suportado() {
+    // HTML5 required: não enviar um POST ignorando um campo que a página exige.
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
+        <input type="text" name="txtPrazoNovo" required>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        Err(ErroCriar::CadastroForaDaForma)
+    );
+}
+
+#[test]
+fn cadastro_recusa_descricao_obrigatoria_nao_preenchida() {
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
+        <input type="text" id="txtDescricao" name="txtDescricao" required>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        Err(ErroCriar::CadastroForaDaForma)
+    );
+}
+
+#[test]
+fn cadastro_recusa_selecao_obrigatoria_nao_suportada() {
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
+        <select name="selNovaExigencia" required><option value="">Selecione</option></select>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        Err(ErroCriar::CadastroForaDaForma)
+    );
+}
