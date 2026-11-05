@@ -106,7 +106,10 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
         if nome != pedido.trim().split_whitespace().collect::<Vec<_>>().join(" ") {
             continue;
         }
-        let href = valor_do_atributo(ancora, "href").map_err(|_| E::HtmlInvalido)?;
+        let href = valor_do_atributo(ancora, "href")
+            .map_err(|_| E::HtmlInvalido)?
+            .map(|valor| crate::formulario_web::decodificar_atributo(&valor).ok_or(E::HtmlInvalido))
+            .transpose()?;
         let onclick = valor_do_atributo(ancora, "onclick").map_err(|_| E::HtmlInvalido)?;
         let _ = atributo_presente(ancora, "disabled").map_err(|_| E::HtmlInvalido)?;
         let escolha = match (
