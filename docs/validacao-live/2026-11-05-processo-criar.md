@@ -1,5 +1,5 @@
 ---
-type: LiveValidation
+type: SEIObservation
 title: Estado da validação de iniciar processo
 operation: processo.criar
 date: 2026-11-05
