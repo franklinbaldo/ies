@@ -196,8 +196,14 @@ fn foto_incompleta_recusa_antes_do_post() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
-    assert!(rede.chamadas.is_empty(), "recusa antes de qualquer requisição");
+    assert!(matches!(
+        resultado,
+        Err(ErroPreviaCriacao::ArvoreIncompleta)
+    ));
+    assert!(
+        rede.chamadas.is_empty(),
+        "recusa antes de qualquer requisição"
+    );
 }
 
 #[test]
@@ -218,7 +224,10 @@ fn foto_inicial_com_ids_duplicados_recusa_antes_do_post() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
+    assert!(matches!(
+        resultado,
+        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+    ));
     assert!(rede.chamadas.is_empty(), "IDs ambíguos não autorizam POST");
 }
 
@@ -240,6 +249,12 @@ fn foto_inicial_sem_id_do_processo_recusa_antes_do_post() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
-    assert!(rede.chamadas.is_empty(), "identidade ausente não autoriza POST");
+    assert!(matches!(
+        resultado,
+        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+    ));
+    assert!(
+        rede.chamadas.is_empty(),
+        "identidade ausente não autoriza POST"
+    );
 }
