@@ -2,68 +2,117 @@ use super::*;
 
 const ID: &str = "12345";
 fn cadastro(grupos: &str) -> String {
-    format!(r#"<form id="frmAcompanhamentoCadastro" method="post"
+    format!(
+        r#"<form id="frmAcompanhamentoCadastro" method="post"
     action="controlador.php?acao=acompanhamento_cadastrar&amp;id_procedimento=12345&amp;infra_hash=SYNTHETIC">
     <input type="hidden" name="hdnIdProtocolo" value="12345">
     <select name="selGrupoAcompanhamento">{grupos}</select>
     <textarea name="txaObservacao"></textarea>
-    <button type="submit" name="sbmCadastrarAcompanhamento">Salvar</button></form>"#)
+    <button type="submit" name="sbmCadastrarAcompanhamento">Salvar</button></form>"#
+    )
 }
 fn tabela(linhas: &str) -> String {
-    format!(r#"<table summary="Tabela de Acompanhamentos.">
-    <tr><th></th><th>Grupo</th><th>Observação</th><th>Usuário</th><th>Data</th><th>Ações</th></tr>{linhas}</table>"#)
+    format!(
+        r#"<table summary="Tabela de Acompanhamentos.">
+    <tr><th></th><th>Grupo</th><th>Observação</th><th>Usuário</th><th>Data</th><th>Ações</th></tr>{linhas}</table>"#
+    )
 }
 fn linha(id: &str, grupo: &str, obs: &str) -> String {
-    format!(r#"<tr><td><input type="checkbox" value="{id}" /></td>
-    <td>{grupo}</td><td>{obs}</td><td>aluno</td><td>15/10/2026</td><td>ação</td></tr>"#)
+    format!(
+        r#"<tr><td><input type="checkbox" value="{id}" /></td>
+    <td>{grupo}</td><td>{obs}</td><td>aluno</td><td>15/10/2026</td><td>ação</td></tr>"#
+    )
 }
 fn a(id: &str, grupo: &str, obs: &str) -> Acompanhamento {
-    Acompanhamento { id: id.into(), grupo: grupo.into(), observacao: obs.into() }
+    Acompanhamento {
+        id: id.into(),
+        grupo: grupo.into(),
+        observacao: obs.into(),
+    }
 }
 #[test]
 fn grupos_da_tela_observada_e_nome_exato() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
-    let html = cadastro(r#"<option value="null">&nbsp;</option>
-       <option value="19">acomp fiel</option><option value="64">Boas-Vindas</option>"#);
+    let html = cadastro(
+        r#"<option value="null">&nbsp;</option>
+       <option value="19">acomp fiel</option><option value="64">Boas-Vindas</option>"#,
+    );
     let grupos = grupos_do_cadastro(&html, ID).unwrap();
-    assert_eq!(escolher_grupo(&grupos, Some("acomp fiel")).unwrap().valor, "19");
+    assert_eq!(
+        escolher_grupo(&grupos, Some("acomp fiel")).unwrap().valor,
+        "19"
+    );
     assert_eq!(escolher_grupo(&grupos, None).unwrap().valor, "null");
-    assert_eq!(escolher_grupo(&grupos, Some("ACOMP FIEL")), Err(ErroAcompanhar::GrupoNaoOferecido));
+    assert_eq!(
+        escolher_grupo(&grupos, Some("ACOMP FIEL")),
+        Err(ErroAcompanhar::GrupoNaoOferecido)
+    );
 }
 #[test]
 fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
     let html = cadastro(r#"<option value="19">G</option>"#);
-    assert_eq!(grupos_do_cadastro(&html, "999"), Err(ErroAcompanhar::CadastroDeOutroProcesso));
-    let duplicado = html.replace("acao=acompanhamento_cadastrar", "acao=acompanhamento_cadastrar&amp;acao=acompanhamento_cadastrar");
-    assert_eq!(grupos_do_cadastro(&duplicado, ID), Err(ErroAcompanhar::CadastroDeOutroProcesso));
+    assert_eq!(
+        grupos_do_cadastro(&html, "999"),
+        Err(ErroAcompanhar::CadastroDeOutroProcesso)
+    );
+    let duplicado = html.replace(
+        "acao=acompanhamento_cadastrar",
+        "acao=acompanhamento_cadastrar&amp;acao=acompanhamento_cadastrar",
+    );
+    assert_eq!(
+        grupos_do_cadastro(&duplicado, ID),
+        Err(ErroAcompanhar::CadastroDeOutroProcesso)
+    );
 }
 #[test]
 fn grupos_ambiguos_e_ausentes_recusados() {
     let html = cadastro(r#"<option value="1">Mesmo</option><option value="2">Mesmo</option>"#);
     let grupos = grupos_do_cadastro(&html, ID).unwrap();
-    assert_eq!(escolher_grupo(&grupos, Some("Mesmo")), Err(ErroAcompanhar::GrupoAmbiguo));
-    assert_eq!(escolher_grupo(&grupos, None), Err(ErroAcompanhar::GrupoNaoOferecido));
+    assert_eq!(
+        escolher_grupo(&grupos, Some("Mesmo")),
+        Err(ErroAcompanhar::GrupoAmbiguo)
+    );
+    assert_eq!(
+        escolher_grupo(&grupos, None),
+        Err(ErroAcompanhar::GrupoNaoOferecido)
+    );
 }
 #[test]
 fn lista_sem_tabela_nao_prova_vazia() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
-    assert_eq!(acompanhamentos_da_lista("<html>cortada</html>"), Err(ErroAcompanhar::ListaNaoPublicada));
+    assert_eq!(
+        acompanhamentos_da_lista("<html>cortada</html>"),
+        Err(ErroAcompanhar::ListaNaoPublicada)
+    );
     assert_eq!(acompanhamentos_da_lista(&tabela("")), Ok(vec![]));
 }
 #[test]
 fn lista_identidades_duplicadas_falha_fechado() {
-    let html = tabela(&format!("{}{}", linha("831", "Grupo", "O1"), linha("831", "G2", "O2")));
-    assert_eq!(acompanhamentos_da_lista(&html), Err(ErroAcompanhar::IdDeAcompanhamentoRepetido));
+    let html = tabela(&format!(
+        "{}{}",
+        linha("831", "Grupo", "O1"),
+        linha("831", "G2", "O2")
+    ));
+    assert_eq!(
+        acompanhamentos_da_lista(&html),
+        Err(ErroAcompanhar::IdDeAcompanhamentoRepetido)
+    );
 }
 #[test]
 fn evita_duplicata_antes_de_enviar() {
-    assert_eq!(conferir_novo_grupo(&[a("1", "G", "Antiga")], "G"), Err(ErroAcompanhar::GrupoJaAcompanhado));
+    assert_eq!(
+        conferir_novo_grupo(&[a("1", "G", "Antiga")], "G"),
+        Err(ErroAcompanhar::GrupoJaAcompanhado)
+    );
     assert!(conferir_novo_grupo(&[a("1", "G", "Antiga")], "Outra").is_ok());
 }
 #[test]
 fn remocao_exige_alvo_sem_ambiguidade() {
     let antes = vec![a("1", "G", "A"), a("2", "H", "B")];
-    assert_eq!(alvo_para_deixar(&antes, None), Err(ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua));
+    assert_eq!(
+        alvo_para_deixar(&antes, None),
+        Err(ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua)
+    );
     assert_eq!(alvo_para_deixar(&antes, Some("H")).unwrap().id, "2");
 }
 #[test]
@@ -71,13 +120,19 @@ fn reconciliacao_so_aceita_uma_alteracao_precisa() {
     let antes = vec![a("1", "G", "A")];
     let depois = vec![a("1", "G", "A"), a("2", "H", "B")];
     assert!(conferir_inclusao(&antes, &depois, "H", "B").is_ok());
-    assert_eq!(conferir_inclusao(&antes, &[a("1","G","A")], "H", "B"),
-        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado));
-    assert_eq!(conferir_inclusao(&antes, &[a("1","G","MUDOU"), a("2","H","B")], "H", "B"),
-        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado));
+    assert_eq!(
+        conferir_inclusao(&antes, &[a("1", "G", "A")], "H", "B"),
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    );
+    assert_eq!(
+        conferir_inclusao(&antes, &[a("1", "G", "MUDOU"), a("2", "H", "B")], "H", "B"),
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    );
     assert!(conferir_remocao(&depois, &antes, "2").is_ok());
-    assert_eq!(conferir_remocao(&depois, &antes, "1"),
-        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado));
+    assert_eq!(
+        conferir_remocao(&depois, &antes, "1"),
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    );
 }
 #[test]
 fn lista_realista_com_entidades() {
