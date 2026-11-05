@@ -7,7 +7,9 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro_com_ajax_pendente};
+use crate::processo_criar_cadastro::{
+    ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
+};
 use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
 use crate::processo_criar_interessados::{
     ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
@@ -383,8 +385,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
             (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
         }
     };
-    let mut observado = conferir_cadastro_com_ajax_pendente(&cadastro.html, &id_tipo, pedido.nivel)
-        .map_err(E::Cadastro)?;
+    let mut observado = match conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel) {
+        Ok(observado) => observado,
+        Err(ErroCadastro::HipoteseLegalNaoIdentificada) if pedido.nivel == "restrito" => {
+            conferir_cadastro_com_ajax_pendente(&cadastro.html, &id_tipo, pedido.nivel)
+                .map_err(E::Cadastro)?
+        }
+        Err(erro) => return Err(E::Cadastro(erro)),
+    };
     let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
     let servida = TelaServida {
         url: &cadastro.url,
