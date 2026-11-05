@@ -117,6 +117,7 @@ pub(crate) fn derivar_pesquisa_de_protocolo(
 /// Deriva o POST da pesquisa por protocolo em `em`, sem rede. O rádio, as
 /// caixas e os órgãos vêm da tela servida pelas regras de
 /// `regras_formulario`; o chamador informa a unidade e o protocolo.
+#[cfg(test)]
 pub(crate) fn derivar_pesquisa_em(
     em: PesquisarEm,
     instalacao: &Instalacao,
@@ -168,6 +169,7 @@ pub(crate) fn derivar_pagina_da_pesquisa(
 
 /// Deriva o POST de `navegar(inicio)` a partir da tela de resultado: mesmas
 /// regras do `onsubmit`, sem botão, com `hdnInicio = inicio`.
+#[cfg(test)]
 pub(crate) fn derivar_pagina_em(
     em: PesquisarEm,
     instalacao: &Instalacao,
