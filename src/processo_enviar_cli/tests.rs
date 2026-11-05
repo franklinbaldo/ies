@@ -115,3 +115,25 @@ fn sigla_de_destino_e_conferida_antes_de_tudo() {
         Err("mais_de_um_destino_nao_suportado")
     );
 }
+
+#[test]
+fn erro_de_envio_exibe_sugestoes_guardadas_no_modo_humano() {
+    // #244: o JSON ja continha as sugestoes, mas o texto humano nao.
+    // Somente unidades guardadas; nunca declarar que o SEI as ofereceu.
+    let erro = json!({
+        "subcodigo": "destino_nao_oferecido_pelo_sei",
+        "sugestoes_guardadas": [
+            "ABC/GECONT - Contabilidade",
+            "ABC/GECONT-18141 - Contabilidade regional"
+        ]
+    });
+    assert_eq!(
+        super::texto_das_sugestoes(&erro).as_deref(),
+        Some("IES: sugestões guardadas (não confirmadas pelo SEI): ABC/GECONT - Contabilidade, ABC/GECONT-18141 - Contabilidade regional")
+    );
+    assert_eq!(super::texto_das_sugestoes(&json!({})), None);
+    assert_eq!(
+        super::texto_das_sugestoes(&json!({"sugestoes_guardadas": []})),
+        None
+    );
+}
