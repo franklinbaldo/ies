@@ -20,12 +20,11 @@ a URL ou o cookie. A lista só pertence à unidade e instalação exatas.
 `descricao`, `orgao`) e `requisicoes: 0`.
 Sem JSON, mostra a contagem e as linhas com esses quatro campos.
 
-**Lacunas:** `--atualizar` falha fechado com
-`leitura_integral_da_lupa_pendente`, sem usar uma lista antiga como
-se estivesse atualizada. Sem snapshot, falha com
-`lista_unidades_nao_guardada`; a obtenção automática na lupa ainda
-não está ligada. Índice desligado/ilegível, origem inválida ou
-identidade da unidade ausente também falham tipadamente.
+**Cache ausente ou atualização solicitada:** o IES inicia a coleta
+integral pela lupa Web, com orçamento documentado abaixo. Falhas de
+rede, página ou integridade são recusas tipadas: não se apresenta o
+snapshot anterior como se fosse atualizado. Se o índice estiver
+desligado, a coleta Web continua e avisa que não houve persistência.
 `--unidade` explícita é recusada com
 `unidade_pedida_nao_verificavel_offline`: a CLI não finge ter
 verificado no SEI a sigla exibida. Nenhum caso faz retry.
