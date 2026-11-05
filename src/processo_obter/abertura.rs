@@ -192,6 +192,7 @@ pub(super) fn ler_arvore_da_pagina(
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let anexar = ler_anexar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         html: html.to_owned(),
@@ -201,6 +202,7 @@ pub(super) fn ler_arvore_da_pagina(
         concluir,
         reabrir,
         enviar,
+        anexar,
     })
 }
 
