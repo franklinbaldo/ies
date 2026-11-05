@@ -7,24 +7,23 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcompanharNaBarra {
+    #[causa(nome = "barra_de_acompanhamento_fora_da_forma")]
     BarraForaDaForma,
+    #[causa(nome = "barra_de_acompanhamento_repetida")]
     BarraRepetida,
+    #[causa(nome = "links_de_acompanhamento_repetidos")]
     LinksRepetidos,
+    #[causa(nome = "link_de_acompanhamento_nao_reconhecido")]
     LinkNaoReconhecido,
+    #[causa(nome = "link_de_acompanhamento_de_outro_processo")]
     LinkDeOutroProcesso,
 }
 
 impl ErroAcompanharNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_de_acompanhamento_fora_da_forma",
-            Self::BarraRepetida => "barra_de_acompanhamento_repetida",
-            Self::LinksRepetidos => "links_de_acompanhamento_repetidos",
-            Self::LinkNaoReconhecido => "link_de_acompanhamento_nao_reconhecido",
-            Self::LinkDeOutroProcesso => "link_de_acompanhamento_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

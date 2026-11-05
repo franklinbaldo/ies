@@ -296,7 +296,7 @@ fn subcodigos_nomeiam_o_fato() {
         ),
     ];
     for (falha, subcodigo) in casos {
-        assert_eq!(falha.subcodigo(), subcodigo);
+        assert_eq!(crate::erro_publico::folha(&falha), subcodigo);
         assert_ne!(falha.mensagem(), "nao_implementado");
         let transporte = crate::transporte::FalhaTransporte::Proxy(falha.clone());
         assert_eq!(transporte.subcodigo(), subcodigo);

@@ -52,7 +52,7 @@ pub(crate) struct AndamentosLidos {
 }
 
 /// Falhas do link do histórico na árvore: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDoHistorico {
     HtmlDaArvoreNaoInterpretado,
     LinkDoHistoricoAusenteNaArvore,
@@ -64,23 +64,15 @@ pub(crate) enum ErroLinkDoHistorico {
 
 impl ErroLinkDoHistorico {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDaArvoreNaoInterpretado => "html_da_arvore_nao_interpretado",
-            Self::LinkDoHistoricoAusenteNaArvore => "link_do_historico_ausente_na_arvore",
-            Self::LinksDoHistoricoRepetidosNaArvore => "links_do_historico_repetidos_na_arvore",
-            Self::LinkDoHistoricoForaDaFormaObservada => {
-                "link_do_historico_fora_da_forma_observada"
-            }
-            Self::EnderecoDoHistoricoNaoReconhecido => "endereco_do_historico_nao_reconhecido",
-            Self::EnderecoDoHistoricoDeOutroProcesso => "endereco_do_historico_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
 /// Falhas da página do histórico e da troca de visão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAndamentos {
     /// Título, tabela ou linhas (leitor de `crate::historico`).
+    #[causa(interna)]
     Historico(ErroHistorico),
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
@@ -93,18 +85,7 @@ pub(crate) enum ErroAndamentos {
 
 impl ErroAndamentos {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Historico(erro) => erro.subcodigo(),
-            Self::LegendaDosAndamentosAusente => "legenda_dos_andamentos_ausente",
-            Self::LegendaDosAndamentosForaDaFormaObservada => {
-                "legenda_dos_andamentos_fora_da_forma_observada"
-            }
-            Self::AndamentosAlemDoTotalDeclarado => "andamentos_alem_do_total_declarado",
-            Self::TipoDoHistoricoNaoPublicado => "tipo_do_historico_nao_publicado",
-            Self::CharsetDoHistoricoNaoSuportado => "charset_do_historico_nao_suportado",
-            Self::RegraDeVerHistoricoNaoObservada => "regra_de_ver_historico_nao_observada",
-            Self::VisaoDoHistoricoDiferenteDaPedida => "visao_do_historico_diferente_da_pedida",
-        }
+        crate::erro_publico::folha(&self)
     }
 
     /// A página é de outro NUP: um link guardado errou.

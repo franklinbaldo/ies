@@ -6,23 +6,22 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO_DE_RELACIONAR: &str = "procedimento_relacionar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRelacionarNaBarra {
+    #[causa(nome = "barra_do_processo_fora_da_forma_observada")]
     BarraForaDaFormaObservada,
+    #[causa(nome = "barras_do_processo_repetidas_na_arvore")]
     BarrasRepetidas,
+    #[causa(nome = "links_de_relacionar_repetidos_na_barra")]
     LinksRepetidos,
+    #[causa(nome = "endereco_de_relacionar_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_de_relacionar_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 impl ErroRelacionarNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaFormaObservada => "barra_do_processo_fora_da_forma_observada",
-            Self::BarrasRepetidas => "barras_do_processo_repetidas_na_arvore",
-            Self::LinksRepetidos => "links_de_relacionar_repetidos_na_barra",
-            Self::EnderecoNaoReconhecido => "endereco_de_relacionar_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_de_relacionar_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 pub(crate) fn ler_relacionar_da_barra(

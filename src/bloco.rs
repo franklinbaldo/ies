@@ -31,8 +31,9 @@ impl TipoBloco {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroBloco {
+    #[causa(nome = "html_de_blocos_invalido")]
     HtmlInvalido,
     TabelaDeBlocosAusente,
     TabelasDeBlocosRepetidas,
@@ -49,23 +50,8 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
 }
 impl ErroBloco {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "html_de_blocos_invalido",
-            Self::TabelaDeBlocosAusente => "tabela_de_blocos_ausente",
-            Self::TabelasDeBlocosRepetidas => "tabelas_de_blocos_repetidas",
-            Self::CabecalhoDeBlocosNaoReconhecido => "cabecalho_de_blocos_nao_reconhecido",
-            Self::LinhaDeBlocoForaDaForma => "linha_de_bloco_fora_da_forma",
-            Self::NumeroDoBlocoInvalido => "numero_do_bloco_invalido",
-            Self::NumeroDoBlocoRepetido => "numero_do_bloco_repetido",
-            Self::LegendaDeBlocosInvalida => "legenda_de_blocos_invalida",
-            Self::FaixaDeBlocosIncoerente => "faixa_de_blocos_incoerente",
-            Self::LinkDeBlocosAusente => "link_de_blocos_ausente",
-            Self::LinksDeBlocosRepetidos => "links_de_blocos_repetidos",
-            Self::LinkDeBlocosNaoReconhecido => "link_de_blocos_nao_reconhecido",
-            Self::BlocoNaoEncontradoNaPagina => "bloco_nao_encontrado_na_pagina",
-            Self::PaginaDeBlocosNaoImplementada => "pagina_de_blocos_nao_implementada",
-        }
+    pub(crate) fn subcodigo(self) -> &'static str {
+        crate::erro_publico::folha(&self)
     }
     pub(crate) const fn mensagem(self) -> &'static str {
         match self {

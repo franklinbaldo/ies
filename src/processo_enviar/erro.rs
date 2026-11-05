@@ -7,8 +7,9 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeEnvio {
+    #[causa(nome = "tela_de_envio_nao_interpretada")]
     HtmlNaoInterpretado,
     FormularioDeEnvioAusente,
     CampoNaoPrevistoNaTelaDeEnvio,
@@ -21,44 +22,29 @@ pub(crate) enum ErroTelaDeEnvio {
 
 impl ErroTelaDeEnvio {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "tela_de_envio_nao_interpretada",
-            Self::FormularioDeEnvioAusente => "formulario_de_envio_ausente",
-            Self::CampoNaoPrevistoNaTelaDeEnvio => "campo_nao_previsto_na_tela_de_envio",
-            Self::TelaDeEnvioDeOutroProcesso => "tela_de_envio_de_outro_processo",
-            Self::TelaDeEnvioComOpcoesPreenchidas => "tela_de_envio_com_opcoes_preenchidas",
-            Self::OrgaoDaTelaDeEnvioNaoSelecionado => "orgao_da_tela_de_envio_nao_selecionado",
-            Self::AutocompletarDeUnidadeNaoDeclarado => "autocompletar_de_unidade_nao_declarado",
-            Self::ConsultaDoAutocompletarForaDaFormaObservada => {
-                "consulta_do_autocompletar_fora_da_forma_observada"
-            }
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDaConsulta {
     /// Derivação ou cookie: nada saiu.
+    #[causa(interna)]
     Derivacao(ErroSubmissaoFormulario),
     /// Rede, tempo, status, tamanho, charset.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
     /// XML sem um `<itens>` único na forma observada.
+    #[causa(nome = "resposta_do_autocompletar_fora_da_forma_observada")]
     RespostaDoAutocompletarForaDaForma,
 }
 
 impl FalhaDaConsulta {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Derivacao(erro) => erro.subcodigo(),
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::RespostaDoAutocompletarNaoXml => "resposta_do_autocompletar_nao_xml",
-            Self::RespostaDoAutocompletarForaDaForma => {
-                "resposta_do_autocompletar_fora_da_forma_observada"
-            }
-        }
+        crate::erro_publico::folha(self)
     }
 
     fn status_http(&self) -> Option<StatusHttpRecusado> {

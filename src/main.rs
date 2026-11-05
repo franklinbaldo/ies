@@ -32,6 +32,7 @@ mod documento_versoes;
 mod documento_web;
 mod dominio;
 mod entidades_html;
+mod erro_publico;
 mod erro_web;
 mod esquema_cli;
 mod formulario_web;

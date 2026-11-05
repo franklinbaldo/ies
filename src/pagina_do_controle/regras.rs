@@ -16,44 +16,34 @@ pub(super) const CAMPOS_USUARIO: &[&str] = &[
     "selGeradosPaginacaoInferior",
 ];
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroControleDoFormulario {
-    ControleNaoPrevistoNoFormularioDoControle { campo: String },
-    CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: String },
-    PaginadorSemOpcaoSelecionada { campo: String },
-    PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
-    OpcaoSelecionadaDoPaginadorSemValor { campo: String },
-    ControleRepetidoNoFormularioDoControle { campo: String },
-    EntidadeHtmlDesconhecidaNoControle { campo: String },
+    ControleNaoPrevistoNoFormularioDoControle {
+        campo: String,
+    },
+    CaixaDeSelecaoMarcadaNoFormularioDoControle {
+        campo: String,
+    },
+    PaginadorSemOpcaoSelecionada {
+        campo: String,
+    },
+    PaginadorComMaisDeUmaOpcaoSelecionada {
+        campo: String,
+    },
+    OpcaoSelecionadaDoPaginadorSemValor {
+        campo: String,
+    },
+    ControleRepetidoNoFormularioDoControle {
+        campo: String,
+    },
+    EntidadeHtmlDesconhecidaNoControle {
+        campo: String,
+    },
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroControleDoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::ControleNaoPrevistoNoFormularioDoControle { .. } => {
-                "controle_nao_previsto_no_formulario_do_controle"
-            }
-            Self::CaixaDeSelecaoMarcadaNoFormularioDoControle { .. } => {
-                "caixa_de_selecao_marcada_no_formulario_do_controle"
-            }
-            Self::PaginadorSemOpcaoSelecionada { .. } => "paginador_sem_opcao_selecionada",
-            Self::PaginadorComMaisDeUmaOpcaoSelecionada { .. } => {
-                "paginador_com_mais_de_uma_opcao_selecionada"
-            }
-            Self::OpcaoSelecionadaDoPaginadorSemValor { .. } => {
-                "opcao_selecionada_do_paginador_sem_valor"
-            }
-            Self::ControleRepetidoNoFormularioDoControle { .. } => {
-                "controle_repetido_no_formulario_do_controle"
-            }
-            Self::EntidadeHtmlDesconhecidaNoControle { .. } => {
-                "entidade_html_desconhecida_no_controle"
-            }
-            Self::AtributoHtml(falha) => falha.subcodigo(),
-        }
-    }
-}
+impl ErroControleDoFormulario {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome).map_err(E::AtributoHtml)

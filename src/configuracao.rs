@@ -7,12 +7,17 @@ pub struct ArquivosDeAcesso {
     pub origem: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroConfiguracao {
+    #[causa(nome = "caminho_url_controle_nao_informado")]
     UrlDoControleSemCaminho,
+    #[causa(nome = "caminho_cookie_nao_informado")]
     CookieSemCaminhoConfigurado,
+    #[causa(nome = "caminho_origem_nao_informado")]
     OrigemAutorizadaNaoConfigurada,
+    #[causa(nome = "arquivo_configuracao_nao_pode_ser_lido")]
     ArquivoDeConfiguracaoNaoPodeSerLido,
+    #[causa(nome = "arquivo_configuracao_permissoes_inseguras")]
     ArquivoConfiguracaoPermissoesAbertas,
     ArquivoConfiguracaoLinkSimbolico,
     ArquivoConfiguracaoJsonInvalido,
@@ -21,18 +26,7 @@ pub enum ErroConfiguracao {
 
 impl ErroConfiguracao {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::UrlDoControleSemCaminho => "caminho_url_controle_nao_informado",
-            Self::CookieSemCaminhoConfigurado => "caminho_cookie_nao_informado",
-            Self::OrigemAutorizadaNaoConfigurada => "caminho_origem_nao_informado",
-            Self::ArquivoDeConfiguracaoNaoPodeSerLido => "arquivo_configuracao_nao_pode_ser_lido",
-            Self::ArquivoConfiguracaoPermissoesAbertas => {
-                "arquivo_configuracao_permissoes_inseguras"
-            }
-            Self::ArquivoConfiguracaoLinkSimbolico => "arquivo_configuracao_link_simbolico",
-            Self::ArquivoConfiguracaoJsonInvalido => "arquivo_configuracao_json_invalido",
-            Self::ArquivoConfiguracaoCampoInvalido => "arquivo_configuracao_campo_invalido",
-        }
+        crate::erro_publico::folha(&self)
     }
     pub fn mensagem(self) -> &'static str {
         match self {
@@ -274,28 +268,27 @@ impl ArquivoPrivado {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoPrivado {
+    #[causa(nome = "caminho_privado_nao_absoluto")]
     CaminhoNaoAbsoluto(ArquivoPrivado),
+    #[causa(nome = "arquivo_privado_ausente")]
     Ausente(ArquivoPrivado),
+    #[causa(nome = "arquivo_privado_link_simbolico")]
     LinkSimbolico(ArquivoPrivado),
+    #[causa(nome = "arquivo_privado_nao_regular")]
     NaoRegular(ArquivoPrivado),
+    #[causa(nome = "arquivo_privado_vazio")]
     Vazio(ArquivoPrivado),
     #[cfg_attr(not(unix), allow(dead_code))]
+    #[causa(nome = "arquivo_privado_permissoes_inseguras")]
     PermissoesInseguras(ArquivoPrivado),
+    #[causa(nome = "metadados_arquivo_privado_nao_lidos")]
     MetadadosNaoLidos(ArquivoPrivado),
 }
 impl ErroArquivoPrivado {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::CaminhoNaoAbsoluto(_) => "caminho_privado_nao_absoluto",
-            Self::Ausente(_) => "arquivo_privado_ausente",
-            Self::LinkSimbolico(_) => "arquivo_privado_link_simbolico",
-            Self::NaoRegular(_) => "arquivo_privado_nao_regular",
-            Self::Vazio(_) => "arquivo_privado_vazio",
-            Self::PermissoesInseguras(_) => "arquivo_privado_permissoes_inseguras",
-            Self::MetadadosNaoLidos(_) => "metadados_arquivo_privado_nao_lidos",
-        }
+        crate::erro_publico::folha(&self)
     }
     pub fn arquivo(self) -> ArquivoPrivado {
         match self {

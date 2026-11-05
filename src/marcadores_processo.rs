@@ -81,7 +81,7 @@ pub(crate) enum TelaDosMarcadores {
 }
 
 /// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroMarcadores {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -102,35 +102,7 @@ pub(crate) enum ErroMarcadores {
 
 impl ErroMarcadores {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::LinksDosMarcadoresRepetidosNaBarra => "links_dos_marcadores_repetidos_na_barra",
-            Self::EnderecoDosMarcadoresNaoReconhecido => "endereco_dos_marcadores_nao_reconhecido",
-            Self::EnderecoDosMarcadoresDeOutroProcesso => {
-                "endereco_dos_marcadores_de_outro_processo"
-            }
-            Self::HtmlDosMarcadoresNaoInterpretado => "html_dos_marcadores_nao_interpretado",
-            Self::TelaDosMarcadoresAusente => "tela_dos_marcadores_ausente",
-            Self::NumeroDosMarcadoresDiferenteDoSolicitado => {
-                "numero_dos_marcadores_diferente_do_solicitado"
-            }
-            Self::IdDosMarcadoresDiferenteDoAberto => "id_dos_marcadores_diferente_do_aberto",
-            Self::TabelasDosMarcadoresRepetidas => "tabelas_dos_marcadores_repetidas",
-            Self::LegendaDosMarcadoresForaDaFormaObservada => {
-                "legenda_dos_marcadores_fora_da_forma_observada"
-            }
-            Self::CabecalhoDosMarcadoresNaoReconhecido => {
-                "cabecalho_dos_marcadores_nao_reconhecido"
-            }
-            Self::LinhaDoMarcadorForaDaFormaObservada => {
-                "linha_do_marcador_fora_da_forma_observada"
-            }
-            Self::MarcadorRepetidoNaTela => "marcador_repetido_na_tela",
-            Self::MarcadoresAlemDoTotalDeclarado => "marcadores_alem_do_total_declarado",
-        }
+        crate::erro_publico::folha(&self)
     }
 
     /// Recusas do link na barra (o resto é da tela).

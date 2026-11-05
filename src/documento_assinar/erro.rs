@@ -7,8 +7,9 @@ use crate::sessao_login::ErroLogin;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Assinatura de Documento", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeAssinatura {
+    #[causa(nome = "tela_de_assinatura_nao_interpretada")]
     HtmlNaoInterpretado,
     FormularioDeAssinaturaAusente,
     CampoNaoPrevistoNaTelaDeAssinatura,
@@ -20,15 +21,7 @@ pub(crate) enum ErroTelaDeAssinatura {
 
 impl ErroTelaDeAssinatura {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "tela_de_assinatura_nao_interpretada",
-            Self::FormularioDeAssinaturaAusente => "formulario_de_assinatura_ausente",
-            Self::CampoNaoPrevistoNaTelaDeAssinatura => "campo_nao_previsto_na_tela_de_assinatura",
-            Self::TelaDeAssinaturaDeOutroDocumento => "tela_de_assinatura_de_outro_documento",
-            Self::AssinanteNaoPublicadoNaTela => "assinante_nao_publicado_na_tela",
-            Self::OrgaoDoAssinanteNaoSelecionado => "orgao_do_assinante_nao_selecionado",
-            Self::CampoDeSenhaAusenteNaTela => "campo_de_senha_ausente_na_tela",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

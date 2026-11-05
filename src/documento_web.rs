@@ -8,30 +8,25 @@ pub struct IdentidadeDoDocumento {
     pub tipo: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroTituloDocumento {
+    #[causa(nome = "html_documento_nao_interpretado")]
     HtmlNaoInterpretado,
+    #[causa(nome = "titulo_documento_ausente")]
     TituloAusente,
     TitulosDeDocumentoRepetidos,
     CabecalhosHtmlRepetidos,
+    #[causa(nome = "titulo_documento_sem_numero_sei")]
     TituloSemNumeroSei,
+    #[causa(nome = "titulo_documento_sem_tipo")]
     TituloSemTipoDocumento,
+    #[causa(nome = "titulo_documento_sem_identificacao_sei")]
     IdentificacaoDaInstalacaoAusenteNoTitulo,
 }
 
 impl ErroTituloDocumento {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_documento_nao_interpretado",
-            Self::TituloAusente => "titulo_documento_ausente",
-            Self::TitulosDeDocumentoRepetidos => "titulos_de_documento_repetidos",
-            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_repetidos",
-            Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
-            Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
-            Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
-                "titulo_documento_sem_identificacao_sei"
-            }
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
@@ -220,27 +215,25 @@ mod tests {
 }
 
 /// Erros de extração textual; não convertidos em mensagens livres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCorpoDocumento {
+    #[causa(nome = "html_corpo_documento_nao_interpretado")]
     HtmlNaoInterpretado,
+    #[causa(nome = "corpo_documento_ausente")]
     CorpoAusente,
     CorposDeDocumentoRepetidos,
+    #[causa(nome = "corpo_documento_vazio")]
     CorpoVazio,
+    #[causa(nome = "corpo_documento_contem_script_ou_estilo")]
     CorpoComConteudoExecutavel,
+    #[causa(nome = "texto_documento_acima_do_limite")]
     TextoAcimaDoLimite,
+    #[causa(nome = "arvore_documento_aninhamento_excessivo")]
     AninhamentoExcessivo,
 }
 impl ErroCorpoDocumento {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_corpo_documento_nao_interpretado",
-            Self::CorpoAusente => "corpo_documento_ausente",
-            Self::CorposDeDocumentoRepetidos => "corpos_de_documento_repetidos",
-            Self::CorpoVazio => "corpo_documento_vazio",
-            Self::CorpoComConteudoExecutavel => "corpo_documento_contem_script_ou_estilo",
-            Self::TextoAcimaDoLimite => "texto_documento_acima_do_limite",
-            Self::AninhamentoExcessivo => "arvore_documento_aninhamento_excessivo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.

@@ -39,8 +39,9 @@ pub(crate) enum RespostaDaPesquisa {
 }
 
 /// Uma variante por fato verificável da resposta 200.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRespostaDaPesquisa {
+    #[causa(nome = "html_da_resposta_da_pesquisa_nao_interpretado")]
     HtmlDaRespostaNaoInterpretado,
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
@@ -52,41 +53,16 @@ pub(crate) enum ErroRespostaDaPesquisa {
     NumeroDaBarraDeContagemForaDoFormato,
     FaixaDaBarraDeContagemImpossivel,
     LinhasDaTabelaDiferentesDaFaixaDaBarra,
+    #[causa(interna)]
     Resultado(ErroResultadoPesquisa),
     /// Linha da pesquisa em documentos (`ies documento buscar`).
+    #[causa(interna)]
     Documento(super::documentos::ErroDocumentoDaPesquisa),
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroRespostaDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDaRespostaNaoInterpretado => "html_da_resposta_da_pesquisa_nao_interpretado",
-            Self::RespostaDaPesquisaNaoReconhecida => "resposta_da_pesquisa_nao_reconhecida",
-            Self::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta => {
-                "tabela_de_resultado_e_aviso_de_sem_resultado_na_mesma_resposta"
-            }
-            Self::BarraDeContagemDaPesquisaAusente => "barra_de_contagem_da_pesquisa_ausente",
-            Self::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta => {
-                "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
-            }
-            Self::BarrasDeContagemDaPesquisaRepetidas => "barras_de_contagem_da_pesquisa_repetidas",
-            Self::TextoDaBarraDeContagemForaDoFormato => {
-                "texto_da_barra_de_contagem_fora_do_formato"
-            }
-            Self::NumeroDaBarraDeContagemForaDoFormato => {
-                "numero_da_barra_de_contagem_fora_do_formato"
-            }
-            Self::FaixaDaBarraDeContagemImpossivel => "faixa_da_barra_de_contagem_impossivel",
-            Self::LinhasDaTabelaDiferentesDaFaixaDaBarra => {
-                "linhas_da_tabela_diferentes_da_faixa_da_barra"
-            }
-            Self::Resultado(erro) => erro.subcodigo(),
-            Self::Documento(erro) => erro.subcodigo(),
-            Self::AtributoHtml(erro) => erro.subcodigo(),
-        }
-    }
-}
+impl ErroRespostaDaPesquisa {}
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
 /// 1 a 3, sem zero à esquerda); qualquer outra forma é `None`.

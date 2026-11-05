@@ -285,7 +285,10 @@ fn subcodigos_das_regras_sao_distintos() {
         R::InicioDaPaginacaoDiferenteDeZeroNaTela,
         R::EntidadeHtmlDesconhecidaNaRegra,
     ];
-    let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
+    let unicos: std::collections::HashSet<_> = todos
+        .iter()
+        .map(|e| crate::erro_publico::folha(e))
+        .collect();
     assert_eq!(unicos.len(), todos.len());
 }
 
@@ -359,7 +362,10 @@ fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
     let html = com_campo_do_termo(CAMPO_COM_50);
     let erro = regra_do_termo(&html, &"1".repeat(51));
     assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
-    assert_eq!(erro.subcodigo(), "termo_acima_do_maxlength_da_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "termo_acima_do_maxlength_da_tela"
+    );
 }
 
 #[test]
@@ -400,11 +406,11 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
     let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
     assert_eq!(regra_do_termo(&html, "1"), R::CamposDoTermoRepetidosNaTela);
     assert_eq!(
-        R::MaxlengthDoTermoIlegivelNaTela.subcodigo(),
+        crate::erro_publico::folha(&R::MaxlengthDoTermoIlegivelNaTela),
         "maxlength_do_termo_ilegivel_na_tela"
     );
     assert_eq!(
-        R::CamposDoTermoRepetidosNaTela.subcodigo(),
+        crate::erro_publico::folha(&R::CamposDoTermoRepetidosNaTela),
         "campos_do_termo_repetidos_na_tela"
     );
 }
@@ -450,7 +456,10 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
         },
     )
     .unwrap_err();
-    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "criterio_nao_oferecido_pela_tela"
+    );
 }
 #[test]
 fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
@@ -466,5 +475,8 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
         },
     )
     .unwrap_err();
-    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "criterio_nao_oferecido_pela_tela"
+    );
 }

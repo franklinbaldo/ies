@@ -6,8 +6,9 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Conclusão de Processo", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeConclusao {
+    #[causa(nome = "tela_de_conclusao_nao_interpretada")]
     HtmlNaoInterpretado,
     FormularioDeConclusaoAusente,
     CampoNaoPrevistoNaTelaDeConclusao,
@@ -18,16 +19,7 @@ pub(crate) enum ErroTelaDeConclusao {
 
 impl ErroTelaDeConclusao {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "tela_de_conclusao_nao_interpretada",
-            Self::FormularioDeConclusaoAusente => "formulario_de_conclusao_ausente",
-            Self::CampoNaoPrevistoNaTelaDeConclusao => "campo_nao_previsto_na_tela_de_conclusao",
-            Self::TelaDeConclusaoDeOutroProcesso => "tela_de_conclusao_de_outro_processo",
-            Self::OpcaoSomenteConcluirNaoMarcada => "opcao_somente_concluir_nao_marcada",
-            Self::TelaDeConclusaoComReaberturaPreenchida => {
-                "tela_de_conclusao_com_reabertura_preenchida"
-            }
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

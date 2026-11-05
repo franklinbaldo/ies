@@ -22,23 +22,20 @@ pub(crate) struct TelaDaAtribuicao {
     pub(crate) usuarios: Vec<UsuarioDaAtribuicao>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuir {
+    #[causa(nome = "tela_da_atribuicao_fora_da_forma")]
     TelaForaDaForma,
     UsuarioNaoAtribuivel,
+    #[causa(nome = "usuario_ambiguo_na_atribuicao")]
     UsuarioAmbiguo,
+    #[causa(nome = "situacao_da_atribuicao_nao_observada")]
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
 }
 impl ErroAtribuir {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::TelaForaDaForma => "tela_da_atribuicao_fora_da_forma",
-            Self::UsuarioNaoAtribuivel => "usuario_nao_atribuivel",
-            Self::UsuarioAmbiguo => "usuario_ambiguo_na_atribuicao",
-            Self::SituacaoNaoObservada => "situacao_da_atribuicao_nao_observada",
-            Self::AtribuicaoJaAplicada => "atribuicao_ja_aplicada",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

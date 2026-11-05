@@ -8,18 +8,17 @@ use crate::foto_documento::nome;
 use serde::Serialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroListagem {
+    #[causa(nome = "limite_copias_locais")]
     LimiteDeCopias,
+    #[causa(interna)]
     CopiaInvalida(ErroCopia),
 }
 
 impl ErroListagem {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LimiteDeCopias => "limite_copias_locais",
-            Self::CopiaInvalida(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

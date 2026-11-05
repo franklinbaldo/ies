@@ -39,7 +39,7 @@ pub(crate) struct AssinaturaNaArvore {
     pub(crate) assinantes: Vec<Assinante>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAssinaturaNaArvore {
     BarraDoDocumentoForaDaFormaObservada,
     BarrasDoDocumentoRepetidasNaArvore,
@@ -50,19 +50,7 @@ pub(crate) enum ErroAssinaturaNaArvore {
 
 impl ErroAssinaturaNaArvore {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoDocumentoForaDaFormaObservada => {
-                "barra_do_documento_fora_da_forma_observada"
-            }
-            Self::BarrasDoDocumentoRepetidasNaArvore => "barras_do_documento_repetidas_na_arvore",
-            Self::AcoesDeAssinarRepetidasNaBarra => "acoes_de_assinar_repetidas_na_barra",
-            Self::AssinaturasDoDocumentoForaDaFormaObservada => {
-                "assinaturas_do_documento_fora_da_forma_observada"
-            }
-            Self::AssinaturasDoDocumentoRepetidasNaArvore => {
-                "assinaturas_do_documento_repetidas_na_arvore"
-            }
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
@@ -198,7 +186,7 @@ pub(crate) fn tela_do_documento(
     por("id_documento", id_documento).map(EnderecoDeEscrita::novo)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDeAssinar {
     LinkDeAssinarAusenteNaTelaDoDocumento,
     LinkDeAssinarForaDaFormaObservada,
@@ -209,17 +197,7 @@ pub(crate) enum ErroLinkDeAssinar {
 
 impl ErroLinkDeAssinar {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LinkDeAssinarAusenteNaTelaDoDocumento => {
-                "link_de_assinar_ausente_na_tela_do_documento"
-            }
-            Self::LinkDeAssinarForaDaFormaObservada => "link_de_assinar_fora_da_forma_observada",
-            Self::LinksDeAssinarRepetidosNaTelaDoDocumento => {
-                "links_de_assinar_repetidos_na_tela_do_documento"
-            }
-            Self::EnderecoDeAssinarNaoReconhecido => "endereco_de_assinar_nao_reconhecido",
-            Self::EnderecoDeAssinarDeOutroDocumento => "endereco_de_assinar_de_outro_documento",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

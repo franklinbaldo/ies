@@ -10,52 +10,35 @@ pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancela
 pub(crate) const ACAO_DO_NIVEL_DE_DETALHE: &str = "procedimento_configurar_detalhe";
 
 /// Uma variante por fato verificável da tela de configuração.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroNivelDeDetalhe {
+    #[causa(nome = "html_do_nivel_de_detalhe_nao_interpretado")]
     HtmlNaoInterpretado,
     FormularioDoNivelDeDetalheAusente,
     FormulariosDoNivelDeDetalheRepetidos,
     AcaoDoFormularioDoNivelDeDetalheDiferente,
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
     /// Uma caixa do catálogo ausente não é erro: sai com `disponivel: false`.
+    #[causa(nome = "nenhuma_opcao_do_nivel_de_detalhe_publicada")]
     NenhumaOpcaoDoDetalhePublicada,
+    #[causa(nome = "opcao_do_nivel_de_detalhe_repetida")]
     OpcaoDoDetalheRepetida {
         coluna: ColunaDoDetalhe,
     },
+    #[causa(nome = "opcao_do_nivel_de_detalhe_nao_prevista")]
     OpcaoDoDetalheNaoPrevista,
+    #[causa(nome = "rotulo_da_opcao_do_nivel_de_detalhe_diferente")]
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },
     /// Controle enviável fora de `hdnInfraTipoPagina`, `sbmSalvar` e das
     /// caixas do catálogo (só recusado antes de salvar).
     CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroNivelDeDetalhe {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_do_nivel_de_detalhe_nao_interpretado",
-            Self::FormularioDoNivelDeDetalheAusente => "formulario_do_nivel_de_detalhe_ausente",
-            Self::FormulariosDoNivelDeDetalheRepetidos => {
-                "formularios_do_nivel_de_detalhe_repetidos"
-            }
-            Self::AcaoDoFormularioDoNivelDeDetalheDiferente => {
-                "acao_do_formulario_do_nivel_de_detalhe_diferente"
-            }
-            Self::NenhumaOpcaoDoDetalhePublicada => "nenhuma_opcao_do_nivel_de_detalhe_publicada",
-            Self::OpcaoDoDetalheRepetida { .. } => "opcao_do_nivel_de_detalhe_repetida",
-            Self::OpcaoDoDetalheNaoPrevista => "opcao_do_nivel_de_detalhe_nao_prevista",
-            Self::RotuloDaOpcaoDoDetalheDiferente { .. } => {
-                "rotulo_da_opcao_do_nivel_de_detalhe_diferente"
-            }
-            Self::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe => {
-                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
-            }
-            Self::AtributoHtml(falha) => falha.subcodigo(),
-        }
-    }
-}
+impl ErroNivelDeDetalhe {}
 
 type E = ErroNivelDeDetalhe;
 
