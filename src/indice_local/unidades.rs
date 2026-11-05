@@ -6,7 +6,10 @@ use std::collections::HashSet;
 
 /// Unidade observada na lupa, com identidade opaca.
 // A integração Web/CLI da lista ainda está em desenvolvimento na #244.
-#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "integração Web/CLI pendente na #244")
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UnidadeGuardada {
     pub id: String,
@@ -17,7 +20,10 @@ pub(crate) struct UnidadeGuardada {
 
 /// Snapshot confirmado como integral; não confundir uma lista ausente
 /// com uma lista legitimamente vazia.
-#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "integração Web/CLI pendente na #244")
+)]
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ListaGuardada {
     pub unidades: Vec<UnidadeGuardada>,
@@ -29,7 +35,10 @@ impl IndiceLocal {
     /// Substitui uma lista inteira numa transação: sem gravação parcial.
     /// O chamador deve conferir páginas, total declarado, identidade da
     /// instalação, IDs duplicados e forma HTML ANTES desta chamada.
-    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "integração Web/CLI pendente na #244")
+    )]
     pub(crate) fn guardar_lista_de_unidades(
         &self,
         instalacao: &str,
@@ -77,7 +86,10 @@ impl IndiceLocal {
     }
 
     /// Sem requisição ao SEI. None significa lista ausente ou índice desligado.
-    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "integração Web/CLI pendente na #244")
+    )]
     pub(crate) fn lista_de_unidades(
         &self,
         instalacao: &str,
@@ -122,7 +134,10 @@ impl IndiceLocal {
 
     /// Filtra somente o snapshot, por sigla ou descrição, com sigla exata
     /// priorizada. Nenhuma requisição e nenhuma alteração no banco.
-    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "integração Web/CLI pendente na #244")
+    )]
     pub(crate) fn pesquisar_unidades_guardadas(
         &self,
         instalacao: &str,
@@ -143,7 +158,10 @@ impl IndiceLocal {
 }
 
 /// Normalização de pesquisa local sem expressões regulares; preserva '/'.
-#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "integração Web/CLI pendente na #244")
+)]
 fn chave(texto: &str) -> String {
     texto
         .trim()
