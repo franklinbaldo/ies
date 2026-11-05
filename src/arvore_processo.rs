@@ -10,9 +10,9 @@ mod anexados;
 mod assinatura;
 mod barra_do_documento;
 mod barra_do_processo;
+mod ciencia;
 mod concluir;
 mod conteudo;
-mod ciencia;
 pub(crate) mod endereco;
 mod enviar;
 mod erro;
@@ -73,11 +73,13 @@ pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use ciencia::{
+    ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
+};
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
 };
-pub(crate) use ciencia::{ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
