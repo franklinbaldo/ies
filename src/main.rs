@@ -47,6 +47,7 @@ mod paginas;
 mod pesquisa_web;
 mod processo;
 mod processo_buscar_cli;
+mod processo_marcar;
 mod processo_concluir;
 mod processo_concluir_cli;
 mod processo_enviar;
