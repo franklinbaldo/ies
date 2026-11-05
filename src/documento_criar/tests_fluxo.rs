@@ -194,7 +194,6 @@ fn formulario_de_criacao_recusa_action_sem_hash_unico() {
     );
 }
 
-
 #[test]
 fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
     // Uma confirmação que ainda não pode escrever não deve sequer abrir
@@ -206,10 +205,8 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
         (Some("sigiloso"), "nivel_de_documento_requer_hipotese_legal"),
     ] {
         let ambiente = apoio::ambiente();
-        let (resultado, pedidos) = apoio::rodar_com(
-            &ambiente,
-            vec![],
-            |sessao, nup, indice, transporte| {
+        let (resultado, pedidos) =
+            apoio::rodar_com(&ambiente, vec![], |sessao, nup, indice, transporte| {
                 let pedido = PedidoCriacao {
                     nup,
                     unidade: None,
@@ -218,8 +215,7 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
                     nivel,
                 };
                 executar_criacao(sessao, &pedido, indice, transporte, true)
-            },
-        );
+            });
         assert_eq!(
             resultado.err().map(|erro| erro.subcodigo()),
             Some(subcodigo),
