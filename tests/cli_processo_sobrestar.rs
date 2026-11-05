@@ -53,10 +53,7 @@ fn confirmar_exige_sessao_valida_e_nao_produz_sucesso_sem_configuracao() {
         let saida = sem_sessao(&argumentos);
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
         let valor = json(&saida);
-        assert_eq!(
-            valor["retentavel"],
-            false
-        );
+        assert_eq!(valor["retentavel"], false);
         assert_ne!(
             valor["subcodigo"],
             "confirmacao_de_sobrestamento_nao_implementada"
