@@ -288,7 +288,13 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     }
     let submissao = submissao.ok_or(ErroPrevia::TelaInesperada)?;
     confirmar_inclusao(
-        &mut rede, sessao, link.as_str(), &cookie, &antes, plano, submissao,
+        &mut rede,
+        sessao,
+        link.as_str(),
+        &cookie,
+        &antes,
+        plano,
+        submissao,
     )
 }
 

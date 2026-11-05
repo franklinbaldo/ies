@@ -4,11 +4,12 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcompanharNaBarra, ErroArvore,
-    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra, MotivoAbertoEm, ReabrirNaBarra,
-    TelaDoProcesso, ler_acompanhar_da_barra, ler_arvore, ler_concluir_da_barra,
-    ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
-    ler_link_dos_marcadores, ler_reabrir_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
+    ErroAcompanharNaBarra, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
+    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra, ler_arvore,
+    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra, ler_retomar_da_barra,
+    ler_sobrestar_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -158,6 +159,8 @@ pub(super) struct ArvoreAberta {
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
     pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
+    pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
     /// O link do acompanhamento, usado apenas por processo acompanhar.
@@ -192,6 +195,8 @@ pub(super) fn ler_arvore_da_pagina(
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
+    let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
+    let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
     let acompanhar = ler_acompanhar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
@@ -202,6 +207,8 @@ pub(super) fn ler_arvore_da_pagina(
         marcadores,
         concluir,
         reabrir,
+        sobrestar,
+        retomar,
         enviar,
         acompanhar,
     })

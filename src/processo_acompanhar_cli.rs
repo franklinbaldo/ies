@@ -72,7 +72,11 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
     } else {
         println!(
             "{} — processo {} (unidade {})",
-            if plano.confirmado { "Confirmação" } else { "Prévia" },
+            if plano.confirmado {
+                "Confirmação"
+            } else {
+                "Prévia"
+            },
             plano.numero,
             plano.unidade
         );

@@ -51,12 +51,32 @@ mod processo_acompanhar_cli;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
+#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
+#[path = "processo_criar/cadastro.rs"]
+mod processo_criar_cadastro;
+mod processo_criar_cli;
+#[allow(dead_code)] // fluxo Web a integrar pela CLI
+#[path = "processo_criar/fluxo.rs"]
+mod processo_criar_fluxo;
+#[allow(dead_code)]
+#[path = "processo_criar/interessados.rs"]
+mod processo_criar_interessados;
+#[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
+#[path = "processo_criar/lista.rs"]
+mod processo_criar_lista;
+#[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
+#[path = "processo_criar/menu.rs"]
+mod processo_criar_menu;
 mod processo_enviar;
 mod processo_enviar_cli;
+mod processo_marcar;
+mod processo_marcar_cli;
 mod processo_obter;
 mod processo_obter_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
+mod processo_sobrestar;
+mod processo_sobrestar_cli;
 mod propriedades_processo;
 mod relogin_cli;
 mod rodape_do_documento;
@@ -146,6 +166,19 @@ struct Processo {
 
 #[derive(Debug, Subcommand)]
 enum ProcessoAcao {
+    /// Inicia novo processo Web: prévia, ou confirma após validação.
+    Criar {
+        #[arg(long)]
+        tipo: String,
+        #[arg(long)]
+        especificacao: String,
+        #[arg(long)]
+        interessado: Vec<String>,
+        #[arg(long, default_value = "publico", value_parser = ["publico", "restrito"])]
+        nivel: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// NUP inteiro ou parte do número, como digitado no campo Protocolo
@@ -199,12 +232,36 @@ enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Atribui ou retira marcador id#nome; prévia Web (escrita ainda não observada).
+    Marcar {
+        numero: String,
+        #[arg(long, required_unless_present = "retirar", conflicts_with = "retirar")]
+        marcador: Option<String>,
+        #[arg(long, conflicts_with = "marcador")]
+        retirar: Option<String>,
+        #[arg(long, requires = "marcador", conflicts_with = "retirar")]
+        texto: Option<String>,
+        #[arg(long)]
+        confirmar: bool,
+    },
     Concluir {
         numero: String,
         #[arg(long)]
         confirmar: bool,
     },
     Reabrir {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Sobrestar {
+        numero: String,
+        #[arg(long)]
+        motivo: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Retomar {
         numero: String,
         #[arg(long)]
         confirmar: bool,
@@ -391,16 +448,19 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    processo_buscar_cli::tentar_buscar(cli)
+    processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
