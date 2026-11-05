@@ -18,9 +18,9 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, mes: Option<&str>) 
         Err(e) => return erro_fonte(json_mode, e.subcodigo(), e.mensagem()),
     };
     let lido = relogin_cli::ler(&arquivos, unidade, || {
-        let sessao = ReferenciasDaSessao::ler(
-            &arquivos.url_controle, &arquivos.origem, &arquivos.cookie,
-        ).map_err(ErroLeituraRetornos::Transporte)?;
+        let sessao =
+            ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+                .map_err(ErroLeituraRetornos::Transporte)?;
         let controle = transporte::envio_post::ler_tela_do_controle(&sessao)
             .map_err(ErroLeituraRetornos::Transporte)?;
         let unidade_atual = controle_reconhecido::unidade_do_controle(&controle.html)
@@ -29,18 +29,22 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, mes: Option<&str>) 
             return Err(ErroLeituraRetornos::UnidadeDiferenteDaSolicitada);
         }
         let indice = IndiceLocal::da_configuracao(&arquivos);
-        Colheita::das_referencias(&indice, &sessao)
-            .colher(&controle.html, Some(&controle.mime));
+        Colheita::das_referencias(&indice, &sessao).colher(&controle.html, Some(&controle.mime));
         let resultado = unidade_retornos_web::ler_com(
-            &controle.url, &controle.html, &controle.instalacao, alvo,
+            &controle.url,
+            &controle.html,
+            &controle.instalacao,
+            alvo,
             |url| {
                 // A URL ja passou por conferir_link: controlador, mesma
                 // instalacao, acao, hash e parametros sem duplicidade.
-                let cookie = sessao.cookie().valor().map_err(ErroLeituraRetornos::Transporte)?;
-                let resposta = transporte::get_https(url, cookie)
+                let cookie = sessao
+                    .cookie()
+                    .valor()
                     .map_err(ErroLeituraRetornos::Transporte)?;
-                transporte::decodificar_resposta(resposta)
-                    .map_err(ErroLeituraRetornos::Transporte)
+                let resposta =
+                    transporte::get_https(url, cookie).map_err(ErroLeituraRetornos::Transporte)?;
+                transporte::decodificar_resposta(resposta).map_err(ErroLeituraRetornos::Transporte)
             },
         )?;
         Ok((unidade_atual, resultado))
@@ -69,10 +73,15 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, mes: Option<&str>) 
                 println!("{valor}");
             } else {
                 relogin_cli::avisar(false, nota.as_ref());
-                println!("Retornos da unidade {atual} em {}: {} observado(s); {requisicoes} requisicao(oes).",
-                    resultado.mes, quantidade);
+                println!(
+                    "Retornos da unidade {atual} em {}: {} observado(s); {requisicoes} requisicao(oes).",
+                    resultado.mes, quantidade
+                );
                 for item in resultado.itens {
-                    println!("{} | {} | {} | {}", item.situacao, item.numero, item.unidade, item.data_programada);
+                    println!(
+                        "{} | {} | {} | {}",
+                        item.situacao, item.numero, item.unidade, item.data_programada
+                    );
                 }
             }
             ExitCode::SUCCESS
