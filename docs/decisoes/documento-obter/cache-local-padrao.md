@@ -2,7 +2,7 @@
 type: ImplementationDecision
 title: Cache local padrão dos documentos lidos
 operation: documento.obter
-implementation: pending
+implementation: partial
 status: adopted-for-scope
 scope: cache automático por instalação e número SEI, independente do processo; saída opcional a partir do cache; sem requisições adicionais
 selected_strategy: cache-por-conteudo-e-versao
@@ -79,7 +79,7 @@ distintos, sem sobrescrever; esta diferença de semântica é intencional.
 
 A decisão foi definida pelo proprietário; houve inspeção do código
 de leitura, de `arquivo_privado`, `foto_documento` e dos contratos.
-**Esta primeira alteração documental não implementa a decisão.**
-RED, GREEN, gate, CI e ensaio live permanecem não executados nesta
-etapa. Não atribuir PASS ao ensaio sem execução. O código e os testes
-devem ser concluídos antes de marcar a PR pronta.
+A implementação foi proposta na PR #240 com armazenamento privado,
+leitura interna e externa, cópia opcional e testes sintéticos.
+O gate final e o ensaio live têm status independente; não atribuir PASS
+sem a execução correspondente. O ensaio live segue NOT_RUN.
