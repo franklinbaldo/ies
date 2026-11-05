@@ -296,57 +296,69 @@ fn geracao_confere_cookie_e_url_gravados_juntos() {
     assert!(!marcador.contains("A=1") && !marcador.contains(HASH));
 }
 
+// Os reprodutores da #224 (URL e cookie de gerações distintas) viraram
+// asserções do comportamento corrigido em `tests_snapshot` (#222).
+
+#[cfg(unix)]
 #[test]
-fn reprodutor_relogin_entre_url_e_cookie_expoe_geracoes_distintas() {
-    // Reprodutor do achado #183: NÃO é um teste de propriedade corrigida.
-    // A leitura da URL é anterior à gravação atômica da geração seguinte.
+fn gravacao_atravessa_ancestral_link_simbolico_como_home_em_var_home() {
+    // Silverblue: `/home` → `/var/home`; a sessão vai para o diretório real.
     let ambiente = Ambiente::novo();
-    let antiga = url_do_controle();
-    let nova = antiga.replace("procedimento_controlar", "procedimento_receber");
-    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &antiga, "PHPSESSID=GERACAO_A").unwrap();
-    let referencias = crate::transporte::sessao::ReferenciasDaSessao::ler(
-        &ambiente.arquivos.url_controle,
-        &ambiente.arquivos.origem,
-    )
-    .unwrap();
-    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &nova, "PHPSESSID=GERACAO_B").unwrap();
-    let cookie = referencias
-        .cookie_validado(&ambiente.arquivos.cookie)
-        .unwrap();
-    assert_eq!(cookie, "PHPSESSID=GERACAO_B");
-    assert_ne!(referencias.url_do_controle(), nova);
-    // O marcador recusa o par; o leitor compartilhado acima não o consulta.
-    assert!(!super::gravacao::mesma_geracao(
-        &ambiente.arquivos,
-        referencias.url_do_controle(),
-        &cookie
+    let real = ambiente.dir.join("var").join("home");
+    std::fs::create_dir_all(&real).unwrap();
+    std::os::unix::fs::symlink(&real, ambiente.dir.join("home")).unwrap();
+    let pela_casa = ambiente.dir.join("home");
+    let arquivos = crate::configuracao::ArquivosDeAcesso {
+        url_controle: pela_casa.join("url-controle"),
+        cookie: pela_casa.join("cookie"),
+        origem: ambiente.arquivos.origem.clone(),
+    };
+    super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
+    assert_eq!(Ambiente::ler(&real.join("cookie")), "A=1\n");
+    assert!(super::gravacao::mesma_geracao(
+        &arquivos,
+        &url_do_controle(),
+        "A=1"
     ));
 }
 
+#[cfg(unix)]
 #[test]
-fn reprodutor_troca_de_unidade_entre_leituras_mantem_url_antiga() {
-    // #205 atualiza a URL e o marcador, mas não regrava o cookie.
+fn gravacao_recusa_diretorio_gravavel_por_outros() {
     let ambiente = Ambiente::novo();
-    let antiga = url_do_controle();
-    let nova = antiga.replace("procedimento_controlar", "procedimento_receber");
-    let cookie = "PHPSESSID=GERACAO_A";
-    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &antiga, cookie).unwrap();
-    let referencias = crate::transporte::sessao::ReferenciasDaSessao::ler(
-        &ambiente.arquivos.url_controle,
-        &ambiente.arquivos.origem,
-    )
-    .unwrap();
-    super::gravacao::regravar_url_do_controle(&ambiente.arquivos, &nova, cookie).unwrap();
+    let aberto = ambiente.dir.join("aberto");
+    std::fs::create_dir(&aberto).unwrap();
+    let arquivos = crate::configuracao::ArquivosDeAcesso {
+        url_controle: aberto.join("url-controle"),
+        cookie: aberto.join("cookie"),
+        origem: ambiente.arquivos.origem.clone(),
+    };
+    for bits in [0o770, 0o707, 0o777] {
+        crate::indice_local::tests::definir_modo(&aberto, bits);
+        let erro =
+            super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
+        assert_eq!(erro.subcodigo(), "diretorio_da_sessao_gravavel_por_outros");
+        assert_eq!(std::fs::read_dir(&aberto).unwrap().count(), 0);
+    }
+    // `/tmp`-style (sticky): aceito.
+    crate::indice_local::tests::definir_modo(&aberto, 0o1777);
+    super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
+}
+
+#[test]
+fn gravacao_da_sessao_nao_deixa_temporario() {
+    let ambiente = Ambiente::novo();
+    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
+    super::gravacao::regravar_url_do_controle(&ambiente.arquivos, &url_do_controle(), "A=1")
+        .unwrap();
     assert_eq!(
-        referencias
-            .cookie_validado(&ambiente.arquivos.cookie)
-            .unwrap(),
-        cookie
+        ambiente.nomes(),
+        [
+            "cookie",
+            "credenciais",
+            "origem",
+            "url-controle",
+            "url-controle.geracao"
+        ]
     );
-    assert_ne!(referencias.url_do_controle(), nova);
-    assert!(!super::gravacao::mesma_geracao(
-        &ambiente.arquivos,
-        referencias.url_do_controle(),
-        cookie
-    ));
 }

@@ -3,7 +3,7 @@
 //! sem redirects, 8 MB durante o recebimento e uma única tentativa.
 use super::cliente_https::{self, CorpoHttps, Envio};
 use super::resposta_http::{Corpo, Resposta};
-use super::sessao::{ReferenciasDaSessao, cookie_privado_validado};
+use super::sessao::{CookieDaSessao, ReferenciasDaSessao};
 use super::{
     FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta, get_https,
     validar_origem,
@@ -11,7 +11,6 @@ use super::{
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
 use std::io::Read;
-use std::path::Path;
 
 /// Tela do GET com o que o POST seguinte precisa: URL exata, tipo e instalação.
 pub(crate) struct TelaDoControle {
@@ -36,7 +35,7 @@ impl std::fmt::Debug for TelaDoControle {
 /// da caixa antes de qualquer conexão. `FnOnce`: uma única tentativa.
 pub(crate) fn ler_tela_via<R: Read, F>(
     url: &str,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     origem_autorizada: &str,
     requisitar: F,
 ) -> Result<TelaDoControle, FalhaTransporte>
@@ -46,8 +45,7 @@ where
     validar_origem(url, origem_autorizada)?;
     let instalacao =
         Instalacao::interpretar(origem_autorizada).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
-    let cookie = cookie_privado_validado(cookie_file)?;
-    let resposta = requisitar(url, &cookie)?;
+    let resposta = requisitar(url, cookie.valor()?)?;
     // O 302 é dado, nunca seguido: só a entrada do login da instalação
     // vira sessão encerrada; qualquer outro 3xx continua recusado.
     if resposta.status_code == 302
@@ -69,16 +67,13 @@ where
     })
 }
 
-/// GET único do Controle a partir dos arquivos privados.
+/// GET único do Controle com o retrato coerente da sessão (#222).
 pub(crate) fn ler_tela_do_controle(
-    url_file: &Path,
-    cookie_file: &Path,
-    origem_file: &Path,
+    referencias: &ReferenciasDaSessao,
 ) -> Result<TelaDoControle, FalhaTransporte> {
-    let referencias = ReferenciasDaSessao::ler(url_file, origem_file)?;
     ler_tela_via(
         referencias.url_do_controle(),
-        cookie_file,
+        referencias.cookie(),
         referencias.origem(),
         get_https,
     )
@@ -172,23 +167,28 @@ mod tests {
     #[test]
     fn tela_preserva_url_e_tipo_e_recusa_origem_antes_do_cookie() {
         let arquivo = cookie();
-        let tela = ler_tela_via(URL, &arquivo, "https://sei.exemplo.gov.br/sei", |_, c| {
-            assert_eq!(c, "PHPSESSID=SINTETICO");
-            Ok(RespostaWeb {
-                status_code: 200,
-                mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: None,
-                localizacao: None,
-                corpo: Cursor::new(b"<html>ok</html>".to_vec()),
-            })
-        })
+        let tela = ler_tela_via(
+            URL,
+            &CookieDaSessao::ler(&arquivo),
+            "https://sei.exemplo.gov.br/sei",
+            |_, c| {
+                assert_eq!(c, "PHPSESSID=SINTETICO");
+                Ok(RespostaWeb {
+                    status_code: 200,
+                    mime: "text/html; charset=iso-8859-1".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(b"<html>ok</html>".to_vec()),
+                })
+            },
+        )
         .unwrap();
         assert_eq!(tela.url, URL);
         assert_eq!(tela.mime, "text/html; charset=iso-8859-1");
         assert!(!format!("{tela:?}").contains("aaaa"));
         let recusada = ler_tela_via(
             URL,
-            &arquivo,
+            &CookieDaSessao::ler(&arquivo),
             "https://outro.gov.br/sei",
             |_, _| -> Result<RespostaWeb<Cursor<Vec<u8>>>, FalhaTransporte> {
                 panic!("não pode enviar fora da origem autorizada")

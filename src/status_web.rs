@@ -71,14 +71,19 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-    let colheita = crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos);
-    let html = match transporte::envio_post::ler_tela_do_controle(
+    // Um retrato coerente da sessão (#222) para o GET e para a colheita.
+    let lido = transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
-        &arquivos.cookie,
         &arquivos.origem,
-    ) {
-        Ok(tela) => {
-            colheita.colher(&tela.html, Some(&tela.mime));
+        &arquivos.cookie,
+    )
+    .and_then(|sessao| {
+        transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
+    });
+    let html = match lido {
+        Ok((sessao, tela)) => {
+            crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
+                .colher(&tela.html, Some(&tela.mime));
             tela.html
         }
         Err(erro) => {

@@ -115,6 +115,9 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         "origem_nao_autorizada",
         "status_http_de_limite_de_requisicoes",
         "redirecionamento_recusado",
+        // #222: a sessão regravada duas vezes durante a leitura não é
+        // sessão vencida; nenhum relogin implícito.
+        "sessao_trocada_durante_a_leitura",
     ] {
         assert!(!sessao_encerrada(subcodigo), "{subcodigo}");
     }
@@ -123,6 +126,10 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         (
             FalhaTransporte::OrigemNaoAutorizada,
             "origem_nao_autorizada",
+        ),
+        (
+            FalhaTransporte::SessaoTrocadaDuranteALeitura,
+            "sessao_trocada_durante_a_leitura",
         ),
     ];
     for (falha, esperado) in invalidos {

@@ -35,6 +35,9 @@ pub enum FalhaTransporte {
     ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
     CookieInvalido,
+    /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
+    /// duas leituras locais da sessão: outro processo gravou no meio.
+    SessaoTrocadaDuranteALeitura,
     /// Status HTTP 401 ou 403.
     AcessoNegado(StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
@@ -80,6 +83,7 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo_privado_acima_do_limite",
             Self::ArquivoPrivadoNaoPodeSerLido => "arquivo_privado_nao_pode_ser_lido",
             Self::CookieInvalido => "cookie_invalido",
+            Self::SessaoTrocadaDuranteALeitura => "sessao_trocada_durante_a_leitura",
             Self::AcessoNegado(_) => "sessao_nao_autorizada",
             Self::BloqueioDeSegurancaDaInstalacao(_) => "bloqueio_de_seguranca_da_instalacao",
             Self::Redirecionamento(_) => "redirecionamento_recusado",
@@ -121,6 +125,9 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
             Self::CookieInvalido => "formato de cookie de sessão inválido",
+            Self::SessaoTrocadaDuranteALeitura => {
+                "a sessão local foi regravada durante a leitura, duas vezes; nada foi pedido ao SEI"
+            }
             Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
             Self::BloqueioDeSegurancaDaInstalacao(_) => {
                 "a política de segurança da instalação bloqueou a requisição; espace as execuções"

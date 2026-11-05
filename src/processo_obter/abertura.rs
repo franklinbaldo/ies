@@ -25,8 +25,8 @@ use crate::pesquisa_web::redirecionamento::{
 };
 use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::contagem::ContagemDeRequisicoes;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
-use std::path::Path;
 
 /// `form#frmProtocoloPesquisaRapida` (`UnB`, GO, PEN1): POST para o `action`
 /// assinado, um controle `txtPesquisaRapida`, enviado pelo `onclick` da
@@ -57,7 +57,7 @@ pub(super) struct Contexto<'a> {
     /// `infra_unidade_atual` da URL do Controle: a unidade dos links.
     pub(super) unidade_id: Option<String>,
     pub(super) indice: &'a IndiceLocal,
-    pub(super) cookie_file: &'a Path,
+    pub(super) cookie: &'a CookieDaSessao,
     /// `documento DOC`: o número SEI procurado. Visível na árvore, as pastas
     /// fechadas não são abertas (a requisição a mais não é necessária).
     pub(super) documento_procurado: Option<&'a str>,
@@ -74,7 +74,7 @@ impl Contexto<'_> {
             geracao: self.geracao.clone(),
             unidade_id: self.unidade_id.clone(),
             indice: self.indice,
-            cookie_file: self.cookie_file,
+            cookie: self.cookie,
             documento_procurado: self.documento_procurado,
         }
     }
@@ -244,8 +244,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
     ) -> Result<Option<ProcessoRedirecionado>, E> {
         self.requisicoes.registrar();
         let envio = &mut *self.envio;
-        let resposta =
-            enviar_submissao_via(submissao, contexto.cookie_file, |s, c| envio.post(s, c));
+        let resposta = enviar_submissao_via(submissao, contexto.cookie, |s, c| envio.post(s, c));
         let sem_trabalho = |status| E::PesquisaRapidaSemUrlDeTrabalho(status);
         match resposta {
             Ok(RespostaDoEnvio::Redirecionamento(r)) => match destino(r.localizacao()) {

@@ -15,6 +15,7 @@ use crate::arvore_processo::tests_tela::tela_do_processo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::{ErroVersao, VersaoDocumento};
 use crate::rodape_do_documento::testes::rodape;
+use crate::transporte::sessao::CookieDaSessao;
 
 const DOC: &str = "0000101";
 const ID_DOC: &str = "21";
@@ -100,7 +101,7 @@ fn rodar_em(
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &amb.cookie,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
     };
     let numero = NumeroDocumento::novo(DOC).unwrap();
     let nup = processo.map(|p| crate::processo::NumeroProcesso::novo(p).unwrap());

@@ -2,6 +2,7 @@
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::dominio::Categoria;
+use crate::transporte::sessao::CookieDaSessao;
 
 fn r() -> TelaR {
     TelaR::nova((3, vec![1, 2]), (1, vec![3]))
@@ -25,7 +26,7 @@ fn resumida(
         Some("TESTE"),
         categoria,
         pagina,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(envio.respostas.is_empty(), "respostas não consumidas");
@@ -168,7 +169,7 @@ fn colunas(
         &instalacao(),
         &tela_atual(tela),
         Some("TESTE"),
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(envio.respostas.is_empty(), "respostas não consumidas");

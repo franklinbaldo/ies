@@ -3,6 +3,7 @@
 //! antes de devolver sucesso, 302, falha de rede ou recusa do POST.
 use super::*;
 use crate::instalacao::Instalacao;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::unidade_trocar::tests_apoio::{
     ID_A, ID_B, ORIGEM, Pedido, Resposta, Roteiro, arquivo_de_cookie, controle, html,
     localizacao_com_aviso, localizacao_limpa, redireciona, tela, url_controle,
@@ -19,7 +20,7 @@ fn executar(
     let sessao = SessaoDaTroca {
         url_do_controle: &url,
         instalacao: &instalacao,
-        cookie_file: &cookie,
+        cookie: &CookieDaSessao::ler(&cookie),
     };
     let pedido = PedidoDeTroca {
         sigla,

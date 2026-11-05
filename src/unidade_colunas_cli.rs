@@ -4,6 +4,7 @@
 use crate::colheita_do_controle::{Colheita, EnvioColhendo};
 use crate::indice_local::IndiceLocal;
 use crate::transporte::envio_post::ler_tela_do_controle;
+use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 use crate::{configuracao, erro_fonte, relogin_cli};
 use serde_json::json;
@@ -14,12 +15,15 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    // Cada tentativa relê a sessão e colhe na geração gravada agora.
+    // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
+    // geração dele.
     let lido = relogin_cli::ler(&arquivos, unidade, || {
         let indice = IndiceLocal::da_configuracao(&arquivos);
-        let colheita = Colheita::da_sessao(&indice, &arquivos);
-        let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
-            .map_err(ErroVisaoDoControle::Transporte)?;
+        let sessao =
+            ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+                .map_err(ErroVisaoDoControle::Transporte)?;
+        let colheita = Colheita::das_referencias(&indice, &sessao);
+        let tela = ler_tela_do_controle(&sessao).map_err(ErroVisaoDoControle::Transporte)?;
         colheita.colher(&tela.html, Some(&tela.mime));
         let atual = TelaAtual {
             url: tela.url,
@@ -30,7 +34,7 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
             &tela.instalacao,
             &atual,
             unidade,
-            &arquivos.cookie,
+            sessao.cookie(),
             &mut EnvioColhendo {
                 colheita: &colheita,
             },

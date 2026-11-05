@@ -14,18 +14,20 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
+    // Cada tentativa relê a sessão num retrato coerente (#222).
     let lido = relogin_cli::ler(&arquivos, unidade_esperada, || {
-        transporte::envio_post::ler_tela_do_controle(
+        let sessao = transporte::sessao::ReferenciasDaSessao::ler(
             &arquivos.url_controle,
-            &arquivos.cookie,
             &arquivos.origem,
-        )
+            &arquivos.cookie,
+        )?;
+        transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
     });
     let (html, nota) = match lido {
-        Ok((tela, nota)) => {
-            // A colheita usa a geração gravada agora (a nova, se relogou).
+        Ok(((sessao, tela), nota)) => {
+            // A colheita usa a geração do cookie que obteve a tela.
             let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-            crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos)
+            crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
                 .colher(&tela.html, Some(&tela.mime));
             (tela.html, nota)
         }

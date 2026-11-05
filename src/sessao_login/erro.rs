@@ -68,6 +68,7 @@ pub(crate) enum ErroLogin {
     ControleAposOLoginNaoReconhecido(ErroCaixa),
     CookieDaSessaoNaoRecebido,
     DestinoDaSessaoNaoEhArquivoRegular(ArquivoPrivado),
+    DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
     UnidadeExibidaDiferenteDaSolicitada,
     Transporte(FalhaTransporte),
@@ -127,6 +128,9 @@ impl ErroLogin {
             Self::CookieDaSessaoNaoRecebido => "cookie_da_sessao_nao_recebido",
             Self::DestinoDaSessaoNaoEhArquivoRegular(_) => {
                 "destino_da_sessao_nao_eh_arquivo_regular"
+            }
+            Self::DiretorioDaSessaoGravavelPorOutros(_) => {
+                "diretorio_da_sessao_gravavel_por_outros"
             }
             Self::GravacaoDaSessaoFalhou(_) => "gravacao_da_sessao_falhou",
             Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
@@ -210,6 +214,9 @@ impl ErroLogin {
             Self::CookieDaSessaoNaoRecebido => "o login não deixou cookie para o Controle",
             Self::DestinoDaSessaoNaoEhArquivoRegular(_) => {
                 "destino da sessão é link simbólico ou não é arquivo regular"
+            }
+            Self::DiretorioDaSessaoGravavelPorOutros(_) => {
+                "o diretório da sessão é gravável por grupo ou outros (sem sticky bit)"
             }
             Self::GravacaoDaSessaoFalhou(_) => "não foi possível gravar a sessão",
             Self::UnidadeExibidaDiferenteDaSolicitada => {

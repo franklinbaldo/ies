@@ -11,6 +11,7 @@ mod redirecionamento;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
 pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
@@ -24,7 +25,6 @@ pub(crate) use login::derivar_submissao_de_login;
 pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
 use std::io::Read;
-use std::path::Path;
 
 /// Estado de sessão que uma operação pode alterar, mesmo quando consulta.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -434,16 +434,14 @@ pub(crate) enum RespostaDoEnvio {
 /// Nenhum 3xx é seguido; só o 302 volta como dado, para a operação interpretar.
 pub(crate) fn enviar_submissao_via<R: Read, F>(
     submissao: SubmissaoDerivada,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     enviar: F,
 ) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     use ErroSubmissaoFormulario as E;
-    let cookie_lido =
-        crate::transporte::sessao::cookie_privado_validado(cookie_file).map_err(E::Transporte)?;
-    let cookie = cookie_lido.as_str();
+    let cookie = cookie.valor().map_err(E::Transporte)?;
     let resultado = submissao.resultado;
     let url_do_envio = submissao.url.clone();
     let RespostaDoPost {

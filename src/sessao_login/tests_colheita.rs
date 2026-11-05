@@ -17,7 +17,7 @@ fn href(id: &str) -> String {
 }
 
 /// O Controle de `tests_apoio` com uma linha em Recebidos.
-fn controle_com_linha() -> String {
+pub(super) fn controle_com_linha() -> String {
     controle("UNIDADE-TESTE").replace(
         "<caption>0 registros:</caption></table>\n<table id=\"tblProcessosGerados\"",
         &format!(

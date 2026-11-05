@@ -27,41 +27,38 @@ impl ErroArquivoCaixa {
         }
     }
 }
-/// Grava JSON apenas em arquivo novo; em Unix a permissão inicial é 0600.
+/// Grava JSON apenas em arquivo novo pela gravação privada única
+/// (`0600`, sem seguir link no destino). O diretório é da pessoa: o modo
+/// dele não é conferido.
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
-    use std::fs::{self, OpenOptions};
-    use std::io::{ErrorKind, Write};
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
+    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
 
     if destino.file_name().is_none() {
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
     }
+    // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
     }
     let bytes =
         serde_json::to_vec_pretty(valor).map_err(|_| ErroArquivoCaixa::EscritaDeArquivoFalhou)?;
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(0o600);
-    let mut arquivo = options.open(destino).map_err(|erro| {
-        if erro.kind() == ErrorKind::AlreadyExists {
-            ErroArquivoCaixa::DestinoJaExiste
-        } else {
-            ErroArquivoCaixa::EscritaDeArquivoFalhou
-        }
+    arquivo_privado::gravar(
+        destino,
+        &bytes,
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(|falha| match falha {
+        F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
+        F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
+        | F::AcimaDoLimite
+        | F::CriacaoFalhou
+        | F::EscritaFalhou
+        | F::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
     })?;
-    if arquivo
-        .write_all(&bytes)
-        .and_then(|()| arquivo.sync_all())
-        .is_err()
-    {
-        drop(arquivo);
-        let _ = fs::remove_file(destino);
-        return Err(ErroArquivoCaixa::EscritaDeArquivoFalhou);
-    }
     Ok(bytes.len())
 }
 
@@ -127,6 +124,29 @@ mod tests {
             Err(ErroArquivoCaixa::DestinoJaExiste)
         );
         assert_eq!(fs::read_to_string(&alvo).unwrap(), "NAO ALTERAR");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn diretorio_da_pessoa_por_link_e_gravavel_por_outros_e_aceito() {
+        // O arquivo da caixa é escolhido pela pessoa: o modo do diretório
+        // é dela; só valem a criação exclusiva e o nome final.
+        use std::os::unix::fs::PermissionsExt;
+        let dir = pasta();
+        let real = dir.join("real");
+        fs::create_dir(&real).unwrap();
+        std::os::unix::fs::symlink(&real, dir.join("atalho")).unwrap();
+        let dado = serde_json::json!({});
+        for bits in [0o755, 0o775, 0o777] {
+            fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
+            let nome = format!("atalho/caixa-{bits:o}.json");
+            assert!(gravar(&dir.join(&nome), &dado).is_ok(), "{bits:o}");
+            assert_eq!(
+                gravar(&dir.join(&nome), &dado),
+                Err(ErroArquivoCaixa::DestinoJaExiste)
+            );
+        }
+        assert_eq!(fs::read_dir(&real).unwrap().count(), 3);
         fs::remove_dir_all(dir).unwrap();
     }
 }

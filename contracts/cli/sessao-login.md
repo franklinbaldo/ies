@@ -174,6 +174,15 @@ marcador (sessão preparada à mão), vale a conferência por GET. O lock
 cobre conferência, login e gravação; o segundo processo espera e confere
 a sessão que o primeiro gravou.
 
+Os outros comandos leem a sessão sem o lock, num retrato coerente (#222):
+o marcador antes e depois de URL, origem e cookie. Marcador que mudou, ou
+que não confere com URL e cookie lidos, faz reler os arquivos locais uma
+vez (nenhuma requisição); de novo incoerente, a leitura falha com
+`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1, sem relogin;
+rodar de novo resolve). Todas as requisições do comando e a colheita do
+índice usam o cookie desse retrato. Sem marcador, a leitura é a de antes
+([decisão](../../docs/decisoes/sessao-login/leitura-coerente-da-sessao.md)).
+
 ## Falhas tipadas
 
 `caminho_credenciais_nao_informado`, `campo_das_credenciais_ausente`,
@@ -201,7 +210,11 @@ observado na UnB 4.0.9; senão `divInfraExcecao`, `alert-danger`,
 `infraMensagemErro` ou `infraExcecao`), `tela_apos_o_login_nao_reconhecida`,
 `link_do_controle_de_processos_nao_reconhecido`,
 `controle_apos_o_login_nao_reconhecido`, `cookie_da_sessao_nao_recebido`,
-`destino_da_sessao_nao_eh_arquivo_regular`, `gravacao_da_sessao_falhou`,
+`destino_da_sessao_nao_eh_arquivo_regular` (o nome final é link ou não
+é arquivo regular), `diretorio_da_sessao_gravavel_por_outros` (o
+diretório real da sessão é gravável por grupo ou outros sem sticky bit;
+link no caminho, como `/home` → `/var/home`, é aceito),
+`gravacao_da_sessao_falhou`,
 `unidade_exibida_diferente_da_solicitada` e os de transporte
 (`status_http_*` com `status_http` e `mensagem_do_servidor`,
 `falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`) e

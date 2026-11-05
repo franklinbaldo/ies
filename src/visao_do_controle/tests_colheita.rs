@@ -7,6 +7,7 @@ use super::*;
 use crate::dominio::Categoria;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::RespostaWeb;
+use crate::transporte::sessao::CookieDaSessao;
 use std::io::Cursor;
 
 /// O envio roteirizado que também anota cada tela entregue à colheita.
@@ -56,7 +57,7 @@ fn listar_da_r_com_pagina_n_colhe_as_duas_telas_d_recebidas() {
         &tela_atual(r.html()),
         Some("TESTE"),
         Some(2),
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(resultado.is_ok());
@@ -74,7 +75,7 @@ fn listar_ja_na_d_sem_pagina_nao_colhe_nada_aqui() {
         &tela_atual(d.html()),
         Some("TESTE"),
         None,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(resultado.is_ok());
@@ -96,7 +97,7 @@ fn recebidos_da_d_com_pagina_n_colhe_a_r_e_a_pagina_n() {
         Some("TESTE"),
         Categoria::Recebidos,
         Some(2),
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert_eq!(envio.envio.registro.len(), 2);

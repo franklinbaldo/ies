@@ -143,3 +143,57 @@ fn link_simbolico_nao_e_seguido() {
         "arquivo_configuracao_link_simbolico"
     );
 }
+
+/// #211: a configuração nasce pela gravação privada única.
+#[cfg(unix)]
+#[test]
+fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
+    use super::{ArquivosDeAcesso, salvar_arquivos_de_acesso};
+    use std::os::unix::fs::PermissionsExt as _;
+    let pasta = Pasta::nova();
+    let acesso = |nome: &str| {
+        let caminho = pasta.0.join(nome);
+        gravar(&caminho, "x");
+        caminho
+    };
+    let arquivos = ArquivosDeAcesso {
+        url_controle: acesso("url"),
+        cookie: acesso("cookie"),
+        origem: acesso("origem"),
+    };
+    let real = pasta.0.join("real");
+    fs::create_dir(&real).unwrap();
+    std::os::unix::fs::symlink(&real, pasta.0.join("atalho")).unwrap();
+    // Diretório por link: aceito, o arquivo vai para o diretório real.
+    assert_eq!(
+        salvar_arquivos_de_acesso(&pasta.0.join("atalho/config.json"), &arquivos),
+        Ok(())
+    );
+    assert!(real.join("config.json").is_file());
+    // Diretório do IES gravável pelo grupo ou por outros sem sticky:
+    // recusado sem criar nada; com sticky, aceito.
+    for bits in [0o770, 0o707, 0o777] {
+        fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
+        assert_eq!(
+            salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
+            Err("configuracao_ja_existe_ou_sem_permissao")
+        );
+    }
+    assert_eq!(fs::read_dir(&real).unwrap().count(), 1);
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o1777)).unwrap();
+    assert_eq!(
+        salvar_arquivos_de_acesso(&pasta.0.join("atalho/sticky.json"), &arquivos),
+        Ok(())
+    );
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o700)).unwrap();
+    let destino = pasta.arquivo();
+    assert_eq!(salvar_arquivos_de_acesso(&destino, &arquivos), Ok(()));
+    assert_eq!(
+        salvar_arquivos_de_acesso(&destino, &arquivos),
+        Err("configuracao_ja_existe_ou_sem_permissao")
+    );
+    assert_eq!(
+        fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+}

@@ -3,6 +3,7 @@
 //! sem marcador observado, conferida por leitura posterior.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::transporte::sessao::CookieDaSessao;
 use ErroSubmissaoFormulario as E;
 use std::io::Cursor;
 
@@ -78,7 +79,7 @@ fn enviar(operacao: &OperacaoDeFormulario, status: i32, corpo: &str) -> Result<R
         std::fs::set_permissions(&arquivo, std::fs::Permissions::from_mode(0o600)).unwrap();
     }
     let submissao = derivar(operacao, JANELA).unwrap();
-    let r = enviar_submissao_via(submissao, &arquivo, |_, _| {
+    let r = enviar_submissao_via(submissao, &CookieDaSessao::ler(&arquivo), |_, _| {
         Ok(RespostaDoPost {
             resposta: RespostaWeb {
                 status_code: status,

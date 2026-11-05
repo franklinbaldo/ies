@@ -10,8 +10,8 @@ use crate::copia_documento::{ErroCopia, pasta_segura};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use sha2::{Digest, Sha256};
-use std::fs::{self, OpenOptions};
-use std::io::{ErrorKind, Write};
+use std::fs;
+use std::io::ErrorKind;
 use std::path::Path;
 
 /// `DOC.vN.html`.
@@ -35,10 +35,11 @@ pub(crate) struct FotoGravada {
     pub(crate) gravado: bool,
 }
 
-/// `DIR` existe, é diretório e nenhum ancestral é link simbólico.
+/// `DIR` existe e é diretório (links no caminho, inclusive o próprio
+/// `DIR`, são aceitos); o modo é da pessoa e não é conferido.
 pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
     conferir_diretorios(&pasta.join("x")).map_err(ErroCopia::DiretorioDeSaida)?;
-    pasta_segura(pasta)
+    pasta_segura(&fs::canonicalize(pasta).map_err(|_| ErroCopia::DestinoInseguro)?)
 }
 
 /// Os bytes da foto já presente, lidos sem seguir link e só se privada;
@@ -110,58 +111,38 @@ pub(crate) fn planejar(
     })
 }
 
-/// Grava a foto: parcial `0600` criado novo no mesmo `DIR`, `fsync` e
-/// `hard_link` para o nome final (falha se o nome surgiu: nunca
-/// sobrescreve), e o parcial é removido.
+/// Grava a foto pela gravação privada única, no modo exclusivo:
+/// parcial `0600` no mesmo `DIR`, `fsync` e `hard_link` para o nome final
+/// (falha se o nome surgiu: nunca sobrescreve); o parcial é removido.
 pub(crate) fn gravar(
     pasta: &Path,
     numero: &str,
     versao: VersaoDocumento,
     html: &str,
 ) -> Result<FotoGravada, ErroCopia> {
+    use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
     conferir_pasta(pasta)?;
     let plano = planejar(pasta, numero, versao, html)?;
     if !plano.gravado {
         return Ok(plano);
     }
-    let parcial = pasta.join(format!(".{}.parcial-{}", plano.nome, std::process::id()));
-    let resultado = criar_parcial(&parcial, html.as_bytes()).and_then(|()| {
-        fs::hard_link(&parcial, pasta.join(&plano.nome)).map_err(|erro| {
-            if erro.kind() == ErrorKind::AlreadyExists {
-                ErroCopia::FotoDivergente
-            } else {
-                ErroCopia::GravacaoFalhou
-            }
-        })
-    });
-    let _ = fs::remove_file(&parcial);
-    match resultado {
+    let destino = pasta.join(&plano.nome);
+    match arquivo_privado::gravar(
+        &destino,
+        html.as_bytes(),
+        Politica::exclusiva().diretorio_do_usuario(),
+    ) {
         Ok(()) => Ok(plano),
         // Surgiu entre a conferência e a ligação: igual é no-op.
-        Err(ErroCopia::FotoDivergente) => {
+        Err(FalhaDaGravacao::DestinoJaExiste) => {
             let de_novo = planejar(pasta, numero, versao, html)?;
             if de_novo.gravado {
                 return Err(ErroCopia::GravacaoFalhou);
             }
             Ok(de_novo)
         }
-        Err(erro) => Err(erro),
+        Err(_) => Err(ErroCopia::GravacaoFalhou),
     }
-}
-
-fn criar_parcial(alvo: &Path, bytes: &[u8]) -> Result<(), ErroCopia> {
-    let mut opcoes = OpenOptions::new();
-    opcoes.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opcoes.mode(0o600);
-    }
-    let mut arquivo = opcoes.open(alvo).map_err(|_| ErroCopia::GravacaoFalhou)?;
-    arquivo
-        .write_all(bytes)
-        .and_then(|()| arquivo.sync_all())
-        .map_err(|_| ErroCopia::GravacaoFalhou)
 }
 
 #[cfg(test)]

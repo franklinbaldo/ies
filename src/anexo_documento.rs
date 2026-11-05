@@ -9,9 +9,8 @@ use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, recusar_status};
 use sha2::{Digest, Sha256};
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::Path;
 
 mod cabecalhos;
 
@@ -105,11 +104,11 @@ pub(crate) struct AnexoLido {
     pub(crate) arquivo: Option<ArquivoParcial>,
 }
 
-/// `DIR/.DOC.ext.parcial-PID`, removido no `Drop` se não for concluído.
+/// `DIR/.DOC.ext.parcial-PID-N` da gravação privada única, removido no
+/// `Drop` se não for concluído.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ArquivoParcial {
-    parcial: PathBuf,
-    destino: PathBuf,
+    parcial: crate::arquivo_privado::Parcial,
     nome: String,
 }
 
@@ -120,21 +119,13 @@ impl ArquivoParcial {
     }
 
     /// Liga o parcial a `DOC.ext` sem sobrescrever (`hard_link` falha se
-    /// o destino existe) e remove o parcial (no `Drop`).
+    /// o destino existe) e remove o parcial.
     pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
-        std::fs::hard_link(&self.parcial, &self.destino).map_err(|erro| {
-            if erro.kind() == std::io::ErrorKind::AlreadyExists {
-                ErroAnexo::ArquivoJaExiste
-            } else {
-                ErroAnexo::EscritaFalhou
-            }
+        use crate::arquivo_privado::FalhaDaGravacao as F;
+        self.parcial.confirmar().map_err(|falha| match falha {
+            F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+            _ => ErroAnexo::EscritaFalhou,
         })
-    }
-}
-
-impl Drop for ArquivoParcial {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.parcial);
     }
 }
 
@@ -155,7 +146,6 @@ pub(crate) enum ErroAnexo {
     /// O texto visível do HTML recebido.
     Corpo(ErroCorpoDocumento),
     DiretorioAusente,
-    DiretorioLinkSimbolico,
     ArquivoJaExiste,
     EscritaFalhou,
 }
@@ -174,7 +164,6 @@ impl ErroAnexo {
             Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
             Self::Corpo(erro) => erro.subcodigo(),
             Self::DiretorioAusente => "diretorio_do_anexo_ausente",
-            Self::DiretorioLinkSimbolico => "diretorio_do_anexo_link_simbolico",
             Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
             Self::EscritaFalhou => "escrita_do_anexo_falhou",
         }
@@ -195,7 +184,6 @@ impl ErroAnexo {
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
             Self::DiretorioAusente => "o diretório de --saida não existe",
-            Self::DiretorioLinkSimbolico => "o diretório de --saida passa por link simbólico",
             Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
             Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
         }
@@ -236,7 +224,7 @@ pub(crate) fn ler_anexo<R: Read>(
     let RespostaBinaria { corpo, .. } = resposta;
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados => None,
-        DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, conferido.extensao)?),
+        DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
     };
     let texto = cabecalhos::e_texto(&conferido.mime);
     let mut guardado = Vec::new();
@@ -261,10 +249,16 @@ pub(crate) fn ler_anexo<R: Read>(
             return Err(ErroAnexo::AcimaDoLimite);
         }
         hasher.update(&bloco[..lido]);
-        if let Some((_, aberto)) = &mut arquivo {
+        if let Some(aberto) = &mut arquivo {
             aberto
-                .write_all(&bloco[..lido])
-                .map_err(|_| ErroAnexo::EscritaFalhou)?;
+                .parcial
+                .escrever(&bloco[..lido])
+                .map_err(|falha| match falha {
+                    crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite => {
+                        ErroAnexo::AcimaDoLimite
+                    }
+                    _ => ErroAnexo::EscritaFalhou,
+                })?;
         }
         if texto {
             guardado.extend_from_slice(&bloco[..lido]);
@@ -276,13 +270,12 @@ pub(crate) fn ler_anexo<R: Read>(
     if conferido.mime == "text/html" {
         conferir_html(&guardado, &conferido.valor_do_tipo)?;
     }
-    let arquivo = match arquivo {
-        Some((parcial, aberto)) => {
-            aberto.sync_all().map_err(|_| ErroAnexo::EscritaFalhou)?;
-            Some(parcial)
-        }
-        None => None,
-    };
+    if let Some(aberto) = &mut arquivo {
+        aberto
+            .parcial
+            .sincronizar()
+            .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    }
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
             &conferido.mime,
@@ -364,45 +357,34 @@ fn conferir<R: Read>(
         limite,
     })
 }
-/// Cria `DIR/.DOC.ext.parcial-PID` (0600, novo) depois de conferir o
-/// diretório e que `DOC.ext` ainda não existe.
+/// Cria o parcial de `DIR/DOC.ext` pela gravação privada única (0600,
+/// novo, no diretório real da pessoa, sem conferir o modo dele) depois
+/// de conferir que `DOC.ext` ainda não existe.
 fn abrir_parcial(
     dir: &Path,
     numero: &str,
-    extensao: &str,
-) -> Result<(ArquivoParcial, File), ErroAnexo> {
-    use crate::arquivo_texto_documento::{ErroArquivoTexto, conferir_diretorios};
-    let nome = format!("{numero}.{extensao}");
-    let destino = dir.join(&nome);
+    conferido: &Conferido,
+) -> Result<ArquivoParcial, ErroAnexo> {
+    use crate::arquivo_privado::{FalhaDaGravacao as F, Parcial, Politica};
+    let nome = format!("{numero}.{}", conferido.extensao);
+    let politica = Politica::exclusiva()
+        .diretorio_do_usuario()
+        .com_limite(conferido.limite);
     if !dir.is_dir() {
         return Err(ErroAnexo::DiretorioAusente);
     }
-    conferir_diretorios(&destino).map_err(|erro| match erro {
-        ErroArquivoTexto::DiretorioLinkSimbolico => ErroAnexo::DiretorioLinkSimbolico,
-        _ => ErroAnexo::DiretorioAusente,
+    let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
+        F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
+        F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
+        | F::AcimaDoLimite
+        | F::CriacaoFalhou
+        | F::EscritaFalhou
+        | F::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;
-    if std::fs::symlink_metadata(&destino).is_ok() {
-        return Err(ErroAnexo::ArquivoJaExiste);
-    }
-    let parcial = dir.join(format!(".{nome}.parcial-{}", std::process::id()));
-    let mut opcoes = std::fs::OpenOptions::new();
-    opcoes.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opcoes.mode(0o600);
-    }
-    let aberto = opcoes
-        .open(&parcial)
-        .map_err(|_| ErroAnexo::EscritaFalhou)?;
-    Ok((
-        ArquivoParcial {
-            parcial,
-            destino,
-            nome,
-        },
-        aberto,
-    ))
+    Ok(ArquivoParcial { parcial, nome })
 }
 
 /// HTML que é a tela de login ou a exceção do SEI não é o arquivo. A

@@ -98,7 +98,7 @@ pub fn salvar_arquivos_de_acesso(
     destino: &std::path::Path,
     arquivos: &ArquivosDeAcesso,
 ) -> Result<(), &'static str> {
-    use std::io::Write;
+    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
     let campos = [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem];
     if campos.iter().any(|p| !p.is_absolute() || !p.is_file()) {
         return Err("caminho_privado_ausente_ou_nao_absoluto");
@@ -122,19 +122,21 @@ pub fn salvar_arquivos_de_acesso(
         origem: arquivos.origem.clone(),
     };
     let data = serde_json::to_vec_pretty(&config).map_err(|_| "configuracao_nao_serializada")?;
-    let mut opcoes = std::fs::OpenOptions::new();
-    opcoes.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opcoes.mode(0o600);
-    }
-    let mut file = opcoes
-        .open(destino)
-        .map_err(|_| "configuracao_ja_existe_ou_sem_permissao")?;
-    file.write_all(&data)
-        .map_err(|_| "configuracao_nao_gravada")?;
-    Ok(())
+    // Gravação privada única (#211): arquivo novo 0600, sem link no
+    // destino, em diretório fechado a outros, publicado inteiro ou não.
+    arquivo_privado::gravar(destino, &data, Politica::exclusiva().diretorio_do_ies()).map_err(
+        |falha| match falha {
+            F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => {
+                "configuracao_nao_gravada"
+            }
+            F::SemNomeDeArquivo
+            | F::DiretorioAusente
+            | F::DiretorioGravavelPorOutros
+            | F::DestinoJaExiste
+            | F::DestinoNaoEhArquivoRegular
+            | F::CriacaoFalhou => "configuracao_ja_existe_ou_sem_permissao",
+        },
+    )
 }
 
 /// Causas internas sem caminho ou conteúdo privado associado.

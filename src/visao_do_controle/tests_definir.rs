@@ -9,6 +9,7 @@ use crate::formulario_web::{ErroSubmissaoFormulario as S, RespostaDoPost, Submis
 use crate::nivel_de_detalhe::tests_alvo::{HASH_DO_SALVAR, onze, tela_salvavel};
 use crate::nivel_de_detalhe::tests_salvar::resposta_do_salvar;
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe as C, ErroNivelDeDetalhe};
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::io::Cursor;
 
@@ -134,7 +135,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
         Some("TESTE"),
         alvo,
         confirmar,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(envio.roteiro.is_empty(), "respostas não consumidas");

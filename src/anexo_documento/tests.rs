@@ -5,6 +5,7 @@
 //! ícone `documento_txt`. Nenhum valor real.
 use super::*;
 use std::io::{self, Cursor};
+use std::path::PathBuf;
 
 fn resposta(cabecalhos: &[(&str, &str)], corpo: &[u8]) -> RespostaBinaria<Cursor<Vec<u8>>> {
     RespostaBinaria {
@@ -124,6 +125,32 @@ fn pdf_com_saida_vai_para_parcial_0600_e_so_conclui_sem_sobrescrever() {
         Err(ErroAnexo::ArquivoJaExiste)
     );
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn saida_por_link_e_gravavel_por_outros_e_aceita() {
+    // `--saida DIR` é da pessoa: o modo do diretório é dela.
+    use std::os::unix::fs::PermissionsExt;
+    let raiz = pasta();
+    let real = raiz.join("real");
+    std::fs::create_dir(&real).unwrap();
+    let atalho = raiz.join("atalho");
+    std::os::unix::fs::symlink(&real, &atalho).unwrap();
+    for (bits, numero) in [(0o755, "0000103"), (0o775, "0000104"), (0o777, "0000105")] {
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(bits)).unwrap();
+        let a = ler_anexo(
+            pdf(&[]),
+            numero,
+            LimiteDoAnexo::default(),
+            DestinoDoAnexo::Diretorio(&atalho),
+        )
+        .unwrap();
+        a.arquivo.expect("parcial").concluir().unwrap();
+        assert!(real.join(format!("{numero}.pdf")).is_file(), "{bits:o}");
+    }
+    assert_eq!(std::fs::read_dir(&real).unwrap().count(), 3);
+    std::fs::remove_dir_all(raiz).unwrap();
 }
 
 #[test]

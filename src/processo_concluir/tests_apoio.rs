@@ -14,6 +14,7 @@ use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso};
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use crate::visao_do_controle::EnvioDoControle;
 use std::collections::VecDeque;
@@ -297,7 +298,7 @@ pub(crate) fn rodar_com<T>(
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &amb.cookie,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
     };
     let nup = NumeroProcesso::novo(NUP).unwrap();
     let mut roteiro = Roteiro {

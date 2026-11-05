@@ -15,7 +15,7 @@ use crate::formulario_web::{RespostaDoPost, enviar_submissao_via};
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 #[cfg(test)]
-use std::{io::Read, path::Path};
+use std::io::Read;
 
 /// Ocultos exigidos na tela da pesquisa e na tela de resultado.
 pub(crate) const CAMPOS_OCULTOS_DA_PESQUISA: &[&str] = &[
@@ -252,13 +252,13 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
 pub(crate) fn pesquisar_protocolo_via<R: Read, F>(
     submissao: SubmissaoDerivada,
     instalacao: &Instalacao,
-    cookie_file: &Path,
+    cookie: &crate::transporte::sessao::CookieDaSessao,
     enviar: F,
 ) -> Result<RespostaDaPesquisa, ErroPesquisaProtocolo>
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
-    let resposta = enviar_submissao_via(submissao, cookie_file, enviar).map_err(falha_do_envio)?;
+    let resposta = enviar_submissao_via(submissao, cookie, enviar).map_err(falha_do_envio)?;
     interpretar_envio(resposta, instalacao).map(|e| e.resposta)
 }
 

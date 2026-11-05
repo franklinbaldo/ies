@@ -8,6 +8,7 @@ use crate::pesquisa_web::tests_fixtures::{
     sem_resultado, tela_de_pesquisa, url_controle, url_da_tela, url_do_envio, validacao,
 };
 use crate::processo::NumeroProcesso;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::collections::VecDeque;
 use std::io::Cursor;
@@ -145,7 +146,7 @@ fn buscar(
     let sessao = SessaoDaBusca {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &arquivo,
+        cookie: &CookieDaSessao::ler(&arquivo),
     };
     let termo = NumeroProcesso::novo(termo).unwrap();
     let pedido = PedidoDeBusca {
@@ -165,7 +166,7 @@ fn tentativa_com_falha_na_segunda_requisicao_permanece_contada() {
     let sessao = SessaoDaBusca {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &arquivo,
+        cookie: &CookieDaSessao::ler(&arquivo),
     };
     let termo = NumeroProcesso::novo("00001").unwrap();
     let pedido = PedidoDeBusca {
@@ -434,7 +435,7 @@ fn origem_de_outra_instalacao_nao_envia_nada() {
     let sessao = SessaoDaBusca {
         url_do_controle: &url,
         origem: "https://outro.exemplo.org/sei",
-        cookie_file: &arquivo,
+        cookie: &CookieDaSessao::ler(&arquivo),
     };
     let termo = NumeroProcesso::novo("1").unwrap();
     let pedido = PedidoDeBusca {
@@ -548,7 +549,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
     let sessao = SessaoDaBusca {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &arquivo,
+        cookie: &CookieDaSessao::ler(&arquivo),
     };
     let termo = NumeroProcesso::novo("00001").unwrap();
     let pedido = PedidoDeBusca {

@@ -29,11 +29,10 @@ use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::decodificar_resposta;
-use crate::transporte::sessao::cookie_privado_validado;
+use crate::transporte::sessao::CookieDaSessao;
 use erro::FalhaDepoisDoEnvio as F;
 use retorno::url_do_salto;
 use std::io::Read;
-use std::path::Path;
 use tela::{TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca, link_da_troca};
 
 /// Uma requisição por chamada, sem redirect nem retry; o `Location` volta
@@ -78,7 +77,7 @@ impl EnvioDaTroca for EnvioHttpsDaTroca {
 pub(crate) struct SessaoDaTroca<'a> {
     pub(crate) url_do_controle: &'a str,
     pub(crate) instalacao: &'a Instalacao,
-    pub(crate) cookie_file: &'a Path,
+    pub(crate) cookie: &'a CookieDaSessao,
 }
 
 pub(crate) struct PedidoDeTroca<'a> {
@@ -129,8 +128,8 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
     envio: &mut V,
 ) -> Result<Troca, ErroTroca> {
     use ErroTroca as E;
-    let cookie = cookie_privado_validado(sessao.cookie_file).map_err(E::Transporte)?;
-    let inicial = ler_html(envio, sessao.url_do_controle, &cookie).map_err(E::Transporte)?;
+    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
+    let inicial = ler_html(envio, sessao.url_do_controle, cookie).map_err(E::Transporte)?;
     let antes = unidade_do_controle(&inicial.html).map_err(E::ControleNaoReconhecido)?;
     if pedido.unidade_esperada.is_some_and(|u| u != antes) {
         return Err(E::UnidadeExibidaDiferenteDaSolicitada);
@@ -153,7 +152,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         sessao.url_do_controle,
         &troca.controle_inicial.html,
     )?;
-    let servida = ler_html(envio, &url_da_tela, &cookie).map_err(E::Transporte)?;
+    let servida = ler_html(envio, &url_da_tela, cookie).map_err(E::Transporte)?;
     let tela = ler_tela_de_troca(&servida.html)?;
     if tela.marcada.sigla != antes {
         return Err(E::UnidadeMarcadaDiferenteDaAtiva);
@@ -182,7 +181,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         return Ok(troca);
     }
     troca.controle_novo = Some(enviar_e_verificar(
-        sessao, envio, submissao, &cookie, &escolhida,
+        sessao, envio, submissao, cookie, &escolhida,
     )?);
     Ok(troca)
 }
@@ -214,7 +213,7 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
 ) -> Result<ControleLido, ErroTroca> {
     let incerto = |etapa, falha| ErroTroca::EfeitoIncerto { etapa, falha };
     let mut enviado = false;
-    let resposta = enviar_submissao_via(submissao, sessao.cookie_file, |s, c| {
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
         envio.post(s, c)
     });

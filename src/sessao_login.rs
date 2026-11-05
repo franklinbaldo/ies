@@ -21,10 +21,10 @@ pub(crate) use erro::{CampoDasCredenciais, ErroLogin};
 pub(crate) use fluxo::entrar_colhendo;
 #[cfg(test)]
 pub(crate) use fluxo::entrar_via;
-pub(crate) use gravacao::geracao_da_sessao;
 #[cfg(test)]
 pub(crate) use gravacao::mesma_geracao;
 pub(crate) use gravacao::{TravaDoLogin, regravar_url_do_controle};
+pub(crate) use gravacao::{geracao_da_sessao, marcador_confere};
 
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
@@ -131,6 +131,10 @@ mod tests_recusas;
 #[cfg(test)]
 #[path = "sessao_login/tests_sessao.rs"]
 mod tests_sessao;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_snapshot.rs"]
+mod tests_snapshot;
 
 #[cfg(test)]
 #[path = "sessao_login/tests_proxy.rs"]

@@ -1,14 +1,15 @@
 //! Abertura do banco: permissões, links simbólicos, pragmas e esquema.
 //!
-//! O diretório nasce `0700` e o banco `0600` com `O_CREAT|O_EXCL`
-//! (`create_new`, que falha diante de um link simbólico); o `-wal` e o
-//! `-shm` herdam o modo do banco. Diretório existente aberto a grupo/outros,
+//! O diretório nasce `0700` e o banco `0600`, novo, pela gravação privada
+//! única (`crate::arquivo_privado`: nenhum link no banco; o caminho é
+//! resolvido e o banco é aberto pelo diretório real);
+//! o `-wal` e o `-shm` herdam o modo do banco. Diretório existente aberto a grupo/outros,
 //! ou banco/lateral que seja link simbólico, não regular ou aberto a
 //! grupo/outros, é falha: o índice se desliga. O IES não muda o modo do que
 //! não criou. Fora do Unix não há modo de arquivo: vale a ACL do perfil do
 //! usuário, como nos arquivos de sessão (`configuracao`, `sessao_login`).
 use rusqlite::{Connection, OpenFlags};
-use std::fs::{self, DirBuilder, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -95,49 +96,39 @@ fn privado(_info: &fs::Metadata) -> bool {
     true
 }
 
-fn criar_diretorio(diretorio: &Path) -> std::io::Result<()> {
-    let mut construtor = DirBuilder::new();
-    construtor.recursive(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        construtor.mode(0o700);
-    }
-    construtor.create(diretorio)
-}
-
 /// `0600` no Unix e, no Linux, `O_NOFOLLOW` (o último componente não pode
 /// ser link simbólico; o mesmo valor da gravação da sessão).
-fn opcoes_privadas(opcoes: &mut OpenOptions, sem_seguir_link: bool) -> &mut OpenOptions {
+fn opcoes_privadas(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         opcoes.mode(0o600);
     }
     #[cfg(target_os = "linux")]
-    if sem_seguir_link {
+    {
         use std::os::unix::fs::OpenOptionsExt;
         opcoes.custom_flags(0o400_000);
     }
-    #[cfg(not(target_os = "linux"))]
-    let _ = sem_seguir_link;
     opcoes
 }
 
-fn conferir_diretorio(diretorio: &Path) -> Result<(), Falha> {
-    match fs::metadata(diretorio) {
-        Ok(info) if info.is_dir() && privado(&info) => Ok(()),
-        Ok(_) => Err(Falha),
-        Err(erro) if erro.kind() == ErrorKind::NotFound => {
-            criar_diretorio(diretorio)?;
-            let info = fs::metadata(diretorio)?;
-            if info.is_dir() && privado(&info) {
-                Ok(())
-            } else {
-                Err(Falha)
-            }
-        }
-        Err(erro) => Err(erro.into()),
+/// O banco é do IES: diretório real fechado a outros, níveis `0700`.
+fn politica_do_banco() -> crate::arquivo_privado::Politica {
+    crate::arquivo_privado::Politica::exclusiva()
+        .diretorio_do_ies()
+        .criando_diretorios()
+}
+
+/// Os níveis ausentes nascem `0700` e o diretório real do banco (links
+/// no caminho são aceitos) é privado; o IES não muda o modo do que não
+/// criou.
+fn conferir_diretorio(banco: &Path, diretorio: &Path) -> Result<(), Falha> {
+    crate::arquivo_privado::conferir_diretorios(banco, politica_do_banco()).map_err(|_| Falha)?;
+    let info = fs::metadata(diretorio)?;
+    if info.is_dir() && privado(&info) {
+        Ok(())
+    } else {
+        Err(Falha)
     }
 }
 
@@ -164,13 +155,11 @@ fn lateral(caminho: &Path, sufixo: &str) -> PathBuf {
 
 fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
     if !arquivo_privado_existente(caminho)? {
-        let criado =
-            opcoes_privadas(OpenOptions::new().write(true).create_new(true), false).open(caminho);
-        match criado {
-            Ok(_) => {}
+        use crate::arquivo_privado::{FalhaDaGravacao, gravar};
+        match gravar(caminho, b"", politica_do_banco()) {
             // Outro `ies` criou ao mesmo tempo: confere o dele.
-            Err(erro) if erro.kind() == ErrorKind::AlreadyExists => {}
-            Err(erro) => return Err(erro.into()),
+            Ok(()) | Err(FalhaDaGravacao::DestinoJaExiste) => {}
+            Err(_) => return Err(Falha),
         }
         if !arquivo_privado_existente(caminho)? {
             return Err(Falha);
@@ -189,7 +178,10 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
         Some(pai) if !pai.as_os_str().is_empty() => pai,
         _ => Path::new("."),
     };
-    conferir_diretorio(diretorio)?;
+    conferir_diretorio(caminho, diretorio)?;
+    // O SQLite com `NOFOLLOW` recusa link em qualquer componente: o banco
+    // é aberto pelo diretório real, já conferido.
+    let caminho = &fs::canonicalize(diretorio)?.join(caminho.file_name().ok_or(Falha)?);
     conferir_arquivos(caminho)?;
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
         | OpenFlags::SQLITE_OPEN_NOFOLLOW
@@ -219,11 +211,8 @@ struct TravaDaPreparacao {
 
 impl TravaDaPreparacao {
     fn obter(banco: &Path) -> Result<Self, Falha> {
-        let arquivo = opcoes_privadas(
-            OpenOptions::new().write(true).create(true).truncate(false),
-            true,
-        )
-        .open(lateral(banco, ".lock"))?;
+        let arquivo = opcoes_privadas(OpenOptions::new().write(true).create(true).truncate(false))
+            .open(lateral(banco, ".lock"))?;
         let limite = std::time::Instant::now() + ESPERA_DO_LOCK;
         loop {
             match arquivo.try_lock() {

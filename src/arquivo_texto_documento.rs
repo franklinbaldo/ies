@@ -6,7 +6,6 @@ use std::path::Path;
 pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
-    DiretorioLinkSimbolico,
     DestinoJaExiste,
     EscritaFalhou,
 }
@@ -15,65 +14,56 @@ impl ErroArquivoTexto {
         match self {
             Self::NomeAusente => "destino_texto_documento_sem_nome",
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
-            Self::DiretorioLinkSimbolico => "diretorio_texto_documento_link_simbolico",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
         }
     }
 }
-/// Rejeita atalhos de diretório em qualquer ancestral conhecido do destino.
-/// Não estabelece exclusividade contra alterações concorrentes do caminho.
-pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
-    let pai = destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?;
-    for ancestral in pai.ancestors() {
-        if ancestral.as_os_str().is_empty() {
-            continue;
-        }
-        let metadados =
-            std::fs::symlink_metadata(ancestral).map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
-        if metadados.file_type().is_symlink() {
-            return Err(ErroArquivoTexto::DiretorioLinkSimbolico);
-        }
-        if !metadados.is_dir() {
-            return Err(ErroArquivoTexto::DiretorioAusente);
-        }
+/// A falha da gravação privada única nos subcódigos do texto.
+fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
+    use crate::arquivo_privado::FalhaDaGravacao as F;
+    match falha {
+        F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
+        F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
+        | F::AcimaDoLimite
+        | F::CriacaoFalhou
+        | F::EscritaFalhou
+        | F::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
     }
-    Ok(())
+}
+
+/// O diretório do destino existe e é diretório (links no caminho são
+/// aceitos; o modo é da pessoa): a conferência da gravação privada única
+/// para o diretório do usuário. Não estabelece exclusividade contra
+/// alterações concorrentes do caminho.
+pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
+    use crate::arquivo_privado::Politica;
+    crate::arquivo_privado::conferir_diretorios(
+        destino,
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(traduzir)
 }
 
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
-    use std::fs::{self, OpenOptions};
-    use std::io::{ErrorKind, Write};
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
-
+    use crate::arquivo_privado::{self, Politica};
     if destino.file_name().is_none() {
         return Err(ErroArquivoTexto::NomeAusente);
     }
+    // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoTexto::DiretorioAusente);
     }
-    conferir_diretorios(destino)?;
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(0o600);
-    let mut arquivo = options.open(destino).map_err(|erro| {
-        if erro.kind() == ErrorKind::AlreadyExists {
-            ErroArquivoTexto::DestinoJaExiste
-        } else {
-            ErroArquivoTexto::EscritaFalhou
-        }
-    })?;
-    if arquivo
-        .write_all(texto.as_bytes())
-        .and_then(|()| arquivo.sync_all())
-        .is_err()
-    {
-        drop(arquivo);
-        let _ = fs::remove_file(destino);
-        return Err(ErroArquivoTexto::EscritaFalhou);
-    }
+    arquivo_privado::gravar(
+        destino,
+        texto.as_bytes(),
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(traduzir)?;
     Ok(texto.len())
 }
 
@@ -133,25 +123,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn recusa_link_simbolico_como_diretorio_de_saida() {
-        use std::os::unix::fs::symlink;
-        let raiz = pasta();
-        let real = raiz.join("real");
-        fs::create_dir(&real).unwrap();
-        let link = raiz.join("atalho");
-        symlink(&real, &link).unwrap();
-        let destino = link.join("0007.txt");
-        assert_eq!(
-            salvar(&destino, "DADO CONFIDENCIAL"),
-            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
-        );
-        assert!(!real.join("0007.txt").exists());
-        fs::remove_dir_all(raiz).unwrap();
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn recusa_link_em_ancestral_do_diretorio_de_saida() {
+    fn aceita_link_simbolico_como_diretorio_de_saida_e_em_ancestral() {
         use std::os::unix::fs::symlink;
         let raiz = pasta();
         let real = raiz.join("real");
@@ -159,13 +131,37 @@ mod tests {
         fs::create_dir_all(&subpasta).unwrap();
         let link = raiz.join("atalho");
         symlink(&real, &link).unwrap();
-        let destino = link.join("subpasta").join("0007.txt");
+        assert_eq!(salvar(&link.join("0007.txt"), "DIR"), Ok(3));
         assert_eq!(
-            salvar(&destino, "DADO CONFIDENCIAL"),
-            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
+            salvar(&link.join("subpasta").join("0007.txt"), "ANC"),
+            Ok(3)
         );
-        assert!(!subpasta.join("0007.txt").exists());
-        assert_eq!(salvar(&subpasta.join("0007.txt"), "OK"), Ok(2));
+        assert_eq!(fs::read_to_string(real.join("0007.txt")).unwrap(), "DIR");
+        assert_eq!(
+            fs::read_to_string(subpasta.join("0007.txt")).unwrap(),
+            "ANC"
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn aceita_diretorio_de_saida_gravavel_pelo_grupo_ou_por_outros() {
+        // `--saida DIR` é da pessoa: o modo do diretório é dela.
+        use std::os::unix::fs::PermissionsExt;
+        let raiz = pasta();
+        let aberto = raiz.join("aberto");
+        fs::create_dir(&aberto).unwrap();
+        for bits in [0o775, 0o777] {
+            fs::set_permissions(&aberto, fs::Permissions::from_mode(bits)).unwrap();
+            let destino = aberto.join(format!("{bits:o}.txt"));
+            assert_eq!(conferir_diretorios(&destino), Ok(()));
+            assert_eq!(salvar(&destino, "OK"), Ok(2));
+            assert_eq!(
+                salvar(&destino, "DE NOVO"),
+                Err(ErroArquivoTexto::DestinoJaExiste)
+            );
+        }
         fs::remove_dir_all(raiz).unwrap();
     }
 

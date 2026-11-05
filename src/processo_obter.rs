@@ -48,6 +48,7 @@ mod tests_documento_indice;
 mod tests_documento_versoes;
 #[cfg(test)]
 mod tests_fluxo;
+
 #[cfg(test)]
 mod tests_indice;
 #[cfg(test)]
@@ -60,6 +61,8 @@ mod tests_movidos;
 mod tests_pastas;
 #[cfg(test)]
 mod tests_propriedades;
+#[cfg(test)]
+mod tests_sessao;
 
 use crate::arvore_processo::ArvoreLida;
 use crate::formulario_web::RespostaDoPost;
@@ -69,6 +72,7 @@ use crate::processo::NumeroProcesso;
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::resposta_binaria::RespostaBinaria;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
 pub(crate) use documento::{
@@ -79,7 +83,6 @@ pub(crate) use documento::{
 pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::{abrir_para_escrever, obter_processo};
-use std::path::Path;
 
 /// GET que devolve também o `Location` (302 como dado, nunca seguido).
 pub(crate) trait EnvioDoProcesso: EnvioDoControle {
@@ -122,7 +125,7 @@ impl EnvioDoProcesso for EnvioHttps {
 pub(crate) struct SessaoDoProcesso<'a> {
     pub(crate) url_do_controle: &'a str,
     pub(crate) origem: &'a str,
-    pub(crate) cookie_file: &'a Path,
+    pub(crate) cookie: &'a CookieDaSessao,
 }
 
 /// O NUP pedido, a `--unidade` (conferida na primeira tela que a publica)

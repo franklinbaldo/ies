@@ -11,6 +11,7 @@ use crate::formulario_web::SubmissaoDerivada;
 use crate::indice_local::IndiceLocal;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso as E;
 use crate::transporte::envio_post::ler_tela_via;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
@@ -47,19 +48,24 @@ impl TransporteDeLogin for Compartilhado<'_> {
 /// cookie dos arquivos a cada tentativa, com as falhas tipadas reais.
 fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Result<String, E> {
     let url = Ambiente::ler(&arquivos.url_controle).trim().to_owned();
-    let tela = ler_tela_via(&url, &arquivos.cookie, ORIGEM, |url, cookie| {
-        let resposta = roteiro.borrow_mut().get(url, cookie)?;
-        Ok(RespostaWeb {
-            status_code: i32::from(resposta.status),
-            mime: resposta
-                .cabecalho("content-type")
-                .unwrap_or_default()
-                .to_owned(),
-            content_length: None,
-            localizacao: resposta.cabecalho("location").map(str::to_owned),
-            corpo: Cursor::new(resposta.corpo),
-        })
-    })
+    let tela = ler_tela_via(
+        &url,
+        &CookieDaSessao::ler(&arquivos.cookie),
+        ORIGEM,
+        |url, cookie| {
+            let resposta = roteiro.borrow_mut().get(url, cookie)?;
+            Ok(RespostaWeb {
+                status_code: i32::from(resposta.status),
+                mime: resposta
+                    .cabecalho("content-type")
+                    .unwrap_or_default()
+                    .to_owned(),
+                content_length: None,
+                localizacao: resposta.cabecalho("location").map(str::to_owned),
+                corpo: Cursor::new(resposta.corpo),
+            })
+        },
+    )
     .map_err(E::Transporte)?;
     crate::controle_reconhecido::unidade_do_controle(&tela.html).map_err(E::Controle)
 }

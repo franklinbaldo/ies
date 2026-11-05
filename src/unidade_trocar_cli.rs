@@ -11,7 +11,7 @@ use crate::instalacao::Instalacao;
 use crate::saida_erro;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::sessao::{ReferenciasDaSessao, cookie_privado_validado};
+use crate::transporte::sessao::{CookieDaSessao, ReferenciasDaSessao};
 use crate::unidade_trocar::{
     ACAO_DE_TROCAR, ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca,
     SessaoDaTroca, Troca, UnidadeOferecida, trocar_unidade,
@@ -62,24 +62,8 @@ pub(crate) fn trocar(
         Ok(arquivos) => arquivos,
         Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let referencias = match ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
-        .and_then(|r| r.conferir_controle().map(|()| r))
-    {
-        Ok(r) => r,
-        Err(f) => {
-            return saida_erro::erro_fonte_http(
-                json_mode,
-                f.subcodigo(),
-                f.mensagem(),
-                f.status_http(),
-            );
-        }
-    };
-    let Some(instalacao) = Instalacao::interpretar(referencias.origem()) else {
-        let f = FalhaTransporte::OrigemNaoAutorizada;
-        return crate::erro_fonte(json_mode, f.subcodigo(), f.mensagem());
-    };
-    // Nenhum `ies login` troca a sessão no meio da troca.
+    // Nenhum `ies login` troca a sessão no meio da troca: com `--confirmar`,
+    // o retrato da sessão é lido já sob o lock (#222).
     let _trava = if confirmar {
         match crate::sessao_login::TravaDoLogin::obter(
             &arquivos.url_controle,
@@ -91,10 +75,28 @@ pub(crate) fn trocar(
     } else {
         None
     };
+    let referencias =
+        match ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+            .and_then(|r| r.conferir_controle().map(|()| r))
+        {
+            Ok(r) => r,
+            Err(f) => {
+                return saida_erro::erro_fonte_http(
+                    json_mode,
+                    f.subcodigo(),
+                    f.mensagem(),
+                    f.status_http(),
+                );
+            }
+        };
+    let Some(instalacao) = Instalacao::interpretar(referencias.origem()) else {
+        let f = FalhaTransporte::OrigemNaoAutorizada;
+        return crate::erro_fonte(json_mode, f.subcodigo(), f.mensagem());
+    };
     let sessao = SessaoDaTroca {
         url_do_controle: referencias.url_do_controle(),
         instalacao: &instalacao,
-        cookie_file: &arquivos.cookie,
+        cookie: referencias.cookie(),
     };
     let pedido = PedidoDeTroca {
         sigla,
@@ -110,7 +112,14 @@ pub(crate) fn trocar(
     // A saída histórica é u32; a contagem real satura em vez de transbordar.
     let pedidos = u32::try_from(envio.pedidos.total()).unwrap_or(u32::MAX);
     match resultado {
-        Ok(troca) => concluir(json_mode, &arquivos, &indice, &instalacao, &troca, pedidos),
+        Ok(troca) => concluir(
+            json_mode,
+            &arquivos,
+            &indice,
+            (&instalacao, &referencias),
+            &troca,
+            pedidos,
+        ),
         Err(erro) => {
             if matches!(erro, ErroTroca::EfeitoIncerto { .. }) {
                 // A unidade pode ter mudado: nada da anterior é reaproveitado.
@@ -137,20 +146,22 @@ fn uso_invalido(json_mode: bool) -> ExitCode {
 
 /// Depois da troca verificada: grava a URL do Controle novo (e o
 /// marcador) como a da sessão, apaga os links assinados da instalação e
-/// colhe o Controle novo com a chave da unidade nova. Devolve quantos links
-/// o índice apagou (`None` com o índice desligado).
+/// colhe o Controle novo com a chave da unidade nova. O cookie é o do
+/// retrato que fez a troca (lido sob o lock). Devolve quantos links o
+/// índice apagou (`None` com o índice desligado).
 pub(crate) fn aplicar_troca(
     arquivos: &ArquivosDeAcesso,
     indice: &IndiceLocal,
     instalacao: &Instalacao,
+    cookie: &CookieDaSessao,
     novo: &ControleLido,
 ) -> Result<Option<usize>, &'static str> {
     let falha = "url_do_controle_da_unidade_nova_nao_gravada";
-    let cookie = cookie_privado_validado(&arquivos.cookie).map_err(|_| falha)?;
-    crate::sessao_login::regravar_url_do_controle(arquivos, &novo.url, &cookie)
+    let cookie = cookie.valor().map_err(|_| falha)?;
+    crate::sessao_login::regravar_url_do_controle(arquivos, &novo.url, cookie)
         .map_err(|_| falha)?;
     let descartados = indice.esquecer_links_da_instalacao(instalacao);
-    crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, &cookie, &novo.url)
+    crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, &novo.url)
         .colher(&novo.html, Some(&novo.mime));
     Ok(descartados)
 }
@@ -159,13 +170,13 @@ fn concluir(
     json_mode: bool,
     arquivos: &ArquivosDeAcesso,
     indice: &IndiceLocal,
-    instalacao: &Instalacao,
+    (instalacao, sessao): (&Instalacao, &ReferenciasDaSessao),
     troca: &Troca,
     pedidos: u32,
 ) -> ExitCode {
     let mut descartados = None;
     if let Some(novo) = &troca.controle_novo {
-        match aplicar_troca(arquivos, indice, instalacao, novo) {
+        match aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo) {
             Ok(n) => descartados = n,
             Err(subcodigo) => {
                 let mensagem = "a unidade foi trocada e conferida, mas a URL da sessão não foi gravada; rode ies login --forcar";
@@ -183,7 +194,7 @@ fn concluir(
         }
     } else {
         let inicial = &troca.controle_inicial;
-        crate::colheita_do_controle::Colheita::da_sessao(indice, arquivos)
+        crate::colheita_do_controle::Colheita::das_referencias(indice, sessao)
             .colher(&inicial.html, Some(&inicial.mime));
     }
     if json_mode {

@@ -64,7 +64,8 @@ o IES não volta à unidade anterior: para voltar,
 7. **Sem `--confirmar`**: publica a unidade ativa, a pedida, o id, as
    oferecidas e os nomes dos campos do POST que **seria** enviado. Saída 0.
 8. **Com `--confirmar`**: obtém o lock do login (`<url-controle>.lock`)
-   antes de qualquer requisição, envia **um** POST e segue os
+   antes de ler a sessão e de qualquer requisição (#222: URL e cookie são
+   lidos já sob o lock e o cookie lido é o que regrava a URL), envia **um** POST e segue os
    redirecionamentos observados, cada um **uma** vez:
    - POST → 302 para `procedimento_controlar` com `msg` e
      `infra_unidade_atual` = id escolhido;
