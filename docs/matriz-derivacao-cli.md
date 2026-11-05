@@ -6,8 +6,7 @@ description: Cruzamento dos comandos declarados, código executável, evidência
 
 # Matriz de derivação da CLI — implementar antes de ampliar
 
-**Base de derivação:** `main` auditada em 04/11/2026 após a PR #171
-(`62fb385`); revalidar o SHA, o despacho e os checks a cada rodada. Propostas fora da `main`
+**Base de derivação:** `main@52be0e1`, auditada em 04/11/2026 após as PRs #193 e #206; revalidar o SHA, o despacho e os checks a cada rodada. Propostas fora da `main`
 não são capacidades aprovadas. Fontes: [superfície Clap e despacho](../src/main.rs),
 [contrato público](../contracts/cli.md), [matriz de evidências](../contracts/evidencias/README.md),
 [política de acesso](interfaces/acesso-por-instalacao.md) e
@@ -34,7 +33,7 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
-## Matriz: 19 caminhos principais já expostos
+## Matriz: 20 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -44,136 +43,79 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies processo concluir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura (2–3 req.); uma escrita pela forma da barra: tela "Conclusão de Processo" + POST (4.1/5.0) ou GET de `concluirProcesso()` (4.0); verificação por `aberto_em` numa leitura nova; efeito incerto sai com 3, sem retry; a frio 5 GET + 1 POST / 6 GET | Live PASS UFRJ 4.1.5 (`tela`) e UnB 4.0.9 (`funcao`), requisições iguais ao orçamento; [replay](validacao-replay/2026-11-04-processo-concluir-acervo.md) 219 escritas verificadas; PEN1 5.0.4 não observada; concluir com reabertura programada, vários processos | [contrato](../contracts/cli/processo-concluir.md), [decisão](decisoes/processo-concluir.md), [live](validacao-live/2026-11-04-processo-concluir.md) |
 | `ies processo reabrir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura; `reabrirProcesso()` da barra → GET da tela do nó → URL `procedimento_reabrir` (corpo da função no 4.0, `var linkReabrirProcesso` no 4.1/5.0) → um GET (a escrita); verificação pela unidade da sessão em `aberto_em`; efeito incerto 3, sem retry; a frio 6 GET | Live PASS UFRJ 4.1.5 (`variavel`) e UnB 4.0.9 (`funcao`), 5 req. cada; [replay](validacao-replay/2026-11-04-processo-reabrir-acervo.md) 11 reaberturas verificadas; reabrir com o processo aberto noutra unidade não observado | [contrato](../contracts/cli/processo-reabrir.md), [decisão](decisoes/processo-reabrir.md), [evidência](../contracts/evidencias/processo-reabrir.md) |
 | `ies documento DOC`, `salvar`, `buscar`, `assinar` | ver a [matriz de documento](matriz-derivacao-cli-documento.md) (4 caminhos) | Idem | Idem | Idem |
-| `ies unidade listar-processos`, `colunas`, `recebidos`, `gerados`, `atual` | ver a [matriz da unidade](matriz-derivacao-cli-unidade.md) (5 caminhos) | Idem | Idem | Idem |
+| `ies unidade listar-processos`, `colunas`, `recebidos`, `gerados`, `atual` | ver a [matriz da unidade](matriz-derivacao-cli-unidade.md) (6 caminhos) | Idem | Idem | Idem |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
 | `ies setup` | **LOCAL** | Registra caminhos privados sem copiar credenciais | Não automatiza login, renovação ou troca de unidade; ampliar apenas se indispensável às operações já declaradas | [código](../src/configuracao.rs) |
 | `ies login [--forcar]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Login pela tela servida da raiz (SIP e módulo de Goiás), credenciais em arquivo `0600`, órgão exato, `hdnAcao` e botão observados, Painel pelo link do menu, gravação atômica por geração sob lock; sessão válida: 1 GET | Live PASS UnB, PEN1, PEN3, PEN4, UFRJ e GO; PEN2 bloqueada pelo ambiente (503, 403 do Cloudflare); mensagem real de credencial recusada. **Relogin único nas 9 leituras** (#200): só depois de `pagina_de_login_recebida_no_controle` ou `sessao_encerrada_rode_ies_login`, credenciais do mesmo arquivo, geração conferida sob o lock (outro processo já relogou: sem login), uma releitura do início, `relogin: true` e o login somado em `requisicoes`; escrita e prévia nunca relogam. Live PEN4 PASS com sessão desconhecida pelo servidor (9 pedidos) e geração trocada (2 pedidos); vencimento natural NOT_RUN; 302 do Controle para o login da instalação é sessão encerrada (live PEN4 PASS, 8 pedidos) ([live](validacao-live/2026-11-05-relogin.md)) | [contrato](../contracts/cli/sessao-login.md), [relogin](decisoes/sessao-login/relogin-de-leitura.md) |
 | `ies esquema` | **PARCIAL LOCAL** | Lista nomes de comandos e versão | Entregar contrato/esquema útil se necessário, usando o comando existente; não criar outro inventário de comandos | [código](../src/esquema_cli.rs) |
 | ~~`ies replay CENARIO`~~ | **RETIRADO** da CLI (05/11/2026) | O replay das cassettes são os testes `#[ignore]` do acervo, pelos leitores dos comandos acima; `scripts/replay` os lista e executa | Não volta à CLI; o binário de produção não liga `zip` nem `sha1` | [decisão](decisoes/acervo/replay-fora-da-cli.md) · [cassettes](cassettes.md#replay-do-acervo) |
 
-**Atualização #137:** a visão detalhada D do GET existente pode produzir
-lista completa apenas com cobertura declarada demonstrada; continua um GET,
-zero POST e **sem ensaio live autorizado**. (Superada: a página observada
-e `--pagina N` de #57 estão em main.)
+## Histórico e transição para a base #206
 
-**Atualização #138 (integrada após revisão):** `--pagina-arquivo` recusa
-complementos locais ausentes, inseguros ou acima do limite antes de acessar
-a sessão ou executar GET potencialmente administrativo. O teto agregado
-de 48 MB é conferido novamente após o GET, reutilizando os bytes já lidos.
-Para complemento inviável, elimina um GET evitável (até 1 → 0); com
-complementos válidos mantém até 1 GET e 0 POST. (Superada: a opção saiu de
-`listar-processos` em 02/11/2026 e de `processo NUP --resumo` em
-04/11/2026.)
+As fatias #57, #58, #59, #60, #61, #88, #171 e as escritas de processo
+não são mais stubs do roadmap inicial. A árvore, pesquisa, documento
+interno/externo, lista de versões, unidade e escritas estão descritos na
+tabela e nas matrizes específicas. Histórico das decisões anteriores
+permanece rastreável no Git e nos relatórios de validação vinculados.
+A PR #193 integrou o envio e a assinatura ao vivo; a #206 ampliou
+esses ensaios, o relogin e a troca de unidade.
 
-**Atualização #141 (integrada):** existe, só offline, o primitivo que deriva
-o POST de um formulário servido ([decisão 0002](arquitetura/0002-submeter-formulario-observado.md)),
-com envio injetável e sem cliente HTTP real. Nenhum comando o usa:
-`processo buscar` seguia **STUB**. (Superada: `processo buscar` está em main
-pela #58; `--resultado-pesquisa-file` foi aposentado em 04/11/2026.)
+**Distinguir estado da main de validação live.** `PARCIAL WEB` pode
+significar capacidade já escrita em instalações específicas, não
+cobertura universal. `NOT_RUN` nunca vira `PASS` por CI ou replay.
 
-**Atualização #58 (integrada em #142/#143):** a pesquisa de protocolo
-interpreta o 302 da busca exata, com o `Location` relativo para
-`procedimento_trabalhar` gravado nas cassettes de UnB, PEN1, UFRJ e
-Goiás, como `IdProcedimento`, **sem segui-lo**. Também aplica as regras
-do `onsubmit` lidas do JavaScript servido. O ensaio offline passou nos
-8 redirecionamentos e nos 16 formulários reais. Sem CLI naquela fatia e sem
-mudança de estado; o orçamento previsto é 1 GET da tela e 1 POST, com 0
-GET ao destino. Lacunas: corpo real do POST (via
-[coleta do formato](coleta-formato-post.md)), página "sem resultados"
-não observada e controles que o navegador enviaria e a derivação omite.
+**Critério de contagem:** **20 caminhos operacionais** na
+`main@52be0e1`: 6 de unidade (incluindo `trocar`, #205), 4 de
+documento, 5 de processo, mais `status`, `setup`, `login`,
+`esquema` e `replay`. Excluem-se os agrupadores `ies processo`,
+`ies documento` e `ies unidade` isolados, que exibem ajuda.
+Flags e projeções não criam caminho independente. As 129 operações
+históricas do Todos não correspondem a 129 comandos IES.
 
-**Ensaio live de 02/11/2026** ([relatório](validacao-live/2026-11-02-leitura-controle.md)):
-primeira validação autenticada, com login pelo Todos e 3 GETs do IES por
-instalação, sem POST. `status --verificar-controle-web` e `unidade atual`
-deram PASS em UnB, UFRJ, PEN1, PEN3 e PEN4. `unidade listar-processos`
-deu PASS em UnB e UFRJ, e recusa correta de caixa paginada em PEN1, PEN3
-e PEN4. GO falhou pelo link sigiloso não reconhecido; corrigido, passou
-com recusa correta da caixa paginada, mas com `resposta_inesperada`
-intermitente (2 de 8 GETs). PEN2 ficou NOT_RUN (503). `unidade atual` passa a ter validação live; a paginação ativa
-(#57) veio depois e passou ao vivo em 04/11/2026.
-
-**#57 (caixa da unidade, feita):** página observada e `--pagina N`, listas
-independentes, visão detalhada por padrão e escrita das colunas estão na
-[matriz da unidade](matriz-derivacao-cli-unidade.md).
-
-**Login nativo (decisão do proprietário, 02/11/2026; em main):** `ies
-login [--forcar]` é a operação `sessao.login`, um comando novo por decisão
-do proprietário: até aqui a sessão vinha do Todos ou do navegador, copiada
-à mão. Lê a origem, confere a sessão gravada com 1 GET (válida: sem login),
-loga pela raiz (2 ou 3 GETs, 1 POST e os saltos até o Controle) e grava
-cookie e URL de forma atômica, com marcador de geração e lock. As
-leituras relogam uma vez depois de sessão encerrada (#200); a escrita, nunca. Live PASS em UnB, PEN1, PEN3,
-PEN4, UFRJ e GO ([colheita](validacao-live/2026-11-03-colheita-do-controle.md),
-[paginação](validacao-live/2026-11-04-unidade-paginacao.md)); PEN2 recusada
-pelo ambiente ([decisão](decisoes/sessao-login.md), [roteiro](validacao-live/roteiro-login.md)).
-
-**#58 (pesquisa Web de processo; núcleo em main):** `ies processo buscar TERMO
-[--pagina N]` substitui o stub `[--assunto]` (mesmo verbo). Segue só o link
-`protocolo_pesquisar` que o Controle publicou, deriva o POST da tela servida
-e interpreta o 302 sem segui-lo. Saídas `processo_unico`, `lista` e
-`sem_resultado`, esta última uma resposta observada, não inexistência.
-Offline com telas sintéticas modeladas na UnB 4.0.9 (03/11/2026); ensaio
-live do comando IES: PASS na UnB e em GO ([relatório](validacao-live/2026-11-03-processo-buscar.md)).
-
-**Critério de contagem:** 18 caminhos operacionais (o 18º é `ies login`), desconsiderando
-`ies processo`, `ies documento` e `ies unidade` isolados, que mostram
-ajuda. Flags e projeções pertencem ao comando existente e não são novas
-capacidades independentes. As 129 operações do inventário do Todos são
-**evidências históricas**, não 129 comandos IES implementados, aprovados
-ou prioritários. Esta contagem descreve a superfície de `main`, não
-testes live aprovados.
-
-## Dependências: derivar entregas a partir da base existente
+## Dependências após #193 e #206
 
 ```text
-setup/status local + origem HTTPS + cookie/URL da mesma sessão
-    ├── Controle Web (GET existente)
-    │   ├── unidade atual (já parcialmente atendida)
-    │   └── unidade listar-processos → paginação/efeitos (#57, feito)
-    ├── formulário de pesquisa observado → processo buscar (#58, núcleo feito)
-    │   └── resolver NUP/ID → processo NUP: árvore/histórico/propriedades/marcadores (#59, feito)
-    │       └── links reais de documento → documento DOC (#60)
-    │           └── versão atual e --versao N (#88)
-    │               └── documento salvar: prévia → escrita/verificação (#89)
-    └── pesquisa de documentos observada → documento buscar (#61)
-Pós-leituras e autorização específica: processo enviar/concluir; documento assinar.
+sessão Web autenticada -> Controle/índice -> árvore, listas e pesquisa
+          |                      |                 |
+          |                      |                 +-> documento atual/versões (#60/#88)
+          |                      |                         +-> salvar editor (#89, observar)
+          |                      +-> processo enviar/concluir/reabrir (escritas existentes)
+          +-> relogin nas leituras (#200) / unidade trocar (#205)
+documento assinar (#174) -> árvore + assinatura + verificação posterior
+cópia/versão do documento (#204) -> ajuste de formato/semântica (#207)
 ```
 
-A cadeia representa **dependências técnicas a demonstrar**, não afirma
-que cada GET/POST seja autorizado, livre de efeito ou disponível em todas as
-instalações. Login automático nos outros comandos não existe. A
-[PR #131](https://github.com/franklinbaldo/ies/pull/131) (draft) propõe GET
-opt-in de documento por arquivo de link privado, **não está na main** e
-parte de uma arquitetura substituída (índice e links da árvore); não
-contabilizar como `documento DOC` resolvido.
+O relogin é **uma única recuperação nas leituras** depois das recusas
+tipadas de sessão; prévia e escrita não relogam. Trocar unidade é
+**escrita do estado da sessão**, com PR e ensaio próprio, e
+invalida os links assinados da unidade anterior. GET e POST
+são classificados pelo efeito observado, não pelo verbo HTTP.
 
-## Fila de implementação, sem ampliação da CLI
+## Fila viva de implementação (referência: #56)
 
-Feitas: **#57** (página observada e `--pagina N` da caixa, listas
-independentes, colunas; [matriz da unidade](matriz-derivacao-cli-unidade.md)),
-**#59** (`processo NUP` pela árvore com índice local) e o núcleo de
-**#58** (`processo buscar`). A fila segue daí, uma fatia por PR:
+1. **#207** — concluir o desenho já aprovado de cópia HTML
+   versionada/idempotente; `DOC.vN.txt` da #204 **será
+   substituído pela #207**. Não expandir nomes ou contratos aqui.
+2. **#89** — observar editor SEI 4/5 e, somente após evidência
+   e decisão, implementar salvar com recusa anterior ao editor
+   para assinado, confirmação e reconciliação.
+3. **#60/#88** — fechar lacunas de documento e versão por
+   instalação com evidência específica; `#61` cobre a pesquisa
+   já funcional e aguarda eventuais filtros observados.
+4. **#172/#173/#174** — ampliar ensaios live e casos de recusa
+   de concluir/reabrir, enviar e assinar; **não** refazer o
+   que já passou: enviar escrita **PASS UFRJ, UnB e PEN1**,
+   assinar escrita **PASS PEN1 e UnB**.
+5. **#200/#205** — relogin já presente nas leituras, com
+   vencimento natural não observado; `unidade trocar` presente,
+   **live PASS UFRJ**, outras instalações `NOT_RUN`.
+6. **#183–#188/#201** — auditoria de infraestrutura e limites
+   HTTP como trilha transversal, sem introduzir novos verbos.
 
-1. **#60 fatia 1** — `documento DOC --processo NUP` pelo link da árvore,
-   com o índice de DOC; reaproveita a abertura de #59.
-2. **#60 fatia 2** — `documento DOC` sem `--processo`, lote do mesmo
-   processo e documento externo.
-3. **#88** — versão atual e `--versao N` pelo link publicado de versões.
-4. **#61** — `documento buscar` pela pesquisa já validada em #58.
-5. **Escritas já declaradas** — `processo concluir` e `processo enviar`
-   (verificação pela árvore que #59 lê), depois #89 (`documento salvar`)
-   e `documento assinar`, com prévia, efeito seguro e reconciliação;
-   nunca testar escrita incerta em produção.
-
-Em paralelo, sem competir com a fila: fatia final de #58 e varredura live
-de `processo NUP` e `processo buscar` em UFRJ, PEN3 e PEN4.
-
-As prioridades podem mudar conforme dependências e autorização. Não
-abrir novos comandos como substituto de completar estes. Para cada
-capacidade, exigir **CONTRACT → RED observado → GREEN → VALIDATED**;
-se a fase ou o ensaio externo não ocorrer, registrar `NOT_RUN` e
-o motivo. PASS de CI ou replay offline não equivale a validação Web
-autenticada em UnB, UFRJ, Goiás ou PEN.
+A fila é prioridade por dependência, não prova de que uma issue
+esteja concluída. Só evidência de critérios e relatório
+`PASS/FAIL/NOT_RUN` permitem propor fechamento ao proprietário.
+O CI valida os gates e testes offline, não substitui live.
 
 ## Gate manual para PRs de capacidade
 
