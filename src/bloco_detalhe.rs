@@ -1,5 +1,5 @@
 //! Interpretação somente-leitura da tabela tblProtocolosBlocos.
-//! Caso derivado de Todos src/todos/sei/blocos_lista.py @323eb01.
+//! Caso derivado de Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::bloco::{Faixa, TipoBloco};
 use crate::html_atributos::nos_com_id;
 use serde::Serialize;
