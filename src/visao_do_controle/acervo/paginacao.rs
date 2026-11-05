@@ -96,7 +96,7 @@ fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64
     let faixa = faixa_na_pagina(html, categoria).map_err(|e| e.subcodigo())?;
     // A página exibida pela faixa (páginas cheias antes dela).
     let exibida = faixa.map_or(1, |f| (f.inicio - 1) / (f.fim - f.inicio + 1) + 1);
-    match plano(html, categoria, exibida).map_err(|e| e.subcodigo())? {
+    match plano(html, categoria, exibida).map_err(|e| crate::erro_publico::folha(&e))? {
         PlanoDaPagina::JaExibida => {}
         PlanoDaPagina::Pedir { .. } => return Err("pagina_exibida_nao_reconhecida"),
     }
@@ -117,7 +117,7 @@ fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64
             contagens.push(("paginas", paginas as u64));
         }
         Ok(PlanoDaPagina::JaExibida) => return Err("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => return Err(erro.subcodigo()),
+        Err(erro) => return Err(crate::erro_publico::folha(&erro)),
     }
     Ok(contagens)
 }
@@ -200,7 +200,7 @@ pub(super) fn detalhada(
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             colheita.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => colheita.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => colheita.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro)),
     }
     saida.registros.push(colheita);
 }

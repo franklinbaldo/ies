@@ -40,23 +40,22 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTela {
+    #[causa(nome = "tela_do_andamento_invalida")]
     HtmlInvalido,
+    #[causa(nome = "formulario_do_andamento_ausente_ou_duplicado")]
     FormularioAusenteOuDuplicado,
+    #[causa(nome = "controles_do_andamento_ausentes_ou_duplicados")]
     ControleAusenteOuDuplicado,
+    #[causa(nome = "formulario_do_andamento_de_outro_processo")]
     ProtocoloDiferente,
+    #[causa(nome = "campo_inesperado_no_formulario_do_andamento")]
     CampoInesperado,
 }
 impl ErroTela {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "tela_do_andamento_invalida",
-            Self::FormularioAusenteOuDuplicado => "formulario_do_andamento_ausente_ou_duplicado",
-            Self::ControleAusenteOuDuplicado => "controles_do_andamento_ausentes_ou_duplicados",
-            Self::ProtocoloDiferente => "formulario_do_andamento_de_outro_processo",
-            Self::CampoInesperado => "campo_inesperado_no_formulario_do_andamento",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

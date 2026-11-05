@@ -13,7 +13,7 @@ pub struct ResultadoPesquisa {
     pub numero: NumeroProcesso,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroResultadoPesquisa {
     HtmlDePesquisaNaoInterpretado,
     TabelaDePesquisaAusente,
@@ -33,6 +33,7 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaComIdentificadorSemIgual,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     IdentificadorDoProcessoRepetidoNaPesquisa,
+    #[causa(interna)]
     NumeroDePesquisa(NumeroProcessoInvalido),
     NumeroDePesquisaRepetido,
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
@@ -40,52 +41,7 @@ pub enum ErroResultadoPesquisa {
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
 }
 
-impl ErroResultadoPesquisa {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDePesquisaNaoInterpretado => "html_de_pesquisa_nao_interpretado",
-            Self::TabelaDePesquisaAusente => "tabela_de_pesquisa_ausente",
-            Self::TabelasDePesquisaRepetidas => "tabelas_de_pesquisa_repetidas",
-            Self::LinhaDePesquisaSemLinkDoProcesso => "linha_de_pesquisa_sem_link_do_processo",
-            Self::LinhaDePesquisaComMaisDeUmLinkDoProcesso => {
-                "linha_de_pesquisa_com_mais_de_um_link_do_processo"
-            }
-            Self::LinkDeProcessoForaDaLinhaDePesquisa => {
-                "link_de_processo_fora_da_linha_de_pesquisa"
-            }
-            Self::LinkDeProcessoSemClasseReconhecida => "link_de_processo_sem_classe_reconhecida",
-            Self::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso => {
-                "link_da_arvore_com_href_diferente_do_link_do_processo"
-            }
-            Self::LinhaDePesquisaComMaisDeUmLinkDaArvore => {
-                "linha_de_pesquisa_com_mais_de_um_link_da_arvore"
-            }
-            Self::LinkDePesquisaNaoAbreProcesso => "link_de_pesquisa_nao_abre_processo",
-            Self::LinkDePesquisaSemIdentificadorDoProcesso => {
-                "link_de_pesquisa_sem_identificador_do_processo"
-            }
-            Self::LinkDePesquisaComIdentificadoresRepetidos => {
-                "link_de_pesquisa_com_identificadores_repetidos"
-            }
-            Self::LinkDePesquisaComChaveNaoCanonica => "link_de_pesquisa_com_chave_nao_canonica",
-            Self::LinkDePesquisaComAcaoSemIgual => "link_de_pesquisa_com_acao_sem_igual",
-            Self::LinkDePesquisaComIdentificadorSemIgual => {
-                "link_de_pesquisa_com_identificador_sem_igual"
-            }
-            Self::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal => {
-                "link_de_pesquisa_com_identificador_do_processo_nao_decimal"
-            }
-            Self::IdentificadorDoProcessoRepetidoNaPesquisa => {
-                "identificador_do_processo_repetido_na_pesquisa"
-            }
-            Self::NumeroDePesquisa(erro) => erro.subcodigo(),
-            Self::NumeroDePesquisaRepetido => "numero_de_pesquisa_repetido",
-            Self::LinkDoDocumentoDaLinhaDiferenteDoProcesso => {
-                "link_do_documento_da_linha_diferente_do_processo"
-            }
-        }
-    }
-}
+impl ErroResultadoPesquisa {}
 
 // O controlador PHP decodifica nomes de query e normaliza pontos/espacos
 // para '_'. %5F, '.' ou '+' podem sobrescrever acao/id_procedimento.

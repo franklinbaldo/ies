@@ -10,7 +10,7 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use ErroRedirecionamentoDaPesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoAusente,
     LocalizacaoDoRedirecionamentoAcimaDoLimite,
@@ -54,91 +54,7 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
 
 impl ErroRedirecionamentoDaPesquisa {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LocalizacaoDoRedirecionamentoAusente => "localizacao_do_redirecionamento_ausente",
-            Self::LocalizacaoDoRedirecionamentoAcimaDoLimite => {
-                "localizacao_do_redirecionamento_acima_do_limite"
-            }
-            Self::LocalizacaoDoRedirecionamentoNaoEhUrlHttps => {
-                "localizacao_do_redirecionamento_nao_eh_url_https"
-            }
-            Self::LocalizacaoDoRedirecionamentoForaDaInstalacao => {
-                "localizacao_do_redirecionamento_fora_da_instalacao"
-            }
-            Self::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento => {
-                "parametro_nao_canonico_na_localizacao_do_redirecionamento"
-            }
-            Self::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar => {
-                "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
-            }
-            Self::AcaoDeOrigemAusenteNoRedirecionamento => {
-                "acao_de_origem_ausente_no_redirecionamento"
-            }
-            Self::AcaoDeOrigemRepetidaNoRedirecionamento => {
-                "acao_de_origem_repetida_no_redirecionamento"
-            }
-            Self::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa => {
-                "acao_de_origem_do_redirecionamento_diferente_da_pesquisa"
-            }
-            Self::IdProcedimentoAusenteNoRedirecionamento => {
-                "id_procedimento_ausente_no_redirecionamento"
-            }
-            Self::IdProcedimentoRepetidoNoRedirecionamento => {
-                "id_procedimento_repetido_no_redirecionamento"
-            }
-            Self::IdProcedimentoNaoDecimalNoRedirecionamento => {
-                "id_procedimento_nao_decimal_no_redirecionamento"
-            }
-            Self::InfraHashAusenteNoRedirecionamento => "infra_hash_ausente_no_redirecionamento",
-            Self::InfraHashRepetidoNoRedirecionamento => "infra_hash_repetido_no_redirecionamento",
-            Self::InfraHashForaDoFormatoNoRedirecionamento => {
-                "infra_hash_fora_do_formato_no_redirecionamento"
-            }
-            Self::UnidadeAtualAusenteNoRedirecionamento => {
-                "unidade_atual_ausente_no_redirecionamento"
-            }
-            Self::UnidadeAtualRepetidaNoRedirecionamento => {
-                "unidade_atual_repetida_no_redirecionamento"
-            }
-            Self::UnidadeAtualAusenteNaUrlDoEnvio => "unidade_atual_ausente_na_url_do_envio",
-            Self::UnidadeAtualRepetidaNaUrlDoEnvio => "unidade_atual_repetida_na_url_do_envio",
-            Self::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio => {
-                "unidade_atual_do_redirecionamento_diferente_da_do_envio"
-            }
-            Self::InfraSistemaAusenteNoRedirecionamento => {
-                "infra_sistema_ausente_no_redirecionamento"
-            }
-            Self::InfraSistemaRepetidoNoRedirecionamento => {
-                "infra_sistema_repetido_no_redirecionamento"
-            }
-            Self::InfraSistemaNaoDecimalNoRedirecionamento => {
-                "infra_sistema_nao_decimal_no_redirecionamento"
-            }
-            Self::InfraSistemaAusenteNaUrlDoEnvio => "infra_sistema_ausente_na_url_do_envio",
-            Self::InfraSistemaRepetidoNaUrlDoEnvio => "infra_sistema_repetido_na_url_do_envio",
-            Self::InfraSistemaNaoDecimalNaUrlDoEnvio => "infra_sistema_nao_decimal_na_url_do_envio",
-            Self::InfraSistemaDoRedirecionamentoDiferenteDoEnvio => {
-                "infra_sistema_do_redirecionamento_diferente_do_envio"
-            }
-            Self::AcaoDeOrigemInesperadaNoRedirecionamento => {
-                "acao_de_origem_inesperada_no_redirecionamento"
-            }
-            Self::IdProcedimentoDoRedirecionamentoDiferenteDoPedido => {
-                "id_procedimento_do_redirecionamento_diferente_do_pedido"
-            }
-            Self::IdDocumentoDoRedirecionamentoDiferenteDoPedido => {
-                "id_documento_do_redirecionamento_diferente_do_pedido"
-            }
-            Self::IdDocumentoAusenteNoRedirecionamento => {
-                "id_documento_ausente_no_redirecionamento"
-            }
-            Self::IdDocumentoRepetidoNoRedirecionamento => {
-                "id_documento_repetido_no_redirecionamento"
-            }
-            Self::IdDocumentoNaoDecimalNoRedirecionamento => {
-                "id_documento_nao_decimal_no_redirecionamento"
-            }
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

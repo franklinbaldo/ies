@@ -13,7 +13,7 @@ use crate::instalacao::Instalacao;
 pub(crate) const ACAO_DE_ENVIAR: &str = "procedimento_enviar";
 
 /// Recusas da leitura da barra (só pesam quando se pede para enviar).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnviarNaBarra {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -24,15 +24,7 @@ pub(crate) enum ErroEnviarNaBarra {
 
 impl ErroEnviarNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::LinksDeEnviarRepetidosNaBarra => "links_de_enviar_repetidos_na_barra",
-            Self::EnderecoDoEnvioNaoReconhecido => "endereco_do_envio_nao_reconhecido",
-            Self::EnderecoDoEnvioDeOutroProcesso => "endereco_do_envio_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

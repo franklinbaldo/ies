@@ -6,7 +6,7 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use ErroRegraDoFormularioDePesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRegraDoFormularioDePesquisa {
     OpcaoDeProcessosAusenteNaTela,
     OpcoesDeProcessosRepetidasNaTela,
@@ -41,66 +41,11 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     NenhumTipoDeDocumentoMarcadoNaTela,
     AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
     /// Tag de abertura que o tokenizador de atributos recusou.
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroRegraDoFormularioDePesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::OpcaoDeProcessosAusenteNaTela => "opcao_de_processos_ausente_na_tela",
-            Self::OpcoesDeProcessosRepetidasNaTela => "opcoes_de_processos_repetidas_na_tela",
-            Self::OpcaoDeProcessosSemValorNaTela => "opcao_de_processos_sem_valor_na_tela",
-            Self::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm => {
-                "opcao_de_processos_com_nome_diferente_de_rdo_pesquisar_em"
-            }
-            Self::AssinanteOcultoPreenchidoNaPesquisaEmProcessos => {
-                "assinante_oculto_preenchido_na_pesquisa_em_processos"
-            }
-            Self::SeletorDeOrgaoDePesquisaAusenteNaTela => {
-                "seletor_de_orgao_de_pesquisa_ausente_na_tela"
-            }
-            Self::SeletoresDeOrgaoDePesquisaRepetidosNaTela => {
-                "seletores_de_orgao_de_pesquisa_repetidos_na_tela"
-            }
-            Self::SeletorDeOrgaoDePesquisaSemMultiplaEscolha => {
-                "seletor_de_orgao_de_pesquisa_sem_multipla_escolha"
-            }
-            Self::OrgaoDePesquisaSemOpcaoSelecionadaNaTela => {
-                "orgao_de_pesquisa_sem_opcao_selecionada_na_tela"
-            }
-            Self::OpcaoDeOrgaoSelecionadaSemValorNaTela => {
-                "opcao_de_orgao_selecionada_sem_valor_na_tela"
-            }
-            Self::InicioDaPaginacaoDiferenteDeZeroNaTela => {
-                "inicio_da_paginacao_diferente_de_zero_na_tela"
-            }
-            Self::EntidadeHtmlDesconhecidaNaRegra => "entidade_html_desconhecida_na_regra",
-            Self::TermoAcimaDoMaxlengthDaTela { .. } => "termo_acima_do_maxlength_da_tela",
-            Self::MaxlengthDoTermoIlegivelNaTela => "maxlength_do_termo_ilegivel_na_tela",
-            Self::CamposDoTermoRepetidosNaTela => "campos_do_termo_repetidos_na_tela",
-            Self::OpcaoDeDocumentosAusenteNaTela => "opcao_de_documentos_ausente_na_tela",
-            Self::OpcoesDeDocumentosRepetidasNaTela => "opcoes_de_documentos_repetidas_na_tela",
-            Self::OpcaoDeDocumentosSemValorNaTela => "opcao_de_documentos_sem_valor_na_tela",
-            Self::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm => {
-                "opcao_de_documentos_com_nome_diferente_de_rdo_pesquisar_em"
-            }
-            Self::CaixaDeTipoDeDocumentoAusenteNaTela => {
-                "caixa_de_tipo_de_documento_ausente_na_tela"
-            }
-            Self::CaixasDeTipoDeDocumentoRepetidasNaTela => {
-                "caixas_de_tipo_de_documento_repetidas_na_tela"
-            }
-            Self::CaixaDeTipoDeDocumentoSemValorNaTela => {
-                "caixa_de_tipo_de_documento_sem_valor_na_tela"
-            }
-            Self::NenhumTipoDeDocumentoMarcadoNaTela => "nenhum_tipo_de_documento_marcado_na_tela",
-            Self::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos => {
-                "assinante_oculto_preenchido_na_pesquisa_em_documentos"
-            }
-            Self::AtributoHtml(falha) => falha.subcodigo(),
-        }
-    }
-}
+impl ErroRegraDoFormularioDePesquisa {}
 
 /// Onde pesquisar: o rádio `rdoPesquisarEm` que a operação marca.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

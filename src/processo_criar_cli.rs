@@ -8,20 +8,19 @@ use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, trans
 use serde_json::json;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 enum ErroEntradaCriacao {
+    #[causa(nome = "tipo_de_processo_invalido")]
     Tipo,
+    #[causa(nome = "especificacao_de_processo_invalida")]
     Especificacao,
+    #[causa(nome = "interessado_de_processo_invalido")]
     Interessado,
 }
 
 impl ErroEntradaCriacao {
     fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Tipo => "tipo_de_processo_invalido",
-            Self::Especificacao => "especificacao_de_processo_invalida",
-            Self::Interessado => "interessado_de_processo_invalido",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

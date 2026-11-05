@@ -51,88 +51,77 @@ impl LeituraDetalhada {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDetalhada {
+    #[causa(nome = "html_detalhado_nao_interpretado")]
     HtmlNaoInterpretado,
+    #[causa(nome = "tabela_detalhada_ausente")]
     TabelaAusente,
+    #[causa(nome = "tabelas_detalhadas_repetidas")]
     TabelasRepetidas,
+    #[causa(nome = "modo_detalhado_nao_confirmado")]
     VisualizacaoIncorreta,
+    #[causa(nome = "unidade_da_detalhada_ausente")]
     UnidadeNaoIdentificada,
+    #[causa(nome = "unidade_da_detalhada_diferente_da_solicitada")]
     UnidadeDiferente,
+    #[causa(nome = "contexto_detalhado_alterado")]
     ContextoDiferente,
+    #[causa(nome = "cabecalho_processo_detalhado_ausente")]
     CabecalhoProcessoAusente,
+    #[causa(nome = "cabecalho_processo_detalhado_repetido")]
     CabecalhoProcessoRepetido,
+    #[causa(nome = "colunas_da_linha_detalhada_diferentes")]
     ColunasDaLinhaDiferentes,
+    #[causa(nome = "link_do_processo_detalhado_ausente")]
     LinkDoProcessoAusente,
+    #[causa(nome = "links_do_processo_detalhado_repetidos")]
     LinksDoProcessoRepetidos,
+    #[causa(nome = "classes_de_estado_diferentes_no_link_detalhado")]
     ClassesDeEstadoDiferentesNoLink,
+    #[causa(nome = "numero_do_processo_detalhado_ausente")]
     NumeroDoProcessoAusente,
+    #[causa(nome = "identificador_detalhado_invalido")]
     IdentificadorInvalido,
+    #[causa(nome = "identificador_detalhado_repetido")]
     IdentificadorRepetido,
+    #[causa(nome = "numero_detalhado_repetido")]
     NumeroRepetido,
+    #[causa(nome = "legenda_detalhada_ausente")]
     LegendaAusente,
+    #[causa(nome = "legendas_detalhadas_repetidas")]
     LegendasRepetidas,
+    #[causa(nome = "total_detalhado_nao_declarado")]
     TotalNaoDeclarado,
+    #[causa(nome = "faixa_detalhada_invalida")]
     FaixaInvalida,
+    #[causa(nome = "faixa_detalhada_sem_intervalo_com_paginacao")]
     FaixaSemIntervaloComPaginacao,
+    #[causa(nome = "faixa_detalhada_descontinua")]
     FaixaDescontinua,
+    #[causa(nome = "total_detalhado_alterado")]
     TotalAlterado,
+    #[causa(nome = "limite_paginas_detalhadas")]
     LimitePaginas,
+    #[causa(nome = "cabecalho_da_visao_detalhada_nao_reconhecido")]
     CabecalhoNaoReconhecido,
+    #[causa(nome = "coluna_da_visao_detalhada_repetida")]
     ColunaRepetida,
+    #[causa(nome = "rotulo_da_celula_detalhada_diferente_do_cabecalho")]
     RotuloDaCelulaDiferenteDoCabecalho,
+    #[causa(nome = "itens_da_celula_detalhada_nao_separados")]
     ItensDaCelulaNaoSeparados,
+    #[causa(nome = "itens_nao_previstos_na_celula_detalhada")]
     ItensNaoPrevistosNaCelula,
+    #[causa(nome = "cabecalho_detalhado_diferente_entre_paginas")]
     CabecalhoDiferenteEntrePaginas,
+    #[causa(nome = "marcador_da_celula_detalhada_fora_da_forma_observada")]
     MarcadorDaCelulaForaDaFormaObservada,
+    #[causa(nome = "texto_fora_dos_marcadores_na_celula_detalhada")]
     TextoForaDosMarcadoresNaCelula,
 }
 
-impl ErroDetalhada {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_detalhado_nao_interpretado",
-            Self::TabelaAusente => "tabela_detalhada_ausente",
-            Self::TabelasRepetidas => "tabelas_detalhadas_repetidas",
-            Self::VisualizacaoIncorreta => "modo_detalhado_nao_confirmado",
-            Self::UnidadeNaoIdentificada => "unidade_da_detalhada_ausente",
-            Self::UnidadeDiferente => "unidade_da_detalhada_diferente_da_solicitada",
-            Self::ContextoDiferente => "contexto_detalhado_alterado",
-            Self::CabecalhoProcessoAusente => "cabecalho_processo_detalhado_ausente",
-            Self::CabecalhoProcessoRepetido => "cabecalho_processo_detalhado_repetido",
-            Self::ColunasDaLinhaDiferentes => "colunas_da_linha_detalhada_diferentes",
-            Self::LinkDoProcessoAusente => "link_do_processo_detalhado_ausente",
-            Self::LinksDoProcessoRepetidos => "links_do_processo_detalhado_repetidos",
-            Self::ClassesDeEstadoDiferentesNoLink => {
-                "classes_de_estado_diferentes_no_link_detalhado"
-            }
-            Self::NumeroDoProcessoAusente => "numero_do_processo_detalhado_ausente",
-            Self::IdentificadorInvalido => "identificador_detalhado_invalido",
-            Self::IdentificadorRepetido => "identificador_detalhado_repetido",
-            Self::NumeroRepetido => "numero_detalhado_repetido",
-            Self::LegendaAusente => "legenda_detalhada_ausente",
-            Self::LegendasRepetidas => "legendas_detalhadas_repetidas",
-            Self::TotalNaoDeclarado => "total_detalhado_nao_declarado",
-            Self::FaixaInvalida => "faixa_detalhada_invalida",
-            Self::FaixaSemIntervaloComPaginacao => "faixa_detalhada_sem_intervalo_com_paginacao",
-            Self::FaixaDescontinua => "faixa_detalhada_descontinua",
-            Self::TotalAlterado => "total_detalhado_alterado",
-            Self::LimitePaginas => "limite_paginas_detalhadas",
-            Self::CabecalhoNaoReconhecido => "cabecalho_da_visao_detalhada_nao_reconhecido",
-            Self::ColunaRepetida => "coluna_da_visao_detalhada_repetida",
-            Self::RotuloDaCelulaDiferenteDoCabecalho => {
-                "rotulo_da_celula_detalhada_diferente_do_cabecalho"
-            }
-            Self::ItensDaCelulaNaoSeparados => "itens_da_celula_detalhada_nao_separados",
-            Self::ItensNaoPrevistosNaCelula => "itens_nao_previstos_na_celula_detalhada",
-            Self::CabecalhoDiferenteEntrePaginas => "cabecalho_detalhado_diferente_entre_paginas",
-            Self::MarcadorDaCelulaForaDaFormaObservada => {
-                "marcador_da_celula_detalhada_fora_da_forma_observada"
-            }
-            Self::TextoForaDosMarcadoresNaCelula => "texto_fora_dos_marcadores_na_celula_detalhada",
-        }
-    }
-}
+impl ErroDetalhada {}
 
 struct Pagina {
     contexto: ContextoPagina,

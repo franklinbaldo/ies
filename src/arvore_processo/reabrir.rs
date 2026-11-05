@@ -29,7 +29,7 @@ pub(crate) struct ReabrirNaBarra {
 }
 
 /// Recusas da leitura da barra (só pesam quando se pede para reabrir).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroReabrirNaBarra {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -40,14 +40,7 @@ pub(crate) enum ErroReabrirNaBarra {
 
 impl ErroReabrirNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::FuncoesDeReabrirRepetidasNaBarra => "funcoes_de_reabrir_repetidas_na_barra",
-            Self::EnderecoDaTelaDoNoNaoReconhecido => "endereco_da_tela_do_no_nao_reconhecido",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
@@ -95,7 +88,7 @@ impl FormaDaReabertura {
 }
 
 /// Recusas da leitura da URL de reabrir na tela do nó.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnderecoDeReabrir {
     EnderecoDeReabrirAusenteNaTelaDoNo,
     EnderecoDeReabrirForaDaFormaObservada,
@@ -107,17 +100,7 @@ pub(crate) enum ErroEnderecoDeReabrir {
 
 impl ErroEnderecoDeReabrir {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::EnderecoDeReabrirAusenteNaTelaDoNo => "endereco_de_reabrir_ausente_na_tela_do_no",
-            Self::EnderecoDeReabrirForaDaFormaObservada => {
-                "endereco_de_reabrir_fora_da_forma_observada"
-            }
-            Self::EnderecosDeReabrirRepetidosNaTelaDoNo => {
-                "enderecos_de_reabrir_repetidos_na_tela_do_no"
-            }
-            Self::EnderecoDaReaberturaNaoReconhecido => "endereco_da_reabertura_nao_reconhecido",
-            Self::EnderecoDaReaberturaDeOutroProcesso => "endereco_da_reabertura_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

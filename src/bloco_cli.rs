@@ -13,23 +13,22 @@ use crate::{Bloco, BlocoAcao, Cli, erro_fonte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
-#[derive(Debug)]
+#[derive(Debug, crate::erro_publico::Causa)]
 enum FalhaLeitura {
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
     Controle(ErroCaixa),
+    #[causa(nome = "unidade_inesperada_na_leitura_de_blocos")]
     UnidadeInesperada,
+    #[causa(interna)]
     Bloco(ErroBloco),
+    #[causa(interna)]
     Detalhe(ErroDetalheBloco),
 }
 impl FalhaLeitura {
     fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(e) => e.subcodigo(),
-            Self::Controle(e) => e.subcodigo(),
-            Self::UnidadeInesperada => "unidade_inesperada_na_leitura_de_blocos",
-            Self::Bloco(e) => e.subcodigo(),
-            Self::Detalhe(e) => e.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
     fn mensagem(&self) -> &'static str {
         match self {

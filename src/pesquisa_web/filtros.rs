@@ -38,7 +38,7 @@ pub(crate) fn data_valida(data: &str) -> bool {
     ano > 0 && dia > 0 && dia <= limite
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroFiltro {
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
@@ -46,16 +46,7 @@ pub(crate) enum ErroFiltro {
     AtributoDoFiltroIlegivel,
 }
 
-impl ErroFiltro {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::CriterioNaoOferecidoPelaTela => "criterio_nao_oferecido_pela_tela",
-            Self::TipoNaoOferecidoPelaTela => "tipo_nao_oferecido_pela_tela",
-            Self::ControleDeFiltroAmbiguo => "controle_de_filtro_ambiguo",
-            Self::AtributoDoFiltroIlegivel => "atributo_do_filtro_ilegivel",
-        }
-    }
-}
+impl ErroFiltro {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroFiltro> {
     valor_do_atributo(tag, nome)

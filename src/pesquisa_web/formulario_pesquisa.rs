@@ -74,26 +74,21 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPesquisaProtocolo {
+    #[causa(interna)]
     Filtro(ErroFiltro),
+    #[causa(interna)]
     RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    #[causa(interna)]
     Resposta(ErroRespostaDaPesquisa),
 }
 
 impl ErroPesquisaProtocolo {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Filtro(erro) => erro.subcodigo(),
-            Self::RegraDoFormulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Redirecionamento(erro) => erro.subcodigo(),
-            Self::Resposta(erro) => erro.subcodigo(),
-        }
-    }
-
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
             Self::Submissao(erro) => erro.status_http(),

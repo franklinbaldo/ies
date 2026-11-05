@@ -41,11 +41,14 @@ pub(crate) enum ConteudoNaArvore {
     Vazio,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConteudoNaArvore {
     DocumentoAusenteDaArvore,
+    #[causa(nome = "link_do_conteudo_ausente_na_arvore")]
     SrcDoDocumentoAusente,
+    #[causa(nome = "link_do_conteudo_repetido_na_arvore")]
     SrcDoDocumentoRepetido,
+    #[causa(nome = "link_do_conteudo_fora_da_forma_observada")]
     SrcDoDocumentoForaDaFormaObservada,
     EnderecoDoConteudoNaoReconhecido,
     EnderecoDoConteudoDeOutroDocumento,
@@ -53,14 +56,7 @@ pub(crate) enum ErroConteudoNaArvore {
 
 impl ErroConteudoNaArvore {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::DocumentoAusenteDaArvore => "documento_ausente_da_arvore",
-            Self::SrcDoDocumentoAusente => "link_do_conteudo_ausente_na_arvore",
-            Self::SrcDoDocumentoRepetido => "link_do_conteudo_repetido_na_arvore",
-            Self::SrcDoDocumentoForaDaFormaObservada => "link_do_conteudo_fora_da_forma_observada",
-            Self::EnderecoDoConteudoNaoReconhecido => "endereco_do_conteudo_nao_reconhecido",
-            Self::EnderecoDoConteudoDeOutroDocumento => "endereco_do_conteudo_de_outro_documento",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
