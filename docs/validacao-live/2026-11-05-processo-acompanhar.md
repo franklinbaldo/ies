@@ -1,6 +1,6 @@
 ---
 type: OperationEvidence
-title: Validação da prévia de Acompanhamento Especial em 5 de novembro
+title: Validação sintética da inclusão e pendência live de Acompanhamento Especial
 description: Resultados observados e lacunas de validação para o handoff da issue 254
 operation: processo.acompanhar
 ---
@@ -19,13 +19,20 @@ operation: processo.acompanhar
   `github.com`, impedindo buscar dependências e instalar Rust.
 - **Testes sintéticos publicados:** seleção exata, ambiguidade, URL
   de outro processo, tabela ausente, IDs repetidos, reconciliação
-  de inclusão e retirada; resultado do CI depende do head publicado.
+  de inclusão e retirada, derivação exata do formulário, fluxo GET/POST
+  com transporte injetado, orçamento 5 GETs na prévia e 7
+  requisições na inclusão (3 abertura + gerenciar + cadastro + POST
+  + releitura), falha de rede no POST, falha de releitura e ausência
+  do efeito. CI deve ser conferido no head final antes de aprovação.
 
 ## Limites
 
-O comando `--confirmar` retorna recusa tipada antes de carregar
-qualquer sessão; não há escrita nem autorização implícita para usar
-produção. A próxima fatia deve implementar POST único derivado da
-tela, conferir efeito por leitura, avaliar efeito incerto com saída 3,
-medir o orçamento exato com mocks e depois validar ao vivo em
-**treinamento** na ordem prévia → único confirmar → leitura.
+A inclusão com `--confirmar` já passa por prévia e derivação
+do formulário servido, envia um único POST, sem retry nem seguir
+redirect, e faz releitura do gerenciador para conferir o efeito;
+na ausência de prova de inclusão sai com código 3. A retirada
+confirmada permanece bloqueada antes de carregar a sessão.
+**Esta execução não usou credenciais nem enviou requisição real**,
+portanto não comprova compatibilidade live. A validação autorizada
+continua pendente exclusivamente em **treinamento**, na ordem
+prévia → único confirmar → releitura, registrando o resíduo.
