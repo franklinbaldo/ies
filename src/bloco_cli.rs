@@ -121,14 +121,14 @@ fn executar_leitura(
     numero: Option<&str>,
     pagina: Option<u32>,
 ) -> ExitCode {
-    if let Some(numero) = numero {
-        if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    if let Some(numero) = numero
+        && (numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()))
+    {
             return erro_uso(
                 cli.json,
                 "numero_do_bloco_invalido",
                 "número de bloco deve ser decimal",
             );
-        }
     }
     if pagina.is_some_and(|p| p != 1) {
         return erro_fonte(
