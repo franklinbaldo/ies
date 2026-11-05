@@ -220,6 +220,17 @@ pub(super) enum Controle {
     },
 }
 
+impl Controle {
+    pub(super) fn nome(&self) -> &str {
+        match self {
+            Self::Oculto { nome, .. }
+            | Self::Botao { nome, .. }
+            | Self::Usuario(nome)
+            | Self::SelecaoMultipla(nome) => nome,
+        }
+    }
+}
+
 fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
     decodificar_atributo(&atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
         E::EntidadeHtmlDesconhecidaNoAtributo {

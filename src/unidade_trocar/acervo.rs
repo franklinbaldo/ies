@@ -5,6 +5,7 @@
 //! o `Location` do POST e do salto seguinte (a URL que o IES pediria tem de
 //! ser a que a gravação pediu) e o Controle da unidade nova. Só contagens,
 //! nunca URL. `#[ignore]`: lê os ZIPs do cache local (`IES_ACERVO_CACHE`).
+use super::ErroTroca;
 use super::retorno::url_do_salto;
 use super::tela::{TROCAR_UNIDADE, TelaDeTroca, campos_do_envio, ler_tela_de_troca, link_da_troca};
 use crate::cassette::acervo::{Resultado, gravacao, percorrer, publicar, tabela};
@@ -30,6 +31,8 @@ fn id_declarado(localizacao: &str) -> Option<String> {
     ids.next().is_none().then(|| id.to_owned())
 }
 
+// Um leitor por braço, na ordem da gravação: dividir espalharia o estado.
+#[allow(clippy::too_many_lines)]
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_unidade_trocar_no_acervo() {
@@ -53,7 +56,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                         soma(
                             0,
                             "link da troca no Controle",
-                            classe(link_da_troca(&inst, url, &h), |e| e.subcodigo()),
+                            classe(link_da_troca(&inst, url, &h), ErroTroca::subcodigo),
                         );
                     }
                 }
@@ -82,7 +85,14 @@ fn replay_de_unidade_trocar_no_acervo() {
                                 &t.marcada.sigla,
                                 &campos_do_envio(&t, outra),
                             );
-                            soma(2, "POST derivado", classe(s, |e| e.subcodigo()));
+                            soma(
+                                2,
+                                "POST derivado",
+                                classe(
+                                    s,
+                                    crate::formulario_web::ErroSubmissaoFormulario::subcodigo,
+                                ),
+                            );
                         }
                         tela = Some((t, url.to_owned()));
                     }

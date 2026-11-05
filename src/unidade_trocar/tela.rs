@@ -1,7 +1,7 @@
 //! O link da troca no Controle (`lnkInfraUnidade`), a tela Trocar Unidade
 //! (`frmInfraSelecaoUnidade`, lista de unidades com permissão,
 //! `selecionarUnidade()`), a escolha da sigla e o POST derivado, na forma
-//! observada nas cassettes da UnB 4.0.9, UFRJ 4.1.5 e GO 5.0.3. Nenhum JS é
+//! observada nas cassettes da `UnB` 4.0.9, UFRJ 4.1.5 e GO 5.0.3. Nenhum JS é
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca as E;
 use crate::entidades_html::decodificar_texto;
@@ -104,7 +104,7 @@ pub(crate) fn link_da_troca(
         return Err(E::LinkDeTrocaForaDaFormaObservada);
     }
     conferir_consulta(consulta, ACAO_DE_TROCAR, |h| h.len() == 64)
-        .ok_or(E::LinkDeTrocaForaDaFormaObservada)?;
+        .map_err(|ConsultaForaDaForma| E::LinkDeTrocaForaDaFormaObservada)?;
     let base = url_da_tela.split('?').next().unwrap_or_default();
     let (pasta, _) = base
         .rsplit_once('/')
@@ -129,7 +129,19 @@ pub(crate) fn conferir_consulta(
     consulta: &str,
     acao: &str,
     comprimento: impl Fn(&str) -> bool,
-) -> Option<Option<String>> {
+) -> Result<Option<String>, ConsultaForaDaForma> {
+    let mut unidades = conferir(consulta, acao, comprimento).ok_or(ConsultaForaDaForma)?;
+    if unidades.len() > 1 {
+        return Err(ConsultaForaDaForma);
+    }
+    Ok(unidades.pop())
+}
+
+/// A consulta não tem a forma conferida por [`conferir_consulta`].
+#[derive(Debug)]
+pub(crate) struct ConsultaForaDaForma;
+
+fn conferir(consulta: &str, acao: &str, comprimento: impl Fn(&str) -> bool) -> Option<Vec<String>> {
     use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
     let (mut acoes, mut hashes) = (0, 0);
     let mut unidades = Vec::new();
@@ -147,10 +159,7 @@ pub(crate) fn conferir_consulta(
             _ => {}
         }
     }
-    if acoes != 1 || hashes != 1 || unidades.len() > 1 {
-        return None;
-    }
-    Some(unidades.pop())
+    (acoes == 1 && hashes == 1).then_some(unidades)
 }
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {

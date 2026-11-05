@@ -84,10 +84,8 @@ pub(crate) enum EnvioDoFormulario {
     BotaoDeEnvio(&'static str),
     /// O JavaScript observado chama `submit()`: nenhum botão participa.
     SubmitPorScript,
-    /// O JavaScript observado cria um oculto com este nome no fim do
-    /// formulário (`appendChild`) e chama `submit()` (`selecionarUnidade()`
-    /// da tela Trocar Unidade): nenhum botão participa, e o valor do campo
-    /// criado vem da operação. Publicado pela tela com o mesmo nome, recusa.
+    /// O script cria este oculto no fim (`appendChild`) e chama `submit()`
+    /// (`selecionarUnidade()`, #205); o valor vem da operação.
     SubmitPorScriptComCampoCriado(&'static str),
     /// Botão `type=submit` com este nome é servido (exatamente um), mas o
     /// `onsubmit` observado o desabilita antes de o navegador montar o
@@ -239,10 +237,7 @@ fn ordenar_campos<'c>(
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
         if criado == Some(*nome) {
-            if controles.iter().any(|c| match c {
-                Controle::Oculto { nome: n, .. } | Controle::Botao { nome: n, .. } => n == nome,
-                Controle::Usuario(n) | Controle::SelecaoMultipla(n) => n == nome,
-            }) {
+            if controles.iter().any(|c| c.nome() == *nome) {
                 return Err(E::CampoCriadoPeloScriptJaPublicado { campo });
             }
             if campos[..i].iter().any(|(anterior, _)| anterior == nome) {

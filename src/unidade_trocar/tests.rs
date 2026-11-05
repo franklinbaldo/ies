@@ -177,6 +177,8 @@ fn incerto(respostas_depois: Vec<Resposta>) -> (E, usize) {
     (r.map(|_| ()).unwrap_err(), pedidos.len())
 }
 
+// Uma tabela de casos: dividir só repetiria o roteiro.
+#[allow(clippy::too_many_lines)]
 #[test]
 fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
     let casos: Vec<(Vec<Resposta>, Etapa, F, usize)> = vec![

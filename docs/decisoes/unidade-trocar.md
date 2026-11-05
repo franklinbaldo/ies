@@ -8,7 +8,7 @@ scope: ies unidade trocar SIGLA [--confirmar] pela Web com sessão existente; pr
 selected_strategy: web-tela-de-troca-e-controle-novo
 alternatives: web-tela-de-troca-e-controle-novo,web-troca-implicita-por-comando,web-link-guardado-da-outra-unidade,web-relogin-na-unidade,rest-wssei
 evidence_level: acervo-publico-tres-instalacoes-testes-sinteticos-e-live-ufrj
-live_validation: ver-relatorio-2026-11-05-ufrj
+live_validation: pass-ufrj-4-1-5-0511
 ---
 
 # Troca de unidade
@@ -98,8 +98,8 @@ Adotada **web-tela-de-troca-e-controle-novo**:
   `unidade_trocar_cli::tests` (URL da sessão e marcador regravados, nada
   da unidade anterior reaproveitado) e
   [CLI](../../tests/cli_unidade_trocar.rs).
-- RED: registrado no relatório live.
-- Live: [UFRJ 4.1.5](../validacao-live/2026-11-05-unidade-trocar.md).
+- RED: 23 testes falhando com shims (primitivo, transporte, índice, leitores, fluxo, sessão).
+- Live **PASS** na [UFRJ 4.1.5](../validacao-live/2026-11-05-unidade-trocar.md): PR-P → PR-A → PR-P, prévia 2, troca 5 requisições, iguais aos túneis do relay.
 
 ## Limitações e revisão
 

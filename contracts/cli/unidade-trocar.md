@@ -153,5 +153,5 @@ Troca verificada mas URL da sessão não gravada:
 | `--confirmar` observado | 5 (Controle, tela, POST, 302, Controle) |
 | `--confirmar`, primeiro salto já 200 | 4 |
 
-Validação live: [UFRJ 4.1.5](../../docs/validacao-live/2026-11-05-unidade-trocar.md).
+Validação live: **PASS** na [UFRJ 4.1.5](../../docs/validacao-live/2026-11-05-unidade-trocar.md) (05/11/2026; PR-P → PR-A → PR-P, prévia 2 e troca 5 requisições). UnB, GO e PEN: NOT_RUN.
 Replay: [acervo](../../docs/validacao-replay/2026-11-05-unidade-trocar-acervo.md).

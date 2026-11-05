@@ -1,5 +1,5 @@
 //! Apoio dos testes de `ies unidade trocar` (#205): telas SINTÉTICAS na
-//! estrutura observada nas cassettes da UnB 4.0.9, UFRJ 4.1.5 e GO 5.0.3
+//! estrutura observada nas cassettes da `UnB` 4.0.9, UFRJ 4.1.5 e GO 5.0.3
 //! (barra com o par `lnkInfraUnidade`, Controle com as duas tabelas, tela
 //! Trocar Unidade com `frmInfraSelecaoUnidade`), o 302 com `msg` e o 302
 //! limpo, e um transporte roteirizado. Hosts, hashes, ids e siglas
@@ -178,10 +178,13 @@ pub(crate) fn get(url: impl Into<String>) -> Pedido {
 
 pub(crate) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
 
+// O roteiro mistura respostas e falhas do transporte: `Resposta` é `Result`.
+#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn html(corpo: String) -> Resposta {
     Ok((200, corpo, None))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn redireciona(localizacao: String) -> Resposta {
     Ok((302, String::new(), Some(localizacao)))
 }
