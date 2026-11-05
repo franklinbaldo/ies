@@ -7,7 +7,7 @@ status: adopted-for-scope
 scope: escolha-de-tipo-e-cadastro-web-com-previa-e-verificacao-por-leitura
 selected_strategy: web-formulario-servido-e-releitura-da-arvore
 alternatives: web-formulario-servido-e-releitura-da-arvore,post-montado-estaticamente,rest-wssei
-evidence_level: todos-e-captura-sei-409-sem-replay-ies
+evidence_level: todos-captura-409-replay-publico-sem-live
 live_validation: not-run
 ---
 
@@ -73,8 +73,8 @@ conferência do cadastro, consulta AJAX de interessados, prévia Web,
 POST de criação único, leitura da tela de trabalho e da árvore.
 O formulário servido é a fonte dos campos e do destino do POST.
 O teste com transporte injetado confirma o orçamento e o efeito
-incerto sem retry. Ainda não há comprovação live por instalação,
-nem replay integral do acervo das cassettes.
+incerto sem retry. Ainda não há comprovação live por instalação. O replay integral
+de 15 cassettes foi executado em 05/11/2026, sem escrever no SEI.
 A Web mantém a prova dos campos; POST fixo e REST não oferecem
 a mesma garantia de origem dos dados.
 
@@ -111,9 +111,8 @@ Os testes adicionados não foram desabilitados.
 
 A CLI foi conectada ao fluxo Web, mas a validação ao vivo continua
 NOT_RUN. O CI testa o fluxo com transporte sintético e nunca escreve
-no SEI real. A hipótese legal carregada dinamicamente por AJAX,
-o replay integral do acervo e diferenças entre instalações
-precisam de validação adicional. A escrita live foi autorizada na issue #245, exclusivamente em treinamento;
+no SEI real. A hipótese legal AJAX já tem testes e replay offline;
+a escolha e as diferenças entre instalações precisam de validação live. A escrita live foi autorizada na issue #245, exclusivamente em treinamento;
 a prévia e a confirmação live continuam NOT_RUN enquanto não forem
 executadas e documentadas. Reavaliar a escolha caso o replay mostre
 cadastro não contemplado.
