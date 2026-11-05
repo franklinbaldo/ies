@@ -161,3 +161,26 @@ fn previa_deixar_sem_link_de_exclusao_recusa_sem_post() {
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
+
+#[test]
+fn deixar_confirmado_ainda_recusa_antes_de_qualquer_requisicao() {
+    // A implementação da retirada permanece fechada até prova do POST e
+    // de sua releitura. Nem a abertura do processo é autorizada aqui.
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, vec![], |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: true,
+            confirmar: true,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    assert!(matches!(
+        resultado,
+        Err(ErroPrevia::ConfirmacaoNaoImplementada)
+    ));
+    assert!(pedidos.is_empty());
+}
