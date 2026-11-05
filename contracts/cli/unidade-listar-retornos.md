@@ -13,7 +13,11 @@ source_commit: 323eb013a1e7fac42c50336f838373a2cbe23e4b
 `ies unidade retornos [--mes AAAA-MM] [--json]` consulta a tela
 **Retorno Programado** da unidade ativa do SEI Web. Sem `--mes`,
 usa o mes publicado pela celula `diaHoje` do calendario do SEI,
-nunca o relogio da maquina. `--mes` e validado antes de consultar
+nunca o relogio da maquina como resultado. Se a tela abriu no mes
+visitado anteriormente e nao mostra `diaHoje`, a data UTC serve
+somente para procurar o mes candidato pelos links assinados do
+calendario; na virada UTC procura tambem o mes vizinho. So publica
+o mes quando encontra uma unica celula `diaHoje` valida. `--mes` e validado antes de consultar
 arquivos privados ou rede. `--unidade` exige identidade literal do
 Controle, previamente reconhecido.
 
@@ -56,8 +60,10 @@ e `prazo_restante`; os campos nao observados sao `null`.
 
 Sem relogin, a consulta do mes mostrado custa **3 GET**:
 Controle, menu e Ver todo o mes. Cada passo pelo calendario acrescenta
-1 GET; nao ha retry. Recusas de link ou calendario deixam de pedir
-a proxima tela. O relogin opcional das leituras acrescenta suas
+1 GET; nao ha retry. Sem `--mes`, uma tela deslocada pode
+exigir os mesmos GETs de navegacao ate o mes em que o SEI marca
+`diaHoje`; se o marcador nao for encontrado, recusa sem o GET mensal.
+Recusas de link ou calendario deixam de pedir a proxima tela. O relogin opcional das leituras acrescenta suas
 requisicoes observadas no total; nao e segunda tentativa do GET de
 retornos contra uma mesma resposta de erro.
 
