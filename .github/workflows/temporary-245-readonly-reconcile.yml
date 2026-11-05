@@ -71,10 +71,9 @@ jobs:
                       dado = {}
                   if not isinstance(dado, dict):
                       dado = {}
-                  print(json.dumps({"etapa": etapa, "exit": p.returncode,
-                                    "subcodigo": dado.get("subcodigo"),
-                                    "requisicoes": dado.get("requisicoes")},
-                                   ensure_ascii=False), flush=True)
+                  # Os dados retornados não são ecoados em logs.
+                  # A função reconciliar publica somente os subcódigos
+                  # saneados e os números de requisições observados.
                   return p.returncode, dado
 
               codigo, _ = executar("login_treinamento", ["login"])
