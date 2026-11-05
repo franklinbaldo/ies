@@ -387,3 +387,65 @@ fn primeiro_dia_duplicado_com_url_identica_nao_inventa_ambiguidade() {
     assert_eq!(lido.requisicoes, 4);
     assert_eq!(pedidos.len(), 3);
 }
+
+#[test]
+fn calendario_utc_cobre_virada_de_ano_e_bissexto_sem_dependencia_de_fuso() {
+    assert_eq!(data_utc_de_dias(0), Some((1970, 1, 1)));
+    assert_eq!(data_utc_de_dias(11_016), Some((2000, 2, 29)));
+    assert_eq!(data_utc_de_dias(20_757), Some((2026, 10, 31)));
+    assert_eq!(data_utc_de_dias(20_758), Some((2026, 11, 1)));
+    assert_eq!(data_utc_de_dias(20_762), Some((2026, 11, 5)));
+}
+#[test]
+fn dois_dias_hoje_conflitantes_nao_publicam_mes() {
+    let duplo = calendario(2026, 11, true).replace(
+        "</html>",
+        &format!(
+            "<td class='diaHoje'><a href='{}'>outro dia</a></td></html>",
+            href("data_atual=16%2F11%2F2026")
+        ),
+    );
+    let mut pedidos = 0;
+    let erro = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        None,
+        (2026, 11, 5),
+        |_| {
+            pedidos += 1;
+            Ok(duplo.clone())
+        },
+    );
+    assert!(matches!(
+        erro,
+        Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
+    ));
+    assert_eq!(pedidos, 1);
+}
+#[test]
+fn primeiro_dia_duplicado_com_url_divergente_falha_antes_do_get() {
+    let primeiro = href("data_atual=01%2F10%2F2026");
+    let outro = href("data_atual=01%2F10%2F2026&pagina=2");
+    let tela = format!(
+        "{}<a href='{primeiro}'>prev 1</a><a href='{outro}'>prev 2</a>",
+        calendario(2026, 11, false)
+    );
+    let mut pedidos = 0;
+    let erro = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 10)),
+        (2026, 11, 5),
+        |_| {
+            pedidos += 1;
+            Ok(tela.clone())
+        },
+    );
+    assert!(matches!(
+        erro,
+        Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
+    ));
+    assert_eq!(pedidos, 1);
+}
