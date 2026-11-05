@@ -1,6 +1,6 @@
 //! Leitor estrutural da lupa de unidades (issue #244).
 //! Não executa JavaScript nem presume que autocomplete enumere todos.
-//! Evidência: Todos src/todos/sei/lupa_unidades.py, Goiás 5.0.3.
+//! Evidência: Todos `src/todos/sei/lupa_unidades.py`, Goiás 5.0.3.
 mod fluxo;
 use crate::entidades_html::decodificar_texto;
 use crate::formulario_web::decodificar_atributo;
@@ -70,6 +70,7 @@ fn total_da_legenda(legenda: &str) -> Option<usize> {
 
 /// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
 /// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
@@ -242,12 +243,16 @@ pub(crate) fn reunir_paginas(paginas: Vec<PaginaDaLupa>) -> Result<Vec<UnidadeGu
 mod tests {
     use super::*;
     fn pagina(n: usize, paginas: usize, total: usize, ids: &[&str]) -> String {
-        let options: String = (0..paginas)
-            .map(|i| format!("<option value='{i}'>{}</option>", i + 1))
-            .collect();
-        let rows: String = ids.iter().map(|id| format!(
-            "<tr><td><input type='checkbox' value='{id}'></td><td>ABC/{id}</td><td>Descrição</td><td>Órgão</td></tr>"
-        )).collect();
+        let options = (0..paginas).fold(String::new(), |mut html, i| {
+            use std::fmt::Write as _;
+            write!(html, "<option value='{i}'>{}</option>", i + 1).unwrap();
+            html
+        });
+        let rows = ids.iter().fold(String::new(), |mut html, id| {
+            use std::fmt::Write as _;
+            write!(html, "<tr><td><input type='checkbox' value='{id}'></td><td>ABC/{id}</td><td>Descrição</td><td>Órgão</td></tr>").unwrap();
+            html
+        });
         format!(
             "<form id='frmUnidadeLista' method='post'><input type='hidden' name='hdnInfraPaginaAtual' value='{n}'/><select name='selInfraPaginacaoSuperior'>{options}</select><table class='infraTable'><caption>Lista de Unidades ({total} registros):</caption><tr><th></th><th>Sigla</th><th>Descrição</th><th>Órgão</th></tr>{rows}</table></form>"
         )
