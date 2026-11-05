@@ -199,3 +199,25 @@ treinamento permanece condicionada à sequência prévia →
 confirmação única → leitura independente, com o NUP residual
 documentado se houver criação. Nenhuma evidência sintética
 substitui esse ensaio.
+
+### Verificação offline do artefato e limite do head final
+
+O artefato `ies-linux-x86_64-e093c165...` foi baixado do
+[CI 42110668903](https://github.com/franklinbaldo/ies/actions/runs/42110668903),
+e seu `ies.sha256` conferido no sandbox
+(SHA-256 `76351566a096b8cfc803005d45b9974a5d7c5f945fa295b4ee92cd028973e408`).
+A execução local de `ies --version` e `ies processo criar --help`
+foi **PASS**. Duas escolhas inválidas (`--nivel publico`
+com hipótese e `--nivel restrito --hipotese-legal 31`)
+retornaram código 2, `hipotese_legal_informada_invalida`;
+escolha bem formada sem arquivos de sessão retornou código 1,
+`arquivo_privado_ausente_ou_inacessivel`. Todas essas verificações
+são **offline, 0 requisições ao SEI**, e provam somente o artefato
+`e093c165`, não o binário de commits posteriores.
+
+No último head com mudança no filtro de dados sensíveis, o CI
+ainda **não publicou uma execução** na consulta do GitHub.
+Não registrar PASS para esse head antes de nova execução do
+gate canônico e do replay. As mudanças foram enviadas na mesma
+PR Draft para revisão e retomada; nenhuma regra de segurança
+foi enfraquecida para obter verde.
