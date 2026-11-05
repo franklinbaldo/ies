@@ -179,3 +179,48 @@ fn colheita_da_leitura_registra_sob_a_geracao_do_cookie_lido() {
     assert!(indice.link(&instalacao, chave(&a)).is_some());
     assert!(indice.link(&instalacao, chave(&b)).is_none());
 }
+
+/// Só o nome final de cada arquivo da sessão é conferido: link no
+/// marcador, na URL ou na origem recusa o retrato; no cookie, a recusa
+/// fica no lugar dele. Um diretório ancestral link continua aceito.
+#[cfg(unix)]
+#[test]
+fn retrato_recusa_link_no_nome_final_de_cada_arquivo_da_sessao() {
+    let ambiente = Ambiente::novo();
+    logar(&ambiente, &url_do_controle(), COOKIE_A);
+    let geracao = ambiente.geracao();
+    let arquivos = &ambiente.arquivos;
+    for nome in [&geracao, &arquivos.url_controle, &arquivos.origem] {
+        let copia = ambiente.dir.join("copia");
+        std::fs::rename(nome, &copia).unwrap();
+        std::os::unix::fs::symlink(&copia, nome).unwrap();
+        assert_eq!(
+            ler(&ambiente, || {}).err(),
+            Some(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        );
+        std::fs::remove_file(nome).unwrap();
+        std::fs::rename(&copia, nome).unwrap();
+    }
+    let copia = ambiente.dir.join("copia");
+    std::fs::rename(&arquivos.cookie, &copia).unwrap();
+    std::os::unix::fs::symlink(&copia, &arquivos.cookie).unwrap();
+    assert_eq!(
+        ler(&ambiente, || {}).unwrap().cookie().valor(),
+        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+    );
+    std::fs::remove_file(&arquivos.cookie).unwrap();
+    std::fs::rename(&copia, &arquivos.cookie).unwrap();
+    // O mesmo retrato pelo diretório alcançado por um link: aceito.
+    let atalho = ambiente.dir.with_extension("atalho");
+    let _ = std::fs::remove_file(&atalho);
+    std::os::unix::fs::symlink(&ambiente.dir, &atalho).unwrap();
+    let pelo_atalho = |nome: &std::path::Path| atalho.join(nome.file_name().unwrap());
+    let lidas = ReferenciasDaSessao::ler(
+        &pelo_atalho(&arquivos.url_controle),
+        &pelo_atalho(&arquivos.origem),
+        &pelo_atalho(&arquivos.cookie),
+    )
+    .unwrap();
+    assert_eq!(lidas.cookie().valor(), Ok(COOKIE_A));
+    std::fs::remove_file(&atalho).unwrap();
+}

@@ -87,9 +87,11 @@ não serve rodapé nem publica a lista de versões (observado), então não
 há versão para o nome, e `--versao N` é recusado antes do anexo. O
 `DOC.txt` daqui é o arquivo original `text/plain`, não um texto
 extraído. Um `DOC.ext` já presente continua recusado
-(`arquivo_do_anexo_ja_existe`). Desde #207, o `DIR` ausente ou com
-ancestral simbólico é recusado antes da rede
-(`diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`).
+(`arquivo_do_anexo_ja_existe`). Desde #207, o `DIR` ausente é recusado
+antes da rede (`diretorio_texto_documento_ausente`); desde 05/11/2026 o
+`DIR` por link simbólico é aceito e o diretório real gravável por grupo
+ou outros sem sticky bit é recusado antes da rede
+(`diretorio_texto_documento_gravavel_por_outros`).
 
 ## Falhas tipadas
 
@@ -103,7 +105,7 @@ ancestral simbólico é recusado antes da rede
 | `anexo_acima_do_limite` | declarado ou lido acima do limite |
 | `anexo_vazio` | corpo sem bytes |
 | `anexo_recusado_pelo_sei` | HTML com o contêiner de exceção do SEI |
-| `diretorio_do_anexo_ausente` / `diretorio_do_anexo_link_simbolico` | `--saida` não é diretório, ou passa por link simbólico |
+| `diretorio_do_anexo_ausente` / `diretorio_do_anexo_gravavel_por_outros` | `--saida` não é diretório, ou o diretório real é gravável por grupo ou outros sem sticky bit (link no caminho é aceito) |
 | `arquivo_do_anexo_ja_existe` | `DOC.ext` já existe (conferido antes do corpo e ao ligar) |
 | `escrita_do_anexo_falhou` | o parcial não pôde ser criado, escrito ou ligado |
 

@@ -232,7 +232,8 @@ valem enquanto a sessão viver.
   vazio diferente de `0` desliga.
 - O diretório é criado `0700`; diretório existente com bits de grupo ou
   outros desliga o índice (o IES não muda o modo de diretórios que não
-  criou). O banco nasce `0600` com `O_CREAT|O_EXCL` (não segue link simbólico); banco, `-wal` ou
+  criou). Link simbólico no caminho do diretório é aceito e o diretório
+  real é o conferido ([gravação privada](../decisoes/arquivos-privados/gravacao-privada.md#modelo-de-ameaça)). O banco nasce `0600` com `O_CREAT|O_EXCL` (não segue link simbólico); banco, `-wal` ou
   `-shm` que seja link simbólico, não seja arquivo regular ou tenha
   bits de grupo/outros desliga o índice. O SQLite abre com
   `SQLITE_OPEN_NOFOLLOW` e sem `CREATE`; `-wal` e `-shm` herdam o modo.

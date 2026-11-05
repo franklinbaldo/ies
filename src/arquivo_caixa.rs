@@ -7,6 +7,7 @@ pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
     DiretorioDeDestinoLinkSimbolico,
+    DiretorioDeDestinoGravavelPorOutros,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
@@ -16,6 +17,9 @@ impl ErroArquivoCaixa {
             Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
             Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
             Self::DiretorioDeDestinoLinkSimbolico => "diretorio_do_arquivo_da_caixa_link_simbolico",
+            Self::DiretorioDeDestinoGravavelPorOutros => {
+                "diretorio_do_arquivo_da_caixa_gravavel_por_outros"
+            }
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -26,6 +30,9 @@ impl ErroArquivoCaixa {
             Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
             Self::DiretorioDeDestinoLinkSimbolico => {
                 "o caminho do destino passa por link simbólico"
+            }
+            Self::DiretorioDeDestinoGravavelPorOutros => {
+                "o diretório de destino é gravável por grupo ou outros (sem sticky bit)"
             }
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
@@ -51,6 +58,7 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
             F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
             F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
             F::DiretorioLinkSimbolico => ErroArquivoCaixa::DiretorioDeDestinoLinkSimbolico,
+            F::DiretorioGravavelPorOutros => ErroArquivoCaixa::DiretorioDeDestinoGravavelPorOutros,
             F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
             F::DestinoNaoEhArquivoRegular
             | F::AcimaDoLimite
@@ -128,17 +136,23 @@ mod tests {
     }
     #[cfg(unix)]
     #[test]
-    fn nao_grava_atraves_de_diretorio_link_simbolico() {
+    fn diretorio_por_link_simbolico_e_aceito_e_aberto_a_outros_e_recusado() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = pasta();
         let real = dir.join("real");
         fs::create_dir(&real).unwrap();
+        fs::set_permissions(&real, fs::Permissions::from_mode(0o755)).unwrap();
         std::os::unix::fs::symlink(&real, dir.join("atalho")).unwrap();
-        let erro = gravar(&dir.join("atalho/caixa.json"), &serde_json::json!({})).unwrap_err();
+        let dado = serde_json::json!({});
+        assert!(gravar(&dir.join("atalho/caixa.json"), &dado).is_ok());
+        assert!(real.join("caixa.json").is_file());
+        fs::set_permissions(&real, fs::Permissions::from_mode(0o777)).unwrap();
+        let erro = gravar(&dir.join("atalho/outra.json"), &dado).unwrap_err();
         assert_eq!(
             erro.subcodigo(),
-            "diretorio_do_arquivo_da_caixa_link_simbolico"
+            "diretorio_do_arquivo_da_caixa_gravavel_por_outros"
         );
-        assert_eq!(fs::read_dir(&real).unwrap().count(), 0);
+        assert!(!real.join("outra.json").exists());
         fs::remove_dir_all(dir).unwrap();
     }
 }

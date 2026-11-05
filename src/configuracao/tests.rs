@@ -147,7 +147,7 @@ fn link_simbolico_nao_e_seguido() {
 /// #211: a configuração nasce pela gravação privada única.
 #[cfg(unix)]
 #[test]
-fn salvar_configuracao_nao_atravessa_link_nem_sobrescreve() {
+fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
     use super::{ArquivosDeAcesso, salvar_arquivos_de_acesso};
     use std::os::unix::fs::PermissionsExt as _;
     let pasta = Pasta::nova();
@@ -164,11 +164,19 @@ fn salvar_configuracao_nao_atravessa_link_nem_sobrescreve() {
     let real = pasta.0.join("real");
     fs::create_dir(&real).unwrap();
     std::os::unix::fs::symlink(&real, pasta.0.join("atalho")).unwrap();
+    // Diretório por link: aceito, o arquivo vai para o diretório real.
     assert_eq!(
         salvar_arquivos_de_acesso(&pasta.0.join("atalho/config.json"), &arquivos),
+        Ok(())
+    );
+    assert!(real.join("config.json").is_file());
+    // Gravável por outros sem sticky: recusado sem criar nada.
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o777)).unwrap();
+    assert_eq!(
+        salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
         Err("configuracao_ja_existe_ou_sem_permissao")
     );
-    assert_eq!(fs::read_dir(&real).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(&real).unwrap().count(), 1);
     let destino = pasta.arquivo();
     assert_eq!(salvar_arquivos_de_acesso(&destino, &arquivos), Ok(()));
     assert_eq!(

@@ -7,6 +7,7 @@ pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
     DiretorioLinkSimbolico,
+    DiretorioGravavelPorOutros,
     DestinoJaExiste,
     EscritaFalhou,
 }
@@ -16,6 +17,7 @@ impl ErroArquivoTexto {
             Self::NomeAusente => "destino_texto_documento_sem_nome",
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
             Self::DiretorioLinkSimbolico => "diretorio_texto_documento_link_simbolico",
+            Self::DiretorioGravavelPorOutros => "diretorio_texto_documento_gravavel_por_outros",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
         }
@@ -28,6 +30,7 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
         F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
         F::DiretorioLinkSimbolico => ErroArquivoTexto::DiretorioLinkSimbolico,
+        F::DiretorioGravavelPorOutros => ErroArquivoTexto::DiretorioGravavelPorOutros,
         F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         F::DestinoNaoEhArquivoRegular
         | F::AcimaDoLimite
@@ -113,25 +116,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn recusa_link_simbolico_como_diretorio_de_saida() {
-        use std::os::unix::fs::symlink;
-        let raiz = pasta();
-        let real = raiz.join("real");
-        fs::create_dir(&real).unwrap();
-        let link = raiz.join("atalho");
-        symlink(&real, &link).unwrap();
-        let destino = link.join("0007.txt");
-        assert_eq!(
-            salvar(&destino, "DADO CONFIDENCIAL"),
-            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
-        );
-        assert!(!real.join("0007.txt").exists());
-        fs::remove_dir_all(raiz).unwrap();
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn recusa_link_em_ancestral_do_diretorio_de_saida() {
+    fn aceita_link_simbolico_como_diretorio_de_saida_e_em_ancestral() {
         use std::os::unix::fs::symlink;
         let raiz = pasta();
         let real = raiz.join("real");
@@ -139,13 +124,39 @@ mod tests {
         fs::create_dir_all(&subpasta).unwrap();
         let link = raiz.join("atalho");
         symlink(&real, &link).unwrap();
-        let destino = link.join("subpasta").join("0007.txt");
+        assert_eq!(salvar(&link.join("0007.txt"), "DIR"), Ok(3));
+        assert_eq!(
+            salvar(&link.join("subpasta").join("0007.txt"), "ANC"),
+            Ok(3)
+        );
+        assert_eq!(fs::read_to_string(real.join("0007.txt")).unwrap(), "DIR");
+        assert_eq!(
+            fs::read_to_string(subpasta.join("0007.txt")).unwrap(),
+            "ANC"
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recusa_diretorio_de_saida_gravavel_por_outros_sem_sticky() {
+        use std::os::unix::fs::PermissionsExt;
+        let raiz = pasta();
+        let aberto = raiz.join("aberto");
+        fs::create_dir(&aberto).unwrap();
+        fs::set_permissions(&aberto, fs::Permissions::from_mode(0o775)).unwrap();
+        let destino = aberto.join("0007.txt");
         assert_eq!(
             salvar(&destino, "DADO CONFIDENCIAL"),
-            Err(ErroArquivoTexto::DiretorioLinkSimbolico)
+            Err(ErroArquivoTexto::DiretorioGravavelPorOutros)
         );
-        assert!(!subpasta.join("0007.txt").exists());
-        assert_eq!(salvar(&subpasta.join("0007.txt"), "OK"), Ok(2));
+        assert_eq!(
+            conferir_diretorios(&destino),
+            Err(ErroArquivoTexto::DiretorioGravavelPorOutros)
+        );
+        assert!(!destino.exists());
+        fs::set_permissions(&aberto, fs::Permissions::from_mode(0o1777)).unwrap();
+        assert_eq!(salvar(&destino, "OK"), Ok(2));
         fs::remove_dir_all(raiz).unwrap();
     }
 

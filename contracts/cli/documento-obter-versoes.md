@@ -106,8 +106,9 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
   grava, sai 0 e diz `gravado: false`. Presente com outro conteúdo:
   `foto_local_divergente`. O lote inteiro é conferido antes da primeira
   gravação: uma divergência não grava nenhuma foto.
-- **Antes da rede.** `DIR` tem de existir, ser diretório e não ter
-  ancestral simbólico (0 requisições). Com `--versao N` o nome já é
+- **Antes da rede.** `DIR` tem de existir e ser diretório (link no
+  caminho, inclusive o próprio `DIR`, é aceito), e o diretório real não
+  pode ser gravável por grupo ou outros sem sticky bit (0 requisições). Com `--versao N` o nome já é
   conhecido: cada `DOC.vN.html` presente tem de ser legível, privado e
   coerente com o nome (título do mesmo número SEI; rodapé, se houver, da
   versão N), senão `foto_local_divergente` com 0 requisições. Os bytes só
@@ -140,7 +141,7 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 | `lista_de_versoes_nao_publicada_na_arvore` | `--saida`, sem rodapé, e a barra não publica a lista |
 | `conteudo_com_link_assinado` | `--saida` e o HTML servido traz `infra_hash` |
 | `foto_local_divergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
-| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `destino_copia_inseguro` | `DIR` ausente, com ancestral simbólico ou inseguro (antes da rede) |
+| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_gravavel_por_outros`, `destino_copia_inseguro` | `DIR` ausente, gravável por grupo ou outros sem sticky bit, ou não diretório (antes da rede) |
 | `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `leitura_copia_falhou`, `gravacao_foto_falhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
 
 ## Documento externo

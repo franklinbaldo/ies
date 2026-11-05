@@ -147,6 +147,7 @@ pub(crate) enum ErroAnexo {
     Corpo(ErroCorpoDocumento),
     DiretorioAusente,
     DiretorioLinkSimbolico,
+    DiretorioGravavelPorOutros,
     ArquivoJaExiste,
     EscritaFalhou,
 }
@@ -166,6 +167,7 @@ impl ErroAnexo {
             Self::Corpo(erro) => erro.subcodigo(),
             Self::DiretorioAusente => "diretorio_do_anexo_ausente",
             Self::DiretorioLinkSimbolico => "diretorio_do_anexo_link_simbolico",
+            Self::DiretorioGravavelPorOutros => "diretorio_do_anexo_gravavel_por_outros",
             Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
             Self::EscritaFalhou => "escrita_do_anexo_falhou",
         }
@@ -187,6 +189,9 @@ impl ErroAnexo {
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
             Self::DiretorioAusente => "o diretório de --saida não existe",
             Self::DiretorioLinkSimbolico => "o diretório de --saida passa por link simbólico",
+            Self::DiretorioGravavelPorOutros => {
+                "o diretório de --saida é gravável por grupo ou outros (sem sticky bit)"
+            }
             Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
             Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
         }
@@ -377,6 +382,7 @@ fn abrir_parcial(
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
         F::DiretorioLinkSimbolico => ErroAnexo::DiretorioLinkSimbolico,
         F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
+        F::DiretorioGravavelPorOutros => ErroAnexo::DiretorioGravavelPorOutros,
         F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         F::DestinoNaoEhArquivoRegular
         | F::AcimaDoLimite

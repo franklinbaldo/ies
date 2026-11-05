@@ -129,6 +129,7 @@ pub fn salvar_arquivos_de_acesso(
         F::SemNomeDeArquivo
         | F::DiretorioAusente
         | F::DiretorioLinkSimbolico
+        | F::DiretorioGravavelPorOutros
         | F::DestinoJaExiste
         | F::DestinoNaoEhArquivoRegular
         | F::CriacaoFalhou => "configuracao_ja_existe_ou_sem_permissao",

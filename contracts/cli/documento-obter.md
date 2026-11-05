@@ -143,20 +143,22 @@ exportação `--saida`, compartilhando o mesmo parser.
 É verificação estrutural offline de HTML privado, sem supor que
 a leitura Web autenticada esteja implementada ou validada.
 
-## Destino privado sem diretórios simbólicos (Refs #60)
+## Destino privado (Refs #60, revisto em 05/11/2026)
 
 O caminho de saída de `--html-privado ... --saida DIR` é
-explicitamente escolhido pelo operador. Antes da criação de `DOC.txt`,
-a implementação rejeita qualquer componente de diretório que seja
-link simbólico, inclusive ancestral de `DIR`, com erro Rust tipado
-`ErroArquivoTexto::DiretorioLinkSimbolico` e subcódigo
-`diretorio_texto_documento_link_simbolico`. Assim um atalho de
-diretório não pode deslocar silenciosamente o arquivo para outro lugar.
+explicitamente escolhido pelo operador. Link simbólico no caminho,
+inclusive o próprio `DIR` ou um ancestral (`/home` → `/var/home` no
+Silverblue, `/var` → `/private/var` no macOS), é aceito: o diretório é
+resolvido e o `DOC.txt` vai para o diretório real. Antes da criação, no
+Unix, o diretório real gravável por grupo ou outros sem sticky bit é
+recusado com `ErroArquivoTexto::DiretorioGravavelPorOutros` e subcódigo
+`diretorio_texto_documento_gravavel_por_outros`: é ali que outro usuário
+poderia plantar um link no nome final. O nome final nunca é seguido.
 Diretório ausente continua gerando erro próprio; saída em diretório
-regular continua com 0600 e sem sobrescrita. Essa verificação é
-estrutural, não uma garantia contra substituições concorrentes de
-componentes do caminho entre inspeção e criação. Nenhum acesso Web é
-acrescentado.
+regular continua com 0600 e sem sobrescrita. A conferência é por
+caminho, não uma garantia contra substituições concorrentes
+([decisão](../../docs/decisoes/arquivos-privados/gravacao-privada.md#modelo-de-ameaça)).
+Nenhum acesso Web é acrescentado.
 
 ## Fragmentos inertes com código não executado (Refs #60)
 

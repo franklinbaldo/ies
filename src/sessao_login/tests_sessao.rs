@@ -301,21 +301,42 @@ fn geracao_confere_cookie_e_url_gravados_juntos() {
 
 #[cfg(unix)]
 #[test]
-fn gravacao_nao_atravessa_diretorio_link_simbolico() {
-    // #211: nenhum ancestral do destino pode ser link simbólico.
+fn gravacao_atravessa_ancestral_link_simbolico_como_home_em_var_home() {
+    // Silverblue: `/home` → `/var/home`; a sessão vai para o diretório real.
     let ambiente = Ambiente::novo();
-    let real = ambiente.dir.join("real");
-    std::fs::create_dir(&real).unwrap();
-    let atalho = ambiente.dir.join("atalho");
-    std::os::unix::fs::symlink(&real, &atalho).unwrap();
+    let real = ambiente.dir.join("var").join("home");
+    std::fs::create_dir_all(&real).unwrap();
+    std::os::unix::fs::symlink(&real, ambiente.dir.join("home")).unwrap();
+    let pela_casa = ambiente.dir.join("home");
     let arquivos = crate::configuracao::ArquivosDeAcesso {
-        url_controle: atalho.join("url-controle"),
-        cookie: atalho.join("cookie"),
+        url_controle: pela_casa.join("url-controle"),
+        cookie: pela_casa.join("cookie"),
+        origem: ambiente.arquivos.origem.clone(),
+    };
+    super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
+    assert_eq!(Ambiente::ler(&real.join("cookie")), "A=1");
+    assert!(super::gravacao::mesma_geracao(
+        &arquivos,
+        &url_do_controle(),
+        "A=1"
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn gravacao_recusa_diretorio_gravavel_por_outros() {
+    let ambiente = Ambiente::novo();
+    let aberto = ambiente.dir.join("aberto");
+    std::fs::create_dir(&aberto).unwrap();
+    crate::indice_local::tests::definir_modo(&aberto, 0o777);
+    let arquivos = crate::configuracao::ArquivosDeAcesso {
+        url_controle: aberto.join("url-controle"),
+        cookie: aberto.join("cookie"),
         origem: ambiente.arquivos.origem.clone(),
     };
     let erro = super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
-    assert_eq!(erro.subcodigo(), "destino_da_sessao_nao_eh_arquivo_regular");
-    assert_eq!(std::fs::read_dir(&real).unwrap().count(), 0);
+    assert_eq!(erro.subcodigo(), "diretorio_da_sessao_gravavel_por_outros");
+    assert_eq!(std::fs::read_dir(&aberto).unwrap().count(), 0);
 }
 
 #[test]

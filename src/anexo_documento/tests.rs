@@ -127,6 +127,42 @@ fn pdf_com_saida_vai_para_parcial_0600_e_so_conclui_sem_sobrescrever() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn saida_por_link_e_aceita_e_gravavel_por_outros_e_recusada_antes_do_corpo() {
+    use std::os::unix::fs::PermissionsExt;
+    let raiz = pasta();
+    let real = raiz.join("real");
+    std::fs::create_dir(&real).unwrap();
+    let atalho = raiz.join("atalho");
+    std::os::unix::fs::symlink(&real, &atalho).unwrap();
+    let a = ler_anexo(
+        pdf(&[]),
+        "0000103",
+        LimiteDoAnexo::default(),
+        DestinoDoAnexo::Diretorio(&atalho),
+    )
+    .unwrap();
+    a.arquivo.expect("parcial").concluir().unwrap();
+    assert!(real.join("0000103.pdf").is_file());
+    std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o777)).unwrap();
+    let r = RespostaBinaria {
+        status: 200,
+        cabecalhos: vec![("content-type".into(), "application/pdf".into())],
+        corpo: NaoLer,
+    };
+    let erro = ler_anexo(
+        r,
+        "0000104",
+        LimiteDoAnexo::default(),
+        DestinoDoAnexo::Diretorio(&atalho),
+    )
+    .unwrap_err();
+    assert_eq!(erro.subcodigo(), "diretorio_do_anexo_gravavel_por_outros");
+    assert_eq!(std::fs::read_dir(&real).unwrap().count(), 1);
+    std::fs::remove_dir_all(raiz).unwrap();
+}
+
 #[test]
 fn parcial_abandonado_e_removido() {
     let dir = pasta();

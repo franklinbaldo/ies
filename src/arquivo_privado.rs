@@ -68,6 +68,10 @@ pub(crate) enum FalhaDaGravacao {
     SemNomeDeArquivo,
     DiretorioAusente,
     DiretorioLinkSimbolico,
+    /// O diretório real do destino é gravável por grupo ou outros
+    /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
+    #[allow(dead_code)] // RED: ainda não construída.
+    DiretorioGravavelPorOutros,
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,
     AcimaDoLimite,

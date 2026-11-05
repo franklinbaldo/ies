@@ -143,6 +143,9 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         FalhaDaGravacao::DestinoNaoEhArquivoRegular | FalhaDaGravacao::DiretorioLinkSimbolico => {
             ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel)
         }
+        FalhaDaGravacao::DiretorioGravavelPorOutros => {
+            ErroLogin::DiretorioDaSessaoGravavelPorOutros(papel)
+        }
         _ => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }

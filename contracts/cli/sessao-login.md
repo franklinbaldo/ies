@@ -210,7 +210,11 @@ observado na UnB 4.0.9; senão `divInfraExcecao`, `alert-danger`,
 `infraMensagemErro` ou `infraExcecao`), `tela_apos_o_login_nao_reconhecida`,
 `link_do_controle_de_processos_nao_reconhecido`,
 `controle_apos_o_login_nao_reconhecido`, `cookie_da_sessao_nao_recebido`,
-`destino_da_sessao_nao_eh_arquivo_regular`, `gravacao_da_sessao_falhou`,
+`destino_da_sessao_nao_eh_arquivo_regular` (o nome final é link ou não
+é arquivo regular), `diretorio_da_sessao_gravavel_por_outros` (o
+diretório real da sessão é gravável por grupo ou outros sem sticky bit;
+link no caminho, como `/home` → `/var/home`, é aceito),
+`gravacao_da_sessao_falhou`,
 `unidade_exibida_diferente_da_solicitada` e os de transporte
 (`status_http_*` com `status_http` e `mensagem_do_servidor`,
 `falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`) e

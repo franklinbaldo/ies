@@ -109,7 +109,7 @@ publicado), com `documento` e `documentos_lidos_antes` no JSON.
 | `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
 | `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
-| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico` | `--saida`: o diretório falta ou passa por link simbólico (antes da rede, 0 requisições) |
+| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_gravavel_por_outros` | `--saida`: o diretório falta, ou o diretório real é gravável por grupo ou outros sem sticky bit (antes da rede, 0 requisições; link no caminho é aceito) |
 | `foto_local_divergente`, `gravacao_foto_falhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os

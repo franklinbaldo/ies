@@ -1,7 +1,7 @@
 ---
 type: ArchitectureDecision
 title: Gravação privada única de arquivos locais
-description: Uma peça, crate::arquivo_privado, cria ou substitui todo arquivo privado do IES com a mesma política; cada módulo só traduz a falha tipada para os seus subcódigos
+description: Uma peça, crate::arquivo_privado, cria ou substitui todo arquivo privado do IES com a mesma política (nome final nunca seguido, diretório real não gravável por outros); cada módulo só traduz a falha tipada para os seus subcódigos
 status: accepted
 decision: peca-unica-temporario-mais-ligacao-ou-rename
 ---
@@ -10,7 +10,9 @@ decision: peca-unica-temporario-mais-ligacao-ou-rename
 
 Refs [#211](https://github.com/franklinbaldo/ies/issues/211) (e a
 duplicata [#216](https://github.com/franklinbaldo/ies/issues/216), que
-contou os módulos e pediu a ordem depois da #207).
+contou os módulos e pediu a ordem depois da #207). Revisada em
+05/11/2026 por decisão do mantenedor: os ancestrais deixaram de ser
+recusados por serem links ([modelo de ameaça](#modelo-de-ameaça)).
 
 ## Problema
 
@@ -57,12 +59,18 @@ O chamador declara o modo em `Politica`:
 
 Em ambos os modos:
 
-- **Ancestrais.** O destino é tornado absoluto pelo diretório corrente
-  (no Linux e no macOS `getcwd` já é o caminho físico) e cada ancestral,
-  da raiz ao pai, é lido com `symlink_metadata`: link simbólico é
-  `DiretorioLinkSimbolico`; ausente ou não diretório é
-  `DiretorioAusente`. Com `criando_diretorios()` (só o índice) cada nível
-  ausente nasce `0700`, um por vez, sem seguir link.
+- **Nome final.** Nunca seguido: `create_new` e `hard_link` falham se o
+  nome existe (inclusive link pendente), e `rename` substitui o link em
+  vez de escrever através dele.
+- **Diretório do destino.** O pai do destino (absoluto pelo diretório
+  corrente) tem de existir e ser diretório, senão `DiretorioAusente`;
+  links no caminho, inclusive o próprio `DIR` dado pela pessoa, são
+  aceitos. O pai é resolvido com `fs::canonicalize` e o **diretório
+  real** é examinado e usado para o temporário e o nome final: no Unix,
+  gravável por grupo ou outros (`mode & 0o022`) sem sticky bit
+  (`0o1000`) é `DiretorioGravavelPorOutros`. Fora do Unix não há modo e
+  a conferência não se aplica. Com `criando_diretorios()` (só o índice)
+  cada nível ausente nasce `0700`, um por vez.
 - **Limite.** `com_limite(n)` recusa com `AcimaDoLimite` antes de passar
   de `n` bytes.
 - **Falha no meio.** Qualquer falha antes da publicação remove o
@@ -71,18 +79,56 @@ Em ambos os modos:
 - **Diretório.** Depois da publicação, `sync_all` do diretório (melhor
   esforço, como já fazia a sessão).
 - **Fora do Unix** não há modo de arquivo: vale a ACL do perfil, como na
-  leitura; `cfg(unix)` só no modo. A conferência de ancestrais e a
-  publicação são as mesmas.
+  leitura; `cfg(unix)` só no modo e na conferência do diretório. A
+  publicação é a mesma.
+
+### Modelo de ameaça
+
+A ameaça é a clássica do link plantado (*symlink/clobber*): outro
+usuário que pode escrever no diretório do destino planta, no nome que o
+IES vai usar, um link para um arquivo da vítima (ou para um nome que ele
+vai ler depois) e espera o IES escrever através dele. Duas regras
+fecham isso:
+
+1. o nome final nunca é seguido, em nenhum modo (acima);
+2. o diretório real do destino não pode ser gravável por mais ninguém,
+   exceto com sticky bit (`/tmp`), onde outro usuário não remove nem
+   troca o que é nosso e a criação exclusiva não segue o que ele
+   plantou.
+
+Ancestrais não são ameaça nesse modelo: quem pode trocar um ancestral
+por link já pode escrever no diretório que o contém, e o diretório real
+é conferido depois de resolvido. Os arquivos da sessão (cookie, URL,
+origem e o marcador `.geracao`) continuam lidos por
+`transporte::arquivo_privado`, que recusa link no nome final; as outras
+leituras não mudaram.
+
+### Alternativa rejeitada: recusar ancestral link (#211, até 05/11/2026)
+
+A primeira versão desta peça lia cada ancestral, da raiz ao pai, com
+`symlink_metadata` e recusava qualquer link
+(`DiretorioLinkSimbolico`). Rejeitada pelo mantenedor em 05/11/2026:
+
+- quebra instalações legítimas: no macOS `/var`, `/tmp` e `/etc` são
+  links para `/private/...` e o `$TMPDIR` fica sob `/var/folders`; no
+  Fedora Silverblue/Kinoite `/home` é link para `/var/home`. Nesses
+  sistemas o `ies login` faria todas as requisições e falharia ao
+  gravar a sessão;
+- não fecha a corrida que dizia fechar: a conferência era por caminho,
+  e um diretório pode ser trocado por link entre ela e a criação (seria
+  preciso `openat` por componente, fora da `std`); esta decisão já
+  registrava esse limite;
+- não protege contra a ameaça real, que é o nome final e o diretório
+  gravável por outros.
 
 ### O que a peça não garante
 
-A conferência dos ancestrais é por caminho: um processo do mesmo usuário
-que troque um diretório por link entre a conferência e a criação não é
-impedido (seria preciso `openat` por componente, fora da `std`). O
-último componente nunca é seguido: `create_new` e `hard_link` não seguem
-link, e `rename` substitui o link em vez de segui-lo. Sessão, índice ou
-`--saida` sob um diretório que é link (por exemplo `/home` →
-`/var/home`) passam a ser recusados: use o caminho físico.
+A conferência do diretório é por caminho: um processo do **mesmo
+usuário**, ou de quem pode escrever num ancestral do diretório real,
+que troque o diretório entre a conferência e a criação não é impedido.
+Só o diretório imediato é conferido, não os ancestrais dele. Um `DIR`
+criado com `umask 002` (grupo privado do usuário) é gravável pelo grupo
+e é recusado: use `chmod g-w DIR`.
 
 ### Parciais órfãos (o resto da #207)
 
@@ -102,11 +148,24 @@ Parciais de outro nome nunca são tocados.
 |---|---|---|
 | `configuracao::salvar_arquivos_de_acesso` | exclusiva | `configuracao_ja_existe_ou_sem_permissao` (destino, diretório, criação), `configuracao_nao_gravada` (escrita, publicação) |
 | `indice_local/abertura` | exclusiva, criando diretórios | nenhum público: qualquer falha desliga o índice; destino já existente é o banco de outro `ies` |
-| `anexo_documento` | `Parcial` exclusivo, publicado depois | `diretorio_do_anexo_ausente`, `diretorio_do_anexo_link_simbolico`, `arquivo_do_anexo_ja_existe`, `escrita_do_anexo_falhou` |
-| `arquivo_caixa` | exclusiva | os quatro de antes e um novo, `diretorio_do_arquivo_da_caixa_link_simbolico` |
-| `sessao_login/gravacao` | `Parcial` de substituição, um por arquivo, publicados em ordem | `destino_da_sessao_nao_eh_arquivo_regular` (também ancestral link), `gravacao_da_sessao_falhou` |
-| `foto_documento` (cópia da #207) | exclusiva | `foto_local_divergente` (o nome surgiu), `gravacao_foto_falhou` |
-| `arquivo_texto_documento` | exclusiva | os cinco de antes |
+| `anexo_documento` | `Parcial` exclusivo, publicado depois | `diretorio_do_anexo_ausente`, `diretorio_do_anexo_gravavel_por_outros`, `arquivo_do_anexo_ja_existe`, `escrita_do_anexo_falhou` |
+| `arquivo_caixa` | exclusiva | os de antes e `diretorio_do_arquivo_da_caixa_gravavel_por_outros` |
+| `sessao_login/gravacao` | `Parcial` de substituição, um por arquivo, publicados em ordem | `destino_da_sessao_nao_eh_arquivo_regular` (só o nome final), `diretorio_da_sessao_gravavel_por_outros`, `gravacao_da_sessao_falhou` |
+| `foto_documento` (cópia da #207) | exclusiva | `foto_local_divergente` (o nome surgiu), `gravacao_foto_falhou`; o `DIR` como no texto |
+| `arquivo_texto_documento` | exclusiva | os de antes, com `diretorio_texto_documento_gravavel_por_outros` no lugar do de link |
+
+### Subcódigos por módulo, não um compartilhado
+
+O diretório gravável por outros ganhou um subcódigo **por módulo**, na
+família que cada módulo já tinha (`diretorio_do_anexo_*`,
+`diretorio_do_arquivo_da_caixa_*`, `diretorio_texto_documento_*`,
+`diretorio_da_sessao_*`), no lugar dos de link que deixaram de existir.
+Um código compartilhado seria mais curto, mas quebraria a regra desta
+decisão (cada módulo traduz a falha da peça para o seu vocabulário), e
+a mensagem de cada um nomeia a opção que a pessoa corrige (`--saida`,
+o diretório da sessão). A configuração continua com
+`configuracao_ja_existe_ou_sem_permissao` (o nome já cobre o caso) e o
+índice continua sem subcódigo público (desliga).
 
 O lock do login e o lock lateral do índice abrem com `create(true)` sem
 conteúdo e ficam fora: não são gravações de dados. Nenhum comando ganhou
@@ -115,13 +174,18 @@ requisição.
 ## Verificação
 
 - Testes da peça em `src/arquivo_privado/tests.rs`: arquivo novo `0600`,
-  destino existente, link no destino e em ancestral, diretório ausente,
+  destino existente, link no destino (inclusive pendente e plantado
+  depois de abrir o parcial), ancestral link aceito (`/home` →
+  `/var/home` simulado), `DIR` link aceito, diretório gravável por
+  grupo ou outros recusado, sticky aceito, diretório ausente,
   diretórios `0700`, limite, falha no meio sem parcial, nome que surge
   antes da publicação, oito criadores exclusivos com um só vencedor,
   varredura só de parciais antigos do mesmo nome e
   `nenhuma_outra_gravacao_privada_usa_create_new` (o `grep` como teste).
-- Por módulo: caixa, configuração, índice e sessão ganharam o teste do
-  ancestral link; os testes existentes de cada módulo seguem iguais.
+- Por módulo: caixa, configuração, índice, sessão, texto, anexo e foto
+  testam o diretório por link aceito e o gravável por outros recusado
+  com o subcódigo do módulo; o retrato da sessão (#222) testa a recusa
+  de link no nome final de cada arquivo.
 
 ## Revisitar quando
 

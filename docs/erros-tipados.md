@@ -201,18 +201,34 @@ o arquivo aberto, sem consumir ou registrar dados de sessão.
 
 Toda gravação de arquivo privado passa por `crate::arquivo_privado`,
 que devolve uma falha tipada sem caminho nem conteúdo (destino já
-existente, destino não regular, diretório ausente, diretório que é link
-simbólico, limite, criação, escrita, publicação). Cada módulo a traduz
-para os subcódigos que já tinha; nenhum mudou de nome
+existente, destino não regular, diretório ausente, diretório gravável
+por outros, limite, criação, escrita, publicação). Cada módulo a traduz
+para os seus subcódigos
 ([decisão](decisoes/arquivos-privados/gravacao-privada.md#migração)).
 
-Um subcódigo novo: `diretorio_do_arquivo_da_caixa_link_simbolico`, da
-exportação da caixa (`--saida` de `unidade listar-processos`, `recebidos`
-e `gerados`), quando um ancestral do destino é link simbólico. Antes a
-exportação seguia o link. Na sessão, o mesmo caso sai como
-`destino_da_sessao_nao_eh_arquivo_regular`; na configuração, como
-`configuracao_ja_existe_ou_sem_permissao`; no texto, no anexo e na cópia,
-pelos subcódigos de diretório link simbólico que eles já tinham.
+Desde 05/11/2026 link simbólico em ancestral, ou no próprio `DIR` dado
+pela pessoa, é **aceito**: o diretório é resolvido com `canonicalize` e
+o diretório real é conferido. No Unix ele é recusado se gravável por
+grupo ou outros sem sticky bit
+([modelo de ameaça](decisoes/arquivos-privados/gravacao-privada.md#modelo-de-ameaça)).
+Mudanças públicas:
+
+| Subcódigo | Mudança |
+|---|---|
+| `diretorio_do_arquivo_da_caixa_link_simbolico` | removido (novo na PR #232, não chegou ao `main`) |
+| `diretorio_do_anexo_link_simbolico` | removido; o `DIR` por link é aceito |
+| `diretorio_texto_documento_link_simbolico` | removido (texto, foto e `--saida` dos comandos de documento) |
+| `diretorio_do_arquivo_da_caixa_gravavel_por_outros` | novo: `--saida` da exportação da caixa |
+| `diretorio_do_anexo_gravavel_por_outros` | novo: `--saida` do anexo |
+| `diretorio_texto_documento_gravavel_por_outros` | novo: `--saida` do texto e das fotos `DOC.vN.html` |
+| `diretorio_da_sessao_gravavel_por_outros` | novo: diretório da sessão no `ies login` e na troca de unidade |
+| `destino_da_sessao_nao_eh_arquivo_regular` | muda: só o nome final (link ou não regular), não mais ancestral link |
+| `configuracao_ja_existe_ou_sem_permissao` | muda: cobre o diretório gravável por outros, não mais o ancestral link |
+| `destino_copia_inseguro` | muda: na gravação das fotos, o `DIR` por link deixa de ser recusado (não diretório continua) |
+
+O nome final nunca é seguido em nenhum modo, e os arquivos da sessão
+continuam recusados como link no nome final
+(`arquivo_privado_link_simbolico`).
 
 ## Leitura coerente da sessão (#222)
 
