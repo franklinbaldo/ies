@@ -29,6 +29,10 @@ def origens_de_treinamento(tabela: Path) -> set[str]:
 
 
 def origem_privada_permitida(permitidas: set[str]) -> str:
+    # A configuração JSON tem prioridade sobre as variáveis de sessão no IES.
+    # Validar só IES_ORIGEM_FILE com ela ativa autorizaria origem diferente.
+    if os.environ.get("IES_CONFIG_FILE"):
+        raise ValueError("IES_CONFIG_FILE substitui a origem conferida")
     arquivo = Path(os.environ["IES_ORIGEM_FILE"])
     modo = arquivo.lstat()
     if not stat.S_ISREG(modo.st_mode) or modo.st_mode & 0o077:
