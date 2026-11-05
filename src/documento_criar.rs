@@ -13,7 +13,9 @@ pub(crate) enum ErroCriar {
     ListaForaDaForma,
     TipoAusente,
     TipoAmbiguo,
+    #[cfg(test)]
     NaoAplicado,
+    #[cfg(test)]
     EfeitoIncerto,
     LinkDoTipoNaoNavegavel,
     EnderecoDoTipoNaoReconhecido,
@@ -28,7 +30,9 @@ impl ErroCriar {
             Self::ListaForaDaForma => "lista_de_tipos_fora_da_forma_observada",
             Self::TipoAusente => "tipo_de_documento_nao_oferecido",
             Self::TipoAmbiguo => "tipo_de_documento_ambiguo",
+            #[cfg(test)]
             Self::NaoAplicado => "documento_criado_nao_comprovado",
+            #[cfg(test)]
             Self::EfeitoIncerto => "efeito_incerto_na_criacao_de_documento",
             Self::LinkDoTipoNaoNavegavel => "link_do_tipo_de_documento_nao_navegavel",
             Self::EnderecoDoTipoNaoReconhecido => "endereco_do_tipo_de_documento_nao_reconhecido",
@@ -105,6 +109,7 @@ pub(crate) fn conferir_tipo(tipo: &str, oferecidos: &[String]) -> Result<(), Err
 }
 /// Sucesso apenas com um id novo, número SEI e rótulo esperados, mantendo
 /// exatamente todos os documentos anteriores. Falha pós-POST não é retry.
+#[cfg(test)]
 pub(crate) fn conferir_criacao(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
