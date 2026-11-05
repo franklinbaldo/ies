@@ -6,8 +6,13 @@ use std::process::Command;
 fn criar_indisponivel_recusa_antes_de_qualquer_rede() {
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "documento", "criar", "--processo", "00001.000001/2026-01",
-            "--tipo", "Despacho", "--confirmar",
+            "documento",
+            "criar",
+            "--processo",
+            "00001.000001/2026-01",
+            "--tipo",
+            "Despacho",
+            "--confirmar",
         ])
         .env_remove("IES_CONFIG_FILE")
         .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
@@ -16,5 +21,5 @@ fn criar_indisponivel_recusa_antes_de_qualquer_rede() {
         .output()
         .expect("IES deve iniciar");
     assert_eq!(saida.status.code(), Some(2));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, b"");
 }
