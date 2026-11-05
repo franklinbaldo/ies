@@ -67,13 +67,12 @@ fn uso_invalido(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 
 fn json_da_falha_do_envio(f: &FalhaDoCancelamento) -> Value {
     let mut valor = json!({"subcodigo":f.subcodigo()});
-    if let Some(http) = f.status_http() {
-        if let Some(obj) = valor.as_object_mut() {
+    if let Some(http) = f.status_http()
+        && let Some(obj) = valor.as_object_mut() {
             if http.status != 200 { obj.insert("status_http".to_owned(),json!(http.status)); }
             if let Some(m) = http.mensagem_do_servidor {
                 obj.insert("mensagem_do_servidor".to_owned(),json!(m));
             }
-        }
     }
     valor
 }
@@ -82,10 +81,8 @@ fn json_da_falha(e: &ErroCancelar) -> Value {
     let mut valor = json_base_da_falha(e.codigo(),e.subcodigo(),e.mensagem(),e.status_http());
     if let Some(obj) = valor.as_object_mut() {
         match e {
-            ErroCancelar::CancelamentoNaoAplicado { falha_do_envio } => {
-                if let Some(f) = falha_do_envio {
-                    obj.insert("falha_do_envio".to_owned(),json_da_falha_do_envio(f));
-                }
+            ErroCancelar::CancelamentoNaoAplicado { falha_do_envio: Some(f) } => {
+                obj.insert("falha_do_envio".to_owned(),json_da_falha_do_envio(f));
             }
             ErroCancelar::EfeitoIncerto { falha_do_envio, verificacao } => {
                 obj.insert("verificacao".to_owned(),json!(verificacao.motivo()));
