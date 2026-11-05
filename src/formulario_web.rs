@@ -53,6 +53,8 @@ pub(crate) enum EstadoDoProcesso {
     /// As unidades com o processo aberto (enviar abre no destino e, sem
     /// "manter aberto", fecha na da sessão).
     UnidadesComOProcessoAberto,
+    /// Registro de uma linha nova no histórico do processo.
+    AndamentoNoHistorico,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.
