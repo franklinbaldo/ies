@@ -424,9 +424,13 @@ fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
         ..Default::default()
     };
     let envio = derivar_pesquisa_em_filtrada(
-        PesquisarEm::Processos, &instalacao(), &tela_iso(&url, &html),
-        ("UNIDADE TESTE", "0001"), filtros,
-    ).unwrap();
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &html),
+        ("UNIDADE TESTE", "0001"),
+        filtros,
+    )
+    .unwrap();
     let corpo = String::from_utf8(envio.corpo().to_vec()).unwrap();
     assert!(corpo.contains("selTipoProcedimentoPesquisa=73"), "{corpo}");
     assert!(corpo.contains("txtDataInicio=01%2F01%2F2026"), "{corpo}");
@@ -436,19 +440,31 @@ fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
 fn filtro_ausente_na_tela_falha_antes_do_post() {
     let url = url_servida();
     let erro = derivar_pesquisa_em_filtrada(
-        PesquisarEm::Processos, &instalacao(), &tela_iso(&url, &observado()),
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &observado()),
         ("UNIDADE TESTE", "0001"),
-        FiltrosDaPesquisa { de: Some("01/01/2026"), ..Default::default() },
-    ).unwrap_err();
+        FiltrosDaPesquisa {
+            de: Some("01/01/2026"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
     assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
 }
 #[test]
 fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
     let url = url_servida();
     let erro = derivar_pesquisa_em_filtrada(
-        PesquisarEm::Processos, &instalacao(), &tela_iso(&url, &observado()),
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &observado()),
         ("UNIDADE TESTE", "0001"),
-        FiltrosDaPesquisa { assunto: Some("023.1"), ..Default::default() },
-    ).unwrap_err();
+        FiltrosDaPesquisa {
+            assunto: Some("023.1"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
     assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
 }
