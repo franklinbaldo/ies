@@ -140,6 +140,7 @@ pub(crate) struct PedidoCriar<'a> {
     pub(crate) interessados: &'a [String],
     pub(crate) nivel: &'a str,
     pub(crate) unidade: Option<&'a str>,
+    pub(crate) hipotese_legal: Option<&'a str>,
     pub(crate) confirmar: bool,
 }
 
@@ -148,6 +149,7 @@ pub(crate) struct Criacao {
     pub(crate) tipo: String,
     pub(crate) assunto: String,
     pub(crate) nivel: String,
+    pub(crate) hipotese_legal: Option<String>,
     pub(crate) unidade: String,
     pub(crate) confirmado: bool,
     pub(crate) interessados: Vec<String>,
@@ -399,12 +401,22 @@ pub(crate) fn criar<V: EnvioDoControle>(
         html: &cadastro.html,
         codificacao,
     };
-    // O select restrito pode nascer vazio. Sua única opção deve vir
-    // da consulta AJAX literalmente publicada pela tela, antes da escrita.
+    // A escolha explícita é autorizada só para a lista AJAX observada.
+    // Uma opção inline não tem seu texto provado por essa mesma leitura.
+    if pedido.hipotese_legal.is_some() && observado.hipotese_legal.is_some() {
+        return Err(E::Hipotese(ErroHipotese::EscolhaInlineNaoVerificada));
+    }
     if pedido.nivel == "restrito" && observado.hipotese_legal.is_none() {
         observado.hipotese_legal = Some(
-            resolver_hipotese(envio, &instalacao, &servida, cookie_valor, &mut requisicoes)
-                .map_err(E::Hipotese)?,
+            resolver_hipotese(
+                envio,
+                &instalacao,
+                &servida,
+                cookie_valor,
+                &mut requisicoes,
+                pedido.hipotese_legal,
+            )
+            .map_err(E::Hipotese)?,
         );
     }
     let interessados = resolver_interessados(
@@ -420,6 +432,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
         nivel: pedido.nivel.to_owned(),
+        hipotese_legal: observado.hipotese_legal.clone(),
         unidade,
         confirmado: false,
         interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
