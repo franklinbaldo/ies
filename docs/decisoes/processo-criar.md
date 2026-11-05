@@ -216,3 +216,22 @@ registrou **três novos testes falhando** antes da implementação
 também sinalizaram ajustes nos testes RED, a corrigir no GREEN.
 RED local NOT_RUN (sandbox sem Rust/DNS). A prova ainda é sintética
 até uma prévia autenticada no SEI de treinamento.
+
+## Defesa contra opções AJAX não publicáveis (continuação #245)
+
+O XML AJAX é dado remoto, não uma fonte confiável de argumentos.
+Além de filtrar as sugestões de listas múltiplas, a seleção automática
+de uma opção única e a seleção explícita devem recusar IDs ou nomes
+com controles ou conteúdo de URL, antes da submissão criadora.
+Um valor único não é, por si só, prova de que pode ser publicado ou
+reaproveitado na escrita. A recusa usa
+`hipotese_legal_ajax_resposta_nao_reconhecida` (saída 1);
+a prévia e a confirmação recebem o mesmo controle.
+
+Testes adversariais sintéticos foram acrescentados primeiro, sem
+afirmar que essa resposta apareceu numa instalação real. O teste
+integrado fixa **4 requisições** (3 GET + um POST AJAX consultivo)
+e **zero POST criador** na recusa. A execução Rust RED e os gates
+do head desta continuação ainda dependem de CI; o sandbox não tem
+`cargo` nem DNS para obter a toolchain. Não extrapolar uma verificação
+estática para PASS nem alegar que houve validação ao vivo.
