@@ -72,6 +72,7 @@ mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
+mod unidade_lupa;
 mod unidade_pesquisar_cli;
 mod unidade_trocar;
 mod unidade_trocar_cli;
