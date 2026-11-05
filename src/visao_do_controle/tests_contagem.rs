@@ -4,9 +4,9 @@
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::testes_http::{atender, resposta, resposta_post};
-use crate::transporte::RespostaWeb;
 use std::collections::VecDeque;
 use std::io::Cursor;
 
@@ -47,7 +47,13 @@ impl EnvioDoControle for Roteiro {
         _cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         let (status, bytes) = self.proximo("POST")?;
-        Ok(resposta_post(status, "text/html; charset=utf-8", bytes, None, None))
+        Ok(resposta_post(
+            status,
+            "text/html; charset=utf-8",
+            bytes,
+            None,
+            None,
+        ))
     }
 
     fn get(
