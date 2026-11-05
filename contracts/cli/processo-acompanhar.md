@@ -1,14 +1,14 @@
 ---
 type: CommandContract
-title: Prévia de Acompanhamento Especial do processo
-description: Leitura Web de grupos e acompanhamentos para preparar inclusão e retirada sem escrita
+title: Acompanhamento Especial por prévia e confirmação observada
+description: Prévia de inclusão e retirada; POST único e releitura para inclusão
 operation: processo.acompanhar
 command: ies processo acompanhar NUP [--grupo G] [--observacao T] [--deixar] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo acompanhar NUP` — prévia Web (Refs #254)
+# `ies processo acompanhar NUP` — prévia e inclusão confirmada (Refs #254)
 
 O comando abre a árvore do processo e confere a unidade da sessão.
 Lê o link assinado `acompanhamento_gerenciar` publicado na barra da raiz.
@@ -34,19 +34,29 @@ ser enviado, independentemente da observação.
 
 - **Prévia:** implementada com leituras reais da interface Web. A saída
   informa `numero`, `unidade`, `operacao`, `grupo`, `observacao`,
-  `id_acompanhamento` quando houver, `ja_estava`, `confirmado:false`,
-  `alterado:false`, `origem:web` e `requisicoes`.
-- **Escrita:** `--confirmar` é recusado antes de qualquer rede; **não é
-  permitido afirmar que cria ou remove acompanhamentos**. A próxima
-  fatia deve usar um POST derivado da tela e verificar por uma nova
-  leitura da lista, sempre com saída 3 se o efeito ficar incerto.
-- **Orçamento:** abertura do processo (dependente do caminho do índice
-  local), mais 1 GET de gerenciamento e, para a prévia de inclusão,
-  até 1 GET de cadastro; 0 POST de escrita e nenhum retry.
+  `id_acompanhamento` quando houver, `ja_estava`, `confirmado`,
+  `alterado`, `origem:web` e `requisicoes`.
+- **Inclusão `--confirmar`:** a tela servida é validada e dela é
+  derivada exatamente uma submissão `acompanhamento_cadastrar`, com
+  `selGrupoAcompanhamento` oferecido, `txaObservacao`, ocultos e botão
+  observados. Um POST no máximo, sem retry e sem seguir 302. Releitura
+  explícita do gerenciador prova uma única linha nova com grupo e
+  observação pedidos, preservadas as linhas anteriores. Falha no POST
+  também exige releitura: se a alteração não puder ser comprovada,
+  saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
+  A inclusão já existente resulta em sucesso sem POST.
+- **Retirada:** `--deixar` tem somente prévia; `--confirmar --deixar`
+  continua bloqueado antes da sessão até a derivação segura do
+  formulário de exclusão da linha escolhida.
+- **Orçamento:** na bancada sintética sem índice quente, 3 GETs de
+  abertura + 1 GET gerenciar + 1 GET cadastro + 1 POST + 1 GET
+  de verificação = **7 requisições** para inclusão confirmada;
+  a prévia usa **5 GETs e 0 POST**. O custo de abertura real varia
+  com o índice local. Nenhum retry.
 - **Fonte:** observação histórica do Todos na UnB em 15/10/2026
   (`tests/test_processo_acompanhar_010.py` @323eb01), cassettes
   `processo-acompanhar-*` e suas demais variantes.
-- Sem testes ou execução ao vivo confirmados nesta fatia: ver
+- Testes sintéticos de derivação e transporte integrados; evidência ao vivo e replay ainda pendentes: ver
   [relatório](../../docs/validacao-live/2026-11-05-processo-acompanhar.md).
 
 Os erros possuem `subcodigo` estável:
@@ -78,7 +88,7 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
 | `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
 | `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
-| `confirmacao_de_acompanhamento_ainda_bloqueada` | Escrita recusada antes de abrir a sessão |
+| `confirmacao_de_acompanhamento_ainda_bloqueada` | Confirmação da retirada ainda bloqueada antes da sessão |
 | `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
 | `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
 | `grupo_de_acompanhamento_nao_oferecido` | Grupo solicitado não é oferecido na tela |
