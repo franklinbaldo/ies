@@ -1,0 +1,90 @@
+name: Temporary issue 245 training preview (read only)
+
+on:
+  push:
+    branches: [codex/245-confirmacao-41-redirecionamento]
+    paths:
+      - .github/workflows/temporary-245-training-preview.yml
+
+permissions:
+  contents: read
+
+jobs:
+  previa-unb:
+    name: UnB treinamento - login e previa somente
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar Rust e compilar sem mudar o SEI
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo build --release --locked --bin ies
+      - name: Apenas login e previa - nenhuma escrita de processo
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export IES_SEM_INDICE=1
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          import time
+          from urllib.parse import urlparse
+
+          base = Path(tempfile.mkdtemp(prefix="ies-245-unb-"))
+          try:
+              linhas = Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+              celulas = next(
+                  [campo.strip().strip("`") for campo in linha.strip().strip("|").split("|")]
+                  for linha in linhas if linha.startswith("| `unb` |")
+              )
+              origem, usuario, senha, orgao = celulas[2:6]
+              assert urlparse(origem).hostname == "sei.treinamento.unb.br"
+              assert origem == "https://sei.treinamento.unb.br/sei"
+              for chave, conteudo in (
+                  ("IES_ORIGEM_FILE", origem + "\n"),
+                  ("IES_CREDENCIAIS_FILE", f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),
+                  ("IES_URL_CONTROLE_FILE", ""),
+                  ("IES_COOKIE_FILE", ""),
+              ):
+                  destino = base / chave
+                  destino.write_text(conteudo)
+                  destino.chmod(0o600)
+                  os.environ[chave] = str(destino)
+              programa = "./target/release/ies"
+              def executar(nome, argv):
+                  p = subprocess.run([programa, "--json", *argv],
+                                     capture_output=True, text=True, timeout=180,
+                                     check=False)
+                  try:
+                      dado = json.loads(p.stdout)
+                  except (json.JSONDecodeError, ValueError):
+                      dado = {}
+                  # Nunca emitir URL assinada, cookie, senha ou HTML.
+                  print(json.dumps({"etapa": nome, "exit": p.returncode,
+                                    "subcodigo": dado.get("subcodigo"),
+                                    "requisicoes": dado.get("requisicoes"),
+                                    "confirmado": dado.get("confirmado")},
+                                   ensure_ascii=False), flush=True)
+                  return p.returncode
+              if executar("login_treinamento", ["login"]) != 0:
+                  raise SystemExit("LOGIN_FAIL: nenhuma previa ou escrita foi tentada")
+              time.sleep(35)
+              if executar("previa_sem_confirmar", [
+                  "processo", "criar", "--tipo", "Teste: Nível de acesso só público",
+                  "--especificacao", "Ensaio de leitura do IES #245",
+                  "--nivel", "publico"
+              ]) != 0:
+                  raise SystemExit("PREVIA_FAIL: zero POST criador")
+              print("PREVIA_PASS: nao foi chamado --confirmar", flush=True)
+          finally:
+              for caminho in base.iterdir():
+                  caminho.unlink(missing_ok=True)
+              base.rmdir()
+          PY
