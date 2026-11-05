@@ -24,7 +24,7 @@ fn pasta_do_acervo() -> PathBuf {
 }
 
 /// Conta somente elementos e nomes de parametros de links gravados.
-/// Nunca publica href, corpo HTML, infra_hash, URL assinada ou cookie.
+/// Nunca publica href, corpo HTML, `infra_hash`, URL assinada ou cookie.
 fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         println!("{instalacao}: calendario passo={passo} html_nao_estruturado");
@@ -33,6 +33,8 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     let parser = dom.parser();
     let mut links = 0usize;
     let mut links_de_mes = 0usize;
+    let mut hrefs_mensais = std::collections::HashSet::new();
+    let mut datas_mensais = std::collections::HashSet::new();
     let mut links_de_dia = 0usize;
     let mut acoes_js = 0usize;
     let mut hoje = 0usize;
@@ -42,6 +44,15 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
             if let Ok(Some(href)) = crate::html_atributos::valor_do_atributo(tag, "href") {
                 if href.contains("data_inicial=") && href.contains("data_final=") {
                     links_de_mes += 1;
+                    hrefs_mensais.insert(href.clone());
+                    if let Some(data) = href
+                        .split("data_inicial=")
+                        .nth(1)
+                        .and_then(|parte| parte.split('&').next())
+                    {
+                        // Parametro de data isolado, nunca o restante da URL assinada.
+                        datas_mensais.insert(data.to_owned());
+                    }
                 }
                 if href.contains("data_atual=") {
                     links_de_dia += 1;
@@ -63,7 +74,9 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
         }
     }
     println!(
-        "{instalacao}: calendario passo={passo} ancoras={links} links_mes={links_de_mes} links_dia={links_de_dia} js_retornos={acoes_js} dia_hoje={hoje}"
+        "{instalacao}: calendario passo={passo} ancoras={links} links_mes={links_de_mes} urls_mensais_distintas={} datas_mensais_distintas={} links_dia={links_de_dia} js_retornos={acoes_js} dia_hoje={hoje}",
+        hrefs_mensais.len(),
+        datas_mensais.len()
     );
 }
 
