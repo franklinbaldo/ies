@@ -134,3 +134,31 @@ fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     assert_eq!(pedidos, requests_post());
 }
+
+
+#[test]
+fn previa_deixar_sem_link_de_exclusao_recusa_sem_post() {
+    // Caso de Todos tests/test_processo_acompanhar_010.py @323eb01:
+    // cada linha deve oferecer sua própria acaoExcluir, não basta a checkbox.
+    let html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
+    let mut respostas = abertura(html);
+    respostas.push(ok(lista("G")));
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: true,
+            confirmar: false,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    assert!(matches!(
+        resultado,
+        Err(ErroPrevia::Estrutura(ErroAcompanhar::ExclusaoNaoOferecida))
+    ));
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+}
