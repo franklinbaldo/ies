@@ -276,8 +276,7 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
     assert_eq!(requests.len(), 2);
 }
 
-
-/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py @323eb01:
+/// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py` @323eb01:
 /// a variante 4.1 exige um POST de seleção (só abre cadastro) e somente
 /// um POST criador. Após esse segundo POST, há duas leituras de verificação.
 #[test]
@@ -332,8 +331,6 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&acao=procedimento_excluir&id_procedimento=10&infra_hash={HASH}"
         )),
-        ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -346,10 +343,13 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
     });
     assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
     assert_eq!(requests.len(), 4);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
 }
 
-/// Segurança da confirmação: um id_procedimento inválido não é ignorado
+/// Segurança da confirmação: um `id_procedimento` inválido não é ignorado
 /// quando outro identificador numérico também aparece. Uma Location com
 /// dois valores do mesmo campo é ambígua e não autoriza GET.
 #[test]
@@ -362,8 +362,6 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_procedimento=invalido&infra_hash={HASH}"
         )),
-        ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -376,9 +374,11 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
     });
     assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
     assert_eq!(requests.len(), 4);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
 }
-
 
 /// Link servido na lista 4.0 com duas identidades não permite abrir
 /// cadastro, mesmo que o primeiro ID seja numérico.
@@ -389,7 +389,7 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
         "id_tipo_procedimento=12&amp;infra_hash",
         "id_tipo_procedimento=12&amp;id_tipo_procedimento=invalido&amp;infra_hash",
     );
-    let respostas = vec![ok(tela_controle()), ok(html), ok(cadastro())];
+    let respostas = vec![ok(tela_controle()), ok(html)];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
@@ -413,7 +413,7 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
         "acao=procedimento_gerar&amp;id_tipo_procedimento",
         "acao=procedimento_gerar&amp;acao=procedimento_excluir&amp;id_tipo_procedimento",
     );
-    let respostas = vec![ok(tela_controle()), ok(html), ok(cadastro())];
+    let respostas = vec![ok(tela_controle()), ok(html)];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
