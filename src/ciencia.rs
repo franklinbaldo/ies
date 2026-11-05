@@ -103,6 +103,7 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
         }
+        #[cfg(test)]
         AlvoDaCiencia::Documento {
             id_procedimento,
             id_documento,
