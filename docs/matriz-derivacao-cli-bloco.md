@@ -1,5 +1,5 @@
 ---
-type: Evidence
+type: Guide
 title: Matriz de derivação da CLI de blocos
 description: Cenários de teste e evidências para os leitores de blocos
 ---
