@@ -158,3 +158,44 @@ não presumir sucesso antes da conclusão do run.
 Não foi acessada produção. Sem a prévia válida na instalação de
 treinamento, a confirmação não pode ser tentada. A autorização
 do proprietário não dispensa essa ordem nem os controles da plataforma.
+
+## Retomada — diagnóstico seguro de hipóteses AJAX múltiplas
+
+A recusa tipada `hipotese_legal_ajax_nao_unica` agora pode expor
+**somente** os pares habilitados `ID#NOME` efetivamente observados
+numa consulta AJAX, com IDs únicos, formato imprimível e sem dados
+identificados como URLs/credenciais. Isso viabiliza escolher
+`--hipotese-legal ID#NOME` numa **nova prévia**, sem escolher
+arbitrariamente um fundamento e sem criar processo durante a recusa.
+A CLI em JSON inclui `hipoteses_legais_oferecidas`; a saída humana
+mostra os mesmos pares. Repetição de ID, opção desabilitada e texto
+com controle ou URL não geram sugestões. O orçamento sintético
+continua sendo **4 requisições** nessa recusa: 3 GET, 1 POST
+AJAX de consulta, **zero POST criador**, sem retry.
+
+**RED observado:** [CI 42109336445](https://github.com/franklinbaldo/ies/actions/runs/42109336445)
+no commit `2670e26`: três testes novos falharam, 1423 passaram,
+14 ignorados preexistentes. A suíte Rust foi executada e produziu
+três falhas reais; houve também alertas de rustfmt/Clippy no shim
+RED, corrigidos subsequentemente. O RED e a compilação locais
+estão **NOT_RUN**: o sandbox não contém `rustc`/`cargo` e não
+resolve o DNS do GitHub/Rustup. O `AGENTS.md` permite usar CI
+como compilador nessas circunstâncias. CI intermediário
+[42110668903](https://github.com/franklinbaldo/ies/actions/runs/42110668903)
+**PASS** com Rustfmt, Clippy, testes Rust, OKF, binário e replay
+do acervo; um reforço final de segurança na apresentação de opções
+precisa de nova aferição do head final.
+
+| Ação desta retomada | Estado | Pedidos ao SEI | Resíduo |
+|---|---|---:|---|
+| Testes do fluxo Web com respostas sintéticas | PASS no CI, quatro pedidos simulados na recusa | 0 | Nenhum |
+| Prévia autenticada em treinamento (UnB e segunda instalação) | NOT_RUN — sandbox sem DNS/acesso autenticado | 0 | Nenhum |
+| Um único `--confirmar` em treinamento | NOT_RUN — prévia ao vivo indisponível | 0 | Nenhum |
+| Verificação por leitura, NUP | NOT_RUN — não houve criação | 0 | Nenhum |
+
+**Total da retomada: zero requisições reais ao SEI.**
+Não foi utilizada produção, nem feita escrita. A autorização para
+treinamento permanece condicionada à sequência prévia →
+confirmação única → leitura independente, com o NUP residual
+documentado se houver criação. Nenhuma evidência sintética
+substitui esse ensaio.
