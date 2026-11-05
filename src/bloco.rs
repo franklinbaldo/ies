@@ -1,7 +1,7 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
 //! Oráculo de cenários: Todos src/todos/sei/blocos_lista.py @323eb01.
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::formulario_web::decodificar_atributo;
+use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use serde::Serialize;
@@ -105,7 +105,11 @@ pub(crate) struct ListaComLinks {
 }
 impl ListaComLinks {
     pub(crate) fn href_do_bloco(&self, numero: &str) -> Result<&str, ErroBloco> {
-        let mut encontrados = self.lista.itens.iter().zip(&self.links)
+        let mut encontrados = self
+            .lista
+            .itens
+            .iter()
+            .zip(&self.links)
             .filter(|(b, _)| b.numero == numero);
         match (encontrados.next(), encontrados.next()) {
             (Some((_, href)), None) => Ok(href),
@@ -131,13 +135,19 @@ fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<String>, ErroBloco> {
-    let linhas = tabela.query_selector(parser, "tr")
+    let linhas = tabela
+        .query_selector(parser, "tr")
         .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
     let mut headers = None;
     for no in linhas {
-        let linha = no.get(parser).and_then(tl::Node::as_tag)
+        let linha = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
             .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
-        let th: Vec<_> = linha.children().top().iter()
+        let th: Vec<_> = linha
+            .children()
+            .top()
+            .iter()
             .filter_map(|h| h.get(parser))
             .filter_map(tl::Node::as_tag)
             .filter(|t| t.name() == "th")
@@ -159,28 +169,49 @@ fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<S
 }
 
 fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>), ErroBloco> {
-    let (inicio, resto) = legenda.split_once(" registros")
+    let (inicio, resto) = legenda
+        .split_once(" registros")
         .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
-    let total = inicio.split_whitespace().last()
+    let total = inicio
+        .split_whitespace()
+        .last()
         .ok_or(ErroBloco::LegendaDeBlocosInvalida)?
         .trim_start_matches('(')
         .replace('.', "")
-        .parse::<usize>().map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+        .parse::<usize>()
+        .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
     if let Some((_, intervalo)) = resto.split_once(" - ") {
-        let (de, ate) = intervalo.split_once(" a ")
+        let (de, ate) = intervalo
+            .split_once(" a ")
             .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
-        let de = de.trim().parse::<usize>().map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
-        let ate = ate.chars().take_while(char::is_ascii_digit).collect::<String>()
-            .parse::<usize>().map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+        let de = de
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+        let ate = ate
+            .chars()
+            .take_while(char::is_ascii_digit)
+            .collect::<String>()
+            .parse::<usize>()
+            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
         if de == 0 || ate < de || ate > total || ate - de + 1 != observados {
             return Err(ErroBloco::FaixaDeBlocosIncoerente);
         }
-        return Ok((total, Some(Faixa { inicio: de, fim: ate })));
+        return Ok((
+            total,
+            Some(Faixa {
+                inicio: de,
+                fim: ate,
+            }),
+        ));
     }
     if total != observados {
         return Err(ErroBloco::FaixaDeBlocosIncoerente);
     }
-    let faixa = (total > 0).then_some(Faixa { inicio: 1, fim: total });
+    let faixa = (total > 0).then_some(Faixa {
+        inicio: 1,
+        fim: total,
+    });
     Ok((total, faixa))
 }
 
@@ -194,30 +225,46 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
     let tabelas = nos_com_id(&dom, "tblBlocos").map_err(|_| E::HtmlInvalido)?;
     let tabela = match tabelas.as_slice() {
         [] => return Err(E::TabelaDeBlocosAusente),
-        [no] => no.get(parser).and_then(tl::Node::as_tag).ok_or(E::TabelaDeBlocosAusente)?,
+        [no] => no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::TabelaDeBlocosAusente)?,
         _ => return Err(E::TabelasDeBlocosRepetidas),
     };
     if tabela.name() != "table" {
         return Err(E::TabelaDeBlocosAusente);
     }
-    let mut captions = tabela.query_selector(parser, "caption")
+    let mut captions = tabela
+        .query_selector(parser, "caption")
         .ok_or(E::LegendaDeBlocosInvalida)?;
-    let legenda = captions.next().and_then(|no| no.get(parser))
+    let legenda = captions
+        .next()
+        .and_then(|no| no.get(parser))
         .ok_or(E::LegendaDeBlocosInvalida)?;
     if captions.next().is_some() {
         return Err(E::LegendaDeBlocosInvalida);
     }
     let nomes = cabecalhos(tabela, parser)?;
-    let posicao = |s: &str| nomes.iter().position(|n| n == s).expect("cabeçalho conferido");
+    let posicao = |s: &str| {
+        nomes
+            .iter()
+            .position(|n| n == s)
+            .expect("cabeçalho conferido")
+    };
     let (indice_numero, indice_estado, indice_descricao) =
         (posicao("Número"), posicao("Estado"), posicao("Descrição"));
     let mut itens = Vec::new();
     let mut links = Vec::new();
     let mut vistos = HashSet::new();
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let linha = no.get(parser).and_then(tl::Node::as_tag)
+        let linha = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
             .ok_or(E::LinhaDeBlocoForaDaForma)?;
-        let td: Vec<_> = linha.children().top().iter()
+        let td: Vec<_> = linha
+            .children()
+            .top()
+            .iter()
             .filter_map(|h| h.get(parser))
             .filter_map(tl::Node::as_tag)
             .filter(|t| t.name() == "td")
@@ -235,14 +282,19 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
         if !vistos.insert(numero.clone()) {
             return Err(E::NumeroDoBlocoRepetido);
         }
-        let mut hrefs = td[indice_numero].query_selector(parser, "a")
+        let mut hrefs = td[indice_numero]
+            .query_selector(parser, "a")
             .ok_or(E::LinkDeBlocosNaoReconhecido)?
             .filter_map(|n| n.get(parser))
             .filter_map(tl::Node::as_tag)
-            .map(|a| valor_do_atributo(a, "href")
-                .map_err(|_| E::LinkDeBlocosNaoReconhecido)
-                .and_then(|x| x.and_then(|s| decodificar_atributo(&s))
-                    .ok_or(E::LinkDeBlocosNaoReconhecido)));
+            .map(|a| {
+                valor_do_atributo(a, "href")
+                    .map_err(|_| E::LinkDeBlocosNaoReconhecido)
+                    .and_then(|x| {
+                        x.and_then(|s| decodificar_atributo(&s))
+                            .ok_or(E::LinkDeBlocosNaoReconhecido)
+                    })
+            });
         let href = hrefs.next().ok_or(E::LinkDeBlocosNaoReconhecido)??;
         if hrefs.next().is_some() {
             return Err(E::LinkDeBlocosNaoReconhecido);
@@ -261,7 +313,12 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
     }
     let (total_declarado, faixa_observada) = declaracao(&texto_no(legenda, parser), itens.len())?;
     Ok(ListaComLinks {
-        lista: ListaDeBlocos { tipo, total_declarado, faixa_observada, itens },
+        lista: ListaDeBlocos {
+            tipo,
+            total_declarado,
+            faixa_observada,
+            itens,
+        },
         links,
     })
 }
@@ -278,9 +335,7 @@ pub(crate) fn resolver_link(
 ) -> Result<String, ErroBloco> {
     let nao = ErroBloco::LinkDeBlocosNaoReconhecido;
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
-    if !href.bytes().all(|b| (33..=126).contains(&b))
-        || href.contains(['#', '\\', '\''])
-    {
+    if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
     }
     let (mut acoes, mut hashes, mut ids) = (0, 0, 0);
@@ -290,19 +345,23 @@ pub(crate) fn resolver_link(
         conferir_valor_de_consulta(valor).map_err(|_| nao)?;
         match chave {
             "acao" if valor == acao => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => hashes += 1,
+            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
+                hashes += 1
+            }
             "id_bloco" if numero == Some(valor) => ids += 1,
             "acao" | "infra_hash" | "id_bloco" | "acao_ajax" => return Err(nao),
-            _ => {},
+            _ => {}
         }
     }
-    if acoes != 1 || hashes != 1 || (numero.is_some() && ids != 1) || (numero.is_none() && ids != 0) {
+    if acoes != 1 || hashes != 1 || (numero.is_some() && ids != 1) || (numero.is_none() && ids != 0)
+    {
         return Err(nao);
     }
     let base = url_da_tela.split('?').next().ok_or(nao)?;
     let (pasta, _) = base.rsplit_once('/').ok_or(nao)?;
     let url = format!("{pasta}/{href}");
-    let (host, caminho) = url.strip_prefix("https://")
+    let (host, caminho) = url
+        .strip_prefix("https://")
         .and_then(|r| r.split_once('?'))
         .and_then(|(antes, _)| antes.split_once('/'))
         .ok_or(nao)?;
@@ -314,18 +373,29 @@ pub(crate) fn resolver_link(
 
 /// Seleciona o menu pelo valor exato de acao; nenhuma adivinhação de rota.
 pub(crate) fn link_do_menu(
-    instalacao: &Instalacao, url: &str, html: &str, tipo: TipoBloco,
+    instalacao: &Instalacao,
+    url: &str,
+    html: &str,
+    tipo: TipoBloco,
 ) -> Result<String, ErroBloco> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroBloco::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroBloco::HtmlInvalido)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else { continue; };
-        let Some(bruto) = valor_do_atributo(tag, "href")
-            .map_err(|_| ErroBloco::HtmlInvalido)? else { continue; };
-        let Some(href) = decodificar_atributo(&bruto) else { continue; };
-        if href.split_once('?').is_some_and(|(_,q)| q.split('&').any(|p|p == format!("acao={}", tipo.acao()))) {
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| ErroBloco::HtmlInvalido)?
+        else {
+            continue;
+        };
+        let Some(href) = decodificar_atributo(&bruto) else {
+            continue;
+        };
+        if href
+            .split_once('?')
+            .is_some_and(|(_, q)| q.split('&').any(|p| p == format!("acao={}", tipo.acao())))
+        {
             candidatos.push(href);
         }
     }
@@ -340,41 +410,100 @@ pub(crate) fn link_do_menu(
 mod tests {
     use super::*;
     const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    fn linha(numero:&str,estado:&str,descricao:&str)->String {
-        format!("<tr><td><input type='checkbox'/></td><td><a href='controlador.php?acao=rel_bloco_protocolo_listar&amp;id_bloco={numero}&amp;infra_hash={HASH}'>{numero}</a></td><td>{descricao}</td><td>{estado}</td><td></td></tr>")
+    fn linha(numero: &str, estado: &str, descricao: &str) -> String {
+        format!(
+            "<tr><td><input type='checkbox'/></td><td><a href='controlador.php?acao=rel_bloco_protocolo_listar&amp;id_bloco={numero}&amp;infra_hash={HASH}'>{numero}</a></td><td>{descricao}</td><td>{estado}</td><td></td></tr>"
+        )
     }
-    fn pagina(linhas:&str,caption:&str)->String {
-        format!("<table id='tblBlocos'><caption>{caption}</caption><tr><th></th><th>Número</th><th>Descrição</th><th>Estado</th><th>Ações</th></tr>{linhas}</table>")
+    fn pagina(linhas: &str, caption: &str) -> String {
+        format!(
+            "<table id='tblBlocos'><caption>{caption}</caption><tr><th></th><th>Número</th><th>Descrição</th><th>Estado</th><th>Ações</th></tr>{linhas}</table>"
+        )
     }
     #[test]
     fn bloco_com_colunas_fora_de_ordem_e_numeros_opacos() {
         // Caso de Todos tests/paginas_reais/menu_blocos.html @323eb01
-        let l = ler_lista(&pagina(&linha("2195","Gerado","Teste de Bloco"),"Lista de Blocos (1 registros):"),TipoBloco::Assinatura).unwrap();
-        assert_eq!(l.lista.total_declarado,1);
-        assert_eq!(l.lista.itens[0].numero,"2195");
-        assert_eq!(l.lista.itens[0].descricao,"Teste de Bloco");
-        assert_eq!(l.lista.itens[0].quantidade_itens,None);
-        assert!(serde_json::to_string(&l.lista).unwrap().contains("\"quantidade_itens\":null"));
+        let l = ler_lista(
+            &pagina(
+                &linha("2195", "Gerado", "Teste de Bloco"),
+                "Lista de Blocos (1 registros):",
+            ),
+            TipoBloco::Assinatura,
+        )
+        .unwrap();
+        assert_eq!(l.lista.total_declarado, 1);
+        assert_eq!(l.lista.itens[0].numero, "2195");
+        assert_eq!(l.lista.itens[0].descricao, "Teste de Bloco");
+        assert_eq!(l.lista.itens[0].quantidade_itens, None);
+        assert!(
+            serde_json::to_string(&l.lista)
+                .unwrap()
+                .contains("\"quantidade_itens\":null")
+        );
         assert!(!serde_json::to_string(&l.lista).unwrap().contains(HASH));
     }
     #[test]
     fn duplicidade_ou_truncamento_nao_viram_lista_completa() {
-        let um=linha("2195","Gerado","Exemplo");
-        assert_eq!(ler_lista(&pagina(&(um.clone()+&um),"Lista (2 registros):"),TipoBloco::Interno).err().unwrap(),ErroBloco::NumeroDoBlocoRepetido);
-        assert_eq!(ler_lista(&pagina(&um,"Lista (3 registros):"),TipoBloco::Interno).err().unwrap(),ErroBloco::FaixaDeBlocosIncoerente);
+        let um = linha("2195", "Gerado", "Exemplo");
+        assert_eq!(
+            ler_lista(
+                &pagina(&(um.clone() + &um), "Lista (2 registros):"),
+                TipoBloco::Interno
+            )
+            .err()
+            .unwrap(),
+            ErroBloco::NumeroDoBlocoRepetido
+        );
+        assert_eq!(
+            ler_lista(&pagina(&um, "Lista (3 registros):"), TipoBloco::Interno)
+                .err()
+                .unwrap(),
+            ErroBloco::FaixaDeBlocosIncoerente
+        );
     }
     #[test]
     fn faixa_de_pagina_e_observada_nao_inferida() {
-        let l=ler_lista(&pagina(&linha("2195","Gerado","X"),"Lista (100 registros - 51 a 51):"),TipoBloco::Reuniao).unwrap();
-        assert_eq!(l.lista.faixa_observada,Some(Faixa{inicio:51,fim:51}));
+        let l = ler_lista(
+            &pagina(
+                &linha("2195", "Gerado", "X"),
+                "Lista (100 registros - 51 a 51):",
+            ),
+            TipoBloco::Reuniao,
+        )
+        .unwrap();
+        assert_eq!(
+            l.lista.faixa_observada,
+            Some(Faixa {
+                inicio: 51,
+                fim: 51
+            })
+        );
     }
     #[test]
     fn tipo_certo_e_hash_unico_sao_obrigatorios() {
-        let instalacao=Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-        let base="https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
-        let href=format!("controlador.php?acao=bloco_interno_listar&infra_hash={HASH}");
-        assert!(resolver_link(&instalacao,base,&href,"bloco_interno_listar",None).is_ok());
-        assert_eq!(resolver_link(&instalacao,base,&format!("{href}&infra_hash={HASH}"),"bloco_interno_listar",None),Err(ErroBloco::LinkDeBlocosNaoReconhecido));
-        assert_eq!(resolver_link(&instalacao,base,"https://outra.test/controlador.php?acao=bloco_interno_listar","bloco_interno_listar",None),Err(ErroBloco::LinkDeBlocosNaoReconhecido));
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        let base = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
+        let href = format!("controlador.php?acao=bloco_interno_listar&infra_hash={HASH}");
+        assert!(resolver_link(&instalacao, base, &href, "bloco_interno_listar", None).is_ok());
+        assert_eq!(
+            resolver_link(
+                &instalacao,
+                base,
+                &format!("{href}&infra_hash={HASH}"),
+                "bloco_interno_listar",
+                None
+            ),
+            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
+        );
+        assert_eq!(
+            resolver_link(
+                &instalacao,
+                base,
+                "https://outra.test/controlador.php?acao=bloco_interno_listar",
+                "bloco_interno_listar",
+                None
+            ),
+            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
+        );
     }
 }
