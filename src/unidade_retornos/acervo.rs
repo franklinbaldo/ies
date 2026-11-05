@@ -23,6 +23,50 @@ fn pasta_do_acervo() -> PathBuf {
     )
 }
 
+/// Conta somente elementos e nomes de parametros de links gravados.
+/// Nunca publica href, corpo HTML, infra_hash, URL assinada ou cookie.
+fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
+    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
+        println!("{instalacao}: calendario passo={passo} html_nao_estruturado");
+        return;
+    };
+    let parser = dom.parser();
+    let mut links = 0usize;
+    let mut links_de_mes = 0usize;
+    let mut links_de_dia = 0usize;
+    let mut acoes_js = 0usize;
+    let mut hoje = 0usize;
+    for no in dom.query_selector("a").into_iter().flatten() {
+        if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
+            links += 1;
+            if let Ok(Some(href)) = crate::html_atributos::valor_do_atributo(tag, "href") {
+                if href.contains("data_inicial=") && href.contains("data_final=") {
+                    links_de_mes += 1;
+                }
+                if href.contains("data_atual=") {
+                    links_de_dia += 1;
+                }
+            }
+            if let Ok(Some(acao)) = crate::html_atributos::valor_do_atributo(tag, "onclick")
+                && acao.contains("retorno_programado")
+            {
+                acoes_js += 1;
+            }
+        }
+    }
+    for no in dom.query_selector("td").into_iter().flatten() {
+        if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag)
+            && let Ok(Some(classe)) = crate::html_atributos::valor_do_atributo(tag, "class")
+            && classe.split_whitespace().any(|classe| classe == "diaHoje")
+        {
+            hoje += 1;
+        }
+    }
+    println!(
+        "{instalacao}: calendario passo={passo} ancoras={links} links_mes={links_de_mes} links_dia={links_de_dia} js_retornos={acoes_js} dia_hoje={hoje}"
+    );
+}
+
 /// Sem acesso ao SEI; usa exclusivamente o acervo original em cache.
 #[test]
 #[ignore = "replay manual #253: requer ZIPs do acervo verificados em IES_ACERVO_CACHE"]
@@ -46,6 +90,16 @@ fn replay_retornos_no_acervo() {
         let mut lidos = 0;
         let mut recusados = 0;
         for resposta in gravacao::respostas(&conferida.json) {
+            if resposta.operacao == "retorno_programado_listar"
+                && resposta.metodo == "GET"
+                && resposta.status == 200
+                && gravacao::parametro(resposta.item, "data_inicial").is_empty()
+            {
+                if let Ok(html) = html_da_resposta(resposta.item) {
+                    diagnosticar_calendario(&html, instalacao, resposta.passo);
+                }
+                continue;
+            }
             if resposta.operacao != "retorno_programado_listar"
                 || resposta.metodo != "GET"
                 || resposta.status != 200
