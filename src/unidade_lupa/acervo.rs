@@ -45,8 +45,12 @@ fn replay_da_lupa_go_no_acervo() {
                 .map(|tag| super::texto_da_tag(tag, dom.parser()))
                 .collect();
             panic!(
-                "lupa GO passo {}: {e:?}; legendas públicas: {legends:?}",
-                resposta.passo
+                "lupa GO passo {} metodo {}: {e:?}; legendas públicas: {legends:?}; bytes {}; possui frmUnidadeLista {}; possui Lista de Unidades {}",
+                resposta.passo,
+                resposta.metodo,
+                html.len(),
+                html.contains("frmUnidadeLista"),
+                html.contains("Lista de Unidades")
             )
         });
         assert!(pagina.paginas >= 1);
