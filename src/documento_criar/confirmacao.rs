@@ -61,10 +61,17 @@ where
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
         .map_err(|_| ErroPreviaCriacao::EfeitoIncerto)?;
-    if !matches!(
-        resposta,
-        Ok(RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_))
-    ) {
+    // 302 sem Location não é uma resposta de navegação válida.
+    // Mesmo que a árvore tenha mudado, pode ser escrita concorrente;
+    // não atribuir essa alteração a um POST de resultado inconclusivo.
+    let resposta_conferivel = match &resposta {
+        Ok(RespostaDoEnvio::Html(_)) => true,
+        Ok(RespostaDoEnvio::Redirecionamento(redirect)) => redirect
+            .localizacao()
+            .is_some_and(|destino| !destino.trim().is_empty()),
+        Err(_) => false,
+    };
+    if !resposta_conferivel {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
     Ok(numero)
