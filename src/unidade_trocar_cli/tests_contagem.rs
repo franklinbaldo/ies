@@ -1,5 +1,5 @@
 //! Contagem (#184) da troca de unidade com a bancada HTTP sintética.
-//! O Roteiro usa testes_http::atender: cada tentativa é registrada
+//! O Roteiro usa `testes_http::atender`: cada tentativa é registrada
 //! antes de devolver sucesso, 302, falha de rede ou recusa do POST.
 use super::*;
 use crate::instalacao::Instalacao;
@@ -43,8 +43,7 @@ fn inicio() -> Vec<Resposta> {
 
 #[test]
 fn get_200_ja_na_unidade_conta_uma_tentativa() {
-    let (resultado, pedidos, total) =
-        executar("PR-A", false, vec![html(controle("PR-A", ID_A))]);
+    let (resultado, pedidos, total) = executar("PR-A", false, vec![html(controle("PR-A", ID_A))]);
     assert!(resultado.is_ok());
     assert_eq!(total, 1);
     assert_eq!(pedidos.len(), 1);
@@ -75,9 +74,15 @@ fn falha_de_rede_no_segundo_get_conta_as_duas_tentativas() {
         false,
         vec![html(controle("PR-A", ID_A)), Err(FalhaTransporte::Rede)],
     );
-    assert!(matches!(resultado, Err(ErroTroca::Transporte(FalhaTransporte::Rede))));
+    assert!(matches!(
+        resultado,
+        Err(ErroTroca::Transporte(FalhaTransporte::Rede))
+    ));
     assert_eq!(total, 2);
-    assert_eq!(pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(), ["GET", "GET"]);
+    assert_eq!(
+        pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(),
+        ["GET", "GET"]
+    );
 }
 
 #[test]
@@ -87,5 +92,8 @@ fn post_recusado_conta_tres_tentativas_inclusive_o_envio() {
     let (resultado, pedidos, total) = executar("PR-B", true, respostas);
     assert!(matches!(resultado, Err(ErroTroca::EfeitoIncerto { .. })));
     assert_eq!(total, 3);
-    assert_eq!(pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(), ["GET", "GET", "POST"]);
+    assert_eq!(
+        pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(),
+        ["GET", "GET", "POST"]
+    );
 }
