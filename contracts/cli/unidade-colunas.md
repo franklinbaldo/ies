@@ -93,7 +93,8 @@ do proprietário, 02/11/2026). Regime estável: 2 GET.
 | Caixa publicada com `label for=` ausente ou com outro texto | `rotulo_da_opcao_do_nivel_de_detalhe_diferente` |
 
 Opção do catálogo **ausente** não é recusa: sai com `disponivel: false`.
-`opcao_do_nivel_de_detalhe_ausente` deixa de existir.
+`opcao_do_nivel_de_detalhe_ausente` foi aposentado na evolução de #57
+para catálogo parcial; [decisão](../../docs/decisoes/unidade-listar-processos.md).
 
 ## Evidência para a escrita ([`--definir`](unidade-definir-colunas.md))
 

@@ -147,7 +147,7 @@ as mesmas regras ([transporte HTTPS](../cli.md#transporte-https-um-cliente-proxy
 | Esquema diferente de `http://` | `proxy_com_esquema_nao_suportado` |
 | DNS ou TCP do proxy falhou (nada foi ao SEI) | `proxy_inacessivel` |
 | Resposta ao `CONNECT` fora de HTTP/1.x ou truncada | `resposta_do_proxy_nao_interpretavel` |
-| `CONNECT` respondido fora de 2xx (`407`, `403`, `502`...) | `proxy_recusou_o_tunel`, com `status_do_proxy` |
+| `CONNECT` respondido fora de 2xx (`407`, `403`, `502`...); campo `status_do_proxy` | `proxy_recusou_o_tunel` |
 
 `status_do_proxy` não é `status_http` (o SEI não respondeu). Testado
 offline com proxy falso local (`TcpListener`); o TLS através do túnel

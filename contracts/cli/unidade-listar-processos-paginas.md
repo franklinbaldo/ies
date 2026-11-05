@@ -37,7 +37,8 @@ na [forma única](unidade-recebidos-gerados.md):
   páginas recebidas, em qualquer ponto da lista.
 - A faixa pode não começar em 1: o servidor lembra a página pedida na
   sessão. A saída não diz "primeira página".
-- `paginas_do_controle_nao_obtidas` deixa de ser emitido por este comando.
+- `paginas_do_controle_nao_obtidas` foi aposentado por #57: a página
+  observada é a resposta padrão, sem obrigação de colher todas.
 
 Continuam recusas tipadas, antes de publicar ou exportar:
 

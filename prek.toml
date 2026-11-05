@@ -59,7 +59,7 @@ stages = ["pre-push"]
 
 [[repos.hooks]]
 id = "scripts-python"
-name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR, auditoria OSV)"
+name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR, auditoria OSV, subcódigos)"
 entry = "python3 -I -m unittest discover -s scripts -p test_*.py"
 language = "system"
 pass_filenames = false
@@ -79,6 +79,15 @@ stages = ["pre-push"]
 id = "decisoes"
 name = "Decisões de engenharia por operação implementada"
 entry = "cargo run --quiet --locked -p xtask --bin check_design"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "subcodigos"
+name = "Subcódigos Rust documentados nos contratos"
+entry = "python3 -I scripts/subcodigos.py"
 language = "system"
 pass_filenames = false
 always_run = true

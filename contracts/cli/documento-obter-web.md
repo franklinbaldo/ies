@@ -18,7 +18,7 @@ no stub (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
 O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
 HTML recebido) é lido pelo [GET binário](documento-obter-externo.md)
 (fatia 3); o subcódigo `documento_externo_por_download_de_anexo` foi
-aposentado.
+aposentado na fatia 3 de #60 (leitura do anexo externo).
 
 ## Caminho e requisições
 
