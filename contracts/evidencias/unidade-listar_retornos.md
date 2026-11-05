@@ -77,5 +77,7 @@ A CLI `ies unidade retornos [--mes AAAA-MM]` lê pelo menu e pelo link
 `Ver todo o mes`; confere contagens das duas tabelas, rejeita paginacao
 nao observada e tem testes sinteticos. **RED no CI inicial: 3 testes
 falhando** antes do parser; compilacao local e live NOT_RUN.
-O replay das sete cassettes acima e a validacao GO/PEN3 ainda faltam.
+Replay original de **14 páginas mensais em sete instalações: PASS (14/14,
+zero recusas)**. [Relatório verificado](../../docs/validacao-replay/2026-11-05-unidade-retornos.md).
+A validação ao vivo GO/PEN3 é independente e deve registrar seu próprio resultado.
 [Contrato](../cli/unidade-listar-retornos.md) e [decisao](../../docs/decisoes/unidade-listar-retornos.md).
