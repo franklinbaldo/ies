@@ -30,7 +30,26 @@ fn replay_da_lupa_go_no_acervo() {
     let mut get = 0usize;
     let mut post = 0usize;
     let mut vazias = 0usize;
+    let mut cadastros_com_lupa = 0usize;
     for resposta in gravacao::respostas(&conferida.json) {
+        if resposta.operacao == "grupo_unidade_cadastrar" && resposta.status == 200 {
+            let html = html_da_resposta(resposta.item)
+                .unwrap_or_else(|_| panic!("cadastro ilegível no passo {}", resposta.passo));
+            // GO: ação da lupa no literal servido pelo cadastro. Não executar JS,
+            // não publicar nem comparar o hash assinado da cassette.
+            assert!(
+                super::fluxo::destino(
+                    &html,
+                    "https://seitreinamento.go.gov.br/sei/controlador.php",
+                    "https://seitreinamento.go.gov.br/sei",
+                    "unidade_selecionar_envio_processo"
+                )
+                .is_ok(),
+                "cadastro GO passo {} sem link único autorizado da lupa",
+                resposta.passo
+            );
+            cadastros_com_lupa += 1;
+        }
         if resposta.operacao != "unidade_selecionar_envio_processo" || resposta.status != 200 {
             continue;
         }
@@ -65,6 +84,7 @@ fn replay_da_lupa_go_no_acervo() {
         lidas += 1;
     }
     assert_eq!((get, post, lidas), (3, 3, 6));
+    assert_eq!(cadastros_com_lupa, 3, "GO deve publicar 3 cadastros com lupa");
     assert!(vazias >= 1, "a cassette GO deve ter uma lista vazia");
     println!("replay GO: {lidas} telas lidas ({get} GET, {post} POST), 0 requisições reais");
 }
