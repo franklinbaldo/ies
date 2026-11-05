@@ -20,17 +20,13 @@ const NUP: &str = "00001.000001/2026-01";
 
 #[test]
 fn motivo_em_branco_e_erro_de_uso_sem_rede() {
-    let saida = sem_sessao(&[
-        "processo", "sobrestar", NUP, "--motivo", " \t ", "--json",
-    ]);
+    let saida = sem_sessao(&["processo", "sobrestar", NUP, "--motivo", " \t ", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "motivo_do_sobrestamento_vazio");
 }
 #[test]
 fn nup_invalido_prioritario_antes_da_sessao() {
-    let saida = sem_sessao(&[
-        "processo", "sobrestar", " ", "--motivo", "teste", "--json",
-    ]);
+    let saida = sem_sessao(&["processo", "sobrestar", " ", "--motivo", "teste", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "numero_processo_vazio");
 }
@@ -38,18 +34,29 @@ fn nup_invalido_prioritario_antes_da_sessao() {
 fn motivo_obrigatorio_no_clap() {
     let saida = sem_sessao(&["processo", "sobrestar", NUP, "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, b"");
 }
 #[test]
 fn confirmar_nao_escreve_nem_le_sessao_antes_da_implementacao() {
     for argumentos in [
-        vec!["processo", "sobrestar", NUP, "--motivo", "teste", "--confirmar", "--json"],
+        vec![
+            "processo",
+            "sobrestar",
+            NUP,
+            "--motivo",
+            "teste",
+            "--confirmar",
+            "--json",
+        ],
         vec!["processo", "retomar", NUP, "--confirmar", "--json"],
     ] {
         let saida = sem_sessao(&argumentos);
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
         let valor = json(&saida);
-        assert_eq!(valor["subcodigo"], "confirmacao_de_sobrestamento_nao_implementada");
+        assert_eq!(
+            valor["subcodigo"],
+            "confirmacao_de_sobrestamento_nao_implementada"
+        );
         assert_eq!(valor["retentavel"], false);
     }
 }
