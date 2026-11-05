@@ -170,13 +170,22 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
         Ok(())
     );
     assert!(real.join("config.json").is_file());
-    // Gravável por outros sem sticky: recusado sem criar nada.
-    fs::set_permissions(&real, fs::Permissions::from_mode(0o777)).unwrap();
-    assert_eq!(
-        salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
-        Err("configuracao_ja_existe_ou_sem_permissao")
-    );
+    // Diretório do IES gravável pelo grupo ou por outros sem sticky:
+    // recusado sem criar nada; com sticky, aceito.
+    for bits in [0o770, 0o707, 0o777] {
+        fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
+        assert_eq!(
+            salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
+            Err("configuracao_ja_existe_ou_sem_permissao")
+        );
+    }
     assert_eq!(fs::read_dir(&real).unwrap().count(), 1);
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o1777)).unwrap();
+    assert_eq!(
+        salvar_arquivos_de_acesso(&pasta.0.join("atalho/sticky.json"), &arquivos),
+        Ok(())
+    );
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o700)).unwrap();
     let destino = pasta.arquivo();
     assert_eq!(salvar_arquivos_de_acesso(&destino, &arquivos), Ok(()));
     assert_eq!(

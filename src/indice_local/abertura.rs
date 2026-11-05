@@ -112,11 +112,18 @@ fn opcoes_privadas(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     opcoes
 }
 
+/// O banco é do IES: diretório real fechado a outros, níveis `0700`.
+fn politica_do_banco() -> crate::arquivo_privado::Politica {
+    crate::arquivo_privado::Politica::exclusiva()
+        .diretorio_do_ies()
+        .criando_diretorios()
+}
+
 /// Os níveis ausentes nascem `0700` e o diretório real do banco (links
 /// no caminho são aceitos) é privado; o IES não muda o modo do que não
 /// criou.
 fn conferir_diretorio(banco: &Path, diretorio: &Path) -> Result<(), Falha> {
-    crate::arquivo_privado::conferir_diretorios(banco, true).map_err(|_| Falha)?;
+    crate::arquivo_privado::conferir_diretorios(banco, politica_do_banco()).map_err(|_| Falha)?;
     let info = fs::metadata(diretorio)?;
     if info.is_dir() && privado(&info) {
         Ok(())
@@ -148,8 +155,8 @@ fn lateral(caminho: &Path, sufixo: &str) -> PathBuf {
 
 fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
     if !arquivo_privado_existente(caminho)? {
-        use crate::arquivo_privado::{FalhaDaGravacao, Politica, gravar};
-        match gravar(caminho, b"", Politica::exclusiva().criando_diretorios()) {
+        use crate::arquivo_privado::{FalhaDaGravacao, gravar};
+        match gravar(caminho, b"", politica_do_banco()) {
             // Outro `ies` criou ao mesmo tempo: confere o dele.
             Ok(()) | Err(FalhaDaGravacao::DestinoJaExiste) => {}
             Err(_) => return Err(Falha),

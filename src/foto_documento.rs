@@ -127,7 +127,11 @@ pub(crate) fn gravar(
         return Ok(plano);
     }
     let destino = pasta.join(&plano.nome);
-    match arquivo_privado::gravar(&destino, html.as_bytes(), Politica::exclusiva()) {
+    match arquivo_privado::gravar(
+        &destino,
+        html.as_bytes(),
+        Politica::exclusiva().diretorio_do_usuario(),
+    ) {
         Ok(()) => Ok(plano),
         // Surgiu entre a conferência e a ligação: igual é no-op.
         Err(FalhaDaGravacao::DestinoJaExiste) => {

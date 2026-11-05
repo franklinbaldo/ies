@@ -43,6 +43,20 @@ impl Drop for Pasta {
     }
 }
 
+const DO_IES: Politica = Politica::exclusiva().diretorio_do_ies();
+const DO_USUARIO: Politica = Politica::exclusiva().diretorio_do_usuario();
+
+/// Os dois modos, nos dois donos de diretório.
+#[cfg(unix)]
+fn todas_as_politicas() -> [Politica; 4] {
+    [
+        DO_IES,
+        Politica::substituicao().diretorio_do_ies(),
+        DO_USUARIO,
+        Politica::substituicao().diretorio_do_usuario(),
+    ]
+}
+
 #[cfg(unix)]
 fn definir_modo(caminho: &Path, modo: u32) {
     use std::os::unix::fs::PermissionsExt;
@@ -59,7 +73,14 @@ fn modo(caminho: &Path) -> u32 {
 fn exclusiva_cria_arquivo_novo_privado_com_o_conteudo_exato() {
     let pasta = Pasta::nova("novo");
     let alvo = pasta.join("saida.json");
-    assert_eq!(gravar(&alvo, b"{\"a\":1}", Politica::exclusiva()), Ok(()));
+    assert_eq!(
+        gravar(
+            &alvo,
+            b"{\"a\":1}",
+            Politica::exclusiva().diretorio_do_ies()
+        ),
+        Ok(())
+    );
     assert_eq!(fs::read(&alvo).unwrap(), b"{\"a\":1}");
     assert_eq!(pasta.nomes(), ["saida.json"], "nenhum parcial sobra");
     #[cfg(unix)]
@@ -72,7 +93,7 @@ fn exclusiva_recusa_destino_existente_sem_alterar_e_sem_parcial() {
     let alvo = pasta.join("saida.txt");
     fs::write(&alvo, "ORIGINAL").unwrap();
     assert_eq!(
-        gravar(&alvo, b"INTRUSO", Politica::exclusiva()),
+        gravar(&alvo, b"INTRUSO", Politica::exclusiva().diretorio_do_ies()),
         Err(FalhaDaGravacao::DestinoJaExiste)
     );
     assert_eq!(fs::read_to_string(&alvo).unwrap(), "ORIGINAL");
@@ -83,8 +104,14 @@ fn exclusiva_recusa_destino_existente_sem_alterar_e_sem_parcial() {
 fn substituicao_troca_o_conteudo_inteiro_e_fica_privada() {
     let pasta = Pasta::nova("substitui");
     let alvo = pasta.join("cookie");
-    assert_eq!(gravar(&alvo, b"A=1\n", Politica::substituicao()), Ok(()));
-    assert_eq!(gravar(&alvo, b"B=2\n", Politica::substituicao()), Ok(()));
+    assert_eq!(
+        gravar(&alvo, b"A=1\n", Politica::substituicao().diretorio_do_ies()),
+        Ok(())
+    );
+    assert_eq!(
+        gravar(&alvo, b"B=2\n", Politica::substituicao().diretorio_do_ies()),
+        Ok(())
+    );
     assert_eq!(fs::read_to_string(&alvo).unwrap(), "B=2\n");
     assert_eq!(pasta.nomes(), ["cookie"]);
     #[cfg(unix)]
@@ -100,11 +127,11 @@ fn link_simbolico_no_destino_nunca_e_seguido_em_nenhum_modo() {
     let alvo = pasta.join("alvo");
     std::os::unix::fs::symlink(&original, &alvo).unwrap();
     assert_eq!(
-        gravar(&alvo, b"X", Politica::exclusiva()),
+        gravar(&alvo, b"X", Politica::exclusiva().diretorio_do_ies()),
         Err(FalhaDaGravacao::DestinoJaExiste)
     );
     assert_eq!(
-        gravar(&alvo, b"X", Politica::substituicao()),
+        gravar(&alvo, b"X", Politica::substituicao().diretorio_do_ies()),
         Err(FalhaDaGravacao::DestinoNaoEhArquivoRegular)
     );
     assert_eq!(fs::read_to_string(&original).unwrap(), "NAO ALTERAR");
@@ -131,12 +158,12 @@ fn link_plantado_no_nome_final_nunca_e_atravessado_em_nenhum_modo() {
     let vitima = pasta.join("vitima");
     let alvo = comum.join("sessao");
     std::os::unix::fs::symlink(&vitima, &alvo).unwrap();
-    for politica in [Politica::exclusiva(), Politica::substituicao()] {
+    for politica in todas_as_politicas() {
         assert!(gravar(&alvo, b"SEGREDO", politica).is_err(), "{politica:?}");
         assert!(!vitima.exists(), "o link pendente não criou a vítima");
     }
     fs::remove_file(&alvo).unwrap();
-    for politica in [Politica::exclusiva(), Politica::substituicao()] {
+    for politica in todas_as_politicas() {
         let mut parcial = Parcial::abrir(&alvo, politica).unwrap();
         parcial.escrever(b"SEGREDO").unwrap();
         std::os::unix::fs::symlink(&vitima, &alvo).unwrap();
@@ -167,22 +194,40 @@ fn ancestral_link_simbolico_e_aceito_e_o_arquivo_vai_para_o_diretorio_real() {
     }
     std::os::unix::fs::symlink(pasta.join("var").join("home"), pasta.join("home")).unwrap();
     let pela_casa = pasta.join("home").join("pessoa");
-    assert_eq!(conferir_diretorios(&pela_casa.join("x"), false), Ok(()));
+    assert_eq!(conferir_diretorios(&pela_casa.join("x"), DO_IES), Ok(()));
     assert_eq!(
-        gravar(&pela_casa.join("caixa.json"), b"{}", Politica::exclusiva()),
+        gravar(
+            &pela_casa.join("caixa.json"),
+            b"{}",
+            Politica::exclusiva().diretorio_do_ies()
+        ),
         Ok(())
     );
     assert_eq!(
-        gravar(&pela_casa.join("cookie"), b"A=1", Politica::substituicao()),
+        gravar(
+            &pela_casa.join("cookie"),
+            b"A=1",
+            Politica::substituicao().diretorio_do_ies()
+        ),
         Ok(())
     );
     assert_eq!(
-        gravar(&pela_casa.join("cookie"), b"B=2", Politica::substituicao()),
+        gravar(
+            &pela_casa.join("cookie"),
+            b"B=2",
+            Politica::substituicao().diretorio_do_ies()
+        ),
         Ok(())
     );
     let banco = pela_casa.join(".local").join("ies").join("ies.sqlite3");
     assert_eq!(
-        gravar(&banco, b"", Politica::exclusiva().criando_diretorios()),
+        gravar(
+            &banco,
+            b"",
+            Politica::exclusiva()
+                .diretorio_do_ies()
+                .criando_diretorios()
+        ),
         Ok(())
     );
     assert_eq!(fs::read(real.join("caixa.json")).unwrap(), b"{}");
@@ -211,9 +256,14 @@ fn diretorio_dado_como_link_simbolico_e_aceito() {
     let atalho = pasta.join("atalho");
     std::os::unix::fs::symlink(&real, &atalho).unwrap();
     for (nome, politica) in [
-        ("a.txt", Politica::exclusiva()),
-        ("b.txt", Politica::substituicao()),
-        ("c.txt", Politica::exclusiva().criando_diretorios()),
+        ("a.txt", Politica::exclusiva().diretorio_do_ies()),
+        ("b.txt", Politica::substituicao().diretorio_do_ies()),
+        (
+            "c.txt",
+            Politica::exclusiva()
+                .diretorio_do_ies()
+                .criando_diretorios(),
+        ),
     ] {
         assert_eq!(gravar(&atalho.join(nome), b"OK", politica), Ok(()));
         assert_eq!(fs::read(real.join(nome)).unwrap(), b"OK");
@@ -226,11 +276,12 @@ fn diretorio_dado_como_link_simbolico_e_aceito() {
     );
 }
 
-/// Diretório real gravável por grupo ou outros, sem sticky bit: recusado
-/// antes de criar o parcial, inclusive quando alcançado por um link.
+/// Diretório do IES (sessão, índice, configuração): o diretório real
+/// gravável por grupo ou outros, sem sticky bit, é recusado antes de
+/// criar o parcial, inclusive quando alcançado por um link.
 #[cfg(unix)]
 #[test]
-fn diretorio_gravavel_por_grupo_ou_outros_e_recusado_antes_de_criar() {
+fn diretorio_do_ies_gravavel_por_grupo_ou_outros_e_recusado_antes_de_criar() {
     let pasta = Pasta::nova("aberto");
     let aberto = pasta.join("aberto");
     fs::create_dir(&aberto).unwrap();
@@ -240,9 +291,9 @@ fn diretorio_gravavel_por_grupo_ou_outros_e_recusado_antes_de_criar() {
         definir_modo(&aberto, bits);
         for dir in [&aberto, &atalho] {
             for politica in [
-                Politica::exclusiva(),
-                Politica::substituicao(),
-                Politica::exclusiva().criando_diretorios(),
+                DO_IES,
+                Politica::substituicao().diretorio_do_ies(),
+                DO_IES.criando_diretorios(),
             ] {
                 assert_eq!(
                     gravar(&dir.join("x"), b"SEGREDO", politica),
@@ -251,7 +302,7 @@ fn diretorio_gravavel_por_grupo_ou_outros_e_recusado_antes_de_criar() {
                 );
             }
             assert_eq!(
-                conferir_diretorios(&dir.join("x"), false),
+                conferir_diretorios(&dir.join("x"), DO_IES),
                 Err(FalhaDaGravacao::DiretorioGravavelPorOutros)
             );
         }
@@ -259,17 +310,48 @@ fn diretorio_gravavel_por_grupo_ou_outros_e_recusado_antes_de_criar() {
     }
     // Só escrita conta: leitura e busca por outros não abrem o diretório.
     definir_modo(&aberto, 0o755);
-    assert_eq!(
-        gravar(&aberto.join("x"), b"OK", Politica::exclusiva()),
-        Ok(())
-    );
+    assert_eq!(gravar(&aberto.join("x"), b"OK", DO_IES), Ok(()));
+}
+
+/// Diretório da pessoa (`--saida DIR`): o modo é responsabilidade dela.
+/// Gravável pelo grupo (`0775`) ou por todos (`0777`) é aceito; o link
+/// plantado no nome final continua nunca atravessado.
+#[cfg(unix)]
+#[test]
+fn diretorio_do_usuario_gravavel_por_grupo_ou_outros_e_aceito() {
+    let pasta = Pasta::nova("usuario");
+    let saida = pasta.join("saida");
+    fs::create_dir(&saida).unwrap();
+    let vitima = pasta.join("vitima");
+    for bits in [0o775, 0o777] {
+        definir_modo(&saida, bits);
+        let nome = format!("doc-{bits:o}.txt");
+        assert_eq!(gravar(&saida.join(&nome), b"A", DO_USUARIO), Ok(()));
+        assert_eq!(
+            gravar(
+                &saida.join(&nome),
+                b"B",
+                Politica::substituicao().diretorio_do_usuario()
+            ),
+            Ok(())
+        );
+        assert_eq!(fs::read(saida.join(&nome)).unwrap(), b"B");
+        assert_eq!(modo(&saida.join(&nome)), 0o600);
+        assert_eq!(conferir_diretorios(&saida.join("x"), DO_USUARIO), Ok(()));
+        let plantado = saida.join(format!("plantado-{bits:o}"));
+        std::os::unix::fs::symlink(&vitima, &plantado).unwrap();
+        for politica in [DO_USUARIO, Politica::substituicao().diretorio_do_usuario()] {
+            assert!(gravar(&plantado, b"SEGREDO", politica).is_err());
+            assert!(!vitima.exists());
+        }
+    }
 }
 
 /// `/tmp` (`0o1777`): o sticky bit impede que outro usuário remova ou
 /// troque o que é nosso, e a criação exclusiva não segue o que ele plantou.
 #[cfg(unix)]
 #[test]
-fn diretorio_sticky_gravavel_por_todos_e_aceito() {
+fn diretorio_do_ies_sticky_gravavel_por_todos_e_aceito() {
     let pasta = Pasta::nova("sticky");
     let comum = pasta.join("comum");
     fs::create_dir(&comum).unwrap();
@@ -277,11 +359,19 @@ fn diretorio_sticky_gravavel_por_todos_e_aceito() {
         definir_modo(&comum, bits);
         let nome = format!("x-{bits:o}");
         assert_eq!(
-            gravar(&comum.join(&nome), b"A", Politica::exclusiva()),
+            gravar(
+                &comum.join(&nome),
+                b"A",
+                Politica::exclusiva().diretorio_do_ies()
+            ),
             Ok(())
         );
         assert_eq!(
-            gravar(&comum.join(&nome), b"B", Politica::substituicao()),
+            gravar(
+                &comum.join(&nome),
+                b"B",
+                Politica::substituicao().diretorio_do_ies()
+            ),
             Ok(())
         );
         assert_eq!(fs::read(comum.join(&nome)).unwrap(), b"B");
@@ -294,13 +384,17 @@ fn diretorio_ausente_e_falha_tipada_sem_criar_nada() {
     let pasta = Pasta::nova("ausente");
     let destino = pasta.join("nao").join("existe.txt");
     assert_eq!(
-        gravar(&destino, b"X", Politica::exclusiva()),
+        gravar(&destino, b"X", Politica::exclusiva().diretorio_do_ies()),
         Err(FalhaDaGravacao::DiretorioAusente)
     );
     let arquivo = pasta.join("arquivo");
     fs::write(&arquivo, "").unwrap();
     assert_eq!(
-        gravar(&arquivo.join("x"), b"X", Politica::exclusiva()),
+        gravar(
+            &arquivo.join("x"),
+            b"X",
+            Politica::exclusiva().diretorio_do_ies()
+        ),
         Err(FalhaDaGravacao::DiretorioAusente)
     );
     assert_eq!(pasta.nomes(), ["arquivo"]);
@@ -310,7 +404,9 @@ fn diretorio_ausente_e_falha_tipada_sem_criar_nada() {
 fn criando_diretorios_cada_nivel_novo_nasce_0700() {
     let pasta = Pasta::nova("cria-dir");
     let destino = pasta.join("a").join("b").join("banco");
-    let politica = Politica::exclusiva().criando_diretorios();
+    let politica = Politica::exclusiva()
+        .diretorio_do_ies()
+        .criando_diretorios();
     assert_eq!(gravar(&destino, b"", politica), Ok(()));
     assert_eq!(fs::read(&destino).unwrap(), b"");
     #[cfg(unix)]
@@ -324,12 +420,20 @@ fn criando_diretorios_cada_nivel_novo_nasce_0700() {
 #[test]
 fn sem_nome_de_arquivo_e_recusado() {
     assert_eq!(
-        gravar(Path::new("/"), b"X", Politica::exclusiva()),
+        gravar(
+            Path::new("/"),
+            b"X",
+            Politica::exclusiva().diretorio_do_ies()
+        ),
         Err(FalhaDaGravacao::SemNomeDeArquivo)
     );
     let pasta = Pasta::nova("sem-nome");
     assert_eq!(
-        gravar(&pasta.join(".."), b"X", Politica::substituicao()),
+        gravar(
+            &pasta.join(".."),
+            b"X",
+            Politica::substituicao().diretorio_do_ies()
+        ),
         Err(FalhaDaGravacao::SemNomeDeArquivo)
     );
 }
@@ -338,7 +442,7 @@ fn sem_nome_de_arquivo_e_recusado() {
 fn acima_do_limite_falha_sem_destino_nem_parcial() {
     let pasta = Pasta::nova("limite");
     let alvo = pasta.join("grande");
-    let politica = Politica::exclusiva().com_limite(4);
+    let politica = Politica::exclusiva().diretorio_do_ies().com_limite(4);
     assert_eq!(
         gravar(&alvo, b"12345", politica),
         Err(FalhaDaGravacao::AcimaDoLimite)
@@ -358,7 +462,7 @@ fn acima_do_limite_falha_sem_destino_nem_parcial() {
 fn falha_no_meio_da_escrita_nao_deixa_parcial_nem_destino() {
     let pasta = Pasta::nova("meio");
     let alvo = pasta.join("anexo.pdf");
-    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva()).unwrap();
+    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva().diretorio_do_ies()).unwrap();
     parcial.escrever(b"%PDF-1.7 metade").unwrap();
     let temporario = parcial.temporario().to_owned();
     assert!(temporario.exists(), "o parcial existe enquanto escreve");
@@ -373,7 +477,7 @@ fn falha_no_meio_da_escrita_nao_deixa_parcial_nem_destino() {
 fn parcial_confirmado_aparece_inteiro_no_nome_final() {
     let pasta = Pasta::nova("confirma");
     let alvo = pasta.join("anexo.pdf");
-    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva()).unwrap();
+    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva().diretorio_do_ies()).unwrap();
     parcial.escrever(b"%PDF").unwrap();
     parcial.escrever(b"-1.7").unwrap();
     parcial.sincronizar().unwrap();
@@ -386,7 +490,7 @@ fn parcial_confirmado_aparece_inteiro_no_nome_final() {
 fn destino_que_surge_antes_da_confirmacao_vence_e_nada_e_sobrescrito() {
     let pasta = Pasta::nova("surge");
     let alvo = pasta.join("foto.html");
-    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva()).unwrap();
+    let mut parcial = Parcial::abrir(&alvo, Politica::exclusiva().diretorio_do_ies()).unwrap();
     parcial.escrever(b"MEU").unwrap();
     fs::write(&alvo, "DO OUTRO").unwrap();
     assert_eq!(parcial.confirmar(), Err(FalhaDaGravacao::DestinoJaExiste));
@@ -408,7 +512,11 @@ fn dois_criadores_exclusivos_so_um_vence() {
                 largada.wait();
                 (
                     conteudo.clone(),
-                    gravar(&alvo, conteudo.as_bytes(), Politica::exclusiva()),
+                    gravar(
+                        &alvo,
+                        conteudo.as_bytes(),
+                        Politica::exclusiva().diretorio_do_ies(),
+                    ),
                 )
             })
         })
@@ -445,7 +553,11 @@ fn parcial_de_processo_interrompido_e_varrido_so_quando_antigo() {
             .unwrap();
     }
     assert_eq!(
-        gravar(&pasta.join("DOC.v1.html"), b"<html>", Politica::exclusiva()),
+        gravar(
+            &pasta.join("DOC.v1.html"),
+            b"<html>",
+            Politica::exclusiva().diretorio_do_ies()
+        ),
         Ok(())
     );
     assert_eq!(

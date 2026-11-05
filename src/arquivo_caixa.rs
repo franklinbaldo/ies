@@ -48,19 +48,22 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     }
     let bytes =
         serde_json::to_vec_pretty(valor).map_err(|_| ErroArquivoCaixa::EscritaDeArquivoFalhou)?;
-    arquivo_privado::gravar(destino, &bytes, Politica::exclusiva()).map_err(
-        |falha| match falha {
-            F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
-            F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
-            F::DiretorioGravavelPorOutros => ErroArquivoCaixa::DiretorioDeDestinoGravavelPorOutros,
-            F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
-            F::DestinoNaoEhArquivoRegular
-            | F::AcimaDoLimite
-            | F::CriacaoFalhou
-            | F::EscritaFalhou
-            | F::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
-        },
-    )?;
+    arquivo_privado::gravar(
+        destino,
+        &bytes,
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(|falha| match falha {
+        F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
+        F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        F::DiretorioGravavelPorOutros => ErroArquivoCaixa::DiretorioDeDestinoGravavelPorOutros,
+        F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
+        F::DestinoNaoEhArquivoRegular
+        | F::AcimaDoLimite
+        | F::CriacaoFalhou
+        | F::EscritaFalhou
+        | F::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
+    })?;
     Ok(bytes.len())
 }
 
@@ -130,23 +133,25 @@ mod tests {
     }
     #[cfg(unix)]
     #[test]
-    fn diretorio_por_link_simbolico_e_aceito_e_aberto_a_outros_e_recusado() {
+    fn diretorio_da_pessoa_por_link_e_gravavel_por_outros_e_aceito() {
+        // O arquivo da caixa é escolhido pela pessoa: o modo do diretório
+        // é dela; só valem a criação exclusiva e o nome final.
         use std::os::unix::fs::PermissionsExt;
         let dir = pasta();
         let real = dir.join("real");
         fs::create_dir(&real).unwrap();
-        fs::set_permissions(&real, fs::Permissions::from_mode(0o755)).unwrap();
         std::os::unix::fs::symlink(&real, dir.join("atalho")).unwrap();
         let dado = serde_json::json!({});
-        assert!(gravar(&dir.join("atalho/caixa.json"), &dado).is_ok());
-        assert!(real.join("caixa.json").is_file());
-        fs::set_permissions(&real, fs::Permissions::from_mode(0o777)).unwrap();
-        let erro = gravar(&dir.join("atalho/outra.json"), &dado).unwrap_err();
-        assert_eq!(
-            erro.subcodigo(),
-            "diretorio_do_arquivo_da_caixa_gravavel_por_outros"
-        );
-        assert!(!real.join("outra.json").exists());
+        for bits in [0o755, 0o775, 0o777] {
+            fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
+            let nome = format!("atalho/caixa-{bits:o}.json");
+            assert!(gravar(&dir.join(&nome), &dado).is_ok(), "{bits:o}");
+            assert_eq!(
+                gravar(&dir.join(&nome), &dado),
+                Err(ErroArquivoCaixa::DestinoJaExiste)
+            );
+        }
+        assert_eq!(fs::read_dir(&real).unwrap().count(), 3);
         fs::remove_dir_all(dir).unwrap();
     }
 }

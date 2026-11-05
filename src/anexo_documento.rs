@@ -372,7 +372,9 @@ fn abrir_parcial(
 ) -> Result<ArquivoParcial, ErroAnexo> {
     use crate::arquivo_privado::{FalhaDaGravacao as F, Parcial, Politica};
     let nome = format!("{numero}.{}", conferido.extensao);
-    let politica = Politica::exclusiva().com_limite(conferido.limite);
+    let politica = Politica::exclusiva()
+        .diretorio_do_usuario()
+        .com_limite(conferido.limite);
     if !dir.is_dir() {
         return Err(ErroAnexo::DiretorioAusente);
     }

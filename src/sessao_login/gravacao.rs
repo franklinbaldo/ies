@@ -156,7 +156,8 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
 /// gravável por outros.
 fn preparar(destino: &Path, conteudo: &str, papel: ArquivoPrivado) -> Result<Parcial, ErroLogin> {
     let traduzir = |falha| traduzir(falha, papel);
-    let mut parcial = Parcial::abrir(destino, Politica::substituicao()).map_err(traduzir)?;
+    let mut parcial =
+        Parcial::abrir(destino, Politica::substituicao().diretorio_do_ies()).map_err(traduzir)?;
     parcial.escrever(conteudo.as_bytes()).map_err(traduzir)?;
     parcial.sincronizar().map_err(traduzir)?;
     Ok(parcial)

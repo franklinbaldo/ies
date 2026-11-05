@@ -42,7 +42,12 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
 /// conferência da gravação privada única. Não estabelece exclusividade
 /// contra alterações concorrentes do caminho.
 pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
-    crate::arquivo_privado::conferir_diretorios(destino, false).map_err(traduzir)
+    use crate::arquivo_privado::Politica;
+    crate::arquivo_privado::conferir_diretorios(
+        destino,
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(traduzir)
 }
 
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
@@ -54,7 +59,12 @@ pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoTexto::DiretorioAusente);
     }
-    arquivo_privado::gravar(destino, texto.as_bytes(), Politica::exclusiva()).map_err(traduzir)?;
+    arquivo_privado::gravar(
+        destino,
+        texto.as_bytes(),
+        Politica::exclusiva().diretorio_do_usuario(),
+    )
+    .map_err(traduzir)?;
     Ok(texto.len())
 }
 
@@ -137,24 +147,22 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn recusa_diretorio_de_saida_gravavel_por_outros_sem_sticky() {
+    fn aceita_diretorio_de_saida_gravavel_pelo_grupo_ou_por_outros() {
+        // `--saida DIR` é da pessoa: o modo do diretório é dela.
         use std::os::unix::fs::PermissionsExt;
         let raiz = pasta();
         let aberto = raiz.join("aberto");
         fs::create_dir(&aberto).unwrap();
-        fs::set_permissions(&aberto, fs::Permissions::from_mode(0o775)).unwrap();
-        let destino = aberto.join("0007.txt");
-        assert_eq!(
-            salvar(&destino, "DADO CONFIDENCIAL"),
-            Err(ErroArquivoTexto::DiretorioGravavelPorOutros)
-        );
-        assert_eq!(
-            conferir_diretorios(&destino),
-            Err(ErroArquivoTexto::DiretorioGravavelPorOutros)
-        );
-        assert!(!destino.exists());
-        fs::set_permissions(&aberto, fs::Permissions::from_mode(0o1777)).unwrap();
-        assert_eq!(salvar(&destino, "OK"), Ok(2));
+        for bits in [0o775, 0o777] {
+            fs::set_permissions(&aberto, fs::Permissions::from_mode(bits)).unwrap();
+            let destino = aberto.join(format!("{bits:o}.txt"));
+            assert_eq!(conferir_diretorios(&destino), Ok(()));
+            assert_eq!(salvar(&destino, "OK"), Ok(2));
+            assert_eq!(
+                salvar(&destino, "DE NOVO"),
+                Err(ErroArquivoTexto::DestinoJaExiste)
+            );
+        }
         fs::remove_dir_all(raiz).unwrap();
     }
 

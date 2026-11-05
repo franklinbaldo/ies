@@ -24,26 +24,57 @@ pub(crate) enum Modo {
     Substituir,
 }
 
+/// De quem é o diretório do destino, declarado por todo chamador.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Diretorio {
+    /// Gerenciado pelo IES (sessão, índice, configuração, cache): o
+    /// diretório real não pode ser gravável por grupo ou outros sem
+    /// sticky bit.
+    DoIes,
+    /// Escolhido pela pessoa (`--saida DIR`, o arquivo da caixa): o modo
+    /// é responsabilidade dela; só valem a criação exclusiva e o nome
+    /// final nunca seguido.
+    DoUsuario,
+}
+
+/// O modo escolhido, ainda sem o dono do diretório: só vira [`Politica`]
+/// com [`Self::diretorio_do_ies`] ou [`Self::diretorio_do_usuario`], para
+/// que nenhum chamador fique num padrão implícito.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ModoDaGravacao(Modo);
+
+impl ModoDaGravacao {
+    pub(crate) const fn diretorio_do_ies(self) -> Politica {
+        Politica::nova(self.0, Diretorio::DoIes)
+    }
+
+    pub(crate) const fn diretorio_do_usuario(self) -> Politica {
+        Politica::nova(self.0, Diretorio::DoUsuario)
+    }
+}
+
 /// Política da gravação.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Politica {
     modo: Modo,
+    diretorio: Diretorio,
     limite: Option<u64>,
     criar_diretorios: bool,
 }
 
 impl Politica {
-    pub(crate) const fn exclusiva() -> Self {
-        Self {
-            modo: Modo::Exclusivo,
-            limite: None,
-            criar_diretorios: false,
-        }
+    pub(crate) const fn exclusiva() -> ModoDaGravacao {
+        ModoDaGravacao(Modo::Exclusivo)
     }
 
-    pub(crate) const fn substituicao() -> Self {
+    pub(crate) const fn substituicao() -> ModoDaGravacao {
+        ModoDaGravacao(Modo::Substituir)
+    }
+
+    const fn nova(modo: Modo, diretorio: Diretorio) -> Self {
         Self {
-            modo: Modo::Substituir,
+            modo,
+            diretorio,
             limite: None,
             criar_diretorios: false,
         }
@@ -87,15 +118,18 @@ pub(crate) enum FalhaDaGravacao {
 /// diretório que passa pela mesma conferência. Conferência por caminho:
 /// não impede a troca concorrente por quem pode escrever num ancestral
 /// (a decisão documenta esse limite).
-pub(crate) fn conferir_diretorios(destino: &Path, criar: bool) -> Result<(), FalhaDaGravacao> {
-    diretorio_real(destino, criar).map(|_| ())
+pub(crate) fn conferir_diretorios(
+    destino: &Path,
+    politica: Politica,
+) -> Result<(), FalhaDaGravacao> {
+    diretorio_real(destino, politica).map(|_| ())
 }
 
 /// O diretório real (sem links) do destino, já conferido.
-fn diretorio_real(destino: &Path, criar: bool) -> Result<PathBuf, FalhaDaGravacao> {
+fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDaGravacao> {
     let absoluto = absoluto(destino)?;
     let pai = absoluto.parent().ok_or(FalhaDaGravacao::DiretorioAusente)?;
-    if criar {
+    if politica.criar_diretorios {
         let mut niveis: Vec<&Path> = pai.ancestors().collect();
         niveis.reverse();
         for nivel in niveis {
@@ -203,7 +237,7 @@ impl Parcial {
             })
             .ok_or(FalhaDaGravacao::SemNomeDeArquivo)?
             .to_owned();
-        let pasta = diretorio_real(destino, politica.criar_diretorios)?;
+        let pasta = diretorio_real(destino, politica)?;
         let destino = pasta.join(&nome);
         conferir_destino(&destino, politica.modo)?;
         let prefixo = prefixo_do_parcial(&nome);

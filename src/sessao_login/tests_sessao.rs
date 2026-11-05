@@ -328,15 +328,21 @@ fn gravacao_recusa_diretorio_gravavel_por_outros() {
     let ambiente = Ambiente::novo();
     let aberto = ambiente.dir.join("aberto");
     std::fs::create_dir(&aberto).unwrap();
-    crate::indice_local::tests::definir_modo(&aberto, 0o777);
     let arquivos = crate::configuracao::ArquivosDeAcesso {
         url_controle: aberto.join("url-controle"),
         cookie: aberto.join("cookie"),
         origem: ambiente.arquivos.origem.clone(),
     };
-    let erro = super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
-    assert_eq!(erro.subcodigo(), "diretorio_da_sessao_gravavel_por_outros");
-    assert_eq!(std::fs::read_dir(&aberto).unwrap().count(), 0);
+    for bits in [0o770, 0o707, 0o777] {
+        crate::indice_local::tests::definir_modo(&aberto, bits);
+        let erro =
+            super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
+        assert_eq!(erro.subcodigo(), "diretorio_da_sessao_gravavel_por_outros");
+        assert_eq!(std::fs::read_dir(&aberto).unwrap().count(), 0);
+    }
+    // `/tmp`-style (sticky): aceito.
+    crate::indice_local::tests::definir_modo(&aberto, 0o1777);
+    super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
 }
 
 #[test]

@@ -121,11 +121,11 @@ fn nao_segue_link_simbolico_no_nome_da_foto() {
 }
 
 /// `--saida atalho` em que `atalho` é link para um diretório real:
-/// aceito (conferido e gravado no diretório real); o mesmo diretório
-/// gravável por outros sem sticky é recusado antes da rede.
+/// aceito (conferido e gravado no diretório real), e o modo do diretório
+/// da pessoa não é conferido (gravável pelo grupo ou por todos).
 #[cfg(unix)]
 #[test]
-fn saida_por_link_simbolico_e_aceita_e_gravavel_por_outros_recusada() {
+fn saida_por_link_simbolico_e_gravavel_por_outros_e_aceita() {
     use std::os::unix::fs::PermissionsExt;
     let raiz = pasta();
     let real = raiz.join("real");
@@ -136,12 +136,12 @@ fn saida_por_link_simbolico_e_aceita_e_gravavel_por_outros_recusada() {
     assert_eq!(conferir_antes_da_rede(&atalho, &[], Some(v(2))), Ok(()));
     assert!(gravar(&atalho, "0011519", v(2), &corpo).unwrap().gravado);
     assert_eq!(nomes(&real), ["0011519.v2.html"]);
-    fs::set_permissions(&real, fs::Permissions::from_mode(0o777)).unwrap();
-    let erro = conferir_antes_da_rede(&atalho, &[], None).unwrap_err();
-    assert_eq!(
-        erro.subcodigo(),
-        "diretorio_texto_documento_gravavel_por_outros"
-    );
+    for (bits, n) in [(0o775, 3), (0o777, 4)] {
+        fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
+        assert_eq!(conferir_antes_da_rede(&atalho, &[], None), Ok(()));
+        let corpo = html("0011519", "Outra.", Some(n));
+        assert!(gravar(&atalho, "0011519", v(n), &corpo).unwrap().gravado);
+    }
     fs::remove_dir_all(raiz).unwrap();
 }
 

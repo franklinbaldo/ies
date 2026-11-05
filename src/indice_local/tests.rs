@@ -123,6 +123,22 @@ fn diretorio_aberto_a_outros_desliga_e_nao_cria_banco() {
     assert!(!caminho.exists());
 }
 
+/// O índice é do IES: o nível novo não nasce num diretório gravável
+/// pelo grupo ou por outros sem sticky bit (o índice desliga).
+#[cfg(unix)]
+#[test]
+fn nivel_novo_em_diretorio_gravavel_por_outros_desliga_sem_criar() {
+    let raiz = pasta("pai-aberto");
+    for bits in [0o770, 0o707, 0o777] {
+        definir_modo(&raiz, bits);
+        let indice = IndiceLocal::em(raiz.join("novo").join(NOME_DO_ARQUIVO));
+        indice.registrar_entrada_por_id(&instalacao(), true);
+        assert!(!indice.ligado(), "{bits:o}");
+        assert!(!raiz.join("novo").exists(), "{bits:o}");
+    }
+    definir_modo(&raiz, 0o700);
+}
+
 #[cfg(unix)]
 #[test]
 fn banco_existente_com_bits_de_grupo_desliga() {

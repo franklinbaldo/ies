@@ -146,17 +146,15 @@ a leitura Web autenticada esteja implementada ou validada.
 ## Destino privado (Refs #60, revisto em 05/11/2026)
 
 O caminho de saída de `--html-privado ... --saida DIR` é
-explicitamente escolhido pelo operador. Link simbólico no caminho,
-inclusive o próprio `DIR` ou um ancestral (`/home` → `/var/home` no
-Silverblue, `/var` → `/private/var` no macOS), é aceito: o diretório é
-resolvido e o `DOC.txt` vai para o diretório real. Antes da criação, no
-Unix, o diretório real gravável por grupo ou outros sem sticky bit é
-recusado com `ErroArquivoTexto::DiretorioGravavelPorOutros` e subcódigo
-`diretorio_texto_documento_gravavel_por_outros`: é ali que outro usuário
-poderia plantar um link no nome final. O nome final nunca é seguido.
-Diretório ausente continua gerando erro próprio; saída em diretório
-regular continua com 0600 e sem sobrescrita. A conferência é por
-caminho, não uma garantia contra substituições concorrentes
+explicitamente escolhido pelo operador, e o modo dele é
+responsabilidade do operador: o IES não o confere. Link simbólico no
+caminho, inclusive o próprio `DIR` ou um ancestral (`/home` →
+`/var/home` no Silverblue, `/var` → `/private/var` no macOS), é aceito:
+o diretório é resolvido e o `DOC.txt` vai para o diretório real. O nome
+final nunca é seguido: um link plantado em `DIR/DOC.txt` recusa a
+gravação (`arquivo_texto_documento_ja_existe`) sem escrever através
+dele. Diretório ausente continua gerando erro próprio; saída continua
+com 0600 e sem sobrescrita
 ([decisão](../../docs/decisoes/arquivos-privados/gravacao-privada.md#modelo-de-ameaça)).
 Nenhum acesso Web é acrescentado.
 
