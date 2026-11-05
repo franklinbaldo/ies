@@ -1,5 +1,5 @@
 ---
-type: OperationEvidence
+type: SEIObservation
 title: Validação de processo anexar em 5 de novembro de 2026
 description: Evidência e lacunas da fatia de prévia da issue 270
 ---
