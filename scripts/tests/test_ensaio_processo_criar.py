@@ -119,7 +119,7 @@ class EnsaioUmaVez(unittest.TestCase):
 
         codigo, relatorio = ensaiar(
             ies="binario-falso", registro=self.registro, tipo="Ensaio",
-            especificacao="Teste", nivel="publico", hipotese=None,
+            especificacao="Teste sintético", nivel="publico", hipotese=None,
             origem=ORIGEM, executar=executar, pausa=lambda _: None,
         )
         self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
