@@ -48,6 +48,7 @@ mod pesquisa_web;
 mod processo;
 mod processo_buscar_cli;
 mod processo_marcar;
+mod processo_marcar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
 mod processo_enviar;
@@ -179,6 +180,18 @@ enum ProcessoAcao {
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Atribui ou retira marcador id#nome; prévia Web (escrita ainda não observada).
+    Marcar {
+        numero: String,
+        #[arg(long, required_unless_present = "retirar", conflicts_with = "retirar")]
+        marcador: Option<String>,
+        #[arg(long, conflicts_with = "marcador")]
+        retirar: Option<String>,
+        #[arg(long, requires = "marcador")]
+        texto: Option<String>,
         #[arg(long)]
         confirmar: bool,
     },
@@ -381,6 +394,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
