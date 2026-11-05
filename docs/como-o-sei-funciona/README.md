@@ -27,6 +27,7 @@ sem comparação. [Cassettes](../cassettes.md) são a evidência original.
 - [Marcadores do processo](marcadores-do-processo.md)
 - [Conclusão do processo](conclusao-do-processo.md)
 - [Assinatura do documento](assinatura-do-documento.md)
+- [Editor do documento: observação e lacunas](editor-do-documento.md)
 - [Reabertura do processo](reabertura-do-processo.md)
 - [Envio do processo](envio-do-processo.md)
 - [Troca de unidade](troca-de-unidade.md)
