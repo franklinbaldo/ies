@@ -59,7 +59,14 @@ Nenhum 302 é seguido e nenhuma falha de rede dispara retry.
 O gerente é relido uma vez após o POST; só uma linha nova com
 grupo/observação correspondentes e linhas anteriores preservadas
 comprova sucesso. Sem prova, a saída é 3. A confirmação de retirada
-continua bloqueada antes da sessão.
+continua bloqueada antes da sessão. A nova prévia de retirada não se
+baseia somente numa checkbox: exige a oferta `acaoExcluir` na linha,
+o formulário `frmGerenciarAcompanhamento`, o oculto reescrito pelo
+script `hdnInfraItemId` e a ação assinada `acompanhamento_excluir`
+para o mesmo processo. Esses elementos são examinados como texto e DOM,
+sem executar JavaScript ou publicar hash. Falha fechada nas variantes
+não observadas; o POST de exclusão continua fechado até derivação
+segura e releitura comprovada.
 
 A suíte injetada mede 5 GETs para prévia e 3 GETs de abertura +
 GET de gerenciar + GET de cadastro + POST + GET de releitura (7
@@ -80,7 +87,7 @@ validação nas instalações de treinamento.
 
 ## Limitações e revisão
 
-RED local NOT_RUN (sem toolchain e DNS no sandbox); CI só comprova
+RED desta segunda fatia: 1 teste novo falhou no CI 42118873078 antes da implementação; compilação Rust local NOT_RUN (sem toolchain e DNS no sandbox); CI só comprova
 o head ao qual estiver vinculado. Replay das cassettes e validação
 live na UnB e numa segunda instalação: NOT_RUN, 0 requisições ao SEI.
 Nenhuma escrita e nenhum resíduo foram produzidos.
