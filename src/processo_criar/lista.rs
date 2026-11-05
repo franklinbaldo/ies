@@ -103,7 +103,7 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-        if nome != pedido.trim().split_whitespace().collect::<Vec<_>>().join(" ") {
+        if nome != pedido.split_whitespace().collect::<Vec<_>>().join(" ") {
             continue;
         }
         let href = valor_do_atributo(ancora, "href")
