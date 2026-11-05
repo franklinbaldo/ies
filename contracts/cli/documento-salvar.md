@@ -110,4 +110,5 @@ Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida
 ([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
 Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
 essa conferência saiu da prévia e passou à releitura
-(`foto_local_divergente`) e ao salvar remoto.
+(`foto_local_divergente`); a confirmação remota permanece bloqueada.
+Aposentadoria de `base_versao_divergente`: #207, integrada pela PR #219.

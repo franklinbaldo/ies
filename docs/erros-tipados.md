@@ -36,7 +36,10 @@ a hierarquia de subclasses Python quando a família é fechada.
 `NumeroDoHistoricoDiferenteDoSolicitado`, `HistoricoAusente` e
 `LinhaInvalida`. As funções não devolvem mais códigos como
 `&'static str`; o texto público deriva de `subcodigo()` na CLI.
-Testes comparam variantes, não mensagens. Nomes descrevem a condição\nobservada, evitando qualificadores vagos como `ambíguo` e `divergente`.\nO subcódigo `numero_do_historico_diferente_do_solicitado` identifica\na condição observada, sem compromisso artificial com clientes inexistentes.
+Testes comparam variantes, não mensagens. Nomes descrevem a condição
+observada, evitando qualificadores vagos como `ambíguo` e `divergente`.
+O subcódigo `numero_do_historico_diferente_do_solicitado` identifica
+a condição observada, sem compromisso artificial com clientes inexistentes.
 
 `ErroCaixa` e `FalhaTransporte` já utilizam variantes específicas.
 Revisões posteriores devem acrescentar dados úteis e padronizar
@@ -243,3 +246,62 @@ leituras locais. Nada foi pedido ao SEI e não há relogin; rodar de novo
 lê a sessão nova. Origem divergente e cookie ilegível continuam com os
 subcódigos de antes, no mesmo ponto da operação
 ([decisão](decisoes/sessao-login/leitura-coerente-da-sessao.md)).
+
+## Catálogo literal por contexto
+
+As tabelas complementares enumeram os literais, inclusive os antes
+citados só por curinga ou delegação. A verificação procura a união dos
+contratos: não exige duplicar cada erro de transporte em cada operação.
+
+- [Sessão, configuração e transporte](../contracts/cli/subcodigos-sessao.md).
+- [Controle, listas e atributos HTML](../contracts/cli/subcodigos-controle.md).
+- [Pesquisa de processos e documentos](../contracts/cli/subcodigos-pesquisa.md).
+- [Árvore e vínculos](../contracts/cli/subcodigos-arvore.md).
+- [Histórico, propriedades e marcadores](../contracts/cli/subcodigos-processo.md).
+- [Documentos, versões e arquivos locais](../contracts/cli/subcodigos-documento.md).
+- [Prévias, escritas e verificações](../contracts/cli/subcodigos-escrita.md).
+
+São inventários conservadores dos leitores, não prova de alcançabilidade
+de cada variante em toda instalação. Códigos aninhados em `falha` ou
+`verificacao` conservam a identidade do emissor. O literal isolado não
+identifica necessariamente um único contexto.
+
+## Reusos contextualizados
+
+| Subcódigo | Sentidos atuais e contexto necessário |
+| --- | --- |
+| `html_invalido` | `ErroCaixa`: HTML da caixa não interpretado; `ErroHistorico`: HTML do histórico não interpretado. |
+| `numero_invalido` | `ErroCaixa`: número do processo em uma linha da caixa; `ErroHistorico`: número identificado no título do histórico. |
+| `pagina_fora_do_intervalo` | Caixa resumida/detalhada: página além do intervalo do Controle; pesquisa: página além do intervalo do resultado. |
+| `redirecionamento_sem_localizacao` | Login: resposta de redirecionamento sem localização; troca de unidade: resposta da submissão sem localização, registrada na falha da troca. |
+| `unidade_da_tela_diferente_da_solicitada` | Tela da árvore, formulário, pesquisa ou mudança de visão: a unidade da tela não corresponde à pré-condição da operação. |
+| `unidade_exibida_diferente_da_solicitada` | Conferência do login, diagnóstico Web ou troca de unidade: o rótulo exibido não corresponde ao solicitado. |
+| `controle_web_nao_reconhecido` | Conferência da sessão existente no login ou diagnóstico de status: resposta não reconhecida como Controle. |
+| `arquivo_privado_vazio`, `arquivo_privado_link_simbolico` | Validador local de arquivos e leitor do transporte: mesmo fato aplicado ao arquivo privado usado naquele caminho. |
+
+Os demais reusos mantêm a condição: barras repetidas ou fora da forma
+são recusadas nas operações que as leem; sessão encerrada, ausência de
+unidade, paginação e tela de login preservam o fato ao serem propagados.
+Interpretar operação, etapa e família junto ao literal.
+A proposta de nomes específicos está na [issue #229](https://github.com/franklinbaldo/ies/issues/229).
+Nenhuma renomeação pública foi aprovada ou aplicada nesta limpeza.
+
+## Literais passados por helpers da CLI
+
+Estas emissões não estão em métodos `subcodigo`: os helpers recebem o
+literal por parâmetro, ou o setup devolve um `Result` com literal. O gate
+pode avisar que não as encontrou; isso não autoriza removê-las do contrato.
+
+| Subcódigo | Condição e emissor |
+| --- | --- |
+| `opcoes_incompativeis_com_busca` | `processo buscar` recebeu opções da leitura de processo. |
+| `sem_andamentos_incompativel_com_andamentos_completos` | Leitura de processo recebeu simultaneamente as duas opções incompatíveis. |
+| `leitura_diretorio_copias_falhou` | `documento salvar --listar-copias` não conseguiu obter o diretório de trabalho. |
+| `escrita_remota_nao_validada` | `documento salvar --confirmar`: confirmação remota ainda bloqueada. |
+| `caminho_privado_ausente_ou_nao_absoluto` | Setup: caminho de um dos três arquivos não é absoluto ou não aponta a arquivo. |
+| `arquivo_privado_nao_lido` | Setup: metadados de arquivo privado não puderam ser lidos. |
+| `permissoes_de_arquivo_privado_inseguras` | Setup no Unix: arquivo privado com permissões para grupo ou outros. |
+| `configuracao_deve_ter_caminho_absoluto` | Setup: destino da configuração não é absoluto. |
+| `configuracao_nao_serializada` | Setup: falha ao serializar os caminhos em JSON. |
+| `configuracao_ja_existe_ou_sem_permissao` | Setup: criação exclusiva do destino recusada, inclusive se já existe. |
+| `configuracao_nao_gravada` | Setup: escrita do JSON falhou após abertura do arquivo. |

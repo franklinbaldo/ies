@@ -230,3 +230,9 @@ UFRJ 4.1.5: D de uma página com `hdnDetalhadoPaginaAtual=0`, sem
 paginador e legenda sem intervalo; recusada na rodada e **PASS** depois
 da correção (o índice `0` sozinho não é paginação). GO 5.0.3 **PASS** na
 terceira tentativa (R→D e D lembrada); PEN2 **NOT_RUN** ([GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
+
+## Histórico de restauração
+
+As recusas de restauração citadas neste contrato são históricas: foram
+aposentadas pela decisão de #57 de deixar a sessão na visão/página
+utilizada, sem requisições para restaurar a tela. Não são emissões ativas.

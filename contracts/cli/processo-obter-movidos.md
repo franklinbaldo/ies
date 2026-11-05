@@ -75,7 +75,7 @@ chave, como tira `documentos`.
 `destino_do_documento_movido_fora_da_forma_observada`,
 `destinos_do_documento_movido_repetidos` (duas tags `<a>` com `href` ou
 dois `.html` do nó). `documento_movido_presente_entre_os_documentos` não
-existe mais: virou `presente_entre_os_documentos: true`.
+existe mais: virou `presente_entre_os_documentos: true` (decisão em #59).
 
 ## Validação
 
