@@ -30,9 +30,7 @@ fn entrada_vazia_sai_2_antes_da_sessao() {
 }
 #[test]
 fn sem_configuracao_previa_recusa_sem_rede() {
-    let saida = sem_sessao(&[
-        "processo", "relacionar", NUP, "--com", NUP, "--json",
-    ]);
+    let saida = sem_sessao(&["processo", "relacionar", NUP, "--com", NUP, "--json"]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
@@ -40,10 +38,17 @@ fn sem_configuracao_previa_recusa_sem_rede() {
 fn confirmar_e_remover_confirmar_nao_abrem_sessao_nem_escrevem() {
     for remover in [false, true] {
         let mut args = vec![
-            "processo", "relacionar", NUP, "--com", NUP,
-            "--confirmar", "--json",
+            "processo",
+            "relacionar",
+            NUP,
+            "--com",
+            NUP,
+            "--confirmar",
+            "--json",
         ];
-        if remover { args.push("--remover"); }
+        if remover {
+            args.push("--remover");
+        }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1));
         assert_eq!(

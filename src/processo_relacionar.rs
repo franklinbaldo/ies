@@ -6,8 +6,7 @@ mod tests;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
 use crate::formulario_web::{
-    ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida,
-    derivar_consulta_ajax,
+    ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -52,7 +51,9 @@ impl FalhaRelacionar {
             Self::Abertura(erro) => erro.subcodigo(),
             Self::Barra(erro) => erro.subcodigo(),
             Self::LinkNaoPublicado => "relacionar_nao_publicado_na_barra",
-            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => erro.subcodigo(),
+            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
+                erro.subcodigo()
+            }
             Self::TelaRedirecionada => "tela_de_relacionamentos_redirecionada",
             Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
             Self::Estrutura(subcodigo) => subcodigo,
@@ -100,9 +101,13 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         &leitura(pedido.nup, pedido.unidade, true),
         indice,
         &mut rede,
-    ).map_err(E::Abertura)?;
+    )
+    .map_err(E::Abertura)?;
     let id = aberto.arvore.processo.id;
-    let link = acoes.relacionar.map_err(E::Barra)?.ok_or(E::LinkNaoPublicado)?;
+    let link = acoes
+        .relacionar
+        .map_err(E::Barra)?
+        .ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Tela)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
@@ -120,7 +125,8 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         requisicoes: rede.feitas(),
     };
     if pedido.remover {
-        let achados: Vec<&Relacionamento> = relacionados.iter()
+        let achados: Vec<&Relacionamento> = relacionados
+            .iter()
             .filter(|linha| linha.nup == pedido.com.as_str())
             .collect();
         match achados.as_slice() {
@@ -137,20 +143,34 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
-    let codificacao = codificacao_da_tela(&mime)
-        .ok_or(E::Estrutura("charset_da_tela_de_relacionamentos_nao_suportado"))?;
-    let tela = TelaServida { url: link.as_str(), html: &html, codificacao };
+    let codificacao = codificacao_da_tela(&mime).ok_or(E::Estrutura(
+        "charset_da_tela_de_relacionamentos_nao_suportado",
+    ))?;
+    let tela = TelaServida {
+        url: link.as_str(),
+        html: &html,
+        codificacao,
+    };
     let url = url_complementar(&html).map_err(E::Estrutura)?;
     let consulta = derivar_consulta_ajax(
-        &CONSULTA, &instalacao, &tela, &url,
+        &CONSULTA,
+        &instalacao,
+        &tela,
+        &url,
         &[("idProcedimento", pedido.com.as_str())],
-    ).map_err(E::ConsultaDerivacao)?;
-    let resposta = rede.post(consulta, &cookie).map_err(E::ConsultaTransporte)?;
+    )
+    .map_err(E::ConsultaDerivacao)?;
+    let resposta = rede
+        .post(consulta, &cookie)
+        .map_err(E::ConsultaTransporte)?;
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_relacionamento_redirecionada"));
     }
     let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
-    let DestinoConsultado { id: destino_id, nup } = ler_destino(&xml).map_err(E::Estrutura)?;
+    let DestinoConsultado {
+        id: destino_id,
+        nup,
+    } = ler_destino(&xml).map_err(E::Estrutura)?;
     if destino_id == id {
         return Err(E::RelacionamentoConsigoMesmo);
     }

@@ -53,14 +53,16 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 
 ## Subcódigos tipados da fatia
 
-- `confirmacao_de_relacionamento_nao_validada`: condição observável distinta que impede a operação.
-- `endereco_de_relacionar_de_outro_processo`: condição observável distinta que impede a operação.
-- `endereco_de_relacionar_nao_reconhecido`: condição observável distinta que impede a operação.
-- `links_de_relacionar_repetidos_na_barra`: condição observável distinta que impede a operação.
-- `relacionamento_consigo_mesmo`: condição observável distinta que impede a operação.
-- `relacionar_nao_publicado_na_barra`: condição observável distinta que impede a operação.
-- `remocao_de_relacionamento_nao_oferecida`: condição observável distinta que impede a operação.
-- `tela_de_relacionamentos_redirecionada`: condição observável distinta que impede a operação.
+| Subcódigo | Condição observável ou regra |
+| --- | --- |
+| `confirmacao_de_relacionamento_nao_validada` | `--confirmar` nesta fatia: saída 1 antes de abrir sessão ou rede |
+| `relacionar_nao_publicado_na_barra` | A barra do processo não publica `procedimento_relacionar` |
+| `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
+| `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
+| `endereco_de_relacionar_de_outro_processo` | O link da barra aponta para outro `id_procedimento` |
+| `tela_de_relacionamentos_redirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
+| `relacionamento_consigo_mesmo` | O destino informado é o próprio processo |
+| `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.

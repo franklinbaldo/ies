@@ -12,7 +12,10 @@ unresolved_steps: 0
 
 # processo.sobrestar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB** na
+[PR Draft #279](https://github.com/franklinbaldo/ies/pull/279):
+prévia dos comandos com três GET a frio, sem escrita. A confirmação
+permanece bloqueada. Replay e live: **NOT_RUN** (zero requisições ao SEI).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

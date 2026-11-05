@@ -6,6 +6,7 @@
 //! contracts/cli/processo-obter-arvore.md. Tipos aceitos: `PROCESSO`,
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
+mod acompanhar;
 mod anexados;
 mod assinatura;
 mod barra_do_documento;
@@ -19,9 +20,10 @@ mod literais;
 mod movidos;
 mod natureza;
 mod pastas;
-mod relacionar;
 mod reabrir;
+mod relacionar;
 mod situacao;
+mod sobrestar;
 mod tela;
 mod vinculo;
 
@@ -62,8 +64,11 @@ pub(crate) mod tests_reabrir;
 #[cfg(test)]
 mod tests_situacao;
 #[cfg(test)]
+mod tests_sobrestar;
+#[cfg(test)]
 pub(crate) mod tests_tela;
 
+pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
@@ -72,6 +77,8 @@ pub(crate) use assinatura::{
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
+#[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
+pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
@@ -80,9 +87,9 @@ pub(crate) use concluir::{
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
+pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
-pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
@@ -93,9 +100,11 @@ pub(crate) use reabrir::{
     ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
     ler_endereco_de_reabrir, ler_reabrir_da_barra,
 };
+pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};
+pub(crate) use sobrestar::{ErroAcaoSobrestar, ler_retomar_da_barra, ler_sobrestar_da_barra};
 pub(crate) use tela::{
     EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_documento,
     ler_tela_do_processo,
