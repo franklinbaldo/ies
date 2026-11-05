@@ -41,3 +41,27 @@ jobs:
 
       - name: Run canonical prek pre-push gates
         run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
+
+  replay_documento_criar:
+    name: replay GO documento criar (#246, ensaio temporário)
+    needs: prek
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Baixar cassette pública conferida (sem SEI)
+        run: |
+          mkdir -p "$HOME/.cache/ies"
+          curl --fail --show-error --silent --location --max-time 240 \
+            --output "$HOME/.cache/ies/todos-sei-cassettes-go.zip" \
+            https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-go.zip
+          printf '%s  %s\n' \
+            42a08cd3714bb863d136ed98e517221510a31982 \
+            "$HOME/.cache/ies/todos-sei-cassettes-go.zip" | sha1sum --check
+      - name: Replay offline dos leitores reais (nenhuma requisição SEI)
+        run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --nocapture --test-threads=1
