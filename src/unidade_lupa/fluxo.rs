@@ -188,8 +188,8 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
         let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
             .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
         let Some(bruto) = bruto else { continue };
-        let decodificado = crate::formulario_web::decodificar_atributo(&bruto)
-            .ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let decodificado =
+            crate::formulario_web::decodificar_atributo(&bruto).ok_or(FalhaDaLupa::LinkAmbiguo)?;
         let literal = if atributo == "href" {
             Some(decodificado.as_str())
         } else {
@@ -273,8 +273,8 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaDaLupa::LinkAusente)?;
     let parser = dom.parser();
-    let achados = crate::html_atributos::nos_com_id(&dom, "btnNovo")
-        .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+    let achados =
+        crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
     let tag = match achados.as_slice() {
         [] => return Err(FalhaDaLupa::LinkAusente),
         [unico] => unico
