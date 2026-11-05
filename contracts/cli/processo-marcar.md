@@ -48,6 +48,25 @@ requisições de escrita**. Testes sintéticos conferem decisão sem rede,
 parcialidade e recusa de nomes divergentes; teste da CLI prova que entrada
 inválida não lê configuração.
 
+## Inventário normativo de subcódigos
+
+A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
+Todas as recusas de escrita permanecem **sem POST** neste recorte.
+
+| Subcódigo | Condição observável ou regra |
+| --- | --- |
+| `rotulo_do_marcador_sem_separador` | Rótulo sem `#` |
+| `id_do_marcador_nao_decimal` | Identificador ausente ou fora da forma decimal |
+| `nome_do_marcador_vazio` | Nome vazio após o separador |
+| `nome_do_marcador_com_controle` | Caracteres de controle no nome |
+| `lista_de_marcadores_parcial` | Linhas observadas diferentes do total declarado |
+| `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
+| `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
+| `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
+| `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
+| `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
+| `texto_do_marcador_com_controle` | Texto de entrada contém controle |
+
 ## Falhas tipadas
 
 Entrada (2): `numero_processo_vazio`, `numero_processo_controle`,
