@@ -1,10 +1,11 @@
 //! Prévia e confirmação única de sobrestar/retomar (#269).
 //! A confirmação deriva a escrita da tela e exige leitura verificadora.
-use crate::arvore_processo::{AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, MotivoAbertoEm, ErroEnderecoDeRetomar};
+use crate::arvore_processo::{
+    AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, ErroEnderecoDeRetomar, MotivoAbertoEm,
+};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
 mod fluxo;
-pub(crate) use fluxo::executar;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::leitura;
@@ -12,6 +13,7 @@ use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
 use crate::transporte::StatusHttpRecusado;
+pub(crate) use fluxo::executar;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Acao {
@@ -100,14 +102,22 @@ impl ErroSobrestamento {
             Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
             Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
             Self::MotivoVazio => "motivo obrigatório para sobrestar",
-            Self::TelaDaEscrita(_) | Self::TelaRedirecionada => "a tela da escrita não foi servida; nenhuma escrita enviada",
+            Self::TelaDaEscrita(_) | Self::TelaRedirecionada => {
+                "a tela da escrita não foi servida; nenhuma escrita enviada"
+            }
             Self::SessaoEncerrada => "sessão encerrada; rode ies login; nada enviado",
             Self::CharsetNaoSuportado => "charset da tela não suportado; nada enviado",
-            Self::TelaSobrestar(_) => "formulário de sobrestamento fora da forma observada; nada enviado",
+            Self::TelaSobrestar(_) => {
+                "formulário de sobrestamento fora da forma observada; nada enviado"
+            }
             Self::Formulario(_) => "formulário de sobrestamento não pôde ser enviado",
-            Self::EnderecoDeRetomar(_) => "endereço de retomar fora da forma observada; nada enviado",
+            Self::EnderecoDeRetomar(_) => {
+                "endereço de retomar fora da forma observada; nada enviado"
+            }
             Self::EscritaNaoAplicada => "releitura confirmou que a ação não foi aplicada",
-            Self::EfeitoIncerto => "efeito incerto após escrita; consulte processo antes de repetir",
+            Self::EfeitoIncerto => {
+                "efeito incerto após escrita; consulte processo antes de repetir"
+            }
         }
     }
 
@@ -175,16 +185,19 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     }
     .map_err(ErroSobrestamento::Barra)?;
     let endereco = oferecida.ok_or(ErroSobrestamento::AcaoNaoOferecida)?;
-    Ok((Previa {
-        nup: nup.as_str().to_owned(),
-        id_procedimento: aberto.arvore.processo.id,
-        unidade: atual,
-        acao,
-        requisicoes: aberto.requisicoes,
-        confirmado: false,
-        alterado: false,
-        reconciliado_por_leitura: false,
-    }, endereco))
+    Ok((
+        Previa {
+            nup: nup.as_str().to_owned(),
+            id_procedimento: aberto.arvore.processo.id,
+            unidade: atual,
+            acao,
+            requisicoes: aberto.requisicoes,
+            confirmado: false,
+            alterado: false,
+            reconciliado_por_leitura: false,
+        },
+        endereco,
+    ))
 }
 
 mod tela;
