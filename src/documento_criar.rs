@@ -39,9 +39,17 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         let href = valor_do_atributo(tag, "href").map_err(|_| err)?;
         if href.is_none() { continue; }
         let onclick = valor_do_atributo(tag, "onclick").map_err(|_| err)?;
-        if matches!(onclick.as_deref().map(str::trim), Some("escolher(-1);" | "escolher(-1)")) {
-            continue;
-        }
+        // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
+        // Nas 4.1/5.0, escolher(-1) também é externo.
+        let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
+        let nativo = href.split('?').nth(1).is_some_and(|consulta| {
+            consulta.split('&').any(|par| par == "acao=documento_gerar")
+        }) || (href == "javascript:void(0);" && onclick.as_deref().is_some_and(|chamada| {
+            let chamada = chamada.trim().trim_end_matches(';');
+            chamada.strip_prefix("escolher(").and_then(|v| v.strip_suffix(')'))
+                .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        }));
+        if !nativo { continue; }
         let nome = tag.inner_text(parser).split_whitespace().collect::<Vec<_>>().join(" ");
         let nome = decodificar_atributo(&nome).ok_or(err)?;
         if !nome.is_empty() { tipos.push(nome); }
@@ -105,8 +113,8 @@ mod tests {
         // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
         let html = r##"<table id="tblSeries"><tr><td>
             <a href="controlador.php?acao=documento_gerar">Despacho</a>
-            <a href="#" onclick="escolher(-1);">Externo</a>
-            <a href="#" onclick="escolher(3);">Ofício</a>
+            <a href="controlador.php?acao=documento_receber">Externo</a>
+            <a href="javascript:void(0);" onclick="escolher(3);">Ofício</a>
             </td></tr></table>"##;
         let tipos = tipos_oferecidos(html).unwrap();
         assert_eq!(tipos, ["Despacho", "Ofício"]);
