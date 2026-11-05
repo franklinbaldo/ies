@@ -11,12 +11,16 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) ate: Option<&'a str>,
 }
 
-
 /// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
 pub(crate) fn data_valida(data: &str) -> bool {
     let b = data.as_bytes();
-    if b.len() != 10 || b[2] != b'/' || b[5] != b'/'
-        || !b.iter().enumerate().all(|(i, c)| i == 2 || i == 5 || c.is_ascii_digit())
+    if b.len() != 10
+        || b[2] != b'/'
+        || b[5] != b'/'
+        || !b
+            .iter()
+            .enumerate()
+            .all(|(i, c)| i == 2 || i == 5 || c.is_ascii_digit())
     {
         return false;
     }
@@ -96,7 +100,9 @@ fn valor_do_tipo(
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("option") {
             continue;
         }
-        if atributo(tag, "disabled")?.is_some() { continue; }
+        if atributo(tag, "disabled")?.is_some() {
+            continue;
+        }
         if tag.inner_text(parser).trim() == tipo {
             let valor = atributo(tag, "value")?
                 .filter(|v| !v.is_empty() && v != "null")
@@ -119,10 +125,19 @@ pub(crate) fn derivar_campos(
     em_documentos: bool,
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<Vec<(&'static str, String)>, ErroFiltro> {
-    let tags: Vec<_> = form.children().all(parser).iter().filter_map(tl::Node::as_tag).collect();
+    let tags: Vec<_> = form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .collect();
     let mut campos = Vec::new();
     if let Some(tipo) = filtros.tipo {
-        let nome = if em_documentos { "selSeriePesquisa" } else { "selTipoProcedimentoPesquisa" };
+        let nome = if em_documentos {
+            "selSeriePesquisa"
+        } else {
+            "selTipoProcedimentoPesquisa"
+        };
         campos.push((nome, valor_do_tipo(&tags, parser, nome, tipo)?));
     }
     if filtros.assunto.is_some() {
@@ -133,7 +148,10 @@ pub(crate) fn derivar_campos(
     for (data, nome) in [(filtros.de, "txtDataInicio"), (filtros.ate, "txtDataFim")] {
         if let Some(data) = data {
             let campo = unico(&tags, "input", nome)?;
-            if atributo(campo, "type")?.as_deref().is_some_and(|v| v != "text") {
+            if atributo(campo, "type")?
+                .as_deref()
+                .is_some_and(|v| v != "text")
+            {
                 return Err(ErroFiltro::CriterioNaoOferecidoPelaTela);
             }
             campos.push((nome, data.to_owned()));
@@ -159,13 +177,33 @@ mod tests {
         let dom = tl::parse(html, tl::ParserOptions::default()).unwrap();
         let form = dom.query_selector("form").unwrap().next().unwrap();
         let form = form.get(dom.parser()).unwrap().as_tag().unwrap();
-        let filtros = FiltrosDaPesquisa { tipo: Some("Judicial"), de: Some("01/01/2026"), ..Default::default() };
-        assert_eq!(derivar_campos(form, dom.parser(), false, filtros).unwrap(),
-                   vec![("selTipoProcedimentoPesquisa", "8".to_owned()), ("txtDataInicio", "01/01/2026".to_owned())]);
-        assert_eq!(derivar_campos(form, dom.parser(), true, filtros),
-                   Err(ErroFiltro::CriterioNaoOferecidoPelaTela));
-        assert_eq!(derivar_campos(form, dom.parser(), false,
-                   FiltrosDaPesquisa { assunto: Some("Assunto"), ..Default::default() }),
-                   Err(ErroFiltro::CriterioNaoOferecidoPelaTela));
+        let filtros = FiltrosDaPesquisa {
+            tipo: Some("Judicial"),
+            de: Some("01/01/2026"),
+            ..Default::default()
+        };
+        assert_eq!(
+            derivar_campos(form, dom.parser(), false, filtros).unwrap(),
+            vec![
+                ("selTipoProcedimentoPesquisa", "8".to_owned()),
+                ("txtDataInicio", "01/01/2026".to_owned())
+            ]
+        );
+        assert_eq!(
+            derivar_campos(form, dom.parser(), true, filtros),
+            Err(ErroFiltro::CriterioNaoOferecidoPelaTela)
+        );
+        assert_eq!(
+            derivar_campos(
+                form,
+                dom.parser(),
+                false,
+                FiltrosDaPesquisa {
+                    assunto: Some("Assunto"),
+                    ..Default::default()
+                }
+            ),
+            Err(ErroFiltro::CriterioNaoOferecidoPelaTela)
+        );
     }
 }
