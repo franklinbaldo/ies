@@ -53,9 +53,11 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
 };
 
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPaginaDoControle {
+    #[causa(nome = "pagina_do_controle_exige_visao_resumida")]
     PaginaExigeVisaoResumida,
+    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     PaginaAtualDaTabelaIlegivel {
         categoria: Categoria,
@@ -66,6 +68,7 @@ pub(crate) enum ErroPaginaDoControle {
     PaginaAtualDaTabelaIncompativelComAFaixa {
         categoria: Categoria,
     },
+    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         categoria: Categoria,
         solicitada: usize,
@@ -84,47 +87,17 @@ pub(crate) enum ErroPaginaDoControle {
     FaixaDaRespostaDiferenteDaPaginaSolicitada {
         categoria: Categoria,
     },
+    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
+    #[causa(interna)]
     Formulario(ErroControleDoFormulario),
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Caixa(ErroCaixa),
 }
 
 impl ErroPaginaDoControle {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::PaginaExigeVisaoResumida => "pagina_do_controle_exige_visao_resumida",
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_do_controle_nao_suportado",
-            Self::PaginaAtualDaTabelaIlegivel { .. } => "pagina_atual_da_tabela_ilegivel",
-            Self::CamposDePaginaAtualDaTabelaRepetidos { .. } => {
-                "campos_de_pagina_atual_da_tabela_repetidos"
-            }
-            Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. } => {
-                "pagina_atual_da_tabela_incompativel_com_a_faixa"
-            }
-            Self::PaginaForaDoIntervalo { .. } => "pagina_da_caixa_fora_do_intervalo",
-            Self::PaginadorDaTabelaNaoPublicado { .. } => "paginador_da_tabela_nao_publicado",
-            Self::UnidadeAlteradaAposPaginar => "unidade_alterada_apos_paginar",
-            Self::VisualizacaoAlteradaAposPaginar => "visualizacao_alterada_apos_paginar",
-            Self::CriteriosRecebidosAlteradosAposPaginar => {
-                "criterios_recebidos_alterados_apos_paginar"
-            }
-            Self::CriteriosGeradosAlteradosAposPaginar => {
-                "criterios_gerados_alterados_apos_paginar"
-            }
-            Self::TotalDeclaradoAlteradoAposPaginar { .. } => {
-                "total_declarado_alterado_apos_paginar"
-            }
-            Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. } => {
-                "faixa_da_resposta_diferente_da_pagina_solicitada"
-            }
-            Self::RedirecionamentoAposPaginar => "redirecionamento_apos_paginar_controle",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Caixa(erro) => erro.subcodigo(),
-        }
-    }
-
     /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
     pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
 

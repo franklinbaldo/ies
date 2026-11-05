@@ -14,6 +14,7 @@ mod assinatura;
 mod atribuir;
 mod barra_do_documento;
 mod barra_do_processo;
+mod ciencia;
 mod concluir;
 mod conteudo;
 pub(crate) mod endereco;
@@ -80,12 +81,18 @@ pub(crate) use assinatura::{
     ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
+pub(crate) use barra_do_documento::barra_do_no;
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
 #[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
-pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use barra_do_processo::{
+    ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
+};
+pub(crate) use ciencia::{
+    ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
+};
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
@@ -110,7 +117,10 @@ pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};
-pub(crate) use sobrestar::{ErroAcaoSobrestar, ler_retomar_da_barra, ler_sobrestar_da_barra};
+pub(crate) use sobrestar::{
+    ErroAcaoSobrestar, ErroEnderecoDeRetomar, ler_endereco_de_retomar, ler_retomar_da_barra,
+    ler_sobrestar_da_barra,
+};
 pub(crate) use tela::{
     EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_documento,
     ler_tela_do_processo,

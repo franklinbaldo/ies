@@ -2,23 +2,18 @@
 //! Nunca sobrescreve destino existente, não publica conteúdo em diagnóstico.
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoTexto {
+    #[causa(nome = "destino_texto_documento_sem_nome")]
     NomeAusente,
+    #[causa(nome = "diretorio_texto_documento_ausente")]
     DiretorioAusente,
+    #[causa(nome = "arquivo_texto_documento_ja_existe")]
     DestinoJaExiste,
+    #[causa(nome = "escrita_texto_documento_falhou")]
     EscritaFalhou,
 }
-impl ErroArquivoTexto {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::NomeAusente => "destino_texto_documento_sem_nome",
-            Self::DiretorioAusente => "diretorio_texto_documento_ausente",
-            Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
-            Self::EscritaFalhou => "escrita_texto_documento_falhou",
-        }
-    }
-}
+impl ErroArquivoTexto {}
 /// A falha da gravação privada única nos subcódigos do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     use crate::arquivo_privado::FalhaDaGravacao as F;

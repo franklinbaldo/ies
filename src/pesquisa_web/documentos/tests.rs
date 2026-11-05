@@ -235,7 +235,7 @@ fn redirecionamento_sem_id_documento_e_recusado() {
     );
     let erro = interpretar(&localizacao_de_documento("4321", "x1")).unwrap_err();
     assert_eq!(
-        erro.subcodigo(),
+        crate::erro_publico::folha(&erro),
         "id_documento_nao_decimal_no_redirecionamento"
     );
 }
@@ -243,11 +243,13 @@ fn redirecionamento_sem_id_documento_e_recusado() {
 #[test]
 fn subcodigos_da_linha_de_documento_sao_estaveis() {
     assert_eq!(
-        D::NumeroSeiRepetidoNaPesquisa.subcodigo(),
+        crate::erro_publico::folha(&D::NumeroSeiRepetidoNaPesquisa),
         "numero_sei_repetido_na_pesquisa"
     );
     assert_eq!(
-        ErroRespostaDaPesquisa::Documento(D::RotuloDoDocumentoAusente).subcodigo(),
+        crate::erro_publico::folha(&ErroRespostaDaPesquisa::Documento(
+            D::RotuloDoDocumentoAusente
+        )),
         "rotulo_do_documento_ausente"
     );
 }

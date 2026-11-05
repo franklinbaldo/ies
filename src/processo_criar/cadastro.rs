@@ -2,30 +2,27 @@
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCadastro {
+    #[causa(nome = "cadastro_de_processo_html_invalido")]
     HtmlInvalido,
+    #[causa(nome = "cadastro_de_processo_ausente_ou_repetido")]
     FormularioAusenteOuRepetido,
+    #[causa(nome = "tipo_do_cadastro_divergente")]
     TipoDeCadastroDivergente,
+    #[causa(nome = "especificacao_nao_publicada_no_cadastro")]
     EspecificacaoAusente,
     AssuntoSugeridoNaoUnico,
+    #[causa(nome = "nivel_de_acesso_nao_oferecido")]
     NivelNaoOferecido,
+    #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
     HipoteseLegalNaoIdentificada,
 }
 
 impl ErroCadastro {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "cadastro_de_processo_html_invalido",
-            Self::FormularioAusenteOuRepetido => "cadastro_de_processo_ausente_ou_repetido",
-            Self::TipoDeCadastroDivergente => "tipo_do_cadastro_divergente",
-            Self::EspecificacaoAusente => "especificacao_nao_publicada_no_cadastro",
-            Self::AssuntoSugeridoNaoUnico => "assunto_sugerido_nao_unico",
-            Self::NivelNaoOferecido => "nivel_de_acesso_nao_oferecido",
-            Self::NivelDesabilitado => "nivel_de_acesso_desabilitado",
-            Self::HipoteseLegalNaoIdentificada => "hipotese_legal_nao_identificada",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

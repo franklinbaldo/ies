@@ -14,42 +14,41 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
+    #[causa(interna)]
     DiretorioDeSaida(ErroArquivoTexto),
+    #[causa(nome = "destino_copia_inseguro")]
     DestinoInseguro,
+    #[causa(nome = "copia_local_link_simbolico")]
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
     #[cfg_attr(not(unix), allow(dead_code))]
+    #[causa(nome = "copia_local_permissoes_inseguras")]
     PermissoesInseguras,
     /// A foto local tem outro conteúdo que o servido (ou outro documento
     /// ou versão no próprio HTML).
+    #[causa(nome = "foto_local_divergente")]
     FotoDivergente,
+    #[causa(nome = "gravacao_foto_falhou")]
     GravacaoFalhou,
+    #[causa(nome = "leitura_copia_falhou")]
     LeituraFalhou,
+    #[causa(nome = "nome_versao_local_invalido")]
     NomeDaVersaoInvalido,
+    #[causa(nome = "versao_local_repetida")]
     VersaoDuplicada,
+    #[causa(nome = "base_versao_ausente")]
     BaseAusente,
+    #[causa(nome = "versao_editada_ausente")]
     EdicaoAusente,
+    #[causa(nome = "versao_editada_igual_a_base")]
     EdicaoIgualABase,
 }
 impl ErroCopia {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::DiretorioDeSaida(erro) => erro.subcodigo(),
-            Self::DestinoInseguro => "destino_copia_inseguro",
-            Self::LinkSimbolico => "copia_local_link_simbolico",
-            Self::PermissoesInseguras => "copia_local_permissoes_inseguras",
-            Self::FotoDivergente => "foto_local_divergente",
-            Self::GravacaoFalhou => "gravacao_foto_falhou",
-            Self::LeituraFalhou => "leitura_copia_falhou",
-            Self::NomeDaVersaoInvalido => "nome_versao_local_invalido",
-            Self::VersaoDuplicada => "versao_local_repetida",
-            Self::BaseAusente => "base_versao_ausente",
-            Self::EdicaoAusente => "versao_editada_ausente",
-            Self::EdicaoIgualABase => "versao_editada_igual_a_base",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

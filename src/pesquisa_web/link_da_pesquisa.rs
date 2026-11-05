@@ -8,7 +8,7 @@ use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// Uma variante por fato verificável do link no Controle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDaPesquisa {
     LinkDaPesquisaAusenteNoControle,
     LinksDaPesquisaRepetidosNoControle,
@@ -19,16 +19,7 @@ pub(crate) enum ErroLinkDaPesquisa {
     LinkDaPesquisaNaoReconhecido,
 }
 
-impl ErroLinkDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LinkDaPesquisaAusenteNoControle => "link_da_pesquisa_ausente_no_controle",
-            Self::LinksDaPesquisaRepetidosNoControle => "links_da_pesquisa_repetidos_no_controle",
-            Self::LinkDaPesquisaComEnderecoAbsoluto => "link_da_pesquisa_com_endereco_absoluto",
-            Self::LinkDaPesquisaNaoReconhecido => "link_da_pesquisa_nao_reconhecido",
-        }
-    }
-}
+impl ErroLinkDaPesquisa {}
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
 /// da tela servida e conferida na instalação. Nenhuma requisição.

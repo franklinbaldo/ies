@@ -19,26 +19,25 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroInteressado {
+    #[causa(nome = "interessado_controles_ausentes")]
     ControlesAusentes,
+    #[causa(nome = "interessado_autocompletar_nao_declarado")]
     AutocompletarNaoDeclarado,
+    #[causa(nome = "interessado_consulta_nao_derivada")]
     DerivacaoRecusada,
+    #[causa(nome = "interessado_resposta_nao_reconhecida")]
     RespostaInesperada,
+    #[causa(nome = "interessado_de_processo_nao_oferecido")]
     NaoOferecido,
+    #[causa(nome = "interessado_de_processo_ambiguo")]
     Ambiguo,
 }
 
 impl ErroInteressado {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::ControlesAusentes => "interessado_controles_ausentes",
-            Self::AutocompletarNaoDeclarado => "interessado_autocompletar_nao_declarado",
-            Self::DerivacaoRecusada => "interessado_consulta_nao_derivada",
-            Self::RespostaInesperada => "interessado_resposta_nao_reconhecida",
-            Self::NaoOferecido => "interessado_de_processo_nao_oferecido",
-            Self::Ambiguo => "interessado_de_processo_ambiguo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

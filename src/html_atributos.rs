@@ -18,7 +18,7 @@ pub(crate) use tokenizador::tokenizar_tag_de_abertura;
 
 /// Falha ao interpretar a tag de abertura servida; nunca é tratada como
 /// atributo ausente pelo chamador.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtributoHtml {
     /// A fonte da tag não começa por `<` seguido do nome do elemento.
     InicioDaTagDeAberturaAusente,
@@ -30,16 +30,7 @@ pub(crate) enum ErroAtributoHtml {
     AtributoRepetidoNaTag { atributo: &'static str },
 }
 
-impl ErroAtributoHtml {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::InicioDaTagDeAberturaAusente => "inicio_da_tag_de_abertura_ausente",
-            Self::FimDaTagDeAberturaAusente => "fim_da_tag_de_abertura_ausente",
-            Self::ValorEntreAspasSemFechamento => "valor_entre_aspas_sem_fechamento",
-            Self::AtributoRepetidoNaTag { .. } => "atributo_repetido_na_tag",
-        }
-    }
-}
+impl ErroAtributoHtml {}
 
 /// Atributos na ordem da fonte, com nomes em minúsculas ASCII e valores
 /// brutos. `None` é atributo sem `=`; `Some("")` é `nome=""`.

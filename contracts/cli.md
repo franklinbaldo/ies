@@ -61,9 +61,12 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
 - `ies processo sobrestar NUP --motivo TEXTO [--confirmar]` e
   `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
-  prévia Web funcional, `--confirmar` ainda bloqueado na PR #279)
+  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 3 se incerto)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
+- `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
+  releitura da árvore e da lista; [contrato](cli/processo-ciente.md); #271)
+- `ies documento cancelar NUMERO --motivo TEXTO [--confirmar]` (prévia e cancelamento Web irreversível, um POST com verificação pela árvore; [contrato](cli/documento-cancelar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
   com a senha do login, prévia e verificação pela caneta da árvore;
   [contrato](cli/documento-assinar.md))

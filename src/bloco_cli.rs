@@ -13,23 +13,22 @@ use crate::{Bloco, BlocoAcao, Cli, erro_fonte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
-#[derive(Debug)]
+#[derive(Debug, crate::erro_publico::Causa)]
 enum FalhaLeitura {
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
     Controle(ErroCaixa),
+    #[causa(nome = "unidade_inesperada_na_leitura_de_blocos")]
     UnidadeInesperada,
+    #[causa(interna)]
     Bloco(ErroBloco),
+    #[causa(interna)]
     Detalhe(ErroDetalheBloco),
 }
 impl FalhaLeitura {
     fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(e) => e.subcodigo(),
-            Self::Controle(e) => e.subcodigo(),
-            Self::UnidadeInesperada => "unidade_inesperada_na_leitura_de_blocos",
-            Self::Bloco(e) => e.subcodigo(),
-            Self::Detalhe(e) => e.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
     fn mensagem(&self) -> &'static str {
         match self {
@@ -65,24 +64,19 @@ fn ler_via<V: EnvioDoControle>(
             requisicoes += 1;
             envio.get(url, cookie)
         },
-    )
-    .map_err(FalhaLeitura::Transporte)?;
-    let unidade = controle_reconhecido::unidade_do_controle(&controle.html)
-        .map_err(FalhaLeitura::Controle)?;
+    )?;
+    let unidade = controle_reconhecido::unidade_do_controle(&controle.html)?;
     if unidade_esperada
         .is_some_and(|v| v.split_whitespace().collect::<Vec<_>>().join(" ") != unidade)
     {
         return Err(FalhaLeitura::UnidadeInesperada);
     }
-    let url_lista = bloco::link_do_menu(&controle.instalacao, &controle.url, &controle.html, tipo)
-        .map_err(FalhaLeitura::Bloco)?;
-    let cookie = sessao.cookie().valor().map_err(FalhaLeitura::Transporte)?;
+    let url_lista = bloco::link_do_menu(&controle.instalacao, &controle.url, &controle.html, tipo)?;
+    let cookie = sessao.cookie().valor()?;
     requisicoes += 1;
-    let resposta = envio
-        .get(&url_lista, cookie)
-        .map_err(FalhaLeitura::Transporte)?;
-    let html = transporte::decodificar_resposta(resposta).map_err(FalhaLeitura::Transporte)?;
-    let lista = bloco::ler_lista(&html, tipo).map_err(FalhaLeitura::Bloco)?;
+    let resposta = envio.get(&url_lista, cookie)?;
+    let html = transporte::decodificar_resposta(resposta)?;
+    let lista = bloco::ler_lista(&html, tipo)?;
     if pagina == Some(1)
         && lista
             .lista
@@ -95,20 +89,18 @@ fn ler_via<V: EnvioDoControle>(
         ));
     }
     if let Some(numero) = numero {
-        let href = lista.href_do_bloco(numero).map_err(FalhaLeitura::Bloco)?;
+        let href = lista.href_do_bloco(numero)?;
         let url = bloco::resolver_link(
             &controle.instalacao,
             &url_lista,
             href,
             "rel_bloco_protocolo_listar",
             Some(numero),
-        )
-        .map_err(FalhaLeitura::Bloco)?;
+        )?;
         requisicoes += 1;
-        let resposta = envio.get(&url, cookie).map_err(FalhaLeitura::Transporte)?;
-        let html = transporte::decodificar_resposta(resposta).map_err(FalhaLeitura::Transporte)?;
-        let detalhe =
-            bloco_detalhe::ler_detalhe(&html, numero, tipo).map_err(FalhaLeitura::Detalhe)?;
+        let resposta = envio.get(&url, cookie)?;
+        let html = transporte::decodificar_resposta(resposta)?;
+        let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo)?;
         return Ok(
             json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"bloco":detalhe}),
         );

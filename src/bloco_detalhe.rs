@@ -4,29 +4,24 @@ use crate::bloco::{Faixa, TipoBloco};
 use crate::html_atributos::nos_com_id;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDetalheBloco {
+    #[causa(nome = "html_do_bloco_ilegivel")]
     HtmlIlegivel,
+    #[causa(nome = "tabela_do_bloco_ausente")]
     TabelaAusente,
+    #[causa(nome = "tabelas_do_bloco_repetidas")]
     TabelaRepetida,
+    #[causa(nome = "cabecalho_do_bloco_invalido")]
     CabecalhoInvalido,
+    #[causa(nome = "linha_do_bloco_invalida")]
     LinhaInvalida,
+    #[causa(nome = "legenda_do_bloco_invalida")]
     LegendaInvalida,
+    #[causa(nome = "faixa_do_bloco_invalida")]
     FaixaInvalida,
 }
-impl ErroDetalheBloco {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlIlegivel => "html_do_bloco_ilegivel",
-            Self::TabelaAusente => "tabela_do_bloco_ausente",
-            Self::TabelaRepetida => "tabelas_do_bloco_repetidas",
-            Self::CabecalhoInvalido => "cabecalho_do_bloco_invalido",
-            Self::LinhaInvalida => "linha_do_bloco_invalida",
-            Self::LegendaInvalida => "legenda_do_bloco_invalida",
-            Self::FaixaInvalida => "faixa_do_bloco_invalida",
-        }
-    }
-}
+impl ErroDetalheBloco {}
 #[derive(Debug, Serialize)]
 pub(crate) struct ItemDoBloco {
     pub(crate) processo: String,

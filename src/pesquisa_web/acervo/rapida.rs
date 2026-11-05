@@ -19,7 +19,7 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
                     OrigemDoTrabalho::PesquisaRapida,
                 ) {
                     Ok(_) => Resultado::Lido,
-                    Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                    Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
                 },
                 (None, _) => Resultado::NaoAplicavel("instalacao_da_cassette_nao_identificada"),
                 (_, None) => Resultado::NaoAplicavel("url_do_post_nao_gravada"),

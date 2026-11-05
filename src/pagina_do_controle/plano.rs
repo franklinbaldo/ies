@@ -70,7 +70,7 @@ fn plano_sem_linhas(
     atual: usize,
     pagina: usize,
 ) -> Result<PlanoDaPagina, E> {
-    let caixa = crate::caixa::parse_html(html).map_err(E::Caixa)?;
+    let caixa = crate::caixa::parse_html(html)?;
     let linhas = match categoria {
         Categoria::Recebidos => caixa.recebidos.processos.len(),
         Categoria::Gerados => caixa.gerados.processos.len(),
@@ -117,12 +117,12 @@ pub(crate) fn planejar(
     categoria: Categoria,
     pagina: usize,
 ) -> Result<PlanoDaPagina, E> {
-    let contexto = contexto_da_pagina(html).map_err(E::Caixa)?;
+    let contexto = contexto_da_pagina(html)?;
     if !contexto.eh_resumida() {
         return Err(E::PaginaExigeVisaoResumida);
     }
     let atual = pagina_atual(html, categoria)?;
-    let Some(faixa) = faixa_na_pagina(html, categoria).map_err(E::Caixa)? else {
+    let Some(faixa) = faixa_na_pagina(html, categoria)? else {
         return plano_sem_linhas(html, categoria, atual, pagina);
     };
     let tamanho = tamanho_da_pagina(atual, faixa)
@@ -138,7 +138,7 @@ pub(crate) fn planejar(
     if pagina == atual + 1 {
         return Ok(PlanoDaPagina::JaExibida);
     }
-    if !paginador_da_tabela(html, categoria).map_err(E::Caixa)? {
+    if !paginador_da_tabela(html, categoria)? {
         return Err(E::PaginadorDaTabelaNaoPublicado { categoria });
     }
     let indice = pagina - 1;

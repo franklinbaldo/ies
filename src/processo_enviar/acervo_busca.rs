@@ -112,7 +112,7 @@ fn replay_da_busca_do_destino_no_acervo() {
                             anterior_vazia = itens.is_empty();
                             classe
                         }
-                        Err(falha) => format!("`{}`", falha.subcodigo()),
+                        Err(falha) => format!("`{}`", crate::erro_publico::folha(&falha)),
                     };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }

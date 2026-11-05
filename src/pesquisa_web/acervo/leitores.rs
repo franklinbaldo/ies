@@ -16,7 +16,7 @@ use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::formulario_pesquisa::{
     derivar_pagina_da_pesquisa, derivar_pesquisa_de_protocolo, falha_do_envio, interpretar_envio,
 };
-use crate::pesquisa_web::link_da_pesquisa::{ErroLinkDaPesquisa, link_da_pesquisa};
+use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
 use crate::pesquisa_web::paginacao::{ErroPaginacaoDaPesquisa, planejar_pagina};
 use crate::pesquisa_web::resposta::{RespostaDaPesquisa, ler_resposta_html};
 use crate::transporte::sessao::CookieDaSessao;
@@ -124,7 +124,7 @@ fn controle(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro
         .and_then(|html| {
             let unidade = unidade_do_controle(&html).map_err(|e| e.subcodigo())?;
             link_da_pesquisa(&c.instalacao, &url(r), &html)
-                .map_err(ErroLinkDaPesquisa::subcodigo)?;
+                .map_err(|e| crate::erro_publico::folha(&e))?;
             Ok(unidade)
         });
     match lido {
@@ -146,7 +146,7 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     };
     let derivada = derivar(r, &url(r), |tela| {
         derivar_pesquisa_de_protocolo(&c.instalacao, tela, unidade, TERMO_DE_PROVA)
-            .map_err(|e| e.subcodigo())
+            .map_err(|e| crate::erro_publico::folha(&e))
     });
     match derivada {
         Ok(submissao) => {
@@ -199,7 +199,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = falha_do_envio(erro).subcodigo();
+            let sub = crate::erro_publico::folha(&falha_do_envio(erro));
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -216,7 +216,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let interpretado = match interpretar_envio(enviada, &c.instalacao) {
         Ok(i) => i,
         Err(erro) => {
-            let sub = erro.subcodigo();
+            let sub = crate::erro_publico::folha(&erro);
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -281,13 +281,13 @@ fn plano(
             return c.lido(Leitor::PlanoDaPagina, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            let sub = erro.subcodigo();
+            let sub = crate::erro_publico::folha(&erro);
             return c.registro(Leitor::PlanoDaPagina, r.passo, Resultado::Recusado(sub));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         derivar_pagina_da_pesquisa(&c.instalacao, tela, unidade, TERMO_DE_PROVA, pedido.inicio)
-            .map_err(|e| e.subcodigo())
+            .map_err(|e| crate::erro_publico::folha(&e))
     });
     match derivada {
         Ok(_) => c.lido(Leitor::PlanoDaPagina, r.passo, "pagina_2_planejada"),

@@ -4,26 +4,25 @@
 //! não é a escrita de criação de processo.
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroListaDeTipos {
+    #[causa(nome = "lista_de_tipos_html_invalido")]
     HtmlInvalido,
+    #[causa(nome = "tabela_de_tipos_ausente_ou_repetida")]
     TabelaAusenteOuRepetida,
+    #[causa(nome = "tipo_de_processo_nao_oferecido")]
     TipoNaoOferecido,
+    #[causa(nome = "tipo_de_processo_ambiguo")]
     TipoRepetido,
+    #[causa(nome = "tipo_de_processo_sem_acao")]
     TipoSemAcao,
+    #[causa(nome = "lista_de_tipos_incompleta")]
     ListaIncompleta,
 }
 
 impl ErroListaDeTipos {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "lista_de_tipos_html_invalido",
-            Self::TabelaAusenteOuRepetida => "tabela_de_tipos_ausente_ou_repetida",
-            Self::TipoNaoOferecido => "tipo_de_processo_nao_oferecido",
-            Self::TipoRepetido => "tipo_de_processo_ambiguo",
-            Self::TipoSemAcao => "tipo_de_processo_sem_acao",
-            Self::ListaIncompleta => "lista_de_tipos_incompleta",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

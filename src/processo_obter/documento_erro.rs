@@ -8,9 +8,10 @@ use crate::documento_versoes::ErroVersao;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
 use crate::transporte::StatusHttpRecusado;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDocumentoObter {
     /// Sessão, Controle, pesquisa rápida, 302, tela ou árvore.
+    #[causa(interna)]
     Processo(ErroProcessoObter),
     /// A pesquisa rápida respondeu sem o 302 para a tela de trabalho.
     PesquisaRapidaNaoAbriuODocumento(StatusHttpRecusado),
@@ -20,27 +21,36 @@ pub(crate) enum ErroDocumentoObter {
     NumeroSeiRepetidoNaArvore,
     /// `--processo NUP`: a árvore do processo, com as pastas abertas, não
     /// tem `DOCUMENTO` com o número pedido.
+    #[causa(nome = "numero_sei_ausente_da_arvore_do_processo")]
     NumeroSeiAusenteDoProcesso,
     /// O `.src` do nó (ausente, repetido, fora da forma observada).
+    #[causa(interna)]
     Conteudo(ErroConteudoNaArvore),
     /// `.src` vazio num nó com ícone e dica de cancelado.
+    #[causa(nome = "documento_cancelado_sem_conteudo_na_arvore")]
     DocumentoCancelado,
     /// `.src` vazio: a árvore não publica o conteúdo para esta sessão.
     ConteudoNaoPublicadoNaArvore,
     /// O arquivo do documento externo (`documento_download_anexo`, fatia 3).
+    #[causa(interna)]
     Anexo(ErroAnexo),
     /// O título do HTML servido.
+    #[causa(interna)]
     Titulo(ErroTituloDocumento),
     /// O título servido é de outro número SEI.
+    #[causa(nome = "titulo_do_conteudo_de_outro_documento")]
     TituloDeOutroDocumento,
     /// O corpo do HTML servido.
+    #[causa(interna)]
     Corpo(ErroCorpoDocumento),
     /// A barra do `DOCUMENTO` fora da forma observada (Refs #88).
+    #[causa(interna)]
     BarraDoDocumento(ErroBarraDoDocumento),
     /// `--versao N` e a barra do documento não publica a lista de versões
     /// (inclusive no externo, recusado antes do GET do anexo).
     ListaDeVersoesNaoPublicadaNaArvore,
     /// A lista de versões servida, ou N fora dela.
+    #[causa(interna)]
     Versoes(ErroVersao),
     /// O rodapé da versão servida declara outra versão.
     VersaoServidaDiferenteDaPedida,
@@ -50,25 +60,7 @@ pub(crate) enum ErroDocumentoObter {
 
 impl ErroDocumentoObter {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Processo(erro) => erro.subcodigo(),
-            Self::PesquisaRapidaNaoAbriuODocumento(_) => "pesquisa_rapida_nao_abriu_o_documento",
-            Self::NumeroSeiDaArvoreDiferenteDoPedido => "numero_sei_da_arvore_diferente_do_pedido",
-            Self::NumeroSeiRepetidoNaArvore => "numero_sei_repetido_na_arvore",
-            Self::NumeroSeiAusenteDoProcesso => "numero_sei_ausente_da_arvore_do_processo",
-            Self::Conteudo(erro) => erro.subcodigo(),
-            Self::DocumentoCancelado => "documento_cancelado_sem_conteudo_na_arvore",
-            Self::ConteudoNaoPublicadoNaArvore => "conteudo_nao_publicado_na_arvore",
-            Self::Anexo(erro) => erro.subcodigo(),
-            Self::Titulo(erro) => erro.subcodigo(),
-            Self::TituloDeOutroDocumento => "titulo_do_conteudo_de_outro_documento",
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::BarraDoDocumento(erro) => erro.subcodigo(),
-            Self::ListaDeVersoesNaoPublicadaNaArvore => "lista_de_versoes_nao_publicada_na_arvore",
-            Self::Versoes(erro) => erro.subcodigo(),
-            Self::VersaoServidaDiferenteDaPedida => "versao_servida_diferente_da_pedida",
-            Self::ConteudoComLinkAssinado => "conteudo_com_link_assinado",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

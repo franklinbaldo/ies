@@ -8,24 +8,23 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAndamentoNaBarra {
+    #[causa(nome = "barra_do_andamento_fora_da_forma")]
     BarraForaDaForma,
+    #[causa(nome = "barras_do_processo_repetidas_na_arvore")]
     BarrasRepetidas,
+    #[causa(nome = "links_de_atualizar_andamento_repetidos")]
     LinksRepetidos,
+    #[causa(nome = "endereco_de_atualizar_andamento_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_de_atualizar_andamento_de_outro_processo")]
     OutroProcesso,
 }
 
 impl ErroAndamentoNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_do_andamento_fora_da_forma",
-            Self::BarrasRepetidas => "barras_do_processo_repetidas_na_arvore",
-            Self::LinksRepetidos => "links_de_atualizar_andamento_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_atualizar_andamento_nao_reconhecido",
-            Self::OutroProcesso => "endereco_de_atualizar_andamento_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
