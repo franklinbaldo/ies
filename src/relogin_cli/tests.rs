@@ -100,7 +100,6 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
     assert!(main.contains("Some(definir) => unidade_colunas_definir_cli::definir_colunas("));
 }
 
-
 #[test]
 fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
     use crate::sessao_login::relogin::sessao_encerrada;
@@ -121,7 +120,10 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
     }
     let invalidos = [
         (FalhaTransporte::CookieInvalido, "cookie_invalido"),
-        (FalhaTransporte::OrigemNaoAutorizada, "origem_nao_autorizada"),
+        (
+            FalhaTransporte::OrigemNaoAutorizada,
+            "origem_nao_autorizada",
+        ),
     ];
     for (falha, esperado) in invalidos {
         assert_eq!(FalhaPublicavel::subcodigo(&falha), esperado);
