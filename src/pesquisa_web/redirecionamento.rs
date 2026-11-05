@@ -5,9 +5,9 @@
 use crate::dominio::IdProcedimento;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
-use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use ErroRedirecionamentoDaPesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
