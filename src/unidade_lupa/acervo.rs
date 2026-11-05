@@ -29,6 +29,7 @@ fn replay_da_lupa_go_no_acervo() {
     let mut lidas = 0usize;
     let mut get = 0usize;
     let mut post = 0usize;
+    let mut vazias = 0usize;
     for resposta in gravacao::respostas(&conferida.json) {
         if resposta.operacao != "unidade_selecionar_envio_processo" || resposta.status != 200 {
             continue;
@@ -36,33 +37,19 @@ fn replay_da_lupa_go_no_acervo() {
         let html = html_da_resposta(resposta.item)
             .unwrap_or_else(|_| panic!("corpo HTML inválido no passo {}", resposta.passo));
         let pagina = ler_pagina(&html).unwrap_or_else(|e| {
-            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("HTML da cassette");
-            let legends: Vec<_> = dom
-                .query_selector("caption")
-                .into_iter()
-                .flatten()
-                .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-                .map(|tag| super::texto_da_tag(tag, dom.parser()))
-                .collect();
-            let visivel = dom
-                .query_selector("form")
-                .into_iter()
-                .flatten()
-                .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-                .map(|tag| super::texto_da_tag(tag, dom.parser()))
-                .next()
-                .unwrap_or_default();
-            let amostra: String = visivel.chars().take(850).collect();
             panic!(
-                "lupa GO passo {} metodo {}: {e:?}; legendas públicas: {legends:?}; bytes {}; amostra de texto visível: {amostra:?}",
-                resposta.passo,
-                resposta.metodo,
-                html.len(),
+                "cassette GO passo {} metodo {}: {e:?}",
+                resposta.passo, resposta.metodo
             )
         });
         assert!(pagina.paginas >= 1);
         assert!(pagina.pagina < pagina.paginas);
         assert!(pagina.unidades.len() <= pagina.total);
+        if pagina.total == 0 {
+            assert_eq!(pagina.paginas, 1);
+            assert_eq!(pagina.unidades, Vec::new());
+            vazias += 1;
+        }
         if resposta.metodo == "GET" {
             get += 1;
             // O primeiro GET da cassette abre os 13.671 destinos.
@@ -77,8 +64,7 @@ fn replay_da_lupa_go_no_acervo() {
         }
         lidas += 1;
     }
-    assert!(get >= 1, "GO deve gravar o GET inicial da lupa");
-    assert!(post >= 3, "GO deve gravar páginas filtradas em POST");
-    assert!(lidas >= 4);
+    assert_eq!((get, post, lidas), (3, 3, 6));
+    assert!(vazias >= 1, "a cassette GO deve ter uma lista vazia");
     println!("replay GO: {lidas} telas lidas ({get} GET, {post} POST), 0 requisições reais");
 }
