@@ -7,9 +7,9 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_criar_cadastro::conferir_cadastro;
+use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro};
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
-use crate::processo_criar_menu::link_de_iniciar;
+use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
 use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
@@ -64,9 +64,9 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(crate) enum ErroCriar {
     Transporte,
     UnidadeDiferente,
-    Menu,
-    Lista,
-    Cadastro,
+    Menu(ErroMenuCriacao),
+    Lista(ErroListaDeTipos),
+    Cadastro(ErroCadastro),
     Formulario,
     TipoSemIdentificador,
     EscolhaInesperada,
@@ -79,9 +79,9 @@ impl ErroCriar {
         match self {
             Self::Transporte => "falha_de_transporte_na_criacao",
             Self::UnidadeDiferente => "unidade_da_criacao_divergente",
-            Self::Menu => "menu_de_criacao_nao_reconhecido",
-            Self::Lista => "lista_de_tipos_nao_reconhecida",
-            Self::Cadastro => "cadastro_de_processo_nao_reconhecido",
+            Self::Menu(erro) => erro.subcodigo(),
+            Self::Lista(erro) => erro.subcodigo(),
+            Self::Cadastro(erro) => erro.subcodigo(),
             Self::Formulario => "formulario_de_criacao_nao_reconhecido",
             Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
             Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
@@ -284,7 +284,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
     if pedido.unidade.is_some_and(|exigida| exigida != unidade) {
         return Err(E::UnidadeDiferente);
     }
-    let link = link_de_iniciar(&instalacao, &controle.url, &controle.html).map_err(|_| E::Menu)?;
+    let link = link_de_iniciar(&instalacao, &controle.url, &controle.html).map_err(E::Menu)?;
     let mut lista = get(envio, &link, cookie_valor, &mut requisicoes)?;
     let escolhido = match tipo_na_lista(&lista.html, pedido.tipo) {
         Err(ErroListaDeTipos::ListaIncompleta) => {
@@ -300,12 +300,12 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 false,
             )?;
             let RespostaDoEnvio::Html(html) = resposta else {
-                return Err(E::Lista);
+                return Err(E::Lista(ErroListaDeTipos::ListaIncompleta));
             };
             lista.html = html;
-            tipo_na_lista(&lista.html, pedido.tipo).map_err(|_| E::Lista)?
+            tipo_na_lista(&lista.html, pedido.tipo).map_err(E::Lista)?
         }
-        outro => outro.map_err(|_| E::Lista)?,
+        outro => outro.map_err(E::Lista)?,
     };
     let (id_tipo, cadastro) = match escolhido.escolha {
         EscolhaDoTipo::Link(link) => {
@@ -339,7 +339,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         }
     };
     let observado =
-        conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel).map_err(|_| E::Cadastro)?;
+        conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel).map_err(E::Cadastro)?;
     // A busca de interessados é AJAX específico por instalação. Não enviar
     // uma lista inventada ou silenciosamente vazia.
     if !pedido.interessados.is_empty() {
