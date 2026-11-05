@@ -1,8 +1,8 @@
-//! Despacho da prévia de sobrestar/retomar; nenhuma credencial ou URL
-//! assinada é publicada. A confirmação permanece fechada sem rede (#269).
+//! Despacho da prévia e confirmação de sobrestar/retomar (#269).
+//! Nenhuma credencial nem URL assinada é publicada; efeito incerto sai 3.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
-use crate::processo_sobrestar::{Acao, ErroSobrestamento, preparar};
+use crate::processo_sobrestar::{Acao, ErroSobrestamento, executar};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -62,18 +62,14 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
             "informe um motivo não vazio",
         );
     }
-    // Nunca chamar a Web, nem mesmo ler a sessão, antes de existir
-    // escrita verificada e teste de transporte para a operação.
-    if confirmar {
-        let e = ErroSobrestamento::ConfirmacaoAindaBloqueada;
-        return saida_erro::erro_fonte_http(cli.json, e.subcodigo(), e.mensagem(), e.status_http());
-    }
     com_sessao(cli, |sessao, indice| {
-        match preparar(
+        match executar(
             sessao,
             &nup,
             cli.unidade.as_deref(),
             acao,
+            motivo,
+            confirmar,
             indice,
             &mut EnvioHttps,
         ) {
@@ -87,25 +83,50 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             "unidade": previa.unidade,
                             "acao": previa.acao.como_texto(),
                             "motivo": motivo.map(str::trim),
-                            "confirmado": false,
-                            "alterado": false,
+                            "confirmado": previa.confirmado,
+                            "alterado": previa.alterado,
+                            "reconciliado_por_leitura": previa.reconciliado_por_leitura,
                             "origem": "web",
                             "requisicoes": previa.requisicoes
                         })
                     );
                 } else {
-                    println!(
-                        "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
-                        previa.acao.como_texto(),
-                        previa.nup,
-                        previa.unidade,
-                        previa.requisicoes
-                    );
+                    if previa.confirmado {
+                        println!(
+                            "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
+                            previa.nup, previa.acao.como_texto(), previa.requisicoes
+                        );
+                    } else {
+                        println!(
+                            "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
+                            previa.acao.como_texto(),
+                            previa.nup,
+                            previa.unidade,
+                            previa.requisicoes
+                        );
+                    }
                 }
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                saida_erro::erro_fonte_http(cli.json, e.subcodigo(), e.mensagem(), e.status_http())
+                if matches!(e, ErroSobrestamento::EfeitoIncerto) {
+                    if cli.json {
+                        println!("{}", json!({
+                            "codigo": "efeito_incerto",
+                            "subcodigo": e.subcodigo(),
+                            "erro": e.mensagem(),
+                            "retentavel": false,
+                            "origem": "web"
+                        }));
+                    } else {
+                        eprintln!("IES: {} [{}]", e.mensagem(), e.subcodigo());
+                    }
+                    ExitCode::from(3)
+                } else {
+                    saida_erro::erro_fonte_http(
+                        cli.json, e.subcodigo(), e.mensagem(), e.status_http()
+                    )
+                }
             }
         }
     })
