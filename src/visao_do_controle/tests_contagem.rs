@@ -4,9 +4,9 @@
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
-use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::testes_http::{atender, resposta, resposta_post};
+use crate::transporte::RespostaWeb;
 use std::collections::VecDeque;
 use std::io::Cursor;
 
@@ -65,10 +65,7 @@ impl EnvioDoControle for Roteiro {
 }
 
 fn contado(passos: Vec<Passo>) -> EnvioContado<Roteiro> {
-    EnvioContado {
-        interno: Roteiro::novo(passos),
-        pedidos: ContagemDeRequisicoes::default(),
-    }
+    EnvioContado::novo(Roteiro::novo(passos))
 }
 
 #[test]
