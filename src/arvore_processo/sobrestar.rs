@@ -1,5 +1,5 @@
 //! Ações de sobrestar e retomar publicadas na barra do nó PROCESSO (#269).
-//! Só URLs servidas, com ID e infra_hash únicos; nunca executar JavaScript.
+//! Só URLs servidas, com ID e `infra_hash` únicos; nunca executar JavaScript.
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, tela_do_no_da_raiz};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};

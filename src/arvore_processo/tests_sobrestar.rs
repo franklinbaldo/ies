@@ -1,5 +1,5 @@
 //! Casos sintéticos derivados de Todos/src/todos/ciclo.py e dos índices
-//! de cassettes processo-sobrestar-retomar (UnB, GO e PEN1).
+//! de cassettes processo-sobrestar-retomar (`UnB`, GO e PEN1).
 //! Não há URL real, cookie real ou segredo nestas fixtures.
 use super::sobrestar::{ErroAcaoSobrestar as E, ler_retomar_da_barra, ler_sobrestar_da_barra};
 use super::tests::NUP;

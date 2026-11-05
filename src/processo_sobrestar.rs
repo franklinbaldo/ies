@@ -125,7 +125,7 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
         (_, AbertoEm::NaoLido(motivo)) => {
             return Err(ErroSobrestamento::SituacaoNaoLida(*motivo));
         }
-    };
+    }
     let oferecida = match acao {
         Acao::Sobrestar => acoes.sobrestar,
         Acao::Retomar => acoes.retomar,
