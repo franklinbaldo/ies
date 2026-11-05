@@ -56,9 +56,9 @@ pub(crate) fn definir_colunas(
         &alvo,
         confirmar,
         sessao.cookie(),
-        &mut crate::colheita_do_controle::EnvioColhendo {
+        &mut visao_do_controle::EnvioContado::novo(crate::colheita_do_controle::EnvioColhendo {
             colheita: &colheita,
-        },
+        }),
     ) {
         Ok(feito) => {
             if json_mode {
