@@ -18,6 +18,12 @@ do Todos não a tem como operação própria: o Todos troca de unidade pelo
 `--unidade`), então não há passo correspondente (`upstream_steps: 0`). O
 `source_commit` é o da matriz consultada.
 
+## Evidência live do IES
+
+- [Troca de unidade na UFRJ](../../docs/validacao-live/2026-11-05-unidade-trocar.md):
+  **PASS** na UFRJ 4.1.5, de PR-P para PR-A e de volta, conferindo
+  o Controle novo; UnB, GO e PEN **NOT_RUN** na validação live.
+
 ## Evidência disponível
 
 Cassettes com o POST de `infra_trocar_unidade` (22 trocas), lidas pelos
@@ -37,6 +43,6 @@ Observação estrutural em [troca de unidade](../../docs/como-o-sei-funciona/tro
 
 ## Limite da evidência
 
-As gravações não guardam o corpo do POST nem `Set-Cookie`. O corpo vem do
+O replay não guarda o corpo do POST nem `Set-Cookie`. O corpo vem do
 formulário servido e do JavaScript `selecionarUnidade()`; a prova é o
 Controle da unidade nova. PEN1 a PEN4 só gravaram o GET da tela.
