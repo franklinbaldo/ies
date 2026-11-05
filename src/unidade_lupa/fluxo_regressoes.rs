@@ -89,7 +89,7 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
             self.gets += 1;
             assert_eq!(self.gets, 1, "um link inseguro nao pode causar outro GET");
             let consulta = format!(
-                "acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash=inválido"
+                "acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash=invalido"
             );
             let resposta = RespostaWeb {
                 status_code: 200,
