@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar processo pela pesquisa Web do SEI
 operation: processo.buscar
-command: ies processo buscar TERMO [--pagina N] [--json]
+command: ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
@@ -182,3 +182,24 @@ número do processo; o documento não sai.
   gerado no dia sai `sem_resultado`); PEN4 PASS em NUP dentro e fora da
   caixa e `sem_resultado`, lista **FAIL → corrigido offline** (processo
   visitado), lista ao vivo depois da correção NOT_RUN.
+
+
+## Filtros experimentais (#247)
+
+`ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO]
+[--de DD/MM/AAAA] [--ate DD/MM/AAAA]` preserva o termo e o fluxo
+Web anterior. `--tipo` procura o texto **exato** de uma opção de
+`selTipoProcedimentoPesquisa`, usando o seu `value` servido no mesmo
+POST. `--de` e `--ate` usam `txtDataInicio` e `txtDataFim`, somente
+quando presentes na tela. Datas inválidas e período invertido são entrada
+inválida antes da rede. Os filtros não acrescentam GET nem POST (3
+requisições na primeira página; 4 na página N).
+
+A opção `--assunto` existe na borda, mas **recusa por enquanto** com
+`criterio_nao_oferecido_pela_tela`: `txtAssunto` e `hdnIdAssunto`
+formam um autocompletar dependente de identificador, e enviar apenas texto
+não filtra. Não há consulta adicional autorizada para resolver esse ID.
+Também se recusa qualquer campo ausente da tela; tipo sem opção exata é
+`tipo_nao_oferecido_pela_tela`; controles repetidos ou valor diferente
+na página seguinte são recusados. O ensaio live UnB/PEN3 para os novos
+filtros está **NOT_RUN**; não inferir suporte universal.
