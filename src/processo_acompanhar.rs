@@ -98,7 +98,10 @@ pub(crate) fn grupos_do_cadastro(
     let parser = dom.parser();
     let mut forms = Vec::new();
     for no in dom.query_selector("form").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         if campo(tag, "id")?.as_deref() == Some(FORMULARIO) {
             forms.push(tag);
         }
@@ -162,12 +165,15 @@ pub(crate) fn grupos_do_cadastro(
 }
 
 fn parametro_unico(url: &str, nome: &str, valor: &str) -> bool {
-    url.split_once('?')
-        .is_some_and(|(_, query)| query.split('&')
+    url.split_once('?').is_some_and(|(_, query)| {
+        query
+            .split('&')
             .filter_map(|par| par.split_once('='))
             .filter(|(chave, _)| *chave == nome)
             .map(|(_, v)| v)
-            .collect::<Vec<_>>() == [valor])
+            .collect::<Vec<_>>()
+            == [valor]
+    })
 }
 
 /// Casa APENAS pelo nome exato. O branco seleciona a opção vazia publicada.
@@ -195,7 +201,10 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
     let parser = dom.parser();
     let mut tabelas = Vec::new();
     for no in dom.query_selector("table").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         if campo(tag, "summary")?.as_deref() == Some(TABELA) {
             tabelas.push(tag);
         }
@@ -209,16 +218,23 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
     let mut linhas = Vec::new();
     for no in tabela.children().all(parser) {
         let Some(tr) = no.as_tag() else { continue };
-        if tr.name() != "tr" { continue; }
+        if tr.name() != "tr" {
+            continue;
+        }
         let mut th = Vec::new();
         let mut td = Vec::new();
         for celula in tr.children().all(parser) {
             let Some(tag) = celula.as_tag() else { continue };
-            if tag.name() == "th" { th.push(texto(&tag.inner_text(parser))); }
-            if tag.name() == "td" { td.push(tag); }
+            if tag.name() == "th" {
+                th.push(texto(&tag.inner_text(parser)));
+            }
+            if tag.name() == "td" {
+                td.push(tag);
+            }
         }
         if !th.is_empty() {
-            if cabecalho || !th.iter().any(|h| h == "Grupo")
+            if cabecalho
+                || !th.iter().any(|h| h == "Grupo")
                 || !th.iter().any(|h| h == "Observação")
             {
                 return Err(E::ColunasDaListaInvalidas);
@@ -226,12 +242,18 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             cabecalho = true;
             continue;
         }
-        if td.is_empty() { continue; }
-        if td.len() != 6 { return Err(E::LinhaDaListaInvalida); }
+        if td.is_empty() {
+            continue;
+        }
+        if td.len() != 6 {
+            return Err(E::LinhaDaListaInvalida);
+        }
         let mut ids = Vec::new();
         for item in td[0].children().all(parser) {
-            let Some(tag) = item.as_tag() else {continue};
-            if tag.name() != "input" {continue;}
+            let Some(tag) = item.as_tag() else { continue };
+            if tag.name() != "input" {
+                continue;
+            }
             if campo(tag, "type")?.as_deref() == Some("checkbox") {
                 ids.push(campo(tag, "value")?.unwrap_or_default());
             }
@@ -244,18 +266,22 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             return Err(E::IdDeAcompanhamentoRepetido);
         }
         linhas.push(Acompanhamento {
-            id, grupo: texto(&td[1].inner_text(parser)),
+            id,
+            grupo: texto(&td[1].inner_text(parser)),
             observacao: texto(&td[2].inner_text(parser)),
         });
     }
-    if !cabecalho { return Err(E::ColunasDaListaInvalidas); }
+    if !cabecalho {
+        return Err(E::ColunasDaListaInvalidas);
+    }
     Ok(linhas)
 }
 
 /// Se já existe este grupo na mesma unidade, não escrever nem quando a
 /// observação é diferente: o SEI recusa duplicatas de grupo.
 pub(crate) fn conferir_novo_grupo(
-    antes: &[Acompanhamento], grupo: &str
+    antes: &[Acompanhamento],
+    grupo: &str,
 ) -> Result<(), ErroAcompanhar> {
     if antes.iter().any(|a| a.grupo == grupo) {
         Err(ErroAcompanhar::GrupoJaAcompanhado)
@@ -269,7 +295,8 @@ pub(crate) fn alvo_para_deixar<'a>(
     antes: &'a [Acompanhamento],
     grupo: Option<&str>,
 ) -> Result<&'a Acompanhamento, ErroAcompanhar> {
-    let candidatos: Vec<_> = antes.iter()
+    let candidatos: Vec<_> = antes
+        .iter()
         .filter(|a| grupo.is_none_or(|g| a.grupo == g))
         .collect();
     match candidatos.as_slice() {
@@ -289,8 +316,12 @@ pub(crate) fn conferir_inclusao(
     use ErroAcompanhar as E;
     if depois.len() != antes.len() + 1
         || !antes.iter().all(|a| depois.contains(a))
-        || depois.iter().filter(|a| !antes.iter().any(|b| b.id == a.id))
-            .filter(|a| a.grupo == grupo && a.observacao == observacao).count() != 1
+        || depois
+            .iter()
+            .filter(|a| !antes.iter().any(|b| b.id == a.id))
+            .filter(|a| a.grupo == grupo && a.observacao == observacao)
+            .count()
+            != 1
     {
         return Err(E::AcompanhamentoNaoConfirmado);
     }
@@ -305,7 +336,10 @@ pub(crate) fn conferir_remocao(
     if antes.len() != depois.len() + 1
         || !antes.iter().any(|a| a.id == id)
         || depois.iter().any(|a| a.id == id)
-        || !antes.iter().filter(|a| a.id != id).all(|a| depois.contains(a))
+        || !antes
+            .iter()
+            .filter(|a| a.id != id)
+            .all(|a| depois.contains(a))
     {
         return Err(ErroAcompanhar::AcompanhamentoNaoConfirmado);
     }
