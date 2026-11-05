@@ -2,7 +2,7 @@
 type: ImplementationDecision
 title: Incluir documento interno pelo formulário publicado e conferir diferença da árvore
 operation: documento.criar
-implementation: stub
+implementation: partial
 status: adopted-for-scope
 scope: contrato e testes offline de reconhecimento do tipo e reconciliação da árvore sem escrita remota
 selected_strategy: web-cadastro-e-diferenca-da-arvore
