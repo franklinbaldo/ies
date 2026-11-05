@@ -1,0 +1,63 @@
+name: Temporario issue 244 diagnosticar links do acervo GO
+
+on:
+  push:
+    branches: [codex/244-unidades-indice-local]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Conferir acervo publico e relatar somente estrutura, nunca URLs
+        run: |
+          set -eu
+          curl --fail --location --silent --show-error --retry 0 --max-time 180 \
+            --output "$RUNNER_TEMP/go.zip" \
+            "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-e01c45d573ff1591.zip"
+          echo "e01c45d573ff15912f0a5d018165aa3edbf24c89  $RUNNER_TEMP/go.zip" | sha1sum --check
+          python3 - <<'PY'
+          import base64, json, os, zipfile
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Estrutura(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.atributos = []
+                  self.scripts = 0
+                  self.botao_novo = 0
+              def handle_starttag(self, tag, atributos):
+                  attrs = dict(atributos)
+                  if tag == "script":
+                      self.scripts += 1
+                  if attrs.get("id") == "btnNovo":
+                      self.botao_novo += 1
+                  if tag in ("a", "button", "input"):
+                      self.atributos.append((tag, attrs))
+          with zipfile.ZipFile(Path(os.environ["RUNNER_TEMP"])/"go.zip") as z:
+              data=z.read("unidade-listar-destinos-go.json")
+          obj=json.loads(data)
+          for i,it in enumerate(obj["interactions"]):
+              op=it["request"].get("operation")
+              if op not in ("procedimento_controlar","grupo_unidade_listar","grupo_unidade_cadastrar"):
+                  continue
+              if it["response"].get("status_code") != 200:
+                  continue
+              corpo=base64.b64decode(it["response"].get("body_base64",""))
+              html=corpo.decode("latin-1")
+              estrutura=Estrutura()
+              estrutura.feed(html)
+              procuradas=("grupo_unidade_listar","grupo_unidade_cadastrar","unidade_selecionar_envio_processo")
+              counts={}
+              for alvo in procuradas:
+                  attrs=sum(1 for tag,a in estrutura.atributos if any(alvo in a.get(k,"") for k in ("href","onclick")))
+                  counts[alvo]={"na_pagina":alvo in html,"nos_controles":attrs}
+              print(json.dumps({"passo":i,"operacao":op,"controles":len(estrutura.atributos),
+                "scripts":estrutura.scripts,"btnNovo":estrutura.botao_novo,"acoes":counts}))
+          PY
