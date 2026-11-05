@@ -212,7 +212,8 @@ fn dois_literals_assinados_distintos_da_lupa_sao_ambiguos() {
 
 #[test]
 fn literal_sem_hash_assinado_nao_autoriza_get() {
-    let html = "<script>const lupa='controlador.php?acao=unidade_selecionar_envio_processo';</script>";
+    let html =
+        "<script>const lupa='controlador.php?acao=unidade_selecionar_envio_processo';</script>";
     assert_eq!(
         destino(
             html,
