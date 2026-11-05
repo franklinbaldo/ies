@@ -103,7 +103,6 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             previa.unidade,
                             previa.requisicoes
                         );
-                    }
                 }
                 ExitCode::SUCCESS
             }
