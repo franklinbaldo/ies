@@ -174,19 +174,22 @@ impl IndiceLocal {
         unidade_ativa: &str,
         termo: &str,
     ) -> Option<ListaGuardada> {
-        Some(filtrar_lista(self.lista_de_unidades(instalacao, unidade_ativa)?, termo))
+        Some(filtrar_lista(
+            self.lista_de_unidades(instalacao, unidade_ativa)?,
+            termo,
+        ))
     }
 }
 
 /// A mesma filtragem para snapshots persistidos e para leituras Web sem índice.
 pub(crate) fn filtrar_lista(mut lista: ListaGuardada, termo: &str) -> ListaGuardada {
     let termo = chave(termo);
-    lista.unidades.retain(|u| {
-        chave(&u.sigla).contains(&termo) || chave(&u.descricao).contains(&termo)
-    });
-    lista.unidades.sort_by_key(|u| {
-        (chave(&u.sigla) != termo, chave(&u.sigla), u.id.clone())
-    });
+    lista
+        .unidades
+        .retain(|u| chave(&u.sigla).contains(&termo) || chave(&u.descricao).contains(&termo));
+    lista
+        .unidades
+        .sort_by_key(|u| (chave(&u.sigla) != termo, chave(&u.sigla), u.id.clone()));
     lista.total = lista.unidades.len();
     lista
 }
