@@ -1,5 +1,5 @@
-//! Prévia Web somente de leitura da inclusão de documento interno (#246).
-//! Nunca envia o formulário de criação e não faz retry.
+//! Prévia Web e confirmação de documento interno (#246).
+//! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::{
     ErroCriar, conferir_cadastro, conferir_criacao, conferir_tipo, link_direto_do_tipo,
     tipos_oferecidos,
@@ -106,8 +106,9 @@ impl ErroPreviaCriacao {
     }
 }
 
-/// Abertura do processo (GETs e, quando necessário, POST de pesquisa);
-/// GET da lista de tipos e GET do cadastro direto. Zero POSTs de criação.
+/// Abertura do processo, seleção e cadastro; na confirmação, um único POST
+/// seguido de leitura fresca. A prévia nunca envia POST criador.
+#[allow(clippy::too_many_lines)] // Fluxo sequencial com uma única fronteira de escrita.
 pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoCriacao<'_>,
@@ -178,22 +179,22 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         html: &html_cadastro,
         codificacao,
     };
-    let mut campos = vec![
-        ("hdnFlagDocumentoCadastro", "2"),
-        ("rdoNivelAcesso", "0"),
-    ];
+    let mut campos = vec![("hdnFlagDocumentoCadastro", "2"), ("rdoNivelAcesso", "0")];
     if let Some(descricao) = pedido.descricao {
         campos.push(("txtDescricao", descricao));
     }
     let submissao = derivar_submissao(
-        &CADASTRAR, &instalacao, &servida, &feito.unidade, &campos,
+        &CADASTRAR,
+        &instalacao,
+        &servida,
+        &feito.unidade,
+        &campos,
     )
     .map_err(E::Formulario)?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
-    let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
-        rede.post(post, cookie)
-    });
+    let resposta =
+        enviar_submissao_via(submissao, sessao.cookie, |post, cookie| rede.post(post, cookie));
     let depois = obter_processo(
         sessao,
         &leitura(pedido.nup, pedido.unidade, false),
@@ -207,7 +208,9 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         return Err(E::EfeitoIncerto);
     }
     let numero = conferir_criacao(
-        &aberto.arvore.documentos, &depois.arvore.documentos, pedido.tipo,
+        &aberto.arvore.documentos,
+        &depois.arvore.documentos,
+        pedido.tipo,
     )
     .map_err(|_| E::EfeitoIncerto)?;
     // O HTML/302 recebido não é seguido. Uma recusa ou falha no envio
@@ -273,12 +276,15 @@ mod tests {
     #[test]
     fn formulario_de_criacao_deriva_um_post_com_campos_e_efeito_exatos() {
         let envio = derivar(&cadastro()).unwrap();
-        assert_eq!(envio.nomes_dos_campos(), [
-            "hdnIdSerie",
-            "hdnFlagDocumentoCadastro",
-            "rdoNivelAcesso",
-            "txtDescricao"
-        ]);
+        assert_eq!(
+            envio.nomes_dos_campos(),
+            [
+                "hdnIdSerie",
+                "hdnFlagDocumentoCadastro",
+                "rdoNivelAcesso",
+                "txtDescricao"
+            ]
+        );
         assert_eq!(
             envio.corpo(),
             b"hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Ensaio"
