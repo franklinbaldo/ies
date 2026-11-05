@@ -2,6 +2,7 @@
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
 use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
+use crate::saida_erro::erro_fonte_http;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
@@ -62,28 +63,31 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn erro_do_fluxo(json_mode: bool, erro: ErroCriar) -> ExitCode {
+fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
+    if erro.saida() != 3 {
+        // Status e mensagem saneada do SEI vão para a saída quando houve.
+        return erro_fonte_http(
+            json_mode,
+            erro.subcodigo(),
+            "a tela do SEI não permitiu concluir o fluxo de criação com segurança",
+            erro.status_http(),
+        );
+    }
     if json_mode {
         println!(
             "{}",
             json!({
-                "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
+                "codigo": "efeito_incerto",
                 "subcodigo": erro.subcodigo(),
-                "erro": if erro.saida() == 3 {
-                    "o envio pode ter criado o processo; confira os gerados antes de repetir"
-                } else {
-                    "a tela do SEI não permitiu concluir o fluxo de criação com segurança"
-                },
+                "erro": "o envio pode ter criado o processo; confira os gerados antes de repetir",
                 "retentavel": false
             })
         );
     } else {
         eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
-        if erro.saida() == 3 {
-            eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
-        }
+        eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(3)
 }
 
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
@@ -177,7 +181,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
             }
             ExitCode::SUCCESS
         }
-        Err(erro) => erro_do_fluxo(cli.json, erro),
+        Err(erro) => erro_do_fluxo(cli.json, &erro),
     })
 }
 

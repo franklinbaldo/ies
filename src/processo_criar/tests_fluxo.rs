@@ -249,3 +249,29 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
             .contains("acao_ajax=contato_auto_completar_contexto_RI1225")
     );
 }
+
+/// Revisão da #249: a recusa HTTP do GET preserva subcódigo e status do SEI.
+#[test]
+fn recusa_http_do_get_preserva_status_e_nao_segue() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado::sem_mensagem(503),
+        )),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("recusa HTTP");
+    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
+    assert_eq!(erro.status_http().map(|s| s.status), Some(503));
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(requests.len(), 2);
+}

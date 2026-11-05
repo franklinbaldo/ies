@@ -13,7 +13,7 @@ use crate::processo_criar_interessados::{
 };
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
-use crate::transporte::decodificar_resposta;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
 
@@ -67,9 +67,14 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCriar {
-    Transporte,
+    /// Falha antes da escrita; guarda o subcódigo do transporte e, quando
+    /// houve, o status e a mensagem saneada do SEI.
+    Transporte {
+        subcodigo: &'static str,
+        http: Option<StatusHttpRecusado>,
+    },
     UnidadeDiferente,
     Menu(ErroMenuCriacao),
     Lista(ErroListaDeTipos),
@@ -82,9 +87,9 @@ pub(crate) enum ErroCriar {
 }
 
 impl ErroCriar {
-    pub(crate) fn subcodigo(self) -> &'static str {
+    pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::Transporte => "falha_de_transporte_na_criacao",
+            Self::Transporte { subcodigo, .. } => subcodigo,
             Self::UnidadeDiferente => "unidade_da_criacao_divergente",
             Self::Menu(erro) => erro.subcodigo(),
             Self::Lista(erro) => erro.subcodigo(),
@@ -97,8 +102,29 @@ impl ErroCriar {
         }
     }
 
-    pub(crate) fn saida(self) -> u8 {
-        if self == Self::EfeitoIncerto { 3 } else { 1 }
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Transporte { http, .. } => http.as_ref(),
+            _ => None,
+        }
+    }
+
+    fn de_transporte(falha: &FalhaTransporte) -> Self {
+        Self::Transporte {
+            subcodigo: falha.subcodigo(),
+            http: falha.status_http().cloned(),
+        }
+    }
+
+    fn local() -> Self {
+        Self::Transporte {
+            subcodigo: "falha_de_transporte_na_criacao",
+            http: None,
+        }
+    }
+
+    pub(crate) fn saida(&self) -> u8 {
+        if *self == Self::EfeitoIncerto { 3 } else { 1 }
     }
 }
 
@@ -136,9 +162,11 @@ fn get<V: EnvioDoControle>(
     requisicoes: &mut u32,
 ) -> Result<Tela, ErroCriar> {
     *requisicoes += 1;
-    let resposta = envio.get(url, cookie).map_err(|_| ErroCriar::Transporte)?;
+    let resposta = envio
+        .get(url, cookie)
+        .map_err(|f| ErroCriar::de_transporte(&f))?;
     let mime = resposta.mime.clone();
-    let html = decodificar_resposta(resposta).map_err(|_| ErroCriar::Transporte)?;
+    let html = decodificar_resposta(resposta).map_err(|f| ErroCriar::de_transporte(&f))?;
     Ok(Tela {
         url: url.to_owned(),
         html,
@@ -173,11 +201,14 @@ fn enviada<V: EnvioDoControle>(
         envio.post(s, c)
     });
     // Após iniciar a escrita, até uma falha de transporte tem efeito incerto.
-    resultado.map_err(|_| {
+    resultado.map_err(|erro| {
         if eh_escrita && tentou {
             ErroCriar::EfeitoIncerto
         } else {
-            ErroCriar::Transporte
+            ErroCriar::Transporte {
+                subcodigo: erro.subcodigo(),
+                http: erro.status_http().cloned(),
+            }
         }
     })
 }
@@ -287,8 +318,8 @@ pub(crate) fn criar<V: EnvioDoControle>(
     envio: &mut V,
 ) -> Result<Criacao, ErroCriar> {
     use ErroCriar as E;
-    let instalacao = Instalacao::interpretar(origem).ok_or(E::Transporte)?;
-    let cookie_valor = cookie.valor().map_err(|_| E::Transporte)?;
+    let instalacao = Instalacao::interpretar(origem).ok_or_else(E::local)?;
+    let cookie_valor = cookie.valor().map_err(|_| E::local())?;
     let mut requisicoes = 0;
     let controle = get(envio, url_controle, cookie_valor, &mut requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
