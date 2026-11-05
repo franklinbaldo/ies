@@ -48,8 +48,9 @@ Não tratar simples HTTP 200/302 como prova suficiente.
 
 Não usar regex nem executar JavaScript. Extrair atributos
 unicamente por `src/html_atributos`; nunca expor URLs assinadas,
-cookies ou `infra_hash`. Nenhuma escrita live até a autorização
-expressa do proprietário na issue.
+cookies ou `infra_hash`. A escrita live está autorizada **somente em treinamento**, conforme
+comentário da issue #245 em 05/11/2026; a autorização não equivale à
+validação da capacidade. Executar prévia, uma confirmação e releitura.
 
 ## Critérios antes da adoção
 
@@ -77,6 +78,28 @@ nem replay integral do acervo das cassettes.
 A Web mantém a prova dos campos; POST fixo e REST não oferecem
 a mesma garantia de origem dos dados.
 
+## Proteção de redirecionamentos e prova de RED — PR #283
+
+A confirmação 4.0 simulada requer **6 requisições**: três GET da
+prévia, um POST criador e dois GET de verificação. Na variante 4.1/5.0
+testada, a escolha de tipo adiciona um POST **não criador**: são
+**7 requisições**, dois POST de efeitos distintos e dois GET finais.
+Os dois fluxos rejeitam efeito incerto sem repetir a escrita.
+
+O parser rejeita `Location` com duas ocorrências de `acao` (mesmo
+quando uma é esperada), com duas ocorrências de `id_procedimento`
+(inclusive uma inválida) ou sem ID numérico único. A lista de tipos
+4.0 igualmente rejeita ambiguidade em `acao` e
+`id_tipo_procedimento` antes de abrir o cadastro.
+
+Os dois testes de redirecionamento foram publicados antes da correção
+no commit `043ad9b`. No CI
+[42094129597](https://github.com/franklinbaldo/ies/actions/runs/42094129597),
+**2 testes falharam** por aceitarem o redirecionamento ambíguo;
+1392 passaram e 13 constavam como ignorados **preexistentes**.
+Essa é evidência de RED **no CI**, não execução no sandbox local.
+Os testes adicionados não foram desabilitados.
+
 ## Evidências verificáveis
 
 - [Contrato parcial](../../contracts/cli/processo-criar.md)
@@ -90,9 +113,10 @@ A CLI foi conectada ao fluxo Web, mas a validação ao vivo continua
 NOT_RUN. O CI testa o fluxo com transporte sintético e nunca escreve
 no SEI real. A hipótese legal carregada dinamicamente por AJAX,
 o replay integral do acervo e diferenças entre instalações
-precisam de validação adicional. A escrita live exige autorização
-literal “escrita autorizada” nesta issue. Reavaliar a escolha
-caso o replay mostre cadastro não contemplado.
+precisam de validação adicional. A escrita live foi autorizada na issue #245, exclusivamente em treinamento;
+a prévia e a confirmação live continuam NOT_RUN enquanto não forem
+executadas e documentadas. Reavaliar a escolha caso o replay mostre
+cadastro não contemplado.
 
 ## Evidências e revisão
 
