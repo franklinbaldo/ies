@@ -1,33 +1,42 @@
 ---
 type: SEIObservation
-title: Validacao live pendente de unidade retornos GO e PEN3
-description: NOT_RUN sem requisicoes ao SEI no handoff 253
+title: Validacao live de retornos programados GO e PEN3 em treinamento
+description: Evidencias por etapa e orcamento observado no ensaio de 5 de novembro de 2026
 ---
 
-# Unidade retornos — validacao live de 05/11/2026
+# Unidade retornos — verificacao live de 05/11/2026
 
-| Instalação de treinamento | Operação | Resultado | Requisições |
-| --- | --- | --- | ---: |
-| Goiás | `ies unidade retornos --mes 2026-10` | **NOT_RUN** | 0 |
-| PEN3 | `ies unidade retornos --mes 2026-10` | **NOT_RUN** | 0 |
-| GO e PEN3 | `ies unidade retornos` | **NOT_RUN** | 0 |
+A execucao [42096207509](https://github.com/franklinbaldo/ies/actions/runs/42096207509)
+usou apenas o SEI de treinamento de GO, as credenciais publicas
+documentadas e arquivos de sessao privados com permissoes `0600`.
 
-Nao foi enviada qualquer requisicao ao SEI nesta sessao:
-o sandbox nao tem Rust instalado e nao conseguiu resolver
-`github.com` via DNS para obter/buildar o repositorio.
-A leitura sintetica e o CI remoto **nao** equivalem ao ensaio live.
-A autorizacao da issue e apenas para leitura em treinamento;
-nenhuma escrita foi tentada.
+| Instalacao | Etapa | Resultado | Requisicoes |
+| --- | --- | --- | --- |
+| GO (treinamento) | `ies --json login` | **PASS** — `login_realizado` | **6** |
+| GO (treinamento) | `ies --json unidade retornos --mes 2026-10` | **FAIL/INCONCLUSIVO** — job encerrou em 1 antes do resumo do comando | **nao observadas** |
+| PEN3 (treinamento) | `ies --json login` | **NOT_RUN** — a etapa GO interrompeu o job antes do loop PEN3 | **0** |
+| PEN3 (treinamento) | `ies --json unidade retornos --mes 2026-10` | **NOT_RUN** | **0** |
+| GO e PEN3 | `ies unidade retornos` sem `--mes` | **NOT_RUN** | **0** |
 
-## Plano de verificacao
+O login GO exibiu unidade ativa e seis requisicoes. Apos espera
+de 65 s, o job terminou em erro sem publicar o resumo saneado de
+`retornos`; portanto **nao** se pode afirmar que a consulta teve
+zero GETs, nem que produziu os dados corretos. Nao repetir a consulta GO
+sem nova justificativa: a operacao foi tentada uma vez.
 
-- Compilar `ies` e executar o comando em GO e na PEN3
-  usando apenas contas publicas e sessoes privadas `0600`.
-- Respeitar 30 s entre comandos e 60 s nas PEN, sem retry.
-- Comparar GETs reais com o orcamento: 3 para mes ja aberto,
-  mais um por passo de mes. Registrar totais e faixas das duas
-  tabelas, sem cookies nem URL assinada.
-- Fazer replay das cassettes de `unidade-listar-retornos-*`
-  do Todos, inclusive mes vazio e paginacao.
-- Se uma instalacao bloquear, parar nela e registrar NOT_RUN,
-  sem tentar contornar controle de seguranca.
+A execucao subsequente
+[42097152925](https://github.com/franklinbaldo/ies/actions/runs/42097152925)
+foi **NOT_RUN para rede SEI**: o guard de commit registrou
+`NOT_RUN: este commit nao e o gatilho de leitura ao vivo`.
+
+## Limites e seguranca
+
+- O replay de cassettes tem relatorio separado em
+  `docs/validacao-replay/2026-11-05-unidade-retornos.md`.
+- GO: orcamento de login observado = 6; orcamento do comando de retornos
+  **nao verificavel** a partir do log disponivel. A meta sintetica
+  continua sendo 3 GETs para o mes exibido, mais um por passo.
+- Nenhuma escrita de processo ou documento foi solicitada; residuo
+  de escrita no SEI: **nenhum**.
+- O sandbox local nao possui Rust e nao resolve `github.com` por DNS;
+  compilacao e gate foram executados pelo CI, nao localmente.
