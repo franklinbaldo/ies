@@ -11,10 +11,8 @@ struct Pasta(PathBuf);
 impl Pasta {
     fn nova() -> Self {
         let n = PROXIMO.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!(
-            "ies-config-sintetica-{}-{n}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("ies-config-sintetica-{}-{n}", std::process::id()));
         fs::create_dir(&path).unwrap();
         Self(path)
     }
@@ -101,7 +99,7 @@ fn caminhos_relativos_ou_vazios_nao_sao_aceitos() {
     for bruto in [
         r#"{"url_controle":"relativo","cookie":"/tmp/teste","origem":"/tmp/teste"}"#,
         r#"{"url_controle":"/tmp/teste","cookie":"","origem":"/tmp/teste"}"#,
-        r#"[]"#,
+        r"[]",
     ] {
         gravar(&pasta.arquivo(), bruto);
         assert_eq!(
@@ -117,7 +115,7 @@ fn permissao_aberta_eh_recusada_antes_da_leitura() {
     use std::os::unix::fs::PermissionsExt as _;
     let pasta = Pasta::nova();
     gravar(&pasta.arquivo(), valido());
-    fs::set_permissions(&pasta.arquivo(), fs::Permissions::from_mode(0o644)).unwrap();
+    fs::set_permissions(pasta.arquivo(), fs::Permissions::from_mode(0o644)).unwrap();
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
         Some(F::PermissoesAbertas)
