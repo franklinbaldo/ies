@@ -1,5 +1,5 @@
 //! Navegacao somente GET na tela Retorno Programado publicada pelo Controle.
-//! Oraculo: Todos retorno_programado.py @323eb01, cassette unidade-listar-retornos-unb.
+//! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -43,8 +43,12 @@ impl ErroLeituraRetornos {
             Self::Tabela(e) => e.mensagem(),
             Self::LinkDeRetornosAusente => "link Retorno Programado ausente no Controle",
             Self::LinkDeRetornosAmbiguo => "varios links Retorno Programado na mesma tela",
-            Self::LinkDeRetornosForaDaInstalacao => "link de retornos invalido ou fora da instalacao",
-            Self::CalendarioDosRetornosDesconhecido => "calendario ou link Ver todo o mes nao reconhecido",
+            Self::LinkDeRetornosForaDaInstalacao => {
+                "link de retornos invalido ou fora da instalacao"
+            }
+            Self::CalendarioDosRetornosDesconhecido => {
+                "calendario ou link Ver todo o mes nao reconhecido"
+            }
             Self::MesDosRetornosInacessivel => "o calendario nao chega ao mes solicitado",
             Self::MesDaCliInvalido => "mes deve ser AAAA-MM valido",
             Self::UnidadeDiferenteDaSolicitada => "Controle mostra outra unidade",
@@ -52,8 +56,12 @@ impl ErroLeituraRetornos {
     }
 }
 impl crate::relogin_cli::FalhaPublicavel for ErroLeituraRetornos {
-    fn subcodigo(&self) -> &'static str { self.subcodigo() }
-    fn mensagem(&self) -> &'static str { self.mensagem() }
+    fn subcodigo(&self) -> &'static str {
+        self.subcodigo()
+    }
+    fn mensagem(&self) -> &'static str {
+        self.mensagem()
+    }
     fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(e) => e.status_http(),
@@ -87,7 +95,10 @@ struct Link {
 }
 impl Link {
     fn valor(&self, chave: &str) -> Option<&str> {
-        self.pares.iter().find(|(k, _)| k == chave).map(|(_, v)| v.as_str())
+        self.pares
+            .iter()
+            .find(|(k, _)| k == chave)
+            .map(|(_, v)| v.as_str())
     }
 }
 
@@ -119,7 +130,9 @@ fn decodificar_data(valor: &str) -> Option<String> {
 
 fn data_da_consulta(valor: &str) -> Option<(u16, u8, u8)> {
     let s = decodificar_data(valor)?;
-    if !unidade_retornos::data_valida(&s) { return None }
+    if !unidade_retornos::data_valida(&s) {
+        return None;
+    }
     let mut partes = s.split('/');
     let d = partes.next()?.parse().ok()?;
     let m = partes.next()?.parse().ok()?;
@@ -127,17 +140,22 @@ fn data_da_consulta(valor: &str) -> Option<(u16, u8, u8)> {
     Some((a, m, d))
 }
 
-/// Aceita apenas URLs assinadas de retorno_programado_listar no controlador
+/// Aceita apenas URLs assinadas de `retorno_programado_listar` no controlador
 /// da instalacao. Nunca envia cookie a outro host nem segue redirects.
 fn conferir_link(
-    bruto: &str, url_servida: &str, instalacao: &Instalacao,
+    bruto: &str,
+    url_servida: &str,
+    instalacao: &Instalacao,
 ) -> Result<Link, ErroLeituraRetornos> {
     use ErroLeituraRetornos as E;
     let nao = E::LinkDeRetornosForaDaInstalacao;
     let href = decodificar_atributo(bruto).ok_or(E::LinkDeRetornosForaDaInstalacao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b))
-        || href.contains(['#', '\\', '\'']) || href.contains("..")
-    { return Err(nao); }
+        || href.contains(['#', '\\', '\''])
+        || href.contains("..")
+    {
+        return Err(nao);
+    }
     let servida = UrlHttps::interpretar(url_servida).ok_or(E::LinkDeRetornosForaDaInstalacao)?;
     let url = if href.starts_with("https://") {
         href
@@ -157,32 +175,46 @@ fn conferir_link(
     let mut vistos = HashSet::new();
     let mut pares = Vec::new();
     for par in consulta.split('&') {
-        let (k, v) = par.split_once('=').ok_or(E::LinkDeRetornosForaDaInstalacao)?;
+        let (k, v) = par
+            .split_once('=')
+            .ok_or(E::LinkDeRetornosForaDaInstalacao)?;
         transporte::conferir_chave_de_consulta(k).map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
         transporte::conferir_valor_de_consulta(v).map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
-        if !vistos.insert(k) || k == "acao_ajax" { return Err(nao); }
+        if !vistos.insert(k) || k == "acao_ajax" {
+            return Err(nao);
+        }
         pares.push((k.to_owned(), v.to_owned()));
     }
-    if !pares.iter().any(|(k, v)| k == "acao" && v == "retorno_programado_listar")
-        || !pares.iter().any(|(k, v)| k == "infra_hash" && v.len() == 64
-            && v.bytes().all(|b| b.is_ascii_hexdigit()))
-    { return Err(nao); }
+    if !pares
+        .iter()
+        .any(|(k, v)| k == "acao" && v == "retorno_programado_listar")
+        || !pares.iter().any(|(k, v)| {
+            k == "infra_hash" && v.len() == 64 && v.bytes().all(|b| b.is_ascii_hexdigit())
+        })
+    {
+        return Err(nao);
+    }
     Ok(Link { url, pares })
 }
 
 /// Somente links de retorno da propria pagina servida. Outros links de menu
 /// sao ignorados; links suspeitos da operacao sao erro, nao alternativas.
-fn links(html: &str, servida: &str, instalacao: &Instalacao)
-    -> Result<Vec<Link>, ErroLeituraRetornos>
-{
+fn links(
+    html: &str,
+    servida: &str,
+    instalacao: &Instalacao,
+) -> Result<Vec<Link>, ErroLeituraRetornos> {
     use ErroLeituraRetornos as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::CalendarioDosRetornosDesconhecido)?;
     let parser = dom.parser();
     let mut saida = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
-        let bruto = valor_do_atributo(tag, "href").map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let bruto =
+            valor_do_atributo(tag, "href").map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
         let Some(bruto) = bruto else { continue };
         if bruto.contains("retorno_programado_listar") {
             saida.push(conferir_link(&bruto, servida, instalacao)?);
@@ -201,38 +233,63 @@ fn menu(html: &str, servida: &str, instalacao: &Instalacao) -> Result<String, Er
 }
 
 /// Link unico de "Ver todo o mes": o primeiro dia e o ultimo dia do mesmo mes.
-fn mes_inteiro<'a>(links: &'a [Link]) -> Result<((u16,u8), &'a str), ErroLeituraRetornos> {
+fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos> {
     let mut encontrado = None;
     for link in links {
         let (Some(inicio), Some(fim)) = (link.valor("data_inicial"), link.valor("data_final"))
-        else { continue };
+        else {
+            continue;
+        };
         let (Some((ano, mes, 1)), Some((ano_fim, mes_fim, dia_fim))) =
-            (data_da_consulta(inicio), data_da_consulta(fim)) else { continue };
-        if ano != ano_fim || mes != mes_fim
-            || Some(dia_fim) != unidade_retornos::ultimo_dia(ano, mes) { continue }
-        if encontrado.is_some() { return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido); }
+            (data_da_consulta(inicio), data_da_consulta(fim))
+        else {
+            continue;
+        };
+        if ano != ano_fim
+            || mes != mes_fim
+            || Some(dia_fim) != unidade_retornos::ultimo_dia(ano, mes)
+        {
+            continue;
+        }
+        if encontrado.is_some() {
+            return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido);
+        }
         encontrado = Some(((ano, mes), link.url.as_str()));
     }
     encontrado.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
 }
 
-fn hoje_na_tela(html: &str, servida: &str, instalacao: &Instalacao)
-    -> Result<(u16,u8), ErroLeituraRetornos>
-{
+fn hoje_na_tela(
+    html: &str,
+    servida: &str,
+    instalacao: &Instalacao,
+) -> Result<(u16, u8), ErroLeituraRetornos> {
     use ErroLeituraRetornos as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::CalendarioDosRetornosDesconhecido)?;
     let parser = dom.parser();
     let mut meses = HashSet::new();
     for no in dom.query_selector("td").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
-        let classe = valor_do_atributo(tag, "class")
-            .map_err(|_| E::CalendarioDosRetornosDesconhecido)?;
-        if !classe.as_deref().is_some_and(|c| c.split_whitespace().any(|v| v == "diaHoje")) { continue }
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let classe =
+            valor_do_atributo(tag, "class").map_err(|_| E::CalendarioDosRetornosDesconhecido)?;
+        if !classe
+            .as_deref()
+            .is_some_and(|c| c.split_whitespace().any(|v| v == "diaHoje"))
+        {
+            continue;
+        }
         for filho in tag.query_selector(parser, "a").into_iter().flatten() {
-            let Some(a) = filho.get(parser).and_then(tl::Node::as_tag) else { continue };
-            let Some(href) = valor_do_atributo(a, "href")
-                .map_err(|_| E::CalendarioDosRetornosDesconhecido)? else { continue };
+            let Some(a) = filho.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            let Some(href) =
+                valor_do_atributo(a, "href").map_err(|_| E::CalendarioDosRetornosDesconhecido)?
+            else {
+                continue;
+            };
             let link = conferir_link(&href, servida, instalacao)?;
             if let Some((ano, mes, _)) = link.valor("data_atual").and_then(data_da_consulta) {
                 meses.insert((ano, mes));
@@ -240,7 +297,10 @@ fn hoje_na_tela(html: &str, servida: &str, instalacao: &Instalacao)
         }
     }
     if meses.len() == 1 {
-        meses.into_iter().next().ok_or(E::CalendarioDosRetornosDesconhecido)
+        meses
+            .into_iter()
+            .next()
+            .ok_or(E::CalendarioDosRetornosDesconhecido)
     } else {
         Err(E::CalendarioDosRetornosDesconhecido)
     }
@@ -255,7 +315,9 @@ fn mes_vizinho((a, m): (u16, u8), rumo: i32) -> Option<(u16, u8)> {
         _ => None,
     }
 }
-fn posicao((a,m): (u16,u8)) -> i32 { i32::from(a) * 12 + i32::from(m) }
+fn posicao((a, m): (u16, u8)) -> i32 {
+    i32::from(a) * 12 + i32::from(m)
+}
 
 pub(crate) struct Leitura {
     pub(crate) mes: String,
@@ -270,10 +332,11 @@ pub(crate) fn ler_com<F>(
     controle_url: &str,
     controle_html: &str,
     instalacao: &Instalacao,
-    mes: Option<(u16,u8)>,
+    mes: Option<(u16, u8)>,
     mut get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
-where F: FnMut(&str) -> Result<String, ErroLeituraRetornos>
+where
+    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
 {
     use ErroLeituraRetornos as E;
     let url = menu(controle_html, controle_url, instalacao)?;
@@ -298,17 +361,24 @@ where F: FnMut(&str) -> Result<String, ErroLeituraRetornos>
                 requisicoes,
             });
         }
-        if !vistos.insert(atual) { return Err(E::MesDosRetornosInacessivel); }
-        let rumo = if posicao(alvo) > posicao(atual) { 1 } else { -1 };
+        if !vistos.insert(atual) {
+            return Err(E::MesDosRetornosInacessivel);
+        }
+        let rumo = if posicao(alvo) > posicao(atual) {
+            1
+        } else {
+            -1
+        };
         let proximo = mes_vizinho(atual, rumo).ok_or(E::MesDosRetornosInacessivel)?;
         let mut dia_primeiro = candidatos.iter().filter(|link| {
-            link.valor("data_atual").and_then(data_da_consulta)
-                == Some((proximo.0, proximo.1, 1))
+            link.valor("data_atual").and_then(data_da_consulta) == Some((proximo.0, proximo.1, 1))
         });
         let link = dia_primeiro.next().ok_or(E::MesDosRetornosInacessivel)?;
-        if dia_primeiro.next().is_some() { return Err(E::CalendarioDosRetornosDesconhecido); }
+        if dia_primeiro.next().is_some() {
+            return Err(E::CalendarioDosRetornosDesconhecido);
+        }
         tela = get(&link.url)?;
-        servida = link.url.clone();
+        servida.clone_from(&link.url);
         requisicoes = requisicoes.saturating_add(1);
     }
     Err(E::MesDosRetornosInacessivel)
