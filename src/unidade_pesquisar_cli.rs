@@ -160,9 +160,10 @@ fn executar(
             Ok(resultado) => resultado,
             Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
         };
-        let lista = termo.map_or_else(|| lista.clone(), |t| {
-            crate::indice_local::filtrar_lista(lista, t)
-        });
+        let lista = match termo {
+            Some(t) => crate::indice_local::filtrar_lista(lista, t),
+            None => lista,
+        };
         (lista, "sei", requisicoes, persistida)
     };
     if json_mode {
