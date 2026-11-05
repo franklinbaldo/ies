@@ -22,7 +22,7 @@ As cassettes públicas de UnB, UFRJ, GO e PEN1–PEN4 documentam
 `comentario_listar` e `comentario_cadastrar`, mas o card sozinho
 não substitui o replay integral do HTML.
 
-## Alternativas
+## Alternativas consideradas
 
 1. **Leitor estrutural tipado + escrita conferida** (escolhida):
    `tl` para aninhamento e `html_atributos` para atributos,
@@ -31,6 +31,15 @@ não substitui o replay integral do HTML.
    tabela não pode significar ausência de comentários e páginas truncadas
    não permitem provar a operação.
 3. **REST/WSSEI:** descartada, não é suporte comum às instalações.
+
+## Comparação
+
+| Critério | Leitor estrutural tipado | HTML sem identidade | REST/WSSEI |
+| --- | --- | --- | --- |
+| Adere à interface Web observada | sim | parcial | não comprovado |
+| Recusa lista truncada ou duplicada | sim | não | não demonstrado |
+| Requer backend alternativo | não | não | sim |
+| Escrita atestada por leitura | planejada, ainda não ligada à CLI | não | não |
 
 ## Decisão
 
@@ -47,13 +56,17 @@ Não restaurar a visão P/T após uso: a preferência de sessão permanece
 como o SEI a deixou, conforme a política do IES, evitando requisições
 extras e alteração da sessão compartilhada.
 
-## Evidência e revisão
+## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/processo-comentarios.md)
 - [Card da UnB](../../cassettes/unb/comentarios-ciclo-unb--c7d0c8a53b5e.md)
 - [Testes do leitor](../../src/processo_comentarios/tests.rs)
 - [Testes de conferência](../../src/processo_comentar/tests.rs)
+- [Matriz de evidências](../../contracts/evidencias/processo-comentarios.md)
+- [Teste de barreira da CLI](../../tests/cli_processo_comentarios.rs)
 - [Live](../validacao-live/2026-11-05-processo-comentarios.md)
+
+## Limitações e revisão
 
 Revisar após replay dos HTMLs 4.x/5.0 e primeira leitura real da UnB:
 identidade do título, transição 302 de lista vazia, paginação e
