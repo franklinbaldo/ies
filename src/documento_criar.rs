@@ -468,8 +468,7 @@ fn conferir_controles_obrigatorios(
         {
             continue;
         }
-        let tipo_controle =
-            valor_do_atributo(tag, "type").map_err(|_| E::CadastroForaDaForma)?;
+        let tipo_controle = valor_do_atributo(tag, "type").map_err(|_| E::CadastroForaDaForma)?;
         if matches!(
             tipo_controle.as_deref(),
             Some("hidden" | "submit" | "button" | "reset" | "image")
