@@ -242,10 +242,13 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         submissao: SubmissaoDerivada,
     ) -> Result<Option<ProcessoRedirecionado>, E> {
-        self.requisicoes.registrar();
+        // Só conta a tentativa se a validação do cookie permitir o POST.
         let envio = &mut *self.envio;
-        let resposta =
-            enviar_submissao_via(submissao, contexto.cookie_file, |s, c| envio.post(s, c));
+        let requisicoes = &mut self.requisicoes;
+        let resposta = enviar_submissao_via(submissao, contexto.cookie_file, |s, c| {
+            requisicoes.registrar();
+            envio.post(s, c)
+        });
         let sem_trabalho = |status| E::PesquisaRapidaSemUrlDeTrabalho(status);
         match resposta {
             Ok(RespostaDoEnvio::Redirecionamento(r)) => match destino(r.localizacao()) {
