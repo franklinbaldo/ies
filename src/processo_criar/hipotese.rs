@@ -127,6 +127,26 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
     Ok(opcoes)
 }
 
+/// O XML do servidor é dado não confiável. Nomes e IDs oferecidos como
+/// orientação não podem transportar controles nem URLs/credenciais.
+fn publicavel(valor: &str) -> bool {
+    if valor.chars().any(char::is_control) {
+        return false;
+    }
+    let minusculo = valor.to_ascii_lowercase();
+    ![
+        "https://",
+        "http://",
+        "infra_hash",
+        "cookie=",
+        "senha=",
+        "controlador.php?",
+        "controlador_ajax.php?",
+    ]
+    .iter()
+    .any(|fragmento| minusculo.contains(fragmento))
+}
+
 /// Sem escolha explícita, apenas uma opção efetiva é segura.
 pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     let opcoes = opcoes(xml)?;
@@ -136,9 +156,7 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
         // Não oferecer valores que a própria CLI não consegue representar
         // sem ambiguidade ou que possam controlar a saída humana.
         _ if opcoes.iter().any(|(id, nome)| {
-            id.contains('#')
-                || id.chars().any(char::is_control)
-                || nome.chars().any(char::is_control)
+            id.contains('#') || !publicavel(id) || !publicavel(nome)
         }) =>
         {
             Err(ErroHipotese::OpcaoNaoUnica)
@@ -320,6 +338,14 @@ mod tests {
 
         let com_controle = "<select><option value='31'>Base A</option><option value='32'>Base\u{001b} B</option></select>";
         let erro = opcao_unica(com_controle).expect_err("controle nao pode ir ao terminal");
+        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        assert_eq!(erro.opcoes_para_escolha(), None);
+    }
+
+    #[test]
+    fn url_em_nome_de_hipotese_nao_eh_exibida_como_sugestao() {
+        let xml = "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/segredo</option></select>";
+        let erro = opcao_unica(xml).expect_err("url nao eh nome publicavel");
         assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
         assert_eq!(erro.opcoes_para_escolha(), None);
     }
