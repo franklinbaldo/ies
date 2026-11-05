@@ -139,10 +139,16 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
             id.contains('#')
                 || id.chars().any(char::is_control)
                 || nome.chars().any(char::is_control)
-        }) => Err(ErroHipotese::OpcaoNaoUnica),
+        }) =>
+        {
+            Err(ErroHipotese::OpcaoNaoUnica)
+        }
         _ if opcoes.iter().enumerate().any(|(indice, (id, _))| {
             opcoes[..indice].iter().any(|(anterior, _)| anterior == id)
-        }) => Err(ErroHipotese::OpcaoNaoUnica),
+        }) =>
+        {
+            Err(ErroHipotese::OpcaoNaoUnica)
+        }
         _ => Err(ErroHipotese::OpcoesDisponiveis(opcoes)),
     }
 }
@@ -306,7 +312,8 @@ mod tests {
 
     #[test]
     fn ids_duplicados_ou_texto_com_controle_nao_sao_sugeridos() {
-        let duplicados = "<select><option value='31'>A</option><option value='31'>B</option></select>";
+        let duplicados =
+            "<select><option value='31'>A</option><option value='31'>B</option></select>";
         let erro = opcao_unica(duplicados).expect_err("id repetido nao e selecionavel");
         assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
         assert_eq!(erro.opcoes_para_escolha(), None);
