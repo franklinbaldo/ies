@@ -33,6 +33,7 @@ pub(crate) enum ErroMarcar {
     RemocaoSemFormularioObservado,
     MarcadoresNaoLidos,
     UnidadeDaSessaoNaoPublicada,
+    EscritaAindaFechada,
 }
 impl ErroMarcar {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -50,6 +51,7 @@ impl ErroMarcar {
             Self::RemocaoSemFormularioObservado => "remocao_sem_formulario_observado",
             Self::MarcadoresNaoLidos => "marcadores_nao_lidos_para_escrita",
             Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_para_marcar",
+            Self::EscritaAindaFechada => "escrita_de_marcador_ainda_fechada",
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
@@ -60,7 +62,9 @@ impl ErroMarcar {
             Self::NomeDoMarcadorComControle => "o nome do marcador contém caractere de controle",
             Self::TextoDoMarcadorComControle => "o texto do marcador contém caractere de controle",
             Self::TextoDoMarcadorLongo => "o texto do marcador excede 250 caracteres",
-            Self::TextoDoMarcadorForaDoLatin1 => "o texto do marcador contém caractere fora do Latin-1",
+            Self::TextoDoMarcadorForaDoLatin1 => {
+                "o texto do marcador contém caractere fora do Latin-1"
+            }
             Self::ListaDeMarcadoresParcial => "a lista de marcadores do processo não está completa",
             Self::RotuloDiferenteDoMarcadorLido => {
                 "o id do marcador tem nome diferente do solicitado"
@@ -71,6 +75,7 @@ impl ErroMarcar {
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
+            Self::EscritaAindaFechada => "a escrita de marcador ainda não está liberada",
         }
     }
 }

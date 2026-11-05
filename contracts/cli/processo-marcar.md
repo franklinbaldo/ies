@@ -25,7 +25,7 @@ publica URL assinada, cookie ou `infra_hash`.
   ao `total_declarado`. `null`, link ausente ou tela não reconhecida
   **não** significam lista vazia.
 - Se o id está presente e o nome confere, atribuir é idempotente: saída 0,
-  `alterado: false`, inclusive com `--confirmar`, **sem POST**.
+  `alterado: false`, **sem POST**.
 - Se o id não consta da lista completa, retirar também é idempotente,
   saída 0, sem escrita. Se o mesmo id tem nome diferente, recusa.
 - Se está presente e o pedido é retirar, produz **prévia** com a unidade,
@@ -57,7 +57,9 @@ lê configuração.
 ## Inventário normativo de subcódigos
 
 A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
-Todas as recusas de escrita permanecem **sem POST** neste recorte.
+Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto
+a escrita não for observada, `--confirmar` recusa
+`escrita_de_marcador_ainda_fechada` antes de abrir a sessão.
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
@@ -69,6 +71,7 @@ Todas as recusas de escrita permanecem **sem POST** neste recorte.
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
 | `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
 | `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
+| `escrita_de_marcador_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
 | `texto_do_marcador_com_controle` | Texto de entrada contém controle |

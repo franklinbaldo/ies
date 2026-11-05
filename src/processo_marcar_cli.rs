@@ -4,7 +4,9 @@
 use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
-use crate::processo_marcar::{Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto};
+use crate::processo_marcar::{
+    Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto,
+};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     obter_processo,
@@ -61,9 +63,19 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     {
         return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
+    if *confirmar {
+        // Fatia WIP (#255): sem POST observado, recusa antes de sessão e rede.
+        return Some(falha(cli, ErroMarcar::EscritaAindaFechada, 0));
+    }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         previa(
-            cli, sessao, indice, &nup, &rotulo, operacao, *confirmar, &mut EnvioHttps,
+            cli,
+            sessao,
+            indice,
+            &nup,
+            (&rotulo, operacao),
+            *confirmar,
+            &mut EnvioHttps,
         )
     }))
 }
@@ -116,8 +128,7 @@ fn previa<E: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
     nup: &NumeroProcesso,
-    rotulo: &Rotulo,
-    operacao: Operacao,
+    (rotulo, operacao): (&Rotulo, Operacao),
     confirmar: bool,
     envio: &mut E,
 ) -> ExitCode {
@@ -254,18 +265,13 @@ mod tests {
     }
     #[test]
     fn previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post() {
-        use crate::marcadores_processo::tests_apoio::{
-            link_dos_marcadores, tela_dos_marcadores,
-        };
+        use crate::marcadores_processo::tests_apoio::{link_dos_marcadores, tela_dos_marcadores};
         use crate::processo_concluir::tests_apoio::{
             ID, NUP, abertura, ambiente, get, ok, pedidos_da_abertura, rodar_com,
         };
         use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
-        let url_marcadores = format!(
-            "https://sei.exemplo.gov.br/sei/{}",
-            link_dos_marcadores(ID)
-        );
+        let url_marcadores = format!("https://sei.exemplo.gov.br/sei/{}", link_dos_marcadores(ID));
         let arvore = crate::processo_concluir::tests_apoio::arvore(
             &["TESTE"],
             &[acao_da_barra(&link_dos_marcadores(ID))],
@@ -274,10 +280,9 @@ mod tests {
         esperado.push(get(&url_marcadores));
         for confirmar in [false, true] {
             let amb = ambiente();
-            let cli = Cli::try_parse_from([
-                "ies", "processo", "marcar", NUP, "--retirar", "501#Revisão",
-            ])
-            .unwrap();
+            let cli =
+                Cli::try_parse_from(["ies", "processo", "marcar", NUP, "--retirar", "501#Revisão"])
+                    .unwrap();
             let mut respostas = abertura(arvore.clone());
             respostas.push(ok(tela_dos_marcadores(NUP, ID)));
             let (saida, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
@@ -287,8 +292,7 @@ mod tests {
                     sessao,
                     indice,
                     nup,
-                    &rotulo,
-                    Operacao::Retirar,
+                    (&rotulo, Operacao::Retirar),
                     confirmar,
                     roteiro,
                 )
@@ -304,5 +308,4 @@ mod tests {
             assert!(pedidos.iter().all(|pedido| pedido.metodo == "GET"));
         }
     }
-
 }

@@ -82,12 +82,30 @@ fn texto_de_marcador_que_o_sei_nao_suporta_sai_2_sem_abrir_sessao() {
         ("ABC\nDEF", "texto_do_marcador_com_controle"),
         ("😀", "texto_do_marcador_fora_do_latin1"),
     ] {
-        let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", "501#A", "--texto", texto, "--json"]);
+        let saida = sem_sessao(&[
+            "processo",
+            "marcar",
+            "NUP",
+            "--marcador",
+            "501#A",
+            "--texto",
+            texto,
+            "--json",
+        ]);
         assert_eq!(saida.status.code(), Some(2));
         assert_eq!(json(&saida)["subcodigo"], esperado);
     }
     let longo = "A".repeat(251);
-    let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", "501#A", "--texto", &longo, "--json"]);
+    let saida = sem_sessao(&[
+        "processo",
+        "marcar",
+        "NUP",
+        "--marcador",
+        "501#A",
+        "--texto",
+        &longo,
+        "--json",
+    ]);
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "texto_do_marcador_longo");
 }

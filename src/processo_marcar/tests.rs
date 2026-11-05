@@ -110,7 +110,10 @@ fn mesmo_id_com_outro_nome_nao_e_identidade_igual() {
 #[test]
 fn texto_do_marcador_obedece_a_latin1_e_limite_250() {
     assert_eq!(validar_texto(&"Á".repeat(250)), Ok(()));
-    assert_eq!(validar_texto(&"a".repeat(251)), Err(ErroMarcar::TextoDoMarcadorLongo));
+    assert_eq!(
+        validar_texto(&"a".repeat(251)),
+        Err(ErroMarcar::TextoDoMarcadorLongo)
+    );
     assert_eq!(
         validar_texto("Emoji 😀"),
         Err(ErroMarcar::TextoDoMarcadorForaDoLatin1)
