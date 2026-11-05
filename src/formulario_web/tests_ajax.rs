@@ -7,6 +7,7 @@ use super::super::{
     CodificacaoDaTela, EfeitoAvaliado, ErroSubmissaoFormulario as E, EstadoDeSessao, TelaServida,
 };
 use super::{ConsultaAjax, derivar_consulta_ajax};
+use crate::erro_html::ErroHtml;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
@@ -78,19 +79,19 @@ fn recusa_sem_rede_o_que_a_tela_nao_declarou() {
         (com_acao.as_str(), E::AcaoDoFormularioDiferenteDaOperacao),
         (
             "controlador.php?acao_ajax=unidade_auto_completar_envio_processo",
-            E::AcaoDoFormularioForaDaInstalacao,
+            E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
         ),
         (
             "https://outro.gov.br/sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
         ),
         (
             "/sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
         ),
         (
             "../sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
         ),
     ] {
         assert_eq!(

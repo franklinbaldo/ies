@@ -3,6 +3,7 @@
 //! `procedimento_configurar_detalhe` (PEN1 5.0.4 e GO 5.0.3: 12 opções;
 //! `UnB` 4.0.9: 11, sem Prioridade). Ids, hashes e unidade fictícios.
 use super::*;
+use crate::erro_html::ErroHtml;
 use ColunaDoDetalhe as C;
 
 pub(crate) const HASH_DO_SALVAR: &str =
@@ -226,14 +227,16 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
     ] {
         assert_eq!(
             conferir_controles_do_formulario(&tela_salvavel(&C::TODAS, &[], extra)),
-            Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe),
+            Err(ErroNivelDeDetalhe::Html(ErroHtml::valor(
+                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
+            ))),
             "{extra}"
         );
     }
     assert_eq!(
-        crate::erro_publico::folha(
-            &ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe
-        ),
+        crate::erro_publico::folha(&ErroNivelDeDetalhe::Html(ErroHtml::valor(
+            "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
+        ))),
         "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
     );
 }

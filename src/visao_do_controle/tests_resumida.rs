@@ -2,6 +2,7 @@
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
 
 fn r() -> TelaR {
@@ -234,7 +235,7 @@ fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
     assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::LinkDoNivelDeDetalheAusente
+        ErroVisaoDoControle::Html(ErroHtml::ausente("link_do_nivel_de_detalhe_ausente"))
     );
 }
 
@@ -256,7 +257,7 @@ fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
         assert_eq!(registro.len(), 0, "{troca:?}");
         assert_eq!(
             resultado.unwrap_err(),
-            ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido,
+            ErroVisaoDoControle::Html(ErroHtml::valor("link_do_nivel_de_detalhe_nao_reconhecido")),
             "{troca:?}"
         );
     }

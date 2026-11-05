@@ -7,6 +7,7 @@ use super::{Leitor, Lista, PaginaLida, Registro, Replay, Resultado, paginacao};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -144,8 +145,10 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
         "R"
     } else {
         v.resultado = Resultado::Recusado(
-            crate::visao_do_controle::ErroVisaoDoControle::VisaoDoControleNaoReconhecida
-                .subcodigo(),
+            crate::visao_do_controle::ErroVisaoDoControle::Html(ErroHtml::valor(
+                "visao_do_controle_nao_reconhecida",
+            ))
+            .subcodigo(),
         );
         "ausente"
     };

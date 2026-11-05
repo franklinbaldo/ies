@@ -8,6 +8,7 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{
     Literal, concatenacao_vazia_da_barra, indice_da_barra, ler_barra, ler_declaracao,
 };
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -51,16 +52,12 @@ pub(crate) struct BarraDoDocumento {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroBarraDoDocumento {
-    #[causa(nome = "barra_do_documento_fora_da_forma_observada")]
-    BarraForaDaFormaObservada,
     #[causa(nome = "barras_do_documento_repetidas_na_arvore")]
     BarrasRepetidasNaArvore,
-    #[causa(nome = "link_das_versoes_repetido_na_barra")]
-    LinksDasVersoesRepetidosNaBarra,
-    #[causa(nome = "link_das_versoes_nao_reconhecido")]
-    EnderecoDasVersoesNaoReconhecido,
     #[causa(nome = "link_das_versoes_de_outro_documento")]
     EnderecoDasVersoesDeOutroDocumento,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroBarraDoDocumento {}
@@ -82,22 +79,29 @@ pub(crate) fn ler_barra_do_documento(
         return Ok(nada);
     };
     let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(|_| E::BarraForaDaFormaObservada)?;
+        .map_err(|_| ErroHtml::valor("barra_do_documento_fora_da_forma_observada"))?;
     let parser = dom.parser();
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| E::BarraForaDaFormaObservada)?;
+        let lidos = atributos(tag)
+            .map_err(|e| ErroHtml::atributo("barra_do_documento_fora_da_forma_observada", e))?;
         let valor = |nome| -> Result<Option<String>, E> {
-            match lidos
-                .valor(nome)
-                .map_err(|_| E::BarraForaDaFormaObservada)?
-            {
-                Some(bruto) => decodificar_atributo(bruto)
-                    .map(Some)
-                    .ok_or(E::BarraForaDaFormaObservada),
+            match lidos.valor(nome).map_err(|e| {
+                E::Html(ErroHtml::atributo(
+                    "barra_do_documento_fora_da_forma_observada",
+                    e,
+                ))
+            })? {
+                Some(bruto) => {
+                    decodificar_atributo(bruto)
+                        .map(Some)
+                        .ok_or(E::Html(ErroHtml::valor(
+                            "barra_do_documento_fora_da_forma_observada",
+                        )))
+                }
                 None => Ok(None),
             }
         };
@@ -124,10 +128,12 @@ pub(crate) fn ler_barra_do_documento(
     let href = match links.as_slice() {
         [] => return Ok(BarraDoDocumento { edicao, ..nada }),
         [href] => href,
-        _ => return Err(E::LinksDasVersoesRepetidosNaBarra),
+        _ => return Err(ErroHtml::repetido("link_das_versoes_repetido_na_barra").into()),
     };
     let recusa = |r| match r {
-        EnderecoRecusado::NaoReconhecido => E::EnderecoDasVersoesNaoReconhecido,
+        EnderecoRecusado::NaoReconhecido => {
+            E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido"))
+        }
         EnderecoRecusado::DeOutroProcesso => E::EnderecoDasVersoesDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
@@ -182,8 +188,10 @@ pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBa
         if indice_da_barra(linha) != Some(indice) || concatenacao_vazia_da_barra(linha).is_some() {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha).map_err(|_| E::BarraForaDaFormaObservada)? else {
-            return Err(E::BarraForaDaFormaObservada);
+        let Some((_, lido)) = ler_barra(linha)
+            .map_err(|_| ErroHtml::valor("barra_do_documento_fora_da_forma_observada"))?
+        else {
+            return Err(ErroHtml::valor("barra_do_documento_fora_da_forma_observada").into());
         };
         if texto.replace(lido).is_some() {
             return Err(E::BarrasRepetidasNaArvore);

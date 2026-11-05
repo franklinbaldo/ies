@@ -7,6 +7,7 @@
 //! leitura é de quem consome. Contrato: contracts/cli.md, "Transporte HTTPS".
 use super::resposta_http::{Corpo, Resposta};
 use super::{FalhaTransporte, RespostaWeb, proxy};
+use crate::erro_html::ErroHtml;
 use crate::instalacao::host_valido;
 use std::fmt::Write as _;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -36,11 +37,15 @@ pub(crate) struct Envio<'a> {
 fn alvo(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let resto = url
         .strip_prefix("https://")
-        .ok_or(FalhaTransporte::UrlInvalida)?;
-    let inicio = resto.find('/').ok_or(FalhaTransporte::UrlInvalida)?;
+        .ok_or(ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"))?;
+    let inicio = resto
+        .find('/')
+        .ok_or(ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"))?;
     let (host, caminho) = resto.split_at(inicio);
     if !host_valido(host) || !url.bytes().all(|b| (33..=126).contains(&b)) || url.contains('#') {
-        return Err(FalhaTransporte::UrlInvalida);
+        return Err(ErroHtml::valor("url_invalida")
+            .com_mensagem("URL assinada da caixa inválida")
+            .into());
     }
     Ok((host, caminho))
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::erro_html::ErroHtml;
 const RESULTADO: &str = r#"<html><table class="pesquisaResultado">
   <tr class="pesquisaTituloRegistro"><td class="pesquisaTituloEsquerda">
   <a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=7">00001.123456/2026-07</a>
@@ -25,7 +26,9 @@ fn booleano_antes_de_class_e_href_nao_omite_resultado() {
 fn nao_converte_formulario_vazio_em_resultado_de_busca() {
     assert_eq!(
         ler_resultados("<form id='frmPesquisaProtocolo'></form>"),
-        Err(ErroResultadoPesquisa::TabelaDePesquisaAusente)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::ausente(
+            "tabela_de_pesquisa_ausente"
+        )))
     );
 }
 
@@ -43,7 +46,9 @@ fn numeros_repetidos_da_mesma_resposta_sao_recusados() {
     let html = RESULTADO.replace("</table>", r#"<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=8">00001.123456/2026-07</a></td></tr></table>"#);
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "numero_de_pesquisa_repetido"
+        )))
     );
 }
 
@@ -66,7 +71,9 @@ fn duas_tabelas_de_pesquisa_nao_podem_ocultar_resultados() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "tabelas_de_pesquisa_repetidas"
+        )))
     );
 }
 
@@ -78,7 +85,9 @@ fn linha_com_dois_links_de_processos_nao_escolhe_o_primeiro_silenciosamente() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "linha_de_pesquisa_com_mais_de_um_link_do_processo"
+        )))
     );
 }
 
@@ -92,7 +101,9 @@ fn linha_sem_classe_nao_pode_ocultar_processo_da_contagem() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::valor(
+            "link_de_processo_fora_da_linha_de_pesquisa"
+        )))
     );
 }
 
@@ -149,7 +160,9 @@ fn link_com_identificadores_repetidos_nao_escolhe_destino_arbitrario() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "link_de_pesquisa_com_identificadores_repetidos"
+        )))
     );
 }
 
@@ -176,7 +189,9 @@ fn dois_nups_distintos_nao_podem_apontar_para_o_mesmo_processo_interno() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa)
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "identificador_do_processo_repetido_na_pesquisa"
+        )))
     );
 }
 
@@ -188,7 +203,9 @@ fn id_interno_com_zeros_a_esquerda_nao_pode_representar_dois_processos() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa),
+        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
+            "identificador_do_processo_repetido_na_pesquisa"
+        ))),
         "o mesmo ID numérico (7 e 007) não pode identificar NUPs diferentes"
     );
 }

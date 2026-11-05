@@ -5,6 +5,7 @@
 //! página seguinte lida e conferida contra o plano feito da página 1.
 use super::{Cassette, Opcao, derivar, opcao_marcada, url, web};
 use crate::cassette::acervo::gravacao::{self, Resposta};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
 };
@@ -109,7 +110,10 @@ fn primeiro_envio(
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
-        Err(ErroPesquisaProtocolo::Redirecionamento(R::IdDocumentoAusenteNoRedirecionamento)) => {
+        Err(ErroPesquisaProtocolo::Redirecionamento(R::Html(ErroHtml {
+            onde: "id_documento_ausente_no_redirecionamento",
+            ..
+        }))) => {
             let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
             return vec![c.registro(leitor, r.passo, motivo)];
         }

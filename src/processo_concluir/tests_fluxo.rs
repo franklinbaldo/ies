@@ -5,6 +5,7 @@ use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoPorLeitura as V};
 use super::tests_apoio::*;
 use super::{FormaDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ErroFuncaoDeConcluir, MotivoAbertoEm};
+use crate::erro_html::ErroHtml;
 use crate::transporte::FalhaTransporte;
 
 fn siglas(lista: &[&str]) -> Vec<String> {
@@ -229,7 +230,9 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
         ),
         (
             arvore(&[UNIDADE], &[tela()[0].clone(), ACAO_FUNCAO.to_owned()]),
-            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra),
+            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::Html(
+                ErroHtml::repetido("formas_de_concluir_repetidas_na_barra"),
+            )),
         ),
     ];
     for (html, erro) in casos {
@@ -277,9 +280,9 @@ fn tela_do_no_sem_a_funcao_nao_escreve() {
     let (r, feitos) = rodar(&amb, true, respostas);
     assert_eq!(
         r,
-        Err(C::FuncaoDeConcluir(
-            ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo
-        ))
+        Err(C::FuncaoDeConcluir(ErroFuncaoDeConcluir::Html(
+            ErroHtml::ausente("funcao_de_concluir_ausente_na_tela_do_no")
+        )))
     );
     assert_eq!(feitos, pedidos(vec![get(&links().1)]));
 }

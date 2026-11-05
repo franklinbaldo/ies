@@ -5,6 +5,7 @@
 //! Recebidos/Gerados) ou na detalhada (`D`, `tblProcessosDetalhado`).
 //! Login, diagnóstico e `unidade atual` precisam reconhecer as duas.
 use crate::caixa_detalhada::{self, ErroDetalhada};
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::nos_com_id;
 use crate::paginas;
@@ -30,7 +31,7 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 ErroDetalhada::UnidadeNaoIdentificada => {
                     ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle
                 }
-                _ => ErroCaixa::HtmlInvalido,
+                _ => ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")),
             });
     }
     paginas::juntar(&[html.to_owned()], None)?

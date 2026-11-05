@@ -8,6 +8,7 @@ use crate::arquivo_copia::ler_regular;
 use crate::arquivo_texto_documento::ErroArquivoTexto;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
+use crate::erro_html::ErroHtml;
 use crate::foto_documento::nome;
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -35,16 +36,10 @@ pub enum ErroCopia {
     GravacaoFalhou,
     #[causa(nome = "leitura_copia_falhou")]
     LeituraFalhou,
-    #[causa(nome = "nome_versao_local_invalido")]
-    NomeDaVersaoInvalido,
-    #[causa(nome = "versao_local_repetida")]
-    VersaoDuplicada,
-    #[causa(nome = "base_versao_ausente")]
-    BaseAusente,
-    #[causa(nome = "versao_editada_ausente")]
-    EdicaoAusente,
     #[causa(nome = "versao_editada_igual_a_base")]
     EdicaoIgualABase,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 impl ErroCopia {
     pub fn subcodigo(self) -> &'static str {
@@ -79,10 +74,10 @@ pub(crate) fn versoes_locais(
         else {
             continue;
         };
-        let versao =
-            VersaoDocumento::interpretar(digitos).map_err(|_| ErroCopia::NomeDaVersaoInvalido)?;
+        let versao = VersaoDocumento::interpretar(digitos)
+            .map_err(|_| ErroHtml::valor("nome_versao_local_invalido"))?;
         if !versoes.insert(versao) {
-            return Err(ErroCopia::VersaoDuplicada);
+            return Err(ErroHtml::repetido("versao_local_repetida").into());
         }
     }
     Ok(versoes)
@@ -162,14 +157,16 @@ fn par(
         n
     } else {
         let versoes = versoes_locais(pasta, documento)?;
-        let maior = *versoes.last().ok_or(ErroCopia::BaseAusente)?;
+        let maior = *versoes
+            .last()
+            .ok_or(ErroHtml::ausente("base_versao_ausente"))?;
         match VersaoDocumento::nova(maior.numero() - 1) {
             Ok(anterior) if versoes.contains(&anterior) => anterior,
             _ => maior,
         }
     };
     let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
-        .map_err(|_| ErroCopia::EdicaoAusente)?;
+        .map_err(|_| ErroHtml::ausente("versao_editada_ausente"))?;
     Ok((base, editada))
 }
 
@@ -183,10 +180,13 @@ pub fn previa_local(
     pasta_segura(pasta)?;
     let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
-    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseAusente)?;
+    let base = ler_regular(
+        &pasta.join(nome(numero, n)),
+        ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")),
+    )?;
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
-        ErroCopia::EdicaoAusente,
+        ErroCopia::Html(ErroHtml::ausente("versao_editada_ausente")),
     )?;
     if editada == base {
         return Err(ErroCopia::EdicaoIgualABase);

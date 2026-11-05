@@ -143,6 +143,14 @@ def extrair_rust(texto):
                             codigos.add(valor)
                     i = fim + 1
                     continue
+        # `ErroHtml::ausente("onde", ...)`: `onde` é a folha pública.
+        if (tokens[i:i + 3] == [('id', 'ErroHtml'), ('punct', ':'), ('punct', ':')]
+                and i + 5 < len(tokens) and tokens[i + 3][0] == 'id'
+                and tokens[i + 4] == ('punct', '(') and tokens[i + 5][0] == 'str'):
+            valor = tokens[i + 5][1]
+            if not CODIGO.fullmatch(valor):
+                raise ValueError('onde de ErroHtml não classificável')
+            codigos.add(valor)
         # Complemento para emissões JSON literais, inclusive em falha aninhada.
         if (tokens[i:i + 2] == [('str', 'subcodigo'), ('punct', ':')]
                 and i + 2 < len(tokens) and tokens[i + 2][0] == 'str'):

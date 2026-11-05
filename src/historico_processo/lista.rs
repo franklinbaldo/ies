@@ -3,6 +3,7 @@
 //! `(N registros):` da `table#tblHistorico` e a visão servida em
 //! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
 use super::{AndamentosLidos, ErroAndamentos as E, TipoDoHistorico};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::historico::ler_historico;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -11,7 +12,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E> {
     let detalhe = ler_historico(html, nup)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::LegendaDosAndamentosAusente)?;
+        .map_err(|_| ErroHtml::ausente("legenda_dos_andamentos_ausente"))?;
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if detalhe.andamentos.len() as u64 > total_declarado {
@@ -32,7 +33,7 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         .and_then(|nos| nos.first().copied())
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or(E::LegendaDosAndamentosAusente)?;
+        .ok_or(ErroHtml::ausente("legenda_dos_andamentos_ausente"))?;
     let legendas: Vec<String> = tabela
         .query_selector(parser, "caption")
         .into_iter()
@@ -48,11 +49,13 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         })
         .collect();
     let texto = match legendas.as_slice() {
-        [] => return Err(E::LegendaDosAndamentosAusente),
+        [] => return Err(ErroHtml::ausente("legenda_dos_andamentos_ausente").into()),
         [texto] => texto,
-        _ => return Err(E::LegendaDosAndamentosForaDaFormaObservada),
+        _ => return Err(ErroHtml::valor("legenda_dos_andamentos_fora_da_forma_observada").into()),
     };
-    let fora = E::LegendaDosAndamentosForaDaFormaObservada;
+    let fora = E::Html(ErroHtml::valor(
+        "legenda_dos_andamentos_fora_da_forma_observada",
+    ));
     let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
     let numero = resto
         .strip_suffix(" registros):")

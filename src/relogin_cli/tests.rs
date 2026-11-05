@@ -1,5 +1,6 @@
 //! Campos `relogin` e `requisicoes` da saída e a ligação só nas leituras.
 use super::*;
+use crate::erro_html::ErroHtml;
 
 const RELOGOU: NotaDoRelogin = NotaDoRelogin {
     relogin: true,
@@ -122,7 +123,10 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         assert!(!sessao_encerrada(subcodigo), "{subcodigo}");
     }
     let invalidos = [
-        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
+        (
+            FalhaTransporte::Html(ErroHtml::valor("cookie_invalido")),
+            "cookie_invalido",
+        ),
         (
             FalhaTransporte::OrigemNaoAutorizada,
             "origem_nao_autorizada",

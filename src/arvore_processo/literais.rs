@@ -2,6 +2,7 @@
 //! aspas duplas ou simples com escapes, `null`, `true`, `false`, inteiros).
 //! Nada é avaliado; qualquer outra forma é recusa.
 use super::ErroArvore;
+use crate::erro_html::ErroHtml;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum Literal {
@@ -29,7 +30,7 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
     if !linha.contains(CONSTRUTOR) {
         return Ok(None);
     }
-    let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada"));
     let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
     if let Some(resto) = resto.strip_prefix(HTML_ANTES) {
         let (Literal::Texto(_), depois) = ler_literal(resto)? else {
@@ -47,7 +48,7 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
 
 /// `Nos[i] = new infraArvoreNo(…);` exata, sem nada antes nem depois.
 fn ler_no(linha: &str) -> Result<(usize, Vec<Literal>), ErroArvore> {
-    let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada"));
     let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
     let resto = resto.strip_prefix(ABERTURA).ok_or(fora)?;
     let (argumentos, depois) = ler_argumentos(resto)?;
@@ -94,7 +95,7 @@ pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvo
     let Some(resto) = resto.strip_prefix(BARRA) else {
         return Ok(None);
     };
-    let fora = ErroArvore::BarraDeNoForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor("barra_de_no_fora_da_forma_observada"));
     match ler_literal(resto).map_err(|_| fora)? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
         _ => Err(fora),
@@ -118,7 +119,7 @@ pub(super) fn ler_src(linha: &str) -> Result<Option<(usize, String)>, ErroArvore
     let Some(resto) = resto.strip_prefix(SRC) else {
         return Ok(None);
     };
-    let fora = ErroArvore::SrcDeNoForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor("src_de_no_fora_da_forma_observada"));
     match ler_literal(resto).map_err(|_| fora)? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
         _ => Err(fora),
@@ -143,7 +144,9 @@ pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvor
     let Some(resto) = resto.strip_prefix(HTML_ANTES) else {
         return Ok(None);
     };
-    let fora = ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::html(
+        "html_do_no_do_processo_fora_da_forma_observada",
+    ));
     match ler_literal(resto).map_err(|_| fora)? {
         (Literal::Texto(texto), depois) if depois == ";" || depois.starts_with(";Nos[") => {
             Ok(Some((indice, texto)))
@@ -160,7 +163,9 @@ pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, Err
     if !linha.starts_with("Pastas[") || !linha.contains(PROTOCOLOS) {
         return Ok(None);
     }
-    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let fora = ErroArvore::Html(ErroHtml::valor(
+        "protocolos_da_pasta_fora_da_forma_observada",
+    ));
     let (indice, resto) = indice_entre(linha, "Pastas[").ok_or(fora)?;
     let resto = resto.strip_prefix(PROTOCOLOS).ok_or(fora)?;
     match ler_literal(resto).map_err(|_| fora)? {
@@ -195,7 +200,7 @@ fn ler_argumentos(mut resto: &str) -> Result<(Vec<Literal>, &str), ErroArvore> {
         match depois.as_bytes().first() {
             Some(b',') => resto = &depois[1..],
             Some(b')') => return Ok((argumentos, &depois[1..])),
-            None => return Err(ErroArvore::DeclaracaoDeNoForaDaFormaObservada),
+            None => return Err(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada").into()),
             Some(_) => return Err(ErroArvore::ArgumentoDeNoNaoLiteral),
         }
     }
@@ -241,7 +246,7 @@ fn ler_texto(resto: &str, aspa: char) -> Result<(Literal, &str), ErroArvore> {
             Some((_, 'n')) => '\n',
             Some((_, 'r')) => '\r',
             Some((_, 't')) => '\t',
-            Some(_) => return Err(ErroArvore::EscapeDeNoNaoReconhecido),
+            Some(_) => return Err(ErroHtml::valor("escape_de_no_nao_reconhecido").into()),
         };
         texto.push(escapado);
     }

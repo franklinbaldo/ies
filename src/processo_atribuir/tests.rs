@@ -1,4 +1,5 @@
 use super::{ErroAtribuir as E, ler_tela, planejar};
+use crate::erro_html::ErroHtml;
 const ID: &str = "50693";
 const HTML: &str = r#"<html><body>
 <form id="frmAtividadeAtribuir" method="post"
@@ -79,7 +80,7 @@ fn protocolo_de_outro_processo_nao_e_aceito() {
             ),
             ID
         ),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
     );
 }
 
@@ -100,28 +101,31 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
         "value=\"null\" selected",
         "value=\"null\" selected disabled",
     );
-    assert_eq!(ler_tela(&html, ID), Err(E::TelaForaDaForma));
+    assert_eq!(
+        ler_tela(&html, ID),
+        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+    );
 }
 
 #[test]
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
         ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
     );
     assert_eq!(
         ler_tela(
             &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
             ID
         ),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
     );
 }
 
 #[test]
 fn subcodigos_publicos_do_leitor_sao_estaveis() {
     assert_eq!(
-        E::TelaForaDaForma.subcodigo(),
+        E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")).subcodigo(),
         "tela_da_atribuicao_fora_da_forma"
     );
     assert_eq!(

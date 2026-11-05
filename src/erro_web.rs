@@ -1,12 +1,11 @@
 //! Falhas técnicas de interpretação e paginação Web; não são entidades do SEI.
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use std::fmt;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCaixa {
-    #[causa(nome = "html_da_caixa_invalido")]
-    HtmlInvalido,
     TabelaAusente {
         categoria: Categoria,
     },
@@ -22,7 +21,6 @@ pub enum ErroCaixa {
     LegendasDaTabelaRepetidas {
         categoria: Categoria,
     },
-    IdInvalido,
     IdRepetido {
         categoria: Categoria,
         id: String,
@@ -81,16 +79,13 @@ pub enum ErroCaixa {
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
-    UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
-    IdentificacoesDaUnidadeRepetidasNoControle,
-    TiposDeVisualizacaoRepetidosNoControle,
-    HashesDeCriteriosRecebidosRepetidosNoControle,
-    HashesDeCriteriosGeradosRepetidosNoControle,
     ContextoNaoVerificavel,
     #[causa(nome = "contexto_divergente")]
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroCaixa {
