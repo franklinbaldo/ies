@@ -253,10 +253,10 @@ pub(crate) fn conferir_cadastro(
         }
     }
     if let Some(nivel) = nivel {
-        let id = match nivel {
-            "publico" => "optPublico",
-            "restrito" => "optRestrito",
-            "sigiloso" => "optSigiloso",
+        let (id, valor) = match nivel {
+            "publico" => ("optPublico", "0"),
+            "restrito" => ("optRestrito", "1"),
+            "sigiloso" => ("optSigiloso", "2"),
             _ => return Err(E::NivelNaoOferecido),
         };
         let controles = nos_com_id(&dom, id).map_err(|_| E::CadastroForaDaForma)?;
@@ -269,6 +269,8 @@ pub(crate) fn conferir_cadastro(
                 .as_deref() != Some("rdoNivelAcesso")
             || valor_do_atributo(controle, "type").map_err(|_| E::CadastroForaDaForma)?
                 .as_deref() != Some("radio")
+            || valor_do_atributo(controle, "value").map_err(|_| E::CadastroForaDaForma)?
+                .as_deref() != Some(valor)
             || valor_do_atributo(controle, "disabled").map_err(|_| E::CadastroForaDaForma)?.is_some()
         {
             return Err(E::NivelNaoOferecido);
