@@ -84,9 +84,10 @@ e a prévia não podem enviar o POST criador.
 
 ## Lacunas
 
-Faltam captura e replay IES por versão, orçamento preciso medido
-por cenário, validação de campos obrigatórios em cada instalação
-e prévia live autenticada. Em 05/11/2026, o proprietário
+A observação por versão foi complementada por testes de transporte sintético
+e replay de 15 cassettes originais, com 83 respostas classificadas
+([relatório](../validacao-replay/2026-11-05-processo-criar-acervo.md)).
+A validação dos campos em cada instalação e a prévia live autenticada ainda faltam. Em 05/11/2026, o proprietário
 autorizou escrita **somente em instalações de treinamento** na issue #245.
 A autorização não comprova execução: a validação live segue NOT_RUN.
 Antes de criar, é obrigatório observar a prévia, enviar um único
@@ -109,9 +110,11 @@ faz a consulta diretamente, por POST de leitura, com os campos
 Não executar o JavaScript: reconhecer a declaração literal de URL,
 derivar a consulta com `formulario_web` e interpretar a resposta.
 
-A CLI desta issue não recebe escolha explícita de hipótese legal.
-Assim, **somente uma** opção efetiva habilitada na resposta AJAX
-permite seguir. Zero ou várias opções devem ser recusadas antes
-do POST criador. Um placeholder `null` não é opção efetiva.
-Dados com assinatura de sessão não integram fixtures nem relatórios.
-A observação continua indireta; replay e teste live ainda pendem.
+A CLI admite `--hipotese-legal ID#NOME` somente para nível restrito:
+o ID e o nome devem corresponder exatamente à opção habilitada oferecida
+no XML observado da sessão. Sem escolha explícita, **somente uma**
+opção efetiva é selecionável; zero ou várias opções geram recusa
+antes do POST criador. Um placeholder `null` não é opção efetiva.
+A lista é evidência indireta; o replay do acervo original foi executado,
+mas o ensaio autenticado de prévia → confirmação única → leitura
+permanece NOT_RUN. URLs assinadas e credenciais não são publicadas.
