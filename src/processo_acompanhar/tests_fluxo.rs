@@ -135,7 +135,6 @@ fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
     assert_eq!(pedidos, requests_post());
 }
 
-
 #[test]
 fn previa_deixar_sem_link_de_exclusao_recusa_sem_post() {
     // Caso de Todos tests/test_processo_acompanhar_010.py @323eb01:
