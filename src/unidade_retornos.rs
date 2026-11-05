@@ -118,83 +118,83 @@ fn ler_tabela(
     situacao: &'static str,
 ) -> Result<Vec<Retorno>, ErroRetornos> {
     use ErroRetornos as E;
-        let legendas: Vec<_> = tabela
-            .query_selector(parser, "caption")
+    let legendas: Vec<_> = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .collect();
+    let [legenda] = legendas.as_slice() else {
+        return Err(E::TelaDeRetornosDesconhecida);
+    };
+    let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
+        .ok_or(E::TelaDeRetornosDesconhecida)?;
+    let titulos: Vec<String> = tabela
+        .query_selector(parser, "th")
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .map(|t| identificador(&texto(t, parser)))
+        .collect();
+    let indice = |nome: &str| {
+        titulos
+            .iter()
+            .position(|c| c == nome)
+            .ok_or(E::TelaDeRetornosDesconhecida)
+    };
+    let (processo, unidade, data) = (
+        indice("processo")?,
+        indice("unidade")?,
+        indice("data programada")?,
+    );
+    if titulos.iter().collect::<HashSet<_>>().len() != titulos.len() {
+        return Err(E::TelaDeRetornosDesconhecida);
+    }
+    let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
+    let prazo = titulos.iter().position(|c| c == "prazo restante");
+    let mut lista = Vec::new();
+    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
+        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let celulas: Vec<_> = linha
+            .query_selector(parser, "td")
             .into_iter()
             .flatten()
             .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
             .collect();
-        let [legenda] = legendas.as_slice() else {
-            return Err(E::TelaDeRetornosDesconhecida);
-        };
-        let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
-            .ok_or(E::TelaDeRetornosDesconhecida)?;
-        let titulos: Vec<String> = tabela
-            .query_selector(parser, "th")
-            .into_iter()
-            .flatten()
-            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-            .map(|t| identificador(&texto(t, parser)))
-            .collect();
-        let indice = |nome: &str| {
-            titulos
-                .iter()
-                .position(|c| c == nome)
-                .ok_or(E::TelaDeRetornosDesconhecida)
-        };
-        let (processo, unidade, data) = (
-            indice("processo")?,
-            indice("unidade")?,
-            indice("data programada")?,
-        );
-        if titulos.iter().collect::<HashSet<_>>().len() != titulos.len() {
+        if celulas.is_empty() {
+            continue;
+        }
+        if celulas.len() != titulos.len() {
             return Err(E::TelaDeRetornosDesconhecida);
         }
-        let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
-        let prazo = titulos.iter().position(|c| c == "prazo restante");
-        let mut lista = Vec::new();
-        for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-            let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let celulas: Vec<_> = linha
-                .query_selector(parser, "td")
-                .into_iter()
-                .flatten()
-                .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-                .collect();
-            if celulas.is_empty() {
-                continue;
-            }
-            if celulas.len() != titulos.len() {
-                return Err(E::TelaDeRetornosDesconhecida);
-            }
-            let valor = |pos: usize| texto(celulas[pos], parser);
-            let numero = valor(processo);
-            let origem = valor(unidade);
-            let programada = valor(data);
-            if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
-                return Err(E::TelaDeRetornosDesconhecida);
-            }
-            let opcional = |pos: Option<usize>| {
-                pos.and_then(|p| {
-                    let v = valor(p);
-                    (!v.is_empty()).then_some(v)
-                })
-            };
-            lista.push(Retorno {
-                situacao,
-                numero,
-                unidade: origem,
-                data_programada: programada,
-                retornado_em: opcional(retorno),
-                prazo_restante: opcional(prazo),
-            });
+        let valor = |pos: usize| texto(celulas[pos], parser);
+        let numero = valor(processo);
+        let origem = valor(unidade);
+        let programada = valor(data);
+        if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
+            return Err(E::TelaDeRetornosDesconhecida);
         }
-        if lista.len() != declarado {
-            return Err(E::ListaDeRetornosIncompleta);
-        }
-        Ok(lista)
+        let opcional = |pos: Option<usize>| {
+            pos.and_then(|p| {
+                let v = valor(p);
+                (!v.is_empty()).then_some(v)
+            })
+        };
+        lista.push(Retorno {
+            situacao,
+            numero,
+            unidade: origem,
+            data_programada: programada,
+            retornado_em: opcional(retorno),
+            prazo_restante: opcional(prazo),
+        });
+    }
+    if lista.len() != declarado {
+        return Err(E::ListaDeRetornosIncompleta);
+    }
+    Ok(lista)
 }
 
 /// So retorna uma lista quando cada situacao tem tabela conferida ou
