@@ -19,8 +19,8 @@ mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
 mod documento_buscar_cli;
-#[cfg(test)]
 mod documento_criar;
+mod documento_criar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -211,6 +211,19 @@ struct Documento {
 
 #[derive(Debug, Subcommand)]
 enum DocumentoAcao {
+    /// Inclui documento interno: prévia Web; confirmação ainda não habilitada.
+    Criar {
+        #[arg(long, required = true)]
+        processo: String,
+        #[arg(long, required = true)]
+        tipo: String,
+        #[arg(long)]
+        descricao: Option<String>,
+        #[arg(long, value_parser = ["publico", "restrito", "sigiloso"])]
+        nivel: Option<String>,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Prévia de cópia local; confirmação remota ainda bloqueada
     Salvar {
         numero: String,
@@ -356,6 +369,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| documento_criar_cli::tentar_criar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
