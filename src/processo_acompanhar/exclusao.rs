@@ -29,7 +29,10 @@ pub(super) fn conferir_oferta_exclusao(
     let parser = dom.parser();
     let mut form = None;
     for no in dom.query_selector("form").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         if campo(tag, "id")?.as_deref() == Some(FORMULARIO) {
             if form.replace(tag).is_some() {
                 return Err(sem_oferta);
@@ -43,13 +46,19 @@ pub(super) fn conferir_oferta_exclusao(
     let action = campo(form, "action")?.ok_or(sem_oferta)?;
     let action = crate::formulario_web::decodificar_atributo(&action).ok_or(sem_oferta)?;
     crate::arvore_processo::conferir_endereco_relativo(
-        instalacao, &action, "acompanhamento_gerenciar", id_procedimento,
-    ).map_err(|_| sem_oferta)?;
+        instalacao,
+        &action,
+        "acompanhamento_gerenciar",
+        id_procedimento,
+    )
+    .map_err(|_| sem_oferta)?;
 
     let mut ocultos = 0;
     let mut tabelas = Vec::new();
     for no in form.children().all(parser) {
-        let Some(tag) = no.as_tag() else { continue };
+        let Some(tag) = no.as_tag() else {
+            continue;
+        };
         if tag.name() == "input" && campo(tag, "name")?.as_deref() == Some(OCULTO) {
             if campo(tag, "type")?.as_deref() != Some("hidden")
                 || campo(tag, "value")?.as_deref() != Some("")
@@ -69,12 +78,18 @@ pub(super) fn conferir_oferta_exclusao(
     let prefixo = format!("acaoExcluir('{id_alvo}',");
     let mut linhas_do_alvo = 0;
     for no in tabela.children().all(parser) {
-        let Some(tr) = no.as_tag() else { continue };
-        if tr.name() != "tr" { continue; }
+        let Some(tr) = no.as_tag() else {
+            continue;
+        };
+        if tr.name() != "tr" {
+            continue;
+        }
         let mut alvo = false;
         let mut links = 0;
         for descendente in tr.children().all(parser) {
-            let Some(tag) = descendente.as_tag() else { continue };
+            let Some(tag) = descendente.as_tag() else {
+                continue;
+            };
             if tag.name() == "input"
                 && campo(tag, "type")?.as_deref() == Some("checkbox")
                 && campo(tag, "value")?.as_deref() == Some(id_alvo)
@@ -105,7 +120,10 @@ pub(super) fn conferir_oferta_exclusao(
 
     let mut scripts = Vec::new();
     for no in dom.query_selector("script").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         let codigo = tag.inner_text(parser);
         if codigo.contains("function acaoExcluir(") {
             scripts.push(codigo.to_string());
@@ -131,8 +149,12 @@ pub(super) fn conferir_oferta_exclusao(
     let (destino, _) = depois_do_atribuir.split_once('\'').ok_or(sem_oferta)?;
     let destino = crate::formulario_web::decodificar_atributo(destino).ok_or(sem_oferta)?;
     crate::arvore_processo::conferir_endereco_relativo(
-        instalacao, &destino, "acompanhamento_excluir", id_procedimento,
-    ).map_err(|_| sem_oferta)?;
+        instalacao,
+        &destino,
+        "acompanhamento_excluir",
+        id_procedimento,
+    )
+    .map_err(|_| sem_oferta)?;
     Ok(())
 }
 
