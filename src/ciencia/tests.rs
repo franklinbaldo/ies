@@ -1,5 +1,5 @@
-//! Casos sintéticos inspirados em Todos test_ciclo_ciencia_010.py e
-//! test_documento_ciente_010.py @323eb01. Sem cookies nem URLs assinadas.
+//! Casos sintéticos inspirados em Todos `test_ciclo_ciencia_010.py` e
+//! `test_documento_ciente_010.py` @323eb01. Sem cookies nem URLs assinadas.
 use super::{AlvoDaCiencia as Alvo, ErroCiencia as E, atividade_do_aceite, atividade_na_lista};
 
 fn aceite(acao: &str, id: &str, escopo: &str, atividade: &str) -> String {
