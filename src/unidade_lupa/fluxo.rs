@@ -153,11 +153,19 @@ fn destino(
         let mut acoes = 0;let mut hashes = 0;let mut invalida = false;
         for item in consulta.split('&') {
             let Some((chave,valor)) = item.split_once('=') else {continue};
-            if chave == "acao" {\n                acoes += 1;\n                invalida |= valor != acao;\n            }
+            if chave == "acao" {
+                acoes += 1;
+                invalida |= valor != acao;
+            }
             if chave == "infra_hash" && valor.len() == 64
                 && valor.bytes().all(|b| b.is_ascii_hexdigit()) {hashes+=1}
         }
-        if acoes == 1 && hashes == 1 && !invalida {\n            let segura = crate::url_observada::UrlHttps::interpretar(&url)\n                .is_some_and(|u| Instalacao::interpretar(origem)\n                    .is_some_and(|i| i.autoriza_controlador(u.host, u.caminho)));\n            if segura {aceitos.insert(url);}\n        }
+        if acoes == 1 && hashes == 1 && !invalida {
+            let segura = crate::url_observada::UrlHttps::interpretar(&url)
+                .is_some_and(|u| Instalacao::interpretar(origem)
+                    .is_some_and(|i| i.autoriza_controlador(u.host, u.caminho)));
+            if segura {aceitos.insert(url);}
+        }
     }
     match aceitos.len() {
         0 => Err(FalhaDaLupa::LinkAusente),
