@@ -391,3 +391,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "processo_andamento_registrar/tests_fluxo.rs"]
+mod tests_fluxo;
