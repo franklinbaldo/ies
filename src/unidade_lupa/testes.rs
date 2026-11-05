@@ -137,4 +137,3 @@ fn paginador_so_admite_indices_contiguos_e_unicos() {
         );
     }
 }
-}
