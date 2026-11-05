@@ -1,4 +1,5 @@
 //! Seleção, cadastro e reconciliação offline (#246); prévia Web no módulo fluxo.
+mod confirmacao;
 mod fluxo;
 pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 
