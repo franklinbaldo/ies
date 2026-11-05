@@ -8,9 +8,10 @@ description: Linhas da matriz de derivação para listar-processos, colunas, rec
 
 Parte da [matriz de derivação da CLI](matriz-derivacao-cli.md), com os
 mesmos estados, a mesma regra de priorização e o mesmo critério de
-contagem (os 5 primeiros caminhos estão entre os 19; `trocar` é comando novo, #205). Separada por tamanho: a
-caixa da unidade (#57, feita) concentra as decisões do proprietário de
-02/11/2026. Tudo abaixo está em `main` (auditada em 04/11/2026 após #171).
+contagem: **6 caminhos de unidade entre os 20 da main**, incluindo
+`trocar` (#205), integrado em #206. Separada por tamanho: a caixa
+(#57, feita) concentra as decisões de 02/11/2026. Base verificada:
+`main@52be0e1`, depois de #193 e #206.
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
 | --- | --- | --- | --- | --- |
@@ -68,3 +69,18 @@ da R, a sessão fica na D. `listar-processos` passa a sugerir
 Offline com telas sintéticas de 12 e 11 opções; live: ver a linha de
 `colunas` acima ([decisão](decisoes/unidade-definir-colunas.md),
 [roteiro](validacao-live/roteiro-definir-colunas.md)).
+
+## Consolidação pós-#206
+
+A troca de unidade é um sexto caminho próprio, não uma flag das listas:
+`ies unidade trocar SIGLA [--confirmar]` abre a tela de seleção
+publicada pelo Controle, prévia sem escrita e, ao confirmar, POST,
+retornos conferidos e atualização da sessão; **PASS live UFRJ**
+([ensaio](validacao-live/2026-11-05-unidade-trocar.md)),
+**NOT_RUN** UnB, GO e PEN.
+
+As leituras de unidade participam do **relogin único** quando há
+recusa tipada de sessão (#200), sem repetir a escrita e sem relogin
+nas prévias. O [ensaio PEN4](validacao-live/2026-11-05-relogin.md)
+registra a recuperação e a mudança de geração; expiração natural
+segue `NOT_RUN`. Nenhum `PASS` de CI supre essa lacuna.
