@@ -97,6 +97,15 @@ O que falta implementar e em que ordem está na
   - **Sandbox sem rede para o GitHub ou para o SEI:** rode o ensaio num
     workflow temporário (`workflow_dispatch` ou `push` em `codex/**`) que
     use esse binário, e remova o workflow antes de a PR sair de DRAFT.
+- **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
+  verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
+  sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
+  ainda não passam levam `#[ignore = "wip #<issue>: <o que falta>"]`; a
+  sessão seguinte começa tirando os da sua issue. O hook `wip-ignores`
+  recusa `#[ignore]` sem motivo, `wip` sem issue e teste que já passava
+  na base marcado como pendente. Rustfmt, Clippy, OKF e os demais gates
+  não têm pendência: passam sempre. Escrita incompleta fica fechada
+  (`--confirmar` recusa antes da rede).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI](.github/workflows/ci.yml) roda os mesmos gates; não crie outro
