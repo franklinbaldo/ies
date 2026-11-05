@@ -46,6 +46,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
+mod processo_andamento_registrar;
+mod processo_andamento_registrar_cli;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
@@ -144,6 +146,14 @@ struct Processo {
 
 #[derive(Debug, Subcommand)]
 enum ProcessoAcao {
+    /// Registra andamento livre no histórico do processo (prévia antes da escrita)
+    Andamento {
+        numero: String,
+        #[arg(long)]
+        texto: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// NUP inteiro ou parte do número, como digitado no campo Protocolo
@@ -373,7 +383,8 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    processo_buscar_cli::tentar_buscar(cli)
+    processo_andamento_registrar_cli::tentar_registrar(cli)
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
