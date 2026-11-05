@@ -180,7 +180,7 @@ fn ajax_com_duas_hipoteses_recusa_antes_do_post_criador() {
     );
 }
 
-/// Cenário observado no replay UnB: a recusa de criar com duas opções
+/// Cenário observado no replay `UnB`: a recusa de criar com duas opções
 /// deve publicar os pares exatos do AJAX, para possibilitar uma segunda
 /// prévia explícita, sem qualquer POST criador.
 #[test]
@@ -204,12 +204,19 @@ fn red_recusa_ajax_ambigua_mas_publica_pares_observados() {
     let erro = resultado.expect_err("sem ID#NOME nenhuma escrita pode ocorrer");
     assert_eq!(
         erro.opcoes_para_escolha(),
-        Some(&[("31".to_owned(), "Base A".to_owned()), ("32".to_owned(), "Base B".to_owned())][..])
+        Some(
+            &[
+                ("31".to_owned(), "Base A".to_owned()),
+                ("32".to_owned(), "Base B".to_owned()),
+            ][..],
+        )
     );
     assert_eq!(pedidos.len(), 4);
-    assert!(pedidos.iter().all(|r| {
-        r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar")
-    }));
+    assert!(
+        pedidos
+            .iter()
+            .all(|r| { r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar") })
+    );
 }
 
 /// Sem declaração literal de AJAX, nenhum endpoint pode ser inventado.
