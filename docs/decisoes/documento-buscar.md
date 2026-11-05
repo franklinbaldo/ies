@@ -24,8 +24,9 @@ Sintaxe aprovada pelo proprietário em 04/11/2026 (issue #61):
   primitivo de formulário e o mesmo transporte de
   [`processo buscar`](processo-buscar.md), com o rádio em documentos.
   Orçamento: 3 requisições na página 1 e 4 na página N.
-- **web-captured-offline:** ler respostas já capturadas (como
-  `ies replay --documento --termo-documento`); não responde pela conta
+- **web-captured-offline:** ler respostas já capturadas (como o antigo
+  `ies replay --documento --termo-documento`, retirado em 05/11/2026:
+  [replay fora da CLI](acervo/replay-fora-da-cli.md)); não responde pela conta
   atual nem acha documento fora das capturas.
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.

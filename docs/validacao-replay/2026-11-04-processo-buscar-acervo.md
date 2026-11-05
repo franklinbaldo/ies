@@ -14,8 +14,9 @@ gravaram a Pesquisa passou pelas **mesmas funções** de
 Nenhuma requisição ao SEI; os ZIPs vêm do cache local, cada um conferido
 pelo `archive_sha1` dos cards.
 
-**Como rodar:** `IES_ACERVO_SAIDA=saida.md cargo test --release --bin ies
-pesquisa_web::acervo::replay_do_acervo_inteiro -- --ignored`.
+**Como rodar:** `IES_ACERVO_SAIDA=saida.md scripts/replay
+pesquisa_web::acervo::replay_do_acervo_inteiro` (o
+[script](../../scripts/replay) roda `cargo test --bin ies -- --ignored`).
 
 **Classes.** *Lido*: a peça aceitou. *Recusado*: o subcódigo que o
 comando publicaria. *Não aplicável*: a gravação não estabelece o que a
@@ -39,7 +40,11 @@ passo 2. Regra em [processo buscar](../decisoes/processo-buscar.md#linhas-ausent
 
 ## Resultado
 
-Cassettes lidas: 52; leituras registradas: 274.
+Cassettes lidas: 52; leituras registradas: 274. **Instantâneo de
+04/11/2026**, só com as peças de `processo buscar`: a tabela abaixo é dessa
+rodada. O mesmo teste hoje também passa as peças de `documento buscar` e da
+pesquisa rápida e lê **109 cassettes, com 688 leituras**; a tabela atual
+está no [replay da pesquisa de 05/11/2026](2026-11-05-pesquisa-acervo.md).
 
 | Leitor | Instalação | Total | Lido | Recusado | Não aplicável |
 |---|---|---:|---:|---|---|

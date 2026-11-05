@@ -17,7 +17,8 @@ dos arquivos privados gravados por [`ies login`](sessao-login.md)
 `IES_CONFIG_FILE`). O recorte offline `ies processo NUP
 --resultado-pesquisa-file` foi aposentado em 04/11/2026 (decisão do
 proprietário, [processo.obter](processo-obter.md)); respostas capturadas
-seguem lidas por `ies replay --resultado-pesquisa`.
+passam pelos mesmos leitores no replay do acervo `pesquisa_web::acervo`
+(`scripts/replay pesquisa_web::acervo`; não há `ies replay`).
 
 O stub anterior `ies processo buscar [--assunto]` foi substituído: o
 verbo continua `buscar`, agora com `TERMO` posicional obrigatório e

@@ -202,7 +202,7 @@ pub(crate) fn decodificar_resposta<R: Read>(
     }
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    let html = crate::cassette::decode_http_body(&bytes, &resposta.mime)
+    let html = corpo::decode_http_body(&bytes, &resposta.mime)
         .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)?;
     if crate::tela_login::e_tela_login(&html) {
         return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
@@ -298,6 +298,9 @@ pub fn read_box_from_file(
         referencias.origem(),
     )
 }
+
+#[path = "transporte/corpo.rs"]
+pub(crate) mod corpo;
 
 #[path = "transporte/corpo_de_recusa.rs"]
 pub(crate) mod corpo_de_recusa;

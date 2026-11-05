@@ -21,8 +21,9 @@ live_validation: pass-unb-go-pen3-pen1-sem-indice
   `ies login`. Orçamento: 3 requisições na página 1 e 4 na página N.
 - **web-captured-offline:** resposta HTML já obtida pelo operador, parser
   estrito e zero requisições (`--resultado-pesquisa-file`, aposentado em
-  04/11/2026 por decisão do proprietário; a leitura offline fica em
-  `ies replay --resultado-pesquisa`).
+  04/11/2026 por decisão do proprietário; a leitura offline fica no replay
+  do acervo `pesquisa_web::acervo`, já que `ies replay` saiu da CLI em
+  05/11/2026: [replay fora da CLI](acervo/replay-fora-da-cli.md)).
 - **rest-wssei:** módulo opcional e token não comprovados por instalação.
 - **soap-official:** autenticação e equivalência desconhecidas.
 

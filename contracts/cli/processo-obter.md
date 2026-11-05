@@ -60,7 +60,8 @@ são preservados quando efetivamente apresentados.
 ## Falhas e estado de implementação
 
 Valem os subcódigos da seção "Leitura pela árvore". Evidências históricas
-são reproduzidas separadamente pelo comando ies replay CENARIO.
+passam pelos mesmos leitores no replay do acervo `processo_obter::acervo`
+(`scripts/replay`), fora da CLI.
 Os códigos 0/1/2 distinguem sucesso, falha e uso inválido; uma consulta
 não fabrica sessão.
 
@@ -93,11 +94,11 @@ stdout, sem ler a sessão). Eram do regime anterior à página observada
 (`--resumo` exigia cobertura de todas as páginas da caixa); a leitura pela
 árvore com o índice local e a colheita do Controle cobrem o caso de uso
 ([decisão](../../docs/decisoes/processo-obter.md)). Capturas e cassettes
-continuam lidas offline por `ies replay`.
+passam pelos mesmos leitores no replay do acervo (`scripts/replay`).
 
 ## Identidade do título do histórico HTML (Refs #59)
 
-Ao interpretar replay, o `title` do `head` define o processo se houver
+Ao interpretar o histórico, o `title` do `head` define o processo se houver
 cabeçalho. `title` de SVG no corpo não substitui a identidade. Dois
 `head` ou dois títulos no cabeçalho falham com subcódigos distintos
 `cabecalhos_html_do_historico_repetidos` e
@@ -114,14 +115,9 @@ recusados ainda na entrada original, com `numero_processo_controle`;
 caracteres internos e pontuação não são transformados em equivalências
 conjecturadas.
 
-## Filtro de andamentos capturados: controles na entrada original (Refs #59)
+## Filtro de andamentos capturados: retirado (Refs #59)
 
-Em `ies replay CENARIO --termo-andamento TERMO`, o filtro das descrições
-verificadas deve recusar caracteres de controle na entrada **bruta**,
-inclusive CR/LF/tab antes ou depois do texto. Eles não podem desaparecer
-com `trim`: a variante Rust `ErroFiltroAndamentos::ContemControle`,
-subcódigo `termo_de_andamento_contem_controle`, deve prevalecer sobre
-`Vazio` quando houver controle. Espaços simples ao redor do termo
-continuam tolerados, e termo inválido não pode descartar andamentos.
-A busca continua restrita à cassette hash-verificada, sem HTTP nem
-prova de histórico completo/live.
+`ies replay CENARIO --termo-andamento TERMO` e seu filtro
+(`ErroFiltroAndamentos`) saíram com o subcomando `replay` em 05/11/2026
+([decisão](../../docs/decisoes/acervo/replay-fora-da-cli.md)). `ies processo
+NUP` não filtra andamentos.

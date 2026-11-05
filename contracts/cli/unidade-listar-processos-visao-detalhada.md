@@ -211,7 +211,8 @@ novo da mesma conta abriu na D, efeito cosmético) e
 (categoria por processo preservada). `--pagina-arquivo` foi
 **removida** (erro de uso, saída 2): unia capturas privadas sem POST e não
 tem semântica junto da troca de visão, cujas telas são de outra geração.
-Capturas continuam legíveis offline por `ies replay`.
+Capturas do Controle passam pelos mesmos leitores no replay do acervo
+`visao_do_controle::acervo` (`scripts/replay`; não há `ies replay`).
 
 Golden: [`caixa-detalhada-v2.json`](../../tests/fixtures/caixa-detalhada-v2.json) (chaves em ordem alfabética).
 Ensaio offline com HTML sintético modelado nas capturas de UnB, PEN1 e GO,

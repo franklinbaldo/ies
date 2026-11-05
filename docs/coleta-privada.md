@@ -45,8 +45,8 @@ novos hashes sobre o material saneado, verifica revisão e só então publica
 se autorizado. O script não saneia, não valida semanticamente o HTML e
 não envia arquivos ao Internet Archive nem ao GitHub.
 
-Validação multi-instalação de replays existentes continua em
-[`validar-cassettes.sh`](../scripts/validar-cassettes.sh); para acesso live,
+Validação multi-instalação de cassettes existentes é o replay do acervo
+([`scripts/replay`](../scripts/replay), ver [cassettes](cassettes.md#replay-do-acervo)); para acesso live,
 executar só cenários independentes com permissões e efeitos avaliados.
 Teste local sintético: `bash tests/coleta_privada.sh`, sem rede.
 

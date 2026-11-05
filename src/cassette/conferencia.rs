@@ -3,8 +3,7 @@
 //! completude e host da instalação. O ZIP é lido e conferido uma vez
 //! ([`ZipDoAcervo`]) e pode servir a vários cards do mesmo lote.
 use super::campo;
-#[cfg(test)]
-use super::legivel;
+use crate::transporte::corpo::legivel;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
@@ -36,20 +35,8 @@ pub(crate) struct CassetteConferida {
     pub(crate) instalacao: String,
 }
 
-// O formato canônico exige sufixos em minúsculas nas evidências.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
-pub(crate) fn conferir_cassette(
-    card: &Path,
-    zip: &ZipDoAcervo,
-) -> Result<CassetteConferida, String> {
-    conferir_cassette_ate(card, zip, LIMITE_DO_JSON)
-}
-
-/// Teto do membro JSON no replay da CLI.
-const LIMITE_DO_JSON: u64 = 30_000_000;
-
-/// A mesma conferência com outro teto para o membro JSON (o replay do
-/// acervo lê também as cassettes grandes de pastas, de até ~40 MB).
+/// Conferência integral com teto para o membro JSON (o replay do acervo lê
+/// também as cassettes grandes de pastas, de até ~40 MB).
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub(crate) fn conferir_cassette_ate(
     card: &Path,
@@ -161,7 +148,6 @@ pub(super) fn corpo_html(it: &serde_json::Value) -> Result<(Vec<u8>, String), St
 }
 
 /// O HTML decodificado de uma resposta gravada.
-#[cfg(test)]
 pub(crate) fn html_da_resposta(it: &serde_json::Value) -> Result<String, String> {
     let (bytes, encoding) = corpo_html(it)?;
     legivel(&bytes, &encoding)

@@ -54,7 +54,8 @@ e falha segura de gravação.
 - [Listas Recebidos e Gerados](../../contracts/cli/unidade-recebidos-gerados.md)
 - [Testes da superfície das listas](../../tests/cli_unidade_listas.rs)
 - [Matriz de evidências](../../contracts/evidencias/unidade-listar_processos.md)
-- [Testes de autenticação e replay](../../tests/replay_unidade.rs)
+- [Testes da origem da caixa](../../tests/cli_unidade_origem.rs) e
+  [golden da caixa resumida](../../src/saida/tests_golden.rs)
 - [Comparação experimental](../experimentos/comparar-acessos-sei.md)
 - [Replay do acervo pelos leitores do Controle](unidade-listar-processos/replay-do-acervo.md)
 
@@ -238,7 +239,8 @@ Decisões de implementação:
   (`controle_em_visao_detalhada_sem_categorias`, descartado); a sessão fica
   na R.
 - **`--pagina-arquivo` removida** de `listar-processos`: as capturas são de
-  outra geração que as telas da troca; `ies replay` continua para capturas.
+  outra geração que as telas da troca; as capturas passam pelo replay do
+  acervo (`ies replay` saiu da CLI em 05/11/2026: [replay fora da CLI](acervo/replay-fora-da-cli.md)).
 
 Testes: [visão e sequência](../../src/visao_do_controle/tests_fluxo.rs),
 [recebidos/gerados e colunas](../../src/visao_do_controle/tests_resumida.rs),

@@ -12,7 +12,7 @@ do Todos atual e pelas evidências de instalações reais.
 **Estado:** primeiro leitor de caixa de processos implementado em Rust,
 com instalação HTTPS autorizada (host e caminho-base) antes de
 enviar cookies e leitura HTTP limitada em fluxo.
-Outras operações permanecem não implementadas. O replay independente aceita cassette pública verificada;
+Outras operações permanecem não implementadas. O replay das cassettes públicas verificadas é a suíte de testes do acervo;
 a consulta experimental de sessão aceita URL HTTPS assinada já autenticada;
 `ies login` autentica pela tela Web de login e grava a sessão nos mesmos
 arquivos privados; os outros comandos não fazem login automático.
@@ -62,7 +62,7 @@ compatibilidade nem uma confiança percentual inventada.
 
 ## Primeira leitura
 
-O [guia de replay e leitura da unidade](docs/unidade-primeira-leitura.md)
+O [guia de leitura da unidade](docs/unidade-primeira-leitura.md)
 explica como verificar um ZIP no Internet Archive e executar
 `ies unidade listar-processos [--pagina N]` (a visão detalhada, com
 colunas; a sessão fica na D), `ies unidade
@@ -70,10 +70,8 @@ recebidos|gerados [--pagina N]` ou `ies unidade colunas`.
 O domínio usa tipos Rust (`Processo`, `IdProcedimento`,
 `Tabela<T>` e `Caixa`). A cobertura é validada na paginação;
 `completa: bool` é **derivação da borda**, não estado duplicado.
-O [golden JSON v1](tests/fixtures/caixa-v2.json) protege a saída.
+O [golden JSON v2](tests/fixtures/caixa-v2.json) protege a caixa resumida.
 O programa não expõe links assinados em JSON, nem executa escritas.
-O replay offline agora pode consolidar várias páginas já gravadas usando
-`--passo N` repetido, sem enviar POST ao SEI e sem inferir páginas ausentes.
 
 ## Prioridade: completar a CLI existente
 
@@ -144,8 +142,9 @@ sem nova tentativa ([contrato](contracts/cli/sessao-login.md)).
 
 - `ies processo NUP` e `ies unidade listar-processos` são contratos de
   domínio e não recebem arquivos de cassette nem URLs assinadas.
-- `ies replay CENARIO` reproduz uma captura verificada do catálogo OKF
-  sem abrir conexão com o SEI; [guia de replay](docs/replay.md).
+- Não há `ies replay`: o replay das cassettes do catálogo OKF são os
+  testes `#[ignore]` do acervo, sem conexão com o SEI, executados por
+  `scripts/replay` ([cassettes](docs/cassettes.md#replay-do-acervo)).
 - `ies unidade listar-processos` lê uma sessão Web já autenticada, com
   caminhos de arquivos privados definidos em variáveis de ambiente, pela
   visão detalhada: um array com uma lista `categoria: null`, a categoria

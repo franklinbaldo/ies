@@ -39,25 +39,6 @@ impl ErroHistorico {
             Self::HistoricoVazio => "historico_vazio",
         }
     }
-
-    pub fn mensagem(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "HTML do histórico não pôde ser interpretado",
-            Self::TituloAusente => "título do histórico ausente",
-            Self::TitulosRepetidos => "mais de um título de histórico na página",
-            Self::CabecalhosHtmlRepetidos => "mais de um cabeçalho HTML na página",
-            Self::TituloInvalido => "o título não informa que esta é a página de histórico",
-            Self::NumeroInvalido => "número de processo informado não é aceito",
-            Self::NumeroDoHistoricoDiferenteDoSolicitado => {
-                "número mostrado no título do histórico é diferente do solicitado"
-            }
-            Self::HistoricoAusente => "tabela do histórico não encontrada",
-            Self::TabelasDoHistoricoRepetidas => "mais de uma tabela do histórico na resposta",
-            Self::HistoricoInvalido => "tabela do histórico não possui a estrutura esperada",
-            Self::LinhaInvalida => "linha do histórico sem campos obrigatórios",
-            Self::HistoricoVazio => "nenhum andamento foi encontrado no histórico",
-        }
-    }
 }
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
@@ -103,6 +84,7 @@ fn titulo_do_historico(
         .ok_or(ErroHistorico::TituloAusente)
 }
 
+#[cfg(test)]
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;

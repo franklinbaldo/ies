@@ -30,7 +30,7 @@ jobs:
       - name: Compilar IES em release
         run: cargo +1.99.1 build --release --locked --bin ies
 
-      - name: Benchmarks somente locais, com cassettes sintéticas
+      - name: Benchmarks somente locais (inicialização, sem SEI)
         run: |
           python3 scripts/perf_audit.py \
             --ies "$PWD/target/release/ies" \
