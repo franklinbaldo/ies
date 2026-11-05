@@ -335,7 +335,10 @@ mod tests {
             Some(13671)
         );
         assert_eq!(total_da_legenda("Lista de Unidades (1 registro):"), Some(1));
-        assert_eq!(total_da_legenda("Lista de Unidades (2 registros):"), Some(2));
+        assert_eq!(
+            total_da_legenda("Lista de Unidades (2 registros):"),
+            Some(2)
+        );
         assert_eq!(total_da_legenda("Lista de Unidades (x registros):"), None);
     }
 
