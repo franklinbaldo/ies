@@ -81,9 +81,9 @@ impl ErroSobrestamento {
         }
     }
 
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
-            Self::Abertura(e) => e.status_http().cloned(),
+            Self::Abertura(e) => e.status_http(),
             _ => None,
         }
     }
@@ -102,7 +102,9 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     let pedido = leitura(nup, unidade, true);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &pedido, indice, envio).map_err(ErroSobrestamento::Abertura)?;
-    let atual = aberto.unidade.ok_or(ErroSobrestamento::UnidadeNaoPublicada)?;
+    let atual = aberto
+        .unidade
+        .ok_or(ErroSobrestamento::UnidadeNaoPublicada)?;
     match (&acao, &aberto.arvore.aberto_em) {
         (Acao::Sobrestar, AbertoEm::Sobrestado(_)) => {
             return Err(ErroSobrestamento::JaSobrestado);
