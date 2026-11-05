@@ -390,9 +390,8 @@ pub(crate) fn conferir_cadastro(
                 .map_err(|_| E::CadastroForaDaForma)?
                 .as_deref()
                 != Some("txtDescricao")
-            || valor_do_atributo(controle, "disabled")
+            || crate::html_atributos::atributo_presente(controle, "disabled")
                 .map_err(|_| E::CadastroForaDaForma)?
-                .is_some()
         {
             return Err(E::DescricaoNaoOferecida);
         }
@@ -425,9 +424,8 @@ pub(crate) fn conferir_cadastro(
                 .map_err(|_| E::CadastroForaDaForma)?
                 .as_deref()
                 != Some(valor)
-            || valor_do_atributo(controle, "disabled")
+            || crate::html_atributos::atributo_presente(controle, "disabled")
                 .map_err(|_| E::CadastroForaDaForma)?
-                .is_some()
         {
             return Err(E::NivelNaoOferecido);
         }
