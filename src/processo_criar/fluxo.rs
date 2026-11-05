@@ -10,6 +10,7 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro};
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
+use crate::processo_criar_interessados::{ErroInteressado, resolver as resolver_interessados, valor_da_lupa};
 use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
@@ -51,7 +52,9 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
         "hdnFlagProcedimentoCadastro",
         "hdnAssuntos",
     ],
-    campos_ocultos_reescritos: &["hdnFlagProcedimentoCadastro", "hdnAssuntos"],
+    campos_ocultos_reescritos: &[
+        "hdnFlagProcedimentoCadastro", "hdnAssuntos", "hdnInteressadosProcedimento",
+    ],
     campos_usuario: &["txtDescricao", "rdoNivelAcesso", "selHipoteseLegal"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
@@ -70,7 +73,7 @@ pub(crate) enum ErroCriar {
     Formulario,
     TipoSemIdentificador,
     EscolhaInesperada,
-    InteressadoNaoResolvido,
+    Interessado(ErroInteressado),
     EfeitoIncerto,
 }
 
@@ -85,7 +88,7 @@ impl ErroCriar {
             Self::Formulario => "formulario_de_criacao_nao_reconhecido",
             Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
             Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
-            Self::InteressadoNaoResolvido => "interessado_de_processo_nao_resolvido",
+            Self::Interessado(erro) => erro.subcodigo(),
             Self::EfeitoIncerto => "efeito_incerto_na_criacao",
         }
     }
@@ -111,6 +114,7 @@ pub(crate) struct Criacao {
     pub(crate) nivel: String,
     pub(crate) unidade: String,
     pub(crate) confirmado: bool,
+    pub(crate) interessados: Vec<String>,
     pub(crate) nup: Option<String>,
     pub(crate) requisicoes: u32,
 }
@@ -344,17 +348,22 @@ pub(crate) fn criar<V: EnvioDoControle>(
     };
     let observado =
         conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel).map_err(E::Cadastro)?;
-    // A busca de interessados é AJAX específico por instalação. Não enviar
-    // uma lista inventada ou silenciosamente vazia.
-    if !pedido.interessados.is_empty() {
-        return Err(E::InteressadoNaoResolvido);
-    }
+    let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
+    let servida = TelaServida {
+        url: &cadastro.url,
+        html: &cadastro.html,
+        codificacao,
+    };
+    let interessados = resolver_interessados(
+        envio, &instalacao, &servida, cookie_valor, pedido.interessados, &mut requisicoes,
+    ).map_err(E::Interessado)?;
     let mut feito = Criacao {
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
         nivel: pedido.nivel.to_owned(),
         unidade,
         confirmado: false,
+        interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
         nup: None,
         requisicoes,
     };
@@ -369,14 +378,11 @@ pub(crate) fn criar<V: EnvioDoControle>(
     if let Some(hipotese) = observado.hipotese_legal.as_deref() {
         campos.push(("selHipoteseLegal", hipotese));
     }
-    // Derive o POST inclusive na prévia: verificar a estrutura antes de
-    // prometer que uma confirmação posterior poderia criar o processo.
-    let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
-    let servida = TelaServida {
-        url: &cadastro.url,
-        html: &cadastro.html,
-        codificacao,
-    };
+    let codificados = valor_da_lupa(&interessados);
+    if !interessados.is_empty() {
+        campos.push(("hdnInteressadosProcedimento", codificados.as_str()));
+    }
+    // Derive o POST inclusive na prévia, sem executar JS e sem escrita.
     let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &feito.unidade, &campos)
         .map_err(|_| E::Formulario)?;
     if !pedido.confirmar {
