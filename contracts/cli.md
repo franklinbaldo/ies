@@ -71,6 +71,8 @@ legado do Todos faz parte do contrato público por pressuposição.
   com a senha do login, prévia e verificação pela caneta da árvore;
   [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
+- `ies indice caminho` (caminho do SQLite local, sem abrir banco ou consultar SEI)
+- `ies unidade listar`/`pesquisar` (lista da lupa/SQLite; [contratos](cli/unidade-listar.md))
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
 
@@ -125,6 +127,7 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
   detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
 - [unidade.trocar](cli/unidade-trocar.md): troca da unidade da sessão; prévia
   sem POST, efeito incerto sai com 3; vale para todos os agentes da sessão.
+- [indice.caminho](cli/indice-caminho.md): descoberta local do SQLite, sem rede.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
   `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
   host da instalação e gravação atômica por geração, sob lock.
