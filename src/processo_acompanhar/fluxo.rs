@@ -9,7 +9,6 @@ use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
 use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever};
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
-use crate::visao_do_controle::EnvioDoControle as _;
 use super::{
     Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar,
     escolher_grupo, grupos_do_cadastro,
@@ -160,7 +159,7 @@ fn selecionar_previa(
         grupo: selecionado.nome.clone(),
         observacao: pedido.observacao.unwrap_or("").to_owned(),
         id_de_remocao: None,
-        ja_estava: antes.iter().any(|a| a.grupo == selecionado.nome),
+        ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
         requisicoes,
     })
 }
