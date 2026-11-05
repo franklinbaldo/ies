@@ -77,6 +77,17 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
         return Err(E::CampoInesperado);
     }
+    // An external form-associated field changes the browser POST.
+    for elemento in ["input", "button", "select", "textarea"] {
+        for no in dom.query_selector(elemento).into_iter().flatten() {
+            let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            if atributo(tag, "form")?.is_some() {
+                return Err(E::CampoInesperado);
+            }
+        }
+    }
     let mut vistos: HashMap<String, usize> = HashMap::new();
     for tag in form
         .children()
@@ -126,8 +137,14 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             }
             ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino")
                 if valor.is_empty() => {}
-            ("textarea", _, "txaMotivo") if tag.inner_text(dom.parser()).trim().is_empty() => {}
-            ("input" | "button", "submit", "sbmSalvar") if valor == "Salvar" => {}
+            ("textarea", _, "txaMotivo")
+                if !presente(tag, "readonly")?
+                    && tag.inner_text(dom.parser()).trim().is_empty() => {}
+            ("input" | "button", "submit", "sbmSalvar")
+                if valor == "Salvar"
+                    && !presente(tag, "formaction")?
+                    && !presente(tag, "formmethod")?
+                    && !presente(tag, "formenctype")? => {}
             ("input" | "button", "button", "btnCancelar") => {}
             ("input", "hidden", "hdnIdProcedimentoDestino")
             | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") => {
