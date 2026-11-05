@@ -321,3 +321,12 @@ Em `pesquisa_web::filtros::ErroFiltro`:
 
 Na borda: `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`
 são erros de uso (saída 2), avaliados antes da configuração e da rede.
+
+## Inventário normativo dos subcódigos de filtro (#247)
+
+| Subcódigo | Condição |
+| --- | --- |
+| `criterio_nao_oferecido_pela_tela` | Critério sem controle observável ou sem ID de autocompletar. |
+| `tipo_nao_oferecido_pela_tela` | Nome exato de tipo não está na lista servida. |
+| `controle_de_filtro_ambiguo` | Mais de um controle ou opção compatível. |
+| `atributo_do_filtro_ilegivel` | Atributo HTML não interpretável. |
