@@ -103,11 +103,11 @@ mod tests {
     #[test]
     fn lista_tipo_ausente_ambiguo_e_externo() {
         // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
-        let html = r#"<table id="tblSeries"><tr><td>
+        let html = r##"<table id="tblSeries"><tr><td>
             <a href="controlador.php?acao=documento_gerar">Despacho</a>
             <a href="#" onclick="escolher(-1);">Externo</a>
             <a href="#" onclick="escolher(3);">Ofício</a>
-            </td></tr></table>"#;
+            </td></tr></table>"##;
         let tipos = tipos_oferecidos(html).unwrap();
         assert_eq!(tipos, ["Despacho", "Ofício"]);
         assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
