@@ -20,10 +20,10 @@ fn json(saida: &Output) -> serde_json::Value {
 }
 
 #[test]
-fn confirma_recusado_antes_da_sessao_ou_rede() {
+fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01:
     // a confirmação exige fluxo próprio; nunca iniciar escrita sem esse fluxo.
-    for acao in [vec![], vec!["--deixar"], vec!["--grupo", "G"]] {
+    for acao in [vec!["--deixar"], vec!["--deixar", "--grupo", "G"]] {
         let mut args = vec!["processo", "acompanhar", NUP, "--confirmar", "--json"];
         args.extend(acao);
         let saida = sem_sessao(&args);
@@ -62,4 +62,13 @@ fn previa_exige_sessao_privada_e_nunca_vira_stub() {
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
     assert_ne!(valor["codigo"], "nao_implementado");
+}
+
+
+#[test]
+fn inclusao_confirmada_nao_e_stub_e_exige_sessao() {
+    // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
+    let saida = sem_sessao(&["processo", "acompanhar", NUP, "--grupo", "G", "--confirmar", "--json"]);
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
