@@ -60,3 +60,33 @@ código os inspeciona para decidir tratamento. Ver o
 - [Erros das escritas](erros-tipados/escritas.md): concluir, reabrir, assinar e enviar o processo.
 - [Erros locais](erros-tipados/locais.md): configuração local e gravação privada de arquivos.
 - [Catálogo de subcódigos](erros-tipados/catalogo.md): catálogo literal por contexto, nomes contextuais e históricos e literais passados por helpers.
+
+
+## Subcódigos de blocos (#256)
+
+Os seguintes subcódigos discriminam a causa de falha fechada em leitura Web de bloco; links e cookies nunca aparecem na saída.
+
+| Subcódigo | Descrição |
+| --- | --- |
+| `bloco_nao_encontrado_na_pagina` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `cabecalho_de_blocos_nao_reconhecido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `cabecalho_do_bloco_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `faixa_de_blocos_incoerente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `faixa_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `html_de_blocos_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `html_do_bloco_ilegivel` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `legenda_de_blocos_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `legenda_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `linha_de_bloco_fora_da_forma` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `linha_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `link_de_blocos_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `link_de_blocos_nao_reconhecido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `links_de_blocos_repetidos` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `numero_do_bloco_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `numero_do_bloco_repetido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `pagina_de_blocos_nao_implementada` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabela_de_blocos_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabela_do_bloco_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabelas_de_blocos_repetidas` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabelas_do_bloco_repetidas` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `unidade_inesperada_na_leitura_de_blocos` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |

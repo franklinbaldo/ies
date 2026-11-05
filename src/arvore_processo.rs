@@ -6,6 +6,7 @@
 //! contracts/cli/processo-obter-arvore.md. Tipos aceitos: `PROCESSO`,
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
+mod acompanhar;
 mod anexados;
 mod assinatura;
 mod barra_do_documento;
@@ -21,6 +22,7 @@ mod natureza;
 mod pastas;
 mod reabrir;
 mod situacao;
+mod sobrestar;
 mod tela;
 mod vinculo;
 
@@ -61,8 +63,11 @@ pub(crate) mod tests_reabrir;
 #[cfg(test)]
 mod tests_situacao;
 #[cfg(test)]
+mod tests_sobrestar;
+#[cfg(test)]
 pub(crate) mod tests_tela;
 
+pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
@@ -81,6 +86,7 @@ pub(crate) use concluir::{
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
+pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
@@ -96,6 +102,7 @@ pub(crate) use reabrir::{
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};
+pub(crate) use sobrestar::{ErroAcaoSobrestar, ler_retomar_da_barra, ler_sobrestar_da_barra};
 pub(crate) use tela::{
     EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_documento,
     ler_tela_do_processo,

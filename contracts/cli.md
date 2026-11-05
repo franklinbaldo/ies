@@ -35,6 +35,11 @@ legado do Todos faz parte do contrato público por pressuposição.
 ## Primeiro recorte, com acesso Web estritamente limitado
 
 - `ies processo comentarios NUP` e `ies processo comentar NUP --texto T [--confirmar]` (contrato [comentários](cli/processo-comentarios.md); núcleo offline na PR Draft #268, CLI Web ainda pendente)
+- `ies bloco listar [--tipo assinatura|interno|reuniao]` e `ies bloco N`
+  (leitura Web por menu observado; contratos
+  [listar](cli/bloco-listar.md) e [obter](cli/bloco-obter.md); #256).
+
+
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
@@ -53,6 +58,10 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade trocar SIGLA [--confirmar]` (troca a unidade da sessão para
   toda a conta, com prévia e verificação pelo Controle novo;
   [contrato](cli/unidade-trocar.md))
+- `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
+- `ies processo sobrestar NUP --motivo TEXTO [--confirmar]` e
+  `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
+  prévia Web funcional, `--confirmar` ainda bloqueado na PR #279)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
