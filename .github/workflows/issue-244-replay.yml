@@ -68,7 +68,15 @@ jobs:
                           literais.append({"tamanho":len(piece),"controlador": "controlador.php?" in piece,
                             "https":piece.startswith("https://"),"prefixo_dois_pontos":piece.startswith(".."),
                             "amp_html":"&amp;" in piece,"barra_inicial":piece.startswith("/"),
-                            "escape_barra":"\\\\ " in piece,"acao":alvo in piece})
+                            "escape_barra":"\\\\ " in piece,"acao":alvo in piece,
+                            "prefix_len":piece.find("controlador.php?"),
+                            "starts_http":piece.startswith("http://"),
+                            "starts_https_colon":piece.startswith("https:"),
+                            "starts_js":piece.startswith("javascript:"),
+                            "backslashes":piece.count(chr(92)),
+                            "infra_hash_tokens":piece.count("infra_hash="),
+                            "prefix_shape":"".join(c if not c.isalnum() else "X" for c in piece[:piece.find("controlador.php?")][:100]),
+                            "sufixo_len":len(piece.split("controlador.php?",1)[1])})
               print(json.dumps({"passo":idx,"acao_no_html":html.count(alvo),
                 "scripts":len(f.scripts),"acao_nos_scripts":sum(s.count(alvo) for s in f.scripts),
                 "ocorrencias_em_atributos":f.atributos,"literais":literais}))
