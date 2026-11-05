@@ -32,7 +32,6 @@ pub(crate) enum ErroAcompanhar {
     GrupoJaAcompanhado,
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
-    #[cfg(test)]
     AcompanhamentoNaoConfirmado,
 }
 
@@ -55,7 +54,6 @@ impl ErroAcompanhar {
             Self::GrupoJaAcompanhado => "grupo_ja_acompanhado_no_processo",
             Self::NenhumAcompanhamento => "processo_sem_acompanhamento",
             Self::EscolhaDeAcompanhamentoAmbigua => "acompanhamento_para_remover_ambiguo",
-            #[cfg(test)]
             Self::AcompanhamentoNaoConfirmado => "acompanhamento_nao_confirmado_por_leitura",
         }
     }
@@ -309,7 +307,6 @@ pub(crate) fn alvo_para_deixar<'a>(
 
 /// A operação só está confirmada se apareceu exatamente UMA linha nova
 /// com grupo/observação pedidos e TODAS as linhas anteriores intactas.
-#[cfg(test)]
 pub(crate) fn conferir_inclusao(
     antes: &[Acompanhamento],
     depois: &[Acompanhamento],
