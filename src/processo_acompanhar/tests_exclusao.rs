@@ -1,4 +1,4 @@
-//! Derivado de Todos tests/test_processo_acompanhar_010.py @323eb01,
+//! Derivado de Todos `tests/test_processo_acompanhar_010.py` @323eb01,
 //! fixture da UnB de 15/10/2026, com valores sintéticos.
 use super::*;
 use crate::instalacao::Instalacao;
@@ -66,15 +66,14 @@ fn exclusao_recusa_acao_para_outro_processo() {
 
 #[test]
 fn exclusao_recusa_formulario_sem_oculto_obrigatorio() {
-    let html = lista_observada("831").replace(
-        "name=\"hdnInfraItemId\"",
-        "name=\"campoInexistente\"",
-    );
+    let html =
+        lista_observada("831").replace("name=\"hdnInfraItemId\"", "name=\"campoInexistente\"");
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_err());
 }
 
 #[test]
 fn exclusao_recusa_script_de_exclusao_ausente() {
-    let html = lista_observada("831").replace("function acaoExcluir(id,desc)", "function outra(id,desc)");
+    let html =
+        lista_observada("831").replace("function acaoExcluir(id,desc)", "function outra(id,desc)");
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_err());
 }
