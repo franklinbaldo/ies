@@ -50,3 +50,61 @@ orçamento e intervalos da issue. A escrita em treinamento **foi autorizada pelo
 - O fluxo de confirmação está implementado em WIP e usa o mesmo branch da PR #248, **sem prova de compilação ou CI do head**. Não considerar pronto para merge/revisão final; confirmar gates antes de qualquer teste ao vivo.
 - Prévia, POST de escrita e verificação live no SEI: **NOT_RUN, 0 requisições, 0 documentos criados**, sem resíduo desta sessão. Autorização restrita a treinamento permanece válida.
 - Pendências: compilação, rustfmt/Clippy/testes/OKF/subcódigos; replay; teste de integração com orçamento exato; validação dos campos obrigatórios e hipóteses legais; verificação ao vivo da navegação `escolher(id)`; prévia e escrita única em treinamento com releitura e resíduo registrado.
+
+## Fatia 🐙 Polvo — segurança anterior à escrita (05/11/2026)
+
+- **Observação:** a estrutura HTML5 das capturas e o tokenizador comum
+  `html_atributos` distinguem *presença* de atributos booleanos de seu
+  valor textual. Um formulário servido com `required` não pode ser
+  submetido ignorando o controle; `disabled` sem `=valor` também
+  significa controle desabilitado. A árvore inicial precisa ser uma foto
+  reconciliável antes do primeiro POST.
+- **RED 1:** três testes novos falharam no CI
+  [42117082242](https://github.com/franklinbaldo/ies/actions/runs/42117082242):
+  `input required` não suportado, descrição obrigatória vazia e
+  `select required` não suportado (1368 PASS / **3 FAIL**).
+- **GREEN 1:** `conferir_controles_obrigatorios` recusa controles ativos
+  obrigatórios não atendidos e documenta o subcódigo tipado
+  `campo_obrigatorio_do_cadastro_nao_atendido`. Os testes preservam
+  controles preenchidos, ocultos e desabilitados.
+- **RED 2:** três testes de guarda de escrita falharam no CI
+  [42118110734](https://github.com/franklinbaldo/ies/actions/runs/42118110734):
+  pasta incompleta, ID de documento repetido e ID do processo ausente
+  (1372 PASS / **3 FAIL**).
+- **GREEN 2:** `postar_e_verificar` recusa essas fotos antes de qualquer
+  requisição, com erro `ArvoreIncompleta` ou
+  `FotoInicialInconsistente`. Um POST criador com árvore comprovável
+  segue consumido uma só vez e a leitura verificadora não repete escrita.
+- **RED 3:** dois testes novos falharam no CI
+  [42119104590](https://github.com/franklinbaldo/ies/actions/runs/42119104590):
+  rádio de nível e descrição marcados com `disabled` booleano simples
+  (1375 PASS / **2 FAIL**).
+- **GREEN 3:** ambos conferem a presença pelo tokenizador de atributos,
+  recusando nível ou descrição efetivamente desabilitados.
+- **Gates:** o job canônico `prek` passou em
+  [42118476321](https://github.com/franklinbaldo/ies/actions/runs/42118476321)
+  após as duas primeiras correções e em
+  [42119347575](https://github.com/franklinbaldo/ies/actions/runs/42119347575)
+  após a terceira. Inclui compilação, Rustfmt, Clippy, suíte Rust, OKF,
+  subcódigos e limite 20 KB. RED no **sandbox local: NOT_RUN**, contagem
+  local indeterminada (Rust ausente; DNS do GitHub indisponível).
+- **Replay offline de Goiás: PASS** em
+  [42118476321](https://github.com/franklinbaldo/ies/actions/runs/42118476321).
+  ZIP público com hash conferido, 2 cassettes, 15 respostas alvo:
+  3 lidas, 5 recusadas pelo leitor e 7 não aplicáveis.
+  As recusas do leitor não são falhas do gate; o teste de integridade e
+  classificação passou. Nenhuma chamada ao SEI. O job temporário foi
+  removido, restaurando o workflow canônico da `main`.
+- **Live (UnB/GO/outros treinamentos):** prévia **NOT_RUN** (0
+  requisições), `--confirmar` **NOT_RUN** (0 POST criador),
+  verificação por leitura **NOT_RUN** (0 requisições).
+  **Resíduo: nenhum documento criado ou alterado nesta sessão.**
+  Nunca houve escrita em produção.
+- **Pendências:** ensaio autenticado prévia → confirmação única →
+  releitura em treinamento, orçamento total medido com abertura do
+  processo e replay do restante do acervo, caso disponível.
+  Não declarar a issue completa nem executar escrita ao vivo sem a
+  prévia e a validação integral segura.
+
+Esta fatia protege mais casos **antes** da submissão; não prova, por
+si só, que o fluxo seja equivalente a todas as instalações.
