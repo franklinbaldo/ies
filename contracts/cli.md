@@ -34,6 +34,11 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 ## Primeiro recorte, com acesso Web estritamente limitado
 
+- `ies bloco listar [--tipo assinatura|interno|reuniao]` e `ies bloco N`
+  (leitura Web por menu observado; contratos
+  [listar](cli/bloco-listar.md) e [obter](cli/bloco-obter.md); #256).
+
+
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
