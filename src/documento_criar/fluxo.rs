@@ -94,13 +94,14 @@ impl ErroPreviaCriacao {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Abertura(erro) => erro.subcodigo(),
-            Self::Transporte(erro) => erro.subcodigo(),
+            Self::Transporte(erro) | Self::Tela(FalhaDaTela::Transporte(erro)) => {
+                erro.subcodigo()
+            }
             Self::UnidadeNaoPublicada => "unidade_da_sessao_nao_publicada",
             Self::SituacaoNaoLida => "situacao_do_processo_nao_lida_antes_de_criar_documento",
             Self::ProcessoNaoAbertoNaUnidade => "processo_nao_aberto_na_unidade_da_sessao",
             Self::Link(erro) => erro.subcodigo(),
             Self::LinkNaoPublicado => "incluir_documento_nao_publicado_na_barra",
-            Self::Tela(FalhaDaTela::Transporte(erro)) => erro.subcodigo(),
             Self::Tela(FalhaDaTela::Redirecionada) => "tela_de_criacao_redirecionada",
             Self::Tela(FalhaDaTela::SessaoEncerrada) => "sessao_encerrada_rode_ies_login",
             Self::Tipo(erro) => erro.subcodigo(),
@@ -333,7 +334,7 @@ mod tests {
         // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01.
         let hash = "a".repeat(64);
         format!(
-            r#"<html><head><script>
+            r##"<html><head><script>
             function escolher(id) {{
                 document.getElementById('hdnIdSerie').value = id;
                 document.getElementById('frmDocumentoEscolherTipo').submit();
@@ -345,7 +346,7 @@ mod tests {
               <input type="hidden" name="hdnInfraTipoPagina" value="2">
             </form>
             <table id="tblSeries"><tr><td><a href="#" onclick="escolher(291)">Despacho</a>
-            </td></tr></table></body></html>"#
+            </td></tr></table></body></html>"##
         )
     }
 
