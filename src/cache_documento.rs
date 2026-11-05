@@ -3,6 +3,7 @@
 use crate::arquivo_privado::{self, Politica};
 use crate::foto_documento::sha256;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +63,7 @@ pub(crate) fn raiz() -> Result<PathBuf, FalhaCache> {
     Ok(PathBuf::from(home).join(".cache"))
 }
 
+#[cfg(test)]
 pub(crate) fn nome(versao: Option<u32>, hash: &str) -> String {
     nome_ext(versao, hash, "html")
 }
@@ -172,7 +174,6 @@ pub(crate) fn gravar(
 
 fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
     use sha2::{Digest, Sha256};
-    use std::io::Read;
     let info = fs::symlink_metadata(caminho).map_err(|_| FalhaCache::Gravacao)?;
     if !info.file_type().is_file() {
         return Err(FalhaCache::ArquivoDivergente);
@@ -185,7 +186,7 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
         }
     }
     let mut arquivo = fs::File::open(caminho).map_err(|_| FalhaCache::Gravacao)?;
-    let mut buffer = [0u8; 64 * 1024];
+    let mut buffer = [0u8; 16 * 1024];
     let mut sha = Sha256::new();
     loop {
         let lidos = arquivo
@@ -246,8 +247,7 @@ pub(crate) fn copiar_para_saida(
     let mut arquivo = fs::File::open(origem).map_err(|_| FalhaCache::Gravacao)?;
     let mut parcial = Parcial::abrir(destino, Politica::exclusiva().diretorio_do_usuario())
         .map_err(|_| FalhaCache::Gravacao)?;
-    let mut buffer = [0u8; 64 * 1024];
-    use std::io::Read;
+    let mut buffer = [0u8; 16 * 1024];
     loop {
         let lidos = arquivo
             .read(&mut buffer)
