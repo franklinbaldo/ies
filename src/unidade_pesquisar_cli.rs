@@ -96,7 +96,46 @@ fn json_da_lista(lista: &ListaGuardada, unidade: &str) -> Value {
     })
 }
 
-fn executar(json_mode: bool, unidade_esperada: Option<&str>, termo: Option<&str>) -> ExitCode {
+/// Consulta Web completa quando não há snapshot ou --atualizar foi pedido.
+/// A falha do índice não impede a leitura; somente impede persistir.
+fn atualizar_por_web(
+    arquivos: &ArquivosDeAcesso,
+    indice: &IndiceLocal,
+    instalacao: &str,
+    unidade: &str,
+) -> Result<(ListaGuardada, usize, bool), ErroLocal> {
+    let referencias = ReferenciasDaSessao::ler(
+        &arquivos.url_controle, &arquivos.origem, &arquivos.cookie,
+    ).map_err(|e| (e.subcodigo(), e.mensagem()))?;
+    referencias.conferir_controle()
+        .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+    let cookie = referencias.cookie().valor()
+        .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+    let lida = crate::unidade_lupa::ler_integral(
+        &mut crate::unidade_lupa::HttpsLupa,
+        referencias.url_do_controle(),
+        referencias.origem(),
+        cookie,
+    ).map_err(|e| (e.subcodigo(), "a lupa não devolveu uma lista integral verificável"))?;
+    let total = lida.total;
+    let persistida = indice.guardar_lista_de_unidades(
+        instalacao, unidade, &lida.unidades, total,
+    );
+    let lida_em = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64());
+    let lista = ListaGuardada {
+        unidades: lida.unidades, total, lida_em,
+    };
+    Ok((lista, lida.requisicoes, persistida))
+}
+
+fn executar(
+    json_mode: bool,
+    unidade_esperada: Option<&str>,
+    termo: Option<&str>,
+    atualizar: bool,
+) -> ExitCode {
     if let Err((subcodigo, mensagem)) = conferir_unidade_pedida(unidade_esperada) {
         return erro_fonte(json_mode, subcodigo, mensagem);
     }
@@ -109,17 +148,37 @@ fn executar(json_mode: bool, unidade_esperada: Option<&str>, termo: Option<&str>
         Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
-    let lista = match ler_guardadas(&indice, &instalacao, &unidade, termo) {
-        Ok(lista) => lista,
-        Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
+    let guardada = if atualizar {None} else {
+        ler_guardadas(&indice, &instalacao, &unidade, termo).ok()
+    };
+    let (lista, origem, requisicoes, persistida) = if let Some(lista) = guardada {
+        (lista, "indice", 0, true)
+    } else {
+        let (lista, requisicoes, persistida) = match atualizar_por_web(
+            &arquivos, &indice, &instalacao, &unidade,
+        ) {
+            Ok(resultado) => resultado,
+            Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
+        };
+        let lista = termo.map_or_else(|| lista.clone(), |t| {
+            crate::indice_local::filtrar_lista(lista, t)
+        });
+        (lista, "sei", requisicoes, persistida)
     };
     if json_mode {
-        println!("{}", json_da_lista(&lista, &unidade));
+        let mut valor = json_da_lista(&lista, &unidade);
+        valor["origem"] = json!(origem);
+        valor["requisicoes"] = json!(requisicoes);
+        valor["persistida_no_indice"] = json!(persistida);
+        println!("{valor}");
     } else {
         println!(
-            "Unidades do índice local: {} (leitura: {})",
-            lista.total, lista.lida_em
+            "Unidades: {} (origem: {}, leitura: {}, requisições: {})",
+            lista.total, origem, lista.lida_em, requisicoes
         );
+        if !persistida {
+            eprintln!("IES: índice desligado ou indisponível; a lista não foi guardada");
+        }
         for item in &lista.unidades {
             println!(
                 "{}\t{}\t{}\t{}",
@@ -131,26 +190,14 @@ fn executar(json_mode: bool, unidade_esperada: Option<&str>, termo: Option<&str>
 }
 
 pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar: bool) -> ExitCode {
-    if atualizar {
-        // Não aceitar --atualizar e devolver um snapshot antigo como se novo.
-        return erro_fonte(
-            json_mode,
-            "leitura_integral_da_lupa_pendente",
-            "a atualização Web integral da lupa ainda não foi implementada",
-        );
-    }
-    executar(json_mode, unidade_esperada, None)
+    executar(json_mode, unidade_esperada, None, atualizar)
 }
 
 pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
     if termo.trim().is_empty() {
-        return erro_fonte(
-            json_mode,
-            "termo_de_unidade_vazio",
-            "termo de pesquisa vazio",
-        );
+        return erro_fonte(json_mode, "termo_de_unidade_vazio", "termo de pesquisa vazio");
     }
-    executar(json_mode, unidade_esperada, Some(termo))
+    executar(json_mode, unidade_esperada, Some(termo), false)
 }
 
 #[cfg(test)]
