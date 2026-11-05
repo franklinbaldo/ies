@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/246-documento-criar] # temporario: RED/CI #246
   pull_request:
   workflow_dispatch:
 
