@@ -9,7 +9,7 @@ implementation: partial
 
 # Unidade listar (#244)
 
-**Fatia implementada:** sem `--atualizar`, lê o snapshot integral já
+**Implementação:** sem `--atualizar`, lê o snapshot integral já
 guardado no índice SQLite (esquema 3), sem enviar requisições ao SEI.
 A identidade é a origem HTTPS autorizada e o ID da unidade ativa
 da URL privada do Controle, ambos lidos localmente e sem publicar
@@ -35,3 +35,29 @@ migração estão em [tabela de unidades](../../docs/arquitetura/0003-indice-loc
 Não implica que o snapshot ainda seja o mais recente.
 [Decisão](../../docs/decisoes/unidade-listar.md) e
 [evidência local](../evidencias/unidade-listar.md).
+
+
+## Leitura Web integral e falhas observáveis
+
+Quando não há snapshot ou foi solicitado `--atualizar`, o comando abre
+o Controle, navega para a listagem de grupos de envio e para a tela
+Novo, segue a lupa `unidade_selecionar_envio_processo`, faz o GET
+inicial da lupa e **um POST para cada página**. O orçamento máximo
+da lupa é `1 GET + N POST`, mais os três GETs de navegação.
+A lista só é gravada se todas as páginas, índices, totais e IDs
+conferirem. O resultado avisa `origem: "sei"`, o número de
+`requisicoes` e `persistida_no_indice` (false quando o índice
+estiver indisponível). Sem índice, a leitura retorna sem persistir.
+
+Erros tipados desta operação:
+- `lupa_transporte_recusado`: falha de transporte ou status na navegação/consulta;
+- `link_da_lupa_ausente`: ação obrigatória não foi publicada;
+- `link_da_lupa_ambiguo`: links conflitantes para o mesmo destino;
+- `link_da_lupa_fora_da_instalacao`: link fora da origem permitida;
+- `charset_da_lupa_nao_suportado`: MIME não permite codificação segura;
+- `formulario_da_lupa_inesperado`: controles/action da página não conferem;
+- `pagina_da_lupa_fora_da_forma`: linha, tabela, cabeçalho ou paginação inválida;
+- `lista_unidades_incompleta`: totais, páginas ou IDs não conferem;
+- `lupa_excedeu_orcamento_de_paginas`: número de páginas não foi encerrado.
+
+A lista local é um retrato da leitura, não uma garantia de atualidade.
