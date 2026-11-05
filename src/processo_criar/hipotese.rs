@@ -28,6 +28,7 @@ pub(crate) enum ErroHipotese {
     ConsultaNaoDerivada,
     RespostaNaoReconhecida,
     OpcaoNaoUnica,
+    EscolhaNaoOferecida,
     Transporte {
         subcodigo: &'static str,
         http: Option<StatusHttpRecusado>,
@@ -41,6 +42,7 @@ impl ErroHipotese {
             Self::ConsultaNaoDerivada => "hipotese_legal_ajax_nao_derivada",
             Self::RespostaNaoReconhecida => "hipotese_legal_ajax_resposta_nao_reconhecida",
             Self::OpcaoNaoUnica => "hipotese_legal_ajax_nao_unica",
+            Self::EscolhaNaoOferecida => "hipotese_legal_escolha_nao_oferecida",
             Self::Transporte { subcodigo, .. } => subcodigo,
         }
     }
@@ -120,6 +122,16 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     }
 }
 
+/// Shim TDD: a seleção explícita será implementada após observar o RED.
+/// Até lá não é permitido escolher arbitrariamente entre opções AJAX.
+pub(crate) fn opcao_selecionada(
+    xml: &str,
+    escolha: Option<&str>,
+) -> Result<String, ErroHipotese> {
+    let _ = escolha;
+    opcao_unica(xml)
+}
+
 /// Um único POST de consulta sem efeito de escrita; nenhuma execução de JS.
 /// O ID retornado só pode entrar no cadastro depois da prova de unicidade.
 pub(crate) fn resolver<V: EnvioDoControle>(
@@ -182,6 +194,25 @@ mod tests {
         assert_eq!(
             opcao_unica("<?xml version='1.0'?><select><option value='null'> </option></select>"),
             Err(ErroHipotese::OpcaoNaoUnica)
+        );
+    }
+
+    #[test]
+    fn red_escolhe_segunda_hipotese_por_id_e_nome_exatos() {
+        // Cenário de opções AJAX múltiplas observado no acervo UnB, #245.
+        let xml = "<select><option value='null'> </option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
+        assert_eq!(
+            opcao_selecionada(xml, Some("32#Base B")),
+            Ok("32".to_owned())
+        );
+    }
+
+    #[test]
+    fn red_escolha_nao_publicada_eh_recusada_mesmo_com_opcao_unica() {
+        let xml = "<select><option value='31'>Base A</option></select>";
+        assert_eq!(
+            opcao_selecionada(xml, Some("31#Outra base")),
+            Err(ErroHipotese::EscolhaNaoOferecida)
         );
     }
 
