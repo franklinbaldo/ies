@@ -5,6 +5,8 @@ use rusqlite::params;
 use std::collections::HashSet;
 
 /// Unidade observada na lupa, com identidade opaca.
+// A integração Web/CLI da lista ainda está em desenvolvimento na #244.
+#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UnidadeGuardada {
     pub id: String,
@@ -15,6 +17,7 @@ pub(crate) struct UnidadeGuardada {
 
 /// Snapshot confirmado como integral; não confundir uma lista ausente
 /// com uma lista legitimamente vazia.
+#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ListaGuardada {
     pub unidades: Vec<UnidadeGuardada>,
@@ -26,6 +29,7 @@ impl IndiceLocal {
     /// Substitui uma lista inteira numa transação: sem gravação parcial.
     /// O chamador deve conferir páginas, total declarado, identidade da
     /// instalação, IDs duplicados e forma HTML ANTES desta chamada.
+    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
     pub(crate) fn guardar_lista_de_unidades(
         &self,
         instalacao: &str,
@@ -38,10 +42,15 @@ impl IndiceLocal {
             || unidade_ativa.is_empty()
             || total_declarado != unidades.len()
             || ids.len() != unidades.len()
-            || unidades.iter().any(|u| u.id.is_empty() || u.sigla.is_empty())
+            || unidades
+                .iter()
+                .any(|u| u.id.is_empty() || u.sigla.is_empty())
         {
             return false;
         }
+        let Ok(total_convertido) = i64::try_from(total_declarado) else {
+            return false;
+        };
         self.executar(false, |banco, agora| {
             banco.execute(
                 "DELETE FROM unidade WHERE instalacao=?1 AND unidade_ativa=?2",
@@ -52,7 +61,7 @@ impl IndiceLocal {
                  VALUES (?1, ?2, ?3, ?4)
                  ON CONFLICT(instalacao, unidade_ativa) DO UPDATE
                  SET lida_em=excluded.lida_em, total=excluded.total",
-                params![instalacao, unidade_ativa, agora, total_declarado as i64],
+                params![instalacao, unidade_ativa, agora, total_convertido],
             )?;
             let mut inserir = banco.prepare(
                 "INSERT INTO unidade(instalacao, unidade_ativa, id, sigla, descricao, orgao, lida_em)
@@ -68,6 +77,7 @@ impl IndiceLocal {
     }
 
     /// Sem requisição ao SEI. None significa lista ausente ou índice desligado.
+    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
     pub(crate) fn lista_de_unidades(
         &self,
         instalacao: &str,
@@ -79,7 +89,9 @@ impl IndiceLocal {
                  WHERE instalacao=?1 AND unidade_ativa=?2",
             )?;
             let mut linhas = cabecalho.query(params![instalacao, unidade_ativa])?;
-            let Some(linha) = linhas.next()? else { return Ok(None) };
+            let Some(linha) = linhas.next()? else {
+                return Ok(None);
+            };
             let lida_em: f64 = linha.get(0)?;
             let total: i64 = linha.get(1)?;
             let mut consulta = banco.prepare(
@@ -96,19 +108,21 @@ impl IndiceLocal {
                     })
                 })?
                 .collect::<rusqlite::Result<_>>()?;
-            if usize::try_from(total).ok() != Some(unidades.len()) {
+            let total = usize::try_from(total).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            if total != unidades.len() {
                 return Err(rusqlite::Error::InvalidQuery);
             }
             Ok(Some(ListaGuardada {
                 unidades,
                 lida_em,
-                total: total as usize,
+                total,
             }))
         })
     }
 
     /// Filtra somente o snapshot, por sigla ou descrição, com sigla exata
     /// priorizada. Nenhuma requisição e nenhuma alteração no banco.
+    #[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
     pub(crate) fn pesquisar_unidades_guardadas(
         &self,
         instalacao: &str,
@@ -117,29 +131,37 @@ impl IndiceLocal {
     ) -> Option<ListaGuardada> {
         let mut lista = self.lista_de_unidades(instalacao, unidade_ativa)?;
         let termo = chave(termo);
-        lista.unidades.retain(|u| {
-            chave(&u.sigla).contains(&termo) || chave(&u.descricao).contains(&termo)
-        });
-        lista.unidades.sort_by_key(|u| {
-            (chave(&u.sigla) != termo, chave(&u.sigla), u.id.clone())
-        });
+        lista
+            .unidades
+            .retain(|u| chave(&u.sigla).contains(&termo) || chave(&u.descricao).contains(&termo));
+        lista
+            .unidades
+            .sort_by_key(|u| (chave(&u.sigla) != termo, chave(&u.sigla), u.id.clone()));
         lista.total = lista.unidades.len();
         Some(lista)
     }
 }
 
 /// Normalização de pesquisa local sem expressões regulares; preserva '/'.
+#[cfg_attr(not(test), expect(dead_code, reason = "integração Web/CLI pendente na #244"))]
 fn chave(texto: &str) -> String {
-    texto.trim().chars().flat_map(char::to_lowercase).map(|c| match c {
-        'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
-        'é' | 'è' | 'ê' | 'ë' => 'e',
-        'í' | 'ì' | 'î' | 'ï' => 'i',
-        'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
-        'ú' | 'ù' | 'û' | 'ü' => 'u',
-        'ç' => 'c',
-        'ñ' => 'n',
-        _ => c,
-    }).collect()
+    texto
+        .trim()
+        .chars()
+        .flat_map(char::to_lowercase)
+        // A lupa pode devolver acentos decompostos (Unicode NFD).
+        .filter(|c| !('\u{0300}'..='\u{036f}').contains(c))
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ç' => 'c',
+            'ñ' => 'n',
+            _ => c,
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -149,16 +171,28 @@ mod tests {
 
     fn unidade(id: &str, sigla: &str, descricao: &str) -> UnidadeGuardada {
         UnidadeGuardada {
-            id: id.to_owned(), sigla: sigla.to_owned(),
-            descricao: descricao.to_owned(), orgao: "Orgão".to_owned(),
+            id: id.to_owned(),
+            sigla: sigla.to_owned(),
+            descricao: descricao.to_owned(),
+            orgao: "Orgão".to_owned(),
         }
+    }
+
+    #[test]
+    fn normalizacao_aceita_acentos_precompostos_e_decompostos() {
+        assert_eq!(chave("SÃO/CDE"), chave("Sa\u{0303}o/CDE"));
+        assert_eq!(chave("DESCRIÇÃO"), chave("Descric\u{0327}a\u{0303}o"));
     }
 
     #[test]
     fn snapshot_inteiro_e_consulta_offline() {
         let pasta = std::env::temp_dir().join(format!(
-            "ies-244-{}-{}", std::process::id(),
-            std::thread::current().name().unwrap_or("test").replace(':', "-")
+            "ies-244-{}-{}",
+            std::process::id(),
+            std::thread::current()
+                .name()
+                .unwrap_or("test")
+                .replace(':', "-")
         ));
         std::fs::create_dir_all(&pasta).unwrap();
         #[cfg(unix)]
@@ -168,19 +202,40 @@ mod tests {
         }
         let caminho: PathBuf = pasta.join("ies.sqlite3");
         let indice = IndiceLocal::em(caminho);
-        let lista = [unidade("1", "SEAD/CDE-09516", "Administração"),
-                     unidade("2", "RETOMADA/CDE-21385", "Descrição")];
+        let lista = [
+            unidade("1", "SEAD/CDE-09516", "Administração"),
+            unidade("2", "RETOMADA/CDE-21385", "Descrição"),
+        ];
         assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "7"), None);
         assert!(indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista, 2));
-        let achadas = indice.pesquisar_unidades_guardadas("https://sei.exemplo", "7", "descricão").unwrap();
+        let achadas = indice
+            .pesquisar_unidades_guardadas("https://sei.exemplo", "7", "descricão")
+            .unwrap();
         assert_eq!(achadas.total, 1);
         assert_eq!(achadas.unidades[0].id, "2");
         assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "8"), None);
         // Página incompleta e IDs repetidos não removem o snapshot anterior.
         assert!(!indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista[..1], 2));
-        assert!(!indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &[lista[0].clone(), lista[0].clone()], 2));
-        assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "7").unwrap().total, 2);
+        assert!(!indice.guardar_lista_de_unidades(
+            "https://sei.exemplo",
+            "7",
+            &[lista[0].clone(), lista[0].clone()],
+            2
+        ));
+        assert_eq!(
+            indice
+                .lista_de_unidades("https://sei.exemplo", "7")
+                .unwrap()
+                .total,
+            2
+        );
         assert!(indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &[], 0));
-        assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "7").unwrap().total, 0);
+        assert_eq!(
+            indice
+                .lista_de_unidades("https://sei.exemplo", "7")
+                .unwrap()
+                .total,
+            0
+        );
     }
 }
