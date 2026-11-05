@@ -203,3 +203,12 @@ Também se recusa qualquer campo ausente da tela; tipo sem opção exata é
 `tipo_nao_oferecido_pela_tela`; controles repetidos ou valor diferente
 na página seguinte são recusados. O ensaio live UnB/PEN3 para os novos
 filtros está **NOT_RUN**; não inferir suporte universal.
+
+### Recusas próprias dos filtros
+
+- `criterio_nao_oferecido_pela_tela`: controle inexistente ou assunto sem ID resolvido.
+- `tipo_nao_oferecido_pela_tela`: lista sem a opção exata solicitada.
+- `controle_de_filtro_ambiguo`: campos ou opções repetidos.
+- `atributo_do_filtro_ilegivel`: atributo HTML do filtro inválido.
+- `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
+- `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.
