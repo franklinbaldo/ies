@@ -1,7 +1,7 @@
 //! Uma operação de escrita por confirmação, sem redirecionamento seguido,
 //! sem retry e com uma leitura nova para verificar o estado do processo.
 //! O formulário e a função são extraídos da mesma geração da sessão.
-use super::{Acao, ErroSobrestamento as E, Previa, preparar_com_acao, tela};
+use super::{Acao, ErroSobrestamento as E, PedidoDaMudanca, Previa, preparar_com_acao, tela};
 use crate::arvore_processo::{AbertoEm, ler_endereco_de_retomar};
 use crate::formulario_web::{
     RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
@@ -22,14 +22,17 @@ use crate::visao_do_controle::EnvioDoControle as _;
 /// contrato. O estado de entrada e a ação são conferidos antes de enviar.
 pub(crate) fn executar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
-    nup: &NumeroProcesso,
-    unidade: Option<&str>,
-    acao: Acao,
-    motivo: Option<&str>,
-    confirmar: bool,
+    pedido: &PedidoDaMudanca<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, E> {
+    let PedidoDaMudanca {
+        nup,
+        unidade,
+        acao,
+        motivo,
+        confirmar,
+    } = *pedido;
     if acao == Acao::Sobrestar && motivo.is_none_or(|m| m.trim().is_empty()) {
         return Err(E::MotivoVazio);
     }
@@ -104,7 +107,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 FalhaDoEnvio::RedirecionamentoNaFuncao,
             );
         }
-    };
+    }
     let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
     let depois = verificado.map_err(|_| E::EfeitoIncerto)?.arvore.aberto_em;
