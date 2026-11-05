@@ -38,11 +38,25 @@ where
     P: FnOnce(&mut T, SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
     L: FnOnce(&mut T) -> Result<FotoDaCriacao, ()>,
 {
+    // Nunca emitir uma escrita quando a própria foto inicial já impede
+    // demonstrar seu efeito. Validação anterior à primeira requisição.
+    if antes.pastas_nao_carregadas {
+        return Err(ErroPreviaCriacao::ArvoreIncompleta);
+    }
+    let mut ids = std::collections::HashSet::new();
+    if antes.id.is_empty()
+        || antes
+            .documentos
+            .iter()
+            .any(|documento| documento.id.is_empty() || !ids.insert(documento.id.as_str()))
+    {
+        return Err(ErroPreviaCriacao::FotoInicialInconsistente);
+    }
     let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
         enviar(transporte, post, cookie)
     });
     let depois = reler(transporte).map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
-    if antes.pastas_nao_carregadas || depois.pastas_nao_carregadas || antes.id != depois.id {
+    if depois.pastas_nao_carregadas || antes.id != depois.id {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
