@@ -20,6 +20,17 @@ enum Operacao {
     #[causa(interna)]
     Tela(Interno),
     Folha,
+    #[causa(fonte)]
+    LinkSemHref(Interno),
+}
+
+#[test]
+fn fonte_guarda_a_causa_e_mantem_o_fato() {
+    let erro = Operacao::LinkSemHref(Interno::SessaoEncerrada);
+    assert_eq!(caminho_de(&erro), ["link_sem_href", "sessao_encerrada"]);
+    assert_eq!(folha(&erro), "link_sem_href");
+    assert_eq!(erro.acao(), Acao::Relogar);
+    assert_eq!(folha(&Operacao::Tela(Interno::LinkAusente)), "link_ausente");
 }
 
 #[test]

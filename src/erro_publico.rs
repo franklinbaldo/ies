@@ -45,6 +45,8 @@ impl Acao {
 pub(crate) trait Causa {
     /// Acrescenta o caminho da causa, do erro externo ao mais interno.
     fn caminho(&self, c: &mut Vec<&'static str>);
+    /// O nome do fato: a variante mais interna que não é só uma `fonte`.
+    fn folha(&self) -> &'static str;
     #[allow(dead_code)] // consumido pelo piloto (processo concluir), na PR seguinte.
     fn acao(&self) -> Acao;
     fn status_http(&self) -> Option<&StatusHttpRecusado>;
@@ -59,7 +61,7 @@ pub(crate) fn caminho_de(erro: &impl Causa) -> Vec<&'static str> {
 /// O nome mais interno do caminho: o `subcodigo` publicado até a
 /// migração terminar (obsoleto).
 pub(crate) fn folha(erro: &impl Causa) -> &'static str {
-    caminho_de(erro).last().copied().unwrap_or("desconhecida")
+    erro.folha()
 }
 
 #[allow(dead_code)] // consumido pelo piloto (processo concluir), na PR seguinte.
