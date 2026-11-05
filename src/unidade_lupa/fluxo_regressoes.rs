@@ -174,3 +174,52 @@ fn botao_novo_repetido_eh_recusado_sem_get() {
         Err(FalhaDaLupa::LinkAmbiguo)
     );
 }
+
+#[test]
+fn lupa_go_publicada_como_literal_de_script_eh_lida_sem_executar_js() {
+    // Observação estrutural: cassette GO unidade-listar-destinos-go,
+    // grupo_unidade_cadastrar (passos 2, 6, 10): a URL da lupa aparece
+    // no HTML, mas não em href/onclick de a, button ou input.
+    let consulta = format!("acao=unidade_selecionar_envio_processo&infra_hash={HASH}");
+    let html = format!("<script>const lupa = 'controlador.php?{consulta}';</script>");
+    assert_eq!(
+        destino(
+            &html,
+            &controle(),
+            ORIGEM,
+            "unidade_selecionar_envio_processo"
+        ),
+        Ok(format!("{ORIGEM}/controlador.php?{consulta}")),
+    );
+}
+
+#[test]
+fn dois_literals_assinados_distintos_da_lupa_sao_ambiguos() {
+    let outro = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let html = format!(
+        "<script>const a='controlador.php?acao=unidade_selecionar_envio_processo&infra_hash={HASH}'; const b='controlador.php?acao=unidade_selecionar_envio_processo&infra_hash={outro}';</script>"
+    );
+    assert_eq!(
+        destino(
+            &html,
+            &controle(),
+            ORIGEM,
+            "unidade_selecionar_envio_processo"
+        ),
+        Err(FalhaDaLupa::LinkAmbiguo),
+    );
+}
+
+#[test]
+fn literal_sem_hash_assinado_nao_autoriza_get() {
+    let html = "<script>const lupa='controlador.php?acao=unidade_selecionar_envio_processo';</script>";
+    assert_eq!(
+        destino(
+            html,
+            &controle(),
+            ORIGEM,
+            "unidade_selecionar_envio_processo"
+        ),
+        Err(FalhaDaLupa::LinkAusente),
+    );
+}
