@@ -160,3 +160,26 @@ sem retry e sem produção. Este relatório não afirma PASS live.
 - **Gates:** PASS no head `dc9fbf8`, [run 42112344927](https://github.com/franklinbaldo/ies/actions/runs/42112344927). **Replay:** PASS, seis respostas GO (3 GET, 3 POST), ZIP público conferido, [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185). Zero requisições reais ao SEI nesse replay.
 - **Sandbox Rust / RED local:** NOT_RUN (sem toolchain e sem DNS para instalar). **Live UnB:** NOT_RUN, 0 requisições. **Live GO:** NOT_RUN, 0 requisições. **Pesquisa live:** NOT_RUN. Nenhuma escrita, nenhum resíduo remoto.
 - Ainda faltam ensaios autenticados em UnB/GO, cobertura da coleta integral de múltiplas páginas, integração com a `main` e remoção dos workflows temporários antes de integrar a PR.
+
+
+## Nova fatia 🦊 após a integração da PR #250 — observação pré-RED
+
+**Fonte observada (código já publicado na main, não resposta live):**
+`src/processo_enviar_cli.rs` associa `sugestoes_guardadas` ao erro
+`DestinoNaoOferecidoPeloSei` quando encontra sugestões do snapshot
+SQLite. Porém a apresentação humana é delegada a
+`processo_concluir_cli::publicar_valor_da_falha`, que exibe
+`erro`, `subcodigo`, `aberto_em`, `depois`, `falha_do_envio`
+e `verificacao`, **não** `sugestoes_guardadas`. Assim as sugestões
+ficam acessíveis no modo JSON, mas invisíveis no modo humano.
+A correção terá escopo limitado a `processo enviar`; o SEI
+continuará sendo a autoridade sobre o destino efetivamente oferecido.
+
+**Acervo observado:** o card
+`cassettes/go/unidade-listar-destinos-go--965da599b3e4.md`
+identifica o ZIP público com SHA-1 fixo. O teste Rust existente
+`unidade_lupa::acervo::replay_da_lupa_go_no_acervo` confere o membro
+e processa seis respostas (3 GET e 3 POST) sem contato com o SEI,
+mas ainda está fora do CI canônico. A nova PR integra o replay
+à execução obrigatória do mesmo `ci.yml`. Este replay não demonstra
+coleta integral de 274 páginas e não substitui live UnB/GO.
