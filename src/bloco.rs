@@ -114,9 +114,17 @@ impl ListaComLinks {
     }
 }
 
-fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
+fn texto_no(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     crate::entidades_html::decodificar_texto(&no.inner_text(parser))
         .replace('\u{a0}', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
+    crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
+        .replace('\\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -138,7 +146,7 @@ fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<S
             if headers.is_some() {
                 return Err(ErroBloco::CabecalhoDeBlocosNaoReconhecido);
             }
-            headers = Some(th.iter().map(|t| texto(&tl::Node::Tag((*t).clone()), parser)).collect::<Vec<_>>());
+            headers = Some(th.iter().map(|t| texto_tag(t, parser)).collect::<Vec<_>>());
         }
     }
     let h = headers.ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
@@ -246,12 +254,12 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
         itens.push(BlocoLido {
             numero,
             tipo,
-            estado: texto(&tl::Node::Tag(td[indice_estado].clone()), parser),
-            descricao: texto(&tl::Node::Tag(td[indice_descricao].clone()), parser),
+            estado: texto_tag(td[indice_estado], parser),
+            descricao: texto_tag(td[indice_descricao], parser),
             quantidade_itens: None,
         });
     }
-    let (total_declarado, faixa_observada) = declaracao(&texto(legenda, parser), itens.len())?;
+    let (total_declarado, faixa_observada) = declaracao(&texto_no(legenda, parser), itens.len())?;
     Ok(ListaComLinks {
         lista: ListaDeBlocos { tipo, total_declarado, faixa_observada, itens },
         links,
