@@ -1,9 +1,9 @@
 //! Superfície da criação de processos (#245).
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
-use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
-use crate::processo_criar_fluxo::{PedidoCriar, ErroCriar, criar};
+use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
 use crate::visao_do_controle::EnvioHttps;
+use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -64,16 +64,19 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
 
 fn erro_do_fluxo(json_mode: bool, erro: ErroCriar) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
-            "subcodigo": erro.subcodigo(),
-            "erro": if erro.saida() == 3 {
-                "o envio pode ter criado o processo; confira os gerados antes de repetir"
-            } else {
-                "a tela do SEI não permitiu concluir o fluxo de criação com segurança"
-            },
-            "retentavel": false
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
+                "subcodigo": erro.subcodigo(),
+                "erro": if erro.saida() == 3 {
+                    "o envio pode ter criado o processo; confira os gerados antes de repetir"
+                } else {
+                    "a tela do SEI não permitiu concluir o fluxo de criação com segurança"
+                },
+                "retentavel": false
+            })
+        );
     } else {
         eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
         if erro.saida() == 3 {
@@ -133,22 +136,31 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     Some(match resultado {
         Ok(feito) => {
             if cli.json {
-                println!("{}", json!({
-                    "tipo": feito.tipo,
-                    "especificacao": especificacao,
-                    "assunto": feito.assunto,
-                    "nivel": feito.nivel,
-                    "unidade": feito.unidade,
-                    "confirmado": feito.confirmado,
-                    "nup": feito.nup,
-                    "origem": "web",
-                    "requisicoes": feito.requisicoes,
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "tipo": feito.tipo,
+                        "especificacao": especificacao,
+                        "assunto": feito.assunto,
+                        "nivel": feito.nivel,
+                        "unidade": feito.unidade,
+                        "confirmado": feito.confirmado,
+                        "nup": feito.nup,
+                        "origem": "web",
+                        "requisicoes": feito.requisicoes,
+                    })
+                );
             } else {
                 println!(
                     "IES: {} processo «{}» na unidade {} ({} requisições).",
-                    if feito.confirmado { "criado" } else { "prévia de criação de" },
-                    feito.tipo, feito.unidade, feito.requisicoes
+                    if feito.confirmado {
+                        "criado"
+                    } else {
+                        "prévia de criação de"
+                    },
+                    feito.tipo,
+                    feito.unidade,
+                    feito.requisicoes
                 );
                 println!("Especificação: {especificacao}");
                 println!("Assunto sugerido: {}", feito.assunto);
