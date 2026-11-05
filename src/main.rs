@@ -91,6 +91,8 @@ mod processo_marcar;
 mod processo_marcar_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_prazo;
+mod processo_prazo_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod processo_relacionar;
@@ -386,6 +388,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_prazo_cli::tentar_prazo(cli))
         .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))

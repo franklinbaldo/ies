@@ -87,7 +87,9 @@ pub(crate) use barra_do_documento::{
 };
 #[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
-pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use barra_do_processo::{
+    ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
+};
 pub(crate) use ciencia::{
     ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
 };
