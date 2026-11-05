@@ -23,6 +23,8 @@ class TestBaixarAcervoProcessoCriar(unittest.TestCase):
         for inst in INSTALACOES:
             (self.raiz / inst).mkdir(parents=True)
             self.card(instalacao=inst, nome="base")
+            self.card(instalacao=inst, nome="segundo")
+        self.card(instalacao="unb", nome="terceiro")
 
     def card(self, instalacao="unb", nome="um", origem=None, sha=SHA1):
         url = origem or f"{ORIGEM}todos-sei-cassettes-{instalacao}.zip"
@@ -38,6 +40,11 @@ class TestBaixarAcervoProcessoCriar(unittest.TestCase):
         manifesto = manifestar(self.raiz)
         self.assertEqual(set(manifesto), {f"todos-sei-cassettes-{inst}.zip" for inst in INSTALACOES})
         self.assertEqual(manifesto["todos-sei-cassettes-unb.zip"], SHA1)
+
+    def test_manifesto_nao_pode_perder_card_da_cobertura_original(self):
+        (self.raiz / "unb" / "processo-criar-terceiro.md").unlink()
+        with self.assertRaises(ValueError):
+            manifestar(self.raiz)
 
     def test_manifesto_recusa_origem_inesperada_ou_hash_divergente(self):
         self.card(origem="https://exemplo.invalid/segredo.zip")
