@@ -130,7 +130,8 @@ fn conferir_cadastro_interno(
         _ => return Err(E::NivelNaoOferecido),
     }
 
-    let (id_assunto, assunto, hipotese_legal) = conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
+    let (id_assunto, assunto, hipotese_legal) =
+        conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
     Ok(CadastroObservado {
         id_tipo: id_tipo.to_owned(),
         assunto,
