@@ -54,7 +54,7 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
 | `ies unidade gerados` | **uma** lista, `categoria: "gerados"` | 1 GET (sessão na D: + 1 POST R) |
 | `ies unidade recebidos\|gerados --pagina N` | uma lista, faixa da página N | 1 GET + 0 ou 1 POST (sessão na D: + 1 POST R) |
 
-Com `--pagina N`, N fora do intervalo é `pagina_fora_do_intervalo`
+Com `--pagina N`, N fora do intervalo é `pagina_da_caixa_fora_do_intervalo`
 **antes** de qualquer POST; N igual à página mostrada não faz POST. A
 sequência e as recusas estão nas [páginas da caixa](unidade-listar-processos-paginas.md).
 
