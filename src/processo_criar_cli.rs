@@ -2,7 +2,7 @@
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
 use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
-use crate::saida_erro::erro_fonte_http;
+use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
@@ -84,13 +84,46 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
     ExitCode::from(2)
 }
 
+/// O diagnóstico é formado exclusivamente por opções XML habilitadas,
+/// de IDs distintos e sem controles. Nada de URLs assinadas ou cookies.
+fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
+    json!(
+        opcoes
+            .iter()
+            .map(|(id, nome)| {
+                json!({ "id": id, "nome": nome, "argumento": format!("{id}#{nome}") })
+            })
+            .collect::<Vec<_>>()
+    )
+}
+
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     if erro.saida() != 3 {
+        let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
+        if let Some(opcoes) = erro.opcoes_para_escolha() {
+            if json_mode {
+                let mut valor = json_de_erro_fonte(
+                    erro.subcodigo(),
+                    mensagem,
+                    erro.status_http(),
+                );
+                valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
+                println!("{valor}");
+            } else {
+                eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
+                eprintln!("IES: hipóteses legais ofertadas no AJAX:");
+                for (id, nome) in opcoes {
+                    eprintln!("  {id}#{nome}");
+                }
+                eprintln!("IES: faça nova prévia com --hipotese-legal ID#NOME antes de confirmar.");
+            }
+            return ExitCode::from(1);
+        }
         // Status e mensagem saneada do SEI vão para a saída quando houve.
         return erro_fonte_http(
             json_mode,
             erro.subcodigo(),
-            "a tela do SEI não permitiu concluir o fluxo de criação com segurança",
+            mensagem,
             erro.status_http(),
         );
     }
@@ -242,6 +275,21 @@ mod tests {
             Err(ErroEntradaCriacao::Hipotese)
         );
         assert_eq!(validar_hipotese("restrito", Some("31#Base A")), Ok(()));
+    }
+
+    #[test]
+    fn diagnostico_json_da_hipotese_nao_expoe_url_assinada() {
+        let opcoes = vec![
+            ("31".to_owned(), "Base A".to_owned()),
+            ("32".to_owned(), "Base B".to_owned()),
+        ];
+        assert_eq!(
+            json_de_opcoes(&opcoes),
+            json!([
+                { "id": "31", "nome": "Base A", "argumento": "31#Base A" },
+                { "id": "32", "nome": "Base B", "argumento": "32#Base B" }
+            ])
+        );
     }
 
     #[test]
