@@ -49,6 +49,12 @@ impl ErroHipotese {
         }
     }
 
+    /// Shim de contrato TDD: o RED exige que opções observadas sejam
+    /// disponibilizadas ao operador sem autorizar a escrita.
+    pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
+        None
+    }
+
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
@@ -249,6 +255,27 @@ mod tests {
         assert_eq!(
             opcao_selecionada(duplicada, Some("32#Base B")),
             Err(ErroHipotese::OpcaoNaoUnica)
+        );
+    }
+
+    #[test]
+    fn red_oferece_id_e_nome_exatos_de_duas_hipoteses_ajax() {
+        let xml = "<select><option value='null'>Selecione</option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
+        let erro = opcao_selecionada(xml, None).expect_err("sem escolha nao escreve");
+        assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
+        assert_eq!(
+            erro.opcoes_para_escolha(),
+            Some(&[("31".to_owned(), "Base A".to_owned()), ("32".to_owned(), "Base B".to_owned())][..])
+        );
+    }
+
+    #[test]
+    fn red_nao_sugere_hipotese_desabilitada() {
+        let xml = "<select><option value='31'>Base A</option><option value='32' disabled>Desabilitada</option><option value='33'>Base C</option></select>";
+        let erro = opcao_selecionada(xml, None).expect_err("multiplas hipoteses");
+        assert_eq!(
+            erro.opcoes_para_escolha(),
+            Some(&[("31".to_owned(), "Base A".to_owned()), ("33".to_owned(), "Base C".to_owned())][..])
         );
     }
 
