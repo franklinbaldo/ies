@@ -1,5 +1,7 @@
 ---
 type: CommandContract
+operation: processo.comentarios
+implementation: partial
 title: Leitura e escrita de comentários em processos
 description: Contrato da operação processo comentarios e processo comentar com leitura da tabela e reconciliação da escrita
 ---
