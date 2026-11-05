@@ -65,6 +65,18 @@ O usuário deve conferir a unidade antes de nova tentativa.
 | `tipo_de_processo_ambiguo` | Mais de uma âncora com nome exato |
 | `tipo_de_processo_sem_acao` | Âncora sem ação segura ou desabilitada |
 | `lista_de_tipos_incompleta` | Tipo não encontrado na lista curta; não inferir ausência |
+| `cadastro_de_processo_html_invalido` | HTML do cadastro ilegível |
+| `cadastro_de_processo_ausente_ou_repetido` | Formulário de cadastro ausente ou repetido |
+| `tipo_do_cadastro_divergente` | ID do tipo no cadastro diferente do escolhido |
+| `especificacao_nao_publicada_no_cadastro` | Campo de especificação ausente ou desabilitado |
+| `assunto_sugerido_nao_unico` | Nenhum ou vários assuntos selecionáveis no cadastro |
+| `nivel_de_acesso_nao_oferecido` | Rádio de acesso solicitado não está publicado |
+| `nivel_de_acesso_desabilitado` | Rádio publicado mas desabilitado |
+| `hipotese_legal_nao_identificada` | Hipótese legal única não publicada |
+| `tipo_de_processo_invalido` | Tipo CLI vazio ou contém controle |
+| `especificacao_de_processo_invalida` | Especificação CLI vazia ou contém controle |
+| `interessado_de_processo_invalido` | Interessado CLI vazio ou contém controle |
+| `fluxo_de_criacao_ainda_nao_validado` | Execução remota deliberadamente bloqueada até fluxo seguro completo |
 
 ## Subcódigos candidatos
 
