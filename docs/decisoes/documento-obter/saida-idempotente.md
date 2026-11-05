@@ -4,9 +4,9 @@ title: Gravar só a foto DOC.vN.html, de forma idempotente, em documento DOC --s
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: apêndice da decisão de documento.obter (#207); com --saida DIR, ies documento DOC grava só DOC.vN.html, o HTML servido da versão N lida, sem DOC.txt, DOC.vN.txt nem base e manifesto ocultos; mesmo SHA-256 é no-op, conteúdo diferente é recusa tipada; o SHA-256 vai para o índice local, que a prévia de documento salvar confere
+scope: apêndice da decisão de documento.obter (#207); com --saida DIR, ies documento DOC grava só DOC.vN.html, o HTML servido da versão N lida, sem DOC.txt, DOC.vN.txt nem base e manifesto ocultos; mesmo SHA-256 é no-op, conteúdo diferente é recusa tipada; nenhum registro no índice local (a releitura e o salvar remoto conferem a foto)
 selected_strategy: foto-por-versao-idempotente
-alternatives: foto-por-versao-idempotente,texto-e-copia-de-trabalho,foto-com-manifesto-oculto,sobrescrever
+alternatives: foto-por-versao-idempotente,texto-e-copia-de-trabalho,foto-com-manifesto-oculto,foto-registrada-no-indice,sobrescrever
 evidence_level: testes-sinteticos-replay-do-acervo-e-live-unb
 live_validation: pass-unb-4-0-9
 ---
@@ -31,6 +31,9 @@ Decisão do proprietário de 05/11/2026. **Substitui** o nome do texto
   assinada, a cópia `DOC.vN.html` com base e manifesto ocultos.
 - **foto-com-manifesto-oculto:** a foto mais um `.DOC.vN.meta.json`
   com o SHA-256 e o id interno.
+- **foto-registrada-no-indice:** a foto mais o SHA-256 numa tabela
+  `foto` do índice local (esquema 3), que a prévia de `salvar` conferia.
+  Foi a primeira versão de #219; revertida antes do merge (abaixo).
 - **sobrescrever:** gravar sempre por cima.
 
 ## Comparação
@@ -44,11 +47,14 @@ Decisão do proprietário de 05/11/2026. **Substitui** o nome do texto
   (`arquivo_texto_documento_ja_existe`, `copia_versao_ja_existe`). O
   texto se obtém do HTML; a base é a própria foto; o id interno está no
   [índice local](../../arquitetura/0003-indice-local.md).
-- **Onde guardar o SHA-256.** A prévia de `salvar` precisa saber se a
-  foto vN ainda é o que o SEI serviu. Sem arquivo oculto, o lugar é o
-  índice local (tabela `foto`, esquema 3), que já guarda o que foi
-  observado na instalação. O manifesto oculto repetiria o que o índice
-  já faz e voltaria a espalhar arquivos.
+- **Onde guardar o SHA-256: em lugar nenhum.** Saber se a foto vN
+  ainda é o que o SEI serviu só importa em dois momentos, e os dois já
+  falam com o SEI: a releitura (`ies documento DOC --saida` compara a
+  foto local com o HTML servido e recusa com `foto_local_divergente`) e
+  o salvar remoto (#89), que lerá a versão N para confirmar que ainda é
+  a atual e comparará o hash com a vN local. Um registro local (manifesto
+  oculto ou tabela do índice) repetiria essas conferências, só que contra
+  uma memória do disco em vez do servidor.
 - **Sobrescrever** apagaria a edição local `DOC.v(N+1).html` não
   enviada se a numeração coincidisse e viola o "sem sobrescrever".
 - **Custo.** Nenhuma requisição a mais: N vem do rodapé servido (G + 1);
@@ -74,6 +80,10 @@ Adotada **foto-por-versao-idempotente**:
   nome (título do mesmo número SEI e rodapé, se houver, da versão N).
   Os bytes só se comparam depois da leitura.
 - `--sem-copia` saiu (não há mais cópia opcional).
+- Nada vai para o índice local. A prévia de `documento salvar` é
+  offline: compara `DOC.vN.html` com `DOC.v(N+1).html` sem índice,
+  configuração nem sessão e declara `base_verificada: false`
+  ([decisão de salvar](../documento-salvar.md)).
 - **Externo:** continua `DOC.pdf`, `DOC.txt` ou `DOC.html` (o arquivo
   original), sem sobrescrever, como na fatia 3 do #60. O externo não
   serve rodapé nem publica a lista (observado), então não há versão
@@ -88,11 +98,15 @@ Adotada **foto-por-versao-idempotente**:
 - Testes sintéticos: `foto_documento::tests`,
   `processo_obter::tests_documento_versoes`, `documento_versao_cli::testes`,
   `documento_obter_cli::testes`, `copia_documento::tests_par`,
-  `copia_listagem::testes`, `indice_local::tests_fotos` e
+  `copia_listagem::testes` e
   [cli_documento_saida](../../../tests/cli_documento_saida.rs).
 - RED: 26 testes falhando com a implementação em stub (23 unitários,
   3 de CLI); um deles era o teste de migração 1 → 2, que precisou
-  remover também a tabela nova.
+  remover também a tabela nova (essa linha voltou a ser a de `main`
+  quando a tabela saiu).
+- Retirada da tabela `foto` (05/11/2026): RED de 9 testes (7 unitários,
+  2 de CLI), entre eles os de esquema 2 e da migração 1 → 2, e a prévia
+  offline sem índice nem configuração.
 - Replay do acervo (`scripts/replay`) de `replay_de_documento_no_acervo`
   e `replay_de_versoes_no_acervo`: relatório idêntico ao de `main`.
 - [Ensaio live na UnB 4.0.9](../../validacao-live/2026-11-05-documento-saida-idempotente.md):
@@ -104,7 +118,19 @@ A idempotência supõe que o SEI serve os mesmos bytes para a mesma
 versão: visto na UnB (duas leituras), não nas outras instalações. Se
 uma instalação variar o HTML (data, token), a segunda leitura sairia
 `foto_local_divergente`: rever então para comparar só o conteúdo do
-corpo. Sem índice (`IES_SEM_INDICE` ou banco desligado), a foto é
-gravada mas não registrada, e a prévia de `salvar` recusa a base. Um
+corpo. Entre a leitura e o salvar remoto, uma foto alterada à mão só é
+notada na releitura ou no salvar remoto; a prévia local não a detecta. Um
 parcial `.DOC.vN.html.parcial-PID` pode sobrar se o processo morrer
 entre a criação e a remoção. A escrita remota (#89) fica fora.
+
+## Revisão de 05/11/2026: sem a tabela `foto`
+
+A primeira versão de #219 registrava o SHA-256 de cada foto numa tabela
+`foto` do índice (esquema 2 → 3), e a prévia de `salvar` só aceitava a
+base que batesse com ele (`base_versao_nao_registrada`,
+`base_versao_divergente`). O proprietário decidiu que é redundante: a
+releitura já confere a foto com o HTML servido (`foto_local_divergente`)
+e o salvar remoto (#89) relerá a versão N do SEI de qualquer modo. A
+tabela, a migração e os dois subcódigos saíram antes do merge; o esquema
+volta a 2 (o 3 nunca foi publicado) e a prévia passou a ser puramente
+offline.

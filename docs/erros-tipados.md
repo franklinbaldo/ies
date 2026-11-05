@@ -136,9 +136,9 @@ Com #207, `ConteudoComLinkAssinado` (`conteudo_com_link_assinado`) e, sem
 rodapé nem lista, `ListaDeVersoesNaoPublicadaNaArvore` também recusam a
 foto de `--saida`. A gravação local é `ErroCopia`
 (`src/copia_documento.rs`): `foto_local_divergente`,
-`gravacao_foto_falhou` e, na prévia de `salvar`, `base_versao_ausente`,
-`base_versao_nao_registrada`, `base_versao_divergente`,
-`versao_editada_ausente` e `versao_editada_igual_a_base`
+`gravacao_foto_falhou` e, na prévia offline de `salvar`,
+`base_versao_ausente`, `versao_editada_ausente` e
+`versao_editada_igual_a_base` (a prévia não confere a base com o SEI)
 ([contrato](../contracts/cli/documento-obter-versoes.md)).
 
 ## Reabrir o processo

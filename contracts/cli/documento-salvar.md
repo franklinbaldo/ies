@@ -21,34 +21,37 @@ ocultos: a base é a própria foto. A decisão do proprietário de
 ## Escolha do par
 
 - `--versao N`: a base é `DOC.vN.html` e a edição `DOC.v(N+1).html`.
-- Sem `--versao`: a maior versão **local** M. Se `DOC.vM.html` é uma
-  foto registrada com o mesmo SHA-256, a base é M (e a edição M + 1
-  ainda falta); senão a edição é M e a base, M − 1. Isso não afirma a
-  versão remota atual.
+- Sem `--versao`: a maior versão **local** M. Se `DOC.v(M−1).html`
+  existe, a base é M − 1 e a edição M; senão a base é M e a edição
+  M + 1 ainda falta. Só os nomes contam; isso não afirma a versão
+  remota atual.
 
-## Conferência da base
+## Base não verificada
 
-A foto só vale como base se o SHA-256 de `DOC.vN.html` é o que o
-[índice local](../../docs/arquitetura/0003-indice-local.md) registrou
-(tabela `foto`, por instalação, número SEI e versão) quando a leitura a
-gravou ou a achou igual. A instalação vem da configuração de sessão
-(`IES_ORIGEM_FILE`), lida só do disco. Sem configuração ou com o índice
-desligado, nenhuma foto está registrada.
+A prévia é **puramente offline**: não lê o índice local, a configuração
+nem os arquivos de sessão, e por isso **não verifica** que `DOC.vN.html`
+ainda é o que o SEI serviu. Diz isso na saída: `base_verificada: false`
+no JSON e "base não verificada" no texto. A base é conferida com o SEI
+em dois outros pontos:
+
+- **releitura:** `ies documento DOC --saida` compara a foto local com o
+  HTML servido e recusa com `foto_local_divergente`
+  ([versões e foto](documento-obter-versoes.md));
+- **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
+  que ainda é a atual e comparará o hash com a vN local.
 
 | Subcódigo | Fato |
 | --- | --- |
 | `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
-| `base_versao_nao_registrada` | o índice não tem o SHA-256 da foto vN |
-| `base_versao_divergente` | a foto vN foi alterada depois de gravada |
 | `versao_editada_ausente` | `DOC.v(N+1).html` falta |
 | `versao_editada_igual_a_base` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
 | `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
 | `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
 
-A prévia é **offline**, não expõe o corpo, URLs assinadas ou cookies e
-não abre o editor. O JSON traz `previa` com `documento`, `versao_base`,
-`versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`
-e `trecho_divergente`, e `confirmado: false`.
+A prévia não expõe o corpo, URLs assinadas ou cookies e não abre o
+editor. O JSON traz `previa` com `documento`, `versao_base`,
+`versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
+`base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
 `--confirmar` **não envia POST no SEI**: retorna
 `escrita_remota_nao_validada` após conferir o par. A escrita Web (#89)
@@ -87,18 +90,24 @@ contra alteração simultânea dos bytes depois da leitura.
 `ies documento salvar DOC --listar-copias [--json]` enumera **somente**
 os `DOC.vN.html` do diretório atual, em ordem **numérica**, sem rede.
 Não recebe `--versao` nem `--confirmar`; não equivale a listar versões
-do SEI. Cada entrada traz `documento`, `versao`, `bytes` e `foto`
-(`true`: SHA-256 igual ao registrado; `false`: arquivo local não
-registrado, como a edição). Foto registrada e alterada recusa a lista
-inteira (`foto_local_divergente`); também recusam diretório simbólico,
+do SEI. Cada entrada traz `documento`, `versao` e `bytes`; não diz qual
+arquivo é foto e qual é edição, porque offline não há como saber. Um
+arquivo inseguro recusa a lista inteira, assim como diretório simbólico,
 nome inválido, duas grafias da mesma versão e mais de 128 versões
 (`limite_copias_locais`).
 
-A saída JSON contém `copias`, `escopo: versoes_locais_verificadas`,
+A saída JSON contém `copias`, `escopo: arquivos_locais`,
 `versao_remota_confirmada: false` e `escrita_remota: false`. Lista
 vazia significa só que não há arquivos desse número no diretório.
 Nunca publicar conteúdo HTML nem alegar versão atual no servidor.
 
-Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida, com
-`base_versao_divergente` depois de alterar um byte da foto
+O escopo `arquivos_locais` diz o que a lista é: arquivos `DOC.vN.html`
+conferidos só quanto à segurança da leitura (regular, privado, nome na
+forma), sem conteúdo verificado com o SEI ou com registro algum; o
+antigo `versoes_locais_verificadas` sugeria uma verificação que não há.
+
+Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida
 ([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
+Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
+essa conferência saiu da prévia e passou à releitura
+(`foto_local_divergente`) e ao salvar remoto.

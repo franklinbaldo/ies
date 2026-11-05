@@ -50,6 +50,20 @@ túneis com o mesmo relay como proxy), com o índice do ensaio:
 | `salvar --listar-copias` | **PASS**: v3 `foto: true`, v4 `foto: false` |
 | v3 com um byte a mais | **PASS**: `base_versao_divergente` |
 
+Revisão posterior ao ensaio (05/11/2026, só offline, nada reexecutado ao
+vivo): a tabela `foto` do índice saiu
+([decisão](../decisoes/documento-obter/saida-idempotente.md)) e a
+prévia passou a ser puramente offline, sem índice nem configuração, com
+`base_verificada: false`. Com o binário atual, a terceira linha não
+recusa mais: a foto v3 alterada em um byte passa pela prévia. A
+conferência da base mudou de lugar: a releitura
+(`ies documento DOC --saida`) a recusa com `foto_local_divergente`, e o
+salvar remoto (#89) relerá a versão N do SEI. A recusa da releitura
+depois da rede não foi provocada ao vivo (NOT_RUN abaixo). Na segunda
+linha, `--listar-copias` não traz mais o campo `foto` (só `documento`,
+`versao`, `bytes`, com `escopo: arquivos_locais`). As linhas acima ficam
+como foram observadas no commit `94635aa`.
+
 ## Leitura
 
 - **Idempotência.** O `documento_visualizar` da versão atual serviu os
@@ -68,4 +82,4 @@ túneis com o mesmo relay como proxy), com o índice do ensaio:
 | --- | --- |
 | gravar `DOC.v1.html` de versão histórica ao vivo | a sessão estava na `Unidade2`, sem a lista na barra (L3, L4); coberto por teste sintético |
 | foto sem rodapé pela lista (G + 2) | nenhum documento sem rodapé lido; coberto por teste sintético |
-| recusa `foto_local_divergente` depois da rede | não provocada ao vivo; coberta por testes sintéticos |
+| recusa `foto_local_divergente` depois da rede | não provocada ao vivo; coberta por testes sintéticos; desde a retirada da tabela `foto` é a conferência local da base antes do salvar remoto |

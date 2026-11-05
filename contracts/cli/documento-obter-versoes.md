@@ -116,10 +116,11 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
   `hard_link` para o nome final (falha se o nome surgiu: nunca
   sobrescreve), sem seguir link. HTML com `infra_hash` não vai a arquivo
   (`conteudo_com_link_assinado`).
-- **Índice.** O SHA-256 de cada foto gravada, ou achada igual, vai para
-  o índice local (tabela `foto`), por instalação, número SEI e versão.
-  A prévia de [`documento salvar`](documento-salvar.md) confere a base
-  por ele.
+- **Sem registro.** Nada vai para o índice local: o arquivo é a única
+  memória da foto. Quem confere que `DOC.vN.html` ainda é o que o SEI
+  serve é a releitura (`foto_local_divergente`, acima) e, no futuro, o
+  salvar remoto (#89), que relê a versão N. A prévia de
+  [`documento salvar`](documento-salvar.md) é offline e não a verifica.
 - **Edição (#89).** O agente cria `DOC.v(N+1).html` a partir de
   `DOC.vN.html`; a prévia local compara o par. A escrita remota segue
   pendente.
@@ -159,8 +160,7 @@ externo), `barra_do_documento_fora_da_forma_observada`.
 
 Leitura. A lista e a versão são GET de telas publicadas; se marcam algo
 como visitado não foi medido. Nenhuma escrita no SEI, nenhum editor,
-nenhuma recuperação de versão. Localmente, só a foto em `DIR` e a linha
-`foto` do índice.
+nenhuma recuperação de versão. Localmente, só a foto em `DIR`.
 
 Live na UnB 4.0.9 (04/11/2026, [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)): `--versao 1` **PASS**
 (versão 1 de 3, 4 requisições); processo concluído ou aberto só em outra

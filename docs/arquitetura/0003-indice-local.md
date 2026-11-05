@@ -87,7 +87,6 @@ versão mais nova que o binário desliga o índice sem tocar nele.
 | `processo` | `(origem, nup)`, `(origem, id_procedimento)` únicos | durável até divergir | NUP ↔ id |
 | `link_assinado` | `(origem, geracao_sessao, unidade, acao, objeto)` | só a geração de sessão em que foi visto | URL assinada **literal** |
 | `documento` (versão 2) | `(origem, numero_sei)`, `(origem, id_documento)` únicos | durável até divergir | número SEI ↔ (`id_procedimento`, `id_documento`) |
-| `foto` (versão 3) | `(origem, numero_sei, versao)` | durável; a observação nova da versão substitui | SHA-256 da foto `DOC.vN.html` gravada por `--saida` (#207) |
 
 `origem` é a identidade publicada da instalação (`https://host[/base]`,
 de `Instalacao::url_base`). O NUP é texto opaco, comparado byte a byte,
@@ -99,12 +98,7 @@ vai para URL. A tabela `documento` aprende de toda árvore conferida
 (`processo NUP` e `documento DOC`), numa transação; número ou id repetido
 na mesma árvore é pulado. A migração 1 → 2 cria a tabela e as colunas
 `entrada_com_documento`, `entrada_com_documento_testado_em` e
-`recusas_com_documento` de `instalacao`. A migração 2 → 3 (#207) cria
-a tabela `foto`: `ies documento DOC --saida` registra o SHA-256 de cada
-foto gravada ou achada igual, e a prévia de `documento salvar` confere a
-base por ele ([decisão](../decisoes/documento-obter/saida-idempotente.md)).
-Diferente das demais, ela guarda um fato do disco local (o que foi
-gravado), não um palpite de rede; o servidor não a desmente.
+`recusas_com_documento` de `instalacao`.
 
 ### Regras de operação
 
