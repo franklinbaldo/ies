@@ -50,10 +50,21 @@ fn criar_confirmar_sem_sessao_falha_fechado_sem_acesso_a_rede() {
 }
 
 #[test]
-fn criar_sem_tipo_e_nup_invalido_sao_recusados_no_clap_ou_preflight() {
+fn criar_sem_tipo_e_referencia_legada_sao_recusados_no_clap_ou_preflight() {
     let sem_tipo = executar(&["documento", "criar", "--processo", "00001.000001/2026-01"]);
     assert_eq!(sem_tipo.status.code(), Some(2));
-    let nup_invalido = executar(&[
+    let referencia_legada = executar(&[
+        "documento",
+        "criar",
+        "--processo",
+        "sei://legacy",
+        "--tipo",
+        "Despacho",
+    ]);
+    assert_eq!(referencia_legada.status.code(), Some(2));
+    // NumeroProcesso é entrada opaca; uma forma desconhecida só é avaliada
+    // pela instalação. Sem sessão, a CLI recusa sem acesso à rede (saída 1).
+    let entrada_opaca = executar(&[
         "documento",
         "criar",
         "--processo",
@@ -61,5 +72,5 @@ fn criar_sem_tipo_e_nup_invalido_sao_recusados_no_clap_ou_preflight() {
         "--tipo",
         "Despacho",
     ]);
-    assert_eq!(nup_invalido.status.code(), Some(2));
+    assert_eq!(entrada_opaca.status.code(), Some(1));
 }
