@@ -4,6 +4,9 @@ mod arquivo_copia;
 mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
+mod bloco;
+mod bloco_cli;
+mod bloco_detalhe;
 mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
@@ -128,6 +131,8 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
+    /// Leitura de blocos de assinatura, internos e de reunião
+    Bloco(Bloco),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -219,6 +224,26 @@ enum DocumentoAcao {
         /// Assina (não se desfaz); exige --cargo
         #[arg(long, requires = "cargo")]
         confirmar: bool,
+    },
+}
+
+#[derive(Debug, Args)]
+struct Bloco {
+    /// Número de bloco de assinatura a detalhar; sem número, usar listar
+    numero: Option<String>,
+    #[command(subcommand)]
+    acao: Option<BlocoAcao>,
+}
+#[derive(Debug, Subcommand)]
+enum BlocoAcao {
+    /// Lista blocos da unidade na página atualmente observada
+    Listar {
+        /// Tipo de bloco oferecido pelo menu Web
+        #[arg(long, value_enum, default_value = "assinatura")]
+        tipo: bloco::TipoBloco,
+        /// Página 1: validação da página atual; páginas adicionais em desenvolvimento
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        pagina: Option<u32>,
     },
 }
 
@@ -373,6 +398,7 @@ fn run(cli: &Cli) -> ExitCode {
         return status;
     }
     match &cli.command {
+        Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {

@@ -170,3 +170,5 @@ Passos sem cassette indexada: 0.
 - [unidade.definir_colunas](unidade-definir_colunas.md) — escrita do Nível de detalhe derivada do ensaio do proprietário, não operação original do Todos.
 - [unidade.trocar](unidade-trocar.md) — troca da unidade da sessão aprovada pelo proprietário (#205), não operação original do Todos.
 - [sessao.login](sessao-login.md) — login Web derivado do comportamento do Todos e de telas públicas de login, não operação original da matriz.
+
+- [bloco.listar](bloco-listar.md) — leitor Web parcial a partir de cenários do Todos @323eb01 (#256), ainda sem validação live.
