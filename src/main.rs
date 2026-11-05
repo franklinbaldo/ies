@@ -447,7 +447,9 @@ fn run(cli: &Cli) -> ExitCode {
         }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Retornos { mes }),
-        }) => return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref()),
+        }) => {
+            return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref());
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
