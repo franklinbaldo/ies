@@ -320,3 +320,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     plano.requisicoes = rede.feitas();
     Ok(plano)
 }
+
+#[cfg(test)]
+#[path = "tests_fluxo.rs"]
+mod tests;
