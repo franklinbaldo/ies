@@ -6,9 +6,9 @@ use crate::arvore_processo::ProcessoNaArvore;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
-    SubmissaoDerivada, TelaServida, consulta_do_controlador, derivar_submissao,
-    enviar_submissao_via, localizar_formulario,
+    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
+    TelaServida, consulta_do_controlador, derivar_submissao, enviar_submissao_via,
+    localizar_formulario,
 };
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
@@ -65,11 +65,10 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoCancelado, E> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(
-        ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(
-            FalhaTransporte::OrigemNaoAutorizada,
-        )),
-    ))?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(ErroDocumentoObter::Processo(
+            ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+        )))?;
     let motivo = conferir_motivo(pedido.motivo).map_err(|_| E::MotivoNaoPublicadoNaTela)?;
     let mut rede = Contador::novo(envio);
     let leitura = PedidoDoDocumento {
@@ -78,30 +77,49 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         unidade: pedido.unidade,
         anexo: PedidoDoAnexo::default(),
     };
-    let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)
-        .map_err(E::Abertura)?;
-    if aberto.natureza.cancelado == Some(true) { return Err(E::DocumentoJaCancelado); }
+    let aberto =
+        abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede).map_err(E::Abertura)?;
+    if aberto.natureza.cancelado == Some(true) {
+        return Err(E::DocumentoJaCancelado);
+    }
     let link = ler_link_cancelar(
-        &instalacao, &aberto.html, &aberto.id_documento, &aberto.processo.id,
-    ).map_err(E::Link)?.ok_or(E::CancelamentoNaoOferecido)?;
+        &instalacao,
+        &aberto.html,
+        &aberto.id_documento,
+        &aberto.processo.id,
+    )
+    .map_err(E::Link)?
+    .ok_or(E::CancelamentoNaoOferecido)?;
     if aberto.natureza.cancelado != Some(false) {
         return Err(E::EstadoAntesNaoObservado);
     }
-    let cookie = ler_cookie(sessao)
-        .map_err(|f| E::Formulario(ErroSubmissaoFormulario::Transporte(f)))?;
+    let cookie =
+        ler_cookie(sessao).map_err(|f| E::Formulario(ErroSubmissaoFormulario::Transporte(f)))?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
     })?;
     let codificacao = codificacao_da_tela(&mime).ok_or(E::CharsetNaoSuportado)?;
-    let tela = TelaServida { url: link.as_str(), html: &html, codificacao };
-    conferir_formulario(&instalacao, &tela, &aberto.processo.id, &aberto.id_documento)?;
+    let tela = TelaServida {
+        url: link.as_str(),
+        html: &html,
+        codificacao,
+    };
+    conferir_formulario(
+        &instalacao,
+        &tela,
+        &aberto.processo.id,
+        &aberto.id_documento,
+    )?;
     let sub = derivar_submissao(
-        &CANCELAR, &instalacao, &tela,
+        &CANCELAR,
+        &instalacao,
+        &tela,
         aberto.unidade.as_deref().unwrap_or_default(),
         &[("txaMotivo", &motivo)],
-    ).map_err(E::Formulario)?;
+    )
+    .map_err(E::Formulario)?;
     let mut feito = DocumentoCancelado {
         numero: aberto.numero,
         id_documento: aberto.id_documento,
@@ -113,28 +131,42 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         reconciliado_por: None,
         requisicoes: rede.feitas(),
     };
-    if !pedido.confirmar { return Ok(feito); }
+    if !pedido.confirmar {
+        return Ok(feito);
+    }
     let falha = enviar(&mut rede, sessao, sub, &feito)?;
     // Sempre uma leitura nova depois de enviar. Até uma resposta 5xx pode
     // ter cancelado; a escrita irreversível jamais é repetida.
     let verificacao = match abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede) {
-        Ok(depois) if depois.id_documento == feito.id_documento
+        Ok(depois)
+            if depois.id_documento == feito.id_documento
                 && depois.processo.id == feito.processo.id =>
+        {
             Ver::Lida {
                 cancelado: depois.natureza.cancelado,
                 motivo: depois.natureza.motivo_do_cancelamento,
-            },
-        Ok(_) => Ver::Lida { cancelado: None, motivo: None },
+            }
+        }
+        Ok(_) => Ver::Lida {
+            cancelado: None,
+            motivo: None,
+        },
         Err(erro) => Ver::LeituraFalhou(erro),
     };
     feito.requisicoes = rede.feitas();
     match verificacao {
-        Ver::Lida { cancelado: Some(true), motivo: Some(ref lido) } if lido == &feito.motivo => {
+        Ver::Lida {
+            cancelado: Some(true),
+            motivo: Some(ref lido),
+        } if lido == &feito.motivo => {
             feito.alterado = true;
             feito.reconciliado_por = falha;
             Ok(feito)
         }
-        Ver::Lida { cancelado: Some(false), .. } => Err(E::CancelamentoNaoAplicado {
+        Ver::Lida {
+            cancelado: Some(false),
+            ..
+        } => Err(E::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),
         outra => Err(E::EfeitoIncerto {
@@ -161,24 +193,44 @@ fn conferir_formulario(
         .ok_or(E::FormularioDeOutroDocumento)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
         .ok_or(E::FormularioDeOutroDocumento)?;
-    conferir_endereco_relativo_por(instalacao, &action, CANCELAR.acao, "id_procedimento", processo)
-        .map_err(|_| E::FormularioDeOutroDocumento)?;
-    conferir_endereco_relativo_por(instalacao, &action, CANCELAR.acao, "id_documento", documento)
-        .map_err(|_| E::FormularioDeOutroDocumento)?;
+    conferir_endereco_relativo_por(
+        instalacao,
+        &action,
+        CANCELAR.acao,
+        "id_procedimento",
+        processo,
+    )
+    .map_err(|_| E::FormularioDeOutroDocumento)?;
+    conferir_endereco_relativo_por(
+        instalacao,
+        &action,
+        CANCELAR.acao,
+        "id_documento",
+        documento,
+    )
+    .map_err(|_| E::FormularioDeOutroDocumento)?;
     let mut motivos = 0;
-    for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         let nome = valor_do_atributo(tag, "name")
             .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?;
         if nome.as_deref() == Some("txaMotivo") {
-            if tag.name().as_utf8_str() != "textarea" ||
-                crate::html_atributos::atributo_presente(tag, "disabled")
-                    .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))? {
+            if tag.name().as_utf8_str() != "textarea"
+                || crate::html_atributos::atributo_presente(tag, "disabled")
+                    .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
+            {
                 return Err(E::MotivoNaoPublicadoNaTela);
             }
             motivos += 1;
         }
     }
-    if motivos != 1 { return Err(E::MotivoNaoPublicadoNaTela); }
+    if motivos != 1 {
+        return Err(E::MotivoNaoPublicadoNaTela);
+    }
     Ok(())
 }
 
@@ -210,16 +262,20 @@ fn enviar<V: EnvioDoProcesso>(
     feito: &DocumentoCancelado,
 ) -> Result<Option<F>, E> {
     let mut enviado = false;
-    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s,c| {
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
-        rede.post(s,c)
+        rede.post(s, c)
     });
     match resposta {
-        Ok(RespostaDoEnvio::Redirecionamento(r)) => Ok(
-            (!r.localizacao().is_some_and(|loc|
-                localizacao_aceita(loc, r.url_do_envio(), &feito.processo.id, &feito.id_documento)
-            )).then_some(F::RedirecionamentoNaoReconhecido)
-        ),
+        Ok(RespostaDoEnvio::Redirecionamento(r)) => Ok((!r.localizacao().is_some_and(|loc| {
+            localizacao_aceita(
+                loc,
+                r.url_do_envio(),
+                &feito.processo.id,
+                &feito.id_documento,
+            )
+        }))
+        .then_some(F::RedirecionamentoNaoReconhecido)),
         Ok(RespostaDoEnvio::Html(_)) => Ok(Some(F::RespostaSemRedirecionamento)),
         Err(erro) if enviado => Ok(Some(F::Envio(erro))),
         Err(erro) => Err(E::Formulario(erro)),
@@ -231,10 +287,30 @@ mod tests {
     use super::*;
     #[test]
     fn destino_do_302_precisa_do_documento_e_do_marcador() {
-        let post="https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_cancelar";
-        assert!(localizacao_aceita("controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21&atualizar_arvore=1",post,"10","21"));
-        assert!(!localizacao_aceita("controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=99&atualizar_arvore=1",post,"10","21"));
-        assert!(!localizacao_aceita("controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21",post,"10","21"));
-        assert!(!localizacao_aceita("https://dominio-estranho.example/controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21&atualizar_arvore=1",post,"10","21"));
+        let post = "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_cancelar";
+        assert!(localizacao_aceita(
+            "controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21&atualizar_arvore=1",
+            post,
+            "10",
+            "21"
+        ));
+        assert!(!localizacao_aceita(
+            "controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=99&atualizar_arvore=1",
+            post,
+            "10",
+            "21"
+        ));
+        assert!(!localizacao_aceita(
+            "controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21",
+            post,
+            "10",
+            "21"
+        ));
+        assert!(!localizacao_aceita(
+            "https://dominio-estranho.example/controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21&atualizar_arvore=1",
+            post,
+            "10",
+            "21"
+        ));
     }
 }
