@@ -1,4 +1,4 @@
-//! Link observado da ação procedimento_anexar na barra do PROCESSO.
+//! Link observado da ação `procedimento_anexar` na barra do PROCESSO.
 //! Endereço assinado validado pela mesma peça das outras escritas.
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
