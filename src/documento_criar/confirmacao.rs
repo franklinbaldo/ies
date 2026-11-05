@@ -1,6 +1,8 @@
 //! Fronteira de escrita única e releitura para documento criar (#246).
 //! O transporte é injetável; a confirmação nunca repete a submissão.
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
+use crate::documento_criar::conferir_criacao;
+use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::documento_criar::fluxo::ErroPreviaCriacao;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::FalhaTransporte;
@@ -36,6 +38,25 @@ where
     P: FnOnce(&mut T, SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
     L: FnOnce(&mut T) -> Result<FotoDaCriacao, ()>,
 {
-    let _ = (transporte, submissao, cookie, antes, tipo, enviar, reler);
+    let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
+        enviar(transporte, post, cookie)
+    });
+    let depois = reler(transporte).map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
+    if antes.pastas_nao_carregadas
+        || depois.pastas_nao_carregadas
+        || antes.id != depois.id
+    {
+        return Err(ErroPreviaCriacao::EfeitoIncerto);
+    }
+    let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
+        .map_err(|_| ErroPreviaCriacao::EfeitoIncerto)?;
+    if !matches!(
+        resposta,
+        Ok(RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_))
+    ) {
+        return Err(ErroPreviaCriacao::EfeitoIncerto);
+    }
+    let _ = numero;
+    // RED: o ramo de sucesso ainda recusa; o teste deve detectar a regressão.
     Err(ErroPreviaCriacao::EfeitoIncerto)
 }
