@@ -12,8 +12,9 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra,
-    ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroArvore, ErroConcluirNaBarra,
+    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
+    ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
@@ -49,6 +50,8 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
     pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(crate) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
+    pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
 }
@@ -117,6 +120,8 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     let acoes = AcoesDeEstado {
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
+        sobrestar: arvore_lida.sobrestar,
+        retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
     };
     Ok((aberto, acoes))
