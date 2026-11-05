@@ -1,6 +1,6 @@
 //! Recolhe toda a lupa por transporte Web injetável, sem escrita no SEI.
-//! Navegação: Controle → grupo_unidade_listar → Novo → cadastro
-//! → unidade_selecionar_envio_processo → GET lupa + POST por página.
+//! Navegação: Controle → `grupo_unidade_listar` → Novo → cadastro
+//! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
 use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
 use crate::formulario_web::RespostaDoPost;
 use crate::formulario_web::{
@@ -113,7 +113,7 @@ fn obter<T: TransporteLupa>(
     let resposta = t
         .get(url, cookie)
         .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
-    let mime = resposta.resposta.mime.clone();
+    let mime.clone_from(&resposta.resposta.mime);
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
     Ok((html, mime))
@@ -125,7 +125,8 @@ fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
         .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
     let parser = dom.parser();
     let mut urls = Vec::new();
-    for no in dom.query_selector("a, button, input").into_iter().flatten() {
+    for seletor in ["a", "button", "input"] {
+        for no in dom.query_selector(seletor).into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {continue};
         for atributo in ["href", "onclick"] {
             let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
@@ -152,6 +153,7 @@ fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
             if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
                 urls.push(literal.to_owned());
             }
+        }
         }
     }
     Ok(urls)
@@ -282,7 +284,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
             break;
         }
         let post = consulta(&instalacao, &url, &html, &mime, pagina)?;
-        url = post.url().to_owned();
+        post.url().clone_into(&mut url);
         requisicoes += 1;
         let resposta = transporte
             .post(post, cookie)
