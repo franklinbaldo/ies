@@ -85,7 +85,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             let _resposta_esperada = matches!(
                 resposta,
                 Ok(RespostaDoEnvio::Redirecionamento(ref r))
-                    if crate::processo_sobrestar::redirecionamento_esperado(
+                    if tela::redirecionamento_esperado(
                         r.localizacao(), r.url_do_envio(), &previa.id_procedimento,
                     )
             );
