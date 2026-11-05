@@ -207,7 +207,7 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
     let amb = ambiente();
     let dir = std::env::temp_dir().join(format!("ies-externo-saida-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let pedido = PedidoDoAnexo {
+    let pedido = PedidoDoAnexo { cache_host: None, 
         limite: LimiteDoAnexo::default(),
         saida: Some(&dir),
     };
@@ -225,7 +225,7 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
 #[test]
 fn limite_do_pedido_chega_ao_transporte_e_recusa() {
     let amb = ambiente();
-    let pedido = PedidoDoAnexo {
+    let pedido = PedidoDoAnexo { cache_host: None, 
         limite: LimiteDoAnexo::novo(10).unwrap(),
         saida: None,
     };
