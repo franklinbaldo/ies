@@ -37,21 +37,23 @@ Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`
 
 ## Subcódigos específicos
 
-- `barra_do_cancelamento_fora_da_forma`
-- `links_de_cancelamento_repetidos`
-- `endereco_de_cancelamento_nao_reconhecido`
-- `endereco_de_cancelamento_de_outro_documento`
-- `cancelamento_nao_oferecido_na_barra`
-- `documento_ja_cancelado`
-- `estado_antes_do_cancelamento_nao_observado`
-- `tela_do_cancelamento_redirecionada`
-- `charset_da_tela_de_cancelamento_nao_suportado`
-- `formulario_de_cancelamento_de_outro_documento`
-- `campo_de_motivo_do_cancelamento_ausente`
-- `redirecionamento_do_cancelamento_nao_reconhecido`
-- `resposta_do_cancelamento_sem_redirecionamento`
-- `cancelamento_nao_aplicado`
-- `efeito_incerto_no_cancelamento`
+| Subcódigo | Fato |
+| --- | --- |
+| `barra_do_cancelamento_fora_da_forma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `links_de_cancelamento_repetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `endereco_de_cancelamento_nao_reconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `endereco_de_cancelamento_de_outro_documento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `cancelamento_nao_oferecido_na_barra` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `documento_ja_cancelado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `estado_antes_do_cancelamento_nao_observado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `tela_do_cancelamento_redirecionada` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `charset_da_tela_de_cancelamento_nao_suportado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `formulario_de_cancelamento_de_outro_documento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `campo_de_motivo_do_cancelamento_ausente` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `redirecionamento_do_cancelamento_nao_reconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `resposta_do_cancelamento_sem_redirecionamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `cancelamento_nao_aplicado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `efeito_incerto_no_cancelamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 
 A tela de login, o transporte e o primitivo de formulário propagam seus próprios subcódigos. Entrada inválida: `motivo_vazio`, `motivo_com_controle`, `motivo_fora_da_codificacao` e os da validação de DOC/NUP.
 
