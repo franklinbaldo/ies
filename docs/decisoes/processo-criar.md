@@ -13,7 +13,7 @@ live_validation: not-run
 
 # Decisão proposta: iniciar processo (issue #245)
 
-## Contexto e alternativas
+## Alternativas consideradas
 
 O oráculo Todos demonstra criação em instalações de treinamento.
 A lista de tipos pode ser parcial; o cadastro e o modo de escolha
@@ -29,7 +29,7 @@ com prévia por padrão, `--nivel publico|restrito`,
    de garantir que o tipo, a hipótese e os hidden sejam oferecidos.
 3. REST/WSSEI: sem prioridade no IES e não demonstrado no oráculo.
 
-## Decisão e limites
+## Decisão
 
 Seguir a alternativa 1, **após** implementar os testes RED.
 Escolher exclusivamente um tipo demonstrável pela lista completa,
