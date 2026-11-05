@@ -27,7 +27,7 @@ branco servida; não se inventa seu valor.
 `--deixar` seleciona uma linha pela identidade; na ausência de
 `--grupo`, exige no máximo uma. A prévia exige ainda o link `acaoExcluir`
 da própria linha, o formulário `frmGerenciarAcompanhamento` com
-`hdnInfraItemId` único e o destino `acompanhamento_excluir` publicado
+`hdnInfraItemId` único por `name` e `id` no DOM, oculto habilitado, e o destino `acompanhamento_excluir` publicado
 pela função servida para o mesmo processo. O JavaScript não é executado;
 sem qualquer prova a operação recusa antes de escrever. Se nenhum
 acompanhamento existe, a prévia informa ausência de efeito. `--observacao` não combina com
