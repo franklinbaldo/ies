@@ -79,7 +79,6 @@ pub(crate) fn ler_retomar_da_barra(
     }
 }
 
-
 /// A função de retirada pode estar no corpo inline (4.0) ou na variável
 /// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
