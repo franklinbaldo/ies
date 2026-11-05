@@ -2,8 +2,8 @@
 type: ImplementationDecision
 title: Criar processo pela escolha e cadastro publicados pelo SEI
 operation: processo.criar
-implementation: not-started
-status: proposed
+implementation: partial
+status: adopted-for-scope
 scope: escolha-de-tipo-e-cadastro-web-com-previa-e-verificacao-por-leitura
 selected_strategy: web-formulario-servido-e-releitura-da-arvore
 alternatives: web-formulario-servido-e-releitura-da-arvore,post-montado-estaticamente,rest-wssei
@@ -64,6 +64,28 @@ expressa do proprietário na issue.
   cassettes e orçamento por versão; executar gate pre-push e CI.
 - Prévia live e escrita live têm registros independentes
   PASS/FAIL/NOT_RUN. Na ausência de execução: NOT_RUN.
+
+## Comparação
+
+A leitura estrita de tipos publicada no HTML já está em Rust, como
+parte inicial implementada. O cadastro e a confirmação permanecem
+fora desse recorte e não são alegados como operacionais.
+A Web mantém a prova de campos; POST fixo e REST não oferecem a
+mesma garantia de origem dos dados.
+
+## Evidências verificáveis
+
+- [Contrato parcial](../../contracts/cli/processo-criar.md)
+- [Matriz de evidência](../../contracts/evidencias/processo-criar.md)
+- [Teste Rust da superfície CLI](../../tests/cli_processo_criar.rs)
+- [Observação indireta](../como-o-sei-funciona/inicio-do-processo.md)
+
+## Limitações e revisão
+
+Não há prévia remota, envio ou escrita no recorte implementado.
+A habilitação do comando depende do RED/GREEN e de provas por tela
+antes de qualquer envio. Reavaliar a escolha caso o replay mostre
+um cadastro não contemplado pela estrutura descrita.
 
 ## Evidências e revisão
 
