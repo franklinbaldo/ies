@@ -139,3 +139,17 @@ Se só houver nova flag, parser ou contrato sem redução demonstrável
 do caminho incompleto, redirecionar o esforço para as lacunas acima.
 A nova capacidade **não** fecha issue ampla enquanto os critérios
 de aceitação não forem integralmente comprovados.
+
+## Handoff #258 — relacionamento de processos (PR Draft)
+
+Novo caminho de CLI proposto pela issue #258:
+'ies processo relacionar NUP --com NUP [--remover] [--confirmar]'.
+Estado: **PARCIAL WEB** na branch (não na main). A prévia lê o link da
+barra do processo e a tabela; adicionar consulta o complementar publicado
+pela tela (um POST de leitura); remover só lê a lista. A idempotência
+é decidida por identidades observadas, sem procurar números no HTML solto.
+'--confirmar' está **bloqueado antes de abrir a sessão** até implementar
+a escrita única e a verificação independente. RED local, replay, live:
+NOT_RUN. Sem residuo no SEI.
+[Contrato](../contracts/cli/processo-relacionar.md) ·
+[decisão](decisoes/processo-relacionar.md).
