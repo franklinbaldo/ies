@@ -44,7 +44,10 @@ fn replay_da_lupa_go_no_acervo() {
                 .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
                 .map(|tag| super::texto_da_tag(tag, dom.parser()))
                 .collect();
-            panic!("lupa GO passo {}: {e:?}; legendas públicas: {legends:?}", resposta.passo)
+            panic!(
+                "lupa GO passo {}: {e:?}; legendas públicas: {legends:?}",
+                resposta.passo
+            )
         });
         assert!(pagina.paginas >= 1);
         assert!(pagina.pagina < pagina.paginas);
