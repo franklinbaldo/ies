@@ -106,8 +106,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             ("input", "hidden", "hdnIdAtividade") => atividade += 1,
             ("textarea", _, TEXTO) => descricao += 1,
             ("input" | "button", "submit", BOTAO) => salvar += 1,
-            ("input", "hidden", _) => {}
-            ("input" | "button", "button" | "reset", _) => {}
+            ("input", "hidden", _) | ("input" | "button", "button" | "reset", _) => {}
             _ => return Err(E::CampoInesperado),
         }
     }
@@ -239,9 +238,8 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         .andamento
         .map_err(Erro::Barra)?
         .ok_or(Erro::AcaoNaoOferecida)?;
-    let antes = match aberto.andamentos {
-        Andamentos::Lidos(lidos) => lidos,
-        _ => return Err(Erro::HistoricoNaoPublicado),
+    let Andamentos::Lidos(antes) = aberto.andamentos else {
+        return Err(Erro::HistoricoNaoPublicado);
     };
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
     let cookie =
