@@ -2,6 +2,7 @@
 mod fluxo;
 pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, obter_previa};
 
+#[cfg(test)]
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::instalacao::Instalacao;
