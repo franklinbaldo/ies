@@ -10,6 +10,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::saida_erro;
 use crate::transporte::FalhaTransporte;
+use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::sessao::{ReferenciasDaSessao, cookie_privado_validado};
 use crate::unidade_trocar::{
     ACAO_DE_TROCAR, ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca,
@@ -24,7 +25,7 @@ const AVISO_DE_ESCOPO: &str =
 /// Conta cada pedido feito, sem alterar nenhum.
 struct Contador<V> {
     envio: V,
-    pedidos: u32,
+    pedidos: ContagemDeRequisicoes,
 }
 
 impl<V: EnvioDaTroca> EnvioDaTroca for Contador<V> {
@@ -34,7 +35,7 @@ impl<V: EnvioDaTroca> EnvioDaTroca for Contador<V> {
         url: &str,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        self.pedidos += 1;
+        self.pedidos.registrar();
         self.envio.get(url, cookie)
     }
     fn post(
@@ -42,7 +43,7 @@ impl<V: EnvioDaTroca> EnvioDaTroca for Contador<V> {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        self.pedidos += 1;
+        self.pedidos.registrar();
         self.envio.post(submissao, cookie)
     }
 }
@@ -102,10 +103,12 @@ pub(crate) fn trocar(
     };
     let mut envio = Contador {
         envio: EnvioHttpsDaTroca,
-        pedidos: 0,
+        pedidos: ContagemDeRequisicoes::default(),
     };
     let resultado = trocar_unidade(&sessao, &pedido, &mut envio);
     let indice = IndiceLocal::da_configuracao(&arquivos);
+    // A saída histórica é u32; a contagem real satura em vez de transbordar.
+    let pedidos = u32::try_from(envio.pedidos.total()).unwrap_or(u32::MAX);
     match resultado {
         Ok(troca) => concluir(
             json_mode,
@@ -113,14 +116,14 @@ pub(crate) fn trocar(
             &indice,
             &instalacao,
             &troca,
-            envio.pedidos,
+            pedidos,
         ),
         Err(erro) => {
             if matches!(erro, ErroTroca::EfeitoIncerto { .. }) {
                 // A unidade pode ter mudado: nada da anterior é reaproveitado.
                 indice.esquecer_links_da_instalacao(&instalacao);
             }
-            publicar_falha(json_mode, &erro, envio.pedidos)
+            publicar_falha(json_mode, &erro, pedidos)
         }
     }
 }
@@ -315,3 +318,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroTroca, pedidos: u32) -> ExitCode {
 #[cfg(test)]
 #[path = "unidade_trocar_cli/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "unidade_trocar_cli/tests_contagem.rs"]
+mod tests_contagem;
