@@ -1,10 +1,9 @@
 //! As ações de estado que `abrir_para_escrever` lê na barra da árvore.
 use crate::arvore_processo::{
     ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento, ErroAcaoSobrestar,
-    ErroAcompanharNaBarra,
-    ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroAtribuirNaBarra, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroReabrirNaBarra, ErroRelacionarNaBarra,
-    ReabrirNaBarra,
+    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroAtribuirNaBarra,
+    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroReabrirNaBarra,
+    ErroRelacionarNaBarra, ReabrirNaBarra,
 };
 
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma

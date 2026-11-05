@@ -5,13 +5,11 @@ use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento,
-    ErroAcaoSobrestar,
-    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
+    ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
     ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento,
-    ErroReabrirNaBarra,
-    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
-    ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
-    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ErroReabrirNaBarra, ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso,
+    ler_acompanhar_da_barra, ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore,
+    ler_atribuir_da_barra, ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
     ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
     ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
     ler_vinculo_de_anexacao,

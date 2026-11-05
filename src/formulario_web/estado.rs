@@ -41,4 +41,3 @@ pub(crate) enum EstadoDoProcesso {
     /// Sobrestar ou remover o sobrestamento de um processo.
     Sobrestamento,
 }
-
