@@ -1,5 +1,7 @@
 ---
-type: Contract
+type: CommandContract
+operation: bloco.listar
+implementation: partial
 title: Leitura Web de blocos da unidade
 description: Contrato inicial de ies bloco listar por tipo e página observada
 ---
