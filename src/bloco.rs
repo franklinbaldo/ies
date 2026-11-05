@@ -1,5 +1,5 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
-//! Oráculo de cenários: Todos src/todos/sei/blocos_lista.py @323eb01.
+//! Oráculo de cenários: Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -68,7 +68,13 @@ impl ErroBloco {
         }
     }
     pub(crate) const fn mensagem(self) -> &'static str {
-        "a tela de blocos não comprovou a lista solicitada"
+        match self {
+            Self::BlocoNaoEncontradoNaPagina => "bloco não observado nesta página da unidade",
+            Self::PaginaDeBlocosNaoImplementada => "página de blocos sem navegação Web comprovada",
+            Self::LinkDeBlocosAusente | Self::LinksDeBlocosRepetidos
+            | Self::LinkDeBlocosNaoReconhecido => "link de blocos ausente ou ambíguo na tela",
+            _ => "a tela de blocos não comprovou a lista solicitada",
+        }
     }
 }
 
@@ -216,7 +222,7 @@ fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>)
 }
 
 /// Leitura de uma única página, com nomes de colunas, sem assumir ordem fixa.
-/// O HTML da UnB (Todos tests/paginas_reais/menu_blocos.html @323eb01)
+/// O HTML da `UnB` (Todos `tests/paginas_reais/menu_blocos.html` @323eb01)
 /// publica tblBlocos, caption, th Número/Estado/Descrição e href por número.
 pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
     use ErroBloco as E;
@@ -324,7 +330,7 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
 }
 
 /// Valida o href de uma ação publicada antes de qualquer GET, sem expor URL
-/// assinada. Proíbe acao/infra_hash duplicados, nomes não canônicos, caminhos
+/// assinada. Proíbe `acao/infra_hash` duplicados, nomes não canônicos, caminhos
 /// absolutos, URLs fora da instalação e qualquer fragmento.
 pub(crate) fn resolver_link(
     instalacao: &Instalacao,
