@@ -502,3 +502,7 @@ mod tests;
 #[cfg(test)]
 #[path = "tests_hipotese.rs"]
 mod tests_hipotese;
+
+#[cfg(test)]
+#[path = "acervo.rs"]
+mod acervo;
