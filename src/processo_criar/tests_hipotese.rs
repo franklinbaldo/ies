@@ -231,7 +231,7 @@ fn ajax_http_503_preserva_status_e_nao_cria() {
     );
 }
 
-/// UnB do acervo contém múltiplas hipóteses: a identidade explícita
+/// `UnB` do acervo contém múltiplas hipóteses: a identidade explícita
 /// precisa ser confirmada pelo AJAX antes do único POST criador.
 #[test]
 fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
@@ -266,7 +266,13 @@ fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
     assert_eq!(feito.requisicoes, 7);
     assert_eq!(pedidos.len(), 7);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 2);
-    assert!(pedidos[4].corpo.as_deref().unwrap().contains("selHipoteseLegal=32"));
+    assert!(
+        pedidos[4]
+            .corpo
+            .as_deref()
+            .unwrap()
+            .contains("selHipoteseLegal=32")
+    );
     assert!(pedidos[5..].iter().all(|p| p.metodo == "GET"));
 }
 
@@ -294,7 +300,9 @@ fn nome_incorreto_da_hipotese_nao_cria_processo() {
         )
     });
     assert_eq!(
-        resultado.expect_err("nome não publicado deve ser recusado").subcodigo(),
+        resultado
+            .expect_err("nome não publicado deve ser recusado")
+            .subcodigo(),
         "hipotese_legal_escolha_nao_oferecida"
     );
     assert_eq!(pedidos.len(), 4);
