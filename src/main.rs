@@ -411,8 +411,11 @@ fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
 }
 
 /// A leitura local é independente dos fluxos Web e não altera a sessão.
-fn tentar_unidades_do_indice(cli: &Cli) -> Option<ExitCode> {
+fn tentar_consulta_local(cli: &Cli) -> Option<ExitCode> {
     match &cli.command {
+        Domain::Indice(Indice {
+            acao: Some(IndiceAcao::Caminho),
+        }) => Some(indice_caminho_cli::mostrar(cli.json)),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Listar { atualizar }),
         }) => Some(unidade_pesquisar_cli::listar(
@@ -432,7 +435,7 @@ fn tentar_unidades_do_indice(cli: &Cli) -> Option<ExitCode> {
 }
 
 fn run(cli: &Cli) -> ExitCode {
-    if let Some(status) = tentar_unidades_do_indice(cli) {
+    if let Some(status) = tentar_consulta_local(cli) {
         return status;
     }
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
@@ -447,9 +450,6 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
-        Domain::Indice(Indice {
-            acao: Some(IndiceAcao::Caminho),
-        }) => return indice_caminho_cli::mostrar(cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),

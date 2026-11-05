@@ -27,7 +27,7 @@ impl IndiceLocal {
     /// Substitui uma lista inteira numa transação: sem gravação parcial.
     /// O chamador deve conferir páginas, total declarado, identidade da
     /// instalação, IDs duplicados e forma HTML ANTES desta chamada.
-        #[cfg_attr(
+    #[cfg_attr(
         not(test),
         expect(dead_code, reason = "leitor HTTP ainda pendente na #244")
     )]
@@ -78,7 +78,7 @@ impl IndiceLocal {
     }
 
     /// Sem requisição ao SEI. None significa lista ausente ou índice desligado.
-        pub(crate) fn lista_de_unidades(
+    pub(crate) fn lista_de_unidades(
         &self,
         instalacao: &str,
         unidade_ativa: &str,
@@ -122,7 +122,7 @@ impl IndiceLocal {
 
     /// Filtra somente o snapshot, por sigla ou descrição, com sigla exata
     /// priorizada. Nenhuma requisição e nenhuma alteração no banco.
-        pub(crate) fn pesquisar_unidades_guardadas(
+    pub(crate) fn pesquisar_unidades_guardadas(
         &self,
         instalacao: &str,
         unidade_ativa: &str,
