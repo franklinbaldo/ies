@@ -1,4 +1,4 @@
-name: Temporary issue 245 training preview (read only)
+name: Temporary issue 245 training single confirmation
 
 on:
   push:
@@ -11,18 +11,18 @@ permissions:
 
 jobs:
   previa-unb:
-    name: UnB treinamento - login e previa somente
+    name: UnB treinamento - previa confirmacao unica e releitura
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Instalar Rust e compilar sem mudar o SEI
+      - name: Instalar Rust e compilar o IES
         run: |
           rustup toolchain install 1.99.1 --profile minimal
           cargo build --release --locked --bin ies
-      - name: Apenas login e previa - nenhuma escrita de processo
+      - name: Previa antes de um unico --confirmar com releitura
         shell: bash
         run: |
           set -euo pipefail
@@ -58,6 +58,7 @@ jobs:
                   destino.chmod(0o600)
                   os.environ[chave] = str(destino)
               programa = "./target/release/ies"
+              registros = {}
               def executar(nome, argv):
                   p = subprocess.run([programa, "--json", *argv],
                                      capture_output=True, text=True, timeout=180,
@@ -67,6 +68,7 @@ jobs:
                   except (json.JSONDecodeError, ValueError):
                       dado = {}
                   # Nunca emitir URL assinada, cookie, senha ou HTML.
+                  registros[nome] = dado
                   print(json.dumps({"etapa": nome, "exit": p.returncode,
                                     "subcodigo": dado.get("subcodigo"),
                                     "requisicoes": dado.get("requisicoes"),
@@ -82,7 +84,34 @@ jobs:
                   "--nivel", "publico"
               ]) != 0:
                   raise SystemExit("PREVIA_FAIL: zero POST criador")
-              print("PREVIA_PASS: nao foi chamado --confirmar", flush=True)
+              previa = registros["previa_sem_confirmar"]
+              tipo = "Teste: Nível de acesso só público"
+              if (previa.get("tipo") != tipo or
+                  previa.get("confirmado") is not False or
+                  previa.get("requisicoes") != 3):
+                  raise SystemExit("PREVIA_INCONSISTENTE: confirmar bloqueado")
+              print("PREVIA_PASS: 3 GET, 0 POST criador", flush=True)
+              time.sleep(35)
+              if executar("confirmacao_unica", [
+                  "processo", "criar", "--tipo", tipo,
+                  "--especificacao", "Ensaio IES 245 - escrita unica em treinamento",
+                  "--nivel", "publico", "--confirmar"
+              ]) != 0:
+                  raise SystemExit("CONFIRMACAO_FAIL: NUNCA repetir o POST; consultar Gerados")
+              criado = registros["confirmacao_unica"]
+              nup = criado.get("nup")
+              if (criado.get("confirmado") is not True or
+                  not isinstance(nup, str) or not nup or
+                  criado.get("requisicoes") != 6):
+                  raise SystemExit("EFEITO_INCERTO: NUNCA repetir o POST; consultar Gerados")
+              print(json.dumps({"etapa": "criacao_verificada_pelo_fluxo",
+                                "nup": nup, "requisicoes": criado["requisicoes"],
+                                "residuo": "processo criado na unidade de treinamento"},
+                               ensure_ascii=False), flush=True)
+              time.sleep(35)
+              if executar("releitura_independente", ["processo", nup]) != 0:
+                  raise SystemExit("RELEITURA_FAIL: processo pode existir; NAO repetir escrita")
+              print("RELEITURA_PASS: NUP de treinamento consultado sem repetir a escrita", flush=True)
           finally:
               for caminho in base.iterdir():
                   caminho.unlink(missing_ok=True)
