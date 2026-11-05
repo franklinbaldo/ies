@@ -102,6 +102,25 @@ Subcódigos já emitidos pelo leitor offline da lista de tipos:
 Esses subcódigos precisam de tipos reais e integração a
 `docs/erros-tipados.md` antes de serem publicados na CLI.
 
+
+## Subcódigos do fluxo Web
+
+| Subcódigo | Recusa |
+| --- | --- |
+| `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `link_de_iniciar_processo_ausente` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `link_de_iniciar_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `link_de_iniciar_processo_repetido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `lista_de_tipos_nao_reconhecida` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `menu_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `tipo_de_processo_sem_identificador` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `unidade_da_criacao_divergente` | Etapa observada não satisfeita; não repetir operação automaticamente |
+
 ## Orçamento e evidência
 
 Argumento rejeitado sem rede: 0. Prévia: consultas necessárias
