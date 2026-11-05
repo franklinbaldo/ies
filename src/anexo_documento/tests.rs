@@ -5,6 +5,7 @@
 //! ícone `documento_txt`. Nenhum valor real.
 use super::*;
 use std::io::{self, Cursor};
+use std::path::PathBuf;
 
 fn resposta(cabecalhos: &[(&str, &str)], corpo: &[u8]) -> RespostaBinaria<Cursor<Vec<u8>>> {
     RespostaBinaria {

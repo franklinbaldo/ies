@@ -196,3 +196,20 @@ caminho ausente, não textual, vazio ou relativo. Não há fallback
 para variáveis individuais quando `IES_CONFIG_FILE` é informado.
 A verificação usa `symlink_metadata` antes da abertura e confere
 o arquivo aberto, sem consumir ou registrar dados de sessão.
+
+## Gravação privada local (#211)
+
+Toda gravação de arquivo privado passa por `crate::arquivo_privado`,
+que devolve uma falha tipada sem caminho nem conteúdo (destino já
+existente, destino não regular, diretório ausente, diretório que é link
+simbólico, limite, criação, escrita, publicação). Cada módulo a traduz
+para os subcódigos que já tinha; nenhum mudou de nome
+([decisão](decisoes/arquivos-privados/gravacao-privada.md#migração)).
+
+Um subcódigo novo: `diretorio_do_arquivo_da_caixa_link_simbolico`, da
+exportação da caixa (`--saida` de `unidade listar-processos`, `recebidos`
+e `gerados`), quando um ancestral do destino é link simbólico. Antes a
+exportação seguia o link. Na sessão, o mesmo caso sai como
+`destino_da_sessao_nao_eh_arquivo_regular`; na configuração, como
+`configuracao_ja_existe_ou_sem_permissao`; no texto, no anexo e na cópia,
+pelos subcódigos de diretório link simbólico que eles já tinham.

@@ -105,7 +105,7 @@ Parciais de outro nome nunca são tocados.
 | `anexo_documento` | `Parcial` exclusivo, publicado depois | `diretorio_do_anexo_ausente`, `diretorio_do_anexo_link_simbolico`, `arquivo_do_anexo_ja_existe`, `escrita_do_anexo_falhou` |
 | `arquivo_caixa` | exclusiva | os quatro de antes e um novo, `diretorio_do_arquivo_da_caixa_link_simbolico` |
 | `sessao_login/gravacao` | `Parcial` de substituição, um por arquivo, publicados em ordem | `destino_da_sessao_nao_eh_arquivo_regular` (também ancestral link), `gravacao_da_sessao_falhou` |
-| `foto_documento` (cópia da #207) | exclusiva | `foto_divergente` (o nome surgiu), `gravacao_falhou` |
+| `foto_documento` (cópia da #207) | exclusiva | `foto_local_divergente` (o nome surgiu), `gravacao_foto_falhou` |
 | `arquivo_texto_documento` | exclusiva | os cinco de antes |
 
 O lock do login e o lock lateral do índice abrem com `create(true)` sem

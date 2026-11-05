@@ -21,59 +21,39 @@ impl ErroArquivoTexto {
         }
     }
 }
-/// Rejeita atalhos de diretório em qualquer ancestral conhecido do destino.
-/// Não estabelece exclusividade contra alterações concorrentes do caminho.
-pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
-    let pai = destino.parent().ok_or(ErroArquivoTexto::DiretorioAusente)?;
-    for ancestral in pai.ancestors() {
-        if ancestral.as_os_str().is_empty() {
-            continue;
-        }
-        let metadados =
-            std::fs::symlink_metadata(ancestral).map_err(|_| ErroArquivoTexto::DiretorioAusente)?;
-        if metadados.file_type().is_symlink() {
-            return Err(ErroArquivoTexto::DiretorioLinkSimbolico);
-        }
-        if !metadados.is_dir() {
-            return Err(ErroArquivoTexto::DiretorioAusente);
-        }
+/// A falha da gravação privada única nos subcódigos do texto.
+fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
+    use crate::arquivo_privado::FalhaDaGravacao as F;
+    match falha {
+        F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
+        F::DiretorioLinkSimbolico => ErroArquivoTexto::DiretorioLinkSimbolico,
+        F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
+        F::DestinoNaoEhArquivoRegular
+        | F::AcimaDoLimite
+        | F::CriacaoFalhou
+        | F::EscritaFalhou
+        | F::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
     }
-    Ok(())
+}
+
+/// Rejeita link simbólico em qualquer ancestral do destino (a conferência
+/// da gravação privada única). Não estabelece exclusividade contra
+/// alterações concorrentes do caminho.
+pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
+    crate::arquivo_privado::conferir_diretorios(destino, false).map_err(traduzir)
 }
 
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
-    use std::fs::{self, OpenOptions};
-    use std::io::{ErrorKind, Write};
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
-
+    use crate::arquivo_privado::{self, Politica};
     if destino.file_name().is_none() {
         return Err(ErroArquivoTexto::NomeAusente);
     }
+    // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoTexto::DiretorioAusente);
     }
-    conferir_diretorios(destino)?;
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(0o600);
-    let mut arquivo = options.open(destino).map_err(|erro| {
-        if erro.kind() == ErrorKind::AlreadyExists {
-            ErroArquivoTexto::DestinoJaExiste
-        } else {
-            ErroArquivoTexto::EscritaFalhou
-        }
-    })?;
-    if arquivo
-        .write_all(texto.as_bytes())
-        .and_then(|()| arquivo.sync_all())
-        .is_err()
-    {
-        drop(arquivo);
-        let _ = fs::remove_file(destino);
-        return Err(ErroArquivoTexto::EscritaFalhou);
-    }
+    arquivo_privado::gravar(destino, texto.as_bytes(), Politica::exclusiva()).map_err(traduzir)?;
     Ok(texto.len())
 }
 

@@ -6,6 +6,7 @@ use std::path::Path;
 pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
+    DiretorioDeDestinoLinkSimbolico,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
@@ -14,6 +15,7 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
             Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
+            Self::DiretorioDeDestinoLinkSimbolico => "diretorio_do_arquivo_da_caixa_link_simbolico",
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -22,46 +24,41 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
             Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
+            Self::DiretorioDeDestinoLinkSimbolico => {
+                "o caminho do destino passa por link simbólico"
+            }
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
         }
     }
 }
-/// Grava JSON apenas em arquivo novo; em Unix a permissão inicial é 0600.
+/// Grava JSON apenas em arquivo novo pela gravação privada única
+/// (`0600`, sem seguir link no destino nem em ancestral).
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
-    use std::fs::{self, OpenOptions};
-    use std::io::{ErrorKind, Write};
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
+    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
 
     if destino.file_name().is_none() {
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
     }
+    // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
         return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
     }
     let bytes =
         serde_json::to_vec_pretty(valor).map_err(|_| ErroArquivoCaixa::EscritaDeArquivoFalhou)?;
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(0o600);
-    let mut arquivo = options.open(destino).map_err(|erro| {
-        if erro.kind() == ErrorKind::AlreadyExists {
-            ErroArquivoCaixa::DestinoJaExiste
-        } else {
-            ErroArquivoCaixa::EscritaDeArquivoFalhou
-        }
-    })?;
-    if arquivo
-        .write_all(&bytes)
-        .and_then(|()| arquivo.sync_all())
-        .is_err()
-    {
-        drop(arquivo);
-        let _ = fs::remove_file(destino);
-        return Err(ErroArquivoCaixa::EscritaDeArquivoFalhou);
-    }
+    arquivo_privado::gravar(destino, &bytes, Politica::exclusiva()).map_err(
+        |falha| match falha {
+            F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
+            F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+            F::DiretorioLinkSimbolico => ErroArquivoCaixa::DiretorioDeDestinoLinkSimbolico,
+            F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
+            F::DestinoNaoEhArquivoRegular
+            | F::AcimaDoLimite
+            | F::CriacaoFalhou
+            | F::EscritaFalhou
+            | F::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
+        },
+    )?;
     Ok(bytes.len())
 }
 

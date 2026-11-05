@@ -214,7 +214,7 @@ fn falha_no_meio_da_escrita_nao_deixa_parcial_nem_destino() {
     // O download falhou: o chamador desiste sem confirmar.
     drop(parcial);
     assert!(!temporario.exists());
-    assert!(pasta.nomes().is_empty());
+    assert_eq!(pasta.nomes(), Vec::<String>::new());
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn nenhuma_outra_gravacao_privada_usa_create_new() {
             }
             let nome = caminho.to_string_lossy().replace('\\', "/");
             let de_teste = nome.contains("/tests") || nome.contains("tests_");
-            if nome.ends_with(".rs")
+            if caminho.extension().is_some_and(|ext| ext == "rs")
                 && !de_teste
                 && !nome.ends_with("src/arquivo_privado.rs")
                 && fs::read_to_string(&caminho)

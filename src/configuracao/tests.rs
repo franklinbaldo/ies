@@ -149,6 +149,7 @@ fn link_simbolico_nao_e_seguido() {
 #[test]
 fn salvar_configuracao_nao_atravessa_link_nem_sobrescreve() {
     use super::{ArquivosDeAcesso, salvar_arquivos_de_acesso};
+    use std::os::unix::fs::PermissionsExt as _;
     let pasta = Pasta::nova();
     let acesso = |nome: &str| {
         let caminho = pasta.0.join(nome);
@@ -174,7 +175,6 @@ fn salvar_configuracao_nao_atravessa_link_nem_sobrescreve() {
         salvar_arquivos_de_acesso(&destino, &arquivos),
         Err("configuracao_ja_existe_ou_sem_permissao")
     );
-    use std::os::unix::fs::PermissionsExt as _;
     assert_eq!(
         fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
         0o600

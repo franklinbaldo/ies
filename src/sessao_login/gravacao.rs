@@ -1,12 +1,13 @@
-//! Gravação atômica da sessão (temporário `0600`, `fsync`, `rename`), o
+//! Gravação atômica da sessão (temporário `0600`, `fsync`, `rename`, pela
+//! gravação privada única `crate::arquivo_privado`), o
 //! marcador de geração e o lock entre processos, só com a `std`.
 //! `<url-controle>.lock` e `<url-controle>.geracao` ficam ao lado do
 //! arquivo da URL do Controle.
 use super::ErroLogin;
+use crate::arquivo_privado::{FalhaDaGravacao, Parcial, Politica};
 use crate::configuracao::{ArquivoPrivado, ArquivosDeAcesso};
 use sha2::{Digest, Sha256};
 use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -127,38 +128,37 @@ pub(crate) fn mesma_geracao(arquivos: &ArquivosDeAcesso, url: &str, cookie: &str
     }
 }
 
-/// Destino ausente ou arquivo regular; link simbólico nunca é seguido.
-fn conferir_destino(caminho: &Path, papel: ArquivoPrivado) -> Result<(), ErroLogin> {
-    match std::fs::symlink_metadata(caminho) {
-        Ok(info) if info.file_type().is_symlink() || !info.is_file() => {
-            Err(ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel))
+/// A falha da gravação privada única nos subcódigos da sessão: link no
+/// destino ou num ancestral é destino não regular.
+fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
+    match falha {
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular | FalhaDaGravacao::DiretorioLinkSimbolico => {
+            ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel)
         }
-        Ok(_) => Ok(()),
-        Err(erro) if erro.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(_) => Err(ErroLogin::GravacaoDaSessaoFalhou(papel)),
+        _ => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }
 
-/// Temporário `0600` no diretório do destino, gravado e sincronizado.
-fn preparar(destino: &Path, conteudo: &str, papel: ArquivoPrivado) -> Result<PathBuf, ErroLogin> {
-    let falha = || ErroLogin::GravacaoDaSessaoFalhou(papel);
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_nanos());
-    let nome = destino.file_name().ok_or_else(falha)?.to_string_lossy();
-    let temporario =
-        destino.with_file_name(format!(".{nome}.ies-{}-{nanos}.tmp", std::process::id()));
-    let mut arquivo = abrir_privado(OpenOptions::new().write(true).create_new(true))
-        .open(&temporario)
-        .map_err(|_| falha())?;
-    let gravado = arquivo
-        .write_all(conteudo.as_bytes())
-        .and_then(|()| arquivo.sync_all());
-    if gravado.is_err() {
-        let _ = std::fs::remove_file(&temporario);
-        return Err(falha());
+/// Temporário `0600` no diretório do destino, gravado e sincronizado
+/// (`crate::arquivo_privado`, substituição atómica); confere antes que o
+/// destino está ausente ou é arquivo regular e que nenhum ancestral é link.
+fn preparar(destino: &Path, conteudo: &str, papel: ArquivoPrivado) -> Result<Parcial, ErroLogin> {
+    let traduzir = |falha| traduzir(falha, papel);
+    let mut parcial = Parcial::abrir(destino, Politica::substituicao()).map_err(traduzir)?;
+    parcial.escrever(conteudo.as_bytes()).map_err(traduzir)?;
+    parcial.sincronizar().map_err(traduzir)?;
+    Ok(parcial)
+}
+
+/// Publica os parciais em ordem; o primeiro que falha descarta os
+/// restantes (no `Drop`), sem publicar nenhum deles.
+fn publicar(parciais: Vec<(Parcial, ArquivoPrivado)>) -> Result<(), ErroLogin> {
+    for (parcial, papel) in parciais {
+        parcial
+            .confirmar()
+            .map_err(|falha| traduzir(falha, papel))?;
     }
-    Ok(temporario)
+    Ok(())
 }
 
 /// Depois de `ies unidade trocar` (#205): a mesma sessão (cookie) passa a
@@ -173,8 +173,6 @@ pub(crate) fn regravar_url_do_controle(
 ) -> Result<(), ErroLogin> {
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     let papel = ArquivoPrivado::UrlControle;
-    conferir_destino(&arquivos.url_controle, papel)?;
-    conferir_destino(&geracao_caminho, papel)?;
     let marcador = ler_marcador(arquivos)
         .map_err(|()| ErroLogin::GravacaoDaSessaoFalhou(papel))?
         .map(|m| Marcador {
@@ -182,40 +180,19 @@ pub(crate) fn regravar_url_do_controle(
             url_controle_sha256: sha256(url),
             ..m
         });
-    let mut destinos = vec![(arquivos.url_controle.clone(), format!("{url}\n"))];
+    let mut parciais = vec![(
+        preparar(&arquivos.url_controle, &format!("{url}\n"), papel)?,
+        papel,
+    )];
     if let Some(m) = marcador {
         let json =
             serde_json::to_string(&m).map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(papel))?;
-        destinos.push((geracao_caminho, format!("{json}\n")));
+        parciais.push((
+            preparar(&geracao_caminho, &format!("{json}\n"), papel)?,
+            papel,
+        ));
     }
-    let mut temporarios = Vec::new();
-    for (destino, conteudo) in &destinos {
-        match preparar(destino, conteudo, papel) {
-            Ok(t) => temporarios.push(t),
-            Err(erro) => {
-                for t in &temporarios {
-                    let _ = std::fs::remove_file(t);
-                }
-                return Err(erro);
-            }
-        }
-    }
-    for (i, ((destino, _), temporario)) in destinos.iter().zip(&temporarios).enumerate() {
-        if std::fs::rename(temporario, destino).is_err() {
-            for restante in &temporarios[i..] {
-                let _ = std::fs::remove_file(restante);
-            }
-            return Err(ErroLogin::GravacaoDaSessaoFalhou(papel));
-        }
-    }
-    if let Some(pasta) = arquivos
-        .url_controle
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-    {
-        let _ = File::open(pasta).and_then(|d| d.sync_all());
-    }
-    Ok(())
+    publicar(parciais)
 }
 
 /// Grava cookie, URL e, por último, o marcador da nova geração. Chamado
@@ -227,14 +204,6 @@ pub(crate) fn gravar(
     cookie: &str,
 ) -> Result<u64, ErroLogin> {
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
-    let destinos = [
-        (&arquivos.cookie, ArquivoPrivado::Cookie),
-        (&arquivos.url_controle, ArquivoPrivado::UrlControle),
-        (&geracao_caminho, ArquivoPrivado::UrlControle),
-    ];
-    for (destino, papel) in destinos {
-        conferir_destino(destino, papel)?;
-    }
     let anterior = ler_marcador(arquivos)
         .ok()
         .flatten()
@@ -247,38 +216,28 @@ pub(crate) fn gravar(
     };
     let json = serde_json::to_string(&marcador)
         .map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(ArquivoPrivado::UrlControle))?;
-    let conteudos = [
-        format!("{cookie}\n"),
-        format!("{url}\n"),
-        format!("{json}\n"),
+    let destinos = [
+        (
+            &arquivos.cookie,
+            ArquivoPrivado::Cookie,
+            format!("{cookie}\n"),
+        ),
+        (
+            &arquivos.url_controle,
+            ArquivoPrivado::UrlControle,
+            format!("{url}\n"),
+        ),
+        (
+            &geracao_caminho,
+            ArquivoPrivado::UrlControle,
+            format!("{json}\n"),
+        ),
     ];
-    let mut temporarios = Vec::new();
-    for ((destino, papel), conteudo) in destinos.iter().zip(&conteudos) {
-        match preparar(destino, conteudo, *papel) {
-            Ok(temporario) => temporarios.push(temporario),
-            Err(erro) => {
-                for temporario in &temporarios {
-                    let _ = std::fs::remove_file(temporario);
-                }
-                return Err(erro);
-            }
-        }
+    // Todos preparados (destinos conferidos) antes do primeiro `rename`.
+    let mut parciais = Vec::new();
+    for (destino, papel, conteudo) in &destinos {
+        parciais.push((preparar(destino, conteudo, *papel)?, *papel));
     }
-    for (i, ((destino, papel), temporario)) in destinos.iter().zip(&temporarios).enumerate() {
-        if std::fs::rename(temporario, destino).is_err() {
-            for restante in &temporarios[i..] {
-                let _ = std::fs::remove_file(restante);
-            }
-            return Err(ErroLogin::GravacaoDaSessaoFalhou(*papel));
-        }
-    }
-    if let Some(pasta) = arquivos
-        .url_controle
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-    {
-        // Durabilidade dos `rename`; falha aqui não desfaz a gravação.
-        let _ = File::open(pasta).and_then(|d| d.sync_all());
-    }
+    publicar(parciais)?;
     Ok(marcador.geracao)
 }
