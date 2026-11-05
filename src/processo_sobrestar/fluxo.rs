@@ -10,13 +10,11 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::FalhaDoEnvio;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao,
 };
-use crate::processo_concluir::FalhaDoEnvio;
-use crate::processo_obter::{
-    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, obter_processo,
-};
+use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, obter_processo};
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
@@ -36,21 +34,19 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         return Err(E::MotivoVazio);
     }
     let mut rede = Contador::novo(envio);
-    let (mut previa, endereco) =
-        preparar_com_acao(sessao, nup, unidade, acao, indice, &mut rede)?;
+    let (mut previa, endereco) = preparar_com_acao(sessao, nup, unidade, acao, indice, &mut rede)?;
     if !confirmar {
         return Ok(previa);
     }
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
-        E::Abertura(ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada)),
-    )?;
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(
+        ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+    ))?;
     let cookie = ler_cookie(sessao).map_err(E::TelaDaEscrita)?;
     match acao {
         Acao::Sobrestar => {
-            let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str())
-                .map_err(mapear_tela)?;
-            tela::conferir_formulario(&html, &previa.id_procedimento)
-                .map_err(E::TelaSobrestar)?;
+            let (html, mime) =
+                obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
+            tela::conferir_formulario(&html, &previa.id_procedimento).map_err(E::TelaSobrestar)?;
             let codificacao = codificacao_da_tela(&mime).ok_or(E::CharsetNaoSuportado)?;
             let tela_servida = TelaServida {
                 url: endereco.as_str(),
@@ -64,9 +60,13 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 ("txaMotivo", motivo.unwrap_or_default().trim()),
             ];
             let submissao = derivar_submissao(
-                &tela::OPERACAO, &instalacao, &tela_servida,
-                &previa.unidade, &valores,
-            ).map_err(E::Formulario)?;
+                &tela::OPERACAO,
+                &instalacao,
+                &tela_servida,
+                &previa.unidade,
+                &valores,
+            )
+            .map_err(E::Formulario)?;
             // A submissão é consumida no POST único. Qualquer falha depois
             // do início do envio segue para a leitura de reconciliação.
             let mut enviado = false;
@@ -93,19 +93,19 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         Acao::Retomar => {
             // A URL da função só existe na tela do nó. A primeira URL
             // da barra é GET de leitura, não a escrita.
-            let (html, _) = obter_tela(&mut rede, &cookie, endereco.as_str())
-                .map_err(mapear_tela)?;
-            let url = ler_endereco_de_retomar(
-                &instalacao, &html, &previa.id_procedimento,
-            ).map_err(E::EnderecoDeRetomar)?;
+            let (html, _) =
+                obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
+            let url = ler_endereco_de_retomar(&instalacao, &html, &previa.id_procedimento)
+                .map_err(E::EnderecoDeRetomar)?;
             let _falha = pela_funcao(
-                &mut rede, &cookie, url.as_str(), FalhaDoEnvio::RedirecionamentoNaFuncao,
+                &mut rede,
+                &cookie,
+                url.as_str(),
+                FalhaDoEnvio::RedirecionamentoNaFuncao,
             );
         }
     };
-    let verificado = obter_processo(
-        sessao, &leitura(nup, unidade, false), indice, &mut rede,
-    );
+    let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
     let depois = verificado.map_err(|_| E::EfeitoIncerto)?.arvore.aberto_em;
     let aplicado = match (acao, depois) {
