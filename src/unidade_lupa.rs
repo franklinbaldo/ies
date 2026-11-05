@@ -33,12 +33,6 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
         .map(|x| decodificar_atributo(&x).ok_or(ErroLupa::HtmlInesperado))
         .transpose()
 }
-fn texto(node: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
-    decodificar_texto(&node.inner_text(parser))
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
 fn tags<'a>(
     raiz: &tl::HTMLTag<'_>,
     parser: &'a tl::Parser<'a>,
