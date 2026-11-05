@@ -60,6 +60,8 @@ legado do Todos faz parte do contrato público por pressuposição.
   [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies indice caminho` (caminho local configurado do SQLite, sem abrir o banco ou consultar o SEI)
+- `ies unidade listar [--atualizar]` (parcial: snapshot offline; atualização Web pendente)
+- `ies unidade pesquisar TERMO` (parcial: filtra snapshot já guardado, 0 requisições)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
 

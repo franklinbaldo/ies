@@ -90,6 +90,8 @@ Passos sem cassette indexada: 0.
 - [grupo_envio.criar](grupo_envio-criar.md)
 - [grupo_envio.excluir](grupo_envio-excluir.md)
 - [grupo_envio.obter](grupo_envio-obter.md)
+- [unidade.listar](unidade-listar.md)
+- [unidade.pesquisar](unidade-pesquisar.md)
 - [indice.consultar](indice-consultar.md)
 - [indice.resumo](indice-resumo.md)
 - [marcador.alterar](marcador-alterar.md)
