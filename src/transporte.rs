@@ -29,8 +29,8 @@ pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTranspo
 }
 
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
-    let partes = crate::url_observada::UrlHttps::interpretar(url)
-        .ok_or(FalhaTransporte::UrlInvalida)?;
+    let partes =
+        crate::url_observada::UrlHttps::interpretar(url).ok_or(FalhaTransporte::UrlInvalida)?;
     let authority = partes.host;
     let route = partes.caminho;
     let query = partes.consulta.ok_or(FalhaTransporte::UrlInvalida)?;
