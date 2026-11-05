@@ -117,6 +117,18 @@ esteja concluída. Só evidência de critérios e relatório
 `PASS/FAIL/NOT_RUN` permitem propor fechamento ao proprietário.
 O CI valida os gates e testes offline, não substitui live.
 
+## Handoff #247 — filtros da pesquisa (PR draft)
+
+`processo buscar` e `documento buscar` recebem flags opcionais `--tipo`,
+`--assunto`, `--de` e `--ate`. Tipo e período derivam do formulário Web
+servido; ausência do campo ou opção exata recusa antes do POST. O assunto
+permanece **parcial**: falta observar e resolver o ID do autocompletar
+sem romper orçamento. Não se altera o termo, a paginação ou os 3/4 pedidos.
+RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
+[Contrato de processo](../contracts/cli/processo-buscar.md) ·
+[contrato de documento](../contracts/cli/documento-buscar.md) ·
+[decisão](decisoes/processo-buscar.md).
+
 ## Gate manual para PRs de capacidade
 
 Antes de abrir uma PR, preencher na descrição:

@@ -28,6 +28,8 @@ pub(crate) struct PedidoDeVersoes {
     /// `--saida DIR` (#207): a foto `DOC.vN.html` da versão lida, que
     /// exige saber N (rodapé ou lista).
     pub(crate) foto: bool,
+    /// Preservar HTML no cache, sem GET adicional para versão desconhecida.
+    pub(crate) cache: bool,
 }
 
 /// Por que `versao_atual` não foi publicada.
@@ -66,6 +68,9 @@ pub(crate) struct VersoesDoDocumento {
     pub(crate) atual: Result<VersaoDocumento, SemVersaoAtual>,
     /// Só com `--saida` e num documento interno.
     pub(crate) foto: Option<FotoDaVersao>,
+    /// HTML lido para o cache, mesmo quando a versão é desconhecida.
+    pub(crate) cache_html: Option<String>,
+    pub(crate) crc_rodape: Option<String>,
 }
 
 /// O documento já conferido na árvore lida pelo caminho que a abriu
@@ -111,6 +116,8 @@ pub(super) fn do_externo(
         lida: None,
         atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
+        cache_html: None,
+        crc_rodape: None,
     })
 }
 
@@ -122,8 +129,8 @@ pub(super) fn ler_versoes<V: EnvioDoProcesso>(
     pedido: PedidoDeVersoes,
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     match pedido.versao {
-        None => ler_atual(rede, no, conteudo, pedido.foto),
-        Some(n) => ler_versao(rede, no, n, pedido.foto),
+        None => ler_atual(rede, no, conteudo, pedido.foto, pedido.cache),
+        Some(n) => ler_versao(rede, no, n, pedido.foto, pedido.cache),
     }
 }
 
@@ -135,13 +142,21 @@ fn ler_atual<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     conteudo: &EnderecoDoConteudo,
     foto: bool,
+    cache: bool,
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     let (tipo, texto, html) = ler_pagina(rede, conteudo.as_str(), no.numero)?;
     let servida = versao_do_rodape(&html);
+    if cache && html.contains("infra_hash") {
+        return Err(E::ConteudoComLinkAssinado);
+    }
+    let cache_html = cache.then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
+        cache_html,
+        crc_rodape,
     };
     if !foto {
         return Ok((tipo, texto, versoes));
@@ -171,6 +186,7 @@ fn ler_versao<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     n: VersaoDocumento,
     foto: bool,
+    cache: bool,
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     let barra = no.barra()?;
     let lista = barra.versoes.ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
@@ -187,6 +203,11 @@ fn ler_versao<V: EnvioDoProcesso>(
     )
     .map_err(|_| E::Versoes(ErroVersao::LinkInseguro))?;
     let (tipo, texto, html) = ler_pagina(rede, &url, no.numero)?;
+    if cache && html.contains("infra_hash") {
+        return Err(E::ConteudoComLinkAssinado);
+    }
+    let cache_html = cache.then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     if versao_do_rodape(&html).is_some_and(|servida| servida != n) {
         return Err(E::VersaoServidaDiferenteDaPedida);
     }
@@ -196,9 +217,11 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
+        crc_rodape,
         lida: Some(n),
         atual: Ok(atual),
         foto,
+        cache_html,
     };
     Ok((tipo, texto, versoes))
 }

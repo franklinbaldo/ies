@@ -44,9 +44,9 @@ pub(super) fn listar_processos_da_unidade(
             unidade,
             pagina,
             sessao.cookie(),
-            &mut EnvioColhendo {
+            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
                 colheita: &colheita,
-            },
+            }),
         )
     });
     match lido {

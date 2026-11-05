@@ -17,6 +17,7 @@ pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes
         None => None,
     };
     Some(PedidoDeVersoes {
+        cache: false,
         versao,
         foto: saida,
     })
@@ -28,6 +29,17 @@ pub(crate) fn gravar_fotos(
     diretorio: &Path,
     obtidos: &[DocumentoObtido],
 ) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    gravar_fotos_com_cache(diretorio, obtidos, &[])
+}
+
+/// Com cache ativo, a foto explícita é um hard link para o arquivo privado,
+/// ou uma cópia exclusiva quando o destino estiver em outro filesystem.
+pub(crate) fn gravar_fotos_com_cache(
+    diretorio: &Path,
+    obtidos: &[DocumentoObtido],
+    caches: &[Option<crate::cache_documento::Registro>],
+) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    // Antes da primeira gravação, confere a coerência de todas as fotos.
     for d in obtidos {
         if let Some(f) = &d.versoes.foto {
             foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
@@ -35,11 +47,28 @@ pub(crate) fn gravar_fotos(
     }
     obtidos
         .iter()
-        .map(|d| {
+        .enumerate()
+        .map(|(i, d)| {
             d.versoes
                 .foto
                 .as_ref()
-                .map(|f| foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html))
+                .map(|f| {
+                    let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
+                    if !plano.gravado {
+                        return Ok(plano);
+                    }
+                    let Some(Some(cache)) = caches.get(i) else {
+                        return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
+                    };
+                    let destino = diretorio.join(&plano.nome);
+                    let gravado = crate::cache_documento::copiar_para_saida(
+                        &cache.caminho,
+                        &destino,
+                        &plano.sha256,
+                    )
+                    .map_err(|_| ErroCopia::GravacaoFalhou)?;
+                    Ok(FotoGravada { gravado, ..plano })
+                })
                 .transpose()
         })
         .collect()
@@ -142,6 +171,8 @@ pub(crate) mod testes {
 
     pub(crate) fn com_foto(numero: &str, n: u32, html: &str) -> DocumentoObtido {
         let mut d = documento(VersoesDoDocumento {
+            crc_rodape: None,
+            cache_html: None,
             lida: Some(v(n)),
             atual: Ok(v(n)),
             foto: Some(FotoDaVersao {
@@ -168,6 +199,7 @@ pub(crate) mod testes {
         assert_eq!(
             pedido(None, true),
             Some(PedidoDeVersoes {
+                cache: false,
                 versao: None,
                 foto: true
             })
@@ -175,6 +207,7 @@ pub(crate) mod testes {
         assert_eq!(
             pedido(Some(3), false),
             Some(PedidoDeVersoes {
+                cache: false,
                 versao: Some(v(3)),
                 foto: false
             })
@@ -186,6 +219,8 @@ pub(crate) mod testes {
     fn lote_grava_so_as_fotos_e_repetir_e_no_op() {
         let pasta = diretorio();
         let mut externo = documento(VersoesDoDocumento {
+            crc_rodape: None,
+            cache_html: None,
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
             foto: None,
@@ -242,6 +277,8 @@ pub(crate) mod testes {
             json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": false, "motivo": "igual"})
         );
         let nao = documento(VersoesDoDocumento {
+            crc_rodape: None,
+            cache_html: None,
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
             foto: None,

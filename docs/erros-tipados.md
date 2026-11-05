@@ -322,3 +322,28 @@ pode avisar que não as encontrou; isso não autoriza removê-las do contrato.
 | `configuracao_nao_serializada` | Setup: falha ao serializar os caminhos em JSON. |
 | `configuracao_ja_existe_ou_sem_permissao` | Setup: criação exclusiva do destino recusada, inclusive se já existe. |
 | `configuracao_nao_gravada` | Setup: escrita do JSON falhou após abertura do arquivo. |
+
+
+## Filtros da pesquisa (#247)
+
+Em `pesquisa_web::filtros::ErroFiltro`:
+
+- `criterio_nao_oferecido_pela_tela`: o critério pedido não tem controle
+  observável, ou depende de ID de autocompletar ainda não resolvido.
+- `tipo_nao_oferecido_pela_tela`: a opção exata pedida não existe na lista.
+- `controle_de_filtro_ambiguo`: campo ou opção duplicado; não escolher um.
+- `valor_do_filtro_diferente_do_solicitado`: nome/valor publicado mudou
+  durante a navegação; não publicar página potencialmente não filtrada.
+- `atributo_do_filtro_ilegivel`: valor de atributo não interpretável.
+
+Na borda: `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`
+são erros de uso (saída 2), avaliados antes da configuração e da rede.
+
+## Inventário normativo dos subcódigos de filtro (#247)
+
+| Subcódigo | Condição |
+| --- | --- |
+| `criterio_nao_oferecido_pela_tela` | Critério sem controle observável ou sem ID de autocompletar. |
+| `tipo_nao_oferecido_pela_tela` | Nome exato de tipo não está na lista servida. |
+| `controle_de_filtro_ambiguo` | Mais de um controle ou opção compatível. |
+| `atributo_do_filtro_ilegivel` | Atributo HTML não interpretável. |
