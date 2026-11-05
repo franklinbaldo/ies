@@ -20,11 +20,11 @@ jobs:
         with:
           version: "0.13.5"
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-      - name: Montar merge real da main em branch temporario (base como primeiro pai)
+      - name: Montar merge do base da PR com head atual (base como primeiro pai)
         run: |
           git config user.email "ci@example.invalid"
           git config user.name "IES CI"
-          git switch -c ci-base origin/main
+          git switch -c ci-base 564ab95b5c0175c985a7862aaddab1afca093e15
           git merge --no-ff --no-edit "${GITHUB_SHA}"
           echo "HEAD testado: $(git rev-parse HEAD)"
           echo "Pais: $(git rev-list --parents -n 1 HEAD)"
