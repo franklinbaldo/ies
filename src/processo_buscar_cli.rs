@@ -5,7 +5,8 @@ use crate::colheita_do_controle::Colheita;
 use crate::indice_local::IndiceLocal;
 use crate::pesquisa_web::alvo::EmProcessos;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::pesquisa_web::fluxo::{BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_colhendo};
+use crate::pesquisa_web::filtros::{FiltrosDaPesquisa, data_valida};
+use crate::pesquisa_web::fluxo::{BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_colhendo_filtrado};
 use crate::pesquisa_web::resposta::RespostaDaPesquisa;
 use crate::processo::NumeroProcesso;
 use crate::visao_do_controle::EnvioHttps;
@@ -113,7 +114,16 @@ fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
     )
 }
 
-fn buscar(cli: &Cli, comando: &Processo, termo: &str, pagina: Option<u32>) -> ExitCode {
+fn buscar(cli: &Cli, comando: &Processo, termo: &str, pagina: Option<u32>, filtros: FiltrosDaPesquisa<'_>) -> ExitCode {
+    if filtros.de.is_some_and(|v| !data_valida(v)) || filtros.ate.is_some_and(|v| !data_valida(v)) {
+        return erro_de_uso(cli.json, "data_da_pesquisa_invalida", "data deve estar em DD/MM/AAAA e existir no calendário");
+    }
+    if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
+        let chave = |s: &str| (&s[6..10], &s[3..5], &s[0..2]);
+        if chave(de) > chave(ate) {
+            return erro_de_uso(cli.json, "periodo_da_pesquisa_invertido", "data inicial posterior à final");
+        }
+    }
     if opcoes_de_leitura_presentes(comando) {
         return erro_de_uso(
             cli.json,
@@ -149,7 +159,7 @@ fn buscar(cli: &Cli, comando: &Processo, termo: &str, pagina: Option<u32>) -> Ex
         };
         let indice = IndiceLocal::da_configuracao(&arquivos);
         let colheita = Colheita::das_referencias(&indice, &referencias);
-        buscar_colhendo::<EmProcessos, _>(&sessao, &pedido, &colheita, &mut EnvioHttps)
+        buscar_colhendo_filtrado::<EmProcessos, _>(&sessao, &pedido, filtros, &colheita, &mut EnvioHttps)
     });
     match lido {
         Ok((mut busca, nota)) => {
@@ -173,10 +183,15 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(comando) = &cli.command else {
         return None;
     };
-    let Some(ProcessoAcao::Buscar { termo, pagina }) = &comando.acao else {
+    let Some(ProcessoAcao::Buscar { termo, pagina, tipo, assunto, de, ate }) = &comando.acao else {
         return None;
     };
-    Some(buscar(cli, comando, termo, *pagina))
+    Some(buscar(cli, comando, termo, *pagina, FiltrosDaPesquisa {
+        tipo: tipo.as_deref(),
+        assunto: assunto.as_deref(),
+        de: de.as_deref(),
+        ate: ate.as_deref(),
+    }))
 }
 
 #[cfg(test)]
