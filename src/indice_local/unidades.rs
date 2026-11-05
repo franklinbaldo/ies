@@ -145,16 +145,23 @@ impl IndiceLocal {
             }
         });
         let amplo = chave(trecho);
-        let estritas: Vec<_> = lista.unidades.iter()
-            .filter(|u| chave(&u.sigla).contains(&pedida)).collect();
+        let estritas: Vec<_> = lista
+            .unidades
+            .iter()
+            .filter(|u| chave(&u.sigla).contains(&pedida))
+            .collect();
         let candidatas: Vec<_> = if !estritas.is_empty() {
             estritas
         } else {
-            lista.unidades.iter()
+            lista
+                .unidades
+                .iter()
                 .filter(|u| !amplo.is_empty() && chave(&u.sigla).contains(&amplo))
                 .collect()
         };
-        candidatas.into_iter().take(10)
+        candidatas
+            .into_iter()
+            .take(10)
             .map(|u| format!("{} - {}", u.sigla, u.descricao))
             .collect()
     }
@@ -222,7 +229,8 @@ mod tests {
     #[test]
     fn sugestoes_sem_rede_e_limitadas_ao_snapshot_da_unidade() {
         let pasta = std::env::temp_dir().join(format!(
-            "ies-244-sugestoes-{}-{}", std::process::id(),
+            "ies-244-sugestoes-{}-{}",
+            std::process::id(),
             std::thread::current().name().unwrap_or("teste")
         ));
         std::fs::create_dir_all(&pasta).unwrap();
@@ -241,12 +249,17 @@ mod tests {
             indice.sugestoes_de_unidades_guardadas("https://sei.example", "7", "ABC/GECONT"),
             vec!["ABC/GECONT-18141 - Contabilidade"]
         );
-        assert_eq!(indice.sugestoes_de_unidades_guardadas(
-            "https://sei.example", "7", "GECONT"
-        ).len(), 2);
-        assert!(indice.sugestoes_de_unidades_guardadas(
-            "https://sei.example", "8", "GECONT"
-        ).is_empty());
+        assert_eq!(
+            indice
+                .sugestoes_de_unidades_guardadas("https://sei.example", "7", "GECONT")
+                .len(),
+            2
+        );
+        assert!(
+            indice
+                .sugestoes_de_unidades_guardadas("https://sei.example", "8", "GECONT")
+                .is_empty()
+        );
     }
 
     #[test]
