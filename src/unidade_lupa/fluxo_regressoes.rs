@@ -135,3 +135,15 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
     ));
     assert_eq!(transporte.gets, 1);
 }
+
+#[test]
+fn botao_novo_repetido_eh_recusado_sem_get() {
+    let consulta = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let html = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{consulta}';\">Novo</button><button id='btnNovo'>Novo duplicado</button>"
+    );
+    assert_eq!(
+        botao_novo(&html, &controle(), ORIGEM),
+        Err(FalhaDaLupa::LinkAmbiguo)
+    );
+}
