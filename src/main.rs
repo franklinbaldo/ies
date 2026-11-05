@@ -8,6 +8,7 @@ mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
 mod ciencia;
+mod ciencia_cli;
 #[cfg(test)]
 mod cassette;
 mod classe_link_processo;
@@ -188,6 +189,12 @@ enum ProcessoAcao {
         confirmar: bool,
     },
     Reabrir {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Registra ciência do usuário no processo: prévia e um GET mutador conferido.
+    Ciente {
         numero: String,
         #[arg(long)]
         confirmar: bool,
@@ -383,6 +390,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
