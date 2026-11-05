@@ -1,42 +1,58 @@
 ---
 type: SEIObservation
 title: Validacao live de retornos programados GO e PEN3 em treinamento
-description: Evidencias por etapa e orcamento observado no ensaio de 5 de novembro de 2026
+description: Dois logins observados e falhas de leitura em GO e PEN3 sem repeticao de pedidos
 ---
 
 # Unidade retornos — verificacao live de 05/11/2026
 
-A execucao [42096207509](https://github.com/franklinbaldo/ies/actions/runs/42096207509)
-usou apenas o SEI de treinamento de GO, as credenciais publicas
-documentadas e arquivos de sessao privados com permissoes `0600`.
+Os ensaios usaram exclusivamente instalacoes **de treinamento**,
+contas publicas documentadas e arquivos privados de sessao `0600`.
+Nao houve retry, escrita de processo ou documento, nem resíduo de escrita.
 
-| Instalacao | Etapa | Resultado | Requisicoes |
+| Instalacao de treinamento | Etapa | Resultado | Requisicoes |
 | --- | --- | --- | --- |
-| GO (treinamento) | `ies --json login` | **PASS** — `login_realizado` | **6** |
-| GO (treinamento) | `ies --json unidade retornos --mes 2026-10` | **FAIL/INCONCLUSIVO** — job encerrou em 1 antes do resumo do comando | **nao observadas** |
-| PEN3 (treinamento) | `ies --json login` | **NOT_RUN** — a etapa GO interrompeu o job antes do loop PEN3 | **0** |
-| PEN3 (treinamento) | `ies --json unidade retornos --mes 2026-10` | **NOT_RUN** | **0** |
+| GO | `ies --json login` | **PASS** — `login_realizado`, unidade exibida | **6** |
+| GO | `ies --json unidade retornos --mes 2026-10` | **FAIL/INCONCLUSIVO** — o job encerrou em erro antes do resumo saneado | **nao observadas** |
+| PEN3 | `ies --json login` | **PASS** — `login_realizado`, unidade `TESTE` | **6** |
+| PEN3 | `ies --json unidade retornos --mes 2026-10` | **FAIL** — saida 1, `fonte_invalida/calendario_dos_retornos_desconhecido` | **nao publicadas** |
 | GO e PEN3 | `ies unidade retornos` sem `--mes` | **NOT_RUN** | **0** |
 
-O login GO exibiu unidade ativa e seis requisicoes. Apos espera
-de 65 s, o job terminou em erro sem publicar o resumo saneado de
-`retornos`; portanto **nao** se pode afirmar que a consulta teve
-zero GETs, nem que produziu os dados corretos. Nao repetir a consulta GO
-sem nova justificativa: a operacao foi tentada uma vez.
+## Evidencia GO
 
-A execucao subsequente
-[42097152925](https://github.com/franklinbaldo/ies/actions/runs/42097152925)
-foi **NOT_RUN para rede SEI**: o guard de commit registrou
-`NOT_RUN: este commit nao e o gatilho de leitura ao vivo`.
+[Run 42096207509](https://github.com/franklinbaldo/ies/actions/runs/42096207509):
+o login GO foi concluido com 6 requisicoes. Houve espera de
+65 segundos antes do comando de retornos. O job encerrou em erro
+antes de exibir o retorno da CLI: nao ha contagem confiavel de GETs
+do comando, nem prova de lista completa. Nao se repetiu a leitura.
 
-## Limites e seguranca
+## Evidencia PEN3
 
-- O replay de cassettes tem relatorio separado em
-  `docs/validacao-replay/2026-11-05-unidade-retornos.md`.
-- GO: orcamento de login observado = 6; orcamento do comando de retornos
-  **nao verificavel** a partir do log disponivel. A meta sintetica
-  continua sendo 3 GETs para o mes exibido, mais um por passo.
-- Nenhuma escrita de processo ou documento foi solicitada; residuo
-  de escrita no SEI: **nenhum**.
-- O sandbox local nao possui Rust e nao resolve `github.com` por DNS;
-  compilacao e gate foram executados pelo CI, nao localmente.
+[Run 42118598153](https://github.com/franklinbaldo/ies/actions/runs/42118598153):
+o login foi concluido com 6 requisicoes e unidade `TESTE`.
+Apos 65 segundos de espera, uma unica chamada de `retornos --mes`
+retornou codigo 1 e subcodigo
+`calendario_dos_retornos_desconhecido`. O campo `requisicoes`
+nao foi publicado na falha; logo o numero de GETs do comando
+**nao foi medido**. A falta de link mensal reconhecido e uma
+hipotese diagnostica, ainda nao comprovada por captura do HTML.
+Nao repetir a mesma requisicao sem nova evidencia.
+
+O [run 42097152925](https://github.com/franklinbaldo/ies/actions/runs/42097152925)
+teve guard `NOT_RUN` para rede. O workflow temporario de live foi
+removido apos o ensaio unico PEN3, para evitar repeticoes automatizadas.
+
+## Estado
+
+- **Replay offline:** PASS, 14/14 paginas mensais em sete instalacoes,
+  com hashes conferidos. Ver
+  [relatorio do replay](../validacao-replay/2026-11-05-unidade-retornos.md).
+- **Testes sinteticos:** orcamento previsto de 3 GETs no mes exibido,
+  mais um por transicao com URL publicada; nao confundir essa contagem
+  prevista com os GETs realmente observados nos runs de falha.
+- **Validacao ao vivo:** **FAIL**, nao homologada, ate demonstrar
+  leitura integral da tela de calendario em treinamento com
+  origem e estrutura verificadas, sem retry.
+- **Residuo SEI:** nenhum registro criado ou alterado.
+- **Sandbox:** sem `rustc` e DNS para GitHub; compilacao Rust e suite
+  foram executadas no GitHub Actions, e nao localmente.
