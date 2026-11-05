@@ -11,13 +11,10 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
-use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever};
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
-use super::{
-    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar,
-    escolher_grupo, grupos_do_cadastro,
+use crate::processo_obter::{
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
 #[derive(Debug)]
 pub(crate) enum ErroPrevia {
     Abertura(ErroProcessoObter),
