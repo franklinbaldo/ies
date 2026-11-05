@@ -77,11 +77,10 @@ fn replay_retornos_no_acervo() {
                                     let summary = crate::html_atributos::valor_do_atributo(
                                         tag, "summary"
                                     ).ok().flatten().unwrap_or_default();
-                                    if summary.contains("Aguardando") || summary.contains("Devolver")
-                                        || summary.contains("devolver")
-                                    {
-                                        println!("{instalacao}: tabela summary={summary}");
-                                    }
+                                    let palavras: String = summary.chars()
+                                        .filter(|c| c.is_alphabetic() || c.is_whitespace())
+                                        .take(100).collect();
+                                    println!("{instalacao}: tabela resumo_palavras={palavras:?}");
                                 }
                             }
                             for no in dom.query_selector("div").into_iter().flatten() {
