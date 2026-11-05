@@ -1,8 +1,8 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
-//! tests/test_processo_criar_escolher_tipo_010.py, sem portar a arquitetura.
+//! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
 use crate::processo_concluir::tests_apoio::{
-    ambiente, arvore, controle, ok, r302, rodar_com, trabalhar, url_controle, UNIDADE,
+    UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
 use crate::transporte::FalhaTransporte;
 
@@ -20,9 +20,12 @@ fn tela_controle() -> String {
 
 fn lista(versao_41: bool) -> String {
     let escolha = if versao_41 {
-        "<a class='ancoraOpcao' href='#' onclick='escolher(12)'>Administração Geral: Ensaio</a>".to_owned()
+        "<a class='ancoraOpcao' href='#' onclick='escolher(12)'>Administração Geral: Ensaio</a>"
+            .to_owned()
     } else {
-        format!("<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12&amp;infra_hash={HASH}'>{TIPO}</a>")
+        format!(
+            "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12&amp;infra_hash={HASH}'>{TIPO}</a>"
+        )
     };
     format!(
         "<form id='frmProcedimentoEscolherTipo' method='post' action='controlador.php?acao=procedimento_escolher_tipo&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value=''>         <input type='hidden' name='hdnFiltroTipoProcedimento' value='U'>         </form>         <a onclick=\"exibirTiposProcedimento('U')\">Todos</a>         <table id='tblTipoProcedimento'><tr><td>{escolha}</td></tr></table>"
@@ -46,13 +49,19 @@ fn pedido(confirmar: bool) -> PedidoCriar<'static> {
     }
 }
 
-/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py: prévia 4.0
+/// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: prévia 4.0
 #[test]
 fn previa_40_nao_tem_post_criador() {
     let amb = ambiente();
     let respostas = vec![ok(tela_controle()), ok(lista(false)), ok(cadastro())];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(false), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(false),
+            rede,
+        )
     });
     let realizado = resultado.unwrap();
     assert!(!realizado.confirmado);
@@ -61,29 +70,40 @@ fn previa_40_nao_tem_post_criador() {
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
 
-/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py: escolha 4.1
+/// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: escolha 4.1
 #[test]
 fn previa_41_envia_so_escolha_nao_criacao() {
     let amb = ambiente();
     let respostas = vec![
         ok(tela_controle()),
         ok(lista(true)),
-        r302(&format!("controlador.php?acao=procedimento_gerar&infra_hash={HASH}")),
+        r302(&format!(
+            "controlador.php?acao=procedimento_gerar&infra_hash={HASH}"
+        )),
         ok(cadastro()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(false), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(false),
+            rede,
+        )
     });
     let feito = resultado.unwrap();
     assert_eq!(feito.requisicoes, 4);
     assert_eq!(requests.len(), 4);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
     assert!(requests.iter().all(|req| {
         req.metodo != "POST" || req.url.contains("acao=procedimento_escolher_tipo")
     }));
 }
 
-/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py: confirma 4.0
+/// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: confirma 4.0
 #[test]
 fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
     let amb = ambiente();
@@ -91,22 +111,33 @@ fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
-        r302(&format!("controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}")),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
         ok(trabalhar()),
         ok(arvore(&[UNIDADE], &[])),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     let feito = resultado.unwrap();
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(requests.len(), 6);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
 }
 
-/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py: falha da escrita
+/// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: falha da escrita
 #[test]
 fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
     let amb = ambiente();
@@ -117,11 +148,20 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
         Err(FalhaTransporte::Rede),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     assert!(matches!(resultado, Err(ErroCriar::EfeitoIncerto)));
     assert_eq!(requests.len(), 4);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
 }
 
 /// Um interessado não resolvido deve recusar antes da escrita criadora.
@@ -139,7 +179,13 @@ fn interessado_nao_resolvido_nao_cria() {
     };
     let respostas = vec![ok(tela_controle()), ok(lista(false)), ok(cadastro())];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido, rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido,
+            rede,
+        )
     });
     assert!(matches!(resultado, Err(ErroCriar::InteressadoNaoResolvido)));
     assert_eq!(requests.len(), 3);
