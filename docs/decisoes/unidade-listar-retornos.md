@@ -53,10 +53,21 @@ Mês com texto literal `Nenhum registro encontrado.` na area de tabela
 e vazio. A pagina que apresenta paginador nao demonstrado e recusada:
 nao afirma total nem completa lista parcial.
 
-`--mes` e validado offline. Sem mes, a implementacao exige a celula
-`diaHoje` na tela aberta. Se ela estiver em outro mes ou faltar, a
-implementacao atual falha fechado em vez de adivinhar a data da maquina;
-a navegacao segura para achar hoje em mes vizinho fica como lacuna.
+`--mes` e validado offline. Sem mes, a implementacao busca primeiro
+a celula `diaHoje` na tela aberta. Se estiver ausente porque o
+calendario abriu no ultimo mes visitado, percorre somente links GET
+assinados dos dias primeiros em direcao ao mes UTC atual; na virada
+do UTC (primeiro ou ultimo dia do mes), verifica ainda o mes vizinho.
+O relogio da maquina e **apenas pista para escolher onde procurar**:
+sem uma unica celula `diaHoje` valida no SEI, recusa sem abrir a
+lista mensal. O custo e 1 GET por mes percorrido, sem restauracao
+ou retry. O limite de 24 saltos e global tambem nesta procura.
+
+A navegacao admite ancoras de dia primeiro repetidas quando a URL
+assinada e literalmente identica, como faz o oraculo Todos; recusa
+URLs distintas para o mesmo dia antes de transmitir outro GET.
+As transicoes anteriores e o dia de hoje deslocado têm cobertura
+sintetica, mas aguardam validacao autenticada especifica.
 
 O relato do RED ocorreu no CI inicial (3 testes falhando, 1361
 passando; nao foi possivel compilar no sandbox local sem rustc nem
