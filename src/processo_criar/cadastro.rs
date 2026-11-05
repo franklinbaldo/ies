@@ -186,7 +186,7 @@ fn conferir_listas(
             let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
             let titulo =
                 crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
-            if let Some(valor) = valor.filter(|v| !v.is_empty()) {
+            if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo.trim().to_owned()));
             }
         }
@@ -266,6 +266,17 @@ mod tests {
             conferir_cadastro(&tela(ASSUNTO, "disabled", HIPOTESE), "12", "publico"),
             Err(ErroCadastro::NivelDesabilitado)
         );
+    }
+
+    #[test]
+    fn placeholder_null_precisa_de_ajax_antes_de_uma_escrita() {
+        let html = tela(ASSUNTO, "", "<option value='null'> </option>");
+        assert_eq!(
+            conferir_cadastro(&html, "12", "restrito"),
+            Err(ErroCadastro::HipoteseLegalNaoIdentificada)
+        );
+        let observado = conferir_cadastro_com_ajax_pendente(&html, "12", "restrito").unwrap();
+        assert_eq!(observado.hipotese_legal, None);
     }
 
     #[test]
