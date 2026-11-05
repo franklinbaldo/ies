@@ -251,10 +251,14 @@ fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos>
         {
             continue;
         }
-        if encontrado.is_some() {
-            return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido);
+        // O calendario real publica duas vezes o mesmo "Ver todo o mes"
+        // (cabecalho/rodape) nas sete instalacoes. Duplicata identica
+        // nao e uma segunda escolha; URL assinada diferente continua ambigua.
+        match encontrado {
+            Some((anterior, url)) if anterior == (ano, mes) && url == link.url => {}
+            Some(_) => return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
+            None => encontrado = Some(((ano, mes), link.url.as_str())),
         }
-        encontrado = Some(((ano, mes), link.url.as_str()));
     }
     encontrado.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
 }
