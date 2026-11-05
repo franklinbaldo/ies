@@ -258,3 +258,132 @@ fn mes_invalido_recusado_antes_de_acesso_a_sessao() {
     assert!(matches!(mes_pedido(Some("2026-10")), Ok(Some((2026, 10)))));
     assert!(matches!(mes_pedido(None), Ok(None)));
 }
+
+#[test]
+fn sem_mes_encontra_dia_hoje_em_mes_anterior_ao_aberto() {
+    // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01:
+    // a tela abre no ultimo mes visitado, nao necessariamente no mes de hoje.
+    let mut pedidos = Vec::new();
+    let lido = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        None,
+        (2026, 10, 16),
+        |url| {
+            pedidos.push(url.to_owned());
+            if url.contains("data_inicial=") {
+                Ok(linha().into())
+            } else if url.contains("data_atual=01%2F10%2F2026") {
+                Ok(calendario(2026, 10, true))
+            } else {
+                Ok(format!(
+                    "{}<a href='{}'>anterior</a>",
+                    calendario(2026, 11, false),
+                    href("data_atual=01%2F10%2F2026")
+                ))
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.itens.len(), 1);
+    assert_eq!(lido.requisicoes, 4);
+    assert_eq!(pedidos.len(), 3);
+    assert!(pedidos[1].contains("data_atual=01%2F10%2F2026"));
+    assert!(pedidos[2].contains("data_inicial=01%2F10%2F2026"));
+}
+
+#[test]
+fn sem_mes_na_virada_utc_nao_converte_hoje_da_maquina_em_hoje_do_sei() {
+    // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01:
+    // UTC ja e novembro, mas a celula diaHoje do SEI esta em outubro.
+    let mut pedidos = Vec::new();
+    let lido = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        None,
+        (2026, 11, 1),
+        |url| {
+            pedidos.push(url.to_owned());
+            if url.contains("data_inicial=") {
+                Ok(linha().into())
+            } else if url.contains("data_atual=01%2F10%2F2026") {
+                Ok(calendario(2026, 10, true))
+            } else {
+                Ok(format!(
+                    "{}<a href='{}'>anterior</a>",
+                    calendario(2026, 11, false),
+                    href("data_atual=01%2F10%2F2026")
+                ))
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.requisicoes, 4);
+    assert_eq!(pedidos.len(), 3);
+}
+
+#[test]
+fn sem_mes_sem_dia_hoje_nos_candidatos_recusa_sem_consultar_lista() {
+    // Relogio local e apenas pista de navegacao. Nao publica mes suposto.
+    let mut pedidos = Vec::new();
+    let resultado = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        None,
+        (2026, 11, 1),
+        |url| {
+            pedidos.push(url.to_owned());
+            if url.contains("data_atual=01%2F10%2F2026") {
+                Ok(calendario(2026, 10, false))
+            } else {
+                Ok(format!(
+                    "{}<a href='{}'>anterior</a>",
+                    calendario(2026, 11, false),
+                    href("data_atual=01%2F10%2F2026")
+                ))
+            }
+        },
+    );
+    assert!(matches!(
+        resultado,
+        Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
+    ));
+    assert_eq!(pedidos.len(), 2);
+    assert!(!pedidos.iter().any(|u| u.contains("data_inicial=")));
+}
+
+#[test]
+fn primeiro_dia_duplicado_com_url_identica_nao_inventa_ambiguidade() {
+    // O oraculo Todos deduplica por URL assinada, nao por quantidade de ancoras.
+    let anterior = href("data_atual=01%2F10%2F2026");
+    let mut pedidos = Vec::new();
+    let lido = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 10)),
+        (2026, 11, 5),
+        |url| {
+            pedidos.push(url.to_owned());
+            if url.contains("data_inicial=") {
+                Ok(linha().into())
+            } else if url.contains("data_atual=01%2F10%2F2026") {
+                Ok(calendario(2026, 10, false))
+            } else {
+                Ok(format!(
+                    "{}<a href='{anterior}'>prev 1</a><a href='{anterior}'>prev 2</a>",
+                    calendario(2026, 11, false)
+                ))
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.requisicoes, 4);
+    assert_eq!(pedidos.len(), 3);
+}
