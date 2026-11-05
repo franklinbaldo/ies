@@ -143,5 +143,8 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     })
 }
 
+mod tela;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_tela;
