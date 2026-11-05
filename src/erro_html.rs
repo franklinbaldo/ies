@@ -9,8 +9,9 @@ use crate::erro_publico::{Acao, Causa};
 use crate::html_atributos::ErroAtributoHtml;
 use crate::transporte::StatusHttpRecusado;
 
-/// Onde a leitura da tela falhou e o que se viu.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Onde a leitura da tela falhou e o que se viu. A igualdade é por `onde` e
+/// `problema`: a mensagem é apresentação, não classificação.
+#[derive(Clone, Copy, Debug, Eq)]
 pub struct ErroHtml {
     /// O nome público do ponto da leitura (`link_do_processo_ausente`).
     pub(crate) onde: &'static str,
@@ -83,6 +84,12 @@ impl ErroHtml {
     }
 }
 
+impl PartialEq for ErroHtml {
+    fn eq(&self, outro: &Self) -> bool {
+        self.onde == outro.onde && self.problema == outro.problema
+    }
+}
+
 impl Causa for ErroHtml {
     /// `html` e o problema. Numa variante `#[causa(transparente)]` o `html`
     /// é este, e não o nome da variante: o caminho não o repete.
@@ -136,6 +143,8 @@ mod tests {
         assert_eq!(erro.mensagem, "própria");
         assert_eq!(erro.problema, Problema::Valor);
         assert_eq!(folha(&erro), "x");
+        assert_eq!(erro, ErroHtml::valor("x"), "a mensagem não classifica");
+        assert_ne!(erro, ErroHtml::ausente("x"));
     }
 
     #[test]
