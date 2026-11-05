@@ -8,6 +8,8 @@ use crate::instalacao::Instalacao;
 
 mod fluxo;
 mod erro;
+#[cfg(test)]
+mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
