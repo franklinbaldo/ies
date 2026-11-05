@@ -72,7 +72,7 @@ pub(crate) struct Previa {
 fn url_do_cadastro(
     instalacao: &Instalacao, ref_url: &str, id: &str,
 ) -> Result<String, ErroPrevia> {
-    use crate::arvore_processo::endereco::conferir_endereco_relativo;
+    use crate::arvore_processo::conferir_endereco_relativo;
     conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
         .map_err(|_| ErroPrevia::RedirecionamentoInesperado)
 }
@@ -194,7 +194,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     } else {
         let html = decodificar_resposta(res.resposta).map_err(ErroPrevia::Transporte)?;
         let antes = acompanhamentos_da_lista(&html).map_err(ErroPrevia::Estrutura)?;
-        let url = if pedido.deixar || (pedido.grupo.is_none() && antes.is_empty()) {
+        let url = if pedido.deixar {
             None
         } else {
             Some(adicionar_da_lista(&instalacao, &html, &id)?)
