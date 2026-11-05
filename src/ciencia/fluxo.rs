@@ -6,7 +6,9 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
-use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever};
+use crate::processo_obter::{
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+};
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,7 +34,10 @@ pub(crate) enum ErroCienciaProcesso {
     TelaRedirecionada,
     SessaoEncerrada,
     /// A escrita pode ter ocorrido. NUNCA repetir; revisar a lista manualmente.
-    EfeitoIncerto { motivo: &'static str, requisicoes: u8 },
+    EfeitoIncerto {
+        motivo: &'static str,
+        requisicoes: u8,
+    },
 }
 
 impl ErroCienciaProcesso {
@@ -60,12 +65,18 @@ impl ErroCienciaProcesso {
             Self::Cookie(_) => "o arquivo privado da sessão não pôde ser lido",
             Self::Tela(_) | Self::TelaRedirecionada => "a tela de ciência não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
-            Self::EfeitoIncerto { .. } => "a ciência pode ter sido registrada; conferir no SEI antes de repetir",
+            Self::EfeitoIncerto { .. } => {
+                "a ciência pode ter sido registrada; conferir no SEI antes de repetir"
+            }
         }
     }
 
     pub(crate) const fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto { .. }) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto { .. }) {
+            3
+        } else {
+            1
+        }
     }
 
     pub(crate) const fn requisicoes(&self) -> Option<u8> {
@@ -94,9 +105,16 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
-        sessao, &leitura(pedido.nup, pedido.unidade, true), indice, &mut rede,
-    ).map_err(E::Abertura)?;
-    let tela = acoes.ciencia.map_err(E::Barra)?.ok_or(E::CienciaNaoOferecida)?;
+        sessao,
+        &leitura(pedido.nup, pedido.unidade, true),
+        indice,
+        &mut rede,
+    )
+    .map_err(E::Abertura)?;
+    let tela = acoes
+        .ciencia
+        .map_err(E::Barra)?
+        .ok_or(E::CienciaNaoOferecida)?;
     let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
     let mut resultado = CienciaDoProcesso {
         nup: pedido.nup.as_str().to_owned(),
@@ -122,14 +140,28 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
     // verificação por leitura, jamais nova tentativa de escrita.
     let resposta = rede.get_sem_seguir(url.as_str(), &cookie);
     let atividade = resposta.ok().and_then(|r| {
-        if r.resposta.status_code == 302 { return None; }
+        if r.resposta.status_code == 302 {
+            return None;
+        }
         let html = decodificar_resposta(r.resposta).ok()?;
         atividade_do_aceite(
-            &html, AlvoDaCiencia::Processo { id_procedimento: &resultado.id_procedimento },
-        ).ok()
+            &html,
+            AlvoDaCiencia::Processo {
+                id_procedimento: &resultado.id_procedimento,
+            },
+        )
+        .ok()
     });
 
-    let prova = verificar(sessao, pedido, indice, &cookie, &mut rede, &resultado.id_procedimento, atividade.as_deref());
+    let prova = verificar(
+        sessao,
+        pedido,
+        indice,
+        &cookie,
+        &mut rede,
+        &resultado.id_procedimento,
+        atividade.as_deref(),
+    );
     resultado.requisicoes = rede.feitas();
     match prova {
         Ok(true) => {
@@ -142,7 +174,8 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
             requisicoes: rede.feitas(),
         }),
         Err(motivo) => Err(E::EfeitoIncerto {
-            motivo, requisicoes: rede.feitas(),
+            motivo,
+            requisicoes: rede.feitas(),
         }),
     }
 }
@@ -159,17 +192,24 @@ fn verificar<V: EnvioDoProcesso>(
     atividade: Option<&str>,
 ) -> Result<bool, &'static str> {
     let (novo, acoes) = abrir_para_escrever(
-        sessao, &leitura(pedido.nup, pedido.unidade, false), indice, rede,
-    ).map_err(|_| "arvore_nao_relida_depois_da_ciencia")?;
+        sessao,
+        &leitura(pedido.nup, pedido.unidade, false),
+        indice,
+        rede,
+    )
+    .map_err(|_| "arvore_nao_relida_depois_da_ciencia")?;
     if novo.arvore.processo.id != id_original {
         return Err("identidade_do_processo_alterada_na_releitura");
     }
     let Some(atividade) = atividade else {
         return Err("aceite_sem_id_de_atividade_depois_da_escrita");
     };
-    let lista = acoes.lista_ciencias.map_err(|_| "lista_de_ciencias_fora_da_forma")?
+    let lista = acoes
+        .lista_ciencias
+        .map_err(|_| "lista_de_ciencias_fora_da_forma")?
         .ok_or("lista_de_ciencias_nao_publicada_na_arvore_relida")?;
-    let resposta = rede.get_sem_seguir(lista.as_str(), cookie)
+    let resposta = rede
+        .get_sem_seguir(lista.as_str(), cookie)
         .map_err(|_| "releitura_da_lista_de_ciencias_falhou")?;
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|_| "resposta_da_lista_de_ciencias_nao_lida")?;
