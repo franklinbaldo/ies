@@ -121,3 +121,24 @@ fn existente_e_recusado_e_novo_e_aceito() {
         Ok(true)
     );
 }
+
+#[test]
+fn tabela_de_anexados_pode_ser_irma_do_formulario() {
+    // Forma do oráculo Todos: a lista é procurada na tela, não apenas no form.
+    let alterado = html().replace(
+        "<table summary=\"Lista de Processos Anexados\">",
+        "</form><table summary=\"Lista de Processos Anexados\">",
+    ).replace("</table></form>", "</table>");
+    assert_eq!(ler_tela(&alterado).unwrap().anexados, vec!["22"]);
+}
+
+#[test]
+fn consulta_ajax_exige_literal_unico_e_endereco_relativo() {
+    use super::fluxo::url_da_consulta;
+    let script = "new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash=abc');";
+    let prefixo = "new infraAjaxComplementar('txtProtocolo','";
+    assert!(url_da_consulta(script, prefixo).unwrap().starts_with("controlador_ajax.php?"));
+    assert_eq!(url_da_consulta(&format!("{script}{script}"), prefixo), Err("consultas_de_anexacao_repetidas"));
+    assert_eq!(url_da_consulta("", prefixo), Err("consulta_de_anexacao_nao_publicada"));
+    assert_eq!(url_da_consulta("new infraAjaxComplementar('txtProtocolo','https://outro.test/')", prefixo), Err("consulta_de_anexacao_fora_da_forma_observada"));
+}
