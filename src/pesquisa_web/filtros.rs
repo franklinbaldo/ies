@@ -55,7 +55,7 @@ impl ErroFiltro {
     }
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<Option<String>, ErroFiltro> {
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroFiltro> {
     valor_do_atributo(tag, nome)
         .map_err(|_| ErroFiltro::AtributoDoFiltroIlegivel)?
         .map(|v| decodificar_atributo(&v).ok_or(ErroFiltro::AtributoDoFiltroIlegivel))
