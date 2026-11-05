@@ -68,11 +68,11 @@ mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
-mod unidade_pesquisar_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
+mod unidade_pesquisar_cli;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
@@ -275,9 +275,7 @@ enum UnidadeAcao {
         atualizar: bool,
     },
     /// Pesquisa no índice local por sigla ou descrição, sem rede
-    Pesquisar {
-        termo: String,
-    },
+    Pesquisar { termo: String },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -412,7 +410,31 @@ fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
     }
 }
 
+/// A leitura local é independente dos fluxos Web e não altera a sessão.
+fn tentar_unidades_do_indice(cli: &Cli) -> Option<ExitCode> {
+    match &cli.command {
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Listar { atualizar }),
+        }) => Some(unidade_pesquisar_cli::listar(
+            cli.json,
+            cli.unidade.as_deref(),
+            *atualizar,
+        )),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Pesquisar { termo }),
+        }) => Some(unidade_pesquisar_cli::pesquisar(
+            cli.json,
+            cli.unidade.as_deref(),
+            termo,
+        )),
+        _ => None,
+    }
+}
+
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = tentar_unidades_do_indice(cli) {
+        return status;
+    }
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
         return status;
     }
@@ -428,12 +450,6 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Indice(Indice {
             acao: Some(IndiceAcao::Caminho),
         }) => return indice_caminho_cli::mostrar(cli.json),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Listar { atualizar }),
-        }) => return unidade_pesquisar_cli::listar(cli.json, cli.unidade.as_deref(), *atualizar),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Pesquisar { termo }),
-        }) => return unidade_pesquisar_cli::pesquisar(cli.json, cli.unidade.as_deref(), termo),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),

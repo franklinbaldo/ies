@@ -1,12 +1,12 @@
 //! #244: leitura de snapshots de unidades, exclusivamente local.
 //! A identidade da instalação e da unidade é derivada dos arquivos privados
-//! da sessão. URL assinada, cookie e infra_hash nunca são publicados.
+//! da sessão. URL assinada, cookie e `infra_hash` nunca são publicados.
 use crate::configuracao::{self, ArquivosDeAcesso};
+use crate::erro_fonte;
 use crate::indice_local::{self, IndiceLocal, ListaGuardada};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::ReferenciasDaSessao;
-use crate::erro_fonte;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::process::ExitCode;
 
 type ErroLocal = (&'static str, &'static str);
@@ -15,12 +15,9 @@ type ErroLocal = (&'static str, &'static str);
 /// informação não se pode misturar snapshots de unidades distintas.
 /// Não há pedido HTTP nem login, e a validade remota não é presumida.
 fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), ErroLocal> {
-    let referencias = ReferenciasDaSessao::ler(
-        &arquivos.url_controle,
-        &arquivos.origem,
-        &arquivos.cookie,
-    )
-    .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+    let referencias =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+            .map_err(|e| (e.subcodigo(), e.mensagem()))?;
     referencias
         .conferir_controle()
         .map_err(|e| (e.subcodigo(), e.mensagem()))?;
@@ -32,7 +29,7 @@ fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), Err
         "unidade_da_sessao_nao_identificada",
         "a URL local do Controle não identifica uma única unidade ativa",
     ))?;
-    Ok((instalacao.url_base().to_owned(), unidade))
+    Ok((instalacao.url_base().clone(), unidade))
 }
 
 /// Falha fechada: em uma consulta offline não se confere o rótulo da
@@ -80,12 +77,14 @@ fn json_da_lista(lista: &ListaGuardada, unidade: &str) -> Value {
     let unidades: Vec<Value> = lista
         .unidades
         .iter()
-        .map(|u| json!({
-            "id": &u.id,
-            "sigla": &u.sigla,
-            "descricao": &u.descricao,
-            "orgao": &u.orgao,
-        }))
+        .map(|u| {
+            json!({
+                "id": &u.id,
+                "sigla": &u.sigla,
+                "descricao": &u.descricao,
+                "orgao": &u.orgao,
+            })
+        })
         .collect();
     json!({
         "origem": "indice",
@@ -117,19 +116,21 @@ fn executar(json_mode: bool, unidade_esperada: Option<&str>, termo: Option<&str>
     if json_mode {
         println!("{}", json_da_lista(&lista, &unidade));
     } else {
-        println!("Unidades do índice local: {} (leitura: {})", lista.total, lista.lida_em);
+        println!(
+            "Unidades do índice local: {} (leitura: {})",
+            lista.total, lista.lida_em
+        );
         for item in &lista.unidades {
-            println!("{}\t{}\t{}\t{}", item.id, item.sigla, item.descricao, item.orgao);
+            println!(
+                "{}\t{}\t{}\t{}",
+                item.id, item.sigla, item.descricao, item.orgao
+            );
         }
     }
     ExitCode::SUCCESS
 }
 
-pub(super) fn listar(
-    json_mode: bool,
-    unidade_esperada: Option<&str>,
-    atualizar: bool,
-) -> ExitCode {
+pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar: bool) -> ExitCode {
     if atualizar {
         // Não aceitar --atualizar e devolver um snapshot antigo como se novo.
         return erro_fonte(
@@ -141,13 +142,13 @@ pub(super) fn listar(
     executar(json_mode, unidade_esperada, None)
 }
 
-pub(super) fn pesquisar(
-    json_mode: bool,
-    unidade_esperada: Option<&str>,
-    termo: &str,
-) -> ExitCode {
+pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
     if termo.trim().is_empty() {
-        return erro_fonte(json_mode, "termo_de_unidade_vazio", "termo de pesquisa vazio");
+        return erro_fonte(
+            json_mode,
+            "termo_de_unidade_vazio",
+            "termo de pesquisa vazio",
+        );
     }
     executar(json_mode, unidade_esperada, Some(termo))
 }
