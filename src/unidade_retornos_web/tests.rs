@@ -212,13 +212,25 @@ fn mes_anterior_sem_link_publicado_falha_fechado_sem_get_extra() {
 #[test]
 fn sem_mes_nao_inventa_o_relogio_do_sei() {
     // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01.
-    let resultado = ler_com(CONTROLE, &controle(), &instalacao(), None, |_| {
-        Ok(calendario(2026, 10, false))
-    });
+    // Data UTC fixa evita depender do dia de execucao do CI.
+    let mut chamados = 0;
+    let resultado = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        None,
+        (2026, 10, 16),
+        |url| {
+            chamados += 1;
+            assert!(!url.contains("data_inicial="));
+            Ok(calendario(2026, 10, false))
+        },
+    );
     assert!(matches!(
         resultado,
         Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
     ));
+    assert_eq!(chamados, 1);
 }
 #[test]
 fn link_em_outro_host_e_recusado_antes_do_get() {
