@@ -1,7 +1,7 @@
 //! Testes de transporte roteirizado: uma escrita e uma leitura verificadora.
 //! Casos de Todos tests/test_ciclo_sobrestar_010.py @323eb01.
-use super::{Acao, ErroSobrestamento as E, executar};
 use super::tests_tela::formulario;
+use super::{Acao, ErroSobrestamento as E, executar};
 use crate::arvore_processo::tests_reabrir::{link_de_reabrir, tela_do_no_pela_variavel};
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
@@ -18,7 +18,8 @@ fn barra_retomar() -> String {
 }
 fn sobrestado() -> String {
     arvore_para_concluir(
-        ID, NUP,
+        ID,
+        NUP,
         &format!("Processo sobrestado na unidade {}.<br />", ancora(UNIDADE)),
         &[barra_retomar()],
     )
@@ -42,7 +43,10 @@ fn volta_a_arvore() -> String {
     )
 }
 fn rodar(
-    acao: Acao, motivo: Option<&str>, confirmar: bool, respostas: Vec<Resposta>,
+    acao: Acao,
+    motivo: Option<&str>,
+    confirmar: bool,
+    respostas: Vec<Resposta>,
 ) -> (Result<super::Previa, E>, Vec<Pedido>) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
@@ -69,7 +73,9 @@ fn pedidos_sobrestar() -> Vec<Pedido> {
 #[test]
 fn sobrestar_um_post_verifica_sobrestamento_por_leitura_nova() {
     let (r, pedidos) = rodar(
-        Acao::Sobrestar, Some("Aguarda decisao"), true,
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
         respostas_sobrestar(r302(&volta_a_arvore()), ok(sobrestado())),
     );
     let feito = r.unwrap();
@@ -81,8 +87,13 @@ fn sobrestar_um_post_verifica_sobrestamento_por_leitura_nova() {
 #[test]
 fn sobrestar_nao_aplicado_na_releitura_nao_declarray_sucesso() {
     let (r, pedidos) = rodar(
-        Acao::Sobrestar, Some("Aguarda decisao"), true,
-        respostas_sobrestar(r302(&volta_a_arvore()), ok(arvore(&[UNIDADE], &[sobrestar()]))),
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
+        respostas_sobrestar(
+            r302(&volta_a_arvore()),
+            ok(arvore(&[UNIDADE], &[sobrestar()])),
+        ),
     );
     assert_eq!(r, Err(E::EscritaNaoAplicada));
     assert_eq!(pedidos, pedidos_sobrestar());
@@ -90,7 +101,9 @@ fn sobrestar_nao_aplicado_na_releitura_nao_declarray_sucesso() {
 #[test]
 fn sobrestar_sem_resposta_exige_releitura_sem_retry() {
     let (r, pedidos) = rodar(
-        Acao::Sobrestar, Some("Aguarda decisao"), true,
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
         respostas_sobrestar(Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)),
     );
     assert_eq!(r, Err(E::EfeitoIncerto));
@@ -99,9 +112,15 @@ fn sobrestar_sem_resposta_exige_releitura_sem_retry() {
 #[test]
 fn formulario_de_outro_processo_recusa_antes_de_enviar() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[sobrestar()]));
-    respostas.push(ok(formulario().replace("name=\"hdnIdProtocolos\" value=\"10\"", "name=\"hdnIdProtocolos\" value=\"11\"")));
+    respostas.push(ok(formulario().replace(
+        "name=\"hdnIdProtocolos\" value=\"10\"",
+        "name=\"hdnIdProtocolos\" value=\"11\"",
+    )));
     let (r, pedidos) = rodar(Acao::Sobrestar, Some("Aguarda decisao"), true, respostas);
-    assert_eq!(r, Err(E::TelaSobrestar(super::tela::ErroTela::OutroProcesso)));
+    assert_eq!(
+        r,
+        Err(E::TelaSobrestar(super::tela::ErroTela::OutroProcesso))
+    );
     let mut esperados = pedidos_da_abertura();
     esperados.push(get(&url_tela_sobrestar()));
     assert_eq!(pedidos, esperados);
@@ -112,15 +131,16 @@ fn tela_de_retomar() -> String {
         .replace("procedimento_reabrir", "procedimento_remover_sobrestamento")
 }
 fn url_retomar() -> String {
-    absoluta(&link_de_reabrir(ID).replace(
-        "procedimento_reabrir", "procedimento_remover_sobrestamento",
-    ))
+    absoluta(
+        &link_de_reabrir(ID).replace("procedimento_reabrir", "procedimento_remover_sobrestamento"),
+    )
 }
 #[test]
 fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
     let mut respostas = abertura(sobrestado());
     respostas.extend([
-        ok(tela_de_retomar()), ok("<html></html>".into()),
+        ok(tela_de_retomar()),
+        ok("<html></html>".into()),
         ok(arvore(&[UNIDADE], &[sobrestar()])),
     ]);
     let (r, pedidos) = rodar(Acao::Retomar, None, true, respostas);
