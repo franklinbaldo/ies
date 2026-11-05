@@ -4,9 +4,9 @@ pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar
 
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
-use crate::instalacao::Instalacao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::instalacao::Instalacao;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroCriar {
@@ -70,10 +70,11 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
         let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
-        let nativo = href.split('?').nth(1).is_some_and(|consulta| {
-            consulta.split('&').any(|par| par == "acao=documento_gerar")
-        }) || (href == "#" || href == "javascript:void(0);")
-            && onclick.as_deref().and_then(id_da_escolha_literal).is_some();
+        let nativo =
+            href.split('?').nth(1).is_some_and(|consulta| {
+                consulta.split('&').any(|par| par == "acao=documento_gerar")
+            }) || (href == "#" || href == "javascript:void(0);")
+                && onclick.as_deref().and_then(id_da_escolha_literal).is_some();
         if !nativo {
             continue;
         }
@@ -151,7 +152,6 @@ pub(crate) fn conferir_criacao(
     }
     Ok(numero.to_owned())
 }
-
 
 /// A 4.0 publica URL direta; a 4.1/5.0 publica escolher(id).
 /// Nunca carrega credenciais de sessão nem URL assinada no Debug.
@@ -231,7 +231,10 @@ pub(crate) fn escolha_do_tipo(
         }
         let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ListaForaDaForma)?;
         // A variante -1 é documento externo, não um tipo nativo.
-        if onclick.as_deref().is_some_and(|s| s.trim().trim_end_matches(';') == "escolher(-1)") {
+        if onclick
+            .as_deref()
+            .is_some_and(|s| s.trim().trim_end_matches(';') == "escolher(-1)")
+        {
             continue;
         }
         let href = valor_do_atributo(tag, "href")
@@ -246,13 +249,8 @@ pub(crate) fn escolha_do_tipo(
         _ => return Err(E::TipoAmbiguo),
     };
     if href.starts_with("controlador.php?") {
-        let link = conferir_endereco_relativo(
-            instalacao,
-            href,
-            "documento_gerar",
-            id_procedimento,
-        )
-        .map_err(|_| E::EnderecoDoTipoNaoReconhecido)?;
+        let link = conferir_endereco_relativo(instalacao, href, "documento_gerar", id_procedimento)
+            .map_err(|_| E::EnderecoDoTipoNaoReconhecido)?;
         return Ok(EscolhaDoDocumento::Link(link));
     }
     if href != "#" && href != "javascript:void(0);" {
@@ -290,25 +288,39 @@ pub(crate) fn conferir_cadastro(
 ) -> Result<(), ErroCriar> {
     use ErroCriar as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::CadastroForaDaForma)?;
-    let formularios = nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| E::CadastroForaDaForma)?;
+    let formularios =
+        nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| E::CadastroForaDaForma)?;
     let [formulario] = formularios.as_slice() else {
         return Err(E::CadastroForaDaForma);
     };
-    let formulario = formulario.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::CadastroForaDaForma)?;
+    let formulario = formulario
+        .get(dom.parser())
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::CadastroForaDaForma)?;
     if !formulario.name().as_utf8_str().eq_ignore_ascii_case("form")
-        || valor_do_atributo(formulario, "method").map_err(|_| E::CadastroForaDaForma)?
-            .as_deref() != Some("post") {
+        || valor_do_atributo(formulario, "method")
+            .map_err(|_| E::CadastroForaDaForma)?
+            .as_deref()
+            != Some("post")
+    {
         return Err(E::CadastroForaDaForma);
     }
     let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(|_| E::CadastroForaDaForma)?;
     let [rotulo] = rotulos.as_slice() else {
         return Err(E::CadastroForaDaForma);
     };
-    let rotulo = rotulo.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::CadastroForaDaForma)?;
+    let rotulo = rotulo
+        .get(dom.parser())
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::CadastroForaDaForma)?;
     if !rotulo.name().as_utf8_str().eq_ignore_ascii_case("label") {
         return Err(E::CadastroForaDaForma);
     }
-    let lido = rotulo.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+    let lido = rotulo
+        .inner_text(dom.parser())
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let lido = decodificar_atributo(&lido).ok_or(E::CadastroForaDaForma)?;
     if lido != tipo {
         return Err(E::TipoDoCadastroDiferente);
@@ -318,11 +330,18 @@ pub(crate) fn conferir_cadastro(
         let [controle] = controles.as_slice() else {
             return Err(E::DescricaoNaoOferecida);
         };
-        let controle = controle.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::DescricaoNaoOferecida)?;
+        let controle = controle
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::DescricaoNaoOferecida)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
-            || valor_do_atributo(controle, "name").map_err(|_| E::CadastroForaDaForma)?
-                .as_deref() != Some("txtDescricao")
-            || valor_do_atributo(controle, "disabled").map_err(|_| E::CadastroForaDaForma)?.is_some()
+            || valor_do_atributo(controle, "name")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .as_deref()
+                != Some("txtDescricao")
+            || valor_do_atributo(controle, "disabled")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .is_some()
         {
             return Err(E::DescricaoNaoOferecida);
         }
@@ -338,15 +357,26 @@ pub(crate) fn conferir_cadastro(
         let [controle] = controles.as_slice() else {
             return Err(E::NivelNaoOferecido);
         };
-        let controle = controle.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::NivelNaoOferecido)?;
+        let controle = controle
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::NivelNaoOferecido)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
-            || valor_do_atributo(controle, "name").map_err(|_| E::CadastroForaDaForma)?
-                .as_deref() != Some("rdoNivelAcesso")
-            || valor_do_atributo(controle, "type").map_err(|_| E::CadastroForaDaForma)?
-                .as_deref() != Some("radio")
-            || valor_do_atributo(controle, "value").map_err(|_| E::CadastroForaDaForma)?
-                .as_deref() != Some(valor)
-            || valor_do_atributo(controle, "disabled").map_err(|_| E::CadastroForaDaForma)?.is_some()
+            || valor_do_atributo(controle, "name")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .as_deref()
+                != Some("rdoNivelAcesso")
+            || valor_do_atributo(controle, "type")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .as_deref()
+                != Some("radio")
+            || valor_do_atributo(controle, "value")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .as_deref()
+                != Some(valor)
+            || valor_do_atributo(controle, "disabled")
+                .map_err(|_| E::CadastroForaDaForma)?
+                .is_some()
         {
             return Err(E::NivelNaoOferecido);
         }

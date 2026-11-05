@@ -123,10 +123,7 @@ fn criacao_recusa_arvore_inicial_sem_identidade_unica() {
     // Um snapshot inicial inconsistente não pode provar escrita única.
     let original = doc("1", Some("000001"), "Ofício 000001");
     let antes = [original.clone(), original.clone()];
-    let depois = [
-        original,
-        doc("2", Some("000002"), "Despacho 000002"),
-    ];
+    let depois = [original, doc("2", Some("000002"), "Despacho 000002")];
     assert_eq!(
         conferir_criacao(&antes, &depois, "Despacho"),
         Err(ErroCriar::EfeitoIncerto)
@@ -156,7 +153,9 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
     );
     assert_eq!(
         escolha_do_tipo(&instalacao, &html, "10", "Despacho"),
-        Ok(EscolhaDoDocumento::Link(format!("https://sei.exemplo.gov.br/sei/{href}")))
+        Ok(EscolhaDoDocumento::Link(format!(
+            "https://sei.exemplo.gov.br/sei/{href}"
+        )))
     );
     assert_eq!(
         escolha_do_tipo(&instalacao, &html, "11", "Despacho"),
@@ -220,7 +219,6 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
     );
 }
 
-
 #[test]
 fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
     // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01 (UFRJ 4.1.5).
@@ -269,11 +267,21 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
     assert_eq!(
-        escolha_do_tipo(&instalacao, &original.replace("function escolher", "function outro"), "4864", "Despacho"),
+        escolha_do_tipo(
+            &instalacao,
+            &original.replace("function escolher", "function outro"),
+            "4864",
+            "Despacho"
+        ),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
     assert_eq!(
-        escolha_do_tipo(&instalacao, &original.replace("escolher(291)", "escolher(291); excluir()"), "4864", "Despacho"),
+        escolha_do_tipo(
+            &instalacao,
+            &original.replace("escolher(291)", "escolher(291); excluir()"),
+            "4864",
+            "Despacho"
+        ),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
 }

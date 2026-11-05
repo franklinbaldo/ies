@@ -1,21 +1,21 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::{
-    EscolhaDoDocumento, ErroCriar, cadastro_redirecionado, conferir_cadastro,
-    conferir_criacao, conferir_tipo, escolha_do_tipo, tipos_oferecidos,
+    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_criacao,
+    conferir_tipo, escolha_do_tipo, tipos_oferecidos,
 };
+use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
     derivar_submissao, enviar_submissao_via,
 };
-use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, ler_cookie, leitura, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
@@ -167,8 +167,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let url_do_cadastro = match escolha {
         EscolhaDoDocumento::Link(url) => url,
         EscolhaDoDocumento::Formulario(id_serie) => {
-            let codificacao =
-                codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
+            let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
             let servida = TelaServida {
                 url: link.as_str(),
                 html: &html_lista,
@@ -221,8 +220,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         None => return Err(E::NivelNaoInformado),
         _ => return Err(E::NivelRestritoSemHipotese),
     }
-    conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, Some("publico"))
-        .map_err(E::Tipo)?;
+    conferir_cadastro(
+        &html_cadastro,
+        pedido.tipo,
+        pedido.descricao,
+        Some("publico"),
+    )
+    .map_err(E::Tipo)?;
     if !html_cadastro.contains("document.getElementById('hdnFlagDocumentoCadastro').value = '2'") {
         return Err(E::SubmissaoNaoComprovada);
     }
@@ -240,18 +244,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     if let Some(descricao) = pedido.descricao {
         campos.push(("txtDescricao", descricao));
     }
-    let submissao = derivar_submissao(
-        &CADASTRAR,
-        &instalacao,
-        &servida,
-        &feito.unidade,
-        &campos,
-    )
-    .map_err(E::Formulario)?;
+    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &feito.unidade, &campos)
+        .map_err(E::Formulario)?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
-    let resposta =
-        enviar_submissao_via(submissao, sessao.cookie, |post, cookie| rede.post(post, cookie));
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
+        rede.post(post, cookie)
+    });
     let depois = obter_processo(
         sessao,
         &leitura(pedido.nup, pedido.unidade, false),
@@ -259,8 +258,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         &mut rede,
     )
     .map_err(|_| E::EfeitoIncerto)?;
-    if depois.arvore.pastas_nao_carregadas
-        || aberto.arvore.processo.id != depois.arvore.processo.id
+    if depois.arvore.pastas_nao_carregadas || aberto.arvore.processo.id != depois.arvore.processo.id
     {
         return Err(E::EfeitoIncerto);
     }
@@ -283,7 +281,6 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     feito.requisicoes = rede.feitas();
     Ok(feito)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -399,7 +396,10 @@ mod tests {
     #[test]
     fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
         let erro = ErroPreviaCriacao::NivelNaoInformado;
-        assert_eq!(erro.subcodigo(), "nivel_de_documento_nao_informado_para_escrita");
+        assert_eq!(
+            erro.subcodigo(),
+            "nivel_de_documento_nao_informado_para_escrita"
+        );
     }
 
     #[test]

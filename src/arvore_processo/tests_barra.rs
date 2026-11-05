@@ -140,7 +140,6 @@ fn barra_fora_da_forma_ou_repetida_e_recusa() {
     assert_eq!(ler(&repetida), Err(E::BarrasDoProcessoRepetidasNaArvore));
 }
 
-
 #[test]
 fn incluir_documento_so_usa_link_assinado_na_barra_do_processo() {
     use super::ler_link_de_incluir_documento;
@@ -148,17 +147,17 @@ fn incluir_documento_so_usa_link_assinado_na_barra_do_processo() {
         "controlador.php?acao=documento_escolher_tipo&id_procedimento=10&infra_hash={}",
         "e".repeat(64)
     );
-    let lido = ler_link_de_incluir_documento(
-        &instalacao(),
-        &com_acoes(&[acao_da_barra(&href)]),
-        "10",
-    )
-    .unwrap()
-    .unwrap();
+    let lido =
+        ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[acao_da_barra(&href)]), "10")
+            .unwrap()
+            .unwrap();
     assert_eq!(lido.as_str(), format!("{ORIGEM}/{href}"));
     assert!(!format!("{lido:?}").contains(&"e".repeat(64)));
-    assert!(ler_link_de_incluir_documento(&instalacao(), &base(), "10")
-        .unwrap().is_none());
+    assert!(
+        ler_link_de_incluir_documento(&instalacao(), &base(), "10")
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]

@@ -11,15 +11,17 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(Documento {
-        acao: Some(DocumentoAcao::Criar {
-            processo,
-            tipo,
-            descricao,
-            nivel,
-            confirmar,
-        }),
+        acao:
+            Some(DocumentoAcao::Criar {
+                processo,
+                tipo,
+                descricao,
+                nivel,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     let nup = match NumeroProcesso::novo(processo) {
@@ -46,12 +48,15 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
 
 fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": "entrada_invalida",
-            "subcodigo": subcodigo,
-            "erro": "parâmetro de criação de documento inválido",
-            "retentavel": false
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "entrada_invalida",
+                "subcodigo": subcodigo,
+                "erro": "parâmetro de criação de documento inválido",
+                "retentavel": false
+            })
+        );
     } else {
         eprintln!("IES: parâmetro de criação de documento inválido [{subcodigo}]");
     }
@@ -60,16 +65,19 @@ fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
 
 fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "nup": previa.nup,
-            "tipo": previa.tipo,
-            "unidade": previa.unidade,
-            "origem": "web",
-            "confirmado": previa.confirmado,
-            "alterado": previa.confirmado,
-            "numero_sei": previa.numero_sei,
-            "requisicoes": previa.requisicoes
-        }));
+        println!(
+            "{}",
+            json!({
+                "nup": previa.nup,
+                "tipo": previa.tipo,
+                "unidade": previa.unidade,
+                "origem": "web",
+                "confirmado": previa.confirmado,
+                "alterado": previa.confirmado,
+                "numero_sei": previa.numero_sei,
+                "requisicoes": previa.requisicoes
+            })
+        );
     } else {
         if previa.confirmado {
             println!(
@@ -94,12 +102,15 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao) -> ExitCode {
     if matches!(erro, ErroPreviaCriacao::EfeitoIncerto) {
         if json_mode {
-            println!("{}", json!({
-                "codigo": "efeito_incerto",
-                "subcodigo": erro.subcodigo(),
-                "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
-                "retentavel": false
-            }));
+            println!(
+                "{}",
+                json!({
+                    "codigo": "efeito_incerto",
+                    "subcodigo": erro.subcodigo(),
+                    "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
+                    "retentavel": false
+                })
+            );
         } else {
             eprintln!("IES: efeito incerto na criação do documento; não repita --confirmar");
         }

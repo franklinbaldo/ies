@@ -172,7 +172,6 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
     Ok(texto)
 }
 
-
 /// URL assinada da escolha de tipos de documento, nunca exposta por Debug.
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct EnderecoDoIncluirDocumento(String);

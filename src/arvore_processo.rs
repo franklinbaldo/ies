@@ -72,8 +72,8 @@ pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
 pub(crate) use barra_do_processo::{
-    EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_de_incluir_documento,
-    ler_link_das_propriedades, ler_link_dos_marcadores,
+    EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_das_propriedades,
+    ler_link_de_incluir_documento, ler_link_dos_marcadores,
 };
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,

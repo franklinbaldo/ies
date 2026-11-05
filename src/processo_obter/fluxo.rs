@@ -13,8 +13,8 @@ use super::{
 };
 use crate::arvore_processo::{
     ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento, ErroArvore,
-    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento,
-    ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
+    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroReabrirNaBarra,
+    ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
