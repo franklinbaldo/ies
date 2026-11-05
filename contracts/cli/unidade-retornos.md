@@ -1,7 +1,7 @@
 ---
 type: CommandContract
 title: Retornos programados da unidade no mes
-operation: unidade.retornos
+operation: unidade.listar_retornos
 command: ies unidade retornos
 effect: read
 implementation: partial
