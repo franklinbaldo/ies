@@ -120,7 +120,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         &[("txaMotivo", &motivo)],
     )
     .map_err(E::Formulario)?;
-    let mut feito = DocumentoCancelado {
+    let feito = DocumentoCancelado {
         numero: aberto.numero,
         id_documento: aberto.id_documento,
         processo: aberto.processo,
@@ -135,9 +135,21 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         return Ok(feito);
     }
     let falha = enviar(&mut rede, sessao, sub, &feito)?;
+    reconciliar(sessao, &leitura, indice, &mut rede, feito, falha)
+}
+
+/// Releitura independente de uma escrita já tentada; nunca tenta novo POST.
+fn reconciliar<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    leitura: &PedidoDoDocumento<'_>,
+    indice: &IndiceLocal,
+    rede: &mut Contador<'_, V>,
+    mut feito: DocumentoCancelado,
+    falha: Option<F>,
+) -> Result<DocumentoCancelado, E> {
     // Sempre uma leitura nova depois de enviar. Até uma resposta 5xx pode
     // ter cancelado; a escrita irreversível jamais é repetida.
-    let verificacao = match abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede) {
+    let verificacao = match abrir_documento_na_arvore(sessao, leitura, indice, rede) {
         Ok(depois)
             if depois.id_documento == feito.id_documento
                 && depois.processo.id == feito.processo.id =>
