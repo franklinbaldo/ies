@@ -1,0 +1,85 @@
+---
+type: CommandContract
+title: Atribuir e retirar marcador de processo pela interface Web
+operation: processo.marcar
+command: ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]
+effect: write-process-state
+implementation: partial
+---
+
+# `ies processo marcar` (Refs #255)
+
+A identidade é `id#nome`: o **id** decimal é a identidade observada do
+marcador da unidade, e o **nome** confere sua semântica. Apenas a primeira
+cerquilha é separadora. O IES rejeita nome vazio e controles e nunca
+publica URL assinada, cookie ou `infra_hash`.
+
+## Fatia funcional implementada
+
+- Entrada `NUP` e `id#nome` inválida sai 2 **antes de ler a sessão**.
+  Exige exatamente `--marcador` ou `--retirar`; `--texto` só com atribuição.
+- Usa a leitura Web existente do processo, **sem andamentos e propriedades**,
+  mas com os marcadores; exige a unidade publicada pela tela, ignorando
+  o atalho que não permite conferi-la.
+- Exige a lista completa: a contagem de linhas observadas deve ser igual
+  ao `total_declarado`. `null`, link ausente ou tela não reconhecida
+  **não** significam lista vazia.
+- Se o id está presente e o nome confere, atribuir é idempotente: saída 0,
+  `alterado: false`, inclusive com `--confirmar`, **sem POST**.
+- Se o id não consta da lista completa, retirar também é idempotente,
+  saída 0, sem escrita. Se o mesmo id tem nome diferente, recusa.
+- Se está presente e o pedido é retirar, produz **prévia** com a unidade,
+  id, nome e `requisicoes` realmente contadas. `--confirmar` recusa
+  `remocao_sem_formulario_observado`: **nenhum POST**.
+- Se está ausente e o pedido é atribuir, recusa
+  `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
+  existir **no processo** para provar que ele existe **na unidade**.
+
+A prévia não reivindica a escrita como implementada. O código não executa
+JavaScript e não interpreta mensagem do SEI para classificação.
+
+## Orçamento e sequência da fatia
+
+`ies processo NUP --sem-andamentos --sem-propriedades` com exigência da
+unidade e leitura de marcadores. Requisições variam conforme abertura e
+cache, mas são contadas pelo leitor. Não ocorre requisição adicional para
+prévia, idempotência ou recusa. `--confirmar` neste recorte faz **zero
+requisições de escrita**. Testes sintéticos conferem decisão sem rede,
+parcialidade e recusa de nomes divergentes; teste da CLI prova que entrada
+inválida não lê configuração.
+
+## Falhas tipadas
+
+Entrada (2): `numero_processo_vazio`, `numero_processo_controle`,
+`referencia_processo_legada`, `marcador_nao_informado`,
+`rotulo_do_marcador_sem_separador`, `id_do_marcador_nao_decimal`,
+`nome_do_marcador_vazio`, `nome_do_marcador_com_controle`,
+`texto_do_marcador_com_controle`.
+
+Leitura/decisão (1): erros específicos da abertura do processo, além de
+`marcadores_nao_lidos_para_escrita`,
+`unidade_da_sessao_nao_publicada_para_marcar`,
+`lista_de_marcadores_parcial`,
+`rotulo_diferente_do_marcador_lido`,
+`catalogo_da_unidade_nao_observado`,
+`remocao_sem_formulario_observado`.
+
+O `status_http` e a mensagem saneada do SEI são preservados pela
+camada de leitura existente. A saída de prévia JSON traz
+`nup`, `id_procedimento`, `unidade`, `marcador`, `acao`,
+`confirmado`, `alterado: false`, `nada_a_fazer`,
+`retirada_possivel` e `requisicoes`.
+
+## Ainda faltam (sem promessa de escrita)
+
+Observar na cassette e ao vivo os formulários de **catálogo da unidade,
+atribuição e remoção** (incluindo URLs assinadas e resposta), testes RED
+do POST único derivado de `formulario_web`, prévia de atribuição ausente,
+reconciliação por releitura após envio, saída 3 no efeito incerto, replay e
+validação live UnB. Somente depois disso habilitar `--confirmar`.
+Escritas são autorizadas apenas em **treinamento**, com prévia, um único
+envio e verificação por leitura, nunca retry.
+
+Ver [estrutura observada](../../docs/como-o-sei-funciona/marcadores-do-processo.md),
+[decisão](../../docs/decisoes/processo-marcar.md) e
+[relatório live](../../docs/validacao-live/2026-11-05-processo-marcar.md).
