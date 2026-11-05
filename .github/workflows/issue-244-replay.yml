@@ -76,7 +76,11 @@ jobs:
                             "backslashes":piece.count(chr(92)),
                             "infra_hash_tokens":piece.count("infra_hash="),
                             "prefix_shape":"".join(c if not c.isalnum() else "X" for c in piece[:piece.find("controlador.php?")][:100]),
-                            "sufixo_len":len(piece.split("controlador.php?",1)[1])})
+                            "sufixo_len":len(piece.split("controlador.php?",1)[1]),
+                            "query_campos":[{"chave":item.split("=",1)[0],
+                               "tamanho_valor":len(item.split("=",1)[1]) if "=" in item else -1,
+                               "valor_hex": all(c in "0123456789abcdefABCDEF" for c in item.split("=",1)[1]) if "=" in item else False}
+                               for item in piece.split("controlador.php?",1)[1].split("&")]})
               print(json.dumps({"passo":idx,"acao_no_html":html.count(alvo),
                 "scripts":len(f.scripts),"acao_nos_scripts":sum(s.count(alvo) for s in f.scripts),
                 "ocorrencias_em_atributos":f.atributos,"literais":literais}))
