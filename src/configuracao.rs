@@ -13,6 +13,10 @@ pub enum ErroConfiguracao {
     CookieSemCaminhoConfigurado,
     OrigemAutorizadaNaoConfigurada,
     ArquivoDeConfiguracaoNaoPodeSerLido,
+    ArquivoConfiguracaoPermissoesAbertas,
+    ArquivoConfiguracaoLinkSimbolico,
+    ArquivoConfiguracaoJsonInvalido,
+    ArquivoConfiguracaoCampoInvalido,
 }
 
 impl ErroConfiguracao {
@@ -22,6 +26,12 @@ impl ErroConfiguracao {
             Self::CookieSemCaminhoConfigurado => "caminho_cookie_nao_informado",
             Self::OrigemAutorizadaNaoConfigurada => "caminho_origem_nao_informado",
             Self::ArquivoDeConfiguracaoNaoPodeSerLido => "arquivo_configuracao_nao_pode_ser_lido",
+            Self::ArquivoConfiguracaoPermissoesAbertas => {
+                "arquivo_configuracao_permissoes_inseguras"
+            }
+            Self::ArquivoConfiguracaoLinkSimbolico => "arquivo_configuracao_link_simbolico",
+            Self::ArquivoConfiguracaoJsonInvalido => "arquivo_configuracao_json_invalido",
+            Self::ArquivoConfiguracaoCampoInvalido => "arquivo_configuracao_campo_invalido",
         }
     }
     pub fn mensagem(self) -> &'static str {
@@ -30,7 +40,15 @@ impl ErroConfiguracao {
             Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
             Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
             Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
-                "arquivo IES_CONFIG_FILE ausente, inseguro ou ilegível"
+                "arquivo IES_CONFIG_FILE ausente, não regular, excessivo ou ilegível"
+            }
+            Self::ArquivoConfiguracaoPermissoesAbertas => {
+                "IES_CONFIG_FILE tem permissões inseguras"
+            }
+            Self::ArquivoConfiguracaoLinkSimbolico => "IES_CONFIG_FILE é link simbólico",
+            Self::ArquivoConfiguracaoJsonInvalido => "IES_CONFIG_FILE não contém JSON válido",
+            Self::ArquivoConfiguracaoCampoInvalido => {
+                "IES_CONFIG_FILE contém campo de caminho inválido"
             }
         }
     }
@@ -45,8 +63,7 @@ fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfigurac
 
 pub fn arquivos_de_acesso() -> Result<ArquivosDeAcesso, ErroConfiguracao> {
     if let Some(path) = arquivo_de_configuracao() {
-        return ler_configuracao_local(&path)
-            .ok_or(ErroConfiguracao::ArquivoDeConfiguracaoNaoPodeSerLido);
+        return ler_configuracao_local(&path).map_err(ErroConfiguracao::from);
     }
     Ok(ArquivosDeAcesso {
         url_controle: caminho(
@@ -120,26 +137,121 @@ pub fn salvar_arquivos_de_acesso(
     Ok(())
 }
 
-fn ler_configuracao_local(path: &std::path::Path) -> Option<ArquivosDeAcesso> {
-    let metadata = std::fs::metadata(path).ok()?;
-    if !metadata.is_file() || metadata.len() > 8192 {
-        return None;
+/// Causas internas sem caminho ou conteúdo privado associado.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FalhaConfiguracaoLocal {
+    Ausente,
+    MetadadosNaoLidos,
+    LinkSimbolico,
+    NaoRegular,
+    AcimaDoLimite,
+    PermissoesAbertas,
+    LeituraFalhou,
+    JsonInvalido,
+    CampoInvalido,
+}
+
+impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
+    fn from(causa: FalhaConfiguracaoLocal) -> Self {
+        match causa {
+            FalhaConfiguracaoLocal::LinkSimbolico => Self::ArquivoConfiguracaoLinkSimbolico,
+            FalhaConfiguracaoLocal::PermissoesAbertas => Self::ArquivoConfiguracaoPermissoesAbertas,
+            FalhaConfiguracaoLocal::JsonInvalido => Self::ArquivoConfiguracaoJsonInvalido,
+            FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
+            FalhaConfiguracaoLocal::Ausente
+            | FalhaConfiguracaoLocal::MetadadosNaoLidos
+            | FalhaConfiguracaoLocal::NaoRegular
+            | FalhaConfiguracaoLocal::AcimaDoLimite
+            | FalhaConfiguracaoLocal::LeituraFalhou => Self::ArquivoDeConfiguracaoNaoPodeSerLido,
+        }
+    }
+}
+
+fn ler_configuracao_local(
+    path: &std::path::Path,
+) -> Result<ArquivosDeAcesso, FalhaConfiguracaoLocal> {
+    use FalhaConfiguracaoLocal as F;
+    use std::io::Read as _;
+
+    let info = std::fs::symlink_metadata(path).map_err(|erro| {
+        if erro.kind() == std::io::ErrorKind::NotFound {
+            F::Ausente
+        } else {
+            F::MetadadosNaoLidos
+        }
+    })?;
+    if info.file_type().is_symlink() {
+        return Err(F::LinkSimbolico);
+    }
+    if !info.is_file() {
+        return Err(F::NaoRegular);
+    }
+    if info.len() > 8_192 {
+        return Err(F::AcimaDoLimite);
     }
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
-            return None;
+        use std::os::unix::fs::PermissionsExt as _;
+        if info.permissions().mode() & 0o077 != 0 {
+            return Err(F::PermissoesAbertas);
         }
     }
-    let raw = std::fs::read(path).ok()?;
-    let config: ConfiguracaoLocal = serde_json::from_slice(&raw).ok()?;
-    Some(ArquivosDeAcesso {
-        url_controle: config.url_controle,
-        cookie: config.cookie,
-        origem: config.origem,
+    // Validar também o descritor aberto e reler a entrada: não aceitar
+    // troca de arquivo/symlink entre a inspeção do caminho e a abertura.
+    let arquivo = std::fs::File::open(path).map_err(|_| F::LeituraFalhou)?;
+    let aberto = arquivo.metadata().map_err(|_| F::LeituraFalhou)?;
+    let no_caminho = std::fs::symlink_metadata(path).map_err(|_| F::LeituraFalhou)?;
+    if no_caminho.file_type().is_symlink() {
+        return Err(F::LinkSimbolico);
+    }
+    if !aberto.is_file() || !no_caminho.is_file() {
+        return Err(F::NaoRegular);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+        if info.ino() != aberto.ino()
+            || info.dev() != aberto.dev()
+            || no_caminho.ino() != aberto.ino()
+            || no_caminho.dev() != aberto.dev()
+        {
+            return Err(F::LeituraFalhou);
+        }
+        if aberto.permissions().mode() & 0o077 != 0 {
+            return Err(F::PermissoesAbertas);
+        }
+    }
+    let mut raw = Vec::new();
+    arquivo
+        .take(8_193)
+        .read_to_end(&mut raw)
+        .map_err(|_| F::LeituraFalhou)?;
+    if raw.len() > 8_192 {
+        return Err(F::AcimaDoLimite);
+    }
+    let json: serde_json::Value = serde_json::from_slice(&raw).map_err(|_| F::JsonInvalido)?;
+    let objeto = json.as_object().ok_or(F::CampoInvalido)?;
+    let campo = |nome| -> Result<PathBuf, F> {
+        let texto = objeto
+            .get(nome)
+            .and_then(serde_json::Value::as_str)
+            .ok_or(F::CampoInvalido)?;
+        let path = PathBuf::from(texto);
+        if !path.is_absolute() {
+            return Err(F::CampoInvalido);
+        }
+        Ok(path)
+    };
+    Ok(ArquivosDeAcesso {
+        url_controle: campo("url_controle")?,
+        cookie: campo("cookie")?,
+        origem: campo("origem")?,
     })
 }
+
+#[cfg(test)]
+#[path = "configuracao/tests.rs"]
+mod tests;
 
 /// Papel dos caminhos de acesso; não contém conteúdo nem nome do arquivo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
