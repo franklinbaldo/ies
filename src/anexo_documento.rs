@@ -312,7 +312,6 @@ pub(crate) fn ler_anexo<R: Read>(
     })
 }
 
-
 fn conferir_token(bytes: &[u8], lidos: &mut usize) -> Result<(), ErroAnexo> {
     const TOKEN: &[u8] = b"infra_hash";
     for &byte in bytes {

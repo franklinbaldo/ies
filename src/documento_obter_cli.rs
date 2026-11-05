@@ -374,12 +374,12 @@ fn registrar_cache(
         return Ok(None);
     }
     if let Some(html) = &d.versoes.cache_html {
-        let versao = d.versoes
+        let versao = d
+            .versoes
             .lida
             .or_else(|| d.versoes.foto.as_ref().map(|f| f.versao))
             .map(crate::documento_versoes::VersaoDocumento::numero);
-        return cache_documento::gravar(host, &d.numero, versao, "html", html.as_bytes())
-            .map(Some);
+        return cache_documento::gravar(host, &d.numero, versao, "html", html.as_bytes()).map(Some);
     }
     let Some(anexo) = &d.anexo else {
         return Ok(None);
@@ -392,9 +392,7 @@ fn registrar_cache(
     };
     let raiz = cache_documento::raiz()?;
     Ok(Some(Registro {
-        caminho: cache_documento::caminho_em(
-            &raiz, host, &d.numero, None, &anexo.sha256, extensao,
-        ),
+        caminho: cache_documento::caminho_em(&raiz, host, &d.numero, None, &anexo.sha256, extensao),
         versao: None,
         sha256: anexo.sha256.clone(),
     }))
