@@ -1,5 +1,5 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
-//! executado e sem regex; todos os atributos passam por html_atributos.
+//! executado e sem regex; todos os atributos passam por `html_atributos`.
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::valor_do_atributo;
 use crate::transporte::texto_de_recusa::decodificar_entidades;
@@ -81,7 +81,7 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str
             }
         }
         match processos.as_slice() {
-            [] => continue,
+            [] => {},
             [(id, nup)] => {
                 if !ids.insert(id.clone()) {
                     return Err("relacionamentos_repetidos_na_tela");
