@@ -72,3 +72,7 @@ a arquitetura do Todos.
 
 **Status:** observação do oráculo PASS; replay do IES NOT_RUN;
 live UnB/GO NOT_RUN. Nenhuma requisição real foi feita nesta fatia.
+
+## Replay público GO (05/11/2026)
+
+No [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185), o ZIP do acervo foi conferido e o leitor Rust interpretou as seis telas da ação `unidade_selecionar_envio_processo` (três GET e três POST) sem pedidos ao SEI. No POST do passo 12, o formulário `frmUnidadeLista` aparece sem tabela `infraTable`, encerrado por `Nenhum registro encontrado.`. A estrutura agora é reconhecida como lista vazia somente para página zero e paginador de uma página; ausência de tabela sem aviso é recusada. O replay não demonstra a coleta integral de 274 páginas nem substitui as leituras live em UnB e GO.
