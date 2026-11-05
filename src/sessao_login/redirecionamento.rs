@@ -4,8 +4,8 @@
 //! `https://`; a URL HTTP nunca é pedida.
 use super::ErroLogin;
 use crate::instalacao::host_valido;
-use crate::url_observada::{esquema_e_resto, pasta, resto_http_ou_https, tem_prefixo_de_esquema};
 pub(crate) use crate::url_observada::caminho_absoluto as caminho_da_url;
+use crate::url_observada::{esquema_e_resto, pasta, resto_http_ou_https, tem_prefixo_de_esquema};
 
 /// Próxima URL HTTPS de um salto: `localizacao` resolvida contra `atual`
 /// (URL HTTPS absoluta já aceita) e conferida contra `host`.
@@ -91,7 +91,5 @@ pub(crate) fn sufixo_da_mesma_origem<'a>(
 }
 
 pub(crate) fn esquema_http(referencia: &str) -> bool {
-    esquema_e_resto(referencia)
-        .is_some_and(|(esquema, _)| esquema.eq_ignore_ascii_case("http"))
+    esquema_e_resto(referencia).is_some_and(|(esquema, _)| esquema.eq_ignore_ascii_case("http"))
 }
-
