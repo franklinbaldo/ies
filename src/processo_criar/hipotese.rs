@@ -144,7 +144,7 @@ fn publicavel(valor: &str) -> bool {
         "controlador_ajax.php?",
     ]
     .iter()
-    .any(|fragmento| minusculo.contains(fragmento))
+    .any(|fragmento| minusculo.contains(*fragmento))
 }
 
 /// Sem escolha explícita, apenas uma opção efetiva é segura.
