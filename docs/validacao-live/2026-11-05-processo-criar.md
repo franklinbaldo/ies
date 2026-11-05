@@ -121,3 +121,37 @@ confirmação NOT_RUN (0 pedidos); verificação por leitura NOT_RUN
 O bloqueio de rede/autenticação do sandbox e o bloqueio anterior do
 workflow de ensaio não permitem afirmar execução ao vivo. A autorização
 não abrange produção e não autoriza contornar os controles.
+
+
+## Retomada — replay como gate obrigatório e download verificado
+
+A PR #283 adicionou ao workflow CI um job obrigatório
+`replay-processo-criar` que deriva o manifesto dos **15 cards**
+`processo-criar-*` nas sete instalações, confere SHA-1 dos sete
+ZIPs públicos antes de usá-los e confere SHA-256 de cada cassette
+no leitor Rust. A origem aceita é exclusivamente o Internet Archive
+publicado pelos cards. O downloader não utiliza credenciais nem
+acessa o SEI; falha de rede/hash interrompe o job sem retry ou
+publicação parcial. `#[ignore]` permanece apenas para evitar que
+a suíte geral sem o acervo externo confunda ausência de ZIP com
+defeito no parser; o job dedicado executa obrigatoriamente o replay.
+
+**RED no sandbox:** um erro de coleta/importação ao executar
+`python3 -m unittest discover -s scripts/tests` com os testes novos
+antes do downloader existir (0 casos individuais executados).
+**GREEN no sandbox:** 5/5 testes Python sintéticos para manifesto,
+origem/hash, cache e atomicidade. `compileall` Python PASS.
+**Compilação Rust local:** NOT_RUN, indisponibilidade de `cargo`.
+A validação Rust integral depende do job dedicado do CI deste head;
+não presumir sucesso antes da conclusão do run.
+
+| Ação live desta sessão | Status | Requisições SEI | Resíduo |
+|---|---|---:|---|
+| Prévia autenticada em treinamento | NOT_RUN (sem conectividade autenticada) | 0 | Nenhum |
+| `--confirmar` uma única vez | NOT_RUN (prévia não realizada) | 0 | Nenhum |
+| Releitura de NUP criado | NOT_RUN (nenhuma escrita) | 0 | Nenhum |
+
+**Total de requisições ao SEI nesta retomada: 0.**
+Não foi acessada produção. Sem a prévia válida na instalação de
+treinamento, a confirmação não pode ser tentada. A autorização
+do proprietário não dispensa essa ordem nem os controles da plataforma.
