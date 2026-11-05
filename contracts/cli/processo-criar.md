@@ -150,7 +150,7 @@ por versão ainda precisa de teste replay e medição, não de
 estimativa. O POST que apenas escolhe o tipo em SEI 4.1+
 não é a escrita criadora. Nos testes com transporte injetado,
 a prévia 4.0 tem **3 GET**; a confirmação 4.0 tem **6 pedidos**
-(4 GET, 1 POST criador e outro GET; ao todo 5 GET e 1 POST);
+(5 GET e 1 POST criador);
 a confirmação 4.1 tem **7 pedidos** (5 GET, 1 POST de seleção
 e 1 POST criador). Não extrapolar esses totais a instalações reais
 sem observação e replay. Em URLs ambíguas recusar antes da próxima
