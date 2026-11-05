@@ -33,6 +33,10 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
+## Pendente: comentários do processo (#257)
+
+`ies processo comentarios NUP` e `ies processo comentar NUP --texto T [--confirmar]` estão em **PENDENTE PR**, sem despacho no `main`. A PR Draft #268 oferece leitor estrutural offline SEI 4.x/5.x e conferência por id/texto; faltam fluxo Web, teste de orçamento de requisições, replay e validação live. [Contrato](../contracts/cli/processo-comentarios.md).
+
 ## Matriz: 20 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
@@ -43,6 +47,8 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies processo concluir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura (2–3 req.); uma escrita pela forma da barra: tela "Conclusão de Processo" + POST (4.1/5.0) ou GET de `concluirProcesso()` (4.0); verificação por `aberto_em` numa leitura nova; efeito incerto sai com 3, sem retry; a frio 5 GET + 1 POST / 6 GET | Live PASS UFRJ 4.1.5 (`tela`) e UnB 4.0.9 (`funcao`), requisições iguais ao orçamento; [replay](validacao-replay/2026-11-04-processo-concluir-acervo.md) 219 escritas verificadas; PEN1 5.0.4 não observada; concluir com reabertura programada, vários processos | [contrato](../contracts/cli/processo-concluir.md), [decisão](decisoes/processo-concluir.md), [live](validacao-live/2026-11-04-processo-concluir.md) |
 | `ies processo atribuir NUP --usuario LOGIN` / `--remover` | **PARCIAL WEB** (#264) | Prévia por árvore e formulário de atribuição, seleção exata e recusa de estado desconhecido; escrita confirmada bloqueada | Faltam POST único, releitura, efeito incerto, replay e live UnB/GO | [contrato](../contracts/cli/processo-atribuir.md), [decisão](decisoes/processo-atribuir.md) |
 | `ies processo reabrir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura; `reabrirProcesso()` da barra → GET da tela do nó → URL `procedimento_reabrir` (corpo da função no 4.0, `var linkReabrirProcesso` no 4.1/5.0) → um GET (a escrita); verificação pela unidade da sessão em `aberto_em`; efeito incerto 3, sem retry; a frio 6 GET | Live PASS UFRJ 4.1.5 (`variavel`) e UnB 4.0.9 (`funcao`), 5 req. cada; [replay](validacao-replay/2026-11-04-processo-reabrir-acervo.md) 11 reaberturas verificadas; reabrir com o processo aberto noutra unidade não observado | [contrato](../contracts/cli/processo-reabrir.md), [decisão](decisoes/processo-reabrir.md), [evidência](../contracts/evidencias/processo-reabrir.md) |
+| `ies processo marcar NUP --marcador ID#NOME\|--retirar ID#NOME [--confirmar]` | **PARCIAL WEB** (#255), sem escrita | Leitura dos marcadores com unidade conferida; idempotência para atribuir já presente e retirar ausente; prévia para retirada presente. Lista parcial e identidade divergente recusadas. `--confirmar` de retirada falha fechado, sem POST; atribuir ausente exige catálogo da unidade ainda não observado. Requisições contadas pelo leitor de processo | Live NOT_RUN (0 req., nenhum resíduo); RED local NOT_RUN (Rust indisponível); replay pendente | [contrato](../contracts/cli/processo-marcar.md), [decisão](decisoes/processo-marcar.md), [live](validacao-live/2026-11-05-processo-marcar.md), [#255](https://github.com/franklinbaldo/ies/issues/255) |
+| `ies processo criar --tipo TIPO --especificacao TEXTO [--interessado ...] [--nivel publico|restrito] [--confirmar]` | **PENDENTE PR** (#245, PR #249) | Seleção de tipo pelo link (4.0) ou formulário (4.1/5.0); cadastro conferido, interessados por AJAX, prévia Web e POST único; NUP e ID relidos na árvore no teste sintético; efeito incerto com saída 3, sem retry | CI e testes offline na PR; **live NOT_RUN**, replay integral de cassettes NOT_RUN, hipótese legal por AJAX requer ampliação; escrita live somente após autorização literal na issue | [contrato](../contracts/cli/processo-criar.md), [decisão](decisoes/processo-criar.md), [#245](https://github.com/franklinbaldo/ies/issues/245) |
 | `ies documento DOC`, `salvar`, `buscar`, `assinar` | ver a [matriz de documento](matriz-derivacao-cli-documento.md) (4 caminhos) | Idem | Idem | Idem |
 | `ies unidade listar-processos`, `colunas`, `recebidos`, `gerados`, `atual` | ver a [matriz da unidade](matriz-derivacao-cli-unidade.md) (6 caminhos) | Idem | Idem | Idem |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
@@ -130,6 +136,19 @@ RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
 [contrato de documento](../contracts/cli/documento-buscar.md) ·
 [decisão](decisoes/processo-buscar.md).
 
+## Handoff #259 — registrar andamento (PR draft)
+
+O comando de escrita novo, autorizado apenas em treinamento, lê a barra do processo e o histórico, valida frmAtividadeListar e deriva um POST único. A verificação exige linha nova no topo e total anterior +1; resposta HTTP não é prova. Parcial: faltam testes de transporte/contagem, replay e live (NOT_RUN). [Contrato](../contracts/cli/processo-andamento.md) e [decisão](decisoes/processo-andamento.md).
+## Handoff #269 — sobrestar e retomar (PR Draft #279)
+
+As prévias Web de `processo sobrestar NUP --motivo TEXTO` e
+`processo retomar NUP` validam a unidade, situação e ação
+assinada da barra sem escrita, usando só a abertura do processo.
+`--confirmar` ainda está bloqueado antes da rede. RED inicial:
+5 testes falhando. Replay: NOT_RUN; live: NOT_RUN, 0 requisições.
+[Contrato](../contracts/cli/processo-sobrestar.md) ·
+[decisão](decisoes/processo-sobrestar.md).
+
 ## Gate manual para PRs de capacidade
 
 Antes de abrir uma PR, preencher na descrição:
@@ -140,3 +159,17 @@ Se só houver nova flag, parser ou contrato sem redução demonstrável
 do caminho incompleto, redirecionar o esforço para as lacunas acima.
 A nova capacidade **não** fecha issue ampla enquanto os critérios
 de aceitação não forem integralmente comprovados.
+
+## Handoff #258 — relacionamento de processos (PR Draft)
+
+Novo caminho de CLI proposto pela issue #258:
+'ies processo relacionar NUP --com NUP [--remover] [--confirmar]'.
+Estado: **PARCIAL WEB** na branch (não na main). A prévia lê o link da
+barra do processo e a tabela; adicionar consulta o complementar publicado
+pela tela (um POST de leitura); remover só lê a lista. A idempotência
+é decidida por identidades observadas, sem procurar números no HTML solto.
+'--confirmar' está **bloqueado antes de abrir a sessão** até implementar
+a escrita única e a verificação independente. RED local, replay, live:
+NOT_RUN. Sem residuo no SEI.
+[Contrato](../contracts/cli/processo-relacionar.md) ·
+[decisão](decisoes/processo-relacionar.md).
