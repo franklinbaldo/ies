@@ -1,9 +1,9 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
+use super::filtros::{ErroFiltro, FiltrosDaPesquisa, derivar_campos};
 use super::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, UrlDeTrabalho, interpretar_redirecionamento,
 };
-use super::filtros::{ErroFiltro, FiltrosDaPesquisa, derivar_campos};
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, PesquisarEm, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
 use crate::formulario_web::{
@@ -125,7 +125,14 @@ pub(crate) fn derivar_pesquisa_em(
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let operacao = &PESQUISAR_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, None);
-    derivar_com(operacao, em, instalacao, tela, pedido, FiltrosDaPesquisa::default())
+    derivar_com(
+        operacao,
+        em,
+        instalacao,
+        tela,
+        pedido,
+        FiltrosDaPesquisa::default(),
+    )
 }
 
 /// Os filtros integram o mesmo POST, sem GET adicional.
@@ -136,7 +143,14 @@ pub(crate) fn derivar_pesquisa_em_filtrada(
     pedido: (&str, &str),
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
-    derivar_com(&PESQUISAR_PROTOCOLO, em, instalacao, tela, (pedido.0, pedido.1, None), filtros)
+    derivar_com(
+        &PESQUISAR_PROTOCOLO,
+        em,
+        instalacao,
+        tela,
+        (pedido.0, pedido.1, None),
+        filtros,
+    )
 }
 
 /// Deriva o POST de `navegar(inicio)` em processos.
@@ -164,7 +178,14 @@ pub(crate) fn derivar_pagina_em(
     let inicio = inicio.to_string();
     let operacao = &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, Some(inicio.as_str()));
-    derivar_com(operacao, em, instalacao, tela, pedido, FiltrosDaPesquisa::default())
+    derivar_com(
+        operacao,
+        em,
+        instalacao,
+        tela,
+        pedido,
+        FiltrosDaPesquisa::default(),
+    )
 }
 
 pub(crate) fn derivar_pagina_em_filtrada(
@@ -176,8 +197,14 @@ pub(crate) fn derivar_pagina_em_filtrada(
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let inicio = inicio.to_string();
-    derivar_com(&super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO, em, instalacao, tela,
-                (pedido.0, pedido.1, Some(inicio.as_str())), filtros)
+    derivar_com(
+        &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO,
+        em,
+        instalacao,
+        tela,
+        (pedido.0, pedido.1, Some(inicio.as_str())),
+        filtros,
+    )
 }
 
 fn derivar_com(
