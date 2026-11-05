@@ -102,6 +102,57 @@ fn proximo_mes_usa_um_get_adicional_sem_repetir_pagina() {
     assert!(chamados[2].contains("data_inicial=01%2F11%2F2026"));
 }
 #[test]
+fn mes_anterior_segue_link_publicado_sem_inventar_url() {
+    // Somente se o calendario realmente publicou um href para o primeiro dia.
+    let mut chamados = Vec::new();
+    let resultado = ler_com(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 9)),
+        |url| {
+            chamados.push(url.to_owned());
+            if url.contains("data_inicial=") {
+                Ok("<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>".into())
+            } else if url.contains("data_atual=01%2F09%2F2026") {
+                Ok(calendario(2026, 9, false))
+            } else {
+                Ok(format!(
+                    "{}<a href='{}'>dia do mes anterior</a>",
+                    calendario(2026, 10, true),
+                    href("data_atual=01%2F09%2F2026")
+                ))
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(resultado.mes, "2026-09");
+    assert_eq!(resultado.requisicoes, 4);
+    assert_eq!(resultado.itens.len(), 0);
+    assert_eq!(chamados.len(), 3);
+    assert!(chamados[1].contains("data_atual=01%2F09%2F2026"));
+    assert!(chamados[2].contains("data_inicial=01%2F09%2F2026"));
+}
+#[test]
+fn mes_anterior_sem_link_publicado_falha_fechado_sem_get_extra() {
+    let mut chamados = 0;
+    let resultado = ler_com(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 9)),
+        |_| {
+            chamados += 1;
+            Ok(calendario(2026, 10, true))
+        },
+    );
+    assert!(matches!(
+        resultado,
+        Err(ErroLeituraRetornos::MesDosRetornosInacessivel)
+    ));
+    assert_eq!(chamados, 1);
+}
+#[test]
 fn sem_mes_nao_inventa_o_relogio_do_sei() {
     // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01.
     let resultado = ler_com(CONTROLE, &controle(), &instalacao(), None, |_| {
