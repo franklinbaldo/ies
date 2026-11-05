@@ -1,7 +1,5 @@
 use super::*;
 
-use super::*;
-
 const ID: &str = "12345";
 fn cadastro(grupos: &str) -> String {
     format!(r#"<form id="frmAcompanhamentoCadastro" method="post"
