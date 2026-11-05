@@ -31,10 +31,14 @@ As duas tabelas, quando presentes, distinguem a situacao pelo
 `summary`: `aguardando` (outras unidades devem devolver) e
 `devolver` (a unidade atual deve devolver). Le a coluna Processo,
 Unidade, Data Programada, e opcionalmente Data de Retorno Efetiva e
-Prazo Restante. A contagem de cada tabela deve conferir sua legenda. Se uma situacao
-nao tiver tabela, a area correspondente precisa declarar literalmente
-`Nenhum registro encontrado.`; omissao sem essa evidencia e
-`lista_de_retornos_incompleta`, nunca total presumido zero.
+Prazo Restante. A contagem de cada tabela deve conferir sua legenda. Quando so
+`aguardando` aparece, a captura do mes inteiro pode omitir a tabela
+`devolver`: esta forma so e aceita com uma unica
+`divAguardandoAreaTabela` envolvendo a tabela reconhecida.
+Essa moldura foi observada nas sete cassettes originais; uma tabela
+solta, sem essa prova, e `lista_de_retornos_incompleta`.
+A ausencia tambem pode ser demonstrada por uma area que publique
+literalmente `Nenhum registro encontrado.`; nunca se inventam linhas.
 Mes sem retornos so devolve zero se a area da tabela publicar
 `Nenhum registro encontrado.` Uma tabela paginada nao suportada
 e recusada com `paginacao_dos_retornos_nao_observada`, nunca
