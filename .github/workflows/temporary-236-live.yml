@@ -1,0 +1,86 @@
+name: TEMP #236 live read-only
+
+on:
+  push:
+    branches: [codex/236-cache-documentos]
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build IES
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked
+      - name: UnB 4.0.9 — leitura autorizada; sem retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export IES_TEST_DIR="${RUNNER_TEMP}/ies-live-236"
+          mkdir -m 700 -p "$IES_TEST_DIR" "$IES_TEST_DIR/cache" "$IES_TEST_DIR/saida"
+          export XDG_CACHE_HOME="$IES_TEST_DIR/cache"
+          export IES_CREDENCIAIS_FILE="$IES_TEST_DIR/credenciais"
+          export IES_URL_CONTROLE_FILE="$IES_TEST_DIR/url"
+          export IES_COOKIE_FILE="$IES_TEST_DIR/cookie"
+          export IES_ORIGEM_FILE="$IES_TEST_DIR/origem"
+          python3 - <<'PY'
+          import os, pathlib
+          base=pathlib.Path(os.environ["IES_TEST_DIR"])
+          md=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          row=next(line for line in md.splitlines() if line.startswith("| `unb` |"))
+          parts=[s.strip() for s in row.split("|")]
+          origem,usuario,senha,orgao=parts[3:7]
+          files={"credenciais":f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n", "origem":origem+"\n", "url":"", "cookie":""}
+          for name,value in files.items():
+              p=base/name
+              fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+              with os.fdopen(fd,"w") as out: out.write(value)
+          PY
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess,time,hashlib,sys
+          exe="./target/debug/ies"
+          root=pathlib.Path(os.environ["IES_TEST_DIR"])
+          previous=None
+          count=0
+          def command(label,args):
+              global previous,count
+              if previous is not None:
+                  delay=30-(time.monotonic()-previous)
+                  if delay>0:time.sleep(delay)
+              p=subprocess.run([exe,"--json",*args],capture_output=True,text=True,timeout=100)
+              previous=time.monotonic()
+              try: data=json.loads(p.stdout)
+              except Exception: data={}
+              requests=data.get("requisicoes",0)
+              count+=requests
+              # Never emit the raw output; only an approved, secret-free summary.
+              print(json.dumps({"case":label,"exit":p.returncode,"subcodigo":data.get("subcodigo"),"requisicoes":requests,"total":count}),flush=True)
+              if p.returncode: 
+                  print("NOT_RUN: comando recusado; nenhuma repetição",flush=True)
+                  sys.exit(0)
+              return data
+          login=command("login",["login"])
+          one=command("cache_primeira",["documento","0011870","--processo","23106.001748/2026-94"])
+          doc=one["documentos"][0]; cache=doc.get("cache")
+          if not cache: raise AssertionError("cache ausente")
+          path=pathlib.Path(cache["caminho"])
+          assert path.is_file() and path.stat().st_mode & 0o077 == 0
+          assert hashlib.sha256(path.read_bytes()).hexdigest()==cache["sha256"]
+          original=path.stat().st_mtime_ns
+          two=command("cache_repeticao",["documento","0011870","--processo","23106.001748/2026-94"])
+          other=two["documentos"][0].get("cache")
+          assert other and other["caminho"]==str(path) and other["sha256"]==cache["sha256"]
+          assert path.stat().st_mtime_ns==original
+          os.environ["IES_CACHE_DOCUMENTOS"]="0"
+          three=command("sem_cache_ambiente",["documento","0011870","--processo","23106.001748/2026-94"])
+          assert three["documentos"][0].get("cache") is None
+          print(json.dumps({"result":"PASS","live_requisicoes_conhecidas":count,"versao":cache.get("versao"),"idempotente":True}),flush=True)
+          PY
