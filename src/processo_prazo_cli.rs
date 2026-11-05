@@ -3,9 +3,11 @@
 //! até haver POST único, reconciliação por nova leitura e testes do fluxo.
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, leitura, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
-use crate::processo_prazo::{EstadoDoPrazo, PedidoDePrazo, campos_do_pedido, interpretar_pedido, ler_tela};
+use crate::processo_prazo::{
+    EstadoDoPrazo, PedidoDePrazo, campos_do_pedido, interpretar_pedido, ler_tela,
+};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
 use serde_json::{Value, json};
@@ -13,9 +15,17 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Prazo { numero, ate, dias, excluir, confirmar }),
+        acao:
+            Some(ProcessoAcao::Prazo {
+                numero,
+                ate,
+                dias,
+                excluir,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     let nup = match NumeroProcesso::novo(numero) {
@@ -27,12 +37,18 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
         Err(erro) => return Some(uso(cli.json, erro.subcodigo())),
     };
     if *confirmar {
-        return Some(recusar(cli.json, "escrita_de_prazo_ainda_nao_disponivel",
-            "confirmação de prazo ainda não implementada com reconciliação; nenhuma requisição enviada"));
+        return Some(recusar(
+            cli.json,
+            "escrita_de_prazo_ainda_nao_disponivel",
+            "confirmação de prazo ainda não implementada com reconciliação; nenhuma requisição enviada",
+        ));
     }
     if pedido == PedidoDePrazo::Excluir {
-        return Some(recusar(cli.json, "exclusao_de_prazo_ainda_nao_disponivel",
-            "exclusão depende da lista de prazos da unidade; nenhuma requisição enviada"));
+        return Some(recusar(
+            cli.json,
+            "exclusao_de_prazo_ainda_nao_disponivel",
+            "exclusão depende da lista de prazos da unidade; nenhuma requisição enviada",
+        ));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         previsualizar(cli, &nup, &pedido, sessao, indice)
@@ -41,12 +57,15 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
 
 fn uso(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": "entrada_invalida",
-            "subcodigo": subcodigo,
-            "erro": "parâmetros de prazo inválidos",
-            "retentavel": false
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "entrada_invalida",
+                "subcodigo": subcodigo,
+                "erro": "parâmetros de prazo inválidos",
+                "retentavel": false
+            })
+        );
     } else {
         eprintln!("IES: parâmetros de prazo inválidos [{subcodigo}]");
     }
@@ -69,36 +88,77 @@ fn previsualizar(
     let abertura = leitura(nup, cli.unidade.as_deref(), true);
     let (aberto, acoes) = match abrir_para_escrever(sessao, &abertura, indice, &mut rede) {
         Ok(aberto) => aberto,
-        Err(erro) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
-        ),
+        Err(erro) => {
+            return saida_erro::erro_fonte_http(
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
     };
     let link = match acoes.prazo {
         Ok(Some(link)) => link,
-        Ok(None) => return recusar(cli.json, "prazo_nao_publicado_na_barra",
-            "a barra do processo não oferece controle de prazo"),
-        Err(erro) => return recusar(cli.json, erro.subcodigo(),
-            "o link de controle de prazo não corresponde ao processo ou à forma observada"),
+        Ok(None) => {
+            return recusar(
+                cli.json,
+                "prazo_nao_publicado_na_barra",
+                "a barra do processo não oferece controle de prazo",
+            );
+        }
+        Err(erro) => {
+            return recusar(
+                cli.json,
+                erro.subcodigo(),
+                "o link de controle de prazo não corresponde ao processo ou à forma observada",
+            );
+        }
     };
     let cookie = match ler_cookie(sessao) {
         Ok(cookie) => cookie,
-        Err(erro) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
-        ),
+        Err(erro) => {
+            return saida_erro::erro_fonte_http(
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
     };
     let (html, _) = match obter_tela(&mut rede, &cookie, &link) {
         Ok(tela) => tela,
-        Err(FalhaDaTela::Transporte(erro)) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
-        ),
-        Err(FalhaDaTela::Redirecionada) => return recusar(cli.json,
-            "tela_de_prazo_redirecionada", "a tela de prazo redirecionou inesperadamente"),
-        Err(FalhaDaTela::SessaoEncerrada) => return recusar(cli.json,
-            "sessao_encerrada_ao_ler_prazo", "a tela de prazo devolveu o login"),
+        Err(FalhaDaTela::Transporte(erro)) => {
+            return saida_erro::erro_fonte_http(
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
+            );
+        }
+        Err(FalhaDaTela::Redirecionada) => {
+            return recusar(
+                cli.json,
+                "tela_de_prazo_redirecionada",
+                "a tela de prazo redirecionou inesperadamente",
+            );
+        }
+        Err(FalhaDaTela::SessaoEncerrada) => {
+            return recusar(
+                cli.json,
+                "sessao_encerrada_ao_ler_prazo",
+                "a tela de prazo devolveu o login",
+            );
+        }
     };
     let tela = match ler_tela(&html, &aberto.arvore.processo.id) {
         Ok(tela) => tela,
-        Err(erro) => return recusar(cli.json, erro.subcodigo(), "tela de prazo fora da forma observada"),
+        Err(erro) => {
+            return recusar(
+                cli.json,
+                erro.subcodigo(),
+                "tela de prazo fora da forma observada",
+            );
+        }
     };
     let atual = match &tela.estado {
         EstadoDoPrazo::SemPrazo => json!({"tipo": "sem_prazo"}),
@@ -110,7 +170,10 @@ fn previsualizar(
         PedidoDePrazo::Dias(dias) => json!({"dias": dias}),
         PedidoDePrazo::Ler | PedidoDePrazo::Excluir => Value::Null,
     };
-    let campos: Vec<_> = campos_do_pedido(pedido).into_iter().map(|(nome, _)| nome).collect();
+    let campos: Vec<_> = campos_do_pedido(pedido)
+        .into_iter()
+        .map(|(nome, _)| nome)
+        .collect();
     let resultado = json!({
         "nup": nup.as_str(),
         "id_procedimento": aberto.arvore.processo.id,
@@ -142,8 +205,17 @@ mod tests {
 
     #[test]
     fn tipos_de_entrada_distintos_nao_sao_tratados_como_escrita() {
-        assert_eq!(interpretar_pedido(None, None, false), Ok(PedidoDePrazo::Ler));
-        assert_eq!(interpretar_pedido(None, None, true), Ok(PedidoDePrazo::Excluir));
-        assert_eq!(interpretar_pedido(Some("31/02/2027"), None, false), Err(ErroPrazo::DataInvalida));
+        assert_eq!(
+            interpretar_pedido(None, None, false),
+            Ok(PedidoDePrazo::Ler)
+        );
+        assert_eq!(
+            interpretar_pedido(None, None, true),
+            Ok(PedidoDePrazo::Excluir)
+        );
+        assert_eq!(
+            interpretar_pedido(Some("31/02/2027"), None, false),
+            Err(ErroPrazo::DataInvalida)
+        );
     }
 }

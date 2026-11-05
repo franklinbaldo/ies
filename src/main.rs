@@ -68,8 +68,6 @@ pub mod processo_comentar;
 #[allow(dead_code)] // núcleo offline; leitura Web ainda não ligada à CLI (#257)
 pub mod processo_comentarios;
 mod processo_concluir;
-mod processo_prazo;
-mod processo_prazo_cli;
 mod processo_concluir_cli;
 #[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
 #[path = "processo_criar/cadastro.rs"]
@@ -93,6 +91,8 @@ mod processo_marcar;
 mod processo_marcar_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_prazo;
+mod processo_prazo_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod processo_relacionar;

@@ -1,10 +1,7 @@
 ---
-type: LiveValidation
+type: SEIObservation
 title: Controle de prazo da issue 272 — estado da validação
-operation: processo.prazo
-installation: unb-go-ufrj
-status: NOT_RUN
-requests: 0
+description: Evidências offline e pendências live de processo.prazo (UnB, GO, UFRJ); NOT_RUN, 0 requisições
 ---
 
 # Controle de prazo — validação live

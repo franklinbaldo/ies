@@ -74,8 +74,13 @@ pub(crate) fn interpretar_pedido(
 
 fn data_valida(valor: &str) -> bool {
     let bytes = valor.as_bytes();
-    if bytes.len() != 10 || bytes[2] != b'/' || bytes[5] != b'/'
-        || !bytes.iter().enumerate().all(|(i, b)| matches!(i, 2 | 5) || b.is_ascii_digit())
+    if bytes.len() != 10
+        || bytes[2] != b'/'
+        || bytes[5] != b'/'
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(i, b)| matches!(i, 2 | 5) || b.is_ascii_digit())
     {
         return false;
     }
@@ -103,13 +108,11 @@ fn data_valida(valor: &str) -> bool {
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroPrazo> {
-    crate::html_atributos::valor_do_atributo(tag, nome)
-        .map_err(|_| ErroPrazo::TelaNaoObservada)
+    crate::html_atributos::valor_do_atributo(tag, nome).map_err(|_| ErroPrazo::TelaNaoObservada)
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
-    crate::html_atributos::atributo_presente(tag, nome)
-        .map_err(|_| ErroPrazo::TelaNaoObservada)
+    crate::html_atributos::atributo_presente(tag, nome).map_err(|_| ErroPrazo::TelaNaoObservada)
 }
 
 pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
@@ -126,14 +129,14 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
         return Err(E::TelaNaoObservada);
     }
     let action = atributo(form, "action")?.ok_or(E::TelaNaoObservada)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(E::TelaNaoObservada)?;
+    let action = crate::formulario_web::decodificar_atributo(&action).ok_or(E::TelaNaoObservada)?;
     let (caminho, consulta) = action.split_once('?').ok_or(E::TelaNaoObservada)?;
     if !caminho.ends_with("controlador.php") {
         return Err(E::TelaNaoObservada);
     }
     let valores = |chave: &str| {
-        consulta.split('&')
+        consulta
+            .split('&')
             .filter_map(|par| par.split_once('='))
             .filter(|(nome, _)| *nome == chave)
             .map(|(_, valor)| valor)
@@ -165,7 +168,12 @@ fn ler_controles_da_tela(
     let mut valor_dos_uteis = String::new();
     let mut botoes = 0u8;
     let mut id_conferido = false;
-    for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if !matches!(elemento.as_str(), "input" | "button") {
             continue;
@@ -176,8 +184,14 @@ fn ler_controles_da_tela(
         if presente(tag, "disabled")? {
             return Err(E::TelaNaoObservada);
         }
-        let tipo = atributo(tag, "type")?
-            .unwrap_or_else(|| if elemento == "button" { "submit" } else { "text" }.to_owned());
+        let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
+            if elemento == "button" {
+                "submit"
+            } else {
+                "text"
+            }
+            .to_owned()
+        });
         let tipo = tipo.to_ascii_lowercase();
         let valor = atributo(tag, "value")?;
         if nome == "rdoPrazo" {
@@ -227,9 +241,19 @@ fn ler_controles_da_tela(
             _ => return Err(E::TelaNaoObservada),
         }
     }
-    if !id_conferido || botoes != 1 || !radios.contains("1") || !radios.contains("2")
-        || !["hdnInfraTipoPagina", "hdnIdControlePrazo", "txtPrazo", "txtDias", "chkSinDiasUteis"]
-            .iter().all(|nome| vistos.contains(*nome))
+    if !id_conferido
+        || botoes != 1
+        || !radios.contains("1")
+        || !radios.contains("2")
+        || ![
+            "hdnInfraTipoPagina",
+            "hdnIdControlePrazo",
+            "txtPrazo",
+            "txtDias",
+            "chkSinDiasUteis",
+        ]
+        .iter()
+        .all(|nome| vistos.contains(*nome))
     {
         return Err(E::TelaNaoObservada);
     }
@@ -239,7 +263,10 @@ fn ler_controles_da_tela(
         None => EstadoDoPrazo::SemPrazo,
         _ => return Err(E::TelaNaoObservada),
     };
-    Ok(TelaDoPrazo { estado, valor_dos_uteis })
+    Ok(TelaDoPrazo {
+        estado,
+        valor_dos_uteis,
+    })
 }
 
 /// Campos do usuário para a derivação segura do formulário observado.
@@ -298,8 +325,14 @@ mod tests {
 
     #[test]
     fn opcoes_exclusivas_e_dias_positivos() {
-        assert_eq!(interpretar_pedido(None, None, false), Ok(PedidoDePrazo::Ler));
-        assert_eq!(interpretar_pedido(None, None, true), Ok(PedidoDePrazo::Excluir));
+        assert_eq!(
+            interpretar_pedido(None, None, false),
+            Ok(PedidoDePrazo::Ler)
+        );
+        assert_eq!(
+            interpretar_pedido(None, None, true),
+            Ok(PedidoDePrazo::Excluir)
+        );
         assert_eq!(
             interpretar_pedido(None, Some(15), false),
             Ok(PedidoDePrazo::Dias(15))
@@ -308,7 +341,10 @@ mod tests {
             interpretar_pedido(Some("15/11/2026"), Some(3), false),
             Err(ErroPrazo::OpcoesIncompativeis)
         );
-        assert_eq!(interpretar_pedido(None, Some(0), false), Err(ErroPrazo::DiasInvalidos));
+        assert_eq!(
+            interpretar_pedido(None, Some(0), false),
+            Err(ErroPrazo::DiasInvalidos)
+        );
     }
 
     #[test]

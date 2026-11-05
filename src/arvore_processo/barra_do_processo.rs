@@ -54,7 +54,6 @@ pub(crate) fn ler_link_das_propriedades(
         })
 }
 
-
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkPrazo {
