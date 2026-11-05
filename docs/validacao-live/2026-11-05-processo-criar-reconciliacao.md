@@ -150,3 +150,61 @@ O primeiro RED de filtragem de subcódigos permanece documentado acima:
 **GREEN final local: 13/13 testes Python PASS**, sem `PYTHONPATH` especial,
 mais `compileall` PASS. Nenhuma requisição ao SEI e nenhuma escrita
 nesta fatia; **o resíduo histórico continua DESCONHECIDO**.
+
+## Continuação 🦉 — identidade da prévia e integração da main
+
+O roteiro manual `scripts/ensaio_processo_criar.py` agora confere
+**`especificacao` literal idêntica**, além de `tipo`, `nivel` e
+`confirmado=false`, **antes** de reservar o registro e de permitir
+um único `--confirmar`. Isso corrige a lacuna identificada na
+revisão da PR #283: uma prévia histórica na UnB e sua confirmação
+tinham especificações diferentes. Se `especificacao` não for
+observada ou não coincidir, o roteiro recusa com `PREVIA_FAIL`,
+sem POST criador. Uma contagem de requisições booleana também
+não autoriza escrita. Contagens em relatórios e registro privado
+só são publicadas se inteiros não negativos; outros tipos,
+inclusive URLs arbitrárias, viram `null`.
+
+**RED local antes do código:** 3 testes de identidade/contagem
+inválida falharam; 3 testes de telemetria insegura falharam
+numa segunda rodada. **GREEN local:** 6/6 testes desses cenários,
+mais compilação Python. Os seis testes equivalentes foram
+incorporados à suíte ativa nos commits `866a1e6` e `736a93e`
+antes da correção `0b536e9`. Orçamento sintético no caminho
+válido: prévia 3, confirmação 6 e releitura 2. Nas recusas de
+prévia: só 3 requisições sintéticas e 0 POST criador.
+Timeout após iniciar confirmação continua efeito incerto,
+saída 3, sem retry.
+
+**CI intermediário:** no merge `81f2429`, o gate Python
+do ensaio passou **17/18** testes; a única falha foi no teste
+antigo de timeout com especificação de fixture `Teste sintético`
+e pedido `Teste`. A fixture foi alinhada no commit
+`2a6a448` para continuar testando *timeout após prévia válida*
+sem mudar a expectativa de saída 3 e sem ignorar teste.
+Não extrapolar verde de outro SHA: exigir CI no head final.
+
+**Integração:** merge da `main` no branch da PR Draft #283
+em `81f2429`, preservando outras frentes e a infraestrutura
+nova de `#[derive(Causa)]`; a variante nova de hipótese
+legal recebeu `#[causa(nome = "hipotese_legal_informada_invalida")]`.
+Sem rebase nem force-push. O workflow temporário de
+reconciliação permanece manual, não executado, a retirar
+antes da integração final.
+
+| Etapa desta sessão | Status | Requisições reais novas | Resíduo |
+| --- | --- | ---: | --- |
+| Testes sintéticos RED/GREEN e compilação Python | PASS local | 0 | Nenhum novo |
+| CI final Rust/OKF/replay | A verificar no SHA final | 0 | Nenhum novo |
+| Prévia autenticada em treinamento | NOT_RUN | 0 | histórico inalterado |
+| Novo `--confirmar` na UnB | BLOQUEADO: POST incerto prévio não pode ser repetido | 0 | **DESCONHECIDO** |
+| Reconciliação somente por leitura da UnB | NOT_RUN | 0 | **DESCONHECIDO** |
+| Releitura independente live | NOT_RUN | 0 | **DESCONHECIDO** |
+
+**Total desta continuação: 0 requisições reais ao SEI,
+0 escritas e 0 novas alterações.** O histórico continua
+com login 6, prévia 3, confirmação com contagem desconhecida
+e resíduo **DESCONHECIDO**. Não repetir o POST; antes de nova
+escrita, reconciliar somente por leitura, sem repetir GET falhado
+e sem inferir ausência de criação de varredura inconclusiva.
+Nenhuma produção foi acessada. A issue permanece aberta.
