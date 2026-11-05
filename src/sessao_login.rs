@@ -12,6 +12,7 @@ mod fluxo;
 mod gravacao;
 pub(crate) mod http;
 pub(crate) mod redirecionamento;
+pub(crate) mod relogin;
 pub(crate) mod tela;
 
 pub(crate) use credenciais::Credenciais;
@@ -134,3 +135,7 @@ mod tests_proxy;
 #[cfg(test)]
 #[path = "sessao_login/tests_colheita.rs"]
 mod tests_colheita;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_relogin.rs"]
+mod tests_relogin;

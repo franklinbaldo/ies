@@ -213,11 +213,66 @@ terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
 `proxy_recusou_o_tunel` e `campo` (a chave, nunca o valor) nas falhas do
 arquivo de credenciais. Saída 1.
 
+## Relogin único nas leituras
+
+Refs #200; [decisão](../../docs/decisoes/sessao-login/relogin-de-leitura.md).
+Vale para `ies processo NUP`, `processo buscar`, `documento DOC`,
+`documento buscar`, `unidade listar-processos`, `recebidos`, `gerados`,
+`atual` e `colunas` sem `--definir`. **Escrita nunca reloga**:
+`concluir`, `reabrir`, `enviar`, `assinar` e `colunas --definir`, com ou
+sem `--confirmar` (a prévia também não, para não misturar sessões entre a
+prévia e a escrita), saem com o erro tipado e o agente decide.
+
+1. No início do comando, a geração gravada: os SHA-256 do cookie e da URL
+   do Controle (os do marcador), lidos dos arquivos, sem rede.
+2. A leitura roda. Só `pagina_de_login_recebida_no_controle` e
+   `sessao_encerrada_rode_ies_login` disparam o relogin. Nenhuma outra
+   falha dispara: `sessao_nao_autorizada` (401/403),
+   `bloqueio_de_seguranca_da_instalacao` (WAF), `redirecionamento_recusado`,
+   `status_http_*`, `entrada_por_id_recusada_rode_ies_login`,
+   `tela_de_login_recebida_apos_envio`, rede, proxy e tela inesperada.
+3. Sem `IES_CREDENCIAIS_FILE`, ou com o arquivo ausente: comportamento
+   anterior, sem lock e sem pedido a mais. Arquivo presente e inválido
+   (permissão, link, formato) sai com a falha tipada dele.
+4. O lock do login (até 120 s). Sob o lock, a geração gravada é
+   comparada com a do passo 1. **Mudou**: outro processo já relogou; a
+   leitura usa a sessão nova e nada é pedido. **Igual**: login pelos
+   passos 3 a 5 do fluxo acima (sem o GET de conferência, porque a
+   leitura acabou de ver a sessão vencida), `--unidade` conferida antes
+   de gravar, gravação da nova geração e colheita do Controle obtido.
+5. A leitura recomeça **do início, uma vez**, relendo sessão e índice.
+   Se falhar de novo (qualquer falha), sai com o erro, sem segundo login.
+
+Orçamento: N₁ (a primeira tentativa, até a falha) + o login da família
+(tabela acima; UnB: 5) + N₂ (a leitura inteira). Geração trocada:
+N₁ + N₂. Sem retry de outra natureza.
+
+**Saída.** Sem recomeço, nada muda. Com recomeço:
+
+- `processo NUP`, `processo buscar`, `documento DOC` e `documento buscar`
+  já publicam `requisicoes`: o valor passa a ser N₁ + login + N₂ (também
+  no texto humano).
+- `unidade atual`, `colunas`, `listar-processos` (em cada lista do array),
+  `recebidos` e `gerados`, e a linha de `--saida`, ganham `requisicoes`
+  com esse total. O arquivo de `--saida` não muda.
+- `relogin: true` quando **este** processo logou; ausente quando a
+  geração já tinha trocado.
+- Falha depois do relogin: o `fonte_invalida` da leitura com
+  `relogin: true`. Falha do relogin (`credencial_recusada`,
+  `login_em_andamento_em_outro_processo`,
+  `unidade_exibida_diferente_da_solicitada`...): o JSON de falha do
+  `ies login`, sem reler. Saída 1.
+- Sem `--json`, uma linha em `stderr` diz que a leitura recomeçou, com o
+  total de requisições.
+
+A contagem soma todos os pedidos do processo pelo cliente HTTPS único
+(registrados antes do envio). Credenciais, cookie e URL nunca saem.
+
 ## Fora do escopo
 
-Outros comandos **não** fazem login automático nesta fase. Futuro:
-relogar só depois de uma falha tipada de sessão vencida, uma vez, nunca
-em laço. Captcha e 2FA não são resolvidos. REST e SOAP não são usados.
+Relogin em escrita, prévia de escrita, `ies status` e `ies setup`;
+relogin em laço ou por outra falha. Captcha e 2FA não são resolvidos.
+REST e SOAP não são usados.
 [Decisão](../../docs/decisoes/sessao-login.md),
 [evidência](../evidencias/sessao-login.md),
 [observações](../../docs/como-o-sei-funciona/sessao-login.md) e

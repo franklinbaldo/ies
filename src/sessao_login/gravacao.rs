@@ -74,6 +74,22 @@ pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
     sha256(cookie)
 }
 
+/// Geração dos arquivos de sessão como estão agora: os SHA-256 do cookie
+/// e da URL do Controle (os do marcador), sem rede. `None` se um deles
+/// falta ou está vazio. Comparada antes do relogin de uma leitura, vale
+/// também para a sessão preparada fora do `ies login` (sem marcador).
+pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
+    let ler = |caminho: &Path| {
+        crate::transporte::arquivo_privado(caminho, 8_192)
+            .ok()
+            .map(|texto| texto.trim().to_owned())
+            .filter(|texto| !texto.is_empty())
+    };
+    let cookie = ler(&arquivos.cookie)?;
+    let url = ler(&arquivos.url_controle)?;
+    Some(format!("{}:{}", sha256(&cookie), sha256(&url)))
+}
+
 fn sha256(texto: &str) -> String {
     use std::fmt::Write as _;
     Sha256::digest(texto.trim().as_bytes())

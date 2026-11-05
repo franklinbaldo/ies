@@ -39,7 +39,7 @@ pub(crate) fn json_do_erro(erro: &ErroLogin) -> Value {
     valor
 }
 
-fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
+pub(crate) fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
     if json_mode {
         println!("{}", json_do_erro(erro));
     } else {

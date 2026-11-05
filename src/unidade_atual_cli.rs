@@ -1,7 +1,6 @@
 //! Leitor do rótulo da unidade ativa, sem paginação nem mudança de sessão.
 use crate::erro_web::ErroCaixa;
-use crate::saida_erro::erro_fonte_http;
-use crate::{configuracao, erro_fonte, transporte};
+use crate::{configuracao, erro_fonte, relogin_cli, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -15,25 +14,22 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-    let colheita = crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos);
-    let html = match transporte::envio_post::ler_tela_do_controle(
-        &arquivos.url_controle,
-        &arquivos.cookie,
-        &arquivos.origem,
-    ) {
-        Ok(tela) => {
-            colheita.colher(&tela.html, Some(&tela.mime));
-            tela.html
+    let lido = relogin_cli::ler(&arquivos, unidade_esperada, || {
+        transporte::envio_post::ler_tela_do_controle(
+            &arquivos.url_controle,
+            &arquivos.cookie,
+            &arquivos.origem,
+        )
+    });
+    let (html, nota) = match lido {
+        Ok((tela, nota)) => {
+            // A colheita usa a geração gravada agora (a nova, se relogou).
+            let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
+            crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos)
+                .colher(&tela.html, Some(&tela.mime));
+            (tela.html, nota)
         }
-        Err(erro) => {
-            return erro_fonte_http(
-                json_mode,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
-        }
+        Err(falha) => return relogin_cli::publicar_falha(json_mode, &falha),
     };
     let unidade = match unidade_validada(&html) {
         Ok(unidade) => unidade,
@@ -53,11 +49,11 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         );
     }
     if json_mode {
-        println!(
-            "{}",
-            json!({"unidade_exibida": unidade, "origem": "controle_de_processos"})
-        );
+        let mut valor = json!({"unidade_exibida": unidade, "origem": "controle_de_processos"});
+        relogin_cli::anotar_com_total(&mut valor, nota.as_ref());
+        println!("{valor}");
     } else {
+        relogin_cli::avisar(json_mode, nota.as_ref());
         println!("Unidade exibida na sessão SEI: {unidade}");
     }
     ExitCode::SUCCESS

@@ -54,6 +54,18 @@ impl ErroPaginaWeb {
     }
 }
 
+impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
+    fn subcodigo(&self) -> &'static str {
+        ErroPaginaWeb::subcodigo(self)
+    }
+    fn mensagem(&self) -> &'static str {
+        ErroPaginaWeb::mensagem(self)
+    }
+    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        ErroPaginaWeb::status_http(self)
+    }
+}
+
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
 /// na visão D, a troca para R, que fica (orçamento no contrato). Cada tela
 /// do Controle lida é colhida no índice local, sem requisição a mais.

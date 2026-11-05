@@ -58,6 +58,7 @@ mod processo_obter_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod propriedades_processo;
+mod relogin_cli;
 mod replay_args;
 mod replay_busca_documento;
 mod replay_cli;

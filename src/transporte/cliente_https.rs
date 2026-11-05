@@ -11,6 +11,7 @@ use crate::instalacao::host_valido;
 use std::fmt::Write as _;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 const TEMPO_LIMITE: Duration = Duration::from_secs(30);
@@ -129,6 +130,15 @@ pub(crate) fn requisitar_via<S: Read + Write>(
     Resposta::ler(BufReader::new(fluxo))
 }
 
+/// Pedidos reais tentados por este processo (todos os comandos e o
+/// login), registrados ANTES do envio: só o relogin das leituras os lê.
+static PEDIDOS_DO_PROCESSO: AtomicUsize = AtomicUsize::new(0);
+
+/// Total de pedidos reais tentados até agora pelo processo.
+pub(crate) fn pedidos_do_processo() -> usize {
+    PEDIDOS_DO_PROCESSO.load(Ordering::Relaxed)
+}
+
 /// Pedido real: proxy do ambiente do processo e TLS nativo.
 pub(crate) fn requisitar(
     metodo: &str,
@@ -136,6 +146,7 @@ pub(crate) fn requisitar(
     cookie: &str,
     envio: Option<&Envio<'_>>,
 ) -> Result<Resposta<BufReader<FluxoTls>>, FalhaTransporte> {
+    PEDIDOS_DO_PROCESSO.fetch_add(1, Ordering::Relaxed);
     requisitar_via(metodo, url, cookie, envio, ambiente_do_processo, tls_nativo)
 }
 

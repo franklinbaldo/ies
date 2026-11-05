@@ -32,7 +32,7 @@ fn exportar_detalhada(html: &str, nome: &str) -> String {
     let leitura = ler_paginas(&[html.to_owned()], Some("PPI")).unwrap();
     let caminho = destino(nome);
     assert_eq!(
-        mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho)),
+        mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho), None),
         ExitCode::SUCCESS
     );
     let texto = fs::read_to_string(&caminho).unwrap();

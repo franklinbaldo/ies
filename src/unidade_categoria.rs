@@ -4,6 +4,7 @@
 mod pagina_web;
 
 use crate::paginas::Leitura;
+use crate::relogin_cli::{self, NotaDoRelogin};
 use crate::{arquivo_caixa, configuracao, erro_fonte, paginas};
 use serde_json::{Value, json};
 use std::path::Path;
@@ -79,6 +80,7 @@ pub(crate) fn publicar_lista(
     categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
+    nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
     let leitura = match paginas::juntar(&[html.to_owned()], unidade) {
         Ok(leitura) => leitura,
@@ -90,7 +92,7 @@ pub(crate) fn publicar_lista(
             );
         }
     };
-    let modelo = match selecionar(&leitura, categoria, "web") {
+    let mut modelo = match selecionar(&leitura, categoria, "web") {
         Ok(modelo) => modelo,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
@@ -98,16 +100,17 @@ pub(crate) fn publicar_lista(
         return match arquivo_caixa::gravar(caminho, &modelo) {
             Ok(bytes) => {
                 if json_mode {
-                    println!(
-                        "{}",
-                        json!({
-                            "arquivo":"gravado",
-                            "bytes":bytes,
-                            "escopo":"categoria_verificada",
-                            "categoria":categoria.rotulo()
-                        })
-                    );
+                    // O arquivo guarda só a lista; `relogin` vai em stdout.
+                    let mut valor = json!({
+                        "arquivo":"gravado",
+                        "bytes":bytes,
+                        "escopo":"categoria_verificada",
+                        "categoria":categoria.rotulo()
+                    });
+                    relogin_cli::anotar_com_total(&mut valor, nota);
+                    println!("{valor}");
                 } else {
+                    relogin_cli::avisar(json_mode, nota);
                     println!(
                         "IES: categoria verificada gravada em arquivo privado ({bytes} bytes)."
                     );
@@ -118,8 +121,10 @@ pub(crate) fn publicar_lista(
         };
     }
     if json_mode {
+        relogin_cli::anotar_com_total(&mut modelo, nota);
         println!("{}", serde_json::to_string_pretty(&modelo).unwrap());
     } else {
+        relogin_cli::avisar(json_mode, nota);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
         println!(
             "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
@@ -147,28 +152,15 @@ pub(crate) fn listar_categoria(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
-    match pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina) {
-        Ok(html) => publicar_lista(&html, unidade, categoria, json_mode, destino),
-        Err(erro) => {
-            let valor = crate::saida_erro::json_de_erro_fonte(
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
-            if json_mode {
-                println!("{valor}");
-            } else {
-                eprintln!(
-                    "{}",
-                    crate::saida_erro::linha_humana(
-                        erro.subcodigo(),
-                        erro.mensagem(),
-                        erro.status_http()
-                    )
-                );
-            }
-            ExitCode::from(1)
+    // Cada tentativa relê a sessão e colhe na geração gravada agora.
+    let lido = relogin_cli::ler(&arquivos, unidade, || {
+        pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina)
+    });
+    match lido {
+        Ok((html, nota)) => {
+            publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
         }
+        Err(falha) => relogin_cli::publicar_falha(json_mode, &falha),
     }
 }
 
@@ -323,7 +315,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho));
+        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho), None);
         let valor = std::fs::read(&caminho)
             .ok()
             .map(|bytes| serde_json::from_slice(&bytes).unwrap());

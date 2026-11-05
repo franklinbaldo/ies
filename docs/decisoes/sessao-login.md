@@ -4,7 +4,7 @@ title: Login Web nativo do IES pela tela servida, com sessão gravada por geraç
 operation: sessao.login
 implementation: partial
 status: adopted-for-scope
-scope: ies login [--forcar] na instalação configurada; credenciais em arquivo privado 0600; um GET de conferência da sessão gravada; login pela raiz com redirecionamentos só no host; um POST derivado do frmLogin servido; gravação atômica de cookie, URL e marcador de geração sob lock; sem login automático em outros comandos
+scope: ies login [--forcar] na instalação configurada; credenciais em arquivo privado 0600; um GET de conferência da sessão gravada; login pela raiz com redirecionamentos só no host; um POST derivado do frmLogin servido; gravação atômica de cookie, URL e marcador de geração sob lock; nos outros comandos, só o relogin único das leituras do apêndice relogin-de-leitura (nunca na escrita)
 selected_strategy: ies-login-web-nativo
 alternatives: ies-login-web-nativo,todos-como-harness-externo,rest-wssei-token,soap-official
 evidence_level: comportamento-do-todos-telas-publicas-de-login-e-ensaios-live
@@ -79,8 +79,10 @@ prioridade de interfaces (Web principal; REST baixa; SOAP não prioritário).
 
 Descartado: guardar a "receita" do POST para logar sem a tela (o Todos o
 faz; uma tela diferente da guardada já foi confundida com recusa) e
-relogar automaticamente nos outros comandos (futuro: só depois de falha
-tipada de sessão vencida, uma vez, nunca em laço).
+relogar em qualquer falha nos outros comandos. O relogin único das
+leituras, só depois da falha tipada de sessão encerrada, conferindo a
+geração sob o lock e nunca na escrita, está no apêndice
+[relogin de leitura](sessao-login/relogin-de-leitura.md) (Refs #200).
 
 ## Evidências verificáveis
 

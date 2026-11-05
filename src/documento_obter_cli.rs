@@ -17,6 +17,7 @@ use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
     SessaoDoProcesso, obter_documento_com_versoes,
 };
+use crate::relogin_cli::{self, FalhaDaLeitura, NotaDoRelogin};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
 use serde_json::{Value, json};
@@ -145,39 +146,99 @@ fn obter(
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
     };
-    let lidos =
-        transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem);
-    let referencias = match lidos {
-        Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
-    };
-    let sessao = SessaoDoProcesso {
-        url_do_controle: referencias.url_do_controle(),
-        origem: referencias.origem(),
-        cookie_file: &arquivos.cookie,
-    };
-    let indice = IndiceLocal::da_configuracao(&arquivos);
-    let mut obtidos = Vec::new();
-    for numero in numeros {
-        let pedido = PedidoDoDocumento {
-            numero,
-            unidade: cli.unidade.as_deref(),
-            processo,
-            anexo: PedidoDoAnexo { limite, saida },
+    // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
+    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
+        let referencias =
+            transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
+                .map_err(FalhaDoDocumento::Sessao)?;
+        let sessao = SessaoDoProcesso {
+            url_do_controle: referencias.url_do_controle(),
+            origem: referencias.origem(),
+            cookie_file: &arquivos.cookie,
         };
-        match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
-            Ok(obtido) => obtidos.push(obtido),
-            Err(erro) => return falha(cli.json, numero.as_str(), obtidos.len(), &erro),
+        let indice = IndiceLocal::da_configuracao(&arquivos);
+        let mut obtidos = Vec::new();
+        for numero in numeros {
+            let pedido = PedidoDoDocumento {
+                numero,
+                unidade: cli.unidade.as_deref(),
+                processo,
+                anexo: PedidoDoAnexo { limite, saida },
+            };
+            match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
+                Ok(obtido) => obtidos.push(obtido),
+                Err(erro) => {
+                    return Err(FalhaDoDocumento::Documento {
+                        numero: numero.as_str().to_owned(),
+                        lidos: obtidos.len(),
+                        erro,
+                    });
+                }
+            }
+        }
+        Ok((obtidos, referencias.origem().to_owned()))
+    });
+    match lido {
+        Ok(((obtidos, origem), nota)) => publicar(cli.json, obtidos, saida, &origem, nota.as_ref()),
+        Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
+        Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
+            FalhaDoDocumento::Sessao(erro) => {
+                relogin_cli::publicar_falha(cli.json, &FalhaDaLeitura::Leitura { erro, nota })
+            }
+            FalhaDoDocumento::Documento {
+                numero,
+                lidos,
+                erro,
+            } => {
+                relogin_cli::avisar(cli.json, nota.as_ref());
+                falha(cli.json, &numero, lidos, &erro, nota.as_ref())
+            }
+        },
+    }
+}
+
+/// A falha de uma tentativa: os arquivos da sessão ou um documento.
+enum FalhaDoDocumento {
+    Sessao(transporte::FalhaTransporte),
+    Documento {
+        numero: String,
+        lidos: usize,
+        erro: ErroDocumentoObter,
+    },
+}
+
+impl relogin_cli::FalhaPublicavel for FalhaDoDocumento {
+    fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Sessao(falha) => falha.subcodigo(),
+            Self::Documento { erro, .. } => erro.subcodigo(),
         }
     }
-    publicar(cli.json, obtidos, saida, sessao.origem)
+    fn mensagem(&self) -> &'static str {
+        match self {
+            Self::Sessao(falha) => falha.mensagem(),
+            Self::Documento { erro, .. } => erro.mensagem(),
+        }
+    }
+    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::Sessao(falha) => falha.status_http(),
+            Self::Documento { erro, .. } => erro.status_http(),
+        }
+    }
 }
 
 /// A falha do documento `numero`; os já lidos não são publicados.
-fn falha(json_mode: bool, numero: &str, lidos: usize, erro: &ErroDocumentoObter) -> ExitCode {
+fn falha(
+    json_mode: bool,
+    numero: &str,
+    lidos: usize,
+    erro: &ErroDocumentoObter,
+    nota: Option<&NotaDoRelogin>,
+) -> ExitCode {
     let (subcodigo, mensagem, http) = (erro.subcodigo(), erro.mensagem(), erro.status_http());
     if json_mode {
-        let mut valor = saida_erro::json_de_erro_fonte(subcodigo, mensagem, http);
+        let mut valor = relogin_cli::json_da_falha(subcodigo, mensagem, http, nota);
         if let Some(objeto) = valor.as_object_mut() {
             objeto.insert("documento".to_owned(), json!(numero));
             objeto.insert("documentos_lidos_antes".to_owned(), json!(lidos));
@@ -235,6 +296,7 @@ fn publicar(
     mut obtidos: Vec<DocumentoObtido>,
     saida: Option<&Path>,
     origem: &str,
+    nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
     let mut gravados = Vec::new();
     let mut copias: Vec<Option<CopiaGravada>> = Vec::new();
@@ -253,7 +315,12 @@ fn publicar(
             }
         }
     }
-    let total: u32 = obtidos.iter().map(|d| u32::from(d.requisicoes)).sum();
+    let antes = nota.map_or(0, |n| u32::try_from(n.antes).unwrap_or(u32::MAX));
+    let total: u32 = obtidos
+        .iter()
+        .map(|d| u32::from(d.requisicoes))
+        .sum::<u32>()
+        .saturating_add(antes);
     if json_mode {
         let documentos: Vec<Value> = obtidos
             .iter()
@@ -275,12 +342,14 @@ fn publicar(
                 Value::Object(objeto)
             })
             .collect();
-        let valor = json!({"documentos": documentos, "requisicoes": total});
+        let mut valor = json!({"documentos": documentos, "requisicoes": total});
+        relogin_cli::anotar(&mut valor, nota);
         println!(
             "{}",
             serde_json::to_string_pretty(&valor).unwrap_or_default()
         );
     } else {
+        relogin_cli::avisar(json_mode, nota);
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
             let copia = copias.get(i).and_then(Option::as_ref);

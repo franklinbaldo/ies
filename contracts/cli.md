@@ -87,8 +87,11 @@ legado do Todos faz parte do contrato público por pressuposição.
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
 `colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
 (gravada por `ies login` ou à mão) e origem HTTPS explicitamente autorizada,
-ou replay offline verificado. Não fazem login automático (sessão vencida é
-falha tipada; relogar é `ies login`) nem escrita; a única escrita é `colunas --definir … --confirmar`. Os POSTs previstos são os de `--pagina N` (abaixo)
+ou replay offline verificado. Sessão vencida é falha tipada; com o arquivo
+de credenciais do `ies login`, a leitura reloga **uma vez** e recomeça
+([relogin único nas leituras](cli/sessao-login.md#relogin-único-nas-leituras)).
+Não fazem escrita; a única escrita é `colunas --definir … --confirmar`, que
+nunca reloga. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
 comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos retorna `nao_implementado`.
@@ -240,6 +243,19 @@ Testado offline com proxy falso local (`TcpListener`) e camada TLS
 substituída pela identidade: `CONNECT`, pedido no túnel, ausência de
 segundo pedido, `NO_PROXY`, 3xx, limites e subcódigos. O TLS real
 através do túnel não tem teste automatizado; validação live: `NOT_RUN`.
+
+## Relogin único nas leituras (Refs #200)
+
+`ies processo NUP`, `processo buscar`, `documento DOC`, `documento buscar`,
+`unidade listar-processos`, `recebidos`, `gerados`, `atual` e `colunas` sem
+`--definir` relogam no máximo uma vez, só depois de
+`pagina_de_login_recebida_no_controle` ou `sessao_encerrada_rode_ies_login`,
+e recomeçam do início uma vez. Antes de logar, sob o lock do `ies login`,
+conferem a geração gravada: se outro processo já relogou, usam a sessão
+nova sem login. A saída ganha `relogin: true` (ausente sem login deste
+processo) e `requisicoes` soma a primeira tentativa, o login e a releitura.
+Escrita e prévia de escrita nunca relogam. Regras, orçamento e saídas:
+[relogin único nas leituras](cli/sessao-login.md#relogin-único-nas-leituras).
 
 ## Recusas HTTP e mensagem do SEI
 
