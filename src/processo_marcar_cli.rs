@@ -252,4 +252,57 @@ mod tests {
             .is_err()
         );
     }
+    #[test]
+    fn previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post() {
+        use crate::marcadores_processo::tests_apoio::{
+            link_dos_marcadores, tela_dos_marcadores,
+        };
+        use crate::processo_concluir::tests_apoio::{
+            ID, NUP, abertura, ambiente, get, ok, pedidos_da_abertura, rodar_com,
+        };
+        use crate::propriedades_processo::tests_apoio::acao_da_barra;
+
+        let url_marcadores = format!(
+            "https://sei.exemplo.gov.br/sei/{}",
+            link_dos_marcadores(ID)
+        );
+        let arvore = crate::processo_concluir::tests_apoio::arvore(
+            &["TESTE"],
+            &[acao_da_barra(&link_dos_marcadores(ID))],
+        );
+        let mut esperado = pedidos_da_abertura();
+        esperado.push(get(&url_marcadores));
+        for confirmar in [false, true] {
+            let amb = ambiente();
+            let cli = Cli::try_parse_from([
+                "ies", "processo", "marcar", NUP, "--retirar", "501#Revisão",
+            ])
+            .unwrap();
+            let mut respostas = abertura(arvore.clone());
+            respostas.push(ok(tela_dos_marcadores(NUP, ID)));
+            let (saida, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+                let rotulo = interpretar_rotulo("501#Revisão").unwrap();
+                previa(
+                    &cli,
+                    sessao,
+                    indice,
+                    nup,
+                    &rotulo,
+                    Operacao::Retirar,
+                    confirmar,
+                    roteiro,
+                )
+            });
+            let status_esperado = if confirmar {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            };
+            assert_eq!(saida, status_esperado);
+            assert_eq!(pedidos, esperado);
+            assert_eq!(pedidos.len(), 4);
+            assert!(pedidos.iter().all(|pedido| pedido.metodo == "GET"));
+        }
+    }
+
 }
