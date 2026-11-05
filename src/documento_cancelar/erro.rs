@@ -15,7 +15,9 @@ impl FalhaDoCancelamento {
         match self {
             Self::Envio(erro) => erro.subcodigo(),
             Self::RespostaSemRedirecionamento => "resposta_do_cancelamento_sem_redirecionamento",
-            Self::RedirecionamentoNaoReconhecido => "redirecionamento_do_cancelamento_nao_reconhecido",
+            Self::RedirecionamentoNaoReconhecido => {
+                "redirecionamento_do_cancelamento_nao_reconhecido"
+            }
         }
     }
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
@@ -29,13 +31,18 @@ impl FalhaDoCancelamento {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum VerificacaoDoCancelamento {
-    Lida { cancelado: Option<bool>, motivo: Option<String> },
+    Lida {
+        cancelado: Option<bool>,
+        motivo: Option<String>,
+    },
     LeituraFalhou(ErroDocumentoObter),
 }
 impl VerificacaoDoCancelamento {
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
-            Self::Lida { cancelado: None, .. } => Some("estado_de_cancelamento_nao_observado"),
+            Self::Lida {
+                cancelado: None, ..
+            } => Some("estado_de_cancelamento_nao_observado"),
             Self::Lida { .. } => None,
             Self::LeituraFalhou(erro) => Some(erro.subcodigo()),
         }
@@ -57,9 +64,14 @@ pub(crate) enum ErroCancelar {
     FormularioDeOutroDocumento,
     MotivoNaoPublicadoNaTela,
     /// A leitura nova confirma ausência inequívoca do cancelamento.
-    CancelamentoNaoAplicado { falha_do_envio: Option<FalhaDoCancelamento> },
+    CancelamentoNaoAplicado {
+        falha_do_envio: Option<FalhaDoCancelamento>,
+    },
     /// Depois da escrita houve mudança ambígua ou a leitura não pôde decidir.
-    EfeitoIncerto { falha_do_envio: Option<FalhaDoCancelamento>, verificacao: Box<VerificacaoDoCancelamento> },
+    EfeitoIncerto {
+        falha_do_envio: Option<FalhaDoCancelamento>,
+        verificacao: Box<VerificacaoDoCancelamento>,
+    },
 }
 impl ErroCancelar {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -88,7 +100,10 @@ impl ErroCancelar {
         }
     }
     pub(crate) fn saida(&self) -> u8 {
-        match self { Self::EfeitoIncerto { .. } => 3, _ => 1 }
+        match self {
+            Self::EfeitoIncerto { .. } => 3,
+            _ => 1,
+        }
     }
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
@@ -97,27 +112,45 @@ impl ErroCancelar {
             Self::TelaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(e) => e.status_http().cloned(),
             Self::CancelamentoNaoAplicado { falha_do_envio }
-                | Self::EfeitoIncerto { falha_do_envio, .. } =>
-                falha_do_envio.as_ref().and_then(FalhaDoCancelamento::status_http),
+            | Self::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio
+                .as_ref()
+                .and_then(FalhaDoCancelamento::status_http),
             _ => None,
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Abertura(e) => e.mensagem(),
-            Self::Link(_) => "a ação de cancelar na barra está fora da forma observada; nada foi enviado",
-            Self::CancelamentoNaoOferecido => "a barra do documento não oferece cancelar; nada foi enviado",
+            Self::Link(_) => {
+                "a ação de cancelar na barra está fora da forma observada; nada foi enviado"
+            }
+            Self::CancelamentoNaoOferecido => {
+                "a barra do documento não oferece cancelar; nada foi enviado"
+            }
             Self::DocumentoJaCancelado => "o documento já está cancelado; nada foi enviado",
-            Self::EstadoAntesNaoObservado => "a árvore não prova que o documento esteja ativo; nada foi enviado",
-            Self::Tela(_) | Self::TelaRedirecionada => "a tela de cancelamento não pôde ser aberta; nada foi enviado",
-            Self::SessaoEncerrada => "sessão encerrada; rode ies login, nenhum cancelamento foi enviado",
-            Self::CharsetNaoSuportado => "codificação da tela de cancelamento não suportada; nada foi enviado",
-            Self::Formulario(_) | Self::FormularioDeOutroDocumento | Self::MotivoNaoPublicadoNaTela =>
-                "o formulário de cancelamento não está na forma observada; nada foi enviado",
-            Self::CancelamentoNaoAplicado { .. } =>
-                "a árvore relida não mostra o documento cancelado; nenhum retry foi feito",
-            Self::EfeitoIncerto { .. } =>
-                "não é possível comprovar o cancelamento; confira a árvore antes de qualquer nova ação",
+            Self::EstadoAntesNaoObservado => {
+                "a árvore não prova que o documento esteja ativo; nada foi enviado"
+            }
+            Self::Tela(_) | Self::TelaRedirecionada => {
+                "a tela de cancelamento não pôde ser aberta; nada foi enviado"
+            }
+            Self::SessaoEncerrada => {
+                "sessão encerrada; rode ies login, nenhum cancelamento foi enviado"
+            }
+            Self::CharsetNaoSuportado => {
+                "codificação da tela de cancelamento não suportada; nada foi enviado"
+            }
+            Self::Formulario(_)
+            | Self::FormularioDeOutroDocumento
+            | Self::MotivoNaoPublicadoNaTela => {
+                "o formulário de cancelamento não está na forma observada; nada foi enviado"
+            }
+            Self::CancelamentoNaoAplicado { .. } => {
+                "a árvore relida não mostra o documento cancelado; nenhum retry foi feito"
+            }
+            Self::EfeitoIncerto { .. } => {
+                "não é possível comprovar o cancelamento; confira a árvore antes de qualquer nova ação"
+            }
         }
     }
 }
