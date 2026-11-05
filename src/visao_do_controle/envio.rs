@@ -82,6 +82,7 @@ impl<V> EnvioContado<V> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn total(&self) -> usize {
         self.pedidos.total()
     }
