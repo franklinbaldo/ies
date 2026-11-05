@@ -30,6 +30,16 @@ impl Acao {
     }
 }
 
+/// Um pedido de escrita, sem URL nem cookie. Os parâmetros permanecem
+/// associados para a prévia e para a confirmação da mesma ação.
+pub(crate) struct PedidoDaMudanca<'a> {
+    pub(crate) nup: &'a NumeroProcesso,
+    pub(crate) unidade: Option<&'a str>,
+    pub(crate) acao: Acao,
+    pub(crate) motivo: Option<&'a str>,
+    pub(crate) confirmar: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Previa {
     pub(crate) nup: String,
