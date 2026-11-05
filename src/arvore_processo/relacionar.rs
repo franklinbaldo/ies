@@ -1,4 +1,4 @@
-//! Link assinado de procedimento_relacionar na barra do processo.
+//! Link assinado de `procedimento_relacionar` na barra do processo.
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
