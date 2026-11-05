@@ -79,6 +79,34 @@ fn exclusao_recusa_script_de_exclusao_ausente() {
 }
 
 #[test]
+fn exclusao_recusa_comandos_em_outra_funcao_apos_acao_excluir_vazia() {
+    // O código fora do corpo de acaoExcluir não prova uma ação oferecida.
+    // RED: a antiga busca por substrings no script inteiro aceitava isso.
+    let html = lista_observada("831").replacen(
+        "function acaoExcluir(id,desc){",
+        "function acaoExcluir(id,desc){} function outra(id,desc){",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_trechos_inalcancaveis_fora_da_funcao() {
+    let html = lista_observada("831").replacen(
+        "function acaoExcluir(id,desc){",
+        "function acaoExcluir(id,desc){} if(false){",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
 fn exclusao_recusa_oculto_sem_id_associado_ao_script() {
     // Mesmo nome enviável, mas o JS escreveria em outro elemento.
     let html = lista_observada("831").replace(
