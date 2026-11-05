@@ -117,12 +117,9 @@ fn obter<T: TransporteLupa>(
 ) -> Result<(String, String), FalhaDaLupa> {
     validar_url_de_leitura(url, origem)?;
     *requisicoes += 1;
-    let resposta = t
-        .get(url, cookie)
-        .map_err(FalhaDaLupa::Transporte)?;
+    let resposta = t.get(url, cookie).map_err(FalhaDaLupa::Transporte)?;
     let mime = resposta.resposta.mime.clone();
-    let html = decodificar_resposta(resposta.resposta)
-        .map_err(FalhaDaLupa::Transporte)?;
+    let html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
     Ok((html, mime))
 }
 
@@ -237,10 +234,14 @@ fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<St
             relativo
         } else if relativo.starts_with("controlador.php?") {
             let base = url_da_tela.split('?').next().unwrap_or_default();
-            let pasta = base.rsplit_once('/').map(|(p,_)|p)
+            let pasta = base
+                .rsplit_once('/')
+                .map(|(p, _)| p)
                 .ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
             format!("{pasta}/{relativo}")
-        } else {continue};
+        } else {
+            continue;
+        };
         if url_publicada_autorizada(&url, origem, acao) {
             aceitos.insert(url);
         }
@@ -338,8 +339,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
             .post(post, cookie)
             .map_err(FalhaDaLupa::Transporte)?;
         mime.clone_from(&resposta.resposta.mime);
-        html = decodificar_resposta(resposta.resposta)
-            .map_err(FalhaDaLupa::Transporte)?;
+        html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
         let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
         if lida.pagina != pagina || (!lidas.is_empty() && lida.paginas != total_paginas) {
             return Err(FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
@@ -357,7 +357,6 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
         requisicoes,
     })
 }
-
 
 #[cfg(test)]
 #[path = "fluxo_regressoes.rs"]
@@ -387,13 +386,19 @@ mod tests {
         }
     }
     fn pagina(p: usize, ids: &[&str]) -> String {
-        let linhas: String = ids.iter().map(|id| {
-            [
-                "<tr><td><input type='checkbox' value='",id,
-                "'></td><td>ABC/",id,
-                "</td><td>Descrição</td><td>Órgão</td></tr>"
-            ].concat()
-        }).collect();
+        let linhas: String = ids
+            .iter()
+            .map(|id| {
+                [
+                    "<tr><td><input type='checkbox' value='",
+                    id,
+                    "'></td><td>ABC/",
+                    id,
+                    "</td><td>Descrição</td><td>Órgão</td></tr>",
+                ]
+                .concat()
+            })
+            .collect();
         let acao = url("unidade_selecionar_envio_processo");
         format!(
             "<form id='frmUnidadeLista' method='post' action='{acao}'>
@@ -420,54 +425,94 @@ mod tests {
     }
     impl TransporteLupa for Fake {
         type Corpo = Cursor<Vec<u8>>;
-        fn get(&mut self, alvo: &str, _cookie: &str)
-            -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        fn get(
+            &mut self,
+            alvo: &str,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             let passo = self.gets;
             self.gets += 1;
             let (acao, html) = match passo {
-                0 => ("procedimento_controlar",
-                    format!("<a href='{}'>Grupos</a>", url("grupo_unidade_listar"))),
-                1 => ("grupo_unidade_listar",
-                    format!("<button id='btnNovo' onclick=\"window.location.href='{}';\">Novo</button>",
-                        url("grupo_unidade_cadastrar"))),
-                2 => ("grupo_unidade_cadastrar",
-                    format!("<a href='{}'>Unidades</a>", url("unidade_selecionar_envio_processo"))),
-                3 => ("unidade_selecionar_envio_processo",pagina(0,&[])),
+                0 => (
+                    "procedimento_controlar",
+                    format!("<a href='{}'>Grupos</a>", url("grupo_unidade_listar")),
+                ),
+                1 => (
+                    "grupo_unidade_listar",
+                    format!(
+                        "<button id='btnNovo' onclick=\"window.location.href='{}';\">Novo</button>",
+                        url("grupo_unidade_cadastrar")
+                    ),
+                ),
+                2 => (
+                    "grupo_unidade_cadastrar",
+                    format!(
+                        "<a href='{}'>Unidades</a>",
+                        url("unidade_selecionar_envio_processo")
+                    ),
+                ),
+                3 => ("unidade_selecionar_envio_processo", pagina(0, &[])),
                 _ => panic!("GET fora do orçamento"),
             };
             assert!(alvo.contains(&format!("acao={acao}")));
             Ok(resposta(html))
         }
-        fn post(&mut self, envio: SubmissaoDerivada, _cookie: &str)
-            -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        fn post(
+            &mut self,
+            envio: SubmissaoDerivada,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             assert_eq!(envio.url(), url("unidade_selecionar_envio_processo"));
             let indice_pagina = self.posts;
-            assert!(String::from_utf8_lossy(envio.corpo()).contains(
-                &format!("hdnInfraPaginaAtual={indice_pagina}")
-            ));
+            assert!(
+                String::from_utf8_lossy(envio.corpo())
+                    .contains(&format!("hdnInfraPaginaAtual={indice_pagina}"))
+            );
             self.posts += 1;
-            let ids: &[&str] = if indice_pagina == 0 {&["1","2"]}
-                else if self.repetir {&["1"]} else {&["3"]};
-            Ok(resposta(pagina(indice_pagina,ids)))
+            let ids: &[&str] = if indice_pagina == 0 {
+                &["1", "2"]
+            } else if self.repetir {
+                &["1"]
+            } else {
+                &["3"]
+            };
+            Ok(resposta(pagina(indice_pagina, ids)))
         }
     }
     #[test]
     fn quatro_get_e_um_post_por_pagina_sem_repetir() {
-        let mut rede = Fake {gets:0,posts:0,repetir:false};
+        let mut rede = Fake {
+            gets: 0,
+            posts: 0,
+            repetir: false,
+        };
         let lida = ler_integral(
-            &mut rede,&url("procedimento_controlar"),ORIGEM,"PHPSESSID=SINTETICO"
-        ).unwrap();
-        assert_eq!(lida.requisicoes,6);
-        assert_eq!(lida.total,3);
-        assert_eq!((rede.gets,rede.posts),(4,2));
+            &mut rede,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+        )
+        .unwrap();
+        assert_eq!(lida.requisicoes, 6);
+        assert_eq!(lida.total, 3);
+        assert_eq!((rede.gets, rede.posts), (4, 2));
     }
     #[test]
     fn pagina_repetida_recusa_antes_de_persistir() {
-        let mut rede = Fake {gets:0,posts:0,repetir:true};
+        let mut rede = Fake {
+            gets: 0,
+            posts: 0,
+            repetir: true,
+        };
         let err = ler_integral(
-            &mut rede,&url("procedimento_controlar"),ORIGEM,"PHPSESSID=SINTETICO"
-        ).err().unwrap();
-        assert_eq!(err,FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
-        assert_eq!(rede.posts,2);
+            &mut rede,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+        )
+        .err()
+        .unwrap();
+        assert_eq!(err, FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
+        assert_eq!(rede.posts, 2);
     }
 }
