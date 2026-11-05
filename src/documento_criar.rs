@@ -109,6 +109,14 @@ mod tests {
         }
     }
     #[test]
+    fn subcodigos_sao_estaveis() {
+        assert_eq!(ErroCriar::ListaForaDaForma.subcodigo(), "lista_de_tipos_fora_da_forma_observada");
+        assert_eq!(ErroCriar::TipoAusente.subcodigo(), "tipo_de_documento_nao_oferecido");
+        assert_eq!(ErroCriar::TipoAmbiguo.subcodigo(), "tipo_de_documento_ambiguo");
+        assert_eq!(ErroCriar::NaoAplicado.subcodigo(), "documento_criado_nao_comprovado");
+        assert_eq!(ErroCriar::EfeitoIncerto.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+    }
+    #[test]
     fn lista_tipo_ausente_ambiguo_e_externo() {
         // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
         let html = r##"<table id="tblSeries"><tr><td>
