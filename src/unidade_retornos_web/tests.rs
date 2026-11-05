@@ -41,7 +41,8 @@ fn linha() -> &'static str {
     "<table summary='Aguardando Retorno de Outras Unidades'>\
      <caption>1 registro:</caption>\
      <tr><th>Processo</th><th>Unidade</th><th>Data Programada</th></tr>\
-     <tr><td>001/2026</td><td>Unidade 1</td><td>15/10/2026</td></tr></table>"
+     <tr><td>001/2026</td><td>Unidade 1</td><td>15/10/2026</td></tr></table>\
+     <div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>"
 }
 fn controle() -> String {
     format!("<a href='{}'>Retorno Programado</a>", href(""))
