@@ -94,7 +94,9 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                     if previa.confirmado {
                         println!(
                             "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
-                            previa.nup, previa.acao.como_texto(), previa.requisicoes
+                            previa.nup,
+                            previa.acao.como_texto(),
+                            previa.requisicoes
                         );
                     } else {
                         println!(
@@ -111,20 +113,26 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
             Err(e) => {
                 if matches!(e, ErroSobrestamento::EfeitoIncerto) {
                     if cli.json {
-                        println!("{}", json!({
-                            "codigo": "efeito_incerto",
-                            "subcodigo": e.subcodigo(),
-                            "erro": e.mensagem(),
-                            "retentavel": false,
-                            "origem": "web"
-                        }));
+                        println!(
+                            "{}",
+                            json!({
+                                "codigo": "efeito_incerto",
+                                "subcodigo": e.subcodigo(),
+                                "erro": e.mensagem(),
+                                "retentavel": false,
+                                "origem": "web"
+                            })
+                        );
                     } else {
                         eprintln!("IES: {} [{}]", e.mensagem(), e.subcodigo());
                     }
                     ExitCode::from(3)
                 } else {
                     saida_erro::erro_fonte_http(
-                        cli.json, e.subcodigo(), e.mensagem(), e.status_http()
+                        cli.json,
+                        e.subcodigo(),
+                        e.mensagem(),
+                        e.status_http(),
                     )
                 }
             }
