@@ -8,6 +8,8 @@
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+mod fluxo;
+pub(crate) use fluxo::{CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AlvoDaCiencia<'a> {
