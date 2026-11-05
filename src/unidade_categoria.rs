@@ -62,8 +62,7 @@ pub(crate) fn selecionar(
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
     };
-    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
-        .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
+    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)?;
     Ok(crate::saida::lista_da_categoria(
         leitura,
         categoria.categoria(),

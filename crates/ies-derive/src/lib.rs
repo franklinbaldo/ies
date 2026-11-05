@@ -31,6 +31,8 @@ struct Variante {
     ident: String,
     forma: Forma,
     atributos: Atributos,
+    /// O tipo do campo, numa tupla de um campo.
+    campo: Option<String>,
 }
 
 /// Gera `impl crate::erro_publico::Causa`.
@@ -89,9 +91,13 @@ fn ler_variantes(corpo: TokenStream) -> Result<Vec<Variante>, String> {
                 }
             }
             TokenTree::Ident(ident) => {
+                let mut campo = None;
                 let forma = match tokens.peek() {
                     Some(TokenTree::Group(g)) if g.delimiter() == Delimiter::Parenthesis => {
                         let campos = contar_campos(g.stream());
+                        if campos == 1 {
+                            campo = Some(g.stream().to_string());
+                        }
                         tokens.next();
                         Forma::Tupla(campos)
                     }
@@ -111,6 +117,7 @@ fn ler_variantes(corpo: TokenStream) -> Result<Vec<Variante>, String> {
                     ident: ident.to_string(),
                     forma,
                     atributos: std::mem::take(&mut atributos),
+                    campo,
                 };
                 validar(&variante)?;
                 variantes.push(variante);
@@ -285,8 +292,28 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
             let _ = writeln!(http, "{p} => {T}::Causa::status_http(interna),");
         }
     }
+    // `?` compõe: um `From` por tipo interno que aparece numa só variante.
+    // Tipo repetido em duas variantes indica duas etapas achatadas num
+    // nível: separe-as em tipos próprios em vez de escolher uma.
+    let mut conversoes = String::new();
+    for v in variantes.iter().filter(|v| v.atributos.interna) {
+        let Some(tipo) = &v.campo else { continue };
+        let repetido = variantes
+            .iter()
+            .filter(|o| o.atributos.interna && o.campo.as_ref() == Some(tipo))
+            .count()
+            > 1;
+        if !repetido {
+            let _ = writeln!(
+                conversoes,
+                "#[automatically_derived]\nimpl From<{tipo}> for {nome} {{ fn from(interna: {tipo}) -> Self {{ Self::{}(interna) }} }}",
+                v.ident
+            );
+        }
+    }
     format!(
-        "#[automatically_derived]
+        "{conversoes}
+#[automatically_derived]
 impl {T}::Causa for {nome} {{
     fn caminho(&self, c: &mut Vec<&'static str>) {{
         match self {{ {caminho} }}

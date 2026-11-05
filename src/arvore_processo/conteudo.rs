@@ -54,11 +54,7 @@ pub(crate) enum ErroConteudoNaArvore {
     EnderecoDoConteudoDeOutroDocumento,
 }
 
-impl ErroConteudoNaArvore {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroConteudoNaArvore {}
 
 /// Lê o `.src` do `DOCUMENTO` de id `id_documento` numa árvore já
 /// conferida por [`super::ler_arvore`].

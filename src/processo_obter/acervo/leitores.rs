@@ -142,7 +142,7 @@ fn corpo_acima_do_limite(item: &serde_json::Value) -> bool {
 fn tela(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Registro {
     let resultado = match ler_tela_do_processo(&c.instalacao, html, id, None) {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
     };
     c.registro(Leitor::Tela, r.passo, resultado)
 }
@@ -200,7 +200,7 @@ fn andamentos(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str) -> Regi
                 registro.formas.push("linhas_abaixo_do_total".into());
             }
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro)),
     }
     registro
 }
@@ -223,7 +223,7 @@ fn propriedades(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &
                 .push(lidas.nivel_de_acesso.como_texto().into());
             registro.formas.push(fonte.acao().into());
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro)),
     }
     registro
 }
@@ -242,7 +242,7 @@ fn marcadores(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &st
             registro.resultado =
                 Resultado::NaoAplicavel("tabela_de_marcadores_nao_publicada_na_tela");
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro)),
     }
     registro
 }

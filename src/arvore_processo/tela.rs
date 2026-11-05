@@ -43,11 +43,7 @@ pub(crate) enum ErroTelaDoProcesso {
     EnderecoDaArvoreDeOutroDocumento,
 }
 
-impl ErroTelaDoProcesso {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroTelaDoProcesso {}
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
 /// pedida (`--unidade`) é comparada com espaços normalizados.

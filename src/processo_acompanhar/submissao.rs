@@ -36,8 +36,8 @@ pub(crate) fn derivar_inclusao(
     grupo: Option<&str>,
     observacao: &str,
 ) -> Result<SubmissaoDerivada, ErroPrevia> {
-    let grupos = grupos_do_cadastro(tela.html, id_procedimento).map_err(ErroPrevia::Estrutura)?;
-    let escolhido = escolher_grupo(&grupos, grupo).map_err(ErroPrevia::Estrutura)?;
+    let grupos = grupos_do_cadastro(tela.html, id_procedimento)?;
+    let escolhido = escolher_grupo(&grupos, grupo)?;
     derivar_submissao(
         &INCLUIR,
         instalacao,

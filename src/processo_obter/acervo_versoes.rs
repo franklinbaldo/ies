@@ -54,7 +54,7 @@ fn barras(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
                     };
                     format!("{lista}, {edicao}")
                 }
-                Err(erro) => format!("`{}`", erro.subcodigo()),
+                Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
             },
         )
         .collect()

@@ -153,6 +153,25 @@ def ler_braco(braco, fonte):
     return None
 
 
+AUXILIARES = {}
+
+
+def fallback(braco, fonte, auxiliares):
+    """`outro => outro.metodo()` com `metodo` auxiliar do mesmo impl."""
+    padrao = braco.child_by_field_name('pattern')
+    if padrao is None or len(padrao.named_children) != 1 or padrao.named_children[0].type != 'identifier':
+        return None
+    nome = texto(padrao.named_children[0], fonte)
+    valor = braco.child_by_field_name('value')
+    if valor.type != 'call_expression':
+        return None
+    funcao = valor.child_by_field_name('function')
+    if funcao.type != 'field_expression' or texto(funcao.child_by_field_name('value'), fonte) != nome:
+        return None
+    metodo = texto(funcao.child_by_field_name('field'), fonte)
+    return metodo if metodo in auxiliares and metodo != 'subcodigo' else None
+
+
 def candidatos():
     enums, impls = {}, []
     fontes = {}
@@ -171,6 +190,14 @@ def candidatos():
                 enums.setdefault(e.nome, []).append(e)
             if no.type == 'impl_item' and no.child_by_field_name('trait') is None:
                 tipo = texto(no.child_by_field_name('type'), fonte)
+                auxiliares = {}
+                for f in filhos(no.child_by_field_name('body'), 'function_item'):
+                    corpo = f.child_by_field_name('body')
+                    exprs = corpo.named_children
+                    if len(exprs) == 1 and exprs[0].type == 'expression_statement':
+                        exprs = exprs[0].named_children
+                    if len(exprs) == 1 and exprs[0].type == 'match_expression':
+                        auxiliares[texto(f.child_by_field_name('name'), fonte)] = (f, filhos(exprs[0].child_by_field_name('body'), 'match_arm'))
                 for f in filhos(no.child_by_field_name('body'), 'function_item'):
                     if texto(f.child_by_field_name('name'), fonte) != 'subcodigo':
                         continue
@@ -188,24 +215,42 @@ def candidatos():
                     if texto(m.child_by_field_name('value'), fonte) != 'self':
                         continue
                     bracos = filhos(m.child_by_field_name('body'), 'match_arm')
-                    impls.append((tipo, arquivo, corpo, params, bracos))
+                    impls.append((tipo, arquivo, corpo, params, (bracos, auxiliares)))
     return enums, impls, fontes
 
 
 def plano():
     enums, impls, fontes = candidatos()
+    global ENUMS
+    ENUMS = enums
     analisados = {}
-    for tipo, arquivo, corpo, params, bracos in impls:
-        lista = enums.get(tipo, [])
+    for tipo, arquivo, corpo, params, (bracos, auxiliares) in impls:
+        lista = [e for e in enums.get(tipo, []) if e.arquivo == arquivo] or enums.get(tipo, [])
         if len(lista) != 1 or not lista[0].ok:
             continue
         e = lista[0]
         fonte = fontes[arquivo]
         por_variante = {}
         valido = True
-        for b in bracos:
+        removidos = []
+        fila = list(bracos)
+        while fila:
+            b = fila.pop(0)
             lido = ler_braco(b, fonte)
+            padrao = b.child_by_field_name('pattern')
+            if lido is None and padrao is not None and texto(padrao, fonte) == '_':
+                valor = b.child_by_field_name('value')
+                if valor.type == 'string_literal':
+                    resto = texto(valor, fonte)[1:-1]
+                    for variante in e.variantes:
+                        por_variante.setdefault(variante, ('lit', resto))
+                    continue
             if lido is None:
+                aux = fallback(b, fonte, auxiliares)
+                if aux is not None:
+                    removidos.append(auxiliares[aux][0])
+                    fila.extend(auxiliares[aux][1])
+                    continue
                 valido = False
                 break
             alternativas, valor = lido
@@ -216,8 +261,12 @@ def plano():
         if not valido or set(por_variante) != set(e.variantes):
             continue
         analisados[tipo] = (e, arquivo, corpo, params, por_variante)
+        AUXILIARES[(tipo, str(arquivo))] = removidos
     # ponto fixo: delega só para tipo já migrado
-    migrados = set(JA_MIGRADOS)
+    migrados = set(JA_MIGRADOS) | {
+        nome for nome, lista in enums.items()
+        if any(e.derive is not None and b'Causa' in fontes[e.arquivo][e.derive.start_byte:e.derive.end_byte] for e in lista)
+    }
     escolhidos = {}
     mudou = True
     while mudou:
@@ -241,7 +290,7 @@ def plano():
                 escolhidos[tipo] = analisados[tipo]
                 migrados.add(tipo)
                 mudou = True
-    return escolhidos, analisados, fontes
+    return escolhidos, analisados, fontes, migrados
 
 
 def aplicar(escolhidos, fontes):
@@ -277,6 +326,16 @@ def aplicar(escolhidos, fontes):
         recuo = ' ' * base
         lista.append((corpo.start_byte, corpo.end_byte,
                       f'{{\n{recuo}    crate::erro_publico::folha({alvo})\n{recuo}}}'))
+        for aux in AUXILIARES.get((tipo, str(arquivo)), []):
+            inicio = fonte.rfind(b'\n', 0, aux.start_byte) + 1
+            while True:
+                anterior = fonte.rfind(b'\n', 0, inicio - 1) + 1
+                if fonte[anterior:inicio].strip().startswith((b'///', b'#[')):
+                    inicio = anterior
+                else:
+                    break
+            fim = fonte.find(b'\n', aux.end_byte) + 1
+            lista.append((inicio, fim, ''))
         del recuo_fn
     for arquivo, lista in edicoes.items():
         fonte = bytearray(fontes[arquivo])
@@ -287,11 +346,22 @@ def aplicar(escolhidos, fontes):
 
 
 def main():
-    escolhidos, analisados, fontes = plano()
+    escolhidos, analisados, fontes, migrados = plano()
     _, impls, _ = candidatos()
     print(f'{len(impls)} fn subcodigo candidatas; {len(analisados)} legíveis; {len(escolhidos)} migráveis')
     for tipo in sorted(set(analisados) - set(escolhidos)):
-        print(f'  aguardando internos: {tipo}')
+        e, _, _, _, por_variante = analisados[tipo]
+        faltam = set()
+        for variante, valor in por_variante.items():
+            if valor[0] == 'delega':
+                forma, tipos = e.variantes[variante][1]
+                interno = tipos[0].split('::')[-1] if tipos and len(tipos) == 1 else '?'
+                if interno not in migrados:
+                    faltam.add(interno)
+        print(f'  aguardando: {tipo} <- {sorted(faltam)}')
+    for tipo, arquivo, corpo, params, _ in impls:
+        if tipo not in analisados:
+            print(f'  ilegível: {tipo} ({arquivo.relative_to(RAIZ)})')
     if '--aplicar' in sys.argv:
         edicoes = aplicar(escolhidos, fontes)
         print(f'{len(edicoes)} arquivos alterados')

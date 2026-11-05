@@ -69,8 +69,7 @@ pub(crate) struct RegrasDaTela {
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome)
-        .map_err(E::AtributoHtml)?
+    valor_do_atributo(tag, nome)?
         .map(|bruto| decodificar_atributo(&bruto).ok_or(E::EntidadeHtmlDesconhecidaNaRegra))
         .transpose()
 }

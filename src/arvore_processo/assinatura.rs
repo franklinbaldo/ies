@@ -195,11 +195,7 @@ pub(crate) enum ErroLinkDeAssinar {
     EnderecoDeAssinarDeOutroDocumento,
 }
 
-impl ErroLinkDeAssinar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroLinkDeAssinar {}
 
 const VARIAVEL: &str = "var linkAssinarDocumento = '";
 const FUNCAO: &str = "function assinarDocumento(){";

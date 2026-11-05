@@ -63,11 +63,7 @@ pub(crate) enum ErroBarraDoDocumento {
     EnderecoDasVersoesDeOutroDocumento,
 }
 
-impl ErroBarraDoDocumento {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroBarraDoDocumento {}
 
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;
 /// sem barra (ou sem o nó), nada publicado.

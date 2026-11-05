@@ -18,40 +18,39 @@ use crate::processo_obter::{
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle as _;
-#[derive(Debug)]
+#[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroPrevia {
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
+    #[causa(nome = "origem_do_acompanhamento_nao_autorizada")]
     OrigemNaoAutorizada,
+    #[causa(nome = "unidade_do_acompanhamento_nao_publicada")]
     UnidadeNaoPublicada,
+    #[causa(nome = "acompanhamento_nao_publicado_na_barra")]
     LinkNaoPublicado,
+    #[causa(interna)]
     Barra(ErroAcompanharNaBarra),
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(nome = "redirecionamento_de_acompanhamento_inesperado")]
     RedirecionamentoInesperado,
+    #[causa(nome = "tela_de_acompanhamento_inesperada")]
     TelaInesperada,
+    #[causa(interna)]
     Estrutura(ErroAcompanhar),
+    #[causa(interna)]
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
+    #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
     ConfirmacaoNaoImplementada,
+    #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     EfeitoIncerto,
+    #[causa(nome = "pedido_de_acompanhamento_invalido")]
     PedidoInvalido,
 }
 
 impl ErroPrevia {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::OrigemNaoAutorizada => "origem_do_acompanhamento_nao_autorizada",
-            Self::UnidadeNaoPublicada => "unidade_do_acompanhamento_nao_publicada",
-            Self::LinkNaoPublicado => "acompanhamento_nao_publicado_na_barra",
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::RedirecionamentoInesperado => "redirecionamento_de_acompanhamento_inesperado",
-            Self::TelaInesperada => "tela_de_acompanhamento_inesperada",
-            Self::Estrutura(erro) => erro.subcodigo(),
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::ConfirmacaoNaoImplementada => "confirmacao_de_acompanhamento_ainda_bloqueada",
-            Self::EfeitoIncerto => "acompanhamento_nao_confirmado_por_leitura",
-            Self::PedidoInvalido => "pedido_de_acompanhamento_invalido",
-        }
+        crate::erro_publico::folha(self)
     }
 }
 
@@ -134,14 +133,12 @@ fn html_da_tela<V: EnvioDoProcesso>(
     cookie: &str,
     url: &str,
 ) -> Result<(String, String), ErroPrevia> {
-    let resposta = rede
-        .get_sem_seguir(url, cookie)
-        .map_err(ErroPrevia::Transporte)?;
+    let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(ErroPrevia::RedirecionamentoInesperado);
     }
     let mime = resposta.resposta.mime.clone();
-    let html = decodificar_resposta(resposta.resposta).map_err(ErroPrevia::Transporte)?;
+    let html = decodificar_resposta(resposta.resposta)?;
     Ok((html, mime))
 }
 
@@ -160,7 +157,7 @@ fn selecionar_previa(
         let alvo = if antes.is_empty() {
             None
         } else {
-            Some(alvo_para_deixar(antes, pedido.grupo).map_err(ErroPrevia::Estrutura)?)
+            Some(alvo_para_deixar(antes, pedido.grupo)?)
         };
         return Ok(Previa {
             numero: numero.to_owned(),
@@ -176,7 +173,7 @@ fn selecionar_previa(
         });
     }
     let grupos = grupos.ok_or(ErroPrevia::TelaInesperada)?;
-    let selecionado = escolher_grupo(grupos, pedido.grupo).map_err(ErroPrevia::Estrutura)?;
+    let selecionado = escolher_grupo(grupos, pedido.grupo)?;
     Ok(Previa {
         numero: numero.to_owned(),
         unidade: unidade.to_owned(),
@@ -213,18 +210,12 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         &leitura(pedido.nup, pedido.unidade, true),
         indice,
         &mut rede,
-    )
-    .map_err(ErroPrevia::Abertura)?;
+    )?;
     let unidade = aberto.unidade.ok_or(ErroPrevia::UnidadeNaoPublicada)?;
     let id = aberto.arvore.processo.id;
-    let link = acoes
-        .acompanhar
-        .map_err(ErroPrevia::Barra)?
-        .ok_or(ErroPrevia::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao).map_err(ErroPrevia::Transporte)?;
-    let res = rede
-        .get_sem_seguir(link.as_str(), &cookie)
-        .map_err(ErroPrevia::Transporte)?;
+    let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
+    let cookie = ler_cookie(sessao)?;
+    let res = rede.get_sem_seguir(link.as_str(), &cookie)?;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
         let url = redirecionamento_do_gerenciar(
             &instalacao,
@@ -234,8 +225,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         )?;
         (Vec::new(), Some(url))
     } else {
-        let html = decodificar_resposta(res.resposta).map_err(ErroPrevia::Transporte)?;
-        let antes = acompanhamentos_da_lista(&html).map_err(ErroPrevia::Estrutura)?;
+        let html = decodificar_resposta(res.resposta)?;
+        let antes = acompanhamentos_da_lista(&html)?;
         let url = if pedido.deixar {
             None
         } else {
@@ -269,7 +260,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         if pedido.confirmar {
             submissao = Some(derivada);
         }
-        Some(grupos_do_cadastro(&html, &id).map_err(ErroPrevia::Estrutura)?)
+        Some(grupos_do_cadastro(&html, &id)?)
     };
     let mut plano = selecionar_previa(
         pedido.nup.as_str(),

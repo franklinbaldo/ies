@@ -56,9 +56,8 @@ impl AlvoDaPesquisa for EmDocumentos {
                 })
                 .map_err(E::Resposta),
             RespostaDoEnvio::Redirecionamento(redirecionamento) => {
-                let p = interpretar_redirecionamento(redirecionamento, instalacao)
-                    .map_err(E::Redirecionamento)?;
-                let documento = documento_do_trabalho(&p.trabalho).map_err(E::Redirecionamento)?;
+                let p = interpretar_redirecionamento(redirecionamento, instalacao)?;
+                let documento = documento_do_trabalho(&p.trabalho)?;
                 // A URL de trabalho é descartada: abrir a árvore não é buscar.
                 Ok(EnvioInterpretado {
                     resposta: RespostaDeDocumentos::DocumentoUnico {

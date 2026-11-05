@@ -29,8 +29,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
     ))?;
     let mut rede = Contador::novo(envio);
     let leitura = |unidade_exigida| leitura(pedido.nup, pedido.unidade, unidade_exigida);
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &leitura(true), indice, &mut rede).map_err(R::Abertura)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &leitura(true), indice, &mut rede)?;
     let unidade = aberto
         .unidade
         .clone()
@@ -51,7 +50,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
         reconciliado_por: None,
         requisicoes: rede.feitas(),
     };
-    let acao = match (acoes.reabrir.map_err(R::Barra)?, na_unidade) {
+    let acao = match (acoes.reabrir?, na_unidade) {
         (None, true) => return Ok(feito),
         (Some(_), true) => {
             return Err(R::UnidadeDaSessaoJaNaSituacao {
@@ -77,8 +76,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
             FalhaDaTela::Redirecionada => R::TelaDoNoRedirecionada,
             FalhaDaTela::SessaoEncerrada => R::SessaoEncerrada,
         })?;
-    let (url, forma) =
-        ler_endereco_de_reabrir(&instalacao, &html, &id).map_err(R::EnderecoDeReabrir)?;
+    let (url, forma) = ler_endereco_de_reabrir(&instalacao, &html, &id)?;
     feito.forma = Some(forma);
     let falha = pela_funcao(
         &mut rede,

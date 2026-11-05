@@ -63,8 +63,7 @@ fn vindo_da_resumida<V: EnvioDoControle>(
     tela: &TelaAtual,
     pagina: Option<usize>,
 ) -> Result<LeituraDetalhada, E> {
-    let resumida = crate::paginas::juntar(std::slice::from_ref(&tela.html), Some(sessao.unidade))
-        .map_err(E::Caixa)?;
+    let resumida = crate::paginas::juntar(std::slice::from_ref(&tela.html), Some(sessao.unidade))?;
     let mut categorias: HashMap<String, Categoria> = HashMap::new();
     let mut total = 0usize;
     for (categoria, tabela) in [

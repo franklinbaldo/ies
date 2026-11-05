@@ -89,8 +89,8 @@ fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSub
         let (nome, valor) = item
             .split_once('=')
             .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
-        conferir_chave_de_consulta(nome).map_err(E::Transporte)?;
-        conferir_valor_de_consulta(valor).map_err(E::Transporte)?;
+        conferir_chave_de_consulta(nome)?;
+        conferir_valor_de_consulta(valor)?;
         match nome {
             "acao_ajax" if valor == acao_ajax => acoes += 1,
             "acao_ajax" | "acao" => return Err(E::AcaoDoFormularioDiferenteDaOperacao),
