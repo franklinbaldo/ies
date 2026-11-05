@@ -73,6 +73,8 @@ mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
 mod unidade_retornos;
+mod unidade_retornos_cli;
+mod unidade_retornos_web;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
@@ -317,6 +319,12 @@ enum UnidadeAcao {
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
     Gerados(ListaDaUnidade),
+    /// Lê o mês inteiro dos retornos programados no SEI, sem escrita
+    Retornos {
+        /// Mês na forma AAAA-MM; ausente: mês marcado como hoje pelo SEI
+        #[arg(long, value_name = "AAAA-MM")]
+        mes: Option<String>,
+    },
 }
 
 /// Opções de uma lista independente da caixa (Recebidos ou Gerados).
@@ -437,6 +445,9 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Gerados(lista)),
         }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Retornos { mes }),
+        }) => return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref()),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
