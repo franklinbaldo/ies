@@ -244,10 +244,10 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
         };
-        if identificador(&texto(area, parser)) == "nenhum registro encontrado." {
-            if !vazios.insert(situacao) {
-                return Err(E::TelaDeRetornosDesconhecida);
-            }
+        if identificador(&texto(area, parser)) == "nenhum registro encontrado."
+            && !vazios.insert(situacao)
+        {
+            return Err(E::TelaDeRetornosDesconhecida);
         }
     }
     if !situacoes.is_empty() {
