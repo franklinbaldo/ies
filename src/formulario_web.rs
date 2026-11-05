@@ -185,6 +185,7 @@ impl SubmissaoDerivada {
     pub(crate) fn corpo(&self) -> &[u8] {
         &self.corpo
     }
+    #[cfg(test)]
     pub(crate) fn efeito(&self) -> EfeitoAvaliado {
         self.efeito
     }
