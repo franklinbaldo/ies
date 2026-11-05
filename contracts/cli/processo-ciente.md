@@ -42,6 +42,29 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 
 ## Subcódigos observáveis ou de recusa
 
+| Subcódigo | Condição |
+| --- | --- |
+| `ciencia_nao_oferecida_na_barra` | Barra sem ação de ciência |
+| `unidade_nao_publicada_antes_da_ciencia` | Unidade ausente na abertura |
+| `barra_de_ciencia_fora_da_forma` | Atributos da barra recusados |
+| `ciencia_repetida_na_barra` | Mais de uma ação |
+| `tela_de_ciencia_nao_publicada` | Tela do nó ausente |
+| `funcao_de_ciencia_ausente_na_tela` | Função ausente |
+| `funcao_de_ciencia_fora_da_forma` | Função inválida |
+| `funcoes_de_ciencia_repetidas` | Função duplicada |
+| `endereco_da_ciencia_nao_reconhecido` | Endereço do GET inválido |
+| `lista_de_ciencias_repetida_na_arvore` | Mais de uma lista |
+| `lista_de_ciencias_fora_da_forma` | Ação inválida |
+| `endereco_da_lista_de_ciencias_nao_reconhecido` | Link inválido |
+| `tela_de_ciencia_redirecionada` | 302 antes da escrita |
+| `aceite_da_ciencia_sem_atividade` | Aceite sem atividade |
+| `atividades_da_ciencia_ambiguas` | Aceite com múltiplas atividades |
+| `lista_de_ciencias_fora_da_forma_observada` | HTML da lista não reconhecido |
+| `atividades_repetidas_na_lista_de_ciencias` | Checkbox duplicado |
+| `efeito_incerto_na_ciencia` | Escrita sem verificação conclusiva |
+
+
+
 - `ciencia_nao_oferecida_na_barra`
 - `unidade_nao_publicada_antes_da_ciencia`
 - `barra_de_ciencia_fora_da_forma`
