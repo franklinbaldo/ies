@@ -190,3 +190,29 @@ seguido de leitura para verificar o NUP. A evidencia é indireta
 (cassette e oráculo Todos); até validação ao vivo em **treinamento**,
 não alegar compatibilidade de escrita entre instalações. Revisar
 quando houver observação de escolha inline com múltiplas opções.
+
+## Diagnóstico de opções oferecidas após recusa segura
+
+O replay da UnB demonstrou várias hipóteses AJAX habilitadas.
+A escolha explícita `ID#NOME` só é praticável se o operador puder
+conhecer os pares observados, sem inspeção de URLs assinadas ou logs
+privados. A recusa `hipotese_legal_ajax_nao_unica` passa a devolver
+os pares habilitados, com IDs únicos e texto imprimível, como
+`hipoteses_legais_oferecidas` no JSON e `ID#NOME` no terminal.
+É um diagnóstico de leitura, não pré-autorização de escrita.
+IDs repetidos ou caracteres de controle não produzem sugestões;
+a operação continua recusada mesmo na invocação com `--confirmar`.
+Não executar JS nem emitir a URL assinada ou o cookie.
+
+Alternativas rejeitadas: selecionar a primeira hipótese; publicar
+o XML inteiro; exigir ao operador copiar informações da sessão.
+A escolha precisa ser reconferida contra o AJAX de uma nova prévia,
+com o mesmo orçamento sintético de quatro requisições; uma confirmação
+posterior continua exigindo POST único e releitura verificadora.
+
+**RED real:** [CI 42109336445](https://github.com/franklinbaldo/ies/actions/runs/42109336445)
+registrou **três novos testes falhando** antes da implementação
+(1423 passando, 14 ignorados preexistentes). Rustfmt e Clippy
+também sinalizaram ajustes nos testes RED, a corrigir no GREEN.
+RED local NOT_RUN (sandbox sem Rust/DNS). A prova ainda é sintética
+até uma prévia autenticada no SEI de treinamento.
