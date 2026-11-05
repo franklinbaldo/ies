@@ -191,7 +191,10 @@ fn indice_quente_nao_confirma_assinatura_ausente_na_arvore_relida() {
         };
         super::assinar_documento(sessao, &pedido, indice, envio)
     });
-    assert!(resultado.is_err(), "sem caneta relida não há assinatura provada");
+    assert!(
+        resultado.is_err(),
+        "sem caneta relida não há assinatura provada"
+    );
     assert_eq!(pedidos, pedidos_da_escrita());
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
