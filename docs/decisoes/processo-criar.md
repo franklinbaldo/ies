@@ -31,7 +31,7 @@ com prévia por padrão, `--nivel publico|restrito`,
 
 ## Decisão
 
-Seguir a alternativa 1, **após** implementar os testes RED.
+Seguir a alternativa 1; a contagem RED original não foi medida e não deve ser inventada.
 Escolher exclusivamente um tipo demonstrável pela lista completa,
 abrir o cadastro pela ação publicada e conferir campos,
 assunto sugerido, nível e hipótese antes de escrever.
@@ -67,11 +67,15 @@ expressa do proprietário na issue.
 
 ## Comparação
 
-A leitura estrita de tipos publicada no HTML já está em Rust, como
-parte inicial implementada. O cadastro e a confirmação permanecem
-fora desse recorte e não são alegados como operacionais.
-A Web mantém a prova de campos; POST fixo e REST não oferecem a
-mesma garantia de origem dos dados.
+A implementação Rust na PR #249 contém a leitura da lista,
+conferência do cadastro, consulta AJAX de interessados, prévia Web,
+POST de criação único, leitura da tela de trabalho e da árvore.
+O formulário servido é a fonte dos campos e do destino do POST.
+O teste com transporte injetado confirma o orçamento e o efeito
+incerto sem retry. Ainda não há comprovação live por instalação,
+nem replay integral do acervo das cassettes.
+A Web mantém a prova dos campos; POST fixo e REST não oferecem
+a mesma garantia de origem dos dados.
 
 ## Evidências verificáveis
 
@@ -82,10 +86,13 @@ mesma garantia de origem dos dados.
 
 ## Limitações e revisão
 
-Não há prévia remota, envio ou escrita no recorte implementado.
-A habilitação do comando depende do RED/GREEN e de provas por tela
-antes de qualquer envio. Reavaliar a escolha caso o replay mostre
-um cadastro não contemplado pela estrutura descrita.
+A CLI foi conectada ao fluxo Web, mas a validação ao vivo continua
+NOT_RUN. O CI testa o fluxo com transporte sintético e nunca escreve
+no SEI real. A hipótese legal carregada dinamicamente por AJAX,
+o replay integral do acervo e diferenças entre instalações
+precisam de validação adicional. A escrita live exige autorização
+literal “escrita autorizada” nesta issue. Reavaliar a escolha
+caso o replay mostre cadastro não contemplado.
 
 ## Evidências e revisão
 
