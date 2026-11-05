@@ -64,13 +64,14 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
 /// Argumentos são conferidos antes de qualquer acesso ao arquivo privado.
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Criar {
-            tipo,
-            especificacao,
-            interessado,
-            nivel,
-            confirmar,
-        }),
+        acao:
+            Some(ProcessoAcao::Criar {
+                tipo,
+                especificacao,
+                interessado,
+                nivel,
+                confirmar,
+            }),
         ..
     }) = &cli.command
     else {
@@ -98,10 +99,7 @@ mod tests {
 
     #[test]
     fn entrada_invalida_eh_recusada_sem_sessao() {
-        assert_eq!(
-            validar(" ", "Ensaio", &[]),
-            Err(ErroEntradaCriacao::Tipo)
-        );
+        assert_eq!(validar(" ", "Ensaio", &[]), Err(ErroEntradaCriacao::Tipo));
         assert_eq!(
             validar("Tipo", "\n", &[]),
             Err(ErroEntradaCriacao::Especificacao)
