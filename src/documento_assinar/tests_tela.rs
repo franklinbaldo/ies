@@ -35,11 +35,11 @@ fn cargo_unico_e_o_da_tela_mesmo_sem_selected() {
 fn recusas_da_tela() {
     let padrao = tela_padrao();
     let casos = [
-        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), E::FormularioDeAssinaturaAusente),
+        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), E::Html(crate::erro_html::ErroHtml::ausente("formulario_de_assinatura_ausente", "a tela não tem o elemento observado"))),
         (padrao.clone(), E::TelaDeAssinaturaDeOutroDocumento),
         (
             padrao.replace("<input type=\"hidden\" id=\"hdnIdBlocos\"", "<input type=\"text\" name=\"txtExtra\" value=\"\" /><input type=\"hidden\" id=\"hdnIdBlocos\""),
-            E::CampoNaoPrevistoNaTelaDeAssinatura,
+            E::Html(crate::erro_html::ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura", "o valor não está na forma observada")),
         ),
         (
             padrao.replace(&format!("value=\"{ASSINANTE}\""), "value=\" \""),
@@ -51,15 +51,15 @@ fn recusas_da_tela() {
         ),
         (
             padrao.replace("type=\"password\" id=\"pwdSenha\"", "type=\"hidden\" id=\"pwdSenha\""),
-            E::CampoNaoPrevistoNaTelaDeAssinatura,
+            E::Html(crate::erro_html::ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura", "o valor não está na forma observada")),
         ),
         (
             padrao.replace("<input type=\"password\" id=\"pwdSenha\" name=\"pwdSenha\"", "<input type=\"password\" id=\"pwdSenha\""),
-            E::CampoDeSenhaAusenteNaTela,
+            E::Html(crate::erro_html::ErroHtml::ausente("campo_de_senha_ausente_na_tela", "a tela não tem o elemento observado")),
         ),
         (
             padrao.replace("type=\"button\" accesskey=\"A\"", "type=\"submit\" accesskey=\"A\""),
-            E::CampoNaoPrevistoNaTelaDeAssinatura,
+            E::Html(crate::erro_html::ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura", "o valor não está na forma observada")),
         ),
     ];
     for (i, (html, erro)) in casos.iter().enumerate() {

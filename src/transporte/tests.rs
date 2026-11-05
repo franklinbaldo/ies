@@ -247,7 +247,10 @@ fn controle_da_troca_de_unidade_com_hash_de_192_e_aceito() {
     for n in [63, 65, 128, 191, 193] {
         assert_eq!(
             validar_origem(&com(n), origem),
-            Err(FalhaTransporte::UrlInvalida),
+            Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+                "url_invalida",
+                "URL assinada da caixa inválida"
+            ))),
             "{n}"
         );
     }

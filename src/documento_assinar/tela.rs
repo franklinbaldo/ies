@@ -80,10 +80,19 @@ pub(crate) fn conferir_tela_de_assinatura(
     html: &str,
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::html(
+            "tela_de_assinatura_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
-        .map_err(|_| E::FormularioDeAssinaturaAusente)?;
+    let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_de_assinatura_ausente",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
     for tag in form
@@ -121,7 +130,12 @@ pub(crate) fn conferir_tela_de_assinatura(
             ("input", "password", SENHA) if !senha => senha = true,
             ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
             ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
-            _ => return Err(E::CampoNaoPrevistoNaTelaDeAssinatura),
+            _ => {
+                return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                    "campo_nao_previsto_na_tela_de_assinatura",
+                    "o valor não está na forma observada",
+                )));
+            }
         }
     }
     if documentos.as_deref() != Some(id_documento) {
@@ -143,9 +157,15 @@ pub(crate) fn conferir_tela_de_assinatura(
     }
     .ok_or(E::OrgaoDoAssinanteNaoSelecionado)?;
     if !senha {
-        return Err(E::CampoDeSenhaAusenteNaTela);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "campo_de_senha_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )));
     }
-    let opcoes = cargos.ok_or(E::CampoNaoPrevistoNaTelaDeAssinatura)?;
+    let opcoes = cargos.ok_or(E::Html(crate::erro_html::ErroHtml::valor(
+        "campo_nao_previsto_na_tela_de_assinatura",
+        "o valor não está na forma observada",
+    )))?;
     let validas: Vec<&(String, bool)> = opcoes
         .iter()
         .filter(|(v, _)| v != VAZIA && !v.is_empty())
@@ -174,22 +194,42 @@ fn opcoes(select: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<(Stri
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
-        let valor = valor(tag, "value")?.ok_or(E::HtmlNaoInterpretado)?;
+        let valor = valor(tag, "value")?.ok_or(E::Html(crate::erro_html::ErroHtml::html(
+            "tela_de_assinatura_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+        )))?;
         lidas.push((valor, presente(tag, "selected")?));
     }
     Ok(lidas)
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+    atributo_presente(tag, nome).map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "tela_de_assinatura_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })
 }
 
 /// Valor do atributo com as entidades decodificadas.
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    match valor_do_atributo(tag, nome).map_err(|_| E::HtmlNaoInterpretado)? {
-        Some(bruto) => decodificar_atributo(&bruto)
-            .map(Some)
-            .ok_or(E::HtmlNaoInterpretado),
+    match valor_do_atributo(tag, nome).map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "tela_de_assinatura_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })? {
+        Some(bruto) => {
+            decodificar_atributo(&bruto)
+                .map(Some)
+                .ok_or(E::Html(crate::erro_html::ErroHtml::html(
+                    "tela_de_assinatura_nao_interpretada",
+                    "o HTML não pôde ser interpretado",
+                )))
+        }
         None => Ok(None),
     }
 }

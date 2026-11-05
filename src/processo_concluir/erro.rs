@@ -8,13 +8,11 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 /// Recusas da tela "Conclusão de Processo", antes do POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeConclusao {
-    #[causa(nome = "tela_de_conclusao_nao_interpretada")]
-    HtmlNaoInterpretado,
-    FormularioDeConclusaoAusente,
-    CampoNaoPrevistoNaTelaDeConclusao,
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroTelaDeConclusao {}

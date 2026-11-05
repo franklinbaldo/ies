@@ -35,7 +35,10 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
         return Ok((unidade.clone(), nivel));
     }
     if !encontrado.eh_resumida() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "visao_do_controle_nao_reconhecida",
+            "o valor não está na forma observada",
+        )));
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     let nivel = ler_pelo_link(&mut sessao, &detalhada)?;
@@ -74,14 +77,27 @@ pub(super) fn link_do_nivel_de_detalhe(
     instalacao: &Instalacao,
     tela: &TelaAtual,
 ) -> Result<String, E> {
-    let invalido = E::LinkDoNivelDeDetalheNaoReconhecido;
+    let invalido = E::Html(crate::erro_html::ErroHtml::valor(
+        "link_do_nivel_de_detalhe_nao_reconhecido",
+        "o valor não está na forma observada",
+    ));
     let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;
     let no = match nos.as_slice() {
-        [] => return Err(E::LinkDoNivelDeDetalheAusente),
+        [] => {
+            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+                "link_do_nivel_de_detalhe_ausente",
+                "a tela não tem o elemento observado",
+            )));
+        }
         [no] => *no,
-        _ => return Err(E::LinksDoNivelDeDetalheRepetidos),
+        _ => {
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "links_do_nivel_de_detalhe_repetidos",
+                "o elemento aparece mais de uma vez",
+            )));
+        }
     };
     let tag = no
         .get(parser)

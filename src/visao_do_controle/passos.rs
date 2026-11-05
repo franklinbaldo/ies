@@ -23,7 +23,10 @@ pub(super) fn unidade_da_tela(
     let unidade = contexto
         .unidade
         .clone()
-        .ok_or(E::IdentificacaoDaUnidadeAusente)?;
+        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_no_controle",
+            "a tela não tem o elemento observado",
+        )))?;
     if solicitada.is_some_and(|s| s.split_whitespace().collect::<Vec<_>>().join(" ") != unidade) {
         return Err(E::UnidadeDiferenteDaSolicitada);
     }
@@ -32,8 +35,14 @@ pub(super) fn unidade_da_tela(
 
 /// Controles de usuário que o `submit()` repete, com os valores servidos.
 fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::Caixa(crate::erro_web::ErroCaixa::HtmlInvalido))?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Caixa(crate::erro_web::ErroCaixa::Html(
+            crate::erro_html::ErroHtml::html(
+                "html_da_caixa_invalido",
+                "o HTML não pôde ser interpretado",
+            ),
+        ))
+    })?;
     let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
     campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(E::Formulario)
 }

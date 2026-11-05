@@ -30,7 +30,10 @@ pub(crate) fn resolver_no_host(
         let depois = sufixo_da_mesma_origem(resto, host, esquema_http(referencia)).map_err(
             |erro| match erro {
                 ErroDeOrigem::AutoridadeInvalida => Ilegivel,
-                ErroDeOrigem::OutroHost => ErroLogin::RedirecionamentoParaForaDaInstalacao,
+                ErroDeOrigem::OutroHost => ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+                    "redirecionamento_para_fora_da_instalacao",
+                    "redirecionamento para fora do host da instalação recusado",
+                )),
             },
         )?;
         match depois {

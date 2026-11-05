@@ -227,11 +227,20 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
     );
     assert_eq!(r.unwrap_err(), E::UnidadeDaTelaDiferenteDaSolicitada);
     let sem = html.replace("lnkInfraUnidade", "lnkOutro");
-    assert_eq!(erro(&sem, &[]), E::IdentificacaoDaUnidadeAusenteNaTela);
+    assert_eq!(
+        erro(&sem, &[]),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
     assert_eq!(
         erro(&repetida, &[]),
-        E::IdentificacoesDaUnidadeRepetidasNaTela
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "identificacoes_da_unidade_repetidas_na_tela",
+            "o elemento aparece mais de uma vez"
+        ))
     );
 }
 
@@ -243,7 +252,10 @@ fn action_relativo_resolve_contra_a_url_servida_nao_contra_a_raiz() {
     let raiz = action_padrao().replacen("controlador.php", "/controlador.php", 1);
     assert_eq!(
         erro(&com_action(&raiz), &[]),
-        E::AcaoDoFormularioForaDaInstalacao
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "acao_do_formulario_fora_da_instalacao",
+            "o valor não está na forma observada"
+        ))
     );
 }
 
@@ -259,7 +271,10 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
     ] {
         assert_eq!(
             erro(&com_action(&action), &[]),
-            E::AcaoDoFormularioForaDaInstalacao,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "acao_do_formulario_fora_da_instalacao",
+                "o valor não está na forma observada"
+            )),
             "{action}"
         );
     }
@@ -274,10 +289,19 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
 
 #[test]
 fn action_ausente_sem_hash_ou_de_outra_operacao_e_recusado() {
-    assert_eq!(erro(&pagina("", INTERIOR), &[]), E::AcaoDoFormularioAusente);
+    assert_eq!(
+        erro(&pagina("", INTERIOR), &[]),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "acao_do_formulario_ausente",
+            "a tela não tem o elemento observado"
+        ))
+    );
     assert_eq!(
         erro(&com_action("#ancora"), &[]),
-        E::AcaoDoFormularioAusente
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "acao_do_formulario_ausente",
+            "a tela não tem o elemento observado"
+        ))
     );
     let sem_hash = "controlador.php?acao=protocolo_pesquisar";
     assert_eq!(
@@ -308,18 +332,36 @@ fn botao_de_envio_ausente_ou_repetido_e_recusado() {
         "type='submit' id='sbmPesquisar'",
         "type='button' id='sbmPesquisar'",
     );
-    assert_eq!(erro(&sem, &[]), E::BotaoDeEnvioAusenteNoFormulario);
+    assert_eq!(
+        erro(&sem, &[]),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "botao_de_envio_ausente_no_formulario",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let dois = padrao().replace(
         "</form>",
         "<input type='submit' name='sbmPesquisar' value='Pesquisar'></form>",
     );
-    assert_eq!(erro(&dois, &[]), E::BotoesDeEnvioRepetidosNoFormulario);
+    assert_eq!(
+        erro(&dois, &[]),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "botoes_de_envio_repetidos_no_formulario",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
 }
 
 #[test]
 fn formulario_ausente_ou_com_identificador_repetido_e_recusado() {
     let ausente = padrao().replace("frmPesquisaProtocolo", "frmOutro");
-    assert_eq!(erro(&ausente, &[]), E::FormularioAusenteNaTela);
+    assert_eq!(
+        erro(&ausente, &[]),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_ausente_na_tela",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let duplicado = padrao().replace(
         "</html>",
         "<form name='frmPesquisaProtocolo' method='post'></form></html>",
@@ -467,7 +509,13 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         "UNIDADE TESTE",
         &[],
     );
-    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::UrlInvalida));
+    assert_eq!(
+        r.unwrap_err(),
+        E::Transporte(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "url_invalida",
+            "URL assinada da caixa inválida"
+        )))
+    );
 }
 
 #[test]
@@ -501,17 +549,32 @@ fn subcodigos_sao_estaveis_unicos_e_snake_case() {
     let c = String::new;
     let todos = [
         E::EfeitoDaOperacaoNaoAvaliado,
-        E::IdentificacaoDaUnidadeAusenteNaTela,
-        E::IdentificacoesDaUnidadeRepetidasNaTela,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "identificacoes_da_unidade_repetidas_na_tela",
+            "o elemento aparece mais de uma vez",
+        )),
         E::UnidadeDaTelaDiferenteDaSolicitada,
-        E::FormularioAusenteNaTela,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )),
         E::FormulariosComMesmoIdentificadorNaTela,
         E::MetodoDoFormularioDiferenteDePost,
         E::EnctypeDoFormularioNaoUrlencoded,
         E::AcceptCharsetPublicadoNoFormulario,
-        E::AcaoDoFormularioAusente,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "acao_do_formulario_ausente",
+            "a tela não tem o elemento observado",
+        )),
         E::AcaoDoFormularioNaoEhUrlHttps,
-        E::AcaoDoFormularioForaDaInstalacao,
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "acao_do_formulario_fora_da_instalacao",
+            "o valor não está na forma observada",
+        )),
         E::AcaoDoFormularioDiferenteDaOperacao,
         E::AcaoDoFormularioSemInfraHashUnico,
         E::EntidadeHtmlDesconhecidaNoAtributo { campo: c() },
@@ -522,8 +585,14 @@ fn subcodigos_sao_estaveis_unicos_e_snake_case() {
         E::CampoNaoPublicadoPeloFormulario { campo: c() },
         E::CampoInformadoMaisDeUmaVez { campo: c() },
         E::ValorNaoRepresentavelNaCodificacao { campo: c() },
-        E::BotaoDeEnvioAusenteNoFormulario,
-        E::BotoesDeEnvioRepetidosNoFormulario,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "botao_de_envio_ausente_no_formulario",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "botoes_de_envio_repetidos_no_formulario",
+            "o elemento aparece mais de uma vez",
+        )),
         E::TelaDeLoginRecebidaAposEnvio,
         E::MarcadorDeResultadoAusenteNaResposta,
     ];

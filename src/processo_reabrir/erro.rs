@@ -1,7 +1,7 @@
 //! Recusas de `ies processo reabrir` (contracts/cli/processo-reabrir.md).
 //! Uma variante por fato; a resposta não esperada da escrita é a
 //! `FalhaDoEnvio` de `processo concluir`, e a verificação, a mesma leitura.
-use crate::arvore_processo::{ErroEnderecoDeReabrir, ErroReabrirNaBarra, MotivoAbertoEm};
+use crate::arvore_processo::{ErroEnderecoDeReabrir, MotivoAbertoEm};
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -26,7 +26,7 @@ pub(crate) enum ErroReabrir {
         aberto_em: Vec<String>,
     },
     #[causa(interna)]
-    Barra(ErroReabrirNaBarra),
+    Barra(crate::erro_html::ErroHtml),
     /// O cookie não pôde ser lido antes da tela do nó.
     #[causa(interna)]
     Cookie(FalhaTransporte),

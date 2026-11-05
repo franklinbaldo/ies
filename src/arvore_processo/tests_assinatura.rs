@@ -3,13 +3,14 @@
 //! link `documento_assinar` nas formas 4.0 e 4.1/5.0, na estrutura das
 //! cassettes `documento-escritas-*`. HTML sintético; nenhum valor real.
 use super::assinatura::{
-    Assinante, ErroAssinaturaNaArvore as E, ErroLinkDeAssinar as L, ler_assinatura_na_arvore,
-    ler_link_de_assinar, tela_do_documento,
+    Assinante, ErroLinkDeAssinar as L, ler_assinatura_na_arvore, ler_link_de_assinar,
+    tela_do_documento,
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_barra_documento::{barra, com_barra};
 use super::tests_concluir::absoluta;
 use super::tests_tela::instalacao;
+use crate::erro_html::ErroHtml as E;
 
 const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
 pub(crate) const HASH_TELA_DOC: &str =
@@ -203,7 +204,10 @@ fn caneta_fora_da_forma_ou_repetida_e_recusa() {
     );
     assert_eq!(
         ler_assinatura_na_arvore(&html, "21"),
-        Err(E::AssinaturasDoDocumentoForaDaFormaObservada)
+        Err(E::valor(
+            "assinaturas_do_documento_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        ))
     );
     let duas = [
         caneta(0, "21", "A", "Cargo", "TESTE", true),
@@ -218,7 +222,10 @@ fn caneta_fora_da_forma_ou_repetida_e_recusa() {
     );
     assert_eq!(
         ler_assinatura_na_arvore(&html, "21"),
-        Err(E::AssinaturasDoDocumentoRepetidasNaArvore)
+        Err(E::repetido(
+            "assinaturas_do_documento_repetidas_na_arvore",
+            "o elemento aparece mais de uma vez"
+        ))
     );
 }
 
@@ -230,7 +237,10 @@ fn barra_sem_assinar_ou_com_duas() {
     let html = arvore_assinavel("10", "21", "0000101", &dupla, &[]);
     assert_eq!(
         ler_assinatura_na_arvore(&html, "21"),
-        Err(E::AcoesDeAssinarRepetidasNaBarra)
+        Err(E::repetido(
+            "acoes_de_assinar_repetidas_na_barra",
+            "o elemento aparece mais de uma vez"
+        ))
     );
 }
 
@@ -272,7 +282,10 @@ fn link_de_assinar_ausente_repetido_ou_fora_da_forma() {
     let sem = tela_do_documento_50("10", "21").replace("var linkAssinarDocumento", "var linkOutro");
     assert_eq!(
         ler_link_de_assinar(&instalacao(), &sem, "21", "10"),
-        Err(L::LinkDeAssinarAusenteNaTelaDoDocumento)
+        Err(L::Html(crate::erro_html::ErroHtml::ausente(
+            "link_de_assinar_ausente_na_tela_do_documento",
+            "a tela não tem o elemento observado"
+        )))
     );
     let dois = tela_do_documento_50("10", "21").replace(
         "</script>",
@@ -283,17 +296,26 @@ fn link_de_assinar_ausente_repetido_ou_fora_da_forma() {
     );
     assert_eq!(
         ler_link_de_assinar(&instalacao(), &dois, "21", "10"),
-        Err(L::LinksDeAssinarRepetidosNaTelaDoDocumento)
+        Err(L::Html(crate::erro_html::ErroHtml::repetido(
+            "links_de_assinar_repetidos_na_tela_do_documento",
+            "o elemento aparece mais de uma vez"
+        )))
     );
     let fora = tela_do_documento_40("10", "21").replace(",600,450);", ",700,450);");
     assert_eq!(
         ler_link_de_assinar(&instalacao(), &fora, "21", "10"),
-        Err(L::LinkDeAssinarForaDaFormaObservada)
+        Err(L::Html(crate::erro_html::ErroHtml::valor(
+            "link_de_assinar_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
     );
     let sem_hash =
         tela_do_documento_50("10", "21").replace(&format!("&infra_hash={HASH_ASSINAR}"), "");
     assert_eq!(
         ler_link_de_assinar(&instalacao(), &sem_hash, "21", "10"),
-        Err(L::EnderecoDeAssinarNaoReconhecido)
+        Err(L::Html(crate::erro_html::ErroHtml::valor(
+            "endereco_de_assinar_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
     );
 }

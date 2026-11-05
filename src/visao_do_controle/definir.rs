@@ -46,7 +46,10 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
         return na_detalhada(&mut sessao, tela, &pedido);
     }
     if !encontrado.eh_resumida() {
-        return Err(D::Leitura(E::VisaoDoControleNaoReconhecida));
+        return Err(D::Leitura(E::Html(crate::erro_html::ErroHtml::valor(
+            "visao_do_controle_nao_reconhecida",
+            "o valor não está na forma observada",
+        ))));
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     na_detalhada(&mut sessao, &detalhada, &pedido)

@@ -159,25 +159,37 @@ fn as_nove_colunas_de_texto_presentes_nao_deixam_ausentes() {
 fn cabecalho_desconhecido_ou_repetido_falha_fechado() {
     assert_eq!(
         ler(&tabela(&[rotulo("Situação")], &["<td>x</td>"])),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
+            "cabecalho_da_visao_detalhada_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         ler(&tabela(&[icone_aria("Ícone novo")], &["<td></td>"])),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
+            "cabecalho_da_visao_detalhada_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         ler(&tabela(
             &["<th><div class='infraDivRotuloOrdenacao'></div></th>".to_owned()],
             &["<td></td>"]
         )),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
+            "cabecalho_da_visao_detalhada_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         ler(&tabela(
             &[rotulo("Tipo"), rotulo("Tipo")],
             &["<td>a</td>", "<td>b</td>"]
         )),
-        Err(ErroDetalhada::ColunaRepetida)
+        Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::repetido(
+            "coluna_da_visao_detalhada_repetida",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 
@@ -209,6 +221,9 @@ fn celula_fora_do_lugar_ou_com_itens_inesperados_e_recusada() {
             &[rotulo("Observação")],
             &["<td><div class='divItemCelula'><div class='divRotuloItemCelula'>M</div></div></td>"]
         )),
-        Err(ErroDetalhada::ItensNaoPrevistosNaCelula)
+        Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
+            "itens_nao_previstos_na_celula_detalhada",
+            "o valor não está na forma observada"
+        )))
     );
 }

@@ -41,14 +41,10 @@ pub(crate) enum RespostaDaPesquisa {
 /// Uma variante por fato verificável da resposta 200.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRespostaDaPesquisa {
-    #[causa(nome = "html_da_resposta_da_pesquisa_nao_interpretado")]
-    HtmlDaRespostaNaoInterpretado,
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
     /// Aviso de "sem resultado" e barra "Exibindo I - F de N" juntos.
     AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta,
-    BarraDeContagemDaPesquisaAusente,
-    BarrasDeContagemDaPesquisaRepetidas,
     TextoDaBarraDeContagemForaDoFormato,
     NumeroDaBarraDeContagemForaDoFormato,
     FaixaDaBarraDeContagemImpossivel,
@@ -60,6 +56,8 @@ pub(crate) enum ErroRespostaDaPesquisa {
     Documento(super::documentos::ErroDocumentoDaPesquisa),
     #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroRespostaDaPesquisa {}
@@ -145,8 +143,12 @@ pub(crate) fn classificar_resposta<T>(
     ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::html(
+            "html_da_resposta_da_pesquisa_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
@@ -158,9 +160,19 @@ pub(crate) fn classificar_resposta<T>(
         (false, _, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
     }
     let barra = match barras.as_slice() {
-        [] => return Err(E::BarraDeContagemDaPesquisaAusente),
+        [] => {
+            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+                "barra_de_contagem_da_pesquisa_ausente",
+                "a tela não tem o elemento observado",
+            )));
+        }
         [barra] => *barra,
-        _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
+        _ => {
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "barras_de_contagem_da_pesquisa_repetidas",
+                "o elemento aparece mais de uma vez",
+            )));
+        }
     };
     let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
     // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só

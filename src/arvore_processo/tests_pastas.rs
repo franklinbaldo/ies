@@ -294,11 +294,17 @@ fn identidade_vem_do_id_rel_protocolo_protocolo_da_barra() {
     );
     assert_eq!(
         id("<a href=\"c.php?a=1&id_rel_protocolo_protocolo=7x\">"),
-        Err(ErroArvore::BarraDeNoForaDaFormaObservada)
+        Err(ErroArvore::Html(crate::erro_html::ErroHtml::valor(
+            "barra_de_no_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         id("<a href=\"c.php?a=1&id_rel_protocolo_protocolo=\">"),
-        Err(ErroArvore::BarraDeNoForaDaFormaObservada)
+        Err(ErroArvore::Html(crate::erro_html::ErroHtml::valor(
+            "barra_de_no_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
     );
 }
 

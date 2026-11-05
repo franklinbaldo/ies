@@ -9,15 +9,12 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeEnvio {
-    #[causa(nome = "tela_de_envio_nao_interpretada")]
-    HtmlNaoInterpretado,
-    FormularioDeEnvioAusente,
-    CampoNaoPrevistoNaTelaDeEnvio,
     TelaDeEnvioDeOutroProcesso,
     TelaDeEnvioComOpcoesPreenchidas,
     OrgaoDaTelaDeEnvioNaoSelecionado,
     AutocompletarDeUnidadeNaoDeclarado,
-    ConsultaDoAutocompletarForaDaFormaObservada,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroTelaDeEnvio {}
@@ -33,9 +30,8 @@ pub(crate) enum FalhaDaConsulta {
     Transporte(FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
-    /// XML sem um `<itens>` único na forma observada.
-    #[causa(nome = "resposta_do_autocompletar_fora_da_forma_observada")]
-    RespostaDoAutocompletarForaDaForma,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl FalhaDaConsulta {

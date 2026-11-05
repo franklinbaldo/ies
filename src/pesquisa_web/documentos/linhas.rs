@@ -17,13 +17,23 @@ use std::collections::HashSet;
 type Tag<'a> = tl::HTMLTag<'a>;
 
 fn ilegivel(_: crate::html_atributos::ErroAtributoHtml) -> E {
-    E::Linha(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
+    E::Linha(ErroResultadoPesquisa::Html(
+        crate::erro_html::ErroHtml::html(
+            "html_de_pesquisa_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        ),
+    ))
 }
 
 fn tag<'a>(no: tl::NodeHandle, parser: &'a tl::Parser<'a>) -> Result<&'a Tag<'a>, E> {
-    no.get(parser).and_then(tl::Node::as_tag).ok_or(E::Linha(
-        ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado,
-    ))
+    no.get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::Linha(ErroResultadoPesquisa::Html(
+            crate::erro_html::ErroHtml::html(
+                "html_de_pesquisa_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+            ),
+        )))
 }
 
 /// Texto visível, entidades decodificadas e espaços colapsados.
@@ -67,14 +77,20 @@ fn anexo_baixado(href: &str) -> bool {
 fn celula<'a>(dom: &'a tl::VDom<'a>, linha: &Tag<'_>, classe: &str) -> Result<tl::NodeHandle, E> {
     match nos_por_elemento_e_classe(dom, Some(linha), "td", classe)?.as_slice() {
         [celula] => Ok(*celula),
-        _ => Err(E::CelulaDoTituloDoDocumentoAusenteOuRepetida),
+        _ => Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "celula_do_titulo_do_documento_ausente_ou_repetida",
+            "a tela não tem o elemento observado",
+        ))),
     }
 }
 
 fn href(link: &Tag<'_>) -> Result<String, E> {
     valor_do_atributo(link, "href")
         .map_err(ilegivel)?
-        .ok_or(E::LinkDaLinhaDeDocumentoNaoReconhecido)
+        .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
+            "link_da_linha_de_documento_nao_reconhecido",
+            "o valor não está na forma observada",
+        )))
 }
 
 /// Os `a.protocoloNormal` sob `raiz`; `class` repetido é aceito quando
@@ -97,7 +113,12 @@ fn arvore_da_linha(
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => tag(*arvore, dom.parser())?,
-        _ => return Err(E::Linha(R::LinhaDePesquisaComMaisDeUmLinkDaArvore)),
+        _ => {
+            return Err(E::Linha(R::Html(crate::erro_html::ErroHtml::repetido(
+                "linha_de_pesquisa_com_mais_de_um_link_da_arvore",
+                "o elemento aparece mais de uma vez",
+            ))));
+        }
     };
     if valor_do_atributo(arvore, "href")
         .map_err(ilegivel)?
@@ -120,7 +141,12 @@ fn metadados(
         let celulas = nos_por_elemento_e_classe(dom, Some(linha), "td", "pesquisaMetatag")?;
         for no in celulas {
             let lido = texto(no, parser);
-            let repetido = || E::MetadadoDoDocumentoRepetido;
+            let repetido = || {
+                E::Html(crate::erro_html::ErroHtml::repetido(
+                    "metadado_do_documento_repetido",
+                    "o elemento aparece mais de uma vez",
+                ))
+            };
             if let Some(valor) = lido.strip_prefix("Unidade:") {
                 if unidade.replace(valor.trim().to_owned()).is_some() {
                     return Err(repetido());
@@ -128,7 +154,10 @@ fn metadados(
             } else if let Some(valor) = lido.strip_prefix("Inclusão:") {
                 let valor = valor.trim();
                 if !eh_data(valor) {
-                    return Err(E::DataDeInclusaoForaDaFormaObservada);
+                    return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                        "data_de_inclusao_fora_da_forma_observada",
+                        "o valor não está na forma observada",
+                    )));
                 }
                 if inclusao.replace(valor.to_owned()).is_some() {
                     return Err(repetido());
@@ -173,7 +202,10 @@ fn ler_registro(
         } else if href.contains("acao=procedimento_trabalhar") {
             processos.push((no, href));
         } else {
-            return Err(E::LinkDaLinhaDeDocumentoNaoReconhecido);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "link_da_linha_de_documento_nao_reconhecido",
+                "o valor não está na forma observada",
+            )));
         }
     }
     let (processo, href_processo) = match processos.as_slice() {
@@ -184,18 +216,31 @@ fn ler_registro(
         }
         [um] => um.clone(),
         _ => {
-            return Err(E::Linha(
-                ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso,
-            ));
+            return Err(E::Linha(ErroResultadoPesquisa::Html(
+                crate::erro_html::ErroHtml::repetido(
+                    "linha_de_pesquisa_com_mais_de_um_link_do_processo",
+                    "o elemento aparece mais de uma vez",
+                ),
+            )));
         }
     };
     validar_href_de_processo(&href_processo)?;
     let id_documento = documento_do_processo(&href_processo)
         .ok_or(E::LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso)?;
     let (documento, href_documento) = match documentos.as_slice() {
-        [] => return Err(E::LinkDoDocumentoAusenteNaLinha),
+        [] => {
+            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+                "link_do_documento_ausente_na_linha",
+                "a tela não tem o elemento observado",
+            )));
+        }
         [um] => um.clone(),
-        _ => return Err(E::LinksDoDocumentoRepetidosNaLinha),
+        _ => {
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "links_do_documento_repetidos_na_linha",
+                "o elemento aparece mais de uma vez",
+            )));
+        }
     };
     let anexo = anexo_baixado(&href_documento);
     if !anexo && documento_visualizado(&href_documento) != Some(id_documento) {
@@ -210,11 +255,17 @@ fn ler_registro(
     }
     let numero_sei = texto(numero, parser);
     if numero_sei.is_empty() {
-        return Err(E::NumeroSeiAusenteNaLinha);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "numero_sei_ausente_na_linha",
+            "a tela não tem o elemento observado",
+        )));
     }
     let rotulo = texto(documento, parser);
     if rotulo.is_empty() {
-        return Err(E::RotuloDoDocumentoAusente);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "rotulo_do_documento_ausente",
+            "a tela não tem o elemento observado",
+        )));
     }
     let processo = NumeroProcesso::novo(&texto(processo, parser))?;
     let arvores = arvore_da_linha(dom, titulo, &href_processo)?;
@@ -234,14 +285,28 @@ fn ler_registro(
 /// publica links assinados, ids técnicos, trechos ou o usuário.
 pub(crate) fn ler_documentos(html: &str) -> Result<Vec<DocumentoEncontrado>, E> {
     use ErroResultadoPesquisa as R;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::Linha(R::HtmlDePesquisaNaoInterpretado))?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Linha(R::Html(crate::erro_html::ErroHtml::html(
+            "html_de_pesquisa_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        )))
+    })?;
     let parser = dom.parser();
     let tabela =
         match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?.as_slice() {
-            [] => return Err(E::Linha(R::TabelaDePesquisaAusente)),
+            [] => {
+                return Err(E::Linha(R::Html(crate::erro_html::ErroHtml::ausente(
+                    "tabela_de_pesquisa_ausente",
+                    "a tela não tem o elemento observado",
+                ))));
+            }
             [tabela] => tag(*tabela, parser)?,
-            _ => return Err(E::Linha(R::TabelasDePesquisaRepetidas)),
+            _ => {
+                return Err(E::Linha(R::Html(crate::erro_html::ErroHtml::repetido(
+                    "tabelas_de_pesquisa_repetidas",
+                    "o elemento aparece mais de uma vez",
+                ))));
+            }
         };
     // Linhas na ordem do documento; cada título abre um registro.
     let mut nos: Vec<tl::NodeHandle> = tabela
@@ -270,7 +335,10 @@ pub(crate) fn ler_documentos(html: &str) -> Result<Vec<DocumentoEncontrado>, E> 
         if !numeros.insert(documento.numero_sei.clone())
             || !ids.insert(id.trim_start_matches('0').to_owned())
         {
-            return Err(E::NumeroSeiRepetidoNaPesquisa);
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "numero_sei_repetido_na_pesquisa",
+                "o elemento aparece mais de uma vez",
+            )));
         }
         arvores += arvore;
         documentos.push(documento);
@@ -278,7 +346,10 @@ pub(crate) fn ler_documentos(html: &str) -> Result<Vec<DocumentoEncontrado>, E> 
     // Nenhum link fora dos registros lidos: três `a.protocoloNormal` por
     // linha e um `procedimento_trabalhar` por linha (mais as árvores).
     if links(&dom, tabela)?.len() != 3 * documentos.len() {
-        return Err(E::Linha(R::LinkDeProcessoForaDaLinhaDePesquisa));
+        return Err(E::Linha(R::Html(crate::erro_html::ErroHtml::valor(
+            "link_de_processo_fora_da_linha_de_pesquisa",
+            "o valor não está na forma observada",
+        ))));
     }
     let mut de_trabalho = 0;
     for no in tabela.query_selector(parser, "a").into_iter().flatten() {

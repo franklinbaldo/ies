@@ -4,24 +4,6 @@ use crate::bloco::{Faixa, TipoBloco};
 use crate::html_atributos::nos_com_id;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
-pub(crate) enum ErroDetalheBloco {
-    #[causa(nome = "html_do_bloco_ilegivel")]
-    HtmlIlegivel,
-    #[causa(nome = "tabela_do_bloco_ausente")]
-    TabelaAusente,
-    #[causa(nome = "tabelas_do_bloco_repetidas")]
-    TabelaRepetida,
-    #[causa(nome = "cabecalho_do_bloco_invalido")]
-    CabecalhoInvalido,
-    #[causa(nome = "linha_do_bloco_invalida")]
-    LinhaInvalida,
-    #[causa(nome = "legenda_do_bloco_invalida")]
-    LegendaInvalida,
-    #[causa(nome = "faixa_do_bloco_invalida")]
-    FaixaInvalida,
-}
-impl ErroDetalheBloco {}
 #[derive(Debug, Serialize)]
 pub(crate) struct ItemDoBloco {
     pub(crate) processo: String,
@@ -45,28 +27,58 @@ fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
-fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroDetalheBloco> {
-    use ErroDetalheBloco as E;
-    let (inicio, resto) = legenda.split_once(" registros").ok_or(E::LegendaInvalida)?;
+fn faixa(
+    legenda: &str,
+    linhas: usize,
+) -> Result<(usize, Option<Faixa>), crate::erro_html::ErroHtml> {
+    use crate::erro_html::ErroHtml as E;
+    let (inicio, resto) = legenda.split_once(" registros").ok_or(E::valor(
+        "legenda_do_bloco_invalida",
+        "o valor não está na forma observada",
+    ))?;
     let total = inicio
         .split_whitespace()
         .last()
-        .ok_or(E::LegendaInvalida)?
+        .ok_or(E::valor(
+            "legenda_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ))?
         .trim_start_matches('(')
         .replace('.', "")
         .parse::<usize>()
-        .map_err(|_| E::LegendaInvalida)?;
+        .map_err(|_| {
+            E::valor(
+                "legenda_do_bloco_invalida",
+                "o valor não está na forma observada",
+            )
+        })?;
     if let Some((_, r)) = resto.split_once(" - ") {
-        let (de, ate) = r.split_once(" a ").ok_or(E::FaixaInvalida)?;
-        let de = de.trim().parse::<usize>().map_err(|_| E::FaixaInvalida)?;
+        let (de, ate) = r.split_once(" a ").ok_or(E::valor(
+            "faixa_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ))?;
+        let de = de.trim().parse::<usize>().map_err(|_| {
+            E::valor(
+                "faixa_do_bloco_invalida",
+                "o valor não está na forma observada",
+            )
+        })?;
         let ate = ate
             .chars()
             .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<usize>()
-            .map_err(|_| E::FaixaInvalida)?;
+            .map_err(|_| {
+                E::valor(
+                    "faixa_do_bloco_invalida",
+                    "o valor não está na forma observada",
+                )
+            })?;
         if de == 0 || ate < de || ate > total || ate - de + 1 != linhas {
-            return Err(E::FaixaInvalida);
+            return Err(E::valor(
+                "faixa_do_bloco_invalida",
+                "o valor não está na forma observada",
+            ));
         }
         return Ok((
             total,
@@ -77,7 +89,10 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroDet
         ));
     }
     if total != linhas {
-        return Err(E::FaixaInvalida);
+        return Err(E::valor(
+            "faixa_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ));
     }
     Ok((
         total,
@@ -92,19 +107,25 @@ fn ler_itens(
     parser: &tl::Parser<'_>,
     headers: &[String],
     tipo: TipoBloco,
-) -> Result<Vec<ItemDoBloco>, ErroDetalheBloco> {
-    use ErroDetalheBloco as E;
+) -> Result<Vec<ItemDoBloco>, crate::erro_html::ErroHtml> {
+    use crate::erro_html::ErroHtml as E;
     let index = |nome: &str| headers.iter().position(|c| c == nome);
-    let processo = index("Processo").ok_or(E::CabecalhoInvalido)?;
-    let anotacoes = index("Anotações").ok_or(E::CabecalhoInvalido)?;
+    let processo = index("Processo").ok_or(E::valor(
+        "cabecalho_do_bloco_invalido",
+        "o valor não está na forma observada",
+    ))?;
+    let anotacoes = index("Anotações").ok_or(E::valor(
+        "cabecalho_do_bloco_invalido",
+        "o valor não está na forma observada",
+    ))?;
     let documento = index("Documento");
     let tipo_coluna = index("Tipo");
     let mut itens = Vec::new();
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::LinhaInvalida)?;
+        let tr = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::valor(
+            "linha_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ))?;
         let td: Vec<_> = tr
             .children()
             .top()
@@ -117,17 +138,26 @@ fn ler_itens(
             continue;
         }
         if td.len() != headers.len() {
-            return Err(E::LinhaInvalida);
+            return Err(E::valor(
+                "linha_do_bloco_invalida",
+                "o valor não está na forma observada",
+            ));
         }
         let processo = texto(td[processo], parser);
         if processo.is_empty() {
-            return Err(E::LinhaInvalida);
+            return Err(E::valor(
+                "linha_do_bloco_invalida",
+                "o valor não está na forma observada",
+            ));
         }
         let doc = documento
             .map(|i| texto(td[i], parser))
             .filter(|s| !s.is_empty());
         if tipo == TipoBloco::Assinatura && doc.is_none() {
-            return Err(E::LinhaInvalida);
+            return Err(E::valor(
+                "linha_do_bloco_invalida",
+                "o valor não está na forma observada",
+            ));
         }
         itens.push(ItemDoBloco {
             processo,
@@ -145,39 +175,66 @@ pub(crate) fn ler_detalhe(
     html: &str,
     numero: &str,
     tipo: TipoBloco,
-) -> Result<BlocoDetalhado, ErroDetalheBloco> {
-    use ErroDetalheBloco as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlIlegivel)?;
+) -> Result<BlocoDetalhado, crate::erro_html::ErroHtml> {
+    use crate::erro_html::ErroHtml as E;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::html("html_do_bloco_ilegivel", "o HTML não pôde ser interpretado"))?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblProtocolosBlocos").map_err(|_| E::HtmlIlegivel)?;
+    let tabelas = nos_com_id(&dom, "tblProtocolosBlocos").map_err(|e| {
+        E::atributo(
+            "html_do_bloco_ilegivel",
+            "o HTML não pôde ser interpretado",
+            e,
+        )
+    })?;
     let tabela = match tabelas.as_slice() {
-        [] => return Err(E::TabelaAusente),
-        [no] => no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::TabelaAusente)?,
-        _ => return Err(E::TabelaRepetida),
+        [] => {
+            return Err(E::ausente(
+                "tabela_do_bloco_ausente",
+                "a tela não tem o elemento observado",
+            ));
+        }
+        [no] => no.get(parser).and_then(tl::Node::as_tag).ok_or(E::ausente(
+            "tabela_do_bloco_ausente",
+            "a tela não tem o elemento observado",
+        ))?,
+        _ => {
+            return Err(E::repetido(
+                "tabelas_do_bloco_repetidas",
+                "o elemento aparece mais de uma vez",
+            ));
+        }
     };
     if tabela.name() != "table" {
-        return Err(E::TabelaAusente);
+        return Err(E::ausente(
+            "tabela_do_bloco_ausente",
+            "a tela não tem o elemento observado",
+        ));
     }
-    let mut captions = tabela
-        .query_selector(parser, "caption")
-        .ok_or(E::LegendaInvalida)?;
+    let mut captions = tabela.query_selector(parser, "caption").ok_or(E::valor(
+        "legenda_do_bloco_invalida",
+        "o valor não está na forma observada",
+    ))?;
     let caption = captions
         .next()
         .and_then(|h| h.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or(E::LegendaInvalida)?;
+        .ok_or(E::valor(
+            "legenda_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ))?;
     if captions.next().is_some() {
-        return Err(E::LegendaInvalida);
+        return Err(E::valor(
+            "legenda_do_bloco_invalida",
+            "o valor não está na forma observada",
+        ));
     }
     let mut headers = None;
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::CabecalhoInvalido)?;
+        let tr = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::valor(
+            "cabecalho_do_bloco_invalido",
+            "o valor não está na forma observada",
+        ))?;
         let th: Vec<_> = tr
             .children()
             .top()
@@ -188,21 +245,33 @@ pub(crate) fn ler_detalhe(
             .collect();
         if !th.is_empty() {
             if headers.is_some() {
-                return Err(E::CabecalhoInvalido);
+                return Err(E::valor(
+                    "cabecalho_do_bloco_invalido",
+                    "o valor não está na forma observada",
+                ));
             }
             headers = Some(th.iter().map(|t| texto(t, parser)).collect::<Vec<_>>());
         }
     }
-    let headers = headers.ok_or(E::CabecalhoInvalido)?;
+    let headers = headers.ok_or(E::valor(
+        "cabecalho_do_bloco_invalido",
+        "o valor não está na forma observada",
+    ))?;
     for campo in ["Processo", "Anotações"] {
         if headers.iter().filter(|h| h.as_str() == campo).count() != 1 {
-            return Err(E::CabecalhoInvalido);
+            return Err(E::valor(
+                "cabecalho_do_bloco_invalido",
+                "o valor não está na forma observada",
+            ));
         }
     }
     if tipo == TipoBloco::Assinatura
         && headers.iter().filter(|h| h.as_str() == "Documento").count() != 1
     {
-        return Err(E::CabecalhoInvalido);
+        return Err(E::valor(
+            "cabecalho_do_bloco_invalido",
+            "o valor não está na forma observada",
+        ));
     }
     let itens = ler_itens(tabela, parser, &headers, tipo)?;
     let (total_declarado, faixa_observada) = faixa(&texto(caption, parser), itens.len())?;
@@ -240,7 +309,10 @@ mod tests {
         let html = "<table id='tblProtocolosBlocos'><caption>Lista (9 registros):</caption><tr><th>Processo</th><th>Anotações</th></tr><tr><td>NUP</td><td></td></tr></table>";
         assert_eq!(
             ler_detalhe(html, "91", TipoBloco::Reuniao).err(),
-            Some(ErroDetalheBloco::FaixaInvalida)
+            Some(crate::erro_html::ErroHtml::valor(
+                "faixa_do_bloco_invalida",
+                "o valor não está na forma observada"
+            ))
         );
     }
 }

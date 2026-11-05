@@ -156,23 +156,38 @@ fn no_movido_fora_da_forma_e_recusa() {
     let casos: Vec<(Vec<String>, E)> = vec![
         (
             vec![p(), d(), m("31", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), d(), m("31-", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), d(), m("-41", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), d(), m("3a-41", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), d(), m("31-41-5", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![
@@ -180,7 +195,10 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3("id_procedimento=10&", "id_procedimento=10&id_documento=31&"),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![
@@ -188,11 +206,17 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3("acao=arvore_visualizar", "acao=procedimento_trabalhar"),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), d(), com_a3("\"controlador.php?", "\"about:blank?")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![
@@ -200,7 +224,10 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3(",\"Oficio Sintetico (0000103)\",", ",\"\","),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         // a3 do outro processo acompanha o pai: o pai é que diverge.
         (
@@ -218,7 +245,10 @@ fn no_movido_fora_da_forma_e_recusa() {
                 m("31-41", "10"),
                 no_movido(3, "31-41", "10", "0000104"),
             ],
-            E::DocumentoMovidoRepetidoNaArvore,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "documento_movido_repetido_na_arvore",
+                "o elemento aparece mais de uma vez",
+            )),
         ),
         (
             vec![
@@ -227,7 +257,10 @@ fn no_movido_fora_da_forma_e_recusa() {
                 m("31-41", "10"),
                 no_movido(3, "31-42", "10", "0000104"),
             ],
-            E::DocumentoMovidoRepetidoNaArvore,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "documento_movido_repetido_na_arvore",
+                "o elemento aparece mais de uma vez",
+            )),
         ),
         (
             vec![
@@ -277,7 +310,10 @@ fn destino_fora_da_forma_e_recusa() {
     for html in fora {
         assert_eq!(
             ler_tudo(&html),
-            Err(E::DestinoDoDocumentoMovidoForaDaFormaObservada),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "destino_do_documento_movido_fora_da_forma_observada",
+                "o valor não está na forma observada"
+            ))),
             "{html}"
         );
     }
@@ -290,7 +326,10 @@ fn destino_fora_da_forma_e_recusa() {
     for html in [dois_links, dois_html] {
         assert_eq!(
             ler_tudo(&html),
-            Err(E::DestinosDoDocumentoMovidoRepetidos),
+            Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "destinos_do_documento_movido_repetidos",
+                "o elemento aparece mais de uma vez"
+            ))),
             "{html}"
         );
     }
@@ -299,11 +338,23 @@ fn destino_fora_da_forma_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let nomes: Vec<&str> = [
-        E::DocumentoMovidoForaDaFormaObservada,
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "documento_movido_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )),
         E::DocumentoMovidoComPaiDiferenteDoProcesso,
-        E::DocumentoMovidoRepetidoNaArvore,
-        E::DestinoDoDocumentoMovidoForaDaFormaObservada,
-        E::DestinosDoDocumentoMovidoRepetidos,
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "documento_movido_repetido_na_arvore",
+            "o elemento aparece mais de uma vez",
+        )),
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "destino_do_documento_movido_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "destinos_do_documento_movido_repetidos",
+            "o elemento aparece mais de uma vez",
+        )),
     ]
     .into_iter()
     .map(|e| crate::erro_publico::folha(&e))

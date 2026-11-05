@@ -6,7 +6,12 @@ use crate::html_atributos::valor_do_atributo;
 /// Em visão resumida, um paginador observado impede certificar a caixa
 /// pelo total da legenda da primeira página, mesmo quando coincide.
 pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
     for seletor in ["a", "select"] {
         if let Some(elementos) = dom.query_selector(seletor) {
@@ -14,7 +19,13 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
                 let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
                     continue;
                 };
-                let id = valor_do_atributo(tag, "id").map_err(|_| ErroCaixa::HtmlInvalido)?;
+                let id = valor_do_atributo(tag, "id").map_err(|e| {
+                    ErroCaixa::Html(crate::erro_html::ErroHtml::atributo(
+                        "html_da_caixa_invalido",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?;
                 if id.is_some_and(|nome| {
                     nome.starts_with("lnkInfraProximaPagina")
                         || nome.starts_with("lnkInfraPaginaAnterior")
@@ -46,7 +57,12 @@ pub(crate) fn paginador_da_tabela(
 /// Paginador `lnk{prefixo}*`/`sel{prefixo}Paginacao*`; `Detalhado` na visão D
 /// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
 pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
     for (seletor, marcas) in [
         (
@@ -64,7 +80,13 @@ pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, E
             let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let id = valor_do_atributo(tag, "id").map_err(|_| ErroCaixa::HtmlInvalido)?;
+            let id = valor_do_atributo(tag, "id").map_err(|e| {
+                ErroCaixa::Html(crate::erro_html::ErroHtml::atributo(
+                    "html_da_caixa_invalido",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })?;
             let resto = id.as_deref().and_then(|nome| {
                 nome.strip_prefix(if seletor == "a" { "lnk" } else { "sel" })?
                     .strip_prefix(prefixo)

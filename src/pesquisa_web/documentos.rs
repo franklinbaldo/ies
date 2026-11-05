@@ -67,21 +67,14 @@ pub(crate) enum ErroDocumentoDaPesquisa {
     Linha(ErroResultadoPesquisa),
     #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
-    CelulaDoTituloDoDocumentoAusenteOuRepetida,
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
-    LinkDoDocumentoAusenteNaLinha,
-    LinksDoDocumentoRepetidosNaLinha,
-    LinkDaLinhaDeDocumentoNaoReconhecido,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,
-    NumeroSeiAusenteNaLinha,
-    RotuloDoDocumentoAusente,
-    MetadadoDoDocumentoRepetido,
-    DataDeInclusaoForaDaFormaObservada,
     LinhaDaPesquisaForaDeUmRegistro,
-    NumeroSeiRepetidoNaPesquisa,
     #[causa(interna)]
     NumeroDoProcesso(NumeroProcessoInvalido),
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroDocumentoDaPesquisa {}

@@ -53,7 +53,10 @@ impl ContextoPagina {
 // `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
 // usa a chave corrompida após atributo booleano sem valor.
 fn ilegivel(_: ErroAtributoHtml) -> ErroCaixa {
-    ErroCaixa::HtmlInvalido
+    ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+        "html_da_caixa_invalido",
+        "o HTML não pôde ser interpretado",
+    ))
 }
 
 fn primeiro_com_id<'d>(
@@ -88,7 +91,12 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
 #[cfg(test)]
 pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
@@ -107,7 +115,12 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
 }
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     contexto_do_dom(&dom)
 }
 
@@ -123,7 +136,12 @@ pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, Erro
 /// processos do marcador escolhido (POST de "Listar processos com o
 /// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
 pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
     for no in dom.query_selector("input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -153,7 +171,10 @@ fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
 /// repetidas fora do par móvel/desktop equivalente.
 pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
     if id_repetido(dom, "lnkInfraUnidade")? && !par_de_barras_equivalentes(dom)? {
-        return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
+        return Err(ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+            "identificacoes_da_unidade_repetidas_no_controle",
+            "o elemento aparece mais de uma vez",
+        )));
     }
     unidade_html_original(dom)
 }
@@ -213,9 +234,18 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
     if id_repetido(dom, id)? {
         return Err(match id {
-            "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
-            "hdnRecebidosHashCriterios" => ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
-            "hdnGeradosHashCriterios" => ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
+            "hdnTipoVisualizacao" => ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "tipos_de_visualizacao_repetidos_no_controle",
+                "o elemento aparece mais de uma vez",
+            )),
+            "hdnRecebidosHashCriterios" => ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "hashes_de_criterios_recebidos_repetidos_no_controle",
+                "o elemento aparece mais de uma vez",
+            )),
+            "hdnGeradosHashCriterios" => ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "hashes_de_criterios_gerados_repetidos_no_controle",
+                "o elemento aparece mais de uma vez",
+            )),
             _ => ErroCaixa::ContextoNaoVerificavel,
         });
     }
@@ -268,7 +298,10 @@ mod tests {
         let repetido = format!("{html}<input disabled id='hdnTipoVisualizacao' value='D'>");
         assert_eq!(
             contexto_da_pagina(&repetido).unwrap_err(),
-            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+            ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "tipos_de_visualizacao_repetidos_no_controle",
+                "o elemento aparece mais de uma vez"
+            ))
         );
     }
 
@@ -277,11 +310,17 @@ mod tests {
         let html = format!("{}<a id='lnkInfraUnidade'>UNIDADE B</a>", controle());
         assert_eq!(
             unidade_exibida_no_controle(&html),
-            Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
+            Err(ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "identificacoes_da_unidade_repetidas_no_controle",
+                "o elemento aparece mais de uma vez"
+            )))
         );
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
-            ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
+            ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "identificacoes_da_unidade_repetidas_no_controle",
+                "o elemento aparece mais de uma vez"
+            ))
         );
     }
 
@@ -290,7 +329,10 @@ mod tests {
         let html = format!("{}<input id='hdnTipoVisualizacao' value='D'>", controle());
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
-            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+            ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                "tipos_de_visualizacao_repetidos_no_controle",
+                "o elemento aparece mais de uma vez"
+            ))
         );
     }
 
@@ -299,11 +341,17 @@ mod tests {
         for (id, esperado) in [
             (
                 "hdnRecebidosHashCriterios",
-                ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
+                ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                    "hashes_de_criterios_recebidos_repetidos_no_controle",
+                    "o elemento aparece mais de uma vez",
+                )),
             ),
             (
                 "hdnGeradosHashCriterios",
-                ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
+                ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                    "hashes_de_criterios_gerados_repetidos_no_controle",
+                    "o elemento aparece mais de uma vez",
+                )),
             ),
         ] {
             let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
@@ -346,7 +394,10 @@ mod tests {
         ] {
             assert_eq!(
                 unidade_exibida_no_controle(&html),
-                Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
+                Err(ErroCaixa::Html(crate::erro_html::ErroHtml::repetido(
+                    "identificacoes_da_unidade_repetidas_no_controle",
+                    "o elemento aparece mais de uma vez"
+                )))
             );
         }
     }

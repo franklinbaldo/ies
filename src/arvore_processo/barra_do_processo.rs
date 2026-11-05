@@ -95,8 +95,14 @@ pub(crate) fn ler_link_dos_comentarios(
 ) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
     use ErroLinkDosComentarios as E;
     let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::BarraForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => E::BarrasRepetidasNaArvore,
+        FalhaDaBarra::Fora => E::Html(crate::erro_html::ErroHtml::valor(
+            "barra_dos_comentarios_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )),
+        FalhaDaBarra::Repetidas => E::Html(crate::erro_html::ErroHtml::repetido(
+            "barras_dos_comentarios_repetidas_na_arvore",
+            "o elemento aparece mais de uma vez",
+        )),
     })?;
     let achados: Vec<_> = hrefs
         .iter()
@@ -105,12 +111,20 @@ pub(crate) fn ler_link_dos_comentarios(
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [unico] => unico,
-        _ => return Err(E::LinksRepetidosNaBarra),
+        _ => {
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "links_dos_comentarios_repetidos_na_barra",
+                "o elemento aparece mais de uma vez",
+            )));
+        }
     };
     conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
         .map(|url| Some(EnderecoDosComentarios::novo(url)))
         .map_err(|falha| match falha {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
+            EnderecoRecusado::NaoReconhecido => E::Html(crate::erro_html::ErroHtml::valor(
+                "endereco_dos_comentarios_nao_reconhecido",
+                "o valor não está na forma observada",
+            )),
             EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
         })
 }

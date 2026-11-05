@@ -61,29 +61,47 @@ fn formas_recusadas() {
         // Indentada ou com texto antes.
         (
             r#"  Nos[0] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             r#"x=1;Nos[0] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         // Sem o fechamento exato, ou com algo depois.
         (
             r#"Nos[0] = new infraArvoreNo("A")"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A"); x();"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         // Índice que não é decimal.
         (
             r#"Nos[i] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             r#"Nos[] = new infraArvoreNo("A");"#,
-            E::DeclaracaoDeNoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "declaracao_de_no_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
         ),
         // Expressões, identificadores e concatenação não são literais.
         (
@@ -117,11 +135,17 @@ fn formas_recusadas() {
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\x41");"#,
-            E::EscapeDeNoNaoReconhecido,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "escape_de_no_nao_reconhecido",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\u{41}");"#,
-            E::EscapeDeNoNaoReconhecido,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "escape_de_no_nao_reconhecido",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\");"#,

@@ -122,7 +122,13 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         assert!(!sessao_encerrada(subcodigo), "{subcodigo}");
     }
     let invalidos = [
-        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
+        (
+            FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+                "cookie_invalido",
+                "formato de cookie de sessão inválido",
+            )),
+            "cookie_invalido",
+        ),
         (
             FalhaTransporte::OrigemNaoAutorizada,
             "origem_nao_autorizada",

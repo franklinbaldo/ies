@@ -21,7 +21,10 @@ pub(crate) fn ler_propriedades(
     id: &str,
     fonte: FonteDasPropriedades,
 ) -> Result<PropriedadesLidas, E> {
-    let ilegivel = E::HtmlDasPropriedadesNaoInterpretado;
+    let ilegivel = E::Html(crate::erro_html::ErroHtml::html(
+        "html_das_propriedades_nao_interpretado",
+        "o HTML não pôde ser interpretado",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let formulario = match nos_com_id(&dom, FORMULARIO)
@@ -33,7 +36,12 @@ pub(crate) fn ler_propriedades(
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ilegivel)?,
-        _ => return Err(E::FormulariosDasPropriedadesRepetidos),
+        _ => {
+            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "formularios_das_propriedades_repetidos",
+                "o elemento aparece mais de uma vez",
+            )));
+        }
     };
     let campos = Campos { formulario, parser };
     if valor(campos.unico("hdnProtocoloFormatado")?)? != nup {
@@ -69,21 +77,36 @@ struct Campos<'p> {
 
 impl<'p> Campos<'p> {
     fn opcional(&self, id: &str) -> Result<Option<Tag<'p>>, E> {
-        let nos = nos_com_id_em(self.formulario, self.parser, id)
-            .map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
+        let nos = nos_com_id_em(self.formulario, self.parser, id).map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "html_das_propriedades_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?;
         match nos.as_slice() {
             [] => Ok(None),
             [unico] => unico
                 .get(self.parser)
                 .and_then(tl::Node::as_tag)
                 .map(Some)
-                .ok_or(E::HtmlDasPropriedadesNaoInterpretado),
-            _ => Err(E::CampoDasPropriedadesRepetido),
+                .ok_or(E::Html(crate::erro_html::ErroHtml::html(
+                    "html_das_propriedades_nao_interpretado",
+                    "o HTML não pôde ser interpretado",
+                ))),
+            _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
+                "campo_das_propriedades_repetido",
+                "o elemento aparece mais de uma vez",
+            ))),
         }
     }
 
     fn unico(&self, id: &str) -> Result<Tag<'p>, E> {
-        self.opcional(id)?.ok_or(E::CampoDasPropriedadesAusente)
+        self.opcional(id)?
+            .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
+                "campo_das_propriedades_ausente",
+                "a tela não tem o elemento observado",
+            )))
     }
 
     /// `(value, selected, texto)` de cada `option` de `select`, em ordem.
@@ -97,10 +120,20 @@ impl<'p> Campos<'p> {
             let Some(tag) = no.get(self.parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let lidos = atributos(tag).map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
-            let bruto = lidos
-                .valor("value")
-                .map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
+            let lidos = atributos(tag).map_err(|e| {
+                E::Html(crate::erro_html::ErroHtml::atributo(
+                    "html_das_propriedades_nao_interpretado",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })?;
+            let bruto = lidos.valor("value").map_err(|e| {
+                E::Html(crate::erro_html::ErroHtml::atributo(
+                    "html_das_propriedades_nao_interpretado",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })?;
             let valor = bruto.map(decodificar).transpose()?.unwrap_or_default();
             let texto = espacos(&decodificar(&tag.inner_text(self.parser))?);
             opcoes.push((valor, lidos.presente("selected"), texto));
@@ -125,10 +158,20 @@ fn espacos(texto: &str) -> String {
 
 /// `value` decodificado; sem o atributo, vazio.
 fn valor(tag: Tag<'_>) -> Result<String, E> {
-    let lidos = atributos(tag).map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
-    let bruto = lidos
-        .valor("value")
-        .map_err(|_| E::CampoDasPropriedadesRepetido)?;
+    let lidos = atributos(tag).map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "html_das_propriedades_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })?;
+    let bruto = lidos.valor("value").map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "campo_das_propriedades_repetido",
+            "o elemento aparece mais de uma vez",
+            e,
+        ))
+    })?;
     bruto
         .map(decodificar)
         .transpose()
@@ -147,7 +190,10 @@ fn marcada(campos: &Campos<'_>, select: Tag<'_>) -> Result<Option<(String, Strin
         [] => Ok(None),
         [(valor, _)] if valor == "null" => Ok(None),
         [unica] => Ok(Some(unica.clone())),
-        _ => Err(E::OpcoesMarcadasRepetidas),
+        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "opcoes_marcadas_repetidas",
+            "o elemento aparece mais de uma vez",
+        ))),
     }
 }
 
@@ -169,7 +215,10 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, E> {
     let mut lidos = Vec::new();
     for (valor, _, texto) in campos.opcoes(select)? {
         if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) || texto.is_empty() {
-            return Err(E::AssuntoForaDaFormaObservada);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "assunto_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )));
         }
         let codigo = texto.split_once(" - ").filter(|(codigo, descricao)| {
             !descricao.is_empty()
@@ -197,7 +246,10 @@ fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, E> {
         .into_iter()
         .map(|(_, _, texto)| {
             if texto.is_empty() {
-                Err(E::InteressadoForaDaFormaObservada)
+                Err(E::Html(crate::erro_html::ErroHtml::valor(
+                    "interessado_fora_da_forma_observada",
+                    "o valor não está na forma observada",
+                )))
             } else {
                 Ok(texto)
             }
@@ -225,10 +277,20 @@ fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, E> {
         let Some(tag) = no.get(campos.parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
-        let nome = lidos
-            .valor("name")
-            .map_err(|_| E::HtmlDasPropriedadesNaoInterpretado)?;
+        let lidos = atributos(tag).map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "html_das_propriedades_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?;
+        let nome = lidos.valor("name").map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "html_das_propriedades_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?;
         if nome != Some("rdoNivelAcesso") || !lidos.presente("checked") {
             continue;
         }
@@ -241,7 +303,10 @@ fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, E> {
         [(Some("0"), Some("optPublico"))] => Ok(NivelDeAcesso::Publico),
         [(Some("1"), Some("optRestrito"))] => Ok(NivelDeAcesso::Restrito),
         [(Some("2"), Some("optSigiloso"))] => Ok(NivelDeAcesso::Sigiloso),
-        _ => Err(E::NivelDeAcessoForaDaFormaObservada),
+        _ => Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "nivel_de_acesso_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        ))),
     }
 }
 
@@ -260,7 +325,10 @@ fn data_de_geracao(campos: &Campos<'_>) -> Result<Option<String>, E> {
             _ => b.is_ascii_digit(),
         });
     if !forma {
-        return Err(E::DataDeGeracaoForaDaFormaObservada);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "data_de_geracao_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )));
     }
     Ok(Some(data))
 }

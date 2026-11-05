@@ -37,7 +37,10 @@ fn nao_escolhe_entre_links_de_sobrestar_duplicados() {
     let html = arvore(&[barra("10"), barra("10")]);
     assert_eq!(
         ler_sobrestar_da_barra(&instalacao(), &html, "10"),
-        Err(E::AcoesRepetidas)
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "acoes_de_sobrestamento_repetidas_na_barra",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 #[test]
@@ -61,6 +64,9 @@ fn retomar_repetido_recusado_antes_de_escrever() {
     let html = arvore(&[retomar(), retomar()]);
     assert_eq!(
         ler_retomar_da_barra(&instalacao(), &html, "10"),
-        Err(E::AcoesRepetidas)
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "acoes_de_sobrestamento_repetidas_na_barra",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }

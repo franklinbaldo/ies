@@ -73,7 +73,10 @@ fn botao_desabilitado_pelo_onsubmit_e_exigido_mas_nao_enviado() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+        ErroSubmissaoFormulario::Html(crate::erro_html::ErroHtml::ausente(
+            "botao_de_envio_ausente_no_formulario",
+            "a tela não tem o elemento observado"
+        ))
     );
 }
 
@@ -102,7 +105,10 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::Html(crate::erro_html::ErroHtml::valor(
+            "acao_do_formulario_fora_da_instalacao",
+            "o valor não está na forma observada"
+        ))
     );
     let ponto = html.replace("action='login.php?s=1'", "action='../sei/login.php'");
     assert_eq!(
@@ -113,6 +119,9 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::Html(crate::erro_html::ErroHtml::valor(
+            "acao_do_formulario_fora_da_instalacao",
+            "o valor não está na forma observada"
+        ))
     );
 }

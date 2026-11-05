@@ -229,7 +229,12 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
         ),
         (
             arvore(&[UNIDADE], &[tela()[0].clone(), ACAO_FUNCAO.to_owned()]),
-            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra),
+            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::Html(
+                crate::erro_html::ErroHtml::repetido(
+                    "formas_de_concluir_repetidas_na_barra",
+                    "o elemento aparece mais de uma vez",
+                ),
+            )),
         ),
     ];
     for (html, erro) in casos {
@@ -277,9 +282,12 @@ fn tela_do_no_sem_a_funcao_nao_escreve() {
     let (r, feitos) = rodar(&amb, true, respostas);
     assert_eq!(
         r,
-        Err(C::FuncaoDeConcluir(
-            ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo
-        ))
+        Err(C::FuncaoDeConcluir(ErroFuncaoDeConcluir::Html(
+            crate::erro_html::ErroHtml::ausente(
+                "funcao_de_concluir_ausente_na_tela_do_no",
+                "a tela não tem o elemento observado"
+            )
+        )))
     );
     assert_eq!(feitos, pedidos(vec![get(&links().1)]));
 }

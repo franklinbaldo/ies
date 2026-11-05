@@ -90,11 +90,17 @@ fn location_http_so_aceita_o_mesmo_host_sem_porta_alternativa() {
         ("https://sei.exemplo.gov.br", Ok(())),
         (
             "http://outro.gov.br",
-            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "localizacao_do_redirecionamento_fora_da_instalacao",
+                "o valor não está na forma observada",
+            ))),
         ),
         (
             "//outro.gov.br",
-            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "localizacao_do_redirecionamento_fora_da_instalacao",
+                "o valor não está na forma observada",
+            ))),
         ),
         (
             "http://sei.exemplo.gov.br:8080",
@@ -110,9 +116,18 @@ fn location_http_so_aceita_o_mesmo_host_sem_porta_alternativa() {
 fn location_ausente_ou_vazio_e_recusado() {
     assert_eq!(
         interpretar(None).unwrap_err(),
-        E::LocalizacaoDoRedirecionamentoAusente
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "localizacao_do_redirecionamento_ausente",
+            "a tela não tem o elemento observado"
+        ))
     );
-    assert_eq!(erro(""), E::LocalizacaoDoRedirecionamentoAusente);
+    assert_eq!(
+        erro(""),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "localizacao_do_redirecionamento_ausente",
+            "a tela não tem o elemento observado"
+        ))
+    );
 }
 
 #[test]
@@ -137,7 +152,10 @@ fn location_para_outro_host_ou_outro_caminho_e_recusado() {
         let localizacao = format!("{prefixo}{}", consulta("7"));
         assert_eq!(
             erro(&localizacao),
-            E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "localizacao_do_redirecionamento_fora_da_instalacao",
+                "o valor não está na forma observada"
+            )),
             "{prefixo}"
         );
     }
@@ -199,11 +217,29 @@ fn acao_diferente_ausente_ou_repetida_e_recusada() {
 #[test]
 fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
     let sem_id = observado().replace("id_procedimento=7&", "");
-    assert_eq!(erro(&sem_id), E::IdProcedimentoAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&sem_id),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "id_procedimento_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let vazio = format!("controlador.php?{}", consulta(""));
-    assert_eq!(erro(&vazio), E::IdProcedimentoAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&vazio),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "id_procedimento_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetido = format!("{}&id_procedimento=7", observado());
-    assert_eq!(erro(&repetido), E::IdProcedimentoRepetidoNoRedirecionamento);
+    assert_eq!(
+        erro(&repetido),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "id_procedimento_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     for id in ["7a", "-7", "+7", "%37", "0x7"] {
         let alterado = format!("controlador.php?{}", consulta(id));
         assert_eq!(
@@ -217,9 +253,21 @@ fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
 #[test]
 fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
     let sem_hash = observado().replace(&format!("&infra_hash={HASH_DESTINO}"), "");
-    assert_eq!(erro(&sem_hash), E::InfraHashAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&sem_hash),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "infra_hash_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetido = format!("{}&infra_hash={HASH_DESTINO}", observado());
-    assert_eq!(erro(&repetido), E::InfraHashRepetidoNoRedirecionamento);
+    assert_eq!(
+        erro(&repetido),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "infra_hash_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     for hash in [
         "e".repeat(63),
         "e".repeat(65),
@@ -239,9 +287,21 @@ fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
 #[test]
 fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
     let sem = observado().replace("&infra_unidade_atual=5", "");
-    assert_eq!(erro(&sem), E::UnidadeAtualAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&sem),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "unidade_atual_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetida = format!("{}&infra_unidade_atual=5", observado());
-    assert_eq!(erro(&repetida), E::UnidadeAtualRepetidaNoRedirecionamento);
+    assert_eq!(
+        erro(&repetida),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "unidade_atual_repetida_no_redirecionamento",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     let outra = observado().replace("infra_unidade_atual=5", "infra_unidade_atual=6");
     assert_eq!(
         erro(&outra),
@@ -250,21 +310,39 @@ fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
     let envio_sem = url_do_envio().replace("&infra_unidade_atual=5", "");
     assert_eq!(
         interpretar_com_envio(Some(&observado()), &envio_sem).unwrap_err(),
-        E::UnidadeAtualAusenteNaUrlDoEnvio
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "unidade_atual_ausente_na_url_do_envio",
+            "a tela não tem o elemento observado"
+        ))
     );
     let envio_repetido = format!("{}&infra_unidade_atual=5", url_do_envio());
     assert_eq!(
         interpretar_com_envio(Some(&observado()), &envio_repetido).unwrap_err(),
-        E::UnidadeAtualRepetidaNaUrlDoEnvio
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "unidade_atual_repetida_na_url_do_envio",
+            "o elemento aparece mais de uma vez"
+        ))
     );
 }
 
 #[test]
 fn acao_de_origem_ausente_repetida_ou_diferente_da_pesquisa_e_recusada() {
     let sem = observado().replace("&acao_origem=protocolo_pesquisar", "");
-    assert_eq!(erro(&sem), E::AcaoDeOrigemAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&sem),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "acao_de_origem_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetida = format!("{}&acao_origem=protocolo_pesquisar", observado());
-    assert_eq!(erro(&repetida), E::AcaoDeOrigemRepetidaNoRedirecionamento);
+    assert_eq!(
+        erro(&repetida),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "acao_de_origem_repetida_no_redirecionamento",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     for origem in ["procedimento_controlar", "", "PROTOCOLO_PESQUISAR"] {
         let outra = observado().replace(
             "acao_origem=protocolo_pesquisar",
@@ -281,9 +359,21 @@ fn acao_de_origem_ausente_repetida_ou_diferente_da_pesquisa_e_recusada() {
 #[test]
 fn infra_sistema_do_redirecionamento_precisa_ser_decimal_e_o_do_envio() {
     let sem = observado().replace("&infra_sistema=1", "");
-    assert_eq!(erro(&sem), E::InfraSistemaAusenteNoRedirecionamento);
+    assert_eq!(
+        erro(&sem),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "infra_sistema_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetido = format!("{}&infra_sistema=1", observado());
-    assert_eq!(erro(&repetido), E::InfraSistemaRepetidoNoRedirecionamento);
+    assert_eq!(
+        erro(&repetido),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "infra_sistema_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     for valor in ["", "1a", "-1", "%31", "+1"] {
         let alterado = observado().replace("infra_sistema=1", &format!("infra_sistema={valor}"));
         assert_eq!(
@@ -308,11 +398,17 @@ fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado()
     let casos = [
         (
             url_do_envio().replace("&infra_sistema=1", ""),
-            E::InfraSistemaAusenteNaUrlDoEnvio,
+            E::Html(crate::erro_html::ErroHtml::ausente(
+                "infra_sistema_ausente_na_url_do_envio",
+                "a tela não tem o elemento observado",
+            )),
         ),
         (
             format!("{}&infra_sistema=1", url_do_envio()),
-            E::InfraSistemaRepetidoNaUrlDoEnvio,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "infra_sistema_repetido_na_url_do_envio",
+                "o elemento aparece mais de uma vez",
+            )),
         ),
         (
             url_do_envio().replace("infra_sistema=1", "infra_sistema=x"),
@@ -331,31 +427,79 @@ fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado()
 #[test]
 fn subcodigos_sao_estaveis_e_distintos() {
     let todos = [
-        E::LocalizacaoDoRedirecionamentoAusente,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "localizacao_do_redirecionamento_ausente",
+            "a tela não tem o elemento observado",
+        )),
         E::LocalizacaoDoRedirecionamentoAcimaDoLimite,
         E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
-        E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "localizacao_do_redirecionamento_fora_da_instalacao",
+            "o valor não está na forma observada",
+        )),
         E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
         E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
-        E::IdProcedimentoAusenteNoRedirecionamento,
-        E::IdProcedimentoRepetidoNoRedirecionamento,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "id_procedimento_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "id_procedimento_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez",
+        )),
         E::IdProcedimentoNaoDecimalNoRedirecionamento,
-        E::InfraHashAusenteNoRedirecionamento,
-        E::InfraHashRepetidoNoRedirecionamento,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "infra_hash_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "infra_hash_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez",
+        )),
         E::InfraHashForaDoFormatoNoRedirecionamento,
-        E::UnidadeAtualAusenteNoRedirecionamento,
-        E::UnidadeAtualRepetidaNoRedirecionamento,
-        E::UnidadeAtualAusenteNaUrlDoEnvio,
-        E::UnidadeAtualRepetidaNaUrlDoEnvio,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "unidade_atual_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "unidade_atual_repetida_no_redirecionamento",
+            "o elemento aparece mais de uma vez",
+        )),
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "unidade_atual_ausente_na_url_do_envio",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "unidade_atual_repetida_na_url_do_envio",
+            "o elemento aparece mais de uma vez",
+        )),
         E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
-        E::AcaoDeOrigemAusenteNoRedirecionamento,
-        E::AcaoDeOrigemRepetidaNoRedirecionamento,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "acao_de_origem_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "acao_de_origem_repetida_no_redirecionamento",
+            "o elemento aparece mais de uma vez",
+        )),
         E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
-        E::InfraSistemaAusenteNoRedirecionamento,
-        E::InfraSistemaRepetidoNoRedirecionamento,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "infra_sistema_ausente_no_redirecionamento",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "infra_sistema_repetido_no_redirecionamento",
+            "o elemento aparece mais de uma vez",
+        )),
         E::InfraSistemaNaoDecimalNoRedirecionamento,
-        E::InfraSistemaAusenteNaUrlDoEnvio,
-        E::InfraSistemaRepetidoNaUrlDoEnvio,
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "infra_sistema_ausente_na_url_do_envio",
+            "a tela não tem o elemento observado",
+        )),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "infra_sistema_repetido_na_url_do_envio",
+            "o elemento aparece mais de uma vez",
+        )),
         E::InfraSistemaNaoDecimalNaUrlDoEnvio,
         E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
     ];

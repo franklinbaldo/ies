@@ -122,7 +122,10 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&extra),
-        Err(E::OpcaoDoDetalheNaoPrevista)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "opcao_do_nivel_de_detalhe_nao_prevista",
+            "o valor não está na forma observada"
+        )))
     );
     let rotulo = base.replacen(">Prioridade</label>", ">Urgência</label>", 1);
     assert_eq!(
@@ -142,12 +145,18 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe("<html><form id='x'></form></html>"),
-        Err(E::FormularioDoNivelDeDetalheAusente)
+        Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_do_nivel_de_detalhe_ausente",
+            "a tela não tem o elemento observado"
+        )))
     );
     let dois = format!("{base}{base}");
     assert_eq!(
         ler_nivel_de_detalhe(&dois),
-        Err(E::FormulariosDoNivelDeDetalheRepetidos)
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "formularios_do_nivel_de_detalhe_repetidos",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 
@@ -189,7 +198,10 @@ fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&desconhecida),
-        Err(E::OpcaoDoDetalheNaoPrevista)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "opcao_do_nivel_de_detalhe_nao_prevista",
+            "o valor não está na forma observada"
+        )))
     );
     let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinMarcadores\"", 1);
     assert_eq!(

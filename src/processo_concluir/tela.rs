@@ -56,10 +56,19 @@ pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
 /// controles enviáveis, o processo, "Somente concluir" marcado e nada da
 /// reabertura programada preenchido.
 pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::html(
+            "tela_de_conclusao_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
-        .map_err(|_| E::FormularioDeConclusaoAusente)?;
+    let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_de_conclusao_ausente",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
     let mut somente_marcado = false;
     let mut outra_marcada = false;
     let mut preenchida = false;
@@ -111,7 +120,12 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> 
             }
             ("input", "radio", PRAZO) | ("input", "checkbox", UTEIS) => preenchida |= marcado,
             ("input", "text", DATA | DIAS) => preenchida |= !servido.is_empty(),
-            _ => return Err(E::CampoNaoPrevistoNaTelaDeConclusao),
+            _ => {
+                return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                    "campo_nao_previsto_na_tela_de_conclusao",
+                    "o valor não está na forma observada",
+                )));
+            }
         }
     }
     if !somente_marcado || outra_marcada {
@@ -124,11 +138,23 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> 
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+    atributo_presente(tag, nome).map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "tela_de_conclusao_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })
 }
 
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+    valor_do_atributo(tag, nome).map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "tela_de_conclusao_nao_interpretada",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`

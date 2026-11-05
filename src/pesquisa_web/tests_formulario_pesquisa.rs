@@ -101,15 +101,33 @@ fn deriva_opcao_de_processos_e_orgaos_selecionados_servidos_na_ordem_do_document
 #[test]
 fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() {
     let sem = observado().replace("id='optProcessos'", "id='outro'");
-    assert_eq!(regra(&sem), R::OpcaoDeProcessosAusenteNaTela);
+    assert_eq!(
+        regra(&sem),
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_processos_ausente_na_tela",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let repetida = observado().replace(
         "<input type='checkbox' id='chkSinConsiderarDocumentos'",
         "<input type='radio' id='optProcessos' name='rdoPesquisarEm' value='P'>\
          <input type='checkbox' id='chkSinConsiderarDocumentos'",
     );
-    assert_eq!(regra(&repetida), R::OpcoesDeProcessosRepetidasNaTela);
+    assert_eq!(
+        regra(&repetida),
+        R::Html(crate::erro_html::ErroHtml::repetido(
+            "opcoes_de_processos_repetidas_na_tela",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     let sem_valor = observado().replace("name='rdoPesquisarEm' value='P'", "name='rdoPesquisarEm'");
-    assert_eq!(regra(&sem_valor), R::OpcaoDeProcessosSemValorNaTela);
+    assert_eq!(
+        regra(&sem_valor),
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_processos_sem_valor_na_tela",
+            "a tela não tem o elemento observado"
+        ))
+    );
     let outro_nome = observado().replace(
         "id='optProcessos' name='rdoPesquisarEm'",
         "id='optProcessos' name='rdoOutro'",
@@ -137,7 +155,10 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     // O `select` fora do `<form>` em `pagina` não conta.
     assert_eq!(
         regra(&pagina(&interior(""))),
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "seletor_de_orgao_de_pesquisa_ausente_na_tela",
+            "a tela não tem o elemento observado"
+        ))
     );
     let dois = format!(
         "{}{}",
@@ -146,7 +167,10 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     );
     assert_eq!(
         regra(&pagina(&interior(&dois))),
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela
+        R::Html(crate::erro_html::ErroHtml::repetido(
+            "seletores_de_orgao_de_pesquisa_repetidos_na_tela",
+            "o elemento aparece mais de uma vez"
+        ))
     );
     let simples = observado().replace(" multiple='multiple'", "");
     assert_eq!(
@@ -165,12 +189,18 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let sem_valor = select_de_orgao("<option selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&sem_valor))),
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_orgao_selecionada_sem_valor_na_tela",
+            "a tela não tem o elemento observado"
+        ))
     );
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&entidade))),
-        R::EntidadeHtmlDesconhecidaNaRegra
+        R::Html(crate::erro_html::ErroHtml::html(
+            "entidade_html_desconhecida_na_regra",
+            "o HTML não pôde ser interpretado"
+        ))
     );
 }
 
@@ -265,25 +295,51 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     let sem_form = html.replace("frmPesquisaProtocolo", "frmOutro");
     assert_eq!(
         derivar(&sem_form).unwrap_err(),
-        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::FormularioAusenteNaTela)
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Html(
+            crate::erro_html::ErroHtml::ausente(
+                "formulario_ausente_na_tela",
+                "a tela não tem o elemento observado"
+            )
+        ))
     );
 }
 
 #[test]
 fn subcodigos_das_regras_sao_distintos() {
     let todos = [
-        R::OpcaoDeProcessosAusenteNaTela,
-        R::OpcoesDeProcessosRepetidasNaTela,
-        R::OpcaoDeProcessosSemValorNaTela,
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_processos_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )),
+        R::Html(crate::erro_html::ErroHtml::repetido(
+            "opcoes_de_processos_repetidas_na_tela",
+            "o elemento aparece mais de uma vez",
+        )),
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_processos_sem_valor_na_tela",
+            "a tela não tem o elemento observado",
+        )),
         R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
         R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela,
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela,
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "seletor_de_orgao_de_pesquisa_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )),
+        R::Html(crate::erro_html::ErroHtml::repetido(
+            "seletores_de_orgao_de_pesquisa_repetidos_na_tela",
+            "o elemento aparece mais de uma vez",
+        )),
         R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
         R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela,
+        R::Html(crate::erro_html::ErroHtml::ausente(
+            "opcao_de_orgao_selecionada_sem_valor_na_tela",
+            "a tela não tem o elemento observado",
+        )),
         R::InicioDaPaginacaoDiferenteDeZeroNaTela,
-        R::EntidadeHtmlDesconhecidaNaRegra,
+        R::Html(crate::erro_html::ErroHtml::html(
+            "entidade_html_desconhecida_na_regra",
+            "o HTML não pôde ser interpretado",
+        )),
     ];
     let unicos: std::collections::HashSet<_> = todos
         .iter()
@@ -404,13 +460,22 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
         );
     }
     let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
-    assert_eq!(regra_do_termo(&html, "1"), R::CamposDoTermoRepetidosNaTela);
+    assert_eq!(
+        regra_do_termo(&html, "1"),
+        R::Html(crate::erro_html::ErroHtml::repetido(
+            "campos_do_termo_repetidos_na_tela",
+            "o elemento aparece mais de uma vez"
+        ))
+    );
     assert_eq!(
         crate::erro_publico::folha(&R::MaxlengthDoTermoIlegivelNaTela),
         "maxlength_do_termo_ilegivel_na_tela"
     );
     assert_eq!(
-        crate::erro_publico::folha(&R::CamposDoTermoRepetidosNaTela),
+        crate::erro_publico::folha(&R::Html(crate::erro_html::ErroHtml::repetido(
+            "campos_do_termo_repetidos_na_tela",
+            "o elemento aparece mais de uma vez"
+        ))),
         "campos_do_termo_repetidos_na_tela"
     );
 }

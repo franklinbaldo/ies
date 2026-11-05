@@ -292,13 +292,19 @@ fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
     for (html, esperado) in [
         (
             extra,
-            ErroVisaoDoControle::NivelDeDetalhe(
-                ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
-            ),
+            ErroVisaoDoControle::NivelDeDetalhe(ErroNivelDeDetalhe::Html(
+                crate::erro_html::ErroHtml::valor(
+                    "campo_nao_previsto_no_formulario_do_nivel_de_detalhe",
+                    "o valor não está na forma observada",
+                ),
+            )),
         ),
         (
             sem_botao,
-            ErroVisaoDoControle::Submissao(S::BotaoDeEnvioAusenteNoFormulario),
+            ErroVisaoDoControle::Submissao(S::Html(crate::erro_html::ErroHtml::ausente(
+                "botao_de_envio_ausente_no_formulario",
+                "a tela não tem o elemento observado",
+            ))),
         ),
     ] {
         for confirmar in [false, true] {

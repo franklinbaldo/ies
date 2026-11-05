@@ -142,7 +142,10 @@ fn formas_repetidas_e_enderecos_recusados() {
             "10",
         )
     };
-    let erro = Err(B::FormasDeConcluirRepetidasNaBarra);
+    let erro = Err(B::Html(crate::erro_html::ErroHtml::repetido(
+        "formas_de_concluir_repetidas_na_barra",
+        "o elemento aparece mais de uma vez",
+    )));
     assert_eq!(ler(&[pela_tela("10"), ACAO_FUNCAO.to_owned()]), erro);
     assert_eq!(ler(&[pela_tela("10"), pela_tela("10")]), erro);
     assert_eq!(ler(&[ACAO_FUNCAO.to_owned(), ACAO_FUNCAO.to_owned()]), erro);
@@ -151,12 +154,21 @@ fn formas_repetidas_e_enderecos_recusados() {
         Err(B::EnderecoDaConclusaoDeOutroProcesso)
     );
     let sem_hash = acao_da_barra(&link_de_concluir("10").replace(HASH_CONCLUIR, "abc"));
-    assert_eq!(ler(&[sem_hash]), Err(B::EnderecoDaConclusaoNaoReconhecido));
+    assert_eq!(
+        ler(&[sem_hash]),
+        Err(B::Html(crate::erro_html::ErroHtml::valor(
+            "endereco_da_conclusao_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
+    );
     // Forma 4.0 com a raiz sem `href` assinado (a forma da fixture comum).
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_FUNCAO);
     assert_eq!(
         ler_concluir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(B::EnderecoDaTelaDoNoNaoReconhecido)
+        Err(B::Html(crate::erro_html::ErroHtml::valor(
+            "endereco_da_tela_do_no_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
     );
 }
 
@@ -185,15 +197,33 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let ler = |html: &str| ler_funcao_de_concluir(&instalacao(), html, "10");
     let tela = tela_do_no("10");
     let sem = tela.replace("function concluirProcesso(){", "function outraCoisa(){");
-    assert_eq!(ler(&sem), Err(F::FuncaoDeConcluirAusenteNaTelaDoNo));
+    assert_eq!(
+        ler(&sem),
+        Err(F::Html(crate::erro_html::ErroHtml::ausente(
+            "funcao_de_concluir_ausente_na_tela_do_no",
+            "a tela não tem o elemento observado"
+        )))
+    );
     // `confirm` descomentado: forma não observada.
     let ativo = tela.replace(
         "//if (confirm('Confirma conclusão",
         "if (confirm('Confirma conclusão",
     );
-    assert_eq!(ler(&ativo), Err(F::FuncaoDeConcluirForaDaFormaObservada));
+    assert_eq!(
+        ler(&ativo),
+        Err(F::Html(crate::erro_html::ErroHtml::valor(
+            "funcao_de_concluir_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
     let duas = tela.replace("</script>", &format!("{}</script>", funcao_extra()));
-    assert_eq!(ler(&duas), Err(F::FuncoesDeConcluirRepetidasNaTelaDoNo));
+    assert_eq!(
+        ler(&duas),
+        Err(F::Html(crate::erro_html::ErroHtml::repetido(
+            "funcoes_de_concluir_repetidas_na_tela_do_no",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
     let outro = tela.replace(
         &format!("id_procedimento=10&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
         &format!("id_procedimento=11&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
@@ -203,7 +233,13 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
         &link_da_funcao("10"),
         &link_da_funcao("10").replace("procedimento_concluir", "procedimento_reabrir"),
     );
-    assert_eq!(ler(&reabrir), Err(F::EnderecoDaConclusaoNaoReconhecido));
+    assert_eq!(
+        ler(&reabrir),
+        Err(F::Html(crate::erro_html::ErroHtml::valor(
+            "endereco_da_conclusao_nao_reconhecido",
+            "o valor não está na forma observada"
+        )))
+    );
 }
 
 fn funcao_extra() -> String {

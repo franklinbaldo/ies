@@ -12,7 +12,7 @@ use crate::processo_criar_interessados::{
     ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
 };
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
-use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
+use crate::processo_criar_menu::link_de_iniciar;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
@@ -76,7 +76,7 @@ pub(crate) enum ErroCriar {
         http: Option<StatusHttpRecusado>,
     },
     UnidadeDiferente,
-    Menu(ErroMenuCriacao),
+    Menu(crate::erro_html::ErroHtml),
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),
     Formulario,
@@ -91,7 +91,7 @@ impl ErroCriar {
         match self {
             Self::Transporte { subcodigo, .. } => subcodigo,
             Self::UnidadeDiferente => "unidade_da_criacao_divergente",
-            Self::Menu(erro) => erro.subcodigo(),
+            Self::Menu(erro) => erro.onde,
             Self::Lista(erro) => erro.subcodigo(),
             Self::Cadastro(erro) => erro.subcodigo(),
             Self::Formulario => "formulario_de_criacao_nao_reconhecido",

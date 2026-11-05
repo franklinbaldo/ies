@@ -75,14 +75,23 @@ fn cadastro_de_lista_vazia_nao_se_confunde_com_tela_desconhecida() {
     );
     assert_eq!(
         ler_tela("<form id='frmComentarioCadastro'></form>"),
-        Err(ErroComentarios::TelaNaoReconhecida)
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_comentarios_nao_reconhecida",
+            "o valor não está na forma observada"
+        )))
     );
 }
 
 #[test]
 fn tabela_ausente_nao_significa_lista_vazia() {
     let html = lista_41().replace("<table id=\"tblComentarios\">", "<table>");
-    assert_eq!(ler_tela(&html), Err(ErroComentarios::TabelaAusente));
+    assert_eq!(
+        ler_tela(&html),
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::ausente(
+            "tabela_de_comentarios_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
 }
 
 #[test]
@@ -102,14 +111,23 @@ fn dois_comentarios_com_mesmo_id_sao_recusados() {
         .replace("</tbody>", &format!("{linha}</tbody>"));
     assert_eq!(
         ler_tela(&html),
-        Err(ErroComentarios::IdDoComentarioRepetido)
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::repetido(
+            "id_do_comentario_repetido",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 
 #[test]
 fn linha_de_4x_sem_texto_e_recusada() {
     let html = lista_41().replace("class=\"trComentario\"", "class=\"outra\"");
-    assert_eq!(ler_tela(&html), Err(ErroComentarios::LinhaInvalida));
+    assert_eq!(
+        ler_tela(&html),
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "linha_do_comentario_invalida",
+            "o valor não está na forma observada"
+        )))
+    );
 }
 
 #[test]
@@ -127,14 +145,20 @@ fn visao_ausente_ou_repetida_e_recusada() {
 fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
     assert_eq!(
         ler_tela(&lista_41().replace("value=\"42\"", "value=\"42?\"")),
-        Err(ErroComentarios::LinhaInvalida)
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "linha_do_comentario_invalida",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         ler_tela(&lista_41().replace(
             "<input type=\"checkbox\" value=\"42\">",
             "<input type=\"checkbox\" value=\"42\" value=\"43\">"
         )),
-        Err(ErroComentarios::HtmlNaoInterpretado)
+        Err(ErroComentarios::Html(crate::erro_html::ErroHtml::html(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado"
+        )))
     );
 }
 
@@ -186,7 +210,12 @@ fn comentario_em_outro_processo_ou_repetido_e_recusa() {
             link_comentarios("10"),
             link_comentarios("10"),
         ])),
-        Err(ErroLinkDosComentarios::LinksRepetidosNaBarra)
+        Err(ErroLinkDosComentarios::Html(
+            crate::erro_html::ErroHtml::repetido(
+                "links_dos_comentarios_repetidos_na_barra",
+                "o elemento aparece mais de uma vez"
+            )
+        ))
     );
 }
 

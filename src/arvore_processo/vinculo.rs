@@ -23,7 +23,10 @@ pub(crate) fn ler_vinculo_de_anexacao(
     let Some(texto) = html_da_raiz(html)? else {
         return Ok(None);
     };
-    let fora = ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
+    let fora = ErroArvore::Html(crate::erro_html::ErroHtml::html(
+        "html_do_no_do_processo_fora_da_forma_observada",
+        "o HTML não pôde ser interpretado",
+    ));
     let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora)?;
     let parser = dom.parser();
     let mut achado = None;
@@ -39,7 +42,10 @@ pub(crate) fn ler_vinculo_de_anexacao(
             continue;
         }
         if achado.is_some() {
-            return Err(ErroArvore::VinculosDeAnexacaoRepetidos);
+            return Err(ErroArvore::Html(crate::erro_html::ErroHtml::repetido(
+                "vinculos_de_anexacao_repetidos",
+                "o elemento aparece mais de uma vez",
+            )));
         }
         achado = Some(conferir(instalacao, href, &texto_unico(tag, parser), id)?);
     }
@@ -76,7 +82,10 @@ pub(super) fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
                 continue;
             };
             if texto.is_some() {
-                return Err(ErroArvore::VinculosDeAnexacaoRepetidos);
+                return Err(ErroArvore::Html(crate::erro_html::ErroHtml::repetido(
+                    "vinculos_de_anexacao_repetidos",
+                    "o elemento aparece mais de uma vez",
+                )));
             }
             texto = Some(lido);
         }
@@ -99,7 +108,10 @@ fn conferir(
     texto: &str,
     id: &str,
 ) -> Result<VinculoDeAnexacao, ErroArvore> {
-    let fora = ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
+    let fora = ErroArvore::Html(crate::erro_html::ErroHtml::valor(
+        "vinculo_de_anexacao_fora_da_forma_observada",
+        "o valor não está na forma observada",
+    ));
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)

@@ -135,7 +135,10 @@ fn recusas_estruturais() {
         ),
         (
             vec![p(), no_processo(1, "11", NUP)],
-            E::NosDoProcessoRepetidosNaArvore,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "nos_do_processo_repetidos_na_arvore",
+                "o elemento aparece mais de uma vez",
+            )),
         ),
         // `PASTA` tem 15 argumentos; outro tipo é recusa.
         (
@@ -153,7 +156,10 @@ fn recusas_estruturais() {
                 no_documento(1, "21", "10", "1"),
                 no_documento(2, "21", "10", "2"),
             ],
-            E::DocumentoRepetidoNaArvore,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "documento_repetido_na_arvore",
+                "o elemento aparece mais de uma vez",
+            )),
         ),
         (
             vec![p(), no_documento(1, "2a", "10", "1")],
@@ -177,11 +183,17 @@ fn recusas_estruturais() {
         ),
         (
             vec![p().replace("Nos[0]", "Nos[1]")],
-            E::IndiceDeNoForaDaSequencia,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "indice_de_no_fora_da_sequencia",
+                "o valor não está na forma observada",
+            )),
         ),
         (
             vec![p(), no_documento(2, "21", "10", "1")],
-            E::IndiceDeNoForaDaSequencia,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "indice_de_no_fora_da_sequencia",
+                "o valor não está na forma observada",
+            )),
         ),
     ];
     for (nos, esperado) in casos {
@@ -199,7 +211,10 @@ fn declaracao_fora_da_forma_em_qualquer_linha_e_recusa() {
     html.push_str("\n  var y = new infraArvoreNo(\"DOCUMENTO\");\n");
     assert_eq!(
         ler_arvore(&html, NUP, "10"),
-        Err(E::DeclaracaoDeNoForaDaFormaObservada)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "declaracao_de_no_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
     );
     // CRLF no fim da linha é tolerado.
     let crlf = padrao().replace('\n', "\r\n");

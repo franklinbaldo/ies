@@ -41,28 +41,13 @@ pub enum TelaDosComentarios {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroComentarios {
-    #[causa(nome = "html_dos_comentarios_nao_interpretado")]
-    HtmlNaoInterpretado,
-    #[causa(nome = "tela_de_comentarios_nao_reconhecida")]
-    TelaNaoReconhecida,
-    #[causa(nome = "formularios_de_comentarios_repetidos")]
-    FormulariosDaListaRepetidos,
     #[causa(nome = "visao_dos_comentarios_nao_publicada")]
     VisaoNaoPublicada,
-    #[causa(nome = "tabela_de_comentarios_ausente")]
-    TabelaAusente,
-    #[causa(nome = "tabelas_de_comentarios_repetidas")]
-    TabelasRepetidas,
-    #[causa(nome = "legenda_dos_comentarios_invalida")]
-    LegendaInvalida,
-    #[causa(nome = "cabecalho_dos_comentarios_invalido")]
-    CabecalhoInvalido,
-    #[causa(nome = "linha_do_comentario_invalida")]
-    LinhaInvalida,
     TextoDoComentarioNaoPublicado,
-    IdDoComentarioRepetido,
     #[causa(nome = "lista_de_comentarios_incompleta")]
     ListaIncompleta,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroComentarios {
@@ -92,8 +77,21 @@ fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, nome: &str) -> Vec<Tag<'
 fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroComentarios> {
     atributos(tag)
         .and_then(|a| a.valor(nome))
-        .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?
-        .map(|bruto| decodificar_atributo(bruto).ok_or(ErroComentarios::HtmlNaoInterpretado))
+        .map_err(|e| {
+            ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+                "html_dos_comentarios_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?
+        .map(|bruto| {
+            decodificar_atributo(bruto).ok_or(ErroComentarios::Html(
+                crate::erro_html::ErroHtml::html(
+                    "html_dos_comentarios_nao_interpretado",
+                    "o HTML não pôde ser interpretado",
+                ),
+            ))
+        })
         .transpose()
 }
 
@@ -101,19 +99,34 @@ fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentario
     let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
     decodificar_atributo(&bruto)
         .map(|s| s.trim().to_owned())
-        .ok_or(ErroComentarios::HtmlNaoInterpretado)
+        .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::html(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        )))
 }
 
 fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
-    let nos = nos_com_id(dom, id).map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
+    let nos = nos_com_id(dom, id).map_err(|e| {
+        ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })?;
     match nos.as_slice() {
         [] => Ok(None),
         [um] => um
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
             .map(Some)
-            .ok_or(ErroComentarios::HtmlNaoInterpretado),
-        _ => Err(ErroComentarios::TabelasRepetidas),
+            .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::html(
+                "html_dos_comentarios_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+            ))),
+        _ => Err(ErroComentarios::Html(crate::erro_html::ErroHtml::repetido(
+            "tabelas_de_comentarios_repetidas",
+            "o elemento aparece mais de uma vez",
+        ))),
     }
 }
 
@@ -141,16 +154,10 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 /// Falhas verificáveis ao procurar a ação publicada na barra do processo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDosComentarios {
-    #[causa(nome = "barra_dos_comentarios_fora_da_forma_observada")]
-    BarraForaDaFormaObservada,
-    #[causa(nome = "barras_dos_comentarios_repetidas_na_arvore")]
-    BarrasRepetidasNaArvore,
-    #[causa(nome = "links_dos_comentarios_repetidos_na_barra")]
-    LinksRepetidosNaBarra,
-    #[causa(nome = "endereco_dos_comentarios_nao_reconhecido")]
-    EnderecoNaoReconhecido,
     #[causa(nome = "endereco_dos_comentarios_de_outro_processo")]
     EnderecoDeOutroProcesso,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroLinkDosComentarios {
@@ -184,14 +191,20 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
             .collect();
         match indices.as_slice() {
             [i] => Ok(*i),
-            _ => Err(ErroComentarios::CabecalhoInvalido),
+            _ => Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                "cabecalho_dos_comentarios_invalido",
+                "o valor não está na forma observada",
+            ))),
         }
     };
     let campo_opcional = |nome: &str| -> Result<Option<usize>, ErroComentarios> {
         match cabecalho.iter().filter(|c| *c == nome).count() {
             0 => Ok(None),
             1 => campo(nome).map(Some),
-            _ => Err(ErroComentarios::CabecalhoInvalido),
+            _ => Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                "cabecalho_dos_comentarios_invalido",
+                "o valor não está na forma observada",
+            ))),
         }
     };
     let (data, unidade, usuario) = (campo("Data")?, campo("Unidade")?, campo("Usuário")?);
@@ -201,7 +214,10 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
         campo_opcional("Tipo")?,
     );
     if cabecalho.is_empty() || protocolo.is_some() != tipo.is_some() {
-        return Err(ErroComentarios::CabecalhoInvalido);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "cabecalho_dos_comentarios_invalido",
+            "o valor não está na forma observada",
+        )));
     }
     Ok(Colunas {
         data,
@@ -235,33 +251,70 @@ fn ler_itens(
             .collect();
         if caixas.is_empty() {
             let classe = atributos(tr)
-                .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?
+                .map_err(|e| {
+                    ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+                        "html_dos_comentarios_nao_interpretado",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?
                 .tem_classe("trComentario")
-                .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
+                .map_err(|e| {
+                    ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+                        "html_dos_comentarios_nao_interpretado",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?;
             if aguardando_texto && classe && celulas.len() == 1 {
-                let ultimo = itens.last_mut().ok_or(ErroComentarios::LinhaInvalida)?;
+                let ultimo = itens.last_mut().ok_or(ErroComentarios::Html(
+                    crate::erro_html::ErroHtml::valor(
+                        "linha_do_comentario_invalida",
+                        "o valor não está na forma observada",
+                    ),
+                ))?;
                 ultimo.texto = texto(celulas[0], parser)?;
                 aguardando_texto = false;
             } else if !(total == 0 && texto(tr, parser)?.contains("Nenhum registro")) {
-                return Err(ErroComentarios::LinhaInvalida);
+                return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                    "linha_do_comentario_invalida",
+                    "o valor não está na forma observada",
+                )));
             }
             continue;
         }
         if caixas.len() != 1 || aguardando_texto || celulas.len() != colunas.total {
-            return Err(ErroComentarios::LinhaInvalida);
+            return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                "linha_do_comentario_invalida",
+                "o valor não está na forma observada",
+            )));
         }
-        let id = atributo(caixas[0], "value")?.ok_or(ErroComentarios::LinhaInvalida)?;
+        let id = atributo(caixas[0], "value")?.ok_or(ErroComentarios::Html(
+            crate::erro_html::ErroHtml::valor(
+                "linha_do_comentario_invalida",
+                "o valor não está na forma observada",
+            ),
+        ))?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroComentarios::LinhaInvalida);
+            return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                "linha_do_comentario_invalida",
+                "o valor não está na forma observada",
+            )));
         }
         if !ids.insert(id.clone()) {
-            return Err(ErroComentarios::IdDoComentarioRepetido);
+            return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::repetido(
+                "id_do_comentario_repetido",
+                "o elemento aparece mais de uma vez",
+            )));
         }
         let valor = |i: usize| -> Result<String, ErroComentarios> {
             celulas
                 .get(i)
                 .map(|td| texto(td, parser))
-                .ok_or(ErroComentarios::LinhaInvalida)?
+                .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                    "linha_do_comentario_invalida",
+                    "o valor não está na forma observada",
+                )))?
         };
         itens.push(ComentarioLido {
             id,
@@ -301,34 +354,63 @@ fn ler_lista<'p>(
         },
         _ => return Err(ErroComentarios::VisaoNaoPublicada),
     };
-    let tabela = tabela_unica(dom, "tblComentarios")?.ok_or(ErroComentarios::TabelaAusente)?;
+    let tabela = tabela_unica(dom, "tblComentarios")?.ok_or(ErroComentarios::Html(
+        crate::erro_html::ErroHtml::ausente(
+            "tabela_de_comentarios_ausente",
+            "a tela não tem o elemento observado",
+        ),
+    ))?;
     if tabela.name() != "table" {
-        return Err(ErroComentarios::TabelaAusente);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::ausente(
+            "tabela_de_comentarios_ausente",
+            "a tela não tem o elemento observado",
+        )));
     }
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
-        return Err(ErroComentarios::LegendaInvalida);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        )));
     };
     let legenda = texto(caption, parser)?;
-    let (prefixo, resto) = legenda
-        .rsplit_once('(')
-        .ok_or(ErroComentarios::LegendaInvalida)?;
+    let (prefixo, resto) = legenda.rsplit_once('(').ok_or(ErroComentarios::Html(
+        crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        ),
+    ))?;
     if !prefixo.to_lowercase().contains("coment") {
-        return Err(ErroComentarios::LegendaInvalida);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        )));
     }
     let resto = resto
         .strip_suffix("):")
         .or_else(|| resto.strip_suffix(')'))
-        .ok_or(ErroComentarios::LegendaInvalida)?;
+        .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        )))?;
     let numero = resto
         .strip_suffix(" registros")
         .or_else(|| resto.strip_suffix(" registro"))
-        .ok_or(ErroComentarios::LegendaInvalida)?;
+        .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        )))?;
     if numero.is_empty() || numero.len() > 9 || !numero.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(ErroComentarios::LegendaInvalida);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        )));
     }
-    let total_declarado = numero
-        .parse::<usize>()
-        .map_err(|_| ErroComentarios::LegendaInvalida)?;
+    let total_declarado = numero.parse::<usize>().map_err(|_| {
+        ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "legenda_dos_comentarios_invalida",
+            "o valor não está na forma observada",
+        ))
+    })?;
     let colunas = ler_colunas(tabela, parser)?;
     let itens = ler_itens(tabela, parser, &colunas, total_declarado)?;
     Ok(TelaDosComentarios::Lista(ComentariosLidos {
@@ -346,18 +428,36 @@ fn ler_lista<'p>(
 /// Recusa telas sem forma observada, controles repetidos, tabelas ausentes,
 /// dados incompletos ou ids de comentários não inequívocos.
 pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroComentarios::Html(crate::erro_html::ErroHtml::html(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
-    let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
-        .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
-    let listas =
-        nos_com_id(&dom, "frmComentarioLista").map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
+    let cadastros = nos_com_id(&dom, "frmComentarioCadastro").map_err(|e| {
+        ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })?;
+    let listas = nos_com_id(&dom, "frmComentarioLista").map_err(|e| {
+        ErroComentarios::Html(crate::erro_html::ErroHtml::atributo(
+            "html_dos_comentarios_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })?;
     if cadastros.len() == 1 && listas.is_empty() {
-        let form = cadastros[0]
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroComentarios::TelaNaoReconhecida)?;
+        let form =
+            cadastros[0]
+                .get(parser)
+                .and_then(tl::Node::as_tag)
+                .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                    "tela_de_comentarios_nao_reconhecida",
+                    "o valor não está na forma observada",
+                )))?;
         if form.name() == "form" {
             let areas = descendentes(form, parser, "textarea");
             let botoes = descendentes(form, parser, "input");
@@ -377,21 +477,36 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
                 return Ok(TelaDosComentarios::CadastroSemComentarios);
             }
         }
-        return Err(ErroComentarios::TelaNaoReconhecida);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_comentarios_nao_reconhecida",
+            "o valor não está na forma observada",
+        )));
     }
     let [formulario] = listas.as_slice() else {
         return Err(if listas.is_empty() {
-            ErroComentarios::TelaNaoReconhecida
+            ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+                "tela_de_comentarios_nao_reconhecida",
+                "o valor não está na forma observada",
+            ))
         } else {
-            ErroComentarios::FormulariosDaListaRepetidos
+            ErroComentarios::Html(crate::erro_html::ErroHtml::repetido(
+                "formularios_de_comentarios_repetidos",
+                "o elemento aparece mais de uma vez",
+            ))
         });
     };
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroComentarios::TelaNaoReconhecida)?;
+        .ok_or(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_comentarios_nao_reconhecida",
+            "o valor não está na forma observada",
+        )))?;
     if form.name() != "form" || !cadastros.is_empty() {
-        return Err(ErroComentarios::TelaNaoReconhecida);
+        return Err(ErroComentarios::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_comentarios_nao_reconhecida",
+            "o valor não está na forma observada",
+        )));
     }
     ler_lista(&dom, form)
 }

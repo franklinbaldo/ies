@@ -180,7 +180,13 @@ fn duplicidade_e_numero_diferente_na_arvore() {
         1,
         &src_visualizar(ID_DOC),
     );
-    assert_eq!(recusa(duplicada), E::NumeroSeiRepetidoNaArvore);
+    assert_eq!(
+        recusa(duplicada),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "numero_sei_repetido_na_arvore",
+            "o número SEI aparece mais de uma vez na árvore"
+        ))
+    );
     // Zeros à esquerda são parte do número: 101 não é 0000101.
     let outro = com_src(
         &arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, "101")]),
@@ -191,7 +197,12 @@ fn duplicidade_e_numero_diferente_na_arvore() {
     let ausente = arvore(&[no_processo(0, ID, NUP), no_documento(1, "22", ID, DOC)]);
     assert_eq!(
         recusa(ausente),
-        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::DocumentoAusenteDaArvore)
+        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
+            crate::erro_html::ErroHtml::ausente(
+                "documento_ausente_da_arvore",
+                "a tela não tem o elemento observado"
+            )
+        ))
     );
 }
 

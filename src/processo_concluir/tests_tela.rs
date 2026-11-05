@@ -45,12 +45,24 @@ fn controle_fora_da_lista_e_recusado() {
         "</form>",
         "<input type=\"text\" name=\"txtMotivo\" value=\"\" /></form>",
     );
-    assert_eq!(conferir(&extra), Err(E::CampoNaoPrevistoNaTelaDeConclusao));
+    assert_eq!(
+        conferir(&extra),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "campo_nao_previsto_na_tela_de_conclusao",
+            "o valor não está na forma observada"
+        )))
+    );
     let oculto = html.replace(
         "</form>",
         "<input type=\"hidden\" name=\"hdnOutro\" value=\"1\" /></form>",
     );
-    assert_eq!(conferir(&oculto), Err(E::CampoNaoPrevistoNaTelaDeConclusao));
+    assert_eq!(
+        conferir(&oculto),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "campo_nao_previsto_na_tela_de_conclusao",
+            "o valor não está na forma observada"
+        )))
+    );
     // Botão `button` e controle desabilitado não participam do envio.
     let neutros = html.replace(
         "</form>",
@@ -63,7 +75,10 @@ fn controle_fora_da_lista_e_recusado() {
 fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
     assert_eq!(
         conferir("<html><body></body></html>"),
-        Err(E::FormularioDeConclusaoAusente)
+        Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_de_conclusao_ausente",
+            "a tela não tem o elemento observado"
+        )))
     );
     assert_eq!(
         conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),

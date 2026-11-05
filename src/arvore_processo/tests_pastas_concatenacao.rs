@@ -42,6 +42,9 @@ fn concatenacao_com_conteudo_continua_fora_da_forma_observada() {
     let html = com_concatenacao(&arvore_fechada(), "<a href=\"#\"></a>");
     assert_eq!(
         ler_arvore(&html, NUP, ID),
-        Err(E::BarraDeNoForaDaFormaObservada)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "barra_de_no_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
     );
 }

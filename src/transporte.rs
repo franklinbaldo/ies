@@ -29,18 +29,29 @@ pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTranspo
 }
 
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
-    let partes =
-        crate::url_observada::UrlHttps::interpretar(url).ok_or(FalhaTransporte::UrlInvalida)?;
+    let partes = crate::url_observada::UrlHttps::interpretar(url).ok_or(FalhaTransporte::Html(
+        crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
+    ))?;
     let authority = partes.host;
     let route = partes.caminho;
-    let query = partes.consulta.ok_or(FalhaTransporte::UrlInvalida)?;
+    let query = partes
+        .consulta
+        .ok_or(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "url_invalida",
+            "URL assinada da caixa inválida",
+        )))?;
     if route.rsplit('/').next() != Some("controlador.php") || route.contains("..") {
-        return Err(FalhaTransporte::UrlInvalida);
+        return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "url_invalida",
+            "URL assinada da caixa inválida",
+        )));
     }
     let mut actions = 0;
     let mut hashes = 0;
     for item in query.split('&') {
-        let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::UrlInvalida)?;
+        let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::Html(
+            crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
+        ))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
@@ -53,13 +64,19 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
                 hashes += 1;
             }
             "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(FalhaTransporte::UrlInvalida);
+                return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+                    "url_invalida",
+                    "URL assinada da caixa inválida",
+                )));
             }
             _ => {}
         }
     }
     if actions != 1 || hashes != 1 {
-        return Err(FalhaTransporte::UrlInvalida);
+        return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "url_invalida",
+            "URL assinada da caixa inválida",
+        )));
     }
     Ok((authority, route))
 }
@@ -137,7 +154,10 @@ pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaT
 pub(crate) fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
     if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
     {
-        return Err(FalhaTransporte::CookieInvalido);
+        return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "cookie_invalido",
+            "formato de cookie de sessão inválido",
+        )));
     }
     Ok(())
 }
@@ -186,7 +206,10 @@ pub(crate) fn decodificar_resposta<R: Read>(
         return Err(recusar_status(resposta));
     }
     if !crate::mime_web::e_html(&resposta.mime) {
-        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
+        return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::html(
+            "tipo_de_conteudo_nao_html",
+            "a resposta não declara Content-Type text/html",
+        )));
     }
     if resposta
         .content_length

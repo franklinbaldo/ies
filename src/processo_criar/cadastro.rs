@@ -4,20 +4,15 @@ use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCadastro {
-    #[causa(nome = "cadastro_de_processo_html_invalido")]
-    HtmlInvalido,
-    #[causa(nome = "cadastro_de_processo_ausente_ou_repetido")]
-    FormularioAusenteOuRepetido,
     #[causa(nome = "tipo_do_cadastro_divergente")]
     TipoDeCadastroDivergente,
-    #[causa(nome = "especificacao_nao_publicada_no_cadastro")]
-    EspecificacaoAusente,
-    AssuntoSugeridoNaoUnico,
     #[causa(nome = "nivel_de_acesso_nao_oferecido")]
     NivelNaoOferecido,
     #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
     HipoteseLegalNaoIdentificada,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroCadastro {
@@ -44,18 +39,38 @@ pub(crate) fn conferir_cadastro(
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
     use ErroCadastro as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
-    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro").map_err(|_| E::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::html(
+            "cadastro_de_processo_html_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
+    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro").map_err(|e| {
+        E::Html(crate::erro_html::ErroHtml::atributo(
+            "cadastro_de_processo_html_invalido",
+            "o HTML não pôde ser interpretado",
+            e,
+        ))
+    })?;
     let [formulario] = formularios.as_slice() else {
-        return Err(E::FormularioAusenteOuRepetido);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "cadastro_de_processo_ausente_ou_repetido",
+            "a tela não tem o elemento observado",
+        )));
     };
     let parser = dom.parser();
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(E::HtmlInvalido)?;
+        .ok_or(E::Html(crate::erro_html::ErroHtml::html(
+            "cadastro_de_processo_html_invalido",
+            "o HTML não pôde ser interpretado",
+        )))?;
     if form.name().as_utf8_str() != "form" {
-        return Err(E::FormularioAusenteOuRepetido);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "cadastro_de_processo_ausente_ou_repetido",
+            "a tela não tem o elemento observado",
+        )));
     }
 
     let mut ids = Vec::new();
@@ -65,22 +80,57 @@ pub(crate) fn conferir_cadastro(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
-        let nome = valor_do_atributo(tag, "name").map_err(|_| E::HtmlInvalido)?;
+            .ok_or(E::Html(crate::erro_html::ErroHtml::html(
+                "cadastro_de_processo_html_invalido",
+                "o HTML não pôde ser interpretado",
+            )))?;
+        let nome = valor_do_atributo(tag, "name").map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "cadastro_de_processo_html_invalido",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?;
         match nome.as_deref() {
             Some("hdnIdTipoProcedimento") => {
-                ids.push(valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?);
+                ids.push(valor_do_atributo(tag, "value").map_err(|e| {
+                    E::Html(crate::erro_html::ErroHtml::atributo(
+                        "cadastro_de_processo_html_invalido",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?);
             }
             Some("txtDescricao") => {
-                if atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)? {
-                    return Err(E::EspecificacaoAusente);
+                if atributo_presente(tag, "disabled").map_err(|e| {
+                    E::Html(crate::erro_html::ErroHtml::atributo(
+                        "cadastro_de_processo_html_invalido",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })? {
+                    return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+                        "especificacao_nao_publicada_no_cadastro",
+                        "a tela não tem o elemento observado",
+                    )));
                 }
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
-                let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
-                let desabilitado =
-                    atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)?;
+                let valor = valor_do_atributo(tag, "value").map_err(|e| {
+                    E::Html(crate::erro_html::ErroHtml::atributo(
+                        "cadastro_de_processo_html_invalido",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?;
+                let desabilitado = atributo_presente(tag, "disabled").map_err(|e| {
+                    E::Html(crate::erro_html::ErroHtml::atributo(
+                        "cadastro_de_processo_html_invalido",
+                        "o HTML não pôde ser interpretado",
+                        e,
+                    ))
+                })?;
                 radios.push((valor, desabilitado));
             }
             _ => {}
@@ -90,7 +140,10 @@ pub(crate) fn conferir_cadastro(
         return Err(E::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
-        return Err(E::EspecificacaoAusente);
+        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "especificacao_nao_publicada_no_cadastro",
+            "a tela não tem o elemento observado",
+        )));
     }
     let valor_nivel = match nivel {
         "publico" => "0",
@@ -133,8 +186,17 @@ fn conferir_listas(
         let select = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
-        let nome = valor_do_atributo(select, "name").map_err(|_| E::HtmlInvalido)?;
+            .ok_or(E::Html(crate::erro_html::ErroHtml::html(
+                "cadastro_de_processo_html_invalido",
+                "o HTML não pôde ser interpretado",
+            )))?;
+        let nome = valor_do_atributo(select, "name").map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "cadastro_de_processo_html_invalido",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?;
         let destino = match nome.as_deref() {
             Some("selAssuntos") => {
                 selects_assunto += 1;
@@ -151,14 +213,28 @@ fn conferir_listas(
             .into_iter()
             .flatten()
         {
-            let tag = opcao
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .ok_or(E::HtmlInvalido)?;
-            if atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)? {
+            let tag = opcao.get(parser).and_then(tl::Node::as_tag).ok_or(E::Html(
+                crate::erro_html::ErroHtml::html(
+                    "cadastro_de_processo_html_invalido",
+                    "o HTML não pôde ser interpretado",
+                ),
+            ))?;
+            if atributo_presente(tag, "disabled").map_err(|e| {
+                E::Html(crate::erro_html::ErroHtml::atributo(
+                    "cadastro_de_processo_html_invalido",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })? {
                 continue;
             }
-            let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
+            let valor = valor_do_atributo(tag, "value").map_err(|e| {
+                E::Html(crate::erro_html::ErroHtml::atributo(
+                    "cadastro_de_processo_html_invalido",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })?;
             let titulo =
                 crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
             if let Some(valor) = valor.filter(|v| !v.is_empty()) {
@@ -167,10 +243,16 @@ fn conferir_listas(
         }
     }
     let [(id_assunto, assunto)] = assuntos.as_slice() else {
-        return Err(E::AssuntoSugeridoNaoUnico);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "assunto_sugerido_nao_unico",
+            "o valor não está na forma observada",
+        )));
     };
     if selects_assunto != 1 || assunto.is_empty() {
-        return Err(E::AssuntoSugeridoNaoUnico);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "assunto_sugerido_nao_unico",
+            "o valor não está na forma observada",
+        )));
     }
     let hipotese_legal = if nivel == "restrito" {
         let [(id, titulo)] = hipotese.as_slice() else {
@@ -213,7 +295,10 @@ mod tests {
     fn recusa_formulario_ausente_e_tipo_de_outro_cadastro() {
         assert_eq!(
             conferir_cadastro("<div></div>", "12", "publico"),
-            Err(ErroCadastro::FormularioAusenteOuRepetido)
+            Err(ErroCadastro::Html(crate::erro_html::ErroHtml::ausente(
+                "cadastro_de_processo_ausente_ou_repetido",
+                "a tela não tem o elemento observado"
+            )))
         );
         assert_eq!(
             conferir_cadastro(&tela(ASSUNTO, "", HIPOTESE), "13", "publico"),
@@ -229,7 +314,10 @@ mod tests {
         ] {
             assert_eq!(
                 conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
-                Err(ErroCadastro::AssuntoSugeridoNaoUnico)
+                Err(ErroCadastro::Html(crate::erro_html::ErroHtml::valor(
+                    "assunto_sugerido_nao_unico",
+                    "o valor não está na forma observada"
+                )))
             );
         }
     }

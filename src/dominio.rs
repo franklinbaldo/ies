@@ -11,7 +11,10 @@ pub struct IdProcedimento(String);
 impl IdProcedimento {
     pub fn novo(valor: &str) -> Result<Self, ErroCaixa> {
         if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroCaixa::IdInvalido);
+            return Err(ErroCaixa::Html(crate::erro_html::ErroHtml::valor(
+                "id_invalido",
+                "o valor não está na forma observada",
+            )));
         }
         Ok(Self(valor.to_owned()))
     }

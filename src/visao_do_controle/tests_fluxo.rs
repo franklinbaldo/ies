@@ -206,9 +206,12 @@ fn cabecalho_desconhecido_na_d_falha_fechado_sem_post_de_volta() {
     assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::Detalhada(
-            crate::caixa_detalhada::ErroDetalhada::CabecalhoNaoReconhecido
-        )
+        ErroVisaoDoControle::Detalhada(crate::caixa_detalhada::ErroDetalhada::Html(
+            crate::erro_html::ErroHtml::valor(
+                "cabecalho_da_visao_detalhada_nao_reconhecido",
+                "o valor não está na forma observada"
+            )
+        ))
     );
 }
 

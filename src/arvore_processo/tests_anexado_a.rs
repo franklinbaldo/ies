@@ -120,7 +120,10 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     for html in casos {
         assert_eq!(
             ler(&html),
-            Err(E::VinculoDeAnexacaoForaDaFormaObservada),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "vinculo_de_anexacao_fora_da_forma_observada",
+                "o valor não está na forma observada"
+            ))),
             "{html}"
         );
     }
@@ -130,17 +133,32 @@ fn link_do_pai_fora_da_forma_e_recusa() {
 fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let link = html_do_anexado(&href_do_pai(ID_PAI, "10"), NUP_PAI);
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));
-    assert_eq!(ler(&dois), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&dois),
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "vinculos_de_anexacao_repetidos",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
     let duas_linhas = padrao().replace(
         "Nos[0].src = '';",
         &format!("Nos[0].src = '';\nNos[0].html = '{link}';"),
     );
-    assert_eq!(ler(&duas_linhas), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&duas_linhas),
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "vinculos_de_anexacao_repetidos",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
     let nao_literal = arvore(&[no_processo(0, "10", NUP)])
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
     assert_eq!(
         ler(&nao_literal),
-        Err(E::HtmlDoNoDoProcessoForaDaFormaObservada)
+        Err(E::Html(crate::erro_html::ErroHtml::html(
+            "html_do_no_do_processo_fora_da_forma_observada",
+            "o HTML não pôde ser interpretado"
+        )))
     );
 }
 
@@ -148,15 +166,24 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
 fn subcodigos_estaveis_do_vinculo() {
     for (erro, subcodigo) in [
         (
-            E::VinculoDeAnexacaoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "vinculo_de_anexacao_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            )),
             "vinculo_de_anexacao_fora_da_forma_observada",
         ),
         (
-            E::VinculosDeAnexacaoRepetidos,
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "vinculos_de_anexacao_repetidos",
+                "o elemento aparece mais de uma vez",
+            )),
             "vinculos_de_anexacao_repetidos",
         ),
         (
-            E::HtmlDoNoDoProcessoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::html(
+                "html_do_no_do_processo_fora_da_forma_observada",
+                "o HTML não pôde ser interpretado",
+            )),
             "html_do_no_do_processo_fora_da_forma_observada",
         ),
     ] {

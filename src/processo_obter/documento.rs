@@ -293,7 +293,12 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         .iter()
         .find(|d| d.id == id_documento)
     else {
-        return Err(E::Conteudo(ErroConteudoNaArvore::DocumentoAusenteDaArvore));
+        return Err(E::Conteudo(ErroConteudoNaArvore::Html(
+            crate::erro_html::ErroHtml::ausente(
+                "documento_ausente_da_arvore",
+                "a tela não tem o elemento observado",
+            ),
+        )));
     };
     if no.numero_sei.as_deref() != Some(numero) {
         return Err(E::NumeroSeiDaArvoreDiferenteDoPedido);
@@ -319,7 +324,10 @@ pub(super) fn localizar<'a>(
         .filter(|d| d.numero_sei.as_deref() == Some(numero));
     let primeiro = com_numero.next();
     if com_numero.next().is_some() {
-        return Err(E::NumeroSeiRepetidoNaArvore);
+        return Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "numero_sei_repetido_na_arvore",
+            "o número SEI aparece mais de uma vez na árvore",
+        )));
     }
     Ok(primeiro)
 }

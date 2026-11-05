@@ -5,8 +5,6 @@ use std::fmt;
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCaixa {
-    #[causa(nome = "html_da_caixa_invalido")]
-    HtmlInvalido,
     TabelaAusente {
         categoria: Categoria,
     },
@@ -22,7 +20,6 @@ pub enum ErroCaixa {
     LegendasDaTabelaRepetidas {
         categoria: Categoria,
     },
-    IdInvalido,
     IdRepetido {
         categoria: Categoria,
         id: String,
@@ -81,16 +78,13 @@ pub enum ErroCaixa {
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
-    UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
-    IdentificacoesDaUnidadeRepetidasNoControle,
-    TiposDeVisualizacaoRepetidosNoControle,
-    HashesDeCriteriosRecebidosRepetidosNoControle,
-    HashesDeCriteriosGeradosRepetidosNoControle,
     ContextoNaoVerificavel,
     #[causa(nome = "contexto_divergente")]
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroCaixa {

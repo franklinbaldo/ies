@@ -75,8 +75,20 @@ fn base_qualquer_e_aceita_sem_verificacao() {
 fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
     let pasta = pasta();
     foto(&pasta, 2);
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoAusente));
-    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::EdicaoAusente));
+    assert_eq!(
+        previa(&pasta, None),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "versao_editada_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
+    assert_eq!(
+        previa(&pasta, Some(2)),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "versao_editada_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
     editar(&pasta, 3, FOTO);
     assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoIgualABase));
     assert_eq!(
@@ -89,12 +101,37 @@ fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
 #[test]
 fn base_ausente_e_recusada() {
     let pasta = pasta();
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::BaseAusente));
+    assert_eq!(
+        previa(&pasta, None),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "base_versao_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
     editar(&pasta, 3, EDICAO);
     // `--versao` sem a base daquela versão.
-    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::BaseAusente));
-    assert_eq!(previa(&pasta, Some(5)), Err(ErroCopia::BaseAusente));
-    assert_eq!(ErroCopia::BaseAusente.subcodigo(), "base_versao_ausente");
+    assert_eq!(
+        previa(&pasta, Some(2)),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "base_versao_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
+    assert_eq!(
+        previa(&pasta, Some(5)),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "base_versao_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
+    assert_eq!(
+        ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
+            "base_versao_ausente",
+            "a tela não tem o elemento observado"
+        ))
+        .subcodigo(),
+        "base_versao_ausente"
+    );
     fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -103,7 +140,13 @@ fn duas_grafias_sao_recusadas() {
     let pasta = pasta();
     editar(&pasta, 2, FOTO);
     fs::write(pasta.join("0011519.v02.html"), "x").unwrap();
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoDuplicada));
+    assert_eq!(
+        previa(&pasta, None),
+        Err(ErroCopia::Html(crate::erro_html::ErroHtml::repetido(
+            "versao_local_repetida",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
     fs::remove_dir_all(pasta).unwrap();
 }
 

@@ -50,29 +50,20 @@ pub(crate) enum ErroLogin {
     #[causa(nome = "redirecionamento_do_login_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     LocalizacaoDeRedirecionamentoNaoInterpretavel,
-    RedirecionamentoParaForaDaInstalacao,
     RedirecionamentosAcimaDoLimite,
     /// 307/308 depois do POST: seguir repetiria as credenciais.
     RedirecionamentoQueRepetiriaOEnvioDoLogin,
     CookieRecebidoForaDoFormatoAceito,
-    TelaDeLoginNaoReconhecida,
     CharsetDaTelaDeLoginNaoSuportado,
     CaptchaExigido,
     SegundoFatorExigido,
-    SelecaoDeOrgaoAusenteNaTelaDeLogin,
-    SelecaoDeOrgaoRepetidaNaTelaDeLogin,
-    OrgaoNaoEncontradoNaTelaDeLogin,
-    OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
     RegraDoOnsubmitDoLoginNaoObservada,
-    BotaoDeEnvioDoLoginNaoReconhecido,
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
     /// A tela de login voltou depois do POST: o SEI recusou a credencial.
     CredencialRecusada {
         mensagem_do_servidor: Option<String>,
     },
-    TelaAposOLoginNaoReconhecida,
-    LinkDoControleDeProcessosNaoReconhecido,
     ControleAposOLoginNaoReconhecido(ErroCaixa),
     CookieDaSessaoNaoRecebido,
     DestinoDaSessaoNaoEhArquivoRegular(ArquivoPrivado),
@@ -81,6 +72,8 @@ pub(crate) enum ErroLogin {
     UnidadeExibidaDiferenteDaSolicitada,
     #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroLogin {
@@ -90,6 +83,7 @@ impl ErroLogin {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Configuracao(erro) => erro.mensagem(),
             Self::Origem(_) => "arquivo de origem da instalação ausente, inseguro ou inválido",
             Self::ArquivoDeCredenciais(_) => "arquivo de credenciais ausente, inseguro ou ilegível",
@@ -119,9 +113,6 @@ impl ErroLogin {
             Self::LocalizacaoDeRedirecionamentoNaoInterpretavel => {
                 "Location do redirecionamento não interpretável"
             }
-            Self::RedirecionamentoParaForaDaInstalacao => {
-                "redirecionamento para fora do host da instalação recusado"
-            }
             Self::RedirecionamentosAcimaDoLimite => "mais de 8 redirecionamentos seguidos",
             Self::RedirecionamentoQueRepetiriaOEnvioDoLogin => {
                 "redirecionamento 307/308 repetiria o envio das credenciais"
@@ -129,36 +120,16 @@ impl ErroLogin {
             Self::CookieRecebidoForaDoFormatoAceito => {
                 "o SEI enviou cookie fora do formato aceito pelo arquivo de cookie"
             }
-            Self::TelaDeLoginNaoReconhecida => "a raiz não levou a um formulário de login",
             Self::CharsetDaTelaDeLoginNaoSuportado => {
                 "a tela de login não declara charset ISO-8859-1 ou UTF-8"
             }
             Self::CaptchaExigido => "a tela de login exige captcha; nada foi enviado de novo",
             Self::SegundoFatorExigido => "o SEI pediu segundo fator de autenticação",
-            Self::SelecaoDeOrgaoAusenteNaTelaDeLogin => "a tela de login não publica selOrgao",
-            Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin => {
-                "a tela de login publica mais de um selOrgao"
-            }
-            Self::OrgaoNaoEncontradoNaTelaDeLogin => {
-                "nenhuma opção de órgão da tela é igual ao órgão configurado"
-            }
-            Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin => {
-                "mais de uma opção de órgão da tela é igual ao órgão configurado"
-            }
             Self::RegraDoOnsubmitDoLoginNaoObservada => {
                 "o onsubmit do login não é o observado (acaoLogin com hdnAcao)"
             }
-            Self::BotaoDeEnvioDoLoginNaoReconhecido => {
-                "botão de envio do login diferente dos observados"
-            }
             Self::Formulario(_) => "formulário de login fora do observado",
             Self::CredencialRecusada { .. } => "o SEI recusou a credencial; não repetir",
-            Self::TelaAposOLoginNaoReconhecida => {
-                "a resposta do login não é Controle, Painel nem tela de login"
-            }
-            Self::LinkDoControleDeProcessosNaoReconhecido => {
-                "o link do Controle de Processos do menu não é o observado"
-            }
             Self::ControleAposOLoginNaoReconhecido(_) => {
                 "o login não chegou a um Controle de Processos verificável"
             }

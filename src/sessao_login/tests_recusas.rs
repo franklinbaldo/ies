@@ -33,7 +33,10 @@ fn redirecionamento_para_outro_host_e_recusado_sem_segui_lo() {
         let (erro, roteiro) = erro_com(vec![r302(local, &[])]);
         assert_eq!(
             erro,
-            ErroLogin::RedirecionamentoParaForaDaInstalacao,
+            ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+                "redirecionamento_para_fora_da_instalacao",
+                "redirecionamento para fora do host da instalação recusado"
+            )),
             "{local}"
         );
         assert_eq!(roteiro.pedidos.len(), 1);
@@ -106,7 +109,13 @@ fn redirecionamento_307_depois_do_post_nao_repete_as_credenciais() {
 #[test]
 fn raiz_sem_formulario_de_login_nao_envia_credencial() {
     let (erro, roteiro) = erro_com(vec![r200("<html><body>Portal</body></html>", &[])]);
-    assert_eq!(erro, ErroLogin::TelaDeLoginNaoReconhecida);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_login_nao_reconhecida",
+            "a raiz não levou a um formulário de login"
+        ))
+    );
     assert_eq!(posts(&roteiro), 0);
 }
 
@@ -220,7 +229,13 @@ fn orgao_ausente_ou_com_duas_opcoes_iguais_nao_envia_credencial() {
     privado(&ambiente.credenciais, "usuario=u\nsenha=s\norgao=ORGAO-B\n");
     let mut roteiro = Roteiro::novo(vec![r302(LOGIN_SIP_INFRA_URL, &[]), r200(&tela_sbm(), &[])]);
     let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
-    assert_eq!(erro, ErroLogin::OrgaoNaoEncontradoNaTelaDeLogin);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::ausente(
+            "orgao_nao_encontrado_na_tela_de_login",
+            "nenhuma opção de órgão da tela é igual ao órgão configurado"
+        ))
+    );
     assert_eq!(posts(&roteiro), 0);
 
     let repetida = tela_sbm().replace(
@@ -228,14 +243,26 @@ fn orgao_ausente_ou_com_duas_opcoes_iguais_nao_envia_credencial() {
         "<option value=\"1\">ORGAO-A</option>",
     );
     let (erro, roteiro) = erro_com(vec![r302(LOGIN_SIP_INFRA_URL, &[]), r200(&repetida, &[])]);
-    assert_eq!(erro, ErroLogin::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::repetido(
+            "orgao_com_mais_de_uma_opcao_na_tela_de_login",
+            "mais de uma opção de órgão da tela é igual ao órgão configurado"
+        ))
+    );
     assert_eq!(posts(&roteiro), 0);
 
     // "CELG G" não casa por prefixo com "CELG G T" nem com "CELG D".
     privado(&ambiente.credenciais, "usuario=u\nsenha=s\norgao=CELG G\n");
     let mut roteiro = Roteiro::novo(vec![r302(LOGIN_SIP, &[]), r200(&tela_go(), &[])]);
     let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
-    assert_eq!(erro, ErroLogin::OrgaoNaoEncontradoNaTelaDeLogin);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::ausente(
+            "orgao_nao_encontrado_na_tela_de_login",
+            "nenhuma opção de órgão da tela é igual ao órgão configurado"
+        ))
+    );
 }
 
 #[test]
@@ -249,17 +276,26 @@ fn regras_de_formulario_nao_observadas_sao_recusadas() {
         tela_sbm().replace("document.getElementById('sbmAcessar').disabled = true;", "");
     assert_eq!(
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_desabilitar, &[])]).0,
-        ErroLogin::BotaoDeEnvioDoLoginNaoReconhecido
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "botao_de_envio_do_login_nao_reconhecido",
+            "botão de envio do login diferente dos observados"
+        ))
     );
     let outro_botao = tela_acessar().replace("\"Acessar\"", "\"sbmEntrar\"");
     assert_eq!(
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&outro_botao, &[])]).0,
-        ErroLogin::BotaoDeEnvioDoLoginNaoReconhecido
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "botao_de_envio_do_login_nao_reconhecido",
+            "botão de envio do login diferente dos observados"
+        ))
     );
     let sem_orgao = tela_acessar().replace("name=\"selOrgao\"", "name=\"selOutro\"");
     assert_eq!(
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_orgao, &[])]).0,
-        ErroLogin::SelecaoDeOrgaoAusenteNaTelaDeLogin
+        ErroLogin::Html(crate::erro_html::ErroHtml::ausente(
+            "selecao_de_orgao_ausente_na_tela_de_login",
+            "a tela de login não publica selOrgao"
+        ))
     );
     let fora = tela_acessar().replace(
         "action=\"login.php?",
@@ -326,7 +362,13 @@ fn resposta_apos_o_login_desconhecida_ou_controle_ilegivel_e_tipada() {
         r200(&tela_acessar(), &[]),
         r200("<html><body>Bem-vindo</body></html>", &[]),
     ]);
-    assert_eq!(erro, ErroLogin::TelaAposOLoginNaoReconhecida);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "tela_apos_o_login_nao_reconhecida",
+            "a resposta do login não é Controle, Painel nem tela de login"
+        ))
+    );
     let (erro, _) = erro_com(vec![
         r302(LOGIN_SIP, &[]),
         r200(&tela_acessar(), &["PHPSESSID=a; path=/"]),
@@ -342,7 +384,13 @@ fn resposta_apos_o_login_desconhecida_ou_controle_ilegivel_e_tipada() {
         r200(&tela_acessar(), &[]),
         r200(&painel("abrirControle()"), &[]),
     ]);
-    assert_eq!(erro, ErroLogin::LinkDoControleDeProcessosNaoReconhecido);
+    assert_eq!(
+        erro,
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "link_do_controle_de_processos_nao_reconhecido",
+            "o link do Controle de Processos do menu não é o observado"
+        ))
+    );
 }
 
 #[test]

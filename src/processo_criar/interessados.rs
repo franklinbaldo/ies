@@ -21,18 +21,16 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroInteressado {
-    #[causa(nome = "interessado_controles_ausentes")]
-    ControlesAusentes,
     #[causa(nome = "interessado_autocompletar_nao_declarado")]
     AutocompletarNaoDeclarado,
     #[causa(nome = "interessado_consulta_nao_derivada")]
     DerivacaoRecusada,
-    #[causa(nome = "interessado_resposta_nao_reconhecida")]
-    RespostaInesperada,
     #[causa(nome = "interessado_de_processo_nao_oferecido")]
     NaoOferecido,
     #[causa(nome = "interessado_de_processo_ambiguo")]
     Ambiguo,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroInteressado {
@@ -52,12 +50,29 @@ fn campo_unico(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroInteressado::ControlesAusentes)?;
-        let lido =
-            valor_do_atributo(tag, "name").map_err(|_| ErroInteressado::ControlesAusentes)?;
+            .ok_or(ErroInteressado::Html(crate::erro_html::ErroHtml::ausente(
+                "interessado_controles_ausentes",
+                "a tela não tem o elemento observado",
+            )))?;
+        let lido = valor_do_atributo(tag, "name").map_err(|e| {
+            ErroInteressado::Html(crate::erro_html::ErroHtml::atributo(
+                "interessado_controles_ausentes",
+                "a tela não tem o elemento observado",
+                e,
+            ))
+        })?;
         if lido.as_deref() == Some(nome) {
-            if atributo_presente(tag, "disabled").map_err(|_| ErroInteressado::ControlesAusentes)? {
-                return Err(ErroInteressado::ControlesAusentes);
+            if atributo_presente(tag, "disabled").map_err(|e| {
+                ErroInteressado::Html(crate::erro_html::ErroHtml::atributo(
+                    "interessado_controles_ausentes",
+                    "a tela não tem o elemento observado",
+                    e,
+                ))
+            })? {
+                return Err(ErroInteressado::Html(crate::erro_html::ErroHtml::ausente(
+                    "interessado_controles_ausentes",
+                    "a tela não tem o elemento observado",
+                )));
             }
             achados += 1;
         }
@@ -65,7 +80,10 @@ fn campo_unico(
     if achados == 1 {
         Ok(())
     } else {
-        Err(ErroInteressado::ControlesAusentes)
+        Err(ErroInteressado::Html(crate::erro_html::ErroHtml::ausente(
+            "interessado_controles_ausentes",
+            "a tela não tem o elemento observado",
+        )))
     }
 }
 
@@ -73,9 +91,18 @@ fn campo_unico(
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
     use ErroInteressado as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ControlesAusentes)?;
-    let form =
-        localizar_formulario(&dom, "frmProcedimentoCadastro").map_err(|_| E::ControlesAusentes)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "interessado_controles_ausentes",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
+    let form = localizar_formulario(&dom, "frmProcedimentoCadastro").map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "interessado_controles_ausentes",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
     campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
     campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;
     campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
@@ -93,28 +120,51 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
 
 fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
     use ErroInteressado as E;
-    let dom = tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaInesperada)?;
+    let dom = tl::parse(xml, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "interessado_resposta_nao_reconhecida",
+            "o valor não está na forma observada",
+        ))
+    })?;
     let parser = dom.parser();
     let roots = dom.query_selector("itens").map_or(0, Iterator::count);
     if roots != 1 {
-        return Err(E::RespostaInesperada);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "interessado_resposta_nao_reconhecida",
+            "o valor não está na forma observada",
+        )));
     }
     let mut itens = Vec::new();
     for handle in dom.query_selector("item").into_iter().flatten() {
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::RespostaInesperada)?;
+            .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            )))?;
         let ler = |nome| -> Result<String, E> {
             valor_do_atributo(tag, nome)
-                .map_err(|_| E::RespostaInesperada)?
+                .map_err(|e| {
+                    E::Html(crate::erro_html::ErroHtml::atributo(
+                        "interessado_resposta_nao_reconhecida",
+                        "o valor não está na forma observada",
+                        e,
+                    ))
+                })?
                 .and_then(|s| decodificar_atributo(&s))
                 .filter(|s| !s.trim().is_empty())
-                .ok_or(E::RespostaInesperada)
+                .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
+                    "interessado_resposta_nao_reconhecida",
+                    "o valor não está na forma observada",
+                )))
         };
         itens.push((ler("id")?, ler("descricao")?));
         if itens.len() > 500 {
-            return Err(E::RespostaInesperada);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            )));
         }
     }
     Ok(itens)
@@ -167,9 +217,12 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         )
         .map_err(|_| E::DerivacaoRecusada)?;
         *requisicoes += 1;
-        let resposta = envio
-            .post(consulta, cookie)
-            .map_err(|_| E::RespostaInesperada)?;
+        let resposta = envio.post(consulta, cookie).map_err(|_| {
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            ))
+        })?;
         if resposta.resposta.status_code != 200
             || !matches!(
                 resposta
@@ -182,12 +235,24 @@ pub(crate) fn resolver<V: EnvioDoControle>(
                 "application/xml" | "text/xml"
             )
         {
-            return Err(E::RespostaInesperada);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            )));
         }
         let mime = resposta.resposta.mime.clone();
-        let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
-            .map_err(|_| E::RespostaInesperada)?;
-        let xml = decode_http_body(&bytes, &mime).map_err(|_| E::RespostaInesperada)?;
+        let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES).map_err(|_| {
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            ))
+        })?;
+        let xml = decode_http_body(&bytes, &mime).map_err(|_| {
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "interessado_resposta_nao_reconhecida",
+                "o valor não está na forma observada",
+            ))
+        })?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
         if !resultados
             .iter()

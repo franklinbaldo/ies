@@ -17,21 +17,39 @@ pub(crate) fn url_do_salto(
     id_unidade: &str,
 ) -> Result<String, F> {
     let serializada = localizacao.trim().replace(' ', "%20");
-    let consulta = consulta_do_controlador(&serializada, url_anterior)
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+    let consulta = consulta_do_controlador(&serializada, url_anterior).ok_or(F::Html(
+        crate::erro_html::ErroHtml::valor(
+            "localizacao_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        ),
+    ))?;
     if !serializada.bytes().all(|b| (33..=126).contains(&b)) || serializada.contains(['#', '\\']) {
-        return Err(F::LocalizacaoForaDaFormaObservada);
+        return Err(F::Html(crate::erro_html::ErroHtml::valor(
+            "localizacao_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )));
     }
     let unidade = conferir_consulta(consulta, "procedimento_controlar", hash_do_salto)
-        .map_err(|_| F::LocalizacaoForaDaFormaObservada)?
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+        .map_err(|_| {
+            F::Html(crate::erro_html::ErroHtml::valor(
+                "localizacao_fora_da_forma_observada",
+                "o valor não está na forma observada",
+            ))
+        })?
+        .ok_or(F::Html(crate::erro_html::ErroHtml::valor(
+            "localizacao_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )))?;
     if unidade != id_unidade {
         return Err(F::LocalizacaoDeOutraUnidade);
     }
     let base = url_anterior
         .strip_prefix("https://")
         .and_then(|r| r.split('?').next())
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+        .ok_or(F::Html(crate::erro_html::ErroHtml::valor(
+            "localizacao_fora_da_forma_observada",
+            "o valor não está na forma observada",
+        )))?;
     Ok(format!("https://{base}?{consulta}"))
 }
 

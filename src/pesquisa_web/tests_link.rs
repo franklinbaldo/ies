@@ -26,7 +26,13 @@ fn link_com_entidades_html_e_decodificado() {
 
 #[test]
 fn controle_sem_o_menu_da_pesquisa_e_recusado() {
-    assert_eq!(link(&controle("")), Err(E::LinkDaPesquisaAusenteNoControle));
+    assert_eq!(
+        link(&controle("")),
+        Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "link_da_pesquisa_ausente_no_controle",
+            "a tela não tem o elemento observado"
+        )))
+    );
 }
 
 #[test]
@@ -34,7 +40,10 @@ fn dois_links_da_pesquisa_sao_recusados() {
     let dois = format!("{}{}", menu(&href_do_menu()), menu(&href_do_menu()));
     assert_eq!(
         link(&controle(&dois)),
-        Err(E::LinksDaPesquisaRepetidosNoControle)
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "links_da_pesquisa_repetidos_no_controle",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 
@@ -78,7 +87,10 @@ fn link_fora_da_forma_observada_e_recusado() {
     ] {
         assert_eq!(
             link(&controle(&menu(&href))),
-            Err(E::LinkDaPesquisaNaoReconhecido),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "link_da_pesquisa_nao_reconhecido",
+                "o valor não está na forma observada"
+            ))),
             "{href}"
         );
     }
@@ -90,6 +102,9 @@ fn acao_parecida_nao_e_o_link_da_pesquisa() {
     let rapida = href_do_menu().replace("protocolo_pesquisar", "protocolo_pesquisa_rapida");
     assert_eq!(
         link(&controle(&menu(&rapida))),
-        Err(E::LinkDaPesquisaAusenteNoControle)
+        Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "link_da_pesquisa_ausente_no_controle",
+            "a tela não tem o elemento observado"
+        )))
     );
 }

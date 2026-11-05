@@ -65,8 +65,13 @@ pub(super) fn separar(
     let mut documentos = Vec::new();
     for no in links {
         let href = match no.get(parser).and_then(tl::Node::as_tag) {
-            Some(link) => valor_do_atributo(link, "href")
-                .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?,
+            Some(link) => valor_do_atributo(link, "href").map_err(|e| {
+                ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::atributo(
+                    "html_de_pesquisa_nao_interpretado",
+                    "o HTML não pôde ser interpretado",
+                    e,
+                ))
+            })?,
             None => None,
         };
         match href.as_deref().and_then(documento_visualizado) {

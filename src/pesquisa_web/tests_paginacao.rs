@@ -144,7 +144,10 @@ fn links_de_navegar_fora_da_regra_sao_recusados() {
         let alterado = html.replacen("navegar('10')", errado, 1);
         assert_eq!(
             planejar(&alterado, &resposta, 2),
-            Err(E::LinkDePaginacaoDaPesquisaForaDaRegra),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "link_de_paginacao_da_pesquisa_fora_da_regra",
+                "o valor não está na forma observada"
+            ))),
             "{errado}"
         );
     }

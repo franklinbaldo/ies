@@ -56,7 +56,10 @@ fn itens_na_forma_observada() {
     ] {
         assert_eq!(
             itens_do_autocompletar(fora),
-            Err(F::RespostaDoAutocompletarForaDaForma),
+            Err(F::Html(crate::erro_html::ErroHtml::valor(
+                "resposta_do_autocompletar_fora_da_forma_observada",
+                "o valor não está na forma observada"
+            ))),
             "{fora}"
         );
     }

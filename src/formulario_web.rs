@@ -224,8 +224,16 @@ fn conferir_unidade(dom: &tl::VDom<'_>, solicitada: &str) -> Result<(), ErroSubm
     // só falha por identificações repetidas fora do par móvel/desktop.
     nos_com_id(dom, "lnkInfraUnidade")?;
     let publicada = crate::controle_contexto::unidade_html(dom)
-        .map_err(|_| E::IdentificacoesDaUnidadeRepetidasNaTela)?
-        .ok_or(E::IdentificacaoDaUnidadeAusenteNaTela)?;
+        .map_err(|_| {
+            E::Html(crate::erro_html::ErroHtml::repetido(
+                "identificacoes_da_unidade_repetidas_na_tela",
+                "o elemento aparece mais de uma vez",
+            ))
+        })?
+        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela",
+            "a tela não tem o elemento observado",
+        )))?;
     let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
     if publicada != solicitada {
         return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
@@ -349,8 +357,9 @@ pub(crate) fn derivar_submissao(
     if tela.html.len() > crate::MAX_HTML_BYTES {
         return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
     }
-    let servida =
-        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::Html(
+        crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
+    )))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }

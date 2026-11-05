@@ -269,7 +269,10 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-type", "application/pdf"),
             ("content-type", "application/pdf")
         ]),
-        E::CabecalhoRepetido
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "cabecalho_do_anexo_repetido",
+            "cabeçalho do anexo repetido"
+        ))
     );
     assert_eq!(
         sem_ler(&[
@@ -277,7 +280,10 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-length", "1"),
             ("content-length", "1"),
         ]),
-        E::CabecalhoRepetido
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "cabecalho_do_anexo_repetido",
+            "cabeçalho do anexo repetido"
+        ))
     );
     for ruim in [
         "form-data; filename=\"a.pdf\"",
@@ -292,7 +298,10 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
                 ("content-type", "application/pdf"),
                 ("content-disposition", ruim)
             ]),
-            E::DisposicaoForaDaFormaObservada,
+            E::Html(crate::erro_html::ErroHtml::valor(
+                "disposicao_do_anexo_fora_da_forma_observada",
+                "o Content-Disposition do anexo não tem a forma observada"
+            )),
             "{ruim:?}"
         );
     }

@@ -95,7 +95,10 @@ fn lista_identidades_duplicadas_falha_fechado() {
     ));
     assert_eq!(
         acompanhamentos_da_lista(&html),
-        Err(ErroAcompanhar::IdDeAcompanhamentoRepetido)
+        Err(ErroAcompanhar::Html(crate::erro_html::ErroHtml::repetido(
+            "id_de_acompanhamento_repetido",
+            "o elemento aparece mais de uma vez"
+        )))
     );
 }
 #[test]

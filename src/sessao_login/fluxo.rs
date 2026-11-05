@@ -187,9 +187,12 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         return Err(ErroLogin::Transporte(transporte::recusar_status(web)));
     }
     if !crate::mime_web::e_html(&mime) {
-        return Err(ErroLogin::Transporte(
-            FalhaTransporte::TipoDeConteudoNaoHtml,
-        ));
+        return Err(ErroLogin::Transporte(FalhaTransporte::Html(
+            crate::erro_html::ErroHtml::html(
+                "tipo_de_conteudo_nao_html",
+                "a resposta não declara Content-Type text/html",
+            ),
+        )));
     }
     let html =
         crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|_| {
@@ -243,7 +246,10 @@ fn tela_inicial<T: TransporteDeLogin>(
         return Err(ErroLogin::SegundoFatorExigido);
     }
     if !crate::tela_login::e_tela_login(&html) {
-        return Err(ErroLogin::TelaDeLoginNaoReconhecida);
+        return Err(ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "tela_de_login_nao_reconhecida",
+            "a raiz não levou a um formulário de login",
+        )));
     }
     Ok((url, html, mime))
 }
@@ -297,11 +303,24 @@ fn autenticar<T: TransporteDeLogin>(
         });
     }
     // Página inicial da conta (Painel de Controle): só o link do menu.
-    let link = tela::link_do_controle(&html)?.ok_or(ErroLogin::TelaAposOLoginNaoReconhecida)?;
-    let destino = resolver_no_host(&url, &link, host)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-    transporte::validar_origem(&destino, origem)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+    let link = tela::link_do_controle(&html)?.ok_or(ErroLogin::Html(
+        crate::erro_html::ErroHtml::valor(
+            "tela_apos_o_login_nao_reconhecida",
+            "a resposta do login não é Controle, Painel nem tela de login",
+        ),
+    ))?;
+    let destino = resolver_no_host(&url, &link, host).map_err(|_| {
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "link_do_controle_de_processos_nao_reconhecido",
+            "o link do Controle de Processos do menu não é o observado",
+        ))
+    })?;
+    transporte::validar_origem(&destino, origem).map_err(|_| {
+        ErroLogin::Html(crate::erro_html::ErroHtml::valor(
+            "link_do_controle_de_processos_nao_reconhecido",
+            "o link do Controle de Processos do menu não é o observado",
+        ))
+    })?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
     let (html, mime) = html_200(resposta)?;
     como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(

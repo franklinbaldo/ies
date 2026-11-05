@@ -109,12 +109,24 @@ fn identidade_e_conferida() {
         "id=\"hdnProtocoloFormatado\" name=\"hdnProtocoloFormatado\"",
         "",
     );
-    assert_eq!(ler(&sem), Err(E::CampoDasPropriedadesAusente));
+    assert_eq!(
+        ler(&sem),
+        Err(E::Html(crate::erro_html::ErroHtml::ausente(
+            "campo_das_propriedades_ausente",
+            "a tela não tem o elemento observado"
+        )))
+    );
     let repetido = padrao().replace(
         "</form>",
         &format!("<input type=\"hidden\" id=\"hdnIdProcedimento\" name=\"hdnIdProcedimento\" value=\"{ID}\" /></form>"),
     );
-    assert_eq!(ler(&repetido), Err(E::CampoDasPropriedadesRepetido));
+    assert_eq!(
+        ler(&repetido),
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "campo_das_propriedades_repetido",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
 }
 
 #[test]
@@ -129,7 +141,13 @@ fn formulario_ausente_ou_repetido() {
         "</body>",
         "<form id=\"frmProcedimentoCadastro\"></form></body>",
     );
-    assert_eq!(ler(&dois), Err(E::FormulariosDasPropriedadesRepetidos));
+    assert_eq!(
+        ler(&dois),
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "formularios_das_propriedades_repetidos",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
 }
 
 #[test]
@@ -148,7 +166,13 @@ fn tipo_sem_marcacao_e_nulo_e_id_oculto_diferente_e_recusa() {
         "<option value=\"100000003\">",
         "<option value=\"100000003\" selected=\"selected\">",
     );
-    assert_eq!(ler(&dois), Err(E::OpcoesMarcadasRepetidas));
+    assert_eq!(
+        ler(&dois),
+        Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "opcoes_marcadas_repetidas",
+            "o elemento aparece mais de uma vez"
+        )))
+    );
 }
 
 #[test]
@@ -172,7 +196,10 @@ fn assunto_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler(&trocar(de, para)),
-            Err(E::AssuntoForaDaFormaObservada),
+            Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "assunto_fora_da_forma_observada",
+                "o valor não está na forma observada"
+            ))),
             "{para}"
         );
     }
@@ -181,7 +208,13 @@ fn assunto_fora_da_forma_e_recusa() {
 #[test]
 fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
     let vazio = trocar("Pessoa Sintetica A", "");
-    assert_eq!(ler(&vazio), Err(E::InteressadoForaDaFormaObservada));
+    assert_eq!(
+        ler(&vazio),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "interessado_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
     let sem = trocar(
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
         "",
@@ -213,14 +246,32 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
         "value=\"1\" checked=\"checked\" class",
         1,
     );
-    assert_eq!(ler(&dois), Err(E::NivelDeAcessoForaDaFormaObservada));
+    assert_eq!(
+        ler(&dois),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "nivel_de_acesso_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
     let valor = trocar(
         "value=\"0\" checked=\"checked\"",
         "value=\"9\" checked=\"checked\"",
     );
-    assert_eq!(ler(&valor), Err(E::NivelDeAcessoForaDaFormaObservada));
+    assert_eq!(
+        ler(&valor),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "nivel_de_acesso_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
     let id = trocar("id=\"optPublico\"", "id=\"optOutro\"");
-    assert_eq!(ler(&id), Err(E::NivelDeAcessoForaDaFormaObservada));
+    assert_eq!(
+        ler(&id),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "nivel_de_acesso_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
 }
 
 #[test]
@@ -228,7 +279,13 @@ fn data_de_geracao_vazia_e_nula_e_fora_da_forma_e_recusa() {
     let vazia = trocar("value=\"01/02/2026\"", "value=\"\"");
     assert_eq!(ler(&vazia).unwrap().data_de_geracao, None);
     let fora = trocar("value=\"01/02/2026\"", "value=\"2026-02-01\"");
-    assert_eq!(ler(&fora), Err(E::DataDeGeracaoForaDaFormaObservada));
+    assert_eq!(
+        ler(&fora),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "data_de_geracao_fora_da_forma_observada",
+            "o valor não está na forma observada"
+        )))
+    );
 }
 
 #[test]
@@ -248,7 +305,14 @@ fn campos_obrigatorios_ausentes_sao_recusa() {
         "selHipoteseLegal",
     ] {
         let html = trocar(&format!("id=\"{id}\""), "id=\"outro\"");
-        assert_eq!(ler(&html), Err(E::CampoDasPropriedadesAusente), "{id}");
+        assert_eq!(
+            ler(&html),
+            Err(E::Html(crate::erro_html::ErroHtml::ausente(
+                "campo_das_propriedades_ausente",
+                "a tela não tem o elemento observado"
+            ))),
+            "{id}"
+        );
     }
 }
 

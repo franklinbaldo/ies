@@ -79,7 +79,10 @@ fn protocolo_de_outro_processo_nao_e_aceito() {
             ),
             ID
         ),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada"
+        )))
     );
 }
 
@@ -100,28 +103,44 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
         "value=\"null\" selected",
         "value=\"null\" selected disabled",
     );
-    assert_eq!(ler_tela(&html, ID), Err(E::TelaForaDaForma));
+    assert_eq!(
+        ler_tela(&html, ID),
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada"
+        )))
+    );
 }
 
 #[test]
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
         ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada"
+        )))
     );
     assert_eq!(
         ler_tela(
             &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
             ID
         ),
-        Err(E::TelaForaDaForma)
+        Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada"
+        )))
     );
 }
 
 #[test]
 fn subcodigos_publicos_do_leitor_sao_estaveis() {
     assert_eq!(
-        E::TelaForaDaForma.subcodigo(),
+        E::Html(crate::erro_html::ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada"
+        ))
+        .subcodigo(),
         "tela_da_atribuicao_fora_da_forma"
     );
     assert_eq!(

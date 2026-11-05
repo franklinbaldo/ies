@@ -254,7 +254,13 @@ fn falhas_fora_de_palpite() {
     // NUP repetido no Controle.
     let amb = ambiente();
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP), ("11", NUP)]))]);
-    assert_eq!(r.unwrap_err(), E::ProcessoRepetidoNoControle);
+    assert_eq!(
+        r.unwrap_err(),
+        E::Html(crate::erro_html::ErroHtml::repetido(
+            "processo_repetido_no_controle",
+            "o número aparece mais de uma vez no Controle"
+        ))
+    );
     assert_eq!(pedidos.len(), 1);
     // `--unidade` diferente: para no Controle.
     let amb = ambiente();

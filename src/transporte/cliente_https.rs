@@ -34,13 +34,22 @@ pub(crate) struct Envio<'a> {
 
 /// Host e alvo (`/caminho?consulta`) de uma URL HTTPS sem porta.
 fn alvo(url: &str) -> Result<(&str, &str), FalhaTransporte> {
-    let resto = url
-        .strip_prefix("https://")
-        .ok_or(FalhaTransporte::UrlInvalida)?;
-    let inicio = resto.find('/').ok_or(FalhaTransporte::UrlInvalida)?;
+    let resto = url.strip_prefix("https://").ok_or(FalhaTransporte::Html(
+        crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
+    ))?;
+    let inicio =
+        resto
+            .find('/')
+            .ok_or(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+                "url_invalida",
+                "URL assinada da caixa inválida",
+            )))?;
     let (host, caminho) = resto.split_at(inicio);
     if !host_valido(host) || !url.bytes().all(|b| (33..=126).contains(&b)) || url.contains('#') {
-        return Err(FalhaTransporte::UrlInvalida);
+        return Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
+            "url_invalida",
+            "URL assinada da caixa inválida",
+        )));
     }
     Ok((host, caminho))
 }

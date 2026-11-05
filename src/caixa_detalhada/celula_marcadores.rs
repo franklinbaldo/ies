@@ -21,7 +21,10 @@ pub(crate) struct MarcadorDaCelula {
     pub(crate) rotulo: Option<String>,
 }
 
-const FORA: ErroDetalhada = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
+const FORA: ErroDetalhada = ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
+    "marcador_da_celula_detalhada_fora_da_forma_observada",
+    "o valor não está na forma observada",
+));
 const SOLTO: ErroDetalhada = ErroDetalhada::TextoForaDosMarcadoresNaCelula;
 
 /// Filhos diretos de `tag` que são elementos; texto só de espaços (inclusive
@@ -48,9 +51,21 @@ fn filhos<'d>(
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
     let bruto = atributos(tag)
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        .map_err(|e| {
+            ErroDetalhada::Html(crate::erro_html::ErroHtml::atributo(
+                "html_detalhado_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?
         .valor(nome)
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        .map_err(|e| {
+            ErroDetalhada::Html(crate::erro_html::ErroHtml::atributo(
+                "html_detalhado_nao_interpretado",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?
         .map(str::to_owned);
     bruto
         .map(|v| decodificar_atributo(&v).ok_or(FORA))

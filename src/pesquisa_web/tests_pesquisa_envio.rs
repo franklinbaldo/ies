@@ -135,9 +135,12 @@ fn resposta_302_fora_da_regra_e_erro_de_redirecionamento_tipado() {
     let (r, _) = pesquisar(302, "", None);
     assert_eq!(
         r.unwrap_err(),
-        ErroPesquisaProtocolo::Redirecionamento(
-            ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAusente
-        )
+        ErroPesquisaProtocolo::Redirecionamento(ErroRedirecionamentoDaPesquisa::Html(
+            crate::erro_html::ErroHtml::ausente(
+                "localizacao_do_redirecionamento_ausente",
+                "a tela não tem o elemento observado"
+            )
+        ))
     );
     let (r, _) = pesquisar(302, "", Some(&localizacao("x")));
     assert_eq!(

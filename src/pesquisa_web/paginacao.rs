@@ -38,14 +38,13 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
-    LinkDePaginacaoDaPesquisaForaDaRegra,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
     RedirecionamentoAoPaginarAPesquisa,
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    #[causa(nome = "html_da_tela_de_resultado_da_pesquisa_nao_interpretado")]
-    HtmlDaTelaDeResultadoNaoInterpretado,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroPaginacaoDaPesquisa {}
@@ -162,7 +161,10 @@ fn conferir_links_de_navegar(
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
+    let ilegivel = E::Html(crate::erro_html::ErroHtml::html(
+        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
+        "o HTML não pôde ser interpretado",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut publicados = 0;
@@ -184,7 +186,10 @@ fn conferir_links_de_navegar(
             .and_then(|k| k.parse::<u64>().ok())
             .is_some_and(|k| k % tamanho == 0 && k < total);
         if !na_regra {
-            return Err(E::LinkDePaginacaoDaPesquisaForaDaRegra);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "link_de_paginacao_da_pesquisa_fora_da_regra",
+                "o valor não está na forma observada",
+            )));
         }
         publicados += 1;
     }
@@ -201,7 +206,10 @@ pub(crate) fn conferir_protocolo_servido(
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
+    let ilegivel = E::Html(crate::erro_html::ErroHtml::html(
+        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
+        "o HTML não pôde ser interpretado",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)

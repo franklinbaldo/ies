@@ -9,7 +9,10 @@ use crate::html_atributos::valor_do_atributo;
 fn ilegivel<T>(_: T) -> ErroProcessoObter {
     ErroProcessoObter::Controle(
         crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Controle(
-            crate::erro_web::ErroCaixa::HtmlInvalido,
+            crate::erro_web::ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+                "html_da_caixa_invalido",
+                "o HTML não pôde ser interpretado",
+            )),
         ),
     )
 }
@@ -71,7 +74,12 @@ pub(super) fn link_do_processo_no_controle(
                 continue;
             }
             if nesta_linha.is_some() {
-                return Err(ErroProcessoObter::LinksDoProcessoRepetidosNoControle);
+                return Err(ErroProcessoObter::Html(
+                    crate::erro_html::ErroHtml::repetido(
+                        "links_do_processo_repetidos_no_controle",
+                        "o número aparece mais de uma vez no Controle",
+                    ),
+                ));
             }
             nesta_linha = Some(href);
         }
@@ -82,7 +90,12 @@ pub(super) fn link_do_processo_no_controle(
             continue;
         }
         if achado.is_some() {
-            return Err(ErroProcessoObter::ProcessoRepetidoNoControle);
+            return Err(ErroProcessoObter::Html(
+                crate::erro_html::ErroHtml::repetido(
+                    "processo_repetido_no_controle",
+                    "o número aparece mais de uma vez no Controle",
+                ),
+            ));
         }
         achado = Some((id.to_owned(), href));
     }

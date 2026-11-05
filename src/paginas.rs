@@ -67,10 +67,21 @@ fn faixa_da_tabela(
     categoria: Categoria,
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCaixa::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroCaixa::Html(crate::erro_html::ErroHtml::html(
+            "html_da_caixa_invalido",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
     let tabela = match nos_com_id(&dom, id)
-        .map_err(|_| ErroCaixa::HtmlInvalido)?
+        .map_err(|e| {
+            ErroCaixa::Html(crate::erro_html::ErroHtml::atributo(
+                "html_da_caixa_invalido",
+                "o HTML não pôde ser interpretado",
+                e,
+            ))
+        })?
         .as_slice()
     {
         // Lista vazia comprovada pela estrutura: a mesma faixa de `0 registros:`.
@@ -321,7 +332,10 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             .as_deref()
             .is_none_or(|atual| !atual.eq_ignore_ascii_case(esperada.trim()))
     {
-        return Err(ErroCaixa::UnidadeInesperada);
+        return Err(ErroCaixa::Html(crate::erro_html::ErroHtml::valor(
+            "unidade_inesperada",
+            "o valor não está na forma observada",
+        )));
     }
     if paginas.len() > 1 && !contexto_inicial.verificavel() {
         return Err(ErroCaixa::ContextoNaoVerificavel);

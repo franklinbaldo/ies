@@ -144,8 +144,11 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
         "R"
     } else {
         v.resultado = Resultado::Recusado(
-            crate::visao_do_controle::ErroVisaoDoControle::VisaoDoControleNaoReconhecida
-                .subcodigo(),
+            crate::visao_do_controle::ErroVisaoDoControle::Html(crate::erro_html::ErroHtml::valor(
+                "visao_do_controle_nao_reconhecida",
+                "o valor não está na forma observada",
+            ))
+            .subcodigo(),
         );
         "ausente"
     };

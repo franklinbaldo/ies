@@ -109,7 +109,10 @@ fn primeiro_envio(
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
-        Err(ErroPesquisaProtocolo::Redirecionamento(R::IdDocumentoAusenteNoRedirecionamento)) => {
+        Err(ErroPesquisaProtocolo::Redirecionamento(R::Html(crate::erro_html::ErroHtml {
+            onde: "id_documento_ausente_no_redirecionamento",
+            ..
+        }))) => {
             let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
             return vec![c.registro(leitor, r.passo, motivo)];
         }

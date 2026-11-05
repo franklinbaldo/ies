@@ -8,16 +8,10 @@ const ACAO: &str = "procedimento_atribuicao_cadastrar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuirNaBarra {
-    #[causa(nome = "barra_da_atribuicao_fora_da_forma")]
-    BarraForaDaForma,
-    #[causa(nome = "barras_da_atribuicao_repetidas")]
-    BarrasRepetidas,
-    #[causa(nome = "links_de_atribuir_repetidos_na_barra")]
-    LinksRepetidos,
-    #[causa(nome = "endereco_da_atribuicao_nao_reconhecido")]
-    EnderecoNaoReconhecido,
     #[causa(nome = "endereco_da_atribuicao_de_outro_processo")]
     EnderecoDeOutroProcesso,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 impl ErroAtribuirNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -33,8 +27,14 @@ pub(crate) fn ler_atribuir_da_barra(
 ) -> Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra> {
     use ErroAtribuirNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::BarraForaDaForma,
-        FalhaDaBarra::Repetidas => E::BarrasRepetidas,
+        FalhaDaBarra::Fora => E::Html(crate::erro_html::ErroHtml::valor(
+            "barra_da_atribuicao_fora_da_forma",
+            "o valor não está na forma observada",
+        )),
+        FalhaDaBarra::Repetidas => E::Html(crate::erro_html::ErroHtml::repetido(
+            "barras_da_atribuicao_repetidas",
+            "o elemento aparece mais de uma vez",
+        )),
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -46,9 +46,15 @@ pub(crate) fn ler_atribuir_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|erro| match erro {
-                EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
+                EnderecoRecusado::NaoReconhecido => E::Html(crate::erro_html::ErroHtml::valor(
+                    "endereco_da_atribuicao_nao_reconhecido",
+                    "o valor não está na forma observada",
+                )),
                 EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
             }),
-        _ => Err(E::LinksRepetidos),
+        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "links_de_atribuir_repetidos_na_barra",
+            "o elemento aparece mais de uma vez",
+        ))),
     }
 }

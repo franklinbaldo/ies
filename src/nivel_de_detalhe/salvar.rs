@@ -68,10 +68,19 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
 pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
     use ErroNivelDeDetalhe as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::html(
+            "html_do_nivel_de_detalhe_nao_interpretado",
+            "o HTML não pôde ser interpretado",
+        ))
+    })?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
-        .map_err(|_| E::FormularioDoNivelDeDetalheAusente)?;
+    let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE).map_err(|_| {
+        E::Html(crate::erro_html::ErroHtml::ausente(
+            "formulario_do_nivel_de_detalhe_ausente",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
     for tag in form
         .children()
         .all(parser)
@@ -105,7 +114,10 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
             _ => false,
         };
         if !previsto {
-            return Err(E::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe);
+            return Err(E::Html(crate::erro_html::ErroHtml::valor(
+                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe",
+                "o valor não está na forma observada",
+            )));
         }
     }
     Ok(())

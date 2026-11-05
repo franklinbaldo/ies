@@ -48,14 +48,14 @@ pub(crate) enum ErroSobrestamento {
     JaSobrestado,
     #[causa(nome = "processo_nao_sobrestado")]
     NaoSobrestado,
-    #[causa(nome = "processo_nao_aberto_na_unidade_para_sobrestar")]
-    ForaDaUnidade,
     #[causa(nome = "processo_sobrestado_em_outra_unidade")]
     SobrestadoEmOutraUnidade,
     #[causa(nome = "acao_de_sobrestamento_nao_oferecida")]
     AcaoNaoOferecida,
     #[causa(nome = "confirmacao_de_sobrestamento_nao_implementada")]
     ConfirmacaoAindaBloqueada,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroSobrestamento {
@@ -65,13 +65,13 @@ impl ErroSobrestamento {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Abertura(e) => e.mensagem(),
             Self::UnidadeNaoPublicada => "o SEI não publicou a unidade da sessão",
             Self::SituacaoNaoLida(_) => "a situação do processo não foi observada com segurança",
             Self::Barra(_) => "a ação da barra não está na forma observada",
             Self::JaSobrestado => "o processo já está sobrestado; nenhuma escrita enviada",
             Self::NaoSobrestado => "o processo não está sobrestado; nenhuma escrita enviada",
-            Self::ForaDaUnidade => "o processo não está aberto na unidade ativa",
             Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
             Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
             Self::ConfirmacaoAindaBloqueada => {
@@ -109,7 +109,10 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
         }
         (Acao::Sobrestar, AbertoEm::Unidades(unidades)) => {
             if !unidades.iter().any(|u| u.sigla == atual) {
-                return Err(ErroSobrestamento::ForaDaUnidade);
+                return Err(ErroSobrestamento::Html(crate::erro_html::ErroHtml::valor(
+                    "processo_nao_aberto_na_unidade_para_sobrestar",
+                    "o processo não está aberto na unidade ativa",
+                )));
             }
         }
         (Acao::Retomar, AbertoEm::Sobrestado(unidades)) => {

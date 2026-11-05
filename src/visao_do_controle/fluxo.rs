@@ -34,7 +34,10 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
         return na_detalhada(&mut sessao, tela, pagina);
     }
     if !encontrado.eh_resumida() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(E::Html(crate::erro_html::ErroHtml::valor(
+            "visao_do_controle_nao_reconhecida",
+            "o valor não está na forma observada",
+        )));
     }
     vindo_da_resumida(&mut sessao, tela, pagina)
 }

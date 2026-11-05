@@ -9,29 +9,17 @@ pub struct VersaoDocumento(NonZeroU32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroVersao {
-    #[causa(nome = "versao_documento_invalida")]
-    NumeroInvalido,
-    #[causa(nome = "historico_documento_ausente")]
-    HistoricoAusente,
-    #[causa(nome = "historicos_documento_duplicados")]
-    HistoricosDuplicados,
-    #[causa(nome = "legendas_historico_versoes_repetidas")]
-    LegendasDoHistoricoRepetidas,
-    #[causa(nome = "colunas_historico_inesperadas")]
-    ColunasInesperadas,
     #[causa(nome = "linha_historico_incompleta")]
     LinhaIncompleta,
-    #[causa(nome = "link_versao_ausente_ou_ambiguo")]
-    LinkAusenteOuAmbiguo,
     #[causa(nome = "link_versao_inseguro")]
     LinkInseguro,
     #[causa(nome = "identidade_documento_divergente")]
     DocumentoDivergente,
-    #[causa(nome = "versao_documento_duplicada")]
-    VersaoDuplicada,
     #[causa(nome = "lista_versoes_incompleta")]
     ListaIncompleta,
     VersaoNaoObservada,
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 impl ErroVersao {
     pub fn subcodigo(self) -> &'static str {
@@ -41,15 +29,26 @@ impl ErroVersao {
 
 impl VersaoDocumento {
     pub fn nova(numero: u32) -> Result<Self, ErroVersao> {
-        NonZeroU32::new(numero)
-            .map(Self)
-            .ok_or(ErroVersao::NumeroInvalido)
+        NonZeroU32::new(numero).map(Self).ok_or(ErroVersao::Html(
+            crate::erro_html::ErroHtml::valor(
+                "versao_documento_invalida",
+                "o valor não está na forma observada",
+            ),
+        ))
     }
     pub fn interpretar(texto: &str) -> Result<Self, ErroVersao> {
         if texto.is_empty() || !texto.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroVersao::NumeroInvalido);
+            return Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+                "versao_documento_invalida",
+                "o valor não está na forma observada",
+            )));
         }
-        Self::nova(texto.parse().map_err(|_| ErroVersao::NumeroInvalido)?)
+        Self::nova(texto.parse().map_err(|_| {
+            ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+                "versao_documento_invalida",
+                "o valor não está na forma observada",
+            ))
+        })?)
     }
     pub fn numero(self) -> u32 {
         self.0.get()
@@ -178,7 +177,10 @@ fn linhas_do_historico(
                         "Ações",
                     ]
             {
-                return Err(ErroVersao::ColunasInesperadas);
+                return Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+                    "colunas_historico_inesperadas",
+                    "o valor não está na forma observada",
+                )));
             }
             cabecalho = true;
             continue;
@@ -197,7 +199,10 @@ fn linhas_do_historico(
         }
         let numero = VersaoDocumento::interpretar(&texto(celulas[1], parser))?;
         if !encontrados.insert(numero) {
-            return Err(ErroVersao::VersaoDuplicada);
+            return Err(ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+                "versao_documento_duplicada",
+                "o elemento aparece mais de uma vez",
+            )));
         }
         let td = celulas[5].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
         let mut links = Vec::new();
@@ -211,12 +216,20 @@ fn linhas_do_historico(
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
             // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
             // `onclick`) não é link de versão e nunca é seguida.
-            let href =
-                valor_do_atributo(a, "href").map_err(|_| ErroVersao::LinkAusenteOuAmbiguo)?;
+            let href = valor_do_atributo(a, "href").map_err(|e| {
+                ErroVersao::Html(crate::erro_html::ErroHtml::atributo(
+                    "link_versao_ausente_ou_ambiguo",
+                    "a tela não tem o elemento observado",
+                    e,
+                ))
+            })?;
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
         if links.len() != 1 {
-            return Err(ErroVersao::LinkAusenteOuAmbiguo);
+            return Err(ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+                "link_versao_ausente_ou_ambiguo",
+                "a tela não tem o elemento observado",
+            )));
         }
         conferir_link(&links[0], id_interno, numero)?;
         let valores: Vec<_> = celulas[2..5].iter().map(|n| texto(n, parser)).collect();
@@ -235,7 +248,10 @@ fn linhas_do_historico(
         }
     }
     if !cabecalho {
-        return Err(ErroVersao::ColunasInesperadas);
+        return Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+            "colunas_historico_inesperadas",
+            "o valor não está na forma observada",
+        )));
     }
     Ok(entradas)
 }
@@ -248,7 +264,10 @@ fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<St
         .flatten();
     let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
     if legendas.next().is_some() {
-        return Err(ErroVersao::LegendasDoHistoricoRepetidas);
+        return Err(ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+            "legendas_historico_versoes_repetidas",
+            "o elemento aparece mais de uma vez",
+        )));
     }
     primeira
         .get(parser)
@@ -267,15 +286,34 @@ pub fn interpretar_historico(
     if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroVersao::HistoricoAusente)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+            "historico_documento_ausente",
+            "a tela não tem o elemento observado",
+        ))
+    })?;
     let parser = dom.parser();
     let mut tabela = None;
-    for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")
-        .map_err(|_| ErroVersao::HistoricoAusente)?
-    {
-        let no = handle.get(parser).ok_or(ErroVersao::HistoricoAusente)?;
-        let tag = no.as_tag().ok_or(ErroVersao::HistoricoAusente)?;
+    for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable").map_err(|e| {
+        ErroVersao::Html(crate::erro_html::ErroHtml::atributo(
+            "historico_documento_ausente",
+            "a tela não tem o elemento observado",
+            e,
+        ))
+    })? {
+        let no =
+            handle
+                .get(parser)
+                .ok_or(ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+                    "historico_documento_ausente",
+                    "a tela não tem o elemento observado",
+                )))?;
+        let tag = no
+            .as_tag()
+            .ok_or(ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+                "historico_documento_ausente",
+                "a tela não tem o elemento observado",
+            )))?;
         let captions: Vec<_> = tag
             .query_selector(parser, "caption")
             .into_iter()
@@ -287,12 +325,18 @@ pub fn interpretar_historico(
             .any(|c| texto(c, parser).contains("Versões"))
         {
             if tabela.is_some() {
-                return Err(ErroVersao::HistoricosDuplicados);
+                return Err(ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+                    "historicos_documento_duplicados",
+                    "o elemento aparece mais de uma vez",
+                )));
             }
             tabela = Some(tag);
         }
     }
-    let tabela = tabela.ok_or(ErroVersao::HistoricoAusente)?;
+    let tabela = tabela.ok_or(ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+        "historico_documento_ausente",
+        "a tela não tem o elemento observado",
+    )))?;
     let legenda = legenda_unica(tabela, parser)?;
     let declaradas = legenda
         .rsplit_once('(')
@@ -382,7 +426,10 @@ pub(crate) mod testes {
         );
         assert_eq!(
             interpretar_historico(&extra, &doc, "42", None),
-            Err(ErroVersao::LinkAusenteOuAmbiguo)
+            Err(ErroVersao::Html(crate::erro_html::ErroHtml::ausente(
+                "link_versao_ausente_ou_ambiguo",
+                "a tela não tem o elemento observado"
+            )))
         );
     }
 
@@ -412,7 +459,10 @@ pub(crate) mod testes {
         let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
             interpretar_historico(&pagina(&[1, 1], &["42", "42"]), &doc, "42", None),
-            Err(ErroVersao::VersaoDuplicada)
+            Err(ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+                "versao_documento_duplicada",
+                "o elemento aparece mais de uma vez"
+            )))
         );
         assert_eq!(
             interpretar_historico(&pagina(&[1], &["43"]), &doc, "42", None),
@@ -425,7 +475,13 @@ pub(crate) mod testes {
     }
     #[test]
     fn numero_zero_e_link_com_acao_repetida_sao_recusados() {
-        assert_eq!(VersaoDocumento::nova(0), Err(ErroVersao::NumeroInvalido));
+        assert_eq!(
+            VersaoDocumento::nova(0),
+            Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+                "versao_documento_invalida",
+                "o valor não está na forma observada"
+            )))
+        );
         let doc = NumeroDocumento::novo("0007").unwrap();
         let html = pagina(&[1], &["42"]).replace(
             "acao=documento_visualizar",
@@ -454,11 +510,18 @@ pub(crate) mod testes {
         for html in [duplicada, extra] {
             assert_eq!(
                 interpretar_historico(&html, &doc, "42", None),
-                Err(ErroVersao::LegendasDoHistoricoRepetidas)
+                Err(ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+                    "legendas_historico_versoes_repetidas",
+                    "o elemento aparece mais de uma vez"
+                )))
             );
         }
         assert_eq!(
-            ErroVersao::LegendasDoHistoricoRepetidas.subcodigo(),
+            ErroVersao::Html(crate::erro_html::ErroHtml::repetido(
+                "legendas_historico_versoes_repetidas",
+                "o elemento aparece mais de uma vez"
+            ))
+            .subcodigo(),
             "legendas_historico_versoes_repetidas"
         );
     }

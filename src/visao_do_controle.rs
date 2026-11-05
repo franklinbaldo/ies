@@ -105,11 +105,8 @@ impl Visao {
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroVisaoDoControle {
-    VisaoDoControleNaoReconhecida,
     #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
-    #[causa(nome = "identificacao_da_unidade_ausente_no_controle")]
-    IdentificacaoDaUnidadeAusente,
     #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDiferenteDaSolicitada,
     #[causa(nome = "redirecionamento_ao_trocar_visao_do_controle")]
@@ -132,9 +129,6 @@ pub(crate) enum ErroVisaoDoControle {
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
     #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
-    LinkDoNivelDeDetalheAusente,
-    LinksDoNivelDeDetalheRepetidos,
-    LinkDoNivelDeDetalheNaoReconhecido,
     #[causa(interna)]
     Caixa(ErroCaixa),
     #[causa(interna)]
@@ -149,6 +143,8 @@ pub(crate) enum ErroVisaoDoControle {
     Pagina(ErroPaginaDoControle),
     #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
+    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroVisaoDoControle {
@@ -158,6 +154,7 @@ impl ErroVisaoDoControle {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
             Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
             Self::Transporte(erro) => erro.mensagem(),
