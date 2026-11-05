@@ -36,14 +36,16 @@ a leitura Web; a saída deverá avisar que não houve persistência.
 
 ## Acesso ao banco
 
-A CLI deverá expor `ies indice caminho` em vez de ampliar
+A PR #250 acrescenta `ies indice caminho` em vez de ampliar
 `ies status`: separa a descoberta de arquivo da inspeção de sessão.
+A descoberta é só local e não abre o banco nem consulta a lupa.
 Acesso SQL público somente por `SELECT`, sem promessa de suporte
 para escrita. Alterar esquema exige nova versão e documentação.
 
 ## Limites e revisão
 
-Esta primeira fatia cria o armazenamento e a pesquisa em memória
-Rust, mas **não** liga o leitor HTTP, os comandos ou as sugestões
+A primeira fatia cria o armazenamento e a pesquisa em memória
+Rust; a seguinte integra `indice caminho`, mas **não** liga o leitor
+HTTP, `unidade listar/pesquisar` ou as sugestões
 do envio. O contrato HTTP depende do replay da lupa no IES e dos
 ensaios autorizados na UnB e em Goiás. Não inferir PASS live.
