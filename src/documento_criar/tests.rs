@@ -414,3 +414,29 @@ fn cadastro_aceita_controles_obrigatorios_atendidos_e_ignora_desabilitado() {
         Ok(())
     );
 }
+
+#[test]
+fn cadastro_recusa_nivel_com_disabled_booleano() {
+    // `disabled` sem valor é booleano HTML; valor_do_atributo não o representa.
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0" disabled>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        Err(ErroCriar::NivelNaoOferecido)
+    );
+}
+
+#[test]
+fn cadastro_recusa_descricao_com_disabled_booleano() {
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
+        <input type="text" id="txtDescricao" name="txtDescricao" disabled>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", Some("texto"), Some("publico")),
+        Err(ErroCriar::DescricaoNaoOferecida)
+    );
+}
