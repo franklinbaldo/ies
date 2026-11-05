@@ -10,7 +10,7 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_criar_cadastro::conferir_cadastro;
 use crate::processo_criar_lista::{EscolhaDoTipo, ErroListaDeTipos, tipo_na_lista};
 use crate::processo_criar_menu::link_de_iniciar;
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
 
@@ -200,11 +200,33 @@ fn resolver_link(
     Ok(url)
 }
 
+fn url_do_redirecionamento(
+    instalacao: &Instalacao, localizacao: &str, url_envio: &str, acao: &str,
+) -> Result<String, ErroCriar> {
+    let absoluta = if localizacao.starts_with("https://") {
+        localizacao.to_owned()
+    } else {
+        resolver_link(instalacao, url_envio, localizacao, acao)?
+    };
+    let partes = crate::url_observada::UrlHttps::interpretar(&absoluta)
+        .ok_or(ErroCriar::EfeitoIncerto)?;
+    if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
+        return Err(ErroCriar::EfeitoIncerto);
+    }
+    let vezes = partes.consulta.unwrap_or_default()
+        .split('&').filter(|par| *par == format!("acao={acao}")).count();
+    if vezes != 1 {
+        return Err(ErroCriar::EfeitoIncerto);
+    }
+    Ok(absoluta)
+}
+
 fn retorno_da_criacao(
     instalacao: &Instalacao, localizacao: &str, url_envio: &str,
 ) -> Result<(String, String), ErroCriar> {
-    let url = resolver_link(instalacao, url_envio, localizacao, "arvore_visualizar")
-        .map_err(|_| ErroCriar::EfeitoIncerto)?;
+    let url = url_do_redirecionamento(
+        instalacao, localizacao, url_envio, "procedimento_trabalhar",
+    ).map_err(|_| ErroCriar::EfeitoIncerto)?;
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::EfeitoIncerto)?;
@@ -260,11 +282,16 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 envio, cookie, &ESCOLHER_TIPO, &instalacao, &lista, &unidade,
                 &[("hdnIdTipoProcedimento", &id_tipo)], &mut requisicoes, false,
             )?;
-            let RespostaDoEnvio::Html(html) = resposta else { return Err(E::EscolhaInesperada); };
-            // O action do formulário de escolha é a URL onde o cadastro
-            // respondeu; a tela deve publicar um action de procedimento_gerar.
-            // Sem a URL de destino da resposta, não é seguro derivar o POST.
-            return let_previa_sem_cadastro(id_tipo, html);
+            let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
+                return Err(E::EscolhaInesperada);
+            };
+            let url = url_do_redirecionamento(
+                &instalacao,
+                redirecionamento.localizacao().ok_or(E::EscolhaInesperada)?,
+                redirecionamento.url_do_envio(),
+                "procedimento_gerar",
+            ).map_err(|_| E::EscolhaInesperada)?;
+            (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
         }
     };
     let observado = conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel)
@@ -330,10 +357,3 @@ pub(crate) fn criar<V: EnvioDoControle>(
     Ok(feito)
 }
 
-// Placeholder explícito: a escolha por formulário ainda exige conservar a
-// URL da resposta do POST, não só o HTML. Recusar antes da criação.
-fn let_previa_sem_cadastro(
-    _id_tipo: String, _html: String,
-) -> Result<Criacao, ErroCriar> {
-    Err(ErroCriar::EscolhaInesperada)
-}
