@@ -1,6 +1,5 @@
-//! Prévia Web dos comandos sobrestar/retomar (#269).
-//! Confirmação continua fechada antes da rede nesta fatia: não existe POST
-//! seguro sem conferir formulário e reconciliação completa de escrita.
+//! Prévia e confirmação única de sobrestar/retomar (#269).
+//! A confirmação deriva a escrita da tela e exige leitura verificadora.
 use crate::arvore_processo::{AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, MotivoAbertoEm, ErroEnderecoDeRetomar};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
@@ -52,7 +51,7 @@ pub(crate) enum ErroSobrestamento {
     ForaDaUnidade,
     SobrestadoEmOutraUnidade,
     AcaoNaoOferecida,
-    ConfirmacaoAindaBloqueada,
+    MotivoVazio,
     TelaDaEscrita(FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada,
@@ -76,7 +75,7 @@ impl ErroSobrestamento {
             Self::ForaDaUnidade => "processo_nao_aberto_na_unidade_para_sobrestar",
             Self::SobrestadoEmOutraUnidade => "processo_sobrestado_em_outra_unidade",
             Self::AcaoNaoOferecida => "acao_de_sobrestamento_nao_oferecida",
-            Self::ConfirmacaoAindaBloqueada => "confirmacao_de_sobrestamento_nao_implementada",
+            Self::MotivoVazio => "motivo_do_sobrestamento_vazio",
             Self::TelaDaEscrita(falha) => falha.subcodigo(),
             Self::TelaRedirecionada => "tela_de_sobrestamento_redirecionada",
             Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
@@ -100,9 +99,7 @@ impl ErroSobrestamento {
             Self::ForaDaUnidade => "o processo não está aberto na unidade ativa",
             Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
             Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
-            Self::ConfirmacaoAindaBloqueada => {
-                "a confirmação está bloqueada até implementar e testar a escrita única e sua verificação"
-            }
+            Self::MotivoVazio => "motivo obrigatório para sobrestar",
             Self::TelaDaEscrita(_) | Self::TelaRedirecionada => "a tela da escrita não foi servida; nenhuma escrita enviada",
             Self::SessaoEncerrada => "sessão encerrada; rode ies login; nada enviado",
             Self::CharsetNaoSuportado => "charset da tela não suportado; nada enviado",
@@ -125,6 +122,7 @@ impl ErroSobrestamento {
 }
 
 /// Prévia sem escrita. A URL assinada só vive dentro do fluxo de confirmação.
+#[cfg(test)]
 pub(crate) fn preparar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
