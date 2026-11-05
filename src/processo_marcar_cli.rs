@@ -4,7 +4,7 @@
 use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
-use crate::processo_marcar::{Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo};
+use crate::processo_marcar::{Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto};
 use crate::processo_obter::{
     Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso, obter_processo,
 };
@@ -55,15 +55,10 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
         Ok(rotulo) => rotulo,
         Err(erro) => return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem())),
     };
-    if texto
-        .as_deref()
-        .is_some_and(|t| t.chars().any(char::is_control))
+    if let Some(texto) = texto
+        && let Err(erro) = validar_texto(texto)
     {
-        return Some(erro_de_uso(
-            cli,
-            "texto_do_marcador_com_controle",
-            "o texto do marcador contém caractere de controle",
-        ));
+        return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         previa(cli, sessao, indice, &nup, &rotulo, operacao, *confirmar)
