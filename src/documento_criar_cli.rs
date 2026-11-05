@@ -1,6 +1,6 @@
 //! Entrada pública de documento criar (#246).
-//! Confirmação ainda não implementada: recusa antes de carregar sessão,
-//! e portanto antes de qualquer requisição ou escrita no SEI.
+//! A confirmação deriva um único POST do cadastro e só reconhece o efeito
+//! depois de releitura da árvore. Não há retry.
 use crate::documento_criar::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
