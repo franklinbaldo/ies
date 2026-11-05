@@ -249,17 +249,27 @@ fn conferir_formulario(
 /// O 302 aceito tem a ação, a identidade do processo/documento e o marcador
 /// `atualizar_arvore=1` exatamente uma vez; Location nunca é seguido.
 fn localizacao_aceita(localizacao: &str, enviado: &str, id_proc: &str, id_doc: &str) -> bool {
-    let Some(consulta) = consulta_do_controlador(localizacao, enviado) else { return false; };
-    let mut acao=0; let mut proc=0; let mut doc=0; let mut atualizar=0;
+    let Some(consulta) = consulta_do_controlador(localizacao, enviado) else {
+        return false;
+    };
+    let mut acao = 0;
+    let mut proc = 0;
+    let mut doc = 0;
+    let mut atualizar = 0;
     for par in consulta.split('&') {
-        let Some((nome, valor)) = par.split_once('=') else { return false; };
+        let Some((nome, valor)) = par.split_once('=') else {
+            return false;
+        };
         if crate::transporte::conferir_chave_de_consulta(nome).is_err()
-            || crate::transporte::conferir_valor_de_consulta(valor).is_err() { return false; }
+            || crate::transporte::conferir_valor_de_consulta(valor).is_err()
+        {
+            return false;
+        }
         match nome {
-            "acao" if valor == "arvore_visualizar" => acao+=1,
-            "id_procedimento" if valor == id_proc => proc+=1,
-            "id_documento" if valor == id_doc => doc+=1,
-            "atualizar_arvore" if valor == "1" => atualizar+=1,
+            "acao" if valor == "arvore_visualizar" => acao += 1,
+            "id_procedimento" if valor == id_proc => proc += 1,
+            "id_documento" if valor == id_doc => doc += 1,
+            "atualizar_arvore" if valor == "1" => atualizar += 1,
             "acao" | "id_procedimento" | "id_documento" | "atualizar_arvore" => return false,
             _ => {}
         }
