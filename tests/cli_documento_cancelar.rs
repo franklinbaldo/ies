@@ -27,14 +27,44 @@ fn motivo_obrigatorio_e_exigido_pelo_clap_antes_da_sessao() {
 #[test]
 fn recusa_uso_invalido_sem_tocar_na_sessao() {
     let casos = [
-        (vec!["documento", "cancelar", "abc", "--motivo", "Teste", "--json"], "numero_documento_nao_numerico"),
-        (vec!["documento", "cancelar", "0000101", "--motivo", "   ", "--json"], "motivo_vazio"),
-        (vec!["documento", "cancelar", "0000101", "--motivo", "Cópia 🚀", "--json"], "motivo_fora_da_codificacao"),
+        (
+            vec![
+                "documento",
+                "cancelar",
+                "abc",
+                "--motivo",
+                "Teste",
+                "--json",
+            ],
+            "numero_documento_nao_numerico",
+        ),
+        (
+            vec![
+                "documento",
+                "cancelar",
+                "0000101",
+                "--motivo",
+                "   ",
+                "--json",
+            ],
+            "motivo_vazio",
+        ),
+        (
+            vec![
+                "documento",
+                "cancelar",
+                "0000101",
+                "--motivo",
+                "Cópia 🚀",
+                "--json",
+            ],
+            "motivo_fora_da_codificacao",
+        ),
     ];
-    for (args,subcodigo) in casos {
+    for (args, subcodigo) in casos {
         let r = sem_sessao(&args);
         assert_eq!(r.status.code(), Some(2), "{args:?}");
-        let valor=json(&r);
+        let valor = json(&r);
         assert_eq!(valor["codigo"], "entrada_invalida");
         assert_eq!(valor["subcodigo"], subcodigo);
     }
@@ -42,10 +72,19 @@ fn recusa_uso_invalido_sem_tocar_na_sessao() {
 
 #[test]
 fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
-    for confirmar in [false,true] {
-        let mut args=vec!["documento", "cancelar", "0000101", "--motivo", "Teste", "--json"];
-        if confirmar { args.push("--confirmar"); }
-        let r=sem_sessao(&args);
+    for confirmar in [false, true] {
+        let mut args = vec![
+            "documento",
+            "cancelar",
+            "0000101",
+            "--motivo",
+            "Teste",
+            "--json",
+        ];
+        if confirmar {
+            args.push("--confirmar");
+        }
+        let r = sem_sessao(&args);
         assert_eq!(r.status.code(), Some(1));
         assert_eq!(json(&r)["codigo"], "fonte_invalida");
     }
