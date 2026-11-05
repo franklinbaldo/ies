@@ -61,4 +61,58 @@ fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
     );
     assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(falha.status_http(), Some(&recusa));
+    let json = crate::saida_erro::json_de_erro_fonte(
+        falha.subcodigo(),
+        "recusa na lupa",
+        falha.status_http(),
+    );
+    assert_eq!(json["status_http"], 503);
+    assert_eq!(json["mensagem_do_servidor"], "indisponivel");
+    assert!(json.get("url").is_none());
+    assert!(json.get("cookie").is_none());
+}
+
+#[test]
+fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
+    use crate::formulario_web::RespostaDoPost;
+    use crate::transporte::RespostaWeb;
+    use std::io::Cursor;
+
+    struct UnicaLeitura { gets: usize }
+    impl TransporteLupa for UnicaLeitura {
+        type Corpo = Cursor<Vec<u8>>;
+        fn get(
+            &mut self,
+            _url: &str,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            self.gets += 1;
+            assert_eq!(self.gets, 1, "um link inseguro nao pode causar outro GET");
+            let consulta = format!(
+                "acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash=inválido"
+            );
+            let resposta = RespostaWeb {
+                status_code: 200,
+                mime: "text/html; charset=utf-8".to_owned(),
+                content_length: None,
+                localizacao: None,
+                corpo: Cursor::new(link(&consulta).into_bytes()),
+            };
+            Ok(RespostaDoPost { resposta, localizacao: None })
+        }
+        fn post(
+            &mut self,
+            _submissao: SubmissaoDerivada,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            panic!("nunca POST antes de conferir o link");
+        }
+    }
+
+    let mut transporte = UnicaLeitura { gets: 0 };
+    assert!(matches!(
+        ler_integral(&mut transporte, &controle(), ORIGEM, "PHPSESSID=SINTETICO"),
+        Err(FalhaDaLupa::LinkAusente),
+    ));
+    assert_eq!(transporte.gets, 1);
 }
