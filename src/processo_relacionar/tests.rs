@@ -4,7 +4,7 @@ use super::tela::{ler_destino, ler_linhas, url_complementar};
 
 fn tela() -> String {
     let hash = "a".repeat(64);
-    format!(r#"<html><script>
+    format!(r##"<html><script>
 objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={hash}');
 </script><form id="frmProcedimentoListarRelacionamentos" method="post" action="controlador.php?acao=procedimento_relacionar&infra_hash={hash}">
 <input name="hdnInfraTipoPagina" type="hidden" value="2" />
@@ -12,7 +12,7 @@ objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_aj
 <tr><th>Processo</th></tr>
 <tr><td><a class="protocoloAberto" href="controlador.php?acao=procedimento_trabalhar&id_procedimento=22&infra_hash={hash}">12345.000002/2026-01</a></td>
 <td><a href="#ID-22" onclick="acaoRemover('22');">Remover</a></td></tr>
-</table></form></html>"#)
+</table></form></html>"##)
 }
 
 #[test]
