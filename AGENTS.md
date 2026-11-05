@@ -72,14 +72,45 @@ O que falta implementar e em que ordem está na
 
 ## Mecânica do repositório
 
-- Todo Markdown autoral é OKF ([política de CI](docs/ci.md)); nenhum
-  arquivo texto passa de 20.000 bytes (exceto `.lock`) — divida por
-  responsabilidade.
+- Nenhum arquivo texto passa de 20.000 bytes (exceto `.lock`). Quando
+  uma mudança deixar um arquivo acima de ~16.000 bytes, **divida-o na
+  mesma PR**, por responsabilidade: o original fica com o núcleo e uma
+  seção de links para as partes, e cada parte vira um arquivo próprio
+  com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
+  `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
+  texto, tabela ou código para caber; não espere o gate falhar.
+- Ao trabalhar em paralelo com outros agentes, edite só os arquivos do
+  seu prefixo; os dos outros você lê. Se uma peça compartilhada precisar
+  mudar, faça a mudança mínima e explique na PR.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI](.github/workflows/ci.yml) roda os mesmos gates; não crie outro
   conjunto de checks).
+
+## OKF e okf-parser
+
+Todo Markdown autoral é um conceito OKF ([política de CI](docs/ci.md)):
+frontmatter YAML com `type`, `title` e `description`, e depois o corpo.
+O `type` precisa existir em `.okf/specs/` (`Contract`, `CommandContract`,
+`Guide`, `Spec`, `Policy`, `Cassette`, `OperationEvidence`,
+`ImplementationDecision`, `ArchitectureDecision`, …). Use um tipo
+existente; inventar um tipo faz o gate falhar com `OKF010`. Um tipo novo
+só entra com o seu `.okf/specs/<slug>.md` e `<slug>.schema.sql`.
+
+O `okf-parser` roda pelo `uvx`, sem instalação, na versão do `prek.toml`:
+
+```sh
+OKF="uvx --from okf-parser==0.48.2 okf-parser"
+$OKF check . --require-spec .okf/specs/{slug}.md --normative-spec  # o gate
+$OKF inventory .                       # conceitos por tipo
+$OKF search . "efeito incerto" --type Contract --context 1
+$OKF sql . "SELECT path FROM concepts WHERE concept_type = 'Guide'"
+```
+
+`search` acha o contrato ou a evidência de um assunto sem varrer o
+repositório; `sql` consulta as tabelas `concepts` e `links`, só leitura.
+`$OKF --help` lista o resto.
 
 ## Onde está o resto
 

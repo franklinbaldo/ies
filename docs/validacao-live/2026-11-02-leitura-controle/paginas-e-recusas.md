@@ -1,0 +1,95 @@
+---
+type: SEIObservation
+title: Leitura do Controle — páginas, recebidos e recusas
+description: Página observada, recebidos e gerados, visão detalhada e mensagem do SEI nas recusas, 02/11/2026
+---
+
+# Leitura do Controle — páginas, recebidos e recusas
+
+Parte do [ensaio live da leitura do Controle](../2026-11-02-leitura-controle.md), separada por responsabilidade.
+
+## Página observada e `--categoria T --pagina N` (#57)
+
+Mesmo dia, mesmas sessões reaproveitadas (nenhum login novo), binário
+com a página observada por padrão e `--pagina N` por categoria. Cada
+`--pagina N` custou 1 GET + no máximo 1 POST; `N` fora do intervalo foi
+recusado **antes** de qualquer POST. Nenhuma escrita.
+
+> **Nota posterior (sintaxe):** este ensaio usou a sintaxe da PR #146,
+> `ies unidade listar-processos --categoria T --pagina N`. Por decisão do
+> proprietário, a mesma operação passou a `ies unidade recebidos|gerados
+> --pagina N`, e `--categoria`/`--pagina` saíram de `listar-processos`
+> ([listas](../../../contracts/cli/unidade-recebidos-gerados.md)). O registro
+> abaixo é histórico; a nova sintaxe ainda não foi ensaiada live.
+
+| Instalação | Padrão (1 GET) | `--pagina N` | Fora do intervalo |
+| --- | --- | --- | --- |
+| UnB | 12/12 e 47/47, faixa 1–total | — | `gerados --pagina 2` → `pagina_fora_do_intervalo` |
+| UFRJ | 2/2 e 7/7, faixa 1–total | — | idem |
+| PEN1 | 100 de 114 e 100 de 218, faixa 1–100 | recebidos p2: 14 itens, 101–114; gerados p3: 18 itens, 201–218 | gerados p4 |
+| PEN3 | 100 de 171 e 100 de 123 | recebidos p2: 71 itens, 101–171; gerados p2: 23 itens, 101–123 | gerados p3 |
+| PEN4 | 100 de 157 e 100 de 103 | recebidos p2: 57 itens, 101–157; gerados p2: 3 itens, 101–103 | gerados p3 |
+| GO | 10 de 131 e 10 de 7990, faixa 1–10 | gerados p799: 10 itens, 7981–7990; recebidos p14: 1 item, 131–131 | gerados p800 |
+
+**Efeito de sessão observado (PEN1):** depois de `recebidos --pagina 2`,
+a leitura padrão seguinte mostrou recebidos na faixa 101–114 — o
+servidor lembra a página, e a saída o declara pela faixa. `--pagina 1`
+em cada categoria restaurou 1–100 em todas as instalações paginadas.
+
+## Nova sintaxe: `unidade recebidos|gerados [--pagina N]`
+
+Mesmas sessões, sem login novo. Em PEN1, GO e UnB, `listar-processos`
+devolveu o array das duas listas e `recebidos`/`gerados` uma lista cada,
+com os mesmos totais e faixas das rodadas anteriores. PEN1:
+`recebidos --pagina 2` 101–114, `gerados --pagina 3` 201–218,
+`gerados --pagina 4` recusado sem POST, `--pagina 1` restaurou as duas.
+UnB: `gerados --pagina 2` recusado sem POST. `listar-processos
+--categoria` saiu com código 2.
+
+**GO — 5xx ao voltar de 799 para 1.** `gerados --pagina 799` devolveu
+7981–7990. Em seguida, `gerados --pagina 1` recebeu
+`status_http_de_erro_do_servidor` duas vezes (a 2ª, repetição manual
+única, após um GET que confirmou a página 799 lembrada). Na rodada
+anterior, a mesma volta, depois de um POST em recebidos, passou. Sem
+nova tentativa: a sessão de treinamento ficou com Gerados na página
+799, e a leitura seguinte o declara pela faixa. O subcódigo separado
+em #145 identificou a intermitência de GO como erro 5xx do servidor.
+
+## Visão detalhada e mensagem do SEI nas recusas
+
+**Visão detalhada (experimento, arnês privado, treinamento).** A troca
+`hdnTipoVisualizacao=D` pelo formulário da caixa devolveu
+`tblProcessosDetalhado` com total = recebidos + gerados (UnB 59, PEN1
+332, GO 8121), **sem coluna de categoria** (na PEN1, ícones de status do
+Tramita GOV.BR, não Recebidos/Gerados). Colunas variam: UnB 5, PEN1 4,
+GO 10. Página: igual à resumida (PEN1 100, GO 10; UnB sem paginação).
+**Persistência:** UnB 4.0.9 volta à resumida no GET seguinte; PEN1 5.0.4
+e GO 5.0.3 mantêm a detalhada na sessão, e na PEN1 um **login novo** da
+mesma conta abriu na detalhada. Todas as contas foram restauradas para a
+resumida (POST `R`) e conferidas por GET; GO voltou à página 1 de Gerados.
+
+**Mensagem do SEI nas recusas HTTP.** Com o binário que expõe
+`status_http` e `mensagem_do_servidor`, a sequência que antes deu 5xx em
+GO (`gerados --pagina 799` → `--pagina 1`) passou nas duas: validação
+live da mensagem **NOT_RUN** (falha intermitente não recorreu).
+
+**Categoria na visão D — não há.** Cruzando, na mesma sessão, cada linha
+D com a categoria da resumida (UnB: 59/59 linhas, a caixa inteira; PEN1:
+100 linhas), nenhum traço HTML (classes, atributos, ícones, `data-label`,
+argumentos de tooltip, ocultos) separa Recebidos de Gerados. Os mais
+correlatos são status alheios à categoria (ícone de trâmite recebido do
+Tramita GOV.BR na PEN1; retorno programado na UnB). `hdnExibirRecebidos`/
+`hdnExibirGerados` são os alternadores da resumida em tela pequena
+(`alterarVisualizacaoTabela`, `d-md-none`): enviados com
+`hdnTipoVisualizacao=D`, **não filtram** a D (UnB 59 e PEN1 332 em ambos).
+A página da D fica lembrada à parte da resumida (PEN1 voltou em 101–200);
+restaurada para a página 1 e a tela para R, conferidas por GET.
+
+**Nível de detalhe.** A D publica `procedimento_configurar_detalhe`
+(GET somente leitura): 12 opções fixas (`chkSinAtribuicao`, `chkSinAnotacao`,
+`chkSinTipoProcesso`, `chkSinEspecificacao`, `chkSinNivelPrioritarios`,
+`chkSinInteressados`, `chkSinObservacao`, `chkSinControlePrazo`,
+`chkSinRetornoDevolver`, `chkSinRetornoAguardando`,
+`chkSinUltimaMovimentacao`, `chkSinMarcadores`) e `sbmSalvar`. PEN1 tinha 3
+marcadas, GO todas; GO com 12 marcadas mostra 9 colunas além de Processo
+(prazo, devolver e aguardando não viram cabeçalho). Nada foi salvo.
