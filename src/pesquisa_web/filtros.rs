@@ -11,11 +11,6 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) ate: Option<&'a str>,
 }
 
-impl FiltrosDaPesquisa<'_> {
-    pub(crate) fn vazio(self) -> bool {
-        self.tipo.is_none() && self.assunto.is_none() && self.de.is_none() && self.ate.is_none()
-    }
-}
 
 /// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
 pub(crate) fn data_valida(data: &str) -> bool {
