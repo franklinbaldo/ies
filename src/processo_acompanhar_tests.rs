@@ -140,3 +140,106 @@ fn lista_realista_com_entidades() {
     let lida = acompanhamentos_da_lista(&html).unwrap();
     assert_eq!(lida[0], a("831", "Boas-Vindas", "Prazos & revisões"));
 }
+
+
+/// Casos do Todos tests/test_processo_acompanhar_010.py @323eb01:
+/// submissão de cadastro derivada da tela servida, nunca de endpoint inventado.
+#[test]
+fn submissao_inclusao_reflete_grupo_exato_oculto_e_botao() {
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida};
+    use crate::instalacao::Instalacao;
+    let html = cadastro(
+        r#"<option value="null">&nbsp;</option><option value="19">acomp fiel</option>"#,
+    )
+    .replace("infra_hash=SYNTHETIC", &format!("infra_hash={}", "a".repeat(64)))
+    .replace(
+        r#"name="sbmCadastrarAcompanhamento">"#,
+        r#"name="sbmCadastrarAcompanhamento" value="Salvar">"#,
+    );
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    );
+    let tela = TelaServida {
+        url: &url,
+        html: &html,
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let sub = super::submissao::derivar_inclusao(
+        &instalacao,
+        &tela,
+        ID,
+        "TESTE",
+        Some("acomp fiel"),
+        "Prazo.",
+    )
+    .expect("formulário sintético válido");
+    assert_eq!(sub.nomes_dos_campos(), &[
+        "hdnIdProtocolo", "selGrupoAcompanhamento",
+        "txaObservacao", "sbmCadastrarAcompanhamento",
+    ]);
+    assert_eq!(
+        sub.corpo(),
+        b"hdnIdProtocolo=12345&selGrupoAcompanhamento=19&txaObservacao=Prazo.&sbmCadastrarAcompanhamento=Salvar"
+    );
+    assert_eq!(sub.referer(), url);
+    assert_eq!(sub.origem(), "https://sei.exemplo.gov.br");
+    assert!(!format!("{sub:?}").contains(&"a".repeat(64)));
+}
+
+#[test]
+fn submissao_inclusao_nao_inventa_grupo_ou_endereco() {
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida};
+    use crate::instalacao::Instalacao;
+    let html = cadastro(r#"<option value="19">acomp fiel</option>"#)
+        .replace("infra_hash=SYNTHETIC", &format!("infra_hash={}", "a".repeat(64)));
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    );
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let tela = TelaServida {
+        url: &url,
+        html: &html,
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    assert!(matches!(
+        super::submissao::derivar_inclusao(
+            &instalacao, &tela, ID, "TESTE", Some("inexistente"), ""
+        ),
+        Err(super::fluxo::ErroPrevia::Estrutura(ErroAcompanhar::GrupoNaoOferecido))
+    ));
+    let externo = url.replace("sei.exemplo.gov.br", "outro.exemplo.gov.br");
+    assert!(super::submissao::derivar_inclusao(
+        &instalacao,
+        &TelaServida { url: &externo, ..tela },
+        ID,
+        "TESTE",
+        Some("acomp fiel"),
+        "",
+    ).is_err());
+}
+
+#[test]
+fn submissao_inclusao_recusa_hash_duplicado_e_processo_divergente() {
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida};
+    use crate::instalacao::Instalacao;
+    let html = cadastro(r#"<option value="19">acomp fiel</option>"#)
+        .replace("infra_hash=SYNTHETIC", &format!("infra_hash={}", "a".repeat(64)));
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    );
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let recusada = |html: &str| super::submissao::derivar_inclusao(
+        &instalacao,
+        &TelaServida { url: &url, html, codificacao: CodificacaoDaTela::Iso88591 },
+        ID, "TESTE", Some("acomp fiel"), ""
+    ).is_err();
+    assert!(recusada(&html.replace("id_procedimento=12345", "id_procedimento=99999")));
+    assert!(recusada(&html.replace(
+        "infra_hash=", "infra_hash=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc&infra_hash="
+    )));
+    assert!(recusada(&html.replace("name=\"hdnIdProtocolo\" value=\"12345\"", "name=\"hdnIdProtocolo\" value=\"99999\"")));
+}
