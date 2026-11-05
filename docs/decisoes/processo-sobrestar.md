@@ -4,7 +4,7 @@ title: Sobrestar e retomar por ação Web assinada com situação verificada
 operation: processo.sobrestar
 implementation: partial
 status: adopted-for-scope
-scope: os dois comandos da unidade da sessão com prévia; escrita ainda bloqueada
+scope: dois comandos Web, escrita única e verificação offline; ensaio autenticado pendente
 selected_strategy: barra-assinada-com-situacao-lida
 alternatives: barra-assinada-com-situacao-lida,rest-nao-observado,heuristica-textual
 evidence_level: cassettes-todos-sete-instalacoes-e-testes-sinteticos
@@ -49,11 +49,15 @@ Usar `arvore_processo::barra_do_processo` e
 guardado para conferir a unidade. Não executar JavaScript, não usar
 regex, não seguir 302, não construir links com `infra_hash`.
 
-Entregues: superfície CLI, motivo obrigatório, verificação de
-estado e URL da barra, prévia funcional sem POST, testes sintéticos
-para identidade, duplicidade, autorização e orçamento HTTP.
-`--confirmar` ainda recusa ANTES de ler arquivos: é preferível
-a executar uma escrita sem formulário e reconciliação comprovados.
+Entregues em #279: CLI, motivo obrigatório, situação, barra,
+prévia funcional sem POST e testes de identidade e contagem.
+A #284 implementa confirmação: sobrestar pela tela do SEI com
+formulário derivado e POST único; retomar pelo GET de função
+publicada na tela do nó. Ambos têm releitura obrigatória da
+situação e recusam escrever fora da unidade. O POST consome
+`SubmissaoDerivada`, sem retry, sem executar JS e sem seguir 302.
+Transporte roteirizado sintético: seis pedidos a frio, sendo
+um único envio, inclusive na falha e na reconciliação.
 
 ## Evidências verificáveis
 
@@ -62,19 +66,22 @@ a executar uma escrita sem formulário e reconciliação comprovados.
 - [Matriz da operação](../../contracts/evidencias/processo-sobrestar.md):
   sete cassettes do Todos, não é execução do novo código.
 - [Teste Rust da CLI](../../tests/cli_processo_sobrestar.rs):
-  uso inválido e confirmação não implementada sem rede.
+  uso inválido e falta de sessão para confirmar.
 - [Testes do leitor](../../src/arvore_processo/tests_sobrestar.rs)
   e [testes de fluxo](../../src/processo_sobrestar/tests.rs):
-  URL assinada e três GET exatos a frio.
+  URL assinada e três GET exatos a frio. [Testes de escrita](../../src/processo_sobrestar/tests_escrita.rs)
+  exercitam orçamento de 6 requisições, um POST, sucesso, recusa e efeito incerto.
 - [Live](../validacao-live/2026-11-05-processo-sobrestar.md):
   NOT_RUN, zero requisições e nenhum resíduo.
-- [Issue #269](https://github.com/franklinbaldo/ies/issues/269)
-  e [PR Draft #279](https://github.com/franklinbaldo/ies/pull/279).
+- [Issue #269](https://github.com/franklinbaldo/ies/issues/269),
+  [PR integrada #279](https://github.com/franklinbaldo/ies/pull/279)
+  e [PR Draft #284](https://github.com/franklinbaldo/ies/pull/284).
 
 ## Limitações e revisão
 
-Confirmação, POST do formulário, URL real de retomada, leitura
-posterior reconciliada, saída 3 e replay precisam de outra fatia.
-Só permitir escrita em treinamento depois dos testes RED/GREEN e
-prévia, uma única confirmação e releitura; registrar o resíduo no SEI.
-Não declarar a issue concluída enquanto estes itens estiverem ausentes.
+O caminho de escrita está implementado em testes sintéticos, mas
+**replay do acervo e ensaio autenticado em treinamento permanecem NOT_RUN**.
+Nunca usar esta evidência offline para afirmar sucesso numa instalação.
+Para validar ao vivo: prévia, um único `--confirmar` e leitura
+independente; relatar requisições, resultados e eventual resíduo.
+Não declarar a issue concluída enquanto a validação faltar.
