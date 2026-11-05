@@ -2,11 +2,13 @@
 //! GET da barra, 302 tratado como dado, GET só do cadastro quando necessário;
 //! nunca dispara o POST antes da revisão do fluxo de confirmação.
 use super::{
-    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, escolher_grupo,
-    grupos_do_cadastro,
+    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar,
+    conferir_inclusao, escolher_grupo, grupos_do_cadastro,
 };
 use crate::arvore_processo::ErroAcompanharNaBarra;
-use crate::formulario_web::decodificar_atributo;
+use crate::formulario_web::{
+    RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
+};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -15,6 +17,7 @@ use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::visao_do_controle::EnvioDoControle as _;
 #[derive(Debug)]
 pub(crate) enum ErroPrevia {
     Abertura(ErroProcessoObter),
@@ -28,6 +31,7 @@ pub(crate) enum ErroPrevia {
     Estrutura(ErroAcompanhar),
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
     ConfirmacaoNaoImplementada,
+    EfeitoIncerto,
     PedidoInvalido,
 }
 
@@ -45,6 +49,7 @@ impl ErroPrevia {
             Self::Estrutura(erro) => erro.subcodigo(),
             Self::Formulario(erro) => erro.subcodigo(),
             Self::ConfirmacaoNaoImplementada => "confirmacao_de_acompanhamento_ainda_bloqueada",
+            Self::EfeitoIncerto => "acompanhamento_nao_confirmado_por_leitura",
             Self::PedidoInvalido => "pedido_de_acompanhamento_invalido",
         }
     }
@@ -68,6 +73,8 @@ pub(crate) struct Previa {
     pub(crate) observacao: String,
     pub(crate) id_de_remocao: Option<String>,
     pub(crate) ja_estava: bool,
+    pub(crate) confirmado: bool,
+    pub(crate) alterado: bool,
     pub(crate) requisicoes: u8,
 }
 
@@ -163,6 +170,8 @@ fn selecionar_previa(
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
             ja_estava: alvo.is_none(),
+            confirmado: false,
+            alterado: false,
             requisicoes,
         });
     }
@@ -176,6 +185,8 @@ fn selecionar_previa(
         observacao: pedido.observacao.unwrap_or("").to_owned(),
         id_de_remocao: None,
         ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
+        confirmado: false,
+        alterado: false,
         requisicoes,
     })
 }
@@ -187,7 +198,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
-    if pedido.confirmar {
+    // A exclusão exige formulário próprio; só a inclusão pode confirmar.
+    if pedido.confirmar && pedido.deixar {
         return Err(ErroPrevia::ConfirmacaoNaoImplementada);
     }
     if pedido.deixar && pedido.observacao.is_some() {
@@ -231,6 +243,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         };
         (antes, url)
     };
+    let mut submissao: Option<SubmissaoDerivada> = None;
     let grupos = if pedido.deixar {
         None
     } else {
@@ -245,7 +258,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             html: &html,
             codificacao,
         };
-        let _submissao = super::submissao::derivar_inclusao(
+        let derivada = super::submissao::derivar_inclusao(
             &instalacao,
             &tela,
             &id,
@@ -253,14 +266,57 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             pedido.grupo,
             pedido.observacao.unwrap_or(""),
         )?;
+        if pedido.confirmar {
+            submissao = Some(derivada);
+        }
         Some(grupos_do_cadastro(&html, &id).map_err(ErroPrevia::Estrutura)?)
     };
-    selecionar_previa(
+    let mut plano = selecionar_previa(
         pedido.nup.as_str(),
         &unidade,
         &antes,
         grupos.as_deref(),
         pedido,
         rede.feitas(),
-    )
+    )?;
+    if !pedido.confirmar {
+        return Ok(plano);
+    }
+    plano.confirmado = true;
+    if plano.ja_estava {
+        return Ok(plano);
+    }
+    let submissao = submissao.ok_or(ErroPrevia::TelaInesperada)?;
+    // Enviar uma única vez. Falha no POST pode ter produzido efeito;
+    // neste caso, ainda é necessário consultar a lista após o envio.
+    let mut enviado = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
+        enviado = true;
+        rede.post(formulario, cookie)
+    });
+    if !enviado {
+        return Err(ErroPrevia::Formulario(
+            resposta.err().ok_or(ErroPrevia::TelaInesperada)?,
+        ));
+    }
+    // O 302 é dado, nunca seguido. A resposta não comprova o efeito.
+    let _aceite_302 = matches!(resposta, Ok(RespostaDoEnvio::Redirecionamento(_)));
+    let depois = rede.get_sem_seguir(link.as_str(), &cookie);
+    let depois = match depois {
+        Ok(resposta) if resposta.resposta.status_code != 302 => {
+            decodificar_resposta(resposta.resposta)
+                .ok()
+                .and_then(|html| acompanhamentos_da_lista(&html).ok())
+        }
+        _ => None,
+    };
+    let verificado = depois.as_deref().is_some_and(|linhas| {
+        conferir_inclusao(&antes, linhas, &plano.grupo, &plano.observacao).is_ok()
+    });
+    if !verificado {
+        return Err(ErroPrevia::EfeitoIncerto);
+    }
+    plano.alterado = true;
+    plano.requisicoes = rede.feitas();
+    Ok(plano)
 }
