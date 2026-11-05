@@ -198,3 +198,35 @@ fn ajax_nao_declarado_na_tela_recusa_sem_post() {
     assert_eq!(pedidos.len(), 3);
     assert!(pedidos.iter().all(|r| r.metodo == "GET"));
 }
+
+
+/// Falha HTTP do AJAX ainda é anterior à escrita; conserva o status e
+/// não gera uma segunda tentativa nem POST de criação.
+#[test]
+fn ajax_http_503_preserva_status_e_nao_cria() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(controle_de_criacao()),
+        ok(lista()),
+        ok(cadastro(true)),
+        Ok((503, String::new(), None)),
+    ];
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("HTTP 503 deve impedir a criacao");
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert!(
+        pedidos[3]
+            .url
+            .contains("acao_ajax=hipotese_legal_select_nome_base_legal")
+    );
+}
