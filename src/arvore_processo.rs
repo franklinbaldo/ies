@@ -19,6 +19,7 @@ mod literais;
 mod movidos;
 mod natureza;
 mod pastas;
+mod relacionar;
 mod reabrir;
 mod situacao;
 mod tela;
@@ -81,6 +82,7 @@ pub(crate) use conteudo::{
 };
 pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
+pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
