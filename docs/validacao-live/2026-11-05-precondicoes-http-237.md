@@ -1,8 +1,7 @@
 ---
-type: LiveValidation
+type: SEIObservation
 title: Validação live das pré-condições HTTP do handoff 237
 description: Registro de não execução de consultas em instalações de treinamento
-status: not_run
 ---
 
 # Validação live — pré-condições HTTP (#237)
