@@ -78,4 +78,4 @@ A CLI `ies unidade retornos [--mes AAAA-MM]` lê pelo menu e pelo link
 nao observada e tem testes sinteticos. **RED no CI inicial: 3 testes
 falhando** antes do parser; compilacao local e live NOT_RUN.
 O replay das sete cassettes acima e a validacao GO/PEN3 ainda faltam.
-[Contrato](../cli/unidade-retornos.md) e [decisao](../../docs/decisoes/unidade-retornos.md).
+[Contrato](../cli/unidade-listar-retornos.md) e [decisao](../../docs/decisoes/unidade-listar-retornos.md).
