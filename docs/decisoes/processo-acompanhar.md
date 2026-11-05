@@ -86,6 +86,18 @@ validação nas instalações de treinamento.
   45 interações, das quais 39 GET e 6 POST; o índice não prova os corpos.
 - [Relatório live](../validacao-live/2026-11-05-processo-acompanhar.md).
 
+A terceira fatia restringe a inspeção de `acaoExcluir` ao corpo da própria
+função servida: assinatura observada, chaves balanceadas sem interpretar
+delimitadores dentro de strings, um único ramo `if(confirm(...))`,
+atribuição do identificador ao oculto, alteração da ação assinada e
+`submit()` nessa ordem, sem instruções extras. A busca anterior de
+substrings no `script` inteiro aceitaria três instruções numa segunda
+função ou num ramo morto. Os testes sintéticos reproduzem ambas as
+armadilhas e chaves no texto de confirmação. A lógica é propositalmente
+estrita para a forma observada na UnB; outras formas falham fechadas,
+sem executar JavaScript. A confirmação de retirada **não** é liberada
+por esse reforço da prévia.
+
 ## Limitações e revisão
 
 RED desta segunda fatia: 1 teste novo falhou no CI 42118873078 antes da implementação; compilação Rust local NOT_RUN (sem toolchain e DNS no sandbox); CI só comprova
