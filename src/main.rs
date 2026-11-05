@@ -46,6 +46,9 @@ mod paginas;
 mod pesquisa_web;
 mod processo;
 mod processo_buscar_cli;
+#[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
+#[path = "processo_criar/lista.rs"]
+mod processo_criar_lista;
 mod processo_concluir;
 mod processo_concluir_cli;
 mod processo_enviar;
