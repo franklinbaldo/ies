@@ -364,6 +364,30 @@ mod tests {
         );
     }
     #[test]
+    fn nenhuma_unidade_publicada_na_lupa_eh_uma_lista_vazia() {
+        // Cassette GO unidade-listar-destinos-go, POST passo 12:
+        // frmUnidadeLista e "Nenhum registro encontrado.", sem infraTable.
+        let html = "<form id='frmUnidadeLista'>
+            <input type='hidden' name='hdnInfraPaginaAtual' value='0'>
+            <select name='selInfraPaginacaoSuperior'><option value='0'>1</option></select>
+            <div>Nenhum registro encontrado.</div>
+        </form>";
+        let lida = ler_pagina(html).expect("vazio observado, sem tabela");
+        assert_eq!((lida.total, lida.pagina, lida.paginas), (0, 0, 1));
+        assert!(lida.unidades.is_empty());
+        assert!(reunir_paginas(vec![lida]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn ausencia_de_tabela_sem_aviso_de_vazio_nao_pode_ser_sucesso() {
+        let html = "<form id='frmUnidadeLista'>
+            <input type='hidden' name='hdnInfraPaginaAtual' value='0'>
+            <select name='selInfraPaginacaoSuperior'><option value='0'>1</option></select>
+        </form>";
+        assert_eq!(ler_pagina(html).err(), Some(ErroLupa::TabelaForaDaForma));
+    }
+
+    #[test]
     fn cabecalho_ausente_nao_pode_virar_lista_vazia() {
         assert!(ler_pagina("<form id='frmUnidadeLista'></form>").is_err());
     }
