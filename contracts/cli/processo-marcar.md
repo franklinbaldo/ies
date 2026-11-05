@@ -44,9 +44,15 @@ JavaScript e não interpreta mensagem do SEI para classificação.
 unidade e leitura de marcadores. Requisições variam conforme abertura e
 cache, mas são contadas pelo leitor. Não ocorre requisição adicional para
 prévia, idempotência ou recusa. `--confirmar` neste recorte faz **zero
-requisições de escrita**. Testes sintéticos conferem decisão sem rede,
-parcialidade e recusa de nomes divergentes; teste da CLI prova que entrada
-inválida não lê configuração.
+requisições de escrita**. O teste `previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post`
+usa uma abertura fria sintética pelo Controle: **3 GET para abrir o
+processo + 1 GET para a tela dos marcadores = 4 GET, 0 POST**, tanto
+na prévia quanto na confirmação recusada. O transporte roteirizado
+confere a lista exata de pedidos, sem rede real. A contagem de outros
+caminhos de abertura e do índice quente precisa de novos casos.
+Testes sintéticos também conferem idempotência, lista parcial,
+identidade divergente e texto Latin-1 válido. Entrada inválida não
+lê configuração.
 
 ## Inventário normativo de subcódigos
 
