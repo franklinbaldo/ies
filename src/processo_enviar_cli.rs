@@ -121,15 +121,30 @@ fn enviar(
                         }
                     }
                 }
-                publicar_valor_da_falha(cli.json, &valor, erro.saida())
+                let resultado = publicar_valor_da_falha(cli.json, &valor, erro.saida());
+                if !cli.json {
+                    if let Some(mensagem) = texto_das_sugestoes(&valor) {
+                        eprintln!("{mensagem}");
+                    }
+                }
+                resultado
             }
         }
     })
 }
 
-#[cfg(test)]
-fn texto_das_sugestoes(_valor: &Value) -> Option<String> {
-    None
+/// Complemento apenas da apresentação humana de processo enviar. A lista
+/// vem do índice local; jamais equivale a destinos aceitos pelo SEI.
+fn texto_das_sugestoes(valor: &Value) -> Option<String> {
+    let sugeridas = valor.get("sugestoes_guardadas")?.as_array()?;
+    let siglas: Vec<_> = sugeridas.iter().filter_map(Value::as_str).collect();
+    if siglas.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "IES: sugestões guardadas (não confirmadas pelo SEI): {}",
+        siglas.join(", ")
+    ))
 }
 
 /// JSON do sucesso (prévia, ou enviado e conferido).
