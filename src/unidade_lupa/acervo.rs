@@ -44,13 +44,20 @@ fn replay_da_lupa_go_no_acervo() {
                 .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
                 .map(|tag| super::texto_da_tag(tag, dom.parser()))
                 .collect();
+            let visivel = dom
+                .query_selector("form")
+                .into_iter()
+                .flatten()
+                .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
+                .map(|tag| super::texto_da_tag(tag, dom.parser()))
+                .next()
+                .unwrap_or_default();
+            let amostra: String = visivel.chars().take(850).collect();
             panic!(
-                "lupa GO passo {} metodo {}: {e:?}; legendas públicas: {legends:?}; bytes {}; possui frmUnidadeLista {}; possui Lista de Unidades {}",
+                "lupa GO passo {} metodo {}: {e:?}; legendas públicas: {legends:?}; bytes {}; amostra de texto visível: {amostra:?}",
                 resposta.passo,
                 resposta.metodo,
                 html.len(),
-                html.contains("frmUnidadeLista"),
-                html.contains("Lista de Unidades")
             )
         });
         assert!(pagina.paginas >= 1);
