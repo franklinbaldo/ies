@@ -102,3 +102,21 @@ sandbox impedem validar a sequência ao vivo; a tentativa anterior de
 instrumentação live foi recusada pelos controles da ferramenta, que não
 foram contornados. Autorização de escrita vale apenas em treinamento,
 na ordem prévia → um `--confirmar` → leitura verificadora, nunca retry.
+
+## Retomada — seleção explícita de hipótese AJAX múltipla
+
+A análise do replay original identificou múltiplas hipóteses legais
+na UnB. A nova fatia de código exige `--hipotese-legal ID#NOME`
+com correspondência exata de ambos os valores no XML do cadastro,
+e não usa a primeira opção. Os cenários sintéticos verificam
+seleção da segunda opção, recusa de nome não oferecido,
+duplicação/disabled e os orçamentos de 4 requisições para prévia e
+7 para confirmação (uma delas é o POST criador). Aferição de CI
+da fatia deve ser registrada no handoff; não presumir PASS até então.
+
+**Live de treinamento nesta retomada:** prévia NOT_RUN (0 pedidos);
+confirmação NOT_RUN (0 pedidos); verificação por leitura NOT_RUN
+(0 pedidos); **nenhuma criação nem alteração no SEI, resíduo zero**.
+O bloqueio de rede/autenticação do sandbox e o bloqueio anterior do
+workflow de ensaio não permitem afirmar execução ao vivo. A autorização
+não abrange produção e não autoriza contornar os controles.
