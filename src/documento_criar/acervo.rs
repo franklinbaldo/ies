@@ -1,0 +1,82 @@
+//! Replay offline do cadastro de documento no acervo público de Goiás (#246).
+//! ZIP, membro, origem e integridade são conferidos antes da classificação.
+//! Só imprime contagens: nunca HTML, URL assinada ou cookie.
+use super::{conferir_cadastro, tipos_oferecidos};
+use crate::cassette::acervo::gravacao;
+use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::html_atributos::nos_com_id;
+use std::path::Path;
+
+const CARDS: [&str; 2] = [
+    "documento-incluir-go--fa4845e16ba9.md",
+    "documento-escritas-go--16f83179ecaa.md",
+];
+
+fn tipo_do_cadastro(html: &str) -> Option<String> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let rotulos = nos_com_id(&dom, "lblSerieTitulo").ok()?;
+    let [rotulo] = rotulos.as_slice() else {
+        return None;
+    };
+    let tag = rotulo.get(dom.parser())?.as_tag()?;
+    if !tag.name().as_utf8_str().eq_ignore_ascii_case("label") {
+        return None;
+    }
+    let tipo = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+    (!tipo.is_empty()).then_some(tipo)
+}
+
+#[test]
+#[ignore = "wip #246: requer ZIP público conferido em IES_ACERVO_CACHE, sem rede"]
+fn replay_documento_criar_go() {
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let cache = std::env::var_os("IES_ACERVO_CACHE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            let home = std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE");
+            Path::new(&home).join(".cache/ies")
+        });
+    let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-go.zip"))
+        .expect("ZIP de Goiás não está no cache do acervo");
+    let mut lidas = 0usize;
+    let mut recusadas = 0usize;
+    let mut nao_aplicaveis = 0usize;
+    let mut respostas_alvo = 0usize;
+    for card in CARDS {
+        let caminho = raiz.join("cassettes/go").join(card);
+        let cassette = conferir_cassette_ate(&caminho, &zip, 120_000_000)
+            .expect("integridade ou origem do card inválida");
+        assert_eq!(cassette.instalacao, "go");
+        for resposta in gravacao::respostas(&cassette.json) {
+            if !matches!(resposta.operacao, "documento_escolher_tipo" | "documento_gerar") {
+                continue;
+            }
+            respostas_alvo += 1;
+            if resposta.status != 200 {
+                nao_aplicaveis += 1;
+                continue;
+            }
+            let Ok(html) = html_da_resposta(resposta.item) else {
+                nao_aplicaveis += 1;
+                continue;
+            };
+            let resultado = match resposta.operacao {
+                "documento_escolher_tipo" => tipos_oferecidos(&html).is_ok(),
+                "documento_gerar" => tipo_do_cadastro(&html)
+                    .is_some_and(|tipo| conferir_cadastro(&html, &tipo, None, None).is_ok()),
+                _ => unreachable!(),
+            };
+            if resultado {
+                lidas += 1;
+            } else {
+                recusadas += 1;
+            }
+        }
+    }
+    assert!(respostas_alvo > 0, "cards sem respostas de inclusão de documento");
+    assert!(lidas + recusadas > 0, "nenhum HTML candidato no replay");
+    assert_eq!(respostas_alvo, lidas + recusadas + nao_aplicaveis);
+    println!(
+        "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"
+    );
+}
