@@ -33,6 +33,11 @@ não altera o contrato público nem impede correções de segurança necessária
   não é uma capacidade SEI Web autenticada.
 - **PENDENTE PR**: proposta fora da `main`; **não** computar como entregue.
 
+## Fatias WIP de escrita do processo
+
+As notas de handoff das fatias em andamento (#247, #257, #258, #259, #269)
+estão na [matriz das fatias WIP](matriz-derivacao-cli-handoffs.md).
+
 ## Matriz: 20 caminhos principais já expostos
 
 | Comando existente | Estado na main | Já demonstra | Falta implementar, sem novo comando/flag | Referência |
@@ -42,7 +47,10 @@ não altera o contrato público nem impede correções de segurança necessária
 | `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]` | **PARCIAL WEB** (#173); `--confirmar`: escrita remota | Prévia: abertura + GET da tela "Enviar Processo" + POST da consulta do autocomplete declarada nela (leitura; destino pela sigla exata, ausente/repetido/já aberto recusados; sigla com `/`: até 4 consultas na ordem do Todos, sigla e termo alargado no órgão do prefixo e no da tela); `--confirmar`: um POST (`hdnUnidades` = item escolhido; `--manter-aberto` marca a caixa) e verificação pelo destino e pela origem em `aberto_em`; efeito incerto sai com 3, sem retry; a frio 4 GET + 1 POST / 5 GET + 2 POST | Prévia live PASS UFRJ 4.1.5 (4 req.); GO 5.0.3 PASS (`CBM/GECONT-18149`, `DETRAN/GECONT-18166` na 1ª consulta, 4 req.; inexistente recusado) ([live](validacao-live/2026-11-04-processo-enviar-go.md)); [replay](validacao-replay/2026-11-04-processo-enviar-acervo.md) 25 envios verificados; escrita live PASS UFRJ 4.1.5 (PR-P → PR-A, 6 req. quente cada; com `--manter-aberto` `depois` [PR-A, PR-P]; sem ele a origem sai, `depois` [PR-A]; leituras independentes conferem) ([escrita](validacao-live/2026-11-04-processo-enviar-escrita.md)); escrita live PASS UnB 4.0.9 (Unidade1 → Unidade2) e PEN1 5.0.4 (TESTE → TESTE_1_1), mesmo padrão, prévia a frio 5 e `--confirmar` 6 req., leituras independentes conferem ([UnB e PEN1](validacao-live/2026-11-05-processo-enviar-escrita-unb-pen1.md)); vários destinos/grupos, retorno programado não cobertos | [contrato](../contracts/cli/processo-enviar.md), [decisão](decisoes/processo-enviar.md), [live](validacao-live/2026-11-04-processo-enviar.md) |
 | `ies processo anexar NUP --a NUP_PRINCIPAL [--confirmar]` | **PARCIAL WEB** (#270; PR #278) | Prévia: abre principal, lê tela `procedimento_anexar`, identifica anexado por consulta `protocolo_RI1023`, confere assinaturas por `procedimento_anexacao_verificar`; recusas por NUP exato e identidade duplicada; confirmação bloqueada antes de rede | RED 8 testes no CI #42084762362; live/replay NOT_RUN (0 requisições); falta POST único + verificação por leitura e efeito incerto 3 | [contrato](../contracts/cli/processo-anexar.md), [decisão](decisoes/processo-anexar.md), [live](validacao-live/2026-11-05-processo-anexar-handoff.md) |
 | `ies processo concluir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura (2–3 req.); uma escrita pela forma da barra: tela "Conclusão de Processo" + POST (4.1/5.0) ou GET de `concluirProcesso()` (4.0); verificação por `aberto_em` numa leitura nova; efeito incerto sai com 3, sem retry; a frio 5 GET + 1 POST / 6 GET | Live PASS UFRJ 4.1.5 (`tela`) e UnB 4.0.9 (`funcao`), requisições iguais ao orçamento; [replay](validacao-replay/2026-11-04-processo-concluir-acervo.md) 219 escritas verificadas; PEN1 5.0.4 não observada; concluir com reabertura programada, vários processos | [contrato](../contracts/cli/processo-concluir.md), [decisão](decisoes/processo-concluir.md), [live](validacao-live/2026-11-04-processo-concluir.md) |
+| `ies processo atribuir NUP --usuario LOGIN` / `--remover` | **PARCIAL WEB** (#264) | Prévia por árvore e formulário de atribuição, seleção exata e recusa de estado desconhecido; escrita confirmada bloqueada | Faltam POST único, releitura, efeito incerto, replay e live UnB/GO | [contrato](../contracts/cli/processo-atribuir.md), [decisão](decisoes/processo-atribuir.md) |
 | `ies processo reabrir NUP [--confirmar]` | **PARCIAL WEB** (#172) | Prévia só com a abertura; `reabrirProcesso()` da barra → GET da tela do nó → URL `procedimento_reabrir` (corpo da função no 4.0, `var linkReabrirProcesso` no 4.1/5.0) → um GET (a escrita); verificação pela unidade da sessão em `aberto_em`; efeito incerto 3, sem retry; a frio 6 GET | Live PASS UFRJ 4.1.5 (`variavel`) e UnB 4.0.9 (`funcao`), 5 req. cada; [replay](validacao-replay/2026-11-04-processo-reabrir-acervo.md) 11 reaberturas verificadas; reabrir com o processo aberto noutra unidade não observado | [contrato](../contracts/cli/processo-reabrir.md), [decisão](decisoes/processo-reabrir.md), [evidência](../contracts/evidencias/processo-reabrir.md) |
+| `ies processo marcar NUP --marcador ID#NOME\|--retirar ID#NOME [--confirmar]` | **PARCIAL WEB** (#255), sem escrita | Leitura dos marcadores com unidade conferida; idempotência para atribuir já presente e retirar ausente; prévia para retirada presente. Lista parcial e identidade divergente recusadas. `--confirmar` de retirada falha fechado, sem POST; atribuir ausente exige catálogo da unidade ainda não observado. Requisições contadas pelo leitor de processo | Live NOT_RUN (0 req., nenhum resíduo); RED local NOT_RUN (Rust indisponível); replay pendente | [contrato](../contracts/cli/processo-marcar.md), [decisão](decisoes/processo-marcar.md), [live](validacao-live/2026-11-05-processo-marcar.md), [#255](https://github.com/franklinbaldo/ies/issues/255) |
+| `ies processo criar --tipo TIPO --especificacao TEXTO [--interessado ...] [--nivel publico|restrito] [--confirmar]` | **PENDENTE PR** (#245, PR #249) | Seleção de tipo pelo link (4.0) ou formulário (4.1/5.0); cadastro conferido, interessados por AJAX, prévia Web e POST único; NUP e ID relidos na árvore no teste sintético; efeito incerto com saída 3, sem retry | CI e testes offline na PR; **live NOT_RUN**, replay integral de cassettes NOT_RUN, hipótese legal por AJAX requer ampliação; escrita live somente após autorização literal na issue | [contrato](../contracts/cli/processo-criar.md), [decisão](decisoes/processo-criar.md), [#245](https://github.com/franklinbaldo/ies/issues/245) |
 | `ies documento DOC`, `salvar`, `buscar`, `assinar` | ver a [matriz de documento](matriz-derivacao-cli-documento.md) (4 caminhos) | Idem | Idem | Idem |
 | `ies unidade listar-processos`, `colunas`, `recebidos`, `gerados`, `atual` | ver a [matriz da unidade](matriz-derivacao-cli-unidade.md) (6 caminhos) | Idem | Idem | Idem |
 | `ies status` | **LOCAL**, diagnóstico Web limitado | Metadados/validação local de arquivos; GET opt-in do Controle | Não é login, certificação da sessão remota ou teste de permissões; evitar expandir flags antes das capacidades | [código](../src/status_cli.rs) |
@@ -117,18 +125,6 @@ A fila é prioridade por dependência, não prova de que uma issue
 esteja concluída. Só evidência de critérios e relatório
 `PASS/FAIL/NOT_RUN` permitem propor fechamento ao proprietário.
 O CI valida os gates e testes offline, não substitui live.
-
-## Handoff #247 — filtros da pesquisa (PR draft)
-
-`processo buscar` e `documento buscar` recebem flags opcionais `--tipo`,
-`--assunto`, `--de` e `--ate`. Tipo e período derivam do formulário Web
-servido; ausência do campo ou opção exata recusa antes do POST. O assunto
-permanece **parcial**: falta observar e resolver o ID do autocompletar
-sem romper orçamento. Não se altera o termo, a paginação ou os 3/4 pedidos.
-RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
-[Contrato de processo](../contracts/cli/processo-buscar.md) ·
-[contrato de documento](../contracts/cli/documento-buscar.md) ·
-[decisão](decisoes/processo-buscar.md).
 
 ## Gate manual para PRs de capacidade
 

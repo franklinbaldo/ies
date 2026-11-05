@@ -23,9 +23,7 @@ fn json(saida: &Output) -> serde_json::Value {
 
 #[test]
 fn comando_recusa_numero_vazio_antes_da_sessao() {
-    let saida = executar(&[
-        "processo", "anexar", " ", "--a", PRINCIPAL, "--json",
-    ]);
+    let saida = executar(&["processo", "anexar", " ", "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "entrada_invalida");
@@ -35,7 +33,13 @@ fn comando_recusa_numero_vazio_antes_da_sessao() {
 #[test]
 fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
     let saida = executar(&[
-        "processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--confirmar", "--json",
+        "processo",
+        "anexar",
+        ANEXADO,
+        "--a",
+        PRINCIPAL,
+        "--confirmar",
+        "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let valor = json(&saida);
@@ -45,18 +49,14 @@ fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
 
 #[test]
 fn mesma_identidade_recusa_antes_da_sessao() {
-    let saida = executar(&[
-        "processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json",
-    ]);
+    let saida = executar(&["processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["subcodigo"], "anexacao_ao_mesmo_processo");
 }
 
 #[test]
 fn previa_sem_sessao_falha_fechado() {
-    let saida = executar(&[
-        "processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json",
-    ]);
+    let saida = executar(&["processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
