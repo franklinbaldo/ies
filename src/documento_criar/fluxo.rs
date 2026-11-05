@@ -105,6 +105,7 @@ pub(crate) enum ErroPreviaCriacao {
     NivelRestritoSemHipotese,
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
+    FotoInicialInconsistente,
     EfeitoIncerto,
 }
 impl ErroPreviaCriacao {
@@ -125,6 +126,7 @@ impl ErroPreviaCriacao {
             Self::NivelRestritoSemHipotese => "nivel_de_documento_requer_hipotese_legal",
             Self::SubmissaoNaoComprovada => "submissao_do_documento_nao_observada",
             Self::ArvoreIncompleta => "arvore_de_documentos_incompleta",
+            Self::FotoInicialInconsistente => "foto_inicial_de_documentos_inconsistente",
             Self::EfeitoIncerto => "efeito_incerto_na_criacao_de_documento",
         }
     }
