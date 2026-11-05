@@ -54,6 +54,8 @@ mod processo_acompanhar;
 mod processo_acompanhar_cli;
 mod processo_andamento_registrar;
 mod processo_andamento_registrar_cli;
+mod processo_atribuir;
+mod processo_atribuir_cli;
 mod processo_buscar_cli;
 pub mod processo_comentar;
 #[allow(dead_code)] // núcleo offline; leitura Web ainda não ligada à CLI (#257)
@@ -364,6 +366,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
         .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))

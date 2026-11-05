@@ -113,6 +113,15 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    Atribuir {
+        numero: String,
+        #[arg(long, required_unless_present = "remover", conflicts_with = "remover")]
+        usuario: Option<String>,
+        #[arg(long)]
+        remover: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
     Concluir {
         numero: String,
         #[arg(long)]
