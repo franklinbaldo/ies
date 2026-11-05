@@ -36,25 +36,46 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         return Err(err);
     }
     let mut tipos = Vec::new();
-    for tag in tabela.children().all(parser).iter().filter_map(tl::Node::as_tag) {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") { continue; }
+    for tag in tabela
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+            continue;
+        }
         let href = valor_do_atributo(tag, "href").map_err(|_| err)?;
-        if href.is_none() { continue; }
+        if href.is_none() {
+            continue;
+        }
         let onclick = valor_do_atributo(tag, "onclick").map_err(|_| err)?;
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
         let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
-        let nativo = href.split('?').nth(1).is_some_and(|consulta| {
-            consulta.split('&').any(|par| par == "acao=documento_gerar")
-        }) || (href == "javascript:void(0);" && onclick.as_deref().is_some_and(|chamada| {
-            let chamada = chamada.trim().trim_end_matches(';');
-            chamada.strip_prefix("escolher(").and_then(|v| v.strip_suffix(')'))
-                .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        }));
-        if !nativo { continue; }
-        let nome = tag.inner_text(parser).split_whitespace().collect::<Vec<_>>().join(" ");
+        let nativo =
+            href.split('?').nth(1).is_some_and(|consulta| {
+                consulta.split('&').any(|par| par == "acao=documento_gerar")
+            }) || (href == "javascript:void(0);"
+                && onclick.as_deref().is_some_and(|chamada| {
+                    let chamada = chamada.trim().trim_end_matches(';');
+                    chamada
+                        .strip_prefix("escolher(")
+                        .and_then(|v| v.strip_suffix(')'))
+                        .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+                }));
+        if !nativo {
+            continue;
+        }
+        let nome = tag
+            .inner_text(parser)
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         let nome = decodificar_atributo(&nome).ok_or(err)?;
-        if !nome.is_empty() { tipos.push(nome); }
+        if !nome.is_empty() {
+            tipos.push(nome);
+        }
     }
     Ok(tipos)
 }
@@ -132,20 +153,35 @@ mod tests {
     }
     #[test]
     fn subcodigos_sao_estaveis() {
-        assert_eq!(ErroCriar::ListaForaDaForma.subcodigo(), "lista_de_tipos_fora_da_forma_observada");
-        assert_eq!(ErroCriar::TipoAusente.subcodigo(), "tipo_de_documento_nao_oferecido");
-        assert_eq!(ErroCriar::TipoAmbiguo.subcodigo(), "tipo_de_documento_ambiguo");
-        assert_eq!(ErroCriar::NaoAplicado.subcodigo(), "documento_criado_nao_comprovado");
-        assert_eq!(ErroCriar::EfeitoIncerto.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+        assert_eq!(
+            ErroCriar::ListaForaDaForma.subcodigo(),
+            "lista_de_tipos_fora_da_forma_observada"
+        );
+        assert_eq!(
+            ErroCriar::TipoAusente.subcodigo(),
+            "tipo_de_documento_nao_oferecido"
+        );
+        assert_eq!(
+            ErroCriar::TipoAmbiguo.subcodigo(),
+            "tipo_de_documento_ambiguo"
+        );
+        assert_eq!(
+            ErroCriar::NaoAplicado.subcodigo(),
+            "documento_criado_nao_comprovado"
+        );
+        assert_eq!(
+            ErroCriar::EfeitoIncerto.subcodigo(),
+            "efeito_incerto_na_criacao_de_documento"
+        );
     }
     #[test]
     fn lista_tipo_ausente_ambiguo_e_externo() {
         // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
-        let html = r##"<table id="tblSeries"><tr><td>
+        let html = r#"<table id="tblSeries"><tr><td>
             <a href="controlador.php?acao=documento_gerar">Despacho</a>
             <a href="controlador.php?acao=documento_receber">Externo</a>
             <a href="javascript:void(0);" onclick="escolher(3);">Ofício</a>
-            </td></tr></table>"##;
+            </td></tr></table>"#;
         let tipos = tipos_oferecidos(html).unwrap();
         assert_eq!(tipos, ["Despacho", "Ofício"]);
         assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
