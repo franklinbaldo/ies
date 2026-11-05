@@ -1,8 +1,8 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::{
-    ErroCriar, conferir_cadastro, conferir_criacao, conferir_tipo, link_direto_do_tipo,
-    tipos_oferecidos,
+    EscolhaDoDocumento, ErroCriar, cadastro_redirecionado, conferir_cadastro,
+    conferir_criacao, conferir_tipo, escolha_do_tipo, tipos_oferecidos,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -26,6 +26,22 @@ use crate::visao_do_controle::EnvioDoControle as _;
 // A forma de documento_gerar observada no Todos 323eb01 e em
 // docs/como-o-sei-funciona/inclusao-documento-interno.md: submit() reescreve
 // hdnFlagDocumentoCadastro para "2". Nenhum JavaScript é executado.
+// Na UFRJ (SEI 4.1.5), escolher(id) só abre o cadastro do tipo:
+// POST de navegação observado, sem inclusão de documento.
+const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "documento_escolher_tipo",
+    formulario: "frmDocumentoEscolherTipo",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnIdSerie"],
+    campos_ocultos_reescritos: &["hdnIdSerie"],
+    campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+        evidencia: "docs/como-o-sei-funciona/inclusao-documento-interno.md: escolher(id) abre cadastro",
+    },
+};
+
 const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "documento_gerar",
     formulario: "frmDocumentoCadastro",
@@ -136,16 +152,52 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     }
     let link = acoes.incluir.map_err(E::Link)?.ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
-    let (html_lista, _) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(E::Tela)?;
+    let (html_lista, mime_lista) =
+        obter_tela(&mut rede, &cookie, link.as_str()).map_err(E::Tela)?;
     let tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
     conferir_tipo(pedido.tipo, &tipos).map_err(E::Tipo)?;
-    let url_do_cadastro = link_direto_do_tipo(
+    let escolha = escolha_do_tipo(
         &instalacao,
         &html_lista,
         &aberto.arvore.processo.id,
         pedido.tipo,
     )
     .map_err(E::Tipo)?;
+    let url_do_cadastro = match escolha {
+        EscolhaDoDocumento::Link(url) => url,
+        EscolhaDoDocumento::Formulario(id_serie) => {
+            let codificacao =
+                codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
+            let servida = TelaServida {
+                url: link.as_str(),
+                html: &html_lista,
+                codificacao,
+            };
+            let submissao = derivar_submissao(
+                &ESCOLHER_TIPO,
+                &instalacao,
+                &servida,
+                &unidade,
+                &[("hdnIdSerie", id_serie.as_str())],
+            )
+            .map_err(E::Formulario)?;
+            // Escolher o tipo só navega ao cadastro. 302 não é seguido
+            // automaticamente; a Location assinada é validada antes do GET.
+            let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
+                rede.post(post, cookie)
+            })
+            .map_err(E::Formulario)?;
+            let RespostaDoEnvio::Redirecionamento(redirect) = resposta else {
+                return Err(E::SubmissaoNaoComprovada);
+            };
+            cadastro_redirecionado(
+                &instalacao,
+                redirect.localizacao().ok_or(E::SubmissaoNaoComprovada)?,
+                &aberto.arvore.processo.id,
+            )
+            .map_err(E::Tipo)?
+        }
+    };
     let (html_cadastro, mime_cadastro) =
         obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(E::Tela)?;
     conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)
