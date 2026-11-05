@@ -9,9 +9,17 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Anexar { numero, a, confirmar }),
+        acao:
+            Some(ProcessoAcao::Anexar {
+                numero,
+                a,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else { return None };
+    }) = &cli.command
+    else {
+        return None;
+    };
     let anexado = match NumeroProcesso::novo(numero) {
         Ok(n) => n,
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
@@ -36,7 +44,10 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
         match prever(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(preview) => publicar(cli.json, &preview),
             Err(FalhaAnexar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http(),
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
             ),
             Err(erro) => falha(cli.json, erro.subcodigo()),
         }
@@ -44,12 +55,15 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
 }
 fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": "operacao_recusada",
-            "subcodigo": subcodigo,
-            "erro": "anexação não autorizada pela tela ou confirmação pendente",
-            "retentavel": false,
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "operacao_recusada",
+                "subcodigo": subcodigo,
+                "erro": "anexação não autorizada pela tela ou confirmação pendente",
+                "retentavel": false,
+            })
+        );
     } else {
         eprintln!("IES: anexação recusada [{subcodigo}]");
     }
@@ -57,24 +71,32 @@ fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
 }
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "principal": previa.principal,
-            "id_principal": previa.id_principal,
-            "anexado": previa.anexado.nup,
-            "id_anexado": previa.anexado.id,
-            "tipo_anexado": previa.anexado.tipo,
-            "documentos_assinados": previa.assinaturas_em_dia,
-            "confirmado": false,
-            "alterado": false,
-            "origem": "web",
-            "requisicoes": previa.requisicoes,
-        }));
+        println!(
+            "{}",
+            json!({
+                "principal": previa.principal,
+                "id_principal": previa.id_principal,
+                "anexado": previa.anexado.nup,
+                "id_anexado": previa.anexado.id,
+                "tipo_anexado": previa.anexado.tipo,
+                "documentos_assinados": previa.assinaturas_em_dia,
+                "confirmado": false,
+                "alterado": false,
+                "origem": "web",
+                "requisicoes": previa.requisicoes,
+            })
+        );
     } else {
         println!(
             "Prévia: anexar {} ao processo {} ({}). Requisições: {}. Escrita bloqueada até validação.",
-            previa.anexado.nup, previa.principal,
-            if previa.assinaturas_em_dia { "sem pendência de assinatura" }
-            else { "há documento sem assinatura" }, previa.requisicoes,
+            previa.anexado.nup,
+            previa.principal,
+            if previa.assinaturas_em_dia {
+                "sem pendência de assinatura"
+            } else {
+                "há documento sem assinatura"
+            },
+            previa.requisicoes,
         );
     }
     ExitCode::SUCCESS
