@@ -27,10 +27,6 @@ impl IndiceLocal {
     /// Substitui uma lista inteira numa transação: sem gravação parcial.
     /// O chamador deve conferir páginas, total declarado, identidade da
     /// instalação, IDs duplicados e forma HTML ANTES desta chamada.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "leitor HTTP ainda pendente na #244")
-    )]
     pub(crate) fn guardar_lista_de_unidades(
         &self,
         instalacao: &str,
@@ -150,14 +146,14 @@ impl IndiceLocal {
             .iter()
             .filter(|u| chave(&u.sigla).contains(&pedida))
             .collect();
-        let candidatas: Vec<_> = if !estritas.is_empty() {
-            estritas
-        } else {
+        let candidatas: Vec<_> = if estritas.is_empty() {
             lista
                 .unidades
                 .iter()
                 .filter(|u| !amplo.is_empty() && chave(&u.sigla).contains(&amplo))
                 .collect()
+        } else {
+            estritas
         };
         candidatas
             .into_iter()
@@ -258,10 +254,9 @@ mod tests {
                 .len(),
             2
         );
-        assert!(
-            indice
-                .sugestoes_de_unidades_guardadas("https://sei.example", "8", "GECONT")
-                .is_empty()
+        assert_eq!(
+            indice.sugestoes_de_unidades_guardadas("https://sei.example", "8", "GECONT"),
+            Vec::<String>::new()
         );
     }
 
