@@ -236,6 +236,11 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     } else {
         let html = decodificar_resposta(res.resposta).map_err(ErroPrevia::Transporte)?;
         let antes = acompanhamentos_da_lista(&html).map_err(ErroPrevia::Estrutura)?;
+        if pedido.deixar && !antes.is_empty() {
+            let alvo = alvo_para_deixar(&antes, pedido.grupo).map_err(ErroPrevia::Estrutura)?;
+            super::exclusao::conferir_oferta_exclusao(&instalacao, &html, &id, &alvo.id)
+                .map_err(ErroPrevia::Estrutura)?;
+        }
         let url = if pedido.deixar {
             None
         } else {
