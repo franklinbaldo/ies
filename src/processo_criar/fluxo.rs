@@ -214,16 +214,24 @@ fn enviada<V: EnvioDoControle>(
 }
 
 fn id_do_link(link: &str) -> Option<&str> {
-    let mut ids = link.split('?').nth(1)?.split('&').filter_map(|par| {
-        par.split_once('=').and_then(|(nome, valor)| {
-            (nome == "id_tipo_procedimento"
-                && !valor.is_empty()
-                && valor.bytes().all(|b| b.is_ascii_digit()))
-            .then_some(valor)
-        })
+    let mut ids = link.split('?').nth(1)?.split('&').filter(|par| {
+        par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
     });
-    let primeiro = ids.next()?;
-    ids.next().is_none().then_some(primeiro)
+    let primeiro = ids.next()?.strip_prefix("id_tipo_procedimento=")?;
+    (ids.next().is_none()
+        && !primeiro.is_empty()
+        && primeiro.bytes().all(|b| b.is_ascii_digit()))
+    .then_some(primeiro)
+}
+
+/// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
+/// esperado. Uma segunda ação diferente também torna a URL ambígua.
+fn acao_unica(consulta: &str, esperada: &str) -> bool {
+    let mut acoes = consulta.split('&').filter_map(|par| {
+        let (nome, valor) = par.split_once('=').unwrap_or((par, ""));
+        (nome == "acao").then_some(valor)
+    });
+    acoes.next() == Some(esperada) && acoes.next().is_none()
 }
 
 fn resolver_link(
@@ -245,13 +253,7 @@ fn resolver_link(
     if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
         return Err(ErroCriar::Formulario);
     }
-    let mut acoes = 0;
-    for par in partes.consulta.unwrap_or_default().split('&') {
-        if par == format!("acao={acao}") {
-            acoes += 1;
-        }
-    }
-    if acoes != 1 {
+    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
         return Err(ErroCriar::Formulario);
     }
     Ok(url)
@@ -273,13 +275,7 @@ fn url_do_redirecionamento(
     if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
         return Err(ErroCriar::EfeitoIncerto);
     }
-    let vezes = partes
-        .consulta
-        .unwrap_or_default()
-        .split('&')
-        .filter(|par| *par == format!("acao={acao}"))
-        .count();
-    if vezes != 1 {
+    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
         return Err(ErroCriar::EfeitoIncerto);
     }
     Ok(absoluta)
@@ -295,15 +291,18 @@ fn retorno_da_criacao(
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::EfeitoIncerto)?;
-    let ids: Vec<_> = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("id_procedimento="))
-        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .collect();
-    let [id] = ids.as_slice() else {
+    let mut ids = consulta.split('&').filter(|par| {
+        par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento"
+    });
+    let primeiro = ids.next().ok_or(ErroCriar::EfeitoIncerto)?;
+    if ids.next().is_some() {
         return Err(ErroCriar::EfeitoIncerto);
-    };
-    let id = (*id).to_owned();
+    }
+    let id = primeiro
+        .strip_prefix("id_procedimento=")
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        .ok_or(ErroCriar::EfeitoIncerto)?
+        .to_owned();
     Ok((url, id))
 }
 
