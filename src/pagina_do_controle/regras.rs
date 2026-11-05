@@ -70,7 +70,7 @@ fn opcao_selecionada(
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
-        if atributo_presente(opcao, "selected").map_err(E::AtributoHtml)? {
+        if atributo_presente(opcao, "selected")? {
             escolhidas.push(atributo(opcao, "value")?);
         }
     }
@@ -109,7 +109,7 @@ pub(crate) fn campos_do_usuario(
         if !matches!(
             elemento.as_str(),
             "input" | "select" | "textarea" | "button"
-        ) || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
@@ -124,7 +124,7 @@ pub(crate) fn campos_do_usuario(
                 continue;
             }
             ("input", "checkbox" | "radio") => {
-                if atributo_presente(tag, "checked").map_err(E::AtributoHtml)? {
+                if atributo_presente(tag, "checked")? {
                     return Err(E::CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: nome });
                 }
                 continue;
@@ -133,8 +133,7 @@ pub(crate) fn campos_do_usuario(
                 decodificado(&atributo(tag, "value")?.unwrap_or_default(), &nome)?
             }
             ("select", _)
-                if permitidos.contains(&nome.as_str())
-                    && !atributo_presente(tag, "multiple").map_err(E::AtributoHtml)? =>
+                if permitidos.contains(&nome.as_str()) && !atributo_presente(tag, "multiple")? =>
             {
                 opcao_selecionada(tag, parser, &nome)?
             }

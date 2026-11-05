@@ -36,16 +36,14 @@ pub(crate) fn listar(
     pasta: &Path,
     documento: &NumeroDocumento,
 ) -> Result<Vec<VersaoLocal>, ErroListagem> {
-    let versoes =
-        copia_documento::versoes_locais(pasta, documento).map_err(ErroListagem::CopiaInvalida)?;
+    let versoes = copia_documento::versoes_locais(pasta, documento)?;
     if versoes.len() > 128 {
         return Err(ErroListagem::LimiteDeCopias);
     }
     let mut lista = Vec::with_capacity(versoes.len());
     for versao in versoes {
         let alvo = pasta.join(nome(documento.as_str(), versao));
-        let bytes =
-            ler_regular(&alvo, ErroCopia::LeituraFalhou).map_err(ErroListagem::CopiaInvalida)?;
+        let bytes = ler_regular(&alvo, ErroCopia::LeituraFalhou)?;
         lista.push(VersaoLocal {
             documento: documento.as_str().to_owned(),
             versao: versao.numero(),

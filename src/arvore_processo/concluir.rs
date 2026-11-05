@@ -63,11 +63,7 @@ pub(crate) enum ErroConcluirNaBarra {
     EnderecoDaTelaDoNoNaoReconhecido,
 }
 
-impl ErroConcluirNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroConcluirNaBarra {}
 
 /// A ação de concluir da barra do processo `id`; `Ok(None)` se a barra
 /// não oferece concluir (nem link nem função).
@@ -148,11 +144,7 @@ pub(crate) enum ErroFuncaoDeConcluir {
     EnderecoDaConclusaoDeOutroProcesso,
 }
 
-impl ErroFuncaoDeConcluir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroFuncaoDeConcluir {}
 
 const CONFIRM: &str = "//if (confirm(";
 const LOCATION: &str = "location.href = '";

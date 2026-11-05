@@ -221,7 +221,7 @@ fn subcodigos_estaveis_do_anexado() {
         ),
     ];
     for (erro, subcodigo) in casos {
-        assert_eq!(erro.subcodigo(), subcodigo);
+        assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }

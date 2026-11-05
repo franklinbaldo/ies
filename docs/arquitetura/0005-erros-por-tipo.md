@@ -26,6 +26,12 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 - **Compor em vez de nomear o contexto.** `#[causa(interna)]` encadeia o
   erro interno: a causa vira um caminho (`["abertura", "transporte",
   "falha_de_rede"]`), e o contexto vem da estrutura, não do nome.
+- **Uma etapa, um tipo.** Um `enum` não tem duas variantes com o mesmo
+  tipo interno: isso é duas etapas achatadas num nível, e o nome da
+  variante passa a carregar a etapa. Cada etapa com mais de uma fonte de
+  falha ganha o próprio tipo, e a árvore de erros espelha a de chamadas.
+  Assim o derive gera um `From` por variante `interna` e o `?` compõe sem
+  `map_err`.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
   contrato de decisão; a causa é diagnóstico.
@@ -45,10 +51,25 @@ mecânicos e migram à mão, e o piloto de `acao`/`escrita` é `processo
 concluir`. O campo `subcodigo` segue publicado (folha do caminho) até os
 contratos passarem a `acao` e `causa`.
 
+Segunda passada: 10 tipos mais (inclusive `ErroArvore`, cujo `match`
+estava partido em duas funções, e a cascata `ErroProcessoObter` →
+concluir, reabrir, enviar, assinar), e `scripts/migrar_interrogacao.py`
+trocou 152 `.map_err(Enum::Caso)?` por `?`. Só troca quando a função
+envolvente devolve o próprio `Enum` e o `?` não está numa closure.
+
+Restam à mão:
+- **Variantes com `&'static str`** (o leitor devolve o subcódigo como
+  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura`,
+  `ErroCriar::Transporte`, e o padrão aninhado de
+  `processo_andamento_registrar::Erro`.
+- **Etapas achatadas** (tipo interno repetido): `ErroLogin` e
+  `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
+  (`ErroSubmissaoFormulario`).
+
 ## Consequências
 
 - Erro novo: `#[derive(Causa)]`; nunca `fn subcodigo()` manual.
 - Tabelas `subcodigos-*.md` deixam de ser a fonte; caem quando os
   contratos migrarem.
-- `?` com `From` gerado para variantes `interna` de tipo único é o
-  próximo passo do derive.
+- `?` em vez de `map_err` para compor causas; um `From` manual só onde
+  a origem não é um erro do projeto (`io`, `rusqlite`).

@@ -100,9 +100,8 @@ fn ler_controle_interno<V: EnvioDoControle>(
             }
             envio.get(url, cookie)
         },
-    )
-    .map_err(E::Transporte)?;
-    let unidade = unidade_do_controle(&tela.html).map_err(E::Controle)?;
+    )?;
+    let unidade = unidade_do_controle(&tela.html)?;
     if unidade_pedida.is_some_and(|s| s.split_whitespace().collect::<Vec<_>>().join(" ") != unidade)
     {
         return Err(E::UnidadeDoControleDiferenteDaSolicitada);
@@ -209,8 +208,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     let unidade = &controle.unidade;
     let controle = &controle.tela;
     let instalacao = &controle.instalacao;
-    let url_da_tela =
-        link_da_pesquisa(instalacao, &controle.url, &controle.html).map_err(E::Link)?;
+    let url_da_tela = link_da_pesquisa(instalacao, &controle.url, &controle.html)?;
     // 2. GET da tela de pesquisa pelo link publicado.
     let tela = obter_tela(cookie, &url_da_tela, requisicoes, envio)?;
     // 3. POST da pesquisa.
@@ -221,10 +219,9 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         &servida(&tela)?,
         (unidade, termo),
         filtros,
-    )
-    .map_err(E::Pesquisa)?;
+    )?;
     let (enviada, resultado) = enviar(cookie, envio, requisicoes, submissao)?;
-    let interpretado = A::interpretar(enviada, instalacao).map_err(E::Pesquisa)?;
+    let interpretado = A::interpretar(enviada, instalacao)?;
     let (resposta, html) = (interpretado.resposta, interpretado.html);
     let Some(solicitada) = pedido.pagina else {
         return Ok(BuscaRealizada {
@@ -235,9 +232,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         });
     };
     let contagem = A::contagem(&resposta);
-    let Some(pagina) =
-        planejar_pagina_por(contagem, html.as_deref(), solicitada).map_err(E::Paginacao)?
-    else {
+    let Some(pagina) = planejar_pagina_por(contagem, html.as_deref(), solicitada)? else {
         return Ok(BuscaRealizada {
             unidade: unidade.clone(),
             resposta,
@@ -249,7 +244,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     let html = html.ok_or(E::Paginacao(
         ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada,
     ))?;
-    conferir_protocolo_servido(&html, termo).map_err(E::Paginacao)?;
+    conferir_protocolo_servido(&html, termo)?;
     let tela_do_resultado = TelaAtual {
         url: resultado.url,
         html,
@@ -262,8 +257,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         (unidade, termo),
         pagina.inicio,
         filtros,
-    )
-    .map_err(E::Pesquisa)?;
+    )?;
     let resposta = match enviar(cookie, envio, requisicoes, submissao)?.0 {
         RespostaDoEnvio::Redirecionamento(_) => {
             return Err(E::Paginacao(
@@ -273,7 +267,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         RespostaDoEnvio::Html(html) => A::ler_pagina(&html, (pagina.esperada, pagina.numero))
             .map_err(|erro| E::Pesquisa(ErroPesquisaProtocolo::Resposta(erro)))?,
     };
-    conferir_contagem(&pagina, A::contagem(&resposta)).map_err(E::Paginacao)?;
+    conferir_contagem(&pagina, A::contagem(&resposta))?;
     Ok(BuscaRealizada {
         unidade: unidade.clone(),
         resposta,
@@ -305,12 +299,11 @@ fn obter_tela<V: EnvioDoControle>(
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<TelaAtual, ErroBuscaDeProcesso> {
-    use ErroBuscaDeProcesso as E;
-    let cookie = cookie.valor().map_err(E::Transporte)?;
+    let cookie = cookie.valor()?;
     requisicoes.registrar();
-    let resposta = envio.get(url, cookie).map_err(E::Transporte)?;
+    let resposta = envio.get(url, cookie)?;
     let mime = resposta.mime.clone();
-    let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
+    let html = decodificar_resposta(resposta)?;
     Ok(TelaAtual {
         url: url.to_owned(),
         html,

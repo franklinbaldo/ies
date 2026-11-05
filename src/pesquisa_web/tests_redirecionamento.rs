@@ -359,10 +359,13 @@ fn subcodigos_sao_estaveis_e_distintos() {
         E::InfraSistemaNaoDecimalNaUrlDoEnvio,
         E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
     ];
-    let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
+    let unicos: std::collections::HashSet<_> = todos
+        .iter()
+        .map(|e| crate::erro_publico::folha(e))
+        .collect();
     assert_eq!(unicos.len(), todos.len());
     assert_eq!(
-        E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar.subcodigo(),
+        crate::erro_publico::folha(&E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar),
         "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
     );
 }

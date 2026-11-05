@@ -57,10 +57,10 @@ pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     url: &str,
 ) -> Result<TelaAtual, E> {
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
-    let resposta = sessao.envio.get(url, cookie).map_err(E::Transporte)?;
+    let cookie = sessao.cookie.valor()?;
+    let resposta = sessao.envio.get(url, cookie)?;
     let mime = resposta.mime.clone();
-    let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
+    let html = decodificar_resposta(resposta)?;
     Ok(TelaAtual {
         url: url.to_owned(),
         html,

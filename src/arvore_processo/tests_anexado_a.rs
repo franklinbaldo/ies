@@ -160,7 +160,7 @@ fn subcodigos_estaveis_do_vinculo() {
             "html_do_no_do_processo_fora_da_forma_observada",
         ),
     ] {
-        assert_eq!(erro.subcodigo(), subcodigo);
+        assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }

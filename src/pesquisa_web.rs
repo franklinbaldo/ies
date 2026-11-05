@@ -214,8 +214,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             }
         }
         links_de_documento += documentos.len();
-        let numero = NumeroProcesso::novo(&link.inner_text(parser))
-            .map_err(ErroResultadoPesquisa::NumeroDePesquisa)?;
+        let numero = NumeroProcesso::novo(&link.inner_text(parser))?;
         if !observados.insert(numero.as_str().to_owned()) {
             return Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido);
         }

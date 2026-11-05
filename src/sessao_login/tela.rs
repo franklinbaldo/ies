@@ -266,7 +266,7 @@ pub(crate) fn derivar_login(
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
         .map_err(|_| ErroLogin::TelaDeLoginNaoReconhecida)?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, "frmLogin").map_err(ErroLogin::Formulario)?;
+    let form = localizar_formulario(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;
     let orgao = valor_do_orgao(form, parser, credenciais.orgao())?;
     let operacao = operacao_do_botao(form, parser, tela.html)?;

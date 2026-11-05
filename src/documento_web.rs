@@ -24,11 +24,7 @@ pub enum ErroTituloDocumento {
     IdentificacaoDaInstalacaoAusenteNoTitulo,
 }
 
-impl ErroTituloDocumento {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroTituloDocumento {}
 
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -231,11 +227,7 @@ pub enum ErroCorpoDocumento {
     #[causa(nome = "arvore_documento_aninhamento_excessivo")]
     AninhamentoExcessivo,
 }
-impl ErroCorpoDocumento {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroCorpoDocumento {}
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
     nome.eq_ignore_ascii_case("svg") || nome.eq_ignore_ascii_case("template")

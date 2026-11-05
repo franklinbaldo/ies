@@ -12,6 +12,8 @@ mod caixa;
 mod caixa_detalhada;
 #[cfg(test)]
 mod cassette;
+mod ciencia;
+mod ciencia_cli;
 mod classe_link_processo;
 mod cli_processo;
 mod colheita_do_controle;
@@ -24,6 +26,8 @@ mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
 mod documento_buscar_cli;
+mod documento_cancelar;
+mod documento_cancelar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -87,6 +91,8 @@ mod processo_marcar;
 mod processo_marcar_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_prazo;
+mod processo_prazo_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod processo_relacionar;
@@ -226,6 +232,14 @@ enum DocumentoAcao {
         /// Data final no formato DD/MM/AAAA
         #[arg(long, value_name = "DD/MM/AAAA")]
         ate: Option<String>,
+    },
+    /// Cancela um documento com motivo, prévia e confirmação irreversível
+    Cancelar {
+        numero: String,
+        #[arg(long, required = true)]
+        motivo: String,
+        #[arg(long)]
+        confirmar: bool,
     },
     /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
     Assinar {
@@ -374,9 +388,12 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_prazo_cli::tentar_prazo(cli))
+        .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
+        .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }

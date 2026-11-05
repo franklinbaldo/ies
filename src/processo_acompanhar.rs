@@ -54,11 +54,7 @@ pub(crate) enum ErroAcompanhar {
     ExclusaoNaoOferecida,
 }
 
-impl ErroAcompanhar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroAcompanhar {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GrupoOferecido {

@@ -63,11 +63,7 @@ pub(crate) enum ErroBarraDoDocumento {
     EnderecoDasVersoesDeOutroDocumento,
 }
 
-impl ErroBarraDoDocumento {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroBarraDoDocumento {}
 
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;
 /// sem barra (ou sem o nó), nada publicado.
@@ -165,7 +161,7 @@ fn acao_do_href(href: &str) -> Option<&str> {
 }
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
-pub(super) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
+pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
     use ErroBarraDoDocumento as E;
     let mut indice = None;
     for linha in html.split('\n') {

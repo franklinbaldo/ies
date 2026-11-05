@@ -158,6 +158,8 @@ pub(super) struct ArvoreAberta {
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// O link de prazo na barra; falha só pesa em `processo prazo`.
+    pub(super) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
@@ -166,6 +168,11 @@ pub(super) struct ArvoreAberta {
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
+    pub(super) ciencia:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) lista_ciencias:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
     pub(super) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
     /// O link de atribuição, só examinado pelo comando atribuir.
     pub(super) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
@@ -202,11 +209,14 @@ pub(super) fn ler_arvore_da_pagina(
     let historico = ler_link_do_historico(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
     let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
     let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let ciencia = crate::arvore_processo::ciencia_da_barra(instalacao, html, id);
+    let lista_ciencias = crate::arvore_processo::lista_do_processo(instalacao, html, id);
     let anexar = ler_anexar_da_barra(instalacao, html, id);
     let atribuir = ler_atribuir_da_barra(instalacao, html, id);
     let andamento = ler_andamento_da_barra(instalacao, html, id);
@@ -218,11 +228,14 @@ pub(super) fn ler_arvore_da_pagina(
         historico,
         propriedades,
         marcadores,
+        prazo,
         concluir,
         reabrir,
         sobrestar,
         retomar,
         enviar,
+        ciencia,
+        lista_ciencias,
         acompanhar,
         relacionar,
         andamento,
@@ -249,10 +262,7 @@ pub(super) enum Lida {
 impl<V: EnvioDoProcesso> Rede<'_, V> {
     pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
         self.requisicoes.registrar();
-        let resposta = self
-            .envio
-            .get_sem_seguir(url, &self.cookie)
-            .map_err(E::Transporte)?;
+        let resposta = self.envio.get_sem_seguir(url, &self.cookie)?;
         if resposta.resposta.status_code == 302 {
             return Ok(Lida::Redirecionamento(resposta.localizacao));
         }
@@ -319,8 +329,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
-            .map_err(E::Tela)?;
+        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
         self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
     }
 
@@ -341,7 +350,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let arvore = ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?;
+        let arvore = ler_arvore_aberta(contexto, &html, id)?;
         concluir(
             contexto,
             &arvore.arvore,
