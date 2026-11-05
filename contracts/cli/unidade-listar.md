@@ -61,3 +61,16 @@ Erros tipados desta operação:
 - `lupa_excedeu_orcamento_de_paginas`: número de páginas não foi encerrado.
 
 A lista local é um retrato da leitura, não uma garantia de atualidade.
+
+## Tabela normativa de recusas da lupa
+
+| Subcódigo | Condição |
+| --- | --- |
+| `charset_da_lupa_nao_suportado` | Codificação da tela não suportada |
+| `formulario_da_lupa_inesperado` | Formulário servido incompatível |
+| `link_da_lupa_ambiguo` | Mais de um link assinado divergente |
+| `link_da_lupa_ausente` | Link não publicado |
+| `link_da_lupa_fora_da_instalacao` | Link fora da instalação autorizada |
+| `lista_unidades_incompleta` | Inconsistência entre páginas e total |
+| `lupa_excedeu_orcamento_de_paginas` | Limite da coleta excedido |
+| `pagina_da_lupa_fora_da_forma` | Página sem os campos observados |
