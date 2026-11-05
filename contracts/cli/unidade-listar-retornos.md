@@ -80,8 +80,9 @@ A decisao esta em
 [unidade-retornos](../../docs/decisoes/unidade-listar-retornos.md)
 e a observacao em
 [Retorno Programado](../../docs/como-o-sei-funciona/retorno-programado.md).
-Os ensaios GO/PEN3 e o replay de cassettes reais continuam pendentes;
-nao interpretar testes sinteticos como validacao live.
+O replay das cassettes reais foi **PASS 14/14** em sete instalacoes
+([relatorio](../../docs/validacao-replay/2026-11-05-unidade-retornos.md));
+isso nao equivale a validacao live de GO/PEN3.
 
 ## Falhas tipadas
 
