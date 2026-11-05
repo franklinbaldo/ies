@@ -19,11 +19,7 @@ Operação: `documento.criar`, issue
 
 ## Alcance
 
-Os testes sintéticos do núcleo conferem seleção de tipo e diferença
-entre árvores. O comando da CLI ainda não está integrado nem disponível.
-O resultado do CI não deve ser confundido com prévia ao vivo, replay
-real do acervo ou sucesso de escrita. Nenhuma requisição foi enviada
-ao SEI nesta frente.
+O branch da PR #248 integra o subcomando e uma prévia Web estritamente de leitura: exige processo aberto na unidade, link assinado e único de inclusão, tipo exato e formulário servido compatível. Na variante da lista cujo link exige script, a navegação recusa tipadamente. O `--confirmar` recusa antes de ler a sessão. Novos testes sintéticos de CLI, links e cadastro foram publicados; **RED local não medido**, pois o sandbox não dispõe de Rust e não resolve o domínio do repositório para instalação. O último CI anterior à alteração não prova o novo head. O CI atual ainda precisa ser confirmado. Prévia live: NOT_RUN (0 requisições); escrita live: NOT_RUN (sem autorização).
 
 ## Para retomar
 
