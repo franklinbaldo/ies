@@ -177,3 +177,69 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
+
+#[test]
+fn foto_incompleta_recusa_antes_do_post() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let mut antes = foto(0);
+    antes.pastas_nao_carregadas = true;
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &antes,
+        "Despacho",
+        escrever_ok,
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
+    assert!(rede.chamadas.is_empty(), "recusa antes de qualquer requisição");
+}
+
+#[test]
+fn foto_inicial_com_ids_duplicados_recusa_antes_do_post() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let mut antes = foto(0);
+    antes.documentos.push(antes.documentos[0].clone());
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &antes,
+        "Despacho",
+        escrever_ok,
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
+    assert!(rede.chamadas.is_empty(), "IDs ambíguos não autorizam POST");
+}
+
+#[test]
+fn foto_inicial_sem_id_do_processo_recusa_antes_do_post() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let mut antes = foto(0);
+    antes.id.clear();
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &antes,
+        "Despacho",
+        escrever_ok,
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::ArvoreIncompleta)));
+    assert!(rede.chamadas.is_empty(), "identidade ausente não autoriza POST");
+}
