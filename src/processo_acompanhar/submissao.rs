@@ -1,6 +1,6 @@
 //! Derivação pura do POST de inclusão de Acompanhamento Especial (#254).
 //! Não faz I/O: o formulário e a URL devem vir da MESMA resposta servida.
-//! Caso do Todos tests/test_processo_acompanhar_010.py @323eb01.
+//! Caso do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 use super::fluxo::ErroPrevia;
 use super::{escolher_grupo, grupos_do_cadastro};
 use crate::formulario_web::{
@@ -9,7 +9,7 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 
-/// Cadastro observado na UnB: botão de envio e oculto do processo originais.
+/// Cadastro observado na `UnB`: botão de envio e oculto do processo originais.
 /// O primitivo recusa action fora da instalação, hash inválido, botão ausente,
 /// duplicidade de controles e campos não ofertados.
 const INCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -36,15 +36,17 @@ pub(crate) fn derivar_inclusao(
     grupo: Option<&str>,
     observacao: &str,
 ) -> Result<SubmissaoDerivada, ErroPrevia> {
-    let grupos = grupos_do_cadastro(tela.html, id_procedimento)
-        .map_err(ErroPrevia::Estrutura)?;
+    let grupos = grupos_do_cadastro(tela.html, id_procedimento).map_err(ErroPrevia::Estrutura)?;
     let escolhido = escolher_grupo(&grupos, grupo).map_err(ErroPrevia::Estrutura)?;
     derivar_submissao(
         &INCLUIR,
         instalacao,
         tela,
         unidade,
-        &[("selGrupoAcompanhamento", &escolhido.valor), ("txaObservacao", observacao)],
+        &[
+            ("selGrupoAcompanhamento", &escolhido.valor),
+            ("txaObservacao", observacao),
+        ],
     )
     .map_err(ErroPrevia::Formulario)
 }
