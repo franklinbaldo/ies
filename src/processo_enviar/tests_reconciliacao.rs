@@ -72,7 +72,10 @@ fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
         };
         super::enviar_processo(sessao, &pedido, indice, envio)
     });
-    assert!(resultado.is_err(), "destino ausente na leitura não é sucesso");
+    assert!(
+        resultado.is_err(),
+        "destino ausente na leitura não é sucesso"
+    );
     assert_eq!(pedidos, pedidos_da_escrita(Versao::V41, false));
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
