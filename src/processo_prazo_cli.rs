@@ -5,7 +5,7 @@ use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, leitura, obter_tela};
 use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
-use crate::processo_prazo::{EstadoDoPrazo, ErroPrazo, PedidoDePrazo, campos_do_pedido, interpretar_pedido, ler_tela};
+use crate::processo_prazo::{EstadoDoPrazo, PedidoDePrazo, campos_do_pedido, interpretar_pedido, ler_tela};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
 use serde_json::{Value, json};
@@ -70,7 +70,7 @@ fn previsualizar(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &abertura, indice, &mut rede) {
         Ok(aberto) => aberto,
         Err(erro) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http().cloned()
+            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
         ),
     };
     let link = match acoes.prazo {
@@ -83,13 +83,13 @@ fn previsualizar(
     let cookie = match ler_cookie(sessao) {
         Ok(cookie) => cookie,
         Err(erro) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http().cloned()
+            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
         ),
     };
     let (html, _) = match obter_tela(&mut rede, &cookie, &link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return saida_erro::erro_fonte_http(
-            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http().cloned()
+            cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
         ),
         Err(FalhaDaTela::Redirecionada) => return recusar(cli.json,
             "tela_de_prazo_redirecionada", "a tela de prazo redirecionou inesperadamente"),
@@ -118,6 +118,7 @@ fn previsualizar(
         "unidade": aberto.unidade,
         "origem": "web",
         "atual": atual,
+        "valor_do_checkbox_de_dias_uteis": tela.valor_dos_uteis,
         "solicitado": solicitado,
         "campos_da_previa": campos,
         "confirmado": false,
@@ -138,6 +139,7 @@ fn previsualizar(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::processo_prazo::ErroPrazo;
 
     #[test]
     fn tipos_de_entrada_distintos_nao_sao_tratados_como_escrita() {
