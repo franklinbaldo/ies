@@ -49,6 +49,22 @@ mod processo;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
+#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
+#[path = "processo_criar/cadastro.rs"]
+mod processo_criar_cadastro;
+mod processo_criar_cli;
+#[allow(dead_code)] // fluxo Web a integrar pela CLI
+#[path = "processo_criar/fluxo.rs"]
+mod processo_criar_fluxo;
+#[allow(dead_code)]
+#[path = "processo_criar/interessados.rs"]
+mod processo_criar_interessados;
+#[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
+#[path = "processo_criar/lista.rs"]
+mod processo_criar_lista;
+#[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
+#[path = "processo_criar/menu.rs"]
+mod processo_criar_menu;
 mod processo_enviar;
 mod processo_enviar_cli;
 mod processo_obter;
@@ -144,6 +160,19 @@ struct Processo {
 
 #[derive(Debug, Subcommand)]
 enum ProcessoAcao {
+    /// Inicia novo processo Web: prévia, ou confirma após validação.
+    Criar {
+        #[arg(long)]
+        tipo: String,
+        #[arg(long)]
+        especificacao: String,
+        #[arg(long)]
+        interessado: Vec<String>,
+        #[arg(long, default_value = "publico", value_parser = ["publico", "restrito"])]
+        nivel: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// NUP inteiro ou parte do número, como digitado no campo Protocolo
@@ -373,7 +402,8 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    processo_buscar_cli::tentar_buscar(cli)
+    processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
