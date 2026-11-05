@@ -204,11 +204,12 @@ impl Roteiro {
         }
     }
 
-    fn proxima(&mut self) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
-        let (status, corpo, localizacao) = self
-            .respostas
-            .pop_front()
-            .expect("pedido fora do roteiro")?;
+    fn proxima(&mut self, pedido: Pedido) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
+        let (status, corpo, localizacao) = crate::transporte::testes_http::atender(
+            &mut self.pedidos,
+            &mut self.respostas,
+            pedido,
+        )?;
         Ok(RespostaDoPost {
             resposta: RespostaWeb {
                 status_code: status,
@@ -236,8 +237,7 @@ impl EnvioDaTroca for Roteiro {
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
-        self.pedidos.push(get(url));
-        self.proxima()
+        self.proxima(get(url))
     }
     fn post(
         &mut self,
@@ -245,12 +245,11 @@ impl EnvioDaTroca for Roteiro {
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         assert_eq!(cookie, COOKIE);
-        self.pedidos.push(Pedido {
+        self.proxima(Pedido {
             metodo: "POST",
             url: submissao.url().to_owned(),
             corpo: Some(String::from_utf8(submissao.corpo().to_vec()).unwrap()),
-        });
-        self.proxima()
+        })
     }
 }
 
