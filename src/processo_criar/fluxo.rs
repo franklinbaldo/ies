@@ -214,14 +214,13 @@ fn enviada<V: EnvioDoControle>(
 }
 
 fn id_do_link(link: &str) -> Option<&str> {
-    let mut ids = link.split('?').nth(1)?.split('&').filter(|par| {
-        par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
-    });
+    let mut ids =
+        link.split('?').nth(1)?.split('&').filter(|par| {
+            par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
+        });
     let primeiro = ids.next()?.strip_prefix("id_tipo_procedimento=")?;
-    (ids.next().is_none()
-        && !primeiro.is_empty()
-        && primeiro.bytes().all(|b| b.is_ascii_digit()))
-    .then_some(primeiro)
+    (ids.next().is_none() && !primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit()))
+        .then_some(primeiro)
 }
 
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
@@ -291,9 +290,9 @@ fn retorno_da_criacao(
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::EfeitoIncerto)?;
-    let mut ids = consulta.split('&').filter(|par| {
-        par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento"
-    });
+    let mut ids = consulta
+        .split('&')
+        .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
     let primeiro = ids.next().ok_or(ErroCriar::EfeitoIncerto)?;
     if ids.next().is_some() {
         return Err(ErroCriar::EfeitoIncerto);
