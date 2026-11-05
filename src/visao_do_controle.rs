@@ -208,3 +208,6 @@ mod tests_definir;
 
 #[cfg(test)]
 mod tests_colheita;
+
+#[cfg(test)]
+mod tests_contagem;
