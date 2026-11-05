@@ -102,6 +102,63 @@ fn proximo_mes_usa_um_get_adicional_sem_repetir_pagina() {
     assert!(chamados[2].contains("data_inicial=01%2F11%2F2026"));
 }
 #[test]
+fn dois_links_mensais_identicos_sao_uma_unica_oferta() {
+    // Replay das sete instalacoes: o calendario publica duas ancoras
+    // para a MESMA URL assinada de "Ver todo o mes".
+    let link = href("data_inicial=01%2F10%2F2026&data_final=31%2F10%2F2026");
+    let calendario_duplo = calendario(2026, 10, true).replace(
+        "</html>",
+        &format!("<a href='{link}'>Ver todo o mes (rodape)</a></html>"),
+    );
+    let mut chamados = 0;
+    let lido = ler_com(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 10)),
+        |url| {
+            chamados += 1;
+            if url.contains("data_inicial=") {
+                Ok(linha().to_owned())
+            } else {
+                Ok(calendario_duplo.clone())
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.itens.len(), 1);
+    assert_eq!(lido.requisicoes, 3);
+    assert_eq!(chamados, 2);
+}
+
+#[test]
+fn links_mensais_diferentes_continuam_ambiguos_e_sem_get_criador() {
+    // Duas ofertas assinadas diferentes nao sao equivalentes.
+    let segundo = href("data_inicial=01%2F10%2F2026&data_final=31%2F10%2F2026&pagina=2");
+    let calendario_ambiguo = calendario(2026, 10, true).replace(
+        "</html>",
+        &format!("<a href='{segundo}'>Outro mes assinado</a></html>"),
+    );
+    let mut chamados = 0;
+    let resultado = ler_com(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 10)),
+        |_| {
+            chamados += 1;
+            Ok(calendario_ambiguo.clone())
+        },
+    );
+    assert!(matches!(
+        resultado,
+        Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
+    ));
+    assert_eq!(chamados, 1);
+}
+
+#[test]
 fn mes_anterior_segue_link_publicado_sem_inventar_url() {
     // Somente se o calendario realmente publicou um href para o primeiro dia.
     let mut chamados = Vec::new();
