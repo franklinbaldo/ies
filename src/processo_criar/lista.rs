@@ -4,7 +4,7 @@
 //! não é a escrita de criação de processo.
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ErroListaDeTipos {
     HtmlInvalido,
     TabelaAusenteOuRepetida,
