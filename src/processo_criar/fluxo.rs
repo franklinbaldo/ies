@@ -13,8 +13,8 @@ use crate::processo_criar_interessados::{
 };
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use crate::transporte::sessao::CookieDaSessao;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
 
 const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
