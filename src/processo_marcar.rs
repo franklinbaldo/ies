@@ -23,6 +23,7 @@ pub(crate) enum ErroMarcar {
     CatalogoDaUnidadeNaoObservado,
     RemocaoSemFormularioObservado,
     MarcadoresNaoLidos,
+    UnidadeDaSessaoNaoPublicada,
 }
 impl ErroMarcar {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -36,6 +37,7 @@ impl ErroMarcar {
             Self::CatalogoDaUnidadeNaoObservado => "catalogo_da_unidade_nao_observado",
             Self::RemocaoSemFormularioObservado => "remocao_sem_formulario_observado",
             Self::MarcadoresNaoLidos => "marcadores_nao_lidos_para_escrita",
+            Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_para_marcar",
         }
     }
     pub(crate) fn mensagem(self) -> &'static str {
@@ -49,6 +51,7 @@ impl ErroMarcar {
             Self::CatalogoDaUnidadeNaoObservado => "o catálogo de marcadores da unidade não foi conferido",
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
+            Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
         }
     }
 }
