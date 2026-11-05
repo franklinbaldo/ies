@@ -2,38 +2,11 @@
 use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario as E, OperacaoDeFormulario};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
-use crate::instalacao::{Instalacao, host_valido};
+use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+pub(super) use crate::url_observada::UrlHttps;
+use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
-
-/// URL HTTPS absoluta decomposta, sem fragmento nem caracteres de controle.
-pub(super) struct UrlHttps<'a> {
-    pub(super) host: &'a str,
-    pub(super) caminho: &'a str,
-    pub(super) consulta: Option<&'a str>,
-}
-
-impl<'a> UrlHttps<'a> {
-    pub(super) fn interpretar(url: &'a str) -> Option<Self> {
-        let resto = url.strip_prefix("https://")?;
-        if !url.bytes().all(|b| (33..=126).contains(&b)) || url.contains(['#', '\\']) {
-            return None;
-        }
-        let (host, caminho_e_consulta) = resto.split_once('/')?;
-        if !host_valido(host) {
-            return None;
-        }
-        let (caminho, consulta) = match caminho_e_consulta.split_once('?') {
-            Some((caminho, consulta)) => (caminho, Some(consulta)),
-            None => (caminho_e_consulta, None),
-        };
-        Some(Self {
-            host,
-            caminho,
-            consulta,
-        })
-    }
-}
 
 /// Valor bruto lido da fonte da tag (não do mapa do `tl`, defeituoso).
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
@@ -80,18 +53,6 @@ pub(super) fn conferir_metodo_e_codificacao(form: &tl::HTMLTag<'_>) -> Result<()
         return Err(E::AcceptCharsetPublicadoNoFormulario);
     }
     Ok(())
-}
-
-fn tem_esquema(referencia: &str) -> bool {
-    let fim = referencia.find(['/', '?']).unwrap_or(referencia.len());
-    referencia[..fim]
-        .split_once(':')
-        .is_some_and(|(esquema, _)| {
-            !esquema.is_empty()
-                && esquema
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
-        })
 }
 
 /// Resolve o atributo `action` contra a URL **servida** e confere instalação,
@@ -166,8 +127,8 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     } else if tem_esquema(referencia) {
         return Err(E::AcaoDoFormularioNaoEhUrlHttps);
     } else {
-        match servida.caminho.rsplit_once('/') {
-            Some((pasta, _)) => format!("https://{}/{pasta}/{referencia}", servida.host),
+        match pasta(servida.caminho) {
+            Some(diretorio) => format!("https://{}/{diretorio}/{referencia}", servida.host),
             None => format!("https://{}/{referencia}", servida.host),
         }
     };

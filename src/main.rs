@@ -72,6 +72,7 @@ mod unidade_colunas_definir_cli;
 mod unidade_lista_cli;
 mod unidade_trocar;
 mod unidade_trocar_cli;
+mod url_observada;
 mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
