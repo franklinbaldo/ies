@@ -37,11 +37,12 @@ fn replay_da_lupa_go_no_acervo() {
                 .unwrap_or_else(|_| panic!("cadastro ilegível no passo {}", resposta.passo));
             // GO: ação da lupa no literal servido pelo cadastro. Não executar JS,
             // não publicar nem comparar o hash assinado da cassette.
-            let candidatos = super::fluxo::candidatos(
-                &html,
-                "unidade_selecionar_envio_processo",
-            )
-            .expect("HTML do cadastro fora da forma observada");
+            let candidatos: Vec<_> =
+                super::fluxo::candidatos(&html, "unidade_selecionar_envio_processo")
+                    .expect("HTML do cadastro fora da forma observada")
+                    .into_iter()
+                    .filter(|url| url.contains("acao=unidade_selecionar_envio_processo"))
+                    .collect();
             assert_eq!(
                 candidatos.len(), 1,
                 "cadastro GO passo {} precisa de um literal único da lupa",
