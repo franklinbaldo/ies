@@ -15,7 +15,7 @@ pub(crate) enum ErroCadastro {
 }
 
 impl ErroCadastro {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    pub(crate) fn subcodigo(self) -> &'static str {
         match self {
             Self::HtmlInvalido => "cadastro_de_processo_html_invalido",
             Self::FormularioAusenteOuRepetido => "cadastro_de_processo_ausente_ou_repetido",
