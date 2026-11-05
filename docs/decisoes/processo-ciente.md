@@ -23,6 +23,22 @@ a lista de ciências relida deve conter o checkbox dessa atividade.
 Para documento, há ação diferente (`documento_ciencia`) e marca de
 recarga diferente, sem compartilhar uma conclusão indevida.
 
+## Alternativas consideradas
+
+1. **Link observado, GET mutador único e lista relida** (escolhido): só
+   publicar a atividade encontrada no aceite e na lista recém-lida.
+2. **Assumir sucesso no HTML do aceite**: não comprova o registro.
+3. **Consultar apenas o histórico genérico**: não prova a ciência.
+4. **REST/WSSEI**: sem evidência que legitime a escolha.
+
+## Comparação
+
+| Critério | Lista relida | Aceite apenas | Histórico | REST |
+| --- | --- | --- | --- | --- |
+| Escrita sem retry | sim | sim | sim | não observado |
+| Ciência provada pela atividade | sim | não | não | não observado |
+| URL derivada do SEI | sim | sim | sim | não observado |
+
 ## Decisão
 
 Conferir primeiro a identidade NUP ↔ id e unidade na abertura Web,
@@ -47,6 +63,15 @@ com validação. Ler andamento genérico: não prova o registro do usuário
 na atividade informada. Tentar novamente após timeout: pode duplicar
 a escrita. Montar URL: perde a assinatura da sessão. REST/WSSEI:
 sem observação que fundamentasse sua seleção.
+
+## Evidências verificáveis
+
+- [Contrato](../../contracts/cli/processo-ciente.md) e
+  [matriz de evidências](../../contracts/evidencias/processo-ciente.md).
+- [Teste Rust de superfície](../../tests/cli_processo_ciente.rs)
+  e [relatório live](../validacao-live/2026-11-05-processo-ciente.md).
+
+## Limitações e revisão
 
 ## Limitações
 
