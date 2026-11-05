@@ -306,6 +306,24 @@ mod tests {
         );
     }
     #[test]
+    fn tabela_unica_sem_evidencia_da_outra_situacao_e_incompleta() {
+        // Na UnB, as duas situacoes tem secoes independentes; nao publicar metade do mes.
+        let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1");
+        assert_eq!(
+            extrair_retornos(&html),
+            Err(ErroRetornos::ListaDeRetornosIncompleta)
+        );
+    }
+    #[test]
+    fn tabela_unica_com_outra_area_explicitamente_vazia_pode_ser_lida() {
+        // A ausencia da outra tabela so vale se a sua area disser que nao ha registros.
+        let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+            + "<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>";
+        let itens = extrair_retornos(&html).unwrap();
+        assert_eq!(itens.len(), 1);
+        assert_eq!(itens[0].situacao, "aguardando");
+    }
+    #[test]
     fn data_fora_do_calendario_nao_e_publicada() {
         let html = tabela("Para Devolver", "NUP-A", "U1").replace("15/10/2026", "31/02/2026");
         assert_eq!(
