@@ -21,7 +21,7 @@ fn json(resultado: &Output) -> serde_json::Value {
 fn motivo_obrigatorio_e_exigido_pelo_clap_antes_da_sessao() {
     let resultado = sem_sessao(&["documento", "cancelar", "0000101", "--json"]);
     assert_eq!(resultado.status.code(), Some(2));
-    assert!(resultado.stdout.is_empty());
+    assert_eq!(resultado.stdout, b"");
 }
 
 #[test]
