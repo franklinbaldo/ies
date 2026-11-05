@@ -69,6 +69,38 @@ fn replay_retornos_no_acervo() {
                             resposta.passo,
                             erro.subcodigo()
                         );
+                        // Diagnostico somente estrutural: sem HTML, links, linhas, cookie ou hash.
+                        if let Ok(dom) = tl::parse(&html, tl::ParserOptions::default()) {
+                            let parser = dom.parser();
+                            for no in dom.query_selector("table").into_iter().flatten() {
+                                if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
+                                    let summary = crate::html_atributos::valor_do_atributo(
+                                        tag, "summary"
+                                    ).ok().flatten().unwrap_or_default();
+                                    if summary.contains("Aguardando") || summary.contains("Devolver")
+                                        || summary.contains("devolver")
+                                    {
+                                        println!("{instalacao}: tabela summary={summary}");
+                                    }
+                                }
+                            }
+                            for no in dom.query_selector("div").into_iter().flatten() {
+                                if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
+                                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
+                                        .ok().flatten().unwrap_or_default();
+                                    if id.contains("AreaTabela") {
+                                        let texto = crate::entidades_html::decodificar_texto(
+                                            &tag.inner_text(parser)
+                                        );
+                                        println!(
+                                            "{instalacao}: area id={id} caracteres={} aviso_vazio={}",
+                                            texto.len(),
+                                            texto.contains("Nenhum registro encontrado.")
+                                        );
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 Err(_) => {
