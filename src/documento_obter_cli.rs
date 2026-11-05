@@ -315,7 +315,7 @@ fn gravar(
     } else {
         documento_versao_cli::gravar_fotos(diretorio, obtidos)
     }
-        .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
+    .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
         if let Some(foto) = foto {
