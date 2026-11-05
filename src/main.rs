@@ -68,6 +68,7 @@ mod status_web;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
+mod unidade_pesquisar_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
@@ -267,6 +268,16 @@ struct Unidade {
 
 #[derive(Debug, Subcommand)]
 enum UnidadeAcao {
+    /// Lista as unidades já guardadas no índice local, sem rede
+    Listar {
+        /// Recolhe uma lista nova pela lupa (ainda não disponível nesta fatia)
+        #[arg(long)]
+        atualizar: bool,
+    },
+    /// Pesquisa no índice local por sigla ou descrição, sem rede
+    Pesquisar {
+        termo: String,
+    },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -417,6 +428,12 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Indice(Indice {
             acao: Some(IndiceAcao::Caminho),
         }) => return indice_caminho_cli::mostrar(cli.json),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Listar { atualizar }),
+        }) => return unidade_pesquisar_cli::listar(cli.json, cli.unidade.as_deref(), *atualizar),
+        Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Pesquisar { termo }),
+        }) => return unidade_pesquisar_cli::pesquisar(cli.json, cli.unidade.as_deref(), termo),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
