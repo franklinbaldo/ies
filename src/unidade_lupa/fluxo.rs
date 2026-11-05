@@ -191,33 +191,35 @@ fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
     let mut urls = Vec::new();
     for seletor in ["a", "button", "input"] {
         for no in dom.query_selector(seletor).into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {continue};
-        for atributo in ["href", "onclick"] {
-            let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
-                .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
-            let Some(bruto) = bruto else { continue };
-            let decodificado = crate::formulario_web::decodificar_atributo(&bruto)
-                .ok_or(FalhaDaLupa::LinkAmbiguo)?;
-            let literal = if atributo == "href" {
-                Some(decodificado.as_str())
-            } else {
-                // Apenas literal entre aspas atribuído a location, sem JS.
-                let local = decodificado.split("location").nth(1);
-                local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
-                    let v = v.trim();
-                    let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
-                    let fim = if decodificado.contains("='") {
-                        '\''
-                    } else {
-                        '"'
-                    };
-                    v.split(fim).next()
-                })
+            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
             };
-            if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
-                urls.push(literal.to_owned());
+            for atributo in ["href", "onclick"] {
+                let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
+                    .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+                let Some(bruto) = bruto else { continue };
+                let decodificado = crate::formulario_web::decodificar_atributo(&bruto)
+                    .ok_or(FalhaDaLupa::LinkAmbiguo)?;
+                let literal = if atributo == "href" {
+                    Some(decodificado.as_str())
+                } else {
+                    // Apenas literal entre aspas atribuído a location, sem JS.
+                    let local = decodificado.split("location").nth(1);
+                    local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
+                        let v = v.trim();
+                        let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
+                        let fim = if decodificado.contains("='") {
+                            '\''
+                        } else {
+                            '"'
+                        };
+                        v.split(fim).next()
+                    })
+                };
+                if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
+                    urls.push(literal.to_owned());
+                }
             }
-        }
         }
     }
     Ok(urls)
