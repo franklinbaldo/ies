@@ -156,9 +156,11 @@ fn incluir_documento_so_usa_link_assinado_na_barra_do_processo() {
     )
     .unwrap()
     .unwrap();
-    assert!(ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[]), "10")
-        .unwrap()
-        .is_some());
+    assert!(
+        ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[]), "10")
+            .unwrap()
+            .is_some()
+    );
     assert_eq!(lido.as_str(), format!("{ORIGEM}/{href}"));
     assert!(!format!("{lido:?}").contains(&"e".repeat(64)));
     assert!(
@@ -185,11 +187,7 @@ fn incluir_documento_recusa_links_repetidos_e_outro_processo() {
     );
     let certo = href.replace("id_procedimento=11", "id_procedimento=10");
     assert_eq!(
-        ler_link_de_incluir_documento(
-            &instalacao(),
-            &com_acoes(&[acao_da_barra(&certo)]),
-            "10",
-        ),
+        ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[acao_da_barra(&certo)]), "10",),
         Err(E::LinkRepetido)
     );
     let outro_no = com_barra(&base(), 1, &acao_da_barra(&certo));
