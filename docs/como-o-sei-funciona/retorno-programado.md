@@ -42,5 +42,8 @@ Os paginadores de `Aguardando` e `Devolver` sao independentes;
 o replay de lista com ambos paginados nao comprova uma unica
 sequencia segura. O leitor do IES recusa essa forma.
 
-A evidencia inicial e UnB 4.0.9 via Todos. GO e PEN3
-permanecem NOT_RUN no IES; nao extrapolar a forma entre versoes.
+A evidencia inicial e UnB 4.0.9 via Todos. Em 05/11 o IES tentou leitura
+em GO e PEN3, com logins bem-sucedidos, mas sem lista validada; na PEN3
+houve `calendario_dos_retornos_desconhecido`. Consultar o
+[relatorio live](../validacao-live/2026-11-05-unidade-retornos.md).
+Nao extrapolar a forma entre versoes.
