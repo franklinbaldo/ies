@@ -20,6 +20,10 @@ PASS na UFRJ 4.1.5 e na UnB 4.0.9. Os estados abaixo pertencem ao Todos, não s�
 
 ## Evidência própria do IES
 
+- [Escrita live](../../docs/validacao-live/2026-11-04-processo-concluir.md):
+  **PASS** na UFRJ 4.1.5 (forma `tela`) e UnB 4.0.9 (forma `funcao`),
+  com verificação por leitura; outras instalações **NOT_RUN** no ensaio.
+
 - [Observação estrutural](../../docs/como-o-sei-funciona/conclusao-do-processo.md)
   das 232 GET e 161 POST de `procedimento_concluir` gravados.
 - [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-concluir-acervo.md):
