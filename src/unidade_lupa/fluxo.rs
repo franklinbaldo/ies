@@ -312,6 +312,10 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
 
 
 #[cfg(test)]
+#[path = "fluxo_regressoes.rs"]
+mod regressoes;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::formulario_web::RespostaDoPost;
