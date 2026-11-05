@@ -8,26 +8,21 @@ use crate::instalacao::Instalacao;
 const ACAO_SOBRESTAR: &str = "procedimento_sobrestar";
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcaoSobrestar {
+    #[causa(nome = "barra_do_sobrestamento_nao_interpretada")]
     BarraInvalida,
+    #[causa(nome = "acoes_de_sobrestamento_repetidas_na_barra")]
     AcoesRepetidas,
+    #[causa(nome = "endereco_do_sobrestamento_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_do_sobrestamento_de_outro_processo")]
     OutroProcesso,
+    #[causa(nome = "tela_do_no_da_retomada_nao_reconhecida")]
     TelaDoNoNaoReconhecida,
 }
 
-impl ErroAcaoSobrestar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraInvalida => "barra_do_sobrestamento_nao_interpretada",
-            Self::AcoesRepetidas => "acoes_de_sobrestamento_repetidas_na_barra",
-            Self::EnderecoNaoReconhecido => "endereco_do_sobrestamento_nao_reconhecido",
-            Self::OutroProcesso => "endereco_do_sobrestamento_de_outro_processo",
-            Self::TelaDoNoNaoReconhecida => "tela_do_no_da_retomada_nao_reconhecida",
-        }
-    }
-}
+impl ErroAcaoSobrestar {}
 
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
     ErroAcaoSobrestar::BarraInvalida
@@ -81,24 +76,18 @@ pub(crate) fn ler_retomar_da_barra(
 
 /// A função de retirada pode estar no corpo inline (4.0) ou na variável
 /// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnderecoDeRetomar {
+    #[causa(nome = "endereco_de_retomar_ausente_na_tela")]
     Ausente,
+    #[causa(nome = "endereco_de_retomar_fora_da_forma")]
     ForaDaForma,
+    #[causa(nome = "enderecos_de_retomar_repetidos_na_tela")]
     Repetido,
+    #[causa(nome = "endereco_de_retomar_nao_reconhecido")]
     NaoReconhecido,
+    #[causa(nome = "endereco_de_retomar_de_outro_processo")]
     OutroProcesso,
-}
-impl ErroEnderecoDeRetomar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Ausente => "endereco_de_retomar_ausente_na_tela",
-            Self::ForaDaForma => "endereco_de_retomar_fora_da_forma",
-            Self::Repetido => "enderecos_de_retomar_repetidos_na_tela",
-            Self::NaoReconhecido => "endereco_de_retomar_nao_reconhecido",
-            Self::OutroProcesso => "endereco_de_retomar_de_outro_processo",
-        }
-    }
 }
 
 pub(crate) fn ler_endereco_de_retomar(

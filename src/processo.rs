@@ -7,20 +7,19 @@ use serde::Serialize;
 pub struct NumeroProcesso(String);
 
 /// Apenas entrada opaca: cada instalação decide a numeração que reconhece.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum NumeroProcessoInvalido {
+    #[causa(nome = "numero_processo_vazio")]
     Vazio,
+    #[causa(nome = "numero_processo_controle")]
     Controle,
+    #[causa(nome = "referencia_processo_legada")]
     ReferenciaLegada,
 }
 
 impl NumeroProcessoInvalido {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Vazio => "numero_processo_vazio",
-            Self::Controle => "numero_processo_controle",
-            Self::ReferenciaLegada => "referencia_processo_legada",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

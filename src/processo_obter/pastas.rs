@@ -47,8 +47,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
         return Ok(aberta);
     }
     let id = aberta.arvore.processo.id.clone();
-    let endereco = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)
-        .map_err(E::Arvore)?
+    let endereco = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)?
         .ok_or(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir))?;
     let html = match rede.get(endereco.as_str())? {
         Lida::Html { html, .. } => html,
@@ -56,7 +55,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
         Lida::Login => return Err(E::SessaoEncerrada),
         Lida::Falha(falha) => return Err(E::Transporte(falha)),
     };
-    let completa = aberta_inteira(contexto, &html, &id).map_err(E::Arvore)?;
+    let completa = aberta_inteira(contexto, &html, &id)?;
     contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
     Ok(completa)
 }

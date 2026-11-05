@@ -2,21 +2,20 @@
 use serde_json::Value;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoCaixa {
+    #[causa(nome = "destino_da_caixa_sem_nome_de_arquivo")]
     DestinoSemNomeDeArquivo,
+    #[causa(nome = "diretorio_do_arquivo_da_caixa_ausente")]
     DiretorioDeDestinoAusente,
+    #[causa(nome = "arquivo_da_caixa_ja_existe")]
     DestinoJaExiste,
+    #[causa(nome = "escrita_de_arquivo_da_caixa_falhou")]
     EscritaDeArquivoFalhou,
 }
 impl ErroArquivoCaixa {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
-            Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
-            Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
-            Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
-        }
+        crate::erro_publico::folha(&self)
     }
     pub fn mensagem(self) -> &'static str {
         match self {

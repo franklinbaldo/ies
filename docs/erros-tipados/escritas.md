@@ -43,6 +43,16 @@ derivação: saída 1, nada enviado) do resultado depois dela:
 decide o efeito: a leitura decide, uma vez, sem retry
 ([contrato](../../contracts/cli/documento-assinar.md)).
 
+## Marcar processo (Refs #255)
+
+`ErroMarcar` (`src/processo_marcar.rs`) separa erro de uso (`id#nome`
+inválido), leitura insuficiente (lista parcial, unidade ausente, tela não
+publicada), identidade divergente (`id` visto com outro nome) e
+capacidade ainda não observada (catálogo da unidade ou formulário de
+remoção). Nenhum desses estados autoriza POST. O leitor Web preserva
+status e mensagem saneada de recusas HTTP. Ver
+[contrato](../../contracts/cli/processo-marcar.md).
+
 ## Enviar o processo
 
 `ErroEnviar` (`src/processo_enviar/erro.rs`) segue a divisão de concluir:

@@ -128,9 +128,9 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
     envio: &mut V,
 ) -> Result<Troca, ErroTroca> {
     use ErroTroca as E;
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
-    let inicial = ler_html(envio, sessao.url_do_controle, cookie).map_err(E::Transporte)?;
-    let antes = unidade_do_controle(&inicial.html).map_err(E::ControleNaoReconhecido)?;
+    let cookie = sessao.cookie.valor()?;
+    let inicial = ler_html(envio, sessao.url_do_controle, cookie)?;
+    let antes = unidade_do_controle(&inicial.html)?;
     if pedido.unidade_esperada.is_some_and(|u| u != antes) {
         return Err(E::UnidadeExibidaDiferenteDaSolicitada);
     }
@@ -152,7 +152,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         sessao.url_do_controle,
         &troca.controle_inicial.html,
     )?;
-    let servida = ler_html(envio, &url_da_tela, cookie).map_err(E::Transporte)?;
+    let servida = ler_html(envio, &url_da_tela, cookie)?;
     let tela = ler_tela_de_troca(&servida.html)?;
     if tela.marcada.sigla != antes {
         return Err(E::UnidadeMarcadaDiferenteDaAtiva);
@@ -173,8 +173,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         &tela_servida,
         &antes,
         &campos_do_envio(&tela, &escolhida),
-    )
-    .map_err(E::Submissao)?;
+    )?;
     troca.campos_do_envio = Some(submissao.nomes_dos_campos().to_vec());
     troca.escolhida = Some(escolhida.clone());
     if !pedido.confirmar {

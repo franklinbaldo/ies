@@ -7,32 +7,29 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 enum ErroHtmlPrivado {
+    #[causa(nome = "html_privado_exige_um_documento")]
     QuantidadeDeDocumentos,
+    #[causa(nome = "opcoes_de_documento_incompativeis_com_html_privado")]
     OpcoesDeDocumentoSemEvidencia,
+    #[causa(interna)]
     Numero(documento::NumeroDocumentoInvalido),
+    #[causa(interna)]
     Fonte(transporte::FalhaTransporte),
+    #[causa(interna)]
     Titulo(documento_web::ErroTituloDocumento),
+    #[causa(interna)]
     Corpo(documento_web::ErroCorpoDocumento),
+    #[causa(nome = "numero_do_html_diferente_do_solicitado")]
     NumeroDiferenteDoSolicitado,
+    #[causa(interna)]
     Exportacao(arquivo_texto_documento::ErroArquivoTexto),
 }
 
 impl ErroHtmlPrivado {
     fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::QuantidadeDeDocumentos => "html_privado_exige_um_documento",
-            Self::OpcoesDeDocumentoSemEvidencia => {
-                "opcoes_de_documento_incompativeis_com_html_privado"
-            }
-            Self::Numero(erro) => erro.subcodigo(),
-            Self::Fonte(erro) => erro.subcodigo(),
-            Self::Titulo(erro) => erro.subcodigo(),
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::NumeroDiferenteDoSolicitado => "numero_do_html_diferente_do_solicitado",
-            Self::Exportacao(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
     fn status(&self) -> u8 {
         match self {
@@ -68,11 +65,11 @@ fn selecionar(
     html: &str,
     numero: &documento::NumeroDocumento,
 ) -> Result<(documento_web::IdentidadeDoDocumento, String), ErroHtmlPrivado> {
-    let identidade = documento_web::identidade_do_titulo(html).map_err(ErroHtmlPrivado::Titulo)?;
+    let identidade = documento_web::identidade_do_titulo(html)?;
     if identidade.numero != numero.as_str() {
         return Err(ErroHtmlPrivado::NumeroDiferenteDoSolicitado);
     }
-    let texto = documento_web::texto_do_corpo(html).map_err(ErroHtmlPrivado::Corpo)?;
+    let texto = documento_web::texto_do_corpo(html)?;
     Ok((identidade, texto))
 }
 

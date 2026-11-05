@@ -36,8 +36,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
     ))?;
     let mut rede = Contador::novo(envio);
     let leitura = |unidade_exigida| leitura(pedido.nup, pedido.unidade, unidade_exigida);
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &leitura(true), indice, &mut rede).map_err(C::Abertura)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &leitura(true), indice, &mut rede)?;
     let concluir = acoes.concluir;
     let unidade = aberto
         .unidade
@@ -58,7 +57,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
         reconciliado_por: None,
         requisicoes: rede.feitas(),
     };
-    let acao = match (concluir.map_err(C::Barra)?, na_unidade) {
+    let acao = match (concluir?, na_unidade) {
         (None, false) => return Ok(feito),
         (Some(_), false) => {
             return Err(C::UnidadeDaSessaoAusenteDaSituacao {
@@ -96,8 +95,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
         }
         ConcluirNaBarra::PelaFuncao { tela_do_no } => {
             let (html, _) = obter_tela(&mut rede, &cookie, tela_do_no.as_str()).map_err(da_tela)?;
-            let url =
-                ler_funcao_de_concluir(&instalacao, &html, &id).map_err(C::FuncaoDeConcluir)?;
+            let url = ler_funcao_de_concluir(&instalacao, &html, &id)?;
             pela_funcao(
                 &mut rede,
                 &cookie,
@@ -129,7 +127,7 @@ fn derivar_pela_tela<V: EnvioDoProcesso>(
     unidade: &str,
 ) -> Result<SubmissaoDerivada, C> {
     let (html, mime) = obter_tela(rede, cookie, url).map_err(da_tela)?;
-    conferir_tela_de_conclusao(&html, id).map_err(C::TelaDeConclusao)?;
+    conferir_tela_de_conclusao(&html, id)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
     let tela = TelaServida {
         url,

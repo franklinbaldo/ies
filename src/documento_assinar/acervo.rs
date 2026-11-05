@@ -51,7 +51,7 @@ fn tela(
 ) -> (String, Option<TelaDeAssinatura>) {
     let lida = match conferir_tela_de_assinatura(html, doc) {
         Ok(lida) => lida,
-        Err(erro) => return (format!("`{}`", erro.subcodigo()), None),
+        Err(erro) => return (format!("`{}`", crate::erro_publico::folha(&erro)), None),
     };
     let Some(cargo) = lida.cargo_da_tela.clone() else {
         return ("conferida, sem cargo sugerido".into(), Some(lida));
@@ -164,7 +164,7 @@ fn replay_de_documento_assinar_no_acervo() {
                     }
                     let classe = match ler_link_de_assinar(&inst, &h, &doc, &processo) {
                         Ok(_) => "link lido e conferido".to_owned(),
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
                     };
                     somar(&mut contagem, "link na tela do documento", classe, nome);
                 }

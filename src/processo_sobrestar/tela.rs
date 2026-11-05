@@ -7,26 +7,20 @@ use crate::formulario_web::{
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTela {
+    #[causa(nome = "tela_de_sobrestar_nao_interpretada")]
     NaoInterpretada,
+    #[causa(nome = "formulario_de_sobrestar_ausente")]
     FormularioAusente,
+    #[causa(nome = "formulario_de_sobrestar_de_outro_processo")]
     OutroProcesso,
+    #[causa(nome = "opcao_somente_sobrestar_nao_oferecida")]
     OpcaoNaoOferecida,
+    #[causa(nome = "tela_de_sobrestar_com_destino_preenchido")]
     DestinoPreenchido,
+    #[causa(nome = "campo_inesperado_na_tela_de_sobrestar")]
     CampoInesperado,
-}
-impl ErroTela {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::NaoInterpretada => "tela_de_sobrestar_nao_interpretada",
-            Self::FormularioAusente => "formulario_de_sobrestar_ausente",
-            Self::OutroProcesso => "formulario_de_sobrestar_de_outro_processo",
-            Self::OpcaoNaoOferecida => "opcao_somente_sobrestar_nao_oferecida",
-            Self::DestinoPreenchido => "tela_de_sobrestar_com_destino_preenchido",
-            Self::CampoInesperado => "campo_inesperado_na_tela_de_sobrestar",
-        }
-    }
 }
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "procedimento_sobrestar",

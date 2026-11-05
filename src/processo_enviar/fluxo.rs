@@ -47,8 +47,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     ))?;
     let mut rede = Contador::novo(envio);
     let leitura = |unidade_exigida| leitura(pedido.nup, pedido.unidade, unidade_exigida);
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &leitura(true), indice, &mut rede).map_err(C::Abertura)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &leitura(true), indice, &mut rede)?;
     let unidade = aberto
         .unidade
         .clone()
@@ -96,8 +95,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         html: &tela.html,
         codificacao: tela.codificacao,
     };
-    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)
-        .map_err(C::Formulario)?;
+    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
     feito.requisicoes = rede.feitas();
@@ -116,7 +114,7 @@ fn ler_tela<V: EnvioDoProcesso>(
         FalhaDaTela::Redirecionada => C::TelaDaEscritaRedirecionada,
         FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
     })?;
-    let conferida = conferir_tela_de_envio(&html, id).map_err(C::TelaDeEnvio)?;
+    let conferida = conferir_tela_de_envio(&html, id)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
     Ok(TelaLida {
         url: url.to_owned(),

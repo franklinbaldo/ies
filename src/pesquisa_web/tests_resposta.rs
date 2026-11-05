@@ -246,7 +246,7 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
         Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
     );
     assert_eq!(
-        E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta.subcodigo(),
+        crate::erro_publico::folha(&E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
         "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
     );
 }

@@ -9,7 +9,6 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo::NumeroProcesso;
 use crate::processo_concluir::FalhaDoEnvio;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao,
