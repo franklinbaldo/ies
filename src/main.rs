@@ -19,6 +19,7 @@ mod copia_listagem;
 mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
+mod documento_cancelar;
 mod documento_buscar_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
