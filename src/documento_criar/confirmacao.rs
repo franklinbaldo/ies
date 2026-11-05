@@ -2,8 +2,8 @@
 //! O transporte é injetável; a confirmação nunca repete a submissão.
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
 use crate::documento_criar::conferir_criacao;
-use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::documento_criar::fluxo::ErroPreviaCriacao;
+use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
@@ -42,10 +42,7 @@ where
         enviar(transporte, post, cookie)
     });
     let depois = reler(transporte).map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
-    if antes.pastas_nao_carregadas
-        || depois.pastas_nao_carregadas
-        || antes.id != depois.id
-    {
+    if antes.pastas_nao_carregadas || depois.pastas_nao_carregadas || antes.id != depois.id {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
@@ -56,7 +53,5 @@ where
     ) {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
-    let _ = numero;
-    // RED: o ramo de sucesso ainda recusa; o teste deve detectar a regressão.
-    Err(ErroPreviaCriacao::EfeitoIncerto)
+    Ok(numero)
 }
