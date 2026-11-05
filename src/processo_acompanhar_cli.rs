@@ -1,4 +1,4 @@
-//! Borda CLI de `ies processo acompanhar NUP`: prévia sem POST e erros tipados.
+//! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_acompanhar::{ErroPrevia, Pedido, Previa, previa};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso, publicar_valor_da_falha};
@@ -71,18 +71,26 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         );
     } else {
         println!(
-            "Prévia — processo {} (unidade {})",
-            plano.numero, plano.unidade
+            "{} — processo {} (unidade {})",
+            if plano.confirmado { "Confirmação" } else { "Prévia" },
+            plano.numero,
+            plano.unidade
         );
         if plano.ja_estava {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
         } else if plano.operacao == "deixar" {
             println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
+        } else if plano.alterado {
+            println!("Incluído acompanhamento no grupo: {}", plano.grupo);
+            println!("Observação: {}", plano.observacao);
         } else {
-            println!("Incluíria acompanhamento no grupo: {}", plano.grupo);
+            println!("Incluiria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         }
         if plano.alterado {
+            if let Some(id) = &plano.id_de_remocao {
+                println!("ID observado na releitura: {id}");
+            }
             println!("Acompanhamento incluído e confirmado por leitura.");
         } else {
             println!("Nenhuma escrita executada.");
