@@ -157,3 +157,12 @@ página maior que 1), sem retries.
 `--assunto` ainda falha fechado: o autocompletar depende do
 `hdnIdAssunto` resolvido, não do texto solto. Testes live: **NOT_RUN**;
 a presença desses filtros varia por instalação.
+
+### Recusas próprias dos filtros
+
+- `criterio_nao_oferecido_pela_tela`: controle inexistente ou assunto sem ID resolvido.
+- `tipo_nao_oferecido_pela_tela`: lista sem a opção exata solicitada.
+- `controle_de_filtro_ambiguo`: campos ou opções repetidos.
+- `atributo_do_filtro_ilegivel`: atributo HTML do filtro inválido.
+- `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
+- `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.
