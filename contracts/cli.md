@@ -38,8 +38,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
-- `ies documento NUMERO [--versao N] [--saida DIR] [--sem-copia]` (versão N
-  pela lista da barra; cópia de trabalho `DOC.vN.html`, Refs #88)
+- `ies documento NUMERO [--versao N] [--saida DIR]` (versão N pela lista
+  da barra, Refs #88; com `--saida`, só a foto `DOC.vN.html`, idempotente, #207)
 - `ies documento buscar TERMO [--pagina N]` (a mesma pesquisa Web, em
   documentos: GET + GET + POST; `--pagina N` acrescenta um POST)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;

@@ -24,6 +24,7 @@ pub(crate) enum RegistroRecusado {
     LinkSemInfraHashUnico,
     LinkComAcaoAjax,
     LinkDeOutraUnidade,
+    Sha256Invalido,
 }
 
 /// URL assinada como a tela publicou. `Debug` não a mostra; não há `Display`.

@@ -44,6 +44,8 @@ pub(crate) enum ErroDocumentoObter {
     Versoes(ErroVersao),
     /// O rodapé da versão servida declara outra versão.
     VersaoServidaDiferenteDaPedida,
+    /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
+    ConteudoComLinkAssinado,
 }
 
 impl ErroDocumentoObter {
@@ -65,6 +67,7 @@ impl ErroDocumentoObter {
             Self::ListaDeVersoesNaoPublicadaNaArvore => "lista_de_versoes_nao_publicada_na_arvore",
             Self::Versoes(erro) => erro.subcodigo(),
             Self::VersaoServidaDiferenteDaPedida => "versao_servida_diferente_da_pedida",
+            Self::ConteudoComLinkAssinado => "conteudo_com_link_assinado",
         }
     }
 
@@ -102,6 +105,9 @@ impl ErroDocumentoObter {
             Self::Versoes(_) => "a lista de versões não foi reconhecida",
             Self::VersaoServidaDiferenteDaPedida => {
                 "o rodapé do conteúdo servido declara outra versão"
+            }
+            Self::ConteudoComLinkAssinado => {
+                "o conteúdo servido traz um link assinado e não é gravado"
             }
         }
     }

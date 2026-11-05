@@ -21,8 +21,10 @@ as demais opções continuam stub.
 - `DOC [DOC ...]`: um ou mais números de documento.
 - `--processo NUP`: contexto opcional, quando informado.
 - `--versao N`: lê a versão N pela lista que a barra do documento publica ([contrato de versões](documento-obter-versoes.md), Refs #88). Não implica listagem pública.
-- `--sem-copia`: com `--saida`, não prepara a cópia de trabalho `DOC.vN.html`.
-- `--saida DIR`: diretório de saída para conteúdo baixado.
+- `--saida DIR`: grava a foto `DOC.vN.html` de cada interno (o HTML
+  servido da versão lida, idempotente) e o arquivo original do externo
+  ([versões e foto](documento-obter-versoes.md), #207). `--sem-copia`
+  saiu em #207.
 - `--ocultar-inacessiveis`: não expor documentos que a sessão não pode acessar.
 - `--com-propriedades`: inclui os metadados do cadastro do documento.
 - `--json` e `--unidade SIGLA`: opções globais.
@@ -45,7 +47,7 @@ original**, são recusados com variante Rust `Controle` e subcódigo
 Caracteres não ASCII/dígitos misturados continuam retornando
 `numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida segue para a [leitura Web](documento-obter-web.md),
 que tipa sessão, ausência, inacessibilidade e cancelamento, lê o
-documento externo e aceita `--processo` e `--versao`/`--sem-copia`; com
+documento externo e aceita `--processo`, `--versao` e `--saida`; com
 `--com-propriedades` ou `--ocultar-inacessiveis`, ainda retorna
 `nao_implementado` e código 1.
 
@@ -122,8 +124,8 @@ Na exportação, a saída JSON informa documento, escopo
 `html_privado_texto_exportado_offline`, bytes e
 `versao_atual: null`, mas **não** devolve o texto no terminal.
 Sem `--saida`, permanece a leitura offline de texto existente.
-A `--saida DIR` da [leitura Web](documento-obter-web.md) grava o
-mesmo `DOC.txt` 0600, sem sobrescrever.
+A `--saida DIR` da [leitura Web](documento-obter-web.md) não grava
+`DOC.txt`: grava a foto `DOC.vN.html` (#207).
 
 ## Texto visível versus decoração HTML (Refs #60)
 

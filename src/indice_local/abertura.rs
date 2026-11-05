@@ -75,6 +75,15 @@ const MIGRACOES: &[&str] = &[
         CHECK (entrada_com_documento IN (0, 1));
     ALTER TABLE instalacao ADD COLUMN entrada_com_documento_testado_em REAL;
     ALTER TABLE instalacao ADD COLUMN recusas_com_documento INTEGER NOT NULL DEFAULT 0;",
+    // 2 → 3 (#207): o SHA-256 de cada foto `DOC.vN.html` gravada.
+    "CREATE TABLE foto (
+        origem TEXT NOT NULL,
+        numero_sei TEXT NOT NULL,
+        versao INTEGER NOT NULL CHECK (versao > 0),
+        sha256 TEXT NOT NULL,
+        observado_em REAL NOT NULL,
+        PRIMARY KEY (origem, numero_sei, versao)
+    ) STRICT;",
 ];
 
 pub(super) fn versao_do_esquema() -> i64 {

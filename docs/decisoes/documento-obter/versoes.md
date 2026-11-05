@@ -4,7 +4,7 @@ title: Ler a versão N pela lista da barra do documento e a versão atual pelo r
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: apêndice da decisão de documento.obter (Refs #88); ies documento DOC --versao N lê a versão N pela lista documento_versao_listar que a barra do DOCUMENTO publica na árvore; versao_atual sai do rodapé Criado por …, versão N do conteúdo lido ou da lista lida; --saida sem --sem-copia prepara DOC.vN.html com base e manifesto quando a barra declara editarConteudo('N')
+scope: apêndice da decisão de documento.obter (Refs #88); ies documento DOC --versao N lê a versão N pela lista documento_versao_listar que a barra do DOCUMENTO publica na árvore; versao_atual sai do rodapé Criado por …, versão N do conteúdo lido ou da lista lida; a gravação em --saida passou à foto DOC.vN.html idempotente (#207)
 selected_strategy: web-lista-da-barra-e-rodape
 alternatives: web-lista-da-barra-e-rodape,web-lista-sempre,web-url-montada-por-versao,web-editor-montar,web-sem-versao-atual
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-pen4
@@ -14,7 +14,11 @@ live_validation: pass-pen4-5-0-4
 # Versões de documento
 
 Apêndice da [decisão de `documento.obter`](../documento-obter.md);
-contrato em [versões e cópia de trabalho](../../../contracts/cli/documento-obter-versoes.md).
+contrato em [versões e foto](../../../contracts/cli/documento-obter-versoes.md).
+A cópia de trabalho com base e manifesto ocultos e o nome `DOC.vN.txt`
+(#204) descritos abaixo foram **substituídos** pela
+[foto `DOC.vN.html` idempotente](saida-idempotente.md) (#207); ficam
+aqui como histórico.
 
 ## Alternativas consideradas
 
@@ -76,28 +80,23 @@ forma servida: `id_documento` duas vezes com o mesmo valor e a âncora
   depois, 5 do rodapé antes do leitor.
 - [Ensaio live na PEN4 5.0.4](../../validacao-live/2026-11-04-documento-versoes.md).
 
-## Nome do texto da versão (#204)
+## Nome do texto da versão (#204, substituído)
 
 Na PEN4 (#176), `--versao N --saida` gravava em `DOC.txt` e, com o
-texto atual já na pasta, gastava G + 2 para recusar. Alternativas:
-`DOC.vN.txt` (escolhida pelo proprietário em 04/11/2026, na convenção
-de `DOC.vN.html`), sobrescrever `DOC.txt` (perde o texto atual, viola o
-"sem sobrescrever") ou um subdiretório por versão (convenção nova sem
-ganho). Como N e DOC são conhecidos antes da rede, `DOC.vN.txt` já
-presente é recusado com 0 requisições; o `create_new` na gravação
-continua sendo a garantia final. RED: 4 testes falhando
-(`documento_versao_cli::testes`, `documento_obter_cli::testes`,
-`cli_contract`). O externo nunca chega ao anexo com `--versao N`.
+texto atual já na pasta, gastava G + 2 para recusar. O proprietário
+escolheu `DOC.vN.txt` em 04/11/2026; em 05/11/2026 trocou o desenho
+inteiro pela [foto idempotente](saida-idempotente.md): não há mais
+`.txt` na leitura Web.
 
 ## Limitações e revisão
 
 O `'N'` de `editarConteudo` é a declaração da árvore na montagem; o JS
 do SEI ainda confere a assinatura por AJAX antes de editar, e o `salvar`
-remoto (#89) terá de conferir de novo. A cópia é o HTML do
+remoto (#89) terá de conferir de novo. A foto é o HTML do
 `documento_visualizar`, não o do editor: as seções editáveis só se
 conhecem ao observar o editor (#89). Gravada em UTF-8, embora o `meta`
 servido declare `iso-8859-1`. UFRJ e GO não gravaram
-`documento_visualizar`: o rodapé não foi visto lá (sem ele, a cópia lê a
+`documento_visualizar`: o rodapé não foi visto lá (sem ele, a foto lê a
 lista). Não observados: lista paginada, documento em pasta com barra
 concatenada não vazia, efeito de visita do GET da lista. Rever se o
 rodapé mudar de forma ou se a barra publicar a edição de outro jeito.

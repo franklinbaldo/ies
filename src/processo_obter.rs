@@ -71,14 +71,12 @@ use crate::transporte::FalhaTransporte;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
-#[cfg(test)]
-pub(crate) use documento::{
-    CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento, obter_documento,
-};
 pub(crate) use documento::{
     DocumentoNaArvoreAberto, DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo,
     PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_versoes,
 };
+#[cfg(test)]
+pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
 pub(crate) use erro::ErroProcessoObter;
 pub(crate) use fluxo::{abrir_para_escrever, obter_processo};
 use std::path::Path;

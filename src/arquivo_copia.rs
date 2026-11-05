@@ -88,7 +88,7 @@ mod testes {
         fs::write(&arquivo, b"texto de teste").unwrap();
         fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
         assert_eq!(
-            ler_regular(&arquivo, ErroCopia::ArquivoAusente),
+            ler_regular(&arquivo, ErroCopia::LeituraFalhou),
             Err(ErroCopia::PermissoesInseguras)
         );
         fs::remove_dir_all(pasta).unwrap();
@@ -105,7 +105,7 @@ mod testes {
         fs::set_permissions(&original, fs::Permissions::from_mode(0o600)).unwrap();
         symlink(&original, &atalho).unwrap();
         assert_eq!(
-            ler_regular(&atalho, ErroCopia::ArquivoAusente),
+            ler_regular(&atalho, ErroCopia::LeituraFalhou),
             Err(ErroCopia::LinkSimbolico)
         );
         fs::remove_dir_all(pasta).unwrap();
@@ -121,7 +121,7 @@ mod testes {
         file.set_len(8_000_001).unwrap();
         fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
         assert_eq!(
-            ler_regular(&arquivo, ErroCopia::ArquivoAusente),
+            ler_regular(&arquivo, ErroCopia::LeituraFalhou),
             Err(ErroCopia::DestinoInseguro)
         );
         fs::remove_dir_all(pasta).unwrap();
@@ -137,7 +137,7 @@ mod testes {
         fs::write(&arquivo, corpo).unwrap();
         fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
         assert_eq!(
-            ler_regular(&arquivo, ErroCopia::ArquivoAusente),
+            ler_regular(&arquivo, ErroCopia::LeituraFalhou),
             Ok(corpo.to_vec())
         );
         fs::remove_dir_all(pasta).unwrap();

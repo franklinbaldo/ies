@@ -190,7 +190,7 @@ fn esquema_versionado_em_wal() {
     let modo: String = conexao
         .pragma_query_value(None, "journal_mode", |l| l.get(0))
         .unwrap();
-    assert_eq!((versao, modo.as_str()), (2, "wal"));
+    assert_eq!((versao, modo.as_str()), (3, "wal"));
 }
 
 /// A corrida está na criação: duas conexões preparando o mesmo arquivo novo

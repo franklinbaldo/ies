@@ -1,96 +1,63 @@
-//! Versão e cópia de trabalho na saída de `ies documento DOC` (Refs #88;
+//! Versão e foto na saída de `ies documento DOC` (Refs #88, #207;
 //! contracts/cli/documento-obter-versoes.md): o pedido a partir de
-//! `--versao`, `--saida` e `--sem-copia`; os campos `versao`,
-//! `versao_atual`, `copia` e motivos; e a gravação de `DOC.vN.html` (com a
-//! base e o manifesto de `documento salvar`), 0600, sem sobrescrever.
-use crate::arquivo_texto_documento::ErroArquivoTexto;
-use crate::copia_documento::{self, ErroCopia, FonteHtml, IdentidadeCopia};
-use crate::documento::NumeroDocumento;
+//! `--versao` e `--saida`; os campos `versao`, `versao_atual` e
+//! `arquivo`; e a gravação idempotente de `DOC.vN.html`, conferida para o
+//! lote inteiro antes da primeira gravação.
+use crate::copia_documento::ErroCopia;
 use crate::documento_versoes::VersaoDocumento;
+use crate::foto_documento::{self, FotoGravada};
 use crate::processo_obter::{DocumentoObtido, PedidoDeVersoes};
 use serde_json::{Map, Value, json};
 use std::path::Path;
 
-/// A cópia gravada: nome relativo a `--saida` e bytes da cópia.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CopiaGravada {
-    pub(crate) arquivo: String,
-    pub(crate) bytes: usize,
-}
-
 /// O pedido de versões; `None` para `--versao 0` (validado antes, saída 1).
-pub(crate) fn pedido(versao: Option<u32>, saida: bool, sem_copia: bool) -> Option<PedidoDeVersoes> {
+pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes> {
     let versao = match versao {
         Some(n) => Some(VersaoDocumento::nova(n).ok()?),
         None => None,
     };
     Some(PedidoDeVersoes {
         versao,
-        copia: saida && !sem_copia,
+        foto: saida,
     })
 }
 
-/// O nome do texto em `--saida` (#204): `DOC.txt` para o texto atual e
-/// `DOC.vN.txt` para a versão pedida com `--versao N`, na convenção da
-/// cópia `DOC.vN.html`.
-pub(crate) fn nome_do_texto(numero: &str, pedida: Option<VersaoDocumento>) -> String {
-    match pedida {
-        Some(n) => format!("{numero}.v{}.txt", n.numero()),
-        None => format!("{numero}.txt"),
-    }
-}
-
-/// Antes de qualquer rede (#204): com `--versao N` e `--saida DIR`, o nome
-/// de cada texto já é conhecido; um `DOC.vN.txt` (ou link) já presente é
-/// recusa tipada sem gastar requisição. Sem `--versao` nada é conferido
-/// aqui: o externo grava `DOC.pdf`/`.html`, e o nome só se sabe depois.
-pub(crate) fn conferir_textos_antes_da_rede(
+/// As fotos do lote, na ordem (`None` para o externo): todas conferidas
+/// antes da primeira gravação, então uma divergência não grava nenhuma.
+pub(crate) fn gravar_fotos(
     diretorio: &Path,
-    numeros: &[NumeroDocumento],
-    pedida: Option<VersaoDocumento>,
-) -> Result<(), ErroArquivoTexto> {
-    let Some(versao) = pedida else {
-        return Ok(());
-    };
-    for numero in numeros {
-        let destino = diretorio.join(nome_do_texto(numero.as_str(), Some(versao)));
-        if std::fs::symlink_metadata(&destino).is_ok() {
-            return Err(ErroArquivoTexto::DestinoJaExiste);
+    obtidos: &[DocumentoObtido],
+) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    for d in obtidos {
+        if let Some(f) = &d.versoes.foto {
+            foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
         }
     }
-    Ok(())
+    obtidos
+        .iter()
+        .map(|d| {
+            d.versoes
+                .foto
+                .as_ref()
+                .map(|f| foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html))
+                .transpose()
+        })
+        .collect()
 }
 
-/// Grava a cópia quando a leitura a preparou; nada quando não.
-pub(crate) fn gravar_copia(
-    diretorio: &Path,
-    origem: &str,
-    d: &DocumentoObtido,
-) -> Result<Option<CopiaGravada>, ErroCopia> {
-    let Ok(copia) = &d.versoes.copia else {
-        return Ok(None);
-    };
-    let documento = NumeroDocumento::novo(&d.numero).map_err(|_| ErroCopia::IdentidadeInvalida)?;
-    let identidade = IdentidadeCopia {
-        documento,
-        id_interno: d.id_documento.clone(),
-        instalacao: origem.to_owned(),
-        versao: copia.versao,
-    };
-    let fonte = FonteHtml::LeituraAtualNaoAssinada { html: &copia.html };
-    copia_documento::preparar(diretorio, &identidade, fonte)?;
-    Ok(Some(CopiaGravada {
-        arquivo: format!("{}.v{}.html", d.numero, copia.versao.numero()),
-        bytes: copia.html.len(),
-    }))
+/// O objeto `arquivo` de um documento gravado em `--saida`.
+pub(crate) fn json_do_arquivo(nome: &str, bytes: u64, sha256: &str, gravado: bool) -> Value {
+    json!({
+        "nome": nome,
+        "bytes": bytes,
+        "sha256": sha256,
+        "gravado": gravado,
+        "motivo": if gravado { Value::Null } else { json!("igual") },
+    })
 }
 
-/// `versao`, `versao_atual`, `versao_atual_motivo`, `copia` e `copia_motivo`.
-pub(crate) fn inserir_campos(
-    objeto: &mut Map<String, Value>,
-    d: &DocumentoObtido,
-    gravada: Option<&CopiaGravada>,
-) {
+/// `versao`, `versao_atual` e `versao_atual_motivo`.
+pub(crate) fn inserir_campos(objeto: &mut Map<String, Value>, d: &DocumentoObtido) {
     let v = &d.versoes;
     objeto.insert("versao".into(), json!(v.lida.map(VersaoDocumento::numero)));
     let (atual, motivo) = match v.atual {
@@ -99,36 +66,32 @@ pub(crate) fn inserir_campos(
     };
     objeto.insert("versao_atual".into(), atual);
     objeto.insert("versao_atual_motivo".into(), motivo);
-    let (copia, motivo) = match (&v.copia, gravada) {
-        (Ok(_), Some(g)) => (json!({"arquivo": g.arquivo, "bytes": g.bytes}), Value::Null),
-        // Preparada, mas sem `--saida` não há onde gravar.
-        (Ok(_), None) => (Value::Null, json!("nao_pedida")),
-        (Err(sem), _) => (Value::Null, json!(sem.motivo())),
-    };
-    objeto.insert("copia".into(), copia);
-    objeto.insert("copia_motivo".into(), motivo);
 }
 
-/// Linha humana sobre versão e cópia, quando há algo a dizer.
-pub(crate) fn linha_humana(d: &DocumentoObtido, gravada: Option<&CopiaGravada>) -> Option<String> {
+/// Linha humana sobre a versão, quando a atual é conhecida.
+pub(crate) fn linha_humana(d: &DocumentoObtido) -> Option<String> {
     let v = &d.versoes;
     let atual = v.atual.ok()?;
     let lida = v
         .lida
         .map_or_else(String::new, |n| format!("versão {} lida; ", n.numero()));
-    let copia = match (gravada, &v.copia) {
-        (Some(g), _) => format!("cópia de trabalho {} ({} bytes)", g.arquivo, g.bytes),
-        (None, Err(sem)) => format!("sem cópia de trabalho ({})", sem.motivo()),
-        (None, Ok(_)) => "sem cópia de trabalho".to_owned(),
-    };
-    Some(format!("Versões: {lida}atual {}; {copia}.", atual.numero()))
+    Some(format!("Versões: {lida}atual {}.", atual.numero()))
+}
+
+/// Linha humana do arquivo gravado (ou já igual) em `--saida`.
+pub(crate) fn linha_do_arquivo(nome: &str, bytes: u64, gravado: bool) -> String {
+    if gravado {
+        format!("Arquivo gravado em {nome} ({bytes} bytes).")
+    } else {
+        format!("Arquivo {nome} já existe com o mesmo SHA-256 ({bytes} bytes); nada gravado.")
+    }
 }
 
 #[cfg(test)]
 pub(crate) mod testes {
     use super::*;
     use crate::arvore_processo::{NaturezaDoDocumento, ProcessoNaArvore};
-    use crate::processo_obter::{CopiaDeTrabalho, SemCopia, SemVersaoAtual, VersoesDoDocumento};
+    use crate::processo_obter::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento};
 
     pub(crate) fn documento(versoes: VersoesDoDocumento) -> DocumentoObtido {
         DocumentoObtido {
@@ -174,140 +137,121 @@ pub(crate) mod testes {
         path
     }
 
-    #[test]
-    fn texto_da_versao_pedida_vai_para_doc_vn_txt() {
-        assert_eq!(nome_do_texto("0011519", None), "0011519.txt");
-        assert_eq!(nome_do_texto("0011519", Some(v(3))), "0011519.v3.txt");
+    const HTML: &str =
+        "<html><head><title>SEI/X - 0011519 - Despacho</title></head><body><p>a</p></body></html>";
+
+    pub(crate) fn com_foto(numero: &str, n: u32, html: &str) -> DocumentoObtido {
+        let mut d = documento(VersoesDoDocumento {
+            lida: Some(v(n)),
+            atual: Ok(v(n)),
+            foto: Some(FotoDaVersao {
+                versao: v(n),
+                html: html.into(),
+            }),
+        });
+        d.numero = numero.into();
+        d
     }
 
-    #[test]
-    fn doc_vn_txt_existente_e_recusado_antes_da_rede() {
-        let pasta = diretorio();
-        let numeros = [
-            NumeroDocumento::novo("0011519").unwrap(),
-            NumeroDocumento::novo("0011520").unwrap(),
-        ];
-        std::fs::write(pasta.join("0011519.txt"), "atual").unwrap();
-        std::fs::write(pasta.join("0011520.v3.txt"), "outra").unwrap();
-        assert_eq!(
-            conferir_textos_antes_da_rede(&pasta, &numeros, None),
-            Ok(())
-        );
-        assert_eq!(
-            conferir_textos_antes_da_rede(&pasta, &numeros[..1], Some(v(2))),
-            Ok(())
-        );
-        assert_eq!(
-            conferir_textos_antes_da_rede(&pasta, &numeros, Some(v(2))),
-            Ok(())
-        );
-        assert_eq!(
-            conferir_textos_antes_da_rede(&pasta, &numeros, Some(v(3))),
-            Err(ErroArquivoTexto::DestinoJaExiste)
-        );
-        #[cfg(unix)]
-        {
-            std::os::unix::fs::symlink("/nao/existe", pasta.join("0011519.v4.txt")).unwrap();
-            assert_eq!(
-                conferir_textos_antes_da_rede(&pasta, &numeros[..1], Some(v(4))),
-                Err(ErroArquivoTexto::DestinoJaExiste)
-            );
-        }
-        std::fs::remove_dir_all(pasta).unwrap();
+    fn nomes(pasta: &Path) -> Vec<String> {
+        let mut nomes: Vec<String> = std::fs::read_dir(pasta)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        nomes.sort();
+        nomes
     }
 
     #[test]
     fn pedido_de_versoes_pelas_opcoes() {
-        assert_eq!(pedido(None, false, false), Some(PedidoDeVersoes::default()));
-        assert_eq!(pedido(None, true, true), Some(PedidoDeVersoes::default()));
+        assert_eq!(pedido(None, false), Some(PedidoDeVersoes::default()));
         assert_eq!(
-            pedido(Some(3), true, false),
+            pedido(None, true),
             Some(PedidoDeVersoes {
-                versao: Some(v(3)),
-                copia: true
+                versao: None,
+                foto: true
             })
         );
-        assert_eq!(pedido(Some(0), false, false), None);
+        assert_eq!(
+            pedido(Some(3), false),
+            Some(PedidoDeVersoes {
+                versao: Some(v(3)),
+                foto: false
+            })
+        );
+        assert_eq!(pedido(Some(0), true), None);
     }
 
     #[test]
-    fn grava_copia_base_e_manifesto_e_publica_campos() {
+    fn lote_grava_so_as_fotos_e_repetir_e_no_op() {
         let pasta = diretorio();
-        let html = "<html><head><title>SEI/X - 0011519 - Despacho</title></head><body><p>a</p></body></html>";
-        let d = documento(VersoesDoDocumento {
+        let mut externo = documento(VersoesDoDocumento {
             lida: None,
-            atual: Ok(v(2)),
-            copia: Ok(CopiaDeTrabalho {
-                versao: v(2),
-                html: html.into(),
-            }),
+            atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
+            foto: None,
         });
-        let gravada = gravar_copia(&pasta, "https://sei.exemplo.gov.br/sei", &d)
-            .unwrap()
-            .unwrap();
-        assert_eq!(gravada.arquivo, "0011519.v2.html");
+        externo.numero = "0011521".into();
+        let lote = [
+            com_foto("0011519", 2, HTML),
+            externo,
+            com_foto("0011520", 1, HTML),
+        ];
+        let gravadas = gravar_fotos(&pasta, &lote).unwrap();
+        assert_eq!(gravadas.len(), 3);
+        assert!(gravadas[1].is_none());
+        let primeira = gravadas[0].as_ref().unwrap();
         assert_eq!(
-            std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
-            html
+            (primeira.nome.as_str(), primeira.gravado),
+            ("0011519.v2.html", true)
         );
-        assert!(pasta.join(".0011519.v2.base.html").exists());
-        assert!(pasta.join(".0011519.v2.meta.json").exists());
-        let previa = crate::copia_documento::previa_local(
-            &pasta,
-            &NumeroDocumento::novo("0011519").unwrap(),
-            None,
-        )
-        .unwrap();
-        assert_eq!(previa.versao_base, 2);
-        let mut objeto = Map::new();
-        inserir_campos(&mut objeto, &d, Some(&gravada));
-        assert_eq!(
-            Value::Object(objeto),
-            json!({
-                "versao": null,
-                "versao_atual": 2,
-                "versao_atual_motivo": null,
-                "copia": {"arquivo": "0011519.v2.html", "bytes": html.len()},
-                "copia_motivo": null
-            })
-        );
-        assert_eq!(
-            gravar_copia(&pasta, "https://sei.exemplo.gov.br/sei", &d),
-            Err(ErroCopia::ArquivoExistente)
-        );
+        assert_eq!(nomes(&pasta), ["0011519.v2.html", "0011520.v1.html"]);
+        let de_novo = gravar_fotos(&pasta, &lote).unwrap();
+        assert!(de_novo.iter().flatten().all(|f| !f.gravado));
+        assert_eq!(nomes(&pasta), ["0011519.v2.html", "0011520.v1.html"]);
         std::fs::remove_dir_all(pasta).unwrap();
     }
 
     #[test]
-    fn sem_copia_nada_e_gravado_e_os_motivos_saem() {
+    fn divergencia_no_lote_nao_grava_nenhuma() {
         let pasta = diretorio();
-        let d = documento(VersoesDoDocumento {
-            lida: Some(v(1)),
-            atual: Ok(v(2)),
-            copia: Err(SemCopia::VersaoHistorica),
-        });
-        assert_eq!(
-            gravar_copia(&pasta, "https://sei.exemplo.gov.br/sei", &d),
-            Ok(None)
-        );
-        assert_eq!(std::fs::read_dir(&pasta).unwrap().count(), 0);
+        gravar_fotos(&pasta, &[com_foto("0011520", 1, HTML)]).unwrap();
+        let lote = [
+            com_foto("0011519", 2, HTML),
+            com_foto("0011520", 1, "<html>outra</html>"),
+        ];
+        assert_eq!(gravar_fotos(&pasta, &lote), Err(ErroCopia::FotoDivergente));
+        assert_eq!(nomes(&pasta), ["0011520.v1.html"]);
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
+    #[test]
+    fn campos_de_versao_e_do_arquivo() {
+        let d = com_foto("0011519", 2, HTML);
         let mut objeto = Map::new();
-        inserir_campos(&mut objeto, &d, None);
-        assert_eq!(objeto["versao"], json!(1));
-        assert_eq!(objeto["copia_motivo"], json!("versao_historica"));
+        inserir_campos(&mut objeto, &d);
+        assert_eq!(
+            Value::Object(objeto),
+            json!({"versao": 2, "versao_atual": 2, "versao_atual_motivo": null})
+        );
+        assert_eq!(
+            linha_humana(&d).as_deref(),
+            Some("Versões: versão 2 lida; atual 2.")
+        );
+        assert_eq!(
+            json_do_arquivo("0011519.v2.html", 7, "ab", false),
+            json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": false, "motivo": "igual"})
+        );
         let nao = documento(VersoesDoDocumento {
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
-            copia: Err(SemCopia::NaoPedida),
+            foto: None,
         });
         let mut objeto = Map::new();
-        inserir_campos(&mut objeto, &nao, None);
-        assert_eq!(objeto["versao_atual"], Value::Null);
+        inserir_campos(&mut objeto, &nao);
         assert_eq!(
             objeto["versao_atual_motivo"],
             json!("nao_servida_no_conteudo")
         );
-        assert_eq!(linha_humana(&nao, None), None);
-        std::fs::remove_dir_all(pasta).unwrap();
+        assert_eq!(linha_humana(&nao), None);
     }
 }
