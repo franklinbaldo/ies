@@ -49,6 +49,7 @@ mod processo;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_prazo;
+mod processo_prazo_cli;
 mod processo_concluir_cli;
 mod processo_enviar;
 mod processo_enviar_cli;
@@ -189,6 +190,22 @@ enum ProcessoAcao {
     },
     Reabrir {
         numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Lê o controle de prazo ou prepara uma prévia; escrita bloqueada nesta fatia
+    Prazo {
+        numero: String,
+        /// Data certa no formato DD/MM/AAAA
+        #[arg(long, conflicts_with_all = ["dias", "excluir"])]
+        ate: Option<String>,
+        /// Dias corridos positivos (a contagem exata é do SEI)
+        #[arg(long, conflicts_with = "excluir")]
+        dias: Option<u32>,
+        /// Remove o controle de prazo pela lista da unidade (ainda bloqueado)
+        #[arg(long)]
+        excluir: bool,
+        /// Escrita real; bloqueada até a verificação por leitura estar implementada
         #[arg(long)]
         confirmar: bool,
     },
@@ -383,6 +400,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_prazo_cli::tentar_prazo(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
