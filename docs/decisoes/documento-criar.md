@@ -32,6 +32,15 @@ cadastro; a captura UnB 4.0.9 mostra `txtDescricao`,
 3. **REST/WSSEI**: ainda sem evidência de disponibilidade e em
    desacordo com a prioridade Web do projeto.
 
+## Comparação
+
+| Critério | Web + árvore | Só Location | REST |
+| --- | --- | --- | --- |
+| Comprova número SEI na árvore | sim | não | não observado |
+| Exige POST de criação | sim | sim | não avaliado |
+| Usa URL assinada servida | sim | sim | não avaliado |
+| Permite recusar efeito incerto | sim | não | não observado |
+
 ## Decisão e limites
 
 Conferir a unidade e a situação antes de escrever, sem deduzir
