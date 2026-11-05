@@ -258,12 +258,11 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaDaLupa::LinkAusente)?;
     let parser = dom.parser();
-    let mut achados = 0;
-    for no in dom.query_selector("#btnNovo").into_iter().flatten() {
-        if no.get(parser).and_then(tl::Node::as_tag).is_some() {
-            achados += 1
-        }
-    }
+    let achados = crate::html_atributos::nos_com_id(&dom, "btnNovo")
+        .map_err(|_| FalhaDaLupa::LinkAmbiguo)?
+        .into_iter()
+        .filter(|no| no.get(parser).and_then(tl::Node::as_tag).is_some())
+        .count();
     if achados == 0 {
         return Err(FalhaDaLupa::LinkAusente);
     }
