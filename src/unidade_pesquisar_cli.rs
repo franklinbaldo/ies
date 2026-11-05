@@ -159,19 +159,18 @@ fn executar(
     let (lista, origem, requisicoes, persistida) = if let Some(lista) = guardada {
         (lista, "indice", 0, true)
     } else {
-        let (lista, requisicoes, persistida) = match atualizar_por_web(
-            &arquivos, &indice, &instalacao, &unidade,
-        ) {
-            Ok(resultado) => resultado,
-            Err(falha) => {
-                return crate::saida_erro::erro_fonte_http(
-                    json_mode,
-                    falha.subcodigo(),
-                    "a lupa não devolveu uma lista integral verificável",
-                    falha.status_http(),
-                );
-            }
-        };
+        let (lista, requisicoes, persistida) =
+            match atualizar_por_web(&arquivos, &indice, &instalacao, &unidade) {
+                Ok(resultado) => resultado,
+                Err(falha) => {
+                    return crate::saida_erro::erro_fonte_http(
+                        json_mode,
+                        falha.subcodigo(),
+                        "a lupa não devolveu uma lista integral verificável",
+                        falha.status_http(),
+                    );
+                }
+            };
         let lista = match termo {
             Some(t) => crate::indice_local::filtrar_lista(lista, t),
             None => lista,
