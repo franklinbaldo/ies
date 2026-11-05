@@ -34,6 +34,37 @@ pub(crate) fn versao_do_rodape(html: &str) -> Option<VersaoDocumento> {
     }
 }
 
+/// Código CRC mostrado no bloco de autenticidade de documento assinado.
+/// Informativo: não é recalculado nem participa da identidade do cache.
+pub(crate) fn crc_do_rodape(html: &str) -> Option<String> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let parser = dom.parser();
+    let mut achados = Vec::new();
+    for no in dom.query_selector("p, div")?.filter_map(|h| h.get(parser)) {
+        let texto = crate::entidades_html::decodificar_texto(&no.inner_text(parser));
+        let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
+        let minusculo = texto.to_lowercase();
+        if !minusculo.contains("autenticidade") || !minusculo.contains("código verificador") {
+            continue;
+        }
+        let Some(inicio) = minusculo.find("código crc") else {
+            continue;
+        };
+        let depois = texto.get(inicio + "código crc".len()..)?.trim_start();
+        let depois = depois.trim_start_matches([':', '-', ' ', '\t']);
+        let codigo: String = depois.chars().take_while(char::is_ascii_hexdigit).collect();
+        if (6..=16).contains(&codigo.len()) {
+            achados.push(codigo.to_ascii_uppercase());
+        }
+    }
+    achados.sort();
+    achados.dedup();
+    match achados.as_slice() {
+        [unico] => Some(unico.clone()),
+        _ => None,
+    }
+}
+
 /// `Criado por X, versão N por Y em DATA.` → N.
 fn versao_da_linha(texto: &str) -> Option<VersaoDocumento> {
     let resto = texto.strip_prefix("Criado por ")?;
@@ -65,6 +96,16 @@ pub(crate) mod testes {
         format!(
             "<html><head><title>SEI/X - 0007 - Despacho</title></head><body><p>Texto, versão 9 por alguém.</p>{corpo}</body></html>"
         )
+    }
+
+    #[test]
+    fn crc_assinado_so_do_bloco_de_autenticidade() {
+        let assinado = "<html><body><p>A autenticidade deste documento pode ser conferida informando o código verificador 123456 e o código CRC 1a2B3c4D.</p></body></html>";
+        assert_eq!(crc_do_rodape(assinado).as_deref(), Some("1A2B3C4D"));
+        assert_eq!(
+            crc_do_rodape("<html><body><p>código CRC 1a2B3c4D</p></body></html>"),
+            None
+        );
     }
 
     #[test]

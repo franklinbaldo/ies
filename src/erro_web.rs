@@ -90,7 +90,7 @@ pub enum ErroCaixa {
 impl ErroCaixa {
     pub fn subcodigo(&self) -> &'static str {
         match self {
-            Self::HtmlInvalido => "html_invalido",
+            Self::HtmlInvalido => "html_da_caixa_invalido",
             Self::TabelaAusente { .. } => "tabela_ausente",
             Self::TabelasDaCategoriaRepetidas { .. } => "tabelas_da_categoria_repetidas",
             Self::TabelaInvalida { .. } => "tabela_invalida",
@@ -98,7 +98,7 @@ impl ErroCaixa {
             Self::LegendasDaTabelaRepetidas { .. } => "legendas_da_tabela_repetidas",
             Self::IdInvalido => "id_invalido",
             Self::IdRepetido { .. } => "id_repetido",
-            Self::NumeroInvalido { .. } => "numero_invalido",
+            Self::NumeroInvalido { .. } => "numero_da_caixa_invalido",
             Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
             Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => {
                 "link_do_processo_nao_identificado_na_linha"
