@@ -1,0 +1,137 @@
+name: Temporary issue 245 training read-only reconciliation
+
+on:
+  push:
+    branches: [codex/245-confirmacao-41-redirecionamento]
+    paths:
+      - .github/workflows/temporary-245-readonly-reconcile.yml
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile-unb:
+    name: UnB treinamento - somente leitura de Gerados (sem confirmar)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Preparar binário sem executar escritas
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo build --release --locked --bin ies
+      - name: Reconciliação por leitura somente (sem retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export IES_SEM_INDICE=1
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          import time
+          from urllib.parse import urlparse
+
+          base = Path(tempfile.mkdtemp(prefix="ies-245-unb-leitura-"))
+          try:
+              linhas = Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+              celulas = next(
+                  [campo.strip().strip(chr(96)) for campo in linha.strip().strip("|").split("|")]
+                  for linha in linhas if linha.startswith("| " + chr(96) + "unb" + chr(96) + " |")
+              )
+              origem, usuario, senha, orgao = celulas[2:6]
+              if origem != "https://sei.treinamento.unb.br/sei":
+                  raise SystemExit("BLOQUEADO: origem não é UnB treinamento")
+              if urlparse(origem).hostname != "sei.treinamento.unb.br":
+                  raise SystemExit("BLOQUEADO: host fora de treinamento")
+              for chave, conteudo in (
+                  ("IES_ORIGEM_FILE", origem + "\n"),
+                  ("IES_CREDENCIAIS_FILE", f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),
+                  ("IES_URL_CONTROLE_FILE", ""),
+                  ("IES_COOKIE_FILE", ""),
+              ):
+                  destino = base / chave
+                  destino.write_text(conteudo)
+                  destino.chmod(0o600)
+                  os.environ[chave] = str(destino)
+              os.environ.pop("IES_CONFIG_FILE", None)
+
+              def executar(etapa, args):
+                  # Não emite stdout ou stderr dos comandos; podem conter dados privados.
+                  p = subprocess.run(
+                      ["./target/release/ies", "--json", *args],
+                      capture_output=True, text=True, check=False, timeout=180
+                  )
+                  try:
+                      dado = json.loads(p.stdout)
+                  except (ValueError, json.JSONDecodeError):
+                      dado = {}
+                  if not isinstance(dado, dict):
+                      dado = {}
+                  print(json.dumps({"etapa": etapa, "exit": p.returncode,
+                                    "subcodigo": dado.get("subcodigo"),
+                                    "requisicoes": dado.get("requisicoes")},
+                                   ensure_ascii=False), flush=True)
+                  return p.returncode, dado
+
+              codigo, _ = executar("login_treinamento", ["login"])
+              if codigo != 0:
+                  raise SystemExit("LOGIN_FAIL: nenhuma consulta foi realizada")
+              time.sleep(35)
+              codigo, dados = executar("gerados", ["unidade", "gerados"])
+              if codigo != 0:
+                  raise SystemExit("GERADOS_FAIL: não repetir chamada")
+              processos = dados.get("processos")
+              if not isinstance(processos, list):
+                  raise SystemExit("FORMATO_NAO_RECONHECIDO: sem varredura")
+              candidatos = []
+              for item in processos:
+                  if not isinstance(item, dict):
+                      continue
+                  nup = item.get("numero")
+                  if (isinstance(nup, str) and 4 <= len(nup) <= 72
+                          and all(c.isdigit() or c in "./-" for c in nup)):
+                      if nup not in candidatos:
+                          candidatos.append(nup)
+              print(json.dumps({"etapa": "gerados_observados",
+                                "total": dados.get("total_declarado"),
+                                "visiveis": len(processos),
+                                "candidatos_a_ler": min(12, len(candidatos))}),
+                    flush=True)
+              matches = []
+              feitas = 0
+              for nup in candidatos[:12]:
+                  time.sleep(35)
+                  codigo, item = executar("leitura_independente", [
+                      "processo", nup, "--sem-documentos", "--sem-marcadores", "--sem-andamentos"
+                  ])
+                  feitas += 1
+                  if codigo != 0:
+                      print("LEITURA_INTERROMPIDA: nenhuma consulta repetida", flush=True)
+                      break
+                  props = item.get("propriedades")
+                  if not isinstance(props, dict):
+                      continue
+                  if (item.get("numero") == nup
+                          and props.get("especificacao") == "Ensaio IES 245 - escrita unica em treinamento"
+                          and item.get("id_procedimento")):
+                      matches.append({
+                          "nup": nup, "id_procedimento": item["id_procedimento"],
+                          "especificacao_confere": True
+                      })
+              print(json.dumps({"etapa": "resultado_leitura",
+                                "processos_lidos": feitas,
+                                "correspondencias": matches,
+                                "conclusao": "POSSIVEL_RESIDUO" if matches else "INCONCLUSIVO_SEM_CORRESPONDENCIA",
+                                "observacao": "Ausência na primeira página não exclui criação"},
+                               ensure_ascii=False), flush=True)
+          finally:
+              for caminho in base.iterdir():
+                  caminho.unlink(missing_ok=True)
+              base.rmdir()
+          PY
