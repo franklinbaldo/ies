@@ -155,7 +155,7 @@ fn corpo_da_acao_excluir(codigo: &str) -> Option<&str> {
     let (parametros, resto) = codigo[inicio..].split_once(')')?;
     let mut nomes = parametros.split(',').map(str::trim);
     if nomes.next() != Some("id")
-        || nomes.next().filter(|nome| !nome.is_empty()).is_none()
+        || nomes.next().is_none_or(str::is_empty)
         || nomes.next().is_some()
     {
         return None;
@@ -239,6 +239,25 @@ fn conferir_script(
     }
     let depois_do_atribuir = &corpo[i_atribuir + atribuir.len()..];
     let (destino, _) = depois_do_atribuir.split_once('\'').ok_or(sem_oferta)?;
+    // Somente a forma observada na UnB: uma confirmação com três
+    // instruções, sem instrução morta, retorno antecipado ou código extra.
+    let inicio: String = corpo[..i_gravar]
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    let condicao_observada = (inicio.starts_with("if(confirm(\\\"")
+        && inicio.ends_with("\\\")){"))
+        || (inicio.starts_with("if(confirm('")
+            && inicio.ends_with("')){"));
+    let entre_gravar_e_atribuir = corpo[i_gravar + gravar.len()..i_atribuir].trim();
+    let depois_do_destino = i_atribuir + atribuir.len() + destino.len() + 1;
+    if !condicao_observada
+        || !entre_gravar_e_atribuir.is_empty()
+        || corpo[depois_do_destino..i_enviar].trim() != ";"
+        || corpo[i_enviar + enviar.len()..].trim() != "}"
+    {
+        return Err(sem_oferta);
+    }
     let destino = crate::formulario_web::decodificar_atributo(destino).ok_or(sem_oferta)?;
     crate::arvore_processo::conferir_endereco_relativo(
         instalacao,
