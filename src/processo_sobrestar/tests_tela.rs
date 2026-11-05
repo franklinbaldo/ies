@@ -1,9 +1,10 @@
 //! Molde sintético da UnB, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
-use super::tela::{conferir_formulario, ErroTela as E};
+use super::tela::{ErroTela as E, conferir_formulario};
 const ID: &str = "10";
 pub(super) fn formulario() -> String {
-    format!(r#"<html><body>
+    format!(
+        r#"<html><body>
 <form id="frmDesentranharDocumento" method="post" action="controlador.php?acao=procedimento_sobrestar&acao_origem=procedimento_sobrestar&id_procedimento={ID}&infra_hash={hash}">
 <input type="hidden" name="hdnInfraTipoPagina" value="2" />
 <button type="submit" name="sbmSalvar" id="sbmSalvar" value="Salvar">Salvar</button>
@@ -16,7 +17,9 @@ pub(super) fn formulario() -> String {
 <textarea id="txaMotivo" name="txaMotivo"></textarea>
 <input type="hidden" name="hdnIdProtocolos" value="{ID}" />
 <input type="hidden" name="hdnIdProcedimentoDestino" value="" />
-</form></body></html>"#, hash="f".repeat(64))
+</form></body></html>"#,
+        hash = "f".repeat(64)
+    )
 }
 #[test]
 fn formulario_observado_com_radio_desmarcado_e_motivo_aceito() {
@@ -25,13 +28,28 @@ fn formulario_observado_com_radio_desmarcado_e_motivo_aceito() {
 #[test]
 fn formulario_de_outro_processo_ou_id_repetido_recusado() {
     let origem = formulario();
-    assert_eq!(conferir_formulario(&origem.replace("name=\"hdnIdProtocolos\" value=\"10\"", "name=\"hdnIdProtocolos\" value=\"999\""), ID), Err(E::OutroProcesso));
+    assert_eq!(
+        conferir_formulario(
+            &origem.replace(
+                "name=\"hdnIdProtocolos\" value=\"10\"",
+                "name=\"hdnIdProtocolos\" value=\"999\""
+            ),
+            ID
+        ),
+        Err(E::OutroProcesso)
+    );
     let outro = origem.replace("<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />", "<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" /><input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />");
     assert_eq!(conferir_formulario(&outro, ID), Err(E::CampoInesperado));
 }
 #[test]
 fn opcao_de_sobrestar_desconhecida_recusada() {
-    assert_eq!(conferir_formulario(&formulario().replace("value=\"S\" />", "value=\"X\" />"), ID), Err(E::OpcaoNaoOferecida));
+    assert_eq!(
+        conferir_formulario(
+            &formulario().replace("value=\"S\" />", "value=\"X\" />"),
+            ID
+        ),
+        Err(E::OpcaoNaoOferecida)
+    );
 }
 #[test]
 fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
