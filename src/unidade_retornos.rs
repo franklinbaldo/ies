@@ -232,9 +232,12 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         }
         lista.extend(ler_tabela(tabela, parser, situacao)?);
     }
-    // A ausencia de uma das tabelas nunca prova ausencia de retornos:
-    // a propria area correspondente precisa dizer que nao ha registros.
+    // A lista mensal completa observada em todas as sete instalacoes pode
+    // omitir "Para Devolver", mas so dentro da area mensal reconhecida.
+    // Tabela solta sem essa moldura nao comprova completude.
     let mut vazios = HashSet::new();
+    let mut areas_aguardando = 0usize;
+    let mut area_aguardando_com_tabela = false;
     for no in dom.query_selector("div").into_iter().flatten() {
         let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
@@ -244,6 +247,21 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
         };
+        if situacao == "aguardando" {
+            areas_aguardando += 1;
+            let mut reconhecidas = Vec::new();
+            for no in area.query_selector(parser, "table").into_iter().flatten() {
+                let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
+                    continue;
+                };
+                if let Some(summary) = atributo(tabela, "summary")?
+                    && let Some(tipo) = situacao_da_tabela(&summary)
+                {
+                    reconhecidas.push(tipo);
+                }
+            }
+            area_aguardando_com_tabela = reconhecidas == ["aguardando"];
+        }
         if identificador(&texto(area, parser)) == "nenhum registro encontrado."
             && !vazios.insert(situacao)
         {
@@ -251,10 +269,14 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         }
     }
     if !situacoes.is_empty() {
-        if ["aguardando", "devolver"]
+        let duas_situacoes = ["aguardando", "devolver"]
             .iter()
-            .all(|situacao| situacoes.contains(situacao) || vazios.contains(situacao))
-        {
+            .all(|situacao| situacoes.contains(situacao) || vazios.contains(situacao));
+        let area_mensal_observada = areas_aguardando == 1
+            && area_aguardando_com_tabela
+            && situacoes.len() == 1
+            && situacoes.contains("aguardando");
+        if duas_situacoes || area_mensal_observada {
             Ok(lista)
         } else {
             Err(E::ListaDeRetornosIncompleta)
