@@ -5,6 +5,9 @@
 use crate::entidades_html::decodificar_texto;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
+mod fluxo;
+pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
+
 const FORMULARIO: &str = "frmAcompanhamentoCadastro";
 const GRUPO: &str = "selGrupoAcompanhamento";
 const PROTOCOLO: &str = "hdnIdProtocolo";
