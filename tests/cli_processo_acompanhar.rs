@@ -29,7 +29,10 @@ fn confirma_recusado_antes_da_sessao_ou_rede() {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
-        assert_eq!(valor["subcodigo"], "confirmacao_de_acompanhamento_ainda_bloqueada");
+        assert_eq!(
+            valor["subcodigo"],
+            "confirmacao_de_acompanhamento_ainda_bloqueada"
+        );
         assert_eq!(valor["retentavel"], false);
     }
 }
@@ -41,7 +44,13 @@ fn entrada_invalida_e_combinacoes_impossiveis() {
     assert_eq!(json(&saida)["subcodigo"], "numero_processo_vazio");
 
     let saida = sem_sessao(&[
-        "processo", "acompanhar", NUP, "--deixar", "--observacao", "x", "--json",
+        "processo",
+        "acompanhar",
+        NUP,
+        "--deixar",
+        "--observacao",
+        "x",
+        "--json",
     ]);
     assert_eq!(saida.status.code(), Some(2));
 }
