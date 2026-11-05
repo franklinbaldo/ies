@@ -55,7 +55,10 @@ fn preparar() -> Vec<crate::processo_concluir::tests_apoio::Resposta> {
 fn executar(
     respostas: Vec<crate::processo_concluir::tests_apoio::Resposta>,
     confirmar: bool,
-) -> (Result<Previa, ErroPrevia>, Vec<crate::processo_concluir::tests_apoio::Pedido>) {
+) -> (
+    Result<Previa, ErroPrevia>,
+    Vec<crate::processo_concluir::tests_apoio::Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
         let pedido = Pedido {
