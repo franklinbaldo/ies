@@ -52,6 +52,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade trocar SIGLA [--confirmar]` (troca a unidade da sessão para
   toda a conta, com prévia e verificação pelo Controle novo;
   [contrato](cli/unidade-trocar.md))
+- `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
