@@ -49,20 +49,27 @@ pub(crate) fn gravar_fotos_com_cache(
         .iter()
         .enumerate()
         .map(|(i, d)| {
-            d.versoes.foto.as_ref().map(|f| {
-                let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
-                if !plano.gravado {
-                    return Ok(plano);
-                }
-                let Some(Some(cache)) = caches.get(i) else {
-                    return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
-                };
-                let destino = diretorio.join(&plano.nome);
-                let gravado = crate::cache_documento::copiar_para_saida(
-                    &cache.caminho, &destino, &plano.sha256,
-                ).map_err(|_| ErroCopia::GravacaoFalhou)?;
-                Ok(FotoGravada { gravado, ..plano })
-            }).transpose()
+            d.versoes
+                .foto
+                .as_ref()
+                .map(|f| {
+                    let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
+                    if !plano.gravado {
+                        return Ok(plano);
+                    }
+                    let Some(Some(cache)) = caches.get(i) else {
+                        return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
+                    };
+                    let destino = diretorio.join(&plano.nome);
+                    let gravado = crate::cache_documento::copiar_para_saida(
+                        &cache.caminho,
+                        &destino,
+                        &plano.sha256,
+                    )
+                    .map_err(|_| ErroCopia::GravacaoFalhou)?;
+                    Ok(FotoGravada { gravado, ..plano })
+                })
+                .transpose()
         })
         .collect()
 }
