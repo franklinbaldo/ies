@@ -58,14 +58,18 @@ pub(crate) fn link_de_iniciar(
         }
     }
     let [href] = candidatos.as_slice() else {
-        return Err(if candidatos.is_empty() { E::Ausente } else { E::Repetido });
+        return Err(if candidatos.is_empty() {
+            E::Ausente
+        } else {
+            E::Repetido
+        });
     };
     // Não seguir links de outra instalação, nem admitir parâmetros inesperados
     // de ação ou identificador de sessão.
-    let consulta = href.strip_prefix("controlador.php?").ok_or(E::NaoReconhecido)?;
-    if href.contains(['#', '\\', '\''])
-        || !href.bytes().all(|b| (33..=126).contains(&b))
-    {
+    let consulta = href
+        .strip_prefix("controlador.php?")
+        .ok_or(E::NaoReconhecido)?;
+    if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(E::NaoReconhecido);
     }
     let (mut acoes, mut hashes) = (0, 0);
@@ -75,7 +79,9 @@ pub(crate) fn link_de_iniciar(
         conferir_valor_de_consulta(valor).map_err(|_| E::NaoReconhecido)?;
         match chave {
             "acao" if valor == ACAO => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => hashes += 1,
+            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
+                hashes += 1
+            }
             "acao" | "infra_hash" | "acao_ajax" => return Err(E::NaoReconhecido),
             _ => {}
         }
@@ -86,8 +92,8 @@ pub(crate) fn link_de_iniciar(
     let base = url_controle.split('?').next().ok_or(E::NaoReconhecido)?;
     let (pasta, _) = base.rsplit_once('/').ok_or(E::NaoReconhecido)?;
     let url = format!("{pasta}/{href}");
-    let decomposicao = crate::url_observada::UrlHttps::interpretar(&url)
-        .ok_or(E::NaoReconhecido)?;
+    let decomposicao =
+        crate::url_observada::UrlHttps::interpretar(&url).ok_or(E::NaoReconhecido)?;
     if !instalacao.autoriza_controlador(decomposicao.host, decomposicao.caminho) {
         return Err(E::NaoReconhecido);
     }
@@ -99,12 +105,17 @@ mod tests {
     use super::*;
 
     fn base() -> (&'static str, Instalacao) {
-        ("https://sei.exemplo.test/sei/controlador.php?acao=procedimento_controlar", 
-            Instalacao::interpretar("https://sei.exemplo.test/sei").unwrap())
+        (
+            "https://sei.exemplo.test/sei/controlador.php?acao=procedimento_controlar",
+            Instalacao::interpretar("https://sei.exemplo.test/sei").unwrap(),
+        )
     }
 
     fn ancora(acao: &str) -> String {
-        format!("<a href='controlador.php?acao={acao}&amp;infra_hash={}'>Iniciar</a>", "a".repeat(64))
+        format!(
+            "<a href='controlador.php?acao={acao}&amp;infra_hash={}'>Iniciar</a>",
+            "a".repeat(64)
+        )
     }
 
     #[test]
@@ -118,18 +129,36 @@ mod tests {
     #[test]
     fn recusa_ausencia_repeticao_e_acao_errada() {
         let (url, instalacao) = base();
-        assert_eq!(link_de_iniciar(&instalacao, url, "<div/>"), Err(ErroMenuCriacao::Ausente));
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, "<div/>"),
+            Err(ErroMenuCriacao::Ausente)
+        );
         let repetido = format!("{}{}", ancora(ACAO), ancora(ACAO));
-        assert_eq!(link_de_iniciar(&instalacao, url, &repetido), Err(ErroMenuCriacao::Repetido));
-        assert_eq!(link_de_iniciar(&instalacao, url, &ancora("procedimento_gerar")), Err(ErroMenuCriacao::Ausente));
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &repetido),
+            Err(ErroMenuCriacao::Repetido)
+        );
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &ancora("procedimento_gerar")),
+            Err(ErroMenuCriacao::Ausente)
+        );
     }
 
     #[test]
     fn recusa_link_externo_ou_sem_assinatura() {
         let (url, instalacao) = base();
-        let externo = format!("<a href='https://outro.test/controlador.php?acao={ACAO}&amp;infra_hash={}'>Iniciar</a>", "a".repeat(64));
-        assert_eq!(link_de_iniciar(&instalacao, url, &externo), Err(ErroMenuCriacao::NaoReconhecido));
+        let externo = format!(
+            "<a href='https://outro.test/controlador.php?acao={ACAO}&amp;infra_hash={}'>Iniciar</a>",
+            "a".repeat(64)
+        );
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &externo),
+            Err(ErroMenuCriacao::NaoReconhecido)
+        );
         let sem_assinatura = format!("<a href='controlador.php?acao={ACAO}'>Iniciar</a>");
-        assert_eq!(link_de_iniciar(&instalacao, url, &sem_assinatura), Err(ErroMenuCriacao::NaoReconhecido));
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &sem_assinatura),
+            Err(ErroMenuCriacao::NaoReconhecido)
+        );
     }
 }
