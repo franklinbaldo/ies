@@ -1,7 +1,7 @@
 ---
 type: ImplementationDecision
 title: Retornos programados da unidade pela tela Web do mes inteiro
-operation: unidade.retornos
+operation: unidade.listar_retornos
 implementation: partial
 status: adopted-for-scope
 scope: leitura do mes no Retorno Programado pelo link do menu e links GET de calendario
@@ -13,7 +13,7 @@ live_validation: not-run-go-pen3
 
 # Retornos da unidade: escolher a leitura do mes inteiro (Refs #253)
 
-## Alternativas
+## Alternativas consideradas
 
 - **Web calendario, mes inteiro (escolhida):** segue o link assinado
   publicado em Controle, navega o calendario somente pelos dias primeiro
@@ -23,7 +23,7 @@ live_validation: not-run-go-pen3
 - **REST opcional:** nao ha observacao de contrato equivalente nas
   instalacoes de treinamento; contraria Web-first.
 
-## Evidencia e comparacao
+## Comparação
 
 O [oraculo Todos 323eb01](https://github.com/franklinbaldo/todos/blob/323eb01/src/todos/retorno_programado.py)
 e seus [testes do mes](https://github.com/franklinbaldo/todos/blob/323eb01/tests/test_unidade_listar_retornos_010.py)
@@ -38,7 +38,7 @@ contra a instalacao autorizada antes do cookie; o cliente HTTPS nao
 segue redirecionamentos e nao repete. **Nao** fazemos POST para salvar
 filtro, nem GET de restauracao.
 
-## Decisao e limite de publicacao
+## Decisão
 
 Cada tabela exige colunas e total da legenda que confira suas linhas.
 Mês com texto literal `Nenhum registro encontrado.` na area de tabela
