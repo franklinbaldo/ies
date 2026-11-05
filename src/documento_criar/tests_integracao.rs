@@ -115,7 +115,10 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
 fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     let (resultado, pedidos) = executar(
         true,
-        vec![a::ok("<html>salvo</html>".to_owned()), a::ok(arvore_verificadora(1))],
+        vec![
+            a::ok("<html>salvo</html>".to_owned()),
+            a::ok(arvore_verificadora(1)),
+        ],
     );
     let confirmacao = match resultado {
         Ok(confirmacao) => confirmacao,
@@ -134,7 +137,10 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
 fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
     let (resultado, pedidos) = executar(
         true,
-        vec![a::ok("<html>salvo</html>".to_owned()), a::ok(arvore_verificadora(2))],
+        vec![
+            a::ok("<html>salvo</html>".to_owned()),
+            a::ok(arvore_verificadora(2)),
+        ],
     );
     assert_eq!(
         resultado.err().map(|erro| erro.subcodigo()),
