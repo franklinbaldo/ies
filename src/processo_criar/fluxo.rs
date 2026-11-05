@@ -417,3 +417,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
     feito.requisicoes = requisicoes;
     Ok(feito)
 }
+
+#[cfg(test)]
+#[path = "tests_fluxo.rs"]
+mod tests;
