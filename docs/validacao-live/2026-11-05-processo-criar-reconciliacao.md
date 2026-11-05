@@ -138,3 +138,15 @@ reconciliação de leitura já foi executada e, se não houve falha nem
 requisição repetida, executar **uma vez** a varredura de Gerados em
 treinamento, registrar o resultado parcial e o orçamento observado.
 Mesmo `INCONCLUSIVO` não autoriza repetir o POST de efeito incerto.
+
+### Reforço de segurança posterior ao primeiro GREEN
+
+Mais um teste novo demonstrou **RED local: 1 falha** quando uma
+resposta sintética continha identificador de processo com URL assinável;
+a conciliação ainda o apresentava como candidato. A correção limita
+`id_procedimento` a 1–32 dígitos ASCII observados, sem eco da URL.
+O primeiro RED de filtragem de subcódigos permanece documentado acima:
+**2 falhas individuais observadas antes de suas respectivas correções**.
+**GREEN final local: 13/13 testes Python PASS**, sem `PYTHONPATH` especial,
+mais `compileall` PASS. Nenhuma requisição ao SEI e nenhuma escrita
+nesta fatia; **o resíduo histórico continua DESCONHECIDO**.
