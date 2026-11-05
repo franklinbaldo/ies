@@ -77,7 +77,7 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
 
 /// A resposta do infraAjaxMontarSelect é um select XML. Ignore apenas
 /// o placeholder null; um só item efetivo, com texto e ID, é exigido.
-fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
+pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     use ErroHipotese as E;
     let dom =
         tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaNaoReconhecida)?;
