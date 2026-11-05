@@ -17,7 +17,7 @@ fn lista_observada(id: &str) -> String {
         "b".repeat(64)
     );
     format!(
-        r#"<html><head><script>
+        r##"<html><head><script>
         function acaoExcluir(id,desc){{
           if(confirm("Excluir?")){{
             document.getElementById('hdnInfraItemId').value=id;
@@ -34,7 +34,7 @@ fn lista_observada(id: &str) -> String {
             <td>G</td><td>Obs.</td><td>Aluna</td><td>05/11</td>
             <td><a href="#ID-{id}" onclick="acaoExcluir('{id}','Obs.');">Excluir</a></td></tr>
           </table>
-        </form></body></html>"#
+        </form></body></html>"##
     )
 }
 
