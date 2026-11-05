@@ -1,4 +1,4 @@
-//! Exportação da lista D e da caixa do replay: página observada, total e faixa.
+//! Exportação da lista D: página observada, total e faixa.
 use super::*;
 use crate::caixa_detalhada::ler_paginas;
 use std::fs;

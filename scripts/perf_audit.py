@@ -8,8 +8,6 @@ não são tratadas como benchmark funcional equivalente.
 from __future__ import annotations
 
 import argparse
-import base64
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,7 +16,6 @@ import statistics
 import subprocess
 import tempfile
 import time
-import zipfile
 
 
 def executar(comando: list[str]) -> dict:
@@ -73,40 +70,9 @@ def medir(comando: list[str], n: int, esperado: int | None = 0) -> dict:
     }
 
 
-def fixture(raiz: Path, nome: str, operacao: str, metodo: str, html: str) -> Path:
-    pasta = raiz / nome
-    (pasta / "cassettes" / "unb").mkdir(parents=True)
-    (pasta / ".cache" / "ies").mkdir(parents=True)
-    titulo = "todos-sei-cassettes-unb.zip"
-    arquivo = pasta / ".cache" / "ies" / titulo
-    membro = "benchmark-unb.json"
-    dados = {
-        "complete": True, "schema_version": 1,
-        "sei_root": "https://sei.treinamento.unb.br/",
-        "interactions": [{
-            "request": {"operation": operacao, "method": metodo},
-            "response": {
-                "status_code": 200, "encoding": "utf-8",
-                "headers": {"content-type": "text/html; charset=utf-8"},
-                "body_base64": base64.b64encode(html.encode("utf-8")).decode("ascii"),
-            },
-        }],
-    }
-    bruto = json.dumps(dados, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    with zipfile.ZipFile(arquivo, "w") as zipout:
-        zipout.writestr(membro, bruto, compress_type=zipfile.ZIP_DEFLATED)
-    texto = (
-        "---\ntype: Cassette\ninstallation: unb\n"
-        "source_zip: https://archive.org/download/todos-sei-cassettes-2026/"
-        + titulo + "\narchive_member: " + membro + "\n"
-        + "archive_sha1: " + hashlib.sha1(arquivo.read_bytes()).hexdigest() + "\n"
-        + "cassette_sha256_lf: " + hashlib.sha256(bruto).hexdigest() + "\n---\n"
-    )
-    (pasta / "cassettes" / "unb" / (nome + "--sintetico.md")).write_text(texto)
-    return pasta
-
-
-def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
+def inputs(ies: str) -> dict[str, list[str]]:
+    # Os casos de leitura de cassettes sintéticas usavam `ies replay`, que
+    # saiu da CLI (docs/decisoes/replay-fora-da-cli.md); sobra a inicialização.
     casos = {
         "ies_ajuda": [ies, "--help"],
         "ies_versao": [ies, "--version"],
@@ -114,64 +80,6 @@ def inputs(ies: str, raiz: Path) -> dict[str, list[str]]:
         "ies_status_local": [ies, "status", "--json"],
         "ies_stub_documento": [ies, "documento", "0011519", "--json"],
     }
-    for tamanho in (1024, 64000, 220000):
-        html = ("<html><head><title>SEI/UnB - 0011354 - Ofício</title></head>"
-                "<body><p>" + "texto de teste. " * (tamanho // 16) + "</p></body></html>")
-        pasta = fixture(raiz, f"documento-{tamanho}", "documento_imprimir_web", "GET", html)
-        casos[f"ies_documento_texto_{tamanho}"] = [
-            ies, "replay", f"documento-{tamanho}", "--acervo", str(pasta),
-            "--documento", "--numero-documento", "0011354", "--texto-documento", "--json",
-        ]
-    for n in (20, 1000, 10000):
-        linhas = "".join(
-            "<tr><td>31/10/2026</td><td>Unidade A</td>"
-            "<td>usuario</td><td>Decisão assinada de teste</td></tr>"
-            for _ in range(n)
-        )
-        html = ("<html><head><title>SEI - Histórico do Processo 000123/2026-X</title>"
-                "</head><body><table id='tblHistorico'>" + linhas
-                + "</table></body></html>")
-        pasta = fixture(raiz, f"historico-{n}", "procedimento_consultar_historico", "GET", html)
-        casos[f"ies_historico_{n}"] = [
-            ies, "replay", f"historico-{n}", "--acervo", str(pasta),
-            "--numero-processo", "000123/2026-X", "--json",
-        ]
-    for n in (20, 1000, 20000):
-        linhas = "".join(
-            '<tr class="pesquisaTituloRegistro"><td><a class="protocoloNormal" '
-            'href="controlador.php?acao=procedimento_trabalhar&amp;id_procedimento='
-            + str(i + 10) + '">' + f'{i:06d}/2026-A'
-            + '</a></td></tr>' for i in range(n)
-        )
-        html = '<html><table class="pesquisaResultado">' + linhas + '</table></html>'
-        pasta = fixture(raiz, f"pesquisa-{n}", "protocolo_pesquisar", "POST", html)
-        casos[f"ies_pesquisa_{n}"] = [
-            ies, "replay", f"pesquisa-{n}", "--acervo", str(pasta),
-            "--resultado-pesquisa", "--passo", "0", "--json",
-        ]
-    for n in (20, 1000, 10000):
-        linhas = "".join(
-            "<tr id='P" + str(i + 1)
-            + "'><td><a class='processoVisualizado'>NUP-"
-            + str(i + 1) + "</a></td></tr>"
-            for i in range(n)
-        )
-        legenda = f"{n} registros - 1 a {n}):"
-        html = (
-            "<html><a id='lnkInfraUnidade'>TESTE</a>"
-            "<input id='hdnTipoVisualizacao' value='R'>"
-            "<input id='hdnRecebidosHashCriterios' value='recebidos'>"
-            "<input id='hdnGeradosHashCriterios' value='gerados'>"
-            "<table id='tblProcessosRecebidos'><caption>"
-            + legenda + "</caption>" + linhas + "</table>"
-            "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>"
-            "</html>"
-        )
-        pasta = fixture(raiz, f"caixa-{n}", "procedimento_controlar", "GET", html)
-        casos[f"ies_caixa_{n}"] = [
-            ies, "replay", f"caixa-{n}", "--acervo", str(pasta),
-            "--json",
-        ]
     return casos
 
 
@@ -193,27 +101,26 @@ def principal() -> None:
         "ies_binario_bytes": Path(args.ies).stat().st_size,
         "observacao": (
             "Tempo/CPU via wait4 e RSS do executável via /usr/bin/time separado. "
-            "Fixture sintética, sem rede. Todos só comparado se disponível "
+            "Sem fixture e sem rede. Todos só comparado se disponível "
             "no mesmo runner de forma autorizada."
         ),
         "resultados": {},
         "erros": {},
     }
-    with tempfile.TemporaryDirectory(prefix="ies-perf-offline-") as temp:
-        casos = inputs(args.ies, Path(temp))
-        if args.todos:
-            casos.update({
-                "todos_ajuda": [args.todos, "--help"],
-                "todos_versao": [args.todos, "--version"],
-            })
-        for nome, cmd in casos.items():
-            try:
-                resumo["resultados"][nome] = medir(cmd, args.repeticoes,
-                    esperado=None if nome in ("ies_stub_documento", "ies_status_local") else 0)
-                print("BENCH", nome, json.dumps(resumo["resultados"][nome]), flush=True)
-            except (OSError, RuntimeError, ValueError) as erro:
-                resumo["erros"][nome] = str(erro)
-                print("BENCH_FAIL", nome, str(erro), flush=True)
+    casos = inputs(args.ies)
+    if args.todos:
+        casos.update({
+            "todos_ajuda": [args.todos, "--help"],
+            "todos_versao": [args.todos, "--version"],
+        })
+    for nome, cmd in casos.items():
+        try:
+            resumo["resultados"][nome] = medir(cmd, args.repeticoes,
+                esperado=None if nome in ("ies_stub_documento", "ies_status_local") else 0)
+            print("BENCH", nome, json.dumps(resumo["resultados"][nome]), flush=True)
+        except (OSError, RuntimeError, ValueError) as erro:
+            resumo["erros"][nome] = str(erro)
+            print("BENCH_FAIL", nome, str(erro), flush=True)
     saida = json.dumps(resumo, sort_keys=True, ensure_ascii=False)
     print("PERF_JSON=" + saida, flush=True)
     if os.environ.get("GITHUB_STEP_SUMMARY"):

@@ -37,7 +37,7 @@ com o [índice local](../../arquitetura/0003-indice-local.md) e a colheita
 do Controle já respondem "onde está este processo" com 1 a 4 requisições
 e a identidade confirmada pelo nó raiz. `--historico-privado` e
 `--resultado-pesquisa-file` liam HTML capturado à mão, papel que
-`ies replay` cumpre sobre cassettes verificadas. Alinhar o resumo
+`ies replay` cumpria sobre cassettes verificadas (hoje, o replay do acervo). Alinhar o resumo
 duplicaria a leitura da caixa de `unidade listar-processos`.
 
 ## Efeito
@@ -49,6 +49,7 @@ a sessão): [teste](../../../tests/cli_contract.rs),
 `paginas_capturadas`, `caixa_local`, `processo_historico_privado_cli` e
 `processo_pesquisa_privada_cli` e seus testes. Ficam: `historico.rs` e
 `pesquisa_web` (usados pela árvore, por `processo buscar` e por
-`ies replay`), `resumo_processo` (só `ies replay --numero-processo`) e a
+`ies replay`), `resumo_processo` (só `ies replay --numero-processo`; saiu
+com o `ies replay` em 05/11/2026, [replay fora da CLI](../acervo/replay-fora-da-cli.md)) e a
 exportação `--saida` de `unidade listar-processos|recebidos|gerados`.
 `documento --html-privado` não entrou nesta decisão.

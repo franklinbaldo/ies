@@ -53,18 +53,14 @@ documento externo e aceita `--processo` e `--versao`/`--sem-copia`; com
 [formulários e payloads](../../docs/como-o-sei-funciona/formularios.md)
 fornecem evidências de partida. Não inferir autorização ou saída sem prova.
 
-## Recorte adicional: histórico de versões reproduzido offline
+## Recorte retirado: histórico de versões reproduzido offline
 
-A ferramenta auxiliar `ies replay CENARIO --documento --historico-versoes`
-aceita número SEI solicitado, ID interno explicitamente observado,
-resposta GET `documento_versao_listar` de cassette conferida e,
-opcionalmente, `--versao-documento N`. Apresenta somente maior versão
-efetivamente observada e metadados mínimos da versão selecionada;
-**não implementa** `ies documento DOC --versao N` nem cria
-`listar-versoes`. A relação entre número SEI e ID interno permanece
-não comprovada e é exposta como `numero_documento_confirmado: false`.
-Links assinados não são publicados nem executados. Refs #88.
-
+`ies replay CENARIO --documento --historico-versoes` saiu com o subcomando
+`replay` (05/11/2026; [decisão](../../docs/decisoes/acervo/replay-fora-da-cli.md)).
+O leitor das listas `documento_versao_listar` segue coberto pelo replay do
+acervo `processo_obter::acervo_versoes` (`scripts/replay acervo_versoes`) e
+pelos testes sintéticos de `documento_versoes`. Continua **sem** `ies
+documento DOC --versao N` e sem `listar-versoes`. Refs #88.
 
 ## Identidade textual de HTML reproduzido offline (Refs #60)
 

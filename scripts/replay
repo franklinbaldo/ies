@@ -1,0 +1,48 @@
+#!/bin/sh
+# Replays do acervo público de cassettes: os testes `#[ignore]` do binário
+# `ies` (módulos `*::acervo*`), offline. Nunca acessa o SEI nem baixa ZIPs.
+set -eu
+
+uso() {
+  cat <<'FIM'
+Uso: scripts/replay [-h] [FILTRO]
+
+Sem argumentos: lista os testes do acervo disponíveis (nome completo).
+Com FILTRO: executa os testes ignorados cujo nome contém FILTRO, um por vez
+e com a saída visível:
+
+  cargo test --bin ies -- --ignored --nocapture --test-threads=1 FILTRO
+
+Exemplos:
+  scripts/replay acervo                       # todos os replays do acervo
+  scripts/replay processo_obter::acervo::     # só o de `ies processo NUP`
+  scripts/replay replay_de_unidade_trocar     # só o de `unidade trocar`
+
+Ambiente:
+  IES_ACERVO_CACHE  pasta dos ZIPs do Internet Archive (padrão ~/.cache/ies)
+  IES_ACERVO_SAIDA  grava o relatório nesse arquivo em vez de imprimi-lo
+                    (cada teste sobrescreve: use com o filtro de um só)
+
+Documentação: docs/cassettes.md. Sem os ZIPs no cache, o teste falha
+dizendo qual falta; o script não baixa nada.
+FIM
+}
+
+case "${1:-}" in
+  -h|--help) uso; exit 0 ;;
+  -*) echo "Opção desconhecida: $1" >&2; uso >&2; exit 2 ;;
+esac
+[ "$#" -le 1 ] || { uso >&2; exit 2; }
+
+cd "$(dirname "$0")/.."
+
+if [ "$#" -eq 0 ]; then
+  cargo test -q --bin ies -- --list --ignored 2>/dev/null \
+    | sed -n 's/: test$//p' | grep 'acervo' || {
+      echo "Nenhum teste do acervo encontrado (a compilação falhou?)" >&2
+      exit 1
+    }
+  exit 0
+fi
+
+exec cargo test --bin ies -- --ignored --nocapture --test-threads=1 "$1"

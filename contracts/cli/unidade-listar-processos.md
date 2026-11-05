@@ -70,7 +70,8 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 `ies unidade listar-processos` devolve um **array com uma lista** D
 `categoria: null`, `colunas_ausentes` e, por processo, `categoria`
 observada e `colunas` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)).
-O replay da caixa resumida segue o [golden v2](../../tests/fixtures/caixa-v2.json):
+A caixa resumida (Recebidos e Gerados da visão R, sem comando próprio) segue
+o [golden v2](../../tests/fixtures/caixa-v2.json), conferido por teste unitário:
 um **array** de duas listas na ordem recebidos, gerados, cada uma na
 [forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
 total_declarado, faixa_observada, processos}` (`faixa_observada` é
@@ -95,15 +96,17 @@ contenha mais de uma ocorrência do mesmo ID estrutural
 `tabelas_da_categoria_repetidas` e categoria tipada: escolher só a
 primeira permitiria ocultar processos sem erro.
 
-O replay de [evidências offline](../../docs/replay.md) continua em
-`ies replay CENARIO`, independente de sessão e sem afirmar snapshot
-transacional. SOAP e REST precisam de validação própria, sem presunção
+Não há `ies replay`: as respostas gravadas do Controle passam pelos mesmos
+leitores no replay do acervo `visao_do_controle::acervo`
+([cassettes](../../docs/cassettes.md#replay-do-acervo)), sem sessão e sem
+afirmar snapshot transacional. SOAP e REST precisam de validação própria, sem presunção
 de equivalência à tela Web.
 
 ## Evidências e verificação
 
 Veja a [matriz da operação](../evidencias/unidade-listar_processos.md)
-e os [testes Rust](../../tests/replay_unidade.rs). Nenhuma URL
+e os testes Rust ([origem da caixa](../../tests/cli_unidade_origem.rs),
+[golden da caixa resumida](../../src/saida/tests_golden.rs)). Nenhuma URL
 assinada nem cookie pode aparecer em logs ou no resultado JSON.
 
 
@@ -135,7 +138,7 @@ Não há mudança de requests ou promessa de snapshot transacional.
 POST. Com a leitura pela visão D e `--pagina N`, a opção foi **removida**
 de `listar-processos` (erro de uso, saída 2, sem alias pré-1.0): as telas
 da troca de visão são de outra geração que as capturas, e juntá-las não
-tem semântica verificável. Capturas continuam legíveis por `ies replay`;
+tem semântica verificável. Cassettes passam pelos leitores no replay do acervo;
 `processo NUP --resumo --pagina-arquivo` foi aposentado em 04/11/2026.
 
 ## Consulta de apenas uma lista (Refs #57)
@@ -192,9 +195,9 @@ com `ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle` e o subcódigo
 parcial nem informar sucesso. A regra não requer outro GET, não troca
 unidade e não altera a verificação de cobertura das duas categorias.
 
-`ies replay` permanece um instrumento de análise de cassettes antigos:
-se a captura não possui identificador de unidade, pode apresentar o conteúdo
-somente com escopo de replay, **sem alegar proveniência de leitura live**.
+O replay do acervo (testes `#[ignore]`, não a CLI) lê também capturas sem
+identificador de unidade, só para classificar o leitor, **sem alegar
+proveniência de leitura live**.
 O comportamento é testado com HTML sintético; acesso autenticado nas
 instalações de treinamento continua **NOT_RUN**.
 

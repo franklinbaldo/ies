@@ -39,8 +39,8 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
 - `total_declarado`: total da legenda; `faixa_observada`: `{inicio, fim}`
   das posições lidas, ou `null` sem linhas. Nunca `completa`.
 - `unidade`: rótulo publicado em `lnkInfraUnidade` (contexto observado,
-  não eco de `--unidade`); `origem`: `web`, `web_com_paginas_privadas` ou
-  o cenário do replay.
+  não eco de `--unidade`); `origem`: `web`, `web_com_paginas_privadas` ou,
+  nos testes da caixa resumida, a instalação da cassette.
 - Cada processo: `id`, `numero` (opaco), `visualizado`, `sigiloso`. Na
   visão detalhada os dois últimos são `null` quando a classe do link não
   é reconhecida.
@@ -90,7 +90,8 @@ volta. As recusas `visao_do_controle_nao_restaurada` e
 `pagina_da_visao_resumida_nao_restaurada` da versão que restaurava a D
 deixaram de existir.
 
-`ies replay CENARIO` (caixa resumida) usa o array `[recebidos, gerados]`;
+A caixa resumida (golden [`caixa-v2.json`](../../tests/fixtures/caixa-v2.json),
+conferido por teste unitário) é o array `[recebidos, gerados]`;
 `listar-processos --saida`, o array `[lista D]`.
 O leitor desses arquivos (`processo NUP --resumo --caixa-local`) foi
 aposentado em 04/11/2026 com o `--resumo`

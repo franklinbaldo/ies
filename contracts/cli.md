@@ -91,8 +91,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
 `colunas` têm **leitura HTTP restrita da caixa Web**, com sessão já existente
-(gravada por `ies login` ou à mão) e origem HTTPS explicitamente autorizada,
-ou replay offline verificado. Sessão vencida é falha tipada; com o arquivo
+(gravada por `ies login` ou à mão) e origem HTTPS explicitamente autorizada.
+Sessão vencida é falha tipada; com o arquivo
 de credenciais do `ies login`, a leitura reloga **uma vez** e recomeça
 ([relogin único nas leituras](cli/sessao-login.md#relogin-único-nas-leituras)).
 Não fazem escrita; a única escrita é `colunas --definir … --confirmar`, que
@@ -182,16 +182,16 @@ autenticação do usuário. Testes live nas instalações autorizadas
 seguem exigindo evidência independente; um GET 200 não comprova
 o restante da API.
 
-## Busca textual offline: validação da entrada bruta (Refs #61)
+## Replay de cassettes: fora da CLI pública
 
-Em `ies replay CENARIO --documento --termo-documento TERMO`, a entrada
-original é validada **antes** de aparar espaços externos. CR, LF, tab e
-outros caracteres de controle, mesmo nas extremidades, retornam a variante
-Rust `ErroBuscaDocumento::TermoComControle`, subcódigo
-`termo_de_documento_contem_controle` e saída 2. Espaços comuns externos
-continuam tolerados; termo vazio continua tendo erro específico.
-Não alterar a busca por Unicode nem tratar ausência na cassette como
-inexistência no SEI. Sem GET, POST ou validação live.
+Não há `ies replay`: o subcomando é erro de uso (saída 2). O binário de
+produção não lê cassettes nem liga `zip` e `sha1`. O replay do acervo
+público são os testes `#[ignore]` `*::acervo*` do crate, que passam as
+respostas gravadas pelos **mesmos leitores** dos comandos, offline; o
+[script `scripts/replay`](../scripts/replay) os lista (sem argumentos) e os
+executa (`scripts/replay FILTRO`). Como usar: [cassettes](../docs/cassettes.md#replay-do-acervo);
+por quê e o que cada opção antiga virou:
+[decisão](../docs/decisoes/acervo/replay-fora-da-cli.md).
 
 ## Unidade esperada no diagnóstico Web (Refs #57, #56)
 
