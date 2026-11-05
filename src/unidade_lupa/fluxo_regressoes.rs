@@ -137,6 +137,33 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
 }
 
 #[test]
+fn btn_novo_sem_destino_nao_herda_link_de_outro_controle() {
+    // Regressão da revisão #250: apenas o próprio btnNovo autoriza abrir cadastro.
+    let cadastro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let html = format!(
+        "<button id='btnNovo'>Novo</button><a href='https://sei.example/sei/controlador.php?{cadastro}'>Outro controle</a>"
+    );
+    assert_eq!(
+        botao_novo(&html, &controle(), ORIGEM),
+        Err(FalhaDaLupa::LinkAusente)
+    );
+}
+
+#[test]
+fn btn_novo_nao_eh_ambiguo_por_link_alheio() {
+    let cadastro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let outro_hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let outro = format!("acao=grupo_unidade_cadastrar&infra_hash={outro_hash}");
+    let html = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{cadastro}';\">Novo</button><a href='https://sei.example/sei/controlador.php?{outro}'>Outro controle</a>"
+    );
+    assert_eq!(
+        botao_novo(&html, &controle(), ORIGEM),
+        Ok(format!("{ORIGEM}/controlador.php?{cadastro}"))
+    );
+}
+
+#[test]
 fn botao_novo_repetido_eh_recusado_sem_get() {
     let consulta = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
     let html = format!(
