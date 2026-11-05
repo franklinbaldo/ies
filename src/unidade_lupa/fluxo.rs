@@ -271,7 +271,7 @@ pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaL
             };
             let chave_da_acao = format!("acao={acao}");
             urls.extend(
-                literais_do_script(tag.inner_text(parser).as_ref())
+                literais_do_script(tag.raw().as_utf8_str().as_ref())
                     .into_iter()
                     .filter(|url| url.contains(&chave_da_acao)),
             );
