@@ -211,7 +211,7 @@ struct Documento {
 
 #[derive(Debug, Subcommand)]
 enum DocumentoAcao {
-    /// Inclui documento interno: prévia Web; confirmação ainda não habilitada.
+    /// Inclui documento interno: prévia Web; confirmar faz escrita única com releitura.
     Criar {
         #[arg(long, required = true)]
         processo: String,
