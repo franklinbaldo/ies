@@ -160,6 +160,9 @@ pub(super) struct ArvoreAberta {
     pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
+    pub(super) ciencia: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) lista_ciencias: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -191,6 +194,8 @@ pub(super) fn ler_arvore_da_pagina(
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let ciencia = crate::arvore_processo::ciencia_da_barra(instalacao, html, id);
+    let lista_ciencias = crate::arvore_processo::lista_do_processo(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         html: html.to_owned(),
@@ -200,6 +205,8 @@ pub(super) fn ler_arvore_da_pagina(
         concluir,
         reabrir,
         enviar,
+        ciencia,
+        lista_ciencias,
     })
 }
 
