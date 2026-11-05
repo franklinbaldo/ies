@@ -120,7 +120,7 @@ fn obter<T: TransporteLupa>(
     let resposta = t
         .get(url, cookie)
         .map_err(FalhaDaLupa::Transporte)?;
-    let mime.clone_from(&resposta.resposta.mime);
+    let mime = resposta.resposta.mime.clone();
     let html = decodificar_resposta(resposta.resposta)
         .map_err(FalhaDaLupa::Transporte)?;
     Ok((html, mime))
@@ -336,7 +336,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
         let resposta = transporte
             .post(post, cookie)
             .map_err(FalhaDaLupa::Transporte)?;
-        mime = resposta.resposta.mime.clone();
+        mime.clone_from(&resposta.resposta.mime);
         html = decodificar_resposta(resposta.resposta)
             .map_err(FalhaDaLupa::Transporte)?;
         let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
