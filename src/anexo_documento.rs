@@ -72,6 +72,8 @@ impl Default for LimiteDoAnexo {
 pub(crate) enum DestinoDoAnexo<'a> {
     SoMetadados,
     Diretorio(&'a Path),
+    /// Diretório do cache, no qual um parcial será ligado pelo SHA-256.
+    Cache { diretorio: &'a Path, host: &'a str },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -225,6 +227,8 @@ pub(crate) fn ler_anexo<R: Read>(
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados => None,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
+        DestinoDoAnexo::Cache { diretorio, .. } =>
+            Some(abrir_parcial_cache(diretorio, numero, &conferido)?),
     };
     let texto = cabecalhos::e_texto(&conferido.mime);
     let mut guardado = Vec::new();
@@ -276,6 +280,14 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
+    let hash = crate::hex::hex_minusculo(&hasher.finalize());
+    if let DestinoDoAnexo::Cache { diretorio, host } = destino {
+        let parcial = arquivo.take().ok_or(ErroAnexo::EscritaFalhou)?;
+        let raiz = diretorio.ancestors().nth(3).ok_or(ErroAnexo::EscritaFalhou)?;
+        crate::cache_documento::publicar_parcial(
+            parcial.parcial.temporario(), raiz, host, numero, &hash, conferido.extensao,
+        ).map_err(|_| ErroAnexo::EscritaFalhou)?;
+    }
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
             &conferido.mime,
@@ -288,7 +300,7 @@ pub(crate) fn ler_anexo<R: Read>(
     Ok(AnexoLido {
         mime: conferido.mime,
         tamanho,
-        sha256: crate::hex::hex_minusculo(&hasher.finalize()),
+        sha256: hash,
         nome_original: conferido.nome_original,
         disposicao: conferido.disposicao,
         texto,
@@ -384,6 +396,22 @@ fn abrir_parcial(
         | F::EscritaFalhou
         | F::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;
+    Ok(ArquivoParcial { parcial, nome })
+}
+
+
+fn abrir_parcial_cache(
+    dir: &Path,
+    numero: &str,
+    conferido: &Conferido,
+) -> Result<ArquivoParcial, ErroAnexo> {
+    use crate::arquivo_privado::{Parcial, Politica};
+    let nome = format!("{numero}.cache.{}", conferido.extensao);
+    let parcial = Parcial::abrir(
+        &dir.join(&nome),
+        Politica::exclusiva().diretorio_do_ies()
+            .criando_diretorios().com_limite(conferido.limite),
+    ).map_err(|_| ErroAnexo::EscritaFalhou)?;
     Ok(ArquivoParcial { parcial, nome })
 }
 
