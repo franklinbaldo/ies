@@ -22,11 +22,7 @@ pub(crate) enum ErroEnviarNaBarra {
     EnderecoDoEnvioDeOutroProcesso,
 }
 
-impl ErroEnviarNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroEnviarNaBarra {}
 
 /// O link da tela de envio na barra do processo `id`; `Ok(None)` se a
 /// barra não o publica.

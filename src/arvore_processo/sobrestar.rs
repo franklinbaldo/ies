@@ -22,11 +22,7 @@ pub(crate) enum ErroAcaoSobrestar {
     TelaDoNoNaoReconhecida,
 }
 
-impl ErroAcaoSobrestar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroAcaoSobrestar {}
 
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
     ErroAcaoSobrestar::BarraInvalida

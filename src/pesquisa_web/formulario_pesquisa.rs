@@ -224,8 +224,8 @@ fn derivar_com(
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
     let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
-    let form = localizar_formulario(&dom, operacao.formulario).map_err(E::Submissao)?;
-    let regras = ler_regras_da_tela(form, dom.parser(), em).map_err(E::RegraDoFormulario)?;
+    let form = localizar_formulario(&dom, operacao.formulario)?;
+    let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
     if let Some(maxlength) = regras.maxlength_do_termo
@@ -243,8 +243,7 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
-    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)
-        .map_err(E::Filtro)?;
+    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)?;
     campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras

@@ -52,11 +52,7 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     IdDocumentoNaoDecimalNoRedirecionamento,
 }
 
-impl ErroRedirecionamentoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroRedirecionamentoDaPesquisa {}
 
 /// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
 /// uma `acao`, chaves canônicas, `infra_hash` de 64 hex). É assinada:

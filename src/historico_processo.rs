@@ -62,11 +62,7 @@ pub(crate) enum ErroLinkDoHistorico {
     EnderecoDoHistoricoDeOutroProcesso,
 }
 
-impl ErroLinkDoHistorico {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroLinkDoHistorico {}
 
 /// Falhas da página do histórico e da troca de visão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -84,10 +80,6 @@ pub(crate) enum ErroAndamentos {
 }
 
 impl ErroAndamentos {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-
     /// A página é de outro NUP: um link guardado errou.
     pub(crate) fn diverge_do_pedido(self) -> bool {
         self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)

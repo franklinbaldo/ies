@@ -249,10 +249,7 @@ pub(super) enum Lida {
 impl<V: EnvioDoProcesso> Rede<'_, V> {
     pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
         self.requisicoes.registrar();
-        let resposta = self
-            .envio
-            .get_sem_seguir(url, &self.cookie)
-            .map_err(E::Transporte)?;
+        let resposta = self.envio.get_sem_seguir(url, &self.cookie)?;
         if resposta.resposta.status_code == 302 {
             return Ok(Lida::Redirecionamento(resposta.localizacao));
         }
@@ -319,8 +316,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
-            .map_err(E::Tela)?;
+        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
         self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
     }
 
@@ -341,7 +337,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let arvore = ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?;
+        let arvore = ler_arvore_aberta(contexto, &html, id)?;
         concluir(
             contexto,
             &arvore.arvore,

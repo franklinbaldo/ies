@@ -113,8 +113,7 @@ fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroResposta
 pub(crate) fn pagina_selecionada(
     dom: &tl::VDom<'_>,
 ) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
-    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")
-        .map_err(ErroRespostaDaPesquisa::AtributoHtml)?;
+    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")?;
     Ok(match marcadas.as_slice() {
         [uma] => ler_contagem(texto_visivel(*uma, dom.parser()).trim()),
         _ => None,
@@ -148,12 +147,9 @@ pub(crate) fn classificar_resposta<T>(
     use ErroRespostaDaPesquisa as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
-    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
-        .map_err(E::AtributoHtml)?;
-    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")
-        .map_err(E::AtributoHtml)?;
-    let barras =
-        nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD").map_err(E::AtributoHtml)?;
+    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
+    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
+    let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
     match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
         (true, 1, true) => return Ok(Classificada::SemResultado),
         (true, 1, false) => return Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),

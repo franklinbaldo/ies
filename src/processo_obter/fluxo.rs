@@ -74,7 +74,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
 ) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?.to_owned();
+    let cookie = sessao.cookie.valor()?.to_owned();
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),

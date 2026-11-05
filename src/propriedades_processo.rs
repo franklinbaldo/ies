@@ -119,10 +119,6 @@ pub(crate) enum ErroPropriedades {
 }
 
 impl ErroPropriedades {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-
     /// Recusas do link na barra (o resto é da tela).
     pub(crate) fn do_link(self) -> bool {
         matches!(

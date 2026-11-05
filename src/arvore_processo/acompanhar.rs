@@ -21,11 +21,7 @@ pub(crate) enum ErroAcompanharNaBarra {
     LinkDeOutroProcesso,
 }
 
-impl ErroAcompanharNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroAcompanharNaBarra {}
 
 pub(crate) fn ler_acompanhar_da_barra(
     instalacao: &Instalacao,

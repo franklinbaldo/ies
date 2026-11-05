@@ -34,34 +34,33 @@ pub(crate) struct Previa {
     pub(crate) requisicoes: u8,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroSobrestamento {
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
+    #[causa(nome = "unidade_do_sobrestamento_nao_publicada")]
     UnidadeNaoPublicada,
+    #[causa(nome = "situacao_antes_do_sobrestamento_nao_lida")]
     SituacaoNaoLida(MotivoAbertoEm),
+    #[causa(interna)]
     Barra(ErroAcaoSobrestar),
+    #[causa(nome = "processo_ja_sobrestado")]
     JaSobrestado,
+    #[causa(nome = "processo_nao_sobrestado")]
     NaoSobrestado,
+    #[causa(nome = "processo_nao_aberto_na_unidade_para_sobrestar")]
     ForaDaUnidade,
+    #[causa(nome = "processo_sobrestado_em_outra_unidade")]
     SobrestadoEmOutraUnidade,
+    #[causa(nome = "acao_de_sobrestamento_nao_oferecida")]
     AcaoNaoOferecida,
+    #[causa(nome = "confirmacao_de_sobrestamento_nao_implementada")]
     ConfirmacaoAindaBloqueada,
 }
 
 impl ErroSobrestamento {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(e) => e.subcodigo(),
-            Self::UnidadeNaoPublicada => "unidade_do_sobrestamento_nao_publicada",
-            Self::SituacaoNaoLida(_) => "situacao_antes_do_sobrestamento_nao_lida",
-            Self::Barra(e) => e.subcodigo(),
-            Self::JaSobrestado => "processo_ja_sobrestado",
-            Self::NaoSobrestado => "processo_nao_sobrestado",
-            Self::ForaDaUnidade => "processo_nao_aberto_na_unidade_para_sobrestar",
-            Self::SobrestadoEmOutraUnidade => "processo_sobrestado_em_outra_unidade",
-            Self::AcaoNaoOferecida => "acao_de_sobrestamento_nao_oferecida",
-            Self::ConfirmacaoAindaBloqueada => "confirmacao_de_sobrestamento_nao_implementada",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -100,8 +99,7 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, ErroSobrestamento> {
     let pedido = leitura(nup, unidade, true);
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &pedido, indice, envio).map_err(ErroSobrestamento::Abertura)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, envio)?;
     let atual = aberto
         .unidade
         .ok_or(ErroSobrestamento::UnidadeNaoPublicada)?;
@@ -129,8 +127,7 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     let oferecida = match acao {
         Acao::Sobrestar => acoes.sobrestar,
         Acao::Retomar => acoes.retomar,
-    }
-    .map_err(ErroSobrestamento::Barra)?;
+    }?;
     if oferecida.is_none() {
         return Err(ErroSobrestamento::AcaoNaoOferecida);
     }

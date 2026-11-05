@@ -17,27 +17,29 @@ pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoComReaberturaPreenchida,
 }
 
-impl ErroTelaDeConclusao {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroTelaDeConclusao {}
 
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode
 /// ter saído): o efeito é decidido pela leitura.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDoEnvio {
     /// POST da tela: rede, tempo, status, MIME, charset, login, validação.
+    #[causa(interna)]
     Envio(ErroSubmissaoFormulario),
     /// GET da função: rede, tempo, status, MIME, charset, tamanho.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// GET da função: a tela de login.
+    #[causa(nome = "tela_de_login_recebida_apos_envio")]
     LoginAposEscrita,
     /// 302 para destino fora dos observados (`arvore_visualizar`, `principal`).
+    #[causa(nome = "redirecionamento_nao_reconhecido_apos_concluir")]
     RedirecionamentoNaoReconhecido,
     /// HTML 200 em vez do 302 (forma `tela`).
+    #[causa(nome = "resposta_do_concluir_sem_redirecionamento")]
     RespostaSemRedirecionamento,
     /// 302 em vez do HTML 200 (forma `funcao`).
+    #[causa(nome = "redirecionamento_na_conclusao_pela_funcao")]
     RedirecionamentoNaFuncao,
     /// 302 em vez do HTML 200 (GET de reabrir).
     RedirecionamentoNaReabertura,
@@ -49,21 +51,7 @@ pub(crate) enum FalhaDoEnvio {
 
 impl FalhaDoEnvio {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Envio(erro) => erro.subcodigo(),
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::LoginAposEscrita => "tela_de_login_recebida_apos_envio",
-            Self::RedirecionamentoNaoReconhecido => {
-                "redirecionamento_nao_reconhecido_apos_concluir"
-            }
-            Self::RespostaSemRedirecionamento => "resposta_do_concluir_sem_redirecionamento",
-            Self::RedirecionamentoNaFuncao => "redirecionamento_na_conclusao_pela_funcao",
-            Self::RedirecionamentoNaReabertura => "redirecionamento_na_reabertura",
-            Self::RedirecionamentoNaoReconhecidoAposEnviar => {
-                "redirecionamento_nao_reconhecido_apos_enviar"
-            }
-            Self::RespostaDoEnvioSemRedirecionamento => "resposta_do_envio_sem_redirecionamento",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
@@ -103,11 +91,13 @@ impl VerificacaoPorLeitura {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConcluir {
     /// A abertura do processo (a de `ies processo NUP`) falhou.
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
+    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeConcluir {
         motivo: MotivoAbertoEm,
@@ -119,15 +109,23 @@ pub(crate) enum ErroConcluir {
     ConclusaoNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
+    #[causa(interna)]
     Barra(ErroConcluirNaBarra),
     /// GET da tela de conclusão ou da tela do nó, antes da escrita.
+    #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
+    #[causa(nome = "tela_da_conclusao_redirecionada")]
     TelaDaEscritaRedirecionada,
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     SessaoEncerrada,
+    #[causa(nome = "charset_da_tela_de_conclusao_nao_suportado")]
     CharsetDaTelaNaoSuportado,
+    #[causa(interna)]
     TelaDeConclusao(ErroTelaDeConclusao),
+    #[causa(interna)]
     FuncaoDeConcluir(ErroFuncaoDeConcluir),
     /// Derivação do POST ou falha antes de ele sair (cookie).
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
     /// A leitura depois da escrita ainda lista a unidade da sessão.
     ConclusaoNaoAplicada {
@@ -145,27 +143,7 @@ pub(crate) enum ErroConcluir {
 
 impl ErroConcluir {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_na_abertura",
-            Self::SituacaoDoProcessoNaoLidaAntesDeConcluir { .. } => {
-                "situacao_do_processo_nao_lida_antes_de_concluir"
-            }
-            Self::UnidadeDaSessaoAusenteDaSituacao { .. } => {
-                "unidade_da_sessao_ausente_da_situacao"
-            }
-            Self::ConclusaoNaoPublicadaNaBarra { .. } => "conclusao_nao_publicada_na_barra",
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::TelaDaEscrita(falha) => falha.subcodigo(),
-            Self::TelaDaEscritaRedirecionada => "tela_da_conclusao_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_de_conclusao_nao_suportado",
-            Self::TelaDeConclusao(erro) => erro.subcodigo(),
-            Self::FuncaoDeConcluir(erro) => erro.subcodigo(),
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::ConclusaoNaoAplicada { .. } => "conclusao_nao_aplicada",
-            Self::EfeitoIncertoNaConclusao { .. } => "efeito_incerto_na_conclusao",
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Categoria pública: o próximo passo de quem chama.

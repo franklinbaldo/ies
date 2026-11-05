@@ -63,7 +63,7 @@ pub(crate) fn abrir_conexao(
     host: &str,
     ambiente: impl Fn(&str) -> Option<String>,
 ) -> Result<TcpStream, FalhaTransporte> {
-    if let Some(proxy) = proxy::proxy_para(host, ambiente).map_err(FalhaTransporte::Proxy)? {
+    if let Some(proxy) = proxy::proxy_para(host, ambiente)? {
         return proxy::conectar_via(&proxy, host, TEMPO_LIMITE).map_err(FalhaTransporte::Proxy);
     }
     // Cada endereço resolvido é uma tentativa de conexão TCP, não de pedido:

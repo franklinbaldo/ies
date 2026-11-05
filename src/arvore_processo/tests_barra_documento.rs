@@ -119,7 +119,7 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
         Err(E::EnderecoDasVersoesNaoReconhecido)
     );
     assert_eq!(
-        E::EnderecoDasVersoesDeOutroDocumento.subcodigo(),
+        crate::erro_publico::folha(&E::EnderecoDasVersoesDeOutroDocumento),
         "link_das_versoes_de_outro_documento"
     );
 }

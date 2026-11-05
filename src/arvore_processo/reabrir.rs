@@ -38,11 +38,7 @@ pub(crate) enum ErroReabrirNaBarra {
     EnderecoDaTelaDoNoNaoReconhecido,
 }
 
-impl ErroReabrirNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroReabrirNaBarra {}
 
 /// A ação de reabrir da barra do processo `id`; `Ok(None)` se a barra não
 /// oferece reabrir.
@@ -98,11 +94,7 @@ pub(crate) enum ErroEnderecoDeReabrir {
     EnderecoDaReaberturaDeOutroProcesso,
 }
 
-impl ErroEnderecoDeReabrir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
+impl ErroEnderecoDeReabrir {}
 
 /// A URL de reabrir na tela do nó do processo `id`, conferida, e a forma
 /// em que estava.
