@@ -189,6 +189,52 @@ fn script_prova_escolha(html: &str) -> bool {
         )
 }
 
+/// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
+/// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
+/// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
+pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
+    use ErroCriar as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
+    let botoes = nos_com_id(&dom, "ancExibirSeries").map_err(|_| E::ListaForaDaForma)?;
+    let [botao] = botoes.as_slice() else {
+        return if botoes.is_empty() {
+            Ok(false)
+        } else {
+            Err(E::ListaForaDaForma)
+        };
+    };
+    let tag = botao
+        .get(dom.parser())
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::ListaForaDaForma)?;
+    if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+        return Err(E::ListaForaDaForma);
+    }
+    let href = valor_do_atributo(tag, "href")
+        .map_err(|_| E::ListaForaDaForma)?
+        .ok_or(E::LinkDoTipoNaoNavegavel)?;
+    let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
+    let onclick = valor_do_atributo(tag, "onclick")
+        .map_err(|_| E::ListaForaDaForma)?
+        .ok_or(E::LinkDoTipoNaoNavegavel)?;
+    let onclick = decodificar_atributo(&onclick).ok_or(E::ListaForaDaForma)?;
+    let chamada = onclick.trim().trim_end_matches(';').trim();
+    if (href != "#" && href != "javascript:void(0);")
+        || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
+    {
+        return Err(E::LinkDoTipoNaoNavegavel);
+    }
+    let compacto: String = html.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    if compacto.matches("functionexibirSeries(").count() != 1
+        || !compacto.contains(
+            "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
+        )
+    {
+        return Err(E::LinkDoTipoNaoNavegavel);
+    }
+    Ok(true)
+}
+
 /// Escolhe o tipo exato na lista observada, sem inventar URL ou executar JS.
 /// O tipo externo (escolher(-1)) não é documento interno.
 pub(crate) fn escolha_do_tipo(
