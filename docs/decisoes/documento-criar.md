@@ -13,7 +13,11 @@ live_validation: not-run
 
 # Decisão para `documento criar` (issue #246)
 
-## Contexto e alternativas
+## Contexto
+
+O formulário deve ser observado por instalação, sem supor permissões ou campos.
+
+## Alternativas consideradas
 
 O objetivo é criar um documento nativo vazio, não uma cópia nem um
 anexo externo. O Todos usa o link da barra, a lista de tipos e o
