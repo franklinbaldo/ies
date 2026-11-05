@@ -100,7 +100,7 @@ fn confirma_com_um_post_e_uma_releitura_sem_retry() {
             Ok(foto(1))
         },
     );
-    assert_eq!(numero.unwrap(), "0000002");
+    assert!(matches!(numero, Ok(ref numero) if numero == "0000002"));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
 }
 #[test]
