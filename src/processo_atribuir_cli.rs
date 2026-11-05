@@ -4,7 +4,7 @@ use crate::arvore_processo::AbertoEm;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{ler_tela, planejar};
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, leitura, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
 use crate::visao_do_controle::EnvioHttps;
@@ -33,7 +33,13 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
                 falhar(cli.json, "escrita_de_atribuicao_ainda_nao_verificada")
             } else {
                 com_sessao(cli, |sessao, indice| {
-                    previa(cli, sessao, indice, &nup, if *remover { None } else { usuario.as_deref() })
+                    previa(
+                        cli,
+                        sessao,
+                        indice,
+                        &nup,
+                        if *remover { None } else { usuario.as_deref() },
+                    )
                 })
             }
         }
@@ -43,11 +49,14 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
 
 fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": "atribuicao_recusada",
-            "subcodigo": subcodigo,
-            "retentavel": false
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "atribuicao_recusada",
+                "subcodigo": subcodigo,
+                "retentavel": false
+            })
+        );
     } else {
         eprintln!("IES: atribuição recusada [{subcodigo}]");
     }
@@ -92,8 +101,12 @@ fn previa(
     };
     let (html, _) = match obter_tela(&mut rede, &cookie, link.as_str()) {
         Ok(v) => v,
-        Err(FalhaDaTela::Redirecionada) => return falhar(cli.json, "tela_da_atribuicao_redirecionada"),
-        Err(FalhaDaTela::SessaoEncerrada) => return falhar(cli.json, "sessao_encerrada_na_atribuicao"),
+        Err(FalhaDaTela::Redirecionada) => {
+            return falhar(cli.json, "tela_da_atribuicao_redirecionada");
+        }
+        Err(FalhaDaTela::SessaoEncerrada) => {
+            return falhar(cli.json, "sessao_encerrada_na_atribuicao");
+        }
         Err(FalhaDaTela::Transporte(erro)) => return falhar(cli.json, erro.subcodigo()),
     };
     let tela = match ler_tela(&html, &aberto.arvore.processo.id) {
@@ -105,19 +118,22 @@ fn previa(
         Err(erro) => return falhar(cli.json, erro.subcodigo()),
     };
     if cli.json {
-        println!("{}", json!({
-            "nup": nup.as_str(),
-            "id_procedimento": aberto.arvore.processo.id,
-            "unidade": unidade,
-            "usuario_atual": atual,
-            "usuario_pedido": usuario,
-            "remover": usuario.is_none(),
-            "valor_da_opcao": valor,
-            "confirmado": false,
-            "alterado": false,
-            "origem": "web",
-            "requisicoes": rede.feitas()
-        }));
+        println!(
+            "{}",
+            json!({
+                "nup": nup.as_str(),
+                "id_procedimento": aberto.arvore.processo.id,
+                "unidade": unidade,
+                "usuario_atual": atual,
+                "usuario_pedido": usuario,
+                "remover": usuario.is_none(),
+                "valor_da_opcao": valor,
+                "confirmado": false,
+                "alterado": false,
+                "origem": "web",
+                "requisicoes": rede.feitas()
+            })
+        );
     } else {
         println!("Prévia: processo {}, unidade {unidade}.", nup.as_str());
         if let Some(login) = usuario {

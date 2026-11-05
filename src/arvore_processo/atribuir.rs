@@ -1,4 +1,4 @@
-//! Link de atribuir publicado na barra do nó PROCESSO (UnB, GO).
+// Link de atribuir publicado na barra do nó PROCESSO (UnB, GO).
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
