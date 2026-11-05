@@ -67,6 +67,7 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
                 return Err("controles_da_anexacao_ausentes_ou_repetidos");
             }
         }
+    }
     if vistos != [1; 5] {
         return Err("controles_da_anexacao_ausentes_ou_repetidos");
     }
