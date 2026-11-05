@@ -77,9 +77,8 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
     }
 }
 
-/// A resposta do infraAjaxMontarSelect é um select XML. Ignore apenas
-/// o placeholder null; um só item efetivo, com texto e ID, é exigido.
-pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
+/// A resposta do infraAjaxMontarSelect é um select XML.
+fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
     use ErroHipotese as E;
     let dom =
         tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaNaoReconhecida)?;
@@ -111,25 +110,48 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
         if texto.trim().is_empty() {
             return Err(E::RespostaNaoReconhecida);
         }
-        opcoes.push(id);
-        if opcoes.len() > 1 {
-            return Err(E::OpcaoNaoUnica);
-        }
+        opcoes.push((id, texto.trim().to_owned()));
     }
+    Ok(opcoes)
+}
+
+/// Sem escolha explícita, apenas uma opção efetiva é segura.
+pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
+    let opcoes = opcoes(xml)?;
     match opcoes.as_slice() {
-        [unica] => Ok(unica.clone()),
-        _ => Err(E::OpcaoNaoUnica),
+        [(id, _)] => Ok(id.clone()),
+        _ => Err(ErroHipotese::OpcaoNaoUnica),
     }
 }
 
-/// Shim TDD: a seleção explícita será implementada após observar o RED.
-/// Até lá não é permitido escolher arbitrariamente entre opções AJAX.
+/// Seleção por ID e nome exatamente como observados, nunca pela posição.
+/// O ID é opaco; recusar duplicata mesmo se as descrições forem diferentes.
 pub(crate) fn opcao_selecionada(
     xml: &str,
     escolha: Option<&str>,
 ) -> Result<String, ErroHipotese> {
-    let _ = escolha;
-    opcao_unica(xml)
+    use ErroHipotese as E;
+    let Some(escolha) = escolha else {
+        return opcao_unica(xml);
+    };
+    let (id, nome) = escolha.split_once('#').ok_or(E::EscolhaNaoOferecida)?;
+    if id.is_empty() || nome.trim().is_empty() || nome != nome.trim() {
+        return Err(E::EscolhaNaoOferecida);
+    }
+    let opcoes = opcoes(xml)?;
+    for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
+        if opcoes[..indice].iter().any(|(outro, _)| outro == id_lido) {
+            return Err(E::OpcaoNaoUnica);
+        }
+    }
+    let mut correspondentes = opcoes
+        .iter()
+        .filter(|(id_lido, nome_lido)| id_lido == id && nome_lido == nome);
+    let primeiro = correspondentes.next().ok_or(E::EscolhaNaoOferecida)?;
+    if correspondentes.next().is_some() {
+        return Err(E::OpcaoNaoUnica);
+    }
+    Ok(primeiro.0.clone())
 }
 
 /// Um único POST de consulta sem efeito de escrita; nenhuma execução de JS.
@@ -140,6 +162,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     tela: &TelaServida<'_>,
     cookie: &str,
     requisicoes: &mut u32,
+    escolha: Option<&str>,
 ) -> Result<String, ErroHipotese> {
     use ErroHipotese as E;
     let url = url_publicada(tela.html)?;
@@ -180,7 +203,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(|f| E::de_transporte(&f))?;
     let xml = decode_http_body(&bytes, &mime).map_err(|_| E::RespostaNaoReconhecida)?;
-    opcao_unica(&xml)
+    opcao_selecionada(&xml, escolha)
 }
 
 #[cfg(test)]
@@ -213,6 +236,20 @@ mod tests {
         assert_eq!(
             opcao_selecionada(xml, Some("31#Outra base")),
             Err(ErroHipotese::EscolhaNaoOferecida)
+        );
+    }
+
+    #[test]
+    fn opcao_desabilitada_ou_id_duplicado_nao_eh_aceita() {
+        let desabilitada = "<select><option value='31' disabled>Base A</option><option value='32'>Base B</option></select>";
+        assert_eq!(
+            opcao_selecionada(desabilitada, Some("31#Base A")),
+            Err(ErroHipotese::EscolhaNaoOferecida)
+        );
+        let duplicada = "<select><option value='32'>Base B</option><option value='32'>Outra B</option></select>";
+        assert_eq!(
+            opcao_selecionada(duplicada, Some("32#Base B")),
+            Err(ErroHipotese::OpcaoNaoUnica)
         );
     }
 
