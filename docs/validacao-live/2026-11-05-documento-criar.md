@@ -108,3 +108,43 @@ orçamento e intervalos da issue. A escrita em treinamento **foi autorizada pelo
 
 Esta fatia protege mais casos **antes** da submissão; não prova, por
 si só, que o fluxo seja equivalente a todas as instalações.
+
+## Retomada 🐙 — pré-condições sem rede e integração HTTP (05/11)
+
+- **Observação anterior ao RED:** o `AGENTS.md` registra que até GET de
+  abertura pode registrar recebimento. Um `--confirmar` com nível ausente,
+  restrito ou sigiloso (sem hipótese legal implementada) já é impossível
+  **antes da rede**, portanto a validação desse parâmetro deve preceder
+  qualquer GET. O oráculo Todos @323eb01 e as cassettes públicas permanecem
+  a evidência das formas de escolha/cadastro, não prova de escrita ao vivo.
+- **RED observado no CI** [42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295):
+  **1 teste novo falhou** (`confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede`),
+  1.377 passaram; o mesmo run apontou Rustfmt do teste, depois corrigido.
+  O sandbox local não tem Rust/Cargo e não resolve GitHub/SEI: **RED local
+  NOT_RUN**, contagem de falhas locais não determinada.
+- **GREEN:** `executar_criacao` agora recusa esses níveis com subcódigo
+  tipado antes de abrir o processo ou emitir POST. Três testes adicionais
+  com transporte roteirizado exercitam o fluxo Web **completo** e afirmam
+  a sequência e o orçamento sintético: prévia = **5 GET, 0 POST**;
+  confirmação = **6 GET, 1 POST criador** (7 no total), incluindo releitura;
+  dois documentos novos após o POST = `efeito_incerto`, sem retry.
+  Esses são números do **roteiro sintético com abertura a frio**, não
+  medição de requests ao SEI de treinamento.
+- **CI** [42121843470](https://github.com/franklinbaldo/ies/actions/runs/42121843470):
+  **PASS**, após a correção de Rustfmt; binário Release, suíte Rust,
+  Clippy, OKF, subcódigos e limite 20 KB. Binário Release baixado do
+  artifact e SHA-256 conferido no sandbox; `ies --version` e
+  `documento criar --help` executados localmente.
+- **Replay GO:** já havia **PASS** no
+  [42118476321](https://github.com/franklinbaldo/ies/actions/runs/42118476321),
+  com 2 cassettes verificadas e 15 respostas-alvo: 3 lidas,
+  5 recusadas, 7 não aplicáveis. Nenhuma chamada real ao SEI.
+- **Live:** login **NOT_RUN**, prévia **NOT_RUN** (0 requisições),
+  confirmação **NOT_RUN** (0 POSTs), releitura **NOT_RUN** (0 requisições).
+  Resíduo **nenhum documento criado ou alterado nesta execução**. O
+  sandbox não resolve a rede do SEI; o ensaio remoto de treinamento não
+  chegou a ser executado. Nenhuma instalação de produção foi acessada.
+- **Pendente para concluir #246:** sequência autenticada integral em
+  treinamento (prévia → exatamente um `--confirmar` → verificação por
+  leitura e resíduo), com contagem live e cobertura adicional das outras
+  instalações. Não declarar o cenário sintético como validação live.
