@@ -7,8 +7,9 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeEnvio {
+    #[causa(nome = "tela_de_envio_nao_interpretada")]
     HtmlNaoInterpretado,
     FormularioDeEnvioAusente,
     CampoNaoPrevistoNaTelaDeEnvio,
@@ -19,48 +20,25 @@ pub(crate) enum ErroTelaDeEnvio {
     ConsultaDoAutocompletarForaDaFormaObservada,
 }
 
-impl ErroTelaDeEnvio {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "tela_de_envio_nao_interpretada",
-            Self::FormularioDeEnvioAusente => "formulario_de_envio_ausente",
-            Self::CampoNaoPrevistoNaTelaDeEnvio => "campo_nao_previsto_na_tela_de_envio",
-            Self::TelaDeEnvioDeOutroProcesso => "tela_de_envio_de_outro_processo",
-            Self::TelaDeEnvioComOpcoesPreenchidas => "tela_de_envio_com_opcoes_preenchidas",
-            Self::OrgaoDaTelaDeEnvioNaoSelecionado => "orgao_da_tela_de_envio_nao_selecionado",
-            Self::AutocompletarDeUnidadeNaoDeclarado => "autocompletar_de_unidade_nao_declarado",
-            Self::ConsultaDoAutocompletarForaDaFormaObservada => {
-                "consulta_do_autocompletar_fora_da_forma_observada"
-            }
-        }
-    }
-}
+impl ErroTelaDeEnvio {}
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDaConsulta {
     /// Derivação ou cookie: nada saiu.
+    #[causa(interna)]
     Derivacao(ErroSubmissaoFormulario),
     /// Rede, tempo, status, tamanho, charset.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
     /// XML sem um `<itens>` único na forma observada.
+    #[causa(nome = "resposta_do_autocompletar_fora_da_forma_observada")]
     RespostaDoAutocompletarForaDaForma,
 }
 
 impl FalhaDaConsulta {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Derivacao(erro) => erro.subcodigo(),
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::RespostaDoAutocompletarNaoXml => "resposta_do_autocompletar_nao_xml",
-            Self::RespostaDoAutocompletarForaDaForma => {
-                "resposta_do_autocompletar_fora_da_forma_observada"
-            }
-        }
-    }
-
     fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Derivacao(erro) => erro.status_http().cloned(),
@@ -70,10 +48,12 @@ impl FalhaDaConsulta {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnviar {
     /// A abertura do processo (a de `ies processo NUP`) falhou.
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
+    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeEnviar {
         motivo: MotivoAbertoEm,
@@ -88,12 +68,19 @@ pub(crate) enum ErroEnviar {
     EnvioNaoPublicadoNaBarra {
         aberto_em: Vec<String>,
     },
+    #[causa(interna)]
     Barra(ErroEnviarNaBarra),
+    #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
+    #[causa(nome = "tela_de_envio_redirecionada")]
     TelaDaEscritaRedirecionada,
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     SessaoEncerrada,
+    #[causa(nome = "charset_da_tela_de_envio_nao_suportado")]
     CharsetDaTelaNaoSuportado,
+    #[causa(interna)]
     TelaDeEnvio(ErroTelaDeEnvio),
+    #[causa(interna)]
     Consulta(FalhaDaConsulta),
     DestinoNaoOferecidoPeloSei {
         oferecidos: Vec<String>,
@@ -105,6 +92,7 @@ pub(crate) enum ErroEnviar {
         aberto_em: Vec<String>,
     },
     /// Derivação do POST ou falha antes de ele sair (cookie).
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
     /// A leitura depois do envio não lista o destino.
     EnvioNaoAplicado {
@@ -128,36 +116,7 @@ pub(crate) enum ErroEnviar {
 
 impl ErroEnviar {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_na_abertura",
-            Self::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. } => {
-                "situacao_do_processo_nao_lida_antes_de_enviar"
-            }
-            Self::ProcessoNaoAbertoNaUnidadeDaSessao { .. } => {
-                "processo_nao_aberto_na_unidade_da_sessao"
-            }
-            Self::UnidadeDaSessaoAusenteDaSituacao { .. } => {
-                "unidade_da_sessao_ausente_da_situacao"
-            }
-            Self::EnvioNaoPublicadoNaBarra { .. } => "envio_nao_publicado_na_barra",
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::TelaDaEscrita(falha) => falha.subcodigo(),
-            Self::TelaDaEscritaRedirecionada => "tela_de_envio_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_de_envio_nao_suportado",
-            Self::TelaDeEnvio(erro) => erro.subcodigo(),
-            Self::Consulta(falha) => falha.subcodigo(),
-            Self::DestinoNaoOferecidoPeloSei { .. } => "destino_nao_oferecido_pelo_sei",
-            Self::VariosDestinosComASigla { .. } => "varios_destinos_com_a_sigla",
-            Self::ProcessoJaAbertoNoDestino { .. } => "processo_ja_aberto_no_destino",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::EnvioNaoAplicado { .. } => "envio_nao_aplicado",
-            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
-                "situacao_da_origem_diferente_da_pedida_apos_envio"
-            }
-            Self::EfeitoIncertoNoEnvio { .. } => "efeito_incerto_no_envio",
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Categoria pública: o próximo passo de quem chama.

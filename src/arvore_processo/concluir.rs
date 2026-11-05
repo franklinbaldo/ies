@@ -51,7 +51,7 @@ pub(crate) enum ConcluirNaBarra {
 }
 
 /// Recusas da leitura da barra (só pesam quando se pede para concluir).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConcluirNaBarra {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -63,20 +63,7 @@ pub(crate) enum ErroConcluirNaBarra {
     EnderecoDaTelaDoNoNaoReconhecido,
 }
 
-impl ErroConcluirNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::FormasDeConcluirRepetidasNaBarra => "formas_de_concluir_repetidas_na_barra",
-            Self::EnderecoDaConclusaoNaoReconhecido => "endereco_da_conclusao_nao_reconhecido",
-            Self::EnderecoDaConclusaoDeOutroProcesso => "endereco_da_conclusao_de_outro_processo",
-            Self::EnderecoDaTelaDoNoNaoReconhecido => "endereco_da_tela_do_no_nao_reconhecido",
-        }
-    }
-}
+impl ErroConcluirNaBarra {}
 
 /// A ação de concluir da barra do processo `id`; `Ok(None)` se a barra
 /// não oferece concluir (nem link nem função).
@@ -148,7 +135,7 @@ pub(super) fn tela_do_no_da_raiz(
 }
 
 /// Recusas da leitura de `concluirProcesso()` na tela do nó.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroFuncaoDeConcluir {
     FuncaoDeConcluirAusenteNaTelaDoNo,
     FuncaoDeConcluirForaDaFormaObservada,
@@ -157,21 +144,7 @@ pub(crate) enum ErroFuncaoDeConcluir {
     EnderecoDaConclusaoDeOutroProcesso,
 }
 
-impl ErroFuncaoDeConcluir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::FuncaoDeConcluirAusenteNaTelaDoNo => "funcao_de_concluir_ausente_na_tela_do_no",
-            Self::FuncaoDeConcluirForaDaFormaObservada => {
-                "funcao_de_concluir_fora_da_forma_observada"
-            }
-            Self::FuncoesDeConcluirRepetidasNaTelaDoNo => {
-                "funcoes_de_concluir_repetidas_na_tela_do_no"
-            }
-            Self::EnderecoDaConclusaoNaoReconhecido => "endereco_da_conclusao_nao_reconhecido",
-            Self::EnderecoDaConclusaoDeOutroProcesso => "endereco_da_conclusao_de_outro_processo",
-        }
-    }
-}
+impl ErroFuncaoDeConcluir {}
 
 const CONFIRM: &str = "//if (confirm(";
 const LOCATION: &str = "location.href = '";

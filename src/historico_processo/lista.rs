@@ -9,7 +9,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 /// Lê a página e confere o NUP do título com o pedido.
 pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E> {
-    let detalhe = ler_historico(html, nup).map_err(E::Historico)?;
+    let detalhe = ler_historico(html, nup)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::LegendaDosAndamentosAusente)?;
     let total_declarado = legenda(&dom)?;

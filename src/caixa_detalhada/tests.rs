@@ -213,7 +213,7 @@ fn detalhada_recusa_classes_de_estado_diferentes_no_link() {
         let erro = com_classe(classe).unwrap_err();
         assert_eq!(erro, ErroDetalhada::ClassesDeEstadoDiferentesNoLink);
         assert_eq!(
-            erro.subcodigo(),
+            crate::erro_publico::folha(&erro),
             "classes_de_estado_diferentes_no_link_detalhado"
         );
     }

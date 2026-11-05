@@ -187,15 +187,15 @@ fn marcador_repetido_na_tela_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     assert_eq!(
-        E::MarcadoresAlemDoTotalDeclarado.subcodigo(),
+        crate::erro_publico::folha(&E::MarcadoresAlemDoTotalDeclarado),
         "marcadores_alem_do_total_declarado"
     );
     assert_eq!(
-        E::LinhaDoMarcadorForaDaFormaObservada.subcodigo(),
+        crate::erro_publico::folha(&E::LinhaDoMarcadorForaDaFormaObservada),
         "linha_do_marcador_fora_da_forma_observada"
     );
     assert_eq!(
-        E::TelaDosMarcadoresAusente.subcodigo(),
+        crate::erro_publico::folha(&E::TelaDosMarcadoresAusente),
         "tela_dos_marcadores_ausente"
     );
 }

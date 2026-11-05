@@ -110,7 +110,7 @@ fn pelo_link_da_arvore<V: EnvioDoProcesso>(
 ) -> Result<PaginaLida, E> {
     match rede.get(url)? {
         Lida::Html { html, mime } => {
-            let lidos = ler_andamentos(&html, contexto.nup).map_err(E::Andamentos)?;
+            let lidos = ler_andamentos(&html, contexto.nup)?;
             Ok(PaginaLida {
                 url: url.to_owned(),
                 html,
@@ -131,7 +131,7 @@ fn ver_completo<V: EnvioDoProcesso>(
     pagina: &PaginaLida,
     unidade: Option<&str>,
 ) -> Result<AndamentosLidos, E> {
-    conferir_regra_de_ver_historico(&pagina.html).map_err(E::Andamentos)?;
+    conferir_regra_de_ver_historico(&pagina.html)?;
     let codificacao = codificacao_da_tela(&pagina.mime).ok_or(E::Andamentos(
         ErroAndamentos::CharsetDoHistoricoNaoSuportado,
     ))?;
@@ -167,7 +167,7 @@ fn ver_completo<V: EnvioDoProcesso>(
         Err(ErroSubmissaoFormulario::Transporte(falha)) => return Err(E::Transporte(falha)),
         Err(outro) => return Err(E::FormularioDoHistorico(outro)),
     };
-    let lidos = ler_andamentos(&html, contexto.nup).map_err(E::Andamentos)?;
+    let lidos = ler_andamentos(&html, contexto.nup)?;
     if lidos.tipo != TipoDoHistorico::Completo {
         return Err(E::Andamentos(
             ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida,

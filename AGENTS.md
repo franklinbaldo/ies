@@ -44,6 +44,13 @@ O que falta implementar e em que ordem está na
   **Não restaurar a tela** (visão, página, colunas): vários agentes na
   mesma conta ficariam desfazendo uns aos outros, e todos querem a visão
   detalhada com todas as colunas.
+- **Erros por tipo** ([ADR 0005](docs/arquitetura/0005-erros-por-tipo.md)).
+  O erro é declarado no módulo que o levanta, com `#[derive(Causa)]`;
+  nunca escreva `fn subcodigo()` manual. Componha com `#[causa(interna)]`
+  e `?`, em vez de `map_err(|_| …)` que descarta uma causa tipada.
+  Classifique e teste por `match`/`matches!` na variante, nunca pelo
+  texto. Valide uma vez num tipo e não devolva `Result` onde o tipo já
+  garante a pré-condição.
 - **Falhar fechado e dizer por quê.** Cada falha observável é uma
   variante tipada, nomeada pelo fato verificável
   ([erros tipados](docs/erros-tipados.md)); recusas expõem `status_http` e

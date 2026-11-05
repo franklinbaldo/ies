@@ -23,31 +23,26 @@ pub(crate) const VARIAVEIS_DE_EXCECAO: [&str; 2] = ["no_proxy", "NO_PROXY"];
 const MAX_RESPOSTA: usize = 16 * 1024;
 
 /// Recusas do proxy, uma por fato.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDoProxy {
     /// O valor da variável não segue `[http://][cred@]host:porta[/]`.
+    #[causa(nome = "endereco_de_proxy_invalido")]
     EnderecoInvalido,
     /// Esquema diferente de `http://` (`https://`, `socks5://`...).
+    #[causa(nome = "proxy_com_esquema_nao_suportado")]
     EsquemaNaoSuportado,
     /// DNS ou conexão TCP ao proxy falhou; nada foi enviado ao SEI.
+    #[causa(nome = "proxy_inacessivel")]
     Inacessivel,
     /// O proxy respondeu ao `CONNECT` fora do HTTP/1.x esperado.
+    #[causa(nome = "resposta_do_proxy_nao_interpretavel")]
     RespostaNaoInterpretavel,
     /// O proxy respondeu ao `CONNECT` com status fora de 2xx.
+    #[causa(nome = "proxy_recusou_o_tunel")]
     RecusouOTunel { status: u16 },
 }
 
 impl FalhaDoProxy {
-    pub fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::EnderecoInvalido => "endereco_de_proxy_invalido",
-            Self::EsquemaNaoSuportado => "proxy_com_esquema_nao_suportado",
-            Self::Inacessivel => "proxy_inacessivel",
-            Self::RespostaNaoInterpretavel => "resposta_do_proxy_nao_interpretavel",
-            Self::RecusouOTunel { .. } => "proxy_recusou_o_tunel",
-        }
-    }
-
     pub fn mensagem(&self) -> &'static str {
         match self {
             Self::EnderecoInvalido => "endereço de proxy do ambiente fora de http://host:porta",

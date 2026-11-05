@@ -65,8 +65,7 @@ fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Resu
                 corpo: Cursor::new(resposta.corpo),
             })
         },
-    )
-    .map_err(E::Transporte)?;
+    )?;
     crate::controle_reconhecido::unidade_do_controle(&tela.html).map_err(E::Controle)
 }
 

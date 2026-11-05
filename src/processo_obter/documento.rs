@@ -350,8 +350,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         id_documento: &no.id,
         id_procedimento: &lido.processo.id,
     };
-    let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)
-        .map_err(E::Conteudo)?
+    let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)?
     {
         ConteudoNaArvore::Visualizar(e) => {
             let (tipo, texto, versoes) = versao::ler_versoes(rede, &conferido, &e, pedido.versoes)?;

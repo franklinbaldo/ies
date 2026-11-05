@@ -99,8 +99,8 @@ pub(super) fn resolver_action_no_host(
         let (nome, valor) = item
             .split_once('=')
             .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
-        conferir_chave_de_consulta(nome).map_err(E::Transporte)?;
-        conferir_valor_de_consulta(valor).map_err(E::Transporte)?;
+        conferir_chave_de_consulta(nome)?;
+        conferir_valor_de_consulta(valor)?;
     }
     Ok(absoluta)
 }
@@ -141,8 +141,8 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
         let (nome, valor) = item
             .split_once('=')
             .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
-        conferir_chave_de_consulta(nome).map_err(E::Transporte)?;
-        conferir_valor_de_consulta(valor).map_err(E::Transporte)?;
+        conferir_chave_de_consulta(nome)?;
+        conferir_valor_de_consulta(valor)?;
         match nome {
             "acao" => {
                 acoes += 1;
@@ -208,7 +208,7 @@ fn classificar(
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea")
         // Navegadores não enviam controles desabilitados (com ou sem valor).
-        || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        || atributo_presente(tag, "disabled")?
     {
         return Ok(None);
     }
@@ -239,7 +239,7 @@ fn classificar(
             Some(Controle::Botao { nome, valor })
         }
         ("input" | "button", "submit" | "button" | "reset" | "image") | ("button", _) => None,
-        ("select", _) if atributo_presente(tag, "multiple").map_err(E::AtributoHtml)? => {
+        ("select", _) if atributo_presente(tag, "multiple")? => {
             Some(Controle::SelecaoMultipla(nome))
         }
         _ => Some(Controle::Usuario(nome)),

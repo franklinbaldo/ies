@@ -151,7 +151,7 @@ fn subcodigos_estaveis() {
         E::EnderecoDoHistoricoDeOutroProcesso,
     ];
     for erro in todos {
-        let s = erro.subcodigo();
+        let s = crate::erro_publico::folha(&erro);
         assert!(
             s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'),
             "{s}"

@@ -49,26 +49,21 @@ pub(crate) struct BarraDoDocumento {
     pub(crate) edicao: EdicaoNaBarra,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroBarraDoDocumento {
+    #[causa(nome = "barra_do_documento_fora_da_forma_observada")]
     BarraForaDaFormaObservada,
+    #[causa(nome = "barras_do_documento_repetidas_na_arvore")]
     BarrasRepetidasNaArvore,
+    #[causa(nome = "link_das_versoes_repetido_na_barra")]
     LinksDasVersoesRepetidosNaBarra,
+    #[causa(nome = "link_das_versoes_nao_reconhecido")]
     EnderecoDasVersoesNaoReconhecido,
+    #[causa(nome = "link_das_versoes_de_outro_documento")]
     EnderecoDasVersoesDeOutroDocumento,
 }
 
-impl ErroBarraDoDocumento {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaFormaObservada => "barra_do_documento_fora_da_forma_observada",
-            Self::BarrasRepetidasNaArvore => "barras_do_documento_repetidas_na_arvore",
-            Self::LinksDasVersoesRepetidosNaBarra => "link_das_versoes_repetido_na_barra",
-            Self::EnderecoDasVersoesNaoReconhecido => "link_das_versoes_nao_reconhecido",
-            Self::EnderecoDasVersoesDeOutroDocumento => "link_das_versoes_de_outro_documento",
-        }
-    }
-}
+impl ErroBarraDoDocumento {}
 
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;
 /// sem barra (ou sem o nó), nada publicado.

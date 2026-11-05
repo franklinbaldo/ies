@@ -93,7 +93,7 @@ pub(crate) struct PropriedadesLidas {
 }
 
 /// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPropriedades {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -119,44 +119,6 @@ pub(crate) enum ErroPropriedades {
 }
 
 impl ErroPropriedades {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::LinksDasPropriedadesRepetidosNaBarra => {
-                "links_das_propriedades_repetidos_na_barra"
-            }
-            Self::EnderecoDasPropriedadesNaoReconhecido => {
-                "endereco_das_propriedades_nao_reconhecido"
-            }
-            Self::EnderecoDasPropriedadesDeOutroProcesso => {
-                "endereco_das_propriedades_de_outro_processo"
-            }
-            Self::HtmlDasPropriedadesNaoInterpretado => "html_das_propriedades_nao_interpretado",
-            Self::FormularioDasPropriedadesAusente => "formulario_das_propriedades_ausente",
-            Self::FormulariosDasPropriedadesRepetidos => "formularios_das_propriedades_repetidos",
-            Self::CampoDasPropriedadesAusente => "campo_das_propriedades_ausente",
-            Self::CampoDasPropriedadesRepetido => "campo_das_propriedades_repetido",
-            Self::NumeroDasPropriedadesDiferenteDoSolicitado => {
-                "numero_das_propriedades_diferente_do_solicitado"
-            }
-            Self::IdDasPropriedadesDiferenteDoAberto => "id_das_propriedades_diferente_do_aberto",
-            Self::TipoDoProcessoInconsistente => "tipo_do_processo_inconsistente",
-            Self::OpcoesMarcadasRepetidas => "opcoes_marcadas_repetidas",
-            Self::AssuntoForaDaFormaObservada => "assunto_fora_da_forma_observada",
-            Self::InteressadoForaDaFormaObservada => "interessado_fora_da_forma_observada",
-            Self::ListaOcultaDasPropriedadesNaoObservada => {
-                "lista_oculta_das_propriedades_nao_observada"
-            }
-            Self::NivelDeAcessoNaoMarcado => "nivel_de_acesso_nao_marcado",
-            Self::NivelDeAcessoForaDaFormaObservada => "nivel_de_acesso_fora_da_forma_observada",
-            Self::DataDeGeracaoForaDaFormaObservada => "data_de_geracao_fora_da_forma_observada",
-            Self::TextoDasPropriedadesNaoDecodificado => "texto_das_propriedades_nao_decodificado",
-        }
-    }
-
     /// Recusas do link na barra (o resto é da tela).
     pub(crate) fn do_link(self) -> bool {
         matches!(
