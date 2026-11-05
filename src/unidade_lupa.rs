@@ -65,7 +65,13 @@ fn campo_unico(
 fn total_da_legenda(legenda: &str) -> Option<usize> {
     let resto = legenda.strip_prefix("Lista de Unidades (")?;
     let (numero, depois) = resto.split_once(' ')?;
-    if !(depois.starts_with("registro)") || depois.starts_with("registros)")) {
+    let sufixo = depois
+        .strip_prefix("registros")
+        .or_else(|| depois.strip_prefix("registro"))?;
+    // A cassette GO 5.0.3 publica a faixa após o número de registros:
+    // "Lista de Unidades (13671 registros - 1 a 50):".
+    // Não a confundir com uma legenda de outra tabela.
+    if !(sufixo.starts_with(')') || sufixo.starts_with(" - ")) {
         return None;
     }
     numero.parse().ok()
@@ -321,6 +327,18 @@ mod tests {
             "<form id='frmUnidadeLista' method='post'><input type='hidden' name='hdnInfraPaginaAtual' value='{n}'/><select name='selInfraPaginacaoSuperior'>{options}</select><table class='infraTable'><caption>Lista de Unidades ({total} registros):</caption><tr><th></th><th>Sigla</th><th>Descrição</th><th>Órgão</th></tr>{rows}</table></form>"
         )
     }
+    #[test]
+    fn total_da_legenda_aceita_faixa_observada_no_go() {
+        // Cassette real unidade-listar-destinos-go @2026-10-21.
+        assert_eq!(
+            total_da_legenda("Lista de Unidades (13671 registros - 1 a 50):"),
+            Some(13671)
+        );
+        assert_eq!(total_da_legenda("Lista de Unidades (1 registro):"), Some(1));
+        assert_eq!(total_da_legenda("Lista de Unidades (2 registros):"), Some(2));
+        assert_eq!(total_da_legenda("Lista de Unidades (x registros):"), None);
+    }
+
     #[test]
     fn paginas_inteiras_sem_repeticao() {
         let p0 = ler_pagina(&pagina(0, 2, 3, &["1", "2"])).unwrap();
