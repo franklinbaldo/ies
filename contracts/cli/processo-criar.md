@@ -158,7 +158,16 @@ Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
 se faz AJAX. Se o select só traz `null`, consulta-se a URL assinada
 publicada na tela, uma vez, por POST **sem efeito de escrita**.
 A resposta com múltiplas opções não permite escolher por posição:
-com a CLI atual, recusar antes do POST de criação. A consulta AJAX
+sem `--hipotese-legal`, recusar antes do POST criador. Quando as
+opções efetivas forem distintas, habilitadas e imprimíveis, a recusa
+`hipotese_legal_ajax_nao_unica` apresenta os pares realmente lidos:
+no JSON, `hipoteses_legais_oferecidas` contém objetos
+`{id, nome, argumento}`, sendo `argumento` o literal `ID#NOME`;
+na saída humana, mostra cada `ID#NOME`. Não publica URL assinada,
+cookie nem hipótese não habilitada. IDs duplicados, nomes com controles
+ou opções ausentes não geram lista de sugestões. O resultado continua
+sendo **saída 1, sem escrita**: uma nova prévia explícita é necessária
+antes de qualquer confirmação. A consulta AJAX
 usa os quatro campos documentados pela observação da interface
 e soma **uma** requisição à prévia e à confirmação restritas.
 
