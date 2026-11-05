@@ -3,6 +3,7 @@
 use super::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, UrlDeTrabalho, interpretar_redirecionamento,
 };
+use super::filtros::{ErroFiltro, FiltrosDaPesquisa, derivar_campos};
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, PesquisarEm, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
 use crate::formulario_web::{
@@ -38,6 +39,10 @@ pub(crate) const CAMPOS_USUARIO_DA_PESQUISA: &[&str] = &[
     "chkSinDocumentosRecebidos",
     "selOrgaoPesquisa[]",
     "txtProtocoloPesquisa",
+    "selTipoProcedimentoPesquisa",
+    "selSeriePesquisa",
+    "txtDataInicio",
+    "txtDataFim",
 ];
 
 /// Respostas 200 reconhecidas: a tabela de resultado ou o aviso de que a
@@ -71,6 +76,7 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ErroPesquisaProtocolo {
+    Filtro(ErroFiltro),
     RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
     Submissao(ErroSubmissaoFormulario),
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
@@ -80,6 +86,7 @@ pub(crate) enum ErroPesquisaProtocolo {
 impl ErroPesquisaProtocolo {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
+            Self::Filtro(erro) => erro.subcodigo(),
             Self::RegraDoFormulario(erro) => erro.subcodigo(),
             Self::Submissao(erro) => erro.subcodigo(),
             Self::Redirecionamento(erro) => erro.subcodigo(),
@@ -118,7 +125,18 @@ pub(crate) fn derivar_pesquisa_em(
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let operacao = &PESQUISAR_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, None);
-    derivar_com(operacao, em, instalacao, tela, pedido)
+    derivar_com(operacao, em, instalacao, tela, pedido, FiltrosDaPesquisa::default())
+}
+
+/// Os filtros integram o mesmo POST, sem GET adicional.
+pub(crate) fn derivar_pesquisa_em_filtrada(
+    em: PesquisarEm,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    pedido: (&str, &str),
+    filtros: FiltrosDaPesquisa<'_>,
+) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    derivar_com(&PESQUISAR_PROTOCOLO, em, instalacao, tela, (pedido.0, pedido.1, None), filtros)
 }
 
 /// Deriva o POST de `navegar(inicio)` em processos.
@@ -146,7 +164,20 @@ pub(crate) fn derivar_pagina_em(
     let inicio = inicio.to_string();
     let operacao = &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, Some(inicio.as_str()));
-    derivar_com(operacao, em, instalacao, tela, pedido)
+    derivar_com(operacao, em, instalacao, tela, pedido, FiltrosDaPesquisa::default())
+}
+
+pub(crate) fn derivar_pagina_em_filtrada(
+    em: PesquisarEm,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    pedido: (&str, &str),
+    inicio: u64,
+    filtros: FiltrosDaPesquisa<'_>,
+) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    let inicio = inicio.to_string();
+    derivar_com(&super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO, em, instalacao, tela,
+                (pedido.0, pedido.1, Some(inicio.as_str())), filtros)
 }
 
 fn derivar_com(
@@ -155,6 +186,7 @@ fn derivar_com(
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
     (unidade_solicitada, protocolo, inicio): (&str, &str, Option<&str>),
+    filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     use ErroPesquisaProtocolo as E;
     let excessiva = || {
@@ -187,6 +219,9 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
+    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)
+        .map_err(E::Filtro)?;
+    campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras
             .orgaos_selecionados
