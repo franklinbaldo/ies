@@ -46,3 +46,16 @@ captura `todos@323eb01`, não de replay da cassette original.
 
 `ies_implemented: false` permanece até demonstração de todos os
 critérios da issue #245, incluindo replay e validação ao vivo.
+
+## Replay original e escolha explícita (#245)
+
+O replay offline original validou **15 cassettes, 83 respostas** por
+SHA, schema e instalação, sem pedido ao SEI. Foram 59 lidas,
+3 recusadas e 21 não aplicáveis. As duas respostas AJAX não únicas
+da UnB permanecem recusadas sem escolha do usuário. O novo argumento
+`--hipotese-legal ID#NOME` permite selecionar uma opção cuja
+identidade e nome tenham sido observados na resposta XML da mesma
+sessão; não seleciona automaticamente nem altera as contagens.
+Exercícios com transporte sintético não substituem confirmação live.
+Sem prova autenticada de prévia → um único POST → duas leituras em
+instalação de treinamento, `ies_implemented: false` permanece.
