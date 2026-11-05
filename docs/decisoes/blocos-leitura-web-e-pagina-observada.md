@@ -1,5 +1,13 @@
 ---
-type: Decision
+type: ImplementationDecision
+operation: bloco.listar
+implementation: partial
+status: adopted-for-scope
+scope: leitura Web dos blocos e documentos na página observada
+selected_strategy: web-menu-get
+alternatives: web-menu-get,rest-bloco-listar
+evidence_level: fontes-todos-323eb01-testes-sinteticos
+live_validation: not-run-unb-go
 title: Blocos somente pela Web observada
 description: Rota de leitura, identidade e semântica da página observada
 ---
