@@ -152,6 +152,11 @@ fn publicavel(valor: &str) -> bool {
 pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     let opcoes = opcoes(xml)?;
     match opcoes.as_slice() {
+        // Mesmo uma opção única pode ter vindo contaminada do XML remoto.
+        // Não publicar seu ID nem enviá-lo no formulário de criação.
+        [(id, nome)] if id.contains('#') || !publicavel(id) || !publicavel(nome) => {
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        }
         [(id, _)] => Ok(id.clone()),
         [] => Err(ErroHipotese::OpcaoNaoUnica),
         // Não oferecer valores que a própria CLI não consegue representar
@@ -184,6 +189,13 @@ pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<Stri
         return Err(E::EscolhaNaoOferecida);
     }
     let opcoes = opcoes(xml)?;
+    // Uma escolha explícita não torna confiáveis dados arbitrários
+    // de uma resposta XML: recusar sem oferecer ou publicar esse valor.
+    if opcoes.iter().any(|(id_lido, nome_lido)| {
+        id_lido.contains('#') || !publicavel(id_lido) || !publicavel(nome_lido)
+    }) {
+        return Err(E::RespostaNaoReconhecida);
+    }
     for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
         if opcoes[..indice].iter().any(|(outro, _)| outro == id_lido) {
             return Err(E::OpcaoNaoUnica);
