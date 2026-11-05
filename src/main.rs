@@ -1,12 +1,12 @@
 mod anexo_documento;
-mod bloco;
-mod bloco_cli;
-mod bloco_detalhe;
 mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
+mod bloco;
+mod bloco_cli;
+mod bloco_detalhe;
 mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
@@ -276,7 +276,6 @@ enum DocumentoAcao {
         confirmar: bool,
     },
 }
-
 
 #[derive(Debug, Args)]
 struct Bloco {
