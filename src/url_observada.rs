@@ -10,6 +10,19 @@ pub(crate) struct UrlHttps<'a> {
     pub(crate) consulta: Option<&'a str>,
 }
 
+impl<'a> UrlHttps<'a> {
+    /// Forma exigida pelos formulários: bytes ASCII imprimíveis, sem fragmentos.
+    pub(crate) fn interpretar(url: &'a str) -> Option<Self> {
+        if !url.bytes().all(|b| (33..=126).contains(&b))
+            || url.contains('#')
+            || url.as_bytes().contains(&92)
+        {
+            return None;
+        }
+        partes_https(url)
+    }
+}
+
 pub(crate) fn partes_https(url: &str) -> Option<UrlHttps<'_>> {
     let (host, resto) = url.strip_prefix("https://")?.split_once('/')?;
     if !host_valido(host) {
