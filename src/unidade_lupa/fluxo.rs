@@ -341,6 +341,8 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
             .map_err(FalhaDaLupa::Transporte)?;
         mime.clone_from(&resposta.resposta.mime);
         html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
+        super::conferir_filtros_de_lista_integral(&html)
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
         let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
         if lida.pagina != pagina || (!lidas.is_empty() && lida.paginas != total_paginas) {
             return Err(FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
