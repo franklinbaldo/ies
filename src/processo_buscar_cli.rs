@@ -119,8 +119,9 @@ fn buscar(cli: &Cli, comando: &Processo, termo: &str, pagina: Option<u32>, filtr
         return erro_de_uso(cli.json, "data_da_pesquisa_invalida", "data deve estar em DD/MM/AAAA e existir no calendário");
     }
     if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
-        let chave = |s: &str| (&s[6..10], &s[3..5], &s[0..2]);
-        if chave(de) > chave(ate) {
+        let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
+        let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
+        if inicio > fim {
             return erro_de_uso(cli.json, "periodo_da_pesquisa_invertido", "data inicial posterior à final");
         }
     }
