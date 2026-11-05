@@ -142,6 +142,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                         "tipo": feito.tipo,
                         "especificacao": especificacao,
                         "assunto": feito.assunto,
+                    "interessados": feito.interessados,
                         "nivel": feito.nivel,
                         "unidade": feito.unidade,
                         "confirmado": feito.confirmado,
@@ -164,6 +165,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                 );
                 println!("Especificação: {especificacao}");
                 println!("Assunto sugerido: {}", feito.assunto);
+                if !feito.interessados.is_empty() {
+                    println!("Interessados: {}", feito.interessados.join("; "));
+                }
                 println!("Acesso: {}", feito.nivel);
                 if let Some(nup) = feito.nup {
                     println!("NUP criado e verificado: {nup}");
