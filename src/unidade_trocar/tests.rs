@@ -171,7 +171,10 @@ fn trocar_depende_do_controle_novo_nao_de_estado_local() {
         ],
     );
     let (resultado, pedidos) = executar("PR-B", true, None, respostas);
-    assert!(resultado.is_err(), "sem sigla nova na tela não há confirmação");
+    assert!(
+        resultado.is_err(),
+        "sem sigla nova na tela não há confirmação"
+    );
     assert_eq!(
         metodos_e_urls(&pedidos),
         [
