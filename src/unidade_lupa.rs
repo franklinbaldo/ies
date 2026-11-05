@@ -344,4 +344,36 @@ mod tests {
     fn cabecalho_ausente_nao_pode_virar_lista_vazia() {
         assert!(ler_pagina("<form id='frmUnidadeLista'></form>").is_err());
     }
+
+    #[test]
+    fn filtros_publicados_precisam_provar_lista_integral() {
+        // Cenários de filtro e órgão do Todos tests/test_lupa_unidades_010.py @323eb01.
+        let html = pagina(0, 1, 1, &["7"]).replace(
+            "<table class='infraTable'>",
+            "<select name='selOrgaoUnidade'>
+                <option value='null'>Nenhum órgão</option>
+                <option value='' selected='selected'>Todos</option>
+             </select>
+             <input name='txtSiglaUnidade' value=''>
+             <input name='txtDescricaoUnidade' value=''>
+             <table class='infraTable'>",
+        );
+        assert_eq!(conferir_filtros_de_lista_integral(&html), Ok(()));
+
+        // Uma lista de nove resultados filtrados pode ser internamente
+        // consistente, mas não substitui a lista integral de destinos.
+        for alterada in [
+            html.replace("name='txtSiglaUnidade' value=''", "name='txtSiglaUnidade' value='CDE'"),
+            html.replace("name='txtDescricaoUnidade' value=''", "name='txtDescricaoUnidade' value='gabinete'"),
+            html.replace("value='' selected='selected'>Todos", "value=''>Todos"),
+            html.replace("value='' selected='selected'>Todos", "value='null' selected='selected'>Todos"),
+            html.replace("name='txtSiglaUnidade' value=''", "name='txtSiglaUnidade' value=''><input name='txtSiglaUnidade' value=''"),
+        ] {
+            assert_eq!(
+                conferir_filtros_de_lista_integral(&alterada),
+                Err(ErroLupa::PaginaInvalida),
+                "não publicar um snapshot quando o filtro não é integral"
+            );
+        }
+    }
 }
