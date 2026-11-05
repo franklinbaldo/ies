@@ -54,3 +54,27 @@ O RED próprio da fatia foi registrado no CI
 [42094129597](https://github.com/franklinbaldo/ies/actions/runs/42094129597):
 **2 falhas** (1392 testes passaram, 13 ignorados já existentes).
 A compilação local e o RED local permaneceram **NOT_RUN**.
+
+
+## Fase AJAX — hipótese legal restrita (05/11/2026)
+
+| Etapa | Resultado | Pedidos sintéticos | Requisições ao SEI |
+| --- | --- | ---: | ---: |
+| Observação da declaração AJAX da captura Todos @323eb01 | PASS — fonte indireta | 0 | 0 |
+| RED: 4 cenários de AJAX antes da implementação | PASS como evidência — [CI 42097640389](https://github.com/franklinbaldo/ies/actions/runs/42097640389), 4 falhas novas | 0 | 0 |
+| RED e compilação locais | NOT_RUN — Rust indisponível e DNS sem resolução | 0 | 0 |
+| Prévia restrita com uma hipótese no AJAX | PASS sintético no [CI 42098895457](https://github.com/franklinbaldo/ies/actions/runs/42098895457) | 4 (3 GET + 1 POST de consulta) | 0 |
+| Confirmação restrita com AJAX + releituras | PASS sintético no mesmo CI | 7 (5 GET + 1 POST AJAX + 1 POST criador) | 0 |
+| Duas hipóteses legais: recusa antes do POST criador | PASS sintético no mesmo CI | 4 (3 GET + 1 POST AJAX) | 0 |
+| Consulta AJAX não declarada: recusa sem POST | PASS sintético no mesmo CI | 3 GET | 0 |
+| HTTP 503 no AJAX: status preservado sem escrita | Teste acrescentado, verificar CI do head atualizado | 4 (3 GET + 1 POST AJAX) | 0 |
+| Replay dos ZIPs originais (UnB/UFRJ/GO/PEN) | NOT_RUN — ZIPs fora do Git e ambiente sem acesso à origem | 0 | 0 |
+| Prévia ao vivo em instalação de treinamento | NOT_RUN — sem execução autenticada | 0 | 0 |
+| Um único `--confirmar` em treinamento | NOT_RUN — não executado | 0 | 0 |
+| Leitura posterior live e resíduo | NOT_RUN — nenhum processo criado | 0 | 0 |
+
+A captura indireta e os testes com roteiros são evidência de formato
+e de segurança da escrita, **não** uma certificação live.
+A autorização para treinamento continua limitada à sequência
+prévia → confirmação única → verificação por leitura. Nenhuma
+escrita foi tentada nesta sessão: resíduo **zero**.
