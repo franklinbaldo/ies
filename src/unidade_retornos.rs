@@ -1,20 +1,196 @@
-//! Leitura dos retornos programados da unidade: duas tabelas do mes, sem escrita.
-//! Caso de teste: Todos tests/test_unidade_listar_retornos_010.py @323eb01.
-#[derive(Clone, Debug, PartialEq, Eq)]
+//! Leitor estrutural da lista mensal de retornos (somente leitura).
+//! Fonte dos cenarios: Todos tests/test_unidade_listar_retornos_010.py @323eb01.
+//! Nao interpreta JavaScript, nao escolhe linhas fora de tabela reconhecida.
+use crate::html_atributos::valor_do_atributo;
+use serde::Serialize;
+use std::collections::HashSet;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct Retorno {
     pub(crate) situacao: &'static str,
     pub(crate) numero: String,
     pub(crate) unidade: String,
     pub(crate) data_programada: String,
+    pub(crate) data_retorno: Option<String>,
+    pub(crate) prazo_restante: Option<String>,
 }
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroRetornos {
     TelaDeRetornosDesconhecida,
     ListaDeRetornosIncompleta,
+    PaginacaoDosRetornosNaoObservada,
 }
-pub(crate) fn extrair_retornos(_html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
-    Err(ErroRetornos::TelaDeRetornosDesconhecida) // RED: leitor ainda ausente
+
+impl ErroRetornos {
+    pub(crate) fn subcodigo(self) -> &'static str {
+        match self {
+            Self::TelaDeRetornosDesconhecida => "tela_de_retornos_desconhecida",
+            Self::ListaDeRetornosIncompleta => "lista_de_retornos_incompleta",
+            Self::PaginacaoDosRetornosNaoObservada => "paginacao_dos_retornos_nao_observada",
+        }
+    }
+    pub(crate) fn mensagem(self) -> &'static str {
+        match self {
+            Self::TelaDeRetornosDesconhecida => "estrutura da lista de retornos nao reconhecida",
+            Self::ListaDeRetornosIncompleta => "legenda e linhas dos retornos nao conferem",
+            Self::PaginacaoDosRetornosNaoObservada => {
+                "lista de retornos paginada sem derivacao segura demonstrada"
+            }
+        }
+    }
 }
+
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
+    valor_do_atributo(tag, nome).map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)
+}
+
+fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
+    crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn identificador(s: &str) -> String {
+    s.to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn situacao_da_tabela(summary: &str) -> Option<&'static str> {
+    let nome = identificador(summary);
+    if nome.contains("aguardando retorno") {
+        Some("aguardando")
+    } else if nome.contains("para devolver") {
+        Some("devolver")
+    } else {
+        None
+    }
+}
+
+pub(crate) fn data_valida(s: &str) -> bool {
+    let partes: Vec<_> = s.split('/').collect();
+    let [dia, mes, ano] = partes.as_slice() else { return false };
+    if dia.len() != 2 || mes.len() != 2 || ano.len() != 4
+        || !s.bytes().all(|b| b.is_ascii_digit() || b == b'/')
+    {
+        return false;
+    }
+    let (Ok(d), Ok(m), Ok(a)) = (dia.parse::<u8>(), mes.parse::<u8>(), ano.parse::<u16>()) else {
+        return false;
+    };
+    if a == 0 || !(1..=12).contains(&m) { return false; }
+    let bissexto = a % 4 == 0 && (a % 100 != 0 || a % 400 == 0);
+    let dias = match m {
+        2 if bissexto => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    d >= 1 && d <= dias
+}
+
+pub(crate) fn ultimo_dia(ano: u16, mes: u8) -> Option<u8> {
+    if ano == 0 || !(1..=12).contains(&mes) { return None; }
+    let bissexto = ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0);
+    Some(match mes {
+        2 if bissexto => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    })
+}
+
+/// So retorna uma lista quando as duas legendas conferem ou quando a area
+/// conhecida publica explicitamente "Nenhum registro encontrado.".
+pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
+    use ErroRetornos as E;
+    for prefixo in ["Aguardando", "Devolver"] {
+        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
+            .map_err(|_| E::TelaDeRetornosDesconhecida)?
+        {
+            return Err(E::PaginacaoDosRetornosNaoObservada);
+        }
+    }
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::TelaDeRetornosDesconhecida)?;
+    let parser = dom.parser();
+    let mut situacoes = HashSet::new();
+    let mut lista = Vec::new();
+    for no in dom.query_selector("table").into_iter().flatten() {
+        let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
+        let Some(summary) = atributo(tabela, "summary")? else { continue };
+        let Some(situacao) = situacao_da_tabela(&summary) else { continue };
+        if !situacoes.insert(situacao)
+            || tabela.query_selector(parser, "table").is_some_and(|mut it| it.next().is_some())
+        {
+            return Err(E::TelaDeRetornosDesconhecida);
+        }
+        let legendas: Vec<_> = tabela.query_selector(parser, "caption").into_iter()
+            .flatten()
+            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+            .collect();
+        let [legenda] = legendas.as_slice() else { return Err(E::TelaDeRetornosDesconhecida) };
+        let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
+            .ok_or(E::TelaDeRetornosDesconhecida)?;
+        let titulos: Vec<String> = tabela.query_selector(parser, "th").into_iter()
+            .flatten()
+            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+            .map(|t| identificador(&texto(t, parser)))
+            .collect();
+        let indice = |nome: &str| titulos.iter().position(|c| c == nome)
+            .ok_or(E::TelaDeRetornosDesconhecida);
+        let (processo, unidade, data) = (indice("processo")?, indice("unidade")?, indice("data programada")?);
+        if titulos.iter().collect::<HashSet<_>>().len() != titulos.len() {
+            return Err(E::TelaDeRetornosDesconhecida);
+        }
+        let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
+        let prazo = titulos.iter().position(|c| c == "prazo restante");
+        let antes = lista.len();
+        for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
+            let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
+            let celulas: Vec<_> = linha.query_selector(parser, "td").into_iter()
+                .flatten().filter_map(|n| n.get(parser).and_then(tl::Node::as_tag)).collect();
+            if celulas.is_empty() { continue; }
+            if celulas.len() != titulos.len() { return Err(E::TelaDeRetornosDesconhecida); }
+            let valor = |pos: usize| texto(celulas[pos], parser);
+            let numero = valor(processo);
+            let origem = valor(unidade);
+            let programada = valor(data);
+            if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
+                return Err(E::TelaDeRetornosDesconhecida);
+            }
+            let opcional = |pos: Option<usize>| pos.and_then(|p| {
+                let v = valor(p);
+                (!v.is_empty()).then_some(v)
+            });
+            lista.push(Retorno {
+                situacao,
+                numero,
+                unidade: origem,
+                data_programada: programada,
+                data_retorno: opcional(retorno),
+                prazo_restante: opcional(prazo),
+            });
+        }
+        if lista.len() - antes != declarado {
+            return Err(E::ListaDeRetornosIncompleta);
+        }
+    }
+    if !situacoes.is_empty() { return Ok(lista); }
+    let areas: Vec<_> = dom.query_selector("div").into_iter().flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .filter(|tag| atributo(tag, "id").ok().flatten().is_some_and(|id| id.ends_with("AreaTabela")))
+        .collect();
+    if areas.len() == 1 && identificador(&texto(areas[0], parser)) == "nenhum registro encontrado." {
+        Ok(Vec::new())
+    } else {
+        Err(E::TelaDeRetornosDesconhecida)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,5 +226,17 @@ mod tests {
     fn tabelas_duplicadas_sao_recusadas() {
         let t = tabela("Para Devolver", "NUP-A", "U1");
         assert_eq!(extrair_retornos(&format!("{t}{t}")), Err(ErroRetornos::TelaDeRetornosDesconhecida));
+    }
+    #[test]
+    fn pagina_apresenta_paginador_sem_replay_falha_fechado() {
+        let html = tabela("Para Devolver", "NUP-A", "U1") + "<a id='lnkDevolverProximaPaginaSuperior'>proxima</a>";
+        assert_eq!(extrair_retornos(&html), Err(ErroRetornos::PaginacaoDosRetornosNaoObservada));
+    }
+    #[test]
+    fn data_fora_do_calendario_nao_e_publicada() {
+        let html = tabela("Para Devolver", "NUP-A", "U1").replace("15/10/2026", "31/02/2026");
+        assert_eq!(extrair_retornos(&html), Err(ErroRetornos::TelaDeRetornosDesconhecida));
+        assert!(data_valida("29/02/2024"));
+        assert!(!data_valida("29/02/2025"));
     }
 }
