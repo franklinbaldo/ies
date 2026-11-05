@@ -8,9 +8,11 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro};
+use crate::processo_criar_interessados::{
+    ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
+};
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::{ErroMenuCriacao, link_de_iniciar};
-use crate::processo_criar_interessados::{ErroInteressado, resolver as resolver_interessados, valor_da_lupa};
 use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
@@ -53,7 +55,9 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
         "hdnAssuntos",
     ],
     campos_ocultos_reescritos: &[
-        "hdnFlagProcedimentoCadastro", "hdnAssuntos", "hdnInteressadosProcedimento",
+        "hdnFlagProcedimentoCadastro",
+        "hdnAssuntos",
+        "hdnInteressadosProcedimento",
     ],
     campos_usuario: &["txtDescricao", "rdoNivelAcesso", "selHipoteseLegal"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
@@ -355,8 +359,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
         codificacao,
     };
     let interessados = resolver_interessados(
-        envio, &instalacao, &servida, cookie_valor, pedido.interessados, &mut requisicoes,
-    ).map_err(E::Interessado)?;
+        envio,
+        &instalacao,
+        &servida,
+        cookie_valor,
+        pedido.interessados,
+        &mut requisicoes,
+    )
+    .map_err(E::Interessado)?;
     let mut feito = Criacao {
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
