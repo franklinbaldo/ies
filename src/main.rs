@@ -17,6 +17,8 @@ mod copia_documento;
 mod copia_listagem;
 mod documento;
 mod documento_assinar;
+#[cfg(test)]
+mod documento_criar;
 mod documento_assinar_cli;
 mod documento_buscar_cli;
 mod documento_html_privado_cli;
