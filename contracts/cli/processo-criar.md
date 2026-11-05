@@ -47,7 +47,13 @@ Uma única submissão do cadastro publicado; sem retry nem
 redirect automático. A resposta esperada é um 302 para
 a árvore com `id_procedimento`, cuja identidade deve ser
 confirmada em leitura nova e associada a um NUP não vazio.
-A resposta sozinha nunca prova a criação.
+A resposta sozinha nunca prova a criação. No `Location`, aceitar
+**uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
+`id_procedimento` numérico; quaisquer repetições, mesmo com um
+parâmetro inválido, são ambiguidade e resultam em
+`efeito_incerto_na_criacao` (saída 3), sem seguir a URL assinada.
+Na escolha de tipo por link, aplicar a mesma regra a `acao` e
+`id_tipo_procedimento` antes de qualquer GET.
 
 Falha definitivamente anterior ao envio: saída 1 (ou 2
 para argumentos inválidos). Depois de iniciar a escrita,
@@ -142,7 +148,13 @@ incluindo AJAX somente quando o pedido o exigir; zero POST de
 e leitura nova de verificação. O número exato de requisições
 por versão ainda precisa de teste replay e medição, não de
 estimativa. O POST que apenas escolhe o tipo em SEI 4.1+
-não é a escrita criadora.
+não é a escrita criadora. Nos testes com transporte injetado,
+a prévia 4.0 tem **3 GET**; a confirmação 4.0 tem **6 pedidos**
+(4 GET, 1 POST criador e outro GET; ao todo 5 GET e 1 POST);
+a confirmação 4.1 tem **7 pedidos** (5 GET, 1 POST de seleção
+e 1 POST criador). Não extrapolar esses totais a instalações reais
+sem observação e replay. Em URLs ambíguas recusar antes da próxima
+requisição; depois de iniciar a escrita, saída 3 sem retry.
 
 [Observação](../../docs/como-o-sei-funciona/inicio-do-processo.md)
 e [decisão](../../docs/decisoes/processo-criar.md).
