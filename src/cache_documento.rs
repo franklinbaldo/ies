@@ -45,7 +45,10 @@ pub(crate) fn habilitado(sem_cache: bool, ambiente: Option<&str>) -> bool {
 }
 
 pub(crate) fn habilitado_ambiente(sem_cache: bool) -> bool {
-    habilitado(sem_cache, std::env::var("IES_CACHE_DOCUMENTOS").ok().as_deref())
+    habilitado(
+        sem_cache,
+        std::env::var("IES_CACHE_DOCUMENTOS").ok().as_deref(),
+    )
 }
 
 pub(crate) fn raiz() -> Result<PathBuf, FalhaCache> {
@@ -69,9 +72,17 @@ pub(crate) fn nome_ext(versao: Option<u32>, hash: &str, extensao: &str) -> Strin
 }
 
 pub(crate) fn caminho_em(
-    raiz: &Path, host: &str, numero: &str, versao: Option<u32>, hash: &str, extensao: &str,
+    raiz: &Path,
+    host: &str,
+    numero: &str,
+    versao: Option<u32>,
+    hash: &str,
+    extensao: &str,
 ) -> PathBuf {
-    raiz.join("ies").join(host).join(numero).join(nome_ext(versao, hash, extensao))
+    raiz.join("ies")
+        .join(host)
+        .join(numero)
+        .join(nome_ext(versao, hash, extensao))
 }
 
 fn conferir_identidade(host: &str, numero: &str, extensao: &str) -> Result<(), FalhaCache> {
@@ -107,21 +118,31 @@ pub(crate) fn conferir_existente(destino: &Path, bytes: &[u8]) -> Result<(), Fal
 
 /// Os bytes do HTML não podem carregar credenciais em URL assinada.
 pub(crate) fn gravar_em(
-    raiz: &Path, host: &str, numero: &str, versao: Option<u32>, extensao: &str,
+    raiz: &Path,
+    host: &str,
+    numero: &str,
+    versao: Option<u32>,
+    extensao: &str,
     bytes: &[u8],
 ) -> Result<PathBuf, FalhaCache> {
     conferir_identidade(host, numero, extensao)?;
-    if extensao == "html" && bytes.windows(b"infra_hash".len()).any(|b| b == b"infra_hash") {
+    if extensao == "html"
+        && bytes
+            .windows(b"infra_hash".len())
+            .any(|b| b == b"infra_hash")
+    {
         return Err(FalhaCache::ConteudoInseguro);
     }
     let hash = sha256(bytes);
     let destino = caminho_em(raiz, host, numero, versao, &hash, extensao);
-    let politica = Politica::exclusiva().diretorio_do_ies().criando_diretorios();
+    let politica = Politica::exclusiva()
+        .diretorio_do_ies()
+        .criando_diretorios();
     match fs::symlink_metadata(&destino) {
         Ok(_) => conferir_existente(&destino, bytes)?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             match arquivo_privado::gravar(&destino, bytes, politica) {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(arquivo_privado::FalhaDaGravacao::DestinoJaExiste) => {
                     conferir_existente(&destino, bytes)?;
                 }
@@ -134,14 +155,20 @@ pub(crate) fn gravar_em(
 }
 
 pub(crate) fn gravar(
-    host: &str, numero: &str, versao: Option<u32>, extensao: &str,
+    host: &str,
+    numero: &str,
+    versao: Option<u32>,
+    extensao: &str,
     bytes: &[u8],
 ) -> Result<Registro, FalhaCache> {
     let hash = sha256(bytes);
     let caminho = gravar_em(&raiz()?, host, numero, versao, extensao, bytes)?;
-    Ok(Registro { caminho, versao, sha256: hash })
+    Ok(Registro {
+        caminho,
+        versao,
+        sha256: hash,
+    })
 }
-
 
 fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
     use sha2::{Digest, Sha256};
@@ -161,8 +188,12 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
     let mut buffer = [0u8; 64 * 1024];
     let mut sha = Sha256::new();
     loop {
-        let lidos = arquivo.read(&mut buffer).map_err(|_| FalhaCache::Gravacao)?;
-        if lidos == 0 { break; }
+        let lidos = arquivo
+            .read(&mut buffer)
+            .map_err(|_| FalhaCache::Gravacao)?;
+        if lidos == 0 {
+            break;
+        }
         sha.update(&buffer[..lidos]);
     }
     Ok(crate::hex::hex_minusculo(&sha.finalize()))
@@ -171,26 +202,36 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
 /// Publica o parcial binário já integralmente conferido; seu Drop o elimina.
 /// A colisão do prefixo de 16 hex é conferida pelo hash SHA-256 completo.
 pub(crate) fn publicar_parcial(
-    parcial: &Path, raiz: &Path, host: &str, numero: &str,
-    hash: &str, extensao: &str,
+    parcial: &Path,
+    raiz: &Path,
+    host: &str,
+    numero: &str,
+    hash: &str,
+    extensao: &str,
 ) -> Result<Registro, FalhaCache> {
     conferir_identidade(host, numero, extensao)?;
     let caminho = caminho_em(raiz, host, numero, None, hash, extensao);
     match fs::hard_link(parcial, &caminho) {
-        Ok(()) => {},
-        Err(erro) if erro.kind() == std::io::ErrorKind::AlreadyExists => {},
+        Ok(()) => {}
+        Err(erro) if erro.kind() == std::io::ErrorKind::AlreadyExists => {}
         Err(_) => return Err(FalhaCache::Gravacao),
     }
     if hash_de_arquivo(&caminho)? != hash {
         return Err(FalhaCache::ArquivoDivergente);
     }
-    Ok(Registro { caminho, versao: None, sha256: hash.to_owned() })
+    Ok(Registro {
+        caminho,
+        versao: None,
+        sha256: hash.to_owned(),
+    })
 }
 
 /// A cópia explícita usa hard link quando disponível. Caso contrário,
 /// o mesmo primitivo privado escreve em fluxo, sem seguir symlink final.
 pub(crate) fn copiar_para_saida(
-    origem: &Path, destino: &Path, hash: &str,
+    origem: &Path,
+    destino: &Path,
+    hash: &str,
 ) -> Result<bool, FalhaCache> {
     use crate::arquivo_privado::{FalhaDaGravacao, Parcial};
     if fs::symlink_metadata(destino).is_ok() {
@@ -203,15 +244,20 @@ pub(crate) fn copiar_para_saida(
         return Ok(true);
     }
     let mut arquivo = fs::File::open(origem).map_err(|_| FalhaCache::Gravacao)?;
-    let mut parcial = Parcial::abrir(
-        destino, Politica::exclusiva().diretorio_do_usuario(),
-    ).map_err(|_| FalhaCache::Gravacao)?;
+    let mut parcial = Parcial::abrir(destino, Politica::exclusiva().diretorio_do_usuario())
+        .map_err(|_| FalhaCache::Gravacao)?;
     let mut buffer = [0u8; 64 * 1024];
     use std::io::Read;
     loop {
-        let lidos = arquivo.read(&mut buffer).map_err(|_| FalhaCache::Gravacao)?;
-        if lidos == 0 { break; }
-        parcial.escrever(&buffer[..lidos]).map_err(|_| FalhaCache::Gravacao)?;
+        let lidos = arquivo
+            .read(&mut buffer)
+            .map_err(|_| FalhaCache::Gravacao)?;
+        if lidos == 0 {
+            break;
+        }
+        parcial
+            .escrever(&buffer[..lidos])
+            .map_err(|_| FalhaCache::Gravacao)?;
     }
     match parcial.confirmar() {
         Ok(()) => Ok(true),
@@ -226,21 +272,37 @@ mod tests {
 
     #[test]
     fn nome_conhecido_e_desconhecido() {
-        assert_eq!(nome(Some(2), "aabbccddeeff001122"), "v2-aabbccddeeff0011.html");
+        assert_eq!(
+            nome(Some(2), "aabbccddeeff001122"),
+            "v2-aabbccddeeff0011.html"
+        );
         assert_eq!(nome(None, "aabbccddeeff001122"), "x-aabbccddeeff0011.html");
     }
 
     #[test]
     fn cache_idempotente_em_xdg_temporario() {
         let home = std::env::temp_dir().join(format!("ies-cache-red-{}", std::process::id()));
-        let alvo = caminho_em(&home, "sei.exemplo", "0011519", Some(2), "aabbccddeeff001122", "html");
-        assert_eq!(alvo, home.join("ies/sei.exemplo/0011519/v2-aabbccddeeff0011.html"));
+        let alvo = caminho_em(
+            &home,
+            "sei.exemplo",
+            "0011519",
+            Some(2),
+            "aabbccddeeff001122",
+            "html",
+        );
+        assert_eq!(
+            alvo,
+            home.join("ies/sei.exemplo/0011519/v2-aabbccddeeff0011.html")
+        );
         let bytes = b"<html><body>teste</body></html>";
         let alvo = gravar_em(&home, "sei.exemplo", "0011519", Some(2), "html", bytes).unwrap();
         let primeira = std::fs::metadata(&alvo).unwrap().modified().unwrap();
         let segunda = gravar_em(&home, "sei.exemplo", "0011519", Some(2), "html", bytes).unwrap();
         assert_eq!(alvo, segunda);
-        assert_eq!(std::fs::metadata(&alvo).unwrap().modified().unwrap(), primeira);
+        assert_eq!(
+            std::fs::metadata(&alvo).unwrap().modified().unwrap(),
+            primeira
+        );
         std::fs::remove_dir_all(home).unwrap();
     }
 
@@ -254,8 +316,10 @@ mod tests {
     #[test]
     fn conteudo_assinado_nao_e_persistido() {
         let home = std::env::temp_dir().join(format!("ies-cache-seguranca-{}", std::process::id()));
-        assert_eq!(gravar_em(&home, "sei.exemplo", "1", None, "html", b"infra_hash=x"),
-                   Err(FalhaCache::ConteudoInseguro));
+        assert_eq!(
+            gravar_em(&home, "sei.exemplo", "1", None, "html", b"infra_hash=x"),
+            Err(FalhaCache::ConteudoInseguro)
+        );
         assert!(!home.exists());
     }
 }

@@ -48,7 +48,9 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     } else {
         None
     };
-    let diretorio = raiz.as_ref().zip(pedido.cache_host)
+    let diretorio = raiz
+        .as_ref()
+        .zip(pedido.cache_host)
         .map(|(raiz, host)| raiz.join("ies").join(host).join(numero));
     let destino = match (diretorio.as_deref(), pedido.cache_host, pedido.saida) {
         (Some(diretorio), Some(host), _) => DestinoDoAnexo::Cache { diretorio, host },

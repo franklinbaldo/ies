@@ -146,11 +146,13 @@ fn ler_atual<V: EnvioDoProcesso>(
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     let (tipo, texto, html) = ler_pagina(rede, conteudo.as_str(), no.numero)?;
     let servida = versao_do_rodape(&html);
-    if cache && html.contains("infra_hash") { return Err(E::ConteudoComLinkAssinado); }
+    if cache && html.contains("infra_hash") {
+        return Err(E::ConteudoComLinkAssinado);
+    }
     let cache_html = cache.then(|| html.clone());
     let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
-            crc_rodape: None, 
+        crc_rodape: None,
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
@@ -203,7 +205,9 @@ fn ler_versao<V: EnvioDoProcesso>(
     )
     .map_err(|_| E::Versoes(ErroVersao::LinkInseguro))?;
     let (tipo, texto, html) = ler_pagina(rede, &url, no.numero)?;
-    if cache && html.contains("infra_hash") { return Err(E::ConteudoComLinkAssinado); }
+    if cache && html.contains("infra_hash") {
+        return Err(E::ConteudoComLinkAssinado);
+    }
     let cache_html = cache.then(|| html.clone());
     if versao_do_rodape(&html).is_some_and(|servida| servida != n) {
         return Err(E::VersaoServidaDiferenteDaPedida);
@@ -214,7 +218,7 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
-            crc_rodape: None, 
+        crc_rodape: None,
         lida: Some(n),
         atual: Ok(atual),
         foto,

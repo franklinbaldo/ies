@@ -4,9 +4,9 @@ mod arquivo_copia;
 mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
+mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
-mod cache_documento;
 #[cfg(test)]
 mod cassette;
 mod classe_link_processo;

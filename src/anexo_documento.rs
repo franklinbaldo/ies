@@ -73,7 +73,10 @@ pub(crate) enum DestinoDoAnexo<'a> {
     SoMetadados,
     Diretorio(&'a Path),
     /// Diretório do cache, no qual um parcial será ligado pelo SHA-256.
-    Cache { diretorio: &'a Path, host: &'a str },
+    Cache {
+        diretorio: &'a Path,
+        host: &'a str,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -227,8 +230,9 @@ pub(crate) fn ler_anexo<R: Read>(
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados => None,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
-        DestinoDoAnexo::Cache { diretorio, .. } =>
-            Some(abrir_parcial_cache(diretorio, numero, &conferido)?),
+        DestinoDoAnexo::Cache { diretorio, .. } => {
+            Some(abrir_parcial_cache(diretorio, numero, &conferido)?)
+        }
     };
     let texto = cabecalhos::e_texto(&conferido.mime);
     let mut guardado = Vec::new();
@@ -283,10 +287,19 @@ pub(crate) fn ler_anexo<R: Read>(
     let hash = crate::hex::hex_minusculo(&hasher.finalize());
     if let DestinoDoAnexo::Cache { diretorio, host } = destino {
         let parcial = arquivo.take().ok_or(ErroAnexo::EscritaFalhou)?;
-        let raiz = diretorio.ancestors().nth(3).ok_or(ErroAnexo::EscritaFalhou)?;
+        let raiz = diretorio
+            .ancestors()
+            .nth(3)
+            .ok_or(ErroAnexo::EscritaFalhou)?;
         crate::cache_documento::publicar_parcial(
-            parcial.parcial.temporario(), raiz, host, numero, &hash, conferido.extensao,
-        ).map_err(|_| ErroAnexo::EscritaFalhou)?;
+            parcial.parcial.temporario(),
+            raiz,
+            host,
+            numero,
+            &hash,
+            conferido.extensao,
+        )
+        .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
@@ -399,7 +412,6 @@ fn abrir_parcial(
     Ok(ArquivoParcial { parcial, nome })
 }
 
-
 fn abrir_parcial_cache(
     dir: &Path,
     numero: &str,
@@ -409,9 +421,12 @@ fn abrir_parcial_cache(
     let nome = format!("{numero}.cache.{}", conferido.extensao);
     let parcial = Parcial::abrir(
         &dir.join(&nome),
-        Politica::exclusiva().diretorio_do_ies()
-            .criando_diretorios().com_limite(conferido.limite),
-    ).map_err(|_| ErroAnexo::EscritaFalhou)?;
+        Politica::exclusiva()
+            .diretorio_do_ies()
+            .criando_diretorios()
+            .com_limite(conferido.limite),
+    )
+    .map_err(|_| ErroAnexo::EscritaFalhou)?;
     Ok(ArquivoParcial { parcial, nome })
 }
 

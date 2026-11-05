@@ -168,8 +168,11 @@ fn obter(
             cookie: referencias.cookie(),
         };
         let host = crate::instalacao::Instalacao::interpretar(referencias.origem())
-            .ok_or(FalhaDoDocumento::Sessao(transporte::FalhaTransporte::OrigemNaoAutorizada))?
-            .host().to_owned();
+            .ok_or(FalhaDoDocumento::Sessao(
+                transporte::FalhaTransporte::OrigemNaoAutorizada,
+            ))?
+            .host()
+            .to_owned();
         let indice = IndiceLocal::da_configuracao(&arquivos);
         let mut obtidos = Vec::new();
         for numero in numeros {
@@ -177,7 +180,11 @@ fn obter(
                 numero,
                 unidade: cli.unidade.as_deref(),
                 processo,
-                anexo: PedidoDoAnexo { limite, saida, cache_host: versoes.cache.then_some(host.as_str()) },
+                anexo: PedidoDoAnexo {
+                    limite,
+                    saida,
+                    cache_host: versoes.cache.then_some(host.as_str()),
+                },
             };
             match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
                 Ok(obtido) => obtidos.push(obtido),
@@ -193,7 +200,14 @@ fn obter(
         Ok((obtidos, host))
     });
     match lido {
-        Ok(((obtidos, host), nota)) => publicar(cli.json, obtidos, saida, nota.as_ref(), &host, versoes.cache),
+        Ok(((obtidos, host), nota)) => publicar(
+            cli.json,
+            obtidos,
+            saida,
+            nota.as_ref(),
+            &host,
+            versoes.cache,
+        ),
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
@@ -310,12 +324,22 @@ fn gravar(
         };
         let Some(arquivo) = a.arquivo.take() else {
             if let Some(Some(cache)) = caches.get(i) {
-                let extensao = cache.caminho.extension().and_then(|e| e.to_str()).unwrap_or("pdf");
+                let extensao = cache
+                    .caminho
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("pdf");
                 let nome = format!("{}.{}", d.numero, extensao);
                 let destino = diretorio.join(&nome);
-                let novo = crate::cache_documento::copiar_para_saida(&cache.caminho, &destino, &a.sha256)
-                    .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
-                gravados.push(Some(ArquivoDaSaida { nome, bytes: a.tamanho, sha256: a.sha256.clone(), gravado: novo }));
+                let novo =
+                    crate::cache_documento::copiar_para_saida(&cache.caminho, &destino, &a.sha256)
+                        .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+                gravados.push(Some(ArquivoDaSaida {
+                    nome,
+                    bytes: a.tamanho,
+                    sha256: a.sha256.clone(),
+                    gravado: novo,
+                }));
             } else {
                 gravados.push(None);
             }
@@ -347,21 +371,51 @@ fn publicar(
     for d in &obtidos {
         let registro = if cache_ativo {
             if let Some(html) = &d.versoes.cache_html {
-                match crate::cache_documento::gravar(host, &d.numero, d.versoes.lida.map(|v| v.numero()), "html", html.as_bytes()) {
+                match crate::cache_documento::gravar(
+                    host,
+                    &d.numero,
+                    d.versoes.lida.map(|v| v.numero()),
+                    "html",
+                    html.as_bytes(),
+                ) {
                     Ok(registro) => Some(registro),
                     Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
                 }
             } else if let Some(anexo) = &d.anexo {
                 let extensao = match anexo.mime.as_str() {
-                    "application/pdf" => "pdf", "text/plain" => "txt", "text/html" => "html", _ => return erro_fonte(json_mode, "tipo_de_anexo_nao_permitido", "tipo não reconhecido"),
+                    "application/pdf" => "pdf",
+                    "text/plain" => "txt",
+                    "text/html" => "html",
+                    _ => {
+                        return erro_fonte(
+                            json_mode,
+                            "tipo_de_anexo_nao_permitido",
+                            "tipo não reconhecido",
+                        );
+                    }
                 };
                 let raiz = match crate::cache_documento::raiz() {
                     Ok(raiz) => raiz,
                     Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
                 };
-                Some(crate::cache_documento::Registro { caminho: crate::cache_documento::caminho_em(&raiz, host, &d.numero, None, &anexo.sha256, extensao), versao: None, sha256: anexo.sha256.clone() })
-            } else { None }
-        } else { None };
+                Some(crate::cache_documento::Registro {
+                    caminho: crate::cache_documento::caminho_em(
+                        &raiz,
+                        host,
+                        &d.numero,
+                        None,
+                        &anexo.sha256,
+                        extensao,
+                    ),
+                    versao: None,
+                    sha256: anexo.sha256.clone(),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         caches.push(registro);
     }
     let mut gravados = Vec::new();
@@ -385,7 +439,13 @@ fn publicar(
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
                 documento_versao_cli::inserir_campos(&mut objeto, d);
-                objeto.insert("cache".to_owned(), caches.get(i).and_then(Option::as_ref).map_or(Value::Null, |c| json!({"caminho": c.caminho, "versao": c.versao, "sha256": c.sha256})));
+                objeto.insert(
+                    "cache".to_owned(),
+                    caches.get(i).and_then(Option::as_ref).map_or(
+                        Value::Null,
+                        |c| json!({"caminho": c.caminho, "versao": c.versao, "sha256": c.sha256}),
+                    ),
+                );
                 objeto.insert("crc_rodape".to_owned(), json!(d.versoes.crc_rodape));
                 if let Some(g) = gravado(i) {
                     let arquivo = documento_versao_cli::json_do_arquivo(
