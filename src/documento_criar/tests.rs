@@ -235,7 +235,7 @@ fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
         <table id="tblSeries"><tr><td>
             <a href="#" onclick="escolher(291)">Despacho</a>
             <a href="#" onclick="escolher(-1)">Externo</a>
-        </td></tr></table></body></html>"##;
+        </td></tr></table></body></html>"#;
     assert_eq!(tipos_oferecidos(html).unwrap(), ["Despacho"]);
     assert_eq!(
         escolha_do_tipo(&instalacao, html, "4864", "Despacho"),
@@ -329,7 +329,7 @@ fn redirecionamento_da_escolha_valida_origem_processo_e_assinatura() {
 fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
     // Caso de Todos src/todos/documentos.py::_escolha_do_tipo @323eb01.
     // Tela 4.0: exibirSeries('T') grava hdnFiltroSerie e submete a lista.
-    let tela = r##"<html><head><script>
+    let tela = r#"<html><head><script>
     function exibirSeries(tipo) {
         document.getElementById('hdnFiltroSerie').value = tipo;
         document.getElementById('frmDocumentoEscolherTipo').submit();
@@ -342,8 +342,11 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
     <table id="tblSeries"><tr><td>
        <a href="controlador.php?acao=documento_gerar">Despacho</a>
     </td></tr></table></body></html>"##;
-    assert_eq!(filtro_de_todos(&tela), Ok(true));
-    assert_eq!(filtro_de_todos(&tela.replace("ancExibirSeries", "outro")), Ok(false));
+    assert_eq!(filtro_de_todos(tela), Ok(true));
+    assert_eq!(
+        filtro_de_todos(&tela.replace("ancExibirSeries", "outro")),
+        Ok(false)
+    );
     assert_eq!(
         filtro_de_todos(&tela.replace("function exibirSeries", "function sem_prova")),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
