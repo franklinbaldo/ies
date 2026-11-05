@@ -46,6 +46,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
+mod processo_acompanhar;
+mod processo_acompanhar_cli;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
@@ -178,6 +180,22 @@ enum ProcessoAcao {
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Prévia Web de Acompanhamento Especial (escrita indisponível até reconciliação comprovada)
+    Acompanhar {
+        numero: String,
+        /// Grupo exatamente como a tela do SEI oferece
+        #[arg(long)]
+        grupo: Option<String>,
+        /// Texto livre da observação
+        #[arg(long, conflicts_with = "deixar")]
+        observacao: Option<String>,
+        /// Retira acompanhamento (sem grupo, exige um único acompanhamento)
+        #[arg(long)]
+        deixar: bool,
+        /// Confirmação de escrita ainda bloqueada por segurança
         #[arg(long)]
         confirmar: bool,
     },
@@ -381,6 +399,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
+        .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
