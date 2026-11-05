@@ -86,3 +86,21 @@ lembradas na sessão; o IES não restaura nada.
 - Não foi visto 200 com uma única linha (para termo que casa um processo só
   sem ser exato), nem o efeito de filtros além do protocolo.
 - UFRJ, GO e PEN não tiveram a pesquisa ensaiada nesta data.
+
+
+## Filtros de pesquisa observáveis (#247, implementação parcial)
+
+No formulário `frmPesquisaProtocolo`, os controles referenciados pelo
+oráculo Todos são `selTipoProcedimentoPesquisa` para tipo de processo,
+`selSeriePesquisa` para série de documento, `txtDataInicio` e
+`txtDataFim` para período. As cassettes sintéticas anteriores mostram
+`selTipoProcedimentoPesquisa` e `selData`. Sua presença em uma tela
+não prova presença em outras instalações; o IES confere cada campo antes
+de enviar um filtro e usa somente valores de `option` efetivamente
+servidos. `txtAssunto` sozinho não basta: o SEI espera também
+`hdnIdAssunto` escolhido pelo autocompletar. Sem resolução observada,
+o filtro por assunto é recusado.
+
+Validação ao vivo dos filtros: UnB **NOT_RUN**; PEN3 **NOT_RUN**.
+O replay publicado em 05/11/2026 mantém os números originais (109
+cassettes, 688 conferências); esta alteração não foi reexecutada.

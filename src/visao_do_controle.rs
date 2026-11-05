@@ -33,7 +33,7 @@ pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::{
     ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
-pub(crate) use envio::{EnvioDoControle, EnvioHttps, TelaAtual};
+pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
 pub(crate) use resumida::obter_na_visao_resumida;
@@ -103,72 +103,57 @@ impl Visao {
 }
 
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroVisaoDoControle {
     VisaoDoControleNaoReconhecida,
+    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
+    #[causa(nome = "identificacao_da_unidade_ausente_no_controle")]
     IdentificacaoDaUnidadeAusente,
+    #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDiferenteDaSolicitada,
+    #[causa(nome = "redirecionamento_ao_trocar_visao_do_controle")]
     RedirecionamentoAoTrocarVisao,
-    VisaoNaoTrocadaAposEnvio { esperada: Visao },
+    #[causa(nome = "visao_do_controle_nao_trocada_apos_envio")]
+    VisaoNaoTrocadaAposEnvio {
+        esperada: Visao,
+    },
+    #[causa(nome = "unidade_alterada_ao_trocar_visao_do_controle")]
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    PaginaForaDoIntervalo { solicitada: usize },
+    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
+    PaginaForaDoIntervalo {
+        solicitada: usize,
+    },
     PaginadorDaVisaoDetalhadaNaoPublicado,
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
+    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
     LinkDoNivelDeDetalheAusente,
     LinksDoNivelDeDetalheRepetidos,
     LinkDoNivelDeDetalheNaoReconhecido,
+    #[causa(interna)]
     Caixa(ErroCaixa),
+    #[causa(interna)]
     Detalhada(ErroDetalhada),
+    #[causa(interna)]
     NivelDeDetalhe(ErroNivelDeDetalhe),
+    #[causa(interna)]
     Formulario(ErroControleDoFormulario),
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Pagina(ErroPaginaDoControle),
+    #[causa(interna)]
     Transporte(FalhaTransporte),
 }
 
 impl ErroVisaoDoControle {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::VisaoDoControleNaoReconhecida => "visao_do_controle_nao_reconhecida",
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_do_controle_nao_suportado",
-            Self::IdentificacaoDaUnidadeAusente => "identificacao_da_unidade_ausente_no_controle",
-            Self::UnidadeDiferenteDaSolicitada => "unidade_da_tela_diferente_da_solicitada",
-            Self::RedirecionamentoAoTrocarVisao => "redirecionamento_ao_trocar_visao_do_controle",
-            Self::VisaoNaoTrocadaAposEnvio { .. } => "visao_do_controle_nao_trocada_apos_envio",
-            Self::UnidadeAlteradaAoTrocarVisao => "unidade_alterada_ao_trocar_visao_do_controle",
-            Self::PaginaAtualDaVisaoDetalhadaIlegivel => "pagina_atual_da_visao_detalhada_ilegivel",
-            Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa => {
-                "pagina_atual_da_visao_detalhada_incompativel_com_a_faixa"
-            }
-            Self::PaginaForaDoIntervalo { .. } => "pagina_fora_do_intervalo",
-            Self::PaginadorDaVisaoDetalhadaNaoPublicado => {
-                "paginador_da_visao_detalhada_nao_publicado"
-            }
-            Self::CriteriosDaVisaoDetalhadaAlteradosAposPaginar => {
-                "criterios_da_visao_detalhada_alterados_apos_paginar"
-            }
-            Self::TotalDeclaradoAlteradoAposPaginar => "total_declarado_alterado_apos_paginar",
-            Self::FaixaDaRespostaDiferenteDaPaginaSolicitada => {
-                "faixa_da_resposta_diferente_da_pagina_solicitada"
-            }
-            Self::RedirecionamentoAposPaginar => "redirecionamento_apos_paginar_controle",
-            Self::LinkDoNivelDeDetalheAusente => "link_do_nivel_de_detalhe_ausente",
-            Self::LinksDoNivelDeDetalheRepetidos => "links_do_nivel_de_detalhe_repetidos",
-            Self::LinkDoNivelDeDetalheNaoReconhecido => "link_do_nivel_de_detalhe_nao_reconhecido",
-            Self::Caixa(erro) => erro.subcodigo(),
-            Self::Detalhada(erro) => erro.subcodigo(),
-            Self::NivelDeDetalhe(erro) => erro.subcodigo(),
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Pagina(erro) => erro.subcodigo(),
-            Self::Transporte(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -208,3 +193,6 @@ mod tests_definir;
 
 #[cfg(test)]
 mod tests_colheita;
+
+#[cfg(test)]
+mod tests_contagem;

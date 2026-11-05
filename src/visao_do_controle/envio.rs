@@ -66,6 +66,54 @@ impl EnvioDoControle for EnvioHttps {
     }
 }
 
+/// Decorador que registra uma tentativa antes de cada POST/GET injetado.
+/// Falhas de transporte e respostas 302 também consomem uma tentativa;
+/// a colheita local não consome nenhuma.
+pub(crate) struct EnvioContado<V> {
+    pub(crate) interno: V,
+    pub(crate) pedidos: crate::transporte::contagem::ContagemDeRequisicoes,
+}
+
+impl<V> EnvioContado<V> {
+    pub(crate) fn novo(interno: V) -> Self {
+        Self {
+            interno,
+            pedidos: crate::transporte::contagem::ContagemDeRequisicoes::default(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn total(&self) -> usize {
+        self.pedidos.total()
+    }
+}
+
+impl<V: EnvioDoControle> EnvioDoControle for EnvioContado<V> {
+    type Corpo = V::Corpo;
+
+    fn post(
+        &mut self,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        self.pedidos.registrar();
+        self.interno.post(submissao, cookie)
+    }
+
+    fn get(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        self.pedidos.registrar();
+        self.interno.get(url, cookie)
+    }
+
+    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+        self.interno.colher_controle(html, mime);
+    }
+}
+
 /// O que um POST da troca de visão produz em caso de 302.
 #[derive(Clone, Copy)]
 pub(super) enum Redirecionado {
@@ -97,8 +145,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             codificacao,
         };
         let submissao =
-            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)
-                .map_err(E::Submissao)?;
+            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)?;
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;
@@ -106,8 +153,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             let resposta = envio.post(s, c)?;
             mime.replace(resposta.resposta.mime.clone());
             Ok(resposta)
-        })
-        .map_err(E::Submissao)?;
+        })?;
         match resposta {
             RespostaDoEnvio::Html(html) => {
                 let mime = mime.into_inner();

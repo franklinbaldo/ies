@@ -27,20 +27,25 @@ impl EtapaDaTroca {
 }
 
 /// O fato observado depois do POST, sem URL nem corpo.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDepoisDoEnvio {
+    #[causa(interna)]
     Envio(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// HTML 200 onde o observado é um 302.
     RespostaSemRedirecionamento,
     /// 302 sem `Location`.
+    #[causa(nome = "redirecionamento_da_troca_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     /// `Location` fora do host, da pasta ou da forma observada.
     LocalizacaoForaDaFormaObservada,
     /// `Location` para outra unidade que a escolhida.
     LocalizacaoDeOutraUnidade,
     /// Status fora de 200 e 302 (recusa do transporte com o status).
+    #[causa(nome = "status_inesperado")]
     Status(i32),
+    #[causa(interna)]
     ControleNaoReconhecido(ErroCaixa),
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
@@ -48,17 +53,7 @@ pub(crate) enum FalhaDepoisDoEnvio {
 
 impl FalhaDepoisDoEnvio {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Envio(erro) => erro.subcodigo(),
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::RespostaSemRedirecionamento => "resposta_sem_redirecionamento",
-            Self::RedirecionamentoSemLocalizacao => "redirecionamento_sem_localizacao",
-            Self::LocalizacaoForaDaFormaObservada => "localizacao_fora_da_forma_observada",
-            Self::LocalizacaoDeOutraUnidade => "localizacao_de_outra_unidade",
-            Self::Status(_) => "status_inesperado",
-            Self::ControleNaoReconhecido(erro) => erro.subcodigo(),
-            Self::UnidadeDoControleDiferenteDaPedida => "unidade_do_controle_diferente_da_pedida",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
@@ -70,15 +65,21 @@ impl FalhaDepoisDoEnvio {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTroca {
     /// GET do Controle ou da tela de troca, antes do POST.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
     ControleNaoReconhecido(ErroCaixa),
     UnidadeExibidaDiferenteDaSolicitada,
+    #[causa(nome = "link_de_troca_de_unidade_ausente")]
     LinkDeTrocaAusente,
+    #[causa(nome = "links_de_troca_de_unidade_divergentes")]
     LinksDeTrocaDivergentes,
+    #[causa(nome = "link_de_troca_de_unidade_fora_da_forma_observada")]
     LinkDeTrocaForaDaFormaObservada,
+    #[causa(nome = "tela_de_troca_de_unidade_nao_reconhecida")]
     TelaDeTrocaNaoReconhecida,
     ListaDeUnidadesIncompleta,
     LinhaDeUnidadeForaDaFormaObservada,
@@ -90,7 +91,9 @@ pub(crate) enum ErroTroca {
     SiglaDeUnidadeAmbigua {
         candidatas: Vec<UnidadeOferecida>,
     },
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(nome = "efeito_incerto_na_troca_de_unidade")]
     EfeitoIncerto {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,
@@ -114,27 +117,7 @@ impl ErroTroca {
     }
 
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::ControleNaoReconhecido(erro) => erro.subcodigo(),
-            Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
-            Self::LinkDeTrocaAusente => "link_de_troca_de_unidade_ausente",
-            Self::LinksDeTrocaDivergentes => "links_de_troca_de_unidade_divergentes",
-            Self::LinkDeTrocaForaDaFormaObservada => {
-                "link_de_troca_de_unidade_fora_da_forma_observada"
-            }
-            Self::TelaDeTrocaNaoReconhecida => "tela_de_troca_de_unidade_nao_reconhecida",
-            Self::ListaDeUnidadesIncompleta => "lista_de_unidades_incompleta",
-            Self::LinhaDeUnidadeForaDaFormaObservada => "linha_de_unidade_fora_da_forma_observada",
-            Self::UnidadeMarcadaDiferenteDaAtiva => "unidade_marcada_diferente_da_ativa",
-            Self::SelecaoDeUnidadePorScriptNaoPublicada => {
-                "selecao_de_unidade_por_script_nao_publicada"
-            }
-            Self::UnidadeNaoOferecida { .. } => "unidade_nao_oferecida",
-            Self::SiglaDeUnidadeAmbigua { .. } => "sigla_de_unidade_ambigua",
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::EfeitoIncerto { .. } => "efeito_incerto_na_troca_de_unidade",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

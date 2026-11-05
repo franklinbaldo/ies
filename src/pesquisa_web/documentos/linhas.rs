@@ -65,10 +65,7 @@ fn anexo_baixado(href: &str) -> bool {
 
 /// A única célula `td.classe` da linha de título.
 fn celula<'a>(dom: &'a tl::VDom<'a>, linha: &Tag<'_>, classe: &str) -> Result<tl::NodeHandle, E> {
-    match nos_por_elemento_e_classe(dom, Some(linha), "td", classe)
-        .map_err(E::AtributoHtml)?
-        .as_slice()
-    {
+    match nos_por_elemento_e_classe(dom, Some(linha), "td", classe)?.as_slice() {
         [celula] => Ok(*celula),
         _ => Err(E::CelulaDoTituloDoDocumentoAusenteOuRepetida),
     }
@@ -96,8 +93,7 @@ fn arvore_da_linha(
 ) -> Result<usize, E> {
     use ErroResultadoPesquisa as R;
     let arvores =
-        nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
-            .map_err(E::AtributoHtml)?;
+        nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")?;
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => tag(*arvore, dom.parser())?,
@@ -121,8 +117,7 @@ fn metadados(
     let parser = dom.parser();
     let (mut unidade, mut inclusao, mut usuario) = (None, None, false);
     for linha in linhas {
-        let celulas = nos_por_elemento_e_classe(dom, Some(linha), "td", "pesquisaMetatag")
-            .map_err(E::AtributoHtml)?;
+        let celulas = nos_por_elemento_e_classe(dom, Some(linha), "td", "pesquisaMetatag")?;
         for no in celulas {
             let lido = texto(no, parser);
             let repetido = || E::MetadadoDoDocumentoRepetido;
@@ -194,7 +189,7 @@ fn ler_registro(
             ));
         }
     };
-    validar_href_de_processo(&href_processo).map_err(E::Linha)?;
+    validar_href_de_processo(&href_processo)?;
     let id_documento = documento_do_processo(&href_processo)
         .ok_or(E::LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso)?;
     let (documento, href_documento) = match documentos.as_slice() {
@@ -221,7 +216,7 @@ fn ler_registro(
     if rotulo.is_empty() {
         return Err(E::RotuloDoDocumentoAusente);
     }
-    let processo = NumeroProcesso::novo(&texto(processo, parser)).map_err(E::NumeroDoProcesso)?;
+    let processo = NumeroProcesso::novo(&texto(processo, parser))?;
     let arvores = arvore_da_linha(dom, titulo, &href_processo)?;
     let (unidade, inclusao) = metadados(dom, seguintes)?;
     let encontrado = DocumentoEncontrado {
@@ -242,14 +237,12 @@ pub(crate) fn ler_documentos(html: &str) -> Result<Vec<DocumentoEncontrado>, E> 
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::Linha(R::HtmlDePesquisaNaoInterpretado))?;
     let parser = dom.parser();
-    let tabela = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
-        .map_err(E::AtributoHtml)?
-        .as_slice()
-    {
-        [] => return Err(E::Linha(R::TabelaDePesquisaAusente)),
-        [tabela] => tag(*tabela, parser)?,
-        _ => return Err(E::Linha(R::TabelasDePesquisaRepetidas)),
-    };
+    let tabela =
+        match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?.as_slice() {
+            [] => return Err(E::Linha(R::TabelaDePesquisaAusente)),
+            [tabela] => tag(*tabela, parser)?,
+            _ => return Err(E::Linha(R::TabelasDePesquisaRepetidas)),
+        };
     // Linhas na ordem do documento; cada título abre um registro.
     let mut nos: Vec<tl::NodeHandle> = tabela
         .query_selector(parser, "tr")
@@ -260,9 +253,7 @@ pub(crate) fn ler_documentos(html: &str) -> Result<Vec<DocumentoEncontrado>, E> 
     let mut registros: Vec<(&Tag<'_>, Vec<&Tag<'_>>)> = Vec::new();
     for no in nos {
         let linha = tag(no, parser)?;
-        let titulo = atributos(linha)
-            .and_then(|a| a.tem_classe("pesquisaTituloRegistro"))
-            .map_err(E::AtributoHtml)?;
+        let titulo = atributos(linha).and_then(|a| a.tem_classe("pesquisaTituloRegistro"))?;
         if titulo {
             registros.push((linha, Vec::new()));
         } else {

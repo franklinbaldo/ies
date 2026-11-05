@@ -4,6 +4,7 @@
 use super::abertura::{
     ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede, concluir, ler_arvore_aberta,
 };
+pub(crate) use super::acoes::AcoesDeEstado;
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::pastas::{self, Guardado};
@@ -11,11 +12,7 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento, ErroArvore,
-    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroReabrirNaBarra,
-    ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
-};
+use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
@@ -43,18 +40,6 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     abrir_para_escrever(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
 }
 
-/// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
-/// só pesa no comando que a usa.
-pub(crate) struct AcoesDeEstado {
-    /// contracts/cli/processo-concluir.md
-    pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
-    /// contracts/cli/processo-reabrir.md
-    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
-    /// contracts/cli/processo-enviar.md
-    pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
-    pub(crate) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
-}
-
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
 /// reabrir da barra da árvore lida.
 pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
@@ -65,7 +50,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
 ) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?.to_owned();
+    let cookie = sessao.cookie.valor()?.to_owned();
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),
@@ -117,10 +102,20 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes.total_u8(),
     };
     let acoes = AcoesDeEstado {
+        incluir: arvore_lida.incluir,
+        prazo: arvore_lida.prazo,
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
+        sobrestar: arvore_lida.sobrestar,
+        retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
-        incluir: arvore_lida.incluir,
+        ciencia: arvore_lida.ciencia,
+        lista_ciencias: arvore_lida.lista_ciencias,
+        anexar: arvore_lida.anexar,
+        atribuir: arvore_lida.atribuir,
+        andamento: arvore_lida.andamento,
+        relacionar: arvore_lida.relacionar,
+        acompanhar: arvore_lida.acompanhar,
     };
     Ok((aberto, acoes))
 }

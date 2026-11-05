@@ -39,13 +39,11 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
         return Ok(None);
     };
     let processo = contexto.com_nup(&nup);
-    let aberto = match link_da_arvore(&processo, rede).map_err(E::Processo)? {
+    let aberto = match link_da_arvore(&processo, rede)? {
         Some(aberto) => Some(aberto),
-        None => match link_de_trabalho(&processo, rede).map_err(E::Processo)? {
+        None => match link_de_trabalho(&processo, rede)? {
             Some(aberto) => Some(aberto),
-            None => {
-                entrada_com_documento(&processo, rede, &guardado, numero).map_err(E::Processo)?
-            }
+            None => entrada_com_documento(&processo, rede, &guardado, numero)?,
         },
     };
     let Some((arvore_aberta, unidade, resolvido_por)) = aberto else {
@@ -77,8 +75,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     numero: &str,
     leitura: F,
 ) -> Result<F::Saida, E> {
-    let (aberta, unidade, resolvido_por) =
-        abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
+    let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
     let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
     let lido = NoLido {
         html: &aberta.html,

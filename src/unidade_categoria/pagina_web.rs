@@ -17,22 +17,21 @@ use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_con
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(super) enum ErroPaginaWeb {
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
     Caixa(ErroCaixa),
+    #[causa(interna)]
     Pagina(ErroPaginaDoControle),
+    #[causa(interna)]
     Visao(ErroVisaoDoControle),
 }
 
 impl ErroPaginaWeb {
     pub(super) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::Caixa(erro) => erro.subcodigo(),
-            Self::Pagina(erro) => erro.subcodigo(),
-            Self::Visao(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(super) fn mensagem(&self) -> &'static str {
@@ -78,10 +77,9 @@ pub(super) fn obter(
 ) -> Result<String, ErroPaginaWeb> {
     let indice = IndiceLocal::da_configuracao(arquivos);
     let sessao =
-        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(ErroPaginaWeb::Transporte)?;
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let colheita = Colheita::das_referencias(&indice, &sessao);
-    let tela = ler_tela_do_controle(&sessao).map_err(ErroPaginaWeb::Transporte)?;
+    let tela = ler_tela_do_controle(&sessao)?;
     colheita.colher(&tela.html, Some(&tela.mime));
     let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
         .is_ok_and(|contexto| contexto.eh_detalhada());
@@ -98,9 +96,9 @@ pub(super) fn obter(
             categoria,
             pagina,
             sessao.cookie(),
-            &mut EnvioColhendo {
+            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
                 colheita: &colheita,
-            },
+            }),
         )
         .map_err(ErroPaginaWeb::Visao);
     }
@@ -120,13 +118,11 @@ fn obter_da_tela(
     colheita: &Colheita<'_>,
 ) -> Result<String, ErroPaginaWeb> {
     // A tela de origem passa pelas mesmas recusas da leitura sem opção.
-    let leitura =
-        paginas::juntar(std::slice::from_ref(&tela.html), unidade).map_err(ErroPaginaWeb::Caixa)?;
+    let leitura = paginas::juntar(std::slice::from_ref(&tela.html), unidade)?;
     let unidade_da_tela = leitura.unidade.ok_or(ErroPaginaWeb::Caixa(
         ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle,
     ))?;
-    let plano = pagina_do_controle::planejar(&tela.html, categoria, numero)
-        .map_err(ErroPaginaWeb::Pagina)?;
+    let plano = pagina_do_controle::planejar(&tela.html, categoria, numero)?;
     if plano == PlanoDaPagina::JaExibida {
         return Ok(tela.html);
     }
@@ -146,8 +142,7 @@ fn obter_da_tela(
         numero,
         sessao.cookie(),
         enviar_post,
-    )
-    .map_err(ErroPaginaWeb::Pagina)?;
+    )?;
     if let Some(html) = &obtida {
         // O mesmo servidor e a mesma sessão: o charset da tela de origem.
         colheita.colher(html, Some(&tela.mime));

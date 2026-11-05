@@ -306,7 +306,7 @@ fn subcodigos_estaveis() {
         E::DestinosDoDocumentoMovidoRepetidos,
     ]
     .into_iter()
-    .map(E::subcodigo)
+    .map(|e| crate::erro_publico::folha(&e))
     .collect();
     assert_eq!(
         nomes,

@@ -223,7 +223,11 @@ def verificar(raiz, imprimir=print):
         if not emitidos:
             raise ValueError('nenhum subcódigo encontrado; verificar raiz e fontes')
         documentados = set()
-        documentos = [raiz / 'docs/erros-tipados.md', *sorted((raiz / 'contracts/cli').glob('*.md'))]
+        documentos = [
+            raiz / 'docs/erros-tipados.md',
+            *sorted((raiz / 'docs/erros-tipados').glob('*.md')),
+            *sorted((raiz / 'contracts/cli').glob('*.md')),
+        ]
         for arquivo in documentos:
             documentados.update(extrair_documentacao(arquivo.read_text(encoding='utf-8')))
         permitidos = carregar_allowlist((raiz / 'scripts/subcodigos_permitidos.json').read_text(encoding='utf-8'))

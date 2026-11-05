@@ -1,5 +1,6 @@
 //! Formulário `frmPesquisaProtocolo` observado offline nas instalações `unb` e `pen1`
 //! (cassettes `processo-busca-*`, interação GET 1), apenas nomes e estrutura.
+use super::filtros::{ErroFiltro, FiltrosDaPesquisa, derivar_campos};
 use super::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, UrlDeTrabalho, interpretar_redirecionamento,
 };
@@ -38,6 +39,10 @@ pub(crate) const CAMPOS_USUARIO_DA_PESQUISA: &[&str] = &[
     "chkSinDocumentosRecebidos",
     "selOrgaoPesquisa[]",
     "txtProtocoloPesquisa",
+    "selTipoProcedimentoPesquisa",
+    "selSeriePesquisa",
+    "txtDataInicio",
+    "txtDataFim",
 ];
 
 /// Respostas 200 reconhecidas: a tabela de resultado ou o aviso de que a
@@ -69,24 +74,21 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPesquisaProtocolo {
+    #[causa(interna)]
+    Filtro(ErroFiltro),
+    #[causa(interna)]
     RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    #[causa(interna)]
     Resposta(ErroRespostaDaPesquisa),
 }
 
 impl ErroPesquisaProtocolo {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::RegraDoFormulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Redirecionamento(erro) => erro.subcodigo(),
-            Self::Resposta(erro) => erro.subcodigo(),
-        }
-    }
-
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
             Self::Submissao(erro) => erro.status_http(),
@@ -110,6 +112,7 @@ pub(crate) fn derivar_pesquisa_de_protocolo(
 /// Deriva o POST da pesquisa por protocolo em `em`, sem rede. O rádio, as
 /// caixas e os órgãos vêm da tela servida pelas regras de
 /// `regras_formulario`; o chamador informa a unidade e o protocolo.
+#[cfg(test)]
 pub(crate) fn derivar_pesquisa_em(
     em: PesquisarEm,
     instalacao: &Instalacao,
@@ -118,7 +121,32 @@ pub(crate) fn derivar_pesquisa_em(
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let operacao = &PESQUISAR_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, None);
-    derivar_com(operacao, em, instalacao, tela, pedido)
+    derivar_com(
+        operacao,
+        em,
+        instalacao,
+        tela,
+        pedido,
+        FiltrosDaPesquisa::default(),
+    )
+}
+
+/// Os filtros integram o mesmo POST, sem GET adicional.
+pub(crate) fn derivar_pesquisa_em_filtrada(
+    em: PesquisarEm,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    pedido: (&str, &str),
+    filtros: FiltrosDaPesquisa<'_>,
+) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    derivar_com(
+        &PESQUISAR_PROTOCOLO,
+        em,
+        instalacao,
+        tela,
+        (pedido.0, pedido.1, None),
+        filtros,
+    )
 }
 
 /// Deriva o POST de `navegar(inicio)` em processos.
@@ -136,6 +164,7 @@ pub(crate) fn derivar_pagina_da_pesquisa(
 
 /// Deriva o POST de `navegar(inicio)` a partir da tela de resultado: mesmas
 /// regras do `onsubmit`, sem botão, com `hdnInicio = inicio`.
+#[cfg(test)]
 pub(crate) fn derivar_pagina_em(
     em: PesquisarEm,
     instalacao: &Instalacao,
@@ -146,7 +175,33 @@ pub(crate) fn derivar_pagina_em(
     let inicio = inicio.to_string();
     let operacao = &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO;
     let pedido = (unidade_solicitada, protocolo, Some(inicio.as_str()));
-    derivar_com(operacao, em, instalacao, tela, pedido)
+    derivar_com(
+        operacao,
+        em,
+        instalacao,
+        tela,
+        pedido,
+        FiltrosDaPesquisa::default(),
+    )
+}
+
+pub(crate) fn derivar_pagina_em_filtrada(
+    em: PesquisarEm,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    pedido: (&str, &str),
+    inicio: u64,
+    filtros: FiltrosDaPesquisa<'_>,
+) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
+    let inicio = inicio.to_string();
+    derivar_com(
+        &super::paginacao::PAGINAR_PESQUISA_DE_PROTOCOLO,
+        em,
+        instalacao,
+        tela,
+        (pedido.0, pedido.1, Some(inicio.as_str())),
+        filtros,
+    )
 }
 
 fn derivar_com(
@@ -155,6 +210,7 @@ fn derivar_com(
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
     (unidade_solicitada, protocolo, inicio): (&str, &str, Option<&str>),
+    filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     use ErroPesquisaProtocolo as E;
     let excessiva = || {
@@ -168,8 +224,8 @@ fn derivar_com(
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
     let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
-    let form = localizar_formulario(&dom, operacao.formulario).map_err(E::Submissao)?;
-    let regras = ler_regras_da_tela(form, dom.parser(), em).map_err(E::RegraDoFormulario)?;
+    let form = localizar_formulario(&dom, operacao.formulario)?;
+    let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
     if let Some(maxlength) = regras.maxlength_do_termo
@@ -187,6 +243,8 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
+    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)?;
+    campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras
             .orgaos_selecionados

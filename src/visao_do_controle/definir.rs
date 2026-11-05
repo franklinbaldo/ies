@@ -33,8 +33,8 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     cookie: &CookieDaSessao,
     envio: &mut V,
 ) -> Result<ColunasDefinidas, D> {
-    let encontrado = contexto(&tela.html).map_err(D::Leitura)?;
-    let unidade = unidade_da_tela(&encontrado, unidade_solicitada).map_err(D::Leitura)?;
+    let encontrado = contexto(&tela.html)?;
+    let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
@@ -48,7 +48,7 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     if !encontrado.eh_resumida() {
         return Err(D::Leitura(E::VisaoDoControleNaoReconhecida));
     }
-    let detalhada = trocar(&mut sessao, tela, Visao::Detalhada).map_err(D::Leitura)?;
+    let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     na_detalhada(&mut sessao, &detalhada, &pedido)
 }
 
@@ -64,8 +64,8 @@ fn na_detalhada<V: EnvioDoControle>(
     detalhada: &TelaAtual,
     pedido: &Pedido<'_>,
 ) -> Result<ColunasDefinidas, D> {
-    let url = link_do_nivel_de_detalhe(sessao.instalacao, detalhada).map_err(D::Leitura)?;
-    let servida = obter_tela_do_nivel(sessao, &url).map_err(D::Leitura)?;
+    let url = link_do_nivel_de_detalhe(sessao.instalacao, detalhada)?;
+    let servida = obter_tela_do_nivel(sessao, &url)?;
     let nivel =
         ler_nivel_de_detalhe(&servida.html).map_err(|erro| D::Leitura(E::NivelDeDetalhe(erro)))?;
     conferir_controles_do_formulario(&servida.html)
@@ -86,7 +86,7 @@ fn na_detalhada<V: EnvioDoControle>(
     if feito.plano.inalterado() {
         return Ok(feito);
     }
-    let submissao = derivar_salvar(sessao, &servida, &feito.plano).map_err(D::Leitura)?;
+    let submissao = derivar_salvar(sessao, &servida, &feito.plano)?;
     feito.campos_do_envio = Some(submissao.nomes_dos_campos().to_vec());
     if !pedido.confirmar {
         return Ok(feito);

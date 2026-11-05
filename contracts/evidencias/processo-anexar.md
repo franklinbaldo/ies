@@ -5,14 +5,14 @@ operation: processo.anexar
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 7
 unresolved_steps: 0
 ---
 
 # processo.anexar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB**, apenas prévia e recusa fail-closed da confirmação. Veja [contrato](../cli/processo-anexar.md) e [relatório live](../../docs/validacao-live/2026-11-05-processo-anexar-handoff.md): NOT_RUN, 0 requisições. O RED do primeiro commit teve oito falhas comprovadas pelo CI 42084762362; a escrita e o replay do acervo ainda não foram validados.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

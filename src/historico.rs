@@ -4,13 +4,17 @@ use crate::html_atributos::nos_com_id;
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
 /// Condições específicas do parser, independentes de mensagens.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroHistorico {
+    #[causa(nome = "html_do_historico_invalido")]
     HtmlInvalido,
     TituloAusente,
+    #[causa(nome = "titulos_do_historico_repetidos")]
     TitulosRepetidos,
+    #[causa(nome = "cabecalhos_html_do_historico_repetidos")]
     CabecalhosHtmlRepetidos,
     TituloInvalido,
+    #[causa(nome = "numero_do_historico_invalido")]
     NumeroInvalido,
     NumeroDoHistoricoDiferenteDoSolicitado,
     HistoricoAusente,
@@ -20,26 +24,7 @@ pub enum ErroHistorico {
     HistoricoVazio,
 }
 
-impl ErroHistorico {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "html_invalido",
-            Self::TituloAusente => "titulo_ausente",
-            Self::TitulosRepetidos => "titulos_do_historico_repetidos",
-            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_do_historico_repetidos",
-            Self::TituloInvalido => "titulo_invalido",
-            Self::NumeroInvalido => "numero_invalido",
-            Self::NumeroDoHistoricoDiferenteDoSolicitado => {
-                "numero_do_historico_diferente_do_solicitado"
-            }
-            Self::HistoricoAusente => "historico_ausente",
-            Self::TabelasDoHistoricoRepetidas => "tabelas_do_historico_repetidas",
-            Self::HistoricoInvalido => "historico_invalido",
-            Self::LinhaInvalida => "linha_invalida",
-            Self::HistoricoVazio => "historico_vazio",
-        }
-    }
-}
+impl ErroHistorico {}
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     let valor = no.inner_text(parser);
@@ -242,7 +227,10 @@ mod tests {
         );
         let erro = ler_historico(&html, numero).unwrap_err();
         assert_eq!(erro, ErroHistorico::TabelasDoHistoricoRepetidas);
-        assert_eq!(erro.subcodigo(), "tabelas_do_historico_repetidas");
+        assert_eq!(
+            crate::erro_publico::folha(&erro),
+            "tabelas_do_historico_repetidas"
+        );
     }
 
     #[test]

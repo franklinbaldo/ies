@@ -26,36 +26,8 @@ pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
 use std::io::Read;
 
-/// Estado de sessão que uma operação pode alterar, mesmo quando consulta.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EstadoDeSessao {
-    PaginaOuFiltroLembrado,
-    UnidadeAtual,
-    PreferenciaDeVisualizacao,
-    /// O login cria a sessão autenticada (cookies) no servidor.
-    SessaoAutenticada,
-}
-
-/// Preferência persistente do usuário, que sobrevive à sessão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PreferenciaDoUsuario {
-    /// Colunas da visão detalhada (Nível de detalhe).
-    ColunasDaVisaoDetalhada,
-}
-
-/// Estado do processo no SEI que uma escrita altera.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EstadoDoProcesso {
-    /// O andamento aberto na unidade da sessão (concluir fecha).
-    AndamentoAbertoNaUnidade,
-    /// A assinatura do usuário no documento (não se desfaz).
-    AssinaturaDoDocumento,
-    /// Inclusão de documento interno no processo, verificada por releitura da árvore.
-    DocumentoCriadoNoProcesso,
-    /// As unidades com o processo aberto (enviar abre no destino e, sem
-    /// "manter aberto", fecha na da sessão).
-    UnidadesComOProcessoAberto,
-}
+mod estado;
+pub(crate) use estado::{EstadoDeSessao, EstadoDoProcesso, PreferenciaDoUsuario};
 
 /// Avaliação obrigatória por operação, sem valor padrão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -216,7 +188,7 @@ fn conferir_unidade(dom: &tl::VDom<'_>, solicitada: &str) -> Result<(), ErroSubm
     use ErroSubmissaoFormulario as E;
     // Tag ilegível sai com o erro do tokenizador; depois disso `unidade_html`
     // só falha por identificações repetidas fora do par móvel/desktop.
-    nos_com_id(dom, "lnkInfraUnidade").map_err(E::AtributoHtml)?;
+    nos_com_id(dom, "lnkInfraUnidade")?;
     let publicada = crate::controle_contexto::unidade_html(dom)
         .map_err(|_| E::IdentificacoesDaUnidadeRepetidasNaTela)?
         .ok_or(E::IdentificacaoDaUnidadeAusenteNaTela)?;
@@ -354,10 +326,7 @@ pub(crate) fn derivar_submissao(
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
         ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
-            if !nos_com_id(&dom, "lnkInfraUnidade")
-                .map_err(E::AtributoHtml)?
-                .is_empty()
-            {
+            if !nos_com_id(&dom, "lnkInfraUnidade")?.is_empty() {
                 conferir_unidade(&dom, unidade_solicitada)?;
             }
         }
@@ -443,13 +412,13 @@ where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
     use ErroSubmissaoFormulario as E;
-    let cookie = cookie.valor().map_err(E::Transporte)?;
+    let cookie = cookie.valor()?;
     let resultado = submissao.resultado;
     let url_do_envio = submissao.url.clone();
     let RespostaDoPost {
         resposta,
         localizacao,
-    } = enviar(submissao, cookie).map_err(E::Transporte)?;
+    } = enviar(submissao, cookie)?;
     if resposta.status_code == 302 {
         // Corpo descartado sem leitura; a operação decide o que o 302 significa.
         return Ok(RespostaDoEnvio::Redirecionamento(Redirecionamento302 {
@@ -478,9 +447,7 @@ where
         let dom = tl::parse(&html, tl::ParserOptions::default())
             .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
         for MarcadorDeResultado { elemento, classe } in marcadores {
-            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)
-                .map_err(E::AtributoHtml)?
-                .is_empty();
+            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)?.is_empty();
         }
     }
     if !marcado {

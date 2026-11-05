@@ -22,6 +22,7 @@ Versões, `--saida` e HTML privado estão descritos abaixo.
 - `DOC [DOC ...]`: um ou mais números de documento.
 - `--processo NUP`: contexto opcional, quando informado.
 - `--versao N`: lê a versão N pela lista que a barra do documento publica ([contrato de versões](documento-obter-versoes.md), Refs #88). Não implica listagem pública.
+- `--sem-cache`: desativa o cache gerenciado de cada documento lido; `IES_CACHE_DOCUMENTOS=0` tem o mesmo efeito. A saída opcional segue independente.
 - `--saida DIR`: grava a foto `DOC.vN.html` de cada interno (o HTML
   servido da versão lida, idempotente) e o arquivo original do externo
   ([versões e foto](documento-obter-versoes.md), #207). `--sem-copia`

@@ -159,13 +159,13 @@ PEN4 e GO lembram a D; a UnB 4.0.9 volta à R no GET seguinte), e
    `visao_do_controle_nao_reconhecida`.
 2. **R:** lê as tabelas R (mesmas recusas da caixa, unidade obrigatória).
    `--pagina N` com N maior que `max(1, recebidos + gerados)` declarados é
-   `pagina_fora_do_intervalo` **sem POST** (limite seguro: o tamanho da
+   `pagina_da_caixa_fora_do_intervalo` **sem POST** (limite seguro: o tamanho da
    página da D só é conhecido depois de vê-la). **POST D** derivado de
    `frmProcedimentoControlar`, como `trocarVisualizacao('D')`: só
    `hdnTipoVisualizacao` muda. A resposta precisa ser D, da mesma unidade.
 3. A D mostra a **sua** página lembrada (independente das páginas da R).
    Tamanho e número de páginas vêm de `hdnDetalhadoPaginaAtual` e da faixa,
-   como em `--pagina N` da R. N fora do intervalo: `pagina_fora_do_intervalo`
+   como em `--pagina N` da R. N fora do intervalo: `pagina_da_caixa_fora_do_intervalo`
    antes do POST de página (vindo da R, já depois do POST D; a sessão fica
    na D). D sem `hdnDetalhadoPaginaAtual` (UnB 4.0.9, sem paginação) só
    aceita a página 1, e só se a faixa cobre o total.

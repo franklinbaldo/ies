@@ -72,6 +72,11 @@ impl Default for LimiteDoAnexo {
 pub(crate) enum DestinoDoAnexo<'a> {
     SoMetadados,
     Diretorio(&'a Path),
+    /// Diretório do cache, no qual um parcial será ligado pelo SHA-256.
+    Cache {
+        diretorio: &'a Path,
+        host: &'a str,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,44 +134,44 @@ impl ArquivoParcial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAnexo {
     /// Status, rede, limite de `chunked`, charset.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// HTML 200 que é a tela de login.
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     TelaDeLogin,
+    #[causa(nome = "anexo_sem_tipo_de_conteudo")]
     SemTipoDeConteudo,
+    #[causa(nome = "tipo_de_anexo_nao_permitido")]
     TipoNaoPermitido,
+    #[causa(nome = "cabecalho_do_anexo_repetido")]
     CabecalhoRepetido,
+    #[causa(nome = "disposicao_do_anexo_fora_da_forma_observada")]
     DisposicaoForaDaFormaObservada,
+    #[causa(nome = "anexo_acima_do_limite")]
     AcimaDoLimite,
+    #[causa(nome = "anexo_vazio")]
     Vazio,
+    ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
+    #[causa(nome = "anexo_recusado_pelo_sei")]
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
+    #[causa(interna)]
     Corpo(ErroCorpoDocumento),
+    #[causa(nome = "diretorio_do_anexo_ausente")]
     DiretorioAusente,
+    #[causa(nome = "arquivo_do_anexo_ja_existe")]
     ArquivoJaExiste,
+    #[causa(nome = "escrita_do_anexo_falhou")]
     EscritaFalhou,
 }
 
 impl ErroAnexo {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::TelaDeLogin => "sessao_encerrada_rode_ies_login",
-            Self::SemTipoDeConteudo => "anexo_sem_tipo_de_conteudo",
-            Self::TipoNaoPermitido => "tipo_de_anexo_nao_permitido",
-            Self::CabecalhoRepetido => "cabecalho_do_anexo_repetido",
-            Self::DisposicaoForaDaFormaObservada => "disposicao_do_anexo_fora_da_forma_observada",
-            Self::AcimaDoLimite => "anexo_acima_do_limite",
-            Self::Vazio => "anexo_vazio",
-            Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::DiretorioAusente => "diretorio_do_anexo_ausente",
-            Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
-            Self::EscritaFalhou => "escrita_do_anexo_falhou",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -181,6 +186,7 @@ impl ErroAnexo {
             }
             Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
             Self::Vazio => "o anexo veio vazio",
+            Self::ConteudoComLinkAssinado => "o anexo contém credencial de link assinado",
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
             Self::DiretorioAusente => "o diretório de --saida não existe",
@@ -225,11 +231,16 @@ pub(crate) fn ler_anexo<R: Read>(
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados => None,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
+        DestinoDoAnexo::Cache { diretorio, .. } => {
+            Some(abrir_parcial_cache(diretorio, numero, &conferido)?)
+        }
     };
     let texto = cabecalhos::e_texto(&conferido.mime);
     let mut guardado = Vec::new();
     let mut hasher = Sha256::new();
     let mut tamanho = 0u64;
+    // O token não pode chegar ao cache, mesmo se cruzar dois blocos.
+    let mut token_lido = 0usize;
     let mut leitor = corpo.take(conferido.limite.saturating_add(1));
     let mut bloco = vec![0u8; BLOCO];
     loop {
@@ -248,6 +259,7 @@ pub(crate) fn ler_anexo<R: Read>(
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
         }
+        conferir_token(&bloco[..lido], &mut token_lido)?;
         hasher.update(&bloco[..lido]);
         if let Some(aberto) = &mut arquivo {
             aberto
@@ -276,6 +288,8 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
+    let hash = crate::hex::hex_minusculo(&hasher.finalize());
+    publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
             &conferido.mime,
@@ -288,12 +302,55 @@ pub(crate) fn ler_anexo<R: Read>(
     Ok(AnexoLido {
         mime: conferido.mime,
         tamanho,
-        sha256: crate::hex::hex_minusculo(&hasher.finalize()),
+        sha256: hash,
         nome_original: conferido.nome_original,
         disposicao: conferido.disposicao,
         texto,
         arquivo,
     })
+}
+
+fn conferir_token(bytes: &[u8], lidos: &mut usize) -> Result<(), ErroAnexo> {
+    const TOKEN: &[u8] = b"infra_hash";
+    for &byte in bytes {
+        if byte == TOKEN[*lidos] {
+            *lidos += 1;
+        } else {
+            *lidos = usize::from(byte == TOKEN[0]);
+        }
+        if *lidos == TOKEN.len() {
+            return Err(ErroAnexo::ConteudoComLinkAssinado);
+        }
+    }
+    Ok(())
+}
+
+/// Liga o parcial binário ao nome content-addressed; o Drop remove o
+/// temporário tanto em sucesso quanto em erro.
+fn publicar_cache(
+    arquivo: &mut Option<ArquivoParcial>,
+    destino: DestinoDoAnexo<'_>,
+    numero: &str,
+    hash: &str,
+    extensao: &str,
+) -> Result<(), ErroAnexo> {
+    if let DestinoDoAnexo::Cache { diretorio, host } = destino {
+        let parcial = arquivo.take().ok_or(ErroAnexo::EscritaFalhou)?;
+        let raiz = diretorio
+            .ancestors()
+            .nth(3)
+            .ok_or(ErroAnexo::EscritaFalhou)?;
+        crate::cache_documento::publicar_parcial(
+            parcial.parcial.temporario(),
+            raiz,
+            host,
+            numero,
+            hash,
+            extensao,
+        )
+        .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    }
+    Ok(())
 }
 
 /// Bloco de leitura e gravação.
@@ -384,6 +441,24 @@ fn abrir_parcial(
         | F::EscritaFalhou
         | F::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;
+    Ok(ArquivoParcial { parcial, nome })
+}
+
+fn abrir_parcial_cache(
+    dir: &Path,
+    numero: &str,
+    conferido: &Conferido,
+) -> Result<ArquivoParcial, ErroAnexo> {
+    use crate::arquivo_privado::{Parcial, Politica};
+    let nome = format!("{numero}.cache.{}", conferido.extensao);
+    let parcial = Parcial::abrir(
+        &dir.join(&nome),
+        Politica::exclusiva()
+            .diretorio_do_ies()
+            .criando_diretorios()
+            .com_limite(conferido.limite),
+    )
+    .map_err(|_| ErroAnexo::EscritaFalhou)?;
     Ok(ArquivoParcial { parcial, nome })
 }
 
