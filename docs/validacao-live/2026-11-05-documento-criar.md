@@ -28,3 +28,12 @@ formulário avaliados, e depois testar em treinamento obedecendo ao
 orçamento e intervalos da issue. A escrita em treinamento exige a
 frase literal **escrita autorizada** escrita pelo proprietário na
 issue #246; sem isso, permanece NOT_RUN.
+
+## Handoff WIP — sessão de 05/11
+
+- PR Draft #248, branch `codex/246-documento-criar`: CLI, extração do link de inclusão, prévia e leitores tipados publicados em commits da própria PR.
+- Testes novos: **3 cenários CLI**, **2 de cadastro/seleção**, **2 de barra assinada** (mais os existentes). Testes adicionados antes do código, porém **RED local NOT_RUN**: não há `cargo`/`rustc` e o sandbox não resolve `github.com`.
+- **CI do novo head: NOT_RUN** até a última consulta. O último CI verde é do head antigo `be643696`, não valida esta fatia. Sem execução local, a compilação e os gates do novo código **não estão comprovados**.
+- **Live prévia: NOT_RUN**, 0 requisições enviadas ao SEI nesta execução. **Live escrita: NOT_RUN**, 0 escritas, sem autorização.
+- **Pendente**: obter GREEN (rustfmt/Clippy/testes/OKF/subcódigos), replay do acervo, ensaio de prévia em treinamento, navegação para instalações que só publicam `escolher(id)`, campos obrigatórios/hipóteses legais, POST único de criação e releitura de confirmação. Nenhuma dessas etapas deve ser considerada entregue.
+- **Próxima sessão**: executar gates do branch e corrigir falhas; manter a confirmação desabilitada até derivação, testes e autorização ao vivo. Não repetir POST nem acessar produção.
