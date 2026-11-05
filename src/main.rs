@@ -5,6 +5,7 @@ mod arquivo_texto_documento;
 mod arvore_processo;
 mod caixa;
 mod caixa_detalhada;
+#[cfg(test)]
 mod cassette;
 mod classe_link_processo;
 mod colheita_do_controle;
@@ -29,12 +30,10 @@ mod dominio;
 mod entidades_html;
 mod erro_web;
 mod esquema_cli;
-mod filtro_andamentos;
 #[allow(dead_code)] // Primitivo offline; nenhum comando envia POST nesta fatia.
 mod formulario_web;
 mod hex;
 mod historico;
-mod historico_cli;
 mod historico_processo;
 mod html_atributos;
 #[allow(dead_code)] // Índice local (ADR 0003); a integração vem depois.
@@ -60,14 +59,6 @@ mod processo_reabrir;
 mod processo_reabrir_cli;
 mod propriedades_processo;
 mod relogin_cli;
-mod replay_args;
-mod replay_busca_documento;
-mod replay_cli;
-mod replay_consulta;
-mod replay_documento_cli;
-mod replay_pesquisa_cli;
-mod replay_versoes_cli;
-mod resumo_processo;
 mod rodape_do_documento;
 mod saida;
 mod saida_erro;
@@ -88,7 +79,6 @@ mod unidade_trocar_cli;
 mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
-use replay_args::Replay;
 use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -114,8 +104,6 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
-    /// Reproduz evidências históricas sem acesso ao SEI
-    Replay(Replay),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -355,18 +343,6 @@ struct SetupArgs {
     origem: PathBuf,
 }
 
-fn erro_lista(json_mode: bool, codigo: &str, mensagem: &str, exit: u8) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({"codigo": codigo, "erro": mensagem, "retentavel": false})
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(exit)
-}
-
 fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
 }
@@ -420,9 +396,6 @@ fn run(cli: &Cli) -> ExitCode {
         return status;
     }
     match &cli.command {
-        Domain::Replay(replay) => {
-            return replay_cli::executar_replay(replay, cli.unidade.as_deref(), cli.json);
-        }
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {

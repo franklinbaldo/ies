@@ -242,7 +242,9 @@ fn busca_documento_permanece_subcomando_sem_assunto() {
 }
 
 #[test]
-fn replay_falha_sem_acervo_e_nao_executa_o_sei() {
+fn replay_nao_e_mais_subcomando_da_cli() {
+    // O replay de cassettes saiu da CLI pública: é a suíte de testes do
+    // acervo (`scripts/replay`). O subcomando é erro de uso, sem ler nada.
     let output = ies(&[
         "replay",
         "processo-andamento-go",
@@ -250,9 +252,10 @@ fn replay_falha_sem_acervo_e_nao_executa_o_sei() {
         "inexistente",
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "acervo_ausente");
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+    let ajuda = ies(&["--help"]);
+    assert!(!String::from_utf8_lossy(&ajuda.stdout).contains("replay"));
 }
 
 #[test]

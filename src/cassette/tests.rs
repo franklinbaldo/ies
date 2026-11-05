@@ -1,157 +1,123 @@
-use super::*;
-use base64::Engine as _;
+//! Conferência das cassettes com um acervo SINTÉTICO (ZIP e card gerados no
+//! teste). Portado de `tests/replay_unidade.rs` (`hash_adulterado_é_recusado`),
+//! que conferia o mesmo pelo antigo `ies replay`.
+use super::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use sha1::{Digest as _, Sha1};
+use sha2::Sha256;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
 
-#[test]
-fn historia_e_escolhida_pela_operacao_e_nao_pelo_nome() {
-    let json = serde_json::json!({"interactions": [
-        {"request": {"operation": "procedimento_controlar", "method": "GET"}},
-        {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
-    ]});
-    assert_eq!(
-        operation_for_replay(&json, &[]),
-        Ok("procedimento_consultar_historico")
-    );
-    assert_eq!(
-        operation_for_replay(&json, &[0]),
-        Ok("procedimento_controlar")
-    );
+const LIMITE: u64 = 30_000_000;
+const HTML: &str = "<html><body><a id=\"lnkInfraUnidade\">TESTE</a></body></html>";
+
+struct Acervo {
+    pasta: PathBuf,
+    card: PathBuf,
+    zip: PathBuf,
 }
 
-#[test]
-fn caixa_e_padrao_quando_nao_ha_historico() {
-    let json = serde_json::json!({"interactions": [
-        {"request": {"operation": "procedimento_controlar", "method": "GET"}}
-    ]});
-    assert_eq!(
-        operation_for_replay(&json, &[]),
-        Ok("procedimento_controlar")
-    );
-}
-#[test]
-fn seleciona_get_e_post_de_uma_unica_sequencia_do_controle() {
-    let dados = serde_json::json!({"interactions": [
-        {"request":{"operation":"procedimento_controlar","method":"GET"}},
-        {"request":{"operation":"procedimento_controlar","method":"POST"}}
-    ]});
-    assert_eq!(passos_de_todas_as_paginas(&dados), Ok(vec![0, 1]));
-}
-
-#[test]
-fn recusa_intercalacao_de_outra_operacao_sem_agregar_caixas() {
-    let dados = serde_json::json!({"interactions": [
-        {"request":{"operation":"procedimento_controlar","method":"GET"}},
-        {"request":{"operation":"documento_imprimir_web","method":"GET"}},
-        {"request":{"operation":"procedimento_controlar","method":"POST"}}
-    ]});
-    assert_eq!(
-        passos_de_todas_as_paginas(&dados),
-        Err(ErroPaginasAutomaticas::PaginasDeBlocosDiferentes)
-    );
-}
-
-#[test]
-fn recusa_controle_sem_get_inicial() {
-    let dados = serde_json::json!({"interactions": [
-        {"request":{"operation":"procedimento_controlar","method":"POST"}}
-    ]});
-    assert_eq!(
-        passos_de_todas_as_paginas(&dados),
-        Err(ErroPaginasAutomaticas::PrimeiraPaginaNaoEGet)
-    );
-}
-
-#[test]
-fn passo_explicito_de_historico_escolhe_a_operacao_observada() {
-    let json = serde_json::json!({"interactions": [
-        {"request": {"operation": "procedimento_controlar", "method": "GET"}},
-        {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}}
-    ]});
-    assert_eq!(
-        operation_for_replay(&json, &[1]),
-        Ok("procedimento_consultar_historico")
-    );
-    assert_eq!(
-        operation_for_replay(&json, &[0]),
-        Ok("procedimento_controlar")
-    );
-    assert_eq!(
-        operation_for_replay(&json, &[0, 1]),
-        Err(ErroSelecaoOperacao::PassosComOperacoesDiferentes)
-    );
-}
-
-#[test]
-fn passo_inexistente_falha_com_erro_tipado() {
-    let json = serde_json::json!({"interactions": [
-        {"request": {"operation": "procedimento_controlar", "method": "GET"}}
-    ]});
-    assert_eq!(
-        operation_for_replay(&json, &[7]),
-        Err(ErroSelecaoOperacao::PassoNaoEncontrado { indice: 7 })
-    );
-}
-
-#[test]
-fn replay_nao_mistura_multiplos_historicos_nem_aceita_acao_aleatoria() {
-    let json = serde_json::json!({"interactions": [
-        {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
-        {"request": {"operation": "procedimento_consultar_historico", "method": "GET"}},
-        {"request": {"operation": "documento_assinar", "method": "POST"}}
-    ]});
-    assert_eq!(
-        operation_for_replay(&json, &[0, 1]),
-        Err(ErroSelecaoOperacao::HistoricoComVariasRespostas)
-    );
-    assert_eq!(
-        operation_for_replay(&json, &[2]),
-        Err(ErroSelecaoOperacao::OperacaoDoPassoNaoSuportada { indice: 2 })
-    );
-}
-
-#[test]
-fn selecao_pesquisa_exige_post_200_sem_reinterpretar_get() {
-    let corpo = base64::engine::general_purpose::STANDARD
-        .encode(b"<table class='pesquisaResultado'></table>");
-    let payload = serde_json::json!({"interactions":[
-        {"request":{"operation":"protocolo_pesquisar","method":"GET"},
-         "response":{"status_code":200,"headers":{"content-type":"text/html"},"body_base64":corpo,"encoding":"utf-8"}},
-        {"request":{"operation":"protocolo_pesquisar","method":"POST"},
-         "response":{"status_code":200,"headers":{"content-type":"text/html"},"body_base64":corpo,"encoding":"utf-8"}}
-    ]});
-    assert!(selected_html_pages(&payload, &[0], "protocolo_pesquisar", false, false).is_err());
-    assert_eq!(
-        selected_html_pages(&payload, &[1], "protocolo_pesquisar", false, false)
-            .unwrap()
-            .len(),
-        1
-    );
-}
-
-#[test]
-fn resposta_de_pesquisa_exige_post_200_e_operacao_exata() {
-    use base64::Engine as _;
-    let html = "<table class='pesquisaResultado'></table>";
-    let corpo = base64::engine::general_purpose::STANDARD.encode(html);
-    let resposta = serde_json::json!({"interactions":[{
-        "request":{"operation":"protocolo_pesquisar","method":"POST"},
-        "response":{"status_code":200,"headers":{"content-type":"text/html; charset=utf-8"},"body_base64":corpo,"encoding":"utf-8"}
-    }]});
-    assert_eq!(
-        selected_html_pages(&resposta, &[0], "protocolo_pesquisar", false, false),
-        Ok(vec![html.to_owned()])
-    );
-    for (metodo, status, operacao) in [
-        ("GET", 200, "protocolo_pesquisar"),
-        ("POST", 403, "protocolo_pesquisar"),
-        ("POST", 200, "procedimento_controlar"),
-    ] {
-        let mut alterado = resposta.clone();
-        alterado["interactions"][0]["request"]["method"] = metodo.into();
-        alterado["interactions"][0]["request"]["operation"] = operacao.into();
-        alterado["interactions"][0]["response"]["status_code"] = status.into();
-        assert!(
-            selected_html_pages(&alterado, &[0], "protocolo_pesquisar", false, false).is_err(),
-            "metodo={metodo}, status={status}, operacao={operacao}"
-        );
+impl Drop for Acervo {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.pasta);
     }
+}
+
+fn acervo(nome: &str, sei_root: &str) -> Acervo {
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-cassette-{nome}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&pasta).unwrap();
+    let membro = "controle-unb.json";
+    let json = serde_json::json!({
+        "complete": true, "schema_version": 1, "sei_root": sei_root,
+        "interactions": [{
+            "request": {"method": "GET", "operation": "procedimento_controlar"},
+            "response": {
+                "status_code": 200, "encoding": "utf-8",
+                "headers": {"content-type": "text/html; charset=utf-8"},
+                "body_base64": STANDARD.encode(HTML)
+            }
+        }]
+    })
+    .to_string();
+    let zip = pasta.join("todos-sei-cassettes-unb.zip");
+    let mut escritor = zip::ZipWriter::new(std::fs::File::create(&zip).unwrap());
+    escritor
+        .start_file(membro, zip::write::SimpleFileOptions::default())
+        .unwrap();
+    escritor.write_all(json.as_bytes()).unwrap();
+    escritor.finish().unwrap();
+    let card = pasta.join("controle--synthetic.md");
+    std::fs::write(
+        &card,
+        format!(
+            "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: {membro}\narchive_sha1: {}\ncassette_sha256_lf: {}\n---\n",
+            crate::hex::hex_minusculo(&Sha1::digest(std::fs::read(&zip).unwrap())),
+            crate::hex::hex_minusculo(&Sha256::digest(json.as_bytes())),
+        ),
+    )
+    .unwrap();
+    Acervo { pasta, card, zip }
+}
+
+fn conferir(card: &Path, zip: &Path) -> Result<super::conferencia::CassetteConferida, String> {
+    conferir_cassette_ate(card, &ZipDoAcervo::ler(zip)?, LIMITE)
+}
+
+fn adulterar(card: &Path, campo: &str) {
+    let texto = std::fs::read_to_string(card).unwrap();
+    let linha = texto
+        .lines()
+        .find(|l| l.starts_with(&format!("{campo}: ")))
+        .unwrap();
+    let valor = &linha[campo.len() + 2..];
+    let outro: String = valor
+        .chars()
+        .map(|c| if c == '0' { '1' } else { '0' })
+        .collect();
+    std::fs::write(card, texto.replace(linha, &format!("{campo}: {outro}"))).unwrap();
+}
+
+#[test]
+fn cassette_integra_e_conferida_e_o_html_e_lido() {
+    let a = acervo("integra", "https://sei.treinamento.unb.br/");
+    let conferida = conferir(&a.card, &a.zip).unwrap();
+    assert_eq!(conferida.instalacao, "unb");
+    let html = html_da_resposta(&conferida.json["interactions"][0]).unwrap();
+    assert_eq!(html, HTML);
+    assert_eq!(
+        archive_filename(&a.card).unwrap(),
+        "todos-sei-cassettes-unb.zip"
+    );
+}
+
+#[test]
+fn hash_adulterado_do_zip_ou_da_cassette_e_recusado() {
+    let a = acervo("sha1", "https://sei.treinamento.unb.br/");
+    adulterar(&a.card, "archive_sha1");
+    assert_eq!(
+        conferir(&a.card, &a.zip).err().as_deref(),
+        Some("SHA-1 do ZIP não confere")
+    );
+    let b = acervo("sha256", "https://sei.treinamento.unb.br/");
+    adulterar(&b.card, "cassette_sha256_lf");
+    assert_eq!(
+        conferir(&b.card, &b.zip).err().as_deref(),
+        Some("SHA-256 da cassette não confere")
+    );
+}
+
+#[test]
+fn host_fora_da_instalacao_do_card_e_recusado() {
+    let a = acervo("host", "https://sei.adulterado.tld/");
+    assert_eq!(
+        conferir(&a.card, &a.zip).err().as_deref(),
+        Some("host da cassette não corresponde à instalação")
+    );
 }

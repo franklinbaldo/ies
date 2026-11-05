@@ -54,8 +54,8 @@ Nunca usar instalação de produção como substituta.
 
 ## Handoff das cassettes
 
-O [roteiro offline](../scripts/validar-cassettes.sh) executa cenários existentes
-e verificados, isoladamente e em paralelo, **sem rede** pelo IES. Deve-se
+O [replay do acervo](../scripts/replay) passa os cenários existentes e
+verificados pelos leitores do IES, um teste por vez, **sem rede**. Deve-se
 preparar os ZIPs previamente, de acordo com cada card OKF. O script não
 grava cassette nem publica no Internet Archive. O [roteiro de coleta privada](coleta-privada.md) prepara a execução delegada
 por um coletor autorizado, sem publicar os dados brutos. O executor externo, com

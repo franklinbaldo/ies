@@ -1,8 +1,8 @@
 //! Apresentação da leitura: JSON v2 e formato humano são projeções,
 //! não campos persistidos em Caixa, Tabela ou Processo. Recebidos e
 //! Gerados são listas independentes, publicadas na mesma forma.
-use crate::dominio::{Categoria, Processo, Tabela};
-use crate::paginas::{Cobertura, Leitura};
+use crate::dominio::Categoria;
+use crate::paginas::Leitura;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -55,33 +55,14 @@ pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem
     })
 }
 
-/// A caixa resumida: o array `[recebidos, gerados]`, nessa ordem.
+/// A caixa resumida: o array `[recebidos, gerados]`, nessa ordem. Só os
+/// testes a usam, como oráculo do golden `tests/fixtures/caixa-v2.json`.
+#[cfg(test)]
 pub fn json(leitura: &Leitura, origem: &str) -> Value {
     Value::Array(vec![
         lista_da_categoria(leitura, Categoria::Recebidos, origem),
         lista_da_categoria(leitura, Categoria::Gerados, origem),
     ])
-}
-
-fn linha_humana(nome: &str, tabela: &Tabela<Processo>, cobertura: &Cobertura) -> String {
-    let total = tabela
-        .total_declarado
-        .map_or_else(|| "desconhecido".to_owned(), |n| n.to_string());
-    let faixa = cobertura
-        .faixa_observada()
-        .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
-    format!(
-        "{nome}: {} processo(s) observado(s); total declarado pelo SEI: {total}; faixa observada: {faixa}",
-        tabela.processos.len()
-    )
-}
-
-pub fn humano(leitura: &Leitura) -> String {
-    format!(
-        "{}\n{}",
-        linha_humana("recebidos", &leitura.caixa.recebidos, &leitura.recebidos),
-        linha_humana("gerados", &leitura.caixa.gerados, &leitura.gerados)
-    )
 }
 
 #[cfg(test)]
@@ -150,18 +131,8 @@ mod tests {
             lista_da_categoria(&leitura, crate::dominio::Categoria::Recebidos, "web")
         );
     }
-
-    #[test]
-    fn humano_informa_faixa_observada_e_total() {
-        let html = "<table id='tblProcessosRecebidos'><caption>(5 registros - 1 a 1):</caption>\
-                    <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = juntar(&[html.into()], None).unwrap();
-        let texto = humano(&leitura);
-        assert!(
-            texto.contains("total declarado pelo SEI: 5; faixa observada: 1 a 1"),
-            "{texto}"
-        );
-        assert!(texto.contains("gerados: 0 processo(s) observado(s); total declarado pelo SEI: 0; faixa observada: nenhuma"), "{texto}");
-    }
 }
+
+#[cfg(test)]
+#[path = "saida/tests_golden.rs"]
+mod tests_golden;

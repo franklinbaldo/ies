@@ -37,7 +37,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
         return Err(F::Transporte(FalhaTransporte::RespostaExcessiva));
     }
     let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES).map_err(F::Transporte)?;
-    let texto = crate::cassette::decode_http_body(&bytes, &resposta.mime)
+    let texto = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
         .map_err(|_| F::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))?;
     itens_do_autocompletar(&texto)
 }

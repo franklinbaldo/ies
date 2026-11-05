@@ -198,6 +198,7 @@ pub struct Cobertura {
 impl Cobertura {
     // Comprova somente a cobertura das posições declaradas, sem snapshot
     // transacional; a caixa pode mudar entre requisições.
+    #[cfg(test)]
     pub fn completa(&self, tabela: &Tabela<Processo>) -> bool {
         if !self.confirmada {
             return false;

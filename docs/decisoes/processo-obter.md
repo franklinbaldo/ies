@@ -112,7 +112,7 @@ processos de GO veio inteira até 75 linhas, sem paginador; a ablação na
 UnB mostrou que `hdnInfraNroItens` e `hdnInfraPaginaAtual` não paginam o
 histórico. Duas árvores de GO não publicaram o link: isso sai como
 `andamentos: null` com motivo, não como falha. O leitor de linhas do
-histórico (`src/historico.rs`, o de `ies replay`) leu as páginas reais sem
+histórico (`src/historico.rs`, o do antigo `ies replay`) leu as páginas reais sem
 mudança.
 
 **Orçamento.** Padrão +1 GET; `--andamentos-completos` +1 GET +1 POST

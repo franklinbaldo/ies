@@ -29,8 +29,8 @@ todas, e onde recusam.
   `src/processo_obter/acervo/`, com acesso aos leitores `pub(crate)`. O
   teste `replay_do_acervo_inteiro` é `#[ignore]`: lê os ZIPs do cache
   local (`IES_ACERVO_CACHE`, padrão `~/.cache/ies`), confere cada card
-  (SHA-1 do ZIP, SHA-256 do membro, schema, host) pela mesma conferência
-  do `ies replay` e escreve o relatório em `IES_ACERVO_SAIDA`. O CI roda só
+  (SHA-1 do ZIP, SHA-256 do membro, schema, host) pela conferência
+  `cassette::conferencia` (a do antigo `ies replay`) e escreve o relatório em `IES_ACERVO_SAIDA`. O CI roda só
   os testes sintéticos da classificação.
 - **subcomando-oculto-de-replay**: `ies replay acervo`. Rejeitada:
   superfície de CLI nova (mesmo oculta, entra no contrato e no esquema)
@@ -74,8 +74,8 @@ sairia `null`.
 O relatório guarda só contagens, formas e `cassette#passo`; nenhuma URL,
 cookie ou `infra_hash`. A conferência da cassette foi extraída para
 `cassette::conferencia` (um SHA-1 por ZIP, reaproveitado entre cards);
-o teto do JSON do `ies replay` segue 30 MB, e o replay do acervo usa
-120 MB para ler as cassettes grandes de pastas.
+o replay do acervo usa 120 MB para ler as cassettes grandes de pastas (o
+teto de 30 MB do `ies replay` saiu com ele em 05/11/2026: [replay fora da CLI](../acervo/replay-fora-da-cli.md)).
 
 ## Evidências verificáveis
 

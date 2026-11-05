@@ -40,7 +40,7 @@ a solicitação explícita, falhar com erro específico.
 - [Contrato](../../contracts/cli/unidade-atual.md)
 - [Evidência derivada](../../contracts/evidencias/unidade-atual.md)
 - [Testes da CLI](../../tests/cli_contract.rs)
-- [Parser da caixa](../../tests/replay_unidade.rs)
+- [Parser da caixa](../../src/paginas/tests.rs)
 - [Ensaio live de 02/11/2026](../validacao-live/2026-11-02-leitura-controle.md):
   PASS em UnB, UFRJ, PEN1, PEN3, PEN4 e GO (na 2ª execução); PEN2 503.
 

@@ -53,6 +53,36 @@ print(len(cassette['interactions']), 'interações registradas')
 PY
 ```
 
+## Replay do acervo
+
+Não há `ies replay`. O replay das cassettes é a suíte de testes
+`#[ignore]` dos módulos `*::acervo*` do crate: cada teste confere os cards
+(SHA-1 do ZIP, SHA-256 do membro, schema, host) e passa as respostas
+gravadas pelos **mesmos leitores** de um comando, offline, imprimindo uma
+tabela de lido, recusado e não aplicável. O binário de produção não lê
+cassettes ([decisão](decisoes/acervo/replay-fora-da-cli.md)).
+
+O [script `scripts/replay`](../scripts/replay) (POSIX sh, `-h` para ajuda)
+é a porta de entrada:
+
+```sh
+scripts/replay                     # lista os testes do acervo
+scripts/replay acervo              # roda todos, um por vez
+scripts/replay processo_obter::acervo_versoes
+IES_ACERVO_SAIDA=saida.md scripts/replay replay_de_unidade_trocar
+```
+
+Com filtro, ele executa
+`cargo test --bin ies -- --ignored --nocapture --test-threads=1 FILTRO`.
+Os ZIPs ficam em `~/.cache/ies`, ou na pasta de `IES_ACERVO_CACHE`, com o
+nome do fim de `source_zip`; baixe-os e confira-os como no exemplo acima.
+Falta de ZIP é pânico com o nome do arquivo; o script não baixa nada.
+`IES_ACERVO_SAIDA` grava o relatório num arquivo em vez de imprimi-lo
+(cada teste sobrescreve o arquivo; use com o filtro de um só teste).
+A rodada inteira (onze testes) levou cerca de dez minutos em 05/11/2026.
+
+Os relatórios de cada rodada ficam em `docs/validacao-replay/`.
+
 ## Limites da evidência
 
 O corpus histórico preserva metadados da requisição e respostas
