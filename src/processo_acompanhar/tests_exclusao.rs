@@ -77,3 +77,42 @@ fn exclusao_recusa_script_de_exclusao_ausente() {
         lista_observada("831").replace("function acaoExcluir(id,desc)", "function outra(id,desc)");
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_err());
 }
+
+#[test]
+fn exclusao_recusa_oculto_sem_id_associado_ao_script() {
+    // Mesmo nome enviável, mas o JS escreveria em outro elemento.
+    let html = lista_observada("831").replace(
+        "id=\"hdnInfraItemId\" value=\"\"",
+        "id=\"idDiferente\" value=\"\"",
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_id_do_oculto_duplicado_fora_do_formulario() {
+    // getElementById selecionaria um elemento não pertencente ao formulário.
+    let html = lista_observada("831").replace(
+        "<form id=\"frmGerenciarAcompanhamento\"",
+        "<input id=\"hdnInfraItemId\" type=\"hidden\" name=\"outro\" value=\"\">\n<form id=\"frmGerenciarAcompanhamento\"",
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_oculto_desabilitado() {
+    // O navegador não envia um campo hidden disabled no corpo do POST.
+    let html = lista_observada("831").replace(
+        "id=\"hdnInfraItemId\" value=\"\"",
+        "id=\"hdnInfraItemId\" value=\"\" disabled",
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
