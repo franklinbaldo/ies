@@ -24,6 +24,9 @@ pub(crate) enum ErroMarcar {
     IdDoMarcadorNaoDecimal,
     NomeDoMarcadorVazio,
     NomeDoMarcadorComControle,
+    TextoDoMarcadorComControle,
+    TextoDoMarcadorLongo,
+    TextoDoMarcadorForaDoLatin1,
     ListaDeMarcadoresParcial,
     RotuloDiferenteDoMarcadorLido,
     CatalogoDaUnidadeNaoObservado,
@@ -38,6 +41,9 @@ impl ErroMarcar {
             Self::IdDoMarcadorNaoDecimal => "id_do_marcador_nao_decimal",
             Self::NomeDoMarcadorVazio => "nome_do_marcador_vazio",
             Self::NomeDoMarcadorComControle => "nome_do_marcador_com_controle",
+            Self::TextoDoMarcadorComControle => "texto_do_marcador_com_controle",
+            Self::TextoDoMarcadorLongo => "texto_do_marcador_longo",
+            Self::TextoDoMarcadorForaDoLatin1 => "texto_do_marcador_fora_do_latin1",
             Self::ListaDeMarcadoresParcial => "lista_de_marcadores_parcial",
             Self::RotuloDiferenteDoMarcadorLido => "rotulo_diferente_do_marcador_lido",
             Self::CatalogoDaUnidadeNaoObservado => "catalogo_da_unidade_nao_observado",
@@ -52,6 +58,9 @@ impl ErroMarcar {
             Self::IdDoMarcadorNaoDecimal => "o identificador do marcador deve ser decimal",
             Self::NomeDoMarcadorVazio => "o nome do marcador não pode ser vazio",
             Self::NomeDoMarcadorComControle => "o nome do marcador contém caractere de controle",
+            Self::TextoDoMarcadorComControle => "o texto do marcador contém caractere de controle",
+            Self::TextoDoMarcadorLongo => "o texto do marcador excede 250 caracteres",
+            Self::TextoDoMarcadorForaDoLatin1 => "o texto do marcador contém caractere fora do Latin-1",
             Self::ListaDeMarcadoresParcial => "a lista de marcadores do processo não está completa",
             Self::RotuloDiferenteDoMarcadorLido => {
                 "o id do marcador tem nome diferente do solicitado"
@@ -82,6 +91,21 @@ pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
         id: id.to_owned(),
         nome: nome.to_owned(),
     })
+}
+
+/// O Todos limita a 250 caracteres e o formulário é ISO-8859-1.
+/// A validação precede leitura de qualquer arquivo ou chamada Web.
+pub(crate) fn validar_texto(texto: &str) -> Result<(), ErroMarcar> {
+    if texto.chars().any(char::is_control) {
+        return Err(ErroMarcar::TextoDoMarcadorComControle);
+    }
+    if texto.chars().count() > 250 {
+        return Err(ErroMarcar::TextoDoMarcadorLongo);
+    }
+    if texto.chars().any(|c| u32::from(c) > 0xff) {
+        return Err(ErroMarcar::TextoDoMarcadorForaDoLatin1);
+    }
+    Ok(())
 }
 
 /// Só decide ausência se o número observado igualar o total declarado.
