@@ -146,6 +146,55 @@ fn conferir_linha(
     Ok(())
 }
 
+/// Identifica o corpo da única função observada, sem avaliar JavaScript.
+/// Chaves em strings não delimitam blocos; comentários e template literals
+/// não são suportados: qualquer variante ambígua falha fechada.
+fn corpo_da_acao_excluir(codigo: &str) -> Option<&str> {
+    let assinatura = "function acaoExcluir(";
+    let inicio = codigo.find(assinatura)? + assinatura.len();
+    let (parametros, resto) = codigo[inicio..].split_once(')')?;
+    let mut nomes = parametros.split(',').map(str::trim);
+    if nomes.next() != Some("id")
+        || nomes.next().filter(|nome| !nome.is_empty()).is_none()
+        || nomes.next().is_some()
+    {
+        return None;
+    }
+    let inicio_corpo = resto.trim_start().strip_prefix('{')?;
+    let mut nivel = 1usize;
+    let mut aspas = None;
+    let mut escape = false;
+    for (i, c) in inicio_corpo.char_indices() {
+        if let Some(delimitador) = aspas {
+            if escape {
+                escape = false;
+            } else if c == '\\' {
+                escape = true;
+            } else if c == delimitador {
+                aspas = None;
+            }
+            continue;
+        }
+        match c {
+            '\'' | '"' => aspas = Some(c),
+            '`' => return None,
+            '{' => nivel += 1,
+            '}' => {
+                nivel -= 1;
+                if nivel == 0 {
+                    let corpo = &inicio_corpo[..i];
+                    if corpo.contains("//") || corpo.contains("/*") {
+                        return None;
+                    }
+                    return Some(corpo);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn conferir_script(
     instalacao: &Instalacao,
     dom: &tl::VDom<'_>,
@@ -169,19 +218,26 @@ fn conferir_script(
         [codigo] if codigo.matches("function acaoExcluir(").count() == 1 => codigo,
         _ => return Err(sem_oferta),
     };
+    // Não confundir trechos em outra função (ou fora de qualquer função)
+    // com o que acaoExcluir realmente executaria. A extração não avalia JS:
+    // reconhece só o cabeçalho observado e as chaves balanceadas.
+    let corpo = corpo_da_acao_excluir(codigo).ok_or(sem_oferta)?;
     let gravar = "document.getElementById('hdnInfraItemId').value=id;";
     let atribuir = "document.getElementById('frmGerenciarAcompanhamento').action='";
     let enviar = "document.getElementById('frmGerenciarAcompanhamento').submit();";
-    if codigo.matches(atribuir).count() != 1 {
+    if corpo.matches(gravar).count() != 1
+        || corpo.matches(atribuir).count() != 1
+        || corpo.matches(enviar).count() != 1
+    {
         return Err(sem_oferta);
     }
-    let i_gravar = codigo.find(gravar).ok_or(sem_oferta)?;
-    let i_atribuir = codigo.find(atribuir).ok_or(sem_oferta)?;
-    let i_enviar = codigo.find(enviar).ok_or(sem_oferta)?;
+    let i_gravar = corpo.find(gravar).ok_or(sem_oferta)?;
+    let i_atribuir = corpo.find(atribuir).ok_or(sem_oferta)?;
+    let i_enviar = corpo.find(enviar).ok_or(sem_oferta)?;
     if !(i_gravar < i_atribuir && i_atribuir < i_enviar) {
         return Err(sem_oferta);
     }
-    let depois_do_atribuir = &codigo[i_atribuir + atribuir.len()..];
+    let depois_do_atribuir = &corpo[i_atribuir + atribuir.len()..];
     let (destino, _) = depois_do_atribuir.split_once('\'').ok_or(sem_oferta)?;
     let destino = crate::formulario_web::decodificar_atributo(destino).ok_or(sem_oferta)?;
     crate::arvore_processo::conferir_endereco_relativo(
