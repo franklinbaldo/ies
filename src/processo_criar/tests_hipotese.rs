@@ -58,6 +58,7 @@ fn restrito(confirmar: bool) -> PedidoCriar<'static> {
         interessados: &[],
         nivel: "restrito",
         unidade: None,
+        hipotese_legal: None,
         confirmar,
     }
 }
@@ -228,4 +229,74 @@ fn ajax_http_503_preserva_status_e_nao_cria() {
             .url
             .contains("acao_ajax=hipotese_legal_select_nome_base_legal")
     );
+}
+
+/// UnB do acervo contém múltiplas hipóteses: a identidade explícita
+/// precisa ser confirmada pelo AJAX antes do único POST criador.
+#[test]
+fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
+    let amb = ambiente();
+    let pedido = PedidoCriar {
+        hipotese_legal: Some("32#Base B"),
+        ..restrito(true)
+    };
+    let respostas = vec![
+        ok(controle_de_criacao()),
+        ok(lista()),
+        ok(cadastro(true)),
+        ok(XML_DUPLO.to_owned()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore(&[UNIDADE], &[])),
+    ];
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido,
+            rede,
+        )
+    });
+    let feito = resultado.expect("escolha explícita verificada");
+    assert!(feito.confirmado);
+    assert_eq!(feito.hipotese_legal.as_deref(), Some("32"));
+    assert_eq!(feito.requisicoes, 7);
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 2);
+    assert!(pedidos[4].corpo.as_deref().unwrap().contains("selHipoteseLegal=32"));
+    assert!(pedidos[5..].iter().all(|p| p.metodo == "GET"));
+}
+
+/// Nome divergente da opção publicada: nenhum POST de escrita.
+#[test]
+fn nome_incorreto_da_hipotese_nao_cria_processo() {
+    let amb = ambiente();
+    let pedido = PedidoCriar {
+        hipotese_legal: Some("32#Texto diferente"),
+        ..restrito(true)
+    };
+    let respostas = vec![
+        ok(controle_de_criacao()),
+        ok(lista()),
+        ok(cadastro(true)),
+        ok(XML_DUPLO.to_owned()),
+    ];
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido,
+            rede,
+        )
+    });
+    assert_eq!(
+        resultado.expect_err("nome não publicado deve ser recusado").subcodigo(),
+        "hipotese_legal_escolha_nao_oferecida"
+    );
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
