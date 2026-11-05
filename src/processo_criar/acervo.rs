@@ -175,8 +175,10 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
 fn replay_de_processo_criar_no_acervo() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
     let pasta_cache = std::env::var_os("IES_ACERVO_CACHE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"));
+        .map_or_else(
+            || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+            PathBuf::from,
+        );
     let mut cards = Vec::new();
     for instalacao in INSTALACOES {
         for entrada in std::fs::read_dir(raiz.join(instalacao)).expect("pasta de cassettes") {
