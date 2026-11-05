@@ -1,6 +1,10 @@
 //! Prévia Web para acompanhamento especial (#254).
 //! GET da barra, 302 tratado como dado, GET só do cadastro quando necessário;
 //! nunca dispara o POST antes da revisão do fluxo de confirmação.
+use super::{
+    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, escolher_grupo,
+    grupos_do_cadastro,
+};
 use crate::arvore_processo::ErroAcompanharNaBarra;
 use crate::formulario_web::decodificar_atributo;
 use crate::indice_local::IndiceLocal;
@@ -68,9 +72,7 @@ pub(crate) struct Previa {
     pub(crate) requisicoes: u8,
 }
 
-fn url_do_cadastro(
-    instalacao: &Instalacao, ref_url: &str, id: &str,
-) -> Result<String, ErroPrevia> {
+fn url_do_cadastro(instalacao: &Instalacao, ref_url: &str, id: &str) -> Result<String, ErroPrevia> {
     use crate::arvore_processo::conferir_endereco_relativo;
     conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
         .map_err(|_| ErroPrevia::RedirecionamentoInesperado)
@@ -79,7 +81,8 @@ fn url_do_cadastro(
 fn redirecionamento_do_gerenciar(
     instalacao: &Instalacao,
     loc: Option<&str>,
-    origem: &str, id: &str,
+    origem: &str,
+    id: &str,
 ) -> Result<String, ErroPrevia> {
     let consulta = loc
         .and_then(|v| crate::formulario_web::consulta_do_controlador(v, origem))
@@ -88,25 +91,26 @@ fn redirecionamento_do_gerenciar(
 }
 
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
-fn adicionar_da_lista(
-    instalacao: &Instalacao,
-    html: &str,
-    id: &str,
-) -> Result<String, ErroPrevia> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroPrevia::TelaInesperada)?;
+fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroPrevia::TelaInesperada)?;
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
-        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
             .ok_or(ErroPrevia::TelaInesperada)?;
         let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
             .map_err(|_| ErroPrevia::TelaInesperada)?;
-        if identificador.as_deref() != Some("btnAdicionar") { continue; }
+        if identificador.as_deref() != Some("btnAdicionar") {
+            continue;
+        }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
             .map_err(|_| ErroPrevia::TelaInesperada)?
             .ok_or(ErroPrevia::TelaInesperada)?;
         let onclick = decodificar_atributo(&onclick).ok_or(ErroPrevia::TelaInesperada)?;
-        let url = onclick.trim()
+        let url = onclick
+            .trim()
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
             .ok_or(ErroPrevia::TelaInesperada)?;
@@ -124,7 +128,9 @@ fn html_da_tela<V: EnvioDoProcesso>(
     cookie: &str,
     url: &str,
 ) -> Result<String, ErroPrevia> {
-    let resposta = rede.get_sem_seguir(url, cookie).map_err(ErroPrevia::Transporte)?;
+    let resposta = rede
+        .get_sem_seguir(url, cookie)
+        .map_err(ErroPrevia::Transporte)?;
     if resposta.resposta.status_code == 302 {
         return Err(ErroPrevia::RedirecionamentoInesperado);
     }
@@ -132,30 +138,39 @@ fn html_da_tela<V: EnvioDoProcesso>(
 }
 
 fn selecionar_previa(
-    numero: &str, unidade: &str,
+    numero: &str,
+    unidade: &str,
     antes: &[Acompanhamento],
     grupos: Option<&[super::GrupoOferecido]>,
     pedido: &Pedido<'_>,
     requisicoes: u8,
 ) -> Result<Previa, ErroPrevia> {
     if pedido.deixar {
-        if pedido.observacao.is_some() { return Err(ErroPrevia::PedidoInvalido); }
+        if pedido.observacao.is_some() {
+            return Err(ErroPrevia::PedidoInvalido);
+        }
         let alvo = if antes.is_empty() {
             None
         } else {
             Some(alvo_para_deixar(antes, pedido.grupo).map_err(ErroPrevia::Estrutura)?)
         };
         return Ok(Previa {
-            numero: numero.to_owned(), unidade: unidade.to_owned(), operacao: "deixar",
+            numero: numero.to_owned(),
+            unidade: unidade.to_owned(),
+            operacao: "deixar",
             grupo: alvo.map_or("", |a| a.grupo.as_str()).to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
-            id_de_remocao: alvo.map(|a| a.id.clone()), ja_estava: alvo.is_none(), requisicoes,
+            id_de_remocao: alvo.map(|a| a.id.clone()),
+            ja_estava: alvo.is_none(),
+            requisicoes,
         });
     }
     let grupos = grupos.ok_or(ErroPrevia::TelaInesperada)?;
     let selecionado = escolher_grupo(grupos, pedido.grupo).map_err(ErroPrevia::Estrutura)?;
     Ok(Previa {
-        numero: numero.to_owned(), unidade: unidade.to_owned(), operacao: "acompanhar",
+        numero: numero.to_owned(),
+        unidade: unidade.to_owned(),
+        operacao: "acompanhar",
         grupo: selecionado.nome.clone(),
         observacao: pedido.observacao.unwrap_or("").to_owned(),
         id_de_remocao: None,
@@ -171,23 +186,38 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
-    if pedido.confirmar { return Err(ErroPrevia::ConfirmacaoNaoImplementada); }
-    if pedido.deixar && pedido.observacao.is_some() { return Err(ErroPrevia::PedidoInvalido); }
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroPrevia::OrigemNaoAutorizada)?;
+    if pedido.confirmar {
+        return Err(ErroPrevia::ConfirmacaoNaoImplementada);
+    }
+    if pedido.deixar && pedido.observacao.is_some() {
+        return Err(ErroPrevia::PedidoInvalido);
+    }
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroPrevia::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
-        sessao, &leitura(pedido.nup, pedido.unidade, true), indice, &mut rede,
-    ).map_err(ErroPrevia::Abertura)?;
+        sessao,
+        &leitura(pedido.nup, pedido.unidade, true),
+        indice,
+        &mut rede,
+    )
+    .map_err(ErroPrevia::Abertura)?;
     let unidade = aberto.unidade.ok_or(ErroPrevia::UnidadeNaoPublicada)?;
     let id = aberto.arvore.processo.id;
-    let link = acoes.acompanhar.map_err(ErroPrevia::Barra)?
+    let link = acoes
+        .acompanhar
+        .map_err(ErroPrevia::Barra)?
         .ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(ErroPrevia::Transporte)?;
-    let res = rede.get_sem_seguir(link.as_str(), &cookie)
+    let res = rede
+        .get_sem_seguir(link.as_str(), &cookie)
         .map_err(ErroPrevia::Transporte)?;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
         let url = redirecionamento_do_gerenciar(
-            &instalacao, res.localizacao.as_deref(), link.as_str(), &id,
+            &instalacao,
+            res.localizacao.as_deref(),
+            link.as_str(),
+            &id,
         )?;
         (Vec::new(), Some(url))
     } else {
@@ -200,10 +230,19 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         };
         (antes, url)
     };
-    let grupos = if pedido.deixar { None } else {
+    let grupos = if pedido.deixar {
+        None
+    } else {
         let url = url_cadastro.ok_or(ErroPrevia::TelaInesperada)?;
         let html = html_da_tela(&mut rede, &cookie, &url)?;
         Some(grupos_do_cadastro(&html, &id).map_err(ErroPrevia::Estrutura)?)
     };
-    selecionar_previa(pedido.nup.as_str(), &unidade, &antes, grupos.as_deref(), pedido, rede.feitas())
+    selecionar_previa(
+        pedido.nup.as_str(),
+        &unidade,
+        &antes,
+        grupos.as_deref(),
+        pedido,
+        rede.feitas(),
+    )
 }
