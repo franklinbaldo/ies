@@ -70,6 +70,7 @@ pub(crate) struct VersoesDoDocumento {
     pub(crate) foto: Option<FotoDaVersao>,
     /// HTML lido para o cache, mesmo quando a versão é desconhecida.
     pub(crate) cache_html: Option<String>,
+    pub(crate) crc_rodape: Option<String>,
 }
 
 /// O documento já conferido na árvore lida pelo caminho que a abriu
@@ -116,6 +117,7 @@ pub(super) fn do_externo(
         atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
         cache_html: None,
+        crc_rodape: None,
     })
 }
 
@@ -146,11 +148,14 @@ fn ler_atual<V: EnvioDoProcesso>(
     let servida = versao_do_rodape(&html);
     if cache && html.contains("infra_hash") { return Err(E::ConteudoComLinkAssinado); }
     let cache_html = cache.then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
+            crc_rodape: None, 
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
         cache_html,
+        crc_rodape,
     };
     if !foto {
         return Ok((tipo, texto, versoes));
@@ -209,6 +214,7 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
+            crc_rodape: None, 
         lida: Some(n),
         atual: Ok(atual),
         foto,
