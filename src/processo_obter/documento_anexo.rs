@@ -15,6 +15,7 @@ use std::path::Path;
 pub(crate) struct PedidoDoAnexo<'a> {
     pub(crate) limite: LimiteDoAnexo,
     pub(crate) saida: Option<&'a Path>,
+    pub(crate) cache_host: Option<&'a str>,
 }
 
 /// O quinto pedido e a leitura: tipo vazio, o texto (tipos de texto sem
@@ -42,9 +43,18 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             .map(|v| (*v).to_owned());
         return Err(E::Processo(fora_de_palpite(local.as_deref())));
     }
-    let destino = pedido
-        .saida
-        .map_or(DestinoDoAnexo::SoMetadados, DestinoDoAnexo::Diretorio);
+    let raiz = if pedido.cache_host.is_some() {
+        Some(crate::cache_documento::raiz().map_err(|_| E::Anexo(ErroAnexo::EscritaFalhou))?)
+    } else {
+        None
+    };
+    let diretorio = raiz.as_ref().zip(pedido.cache_host)
+        .map(|(raiz, host)| raiz.join("ies").join(host).join(numero));
+    let destino = match (diretorio.as_deref(), pedido.cache_host, pedido.saida) {
+        (Some(diretorio), Some(host), _) => DestinoDoAnexo::Cache { diretorio, host },
+        (None, _, Some(dir)) => DestinoDoAnexo::Diretorio(dir),
+        _ => DestinoDoAnexo::SoMetadados,
+    };
     let lido = ler_anexo(resposta, numero, pedido.limite, destino).map_err(|erro| match erro {
         ErroAnexo::TelaDeLogin => E::Processo(ErroProcessoObter::SessaoEncerrada),
         ErroAnexo::Transporte(falha) => transporte(falha),
