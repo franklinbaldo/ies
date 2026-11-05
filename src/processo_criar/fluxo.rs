@@ -138,6 +138,7 @@ fn get<V: EnvioDoControle>(
     })
 }
 
+#[allow(clippy::too_many_arguments)] // contexto da sessão e a operação são explícitos.
 fn enviada<V: EnvioDoControle>(
     envio: &mut V,
     cookie: &CookieDaSessao,
@@ -260,13 +261,16 @@ fn retorno_da_criacao(
         .filter_map(|par| par.strip_prefix("id_procedimento="))
         .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
         .collect();
-    let [id] = ids.as_slice() else { return Err(ErroCriar::EfeitoIncerto); };
+    let [id] = ids.as_slice() else {
+        return Err(ErroCriar::EfeitoIncerto);
+    };
     let id = (*id).to_owned();
     Ok((url, id))
 }
 
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
+#[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
 pub(crate) fn criar<V: EnvioDoControle>(
     origem: &str,
     url_controle: &str,
@@ -401,17 +405,25 @@ pub(crate) fn criar<V: EnvioDoControle>(
         redirecionamento.url_do_envio(),
     )?;
     // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
-    let tela_do_processo = get(envio, &url, cookie_valor, &mut requisicoes)
-        .map_err(|_| E::EfeitoIncerto)?;
+    let tela_do_processo =
+        get(envio, &url, cookie_valor, &mut requisicoes).map_err(|_| E::EfeitoIncerto)?;
     let tela_lida = crate::arvore_processo::ler_tela_do_processo(
-        &instalacao, &tela_do_processo.html, &id, Some(&feito.unidade),
-    ).map_err(|_| E::EfeitoIncerto)?;
-    let arvore = get(envio, tela_lida.arvore.as_str(), cookie_valor, &mut requisicoes)
-        .map_err(|_| E::EfeitoIncerto)?;
-    let nup = crate::arvore_processo::nup_declarado_na_arvore(&arvore.html)
-        .ok_or(E::EfeitoIncerto)?;
-    crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id)
-        .map_err(|_| E::EfeitoIncerto)?;
+        &instalacao,
+        &tela_do_processo.html,
+        &id,
+        Some(&feito.unidade),
+    )
+    .map_err(|_| E::EfeitoIncerto)?;
+    let arvore = get(
+        envio,
+        tela_lida.arvore.as_str(),
+        cookie_valor,
+        &mut requisicoes,
+    )
+    .map_err(|_| E::EfeitoIncerto)?;
+    let nup =
+        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
+    crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(|_| E::EfeitoIncerto)?;
     feito.confirmado = true;
     feito.nup = Some(nup);
     feito.requisicoes = requisicoes;
