@@ -120,6 +120,49 @@ fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, 
     }
 }
 
+/// URL assinada que o SEI publicou na barra do processo.
+/// Nunca revela a consulta nem o hash ao formatar para diagnóstico.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct EnderecoDosComentarios(String);
+
+impl EnderecoDosComentarios {
+    pub(crate) fn novo(url: String) -> Self {
+        Self(url)
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for EnderecoDosComentarios {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt.write_str("EnderecoDosComentarios(<redigido>)")
+    }
+}
+
+/// Falhas verificáveis ao procurar a ação publicada na barra do processo.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ErroLinkDosComentarios {
+    BarraForaDaFormaObservada,
+    BarrasRepetidasNaArvore,
+    LinksRepetidosNaBarra,
+    EnderecoNaoReconhecido,
+    EnderecoDeOutroProcesso,
+}
+
+impl ErroLinkDosComentarios {
+    pub(crate) fn subcodigo(self) -> &'static str {
+        match self {
+            Self::BarraForaDaFormaObservada => "barra_dos_comentarios_fora_da_forma_observada",
+            Self::BarrasRepetidasNaArvore => "barras_dos_comentarios_repetidas_na_arvore",
+            Self::LinksRepetidosNaBarra => "links_dos_comentarios_repetidos_na_barra",
+            Self::EnderecoNaoReconhecido => "endereco_dos_comentarios_nao_reconhecido",
+            Self::EnderecoDeOutroProcesso => "endereco_dos_comentarios_de_outro_processo",
+        }
+    }
+}
+
 /// Posicionamento das colunas observadas na tela, sem ordem pressuposta.
 struct Colunas {
     data: usize,
