@@ -37,7 +37,8 @@ Antes do primeiro POST de escrita, todas as recusas precisam estar
 resolvidas. Derivar exatamente um formulário `documento_gerar` do
 HTML servido pelo primitivo `formulario_web`, com `EfeitoAvaliado`.
 Não construir URL assinada, executar JS, enviar campos fora da lista
-observada, repetir POST nem fazer fallback. Depois da tentativa,
+observada, repetir POST nem fazer fallback.
+Quando o cadastro exigir controles HTML `required`, recusar a escrita antes do POST se algum controle ativo não puder ser atendido pela CLI, inclusive descrição vazia. Controles `hidden` e desabilitados não exigem escolha do usuário. Depois da tentativa,
 reabrir o processo e conferir a diferença entre as árvores.
 
 Uma escrita comprovada exige **exatamente um novo documento** (id
@@ -70,6 +71,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `tipo_do_cadastro_diferente_do_solicitado` | A tela aberta não identifica o tipo pedido |
 | `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
 | `nivel_nao_oferecido_no_cadastro` | O nível solicitado não aparece habilitado |
+| `campo_obrigatorio_do_cadastro_nao_atendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
 | `tela_de_criacao_redirecionada` | A tela de leitura devolveu 302 não seguido |
 | `nivel_de_documento_nao_informado_para_escrita` | Confirmação exige --nivel publico explícito; não presumir nível |
 | `nivel_de_documento_requer_hipotese_legal` | Nível não público exige resolver a hipótese legal antes da escrita |
