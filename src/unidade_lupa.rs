@@ -210,7 +210,6 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-
 /// Confere que a resposta POST do SEI é a lista *integral*, não uma
 /// lista menor (mas coerente) por filtros lembrados na sessão.
 ///
@@ -363,11 +362,23 @@ mod tests {
         // Uma lista de nove resultados filtrados pode ser internamente
         // consistente, mas não substitui a lista integral de destinos.
         for alterada in [
-            html.replace("name='txtSiglaUnidade' value=''", "name='txtSiglaUnidade' value='CDE'"),
-            html.replace("name='txtDescricaoUnidade' value=''", "name='txtDescricaoUnidade' value='gabinete'"),
+            html.replace(
+                "name='txtSiglaUnidade' value=''",
+                "name='txtSiglaUnidade' value='CDE'",
+            ),
+            html.replace(
+                "name='txtDescricaoUnidade' value=''",
+                "name='txtDescricaoUnidade' value='gabinete'",
+            ),
             html.replace("value='' selected='selected'>Todos", "value=''>Todos"),
-            html.replace("value='' selected='selected'>Todos", "value='null' selected='selected'>Todos"),
-            html.replace("name='txtSiglaUnidade' value=''", "name='txtSiglaUnidade' value=''><input name='txtSiglaUnidade' value=''"),
+            html.replace(
+                "value='' selected='selected'>Todos",
+                "value='null' selected='selected'>Todos",
+            ),
+            html.replace(
+                "name='txtSiglaUnidade' value=''",
+                "name='txtSiglaUnidade' value=''><input name='txtSiglaUnidade' value=''",
+            ),
         ] {
             assert_eq!(
                 conferir_filtros_de_lista_integral(&alterada),
