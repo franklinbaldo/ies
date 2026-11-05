@@ -1,6 +1,6 @@
 //! Fluxo do cancelamento: abre o documento, confere o formulário observado,
 //! prévia sem POST, uma escrita e uma nova leitura (sem retries/redirects).
-use super::erro::{ErroCancelar as E, FalhaDoCancelamento as F, VerificacaoDoCancelamento as V};
+use super::erro::{ErroCancelar as E, FalhaDoCancelamento as F, VerificacaoDoCancelamento as Ver};
 use super::{conferir_motivo, ler_link_cancelar};
 use crate::arvore_processo::ProcessoNaArvore;
 use crate::documento::NumeroDocumento;
@@ -120,21 +120,21 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     let verificacao = match abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede) {
         Ok(depois) if depois.id_documento == feito.id_documento
                 && depois.processo.id == feito.processo.id =>
-            V::Lida {
+            Ver::Lida {
                 cancelado: depois.natureza.cancelado,
                 motivo: depois.natureza.motivo_do_cancelamento,
             },
-        Ok(_) => V::Lida { cancelado: None, motivo: None },
-        Err(erro) => V::LeituraFalhou(erro),
+        Ok(_) => Ver::Lida { cancelado: None, motivo: None },
+        Err(erro) => Ver::LeituraFalhou(erro),
     };
     feito.requisicoes = rede.feitas();
     match verificacao {
-        V::Lida { cancelado: Some(true), motivo: Some(ref lido) } if lido == &feito.motivo => {
+        Ver::Lida { cancelado: Some(true), motivo: Some(ref lido) } if lido == &feito.motivo => {
             feito.alterado = true;
             feito.reconciliado_por = falha;
             Ok(feito)
         }
-        V::Lida { cancelado: Some(false), .. } => Err(E::CancelamentoNaoAplicado {
+        Ver::Lida { cancelado: Some(false), .. } => Err(E::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),
         outra => Err(E::EfeitoIncerto {
