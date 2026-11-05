@@ -22,6 +22,10 @@ vereditos do IES.
 
 ## Evidência própria do IES
 
+- [Escrita live](../../docs/validacao-live/2026-11-04-processo-concluir.md):
+  **PASS** na UFRJ 4.1.5 (URL em variável) e UnB 4.0.9 (URL em função),
+  com verificação por leitura; outras instalações **NOT_RUN** no ensaio.
+
 - [Observação estrutural](../../docs/como-o-sei-funciona/reabertura-do-processo.md)
   das 11 GET de `procedimento_reabrir` e das 431 telas do nó gravadas.
 - [Replay do acervo](../../docs/validacao-replay/2026-11-04-processo-reabrir-acervo.md):
