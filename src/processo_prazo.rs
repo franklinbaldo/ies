@@ -45,20 +45,206 @@ pub(crate) struct TelaDoPrazo {
 }
 
 pub(crate) fn interpretar_pedido(
-    _ate: Option<&str>,
-    _dias: Option<u32>,
-    _excluir: bool,
+    ate: Option<&str>,
+    dias: Option<u32>,
+    excluir: bool,
 ) -> Result<PedidoDePrazo, ErroPrazo> {
-    Err(ErroPrazo::OpcoesIncompativeis)
+    let quantas = u8::from(ate.is_some()) + u8::from(dias.is_some()) + u8::from(excluir);
+    if quantas > 1 {
+        return Err(ErroPrazo::OpcoesIncompativeis);
+    }
+    if excluir {
+        return Ok(PedidoDePrazo::Excluir);
+    }
+    if let Some(dias) = dias {
+        let dias = u16::try_from(dias).map_err(|_| ErroPrazo::DiasInvalidos)?;
+        if !(1..=999).contains(&dias) {
+            return Err(ErroPrazo::DiasInvalidos);
+        }
+        return Ok(PedidoDePrazo::Dias(dias));
+    }
+    if let Some(data) = ate {
+        if !data_valida(data) {
+            return Err(ErroPrazo::DataInvalida);
+        }
+        return Ok(PedidoDePrazo::Ate(data.to_owned()));
+    }
+    Ok(PedidoDePrazo::Ler)
 }
 
-pub(crate) fn ler_tela(_html: &str, _id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
-    Err(ErroPrazo::TelaNaoObservada)
+fn data_valida(valor: &str) -> bool {
+    let bytes = valor.as_bytes();
+    if bytes.len() != 10 || bytes[2] != b'/' || bytes[5] != b'/'
+        || !bytes.iter().enumerate().all(|(i, b)| matches!(i, 2 | 5) || b.is_ascii_digit())
+    {
+        return false;
+    }
+    let Some(dia) = valor[0..2].parse::<u32>().ok() else {
+        return false;
+    };
+    let Some(mes) = valor[3..5].parse::<u32>().ok() else {
+        return false;
+    };
+    let Some(ano) = valor[6..10].parse::<u32>().ok() else {
+        return false;
+    };
+    if ano == 0 {
+        return false;
+    }
+    let bissexto = ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0);
+    let maximo = match mes {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if bissexto => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=maximo).contains(&dia)
 }
 
-/// Pares do usuário; os ocultos, botão e ação virão da própria tela servida.
-pub(crate) fn campos_do_pedido(_pedido: &PedidoDePrazo) -> Vec<(&'static str, String)> {
-    Vec::new()
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroPrazo> {
+    crate::html_atributos::valor_do_atributo(tag, nome)
+        .map_err(|_| ErroPrazo::TelaNaoObservada)
+}
+
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
+    crate::html_atributos::atributo_presente(tag, nome)
+        .map_err(|_| ErroPrazo::TelaNaoObservada)
+}
+
+pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
+    use ErroPrazo as E;
+    if html.len() > crate::MAX_HTML_BYTES {
+        return Err(E::TelaNaoObservada);
+    }
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaNaoObservada)?;
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
+        .map_err(|_| E::TelaNaoObservada)?;
+    if atributo(form, "method")?.as_deref() != Some("post")
+        || atributo(form, "enctype")?.is_some_and(|v| v != "application/x-www-form-urlencoded")
+    {
+        return Err(E::TelaNaoObservada);
+    }
+    let action = atributo(form, "action")?.ok_or(E::TelaNaoObservada)?;
+    let action = crate::formulario_web::decodificar_atributo(&action)
+        .ok_or(E::TelaNaoObservada)?;
+    let (caminho, consulta) = action.split_once('?').ok_or(E::TelaNaoObservada)?;
+    if !caminho.ends_with("controlador.php") {
+        return Err(E::TelaNaoObservada);
+    }
+    let valores = |chave: &str| {
+        consulta.split('&')
+            .filter_map(|par| par.split_once('='))
+            .filter(|(nome, _)| *nome == chave)
+            .map(|(_, valor)| valor)
+            .collect::<Vec<_>>()
+    };
+    if valores("acao") != ["controle_prazo_definir"] {
+        return Err(E::TelaNaoObservada);
+    }
+    match valores("id_procedimento").as_slice() {
+        [id] if *id == id_procedimento => {}
+        [_] => return Err(E::OutroProcesso),
+        _ => return Err(E::TelaNaoObservada),
+    }
+
+    let mut vistos = std::collections::HashSet::new();
+    let mut radios = std::collections::HashSet::new();
+    let mut marcada: Option<String> = None;
+    let mut data = String::new();
+    let mut valor_dos_uteis = String::new();
+    let mut botoes = 0u8;
+    let mut id_conferido = false;
+    for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+        if !matches!(elemento.as_str(), "input" | "button") {
+            continue;
+        }
+        let Some(nome) = atributo(tag, "name")? else {
+            continue;
+        };
+        if presente(tag, "disabled")? {
+            return Err(E::TelaNaoObservada);
+        }
+        let tipo = atributo(tag, "type")?
+            .unwrap_or_else(|| if elemento == "button" { "submit" } else { "text" }.to_owned());
+        let tipo = tipo.to_ascii_lowercase();
+        let valor = atributo(tag, "value")?;
+        if nome == "rdoPrazo" {
+            if elemento != "input" || tipo != "radio" {
+                return Err(E::TelaNaoObservada);
+            }
+            let v = valor.ok_or(E::TelaNaoObservada)?;
+            if !matches!(v.as_str(), "1" | "2" | "3") || !radios.insert(v.clone()) {
+                return Err(E::TelaNaoObservada);
+            }
+            if presente(tag, "checked")? && marcada.replace(v).is_some() {
+                return Err(E::TelaNaoObservada);
+            }
+            continue;
+        }
+        if !vistos.insert(nome.clone()) {
+            return Err(E::TelaNaoObservada);
+        }
+        match (nome.as_str(), elemento.as_str(), tipo.as_str()) {
+            ("hdnInfraTipoPagina" | "hdnIdControlePrazo", "input", "hidden") => {}
+            ("hdnIdProcedimentos", "input", "hidden") => {
+                id_conferido = true;
+                if valor.as_deref() != Some(id_procedimento) {
+                    return Err(E::OutroProcesso);
+                }
+            }
+            ("txtPrazo", "input", "text") => {
+                if presente(tag, "readonly")? {
+                    return Err(E::TelaNaoObservada);
+                }
+                data = valor.unwrap_or_default();
+            }
+            ("txtDias", "input", "text") => {
+                if presente(tag, "readonly")? {
+                    return Err(E::TelaNaoObservada);
+                }
+            }
+            ("chkSinDiasUteis", "input", "checkbox") => {
+                if presente(tag, "readonly")? {
+                    return Err(E::TelaNaoObservada);
+                }
+                valor_dos_uteis = valor.unwrap_or_else(|| "on".to_owned());
+            }
+            ("sbmDefinirControlePrazo", "input" | "button", "submit") => {
+                botoes += 1;
+            }
+            _ => return Err(E::TelaNaoObservada),
+        }
+    }
+    if !id_conferido || botoes != 1 || !radios.contains("1") || !radios.contains("2")
+        || !["hdnInfraTipoPagina", "hdnIdControlePrazo", "txtPrazo", "txtDias", "chkSinDiasUteis"]
+            .iter().all(|nome| vistos.contains(*nome))
+    {
+        return Err(E::TelaNaoObservada);
+    }
+    let estado = match marcada.as_deref() {
+        Some("1") if data_valida(&data) => EstadoDoPrazo::Data(data),
+        Some("1" | "2") => return Err(E::TelaNaoObservada),
+        Some("3") => EstadoDoPrazo::Concluido,
+        None => EstadoDoPrazo::SemPrazo,
+        _ => return Err(E::TelaNaoObservada),
+    };
+    Ok(TelaDoPrazo { estado, valor_dos_uteis })
+}
+
+/// Campos do usuário para a derivação segura do formulário observado.
+pub(crate) fn campos_do_pedido(pedido: &PedidoDePrazo) -> Vec<(&'static str, String)> {
+    let (opcao, data, dias) = match pedido {
+        PedidoDePrazo::Ate(data) => ("1", data.clone(), String::new()),
+        PedidoDePrazo::Dias(dias) => ("2", String::new(), dias.to_string()),
+        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => return Vec::new(),
+    };
+    vec![
+        ("rdoPrazo", opcao.to_owned()),
+        ("txtPrazo", data),
+        ("txtDias", dias),
+    ]
 }
 
 #[cfg(test)]
@@ -151,7 +337,7 @@ mod tests {
             campos_do_pedido(&PedidoDePrazo::Dias(15)),
             vec![
                 ("rdoPrazo", "2".to_owned()),
-                ("txtPrazo", "".to_owned()),
+                ("txtPrazo", String::new()),
                 ("txtDias", "15".to_owned())
             ]
         );
@@ -160,7 +346,7 @@ mod tests {
             vec![
                 ("rdoPrazo", "1".to_owned()),
                 ("txtPrazo", "15/11/2026".to_owned()),
-                ("txtDias", "".to_owned())
+                ("txtDias", String::new())
             ]
         );
     }
