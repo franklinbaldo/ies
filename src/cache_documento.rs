@@ -314,6 +314,52 @@ mod tests {
     }
 
     #[test]
+    fn externo_pdf_em_fluxo_e_copia_opcional() {
+        use crate::arquivo_privado::{Parcial, Politica};
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-cache-anexo-{}-{}", std::process::id(),
+            std::thread::current().name().unwrap_or("teste"),
+        ));
+        let destino_parcial = raiz.join("ies/sei.exemplo/0007/0007.cache.pdf");
+        let mut parcial = Parcial::abrir(
+            &destino_parcial,
+            Politica::exclusiva().diretorio_do_ies().criando_diretorios(),
+        ).unwrap();
+        let bytes = b"%PDF-1.7\nTESTE";
+        parcial.escrever(bytes).unwrap();
+        parcial.sincronizar().unwrap();
+        let hash = sha256(bytes);
+        let registro = publicar_parcial(
+            parcial.temporario(), &raiz, "sei.exemplo", "0007", &hash, "pdf",
+        ).unwrap();
+        assert_eq!(registro.versao, None);
+        assert!(registro.caminho.ends_with(format!("x-{}.pdf", &hash[..16])));
+        drop(parcial);
+        assert_eq!(fs::read(&registro.caminho).unwrap(), bytes);
+        let pasta = raiz.join("saida");
+        fs::create_dir(&pasta).unwrap();
+        let copia = pasta.join("0007.pdf");
+        assert_eq!(copiar_para_saida(&registro.caminho, &copia, &hash), Ok(true));
+        assert_eq!(copiar_para_saida(&registro.caminho, &copia, &hash), Ok(false));
+        assert_eq!(fs::read(&copia).unwrap(), bytes);
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[test]
+    fn diferentes_versoes_nao_sobrescrevem() {
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-cache-versoes-{}", std::process::id(),
+        ));
+        let um = gravar_em(&raiz, "sei.exemplo", "001", Some(1), "html", b"<p>um</p>").unwrap();
+        let dois = gravar_em(&raiz, "sei.exemplo", "001", Some(2), "html", b"<p>dois</p>").unwrap();
+        let desconhecida = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"<p>x</p>").unwrap();
+        assert_ne!(um, dois);
+        assert_ne!(desconhecida, um);
+        assert!(desconhecida.file_name().unwrap().to_string_lossy().starts_with("x-"));
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    #[test]
     fn conteudo_assinado_nao_e_persistido() {
         let home = std::env::temp_dir().join(format!("ies-cache-seguranca-{}", std::process::id()));
         assert_eq!(
