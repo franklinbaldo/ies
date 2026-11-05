@@ -60,6 +60,18 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
+
+**Configuração local do setup/status (#212).** Com `IES_CONFIG_FILE`
+definido, o IES não recorre aos caminhos individuais quando o arquivo
+é recusado. `arquivo_configuracao_nao_pode_ser_lido` permanece para
+ausência, tipo não regular, tamanho excessivo e erro de leitura; as
+recusas novas são `arquivo_configuracao_link_simbolico`,
+`arquivo_configuracao_permissoes_inseguras`,
+`arquivo_configuracao_json_invalido` e
+`arquivo_configuracao_campo_invalido`. Os campos do JSON devem
+conter caminhos absolutos não vazios; não há leitura remota nem
+exposição do caminho recusado. Ver [erros tipados](../docs/erros-tipados.md).
+
 - `ies login [--forcar]` (login Web na instalação configurada; grava a sessão
   nos arquivos privados)
 - `ies esquema`
