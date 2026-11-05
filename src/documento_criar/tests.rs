@@ -155,18 +155,18 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
         "<table id=\"tblSeries\"><tr><td><a href=\"{href}\">Despacho</a></td></tr></table>"
     );
     assert_eq!(
-        link_direto_do_tipo(&instalacao, &html, "10", "Despacho"),
-        Ok(format!("https://sei.exemplo.gov.br/sei/{href}"))
+        escolha_do_tipo(&instalacao, &html, "10", "Despacho"),
+        Ok(EscolhaDoDocumento::Link(format!("https://sei.exemplo.gov.br/sei/{href}")))
     );
     assert_eq!(
-        link_direto_do_tipo(&instalacao, &html, "11", "Despacho"),
+        escolha_do_tipo(&instalacao, &html, "11", "Despacho"),
         Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
     );
     let script = r#"<table id="tblSeries"><tr><td>
         <a href="javascript:void(0);" onclick="escolher(3);">Despacho</a>
         </td></tr></table>"#;
     assert_eq!(
-        link_direto_do_tipo(&instalacao, script, "10", "Despacho"),
+        escolha_do_tipo(&instalacao, script, "10", "Despacho"),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
 }
@@ -275,5 +275,44 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
     assert_eq!(
         escolha_do_tipo(&instalacao, &original.replace("escolher(291)", "escolher(291); excluir()"), "4864", "Despacho"),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
+    );
+}
+
+#[test]
+fn redirecionamento_da_escolha_valida_origem_processo_e_assinatura() {
+    // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01:
+    // POST documento_escolher_tipo -> 302 documento_gerar, sem seguir automaticamente.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let link = format!(
+        "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
+        "a".repeat(64)
+    );
+    let esperado = format!("https://sei.exemplo.gov.br/sei/{link}");
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, &link, "4864"),
+        Ok(esperado.clone())
+    );
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, &esperado, "4864"),
+        Ok(esperado)
+    );
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, &link, "4865"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    );
+    let externo = format!("https://host-malicioso.example/sei/{link}");
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, &externo, "4864"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    );
+    let sem_assinatura = "controlador.php?acao=documento_gerar&id_procedimento=4864";
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, sem_assinatura, "4864"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    );
+    let duplicado = format!("{link}&infra_hash={}", "b".repeat(64));
+    assert_eq!(
+        cadastro_redirecionado(&instalacao, &duplicado, "4864"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
     );
 }
