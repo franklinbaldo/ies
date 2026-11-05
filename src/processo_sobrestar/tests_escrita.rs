@@ -1,7 +1,7 @@
 //! Testes de transporte roteirizado: uma escrita e uma leitura verificadora.
 //! Casos de Todos tests/test_ciclo_sobrestar_010.py @323eb01.
 use super::tests_tela::formulario;
-use super::{Acao, ErroSobrestamento as E, executar};
+use super::{Acao, ErroSobrestamento as E, PedidoDaMudanca, executar};
 use crate::arvore_processo::tests_reabrir::tela_do_no_pela_variavel;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
@@ -50,7 +50,14 @@ fn rodar(
 ) -> (Result<super::Previa, E>, Vec<Pedido>) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
-        executar(sessao, nup, None, acao, motivo, confirmar, indice, envio)
+        let pedido = PedidoDaMudanca {
+            nup,
+            unidade: None,
+            acao,
+            motivo,
+            confirmar,
+        };
+        executar(sessao, &pedido, indice, envio)
     })
 }
 fn respostas_sobrestar(resposta: Resposta, verificar: Resposta) -> Vec<Resposta> {
