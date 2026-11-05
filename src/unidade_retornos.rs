@@ -339,6 +339,18 @@ mod tests {
         );
     }
     #[test]
+    fn area_mensal_observada_com_aguardando_nao_inventa_devolver() {
+        // Replay UnB/GO/PEN3: o mes completo pode omitir a tabela Para Devolver.
+        // Uma tabela solta sem a area mensal continua recusada.
+        let html = format!(
+            "<div id='divAguardandoAreaTabela'>{}<table><tr><td>layout</td></tr></table></div>",
+            tabela("Tabela de processos aguardando retorno de outras unidades", "NUP-A", "U1")
+        );
+        let itens = extrair_retornos(&html).unwrap();
+        assert_eq!(itens.len(), 1);
+        assert_eq!(itens[0].situacao, "aguardando");
+    }
+    #[test]
     fn tabela_unica_com_outra_area_explicitamente_vazia_pode_ser_lida() {
         // A ausencia da outra tabela so vale se a sua area disser que nao ha registros.
         let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
