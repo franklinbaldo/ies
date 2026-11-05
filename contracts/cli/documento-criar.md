@@ -18,7 +18,7 @@ O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
-Estado `partial`: a CLI oferece prévia de leitura nas telas com link direto e assinado para o cadastro (`documento_gerar`). A confirmação agora tem um caminho de POST único e reconciliação por releitura, **somente para o nível público e formulário com o script observado**; antes de receber CI e replay, essa implementação permanece WIP, não validada para uso real. Instalações que só publicam `escolher(ID)` recusam sem inventar navegação. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
+Estado `partial`: a CLI oferece prévia de leitura nas telas com link direto e assinado para o cadastro (`documento_gerar`). A confirmação agora tem um caminho de POST único e reconciliação por releitura, **somente para o nível público **explicitamente pedido** e formulário com o script observado**; antes de receber CI e replay, essa implementação permanece WIP, não validada para uso real. Instalações que só publicam `escolher(ID)` recusam sem inventar navegação. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
 
 ## Prévia
 
@@ -71,6 +71,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
 | `nivel_nao_oferecido_no_cadastro` | O nível solicitado não aparece habilitado |
 | `tela_de_criacao_redirecionada` | A tela de leitura devolveu 302 não seguido |
+| `nivel_de_documento_nao_informado_para_escrita` | Confirmação exige --nivel publico explícito; não presumir nível |
 | `nivel_de_documento_requer_hipotese_legal` | Nível não público exige resolver a hipótese legal antes da escrita |
 | `submissao_do_documento_nao_observada` | Cadastro não contém a regra observada de submissão |
 | `arvore_de_documentos_incompleta` | Pasta fechada impede comparação de documentos |
