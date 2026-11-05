@@ -31,9 +31,16 @@ fn marcador_invalido_sai_2_antes_de_ler_sessao() {
 fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
     for confirmar in [false, true] {
         let mut args = vec![
-            "processo", "marcar", "NUP", "--retirar", "501#Teste", "--json"
+            "processo",
+            "marcar",
+            "NUP",
+            "--retirar",
+            "501#Teste",
+            "--json",
         ];
-        if confirmar { args.push("--confirmar"); }
+        if confirmar {
+            args.push("--confirmar");
+        }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
@@ -45,8 +52,24 @@ fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
 fn clap_rejeita_sem_operacao_duas_operacoes_e_texto_na_retirada() {
     for args in [
         vec!["processo", "marcar", "NUP"],
-        vec!["processo", "marcar", "NUP", "--marcador", "1#A", "--retirar", "1#A"],
-        vec!["processo", "marcar", "NUP", "--retirar", "1#A", "--texto", "X"],
+        vec![
+            "processo",
+            "marcar",
+            "NUP",
+            "--marcador",
+            "1#A",
+            "--retirar",
+            "1#A",
+        ],
+        vec![
+            "processo",
+            "marcar",
+            "NUP",
+            "--retirar",
+            "1#A",
+            "--texto",
+            "X",
+        ],
     ] {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
