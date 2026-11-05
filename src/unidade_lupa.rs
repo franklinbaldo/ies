@@ -98,11 +98,20 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     let paginas = match seletores.as_slice() {
         [] => 1,
         [seletor] => {
-            let n = tags(seletor, parser, "option").len();
-            if n == 0 {
+            // A lupa GO publica índices 0..N-1 nos valores das opções.
+            // Contar opções sem conferir seus índices permitiria tratar
+            // páginas saltadas ou duplicadas como um snapshot completo.
+            let opcoes = tags(seletor, parser, "option");
+            if opcoes.is_empty() {
                 return Err(ErroLupa::PaginaInvalida);
             }
-            n
+            for (indice, opcao) in opcoes.iter().enumerate() {
+                let valor = atributo(opcao, "value")?.ok_or(ErroLupa::PaginaInvalida)?;
+                if valor.parse::<usize>().ok() != Some(indice) {
+                    return Err(ErroLupa::PaginaInvalida);
+                }
+            }
+            opcoes.len()
         }
         _ => return Err(ErroLupa::PaginaInvalida),
     };
