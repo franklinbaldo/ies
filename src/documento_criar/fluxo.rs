@@ -94,9 +94,7 @@ impl ErroPreviaCriacao {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Abertura(erro) => erro.subcodigo(),
-            Self::Transporte(erro) | Self::Tela(FalhaDaTela::Transporte(erro)) => {
-                erro.subcodigo()
-            }
+            Self::Transporte(erro) | Self::Tela(FalhaDaTela::Transporte(erro)) => erro.subcodigo(),
             Self::UnidadeNaoPublicada => "unidade_da_sessao_nao_publicada",
             Self::SituacaoNaoLida => "situacao_do_processo_nao_lida_antes_de_criar_documento",
             Self::ProcessoNaoAbertoNaUnidade => "processo_nao_aberto_na_unidade_da_sessao",
