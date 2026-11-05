@@ -1,7 +1,9 @@
 //! Superfície da criação de processos (#245).
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
-use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte};
+use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
+use crate::processo_criar_fluxo::{PedidoCriar, ErroCriar, criar};
+use crate::visao_do_controle::EnvioHttps;
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -60,8 +62,29 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
     ExitCode::from(2)
 }
 
-/// Uma etapa incompleta nunca envia GET/POST com potencial de efeito.
-/// Argumentos são conferidos antes de qualquer acesso ao arquivo privado.
+fn erro_do_fluxo(json_mode: bool, erro: ErroCriar) -> ExitCode {
+    if json_mode {
+        println!("{}", json!({
+            "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
+            "subcodigo": erro.subcodigo(),
+            "erro": if erro.saida() == 3 {
+                "o envio pode ter criado o processo; confira os gerados antes de repetir"
+            } else {
+                "a tela do SEI não permitiu concluir o fluxo de criação com segurança"
+            },
+            "retentavel": false
+        }));
+    } else {
+        eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
+        if erro.saida() == 3 {
+            eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
+        }
+    }
+    ExitCode::from(erro.saida())
+}
+
+/// Valida os argumentos antes de acessar os arquivos privados da sessão.
+/// Nenhum retry: o fluxo remoto consome cada resposta exatamente uma vez.
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
         acao:
@@ -80,17 +103,66 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     if let Err(erro) = validar(tipo, especificacao, interessado) {
         return Some(uso_invalido(cli.json, erro));
     }
-    // O nível já foi restringido pelo parser clap. Não assumir hipótese
-    // legal, unidade ou formulário a partir de argumentos.
-    let _ = (nivel, confirmar);
-    if let Err(erro) = configuracao::arquivos_de_acesso() {
-        return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()));
-    }
-    Some(erro_fonte(
-        cli.json,
-        "fluxo_de_criacao_ainda_nao_validado",
-        "criação indisponível: falta conferir a tela Web antes da prévia e do único POST",
-    ))
+    let arquivos = match configuracao::arquivos_de_acesso() {
+        Ok(arquivos) => arquivos,
+        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+    };
+    let referencias = match transporte::sessao::ReferenciasDaSessao::ler(
+        &arquivos.url_controle,
+        &arquivos.origem,
+        &arquivos.cookie,
+    ) {
+        Ok(referencias) => referencias,
+        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+    };
+    let pedido = PedidoCriar {
+        tipo,
+        especificacao,
+        interessados: interessado,
+        nivel,
+        unidade: cli.unidade.as_deref(),
+        confirmar: *confirmar,
+    };
+    let resultado = criar(
+        referencias.origem(),
+        referencias.url_do_controle(),
+        referencias.cookie(),
+        &pedido,
+        &mut EnvioHttps,
+    );
+    Some(match resultado {
+        Ok(feito) => {
+            if cli.json {
+                println!("{}", json!({
+                    "tipo": feito.tipo,
+                    "especificacao": especificacao,
+                    "assunto": feito.assunto,
+                    "nivel": feito.nivel,
+                    "unidade": feito.unidade,
+                    "confirmado": feito.confirmado,
+                    "nup": feito.nup,
+                    "origem": "web",
+                    "requisicoes": feito.requisicoes,
+                }));
+            } else {
+                println!(
+                    "IES: {} processo «{}» na unidade {} ({} requisições).",
+                    if feito.confirmado { "criado" } else { "prévia de criação de" },
+                    feito.tipo, feito.unidade, feito.requisicoes
+                );
+                println!("Especificação: {especificacao}");
+                println!("Assunto sugerido: {}", feito.assunto);
+                println!("Acesso: {}", feito.nivel);
+                if let Some(nup) = feito.nup {
+                    println!("NUP criado e verificado: {nup}");
+                } else {
+                    println!("Para criar, repita com --confirmar.");
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Err(erro) => erro_do_fluxo(cli.json, erro),
+    })
 }
 
 #[cfg(test)]
