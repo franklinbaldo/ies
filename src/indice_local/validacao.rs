@@ -26,28 +26,6 @@ pub(crate) enum RegistroRecusado {
     LinkDeOutraUnidade,
 }
 
-impl RegistroRecusado {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::NupInvalido => "indice_nup_invalido",
-            Self::NumeroSeiInvalido => "indice_numero_sei_invalido",
-            Self::IdProcedimentoInvalido => "indice_id_procedimento_invalido",
-            Self::GeracaoInvalida => "indice_geracao_invalida",
-            Self::UnidadeInvalida => "indice_unidade_invalida",
-            Self::AcaoInvalida => "indice_acao_invalida",
-            Self::ObjetoInvalido => "indice_objeto_invalido",
-            Self::LinkNaoHttps => "indice_link_nao_https",
-            Self::LinkComCaractereProibido => "indice_link_com_caractere_proibido",
-            Self::LinkForaDaInstalacao => "indice_link_fora_da_instalacao",
-            Self::LinkComConsultaNaoCanonica => "indice_link_com_consulta_nao_canonica",
-            Self::LinkSemAcaoUnicaIgual => "indice_link_sem_acao_unica_igual",
-            Self::LinkSemInfraHashUnico => "indice_link_sem_infra_hash_unico",
-            Self::LinkComAcaoAjax => "indice_link_com_acao_ajax",
-            Self::LinkDeOutraUnidade => "indice_link_de_outra_unidade",
-        }
-    }
-}
-
 /// URL assinada como a tela publicou. `Debug` não a mostra; não há `Display`.
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct UrlAssinada(String);

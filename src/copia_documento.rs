@@ -81,17 +81,16 @@ impl IdentidadeCopia {
 pub enum FonteHtml<'a> {
     /// Só deve ser produzida por adaptador após observar documento não assinado,
     /// com editor que comprove as seções realmente editáveis.
-    EditorVerificado {
-        html: &'a str,
-        assinado: bool,
-    },
+    // Pendente da #207: reservado ao adaptador de edição validado na #89.
+    #[allow(dead_code)]
+    EditorVerificado { html: &'a str, assinado: bool },
+    // Pendente da #207: fonte histórica reservada à integração de versões (#88).
+    #[allow(dead_code)]
     VisualizacaoHistorica,
     /// O HTML que o `documento_visualizar` serviu da versão atual, com a
     /// barra da árvore declarando `editarConteudo('N')` e sem `infra_hash`
     /// (Refs #88, contracts/cli/documento-obter-versoes.md).
-    LeituraAtualNaoAssinada {
-        html: &'a str,
-    },
+    LeituraAtualNaoAssinada { html: &'a str },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

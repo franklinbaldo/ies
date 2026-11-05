@@ -117,6 +117,7 @@ impl IndiceLocal {
 
     /// Apaga os links da instalação de toda geração diferente da atual
     /// (depois de um `ies login`).
+    #[cfg(test)]
     pub(crate) fn descartar_outras_geracoes(&self, instalacao: &Instalacao, geracao_atual: &str) {
         let origem = instalacao.url_base();
         self.executar((), |banco, _| {

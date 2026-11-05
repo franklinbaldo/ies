@@ -87,6 +87,7 @@ impl HistoricoDocumento {
             .find(|e| e.versao == numero)
             .ok_or(ErroVersao::VersaoNaoObservada)
     }
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.entradas.len()
     }
