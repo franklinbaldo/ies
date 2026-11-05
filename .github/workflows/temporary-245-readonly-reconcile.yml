@@ -1,10 +1,8 @@
 name: Temporary issue 245 training read-only reconciliation
 
+# Nunca executar automaticamente: se um GET anterior falhar, não repetí-lo.
 on:
-  push:
-    branches: [codex/245-confirmacao-41-redirecionamento]
-    paths:
-      - .github/workflows/temporary-245-readonly-reconcile.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -83,53 +81,13 @@ jobs:
               if codigo != 0:
                   raise SystemExit("LOGIN_FAIL: nenhuma consulta foi realizada")
               time.sleep(35)
-              codigo, dados = executar("gerados", ["unidade", "gerados"])
-              if codigo != 0:
-                  raise SystemExit("GERADOS_FAIL: não repetir chamada")
-              processos = dados.get("processos")
-              if not isinstance(processos, list):
-                  raise SystemExit("FORMATO_NAO_RECONHECIDO: sem varredura")
-              candidatos = []
-              for item in processos:
-                  if not isinstance(item, dict):
-                      continue
-                  nup = item.get("numero")
-                  if (isinstance(nup, str) and 4 <= len(nup) <= 72
-                          and all(c.isdigit() or c in "./-" for c in nup)):
-                      if nup not in candidatos:
-                          candidatos.append(nup)
-              print(json.dumps({"etapa": "gerados_observados",
-                                "total": dados.get("total_declarado"),
-                                "visiveis": len(processos),
-                                "candidatos_a_ler": min(12, len(candidatos))}),
-                    flush=True)
-              matches = []
-              feitas = 0
-              for nup in candidatos[:12]:
-                  time.sleep(35)
-                  codigo, item = executar("leitura_independente", [
-                      "processo", nup, "--sem-documentos", "--sem-marcadores", "--sem-andamentos"
-                  ])
-                  feitas += 1
-                  if codigo != 0:
-                      print("LEITURA_INTERROMPIDA: nenhuma consulta repetida", flush=True)
-                      break
-                  props = item.get("propriedades")
-                  if not isinstance(props, dict):
-                      continue
-                  if (item.get("numero") == nup
-                          and props.get("especificacao") == "Ensaio IES 245 - escrita unica em treinamento"
-                          and item.get("id_procedimento")):
-                      matches.append({
-                          "nup": nup, "id_procedimento": item["id_procedimento"],
-                          "especificacao_confere": True
-                      })
-              print(json.dumps({"etapa": "resultado_leitura",
-                                "processos_lidos": feitas,
-                                "correspondencias": matches,
-                                "conclusao": "POSSIVEL_RESIDUO" if matches else "INCONCLUSIVO_SEM_CORRESPONDENCIA",
-                                "observacao": "Ausência na primeira página não exclui criação"},
-                               ensure_ascii=False), flush=True)
+              # A consulta por NUP marca visualizado: limitar a primeira
+              # página e no máximo doze leituras, sem retry.
+              from scripts.reconciliar_processo_criar import reconciliar
+              resultado = reconciliar(executar, time.sleep, intervalo=35, limite=12)
+              print(json.dumps(resultado, ensure_ascii=False), flush=True)
+              # POSSIVEL_RESIDUO não comprova causalidade da criação;
+              # INCONCLUSIVO não significa ausência de processo criado.
           finally:
               for caminho in base.iterdir():
                   caminho.unlink(missing_ok=True)
