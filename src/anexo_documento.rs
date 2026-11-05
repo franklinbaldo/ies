@@ -261,17 +261,7 @@ pub(crate) fn ler_anexo<R: Read>(
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
         }
-        for &byte in &bloco[..lido] {
-            let token = b"infra_hash";
-            if byte == token[token_lido] {
-                token_lido += 1;
-            } else {
-                token_lido = usize::from(byte == token[0]);
-            }
-            if token_lido == token.len() {
-                return Err(ErroAnexo::ConteudoComLinkAssinado);
-            }
-        }
+        conferir_token(&bloco[..lido], &mut token_lido)?;
         hasher.update(&bloco[..lido]);
         if let Some(aberto) = &mut arquivo {
             aberto
@@ -301,22 +291,7 @@ pub(crate) fn ler_anexo<R: Read>(
             .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
     let hash = crate::hex::hex_minusculo(&hasher.finalize());
-    if let DestinoDoAnexo::Cache { diretorio, host } = destino {
-        let parcial = arquivo.take().ok_or(ErroAnexo::EscritaFalhou)?;
-        let raiz = diretorio
-            .ancestors()
-            .nth(3)
-            .ok_or(ErroAnexo::EscritaFalhou)?;
-        crate::cache_documento::publicar_parcial(
-            parcial.parcial.temporario(),
-            raiz,
-            host,
-            numero,
-            &hash,
-            conferido.extensao,
-        )
-        .map_err(|_| ErroAnexo::EscritaFalhou)?;
-    }
+    publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
             &conferido.mime,
@@ -335,6 +310,50 @@ pub(crate) fn ler_anexo<R: Read>(
         texto,
         arquivo,
     })
+}
+
+
+fn conferir_token(bytes: &[u8], lidos: &mut usize) -> Result<(), ErroAnexo> {
+    const TOKEN: &[u8] = b"infra_hash";
+    for &byte in bytes {
+        if byte == TOKEN[*lidos] {
+            *lidos += 1;
+        } else {
+            *lidos = usize::from(byte == TOKEN[0]);
+        }
+        if *lidos == TOKEN.len() {
+            return Err(ErroAnexo::ConteudoComLinkAssinado);
+        }
+    }
+    Ok(())
+}
+
+/// Liga o parcial binário ao nome content-addressed; o Drop remove o
+/// temporário tanto em sucesso quanto em erro.
+fn publicar_cache(
+    arquivo: &mut Option<ArquivoParcial>,
+    destino: DestinoDoAnexo<'_>,
+    numero: &str,
+    hash: &str,
+    extensao: &str,
+) -> Result<(), ErroAnexo> {
+    if let DestinoDoAnexo::Cache { diretorio, host } = destino {
+        let parcial = arquivo.take().ok_or(ErroAnexo::EscritaFalhou)?;
+        let raiz = diretorio
+            .ancestors()
+            .nth(3)
+            .ok_or(ErroAnexo::EscritaFalhou)?;
+        crate::cache_documento::publicar_parcial(
+            parcial.parcial.temporario(),
+            raiz,
+            host,
+            numero,
+            hash,
+            extensao,
+        )
+        .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    }
+    Ok(())
 }
 
 /// Bloco de leitura e gravação.
