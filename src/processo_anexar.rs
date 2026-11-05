@@ -67,14 +67,16 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
                 return Err("controles_da_anexacao_ausentes_ou_repetidos");
             }
         }
-        if tag.name().as_utf8_str().eq_ignore_ascii_case("table")
-            && atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Anexados")
-        {
-            tabelas.push(tag);
-        }
-    }
     if vistos != [1; 5] {
         return Err("controles_da_anexacao_ausentes_ou_repetidos");
+    }
+    for table in dom.query_selector("table").into_iter().flatten() {
+        let Some(tag) = table.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        if atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Anexados") {
+            tabelas.push(tag);
+        }
     }
     let tabela = match tabelas.as_slice() {
         [] => {
