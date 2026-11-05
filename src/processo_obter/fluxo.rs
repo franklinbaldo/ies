@@ -12,8 +12,9 @@ use super::{
     SessaoDoProcesso,
 };
 use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra,
-    ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ErroAnexarNaBarra, ler_tela_do_processo,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroAnexarNaBarra, ErroArvore, ErroConcluirNaBarra,
+    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
+    ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
