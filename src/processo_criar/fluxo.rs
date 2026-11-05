@@ -107,6 +107,13 @@ impl ErroCriar {
         }
     }
 
+    pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
+        match self {
+            Self::Hipotese(erro) => erro.opcoes_para_escolha(),
+            _ => None,
+        }
+    }
+
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
