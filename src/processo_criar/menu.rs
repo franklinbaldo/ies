@@ -80,7 +80,7 @@ pub(crate) fn link_de_iniciar(
         match chave {
             "acao" if valor == ACAO => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1
+                hashes += 1;
             }
             "acao" | "infra_hash" | "acao_ajax" => return Err(E::NaoReconhecido),
             _ => {}
