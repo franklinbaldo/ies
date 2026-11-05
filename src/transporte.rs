@@ -1,7 +1,7 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
 //! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
 //! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
-use crate::instalacao::{Instalacao, host_valido};
+use crate::instalacao::Instalacao;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -29,18 +29,11 @@ pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTranspo
 }
 
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
-    let (authority, path) = url
-        .strip_prefix("https://")
-        .and_then(|rest| rest.split_once('/'))
+    let partes = crate::url_observada::UrlHttps::interpretar(url)
         .ok_or(FalhaTransporte::UrlInvalida)?;
-    if !host_valido(authority)
-        || !url.bytes().all(|byte| (33..=126).contains(&byte))
-        || url.contains('#')
-        || url.contains('\\')
-    {
-        return Err(FalhaTransporte::UrlInvalida);
-    }
-    let (route, query) = path.split_once('?').ok_or(FalhaTransporte::UrlInvalida)?;
+    let authority = partes.host;
+    let route = partes.caminho;
+    let query = partes.consulta.ok_or(FalhaTransporte::UrlInvalida)?;
     if route.rsplit('/').next() != Some("controlador.php") || route.contains("..") {
         return Err(FalhaTransporte::UrlInvalida);
     }
