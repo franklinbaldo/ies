@@ -45,6 +45,7 @@ fn pedido(confirmar: bool) -> PedidoCriar<'static> {
         interessados: &[],
         nivel: "publico",
         unidade: None,
+        hipotese_legal: None,
         confirmar,
     }
 }
@@ -175,6 +176,7 @@ fn interessado_nao_resolvido_nao_cria() {
         interessados: &interessados,
         nivel: "publico",
         unidade: None,
+        hipotese_legal: None,
         confirmar: true,
     };
     let respostas = vec![ok(tela_controle()), ok(lista(false)), ok(cadastro())];
@@ -209,6 +211,7 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
         interessados: &interessados,
         nivel: "publico",
         unidade: None,
+        hipotese_legal: None,
         confirmar: false,
     };
     let cadastro = cadastro().replace(
