@@ -54,7 +54,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_enviar_da_barra(inst, html, id) {
         Ok(link) => link.is_some(),
-        Err(erro) => return format!("`{}`", erro.subcodigo()),
+        Err(erro) => return format!("`{}`", crate::erro_publico::folha(&erro)),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         return format!(
@@ -227,7 +227,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             tela = Some(nova);
                             classe
                         }
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
                     };
                     somar(&mut contagem, "tela de envio", classe, nome);
                 }
@@ -249,7 +249,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             }
                             format!("{de}: {n}")
                         }
-                        Err(falha) => format!("{de}: `{}`", falha.subcodigo()),
+                        Err(falha) => format!("{de}: `{}`", crate::erro_publico::folha(&falha)),
                     };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }

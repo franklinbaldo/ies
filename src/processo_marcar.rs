@@ -18,41 +18,31 @@ pub(crate) enum Decisao {
     NadaAFazer,
     PreviaDeRetirada,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroMarcar {
+    #[causa(nome = "rotulo_do_marcador_sem_separador")]
     RotuloSemSeparador,
     IdDoMarcadorNaoDecimal,
     NomeDoMarcadorVazio,
     NomeDoMarcadorComControle,
     TextoDoMarcadorComControle,
     TextoDoMarcadorLongo,
+    #[causa(nome = "texto_do_marcador_fora_do_latin1")]
     TextoDoMarcadorForaDoLatin1,
     ListaDeMarcadoresParcial,
     RotuloDiferenteDoMarcadorLido,
     CatalogoDaUnidadeNaoObservado,
     RemocaoSemFormularioObservado,
+    #[causa(nome = "marcadores_nao_lidos_para_escrita")]
     MarcadoresNaoLidos,
+    #[causa(nome = "unidade_da_sessao_nao_publicada_para_marcar")]
     UnidadeDaSessaoNaoPublicada,
+    #[causa(nome = "escrita_de_marcador_ainda_fechada")]
     EscritaAindaFechada,
 }
 impl ErroMarcar {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::RotuloSemSeparador => "rotulo_do_marcador_sem_separador",
-            Self::IdDoMarcadorNaoDecimal => "id_do_marcador_nao_decimal",
-            Self::NomeDoMarcadorVazio => "nome_do_marcador_vazio",
-            Self::NomeDoMarcadorComControle => "nome_do_marcador_com_controle",
-            Self::TextoDoMarcadorComControle => "texto_do_marcador_com_controle",
-            Self::TextoDoMarcadorLongo => "texto_do_marcador_longo",
-            Self::TextoDoMarcadorForaDoLatin1 => "texto_do_marcador_fora_do_latin1",
-            Self::ListaDeMarcadoresParcial => "lista_de_marcadores_parcial",
-            Self::RotuloDiferenteDoMarcadorLido => "rotulo_diferente_do_marcador_lido",
-            Self::CatalogoDaUnidadeNaoObservado => "catalogo_da_unidade_nao_observado",
-            Self::RemocaoSemFormularioObservado => "remocao_sem_formulario_observado",
-            Self::MarcadoresNaoLidos => "marcadores_nao_lidos_para_escrita",
-            Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_para_marcar",
-            Self::EscritaAindaFechada => "escrita_de_marcador_ainda_fechada",
-        }
+        crate::erro_publico::folha(&self)
     }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {

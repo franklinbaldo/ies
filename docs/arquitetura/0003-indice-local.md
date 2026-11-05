@@ -251,6 +251,9 @@ nenhuma mudança na saída ou no código de saída do comando.
   assinados deixariam de ser guardados.
 - Validação live: integração validada nos ensaios de `processo NUP` e da colheita do Controle ([relatório](../validacao-live/2026-11-03-colheita-do-controle.md)).
 
+O esquema 3 e o contrato SQL público de leitura das unidades estão em
+[unidades no índice local](0003-indice-local-unidades.md).
+
 ## Partes da decisão
 
 - [Índice local — privacidade e modelo de falha](0003-indice-local/privacidade-e-falha.md): privacidade, modelo de falha e auditoria complementar #188 do índice local.

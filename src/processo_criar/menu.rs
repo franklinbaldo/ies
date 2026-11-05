@@ -7,20 +7,19 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 const ACAO: &str = "procedimento_escolher_tipo";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroMenuCriacao {
+    #[causa(nome = "link_de_iniciar_processo_ausente")]
     Ausente,
+    #[causa(nome = "link_de_iniciar_processo_repetido")]
     Repetido,
+    #[causa(nome = "link_de_iniciar_processo_nao_reconhecido")]
     NaoReconhecido,
 }
 
 impl ErroMenuCriacao {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Ausente => "link_de_iniciar_processo_ausente",
-            Self::Repetido => "link_de_iniciar_processo_repetido",
-            Self::NaoReconhecido => "link_de_iniciar_processo_nao_reconhecido",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

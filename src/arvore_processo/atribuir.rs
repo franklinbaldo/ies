@@ -6,23 +6,22 @@ use crate::instalacao::Instalacao;
 
 const ACAO: &str = "procedimento_atribuicao_cadastrar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuirNaBarra {
+    #[causa(nome = "barra_da_atribuicao_fora_da_forma")]
     BarraForaDaForma,
+    #[causa(nome = "barras_da_atribuicao_repetidas")]
     BarrasRepetidas,
+    #[causa(nome = "links_de_atribuir_repetidos_na_barra")]
     LinksRepetidos,
+    #[causa(nome = "endereco_da_atribuicao_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_da_atribuicao_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 impl ErroAtribuirNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_da_atribuicao_fora_da_forma",
-            Self::BarrasRepetidas => "barras_da_atribuicao_repetidas",
-            Self::LinksRepetidos => "links_de_atribuir_repetidos_na_barra",
-            Self::EnderecoNaoReconhecido => "endereco_da_atribuicao_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_da_atribuicao_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

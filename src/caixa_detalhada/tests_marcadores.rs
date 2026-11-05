@@ -115,7 +115,7 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
     }
     let erro = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
     assert_eq!(
-        erro.subcodigo(),
+        crate::erro_publico::folha(&erro),
         "marcador_da_celula_detalhada_fora_da_forma_observada"
     );
 }
@@ -135,7 +135,7 @@ fn texto_fora_das_ancoras_e_recusa_e_nao_vira_marcador() {
         );
     }
     assert_eq!(
-        ErroDetalhada::TextoForaDosMarcadoresNaCelula.subcodigo(),
+        crate::erro_publico::folha(&ErroDetalhada::TextoForaDosMarcadoresNaCelula),
         "texto_fora_dos_marcadores_na_celula_detalhada"
     );
 }

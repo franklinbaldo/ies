@@ -8,26 +8,21 @@ use crate::instalacao::Instalacao;
 const ACAO_SOBRESTAR: &str = "procedimento_sobrestar";
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcaoSobrestar {
+    #[causa(nome = "barra_do_sobrestamento_nao_interpretada")]
     BarraInvalida,
+    #[causa(nome = "acoes_de_sobrestamento_repetidas_na_barra")]
     AcoesRepetidas,
+    #[causa(nome = "endereco_do_sobrestamento_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_do_sobrestamento_de_outro_processo")]
     OutroProcesso,
+    #[causa(nome = "tela_do_no_da_retomada_nao_reconhecida")]
     TelaDoNoNaoReconhecida,
 }
 
-impl ErroAcaoSobrestar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraInvalida => "barra_do_sobrestamento_nao_interpretada",
-            Self::AcoesRepetidas => "acoes_de_sobrestamento_repetidas_na_barra",
-            Self::EnderecoNaoReconhecido => "endereco_do_sobrestamento_nao_reconhecido",
-            Self::OutroProcesso => "endereco_do_sobrestamento_de_outro_processo",
-            Self::TelaDoNoNaoReconhecida => "tela_do_no_da_retomada_nao_reconhecida",
-        }
-    }
-}
+impl ErroAcaoSobrestar {}
 
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
     ErroAcaoSobrestar::BarraInvalida
@@ -77,4 +72,52 @@ pub(crate) fn ler_retomar_da_barra(
             .ok_or(ErroAcaoSobrestar::TelaDoNoNaoReconhecida),
         _ => Err(ErroAcaoSobrestar::AcoesRepetidas),
     }
+}
+
+/// A função de retirada pode estar no corpo inline (4.0) ou na variável
+/// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum ErroEnderecoDeRetomar {
+    #[causa(nome = "endereco_de_retomar_ausente_na_tela")]
+    Ausente,
+    #[causa(nome = "endereco_de_retomar_fora_da_forma")]
+    ForaDaForma,
+    #[causa(nome = "enderecos_de_retomar_repetidos_na_tela")]
+    Repetido,
+    #[causa(nome = "endereco_de_retomar_nao_reconhecido")]
+    NaoReconhecido,
+    #[causa(nome = "endereco_de_retomar_de_outro_processo")]
+    OutroProcesso,
+}
+
+pub(crate) fn ler_endereco_de_retomar(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<EnderecoDeEscrita, ErroEnderecoDeRetomar> {
+    use ErroEnderecoDeRetomar as E;
+    let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
+        .map_err(|_| E::ForaDaForma)?;
+    let mut variaveis = Vec::new();
+    for linha in html.lines().map(str::trim) {
+        if !linha.starts_with("var linkRemoverSobrestamentoProcesso") {
+            continue;
+        }
+        let url = linha
+            .strip_prefix("var linkRemoverSobrestamentoProcesso = '")
+            .and_then(|s| s.strip_suffix("';"))
+            .ok_or(E::ForaDaForma)?;
+        variaveis.push(url);
+    }
+    let url = match (funcoes.as_slice(), variaveis.as_slice()) {
+        ([], []) => return Err(E::Ausente),
+        ([url], []) | ([], [url]) => *url,
+        _ => return Err(E::Repetido),
+    };
+    conferir_endereco_relativo(instalacao, url, "procedimento_remover_sobrestamento", id)
+        .map(EnderecoDeEscrita::novo)
+        .map_err(|e| match e {
+            EnderecoRecusado::NaoReconhecido => E::NaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => E::OutroProcesso,
+        })
 }

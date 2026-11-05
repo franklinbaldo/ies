@@ -39,39 +39,36 @@ pub enum TelaDosComentarios {
     Lista(ComentariosLidos),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroComentarios {
+    #[causa(nome = "html_dos_comentarios_nao_interpretado")]
     HtmlNaoInterpretado,
+    #[causa(nome = "tela_de_comentarios_nao_reconhecida")]
     TelaNaoReconhecida,
+    #[causa(nome = "formularios_de_comentarios_repetidos")]
     FormulariosDaListaRepetidos,
+    #[causa(nome = "visao_dos_comentarios_nao_publicada")]
     VisaoNaoPublicada,
+    #[causa(nome = "tabela_de_comentarios_ausente")]
     TabelaAusente,
+    #[causa(nome = "tabelas_de_comentarios_repetidas")]
     TabelasRepetidas,
+    #[causa(nome = "legenda_dos_comentarios_invalida")]
     LegendaInvalida,
+    #[causa(nome = "cabecalho_dos_comentarios_invalido")]
     CabecalhoInvalido,
+    #[causa(nome = "linha_do_comentario_invalida")]
     LinhaInvalida,
     TextoDoComentarioNaoPublicado,
     IdDoComentarioRepetido,
+    #[causa(nome = "lista_de_comentarios_incompleta")]
     ListaIncompleta,
 }
 
 impl ErroComentarios {
     #[must_use]
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_dos_comentarios_nao_interpretado",
-            Self::TelaNaoReconhecida => "tela_de_comentarios_nao_reconhecida",
-            Self::FormulariosDaListaRepetidos => "formularios_de_comentarios_repetidos",
-            Self::VisaoNaoPublicada => "visao_dos_comentarios_nao_publicada",
-            Self::TabelaAusente => "tabela_de_comentarios_ausente",
-            Self::TabelasRepetidas => "tabelas_de_comentarios_repetidas",
-            Self::LegendaInvalida => "legenda_dos_comentarios_invalida",
-            Self::CabecalhoInvalido => "cabecalho_dos_comentarios_invalido",
-            Self::LinhaInvalida => "linha_do_comentario_invalida",
-            Self::TextoDoComentarioNaoPublicado => "texto_do_comentario_nao_publicado",
-            Self::IdDoComentarioRepetido => "id_do_comentario_repetido",
-            Self::ListaIncompleta => "lista_de_comentarios_incompleta",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
@@ -142,24 +139,23 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 }
 
 /// Falhas verificáveis ao procurar a ação publicada na barra do processo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDosComentarios {
+    #[causa(nome = "barra_dos_comentarios_fora_da_forma_observada")]
     BarraForaDaFormaObservada,
+    #[causa(nome = "barras_dos_comentarios_repetidas_na_arvore")]
     BarrasRepetidasNaArvore,
+    #[causa(nome = "links_dos_comentarios_repetidos_na_barra")]
     LinksRepetidosNaBarra,
+    #[causa(nome = "endereco_dos_comentarios_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_dos_comentarios_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 
 impl ErroLinkDosComentarios {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaFormaObservada => "barra_dos_comentarios_fora_da_forma_observada",
-            Self::BarrasRepetidasNaArvore => "barras_dos_comentarios_repetidas_na_arvore",
-            Self::LinksRepetidosNaBarra => "links_dos_comentarios_repetidos_na_barra",
-            Self::EnderecoNaoReconhecido => "endereco_dos_comentarios_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_dos_comentarios_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

@@ -16,44 +16,34 @@ pub(super) const CAMPOS_USUARIO: &[&str] = &[
     "selGeradosPaginacaoInferior",
 ];
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroControleDoFormulario {
-    ControleNaoPrevistoNoFormularioDoControle { campo: String },
-    CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: String },
-    PaginadorSemOpcaoSelecionada { campo: String },
-    PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
-    OpcaoSelecionadaDoPaginadorSemValor { campo: String },
-    ControleRepetidoNoFormularioDoControle { campo: String },
-    EntidadeHtmlDesconhecidaNoControle { campo: String },
+    ControleNaoPrevistoNoFormularioDoControle {
+        campo: String,
+    },
+    CaixaDeSelecaoMarcadaNoFormularioDoControle {
+        campo: String,
+    },
+    PaginadorSemOpcaoSelecionada {
+        campo: String,
+    },
+    PaginadorComMaisDeUmaOpcaoSelecionada {
+        campo: String,
+    },
+    OpcaoSelecionadaDoPaginadorSemValor {
+        campo: String,
+    },
+    ControleRepetidoNoFormularioDoControle {
+        campo: String,
+    },
+    EntidadeHtmlDesconhecidaNoControle {
+        campo: String,
+    },
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroControleDoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::ControleNaoPrevistoNoFormularioDoControle { .. } => {
-                "controle_nao_previsto_no_formulario_do_controle"
-            }
-            Self::CaixaDeSelecaoMarcadaNoFormularioDoControle { .. } => {
-                "caixa_de_selecao_marcada_no_formulario_do_controle"
-            }
-            Self::PaginadorSemOpcaoSelecionada { .. } => "paginador_sem_opcao_selecionada",
-            Self::PaginadorComMaisDeUmaOpcaoSelecionada { .. } => {
-                "paginador_com_mais_de_uma_opcao_selecionada"
-            }
-            Self::OpcaoSelecionadaDoPaginadorSemValor { .. } => {
-                "opcao_selecionada_do_paginador_sem_valor"
-            }
-            Self::ControleRepetidoNoFormularioDoControle { .. } => {
-                "controle_repetido_no_formulario_do_controle"
-            }
-            Self::EntidadeHtmlDesconhecidaNoControle { .. } => {
-                "entidade_html_desconhecida_no_controle"
-            }
-            Self::AtributoHtml(falha) => falha.subcodigo(),
-        }
-    }
-}
+impl ErroControleDoFormulario {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
@@ -80,7 +70,7 @@ fn opcao_selecionada(
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
-        if atributo_presente(opcao, "selected").map_err(E::AtributoHtml)? {
+        if atributo_presente(opcao, "selected")? {
             escolhidas.push(atributo(opcao, "value")?);
         }
     }
@@ -119,7 +109,7 @@ pub(crate) fn campos_do_usuario(
         if !matches!(
             elemento.as_str(),
             "input" | "select" | "textarea" | "button"
-        ) || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
@@ -134,7 +124,7 @@ pub(crate) fn campos_do_usuario(
                 continue;
             }
             ("input", "checkbox" | "radio") => {
-                if atributo_presente(tag, "checked").map_err(E::AtributoHtml)? {
+                if atributo_presente(tag, "checked")? {
                     return Err(E::CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: nome });
                 }
                 continue;
@@ -143,8 +133,7 @@ pub(crate) fn campos_do_usuario(
                 decodificado(&atributo(tag, "value")?.unwrap_or_default(), &nome)?
             }
             ("select", _)
-                if permitidos.contains(&nome.as_str())
-                    && !atributo_presente(tag, "multiple").map_err(E::AtributoHtml)? =>
+                if permitidos.contains(&nome.as_str()) && !atributo_presente(tag, "multiple")? =>
             {
                 opcao_selecionada(tag, parser, &nome)?
             }

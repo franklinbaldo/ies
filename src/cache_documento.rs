@@ -13,22 +13,21 @@ pub(crate) struct Registro {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaCache {
+    #[causa(nome = "diretorio_cache_documento_inseguro")]
     Diretorio,
+    #[causa(nome = "gravacao_cache_documento_falhou")]
     Gravacao,
+    #[causa(nome = "cache_documento_local_divergente")]
     ArquivoDivergente,
+    #[causa(nome = "conteudo_com_link_assinado")]
     ConteudoInseguro,
 }
 
 impl FalhaCache {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Diretorio => "diretorio_cache_documento_inseguro",
-            Self::Gravacao => "gravacao_cache_documento_falhou",
-            Self::ArquivoDivergente => "cache_documento_local_divergente",
-            Self::ConteudoInseguro => "conteudo_com_link_assinado",
-        }
+        crate::erro_publico::folha(&self)
     }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {

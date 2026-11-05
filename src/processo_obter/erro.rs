@@ -9,16 +9,20 @@ use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::propriedades_processo::ErroPropriedades;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroProcessoObter {
     /// Cookie, URL privada, rede ou status de uma requisição.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// GET do Controle (sessão, reconhecimento, unidade): os de `processo buscar`.
+    #[causa(interna)]
     Controle(ErroBuscaDeProcesso),
     /// A entrada por id respondeu a recusa característica ("Link sem
     /// assinatura" no `login.php`); a sessão morreu.
+    #[causa(nome = "entrada_por_id_recusada_rode_ies_login")]
     EntradaPorIdRecusada,
     /// Tela de login (200 ou 302 sem a mensagem de recusa) fora de palpite.
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     SessaoEncerrada,
     /// A entrada por id respondeu outra coisa que o 302 observado.
     RespostaDaEntradaPorIdNaoReconhecida(StatusHttpRecusado),
@@ -27,54 +31,39 @@ pub(crate) enum ErroProcessoObter {
     /// 302 fora das formas observadas (nem trabalho, nem login).
     RedirecionamentoNaoReconhecido(StatusHttpRecusado),
     /// O 302 para `procedimento_trabalhar` não passou na conferência.
+    #[causa(interna)]
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
     ProcessoRepetidoNoControle,
     LinksDoProcessoRepetidosNoControle,
     LinkDoProcessoNoControleNaoReconhecido(ErroRedirecionamentoDaPesquisa),
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Tela(ErroTelaDoProcesso),
+    #[causa(interna)]
     Arvore(ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
+    #[causa(interna)]
     LinkDoHistorico(ErroLinkDoHistorico),
     /// A página do histórico ou a troca de visão.
+    #[causa(interna)]
     Andamentos(ErroAndamentos),
     /// Derivação ou envio do formulário `verHistorico('P')`.
+    #[causa(interna)]
     FormularioDoHistorico(ErroSubmissaoFormulario),
     /// O link das propriedades na barra ou a tela delas.
+    #[causa(interna)]
     Propriedades(ErroPropriedades),
     /// O link dos marcadores na barra ou a tela deles.
+    #[causa(interna)]
     Marcadores(ErroMarcadores),
 }
 
 impl ErroProcessoObter {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::Controle(erro) => erro.subcodigo(),
-            Self::EntradaPorIdRecusada => "entrada_por_id_recusada_rode_ies_login",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::RespostaDaEntradaPorIdNaoReconhecida(_) => {
-                "resposta_da_entrada_por_id_nao_reconhecida"
-            }
-            Self::PesquisaRapidaSemUrlDeTrabalho(_) => "pesquisa_rapida_sem_url_de_trabalho",
-            Self::RedirecionamentoNaoReconhecido(_) => "redirecionamento_nao_reconhecido",
-            Self::Redirecionamento(erro) => erro.subcodigo(),
-            Self::ProcessoRepetidoNoControle => "processo_repetido_no_controle",
-            Self::LinksDoProcessoRepetidosNoControle => "links_do_processo_repetidos_no_controle",
-            Self::LinkDoProcessoNoControleNaoReconhecido(_) => {
-                "link_do_processo_no_controle_nao_reconhecido"
-            }
-            Self::CharsetDoControleNaoSuportado => "charset_do_controle_nao_suportado",
-            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.subcodigo(),
-            Self::Tela(erro) => erro.subcodigo(),
-            Self::Arvore(erro) => erro.subcodigo(),
-            Self::LinkDoHistorico(erro) => erro.subcodigo(),
-            Self::Andamentos(erro) => erro.subcodigo(),
-            Self::Propriedades(erro) => erro.subcodigo(),
-            Self::Marcadores(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

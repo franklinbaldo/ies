@@ -74,26 +74,21 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPesquisaProtocolo {
+    #[causa(interna)]
     Filtro(ErroFiltro),
+    #[causa(interna)]
     RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
+    #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    #[causa(interna)]
     Resposta(ErroRespostaDaPesquisa),
 }
 
 impl ErroPesquisaProtocolo {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Filtro(erro) => erro.subcodigo(),
-            Self::RegraDoFormulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Redirecionamento(erro) => erro.subcodigo(),
-            Self::Resposta(erro) => erro.subcodigo(),
-        }
-    }
-
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
             Self::Submissao(erro) => erro.status_http(),
@@ -229,8 +224,8 @@ fn derivar_com(
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
     let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
-    let form = localizar_formulario(&dom, operacao.formulario).map_err(E::Submissao)?;
-    let regras = ler_regras_da_tela(form, dom.parser(), em).map_err(E::RegraDoFormulario)?;
+    let form = localizar_formulario(&dom, operacao.formulario)?;
+    let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
     if let Some(maxlength) = regras.maxlength_do_termo
@@ -248,8 +243,7 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
-    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)
-        .map_err(E::Filtro)?;
+    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)?;
     campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras

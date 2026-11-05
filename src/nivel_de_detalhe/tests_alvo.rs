@@ -231,7 +231,9 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
         );
     }
     assert_eq!(
-        ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe.subcodigo(),
+        crate::erro_publico::folha(
+            &ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe
+        ),
         "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
     );
 }

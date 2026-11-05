@@ -145,8 +145,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             codificacao,
         };
         let submissao =
-            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)
-                .map_err(E::Submissao)?;
+            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)?;
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;
@@ -154,8 +153,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             let resposta = envio.post(s, c)?;
             mime.replace(resposta.resposta.mime.clone());
             Ok(resposta)
-        })
-        .map_err(E::Submissao)?;
+        })?;
         match resposta {
             RespostaDoEnvio::Html(html) => {
                 let mime = mime.into_inner();

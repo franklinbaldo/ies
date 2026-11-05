@@ -103,7 +103,26 @@ fn enviar(
                 erro.mensagem(),
                 erro.status_http(),
             ),
-            Err(erro) => publicar_valor_da_falha(cli.json, &json_de_falha(&erro), erro.saida()),
+            Err(erro) => {
+                let mut valor = json_de_falha(&erro);
+                // Apenas quando o SEI não ofereceu a sigla pedida:
+                // sugestões locais não alteram a decisão do autocomplete.
+                if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
+                    let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
+                    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+                    if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
+                        let sugestoes = indice.sugestoes_de_unidades_guardadas(
+                            &instalacao.url_base(),
+                            &ativa,
+                            para,
+                        );
+                        if !sugestoes.is_empty() {
+                            valor["sugestoes_guardadas"] = json!(sugestoes);
+                        }
+                    }
+                }
+                publicar_valor_da_falha(cli.json, &valor, erro.saida())
+            }
         }
     })
 }

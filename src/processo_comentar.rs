@@ -3,23 +3,21 @@
 //! o id do aceite, texto exato e lista relida e completa.
 use crate::processo_comentarios::ComentariosLidos;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDaConferencia {
+    #[causa(nome = "id_do_comentario_ausente_no_aceite")]
     IdDoAceiteAusente,
     ComentarioNaoVisivelNaReleitura,
+    #[causa(nome = "comentario_novo_repetido_na_releitura")]
     ComentarioNovoRepetido,
+    #[causa(nome = "texto_do_comentario_diferente_do_pedido")]
     TextoDiferenteDoPedido,
 }
 
 impl FalhaDaConferencia {
     #[must_use]
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::IdDoAceiteAusente => "id_do_comentario_ausente_no_aceite",
-            Self::ComentarioNaoVisivelNaReleitura => "comentario_nao_visivel_na_releitura",
-            Self::ComentarioNovoRepetido => "comentario_novo_repetido_na_releitura",
-            Self::TextoDiferenteDoPedido => "texto_do_comentario_diferente_do_pedido",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

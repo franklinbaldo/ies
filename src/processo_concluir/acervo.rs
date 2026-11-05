@@ -64,13 +64,13 @@ fn barra(inst: &Instalacao, html: &str, id: &str) -> String {
         Ok(Some(ConcluirNaBarra::PelaTela(_))) => "`tela`".into(),
         Ok(Some(ConcluirNaBarra::PelaFuncao { .. })) => "`funcao`".into(),
         Ok(None) => "não oferece".into(),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
     }
 }
 
 fn tela_de_conclusao(inst: &Instalacao, html: &str, item: &serde_json::Value, id: &str) -> String {
     if let Err(erro) = conferir_tela_de_conclusao(html, id) {
-        return format!("`{}`", erro.subcodigo());
+        return format!("`{}`", crate::erro_publico::folha(&erro));
     }
     let url = item["response"]["url"].as_str().unwrap_or("");
     let tela = TelaServida {
@@ -145,7 +145,7 @@ fn replay_de_processo_concluir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_funcao_de_concluir(&inst, &h, &id) {
                         Ok(_) => "URL lida e conferida".to_owned(),
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
                     };
                     somar(&mut contagem, "função na tela do nó", classe, nome);
                 }

@@ -3,17 +3,16 @@ use crate::{configuracao, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 enum FalhaSessaoLocal {
+    #[causa(interna)]
     Configuracao(configuracao::ErroConfiguracao),
+    #[causa(interna)]
     Transporte(transporte::FalhaTransporte),
 }
 impl FalhaSessaoLocal {
     fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Configuracao(erro) => erro.subcodigo(),
-            Self::Transporte(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
     fn codigo(&self) -> &'static str {
         match self {

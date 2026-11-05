@@ -82,14 +82,11 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
-        let Some(nome) = valor_do_atributo(tag, "name")
-            .map_err(E::AtributoHtml)?
-            .filter(|n| !n.is_empty())
-        else {
+        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -97,8 +94,7 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
         } else {
             "text"
         };
-        let tipo = valor_do_atributo(tag, "type")
-            .map_err(E::AtributoHtml)?
+        let tipo = valor_do_atributo(tag, "type")?
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
         let previsto = match (elemento.as_str(), tipo.as_str()) {
             // Não participam do envio.

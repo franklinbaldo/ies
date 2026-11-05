@@ -34,8 +34,7 @@ pub(super) fn unidade_da_tela(
 fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, E> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::Caixa(crate::erro_web::ErroCaixa::HtmlInvalido))?;
-    let form =
-        localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario).map_err(E::Submissao)?;
+    let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
     campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(E::Formulario)
 }
 

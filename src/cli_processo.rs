@@ -135,6 +135,28 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Lê o controle de prazo ou prepara uma prévia; escrita bloqueada nesta fatia
+    Prazo {
+        numero: String,
+        /// Data certa no formato DD/MM/AAAA
+        #[arg(long, conflicts_with_all = ["dias", "excluir"])]
+        ate: Option<String>,
+        /// Dias corridos positivos (a contagem exata é do SEI)
+        #[arg(long, conflicts_with = "excluir")]
+        dias: Option<u32>,
+        /// Remove o controle de prazo pela lista da unidade (ainda bloqueado)
+        #[arg(long)]
+        excluir: bool,
+        /// Escrita real; bloqueada até a verificação por leitura estar implementada
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Registra ciência do usuário no processo: prévia e um GET mutador conferido.
+    Ciente {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     Sobrestar {
         numero: String,
         #[arg(long)]
@@ -154,6 +176,14 @@ pub(crate) enum ProcessoAcao {
         com: String,
         #[arg(long)]
         remover: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Prévia da anexação do processo NUP ao processo principal (--a).
+    Anexar {
+        numero: String,
+        #[arg(long)]
+        a: String,
         #[arg(long)]
         confirmar: bool,
     },
