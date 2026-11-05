@@ -77,6 +77,31 @@ fn link_da_arvore_que_responde_login_e_esquecido_e_a_entrada_por_id_segue() {
 }
 
 #[test]
+fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
+    let amb = ambiente();
+    com_link_da_arvore(&amb);
+    // A validade temporal não é inferível do SQLite: o servidor recusa
+    // o link uma vez, o palpite cai e a tentativa seguinte não o reutiliza.
+    let (resultado, pedidos) = rodar(
+        &amb,
+        None,
+        vec![r302(LOGIN), r302(LOGIN_RECUSA)],
+    );
+    assert!(resultado.is_err());
+    assert_eq!(pedidos.len(), 2);
+    assert_eq!(pedidos[0], get(&url_arvore(ID)));
+    assert_eq!(pedidos[1], get(&url_entrada(ID)));
+    let geracao_atual = geracao();
+    assert_eq!(
+        amb.indice.link(
+            &instalacao(),
+            chave(&geracao_atual, "procedimento_visualizar", ID)
+        ),
+        None
+    );
+}
+
+#[test]
 fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     let amb = ambiente();
     let inst = instalacao();

@@ -105,6 +105,26 @@ fn confirmar_pela_tela_um_post_e_verificacao_pela_arvore() {
 }
 
 #[test]
+fn indice_com_identidade_quente_nao_confirma_conclusao_sem_releitura_remota() {
+    let amb = ambiente();
+    let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_entrada_por_id(&inst, false);
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &tela())),
+        vec![
+            ok(tela_de_conclusao(ID)),
+            r302(&volta_a_arvore()),
+            ok(arvore(&[UNIDADE], &tela())),
+        ],
+    );
+    let (resultado, pedidos) = rodar(&amb, true, respostas);
+    assert!(resultado.is_err(), "cache não substitui situação remota");
+    assert_eq!(pedidos, pela_tela_e_verificacao());
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+#[test]
 fn confirmar_pela_tela_com_location_http_no_mesmo_host_e_esperada() {
     // Issue #766 do Todos: o GO devolve o `Location` em `http://` no mesmo
     // host. Só dado: nada é seguido, e a verificação é a mesma.
