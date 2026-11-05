@@ -310,8 +310,10 @@ pub(crate) fn alvo_para_deixar<'a>(
 /// com grupo/observação pedidos e TODAS as linhas anteriores intactas.
 #[cfg(test)]
 pub(crate) fn conferir_inclusao(
-    antes: &[Acompanhamento], depois: &[Acompanhamento],
-    grupo: &str, observacao: &str,
+    antes: &[Acompanhamento],
+    depois: &[Acompanhamento],
+    grupo: &str,
+    observacao: &str,
 ) -> Result<(), ErroAcompanhar> {
     use ErroAcompanhar as E;
     if depois.len() != antes.len() + 1
@@ -331,7 +333,9 @@ pub(crate) fn conferir_inclusao(
 /// Só remova quando a identidade exata desaparecer e todo o resto for idêntico.
 #[cfg(test)]
 pub(crate) fn conferir_remocao(
-    antes: &[Acompanhamento], depois: &[Acompanhamento], id: &str,
+    antes: &[Acompanhamento],
+    depois: &[Acompanhamento],
+    id: &str,
 ) -> Result<(), ErroAcompanhar> {
     if antes.len() != depois.len() + 1
         || !antes.iter().any(|a| a.id == id)
