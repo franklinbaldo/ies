@@ -50,6 +50,8 @@ pub(crate) enum EstadoDoProcesso {
     AndamentoAbertoNaUnidade,
     /// A assinatura do usuário no documento (não se desfaz).
     AssinaturaDoDocumento,
+    /// Cancelar documento altera o estado permanentemente.
+    CancelamentoDoDocumento,
     /// As unidades com o processo aberto (enviar abre no destino e, sem
     /// "manter aberto", fecha na da sessão).
     UnidadesComOProcessoAberto,
