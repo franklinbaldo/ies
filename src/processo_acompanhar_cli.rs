@@ -9,11 +9,17 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Acompanhar {
-            numero, grupo, observacao, deixar, confirmar,
-        }),
+        acao:
+            Some(ProcessoAcao::Acompanhar {
+                numero,
+                grupo,
+                observacao,
+                deixar,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     Some(match NumeroProcesso::novo(numero) {
@@ -43,21 +49,27 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
 
 fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "numero": plano.numero,
-            "unidade": plano.unidade,
-            "operacao": plano.operacao,
-            "grupo": plano.grupo,
-            "observacao": plano.observacao,
-            "id_acompanhamento": plano.id_de_remocao,
-            "ja_estava": plano.ja_estava,
-            "confirmado": false,
-            "alterado": false,
-            "origem": "web",
-            "requisicoes": plano.requisicoes,
-        }));
+        println!(
+            "{}",
+            json!({
+                "numero": plano.numero,
+                "unidade": plano.unidade,
+                "operacao": plano.operacao,
+                "grupo": plano.grupo,
+                "observacao": plano.observacao,
+                "id_acompanhamento": plano.id_de_remocao,
+                "ja_estava": plano.ja_estava,
+                "confirmado": false,
+                "alterado": false,
+                "origem": "web",
+                "requisicoes": plano.requisicoes,
+            })
+        );
     } else {
-        println!("Prévia — processo {} (unidade {})", plano.numero, plano.unidade);
+        println!(
+            "Prévia — processo {} (unidade {})",
+            plano.numero, plano.unidade
+        );
         if plano.ja_estava {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
         } else if plano.operacao == "deixar" {
@@ -66,7 +78,10 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             println!("Incluíria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         }
-        println!("Nenhuma escrita executada. Requisições: {}", plano.requisicoes);
+        println!(
+            "Nenhuma escrita executada. Requisições: {}",
+            plano.requisicoes
+        );
     }
     ExitCode::SUCCESS
 }
