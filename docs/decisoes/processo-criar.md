@@ -141,10 +141,11 @@ XML. O leitor offline estrito original continua recusando ausência de
 hipótese. O fluxo permite que ela fique temporariamente pendente **só**
 para buscar a lista publicada, antes de qualquer POST criador.
 
-A CLI atual não oferece argumento para especificar a hipótese legal.
-Portanto a escrita só é elegível quando a resposta publica uma opção
-única habilitada. Zero ou várias opções exigem recusa tipada; não
-escolher a primeira nem converter para público. O AJAX é um POST de
+Na primeira fatia AJAX, a CLI não oferecia escolha explícita: exigia
+uma única opção. A fatia posterior acrescentou `--hipotese-legal ID#NOME`,
+conferido literalmente no XML da sessão. Sem a flag, continua exigida
+uma única opção habilitada. Zero ou várias opções não autorizam escolha
+automática; não escolher a primeira nem converter para público. O AJAX é um POST de
 **consulta**, distinto do POST de criação, com uma tentativa.
 Falha HTTP conserva o status e a mensagem saneada na CLI.
 
@@ -163,8 +164,11 @@ leituras. HTTP 503 do AJAX e seleção ambígua não iniciam escrita.
 Não extrapolar tais contagens ao SEI vivo, nem confundir esses testes
 com replay do acervo.
 
-O replay das cassettes originais e a prévia/escrita/releitura ao vivo
-em treinamento continuam NOT_RUN. Não houve escrita em produção
+O replay de 15 cassettes originais passou no ensaio 42102035089.
+Seu teste, apesar do `#[ignore]` para ausência de ZIPs no teste Rust
+sem rede, passou a ser executado obrigatoriamente no job
+`replay-processo-criar` do CI, com aquisição e hash dos sete ZIPs.
+A prévia/escrita/releitura ao vivo em treinamento continuam NOT_RUN. Não houve escrita em produção
 nem em treinamento nesta fatia, logo não há resíduo.
 
 ## Seleção de hipótese legal múltipla por identidade observada
