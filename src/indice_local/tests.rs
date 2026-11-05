@@ -82,6 +82,21 @@ fn banco_link_simbolico_desliga_sem_tocar_no_alvo() {
 
 #[cfg(unix)]
 #[test]
+fn diretorio_por_link_simbolico_desliga_sem_criar_nada() {
+    // #211: nenhum ancestral do banco pode ser link simbólico.
+    let raiz = pasta("dir-symlink");
+    let real = raiz.join("real");
+    fs::create_dir(&real).unwrap();
+    definir_modo(&real, 0o700);
+    std::os::unix::fs::symlink(&real, raiz.join("atalho")).unwrap();
+    let indice = IndiceLocal::em(raiz.join("atalho").join("novo").join(NOME_DO_ARQUIVO));
+    indice.registrar_entrada_por_id(&instalacao(), true);
+    assert!(!indice.ligado());
+    assert_eq!(fs::read_dir(&real).unwrap().count(), 0);
+}
+
+#[cfg(unix)]
+#[test]
 fn wal_link_simbolico_desliga() {
     let raiz = pasta("wal-symlink");
     let caminho = raiz.join(NOME_DO_ARQUIVO);

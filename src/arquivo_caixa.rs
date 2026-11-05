@@ -129,4 +129,19 @@ mod tests {
         assert_eq!(fs::read_to_string(&alvo).unwrap(), "NAO ALTERAR");
         fs::remove_dir_all(dir).unwrap();
     }
+    #[cfg(unix)]
+    #[test]
+    fn nao_grava_atraves_de_diretorio_link_simbolico() {
+        let dir = pasta();
+        let real = dir.join("real");
+        fs::create_dir(&real).unwrap();
+        std::os::unix::fs::symlink(&real, dir.join("atalho")).unwrap();
+        let erro = gravar(&dir.join("atalho/caixa.json"), &serde_json::json!({})).unwrap_err();
+        assert_eq!(
+            erro.subcodigo(),
+            "diretorio_do_arquivo_da_caixa_link_simbolico"
+        );
+        assert_eq!(fs::read_dir(&real).unwrap().count(), 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
 }

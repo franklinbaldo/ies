@@ -1,6 +1,7 @@
 mod anexo_documento;
 mod arquivo_caixa;
 mod arquivo_copia;
+mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
 mod caixa;

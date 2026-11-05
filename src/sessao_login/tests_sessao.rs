@@ -350,3 +350,40 @@ fn reprodutor_troca_de_unidade_entre_leituras_mantem_url_antiga() {
         cookie
     ));
 }
+
+#[cfg(unix)]
+#[test]
+fn gravacao_nao_atravessa_diretorio_link_simbolico() {
+    // #211: nenhum ancestral do destino pode ser link simbólico.
+    let ambiente = Ambiente::novo();
+    let real = ambiente.dir.join("real");
+    std::fs::create_dir(&real).unwrap();
+    let atalho = ambiente.dir.join("atalho");
+    std::os::unix::fs::symlink(&real, &atalho).unwrap();
+    let arquivos = crate::configuracao::ArquivosDeAcesso {
+        url_controle: atalho.join("url-controle"),
+        cookie: atalho.join("cookie"),
+        origem: ambiente.arquivos.origem.clone(),
+    };
+    let erro = super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
+    assert_eq!(erro.subcodigo(), "destino_da_sessao_nao_eh_arquivo_regular");
+    assert_eq!(std::fs::read_dir(&real).unwrap().count(), 0);
+}
+
+#[test]
+fn gravacao_da_sessao_nao_deixa_temporario() {
+    let ambiente = Ambiente::novo();
+    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
+    super::gravacao::regravar_url_do_controle(&ambiente.arquivos, &url_do_controle(), "A=1")
+        .unwrap();
+    assert_eq!(
+        ambiente.nomes(),
+        [
+            "cookie",
+            "credenciais",
+            "origem",
+            "url-controle",
+            "url-controle.geracao"
+        ]
+    );
+}
