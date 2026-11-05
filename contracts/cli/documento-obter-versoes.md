@@ -1,10 +1,10 @@
 ---
 type: Contract
-title: Ler versão de documento e preparar cópia de trabalho
-description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual sai do rodapé servido ou da lista lida, nunca de um GET só para ela; com --saida, a leitura prepara DOC.vN.html quando a árvore declara o documento editável e não assinado; o texto da versão N vai para DOC.vN.txt (#204)
+title: Ler versão de documento e gravar a foto DOC.vN.html
+description: ies documento DOC --versao N lê a versão N pela lista de versões que a barra do documento publica na árvore; versao_atual sai do rodapé servido ou da lista lida, nunca de um GET só para ela; com --saida, grava só DOC.vN.html, o HTML servido da versão lida, de forma idempotente (#207)
 ---
 
-# Versões e cópia de trabalho de `ies documento DOC` (Refs #88)
+# Versões e foto de `ies documento DOC` (Refs #88, #207)
 
 Complementa a [leitura Web](documento-obter-web.md). A árvore é aberta
 pelo caminho que a leitura Web escolher (`--processo NUP`, índice ou
@@ -12,7 +12,7 @@ pesquisa rápida, Refs #60 fatia 2); este contrato trata do que vem depois
 dela, e a barra lida é a do `DOCUMENTO` nessa árvore.
 
 ```text
-ies documento DOC [DOC ...] [--versao N] [--saida DIR] [--sem-copia] [--json] [--unidade SIGLA]
+ies documento DOC [DOC ...] [--versao N] [--saida DIR] [--json] [--unidade SIGLA]
 ```
 
 ## Onde a lista está publicada
@@ -27,11 +27,9 @@ o link da barra, conferido (`acao` única, `id_documento` igual ao do nó,
 `id_procedimento` igual ao do processo, `infra_hash` de 64 hex). Documento
 externo, de outra unidade ou sem permissão não traz o link.
 
-A mesma barra declara a edição: `onclick="editarConteudo('N');"` (o JS
-da árvore trata `'N'` como não assinado na montagem da tela) ou
-`editarConteudo('S')` (assinado: editar perde a assinatura). Ausente,
-o conteúdo não é editável pela sessão. O IES não segue nenhum desses
-links e nunca abre o editor (`editor_montar`).
+A mesma barra declara a edição (`editarConteudo('N')` ou `'S'`); a
+foto não depende dela. O IES não segue nenhum desses links e nunca abre
+o editor (`editor_montar`).
 
 O conteúdo (`documento_visualizar`, atual ou da versão N) serve abaixo do
 texto um rodapé gerado pelo SEI, fora do conteúdo editável:
@@ -61,13 +59,14 @@ os demais caminhos, como na [leitura Web](documento-obter-web.md).
 | Pedido | Requisições | O que se lê |
 | --- | --- | --- |
 | sem `--versao` (com ou sem `--saida`) | G + 1 | o conteúdo atual (`Nos[i].src`); a versão vem do rodapé |
-| `--saida DIR` sem `--sem-copia`, sem rodapé, barra com lista e `editarConteudo('N')` | G + 2 | conteúdo atual e a lista (para saber N) |
-| `--versao N` | G + 2 | a lista e o `documento_visualizar` da linha N; o conteúdo atual **não** é pedido |
+| `--saida DIR` sem rodapé e barra com a lista | G + 2 | conteúdo atual e a lista (para saber N) |
+| `--saida DIR` sem rodapé e sem a lista | G + 1 | recusa `lista_de_versoes_nao_publicada_na_arvore`, nada gravado |
+| `--versao N` (com ou sem `--saida`) | G + 2 | a lista e o `documento_visualizar` da linha N; o conteúdo atual **não** é pedido |
 
 Decisão de custo (proprietário, 04/11/2026): `versao_atual` é `null`
 salvo quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
 servido na tela do conteúdo, então sai sem GET a mais; a lista (1 GET)
-só é pedida por `--versao N` ou pela cópia quando falta o rodapé.
+só é pedida por `--versao N` ou pela foto quando falta o rodapé.
 
 ## Saída
 
@@ -78,44 +77,52 @@ Cada documento do JSON da leitura Web ganha:
 - `versao_atual`: a maior versão da lista, quando lida, ou a do rodapé
   do conteúdo atual; senão `null`;
 - `versao_atual_motivo`: `null` quando publicada; senão
-  `nao_servida_no_conteudo` (sem rodapé, lista não pedida) ou
-  `lista_de_versoes_nao_publicada_na_arvore` (a cópia precisava dela);
-- `copia`: `{"arquivo": "DOC.vN.html", "bytes": B}` ou `null`;
-- `copia_motivo`: `null` quando gravada; senão `nao_pedida` (sem
-  `--saida` ou com `--sem-copia`), `lista_de_versoes_nao_publicada_na_arvore`,
-  `documento_assinado`, `edicao_nao_publicada_na_arvore`,
-  `versao_historica` (N menor que a atual) ou `conteudo_com_link_assinado`.
+  `nao_servida_no_conteudo` (sem rodapé, lista não pedida);
+- com `--saida`, `arquivo` (no lugar de `texto`, como na leitura Web):
+  `{"nome": "DOC.vN.html", "bytes": B, "sha256": "…", "gravado": true,
+  "motivo": null}`, ou `"gravado": false, "motivo": "igual"` quando a
+  foto já existia com o mesmo SHA-256.
 
-`texto` (ou `arquivo` com `--saida`) é o da versão lida. Nunca URL,
-`infra_hash`, cookie ou HTML no terminal.
+Sem `--saida`, `texto` é o da versão lida. Nunca URL, `infra_hash`,
+cookie ou HTML no terminal. Os campos `copia` e `copia_motivo` de #88
+saíram com a cópia de trabalho.
 
-## Nome do texto com `--saida` (#204)
+## Foto `DOC.vN.html` com `--saida` (#207)
 
-Decisão do proprietário (04/11/2026): o texto da versão pedida com
-`--versao N` vai para `DOC.vN.txt`, na convenção da cópia `DOC.vN.html`;
-o texto atual, sem `--versao`, continua em `DOC.txt`. Os dois convivem
-na mesma pasta. Com `--versao N` o nome é conhecido antes da rede: um
-`DOC.vN.txt` (arquivo ou link) já presente para qualquer documento do
-lote sai `arquivo_texto_documento_ja_existe` com **0 requisições**. A
-gravação continua `create_new` (0600, sem sobrescrever), então um
-arquivo criado entre a conferência e a gravação ainda é recusado, depois
-da rede. O externo segue a mesma regra por construção: com `--versao N`
-a barra é lida antes do anexo e recusa sem pedi-lo (abaixo), então
-nenhum `DOC.txt` de externo vem de uma versão; a conferência prévia
-também cobre esse nome.
+Decisão do proprietário (05/11/2026,
+[decisão](../../docs/decisoes/documento-obter/saida-idempotente.md)),
+que **substitui** `DOC.txt`/`DOC.vN.txt` (#204) e a cópia de trabalho
+com base e manifesto ocultos (#88). Uma versão fechada não muda: o nome
+carrega a identidade inteira e o arquivo é a foto fiel da versão.
 
-## Cópia de trabalho
-
-Com `--saida DIR` e sem `--sem-copia`, depois de todos os documentos
-lidos e do `DOC.txt`, a leitura grava `DOC.vN.html` (o HTML servido do
-conteúdo, em UTF-8), a base `.DOC.vN.base.html` e o manifesto
-`.DOC.vN.meta.json` (documento, id, instalação, versão, SHA-256 da base),
-0600, sem sobrescrever nem seguir symlink — o formato de
-[`documento salvar`](documento-salvar.md), cuja prévia local a lê. Só
-quando seguro: a barra publica `editarConteudo('N')`, a versão lida é a
-atual (do rodapé ou da lista) e o HTML não contém `infra_hash`. O `'N'` é a declaração da árvore na
-montagem; o próprio SEI ainda confere a assinatura por AJAX antes de
-editar, e o `salvar` remoto (#89) terá de conferir de novo.
+- **Um arquivo por versão.** `--saida DIR` grava só `DOC.vN.html`, o
+  HTML que o SEI serviu da versão N lida (atual ou histórica, assinada
+  ou não), em UTF-8. Nenhum `.txt`, nenhum arquivo oculto. Quem quiser
+  texto converte o HTML. A saída sem `--saida` não muda.
+- **N.** Da versão pedida (`--versao N`) ou do rodapé servido; sem
+  rodapé, da lista (G + 2); sem lista publicada, recusa tipada, sem
+  gravar com nome incerto.
+- **Idempotente.** Ausente: grava. Presente com o mesmo SHA-256: não
+  grava, sai 0 e diz `gravado: false`. Presente com outro conteúdo:
+  `foto_local_divergente`. O lote inteiro é conferido antes da primeira
+  gravação: uma divergência não grava nenhuma foto.
+- **Antes da rede.** `DIR` tem de existir, ser diretório e não ter
+  ancestral simbólico (0 requisições). Com `--versao N` o nome já é
+  conhecido: cada `DOC.vN.html` presente tem de ser legível, privado e
+  coerente com o nome (título do mesmo número SEI; rodapé, se houver, da
+  versão N), senão `foto_local_divergente` com 0 requisições. Os bytes só
+  se comparam depois da leitura.
+- **Gravação.** Parcial `0600` criado novo em `DIR`, `fsync` e
+  `hard_link` para o nome final (falha se o nome surgiu: nunca
+  sobrescreve), sem seguir link. HTML com `infra_hash` não vai a arquivo
+  (`conteudo_com_link_assinado`).
+- **Índice.** O SHA-256 de cada foto gravada, ou achada igual, vai para
+  o índice local (tabela `foto`), por instalação, número SEI e versão.
+  A prévia de [`documento salvar`](documento-salvar.md) confere a base
+  por ele.
+- **Edição (#89).** O agente cria `DOC.v(N+1).html` a partir de
+  `DOC.vN.html`; a prévia local compara o par. A escrita remota segue
+  pendente.
 
 ## Falhas tipadas
 
@@ -129,16 +136,21 @@ editar, e o `salvar` remoto (#89) terá de conferir de novo.
 | `historico_documento_ausente`, `lista_versoes_incompleta`, `colunas_historico_inesperadas`, `linha_historico_incompleta`, `link_versao_ausente_ou_ambiguo`, `link_versao_inseguro`, `identidade_documento_divergente`, `versao_documento_duplicada`, `legendas_historico_versoes_repetidas` | a lista servida fora da forma observada |
 | `titulo_do_conteudo_de_outro_documento` | a versão servida é de outro número SEI |
 | `documento_cancelado_sem_conteudo_na_arvore`, `conteudo_nao_publicado_na_arvore` | como na leitura Web, antes da lista |
-| `copia_versao_ja_existe`, `destino_copia_inseguro`, `copia_local_link_simbolico`, `gravacao_copia_falhou` | a cópia não foi gravada (nada publicado) |
+| `lista_de_versoes_nao_publicada_na_arvore` | `--saida`, sem rodapé, e a barra não publica a lista |
+| `conteudo_com_link_assinado` | `--saida` e o HTML servido traz `infra_hash` |
+| `foto_local_divergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
+| `diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`, `destino_copia_inseguro` | `DIR` ausente, com ancestral simbólico ou inseguro (antes da rede) |
+| `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `leitura_copia_falhou`, `gravacao_foto_falhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
 
 ## Documento externo
 
 O externo (`.src` `documento_download_anexo`) é lido pelo
 [GET binário](documento-obter-externo.md) (fatia 3 do #60). O arquivo
-não serve rodapé e não há HTML de editor para copiar: sem `--versao`,
-`versao: null`, `versao_atual: null` com `nao_servida_no_conteudo` e
-`copia_motivo` `nao_pedida` ou, com `--saida`, `edicao_nao_publicada_na_arvore`;
-a barra não é lida. Com `--versao N`, a barra do nó (0 GET) é lida antes
+não serve rodapé e não há versão para o nome: sem `--versao`,
+`versao: null`, `versao_atual: null` com `nao_servida_no_conteudo`; a
+barra não é lida. Com `--saida`, grava o arquivo original `DOC.ext` como
+antes (sem sobrescrever, [externo](documento-obter-externo.md)), não uma
+foto. Com `--versao N`, a barra do nó (0 GET) é lida antes
 do anexo: sem a lista (o observado) é `lista_de_versoes_nao_publicada_na_arvore`,
 em G requisições, sem o GET do anexo; com a lista (não observado num
 externo), `barra_do_documento_fora_da_forma_observada`.
@@ -146,18 +158,19 @@ externo), `barra_do_documento_fora_da_forma_observada`.
 ## Efeitos
 
 Leitura. A lista e a versão são GET de telas publicadas; se marcam algo
-como visitado não foi medido. Nenhuma escrita, nenhum editor, nenhuma
-recuperação de versão.
+como visitado não foi medido. Nenhuma escrita no SEI, nenhum editor,
+nenhuma recuperação de versão. Localmente, só a foto em `DIR` e a linha
+`foto` do índice.
 
 Live na UnB 4.0.9 (04/11/2026, [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)): `--versao 1` **PASS**
 (versão 1 de 3, 4 requisições); processo concluído ou aberto só em outra
 unidade não publica a lista na barra (`lista_de_versoes_nao_publicada_na_arvore`).
 
 Validação live: `--versao N` **PASS** na PEN4, na PEN3 e na UFRJ 4.1.5
-(G + 2); cópia `DOC.vN.html` **PASS** na UFRJ
-([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
-Antes de #204, com `--saida`, o texto da versão N ia para o mesmo
-`DOC.txt` do texto atual: num diretório que já tinha `DOC.txt` a leitura
-gastava G + 2 e saía `arquivo_texto_documento_ja_existe` (visto na PEN4).
-Agora vai para `DOC.vN.txt`; o nome novo ainda não foi exercido ao vivo
-(coberto por testes sintéticos).
+(G + 2) ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
+Foto idempotente (#207) **PASS** na UnB 4.0.9 em 05/11/2026: a primeira
+leitura grava `DOC.v3.html` (G + 1), a segunda acha o mesmo SHA-256 e
+não grava; `--versao 1` recusou tipado porque a sessão estava noutra
+unidade ([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
+A foto de versão histórica e a foto pela lista seguem só com testes
+sintéticos.

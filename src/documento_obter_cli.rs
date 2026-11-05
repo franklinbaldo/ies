@@ -268,14 +268,14 @@ fn falha(
 /// O arquivo de cada documento em `DIR`: nome, bytes, SHA-256 e se foi
 /// gravado agora (`false`: já existia igual).
 #[derive(Debug, PartialEq, Eq)]
-struct Gravado {
+struct ArquivoDaSaida {
     nome: String,
     bytes: u64,
     sha256: String,
     gravado: bool,
 }
 
-impl From<FotoGravada> for Gravado {
+impl From<FotoGravada> for ArquivoDaSaida {
     fn from(f: FotoGravada) -> Self {
         Self {
             nome: f.nome,
@@ -296,7 +296,7 @@ fn gravar(
     json_mode: bool,
     obtidos: &mut [DocumentoObtido],
     (diretorio, indice, origem): Destino<'_>,
-) -> Result<Vec<Option<Gravado>>, ExitCode> {
+) -> Result<Vec<Option<ArquivoDaSaida>>, ExitCode> {
     let fotos = documento_versao_cli::gravar_fotos(diretorio, obtidos)
         .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
     let instalacao = Instalacao::interpretar(origem);
@@ -306,7 +306,7 @@ fn gravar(
             if let (Some(instalacao), Some(n)) = (&instalacao, d.versoes.foto.as_ref()) {
                 let _ = indice.registrar_foto(instalacao, &d.numero, n.versao, &foto.sha256);
             }
-            gravados.push(Some(Gravado::from(foto)));
+            gravados.push(Some(ArquivoDaSaida::from(foto)));
             continue;
         }
         let Some(a) = &mut d.anexo else {
@@ -321,7 +321,7 @@ fn gravar(
         arquivo
             .concluir()
             .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
-        gravados.push(Some(Gravado {
+        gravados.push(Some(ArquivoDaSaida {
             nome,
             bytes: a.tamanho,
             sha256: a.sha256.clone(),

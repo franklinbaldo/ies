@@ -146,19 +146,18 @@ fn ler_atual<V: EnvioDoProcesso>(
     if !foto {
         return Ok((tipo, texto, versoes));
     }
-    let versao = match servida {
-        Some(n) => n,
-        None => {
-            let lista = no
-                .barra()?
-                .versoes
-                .ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
-            let atual = ler_lista(rede, no, lista.as_str())?
-                .atual()
-                .ok_or(E::Versoes(ErroVersao::ListaIncompleta))?;
-            versoes.atual = Ok(atual);
-            atual
-        }
+    let versao = if let Some(n) = servida {
+        n
+    } else {
+        let lista = no
+            .barra()?
+            .versoes
+            .ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
+        let atual = ler_lista(rede, no, lista.as_str())?
+            .atual()
+            .ok_or(E::Versoes(ErroVersao::ListaIncompleta))?;
+        versoes.atual = Ok(atual);
+        atual
     };
     versoes.foto = Some(fotografar(versao, html)?);
     Ok((tipo, texto, versoes))

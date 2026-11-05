@@ -161,21 +161,20 @@ fn par(
     solicitada: Option<VersaoDocumento>,
     registro: Registro<'_>,
 ) -> Result<(VersaoDocumento, VersaoDocumento), ErroCopia> {
-    let base = match solicitada {
-        Some(n) => n,
-        None => {
-            let maior = *versoes_locais(pasta, documento)?
-                .last()
-                .ok_or(ErroCopia::BaseAusente)?;
-            let bytes = ler_regular(
-                &pasta.join(nome(documento.as_str(), maior)),
-                ErroCopia::BaseAusente,
-            )?;
-            if registro(maior).is_some_and(|sha| sha == sha256(&bytes)) {
-                maior
-            } else {
-                VersaoDocumento::nova(maior.numero() - 1).map_err(|_| ErroCopia::BaseAusente)?
-            }
+    let base = if let Some(n) = solicitada {
+        n
+    } else {
+        let maior = *versoes_locais(pasta, documento)?
+            .last()
+            .ok_or(ErroCopia::BaseAusente)?;
+        let bytes = ler_regular(
+            &pasta.join(nome(documento.as_str(), maior)),
+            ErroCopia::BaseAusente,
+        )?;
+        if registro(maior).is_some_and(|sha| sha == sha256(&bytes)) {
+            maior
+        } else {
+            VersaoDocumento::nova(maior.numero() - 1).map_err(|_| ErroCopia::BaseAusente)?
         }
     };
     let editada = VersaoDocumento::nova(base.numero().saturating_add(1))

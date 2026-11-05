@@ -22,6 +22,7 @@ fn com_foto(pasta: &Path, n: u32) -> BTreeMap<u32, String> {
 }
 
 fn editar(pasta: &Path, n: u32, corpo: &str) {
+    use std::io::Write;
     let mut opcoes = fs::OpenOptions::new();
     opcoes.write(true).create_new(true);
     #[cfg(unix)]
@@ -29,7 +30,6 @@ fn editar(pasta: &Path, n: u32, corpo: &str) {
         use std::os::unix::fs::OpenOptionsExt;
         opcoes.mode(0o600);
     }
-    use std::io::Write;
     opcoes
         .open(pasta.join(format!("0011519.v{n}.html")))
         .unwrap()

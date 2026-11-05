@@ -77,7 +77,19 @@ ou `DOC.html` (extensão pelo `Content-Type`; o nome do servidor nunca é
 caminho). O corpo é gravado em `DIR/.DOC.ext.parcial-PID` (0600, criado
 novo) durante a leitura e ligado ao nome final só depois de todos os
 documentos lidos, sem sobrescrever; qualquer falha remove o parcial. O
-JSON troca `texto` por `arquivo` e `bytes`.
+JSON troca `texto` pelo objeto `arquivo` (`nome`, `bytes`, `sha256` do
+anexo, `gravado: true`, `motivo: null`), a mesma forma da foto do
+interno.
+
+O externo **não** segue a foto `DOC.vN.html` de #207
+([decisão](../../docs/decisoes/documento-obter/saida-idempotente.md)):
+não serve rodapé nem publica a lista de versões (observado), então não
+há versão para o nome, e `--versao N` é recusado antes do anexo. O
+`DOC.txt` daqui é o arquivo original `text/plain`, não um texto
+extraído. Um `DOC.ext` já presente continua recusado
+(`arquivo_do_anexo_ja_existe`). Desde #207, o `DIR` ausente ou com
+ancestral simbólico é recusado antes da rede
+(`diretorio_texto_documento_ausente`, `diretorio_texto_documento_link_simbolico`).
 
 ## Falhas tipadas
 
