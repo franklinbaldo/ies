@@ -35,7 +35,7 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum FalhaDaLupa {
-    Transporte(&'static str),
+    Transporte(FalhaTransporte),
     Tela(ErroLupa),
     LinkAusente,
     LinkAmbiguo,
@@ -48,7 +48,7 @@ pub(crate) enum FalhaDaLupa {
 impl FalhaDaLupa {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::Transporte(codigo) => codigo,
+            Self::Transporte(falha) => falha.subcodigo(),
             Self::Tela(ErroLupa::PaginasDivergentes) => "lista_unidades_incompleta",
             Self::Tela(_) => "pagina_da_lupa_fora_da_forma",
             Self::LinkAusente => "link_da_lupa_ausente",
@@ -57,6 +57,13 @@ impl FalhaDaLupa {
             Self::CharsetInesperado => "charset_da_lupa_nao_suportado",
             Self::FormularioInesperado => "formulario_da_lupa_inesperado",
             Self::ExcessoDePaginas => "lupa_excedeu_orcamento_de_paginas",
+        }
+    }
+    /// Preserva status e mensagem já saneada da recusa HTTP, sem URL/cookie.
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            _ => None,
         }
     }
 }
@@ -108,15 +115,72 @@ fn obter<T: TransporteLupa>(
     origem: &str,
     requisicoes: &mut usize,
 ) -> Result<(String, String), FalhaDaLupa> {
-    validar_origem(url, origem).map_err(|_| FalhaDaLupa::LinkForaDaInstalacao)?;
+    validar_url_de_leitura(url, origem)?;
     *requisicoes += 1;
     let resposta = t
         .get(url, cookie)
-        .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
+        .map_err(FalhaDaLupa::Transporte)?;
     let mime.clone_from(&resposta.resposta.mime);
     let html = decodificar_resposta(resposta.resposta)
-        .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
+        .map_err(FalhaDaLupa::Transporte)?;
     Ok((html, mime))
+}
+
+/// Confere parâmetros da URL servida sem aceitar aliases ou duplicatas.
+/// A validação estrita do Controle não serve para as outras ações da lupa.
+fn url_publicada_autorizada(url: &str, origem: &str, acao: &str) -> bool {
+    let Some(partes) = crate::url_observada::UrlHttps::interpretar(url) else {
+        return false;
+    };
+    let Some(instalacao) = Instalacao::interpretar(origem) else {
+        return false;
+    };
+    if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
+        return false;
+    }
+    let Some(query) = partes.consulta else {
+        return false;
+    };
+    let (mut acao_encontrada, mut hash_encontrado) = (false, false);
+    for item in query.split('&') {
+        let Some((chave, valor)) = item.split_once('=') else {
+            return false;
+        };
+        if crate::transporte::conferir_chave_de_consulta(chave).is_err()
+            || crate::transporte::conferir_valor_de_consulta(valor).is_err()
+        {
+            return false;
+        }
+        match chave {
+            "acao" if !acao_encontrada && valor == acao => acao_encontrada = true,
+            "infra_hash"
+                if !hash_encontrado
+                    && valor.len() == 64
+                    && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
+            {
+                hash_encontrado = true;
+            }
+            "acao" | "infra_hash" | "acao_ajax" => return false,
+            _ => {}
+        }
+    }
+    acao_encontrada && hash_encontrado
+}
+
+fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {
+    if validar_origem(url, origem).is_ok()
+        || [
+            "grupo_unidade_listar",
+            "grupo_unidade_cadastrar",
+            "unidade_selecionar_envio_processo",
+        ]
+        .iter()
+        .any(|acao| url_publicada_autorizada(url, origem, acao))
+    {
+        Ok(())
+    } else {
+        Err(FalhaDaLupa::LinkForaDaInstalacao)
+    }
 }
 
 /// URL publicada num anchor, com href ou assignment literal de location.
@@ -175,25 +239,8 @@ fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<St
                 .ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
             format!("{pasta}/{relativo}")
         } else {continue};
-        if validar_origem(&url, origem).is_err() {continue}
-        let Some((_,consulta)) = url.split_once('?') else {continue};
-        let mut acoes = 0;let mut hashes = 0;let mut invalida = false;
-        for item in consulta.split('&') {
-            let Some((chave,valor)) = item.split_once('=') else {continue};
-            if chave == "acao" {
-                acoes += 1;
-                invalida |= valor != acao;
-            }
-            if chave == "infra_hash" {
-                hashes += 1;
-                invalida |= valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit());
-            }
-        }
-        if acoes == 1 && hashes == 1 && !invalida {
-            let segura = crate::url_observada::UrlHttps::interpretar(&url)
-                .is_some_and(|u| Instalacao::interpretar(origem)
-                    .is_some_and(|i| i.autoriza_controlador(u.host, u.caminho)));
-            if segura {aceitos.insert(url);}
+        if url_publicada_autorizada(&url, origem, acao) {
+            aceitos.insert(url);
         }
     }
     match aceitos.len() {
@@ -288,10 +335,10 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
         requisicoes += 1;
         let resposta = transporte
             .post(post, cookie)
-            .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
+            .map_err(FalhaDaLupa::Transporte)?;
         mime = resposta.resposta.mime.clone();
         html = decodificar_resposta(resposta.resposta)
-            .map_err(|e| FalhaDaLupa::Transporte(e.subcodigo()))?;
+            .map_err(FalhaDaLupa::Transporte)?;
         let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
         if lida.pagina != pagina || (!lidas.is_empty() && lida.paginas != total_paginas) {
             return Err(FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
