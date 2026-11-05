@@ -1,5 +1,5 @@
 ---
-type: ValidationReport
+type: Guide
 title: Validação do cache local padrão dos documentos
 operation: documento.obter
 date: 2026-11-05
