@@ -75,3 +75,18 @@ e a observacao em
 [Retorno Programado](../../docs/como-o-sei-funciona/retorno-programado.md).
 Os ensaios GO/PEN3 e o replay de cassettes reais continuam pendentes;
 nao interpretar testes sinteticos como validacao live.
+
+## Falhas tipadas
+
+| Subcódigo | Fato verificável |
+| --- | --- |
+| `mes_dos_retornos_invalido` | Argumento AAAA-MM ausente de formato válido |
+| `link_de_retornos_ausente` | Nenhum link da operação no Controle |
+| `link_de_retornos_ambiguo` | Mais de um link da operação no mesmo Controle |
+| `link_de_retornos_fora_da_instalacao` | Link de retorno não passa nas regras de origem e assinatura |
+| `calendario_dos_retornos_desconhecido` | Calendário não publicou mês ou marcador inequívoco |
+| `mes_dos_retornos_inacessivel` | Mês não alcançável em até 24 passos publicados |
+| `tela_de_retornos_desconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
+| `lista_de_retornos_incompleta` | Total declarado em legenda não corresponde às linhas |
+| `paginacao_dos_retornos_nao_observada` | Paginador independente sem derivação segura |
+| `unidade_diferente_da_solicitada` | Controle comprovou unidade diferente de --unidade |
