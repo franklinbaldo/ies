@@ -127,4 +127,17 @@ impl IndiceLocal {
             Ok(())
         });
     }
+
+    /// Apaga **todos** os links assinados da instalação, de toda geração e
+    /// unidade (depois de `ies unidade trocar`, #205): nenhum link da
+    /// unidade anterior é reaproveitado. Devolve quantos apagou; `None` com o
+    /// índice desligado ou com falha do banco.
+    pub(crate) fn esquecer_links_da_instalacao(&self, instalacao: &Instalacao) -> Option<usize> {
+        let origem = instalacao.url_base();
+        self.executar(None, |banco, _| {
+            banco
+                .execute("DELETE FROM link_assinado WHERE origem = ?1", [&origem])
+                .map(Some)
+        })
+    }
 }

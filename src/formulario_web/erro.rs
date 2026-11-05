@@ -37,6 +37,10 @@ pub(crate) enum ErroSubmissaoFormulario {
     CampoInformadoMaisDeUmaVez {
         campo: String,
     },
+    /// O campo que o script da operação cria já é publicado pela tela.
+    CampoCriadoPeloScriptJaPublicado {
+        campo: String,
+    },
     ValorNaoRepresentavelNaCodificacao {
         campo: String,
     },
@@ -82,6 +86,9 @@ impl ErroSubmissaoFormulario {
             Self::CampoForaDaListaDaOperacao { .. } => "campo_fora_da_lista_da_operacao",
             Self::CampoNaoPublicadoPeloFormulario { .. } => "campo_nao_publicado_pelo_formulario",
             Self::CampoInformadoMaisDeUmaVez { .. } => "campo_informado_mais_de_uma_vez",
+            Self::CampoCriadoPeloScriptJaPublicado { .. } => {
+                "campo_criado_pelo_script_ja_publicado"
+            }
             Self::ValorNaoRepresentavelNaCodificacao { .. } => {
                 "valor_nao_representavel_na_codificacao"
             }

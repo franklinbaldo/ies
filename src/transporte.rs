@@ -52,7 +52,11 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
         conferir_valor_de_consulta(valor)?;
         match nome {
             "acao" if valor == "procedimento_controlar" => actions += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            // 192: o Controle a que a troca de unidade redireciona (#205).
+            "infra_hash"
+                if matches!(valor.len(), 64 | 192)
+                    && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
+            {
                 hashes += 1;
             }
             "acao" | "infra_hash" | "acao_ajax" => {

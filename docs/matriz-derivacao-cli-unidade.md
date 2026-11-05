@@ -1,14 +1,14 @@
 ---
 type: Guide
 title: Matriz de derivação dos comandos ies unidade
-description: Linhas da matriz de derivação para listar-processos, colunas, recebidos, gerados e atual, com as decisões e pendências da caixa da unidade
+description: Linhas da matriz de derivação para listar-processos, colunas, recebidos, gerados, atual e trocar, com as decisões e pendências da caixa da unidade
 ---
 
 # Matriz de derivação — `ies unidade *`
 
 Parte da [matriz de derivação da CLI](matriz-derivacao-cli.md), com os
 mesmos estados, a mesma regra de priorização e o mesmo critério de
-contagem (estes 5 caminhos estão entre os 19). Separada por tamanho: a
+contagem (os 5 primeiros caminhos estão entre os 19; `trocar` é comando novo, #205). Separada por tamanho: a
 caixa da unidade (#57, feita) concentra as decisões do proprietário de
 02/11/2026. Tudo abaixo está em `main` (auditada em 04/11/2026 após #171).
 
@@ -19,6 +19,7 @@ caixa da unidade (#57, feita) concentra as decisões do proprietário de
 | `ies unidade recebidos [--pagina N]` | **PARCIAL WEB** (decisão do proprietário, 02/11/2026) | Lista Recebidos: página observada com total e faixa; `--pagina N` com 1 GET + até 1 POST; sessão na D: troca para R e fica nela (+1 POST) | [live 04/11](validacao-live/2026-11-04-unidade-paginacao.md): PASS UnB, PEN1, PEN3, PEN4, UFRJ (página lembrada); GO 5.0.3 PASS na [3ª tentativa](validacao-live/2026-11-04-unidade-paginacao-go-pen2.md) (página de 10, R→D, D lembrada, D→R; sem 403 a 90 s); PEN2 NOT_RUN ([2ª tentativa](validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)); lista vazia sem tabela de GO lida no replay; [replay](validacao-replay/2026-11-04-unidade-listar-processos-acervo.md) | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade gerados [--pagina N]` | **PARCIAL WEB** (idem) | Lista Gerados, mesma regra e mesmo transporte | Idem | [contrato](../contracts/cli/unidade-recebidos-gerados.md) |
 | `ies unidade atual` | **PARCIAL WEB** | Rótulo da unidade na página de Controle identificável | Live PASS UnB, UFRJ, PEN1, PEN3, PEN4 e GO (2ª execução) em [02/11](validacao-live/2026-11-02-leitura-controle.md); PEN2 NOT_RUN (503). Não infere permissão nem troca unidade | [contrato](../contracts/cli/unidade-atual.md) |
+| `ies unidade trocar SIGLA [--confirmar]` | **PARCIAL WEB** (#205, escrita de estado da sessão) | Prévia pela tela `infra_trocar_unidade` do `lnkInfraUnidade` do Controle (2 req.; já na unidade, 1); `--confirmar`: lock do login, 1 POST com `selInfraUnidades`, os dois 302 (`http://` no GO, hash de 192) até o Controle novo (5 req.), URL da sessão e marcador regravados, links assinados da instalação apagados do índice; desvio depois do POST sai com 3 | Live UFRJ 4.1.5: NOT_RUN (ver [relatório](validacao-live/2026-11-05-unidade-trocar.md)); [replay](validacao-replay/2026-11-05-unidade-trocar-acervo.md); PEN sem gravação de troca | [contrato](../contracts/cli/unidade-trocar.md), [decisão](decisoes/unidade-trocar.md) |
 
 **#57 (página observada e `--pagina N`; em main):** `unidade
 listar-processos` deixa de recusar caixa paginada: devolve a página que a

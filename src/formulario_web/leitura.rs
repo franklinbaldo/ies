@@ -281,7 +281,8 @@ fn botao_do_envio(envio: EnvioDoFormulario) -> Option<&'static str> {
     match envio {
         EnvioDoFormulario::BotaoDeEnvio(nome)
         | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(nome) => Some(nome),
-        EnvioDoFormulario::SubmitPorScript => None,
+        EnvioDoFormulario::SubmitPorScript
+        | EnvioDoFormulario::SubmitPorScriptComCampoCriado(_) => None,
     }
 }
 
@@ -315,7 +316,12 @@ pub(super) fn ler_controles(
         controles.push(controle);
     }
     match (operacao.envio, botoes) {
-        (EnvioDoFormulario::SubmitPorScript, _) | (EnvioDoFormulario::BotaoDeEnvio(_), 1) => {}
+        (
+            EnvioDoFormulario::SubmitPorScript
+            | EnvioDoFormulario::SubmitPorScriptComCampoCriado(_),
+            _,
+        )
+        | (EnvioDoFormulario::BotaoDeEnvio(_), 1) => {}
         // Servido uma vez, mas desabilitado antes de o navegador montar o corpo.
         (EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_), 1) => {
             controles.retain(|c| !matches!(c, Controle::Botao { .. }));

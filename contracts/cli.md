@@ -49,6 +49,9 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies unidade colunas` (Nível de detalhe, só leitura) e
   `ies unidade colunas --definir todas|LISTA [--confirmar]` (escrita da
   preferência de colunas, com prévia, confirmação e verificação)
+- `ies unidade trocar SIGLA [--confirmar]` (troca a unidade da sessão para
+  toda a conta, com prévia e verificação pelo Controle novo;
+  [contrato](cli/unidade-trocar.md))
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
@@ -80,6 +83,8 @@ legado do Todos faz parte do contrato público por pressuposição.
   e [colunas do Nível de detalhe](cli/unidade-colunas.md).
 - [unidade.definir_colunas](cli/unidade-definir-colunas.md): escrita do Nível de
   detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
+- [unidade.trocar](cli/unidade-trocar.md): troca da unidade da sessão; prévia
+  sem POST, efeito incerto sai com 3; vale para todos os agentes da sessão.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
   `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
   host da instalação e gravação atômica por geração, sob lock.
