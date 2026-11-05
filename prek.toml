@@ -92,3 +92,12 @@ language = "system"
 pass_filenames = false
 always_run = true
 stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "wip-ignores"
+name = "Testes pendentes wip só em testes novos, com issue"
+entry = "python3 -I scripts/wip_ignores.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
