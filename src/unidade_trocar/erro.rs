@@ -52,7 +52,7 @@ impl FalhaDepoisDoEnvio {
             Self::Envio(erro) => erro.subcodigo(),
             Self::Transporte(falha) => falha.subcodigo(),
             Self::RespostaSemRedirecionamento => "resposta_sem_redirecionamento",
-            Self::RedirecionamentoSemLocalizacao => "redirecionamento_sem_localizacao",
+            Self::RedirecionamentoSemLocalizacao => "redirecionamento_da_troca_sem_localizacao",
             Self::LocalizacaoForaDaFormaObservada => "localizacao_fora_da_forma_observada",
             Self::LocalizacaoDeOutraUnidade => "localizacao_de_outra_unidade",
             Self::Status(_) => "status_inesperado",

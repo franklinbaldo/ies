@@ -26,8 +26,10 @@ Emissor: [src/historico.rs](../../src/historico.rs).
 | `cabecalhos_html_do_historico_repetidos` | Cabeçalhos HTML do histórico repetidos. |
 | `historico_ausente` | Histórico ausente. |
 | `historico_invalido` | Histórico inválido. |
+| `html_do_historico_invalido` | HTML do histórico inválido. |
 | `historico_vazio` | Histórico vazio. |
 | `linha_invalida` | Linha inválida. |
+| `numero_do_historico_invalido` | Número extraído do título do histórico inválido. |
 | `numero_do_historico_diferente_do_solicitado` | Número do histórico diferente do solicitado. |
 | `tabelas_do_historico_repetidas` | Tabelas do histórico repetidas. |
 | `titulo_ausente` | Título ausente. |

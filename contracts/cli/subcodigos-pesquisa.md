@@ -100,6 +100,7 @@ Emissor: [src/pesquisa_web/paginacao.rs](../../src/pesquisa_web/paginacao.rs).
 | `faixa_da_pesquisa_diferente_da_pagina_solicitada` | Faixa da pesquisa diferente da página solicitada. |
 | `html_da_tela_de_resultado_da_pesquisa_nao_interpretado` | HTML da tela de resultado da pesquisa não interpretado. |
 | `link_de_paginacao_da_pesquisa_fora_da_regra` | Link de paginação da pesquisa fora da regra. |
+| `pagina_da_pesquisa_fora_do_intervalo` | Página da pesquisa fora do intervalo observado. |
 | `pagina_da_pesquisa_sem_resultado_apos_paginar` | Página da pesquisa sem resultado após paginar. |
 | `paginador_da_pesquisa_nao_publicado` | Paginador da pesquisa não publicado. |
 | `protocolo_da_tela_de_resultado_diferente_do_pesquisado` | Protocolo da tela de resultado diferente do pesquisado. |

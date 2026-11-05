@@ -146,7 +146,7 @@ impl ErroVisaoDoControle {
             Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa => {
                 "pagina_atual_da_visao_detalhada_incompativel_com_a_faixa"
             }
-            Self::PaginaForaDoIntervalo { .. } => "pagina_fora_do_intervalo",
+            Self::PaginaForaDoIntervalo { .. } => "pagina_da_caixa_fora_do_intervalo",
             Self::PaginadorDaVisaoDetalhadaNaoPublicado => {
                 "paginador_da_visao_detalhada_nao_publicado"
             }
