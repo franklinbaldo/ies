@@ -4,7 +4,7 @@ use serde_json::json;
 use std::process::ExitCode;
 
 /// Não abre o SQLite nem os arquivos de sessão; apenas resolve os caminhos
-/// fornecidos pela configuração, inclusive o opt-out IES_SEM_INDICE.
+/// fornecidos pela configuração, inclusive o opt-out `IES_SEM_INDICE`.
 pub(super) fn mostrar(json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
