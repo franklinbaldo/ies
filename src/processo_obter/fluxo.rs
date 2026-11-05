@@ -45,6 +45,8 @@ pub(crate) fn obter_processo<V: EnvioDoProcesso>(
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
 /// só pesa no comando que a usa.
 pub(crate) struct AcoesDeEstado {
+    /// contracts/cli/processo-prazo.md
+    pub(crate) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// contracts/cli/processo-concluir.md
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
@@ -115,6 +117,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes.total_u8(),
     };
     let acoes = AcoesDeEstado {
+        prazo: arvore_lida.prazo,
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
         enviar: arvore_lida.enviar,
