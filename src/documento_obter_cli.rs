@@ -374,7 +374,10 @@ fn publicar(
                 match crate::cache_documento::gravar(
                     host,
                     &d.numero,
-                    d.versoes.lida.or_else(|| d.versoes.foto.as_ref().map(|f| f.versao)).map(crate::documento_versoes::VersaoDocumento::numero),
+                    d.versoes
+                        .lida
+                        .or_else(|| d.versoes.foto.as_ref().map(|f| f.versao))
+                        .map(crate::documento_versoes::VersaoDocumento::numero),
                     "html",
                     html.as_bytes(),
                 ) {
