@@ -349,3 +349,6 @@ pub(crate) mod alvo;
 pub(crate) mod erro_busca;
 pub(crate) mod fluxo;
 pub(crate) mod link_da_pesquisa;
+
+// Critérios opcionais derivados estritamente dos controles servidos.
+pub(crate) mod filtros;
