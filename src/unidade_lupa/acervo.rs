@@ -44,7 +44,8 @@ fn replay_da_lupa_go_no_acervo() {
                     .filter(|url| url.contains("acao=unidade_selecionar_envio_processo"))
                     .collect();
             assert_eq!(
-                candidatos.len(), 1,
+                candidatos.len(),
+                1,
                 "cadastro GO passo {} precisa de um literal único da lupa",
                 resposta.passo
             );
