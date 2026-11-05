@@ -4,7 +4,7 @@ title: Incluir documento interno pelo formulário publicado e conferir diferenç
 operation: documento.criar
 implementation: partial
 status: adopted-for-scope
-scope: contrato e testes offline de reconhecimento do tipo e reconciliação da árvore sem escrita remota
+scope: contrato, reconciliação em produção e fluxo WIP de submissão Web com uma escrita
 selected_strategy: web-cadastro-e-diferenca-da-arvore
 alternatives: web-cadastro-e-diferenca-da-arvore,web-confiar-em-id-da-resposta,rest-wssei
 evidence_level: oraculo-todos-captura-unb-e-indices-de-cassette-go
@@ -58,8 +58,9 @@ novo" como êxito. Qualquer inconclusividade depois de enviar é 3.
 
 - [Contrato](../../contracts/cli/documento-criar.md).
 - [Evidência existente do acervo](../../contracts/evidencias/documento-criar.md).
-- [Teste CLI temporário](../../tests/cli_documento_criar.rs) (garante recusa antes de integrar escrita).
-- Testes unitários de leitura e reconciliação: `src/documento_criar.rs`.
+- [Teste CLI](../../tests/cli_documento_criar.rs) (confere argumentos e falha fechada sem sessão).
+- Testes unitários de leitura e reconciliação: `src/documento_criar/tests.rs`.
+- Testes de derivação de formulário: `src/documento_criar/fluxo.rs`.
 
 ## Limitações e revisão
 
@@ -69,4 +70,4 @@ O acervo comprova a existência de interações, mas o conteúdo bruto
 ainda não foi reexecutado no IES. Sem replay e validação do cadastro
 de cada versão, **não** se deve habilitar escrita por adivinhação.
 A decisão deverá ser revista após o RED e a conferência em instalações
-de treinamento. Escrita live permanece NOT_RUN por falta de autorização.
+de treinamento. A escrita foi autorizada em 05/11, exclusivamente no SEI de treinamento; porém segue **NOT_RUN** nesta execução. O fluxo de envio e conferência é WIP sem compilação, replay ou live comprovados; não declarar GREEN até os gates passarem.
