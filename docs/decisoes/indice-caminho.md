@@ -13,20 +13,35 @@ live_validation: not-applicable
 
 # Índice: descobrir caminho sem sessão
 
-## Alternativas
+## Alternativas consideradas
 
 - **subcomando-local-indice** (escolhido): `ies indice caminho` resolve
   as opções do índice, sem autenticação ou GET.
 - **acrescentar-status**: misturaria a descoberta do banco com o
   diagnóstico da sessão existente e ampliaria seu JSON.
 
-## Decisão e consequências
+## Comparação
+
+O subcomando evita ampliar o diagnóstico de sessão em `ies status`.
+Não aumenta requisições ao SEI nem abre o banco; cada alternativa apenas
+exporia o caminho configurado, sem garantir sua existência.
+
+## Decisão
 
 Manter a funcionalidade de descoberta separada em um subcomando.
 O IES consulta somente a configuração local, inclusive as regras
 `IES_CONFIG_FILE`, `IES_INDICE_FILE` e `IES_SEM_INDICE`.
 O resultado é um caminho **configurado**, nunca uma prova de que o
 banco existe, contém todas as unidades ou pode ser aberto.
+
+## Evidências verificáveis
+
+- [Contrato](../../contracts/cli/indice-caminho.md)
+- [Evidência local](../../contracts/evidencias/indice-caminho.md)
+- [Teste CLI](../../tests/cli_contract.rs)
+- [Código](../../src/indice_caminho_cli.rs)
+
+## Limitações e revisão
 
 Os testes verificam a superfície clap e o cálculo independente
 do banco. O contrato de leitura das tabelas permanece em
