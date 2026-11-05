@@ -1,7 +1,7 @@
 //! Entrada pública de documento criar (#246).
 //! Confirmação ainda não implementada: recusa antes de carregar sessão,
 //! e portanto antes de qualquer requisição ou escrita no SEI.
-use crate::documento_criar::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, obter_previa};
+use crate::documento_criar::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
@@ -29,14 +29,6 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     if tipo.trim().is_empty() {
         return Some(entrada_invalida(cli.json, "tipo_de_documento_vazio"));
     }
-    if *confirmar {
-        return Some(saida_erro::erro_fonte_http(
-            cli.json,
-            "criacao_de_documento_ainda_nao_validada",
-            "confirmação indisponível: falta integrar e verificar o POST do cadastro",
-            None,
-        ));
-    }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoCriacao {
             nup: &nup,
@@ -45,7 +37,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
             descricao: descricao.as_deref(),
             nivel: nivel.as_deref(),
         };
-        match obter_previa(sessao, &pedido, indice, &mut EnvioHttps) {
+        match executar_criacao(sessao, &pedido, indice, &mut EnvioHttps, *confirmar) {
             Ok(previa) => publicar_previa(cli.json, &previa),
             Err(erro) => publicar_erro(cli.json, &erro),
         }
@@ -73,26 +65,50 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
             "tipo": previa.tipo,
             "unidade": previa.unidade,
             "origem": "web",
-            "confirmado": false,
-            "alterado": false,
+            "confirmado": previa.confirmado,
+            "alterado": previa.confirmado,
+            "numero_sei": previa.numero_sei,
             "requisicoes": previa.requisicoes
         }));
     } else {
-        println!(
-            "Prévia: criar documento {} no processo {} (unidade {}).",
-            previa.tipo, previa.nup, previa.unidade
-        );
+        if previa.confirmado {
+            println!(
+                "Documento {} criado no processo {} (unidade {}), número SEI {}.",
+                previa.tipo,
+                previa.nup,
+                previa.unidade,
+                previa.numero_sei.as_deref().unwrap_or("não observado")
+            );
+        } else {
+            println!(
+                "Prévia: criar documento {} no processo {} (unidade {}).",
+                previa.tipo, previa.nup, previa.unidade
+            );
+            println!("Nenhum documento foi criado.");
+        }
         println!("Requisições: {}", previa.requisicoes);
-        println!("Confirmação ainda não disponível; nenhum documento foi criado.");
     }
     ExitCode::SUCCESS
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao) -> ExitCode {
+    if matches!(erro, ErroPreviaCriacao::EfeitoIncerto) {
+        if json_mode {
+            println!("{}", json!({
+                "codigo": "efeito_incerto",
+                "subcodigo": erro.subcodigo(),
+                "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
+                "retentavel": false
+            }));
+        } else {
+            eprintln!("IES: efeito incerto na criação do documento; não repita --confirmar");
+        }
+        return ExitCode::from(3);
+    }
     saida_erro::erro_fonte_http(
         json_mode,
         erro.subcodigo(),
-        "prévia da criação do documento não pôde ser conferida",
+        "criação do documento não pôde ser conferida",
         erro.status_http(),
     )
 }
