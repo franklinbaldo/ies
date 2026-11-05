@@ -71,7 +71,9 @@ pub(crate) use assinatura::{
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
-pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use barra_do_processo::{
+    ler_link_das_propriedades, ler_link_dos_comentarios, ler_link_dos_marcadores,
+};
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
