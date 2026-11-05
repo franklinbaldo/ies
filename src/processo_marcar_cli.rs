@@ -6,7 +6,8 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto};
 use crate::processo_obter::{
-    Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso, obter_processo,
+    EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
+    obter_processo,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
@@ -61,7 +62,9 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
         return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        previa(cli, sessao, indice, &nup, &rotulo, operacao, *confirmar)
+        previa(
+            cli, sessao, indice, &nup, &rotulo, operacao, *confirmar, &mut EnvioHttps,
+        )
     }))
 }
 
@@ -108,7 +111,7 @@ fn marcadores_observados(marcadores: &Marcadores) -> Result<&MarcadoresLidos, Er
     }
 }
 
-fn previa(
+fn previa<E: EnvioDoProcesso>(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
@@ -116,6 +119,7 @@ fn previa(
     rotulo: &Rotulo,
     operacao: Operacao,
     confirmar: bool,
+    envio: &mut E,
 ) -> ExitCode {
     let pedido = PedidoDoProcesso {
         nup,
@@ -126,7 +130,7 @@ fn previa(
         // Uma escrita depende da unidade publicada pela tela do processo.
         unidade_exigida: true,
     };
-    let aberto = match obter_processo(sessao, &pedido, indice, &mut EnvioHttps) {
+    let aberto = match obter_processo(sessao, &pedido, indice, envio) {
         Ok(aberto) => aberto,
         Err(erro) => {
             return saida_erro::erro_fonte_http(
