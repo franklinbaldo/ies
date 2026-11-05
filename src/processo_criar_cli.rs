@@ -7,17 +7,17 @@ use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ErroEntradaCriacao {
-    TipoVazioOuControle,
-    EspecificacaoVaziaOuControle,
-    InteressadoVazioOuControle,
+    Tipo,
+    Especificacao,
+    Interessado,
 }
 
 impl ErroEntradaCriacao {
     fn subcodigo(self) -> &'static str {
         match self {
-            Self::TipoVazioOuControle => "tipo_de_processo_invalido",
-            Self::EspecificacaoVaziaOuControle => "especificacao_de_processo_invalida",
-            Self::InteressadoVazioOuControle => "interessado_de_processo_invalido",
+            Self::Tipo => "tipo_de_processo_invalido",
+            Self::Especificacao => "especificacao_de_processo_invalida",
+            Self::Interessado => "interessado_de_processo_invalido",
         }
     }
 }
@@ -32,13 +32,13 @@ fn validar(
     interessados: &[String],
 ) -> Result<(), ErroEntradaCriacao> {
     if !texto_valido(tipo) {
-        return Err(ErroEntradaCriacao::TipoVazioOuControle);
+        return Err(ErroEntradaCriacao::Tipo);
     }
     if !texto_valido(especificacao) {
-        return Err(ErroEntradaCriacao::EspecificacaoVaziaOuControle);
+        return Err(ErroEntradaCriacao::Especificacao);
     }
     if interessados.iter().any(|v| !texto_valido(v)) {
-        return Err(ErroEntradaCriacao::InteressadoVazioOuControle);
+        return Err(ErroEntradaCriacao::Interessado);
     }
     Ok(())
 }
@@ -100,15 +100,15 @@ mod tests {
     fn entrada_invalida_eh_recusada_sem_sessao() {
         assert_eq!(
             validar(" ", "Ensaio", &[]),
-            Err(ErroEntradaCriacao::TipoVazioOuControle)
+            Err(ErroEntradaCriacao::Tipo)
         );
         assert_eq!(
             validar("Tipo", "\n", &[]),
-            Err(ErroEntradaCriacao::EspecificacaoVaziaOuControle)
+            Err(ErroEntradaCriacao::Especificacao)
         );
         assert_eq!(
             validar("Tipo", "Ensaio", &["\t".to_owned()]),
-            Err(ErroEntradaCriacao::InteressadoVazioOuControle)
+            Err(ErroEntradaCriacao::Interessado)
         );
     }
 
