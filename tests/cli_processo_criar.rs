@@ -23,6 +23,7 @@ fn ajuda_publica_os_argumentos_de_criacao() {
         "--especificacao",
         "--interessado",
         "--nivel",
+        "--hipotese-legal",
         "--confirmar",
     ] {
         assert!(ajuda.contains(flag), "faltou {flag}");
@@ -80,5 +81,32 @@ fn sem_sessao_recusa_previa_e_confirmacao_sem_rede() {
             serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
         assert_eq!(valor["codigo"], "fonte_invalida");
         assert_ne!(valor["codigo"], "nao_implementado");
+    }
+}
+
+#[test]
+fn hipotese_legal_explicitamente_invalida_eh_recusada_antes_da_sessao() {
+    for (nivel, escolha) in [
+        ("publico", "31#Base A"),
+        ("restrito", "31"),
+        ("restrito", "#Base A"),
+    ] {
+        let saida = sem_sessao(&[
+            "processo",
+            "criar",
+            "--tipo",
+            "Ensaio",
+            "--especificacao",
+            "Teste",
+            "--nivel",
+            nivel,
+            "--hipotese-legal",
+            escolha,
+            "--json",
+        ]);
+        assert_eq!(saida.status.code(), Some(2));
+        let valor: serde_json::Value =
+            serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
+        assert_eq!(valor["subcodigo"], "hipotese_legal_informada_invalida");
     }
 }
