@@ -112,7 +112,7 @@ fn enviar(
                     let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
                     if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
                         let sugestoes = indice.sugestoes_de_unidades_guardadas(
-                            instalacao.url_base(), &ativa, para,
+                            &instalacao.url_base(), &ativa, para,
                         );
                         if !sugestoes.is_empty() {
                             valor["sugestoes_guardadas"] = json!(sugestoes);
