@@ -224,33 +224,13 @@ fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>)
 /// Leitura de uma única página, com nomes de colunas, sem assumir ordem fixa.
 /// O HTML da `UnB` (Todos `tests/paginas_reais/menu_blocos.html` @323eb01)
 /// publica tblBlocos, caption, th Número/Estado/Descrição e href por número.
-pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
+fn ler_linhas(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    nomes: &[String],
+    tipo: TipoBloco,
+) -> Result<(Vec<BlocoLido>, Vec<String>), ErroBloco> {
     use ErroBloco as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblBlocos").map_err(|_| E::HtmlInvalido)?;
-    let tabela = match tabelas.as_slice() {
-        [] => return Err(E::TabelaDeBlocosAusente),
-        [no] => no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::TabelaDeBlocosAusente)?,
-        _ => return Err(E::TabelasDeBlocosRepetidas),
-    };
-    if tabela.name() != "table" {
-        return Err(E::TabelaDeBlocosAusente);
-    }
-    let mut captions = tabela
-        .query_selector(parser, "caption")
-        .ok_or(E::LegendaDeBlocosInvalida)?;
-    let legenda = captions
-        .next()
-        .and_then(|no| no.get(parser))
-        .ok_or(E::LegendaDeBlocosInvalida)?;
-    if captions.next().is_some() {
-        return Err(E::LegendaDeBlocosInvalida);
-    }
-    let nomes = cabecalhos(tabela, parser)?;
     let posicao = |s: &str| {
         nomes
             .iter()
@@ -317,6 +297,37 @@ pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, Er
             quantidade_itens: None,
         });
     }
+    Ok((itens, links))
+}
+
+pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
+    use ErroBloco as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
+    let parser = dom.parser();
+    let tabelas = nos_com_id(&dom, "tblBlocos").map_err(|_| E::HtmlInvalido)?;
+    let tabela = match tabelas.as_slice() {
+        [] => return Err(E::TabelaDeBlocosAusente),
+        [no] => no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::TabelaDeBlocosAusente)?,
+        _ => return Err(E::TabelasDeBlocosRepetidas),
+    };
+    if tabela.name() != "table" {
+        return Err(E::TabelaDeBlocosAusente);
+    }
+    let mut captions = tabela
+        .query_selector(parser, "caption")
+        .ok_or(E::LegendaDeBlocosInvalida)?;
+    let legenda = captions
+        .next()
+        .and_then(|no| no.get(parser))
+        .ok_or(E::LegendaDeBlocosInvalida)?;
+    if captions.next().is_some() {
+        return Err(E::LegendaDeBlocosInvalida);
+    }
+    let nomes = cabecalhos(tabela, parser)?;
+    let (itens, links) = ler_linhas(tabela, parser, &nomes, tipo)?;
     let (total_declarado, faixa_observada) = declaracao(&texto_no(legenda, parser), itens.len())?;
     Ok(ListaComLinks {
         lista: ListaDeBlocos {
@@ -352,7 +363,7 @@ pub(crate) fn resolver_link(
         match chave {
             "acao" if valor == acao => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1
+                hashes += 1;
             }
             "id_bloco" if numero == Some(valor) => ids += 1,
             "acao" | "infra_hash" | "id_bloco" | "acao_ajax" => return Err(nao),
