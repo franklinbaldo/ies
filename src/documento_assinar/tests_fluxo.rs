@@ -166,6 +166,37 @@ fn confirmar_envia_um_post_com_a_senha_e_confere_a_caneta() {
 }
 
 #[test]
+fn indice_quente_nao_confirma_assinatura_ausente_na_arvore_relida() {
+    let amb = ambiente();
+    let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_entrada_por_id(&inst, false);
+    let credenciais = credenciais();
+    let respostas = com(
+        ate_a_tela(arvore_do_documento('N', &[])),
+        vec![ok(resposta_aceita()), ok(arvore_do_documento('N', &[]))],
+    );
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
+        let numero = crate::documento::NumeroDocumento::novo(DOC).unwrap();
+        let confirmar = super::Confirmacao {
+            cargo: CARGO,
+            credenciais: &credenciais,
+        };
+        let pedido = super::PedidoDaAssinatura {
+            numero: &numero,
+            unidade: None,
+            processo: Some(nup),
+            cargo: Some(CARGO),
+            confirmacao: Some(confirmar),
+        };
+        super::assinar_documento(sessao, &pedido, indice, envio)
+    });
+    assert!(resultado.is_err(), "sem caneta relida não há assinatura provada");
+    assert_eq!(pedidos, pedidos_da_escrita());
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+#[test]
 fn resposta_sem_finalizar_reconciliada_pela_leitura() {
     let respostas = com(
         ate_a_tela(arvore_do_documento('N', &[])),
