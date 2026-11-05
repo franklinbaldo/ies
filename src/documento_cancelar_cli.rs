@@ -15,18 +15,38 @@ use std::process::ExitCode;
 /// Só responde quando o comando é documento cancelar.
 pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(Documento {
-        acao: Some(DocumentoAcao::Cancelar { numero, motivo, confirmar }),
+        acao:
+            Some(DocumentoAcao::Cancelar {
+                numero,
+                motivo,
+                confirmar,
+            }),
         processo,
         ..
-    }) = &cli.command else { return None; };
+    }) = &cli.command
+    else {
+        return None;
+    };
     let numero = match NumeroDocumento::novo(numero) {
         Ok(n) => n,
-        Err(e) => return Some(uso_invalido(cli.json, e.subcodigo(), "número de documento inválido")),
+        Err(e) => {
+            return Some(uso_invalido(
+                cli.json,
+                e.subcodigo(),
+                "número de documento inválido",
+            ));
+        }
     };
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(n)) => Some(n),
-        Some(Err(e)) => return Some(uso_invalido(cli.json, e.subcodigo(), "número de processo inválido")),
+        Some(Err(e)) => {
+            return Some(uso_invalido(
+                cli.json,
+                e.subcodigo(),
+                "número de processo inválido",
+            ));
+        }
     };
     let motivo = match conferir_motivo(motivo) {
         Ok(m) => m,
@@ -43,11 +63,20 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
         match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(feito) => {
                 if cli.json {
-                    println!("{}", serde_json::to_string_pretty(&json_do_sucesso(&feito)).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json_do_sucesso(&feito)).unwrap_or_default()
+                    );
                 } else if feito.alterado {
-                    println!("Documento {} cancelado e conferido pela árvore. Requisições: {}.", feito.numero, feito.requisicoes);
+                    println!(
+                        "Documento {} cancelado e conferido pela árvore. Requisições: {}.",
+                        feito.numero, feito.requisicoes
+                    );
                 } else {
-                    println!("Prévia: cancelar documento {} no processo {}. Motivo: {}. Não foi enviado POST. Repita com --confirmar apenas em treinamento.", feito.numero, feito.processo.nup, feito.motivo);
+                    println!(
+                        "Prévia: cancelar documento {} no processo {}. Motivo: {}. Não foi enviado POST. Repita com --confirmar apenas em treinamento.",
+                        feito.numero, feito.processo.nup, feito.motivo
+                    );
                 }
                 ExitCode::SUCCESS
             }
@@ -58,7 +87,10 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
 
 fn uso_invalido(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({"codigo":"entrada_invalida","subcodigo":subcodigo,"erro":mensagem,"retentavel":false}));
+        println!(
+            "{}",
+            json!({"codigo":"entrada_invalida","subcodigo":subcodigo,"erro":mensagem,"retentavel":false})
+        );
     } else {
         eprintln!("IES: {mensagem} [{subcodigo}]");
     }
@@ -106,8 +138,8 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
         "requisicoes":feito.requisicoes,
         "reconciliado_por_leitura":feito.reconciliado_por.is_some()
     });
-    if let (Some(f),Some(obj)) = (&feito.reconciliado_por,valor.as_object_mut()) {
-        obj.insert("falha_do_envio".to_owned(),json_da_falha_do_envio(f));
+    if let (Some(f), Some(obj)) = (&feito.reconciliado_por, valor.as_object_mut()) {
+        obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
     }
     valor
 }
