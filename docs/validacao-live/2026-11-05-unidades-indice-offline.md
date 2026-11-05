@@ -117,3 +117,38 @@ commits subsequentes no mesmo branch. Para fechar a issue faltam o replay
 sobre cassettes reais e a leitura ao vivo em UnB/GO com orçamento contado,
 confirmação das telas e comportamento de todas as páginas. Não fazer merge
 nem marcar a PR como pronta enquanto isso não estiver observado.
+
+## Retomada adicional — impedir snapshot filtrado que parece integral
+
+**Observação anterior ao RED:** o oráculo Todos @`323eb01`, em
+`src/todos/sei/lupa_unidades.py` e
+`tests/test_lupa_unidades_010.py`, mostra a distinção entre o órgão
+`Todos` (valor vazio) e `null` (nenhum órgão), além dos filtros de
+sigla e descrição. `tests/test_destinos_indice_010.py` exige que uma
+lista apenas filtrada não seja guardada como snapshot integral.
+A observação vem do oráculo, **não** de replay da cassette no IES.
+
+**Risco corrigido:** mesmo com número de páginas, total e IDs
+coerentes, o SEI poderia devolver uma consulta filtrada por critérios
+restaurados na sessão. O leitor agora verifica os filtros que a resposta
+de **cada POST** efetivamente publica, antes de considerar uma página
+para persistência: sigla e descrição vazias, órgão selecionado `Todos`
+e controles sem duplicação. Qualquer divergência recusa a coleta inteira
+sem substituir o snapshot anterior e sem fazer POST adicional. A
+regressão sintética também cobre órgão `null` e seleção implícita.
+
+| Verificação | Resultado |
+| --- | --- |
+| RED local pré-código | **NOT_RUN**, sem toolchain Rust no sandbox e DNS externo indisponível |
+| RED no CI, antes da correção | **1 teste falhou**, 1.358 passaram, 12 ignorados — [run 42073006096](https://github.com/franklinbaldo/ies/actions/runs/42073006096), commit `f42f6ab`; a falha foi `filtro_restaurado_pelo_sei_nao_vira_lista_integral` |
+| GREEN do código/testes | **PASS** (Rustfmt, Clippy, suíte Rust e demais gates) — [run 42074031892](https://github.com/franklinbaldo/ies/actions/runs/42074031892), commit `7d31cf9` |
+| Replay da cassette original | **NOT_RUN**, corpos da cassette não disponíveis no sandbox |
+| Live UnB e GO | **NOT_RUN**, **0 requisições** em ambas |
+| Escrita remota | **NOT_RUN**, **0 requisições**, nenhum resíduo criado |
+
+**Limite:** os novos testes reproduzem o cenário observado pelo Todos
+em HTML **sintético**, mas não substituem a execução integral da cassette
+de GO ou a observação autenticada em UnB e GO. Antes de concluir #244,
+reproduzir as páginas do acervo e medir as requisições de
+`unidade listar --atualizar` e a pesquisa posterior em treinamento,
+sem retry e sem produção. Este relatório não afirma PASS live.
