@@ -310,7 +310,11 @@ fn gravar(
     diretorio: &Path,
     caches: &[Option<crate::cache_documento::Registro>],
 ) -> Result<Vec<Option<ArquivoDaSaida>>, ExitCode> {
-    let fotos = documento_versao_cli::gravar_fotos_com_cache(diretorio, obtidos, caches)
+    let fotos = if caches.iter().any(Option::is_some) {
+        documento_versao_cli::gravar_fotos_com_cache(diretorio, obtidos, caches)
+    } else {
+        documento_versao_cli::gravar_fotos(diretorio, obtidos)
+    }
         .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
