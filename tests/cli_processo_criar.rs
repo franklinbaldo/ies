@@ -18,7 +18,13 @@ fn ajuda_publica_os_argumentos_de_criacao() {
     let saida = sem_sessao(&["processo", "criar", "--help"]);
     assert_eq!(saida.status.code(), Some(0));
     let ajuda = String::from_utf8_lossy(&saida.stdout);
-    for flag in ["--tipo", "--especificacao", "--interessado", "--nivel", "--confirmar"] {
+    for flag in [
+        "--tipo",
+        "--especificacao",
+        "--interessado",
+        "--nivel",
+        "--confirmar",
+    ] {
         assert!(ajuda.contains(flag), "faltou {flag}");
     }
 }
@@ -27,10 +33,22 @@ fn ajuda_publica_os_argumentos_de_criacao() {
 fn argumentos_invalidos_falham_antes_da_sessao() {
     for args in [
         vec![
-            "processo", "criar", "--tipo", " ", "--especificacao", "Teste", "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            " ",
+            "--especificacao",
+            "Teste",
+            "--json",
         ],
         vec![
-            "processo", "criar", "--tipo", "Ensaio", "--especificacao", " ", "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            "Ensaio",
+            "--especificacao",
+            " ",
+            "--json",
         ],
     ] {
         let saida = sem_sessao(&args);
@@ -45,8 +63,13 @@ fn argumentos_invalidos_falham_antes_da_sessao() {
 fn sem_sessao_recusa_previa_e_confirmacao_sem_rede() {
     for confirmar in [false, true] {
         let mut args = vec![
-            "processo", "criar", "--tipo", "Ensaio",
-            "--especificacao", "Teste de leitura", "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            "Ensaio",
+            "--especificacao",
+            "Teste de leitura",
+            "--json",
         ];
         if confirmar {
             args.push("--confirmar");
