@@ -39,7 +39,8 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
 - `ies documento NUMERO [--versao N] [--saida DIR]` (versão N pela lista
-  da barra, Refs #88; com `--saida`, só a foto `DOC.vN.html`, idempotente, #207)
+  da barra, Refs #88; com `--saida`, foto `DOC.vN.html` do interno
+  ou arquivo original do externo, idempotentes, #207)
 - `ies documento buscar TERMO [--pagina N]` (a mesma pesquisa Web, em
   documentos: GET + GET + POST; `--pagina N` acrescenta um POST)
 - `ies unidade listar-processos [--pagina N]` (visão detalhada com colunas;
@@ -75,6 +76,21 @@ exposição do caminho recusado. Ver [erros tipados](../docs/erros-tipados.md).
 - `ies login [--forcar]` (login Web na instalação configurada; grava a sessão
   nos arquivos privados)
 - `ies esquema`
+
+## Configurar caminhos locais
+
+`ies setup --config-file ARQUIVO --url-controle-file ARQUIVO
+--cookie-file ARQUIVO --origem-file ARQUIVO` exige as quatro opções
+no clap. São caminhos, nunca conteúdo de sessão. `--json` e
+`--unidade` são globais; setup não verifica unidade nem faz rede.
+
+O destino da configuração e os três caminhos devem ser absolutos.
+Os três arquivos devem existir e, no Unix, ter permissões privadas; o setup
+confere metadados, não testa a conexão. Grava a configuração local
+com criação exclusiva (não sobrescreve) e permissão 0600 no Unix. Sucesso (0) em JSON:
+`{"configuracao":"gravada","conexao":"nao_verificada"}`.
+Falha operacional usa `fonte_invalida`, `subcodigo`, mensagem saneada
+e saída 1; opção obrigatória ausente é erro do clap (2).
 
 ## Contratos iniciais de leitura
 

@@ -39,8 +39,8 @@ saída 2 e `codigo: entrada_invalida`:
 | --- | --- |
 | `--definir` vazio ou só espaços | `lista_de_colunas_vazia` |
 | Item vazio entre vírgulas | `item_vazio_na_lista_de_colunas` |
-| Chave fora das 12 (inclusive `todas` dentro de uma lista) | `coluna_desconhecida` (`coluna`: a chave digitada) |
-| Chave repetida | `coluna_repetida_na_lista` (`coluna`) |
+| Chave fora das 12 (inclusive `todas` dentro de uma lista); campo `coluna` com a chave digitada | `coluna_desconhecida` |
+| Chave repetida; campo `coluna` | `coluna_repetida_na_lista` |
 | `--confirmar` sem `--definir` | erro de uso do Clap |
 
 ## Comportamento
@@ -184,3 +184,9 @@ e **PASS na PEN4 e na PEN3 5.0.4 em 04/11/2026** pelo roteiro reescrito
 [relatório PEN3](../../docs/validacao-live/2026-11-04-definir-colunas-pen3.md),
 [roteiro](../../docs/validacao-live/roteiro-definir-colunas.md),
 [decisão](../../docs/decisoes/unidade-definir-colunas.md)).
+
+## Histórico de restauração
+
+As recusas de restauração citadas neste contrato são históricas: foram
+aposentadas pela decisão de #57 de deixar a sessão na visão/página
+utilizada, sem requisições para restaurar a tela. Não são emissões ativas.

@@ -14,7 +14,8 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 visível. A leitura Web de documentos internos (texto e metadados, pela
 pesquisa rápida, a árvore e o link assinado do conteúdo) está no
 [contrato da leitura Web](documento-obter-web.md) (Refs #60, fatia 1);
-as demais opções continuam stub.
+`--com-propriedades` e `--ocultar-inacessiveis` continuam stub.
+Versões, `--saida` e HTML privado estão descritos abaixo.
 
 ## Entradas
 
@@ -61,8 +62,10 @@ fornecem evidências de partida. Não inferir autorização ou saída sem prova.
 `replay` (05/11/2026; [decisão](../../docs/decisoes/acervo/replay-fora-da-cli.md)).
 O leitor das listas `documento_versao_listar` segue coberto pelo replay do
 acervo `processo_obter::acervo_versoes` (`scripts/replay acervo_versoes`) e
-pelos testes sintéticos de `documento_versoes`. Continua **sem** `ies
-documento DOC --versao N` e sem `listar-versoes`. Refs #88.
+pelos testes sintéticos de `documento_versoes`. A leitura Web
+`ies documento DOC --versao N` está implementada (Refs #88); não há
+subcomando `listar-versoes`. A retirada de `replay` (#208) não retirou
+a opção Web de versão.
 
 ## Identidade textual de HTML reproduzido offline (Refs #60)
 
@@ -77,9 +80,9 @@ não é corrigido silenciosamente por um título encontrado no corpo.
 Para manter compatibilidade com fragmentos de cassette sem `head`,
 o parser offline conserva a aceitação explícita de um título único
 nesse caso, sem considerar isso prova de um documento Web completo.
-O recorte não realiza leitura remota, não modifica o stub
-`ies documento DOC` e não substitui a verificação de número/ID,
-sessão, origem, MIME e versão antes de uma futura consulta live.
+Os testes offline desse leitor não realizam leitura remota nem
+substituem as verificações de número/ID, sessão, origem, MIME e versão
+do fluxo Web implementado em `ies documento DOC`.
 
 ## Legenda e cobertura do histórico Web (Refs #88 e #60)
 

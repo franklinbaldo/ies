@@ -122,3 +122,9 @@ publicada com `total_declarado: 0`. A outra tabela
 continua interpretada e verificada estruturalmente pela leitura da tela.
 `--unidade SIGLA` diferente do rótulo publicado falha como em
 `listar-processos`.
+
+## Histórico de restauração
+
+As recusas de restauração citadas neste contrato são históricas: foram
+aposentadas pela decisão de #57 de deixar a sessão na visão/página
+utilizada, sem requisições para restaurar a tela. Não são emissões ativas.
