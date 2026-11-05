@@ -1,5 +1,5 @@
 ---
-type: ValidationReport
+type: SEIObservation
 title: Auditoria da contagem HTTP nos fluxos de unidade — issue 235
 description: Cobertura inspecionada e verificações ainda pendentes em 5 de novembro de 2026
 ---
