@@ -1,6 +1,6 @@
 //! Núcleo verificado de `ies processo acompanhar` (#254).
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
-//! pela resposta HTTP. Casos do Todos tests/test_processo_acompanhar_010.py @323eb01.
+//! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use crate::entidades_html::decodificar_texto;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
@@ -31,6 +31,7 @@ pub(crate) enum ErroAcompanhar {
     GrupoJaAcompanhado,
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
+    #[cfg(test)]
     AcompanhamentoNaoConfirmado,
 }
 
@@ -53,6 +54,7 @@ impl ErroAcompanhar {
             Self::GrupoJaAcompanhado => "grupo_ja_acompanhado_no_processo",
             Self::NenhumAcompanhamento => "processo_sem_acompanhamento",
             Self::EscolhaDeAcompanhamentoAmbigua => "acompanhamento_para_remover_ambiguo",
+            #[cfg(test)]
             Self::AcompanhamentoNaoConfirmado => "acompanhamento_nao_confirmado_por_leitura",
         }
     }
@@ -82,7 +84,7 @@ fn campo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, Er
     valor_do_atributo(tag, nome).map_err(|_| ErroAcompanhar::HtmlInvalido)
 }
 
-/// A página de cadastro da UnB 4.0.9 tem um form e o select publicado.
+/// A página de cadastro da `UnB` 4.0.9 tem um form e o select publicado.
 /// Confere a identidade do processo no action E no oculto antes de escolher.
 pub(crate) fn grupos_do_cadastro(
     html: &str,
@@ -279,6 +281,7 @@ pub(crate) fn alvo_para_deixar<'a>(
 
 /// A operação só está confirmada se apareceu exatamente UMA linha nova
 /// com grupo/observação pedidos e TODAS as linhas anteriores intactas.
+#[cfg(test)]
 pub(crate) fn conferir_inclusao(
     antes: &[Acompanhamento], depois: &[Acompanhamento],
     grupo: &str, observacao: &str,
@@ -295,6 +298,7 @@ pub(crate) fn conferir_inclusao(
 }
 
 /// Só remova quando a identidade exata desaparecer e todo o resto for idêntico.
+#[cfg(test)]
 pub(crate) fn conferir_remocao(
     antes: &[Acompanhamento], depois: &[Acompanhamento], id: &str,
 ) -> Result<(), ErroAcompanhar> {
