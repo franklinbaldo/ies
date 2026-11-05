@@ -124,7 +124,7 @@ fn texto_no(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 
 fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
     crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
-        .replace('\\u{a0}', " ")
+        .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
