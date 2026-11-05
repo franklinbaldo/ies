@@ -98,6 +98,12 @@ jobs:
       - name: Cache Rust compilation
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
+      - name: Cache dos ZIPs públicos conferidos
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/ies-acervo-processo-criar
+          key: ies-acervo-processo-criar-${{ hashFiles('cassettes/**/processo-criar-*.md') }}
+
       - name: Testar a obtenção dos ZIPs sem rede real
         run: python3 -m unittest discover -s scripts/tests -p 'test_baixar_acervo_processo_criar.py' -v
 
