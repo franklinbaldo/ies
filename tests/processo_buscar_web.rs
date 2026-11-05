@@ -88,13 +88,28 @@ fn pagina_zero_e_erro_de_uso() {
 
 #[test]
 fn data_invalida_e_recusada_antes_da_configuracao() {
-    let saida = ies(&["--json", "processo", "buscar", "0001", "--de", "31/02/2026"], false);
+    let saida = ies(
+        &["--json", "processo", "buscar", "0001", "--de", "31/02/2026"],
+        false,
+    );
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "data_da_pesquisa_invalida");
 }
 #[test]
 fn periodo_invertido_e_recusado_antes_da_configuracao() {
-    let saida = ies(&["--json", "processo", "buscar", "0001", "--de", "02/01/2026", "--ate", "01/01/2026"], false);
+    let saida = ies(
+        &[
+            "--json",
+            "processo",
+            "buscar",
+            "0001",
+            "--de",
+            "02/01/2026",
+            "--ate",
+            "01/01/2026",
+        ],
+        false,
+    );
     assert_eq!(saida.status.code(), Some(2));
     assert_eq!(json(&saida)["subcodigo"], "periodo_da_pesquisa_invertido");
 }
