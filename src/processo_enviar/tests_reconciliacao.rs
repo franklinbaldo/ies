@@ -52,6 +52,32 @@ fn confirmar_envia_uma_vez_e_verifica() {
 }
 
 #[test]
+fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
+    let amb = ambiente();
+    let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_entrada_por_id(&inst, false);
+    let roteiro = respostas(
+        Versao::V41,
+        r302(&volta_a_arvore_do_envio()),
+        ok(arvore(&[UNIDADE], &[])),
+    );
+    let (resultado, pedidos) = rodar_com(&amb, roteiro, |sessao, nup, indice, envio| {
+        let pedido = super::PedidoDoEnvio {
+            nup,
+            unidade: None,
+            para: DESTINO,
+            manter_aberto: false,
+            confirmar: true,
+        };
+        super::enviar_processo(sessao, &pedido, indice, envio)
+    });
+    assert!(resultado.is_err(), "destino ausente na leitura não é sucesso");
+    assert_eq!(pedidos, pedidos_da_escrita(Versao::V41, false));
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+#[test]
 fn location_http_no_mesmo_host_e_a_resposta_esperada() {
     // Issue #766 do Todos (GO): `Location` em `http://` no host do POST.
     let http = crate::arvore_processo::tests_concluir::absoluta(&volta_a_arvore_do_envio())
