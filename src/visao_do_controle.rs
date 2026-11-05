@@ -33,7 +33,7 @@ pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::{
     ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
-pub(crate) use envio::{EnvioDoControle, EnvioHttps, TelaAtual};
+pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
 pub(crate) use resumida::obter_na_visao_resumida;
