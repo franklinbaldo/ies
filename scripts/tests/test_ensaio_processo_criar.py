@@ -169,5 +169,32 @@ class EnsaioUmaVez(unittest.TestCase):
         self.assertFalse(self.registro.exists())
 
 
+    def test_contagem_de_previa_nao_reflete_url_na_evidencia(self):
+        respostas = self.respostas_validas()
+        respostas[0][1]["requisicoes"] = "https://example.invalid/nao-publicar"
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertIsNone(relatorio["requisicoes_previa"])
+        self.assertEqual(len(self.chamadas), 1)
+
+    def test_contagem_de_confirmacao_nao_reflete_url_no_registro(self):
+        respostas = self.respostas_validas()
+        respostas[1] = (3, {"requisicoes": "https://example.invalid/nao-publicar"})
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertIsNone(relatorio["requisicoes_confirmacao"])
+        self.assertNotIn("example.invalid", self.registro.read_text())
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_contagem_de_releitura_nao_reflete_url_no_registro(self):
+        respostas = self.respostas_validas()
+        respostas[2] = (1, {"requisicoes": "https://example.invalid/nao-publicar"})
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "VERIFICACAO_INDEPENDENTE_FALHOU"))
+        self.assertIsNone(relatorio["requisicoes_verificacao"])
+        self.assertNotIn("example.invalid", self.registro.read_text())
+        self.assertEqual(len(self.chamadas), 3)
+
+
 if __name__ == "__main__":
     unittest.main()
