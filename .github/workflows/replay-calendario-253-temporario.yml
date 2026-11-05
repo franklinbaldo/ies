@@ -1,0 +1,40 @@
+name: Diagnostico offline calendario #253 (temporario)
+on:
+  push:
+    branches:
+      - codex/253-unidade-retornos
+permissions:
+  contents: read
+jobs:
+  diagnostico:
+    if: github.event.head_commit.message == 'offline(#253): diagnostico calendario'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Checkout do branch sem credenciais persistidas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Baixar e conferir exclusivamente o acervo publico
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.cache/ies"
+          for card in cassettes/*/unidade-listar-retornos-*.md; do
+            path=$(sed -n 's|^source_zip: https://archive.org/download/todos-sei-cassettes-2026/||p' "$card")
+            digest=$(sed -n 's/^archive_sha1: //p' "$card")
+            test -n "$path" && test -n "$digest"
+            printf '%s %s\n' "$digest" "$path"
+          done | sort -u | while read -r digest path; do
+            destino="$HOME/.cache/ies/${path##*/}"
+            curl --fail --silent --show-error --location --retry 0 --max-time 120 \
+              "https://archive.org/download/todos-sei-cassettes-2026/$path" -o "$destino"
+            printf '%s  %s\n' "$digest" "$destino" | sha1sum --check
+          done
+      - name: Replay estrutural sem acesso ao SEI
+        run: |
+          cargo test --locked --bin ies unidade_retornos::acervo::replay_retornos_no_acervo \
+            -- --ignored --nocapture --test-threads=1
