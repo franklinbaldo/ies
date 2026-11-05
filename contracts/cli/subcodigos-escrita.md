@@ -158,6 +158,7 @@ Emissor: [src/unidade_trocar/erro.rs](../../src/unidade_trocar/erro.rs).
 | `lista_de_unidades_incompleta` | Lista de unidades incompleta. |
 | `localizacao_de_outra_unidade` | Localização de outra unidade. |
 | `localizacao_fora_da_forma_observada` | Localização fora da forma observada. |
+| `redirecionamento_da_troca_sem_localizacao` | Redirecionamento da troca de unidade sem localização. |
 | `resposta_sem_redirecionamento` | Resposta sem redirecionamento. |
 | `selecao_de_unidade_por_script_nao_publicada` | Seleção de unidade por script não publicada. |
 | `sigla_de_unidade_ambigua` | Sigla de unidade ambígua. |

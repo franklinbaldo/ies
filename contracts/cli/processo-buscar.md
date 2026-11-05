@@ -109,7 +109,7 @@ Controle), `origem: "web"` e `requisicoes`.
   `numero_da_barra_de_contagem_fora_do_formato`,
   `faixa_da_barra_de_contagem_impossivel`,
   `linhas_da_tabela_diferentes_da_faixa_da_barra`.
-- Paginação: `pagina_fora_do_intervalo` (antes do POST de página),
+- Paginação: `pagina_da_pesquisa_fora_do_intervalo` (antes do POST de página),
   `regra_de_navegacao_da_pesquisa_nao_observada`,
   `paginador_da_pesquisa_nao_publicado`,
   `link_de_paginacao_da_pesquisa_fora_da_regra`,
@@ -135,7 +135,7 @@ tamanho da página. O IES exige essas duas linhas literais e todo link
   (observado: 10). Páginas = ⌈N / tamanho⌉; com `F = N`, uma página.
 - `--pagina 1` não envia POST extra. N > páginas (inclusive em
   `sem_resultado`, 0 páginas, e `processo_unico`, 1 página) é
-  `pagina_fora_do_intervalo` **antes** do POST de página.
+  `pagina_da_pesquisa_fora_do_intervalo` **antes** do POST de página.
 - O POST de página deriva da tela de resultado (mesmo formulário, termo
   servido igual ao pesquisado), sem `sbmPesquisar`, com
   `hdnInicio = (N - 1) × tamanho`. A resposta precisa ser lista com o

@@ -32,7 +32,7 @@ na [forma única](unidade-recebidos-gerados.md):
   `div{T}AreaPaginacaoInferior` únicas e só com espaços; `hdn{T}NroItens`
   e `hdn{T}PaginaAtual` únicos e com valor `0`. Faltando, repetida ou
   diferente qualquer parte, `tabela_ausente`. `--pagina 2` é
-  `pagina_fora_do_intervalo` (`paginas: 1`). A D vazia não foi observada.
+  `pagina_da_caixa_fora_do_intervalo` (`paginas: 1`). A D vazia não foi observada.
 - No replay de páginas capturadas, a faixa é a união contígua das
   páginas recebidas, em qualquer ponto da lista.
 - A faixa pode não começar em 1: o servidor lembra a página pedida na
@@ -77,7 +77,7 @@ Sequência e orçamento:
    `hdn{T}PaginaAtual = 0`, tamanho = fim da faixa; se for `k > 0`,
    tamanho = `(inicio - 1) / k`, exato. Páginas = ⌈total / tamanho⌉.
    Faixa incompatível com o índice é recusa.
-3. N fora de `1..=páginas` → `pagina_fora_do_intervalo`, **sem POST**.
+3. N fora de `1..=páginas` → `pagina_da_caixa_fora_do_intervalo`, **sem POST**.
    N igual à página mostrada → nenhum POST.
 4. Senão, **um POST** derivado de `frmProcedimentoControlar`, como
    `infraAcaoPaginar('=', N-1, T)`: todos os campos ocultos como servidos,
@@ -106,7 +106,7 @@ terceira tentativa e PEN2 NOT_RUN ([GO e PEN2](../../docs/validacao-live/2026-11
 | `hdn{T}PaginaAtual` ausente ou não decimal | `pagina_atual_da_tabela_ilegivel` |
 | `hdn{T}PaginaAtual` repetido | `campos_de_pagina_atual_da_tabela_repetidos` |
 | Índice incompatível com a faixa | `pagina_atual_da_tabela_incompativel_com_a_faixa` |
-| N maior que o número de páginas | `pagina_fora_do_intervalo` |
+| N maior que o número de páginas | `pagina_da_caixa_fora_do_intervalo` |
 | Tabela com mais de uma página sem paginador publicado | `paginador_da_tabela_nao_publicado` |
 | Controle do formulário fora dos previstos | `controle_nao_previsto_no_formulario_do_controle` |
 | Caixa de seleção marcada na tela | `caixa_de_selecao_marcada_no_formulario_do_controle` |

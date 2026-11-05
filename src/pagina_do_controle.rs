@@ -102,7 +102,7 @@ impl ErroPaginaDoControle {
             Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. } => {
                 "pagina_atual_da_tabela_incompativel_com_a_faixa"
             }
-            Self::PaginaForaDoIntervalo { .. } => "pagina_fora_do_intervalo",
+            Self::PaginaForaDoIntervalo { .. } => "pagina_da_caixa_fora_do_intervalo",
             Self::PaginadorDaTabelaNaoPublicado { .. } => "paginador_da_tabela_nao_publicado",
             Self::UnidadeAlteradaAposPaginar => "unidade_alterada_apos_paginar",
             Self::VisualizacaoAlteradaAposPaginar => "visualizacao_alterada_apos_paginar",

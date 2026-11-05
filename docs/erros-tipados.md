@@ -266,25 +266,42 @@ de cada variante em toda instalação. Códigos aninhados em `falha` ou
 `verificacao` conservam a identidade do emissor. O literal isolado não
 identifica necessariamente um único contexto.
 
-## Reusos contextualizados
+## Nomes contextuais e históricos
 
-| Subcódigo | Sentidos atuais e contexto necessário |
+Os subcódigos das quatro condições antes reutilizadas agora identificam o
+contexto diretamente, sem depender da etapa e sem aliases (decisão
+[#229](https://github.com/franklinbaldo/ies/issues/229)).
+
+| Subcódigo atual | Fato identificado |
 | --- | --- |
-| `html_invalido` | `ErroCaixa`: HTML da caixa não interpretado; `ErroHistorico`: HTML do histórico não interpretado. |
-| `numero_invalido` | `ErroCaixa`: número do processo em uma linha da caixa; `ErroHistorico`: número identificado no título do histórico. |
-| `pagina_fora_do_intervalo` | Caixa resumida/detalhada: página além do intervalo do Controle; pesquisa: página além do intervalo do resultado. |
-| `redirecionamento_sem_localizacao` | Login: resposta de redirecionamento sem localização; troca de unidade: resposta da submissão sem localização, registrada na falha da troca. |
-| `unidade_da_tela_diferente_da_solicitada` | Tela da árvore, formulário, pesquisa ou mudança de visão: a unidade da tela não corresponde à pré-condição da operação. |
-| `unidade_exibida_diferente_da_solicitada` | Conferência do login, diagnóstico Web ou troca de unidade: o rótulo exibido não corresponde ao solicitado. |
-| `controle_web_nao_reconhecido` | Conferência da sessão existente no login ou diagnóstico de status: resposta não reconhecida como Controle. |
-| `arquivo_privado_vazio`, `arquivo_privado_link_simbolico` | Validador local de arquivos e leitor do transporte: mesmo fato aplicado ao arquivo privado usado naquele caminho. |
+| `html_da_caixa_invalido` | HTML da caixa não interpretado. |
+| `html_do_historico_invalido` | HTML do histórico não interpretado. |
+| `numero_da_caixa_invalido` | Número do processo inválido na caixa. |
+| `numero_do_historico_invalido` | Número do processo inválido no título do histórico. |
+| `pagina_da_caixa_fora_do_intervalo` | Página solicitada fora do intervalo da caixa, resumida ou detalhada. |
+| `pagina_da_pesquisa_fora_do_intervalo` | Página solicitada fora do intervalo da pesquisa. |
+| `redirecionamento_do_login_sem_localizacao` | Resposta do login sem localização de redirecionamento. |
+| `redirecionamento_da_troca_sem_localizacao` | Resposta da troca de unidade sem localização. |
 
-Os demais reusos mantêm a condição: barras repetidas ou fora da forma
-são recusadas nas operações que as leem; sessão encerrada, ausência de
-unidade, paginação e tela de login preservam o fato ao serem propagados.
-Interpretar operação, etapa e família junto ao literal.
-A proposta de nomes específicos está na [issue #229](https://github.com/franklinbaldo/ies/issues/229).
-Nenhuma renomeação pública foi aprovada ou aplicada nesta limpeza.
+### Subcódigos históricos
+
+Estes nomes foram aposentados diretamente pela
+[#229](https://github.com/franklinbaldo/ies/issues/229), sem compatibilidade
+transitória e sem emissão nas versões novas.
+
+| Subcódigo histórico | Substituição |
+| --- | --- |
+| `html_invalido` | `html_da_caixa_invalido` / `html_do_historico_invalido` |
+| `numero_invalido` | `numero_da_caixa_invalido` / `numero_do_historico_invalido` |
+| `pagina_fora_do_intervalo` | `pagina_da_caixa_fora_do_intervalo` / `pagina_da_pesquisa_fora_do_intervalo` |
+| `redirecionamento_sem_localizacao` | `redirecionamento_do_login_sem_localizacao` / `redirecionamento_da_troca_sem_localizacao` |
+
+Outros reusos analisados em #229 mantêm a mesma condição factual,
+independentemente do emissor: `unidade_da_tela_diferente_da_solicitada`,
+`unidade_exibida_diferente_da_solicitada`,
+`controle_web_nao_reconhecido`, `arquivo_privado_vazio` e
+`arquivo_privado_link_simbolico`. O contexto indica onde a falha ocorreu,
+mas não altera o significado desses fatos. Eles não exigem renomeação.
 
 ## Literais passados por helpers da CLI
 

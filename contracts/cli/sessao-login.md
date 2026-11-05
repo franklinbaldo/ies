@@ -190,7 +190,7 @@ rodar de novo resolve). Todas as requisições do comando e a colheita do
 `linha_das_credenciais_sem_campo_conhecido`, os de arquivo privado
 (`arquivo_privado_*`), `login_em_andamento_em_outro_processo`,
 `arquivo_de_lock_do_login_inacessivel`, `controle_web_nao_reconhecido`
-(sessão existente), `redirecionamento_sem_localizacao`,
+(sessão existente), `redirecionamento_do_login_sem_localizacao`,
 `localizacao_de_redirecionamento_nao_interpretavel`,
 `redirecionamento_para_fora_da_instalacao`,
 `redirecionamentos_acima_do_limite`,

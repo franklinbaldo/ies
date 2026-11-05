@@ -81,7 +81,7 @@ Emissor: [src/sessao_login/erro.rs](../../src/sessao_login/erro.rs).
 | `orgao_nao_encontrado_na_tela_de_login` | Órgão não encontrado na tela de login. |
 | `redirecionamento_para_fora_da_instalacao` | Redirecionamento para fora da instalação. |
 | `redirecionamento_que_repetiria_o_envio_do_login` | Redirecionamento que repetiria o envio do login. |
-| `redirecionamento_sem_localizacao` | Redirecionamento sem localização. |
+| `redirecionamento_do_login_sem_localizacao` | Redirecionamento sem localização. |
 | `redirecionamentos_acima_do_limite` | Redirecionamentos acima do limite. |
 | `regra_do_onsubmit_do_login_nao_observada` | Regra do onsubmit do login não observada. |
 | `segundo_fator_exigido` | Segundo fator exigido. |

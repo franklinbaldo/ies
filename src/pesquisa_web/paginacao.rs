@@ -46,7 +46,7 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
 impl ErroPaginacaoDaPesquisa {
     pub(crate) fn subcodigo(self) -> &'static str {
         match self {
-            Self::PaginaForaDoIntervalo { .. } => "pagina_fora_do_intervalo",
+            Self::PaginaForaDoIntervalo { .. } => "pagina_da_pesquisa_fora_do_intervalo",
             Self::RegraDeNavegacaoDaPesquisaNaoObservada => {
                 "regra_de_navegacao_da_pesquisa_nao_observada"
             }
