@@ -44,7 +44,10 @@ Novo, segue a lupa `unidade_selecionar_envio_processo`, faz o GET
 inicial da lupa e **um POST para cada página**. O orçamento máximo
 da lupa é `1 GET + N POST`, mais os três GETs de navegação.
 A lista só é gravada se todas as páginas, índices, totais e IDs
-conferirem. O resultado avisa `origem: "sei"`, o número de
+conferirem. Cada resposta POST deve ainda confirmar que os filtros de
+sigla e descrição estão vazios e que o órgão efetivamente selecionado
+é `Todos` (valor vazio, nunca `null`). Uma lista filtrada com total
+internamente coerente **não** constitui um snapshot integral. O resultado avisa `origem: "sei"`, o número de
 `requisicoes` e `persistida_no_indice` (false quando o índice
 estiver indisponível). Sem índice, a leitura retorna sem persistir.
 
