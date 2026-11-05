@@ -22,7 +22,11 @@ fn tipo_do_cadastro(html: &str) -> Option<String> {
     if !tag.name().as_utf8_str().eq_ignore_ascii_case("label") {
         return None;
     }
-    let tipo = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+    let tipo = tag
+        .inner_text(dom.parser())
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     (!tipo.is_empty()).then_some(tipo)
 }
 
@@ -30,12 +34,13 @@ fn tipo_do_cadastro(html: &str) -> Option<String> {
 #[ignore = "wip #246: requer ZIP público conferido em IES_ACERVO_CACHE, sem rede"]
 fn replay_documento_criar_go() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let cache = std::env::var_os("IES_ACERVO_CACHE")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || {
             let home = std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE");
             Path::new(&home).join(".cache/ies")
-        });
+        },
+        std::path::PathBuf::from,
+    );
     let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-go.zip"))
         .expect("ZIP de Goiás não está no cache do acervo");
     let mut lidas = 0usize;
@@ -48,7 +53,10 @@ fn replay_documento_criar_go() {
             .expect("integridade ou origem do card inválida");
         assert_eq!(cassette.instalacao, "go");
         for resposta in gravacao::respostas(&cassette.json) {
-            if !matches!(resposta.operacao, "documento_escolher_tipo" | "documento_gerar") {
+            if !matches!(
+                resposta.operacao,
+                "documento_escolher_tipo" | "documento_gerar"
+            ) {
                 continue;
             }
             respostas_alvo += 1;
@@ -73,7 +81,10 @@ fn replay_documento_criar_go() {
             }
         }
     }
-    assert!(respostas_alvo > 0, "cards sem respostas de inclusão de documento");
+    assert!(
+        respostas_alvo > 0,
+        "cards sem respostas de inclusão de documento"
+    );
     assert!(lidas + recusadas > 0, "nenhum HTML candidato no replay");
     assert_eq!(respostas_alvo, lidas + recusadas + nao_aplicaveis);
     println!(
