@@ -267,6 +267,10 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
 }
 
 #[cfg(test)]
+#[path = "unidade_retornos/acervo.rs"]
+mod acervo;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     fn tabela(situacao: &str, numero: &str, unidade: &str) -> String {
