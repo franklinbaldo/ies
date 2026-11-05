@@ -432,44 +432,58 @@ pub(crate) fn conferir_cadastro(
             return Err(E::NivelNaoOferecido);
         }
     }
-    // Regras HTML5 `required` da tela servida: não submeter um cadastro
-    // para o qual a CLI não tem valor. O nível explícito identifica a
-    // tentativa de preparar escrita; a prévia sem nível pode ser lida.
     if nivel.is_some() {
-        for tag in formulario
-            .children()
-            .all(dom.parser())
-            .iter()
-            .filter_map(tl::Node::as_tag)
+        conferir_controles_obrigatorios(&dom, formulario, descricao, nivel)?;
+    }
+    Ok(())
+}
+
+/// Recusa controles obrigatórios que não possuem valor da operação.
+/// `required` e `disabled` são booleanos: sua presença é verificada
+/// por `html_atributos`, inclusive sem sinal de igualdade.
+fn conferir_controles_obrigatorios(
+    dom: &tl::VDom<'_>,
+    formulario: &tl::HTMLTag<'_>,
+    descricao: Option<&str>,
+    nivel: Option<&str>,
+) -> Result<(), ErroCriar> {
+    use ErroCriar as E;
+    for tag in formulario
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        let nome_tag = tag.name().as_utf8_str();
+        if !nome_tag.eq_ignore_ascii_case("input")
+            && !nome_tag.eq_ignore_ascii_case("select")
+            && !nome_tag.eq_ignore_ascii_case("textarea")
         {
-            let nome_tag = tag.name().as_utf8_str();
-            if !nome_tag.eq_ignore_ascii_case("input")
-                && !nome_tag.eq_ignore_ascii_case("select")
-                && !nome_tag.eq_ignore_ascii_case("textarea")
-            {
-                continue;
-            }
-            let atributo = |nome| {
-                valor_do_atributo(tag, nome).map_err(|_| E::CadastroForaDaForma)
-            };
-            if atributo("required")?.is_none() || atributo("disabled")?.is_some() {
-                continue;
-            }
-            let tipo_controle = atributo("type")?;
-            if matches!(
-                tipo_controle.as_deref(),
-                Some("hidden" | "submit" | "button" | "reset" | "image")
-            ) {
-                continue;
-            }
-            let atendido = match atributo("name")?.as_deref() {
-                Some("txtDescricao") => descricao.is_some_and(|s| !s.trim().is_empty()),
-                Some("rdoNivelAcesso") => nivel.is_some(),
-                _ => false,
-            };
-            if !atendido {
-                return Err(E::CampoObrigatorioNaoAtendido);
-            }
+            continue;
+        }
+        if !crate::html_atributos::atributo_presente(tag, "required")
+            .map_err(|_| E::CadastroForaDaForma)?
+            || crate::html_atributos::atributo_presente(tag, "disabled")
+                .map_err(|_| E::CadastroForaDaForma)?
+        {
+            continue;
+        }
+        let tipo_controle =
+            valor_do_atributo(tag, "type").map_err(|_| E::CadastroForaDaForma)?;
+        if matches!(
+            tipo_controle.as_deref(),
+            Some("hidden" | "submit" | "button" | "reset" | "image")
+        ) {
+            continue;
+        }
+        let nome = valor_do_atributo(tag, "name").map_err(|_| E::CadastroForaDaForma)?;
+        let atendido = match nome.as_deref() {
+            Some("txtDescricao") => descricao.is_some_and(|s| !s.trim().is_empty()),
+            Some("rdoNivelAcesso") => nivel.is_some(),
+            _ => false,
+        };
+        if !atendido {
+            return Err(E::CampoObrigatorioNaoAtendido);
         }
     }
     Ok(())
