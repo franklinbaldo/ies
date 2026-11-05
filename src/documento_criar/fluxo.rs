@@ -331,3 +331,7 @@ mod tests;
 #[cfg(test)]
 #[path = "tests_confirmacao.rs"]
 mod tests_confirmacao;
+
+#[cfg(test)]
+#[path = "tests_integracao.rs"]
+mod tests_integracao;
