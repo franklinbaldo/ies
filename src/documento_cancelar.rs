@@ -1,13 +1,13 @@
 //! Cancelamento Web de documento (#273): link do nó DOCUMENTO e motivo.
 //! Deriva endereços somente de âncoras servidas; nunca executa JavaScript.
 use crate::arvore_processo::barra_do_no;
-use crate::arvore_processo::endereco::{conferir_endereco_relativo_por, EnderecoRecusado};
+use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
-mod fluxo;
 mod erro;
+mod fluxo;
 #[cfg(test)]
 mod tests_fluxo;
 
@@ -36,7 +36,9 @@ impl ErroLinkCancelar {
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct LinkDeCancelamento(String);
 impl LinkDeCancelamento {
-    pub(crate) fn as_str(&self) -> &str { &self.0 }
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 impl std::fmt::Debug for LinkDeCancelamento {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,14 +58,20 @@ pub(crate) fn ler_link_cancelar(
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
         let attrs = atributos(tag).map_err(|_| E::BarraForaDaForma)?;
-        let Some(bruto) = attrs.valor("href").map_err(|_| E::BarraForaDaForma)? else { continue };
+        let Some(bruto) = attrs.valor("href").map_err(|_| E::BarraForaDaForma)? else {
+            continue;
+        };
         let href = decodificar_atributo(bruto).ok_or(E::BarraForaDaForma)?;
-        let acao = href.split_once('?').and_then(|(_, query)| {
-            query.split('&').find_map(|p| p.strip_prefix("acao="))
-        });
-        if acao == Some("documento_cancelar") { links.push(href); }
+        let acao = href
+            .split_once('?')
+            .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")));
+        if acao == Some("documento_cancelar") {
+            links.push(href);
+        }
     }
     let href = match links.as_slice() {
         [] => return Ok(None),
@@ -74,20 +82,38 @@ pub(crate) fn ler_link_cancelar(
         EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
         EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroDocumento,
     };
-    conferir_endereco_relativo_por(instalacao, href, "documento_cancelar", "id_procedimento", processo)
-        .map_err(mapear)?;
-    let url = conferir_endereco_relativo_por(instalacao, href, "documento_cancelar", "id_documento", documento)
-        .map_err(mapear)?;
+    conferir_endereco_relativo_por(
+        instalacao,
+        href,
+        "documento_cancelar",
+        "id_procedimento",
+        processo,
+    )
+    .map_err(mapear)?;
+    let url = conferir_endereco_relativo_por(
+        instalacao,
+        href,
+        "documento_cancelar",
+        "id_documento",
+        documento,
+    )
+    .map_err(mapear)?;
     Ok(Some(LinkDeCancelamento(url)))
 }
 
 /// Trims without changing Latin-1 glyphs, and refuses controls/unsupported
 /// characters before opening a session.
 pub(crate) fn conferir_motivo(motivo: &str) -> Result<String, &'static str> {
-    if motivo.chars().any(char::is_control) { return Err("motivo_com_controle"); }
+    if motivo.chars().any(char::is_control) {
+        return Err("motivo_com_controle");
+    }
     let limpo = motivo.trim();
-    if limpo.is_empty() { return Err("motivo_vazio"); }
-    if !limpo.chars().all(|c| u32::from(c) <= 255) { return Err("motivo_fora_da_codificacao"); }
+    if limpo.is_empty() {
+        return Err("motivo_vazio");
+    }
+    if !limpo.chars().all(|c| u32::from(c) <= 255) {
+        return Err("motivo_fora_da_codificacao");
+    }
     Ok(limpo.to_owned())
 }
 
@@ -100,7 +126,10 @@ mod tests {
         Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap()
     }
     fn link(doc: &str) -> String {
-        format!("<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento=10&id_documento={doc}&infra_hash={}\">Cancelar Documento</a>", "a".repeat(64))
+        format!(
+            "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento=10&id_documento={doc}&infra_hash={}\">Cancelar Documento</a>",
+            "a".repeat(64)
+        )
     }
     fn arvore(acoes: &str) -> String {
         arvore_assinavel("10", "21", "0000101", acoes, &[])
@@ -110,7 +139,8 @@ mod tests {
     #[test]
     fn reconhece_o_link_assinado_so_na_barra_do_documento_pedido() {
         let url = ler_link_cancelar(&instalacao(), &arvore(&link("21")), "21", "10")
-            .unwrap().unwrap();
+            .unwrap()
+            .unwrap();
         assert!(url.as_str().contains("acao=documento_cancelar"));
         assert!(!format!("{url:?}").contains("infra_hash"));
     }
@@ -127,7 +157,12 @@ mod tests {
     #[test]
     fn recusa_duas_acoes_de_cancelamento_na_mesma_barra() {
         assert_eq!(
-            ler_link_cancelar(&instalacao(), &arvore(&(link("21") + &link("21"))), "21", "10"),
+            ler_link_cancelar(
+                &instalacao(),
+                &arvore(&(link("21") + &link("21"))),
+                "21",
+                "10"
+            ),
             Err(ErroLinkCancelar::LinksRepetidos)
         );
     }
@@ -136,18 +171,30 @@ mod tests {
     #[test]
     fn motivo_com_espacos_e_recusado_e_acentuado_e_preservado() {
         assert!(conferir_motivo("   ").is_err());
-        assert_eq!(conferir_motivo("  Revisão necessária  "), Ok("Revisão necessária".into()));
+        assert_eq!(
+            conferir_motivo("  Revisão necessária  "),
+            Ok("Revisão necessária".into())
+        );
         assert!(conferir_motivo("Linha\nquebrada").is_err());
     }
 
     #[test]
     fn nao_inventa_cancelamento_quando_barra_nao_oferece() {
-        assert_eq!(ler_link_cancelar(&instalacao(), &arvore(""), "21", "10"), Ok(None));
+        assert_eq!(
+            ler_link_cancelar(&instalacao(), &arvore(""), "21", "10"),
+            Ok(None)
+        );
     }
 
     #[test]
     fn duplicata_de_infra_hash_na_url_assinada_falha_fechado() {
-        let dupla = link("21").replace("infra_hash=", &format!("infra_hash={}&infra_hash=", "a".repeat(64)));
-        assert_eq!(ler_link_cancelar(&instalacao(), &arvore(&dupla), "21", "10"), Err(ErroLinkCancelar::EnderecoNaoReconhecido));
+        let dupla = link("21").replace(
+            "infra_hash=",
+            &format!("infra_hash={}&infra_hash=", "a".repeat(64)),
+        );
+        assert_eq!(
+            ler_link_cancelar(&instalacao(), &arvore(&dupla), "21", "10"),
+            Err(ErroLinkCancelar::EnderecoNaoReconhecido)
+        );
     }
 }
