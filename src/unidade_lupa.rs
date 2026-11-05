@@ -108,11 +108,13 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     };
     let tabelas = tags(form, parser, "table");
     let mut candidatas: Vec<_> = Vec::new();
+    let mut existe_tabela_infra = false;
     for tabela in tabelas {
         let classe = atributo(tabela, "class")?.unwrap_or_default();
         if !classe.split_whitespace().any(|c| c == "infraTable") {
             continue;
         }
+        existe_tabela_infra = true;
         let legendas = tags(tabela, parser, "caption");
         if legendas.len() == 1
             && texto_da_tag(legendas[0], parser).starts_with("Lista de Unidades (")
@@ -120,8 +122,24 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
             candidatas.push(tabela);
         }
     }
-    let [tabela] = candidatas.as_slice() else {
-        return Err(ErroLupa::TabelaForaDaForma);
+    let tabela = match candidatas.as_slice() {
+        [tabela] => *tabela,
+        [] if !existe_tabela_infra
+            && pagina == 0
+            && paginas == 1
+            && texto_da_tag(form, parser).ends_with("Nenhum registro encontrado.") =>
+        {
+            // GO, cassette unidade-listar-destinos-go, POST passo 12:
+            // a lupa mantém o formulário, mas omite infraTable e declara
+            // a ausência de resultados. Não confundir com uma tabela quebrada.
+            return Ok(PaginaDaLupa {
+                unidades: Vec::new(),
+                total: 0,
+                pagina,
+                paginas,
+            });
+        }
+        _ => return Err(ErroLupa::TabelaForaDaForma),
     };
     let legenda = texto_da_tag(tags(tabela, parser, "caption")[0], parser);
     let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
