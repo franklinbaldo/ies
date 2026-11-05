@@ -166,3 +166,24 @@ com replay do acervo.
 O replay das cassettes originais e a prévia/escrita/releitura ao vivo
 em treinamento continuam NOT_RUN. Não houve escrita em produção
 nem em treinamento nesta fatia, logo não há resíduo.
+
+## Seleção de hipótese legal múltipla por identidade observada
+
+O replay público de 05/11/2026 encontrou respostas AJAX com mais
+de uma hipótese legal na UnB. Escolher a primeira foi rejeitado:
+a ordem não é prova de vontade ou fundamento jurídico. A alternativa
+é um argumento explícito `--hipotese-legal ID#NOME`, que somente
+é aceito para nível restrito, depois de comparar **ambas** as partes
+com a resposta XML da sessão. ID duplicado, divergência de descrição,
+ausência e opção desabilitada produzem recusas tipadas antes da escrita.
+A seleção inline sem declaração AJAX continua fora deste recorte,
+pois não foi acrescentada prova do nome dessa opção no leitor.
+
+O custo é uma flag adicional à CLI e a necessidade de o operador
+observar previamente as opções; o ganho é eliminar escolha arbitrária.
+Os testes exercitam o mesmo `derivar_consulta_ajax` e os mesmos
+orçamentos dos fluxos já existentes; o POST de criação continua único,
+seguido de leitura para verificar o NUP. A evidencia é indireta
+(cassette e oráculo Todos); até validação ao vivo em **treinamento**,
+não alegar compatibilidade de escrita entre instalações. Revisar
+quando houver observação de escolha inline com múltiplas opções.
