@@ -1,5 +1,5 @@
 //! Derivado de Todos `tests/test_processo_acompanhar_010.py` @323eb01,
-//! fixture da UnB de 15/10/2026, com valores sintéticos.
+//! fixture da `UnB` de 15/10/2026, com valores sintéticos.
 use super::*;
 use crate::instalacao::Instalacao;
 
