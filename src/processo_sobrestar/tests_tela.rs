@@ -56,3 +56,23 @@ fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
     assert_eq!(conferir_formulario(&formulario().replace("name=\"hdnIdProcedimentoDestino\" value=\"\"", "name=\"hdnIdProcedimentoDestino\" value=\"99\""), ID), Err(E::DestinoPreenchido));
     assert_eq!(conferir_formulario(&formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>"), ID), Err(E::CampoInesperado));
 }
+
+#[test]
+fn formulario_com_submissao_diferente_do_navegador_recusa() {
+    // Casos de Todos tests/test_ciclo_sobrestar_010.py @323eb01.
+    let base = formulario();
+    let casos = [
+        base.replace("value=\"Salvar\"", "value=\"Salvar\" formmethod=\"get\""),
+        base.replace("value=\"Salvar\"", "value=\"Salvar\" formaction=\"controlador.php?acao=outro\""),
+        base.replace("value=\"Salvar\"", "value=\"Salvar\" formenctype=\"multipart/form-data\""),
+        base.replace("</form>", "</form><input name=\"x\" value=\"1\" form=\"frmDesentranharDocumento\" />"),
+        base.replace("<textarea id=\"txaMotivo\"", "<textarea readonly=\"readonly\" id=\"txaMotivo\""),
+    ];
+    for formulario_alterado in casos {
+        assert_eq!(
+            conferir_formulario(&formulario_alterado, ID),
+            Err(E::CampoInesperado),
+            "envio que o navegador faria de outro modo precisa ser recusado",
+        );
+    }
+}
