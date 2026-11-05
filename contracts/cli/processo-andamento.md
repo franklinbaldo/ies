@@ -26,3 +26,25 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 ## Evidência
 
 [Cassette UnB](../../cassettes/unb/processo-andamento-registrar-unb--111df7e25e1e.md), [observação](../../docs/como-o-sei-funciona/registro-de-andamento.md), [decisão](../../docs/decisoes/processo-andamento.md). Faltam teste integrado de transporte/orçamento, replay e validação ao vivo; PR deve continuar Draft.
+
+## Subcódigos próprios
+
+| Subcódigo | Quando ocorre |
+| --- | --- |
+| `atualizar_andamento_nao_oferecido` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `barra_do_andamento_fora_da_forma` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `campo_inesperado_no_formulario_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `charset_do_andamento_nao_suportado` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `controles_do_andamento_ausentes_ou_duplicados` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `efeito_incerto_no_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `endereco_de_atualizar_andamento_de_outro_processo` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `endereco_de_atualizar_andamento_nao_reconhecido` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `formulario_do_andamento_ausente_ou_duplicado` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `formulario_do_andamento_de_outro_processo` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `historico_nao_publicado_antes_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `links_de_atualizar_andamento_repetidos` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `sessao_encerrada_antes_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `tela_do_andamento_invalida` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `tela_do_andamento_redirecionada` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `unidade_da_sessao_nao_publicada` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `texto_do_andamento_vazio_ou_maior_que_500_caracteres` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
