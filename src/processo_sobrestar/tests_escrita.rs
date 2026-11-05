@@ -2,7 +2,7 @@
 //! Casos de Todos tests/test_ciclo_sobrestar_010.py @323eb01.
 use super::tests_tela::formulario;
 use super::{Acao, ErroSobrestamento as E, executar};
-use crate::arvore_processo::tests_reabrir::{link_de_reabrir, tela_do_no_pela_variavel};
+use crate::arvore_processo::tests_reabrir::tela_do_no_pela_variavel;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
@@ -85,7 +85,7 @@ fn sobrestar_um_post_verifica_sobrestamento_por_leitura_nova() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 #[test]
-fn sobrestar_nao_aplicado_na_releitura_nao_declarray_sucesso() {
+fn sobrestar_nao_aplicado_na_releitura_nao_declara_sucesso() {
     let (r, pedidos) = rodar(
         Acao::Sobrestar,
         Some("Aguarda decisao"),
@@ -126,14 +126,15 @@ fn formulario_de_outro_processo_recusa_antes_de_enviar() {
     assert_eq!(pedidos, esperados);
 }
 fn tela_de_retomar() -> String {
+    // A tela real da família 4.1/5.0 já contém esta variável, além da
+    // de reabrir. Não duplicar um campo que o SEI publica apenas uma vez.
     tela_do_no_pela_variavel(ID)
-        .replace("linkReabrirProcesso", "linkRemoverSobrestamentoProcesso")
-        .replace("procedimento_reabrir", "procedimento_remover_sobrestamento")
 }
 fn url_retomar() -> String {
-    absoluta(
-        &link_de_reabrir(ID).replace("procedimento_reabrir", "procedimento_remover_sobrestamento"),
-    )
+    absoluta(&format!(
+        "controlador.php?acao=procedimento_remover_sobrestamento&acao_origem=arvore_visualizar&id_procedimento={ID}&atualizar_arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        "7".repeat(64),
+    ))
 }
 #[test]
 fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
