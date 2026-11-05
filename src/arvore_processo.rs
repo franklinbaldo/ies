@@ -90,6 +90,9 @@ use movidos::{MovidoLido, conferir_movidos, ler_movido};
 pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
+pub(crate) use sobrestar::{
+    ErroAcaoSobrestar, ler_retomar_da_barra, ler_sobrestar_da_barra,
+};
 pub(crate) use reabrir::{
     ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
     ler_endereco_de_reabrir, ler_reabrir_da_barra,

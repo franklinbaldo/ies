@@ -55,6 +55,8 @@ mod processo_obter;
 mod processo_obter_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
+mod processo_sobrestar;
+mod processo_sobrestar_cli;
 mod propriedades_processo;
 mod relogin_cli;
 mod rodape_do_documento;
@@ -187,6 +189,18 @@ enum ProcessoAcao {
         confirmar: bool,
     },
     Reabrir {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Sobrestar {
+        numero: String,
+        #[arg(long)]
+        motivo: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Retomar {
         numero: String,
         #[arg(long)]
         confirmar: bool,
@@ -382,6 +396,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
