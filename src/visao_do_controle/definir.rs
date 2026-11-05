@@ -20,7 +20,7 @@ use crate::nivel_de_detalhe::{
     ler_nivel_de_detalhe, planejar, sinal_do_salvar,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
-use std::path::Path;
+use crate::transporte::sessao::CookieDaSessao;
 
 /// Sem rede antes da tela do Controle já obtida; nenhum envio é repetido.
 /// Vinda da R, troca para D e fica nela.
@@ -30,7 +30,7 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     unidade_solicitada: Option<&str>,
     alvo: &AlvoDasColunas,
     confirmar: bool,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     envio: &mut V,
 ) -> Result<ColunasDefinidas, D> {
     let encontrado = contexto(&tela.html).map_err(D::Leitura)?;
@@ -38,7 +38,7 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
-        cookie_file,
+        cookie,
         envio,
     };
     let pedido = Pedido { alvo, confirmar };
@@ -131,7 +131,7 @@ fn salvar<V: EnvioDoControle>(
 ) -> Result<Option<FalhaDoSalvar>, D> {
     let mut enviado = false;
     let envio = &mut *sessao.envio;
-    let resposta = enviar_submissao_via(submissao, sessao.cookie_file, |s, c| {
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
         envio.post(s, c)
     });

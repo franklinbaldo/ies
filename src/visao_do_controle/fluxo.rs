@@ -9,8 +9,8 @@ use super::plano::{planejar, posicao};
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
 use crate::instalacao::Instalacao;
+use crate::transporte::sessao::CookieDaSessao;
 use std::collections::HashMap;
-use std::path::Path;
 
 /// A lista D (página observada ou a página N), com a categoria das linhas
 /// que as tabelas R do mesmo GET mostraram.
@@ -19,7 +19,7 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
     tela: &TelaAtual,
     unidade_solicitada: Option<&str>,
     pagina: Option<usize>,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     envio: &mut V,
 ) -> Result<LeituraDetalhada, E> {
     let encontrado = contexto(&tela.html)?;
@@ -27,7 +27,7 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
-        cookie_file,
+        cookie,
         envio,
     };
     if encontrado.eh_detalhada() {

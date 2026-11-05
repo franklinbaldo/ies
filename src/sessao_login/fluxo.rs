@@ -81,8 +81,9 @@ fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
 /// Exceção inventariada (#183): o login consulta URL e cookie como valores
 /// opcionais antes da rede para distinguir sessão ausente, vazia ou expirada
 /// e conferir o marcador. Uma leitura comum de `ReferenciasDaSessao` recusaria
-/// ausentes/vazios antes dessa decisão. A checagem 0600/sem symlink continua
-/// feita pelo primitivo único `arquivo_privado`.
+/// ausentes/vazios antes dessa decisão; a coerência entre as duas leituras
+/// vem do lock, que os escritores também pegam (#222). A checagem
+/// 0600/sem symlink continua feita pelo primitivo único `arquivo_privado`.
 ///
 /// Um arquivo da sessão gravada; ausente ou vazio vale "sem sessão".
 /// O login precisa ler URL e cookie para conferir a geração antes de

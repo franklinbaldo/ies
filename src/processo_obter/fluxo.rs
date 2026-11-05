@@ -63,8 +63,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
 ) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
-    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
-        .map_err(E::Transporte)?;
+    let cookie = sessao.cookie.valor().map_err(E::Transporte)?.to_owned();
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),
@@ -72,7 +71,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
         unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
-        cookie_file: sessao.cookie_file,
+        cookie: sessao.cookie,
         documento_procurado: None,
     };
     let mut rede = Rede {
@@ -438,7 +437,7 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     let busca = SessaoDaBusca {
         url_do_controle: sessao.url_do_controle,
         origem: sessao.origem,
-        cookie_file: sessao.cookie_file,
+        cookie: sessao.cookie,
     };
     rede.requisicoes.registrar();
     let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(

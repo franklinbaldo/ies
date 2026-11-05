@@ -1,6 +1,7 @@
 //! RED/GREEN do envio injetável: resposta sintética, no máximo uma chamada.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::transporte::sessao::CookieDaSessao;
 use ErroSubmissaoFormulario as E;
 use std::cell::Cell;
 use std::fs;
@@ -76,7 +77,7 @@ fn html(r: Result<RespostaDoEnvio, E>) -> Result<String, E> {
 fn enviar_com(status_code: i32, html_: &str) -> (Result<String, E>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
-    let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
+    let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
         Ok(resposta(status_code, html_))
     });
@@ -103,7 +104,7 @@ fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
 #[test]
 fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
     let (_pasta, arquivo) = cookie(0o600);
-    let r = enviar_submissao_via(submissao(), &arquivo, |s, cookie| {
+    let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |s, cookie| {
         assert_eq!(SubmissaoDerivada::METODO, "POST");
         assert_eq!(s.origem(), "https://sei.exemplo.gov.br");
         assert_eq!(s.referer(), url_servida());
@@ -157,10 +158,14 @@ fn resposta_200_sem_marcador_de_resultado_e_recusada() {
 fn falha_de_rede_nao_repete_o_envio() {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
-    let r = enviar_submissao_via::<Cursor<Vec<u8>>, _>(submissao(), &arquivo, |_, _| {
-        chamadas.set(chamadas.get() + 1);
-        Err(FalhaTransporte::Rede)
-    });
+    let r = enviar_submissao_via::<Cursor<Vec<u8>>, _>(
+        submissao(),
+        &CookieDaSessao::ler(&arquivo),
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Err(FalhaTransporte::Rede)
+        },
+    );
     assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::Rede));
     assert_eq!(chamadas.get(), 1);
 }
@@ -170,7 +175,7 @@ fn falha_de_rede_nao_repete_o_envio() {
 fn cookie_com_permissao_insegura_impede_qualquer_envio() {
     let (_pasta, arquivo) = cookie(0o644);
     let chamadas = Cell::new(0);
-    let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
+    let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
         Ok(resposta(200, RESULTADO))
     });
@@ -196,7 +201,7 @@ fn enviar_com_redirecionamento(
 ) -> (Result<RespostaDoEnvio, E>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
-    let r = enviar_submissao_via(submissao(), &arquivo, |_, _| {
+    let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
         Ok(RespostaDoPost {
             resposta: RespostaWeb {

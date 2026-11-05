@@ -81,7 +81,13 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
         mime: "text/html; charset=iso-8859-1".into(),
     };
     assert_eq!(
-        aplicar_troca(&arquivos, &indice, &instalacao, &novo),
+        aplicar_troca(
+            &arquivos,
+            &indice,
+            &instalacao,
+            &CookieDaSessao::sintetico(COOKIE),
+            &novo,
+        ),
         Ok(Some(2))
     );
     let gravada = std::fs::read_to_string(&arquivos.url_controle).unwrap();
@@ -102,8 +108,9 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     assert_eq!(indice.link(&instalacao, chave(ID_A)), None);
     assert_eq!(indice.link(&instalacao, chave(ID_B)), None);
     // A URL de 192 da sessão nova é lida pelos outros comandos.
-    let referencias = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem).unwrap();
-    assert_eq!(referencias.conferir_controle(), Ok(()));
+    let referencias =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie);
+    assert!(referencias.is_ok());
     std::fs::remove_dir_all(dir).unwrap();
 }
 

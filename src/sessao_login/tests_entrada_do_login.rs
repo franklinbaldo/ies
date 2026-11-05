@@ -8,6 +8,7 @@ use super::entrada_do_login::aponta_para_o_login;
 use super::tests_apoio::{LOGIN_SIP, LOGIN_SIP_INFRA_URL, MODULO_GO, ORIGEM, url_do_controle};
 use crate::instalacao::Instalacao;
 use crate::transporte::envio_post::ler_tela_via;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::io::Cursor;
 
@@ -108,16 +109,21 @@ fn ler_controle(status: i32, localizacao: Option<&str>) -> FalhaTransporte {
     let cookie = &ambiente.arquivos.cookie;
     super::tests_apoio::privado(cookie, "PHPSESSID=desconhecida\n");
     let mut pedidos = 0;
-    let falha = ler_tela_via(&url_do_controle(), cookie, ORIGEM, |_, _| {
-        pedidos += 1;
-        Ok(RespostaWeb {
-            status_code: status,
-            mime: "text/html".to_owned(),
-            content_length: None,
-            localizacao: localizacao.map(str::to_owned),
-            corpo: Cursor::new(Vec::new()),
-        })
-    })
+    let falha = ler_tela_via(
+        &url_do_controle(),
+        &CookieDaSessao::ler(cookie),
+        ORIGEM,
+        |_, _| {
+            pedidos += 1;
+            Ok(RespostaWeb {
+                status_code: status,
+                mime: "text/html".to_owned(),
+                content_length: None,
+                localizacao: localizacao.map(str::to_owned),
+                corpo: Cursor::new(Vec::new()),
+            })
+        },
+    )
     .unwrap_err();
     assert_eq!(pedidos, 1, "um único GET, o 302 nunca é seguido");
     falha

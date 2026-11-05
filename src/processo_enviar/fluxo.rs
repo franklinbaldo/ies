@@ -167,7 +167,7 @@ fn enviar<V: EnvioDoProcesso>(
     id: &str,
 ) -> Result<Option<FalhaDoEnvio>, C> {
     let mut enviado = false;
-    let resposta = enviar_submissao_via(submissao, sessao.cookie_file, |s, c| {
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
         rede.post(s, c)
     });

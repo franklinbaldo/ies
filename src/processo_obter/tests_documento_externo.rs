@@ -15,6 +15,7 @@ use crate::documento::NumeroDocumento;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::RespostaWeb;
 use crate::transporte::resposta_binaria::RespostaBinaria;
+use crate::transporte::sessao::CookieDaSessao;
 use std::io::Cursor;
 
 const DOC: &str = "0000101";
@@ -129,7 +130,7 @@ fn rodar_com(
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &amb.cookie,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
     };
     let numero = NumeroDocumento::novo(DOC).unwrap();
     let pedido = PedidoDoDocumento {

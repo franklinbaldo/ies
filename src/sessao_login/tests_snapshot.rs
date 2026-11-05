@@ -37,7 +37,11 @@ fn ler(ambiente: &Ambiente, entre: impl FnMut()) -> Result<ReferenciasDaSessao, 
 
 /// O par lido é de uma geração só: o marcador gravado confere com ele.
 fn mesma_geracao(ambiente: &Ambiente, lidas: &ReferenciasDaSessao) -> bool {
-    gravacao::mesma_geracao(&ambiente.arquivos, lidas.url_do_controle(), lidas.cookie())
+    gravacao::mesma_geracao(
+        &ambiente.arquivos,
+        lidas.url_do_controle(),
+        lidas.cookie().valor().unwrap(),
+    )
 }
 
 fn logar(ambiente: &Ambiente, url: &str, cookie: &str) {
@@ -60,7 +64,7 @@ fn relogin_entre_url_e_cookie_rele_e_entrega_a_geracao_nova_inteira() {
     .unwrap();
     assert_eq!(vezes, 2, "uma releitura local, nenhuma a mais");
     assert_eq!(lidas.url_do_controle(), nova);
-    assert_eq!(lidas.cookie(), COOKIE_B);
+    assert_eq!(lidas.cookie().valor(), Ok(COOKIE_B));
     assert!(mesma_geracao(&ambiente, &lidas));
 }
 
@@ -80,7 +84,7 @@ fn troca_de_unidade_entre_url_e_cookie_rele_e_entrega_a_url_nova() {
     .unwrap();
     assert_eq!(vezes, 2);
     assert_eq!(lidas.url_do_controle(), nova);
-    assert_eq!(lidas.cookie(), COOKIE_A);
+    assert_eq!(lidas.cookie().valor(), Ok(COOKIE_A));
     assert!(mesma_geracao(&ambiente, &lidas));
 }
 
@@ -132,7 +136,7 @@ fn sessao_sem_marcador_mantem_a_leitura_de_hoje_lacuna_documentada() {
     .unwrap();
     assert_eq!(vezes, 1, "sem marcador, nenhuma releitura");
     assert_eq!(lidas.url_do_controle(), url_do_controle());
-    assert_eq!(lidas.cookie(), COOKIE_B);
+    assert_eq!(lidas.cookie().valor(), Ok(COOKIE_B));
 }
 
 #[test]
@@ -144,9 +148,12 @@ fn origem_divergente_e_recusada_antes_de_abrir_o_cookie() {
         "https://outro.exemplo.gov.br/sei\n",
     );
     std::fs::remove_file(&ambiente.arquivos.cookie).unwrap();
+    // A recusa fica no lugar do cookie: aparece na primeira requisição,
+    // e o arquivo removido não foi aberto (seria `ausente`).
+    let lidas = ler(&ambiente, || {}).unwrap();
     assert_eq!(
-        ler(&ambiente, || {}).unwrap_err(),
-        FalhaTransporte::OrigemNaoAutorizada
+        lidas.cookie().valor(),
+        Err(FalhaTransporte::OrigemNaoAutorizada)
     );
 }
 

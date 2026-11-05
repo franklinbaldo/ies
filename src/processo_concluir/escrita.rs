@@ -58,9 +58,9 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
     }
 }
 
-/// O cookie da sessão, lido do arquivo privado e conferido.
+/// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
 pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, FalhaTransporte> {
-    crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
+    sessao.cookie.valor().map(str::to_owned)
 }
 
 /// Por que uma tela pedida antes da escrita não foi servida.

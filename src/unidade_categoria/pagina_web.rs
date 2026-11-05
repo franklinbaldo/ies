@@ -14,6 +14,7 @@ use crate::pagina_do_controle::{
 use crate::paginas;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_controle};
+use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,9 +77,11 @@ pub(super) fn obter(
     pagina: Option<usize>,
 ) -> Result<String, ErroPaginaWeb> {
     let indice = IndiceLocal::da_configuracao(arquivos);
-    let colheita = Colheita::da_sessao(&indice, arquivos);
-    let tela = ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem)
-        .map_err(ErroPaginaWeb::Transporte)?;
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+            .map_err(ErroPaginaWeb::Transporte)?;
+    let colheita = Colheita::das_referencias(&indice, &sessao);
+    let tela = ler_tela_do_controle(&sessao).map_err(ErroPaginaWeb::Transporte)?;
     colheita.colher(&tela.html, Some(&tela.mime));
     let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
         .is_ok_and(|contexto| contexto.eh_detalhada());
@@ -94,7 +97,7 @@ pub(super) fn obter(
             unidade,
             categoria,
             pagina,
-            &arquivos.cookie,
+            sessao.cookie(),
             &mut EnvioColhendo {
                 colheita: &colheita,
             },
@@ -103,14 +106,14 @@ pub(super) fn obter(
     }
     match pagina {
         None => Ok(tela.html),
-        Some(numero) => obter_da_tela(tela, arquivos, unidade, categoria, numero, &colheita),
+        Some(numero) => obter_da_tela(tela, &sessao, unidade, categoria, numero, &colheita),
     }
 }
 
 /// A página N a partir da tela R já obtida: zero ou um POST.
 fn obter_da_tela(
     tela: TelaDoControle,
-    arquivos: &ArquivosDeAcesso,
+    sessao: &ReferenciasDaSessao,
     unidade: Option<&str>,
     categoria: Categoria,
     numero: usize,
@@ -141,7 +144,7 @@ fn obter_da_tela(
         &unidade_da_tela,
         categoria,
         numero,
-        &arquivos.cookie,
+        sessao.cookie(),
         enviar_post,
     )
     .map_err(ErroPaginaWeb::Pagina)?;

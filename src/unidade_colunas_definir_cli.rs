@@ -5,6 +5,7 @@
 //! Vinda da R, a sessão fica na D.
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroDaListaDeColunas};
 use crate::transporte::envio_post::ler_tela_do_controle;
+use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{
     self, ColunasDefinidas, ErroDefinirColunas, ErroVisaoDoControle, FalhaDoSalvar, TelaAtual,
     VerificacaoDasColunas,
@@ -28,19 +29,20 @@ pub(crate) fn definir_colunas(
         Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
     };
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-    let colheita = crate::colheita_do_controle::Colheita::da_sessao(&indice, &arquivos);
-    let tela =
-        match ler_tela_do_controle(&arquivos.url_controle, &arquivos.cookie, &arquivos.origem) {
-            Ok(tela) => tela,
-            Err(falha) => {
-                return saida_erro::erro_fonte_http(
-                    json_mode,
-                    falha.subcodigo(),
-                    falha.mensagem(),
-                    falha.status_http(),
-                );
-            }
-        };
+    let lido = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
+        .and_then(|sessao| ler_tela_do_controle(&sessao).map(|tela| (sessao, tela)));
+    let (sessao, tela) = match lido {
+        Ok(lido) => lido,
+        Err(falha) => {
+            return saida_erro::erro_fonte_http(
+                json_mode,
+                falha.subcodigo(),
+                falha.mensagem(),
+                falha.status_http(),
+            );
+        }
+    };
+    let colheita = crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao);
     colheita.colher(&tela.html, Some(&tela.mime));
     let atual = TelaAtual {
         url: tela.url,
@@ -53,7 +55,7 @@ pub(crate) fn definir_colunas(
         unidade,
         &alvo,
         confirmar,
-        &arquivos.cookie,
+        sessao.cookie(),
         &mut crate::colheita_do_controle::EnvioColhendo {
             colheita: &colheita,
         },

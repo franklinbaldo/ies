@@ -151,8 +151,7 @@ fn ver_completo<V: EnvioDoProcesso>(
     .map_err(E::FormularioDoHistorico)?;
     rede.requisicoes.registrar();
     let envio = &mut *rede.envio;
-    let html = match enviar_submissao_via(submissao, contexto.cookie_file, |s, c| envio.post(s, c))
-    {
+    let html = match enviar_submissao_via(submissao, contexto.cookie, |s, c| envio.post(s, c)) {
         Ok(RespostaDoEnvio::Html(html)) => html,
         Ok(RespostaDoEnvio::Redirecionamento(r)) => {
             return Err(match destino(r.localizacao()) {

@@ -9,7 +9,6 @@
 //! `caixa_detalhada::linhas_com_link`); não há segundo leitor de linhas.
 //! Nada aqui falha o comando: linha, página ou banco ruins só não gravam.
 use crate::caixa::LinhaDoControle;
-use crate::configuracao::ArquivosDeAcesso;
 use crate::controle_contexto::contexto_da_pagina;
 use crate::controle_reconhecido::publica_visao_detalhada;
 use crate::formulario_web::{TelaServida, decodificar_atributo, derivar_submissao};
@@ -83,32 +82,23 @@ impl<'i> Colheita<'i> {
         Self::com_geracao(indice, instalacao, &geracao, url_do_controle)
     }
 
-    /// Lê origem, URL do Controle e cookie dos arquivos privados (antes do
-    /// GET, para a chave ser a do cookie que o GET vai usar). Qualquer
-    /// falha: nada é colhido; o comando falha, se for o caso, pela leitura dele.
-    pub(crate) fn da_sessao(indice: &'i IndiceLocal, arquivos: &ArquivosDeAcesso) -> Self {
-        use crate::transporte::sessao::ReferenciasDaSessao;
+    /// A colheita do retrato coerente da sessão (#222) que o comando usa
+    /// nas requisições: a chave é a geração do cookie que obtém a página,
+    /// nunca a de arquivos relidos depois.
+    pub(crate) fn das_referencias(
+        indice: &'i IndiceLocal,
+        sessao: &crate::transporte::sessao::ReferenciasDaSessao,
+    ) -> Self {
         if !indice.ligado() {
             return Self::nenhuma();
         }
-        let Ok(sessao) = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem) else {
-            return Self::nenhuma();
-        };
         let Some(instalacao) = Instalacao::interpretar(sessao.origem()) else {
             return Self::nenhuma();
         };
-        let Ok(cookie) = sessao.cookie_validado(&arquivos.cookie) else {
+        let Ok(cookie) = sessao.cookie().valor() else {
             return Self::nenhuma();
         };
-        Self::do_cookie(indice, &instalacao, &cookie, sessao.url_do_controle())
-    }
-
-    /// Shim do contrato da #222 (RED): a colheita pela leitura coerente.
-    pub(crate) fn das_referencias(
-        _indice: &'i IndiceLocal,
-        _sessao: &crate::transporte::sessao::ReferenciasDaSessao,
-    ) -> Self {
-        Self::nenhuma()
+        Self::do_cookie(indice, &instalacao, cookie, sessao.url_do_controle())
     }
 
     /// Colhe uma página do Controle já lida. `mime` é o `Content-Type` da

@@ -10,8 +10,8 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 use crate::paginas::{FaixaNaPagina, faixa_na_pagina};
 use crate::transporte::FalhaTransporte;
+use crate::transporte::sessao::CookieDaSessao;
 use std::io::Read;
-use std::path::Path;
 
 fn excessiva() -> E {
     E::Submissao(ErroSubmissaoFormulario::Transporte(
@@ -87,7 +87,7 @@ pub(crate) fn obter_pagina_via<R: Read, F>(
     unidade: &str,
     categoria: Categoria,
     pagina: usize,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     enviar: F,
 ) -> Result<Option<String>, E>
 where
@@ -98,7 +98,7 @@ where
     };
     let origem = contexto_da_pagina(tela.html).map_err(E::Caixa)?;
     let submissao = derivar_pagina(instalacao, tela, unidade, categoria, indice)?;
-    let html = match enviar_submissao_via(submissao, cookie_file, enviar).map_err(E::Submissao)? {
+    let html = match enviar_submissao_via(submissao, cookie, enviar).map_err(E::Submissao)? {
         RespostaDoEnvio::Html(html) => html,
         RespostaDoEnvio::Redirecionamento(_) => return Err(E::RedirecionamentoAposPaginar),
     };

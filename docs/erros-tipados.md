@@ -213,3 +213,15 @@ exportação seguia o link. Na sessão, o mesmo caso sai como
 `destino_da_sessao_nao_eh_arquivo_regular`; na configuração, como
 `configuracao_ja_existe_ou_sem_permissao`; no texto, no anexo e na cópia,
 pelos subcódigos de diretório link simbólico que eles já tinham.
+
+## Leitura coerente da sessão (#222)
+
+`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1): os
+comandos que leem a sessão sem o lock do login conferem o marcador
+`<url-controle>.geracao` antes e depois de URL, origem e cookie. O
+marcador mudou (ou não confere com o par lido) duas vezes seguidas: um
+`ies login` ou `ies unidade trocar --confirmar` gravou no meio das duas
+leituras locais. Nada foi pedido ao SEI e não há relogin; rodar de novo
+lê a sessão nova. Origem divergente e cookie ilegível continuam com os
+subcódigos de antes, no mesmo ponto da operação
+([decisão](decisoes/sessao-login/leitura-coerente-da-sessao.md)).

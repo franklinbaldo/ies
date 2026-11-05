@@ -155,13 +155,16 @@ fn obter(
     };
     // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
     let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias =
-            transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
-                .map_err(FalhaDoDocumento::Sessao)?;
+        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+            &arquivos.url_controle,
+            &arquivos.origem,
+            &arquivos.cookie,
+        )
+        .map_err(FalhaDoDocumento::Sessao)?;
         let sessao = SessaoDoProcesso {
             url_do_controle: referencias.url_do_controle(),
             origem: referencias.origem(),
-            cookie_file: &arquivos.cookie,
+            cookie: referencias.cookie(),
         };
         let indice = IndiceLocal::da_configuracao(&arquivos);
         let mut obtidos = Vec::new();

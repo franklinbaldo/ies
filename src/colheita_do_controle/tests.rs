@@ -4,6 +4,7 @@
 //! válidas e inválidas, e o conteúdo **exato** do índice depois. Hosts,
 //! hashes, ids e números inventados; sem rede.
 use super::*;
+use crate::configuracao::ArquivosDeAcesso;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -331,6 +332,20 @@ fn indice_desligado_e_nenhuma_nao_fazem_nada() {
     assert!(!desligado.ligado());
 }
 
+/// A colheita do retrato coerente lido dos arquivos (#222); falha de
+/// leitura: nenhuma colheita.
+fn da_sessao<'i>(indice: &'i IndiceLocal, arquivos: &ArquivosDeAcesso) -> Colheita<'i> {
+    crate::transporte::sessao::ReferenciasDaSessao::ler(
+        &arquivos.url_controle,
+        &arquivos.origem,
+        &arquivos.cookie,
+    )
+    .map_or_else(
+        |_| Colheita::nenhuma(),
+        |sessao| Colheita::das_referencias(indice, &sessao),
+    )
+}
+
 fn arquivos_da_colheita(pasta: &Pasta) -> ArquivosDeAcesso {
     let arquivos = ArquivosDeAcesso {
         origem: pasta.0.join("origem"),
@@ -353,9 +368,9 @@ fn gravar(caminho: &std::path::Path, texto: &str) {
 fn nova_leitura_reflete_a_geracao_atual() {
     let (pasta, indice) = indice();
     let arquivos = arquivos_da_colheita(&pasta);
-    let primeira = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
+    let primeira = da_sessao(&indice, &arquivos).alvo.unwrap();
     gravar(&arquivos.cookie, &["sessao", "=segunda"].concat());
-    let segunda = Colheita::da_sessao(&indice, &arquivos).alvo.unwrap();
+    let segunda = da_sessao(&indice, &arquivos).alvo.unwrap();
     let geracoes = std::collections::HashSet::from([primeira.geracao, segunda.geracao]);
     assert_eq!(geracoes.len(), 2);
 }
@@ -366,11 +381,11 @@ fn colheita_recusa_origem_divergente_e_cookie_invalido() {
     let (pasta, indice) = indice();
     let arquivos = arquivos_da_colheita(&pasta);
     gravar(&arquivos.origem, "https://outro.exemplo.gov.br/sei");
-    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+    assert!(da_sessao(&indice, &arquivos).alvo.is_none());
 
     gravar(&arquivos.origem, ORIGEM);
     gravar(&arquivos.cookie, "linha\ninvalida");
-    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+    assert!(da_sessao(&indice, &arquivos).alvo.is_none());
 }
 
 // Caso de todos tests/test_sessao_em_arquivo_010.py @323eb01
@@ -380,5 +395,5 @@ fn colheita_recusa_arquivo_de_sessao_com_permissao_aberta() {
     let (pasta, indice) = indice();
     let arquivos = arquivos_da_colheita(&pasta);
     crate::indice_local::tests::definir_modo(&arquivos.cookie, 0o644);
-    assert!(Colheita::da_sessao(&indice, &arquivos).alvo.is_none());
+    assert!(da_sessao(&indice, &arquivos).alvo.is_none());
 }

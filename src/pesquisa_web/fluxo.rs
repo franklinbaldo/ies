@@ -26,15 +26,15 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::decodificar_resposta;
 use crate::transporte::envio_post::{TelaDoControle, ler_tela_via};
+use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::{EnvioDoControle, TelaAtual};
 use std::cell::RefCell;
-use std::path::Path;
 
 /// Arquivos privados da sessão já lidos: URL assinada do Controle e origem.
 pub(crate) struct SessaoDaBusca<'a> {
     pub(crate) url_do_controle: &'a str,
     pub(crate) origem: &'a str,
-    pub(crate) cookie_file: &'a Path,
+    pub(crate) cookie: &'a CookieDaSessao,
 }
 
 /// O que o usuário pediu: termo (já validado pela borda), página opcional
@@ -91,7 +91,7 @@ fn ler_controle_interno<V: EnvioDoControle>(
     use ErroBuscaDeProcesso as E;
     let tela = ler_tela_via(
         sessao.url_do_controle,
-        sessao.cookie_file,
+        sessao.cookie,
         sessao.origem,
         |url, cookie| {
             if let Some(contagem) = requisicoes.take() {
@@ -142,19 +142,13 @@ pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     let controle = ler_controle_com_contagem(sessao, pedido.unidade, requisicoes, envio)?;
     colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
-    pesquisar_a_partir_do_controle::<A, V>(
-        &controle,
-        sessao.cookie_file,
-        pedido,
-        requisicoes,
-        envio,
-    )
+    pesquisar_a_partir_do_controle::<A, V>(&controle, sessao.cookie, pedido, requisicoes, envio)
 }
 
 /// Requisições 2 em diante, a partir do Controle já lido (que conta como 1).
 pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoControle>(
     controle: &ControleLido,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     pedido: &PedidoDeBusca<'_>,
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
@@ -166,12 +160,12 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
     let url_da_tela =
         link_da_pesquisa(instalacao, &controle.url, &controle.html).map_err(E::Link)?;
     // 2. GET da tela de pesquisa pelo link publicado.
-    let tela = obter_tela(cookie_file, &url_da_tela, requisicoes, envio)?;
+    let tela = obter_tela(cookie, &url_da_tela, requisicoes, envio)?;
     // 3. POST da pesquisa.
     let termo = pedido.termo;
     let submissao = derivar_pesquisa_em(A::EM, instalacao, &servida(&tela)?, (unidade, termo))
         .map_err(E::Pesquisa)?;
-    let (enviada, resultado) = enviar(cookie_file, envio, requisicoes, submissao)?;
+    let (enviada, resultado) = enviar(cookie, envio, requisicoes, submissao)?;
     let interpretado = A::interpretar(enviada, instalacao).map_err(E::Pesquisa)?;
     let (resposta, html) = (interpretado.resposta, interpretado.html);
     let Some(solicitada) = pedido.pagina else {
@@ -211,7 +205,7 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
         pagina.inicio,
     )
     .map_err(E::Pesquisa)?;
-    let resposta = match enviar(cookie_file, envio, requisicoes, submissao)?.0 {
+    let resposta = match enviar(cookie, envio, requisicoes, submissao)?.0 {
         RespostaDoEnvio::Redirecionamento(_) => {
             return Err(E::Paginacao(
                 ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa,
@@ -247,16 +241,15 @@ fn servida(tela: &TelaAtual) -> Result<TelaServida<'_>, ErroBuscaDeProcesso> {
 
 /// Um GET de URL já autorizada (link publicado pelo Controle).
 fn obter_tela<V: EnvioDoControle>(
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     url: &str,
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<TelaAtual, ErroBuscaDeProcesso> {
     use ErroBuscaDeProcesso as E;
-    let cookie =
-        crate::transporte::sessao::cookie_privado_validado(cookie_file).map_err(E::Transporte)?;
+    let cookie = cookie.valor().map_err(E::Transporte)?;
     requisicoes.registrar();
-    let resposta = envio.get(url, &cookie).map_err(E::Transporte)?;
+    let resposta = envio.get(url, cookie).map_err(E::Transporte)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
     Ok(TelaAtual {
@@ -268,14 +261,14 @@ fn obter_tela<V: EnvioDoControle>(
 
 /// Um POST, sem retry; o 302 volta como dado, nunca seguido.
 fn enviar<V: EnvioDoControle>(
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     envio: &mut V,
     requisicoes: &mut ContagemDeRequisicoes,
     submissao: SubmissaoDerivada,
 ) -> Result<(RespostaDoEnvio, Resultado), ErroBuscaDeProcesso> {
     let url = submissao.url().to_owned();
     let mime = RefCell::new(String::new());
-    let resposta = enviar_submissao_via(submissao, cookie_file, |s, c| {
+    let resposta = enviar_submissao_via(submissao, cookie, |s, c| {
         requisicoes.registrar();
         let resposta = envio.post(s, c)?;
         mime.replace(resposta.resposta.mime.clone());

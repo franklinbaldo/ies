@@ -13,6 +13,7 @@ use crate::pesquisa_web::resposta::FaixaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{
     ORIGEM, sem_resultado, tela_de_pesquisa, url_controle, url_da_tela, url_do_envio,
 };
+use crate::transporte::sessao::CookieDaSessao;
 
 type Busca = Result<BuscaRealizada<RespostaDeDocumentos>, ErroBuscaDeProcesso>;
 
@@ -26,7 +27,7 @@ fn buscar(
     let sessao = SessaoDaBusca {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &arquivo,
+        cookie: &CookieDaSessao::ler(&arquivo),
     };
     let pedido = PedidoDeBusca {
         termo,

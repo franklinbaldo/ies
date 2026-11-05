@@ -8,10 +8,10 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::cell::RefCell;
 use std::io::Read;
-use std::path::Path;
 
 /// HTML, URL e `Content-Type` da mesma resposta, para derivar o envio seguinte.
 pub(crate) struct TelaAtual {
@@ -77,7 +77,7 @@ pub(super) enum Redirecionado {
 pub(super) struct Sessao<'a, V: EnvioDoControle> {
     pub(super) instalacao: &'a Instalacao,
     pub(super) unidade: &'a str,
-    pub(super) cookie_file: &'a Path,
+    pub(super) cookie: &'a CookieDaSessao,
     pub(super) envio: &'a mut V,
 }
 
@@ -102,7 +102,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;
-        let resposta = enviar_submissao_via(submissao, self.cookie_file, |s, c| {
+        let resposta = enviar_submissao_via(submissao, self.cookie, |s, c| {
             let resposta = envio.post(s, c)?;
             mime.replace(resposta.resposta.mime.clone());
             Ok(resposta)

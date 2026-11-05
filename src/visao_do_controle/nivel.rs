@@ -8,10 +8,10 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{
     conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
 };
-use std::path::Path;
 
 /// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
 /// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET.
@@ -19,7 +19,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
     instalacao: &Instalacao,
     tela: &TelaAtual,
     unidade_solicitada: Option<&str>,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     envio: &mut V,
 ) -> Result<(String, NivelDeDetalhe), E> {
     let encontrado = contexto(&tela.html)?;
@@ -27,7 +27,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
-        cookie_file,
+        cookie,
         envio,
     };
     if encontrado.eh_detalhada() {
@@ -57,9 +57,8 @@ pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     url: &str,
 ) -> Result<TelaAtual, E> {
-    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
-        .map_err(E::Transporte)?;
-    let resposta = sessao.envio.get(url, &cookie).map_err(E::Transporte)?;
+    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
+    let resposta = sessao.envio.get(url, cookie).map_err(E::Transporte)?;
     let mime = resposta.mime.clone();
     let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
     Ok(TelaAtual {

@@ -14,6 +14,7 @@ use crate::historico_processo::tests_apoio::{
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
 use crate::transporte::RespostaWeb;
+use crate::transporte::sessao::CookieDaSessao;
 use std::collections::VecDeque;
 use std::fmt::Write as _;
 use std::io::Cursor;
@@ -423,7 +424,7 @@ fn rodar_tudo(
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
         origem: ORIGEM,
-        cookie_file: &amb.cookie,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
     };
     let nup = NumeroProcesso::novo(nup).unwrap();
     let pedido = PedidoDoProcesso {

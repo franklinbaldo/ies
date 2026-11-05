@@ -55,12 +55,16 @@ por conta própria e podia registrar links sob a geração errada.
   cookie do mesmo retrato. O cookie é um `CookieDaSessao`, redigido no
   `Debug`. Nenhuma requisição dos comandos lê o arquivo do cookie: todas
   recebem o do retrato.
+- A recusa da origem e a falha do cookie (ausente, permissão, sintaxe)
+  ficam guardadas no `CookieDaSessao` e só aparecem onde a requisição
+  pede o cookie, como antes: as recusas offline anteriores (credenciais,
+  argumentos, índice) continuam vencendo, com os mesmos subcódigos. O
+  arquivo do cookie nunca é aberto com a origem recusada.
 - `Colheita::das_referencias` usa o mesmo retrato: o link colhido vai para
-  a geração do cookie que obteve a página.
-- `unidade trocar --confirmar` regrava a URL com o cookie do retrato.
-- Falhas de origem e de cookie (ausente, permissão, sintaxe) passam a
-  sair na leitura, antes da primeira requisição, com os mesmos
-  subcódigos.
+  a geração do cookie que obteve a página (antes, `Colheita::da_sessao`
+  relia os arquivos por conta própria).
+- `unidade trocar --confirmar` pega o lock **antes** de ler a sessão e
+  regrava a URL com o cookie do retrato (antes, relia o cookie do disco).
 - O `ies login` não usa o retrato: lê sob o lock que os escritores pegam.
 
 ## Lacuna: sessão sem marcador

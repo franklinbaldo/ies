@@ -6,6 +6,7 @@ use crate::formulario_web::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use crate::formulario_web::{RespostaDoPost, derivar_submissao};
 use crate::pesquisa_web::ErroResultadoPesquisa;
 use crate::transporte::RespostaWeb;
+use crate::transporte::sessao::CookieDaSessao;
 use std::cell::Cell;
 use std::fs;
 use std::io::Cursor;
@@ -73,19 +74,24 @@ fn pesquisar(
 ) -> (Result<RespostaDaPesquisa, ErroPesquisaProtocolo>, usize) {
     let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
-    let r = pesquisar_protocolo_via(submissao(), &instalacao(), &arquivo, |_, _| {
-        chamadas.set(chamadas.get() + 1);
-        Ok(RespostaDoPost {
-            resposta: RespostaWeb {
-                status_code,
-                mime: "text/html; charset=iso-8859-1".to_owned(),
-                content_length: Some(html.len()),
-                localizacao: None,
-                corpo: Cursor::new(html.as_bytes().to_vec()),
-            },
-            localizacao: localizacao.map(str::to_owned),
-        })
-    });
+    let r = pesquisar_protocolo_via(
+        submissao(),
+        &instalacao(),
+        &CookieDaSessao::ler(&arquivo),
+        |_, _| {
+            chamadas.set(chamadas.get() + 1);
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code,
+                    mime: "text/html; charset=iso-8859-1".to_owned(),
+                    content_length: Some(html.len()),
+                    localizacao: None,
+                    corpo: Cursor::new(html.as_bytes().to_vec()),
+                },
+                localizacao: localizacao.map(str::to_owned),
+            })
+        },
+    );
     (r, chamadas.get())
 }
 

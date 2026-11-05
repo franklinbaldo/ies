@@ -4,6 +4,7 @@ use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atua
 use super::*;
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
+use crate::transporte::sessao::CookieDaSessao;
 
 /// R da `UnB`/PEN1 em miniatura: Recebidos P1, P2 (completos); Gerados com
 /// 3 registros, página 1 mostra P3.
@@ -23,7 +24,7 @@ fn listar(
         &tela_atual(tela),
         Some("TESTE"),
         pagina,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert!(envio.respostas.is_empty(), "respostas não consumidas");
@@ -239,7 +240,7 @@ fn unidade_solicitada_diferente_falha_antes_de_qualquer_post() {
         &tela_atual(r().html()),
         Some("OUTRA"),
         None,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         &mut envio,
     );
     assert_eq!(envio.registro.len(), 0);

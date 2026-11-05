@@ -9,6 +9,7 @@ use super::{
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
+use crate::transporte::sessao::CookieDaSessao;
 
 fn executar(
     sigla: &str,
@@ -22,7 +23,7 @@ fn executar(
     let sessao = SessaoDaTroca {
         url_do_controle: &url,
         instalacao: &instalacao,
-        cookie_file: &cookie,
+        cookie: &CookieDaSessao::ler(&cookie),
     };
     let pedido = PedidoDeTroca {
         sigla,

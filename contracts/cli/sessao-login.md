@@ -174,6 +174,15 @@ marcador (sessão preparada à mão), vale a conferência por GET. O lock
 cobre conferência, login e gravação; o segundo processo espera e confere
 a sessão que o primeiro gravou.
 
+Os outros comandos leem a sessão sem o lock, num retrato coerente (#222):
+o marcador antes e depois de URL, origem e cookie. Marcador que mudou, ou
+que não confere com URL e cookie lidos, faz reler os arquivos locais uma
+vez (nenhuma requisição); de novo incoerente, a leitura falha com
+`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1, sem relogin;
+rodar de novo resolve). Todas as requisições do comando e a colheita do
+índice usam o cookie desse retrato. Sem marcador, a leitura é a de antes
+([decisão](../../docs/decisoes/sessao-login/leitura-coerente-da-sessao.md)).
+
 ## Falhas tipadas
 
 `caminho_credenciais_nao_informado`, `campo_das_credenciais_ausente`,

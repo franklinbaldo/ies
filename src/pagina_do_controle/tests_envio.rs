@@ -2,6 +2,7 @@
 use super::tests::{Tab, Tela, instalacao, pen1, tela, url};
 use super::*;
 use crate::transporte::RespostaWeb;
+use crate::transporte::sessao::CookieDaSessao;
 use Categoria::Recebidos;
 use ErroPaginaDoControle as E;
 use std::cell::Cell;
@@ -68,7 +69,7 @@ fn obter(
         "TESTE",
         Recebidos,
         pagina,
-        &arquivo,
+        &CookieDaSessao::ler(&arquivo),
         |submissao, cookie| {
             chamadas.set(chamadas.get() + 1);
             assert_eq!(cookie, "PHPSESSID=SINTETICO");

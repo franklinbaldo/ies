@@ -19,8 +19,9 @@ use crate::pesquisa_web::formulario_pesquisa::{
 use crate::pesquisa_web::link_da_pesquisa::{ErroLinkDaPesquisa, link_da_pesquisa};
 use crate::pesquisa_web::paginacao::{ErroPaginacaoDaPesquisa, planejar_pagina};
 use crate::pesquisa_web::resposta::{RespostaDaPesquisa, ler_resposta_html};
+use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{RespostaWeb, decodificar_resposta};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// O termo que a derivação recebe: o corpo do POST gravado não existe, e o
 /// termo não muda a resposta já gravada; só precisa caber no `maxlength`.
@@ -42,7 +43,7 @@ struct Cassette<'a> {
     card: &'a str,
     instalacao_nome: &'a str,
     instalacao: Instalacao,
-    cookie: &'a Path,
+    cookie: &'a CookieDaSessao,
 }
 
 impl Cassette<'_> {
@@ -72,11 +73,12 @@ pub(super) fn replay(card: &str, instalacao_nome: &str, json: &serde_json::Value
         return Vec::new();
     };
     let cookie = CookieSintetico::novo();
+    let lido = CookieDaSessao::ler(&cookie.0);
     let c = Cassette {
         card,
         instalacao_nome,
         instalacao,
-        cookie: &cookie.0,
+        cookie: &lido,
     };
     let mut estado = Estado::default();
     let mut registros = Vec::new();

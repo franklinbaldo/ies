@@ -108,7 +108,8 @@ struct Marcador {
 }
 
 // Exceção inventariada (#183): leitura local do marcador de consistência
-// próprio da escrita atômica. ReferenciasDaSessao não conhece esse formato.
+// próprio da escrita atômica. O formato é só deste módulo; a leitura
+// coerente (`ReferenciasDaSessao`, #222) o confere por `marcador_confere`.
 fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ()> {
     let caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     match crate::transporte::arquivo_privado(&caminho, 4096) {
@@ -116,6 +117,13 @@ fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ()> {
         Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
         Err(_) => Err(()),
     }
+}
+
+/// O texto de um marcador confere com a URL e o cookie (os SHA-256 dele).
+/// JSON inválido não confere. Usado pela leitura coerente (#222).
+pub(crate) fn marcador_confere(marcador: &str, url: &str, cookie: &str) -> bool {
+    serde_json::from_str::<Marcador>(marcador)
+        .is_ok_and(|m| m.cookie_sha256 == sha256(cookie) && m.url_controle_sha256 == sha256(url))
 }
 
 /// `false` se o marcador existe e não corresponde a estes conteúdos (ou é

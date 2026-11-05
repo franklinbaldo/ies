@@ -207,8 +207,11 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
-    let cookie = crate::transporte::sessao::cookie_privado_validado(sessao.cookie_file)
-        .map_err(|f| E::Processo(ErroProcessoObter::Transporte(f)))?;
+    let cookie = sessao
+        .cookie
+        .valor()
+        .map_err(|f| E::Processo(ErroProcessoObter::Transporte(f)))?
+        .to_owned();
     let numero = pedido.numero.as_str();
     let contexto = Contexto {
         instalacao,
@@ -217,7 +220,7 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
         unidade_id: unidade_dos_links(sessao.url_do_controle),
         indice,
-        cookie_file: sessao.cookie_file,
+        cookie: sessao.cookie,
         documento_procurado: Some(numero),
     };
     let mut rede = Rede {

@@ -181,16 +181,19 @@ fn buscar(cli: &Cli, comando: &Documento, termo: &str, pagina: Option<u32>) -> E
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
     let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias =
-            transporte::sessao::ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem)
-                .map_err(ErroBuscaDeProcesso::Transporte)?;
+        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+            &arquivos.url_controle,
+            &arquivos.origem,
+            &arquivos.cookie,
+        )
+        .map_err(ErroBuscaDeProcesso::Transporte)?;
         let sessao = SessaoDaBusca {
             url_do_controle: referencias.url_do_controle(),
             origem: referencias.origem(),
-            cookie_file: &arquivos.cookie,
+            cookie: referencias.cookie(),
         };
         let indice = IndiceLocal::da_configuracao(&arquivos);
-        let colheita = Colheita::da_sessao(&indice, &arquivos);
+        let colheita = Colheita::das_referencias(&indice, &referencias);
         buscar_colhendo::<EmDocumentos, _>(&sessao, &pedido, &colheita, &mut EnvioHttps)
     });
     match lido {

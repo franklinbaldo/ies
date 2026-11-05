@@ -9,7 +9,7 @@ use crate::dominio::Categoria;
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::{PlanoDaPagina, codificacao_da_tela, obter_pagina_via, planejar};
-use std::path::Path;
+use crate::transporte::sessao::CookieDaSessao;
 
 /// HTML da visão R com a página pedida da categoria (ou a lembrada).
 /// Orçamento: 1 GET + 1 POST (R), ou 1 GET + 2 POST (R, página N).
@@ -19,7 +19,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     unidade_solicitada: Option<&str>,
     categoria: Categoria,
     pagina: Option<usize>,
-    cookie_file: &Path,
+    cookie: &CookieDaSessao,
     envio: &mut V,
 ) -> Result<String, E> {
     let encontrado = contexto(&tela.html)?;
@@ -30,7 +30,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     let mut sessao = Sessao {
         instalacao,
         unidade: &unidade,
-        cookie_file,
+        cookie,
         envio,
     };
     let resumida = trocar(&mut sessao, tela, Visao::Resumida)?;
@@ -64,7 +64,7 @@ fn postar_pagina<V: EnvioDoControle>(
         sessao.unidade,
         categoria,
         numero,
-        sessao.cookie_file,
+        sessao.cookie,
         |submissao, cookie| envio.post(submissao, cookie),
     )
     .map_err(E::Pagina)?;
