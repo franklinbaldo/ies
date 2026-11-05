@@ -1,9 +1,11 @@
 ---
-type: CliCommandContract
+type: CommandContract
 title: Iniciar processo pelo cadastro Web do SEI
 operation: processo.criar
 status: proposed
-implementation: not-started
+command: ies processo criar --tipo TIPO --especificacao TEXTO [--confirmar]
+effect: write-process-state
+implementation: partial
 ---
 
 # `ies processo criar` — contrato proposto (#245)
@@ -68,6 +70,11 @@ implementação Rust e sem afirmar aprovação do verificador:
 - `interessado_de_processo_ambiguo`
 - `criacao_de_processo_recusada`
 - `efeito_incerto_na_criacao`
+
+Subcódigos já emitidos pelo leitor offline da lista de tipos:
+`lista_de_tipos_html_invalido`, `tabela_de_tipos_ausente_ou_repetida`,
+`tipo_de_processo_nao_oferecido`, `tipo_de_processo_ambiguo`,
+`tipo_de_processo_sem_acao`, `lista_de_tipos_incompleta`.
 
 Esses subcódigos precisam de tipos reais e integração a
 `docs/erros-tipados.md` antes de serem publicados na CLI.
