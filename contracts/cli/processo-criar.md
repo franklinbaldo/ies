@@ -139,6 +139,23 @@ Esses subcódigos precisam de tipos reais e integração a
 | `interessado_de_processo_nao_oferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `interessado_de_processo_ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 
+## Subcódigos da hipótese legal carregada por AJAX
+
+| Subcódigo | Fato observado |
+| --- | --- |
+| `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
+| `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
+| `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida |
+| `hipotese_legal_ajax_nao_unica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
+
+Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
+se faz AJAX. Se o select só traz `null`, consulta-se a URL assinada
+publicada na tela, uma vez, por POST **sem efeito de escrita**.
+A resposta com múltiplas opções não permite escolher por posição:
+com a CLI atual, recusar antes do POST de criação. A consulta AJAX
+usa os quatro campos documentados pela observação da interface
+e soma **uma** requisição à prévia e à confirmação restritas.
+
 ## Orçamento e evidência
 
 Argumento rejeitado sem rede: 0. Prévia: consultas necessárias
