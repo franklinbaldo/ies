@@ -237,6 +237,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
     // Tabela solta sem essa moldura nao comprova completude.
     let mut vazios = HashSet::new();
     let mut areas_aguardando = 0usize;
+    let mut areas_observadas = HashSet::new();
     let mut area_aguardando_com_tabela = false;
     for no in dom.query_selector("div").into_iter().flatten() {
         let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -247,6 +248,11 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
         };
+        // Duas areas com o mesmo id nao permitem provar a completude,
+        // mesmo quando uma delas afirma que o mes esta vazio.
+        if !areas_observadas.insert(situacao) {
+            return Err(E::TelaDeRetornosDesconhecida);
+        }
         if situacao == "aguardando" {
             areas_aguardando += 1;
             let mut reconhecidas = Vec::new();
@@ -366,7 +372,11 @@ mod tests {
         // Uma tabela solta sem a area mensal continua recusada.
         let html = format!(
             "<div id='divAguardandoAreaTabela'>{}<table><tr><td>layout</td></tr></table></div>",
-            tabela("Tabela de processos aguardando retorno de outras unidades", "NUP-A", "U1")
+            tabela(
+                "Tabela de processos aguardando retorno de outras unidades",
+                "NUP-A",
+                "U1"
+            )
         );
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(itens.len(), 1);
