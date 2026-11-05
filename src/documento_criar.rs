@@ -155,10 +155,20 @@ pub(crate) fn conferir_criacao(
 
 /// A 4.0 publica URL direta; a 4.1/5.0 publica escolher(id).
 /// Nunca carrega credenciais de sessão nem URL assinada no Debug.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) enum EscolhaDoDocumento {
     Link(String),
     Formulario(String),
+}
+
+/// Não expõe URL assinada ou identificadores sensíveis no Debug.
+impl std::fmt::Debug for EscolhaDoDocumento {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Link(_) => f.write_str("Link(<redigido>)"),
+            Self::Formulario(_) => f.write_str("Formulario(<redigido>)"),
+        }
+    }
 }
 
 fn id_da_escolha_literal(onclick: &str) -> Option<String> {
