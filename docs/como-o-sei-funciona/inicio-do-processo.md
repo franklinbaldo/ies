@@ -92,3 +92,26 @@ A autorização não comprova execução: a validação live segue NOT_RUN.
 Antes de criar, é obrigatório observar a prévia, enviar um único
 `--confirmar` e verificar o novo processo por leitura; documentar
 qualquer resíduo no ambiente de treinamento.
+
+## Hipótese legal no cadastro restrito — observação indireta 05/11/2026
+
+A captura do Todos em `tests/paginas_reais/procedimento_gerar.html`
+(SEI 4.0.9, commit `323eb01`) publica no JavaScript servido o
+construtor literal `infraAjaxMontarSelect('selHipoteseLegal', URL)`,
+com a ação AJAX `hipotese_legal_select_nome_base_legal`. O `select`
+inicial pode conter apenas o placeholder `null`; isso **não**
+prova ausência de hipóteses. O navegador solicita opções ao selecionar
+o nível restrito. O oráculo `todos.documentos.hipoteses_do_cadastro`
+faz a consulta diretamente, por POST de leitura, com os campos
+`primeiroItemValor=null`, `primeiroItemDescricao= `,
+`valorItemSelecionado=` e `staNivelAcesso=1`. A resposta
+é XML com `<select><option value="...">...</option></select>`.
+Não executar o JavaScript: reconhecer a declaração literal de URL,
+derivar a consulta com `formulario_web` e interpretar a resposta.
+
+A CLI desta issue não recebe escolha explícita de hipótese legal.
+Assim, **somente uma** opção efetiva habilitada na resposta AJAX
+permite seguir. Zero ou várias opções devem ser recusadas antes
+do POST criador. Um placeholder `null` não é opção efetiva.
+Dados com assinatura de sessão não integram fixtures nem relatórios.
+A observação continua indireta; replay e teste live ainda pendem.
