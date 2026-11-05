@@ -294,3 +294,29 @@ fn debug_redige_url_e_hash() {
     }
     assert!(texto.contains("redigida"), "{texto}");
 }
+
+#[test]
+fn troca_de_unidade_apaga_todos_os_links_da_instalacao() {
+    let indice = indice("link-troca");
+    let sei = instalacao();
+    let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
+    let url_outra = url(HASH_A).replace("/sei/", "/outro/");
+    indice
+        .registrar_link(&sei, chave(G1), &url(HASH_A))
+        .unwrap();
+    indice
+        .registrar_link(&sei, chave(G2), &url(HASH_B))
+        .unwrap();
+    indice
+        .registrar_link(&outra, chave(G1), &url_outra)
+        .unwrap();
+    assert_eq!(indice.esquecer_links_da_instalacao(&sei), Some(2));
+    assert_eq!(indice.link(&sei, chave(G1)), None);
+    assert_eq!(indice.link(&sei, chave(G2)), None);
+    assert!(indice.link(&outra, chave(G1)).is_some());
+    assert_eq!(indice.esquecer_links_da_instalacao(&sei), Some(0));
+    assert_eq!(
+        IndiceLocal::desligado().esquecer_links_da_instalacao(&sei),
+        None
+    );
+}

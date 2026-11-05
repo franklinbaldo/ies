@@ -11,6 +11,7 @@ use crate::anexo_documento::LimiteDoAnexo;
 use crate::arquivo_texto_documento;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli::{self, CopiaGravada};
+use crate::documento_versoes::VersaoDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
@@ -142,6 +143,12 @@ fn obter(
     let Some(limite) = LimiteDoAnexo::do_ambiente() else {
         return anexo::limite_invalido(cli.json);
     };
+    if let Some(diretorio) = saida
+        && let Err(erro) =
+            documento_versao_cli::conferir_textos_antes_da_rede(diretorio, numeros, versoes.versao)
+    {
+        return erro_fonte(cli.json, erro.subcodigo(), "o texto não foi gravado");
+    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
@@ -179,7 +186,14 @@ fn obter(
         Ok((obtidos, referencias.origem().to_owned()))
     });
     match lido {
-        Ok(((obtidos, origem), nota)) => publicar(cli.json, obtidos, saida, &origem, nota.as_ref()),
+        Ok(((obtidos, origem), nota)) => publicar(
+            cli.json,
+            obtidos,
+            saida,
+            &origem,
+            versoes.versao,
+            nota.as_ref(),
+        ),
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
@@ -256,12 +270,14 @@ fn falha(
 /// O arquivo gravado de cada documento: nome em `DIR` e bytes.
 type Gravado = (String, u64);
 
-/// Grava, na ordem, `DOC.txt` dos internos e liga o parcial `DOC.ext` dos
-/// externos; para no primeiro que falha (os anteriores ficam).
+/// Grava, na ordem, `DOC.txt` (ou `DOC.vN.txt` com `--versao N`, #204) dos
+/// internos e liga o parcial `DOC.ext` dos externos; para no primeiro que
+/// falha (os anteriores ficam).
 fn gravar(
     json_mode: bool,
     obtidos: &mut [DocumentoObtido],
     diretorio: &Path,
+    pedida: Option<VersaoDocumento>,
 ) -> Result<Vec<Gravado>, ExitCode> {
     let mut gravados = Vec::new();
     for d in obtidos {
@@ -276,7 +292,7 @@ fn gravar(
             gravados.push((nome, a.tamanho));
             continue;
         }
-        let nome = format!("{}.txt", d.numero);
+        let nome = documento_versao_cli::nome_do_texto(&d.numero, pedida);
         match arquivo_texto_documento::salvar(&diretorio.join(&nome), &d.texto) {
             Ok(bytes) => gravados.push((nome, bytes as u64)),
             Err(erro) => {
@@ -296,12 +312,13 @@ fn publicar(
     mut obtidos: Vec<DocumentoObtido>,
     saida: Option<&Path>,
     origem: &str,
+    pedida: Option<VersaoDocumento>,
     nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
     let mut gravados = Vec::new();
     let mut copias: Vec<Option<CopiaGravada>> = Vec::new();
     if let Some(diretorio) = saida {
-        match gravar(json_mode, &mut obtidos, diretorio) {
+        match gravar(json_mode, &mut obtidos, diretorio, pedida) {
             Ok(lista) => gravados = lista,
             Err(codigo) => return codigo,
         }
@@ -375,4 +392,33 @@ fn publicar(
         }
     }
     ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use crate::documento_versao_cli::testes::{diretorio, documento, v};
+    use crate::processo_obter::{SemCopia, VersoesDoDocumento};
+
+    #[test]
+    fn versao_pedida_grava_doc_vn_txt_ao_lado_do_doc_txt() {
+        let pasta = diretorio();
+        std::fs::write(pasta.join("0011519.txt"), "atual").unwrap();
+        let mut obtidos = vec![documento(VersoesDoDocumento {
+            lida: Some(v(1)),
+            atual: Ok(v(2)),
+            copia: Err(SemCopia::VersaoHistorica),
+        })];
+        let gravados = gravar(true, &mut obtidos, &pasta, Some(v(1))).unwrap();
+        assert_eq!(gravados, vec![("0011519.v1.txt".to_owned(), 1)]);
+        assert_eq!(
+            std::fs::read_to_string(pasta.join("0011519.v1.txt")).unwrap(),
+            "a"
+        );
+        assert_eq!(
+            std::fs::read_to_string(pasta.join("0011519.txt")).unwrap(),
+            "atual"
+        );
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
 }

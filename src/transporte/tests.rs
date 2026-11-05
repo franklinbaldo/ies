@@ -229,3 +229,25 @@ fn parametros_auxiliares_canonicos_preservam_get_unico() {
     let legitima = url("sei.exemplo");
     assert!(validar_url(&format!("{legitima}&id_procedimento=42")).is_ok());
 }
+
+#[test]
+fn controle_da_troca_de_unidade_com_hash_de_192_e_aceito() {
+    // Os 302 da troca de unidade levam `infra_hash` de 192 hexadecimais
+    // (UnB, UFRJ e GO, #205); só 64 e 192 são aceitos.
+    let origem = "https://sei.exemplo.gov.br/sei";
+    let com = |n: usize| {
+        format!(
+            "{origem}/controlador.php?acao=procedimento_controlar&infra_sistema=1&infra_unidade_atual=2&infra_hash={}",
+            "a".repeat(n)
+        )
+    };
+    assert_eq!(validar_origem(&com(64), origem), Ok(()));
+    assert_eq!(validar_origem(&com(192), origem), Ok(()));
+    for n in [63, 65, 128, 191, 193] {
+        assert_eq!(
+            validar_origem(&com(n), origem),
+            Err(FalhaTransporte::UrlInvalida),
+            "{n}"
+        );
+    }
+}
