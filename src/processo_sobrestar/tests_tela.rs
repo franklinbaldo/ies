@@ -1,4 +1,4 @@
-//! Molde sintético da UnB, sem URLs assinadas de contas reais.
+//! Molde sintético da `UnB`, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use super::tela::{ErroTela as E, conferir_formulario};
 const ID: &str = "10";
@@ -59,7 +59,7 @@ fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
 
 #[test]
 fn formulario_com_submissao_diferente_do_navegador_recusa() {
-    // Casos de Todos tests/test_ciclo_sobrestar_010.py @323eb01.
+    // Casos de Todos `tests/test_ciclo_sobrestar_010.py` @323eb01.
     let base = formulario();
     let casos = [
         base.replace("value=\"Salvar\"", "value=\"Salvar\" formmethod=\"get\""),
