@@ -12,6 +12,7 @@ pub enum FalhaDaConferencia {
 }
 
 impl FalhaDaConferencia {
+    #[must_use]
     pub fn subcodigo(self) -> &'static str {
         match self {
             Self::IdDoAceiteAusente => "id_do_comentario_ausente_no_aceite",
@@ -25,6 +26,11 @@ impl FalhaDaConferencia {
 /// Só uma lista relida com uma ocorrência de `id_aceite` e texto idêntico prova
 /// o efeito. Sem id ou sem leitura, a CLI futura deverá sair com código 3;
 /// não é permitido reenviar para descobrir se o POST anterior funcionou.
+///
+/// # Errors
+///
+/// Retorna uma condição tipada quando o id aceito não é inequívoco, está
+/// ausente da lista relida ou seu texto não corresponde exatamente ao pedido.
 pub fn conferir_efeito(
     relidos: &ComentariosLidos,
     id_aceite: &str,
