@@ -119,7 +119,7 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
             .map(|valor| crate::formulario_web::decodificar_atributo(&valor).ok_or(E::HtmlInvalido))
             .transpose()?;
         let onclick = valor_do_atributo(ancora, "onclick").map_err(|_| E::HtmlInvalido)?;
-        let _ = atributo_presente(ancora, "disabled").map_err(|_| E::HtmlInvalido)?;
+        let desabilitada = atributo_presente(ancora, "disabled").map_err(|_| E::HtmlInvalido)?;
         let escolha = match (
             href.as_deref().and_then(link_do_cadastro),
             onclick.as_deref().and_then(escolher_literal),
@@ -130,7 +130,7 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
             }
             _ => None,
         };
-        encontrados.push(escolha.map(|escolha| TipoEscolhido { nome, escolha }));
+        encontrados.push(escolha.filter(|_| !desabilitada).map(|escolha| TipoEscolhido { nome, escolha }));
     }
     match encontrados.as_slice() {
         [Some(escolhido)] => Ok(escolhido.clone()),
