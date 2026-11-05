@@ -103,29 +103,23 @@ fn atualizar_por_web(
     indice: &IndiceLocal,
     instalacao: &str,
     unidade: &str,
-) -> Result<(ListaGuardada, usize, bool), ErroLocal> {
+) -> Result<(ListaGuardada, usize, bool), crate::unidade_lupa::FalhaDaLupa> {
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+            .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
     referencias
         .conferir_controle()
-        .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+        .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
     let cookie = referencias
         .cookie()
         .valor()
-        .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+        .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
     let lida = crate::unidade_lupa::ler_integral(
         &mut crate::unidade_lupa::HttpsLupa,
         referencias.url_do_controle(),
         referencias.origem(),
         cookie,
-    )
-    .map_err(|e| {
-        (
-            e.subcodigo(),
-            "a lupa não devolveu uma lista integral verificável",
-        )
-    })?;
+    )?;
     let total = lida.total;
     let persistida = indice.guardar_lista_de_unidades(instalacao, unidade, &lida.unidades, total);
     let lida_em = std::time::SystemTime::now()
@@ -169,7 +163,14 @@ fn executar(
             &arquivos, &indice, &instalacao, &unidade,
         ) {
             Ok(resultado) => resultado,
-            Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
+            Err(falha) => {
+                return crate::saida_erro::erro_fonte_http(
+                    json_mode,
+                    falha.subcodigo(),
+                    "a lupa não devolveu uma lista integral verificável",
+                    falha.status_http(),
+                );
+            }
         };
         let lista = match termo {
             Some(t) => crate::indice_local::filtrar_lista(lista, t),
