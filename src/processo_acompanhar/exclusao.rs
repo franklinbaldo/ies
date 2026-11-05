@@ -121,7 +121,9 @@ fn conferir_linha(
             {
                 alvo = true;
             }
-            if tag.name() == "a" && let Some(onclick) = campo(tag, "onclick")? {
+            if tag.name() == "a"
+                && let Some(onclick) = campo(tag, "onclick")?
+            {
                 let onclick =
                     crate::formulario_web::decodificar_atributo(&onclick).ok_or(sem_oferta)?;
                 let onclick = onclick.trim();
