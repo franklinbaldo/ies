@@ -123,12 +123,11 @@ pub fn salvar_arquivos_de_acesso(
     };
     let data = serde_json::to_vec_pretty(&config).map_err(|_| "configuracao_nao_serializada")?;
     // Gravação privada única (#211): arquivo novo 0600, sem link no
-    // destino nem em ancestral, publicado inteiro ou não publicado.
+    // destino, em diretório fechado a outros, publicado inteiro ou não.
     arquivo_privado::gravar(destino, &data, Politica::exclusiva()).map_err(|falha| match falha {
         F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => "configuracao_nao_gravada",
         F::SemNomeDeArquivo
         | F::DiretorioAusente
-        | F::DiretorioLinkSimbolico
         | F::DiretorioGravavelPorOutros
         | F::DestinoJaExiste
         | F::DestinoNaoEhArquivoRegular

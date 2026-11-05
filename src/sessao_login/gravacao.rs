@@ -137,10 +137,10 @@ pub(crate) fn mesma_geracao(arquivos: &ArquivosDeAcesso, url: &str, cookie: &str
 }
 
 /// A falha da gravação privada única nos subcódigos da sessão: link no
-/// destino ou num ancestral é destino não regular.
+/// nome final é destino não regular; ancestral link é aceito.
 fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
     match falha {
-        FalhaDaGravacao::DestinoNaoEhArquivoRegular | FalhaDaGravacao::DiretorioLinkSimbolico => {
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular => {
             ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel)
         }
         FalhaDaGravacao::DiretorioGravavelPorOutros => {
@@ -152,7 +152,8 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
 
 /// Temporário `0600` no diretório do destino, gravado e sincronizado
 /// (`crate::arquivo_privado`, substituição atómica); confere antes que o
-/// destino está ausente ou é arquivo regular e que nenhum ancestral é link.
+/// destino está ausente ou é arquivo regular e que o diretório real não é
+/// gravável por outros.
 fn preparar(destino: &Path, conteudo: &str, papel: ArquivoPrivado) -> Result<Parcial, ErroLogin> {
     let traduzir = |falha| traduzir(falha, papel);
     let mut parcial = Parcial::abrir(destino, Politica::substituicao()).map_err(traduzir)?;

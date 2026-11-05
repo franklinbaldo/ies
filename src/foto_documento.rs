@@ -35,10 +35,11 @@ pub(crate) struct FotoGravada {
     pub(crate) gravado: bool,
 }
 
-/// `DIR` existe, é diretório e nenhum ancestral é link simbólico.
+/// `DIR` existe e é diretório (links no caminho, inclusive o próprio
+/// `DIR`, são aceitos) e o diretório real não é gravável por outros.
 pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
     conferir_diretorios(&pasta.join("x")).map_err(ErroCopia::DiretorioDeSaida)?;
-    pasta_segura(pasta)
+    pasta_segura(&fs::canonicalize(pasta).map_err(|_| ErroCopia::DestinoInseguro)?)
 }
 
 /// Os bytes da foto já presente, lidos sem seguir link e só se privada;

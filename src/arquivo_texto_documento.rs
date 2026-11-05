@@ -6,7 +6,6 @@ use std::path::Path;
 pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
-    DiretorioLinkSimbolico,
     DiretorioGravavelPorOutros,
     DestinoJaExiste,
     EscritaFalhou,
@@ -16,7 +15,6 @@ impl ErroArquivoTexto {
         match self {
             Self::NomeAusente => "destino_texto_documento_sem_nome",
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
-            Self::DiretorioLinkSimbolico => "diretorio_texto_documento_link_simbolico",
             Self::DiretorioGravavelPorOutros => "diretorio_texto_documento_gravavel_por_outros",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
@@ -29,7 +27,6 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
     match falha {
         F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
         F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
-        F::DiretorioLinkSimbolico => ErroArquivoTexto::DiretorioLinkSimbolico,
         F::DiretorioGravavelPorOutros => ErroArquivoTexto::DiretorioGravavelPorOutros,
         F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         F::DestinoNaoEhArquivoRegular
@@ -40,9 +37,10 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
     }
 }
 
-/// Rejeita link simbólico em qualquer ancestral do destino (a conferência
-/// da gravação privada única). Não estabelece exclusividade contra
-/// alterações concorrentes do caminho.
+/// O diretório do destino existe e, resolvido (links no caminho são
+/// aceitos), não é gravável por grupo ou outros sem sticky bit: a
+/// conferência da gravação privada única. Não estabelece exclusividade
+/// contra alterações concorrentes do caminho.
 pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
     crate::arquivo_privado::conferir_diretorios(destino, false).map_err(traduzir)
 }

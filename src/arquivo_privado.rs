@@ -1,9 +1,11 @@
 //! Gravação privada única (#211): o par de escrita de
 //! `transporte::arquivo_privado`, que é a leitura. Cria (exclusivo) ou
-//! substitui (atômico) um arquivo `0600` sem seguir link simbólico no
-//! destino nem em ancestral, por um temporário `.NOME.parcial-PID-N` no
-//! mesmo diretório, `sync_all` e `hard_link`/`rename`; o parcial nunca
-//! fica para trás numa falha. Política e limites:
+//! substitui (atômico) um arquivo `0600` sem nunca seguir link simbólico
+//! no nome final, num diretório real (resolvido com `canonicalize`) que
+//! no Unix não é gravável por grupo ou outros sem sticky bit, por um
+//! temporário `.NOME.parcial-PID-N` nesse diretório, `sync_all` e
+//! `hard_link`/`rename`; o parcial nunca fica para trás numa falha.
+//! Links em ancestrais são aceitos. Política, ameaça e limites:
 //! docs/decisoes/arquivos-privados/gravacao-privada.md.
 use std::ffi::OsStr;
 use std::fmt;
@@ -67,10 +69,9 @@ impl Politica {
 pub(crate) enum FalhaDaGravacao {
     SemNomeDeArquivo,
     DiretorioAusente,
-    DiretorioLinkSimbolico,
     /// O diretório real do destino é gravável por grupo ou outros
     /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
-    #[allow(dead_code)] // RED: ainda não construída.
+    #[cfg_attr(not(unix), allow(dead_code))]
     DiretorioGravavelPorOutros,
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,
@@ -80,26 +81,50 @@ pub(crate) enum FalhaDaGravacao {
     ConfirmacaoFalhou,
 }
 
-/// Cada ancestral do destino (da raiz ao pai) é diretório e não é link
-/// simbólico. Com `criar`, os ausentes nascem `0700`, um nível por vez.
-/// Conferência por caminho: não impede a troca concorrente de um
-/// diretório por um link (a decisão documenta esse limite).
+/// O pai do destino existe e é diretório (links no caminho são aceitos)
+/// e, resolvido, não é gravável por grupo ou outros sem sticky bit. Com
+/// `criar`, os níveis ausentes nascem `0700`, um por vez, cada um num
+/// diretório que passa pela mesma conferência. Conferência por caminho:
+/// não impede a troca concorrente por quem pode escrever num ancestral
+/// (a decisão documenta esse limite).
 pub(crate) fn conferir_diretorios(destino: &Path, criar: bool) -> Result<(), FalhaDaGravacao> {
+    diretorio_real(destino, criar).map(|_| ())
+}
+
+/// O diretório real (sem links) do destino, já conferido.
+fn diretorio_real(destino: &Path, criar: bool) -> Result<PathBuf, FalhaDaGravacao> {
     let absoluto = absoluto(destino)?;
     let pai = absoluto.parent().ok_or(FalhaDaGravacao::DiretorioAusente)?;
-    let mut niveis: Vec<&Path> = pai.ancestors().collect();
-    niveis.reverse();
-    for nivel in niveis {
-        match fs::symlink_metadata(nivel) {
-            Ok(info) if info.file_type().is_symlink() => {
-                return Err(FalhaDaGravacao::DiretorioLinkSimbolico);
+    if criar {
+        let mut niveis: Vec<&Path> = pai.ancestors().collect();
+        niveis.reverse();
+        for nivel in niveis {
+            match fs::metadata(nivel) {
+                Ok(info) if info.is_dir() => {}
+                Err(erro) if erro.kind() == ErrorKind::NotFound => criar_nivel(nivel)?,
+                Ok(_) | Err(_) => return Err(FalhaDaGravacao::DiretorioAusente),
             }
-            Ok(info) if info.is_dir() => {}
-            Err(erro) if erro.kind() == ErrorKind::NotFound && criar => criar_nivel(nivel)?,
-            Ok(_) | Err(_) => return Err(FalhaDaGravacao::DiretorioAusente),
         }
     }
-    Ok(())
+    real_e_fechado(pai)
+}
+
+/// `canonicalize` do diretório e a conferência do modo do diretório real.
+fn real_e_fechado(pasta: &Path) -> Result<PathBuf, FalhaDaGravacao> {
+    let real = fs::canonicalize(pasta).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
+    let info = fs::metadata(&real).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
+    if !info.is_dir() {
+        return Err(FalhaDaGravacao::DiretorioAusente);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let modo = info.permissions().mode();
+        if modo & 0o022 != 0 && modo & 0o1000 == 0 {
+            return Err(FalhaDaGravacao::DiretorioGravavelPorOutros);
+        }
+    }
+    Ok(real)
 }
 
 /// O destino como caminho absoluto, sem resolver links.
@@ -112,7 +137,11 @@ fn absoluto(destino: &Path) -> Result<PathBuf, FalhaDaGravacao> {
         .map_err(|_| FalhaDaGravacao::DiretorioAusente)
 }
 
+/// Cria um nível `0700` dentro de um diretório real fechado a outros.
 fn criar_nivel(nivel: &Path) -> Result<(), FalhaDaGravacao> {
+    let pai = nivel.parent().ok_or(FalhaDaGravacao::DiretorioAusente)?;
+    let nivel =
+        real_e_fechado(pai)?.join(nivel.file_name().ok_or(FalhaDaGravacao::DiretorioAusente)?);
     #[cfg(unix)]
     let construtor = {
         use std::os::unix::fs::DirBuilderExt;
@@ -123,13 +152,10 @@ fn criar_nivel(nivel: &Path) -> Result<(), FalhaDaGravacao> {
     // Fora do Unix não há modo: vale a ACL do perfil.
     #[cfg(not(unix))]
     let construtor = DirBuilder::new();
-    match construtor.create(nivel) {
+    match construtor.create(&nivel) {
         Ok(()) => Ok(()),
-        // Outro processo criou ao mesmo tempo: vale se for diretório real.
-        Err(erro) if erro.kind() == ErrorKind::AlreadyExists => match fs::symlink_metadata(nivel) {
-            Ok(info) if info.file_type().is_symlink() => {
-                Err(FalhaDaGravacao::DiretorioLinkSimbolico)
-            }
+        // Outro processo criou ao mesmo tempo: vale se for diretório.
+        Err(erro) if erro.kind() == ErrorKind::AlreadyExists => match fs::metadata(&nivel) {
             Ok(info) if info.is_dir() => Ok(()),
             _ => Err(FalhaDaGravacao::DiretorioAusente),
         },
@@ -164,8 +190,8 @@ pub(crate) struct Parcial {
 }
 
 impl Parcial {
-    /// Confere nome, ancestrais e destino; varre órfãos antigos do mesmo
-    /// nome e cria o temporário.
+    /// Confere nome, diretório real e destino; varre órfãos antigos do
+    /// mesmo nome e cria o temporário no diretório real.
     pub(crate) fn abrir(destino: &Path, politica: Politica) -> Result<Self, FalhaDaGravacao> {
         let nome = destino
             .file_name()
@@ -177,15 +203,15 @@ impl Parcial {
             })
             .ok_or(FalhaDaGravacao::SemNomeDeArquivo)?
             .to_owned();
-        conferir_diretorios(destino, politica.criar_diretorios)?;
-        conferir_destino(destino, politica.modo)?;
+        let pasta = diretorio_real(destino, politica.criar_diretorios)?;
+        let destino = pasta.join(&nome);
+        conferir_destino(&destino, politica.modo)?;
         let prefixo = prefixo_do_parcial(&nome);
-        let pasta = destino.parent().unwrap_or(Path::new(""));
-        varrer_orfaos(pasta, &prefixo);
-        let (temporario, arquivo) = criar_temporario(pasta, &prefixo)?;
+        varrer_orfaos(&pasta, &prefixo);
+        let (temporario, arquivo) = criar_temporario(&pasta, &prefixo)?;
         Ok(Self {
             temporario,
-            destino: destino.to_owned(),
+            destino,
             arquivo: Some(arquivo),
             politica,
             escritos: 0,

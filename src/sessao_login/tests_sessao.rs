@@ -314,7 +314,7 @@ fn gravacao_atravessa_ancestral_link_simbolico_como_home_em_var_home() {
         origem: ambiente.arquivos.origem.clone(),
     };
     super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap();
-    assert_eq!(Ambiente::ler(&real.join("cookie")), "A=1");
+    assert_eq!(Ambiente::ler(&real.join("cookie")), "A=1\n");
     assert!(super::gravacao::mesma_geracao(
         &arquivos,
         &url_do_controle(),

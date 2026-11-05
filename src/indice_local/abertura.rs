@@ -1,7 +1,8 @@
 //! Abertura do banco: permissões, links simbólicos, pragmas e esquema.
 //!
 //! O diretório nasce `0700` e o banco `0600`, novo, pela gravação privada
-//! única (`crate::arquivo_privado`: nenhum link no banco nem em ancestral);
+//! única (`crate::arquivo_privado`: nenhum link no banco; o caminho é
+//! resolvido e o banco é aberto pelo diretório real);
 //! o `-wal` e o `-shm` herdam o modo do banco. Diretório existente aberto a grupo/outros,
 //! ou banco/lateral que seja link simbólico, não regular ou aberto a
 //! grupo/outros, é falha: o índice se desliga. O IES não muda o modo do que
@@ -111,11 +112,12 @@ fn opcoes_privadas(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     opcoes
 }
 
-/// Ancestrais sem link (os ausentes nascem `0700`) e o diretório do banco
-/// privado; o IES não muda o modo do que não criou.
+/// Os níveis ausentes nascem `0700` e o diretório real do banco (links
+/// no caminho são aceitos) é privado; o IES não muda o modo do que não
+/// criou.
 fn conferir_diretorio(banco: &Path, diretorio: &Path) -> Result<(), Falha> {
     crate::arquivo_privado::conferir_diretorios(banco, true).map_err(|_| Falha)?;
-    let info = fs::symlink_metadata(diretorio)?;
+    let info = fs::metadata(diretorio)?;
     if info.is_dir() && privado(&info) {
         Ok(())
     } else {
@@ -170,6 +172,9 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
         _ => Path::new("."),
     };
     conferir_diretorio(caminho, diretorio)?;
+    // O SQLite com `NOFOLLOW` recusa link em qualquer componente: o banco
+    // é aberto pelo diretório real, já conferido.
+    let caminho = &fs::canonicalize(diretorio)?.join(caminho.file_name().ok_or(Falha)?);
     conferir_arquivos(caminho)?;
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
         | OpenFlags::SQLITE_OPEN_NOFOLLOW

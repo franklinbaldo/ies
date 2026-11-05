@@ -6,7 +6,6 @@ use std::path::Path;
 pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
-    DiretorioDeDestinoLinkSimbolico,
     DiretorioDeDestinoGravavelPorOutros,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
@@ -16,7 +15,6 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
             Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
-            Self::DiretorioDeDestinoLinkSimbolico => "diretorio_do_arquivo_da_caixa_link_simbolico",
             Self::DiretorioDeDestinoGravavelPorOutros => {
                 "diretorio_do_arquivo_da_caixa_gravavel_por_outros"
             }
@@ -28,9 +26,6 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
             Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
-            Self::DiretorioDeDestinoLinkSimbolico => {
-                "o caminho do destino passa por link simbólico"
-            }
             Self::DiretorioDeDestinoGravavelPorOutros => {
                 "o diretório de destino é gravável por grupo ou outros (sem sticky bit)"
             }
@@ -40,7 +35,7 @@ impl ErroArquivoCaixa {
     }
 }
 /// Grava JSON apenas em arquivo novo pela gravação privada única
-/// (`0600`, sem seguir link no destino nem em ancestral).
+/// (`0600`, sem seguir link no destino, em diretório fechado a outros).
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
     use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
 
@@ -57,7 +52,6 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         |falha| match falha {
             F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
             F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
-            F::DiretorioLinkSimbolico => ErroArquivoCaixa::DiretorioDeDestinoLinkSimbolico,
             F::DiretorioGravavelPorOutros => ErroArquivoCaixa::DiretorioDeDestinoGravavelPorOutros,
             F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
             F::DestinoNaoEhArquivoRegular

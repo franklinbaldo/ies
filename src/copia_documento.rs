@@ -16,7 +16,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErroCopia {
-    /// `--saida DIR` ausente, não diretório ou com ancestral simbólico.
+    /// `--saida DIR` ausente, não diretório ou gravável por outros.
     DiretorioDeSaida(ErroArquivoTexto),
     DestinoInseguro,
     LinkSimbolico,
