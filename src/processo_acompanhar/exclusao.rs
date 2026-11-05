@@ -4,6 +4,7 @@
 
 use super::{ErroAcompanhar, TABELA, campo};
 use crate::instalacao::Instalacao;
+use crate::html_atributos::atributo_presente;
 
 const FORMULARIO: &str = "frmGerenciarAcompanhamento";
 const OCULTO: &str = "hdnInfraItemId";
@@ -40,6 +41,21 @@ pub(super) fn conferir_oferta_exclusao(
         }
     }
     let form = form.ok_or(sem_oferta)?;
+    // getElementById consulta TODO o DOM. Um elemento fora do form
+    // com o mesmo ID pode receber o valor em vez do oculto enviável.
+    let mut ids_do_oculto = 0;
+    for no in dom.query_selector("[id]").into_iter().flatten() {
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
+        if campo(tag, "id")?.as_deref() == Some(OCULTO) {
+            ids_do_oculto += 1;
+        }
+    }
+    if ids_do_oculto != 1 {
+        return Err(sem_oferta);
+    }
     if campo(form, "method")?.as_deref() != Some("post") {
         return Err(sem_oferta);
     }
@@ -61,7 +77,9 @@ pub(super) fn conferir_oferta_exclusao(
         };
         if tag.name() == "input" && campo(tag, "name")?.as_deref() == Some(OCULTO) {
             if campo(tag, "type")?.as_deref() != Some("hidden")
+                || campo(tag, "id")?.as_deref() != Some(OCULTO)
                 || campo(tag, "value")?.as_deref() != Some("")
+                || atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)?
             {
                 return Err(sem_oferta);
             }
