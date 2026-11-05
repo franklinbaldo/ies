@@ -7,7 +7,12 @@ fn instalacao() -> Instalacao {
     Instalacao::interpretar(ORIGEM).unwrap()
 }
 fn href(complemento: &str) -> String {
-    format!("controlador.php?acao=retorno_programado_listar&infra_hash={}&{complemento}", "a".repeat(64))
+    let consulta = if complemento.is_empty() {
+        String::new()
+    } else {
+        format!("&{complemento}")
+    };
+    format!("controlador.php?acao=retorno_programado_listar&infra_hash={}{}", "a".repeat(64), consulta)
 }
 fn calendario(ano: u16, mes: u8, hoje: bool) -> String {
     let fim = unidade_retornos::ultimo_dia(ano, mes).unwrap();
