@@ -46,8 +46,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
-#[cfg(test)]
 mod processo_atribuir;
+mod processo_atribuir_cli;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
@@ -180,6 +180,15 @@ enum ProcessoAcao {
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    Atribuir {
+        numero: String,
+        #[arg(long, required_unless_present = "remover", conflicts_with = "remover")]
+        usuario: Option<String>,
+        #[arg(long)]
+        remover: bool,
         #[arg(long)]
         confirmar: bool,
     },
@@ -382,6 +391,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
