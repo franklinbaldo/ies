@@ -118,8 +118,8 @@ fn rodar_em(
 }
 
 fn versao(n: u32) -> PedidoDeVersoes {
-            cache: false, 
     PedidoDeVersoes {
+        cache: false,
         versao: Some(VersaoDocumento::nova(n).unwrap()),
         foto: false,
     }
