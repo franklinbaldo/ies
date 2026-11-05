@@ -8,7 +8,7 @@ scope: leitura do mes no Retorno Programado pelo link do menu e links GET de cal
 selected_strategy: web-calendario-mes-inteiro
 alternatives: web-calendario-mes-inteiro,web-um-dia-por-vez,rest-opcional
 evidence_level: todos-323eb01-tests-sinteticos-replay-7-instalacoes-14-meses-pass
-live_validation: fail-go-pen3-2026-11-05
+live_validation: pass-go-pen3-2026-11-05-mes-2026-11
 ---
 
 # Retornos da unidade: escolher a leitura do mes inteiro (Refs #253)
@@ -69,10 +69,20 @@ O [contrato](../../contracts/cli/unidade-listar-retornos.md), a
 delimitam o recorte executavel. O replay offline das sete
 cassettes originais passou nas 14 paginas mensais
 ([relatorio](../validacao-replay/2026-11-05-unidade-retornos.md));
-as duas leituras live falharam em treinamento, em GO sem resumo de erro e
-na PEN3 com `calendario_dos_retornos_desconhecido` (ver
-[relatorio live](../validacao-live/2026-11-05-unidade-retornos.md)). A capacidade
-ainda nao esta homologada.
+as primeiras leituras live falharam em treinamento, em GO sem resumo
+e na PEN3 com `calendario_dos_retornos_desconhecido`. O replay posterior
+revelou **duas ancoras mensais identicas com uma unica URL assinada**
+nas sete instalacoes. O seletor mensal passou a deduplicar apenas URLs
+literalmente iguais (RED: 1 teste no
+[CI 42121807194](https://github.com/franklinbaldo/ies/actions/runs/42121807194));
+URLs divergentes continuam erro e nao disparam GET adicional.
+
+A nova rodada live para **2026-11** em PEN3 e GO foi **PASS**,
+3 GET por comando, seis requisicoes por login, sem retry e sem escrita
+([run 42122485600](https://github.com/franklinbaldo/ies/actions/runs/42122485600)).
+As falhas de outubro nao foram apagadas e os caminhos sem `--mes`
+em calendario deslocado, mes anterior e multissalto permanecem limites
+a observar. [Relatorio live](../validacao-live/2026-11-05-unidade-retornos.md).
 
 ## Evidências verificáveis
 
