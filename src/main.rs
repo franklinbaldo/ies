@@ -55,6 +55,9 @@ mod processo_criar_cli;
 #[allow(dead_code)] // fluxo Web a integrar pela CLI
 #[path = "processo_criar/fluxo.rs"]
 mod processo_criar_fluxo;
+#[allow(dead_code)]
+#[path = "processo_criar/interessados.rs"]
+mod processo_criar_interessados;
 #[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
 #[path = "processo_criar/lista.rs"]
 mod processo_criar_lista;
