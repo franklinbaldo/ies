@@ -352,6 +352,36 @@ mod tests {
     }
 
     #[test]
+    fn red_opcao_unica_com_url_no_id_nao_pode_ser_enviada() {
+        // Resposta sintética adversarial. O valor XML é dado não confiável,
+        // mesmo quando só existe uma hipótese habilitada.
+        let xml = "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
+        assert_eq!(
+            opcao_unica(xml),
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        );
+        assert_eq!(
+            opcao_selecionada(xml, Some("https://example.invalid/marcador#Base A")),
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        );
+    }
+
+    #[test]
+    fn red_escolha_explicita_nao_autoriza_nome_com_url() {
+        // Uma opção maliciosa não pode ser transformada em argumento de
+        // confirmação só porque ID#NOME coincide com o XML.
+        let xml = "<select><option value='31'>https://example.invalid/marcador</option></select>";
+        assert_eq!(
+            opcao_selecionada(xml, Some("31#https://example.invalid/marcador")),
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        );
+        assert_eq!(
+            opcao_unica(xml),
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        );
+    }
+
+    #[test]
     fn recusa_dupla_declaracao_sem_escolher_url() {
         let linha = format!(
             "{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');"
