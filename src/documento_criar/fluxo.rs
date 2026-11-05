@@ -223,3 +223,88 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     feito.requisicoes = rede.feitas();
     Ok(feito)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::formulario_web::CodificacaoDaTela;
+
+    fn cadastro() -> String {
+        let hash = "a".repeat(64);
+        format!(
+            r#"<html>
+            <form id="frmDocumentoCadastro" method="post"
+              action="controlador.php?acao=documento_gerar&amp;infra_hash={hash}">
+              <input type="hidden" name="hdnIdSerie" value="291">
+              <input type="hidden" name="hdnFlagDocumentoCadastro" value="1">
+              <input type="radio" name="rdoNivelAcesso" id="optPublico" value="0">
+              <input type="text" name="txtDescricao" id="txtDescricao" value="">
+            </form></html>"#
+        )
+    }
+
+    fn derivar(
+        html: &str,
+    ) -> Result<crate::formulario_web::SubmissaoDerivada, ErroSubmissaoFormulario> {
+        let url = format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={}",
+            "b".repeat(64)
+        );
+        let tela = TelaServida {
+            url: &url,
+            html,
+            codificacao: CodificacaoDaTela::Iso88591,
+        };
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        derivar_submissao(
+            &CADASTRAR,
+            &instalacao,
+            &tela,
+            "UNIDADE TESTE",
+            &[
+                ("hdnFlagDocumentoCadastro", "2"),
+                ("rdoNivelAcesso", "0"),
+                ("txtDescricao", "Ensaio"),
+            ],
+        )
+    }
+
+    #[test]
+    fn formulario_de_criacao_deriva_um_post_com_campos_e_efeito_exatos() {
+        let envio = derivar(&cadastro()).unwrap();
+        assert_eq!(envio.nomes_dos_campos(), [
+            "hdnIdSerie",
+            "hdnFlagDocumentoCadastro",
+            "rdoNivelAcesso",
+            "txtDescricao"
+        ]);
+        assert_eq!(
+            envio.corpo(),
+            b"hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Ensaio"
+        );
+        assert_eq!(envio.efeito(), CADASTRAR.efeito);
+        assert_eq!(crate::formulario_web::SubmissaoDerivada::METODO, "POST");
+    }
+
+    #[test]
+    fn formulario_de_criacao_recusa_campo_oculto_repetido() {
+        let html = cadastro().replace(
+            "</form>",
+            "<input type='hidden' name='hdnIdSerie' value='292'></form>",
+        );
+        assert_eq!(
+            derivar(&html).unwrap_err().subcodigo(),
+            "campo_oculto_repetido_no_formulario"
+        );
+    }
+
+    #[test]
+    fn formulario_de_criacao_recusa_action_sem_hash_unico() {
+        let html = cadastro().replace("&amp;infra_hash=", "&amp;token=");
+        assert_eq!(
+            derivar(&html).unwrap_err().subcodigo(),
+            "acao_do_formulario_sem_infra_hash_unico"
+        );
+    }
+}
