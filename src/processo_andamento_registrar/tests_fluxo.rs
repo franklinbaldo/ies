@@ -6,7 +6,7 @@ use crate::historico_processo::tests_apoio::{
     com_link, forma_go, link_do_historico, pagina_do_historico,
 };
 use crate::processo_concluir::tests_apoio::{
-    Ambiente, ID, NUP, ORIGEM, Resposta, UNIDADE, abertura, ambiente, arvore,
+    Ambiente, ID, NUP, Resposta, UNIDADE, abertura, ambiente, arvore,
     get, ok, r302, rodar_com,
 };
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
