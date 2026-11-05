@@ -177,6 +177,18 @@ pub(crate) fn ler_detalhe(
     tipo: TipoBloco,
 ) -> Result<BlocoDetalhado, crate::erro_html::ErroHtml> {
     use crate::erro_html::ErroHtml as E;
+    let cabecalho_do_bloco_invalido = E::valor(
+        "cabecalho_do_bloco_invalido",
+        "o valor não está na forma observada",
+    );
+    let legenda_do_bloco_invalida = E::valor(
+        "legenda_do_bloco_invalida",
+        "o valor não está na forma observada",
+    );
+    let tabela_do_bloco_ausente = E::ausente(
+        "tabela_do_bloco_ausente",
+        "a tela não tem o elemento observado",
+    );
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::html("html_do_bloco_ilegivel", "o HTML não pôde ser interpretado"))?;
     let parser = dom.parser();
@@ -189,15 +201,12 @@ pub(crate) fn ler_detalhe(
     })?;
     let tabela = match tabelas.as_slice() {
         [] => {
-            return Err(E::ausente(
-                "tabela_do_bloco_ausente",
-                "a tela não tem o elemento observado",
-            ));
+            return Err(tabela_do_bloco_ausente);
         }
-        [no] => no.get(parser).and_then(tl::Node::as_tag).ok_or(E::ausente(
-            "tabela_do_bloco_ausente",
-            "a tela não tem o elemento observado",
-        ))?,
+        [no] => no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(tabela_do_bloco_ausente)?,
         _ => {
             return Err(E::repetido(
                 "tabelas_do_bloco_repetidas",
@@ -206,35 +215,25 @@ pub(crate) fn ler_detalhe(
         }
     };
     if tabela.name() != "table" {
-        return Err(E::ausente(
-            "tabela_do_bloco_ausente",
-            "a tela não tem o elemento observado",
-        ));
+        return Err(tabela_do_bloco_ausente);
     }
-    let mut captions = tabela.query_selector(parser, "caption").ok_or(E::valor(
-        "legenda_do_bloco_invalida",
-        "o valor não está na forma observada",
-    ))?;
+    let mut captions = tabela
+        .query_selector(parser, "caption")
+        .ok_or(legenda_do_bloco_invalida)?;
     let caption = captions
         .next()
         .and_then(|h| h.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or(E::valor(
-            "legenda_do_bloco_invalida",
-            "o valor não está na forma observada",
-        ))?;
+        .ok_or(legenda_do_bloco_invalida)?;
     if captions.next().is_some() {
-        return Err(E::valor(
-            "legenda_do_bloco_invalida",
-            "o valor não está na forma observada",
-        ));
+        return Err(legenda_do_bloco_invalida);
     }
     let mut headers = None;
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::valor(
-            "cabecalho_do_bloco_invalido",
-            "o valor não está na forma observada",
-        ))?;
+        let tr = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(cabecalho_do_bloco_invalido)?;
         let th: Vec<_> = tr
             .children()
             .top()
@@ -245,33 +244,21 @@ pub(crate) fn ler_detalhe(
             .collect();
         if !th.is_empty() {
             if headers.is_some() {
-                return Err(E::valor(
-                    "cabecalho_do_bloco_invalido",
-                    "o valor não está na forma observada",
-                ));
+                return Err(cabecalho_do_bloco_invalido);
             }
             headers = Some(th.iter().map(|t| texto(t, parser)).collect::<Vec<_>>());
         }
     }
-    let headers = headers.ok_or(E::valor(
-        "cabecalho_do_bloco_invalido",
-        "o valor não está na forma observada",
-    ))?;
+    let headers = headers.ok_or(cabecalho_do_bloco_invalido)?;
     for campo in ["Processo", "Anotações"] {
         if headers.iter().filter(|h| h.as_str() == campo).count() != 1 {
-            return Err(E::valor(
-                "cabecalho_do_bloco_invalido",
-                "o valor não está na forma observada",
-            ));
+            return Err(cabecalho_do_bloco_invalido);
         }
     }
     if tipo == TipoBloco::Assinatura
         && headers.iter().filter(|h| h.as_str() == "Documento").count() != 1
     {
-        return Err(E::valor(
-            "cabecalho_do_bloco_invalido",
-            "o valor não está na forma observada",
-        ));
+        return Err(cabecalho_do_bloco_invalido);
     }
     let itens = ler_itens(tabela, parser, &headers, tipo)?;
     let (total_declarado, faixa_observada) = faixa(&texto(caption, parser), itens.len())?;

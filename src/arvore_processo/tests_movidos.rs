@@ -148,6 +148,7 @@ fn numero_sei_nulo() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 fn no_movido_fora_da_forma_e_recusa() {
     let p = || no_processo(0, "10", NUP);
     let d = || no_documento(1, "21", "10", "0000101");

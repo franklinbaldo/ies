@@ -33,18 +33,27 @@ pub(crate) struct CadastroObservado {
 /// Valida que o cadastro efetivamente ofereceu tipo, descrição, um assunto
 /// sugerido e o nível pedido. Não autoriza uma submissão: a ação, todos
 /// os hidden e os interessados ainda precisam ser conferidos pelo fluxo.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn conferir_cadastro(
     html: &str,
     id_tipo: &str,
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
     use ErroCadastro as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::html(
-            "cadastro_de_processo_html_invalido",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
+    let especificacao_nao_publicada_no_cadastro = E::Html(crate::erro_html::ErroHtml::ausente(
+        "especificacao_nao_publicada_no_cadastro",
+        "a tela não tem o elemento observado",
+    ));
+    let cadastro_de_processo_html_invalido = E::Html(crate::erro_html::ErroHtml::html(
+        "cadastro_de_processo_html_invalido",
+        "o HTML não pôde ser interpretado",
+    ));
+    let cadastro_de_processo_ausente_ou_repetido = E::Html(crate::erro_html::ErroHtml::ausente(
+        "cadastro_de_processo_ausente_ou_repetido",
+        "a tela não tem o elemento observado",
+    ));
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| cadastro_de_processo_html_invalido)?;
     let formularios = nos_com_id(&dom, "frmProcedimentoCadastro").map_err(|e| {
         E::Html(crate::erro_html::ErroHtml::atributo(
             "cadastro_de_processo_html_invalido",
@@ -53,24 +62,15 @@ pub(crate) fn conferir_cadastro(
         ))
     })?;
     let [formulario] = formularios.as_slice() else {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "cadastro_de_processo_ausente_ou_repetido",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(cadastro_de_processo_ausente_ou_repetido);
     };
     let parser = dom.parser();
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(E::Html(crate::erro_html::ErroHtml::html(
-            "cadastro_de_processo_html_invalido",
-            "o HTML não pôde ser interpretado",
-        )))?;
+        .ok_or(cadastro_de_processo_html_invalido)?;
     if form.name().as_utf8_str() != "form" {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "cadastro_de_processo_ausente_ou_repetido",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(cadastro_de_processo_ausente_ou_repetido);
     }
 
     let mut ids = Vec::new();
@@ -80,10 +80,7 @@ pub(crate) fn conferir_cadastro(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::Html(crate::erro_html::ErroHtml::html(
-                "cadastro_de_processo_html_invalido",
-                "o HTML não pôde ser interpretado",
-            )))?;
+            .ok_or(cadastro_de_processo_html_invalido)?;
         let nome = valor_do_atributo(tag, "name").map_err(|e| {
             E::Html(crate::erro_html::ErroHtml::atributo(
                 "cadastro_de_processo_html_invalido",
@@ -109,10 +106,7 @@ pub(crate) fn conferir_cadastro(
                         e,
                     ))
                 })? {
-                    return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-                        "especificacao_nao_publicada_no_cadastro",
-                        "a tela não tem o elemento observado",
-                    )));
+                    return Err(especificacao_nao_publicada_no_cadastro);
                 }
                 descricoes += 1;
             }
@@ -140,10 +134,7 @@ pub(crate) fn conferir_cadastro(
         return Err(E::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "especificacao_nao_publicada_no_cadastro",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(especificacao_nao_publicada_no_cadastro);
     }
     let valor_nivel = match nivel {
         "publico" => "0",

@@ -101,6 +101,10 @@ pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
 }
 
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
+    let historico_invalido = ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
+        "historico_invalido",
+        "o valor não está na forma observada",
+    ));
     let numero = NumeroProcesso::novo(numero).map_err(|_| {
         ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
             "numero_do_historico_invalido",
@@ -151,35 +155,23 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
-            "historico_invalido",
-            "o valor não está na forma observada",
-        )))?;
+        .ok_or(historico_invalido)?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
             .is_some_and(|mut nodes| nodes.next().is_some())
     {
-        return Err(ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
-            "historico_invalido",
-            "o valor não está na forma observada",
-        )));
+        return Err(historico_invalido);
     }
     let mut detalhe = DetalheProcesso::novo(numero);
     let linhas = tabela
         .query_selector(parser, "tr")
-        .ok_or(ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
-            "historico_invalido",
-            "o valor não está na forma observada",
-        )))?;
+        .ok_or(historico_invalido)?;
     for linha in linhas {
         let tag = linha
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHistorico::Html(crate::erro_html::ErroHtml::valor(
-                "historico_invalido",
-                "o valor não está na forma observada",
-            )))?;
+            .ok_or(historico_invalido)?;
         let cells: Vec<String> = tag
             .query_selector(parser, "td")
             .into_iter()

@@ -14,7 +14,7 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 - Pré-push e CI remoto: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
-O Clippy ativa `clippy::pedantic` e trata avisos como erros. Não há exceções globais; a validação literal de extensões de evidências possui exceções locais documentadas e as flags independentes do Clap conservam uma exceção localizada de `struct_excessive_bools`.
+O Clippy ativa `clippy::pedantic` e trata avisos como erros. Não há exceções globais; a validação literal de extensões de evidências possui exceções locais documentadas e as flags independentes do Clap conservam uma exceção localizada de `struct_excessive_bools`. Nove leitores de tela têm `too_many_lines` local desde a migração para `ErroHtml` ([ADR 0005](arquitetura/0005-erros-por-tipo.md)), até serem divididos em passos.
 
 O pré-commit executa tamanho, rustfmt e OKF. O pré-push acrescenta Clippy,
 testes, integridade de evidências, autotestes Python, auditoria OSV e

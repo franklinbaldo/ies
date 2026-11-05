@@ -15,19 +15,19 @@ pub(crate) fn link_de_iniciar(
     html: &str,
 ) -> Result<String, crate::erro_html::ErroHtml> {
     use crate::erro_html::ErroHtml as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        )
-    })?;
+    let link_de_iniciar_processo_nao_reconhecido = E::valor(
+        "link_de_iniciar_processo_nao_reconhecido",
+        "o valor não está na forma observada",
+    );
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ))?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
         let Some(bruto) = valor_do_atributo(tag, "href").map_err(|e| {
             E::atributo(
                 "link_de_iniciar_processo_nao_reconhecido",
@@ -41,10 +41,7 @@ pub(crate) fn link_de_iniciar(
         let href = match decodificar_atributo(&bruto) {
             Some(href) => href,
             None if bruto.contains(ACAO) => {
-                return Err(E::valor(
-                    "link_de_iniciar_processo_nao_reconhecido",
-                    "o valor não está na forma observada",
-                ));
+                return Err(link_de_iniciar_processo_nao_reconhecido);
             }
             None => continue,
         };
@@ -72,72 +69,45 @@ pub(crate) fn link_de_iniciar(
     };
     // Não seguir links de outra instalação, nem admitir parâmetros inesperados
     // de ação ou identificador de sessão.
-    let consulta = href.strip_prefix("controlador.php?").ok_or(E::valor(
-        "link_de_iniciar_processo_nao_reconhecido",
-        "o valor não está na forma observada",
-    ))?;
+    let consulta = href
+        .strip_prefix("controlador.php?")
+        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
     if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ));
+        return Err(link_de_iniciar_processo_nao_reconhecido);
     }
     let (mut acoes, mut hashes) = (0, 0);
     for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or(E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ))?;
-        conferir_chave_de_consulta(chave).map_err(|_| {
-            E::valor(
-                "link_de_iniciar_processo_nao_reconhecido",
-                "o valor não está na forma observada",
-            )
-        })?;
-        conferir_valor_de_consulta(valor).map_err(|_| {
-            E::valor(
-                "link_de_iniciar_processo_nao_reconhecido",
-                "o valor não está na forma observada",
-            )
-        })?;
+        let (chave, valor) = par
+            .split_once('=')
+            .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
+        conferir_chave_de_consulta(chave).map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
+        conferir_valor_de_consulta(valor).map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
         match chave {
             "acao" if valor == ACAO => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
             "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(E::valor(
-                    "link_de_iniciar_processo_nao_reconhecido",
-                    "o valor não está na forma observada",
-                ));
+                return Err(link_de_iniciar_processo_nao_reconhecido);
             }
             _ => {}
         }
     }
     if acoes != 1 || hashes != 1 {
-        return Err(E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ));
+        return Err(link_de_iniciar_processo_nao_reconhecido);
     }
-    let base = url_controle.split('?').next().ok_or(E::valor(
-        "link_de_iniciar_processo_nao_reconhecido",
-        "o valor não está na forma observada",
-    ))?;
-    let (pasta, _) = base.rsplit_once('/').ok_or(E::valor(
-        "link_de_iniciar_processo_nao_reconhecido",
-        "o valor não está na forma observada",
-    ))?;
+    let base = url_controle
+        .split('?')
+        .next()
+        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
+    let (pasta, _) = base
+        .rsplit_once('/')
+        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
     let url = format!("{pasta}/{href}");
-    let decomposicao = crate::url_observada::UrlHttps::interpretar(&url).ok_or(E::valor(
-        "link_de_iniciar_processo_nao_reconhecido",
-        "o valor não está na forma observada",
-    ))?;
+    let decomposicao = crate::url_observada::UrlHttps::interpretar(&url)
+        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
     if !instalacao.autoriza_controlador(decomposicao.host, decomposicao.caminho) {
-        return Err(E::valor(
-            "link_de_iniciar_processo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ));
+        return Err(link_de_iniciar_processo_nao_reconhecido);
     }
     Ok(url)
 }

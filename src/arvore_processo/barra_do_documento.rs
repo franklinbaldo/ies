@@ -70,6 +70,10 @@ pub(crate) fn ler_barra_do_documento(
     id_procedimento: &str,
 ) -> Result<BarraDoDocumento, ErroBarraDoDocumento> {
     use ErroBarraDoDocumento as E;
+    let barra_do_documento_fora_da_forma_observada = E::Html(crate::erro_html::ErroHtml::valor(
+        "barra_do_documento_fora_da_forma_observada",
+        "o valor não está na forma observada",
+    ));
     let nada = BarraDoDocumento {
         versoes: None,
         edicao: EdicaoNaBarra::NaoPublicada,
@@ -77,12 +81,8 @@ pub(crate) fn ler_barra_do_documento(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(nada);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "barra_do_documento_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let dom = tl::parse(&texto, tl::ParserOptions::default())
+        .map_err(|_| barra_do_documento_fora_da_forma_observada)?;
     let parser = dom.parser();
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -104,12 +104,9 @@ pub(crate) fn ler_barra_do_documento(
                     e,
                 ))
             })? {
-                Some(bruto) => decodificar_atributo(bruto).map(Some).ok_or(E::Html(
-                    crate::erro_html::ErroHtml::valor(
-                        "barra_do_documento_fora_da_forma_observada",
-                        "o valor não está na forma observada",
-                    ),
-                )),
+                Some(bruto) => decodificar_atributo(bruto)
+                    .map(Some)
+                    .ok_or(barra_do_documento_fora_da_forma_observada),
                 None => Ok(None),
             }
         };

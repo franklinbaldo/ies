@@ -80,6 +80,10 @@ pub(crate) fn conferir_tela_de_assinatura(
     html: &str,
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, E> {
+    let campo_nao_previsto_na_tela_de_assinatura = E::Html(crate::erro_html::ErroHtml::valor(
+        "campo_nao_previsto_na_tela_de_assinatura",
+        "o valor não está na forma observada",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
         E::Html(crate::erro_html::ErroHtml::html(
             "tela_de_assinatura_nao_interpretada",
@@ -131,10 +135,7 @@ pub(crate) fn conferir_tela_de_assinatura(
             ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
             ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
             _ => {
-                return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                    "campo_nao_previsto_na_tela_de_assinatura",
-                    "o valor não está na forma observada",
-                )));
+                return Err(campo_nao_previsto_na_tela_de_assinatura);
             }
         }
     }
@@ -162,10 +163,7 @@ pub(crate) fn conferir_tela_de_assinatura(
             "a tela não tem o elemento observado",
         )));
     }
-    let opcoes = cargos.ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-        "campo_nao_previsto_na_tela_de_assinatura",
-        "o valor não está na forma observada",
-    )))?;
+    let opcoes = cargos.ok_or(campo_nao_previsto_na_tela_de_assinatura)?;
     let validas: Vec<&(String, bool)> = opcoes
         .iter()
         .filter(|(v, _)| v != VAZIA && !v.is_empty())

@@ -231,6 +231,7 @@ pub(crate) fn interpretar_redirecionamento(
 /// Confere uma referência a `procedimento_trabalhar` (o `Location` de um 302
 /// ou o `href` de uma linha do Controle), resolvida contra `url_base` (a URL
 /// pedida ou a da tela), na forma observada para `origem`.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn conferir_trabalho(
     localizacao: Option<&str>,
     url_base: &str,

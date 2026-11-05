@@ -171,29 +171,22 @@ fn ler_opcoes(
 
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
 pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let tela_da_atribuicao_fora_da_forma = E::Html(crate::erro_html::ErroHtml::valor(
+        "tela_da_atribuicao_fora_da_forma",
+        "o valor não está na forma observada",
+    ));
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| tela_da_atribuicao_fora_da_forma)?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let form =
+        localizar_formulario(&dom, FORMULARIO).map_err(|_| tela_da_atribuicao_fora_da_forma)?;
     if valor(form, "method")?.as_deref() != Some("post")
         || presente(form, "disabled")?
         || !valor(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
     {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma",
-            "o valor não está na forma observada",
-        )));
+        return Err(tela_da_atribuicao_fora_da_forma);
     }
 
     let (mut pagina, mut protocolo, mut botao, mut selecao) = (0, 0, 0, 0);
@@ -209,10 +202,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
         match elemento.as_str() {
             "input" => {
                 if presente(tag, "disabled")? || valor(tag, "type")?.as_deref() != Some("hidden") {
-                    return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                        "tela_da_atribuicao_fora_da_forma",
-                        "o valor não está na forma observada",
-                    )));
+                    return Err(tela_da_atribuicao_fora_da_forma);
                 }
                 match valor(tag, "name")?.as_deref() {
                     Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => {
@@ -222,10 +212,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                         protocolo += 1;
                     }
                     _ => {
-                        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                            "tela_da_atribuicao_fora_da_forma",
-                            "o valor não está na forma observada",
-                        )));
+                        return Err(tela_da_atribuicao_fora_da_forma);
                     }
                 }
             }
@@ -235,10 +222,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || presente(tag, "formmethod")?
                     || presente(tag, "formenctype")?
                 {
-                    return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                        "tela_da_atribuicao_fora_da_forma",
-                        "o valor não está na forma observada",
-                    )));
+                    return Err(tela_da_atribuicao_fora_da_forma);
                 }
                 match (
                     valor(tag, "type")?.as_deref(),
@@ -251,10 +235,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     }
                     (Some("button"), Some("btnCancelar")) => {}
                     _ => {
-                        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                            "tela_da_atribuicao_fora_da_forma",
-                            "o valor não está na forma observada",
-                        )));
+                        return Err(tela_da_atribuicao_fora_da_forma);
                     }
                 }
             }
@@ -264,10 +245,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || presente(tag, "multiple")?
                     || presente(tag, "disabled")?
                 {
-                    return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                        "tela_da_atribuicao_fora_da_forma",
-                        "o valor não está na forma observada",
-                    )));
+                    return Err(tela_da_atribuicao_fora_da_forma);
                 }
                 selecao += 1;
                 let (lidos, nulos) = ler_opcoes(tag, parser)?;
@@ -275,19 +253,13 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                 item_nulo += nulos;
             }
             "optgroup" | "textarea" => {
-                return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                    "tela_da_atribuicao_fora_da_forma",
-                    "o valor não está na forma observada",
-                )));
+                return Err(tela_da_atribuicao_fora_da_forma);
             }
             _ => {}
         }
     }
     if pagina != 1 || protocolo != 1 || botao != 1 || selecao != 1 || item_nulo != 1 {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma",
-            "o valor não está na forma observada",
-        )));
+        return Err(tela_da_atribuicao_fora_da_forma);
     }
     Ok(TelaDaAtribuicao { usuarios })
 }

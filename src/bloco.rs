@@ -46,7 +46,7 @@ impl ErroBloco {
         match self {
             Self::Html(e) => e.mensagem,
             Self::PaginaDeBlocosNaoImplementada => "página de blocos sem navegação Web comprovada",
-            _ => "a tela de blocos não comprovou a lista solicitada",
+            Self::FaixaDeBlocosIncoerente => "a tela de blocos não comprovou a lista solicitada",
         }
     }
 }
@@ -243,6 +243,14 @@ fn ler_linhas(
     tipo: TipoBloco,
 ) -> Result<(Vec<BlocoLido>, Vec<String>), ErroBloco> {
     use ErroBloco as E;
+    let link_de_blocos_nao_reconhecido = E::Html(crate::erro_html::ErroHtml::valor(
+        "link_de_blocos_nao_reconhecido",
+        "link de blocos ausente ou ambíguo na tela",
+    ));
+    let linha_de_bloco_fora_da_forma = E::Html(crate::erro_html::ErroHtml::valor(
+        "linha_de_bloco_fora_da_forma",
+        "o valor não está na forma observada",
+    ));
     let posicao = |s: &str| {
         nomes
             .iter()
@@ -255,12 +263,10 @@ fn ler_linhas(
     let mut links = Vec::new();
     let mut vistos = HashSet::new();
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let linha = no.get(parser).and_then(tl::Node::as_tag).ok_or(E::Html(
-            crate::erro_html::ErroHtml::valor(
-                "linha_de_bloco_fora_da_forma",
-                "o valor não está na forma observada",
-            ),
-        ))?;
+        let linha = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(linha_de_bloco_fora_da_forma)?;
         let td: Vec<_> = linha
             .children()
             .top()
@@ -273,10 +279,7 @@ fn ler_linhas(
             continue;
         }
         if td.len() != nomes.len() {
-            return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "linha_de_bloco_fora_da_forma",
-                "o valor não está na forma observada",
-            )));
+            return Err(linha_de_bloco_fora_da_forma);
         }
         let numero = td[indice_numero].inner_text(parser).trim().to_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
@@ -293,10 +296,7 @@ fn ler_linhas(
         }
         let mut hrefs = td[indice_numero]
             .query_selector(parser, "a")
-            .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido",
-                "link de blocos ausente ou ambíguo na tela",
-            )))?
+            .ok_or(link_de_blocos_nao_reconhecido)?
             .filter_map(|n| n.get(parser))
             .filter_map(tl::Node::as_tag)
             .map(|a| {
@@ -309,31 +309,16 @@ fn ler_linhas(
                         ))
                     })
                     .and_then(|x| {
-                        x.and_then(|s| decodificar_atributo(&s)).ok_or(E::Html(
-                            crate::erro_html::ErroHtml::valor(
-                                "link_de_blocos_nao_reconhecido",
-                                "link de blocos ausente ou ambíguo na tela",
-                            ),
-                        ))
+                        x.and_then(|s| decodificar_atributo(&s))
+                            .ok_or(link_de_blocos_nao_reconhecido)
                     })
             });
-        let href = hrefs
-            .next()
-            .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido",
-                "link de blocos ausente ou ambíguo na tela",
-            )))??;
+        let href = hrefs.next().ok_or(link_de_blocos_nao_reconhecido)??;
         if hrefs.next().is_some() {
-            return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido",
-                "link de blocos ausente ou ambíguo na tela",
-            )));
+            return Err(link_de_blocos_nao_reconhecido);
         }
         if !href.contains("acao=rel_bloco_protocolo_listar") {
-            return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido",
-                "link de blocos ausente ou ambíguo na tela",
-            )));
+            return Err(link_de_blocos_nao_reconhecido);
         }
         links.push(href);
         itens.push(BlocoLido {

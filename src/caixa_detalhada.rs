@@ -244,24 +244,27 @@ fn ler_linha(
 }
 
 fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
-    let contexto = contexto_da_pagina(html).map_err(|_| {
-        ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
-            "html_detalhado_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
+    let html_detalhado_nao_interpretado = ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
+        "html_detalhado_nao_interpretado",
+        "o HTML não pôde ser interpretado",
+    ));
+    let legenda_detalhada_ausente = ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
+        "legenda_detalhada_ausente",
+        "a tela não tem o elemento observado",
+    ));
+    let tabela_detalhada_ausente = ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
+        "tabela_detalhada_ausente",
+        "a tela não tem o elemento observado",
+    ));
+    let contexto = contexto_da_pagina(html).map_err(|_| html_detalhado_nao_interpretado)?;
     if !contexto.eh_detalhada() {
         return Err(ErroDetalhada::VisualizacaoIncorreta);
     }
     if contexto.unidade.is_none() {
         return Err(ErroDetalhada::UnidadeNaoIdentificada);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
-            "html_detalhado_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| html_detalhado_nao_interpretado)?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosDetalhado").map_err(|e| {
         ErroDetalhada::Html(crate::erro_html::ErroHtml::atributo(
@@ -272,10 +275,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     })?;
     let tabela = match tabelas.as_slice() {
         [] => {
-            return Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-                "tabela_detalhada_ausente",
-                "a tela não tem o elemento observado",
-            )));
+            return Err(tabela_detalhada_ausente);
         }
         [tabela] => *tabela,
         _ => {
@@ -288,46 +288,25 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let tabela = tabela
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-            "tabela_detalhada_ausente",
-            "a tela não tem o elemento observado",
-        )))?;
+        .ok_or(tabela_detalhada_ausente)?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
             .is_some_and(|mut itens| itens.next().is_some())
     {
-        return Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-            "tabela_detalhada_ausente",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(tabela_detalhada_ausente);
     }
     let mut legendas = tabela
         .query_selector(parser, "caption")
-        .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_detalhada_ausente",
-            "a tela não tem o elemento observado",
-        )))?;
-    let legenda =
-        legendas
-            .next()
-            .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-                "legenda_detalhada_ausente",
-                "a tela não tem o elemento observado",
-            )))?;
+        .ok_or(legenda_detalhada_ausente)?;
+    let legenda = legendas.next().ok_or(legenda_detalhada_ausente)?;
     if legendas.next().is_some() {
         return Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::repetido(
             "legendas_detalhadas_repetidas",
             "o elemento aparece mais de uma vez",
         )));
     }
-    let legenda =
-        legenda
-            .get(parser)
-            .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-                "legenda_detalhada_ausente",
-                "a tela não tem o elemento observado",
-            )))?;
+    let legenda = legenda.get(parser).ok_or(legenda_detalhada_ausente)?;
     let papeis = colunas::papeis_do_cabecalho(&dom, tabela)?;
     let configuradas: Vec<ColunaDoDetalhe> = papeis
         .iter()
@@ -352,18 +331,10 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     }
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
     let paginacao_visivel = indice_oculto_alem_da_primeira(&dom, parser)?
-        || crate::paginacao_controle::controles_de_paginacao(html).map_err(|_| {
-            ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
-                "html_detalhado_nao_interpretado",
-                "o HTML não pôde ser interpretado",
-            ))
-        })?
-        || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado").map_err(|_| {
-            ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
-                "html_detalhado_nao_interpretado",
-                "o HTML não pôde ser interpretado",
-            ))
-        })?;
+        || crate::paginacao_controle::controles_de_paginacao(html)
+            .map_err(|_| html_detalhado_nao_interpretado)?
+        || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")
+            .map_err(|_| html_detalhado_nao_interpretado)?;
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {
         contexto,

@@ -283,6 +283,10 @@ fn acao_de_abrir_pastas_lida_e_conferida() {
 
 #[test]
 fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
+    let endereco_de_abrir_pastas_nao_reconhecido = E::Html(crate::erro_html::ErroHtml::valor(
+        "endereco_de_abrir_pastas_nao_reconhecido",
+        "o valor não está na forma observada",
+    ));
     let inst = instalacao();
     let url = url_abrir(ID);
     let com = |acoes: String| {
@@ -301,62 +305,38 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let casos = [
         (
             url.replace("abrir_pastas=1", "abrir_pastas=0"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             url.replace("&abrir_pastas=1", ""),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             format!("{url}&fechar_pastas=1"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             format!("{url}&abrir_pastas=1"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             url.replace("id_procedimento=10", "id_procedimento=11"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             url.replace(
                 "acao=procedimento_visualizar&",
                 "acao=procedimento_paginar&",
             ),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             url.replace(&"f".repeat(64), "f"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
         (
             format!("https://outro.exemplo/{url}"),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_abrir_pastas_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            endereco_de_abrir_pastas_nao_reconhecido,
         ),
     ];
     for (endereco, esperado) in casos {

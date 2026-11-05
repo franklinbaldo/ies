@@ -233,6 +233,7 @@ fn selecionar_previa(
 }
 
 /// Prévia completa sem escrita, no máximo um GET da lista, mais um do cadastro.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &Pedido<'_>,

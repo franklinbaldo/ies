@@ -150,6 +150,10 @@ fn linhas_do_historico(
     parser: &tl::Parser<'_>,
     id_interno: &str,
 ) -> Result<Vec<EntradaVersao>, ErroVersao> {
+    let colunas_historico_inesperadas = ErroVersao::Html(crate::erro_html::ErroHtml::valor(
+        "colunas_historico_inesperadas",
+        "o valor não está na forma observada",
+    ));
     let mut cabecalho = false;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
@@ -177,10 +181,7 @@ fn linhas_do_historico(
                         "Ações",
                     ]
             {
-                return Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
-                    "colunas_historico_inesperadas",
-                    "o valor não está na forma observada",
-                )));
+                return Err(colunas_historico_inesperadas);
             }
             cabecalho = true;
             continue;
@@ -248,10 +249,7 @@ fn linhas_do_historico(
         }
     }
     if !cabecalho {
-        return Err(ErroVersao::Html(crate::erro_html::ErroHtml::valor(
-            "colunas_historico_inesperadas",
-            "o valor não está na forma observada",
-        )));
+        return Err(colunas_historico_inesperadas);
     }
     Ok(entradas)
 }

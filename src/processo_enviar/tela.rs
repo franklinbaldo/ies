@@ -118,7 +118,12 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, E> {
+    let campo_nao_previsto_na_tela_de_envio = E::Html(crate::erro_html::ErroHtml::valor(
+        "campo_nao_previsto_na_tela_de_envio",
+        "o valor não está na forma observada",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
         E::Html(crate::erro_html::ErroHtml::html(
             "tela_de_envio_nao_interpretada",
@@ -146,11 +151,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
-            let valor =
-                decodificado(tag, "value")?.ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-                    "campo_nao_previsto_na_tela_de_envio",
-                    "o valor não está na forma observada",
-                )))?;
+            let valor = decodificado(tag, "value")?.ok_or(campo_nao_previsto_na_tela_de_envio)?;
             let marcada = presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
@@ -163,10 +164,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                 Some("selUnidades") => preenchida = true,
                 Some(_) => preenchida |= marcada,
                 None => {
-                    return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                        "campo_nao_previsto_na_tela_de_envio",
-                        "o valor não está na forma observada",
-                    )));
+                    return Err(campo_nao_previsto_na_tela_de_envio);
                 }
             }
             continue;
@@ -215,10 +213,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                 }
             }
             _ => {
-                return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                    "campo_nao_previsto_na_tela_de_envio",
-                    "o valor não está na forma observada",
-                )));
+                return Err(campo_nao_previsto_na_tela_de_envio);
             }
         }
     }

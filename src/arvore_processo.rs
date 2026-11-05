@@ -258,11 +258,16 @@ pub(super) struct DocumentoLido {
 /// Lê os nós da árvore e confere a identidade: o NUP do nó `PROCESSO` tem
 /// de ser **igual** ao pedido (comparação opaca) e o id igual ao aberto.
 /// As pastas carregadas são conferidas pela identidade dos documentos.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn ler_arvore(
     html: &str,
     nup_pedido: &str,
     id_aberto: &str,
 ) -> Result<ArvoreLida, ErroArvore> {
+    let barra_de_no_fora_da_forma_observada = ErroArvore::Html(crate::erro_html::ErroHtml::valor(
+        "barra_de_no_fora_da_forma_observada",
+        "o valor não está na forma observada",
+    ));
     let mut processo: Option<ProcessoNaArvore> = None;
     let mut anexados: Vec<AnexadoLido> = Vec::new();
     let mut movidos: Vec<MovidoLido> = Vec::new();
@@ -282,10 +287,7 @@ pub(crate) fn ler_arvore(
             if let Some(&posicao) = de_pasta.get(&i)
                 && documentos[posicao].barra == Barra::NaoLida
             {
-                return Err(ErroArvore::Html(crate::erro_html::ErroHtml::valor(
-                    "barra_de_no_fora_da_forma_observada",
-                    "o valor não está na forma observada",
-                )));
+                return Err(barra_de_no_fora_da_forma_observada);
             }
             continue;
         }
@@ -293,10 +295,7 @@ pub(crate) fn ler_arvore(
             && let Some(&posicao) = de_pasta.get(&i)
         {
             let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroArvore::Html(crate::erro_html::ErroHtml::valor(
-                    "barra_de_no_fora_da_forma_observada",
-                    "o valor não está na forma observada",
-                )));
+                return Err(barra_de_no_fora_da_forma_observada);
             };
             documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
                 .map_or(Barra::SemIdentidade, Barra::Identidade);

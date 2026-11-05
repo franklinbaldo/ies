@@ -165,32 +165,29 @@ fn contar_arvore_da_linha(
 
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
+#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+    let tabela_de_pesquisa_ausente =
+        ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::ausente(
+            "tabela_de_pesquisa_ausente",
+            "a tela não tem o elemento observado",
+        ));
+    let html_de_pesquisa_nao_interpretado =
         ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::html(
             "html_de_pesquisa_nao_interpretado",
             "o HTML não pôde ser interpretado",
-        ))
-    })?;
+        ));
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| html_de_pesquisa_nao_interpretado)?;
     let parser = dom.parser();
     // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
-    let ilegivel = |_: ErroAtributoHtml| {
-        ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ))
-    };
+    let ilegivel = |_: ErroAtributoHtml| html_de_pesquisa_nao_interpretado;
     let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
         .map_err(ilegivel)?
         .as_slice()
     {
         [] => {
-            return Err(ErroResultadoPesquisa::Html(
-                crate::erro_html::ErroHtml::ausente(
-                    "tabela_de_pesquisa_ausente",
-                    "a tela não tem o elemento observado",
-                ),
-            ));
+            return Err(tabela_de_pesquisa_ausente);
         }
         [primeira] => *primeira,
         _ => {
@@ -202,16 +199,10 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             ));
         }
     };
-    let tabela =
-        primeira
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroResultadoPesquisa::Html(
-                crate::erro_html::ErroHtml::ausente(
-                    "tabela_de_pesquisa_ausente",
-                    "a tela não tem o elemento observado",
-                ),
-            ))?;
+    let tabela = primeira
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(tabela_de_pesquisa_ausente)?;
     let linhas = nos_por_elemento_e_classe(&dom, Some(tabela), "tr", "pesquisaTituloRegistro")
         .map_err(ilegivel)?;
     let mut observados = HashSet::new();
