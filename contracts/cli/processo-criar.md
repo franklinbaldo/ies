@@ -55,6 +55,17 @@ qualquer resultado que não permita estabelecer a identidade
 e o efeito exige `efeito_incerto`, saída 3, sem repetir POST.
 O usuário deve conferir a unidade antes de nova tentativa.
 
+## Subcódigos do leitor de tipos
+
+| Subcódigo | Fato verificável |
+| --- | --- |
+| `lista_de_tipos_html_invalido` | HTML da lista não pode ser interpretado |
+| `tabela_de_tipos_ausente_ou_repetida` | Tabela de tipos ausente, repetida ou não é tabela |
+| `tipo_de_processo_nao_oferecido` | Tipo não consta da lista completa |
+| `tipo_de_processo_ambiguo` | Mais de uma âncora com nome exato |
+| `tipo_de_processo_sem_acao` | Âncora sem ação segura ou desabilitada |
+| `lista_de_tipos_incompleta` | Tipo não encontrado na lista curta; não inferir ausência |
+
 ## Subcódigos candidatos
 
 Os nomes abaixo são reservados **como proposta**, ainda sem
