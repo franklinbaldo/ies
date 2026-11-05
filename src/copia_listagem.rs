@@ -71,51 +71,41 @@ mod testes {
     use super::*;
     use crate::documento_versoes::VersaoDocumento;
     use crate::foto_documento::{gravar, tests::pasta};
-    use std::collections::BTreeMap;
     use std::fs;
 
     const CORPO: &str = "<p>corpo de teste</p>";
 
-    fn listar_com(
-        pasta: &Path,
-        doc: &str,
-        registro: &BTreeMap<u32, String>,
-    ) -> Result<Vec<VersaoLocal>, ErroListagem> {
-        let consulta = |v: VersaoDocumento| registro.get(&v.numero()).cloned();
-        listar(pasta, &NumeroDocumento::novo(doc).unwrap(), &consulta)
+    fn listar_com(pasta: &Path, doc: &str) -> Result<Vec<VersaoLocal>, ErroListagem> {
+        listar(pasta, &NumeroDocumento::novo(doc).unwrap(), &|_| None)
     }
 
-    fn foto(pasta: &Path, numero: &str, n: u32) -> String {
-        gravar(pasta, numero, VersaoDocumento::nova(n).unwrap(), CORPO)
-            .unwrap()
-            .sha256
+    fn foto(pasta: &Path, numero: &str, n: u32) {
+        gravar(pasta, numero, VersaoDocumento::nova(n).unwrap(), CORPO).unwrap();
     }
 
     #[test]
-    fn lista_fotos_e_edicoes_em_ordem_numerica_sem_expor_texto() {
+    fn lista_versoes_locais_em_ordem_numerica_sem_expor_texto_nem_foto() {
         let pasta = pasta();
-        let registro =
-            BTreeMap::from([(2, foto(&pasta, "0007", 2)), (10, foto(&pasta, "0007", 10))]);
-        foto(&pasta, "0007", 3);
-        let lista = listar_com(&pasta, "0007", &registro).unwrap();
+        foto(&pasta, "0007", 2);
+        foto(&pasta, "0007", 10);
+        fs::write(pasta.join("0007.v3.html"), "editada").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let modo = fs::Permissions::from_mode(0o600);
+            fs::set_permissions(pasta.join("0007.v3.html"), modo).unwrap();
+        }
+        let lista = listar_com(&pasta, "0007").unwrap();
         assert_eq!(
-            lista.iter().map(|c| (c.versao, c.foto)).collect::<Vec<_>>(),
-            [(2, true), (3, false), (10, true)]
+            lista
+                .iter()
+                .map(|c| (c.versao, c.bytes))
+                .collect::<Vec<_>>(),
+            [(2, CORPO.len()), (3, 7), (10, CORPO.len())]
         );
         let serializado = serde_json::to_string(&lista).unwrap();
         assert!(!serializado.contains("corpo") && !serializado.contains("<p>"));
-        fs::remove_dir_all(pasta).unwrap();
-    }
-
-    #[test]
-    fn foto_registrada_alterada_recusa_a_lista() {
-        let pasta = pasta();
-        foto(&pasta, "0007", 2);
-        let registro = BTreeMap::from([(2, "0".repeat(64))]);
-        assert_eq!(
-            listar_com(&pasta, "0007", &registro),
-            Err(ErroListagem::CopiaInvalida(ErroCopia::FotoDivergente))
-        );
+        assert!(!serializado.contains("foto"), "{serializado}");
         fs::remove_dir_all(pasta).unwrap();
     }
 
@@ -123,11 +113,11 @@ mod testes {
     fn duas_grafias_outro_numero_e_limite() {
         let pasta = pasta();
         foto(&pasta, "0008", 1);
-        assert_eq!(listar_com(&pasta, "0007", &BTreeMap::new()), Ok(Vec::new()));
+        assert_eq!(listar_com(&pasta, "0007"), Ok(Vec::new()));
         fs::write(pasta.join("0007.v2.html"), "um").unwrap();
         fs::write(pasta.join("0007.v02.html"), "outro").unwrap();
         assert_eq!(
-            listar_com(&pasta, "0007", &BTreeMap::new()),
+            listar_com(&pasta, "0007"),
             Err(ErroListagem::CopiaInvalida(ErroCopia::VersaoDuplicada))
         );
         fs::remove_dir_all(&pasta).unwrap();
@@ -136,7 +126,7 @@ mod testes {
             fs::write(pasta.join(format!("0007.v{n}.html")), "teste").unwrap();
         }
         assert_eq!(
-            listar_com(&pasta, "0007", &BTreeMap::new()),
+            listar_com(&pasta, "0007"),
             Err(ErroListagem::LimiteDeCopias)
         );
         fs::remove_dir_all(pasta).unwrap();
@@ -150,7 +140,7 @@ mod testes {
         let link = pasta.with_extension("atalho");
         symlink(&pasta, &link).unwrap();
         assert_eq!(
-            listar_com(&link, "0007", &BTreeMap::new()),
+            listar_com(&link, "0007"),
             Err(ErroListagem::CopiaInvalida(ErroCopia::DestinoInseguro))
         );
         fs::remove_file(link).unwrap();

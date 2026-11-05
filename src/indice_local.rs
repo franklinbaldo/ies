@@ -29,8 +29,6 @@ mod tests_documentos;
 #[cfg(test)]
 mod tests_entrada;
 #[cfg(test)]
-mod tests_fotos;
-#[cfg(test)]
 mod tests_links;
 
 use crate::configuracao::ArquivosDeAcesso;

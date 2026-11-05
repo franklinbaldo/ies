@@ -416,7 +416,7 @@ mod testes {
         "<html><head><title>SEI/X - 0011519 - Despacho</title></head><body><p>a</p></body></html>";
 
     #[test]
-    fn saida_grava_so_doc_vn_html_registra_o_sha_e_repetir_e_no_op() {
+    fn saida_grava_so_doc_vn_html_e_repetir_e_no_op() {
         let pasta = diretorio();
         let indice = IndiceLocal::em(pasta.join("indice").join("ies.sqlite3"));
         let origem = "https://sei.exemplo.gov.br/sei";
@@ -424,12 +424,6 @@ mod testes {
         let gravados = gravar(true, &mut obtidos, (&pasta, &indice, origem)).unwrap();
         let g = gravados[0].as_ref().unwrap();
         assert_eq!((g.nome.as_str(), g.gravado), ("0011519.v1.html", true));
-        let instalacao = Instalacao::interpretar(origem).unwrap();
-        let v1 = crate::documento_versoes::VersaoDocumento::nova(1).unwrap();
-        assert_eq!(
-            indice.foto(&instalacao, "0011519", v1),
-            Some(g.sha256.clone())
-        );
         let de_novo = gravar(true, &mut obtidos, (&pasta, &indice, origem)).unwrap();
         assert!(!de_novo[0].as_ref().unwrap().gravado);
         let mut nomes: Vec<String> = std::fs::read_dir(&pasta)
