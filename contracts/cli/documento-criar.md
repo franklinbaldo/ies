@@ -18,8 +18,7 @@ O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
-Este contrato especifica o comportamento alvo, não declara a
-capacidade disponível na CLI. Estado `partial`: existe apenas o núcleo de seleção e reconciliação offline, sem o comando de rede. Nenhuma escrita está disponível.
+Estado `partial`: o comando público existe e oferece prévia de leitura em telas com link direto e assinado para o cadastro (`documento_gerar`); se a escolha exigir a função `escolher(ID)`, recusa sem inventar navegação. O POST de criação e o `--confirmar` ainda não estão disponíveis: a confirmação recusa antes de carregar a sessão. O núcleo offline de reconciliação existe, mas ainda não foi conectado à escrita.
 
 ## Prévia
 
@@ -58,6 +57,24 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `cadastro_de_documento_fora_da_forma_observada` | Cadastro ou tipo aberto inconsistente |
 | `documento_criado_nao_comprovado` | Verificação concluiu que não surgiu documento |
 | `efeito_incerto_na_criacao_de_documento` | Resposta ou árvore não permite conferir unicidade e identidade |
+| `barra_do_incluir_documento_fora_da_forma` | A barra da raiz não tem estrutura interpretável |
+| `barra_do_incluir_documento_repetida` | A barra da raiz aparece duas vezes |
+| `links_de_incluir_documento_repetidos` | A barra publica mais de uma ação de incluir |
+| `endereco_de_incluir_documento_nao_reconhecido` | O link de inclusão não é a URL relativa assinada esperada |
+| `endereco_de_incluir_documento_de_outro_processo` | O link de inclusão aponta para outra identidade |
+| `incluir_documento_nao_publicado_na_barra` | A unidade não publicou a opção de incluir |
+| `unidade_da_sessao_nao_publicada` | A tela não identifica a unidade de trabalho |
+| `situacao_do_processo_nao_lida_antes_de_criar_documento` | A árvore não publicou a situação segura para gravação |
+| `link_do_tipo_de_documento_nao_navegavel` | A escolha depende de script ainda sem navegação derivada |
+| `endereco_do_tipo_de_documento_nao_reconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
+| `tipo_do_cadastro_diferente_do_solicitado` | A tela aberta não identifica o tipo pedido |
+| `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
+| `nivel_nao_oferecido_no_cadastro` | O nível solicitado não aparece habilitado |
+| `tela_de_criacao_redirecionada` | A tela de leitura devolveu 302 não seguido |
+| `criacao_de_documento_ainda_nao_validada` | Confirmação bloqueada antes da rede |
+| `tipo_de_documento_vazio` | O tipo informado está vazio |
+| `parametro_de_criacao_invalido` | Falha de validação de entrada |
+
 
 Erros de abertura, atributos, transporte e formulário preservam seus
 subcódigos próprios. Entrada inválida sai 2; recusa antes do POST sai 1;
@@ -78,5 +95,5 @@ e [decisão](../../docs/decisoes/documento-criar.md).
 Oráculo: Todos `src/todos/documentos.py` (`criar`,
 `_criar_na_arvore`, `cadastrar_da_tela`, `_depois_de_enviado`).
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
-Replay, RED, gate, live de prévia: **NOT_RUN** nesta etapa.
+Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; testes de contrato foram publicados antes da implementação, mas não executados localmente por ausência do toolchain e DNS. A contagem RED observada permanece **não aferida**.
 Escrita live: **NOT_RUN até "escrita autorizada" na issue #246**.
