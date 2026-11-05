@@ -154,6 +154,8 @@ pub(super) struct ArvoreAberta {
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// O link de prazo na barra; falha só pesa em `processo prazo`.
+    pub(super) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
@@ -188,6 +190,7 @@ pub(super) fn ler_arvore_da_pagina(
     let historico = ler_link_do_historico(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
@@ -197,6 +200,7 @@ pub(super) fn ler_arvore_da_pagina(
         historico,
         propriedades,
         marcadores,
+        prazo,
         concluir,
         reabrir,
         enviar,
