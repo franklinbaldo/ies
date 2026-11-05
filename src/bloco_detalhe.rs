@@ -92,6 +92,60 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroDet
         }),
     ))
 }
+fn ler_itens(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    headers: &[String],
+    tipo: TipoBloco,
+) -> Result<Vec<ItemDoBloco>, ErroDetalheBloco> {
+    use ErroDetalheBloco as E;
+    let index = |nome: &str| headers.iter().position(|c| c == nome);
+    let processo = index("Processo").ok_or(E::CabecalhoInvalido)?;
+    let anotacoes = index("Anotações").ok_or(E::CabecalhoInvalido)?;
+    let documento = index("Documento");
+    let tipo_coluna = index("Tipo");
+    let mut itens = Vec::new();
+    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
+        let tr = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::LinhaInvalida)?;
+        let td: Vec<_> = tr
+            .children()
+            .top()
+            .iter()
+            .filter_map(|h| h.get(parser))
+            .filter_map(tl::Node::as_tag)
+            .filter(|t| t.name() == "td")
+            .collect();
+        if td.is_empty() {
+            continue;
+        }
+        if td.len() != headers.len() {
+            return Err(E::LinhaInvalida);
+        }
+        let processo = texto(td[processo], parser);
+        if processo.is_empty() {
+            return Err(E::LinhaInvalida);
+        }
+        let doc = documento
+            .map(|i| texto(td[i], parser))
+            .filter(|s| !s.is_empty());
+        if tipo == TipoBloco::Assinatura && doc.is_none() {
+            return Err(E::LinhaInvalida);
+        }
+        itens.push(ItemDoBloco {
+            processo,
+            documento: doc,
+            tipo: tipo_coluna
+                .map(|i| texto(td[i], parser))
+                .filter(|s| !s.is_empty()),
+            anotacoes: texto(td[anotacoes], parser),
+        });
+    }
+    Ok(itens)
+}
+
 pub(crate) fn ler_detalhe(
     html: &str,
     numero: &str,
@@ -155,50 +209,7 @@ pub(crate) fn ler_detalhe(
     {
         return Err(E::CabecalhoInvalido);
     }
-    let index = |nome: &str| headers.iter().position(|c| c == nome);
-    let processo = index("Processo").ok_or(E::CabecalhoInvalido)?;
-    let anotacoes = index("Anotações").ok_or(E::CabecalhoInvalido)?;
-    let documento = index("Documento");
-    let tipo_coluna = index("Tipo");
-    let mut itens = Vec::new();
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::LinhaInvalida)?;
-        let td: Vec<_> = tr
-            .children()
-            .top()
-            .iter()
-            .filter_map(|h| h.get(parser))
-            .filter_map(tl::Node::as_tag)
-            .filter(|t| t.name() == "td")
-            .collect();
-        if td.is_empty() {
-            continue;
-        }
-        if td.len() != headers.len() {
-            return Err(E::LinhaInvalida);
-        }
-        let processo = texto(td[processo], parser);
-        if processo.is_empty() {
-            return Err(E::LinhaInvalida);
-        }
-        let doc = documento
-            .map(|i| texto(td[i], parser))
-            .filter(|s| !s.is_empty());
-        if tipo == TipoBloco::Assinatura && doc.is_none() {
-            return Err(E::LinhaInvalida);
-        }
-        itens.push(ItemDoBloco {
-            processo,
-            documento: doc,
-            tipo: tipo_coluna
-                .map(|i| texto(td[i], parser))
-                .filter(|s| !s.is_empty()),
-            anotacoes: texto(td[anotacoes], parser),
-        });
-    }
+    let itens = ler_itens(tabela, parser, &headers, tipo)?;
     let (total_declarado, faixa_observada) = faixa(&texto(caption, parser), itens.len())?;
     Ok(BlocoDetalhado {
         numero: numero.to_owned(),
