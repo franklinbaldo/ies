@@ -161,9 +161,9 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
         [] => Err(ErroHipotese::OpcaoNaoUnica),
         // Não oferecer valores que a própria CLI não consegue representar
         // sem ambiguidade ou que possam controlar a saída humana.
-        _ if opcoes.iter().any(|(id, nome)| {
-            id.contains('#') || !publicavel(id) || !publicavel(nome)
-        }) =>
+        _ if opcoes
+            .iter()
+            .any(|(id, nome)| id.contains('#') || !publicavel(id) || !publicavel(nome)) =>
         {
             Err(ErroHipotese::OpcaoNaoUnica)
         }
@@ -367,11 +367,9 @@ mod tests {
     fn red_opcao_unica_com_url_no_id_nao_pode_ser_enviada() {
         // Resposta sintética adversarial. O valor XML é dado não confiável,
         // mesmo quando só existe uma hipótese habilitada.
-        let xml = "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
-        assert_eq!(
-            opcao_unica(xml),
-            Err(ErroHipotese::RespostaNaoReconhecida)
-        );
+        let xml =
+            "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
+        assert_eq!(opcao_unica(xml), Err(ErroHipotese::RespostaNaoReconhecida));
         assert_eq!(
             opcao_selecionada(xml, Some("https://example.invalid/marcador#Base A")),
             Err(ErroHipotese::RespostaNaoReconhecida)
@@ -387,10 +385,7 @@ mod tests {
             opcao_selecionada(xml, Some("31#https://example.invalid/marcador")),
             Err(ErroHipotese::RespostaNaoReconhecida)
         );
-        assert_eq!(
-            opcao_unica(xml),
-            Err(ErroHipotese::RespostaNaoReconhecida)
-        );
+        assert_eq!(opcao_unica(xml), Err(ErroHipotese::RespostaNaoReconhecida));
     }
 
     #[test]
