@@ -52,13 +52,42 @@ impl ErroMarcar {
         }
     }
 }
-pub(crate) fn interpretar_rotulo(_texto: &str) -> Result<Rotulo, ErroMarcar> {
-    Err(ErroMarcar::RotuloSemSeparador) // RED: shim até implementação
+pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
+    let (id, nome) = texto.split_once('#').ok_or(ErroMarcar::RotuloSemSeparador)?;
+    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroMarcar::IdDoMarcadorNaoDecimal);
+    }
+    if nome.trim().is_empty() {
+        return Err(ErroMarcar::NomeDoMarcadorVazio);
+    }
+    if nome.chars().any(char::is_control) {
+        return Err(ErroMarcar::NomeDoMarcadorComControle);
+    }
+    Ok(Rotulo { id: id.to_owned(), nome: nome.to_owned() })
 }
+
+/// Só decide ausência se o número observado igualar o total declarado.
+/// O id é a identidade da unidade; o nome protege contra reutilização.
 pub(crate) fn decidir(
-    _lidos: &MarcadoresLidos, _rotulo: &Rotulo, _operacao: Operacao
+    lidos: &MarcadoresLidos, rotulo: &Rotulo, operacao: Operacao
 ) -> Result<Decisao, ErroMarcar> {
-    Err(ErroMarcar::MarcadoresNaoLidos) // RED: shim até implementação
+    if lidos.itens.len() != lidos.total_declarado {
+        return Err(ErroMarcar::ListaDeMarcadoresParcial);
+    }
+    let encontrado = lidos.itens.iter().find(|item| item.id == rotulo.id);
+    if let Some(item) = encontrado {
+        if item.nome != rotulo.nome {
+            return Err(ErroMarcar::RotuloDiferenteDoMarcadorLido);
+        }
+        return match operacao {
+            Operacao::Atribuir => Ok(Decisao::NadaAFazer),
+            Operacao::Retirar => Ok(Decisao::PreviaDeRetirada),
+        };
+    }
+    match operacao {
+        Operacao::Retirar => Ok(Decisao::NadaAFazer),
+        Operacao::Atribuir => Err(ErroMarcar::CatalogoDaUnidadeNaoObservado),
+    }
 }
 
 #[cfg(test)]
