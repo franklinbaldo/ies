@@ -210,6 +210,68 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
+
+/// Confere que a resposta POST do SEI é a lista *integral*, não uma
+/// lista menor (mas coerente) por filtros lembrados na sessão.
+///
+/// O valor "null" do órgão não é "Todos": só o valor vazio é universal
+/// na lupa observada no GO pelo Todos @323eb01.
+pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroLupa> {
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
+    let parser = dom.parser();
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+        .map_err(|_| ErroLupa::FormularioAusente)?;
+    let inputs = tags(form, parser, "input");
+    for nome in ["txtSiglaUnidade", "txtDescricaoUnidade"] {
+        let mut encontrados = 0;
+        for campo in &inputs {
+            if atributo(campo, "name")?.as_deref() != Some(nome) {
+                continue;
+            }
+            encontrados += 1;
+            if !atributo(campo, "value")?.unwrap_or_default().is_empty() {
+                return Err(ErroLupa::PaginaInvalida);
+            }
+        }
+        if encontrados != 1 {
+            return Err(ErroLupa::PaginaInvalida);
+        }
+    }
+
+    let mut selects = 0;
+    for seletor in tags(form, parser, "select") {
+        if atributo(seletor, "name")?.as_deref() != Some("selOrgaoUnidade") {
+            continue;
+        }
+        selects += 1;
+        let opcoes = tags(seletor, parser, "option");
+        let mut selecionadas = Vec::new();
+        for (i, opcao) in opcoes.iter().enumerate() {
+            if atributo(opcao, "selected")?.is_some() {
+                selecionadas.push(i);
+            }
+        }
+        // Sem selected, o navegador escolhe a primeira opção. Quando
+        // essa opção tem valor "null", a resposta não é lista integral.
+        let indice = match selecionadas.as_slice() {
+            [i] => *i,
+            [] => 0,
+            _ => return Err(ErroLupa::PaginaInvalida),
+        };
+        let opcao = opcoes.get(indice).ok_or(ErroLupa::PaginaInvalida)?;
+        if atributo(opcao, "value")?.as_deref() != Some("")
+            || texto_da_tag(opcao, parser) != "Todos"
+        {
+            return Err(ErroLupa::PaginaInvalida);
+        }
+    }
+    if selects != 1 {
+        return Err(ErroLupa::PaginaInvalida);
+    }
+    Ok(())
+}
+
 /// Verifica a ordem, os totais e as identidades antes de abrir transação.
 pub(crate) fn reunir_paginas(paginas: Vec<PaginaDaLupa>) -> Result<Vec<UnidadeGuardada>, ErroLupa> {
     let Some(primeira) = paginas.first() else {
