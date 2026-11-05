@@ -53,6 +53,8 @@ mod processo_enviar;
 mod processo_enviar_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_relacionar;
+mod processo_relacionar_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
 mod propriedades_processo;
@@ -188,6 +190,16 @@ enum ProcessoAcao {
     },
     Reabrir {
         numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Prévia de relacionar/desfazer vínculo; escrita ainda bloqueada
+    Relacionar {
+        numero: String,
+        #[arg(long = "com")]
+        com: String,
+        #[arg(long)]
+        remover: bool,
         #[arg(long)]
         confirmar: bool,
     },
@@ -384,6 +396,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
+        .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }
 
 /// `ies unidade recebidos|gerados`: uma lista independente da caixa.
