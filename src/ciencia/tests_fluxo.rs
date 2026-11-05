@@ -101,20 +101,36 @@ fn confirmar_um_get_mutador_mais_arvore_e_lista_que_provam_a_atividade() {
         get(&link_da_lista()),
     ]);
     assert_eq!(pedidos, esperados);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
 }
 
 #[test]
 fn falha_no_get_de_escrita_nao_dispara_retry_e_releitura_ocorre() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
-    respostas.extend([ok(tela()), Err(FalhaTransporte::Rede), ok(arvore_com_ciencias())]);
+    respostas.extend([
+        ok(tela()),
+        Err(FalhaTransporte::Rede),
+        ok(arvore_com_ciencias()),
+    ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let Err(E::EfeitoIncerto { requisicoes, .. }) = resultado else {
         panic!("escrita sem aceite exige saída 3");
     };
     assert_eq!(requisicoes, 6);
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
 
@@ -130,7 +146,13 @@ fn atividade_nao_encontrada_na_lista_e_efeito_incerto_nao_sucesso() {
     let (resultado, pedidos) = rodar(true, respostas);
     assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
     assert_eq!(pedidos.len(), 7);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -140,5 +162,11 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
     let (resultado, pedidos) = rodar(true, respostas);
     assert!(matches!(resultado, Err(E::Barra(_))));
     assert_eq!(pedidos.len(), 4);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 0);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        0
+    );
 }
