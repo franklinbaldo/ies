@@ -34,6 +34,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 
 ## Primeiro recorte, com acesso Web estritamente limitado
 
+- `ies processo comentarios NUP` e `ies processo comentar NUP --texto T [--confirmar]` (contrato [comentários](cli/processo-comentarios.md); núcleo offline na PR Draft #268, CLI Web ainda pendente)
 - `ies processo NUP`
 - `ies processo buscar TERMO [--pagina N]` (pesquisa Web: GET + GET + POST;
   `--pagina N` acrescenta um POST de `navegar()`)
