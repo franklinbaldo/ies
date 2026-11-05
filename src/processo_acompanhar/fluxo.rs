@@ -330,6 +330,18 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     if !verificado {
         return Err(ErroPrevia::EfeitoIncerto);
     }
+    // Somente depois da prova exata podemos publicar o ID observado.
+    let novo = depois
+        .as_deref()
+        .and_then(|linhas| {
+            linhas.iter().find(|linha| {
+                !antes.iter().any(|anterior| anterior.id == linha.id)
+                    && linha.grupo == plano.grupo
+                    && linha.observacao == plano.observacao
+            })
+        })
+        .ok_or(ErroPrevia::EfeitoIncerto)?;
+    plano.id_de_remocao = Some(novo.id.clone());
     plano.alterado = true;
     plano.requisicoes = rede.feitas();
     Ok(plano)
