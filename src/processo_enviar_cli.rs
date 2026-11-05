@@ -122,10 +122,10 @@ fn enviar(
                     }
                 }
                 let resultado = publicar_valor_da_falha(cli.json, &valor, erro.saida());
-                if !cli.json {
-                    if let Some(mensagem) = texto_das_sugestoes(&valor) {
-                        eprintln!("{mensagem}");
-                    }
+                if !cli.json
+                    && let Some(mensagem) = texto_das_sugestoes(&valor)
+                {
+                    eprintln!("{mensagem}");
                 }
                 resultado
             }
