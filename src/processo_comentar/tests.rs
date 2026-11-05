@@ -20,7 +20,10 @@ fn lista(texto: &str) -> ComentariosLidos {
 
 #[test]
 fn aceita_somente_id_do_aceite_e_texto_exato() {
-    assert_eq!(conferir_efeito(&lista("texto novo"), "42", "texto novo"), Ok(()));
+    assert_eq!(
+        conferir_efeito(&lista("texto novo"), "42", "texto novo"),
+        Ok(())
+    );
     assert_eq!(
         conferir_efeito(&lista("texto antigo"), "42", "texto novo"),
         Err(FalhaDaConferencia::TextoDiferenteDoPedido)
