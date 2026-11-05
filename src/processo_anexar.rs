@@ -6,6 +6,8 @@ use crate::html_atributos::valor_do_atributo;
 use crate::transporte::texto_de_recusa::decodificar_entidades;
 use std::collections::HashSet;
 
+pub(crate) mod fluxo;
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct TelaDeAnexacao {
     pub(crate) anexados: Vec<String>,
