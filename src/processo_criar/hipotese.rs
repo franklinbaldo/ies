@@ -3,11 +3,12 @@
 use crate::formulario_web::{ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, corpo::decode_http_body, ler_limitado};
+use crate::transporte::{
+    FalhaTransporte, StatusHttpRecusado, corpo::decode_http_body, ler_limitado,
+};
 use crate::visao_do_controle::EnvioDoControle;
 
-const PREFIXO: &str =
-    "objAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','";
+const PREFIXO: &str = "objAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','";
 const CONSULTA: ConsultaAjax = ConsultaAjax {
     acao_ajax: "hipotese_legal_select_nome_base_legal",
     campos: &[
@@ -78,7 +79,8 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
 /// o placeholder null; um só item efetivo, com texto e ID, é exigido.
 fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     use ErroHipotese as E;
-    let dom = tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaNaoReconhecida)?;
+    let dom =
+        tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaNaoReconhecida)?;
     let mut selects = dom.query_selector("select").into_iter().flatten();
     let select = selects.next().ok_or(E::RespostaNaoReconhecida)?;
     if selects.next().is_some() {
@@ -102,7 +104,8 @@ fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };
-        let texto = crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
+        let texto =
+            crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
         if texto.trim().is_empty() {
             return Err(E::RespostaNaoReconhecida);
         }
@@ -142,7 +145,9 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     )
     .map_err(|_| E::ConsultaNaoDerivada)?;
     *requisicoes += 1;
-    let resposta = envio.post(consulta, cookie).map_err(|f| E::de_transporte(&f))?;
+    let resposta = envio
+        .post(consulta, cookie)
+        .map_err(|f| E::de_transporte(&f))?;
     if resposta.resposta.status_code != 200 {
         let falha = crate::transporte::recusar_status(resposta.resposta);
         return Err(E::de_transporte(&falha));
@@ -182,7 +187,9 @@ mod tests {
 
     #[test]
     fn recusa_dupla_declaracao_sem_escolher_url() {
-        let linha = format!("{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');");
+        let linha = format!(
+            "{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');"
+        );
         assert_eq!(
             url_publicada(&format!("{linha}\n{linha}")),
             Err(ErroHipotese::ConsultaNaoDeclarada)
