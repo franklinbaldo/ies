@@ -15,7 +15,7 @@ pub(crate) enum ErroListaDeTipos {
 }
 
 impl ErroListaDeTipos {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    pub(crate) fn subcodigo(self) -> &'static str {
         match self {
             Self::HtmlInvalido => "lista_de_tipos_html_invalido",
             Self::TabelaAusenteOuRepetida => "tabela_de_tipos_ausente_ou_repetida",
