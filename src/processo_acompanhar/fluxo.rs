@@ -1,9 +1,9 @@
-//! Prévia Web para acompanhamento especial (#254).
-//! GET da barra, 302 tratado como dado, GET só do cadastro quando necessário;
-//! nunca dispara o POST antes da revisão do fluxo de confirmação.
+//! Prévia e inclusão confirmada de Acompanhamento Especial (#254).
+//! GET da barra e cadastro, POST único somente com --confirmar,
+//! seguido por GET explícito de verificação; nenhum redirect seguido.
 use super::{
-    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar,
-    conferir_inclusao, escolher_grupo, grupos_do_cadastro,
+    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, conferir_inclusao,
+    escolher_grupo, grupos_do_cadastro,
 };
 use crate::arvore_processo::ErroAcompanharNaBarra;
 use crate::formulario_web::{
@@ -287,8 +287,22 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Ok(plano);
     }
     let submissao = submissao.ok_or(ErroPrevia::TelaInesperada)?;
-    // Enviar uma única vez. Falha no POST pode ter produzido efeito;
-    // neste caso, ainda é necessário consultar a lista após o envio.
+    confirmar_inclusao(
+        &mut rede, sessao, link.as_str(), &cookie, &antes, plano, submissao,
+    )
+}
+
+/// Consome uma única submissão e verifica o resultado por leitura nova.
+/// Mesmo um erro de transporte no POST pode ter produzido efeito.
+fn confirmar_inclusao<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    link: &str,
+    cookie: &str,
+    antes: &[Acompanhamento],
+    mut plano: Previa,
+    submissao: SubmissaoDerivada,
+) -> Result<Previa, ErroPrevia> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
         enviado = true;
@@ -299,9 +313,9 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             resposta.err().ok_or(ErroPrevia::TelaInesperada)?,
         ));
     }
-    // O 302 é dado, nunca seguido. A resposta não comprova o efeito.
+    // O 302 é dado, nunca seguido; só a lista relida pode provar efeito.
     let _aceite_302 = matches!(resposta, Ok(RespostaDoEnvio::Redirecionamento(_)));
-    let depois = rede.get_sem_seguir(link.as_str(), &cookie);
+    let depois = rede.get_sem_seguir(link, cookie);
     let depois = match depois {
         Ok(resposta) if resposta.resposta.status_code != 302 => {
             decodificar_resposta(resposta.resposta)
@@ -311,7 +325,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         _ => None,
     };
     let verificado = depois.as_deref().is_some_and(|linhas| {
-        conferir_inclusao(&antes, linhas, &plano.grupo, &plano.observacao).is_ok()
+        conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !verificado {
         return Err(ErroPrevia::EfeitoIncerto);
