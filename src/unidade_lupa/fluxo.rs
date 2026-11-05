@@ -215,7 +215,7 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
 
 /// Extrai somente o conteúdo integral de literais simples entre aspas do
 /// script servido. Não interpreta escapes, variáveis nem executa JavaScript.
-/// A URL ainda precisa passar por validação de origem, ação e infra_hash.
+/// A URL ainda precisa passar por validação de origem, ação e `infra_hash`.
 fn literais_do_script(script: &str) -> Vec<String> {
     let mut urls = Vec::new();
     let mut caracteres = script.char_indices().peekable();
@@ -226,7 +226,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
         let inicio = caracteres.peek().map_or(script.len(), |(i, _)| *i);
         let mut escapado = false;
         let mut fim = None;
-        while let Some((posicao, c)) = caracteres.next() {
+        for (posicao, c) in caracteres.by_ref() {
             if escapado {
                 escapado = false;
             } else if c == '\\' {
