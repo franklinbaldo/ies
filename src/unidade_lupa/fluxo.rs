@@ -310,7 +310,7 @@ fn destino_de_candidatos(
     }
 }
 
-fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<String, FalhaDaLupa> {
+pub(super) fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<String, FalhaDaLupa> {
     destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
 }
 
