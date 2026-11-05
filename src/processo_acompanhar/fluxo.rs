@@ -126,14 +126,16 @@ fn html_da_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<String, ErroPrevia> {
+) -> Result<(String, String), ErroPrevia> {
     let resposta = rede
         .get_sem_seguir(url, cookie)
         .map_err(ErroPrevia::Transporte)?;
     if resposta.resposta.status_code == 302 {
         return Err(ErroPrevia::RedirecionamentoInesperado);
     }
-    decodificar_resposta(resposta.resposta).map_err(ErroPrevia::Transporte)
+    let mime = resposta.resposta.mime.clone();
+    let html = decodificar_resposta(resposta.resposta).map_err(ErroPrevia::Transporte)?;
+    Ok((html, mime))
 }
 
 fn selecionar_previa(
@@ -233,7 +235,24 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         None
     } else {
         let url = url_cadastro.ok_or(ErroPrevia::TelaInesperada)?;
-        let html = html_da_tela(&mut rede, &cookie, &url)?;
+        let (html, mime) = html_da_tela(&mut rede, &cookie, &url)?;
+        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+            .ok_or(ErroPrevia::TelaInesperada)?;
+        // A prévia só é considerada válida se a submissão exata também
+        // puder ser derivada, sem escrever e sem construir URL artificial.
+        let tela = crate::formulario_web::TelaServida {
+            url: &url,
+            html: &html,
+            codificacao,
+        };
+        let _submissao = super::submissao::derivar_inclusao(
+            &instalacao,
+            &tela,
+            &id,
+            &unidade,
+            pedido.grupo,
+            pedido.observacao.unwrap_or(""),
+        )?;
         Some(grupos_do_cadastro(&html, &id).map_err(ErroPrevia::Estrutura)?)
     };
     selecionar_previa(
