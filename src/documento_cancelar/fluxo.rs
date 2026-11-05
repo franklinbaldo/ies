@@ -144,7 +144,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     }
 }
 
-/// Antes do envio, mesmo que derivar_submissao tenha validado a ação,
+/// Antes do envio, mesmo que `derivar_submissao` tenha validado a ação,
 /// confere as duas identidades nela e exige um textarea editável único.
 fn conferir_formulario(
     instalacao: &Instalacao,
@@ -183,7 +183,7 @@ fn conferir_formulario(
 }
 
 /// O 302 aceito tem a ação, a identidade do processo/documento e o marcador
-/// atualizar_arvore=1 exatamente uma vez; Location nunca é seguido.
+/// `atualizar_arvore=1` exatamente uma vez; Location nunca é seguido.
 fn localizacao_aceita(localizacao: &str, enviado: &str, id_proc: &str, id_doc: &str) -> bool {
     let Some(consulta) = consulta_do_controlador(localizacao, enviado) else { return false; };
     let mut acao=0; let mut proc=0; let mut doc=0; let mut atualizar=0;
