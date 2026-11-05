@@ -63,3 +63,39 @@ em `src/processo_acompanhar.rs`.
 
 Todos os URLs assinados e cookies ficam privados; nenhuma saída ou
 fixture contém credencial real. Nenhuma operação é dirigida à produção.
+
+## Inventário de erros tipados
+
+A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
+
+| Subcódigo | Condição |
+| --- | --- |
+| `acompanhamento_nao_confirmado_por_leitura` | A releitura não demonstrou a alteração exata; incerto |
+| `acompanhamento_nao_publicado_na_barra` | A barra do processo não oferece Acompanhamento Especial |
+| `acompanhamento_para_remover_ambiguo` | Mais de uma linha satisfaz a escolha de remoção |
+| `barra_de_acompanhamento_fora_da_forma` | Barra fora do formato observado |
+| `barra_de_acompanhamento_repetida` | A árvore publica mais de uma barra para a raiz |
+| `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
+| `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
+| `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
+| `confirmacao_de_acompanhamento_ainda_bloqueada` | Escrita recusada antes de abrir a sessão |
+| `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
+| `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
+| `grupo_de_acompanhamento_nao_oferecido` | Grupo solicitado não é oferecido na tela |
+| `grupo_ja_acompanhado_no_processo` | O grupo já aparece na lista anterior |
+| `grupos_de_acompanhamento_nao_publicados` | Select de grupos ausente ou sem opções |
+| `html_de_acompanhamento_invalido` | HTML ilegível ou acima do limite |
+| `id_de_acompanhamento_repetido` | A tabela repete a identidade de uma linha |
+| `linha_de_acompanhamento_invalida` | Colunas ou checkbox de uma linha fora da forma |
+| `link_de_acompanhamento_de_outro_processo` | Link assinado da barra indica outro processo |
+| `link_de_acompanhamento_nao_reconhecido` | Link da barra não segue a forma permitida |
+| `links_de_acompanhamento_repetidos` | Mais de um link de acompanhamento na barra |
+| `lista_de_acompanhamentos_nao_publicada` | Não existe tabela comprovando a lista |
+| `listas_de_acompanhamentos_repetidas` | Mais de uma tabela de acompanhamento |
+| `opcoes_de_grupo_de_acompanhamento_invalidas` | Option sem valor válido |
+| `origem_do_acompanhamento_nao_autorizada` | Origem da sessão inválida |
+| `pedido_de_acompanhamento_invalido` | Combinação de opções inválida |
+| `processo_sem_acompanhamento` | Não há linha a selecionar para remoção |
+| `redirecionamento_de_acompanhamento_inesperado` | Redirect não comprovado para o cadastro da mesma origem |
+| `tela_de_acompanhamento_inesperada` | Formato ou controle da tela divergente |
+| `unidade_do_acompanhamento_nao_publicada` | Unidade da tela não está publicada |
