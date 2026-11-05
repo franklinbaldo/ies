@@ -6,8 +6,8 @@ description: Cobertura inspecionada e verificações ainda pendentes em 5 de nov
 
 # Issue #235 — auditoria e validação pendente
 
-**Estado: NOT_RUN.** Este documento não representa implementação nem
-validação concluída. A análise foi feita na árvore do branch
+**Estado: CI PASS; live NOT_RUN.** A contagem das chamadas injetadas foi
+implementada, mas a validação ao vivo não foi executada. A análise foi feita na árvore do branch
 `ccr-712112d8-5zf61h`, porque a PR #233 ainda estava aberta.
 
 ## Observações do código
@@ -38,23 +38,32 @@ validação concluída. A análise foi feita na árvore do branch
 
 | Verificação | Estado | Motivo |
 | --- | --- | --- |
-| RED dos novos testes | NOT_RUN | Nenhum teste novo foi executado; não há RED observado |
-| Rust ≥ 1.85 / cargo | NOT_RUN | Executor local sem cargo; download externo indisponível por DNS |
-| `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files` | NOT_RUN | Sem checkout local do repositório |
-| CI da implementação | NOT_RUN | Nenhuma implementação foi apresentada |
-| GET 200, 302 como dado, falha na segunda, POST recusado | NOT_RUN | Faltam testes injetados e execução |
+| RED dos novos testes | NOT_RUN | Os testes foram introduzidos após a implementação; RED anterior não foi observado |
+| Rust ≥ 1.85 / cargo | PASS no CI; NOT_RUN local | GitHub Actions instalou e executou Rust; sandbox não dispõe de cargo e não resolve o servidor de download |
+| `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files` | PASS no CI; NOT_RUN local | Gate oficial executado com sucesso no workflow 42049781166, commit `c6643bb8` |
+| CI da implementação | PASS | Rustfmt, Clippy, suite Rust, OKF e demais gates do workflow 42049781166 aprovados |
+| GET 200, 302 como dado, falha na segunda, POST recusado | PASS | Quatro testes com `testes_http::atender` em `src/visao_do_controle/tests_contagem.rs`; suite Rust aprovada no CI |
 | Treinamento, comandos de leitura | NOT_RUN | Nenhuma requisição foi enviada; sem risco de mutação |
 
-## Próxima implementação necessária
+## Implementação e limites
 
-Instrumentar as tentativas efetivamente enviadas por `EnvioDoControle`
-e pelos envios iniciais dos comandos, antes da chamada HTTP, sem contar
-parsing nem índice local; conferir as somas de relogin e os números
-anteriores dos caminhos de sucesso. Usar `testes_http::atender`, observar
-RED antes da implementação, executar o gate e publicar um novo registro
-de validação live somente depois das leituras efetivas, obedecendo ao
-intervalo mínimo entre comandos. Não introduzir campo público de
-`requisicoes` nos fluxos que ainda não o possuem.
+`EnvioContado` contabiliza GETs e POSTs injetados antes de chamar o
+transporte, incluindo 302, recusa e falha de rede. O código de produção
+usa o decorador em `listar-processos`, `recebidos`/`gerados` vindos da
+visão D, `colunas` e `colunas --definir`. A colheita do índice não passa
+pelo contador. GETs iniciais e POSTs diretos continuam contabilizados
+pelo medidor global do transporte real usado por `relogin_cli`.
+
+Os quatro novos testes com `testes_http::atender` conferem,
+respectivamente, 1 GET, 1 GET sem seguir 302, 2 POSTs com falha no
+segundo e 1 POST recusado. A execução anterior às correções mostrou
+falha de Rustfmt e de Clippy, mas **não constitui RED pré-implementação**.
+Os testes antigos de sucesso passaram sem alterar os orçamentos.
+
+Não se acrescentou `requisicoes` às saídas normais que não o publicavam.
+A decisão sobre ampliar esses JSONs segue com o proprietário.
+A execução em treinamento permanece NOT_RUN: nenhum pedido foi enviado;
+não há evidência live para marcar PASS.
 
 Nenhum literal de subcódigo foi alterado; `src/transporte/**`,
 arquivos do cache de documentos e as frentes paralelas permaneceram intactos.
