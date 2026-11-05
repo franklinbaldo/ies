@@ -1,0 +1,65 @@
+---
+type: SEIObservation
+title: Inclusão de documento interno pelo cadastro Web
+description: Evidência preliminar da sequência de escolha de tipo, cadastro e conferência
+---
+
+# Inclusão de documento interno (issue #246)
+
+## Fontes e limites
+
+Oráculo comportamental: `franklinbaldo/todos/src/todos/documentos.py`,
+funções `criar`, `_criar_na_arvore`, `_tipos_da_tela`,
+`_escolha_do_tipo`, `cadastrar_da_tela` e `_depois_de_enviado`.
+O acervo IES registra as cassettes
+`cassettes/go/documento-incluir-go--fa4845e16ba9.md` (42 interações,
+29 GET e 13 POST) e `cassettes/go/documento-escritas-go--16f83179ecaa.md`
+(69 interações, 51 GET e 18 POST), ambas Goiás. A página capturada
+`franklinbaldo/todos/tests/paginas_reais/documento_gerar.html` é
+SEI 4.0.9. Esta nota é uma leitura das fontes: não houve replay do ZIP
+nem consulta ao vivo nesta etapa.
+
+## Caminho observado nas fontes
+
+1. A árvore do processo fornece a ação de barra
+   `documento_escolher_tipo` ("Incluir Documento"). O Todos a abre
+   usando o link da barra; não sintetiza URL assinada.
+2. A seleção usa a tabela `table#tblSeries`. O nome do tipo vem do texto
+   do link. Nas formas descritas pelo oráculo, SEI 4.0 publica link para
+   `documento_gerar`; SEI 4.1/5.0 publica `escolher(<id>)`.
+   O item "Externo" não representa documento interno. Nome repetido
+   impede escolha segura. A lista pode ter "Exibir todos", que usa
+   `hdnFiltroSerie=T` em um POST: esse POST é de filtro, não de inclusão,
+   mas também deve ter efeito avaliado e orçamento explícito.
+3. Abrir o tipo leva ao cadastro `documento_gerar`. A captura mostra
+   o título do tipo em `label#lblSerieTitulo`, o campo
+   `txtDescricao`, as opções `rdoNivelAcesso` e, conforme o nível,
+   `selHipoteseLegal`. Os campos reais precisam ser derivados do
+   formulário servido. A presença de elementos ocultos não autoriza
+   preencher valores não mostrados ao usuário.
+4. No oráculo, `cadastrar_da_tela` confere o cadastro antes do envio;
+   `enviar_formulario` executa uma submissão. O retorno é classificado
+   e sua localização pode trazer `id_documento`. Essa informação
+   isolada **não** confirma número SEI nem unicidade da inclusão.
+5. `_depois_de_enviado` faz verificação posterior da árvore. Para o IES,
+   a confirmação deve comparar os documentos de antes/depois,
+   exigir exatamente um novo nó do tipo solicitado e devolver o número
+   SEI publicado pela árvore. Falha de envio ou releitura com efeito
+   não demonstrável deve resultar em saída 3, sem retry.
+
+## Restrições para implementação
+
+A prévia só deve abrir telas avaliadas como leitura; em particular,
+`documento_gerar_multiplo` não deve ser invocado como escrita.
+Antes do POST, a unidade da sessão e a situação aberta do processo
+devem ser conferidas; tipos ausentes e ambíguos recusados por
+subcódigos distintos. URLs assinadas, cookie e `infra_hash` não são
+publicados. A solicitação de criação ao vivo permanece **NOT_RUN** até
+a frase "escrita autorizada" na issue #246.
+
+## Lacunas que impedem afirmar GREEN
+
+Faltam replay dos corpos e respostas brutas das cassettes, teste RED,
+implementação Rust da CLI/formulário e compilação pelo gate. As
+capturas não permitem presumir que o mesmo formulário funciona em
+todas as instalações. Nenhuma escrita foi realizada.
