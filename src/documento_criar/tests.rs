@@ -235,7 +235,7 @@ fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
         <table id="tblSeries"><tr><td>
             <a href="#" onclick="escolher(291)">Despacho</a>
             <a href="#" onclick="escolher(-1)">Externo</a>
-        </td></tr></table></body></html>"#;
+        </td></tr></table></body></html>"##;
     assert_eq!(tipos_oferecidos(html).unwrap(), ["Despacho"]);
     assert_eq!(
         escolha_do_tipo(&instalacao, html, "4864", "Despacho"),
@@ -341,7 +341,7 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
     <a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>
     <table id="tblSeries"><tr><td>
        <a href="controlador.php?acao=documento_gerar">Despacho</a>
-    </td></tr></table></body></html>"##;
+    </td></tr></table></body></html>"#;
     assert_eq!(filtro_de_todos(tela), Ok(true));
     assert_eq!(
         filtro_de_todos(&tela.replace("ancExibirSeries", "outro")),
