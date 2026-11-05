@@ -74,6 +74,10 @@ pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
     sha256(cookie)
 }
 
+/// Exceção inventariada (#183): o marcador de geração não é um arquivo de
+/// sessão de transporte. O login o lê diretamente para comparar pares URL/
+/// cookie e decidir reaproveitamento ou relogin; não é um GET da aplicação.
+///
 /// Geração dos arquivos de sessão como estão agora: os SHA-256 do cookie
 /// e da URL do Controle (os do marcador), sem rede. `None` se um deles
 /// falta ou está vazio. Comparada antes do relogin de uma leitura, vale
@@ -102,6 +106,8 @@ struct Marcador {
     url_controle_sha256: String,
 }
 
+// Exceção inventariada (#183): leitura local do marcador de consistência
+// próprio da escrita atômica. ReferenciasDaSessao não conhece esse formato.
 fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ()> {
     let caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     match crate::transporte::arquivo_privado(&caminho, 4096) {
