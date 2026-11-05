@@ -62,32 +62,23 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<Option<String>, ErroFil
         .transpose()
 }
 
-fn controles<'a>(
-    tags: &'a [&'a tl::HTMLTag<'a>],
+fn unico<'a, 'html>(
+    tags: &[&'a tl::HTMLTag<'html>],
     elemento: &str,
     nome: &str,
-) -> Result<Vec<&'a tl::HTMLTag<'a>>, ErroFiltro> {
-    let mut encontrados = Vec::new();
+) -> Result<&'a tl::HTMLTag<'html>, ErroFiltro> {
+    let mut encontrado = None;
     for tag in tags {
         if tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
             && atributo(tag, "name")?.as_deref() == Some(nome)
         {
-            encontrados.push(*tag);
+            if encontrado.is_some() {
+                return Err(ErroFiltro::ControleDeFiltroAmbiguo);
+            }
+            encontrado = Some(*tag);
         }
     }
-    Ok(encontrados)
-}
-
-fn unico<'a>(
-    tags: &'a [&'a tl::HTMLTag<'a>],
-    elemento: &str,
-    nome: &str,
-) -> Result<&'a tl::HTMLTag<'a>, ErroFiltro> {
-    match controles(tags, elemento, nome)?.as_slice() {
-        [] => Err(ErroFiltro::CriterioNaoOferecidoPelaTela),
-        [campo] => Ok(*campo),
-        _ => Err(ErroFiltro::ControleDeFiltroAmbiguo),
-    }
+    encontrado.ok_or(ErroFiltro::CriterioNaoOferecidoPelaTela)
 }
 
 /// Extrai o value correspondente ao nome *exatamente* mostrado numa option.
