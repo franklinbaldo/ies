@@ -128,7 +128,13 @@ pub(crate) fn buscar_colhendo<A: AlvoDaPesquisa, V: EnvioDoControle>(
     colheita: &Colheita<'_>,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    buscar_colhendo_filtrado::<A, V>(sessao, pedido, FiltrosDaPesquisa::default(), colheita, envio)
+    buscar_colhendo_filtrado::<A, V>(
+        sessao,
+        pedido,
+        FiltrosDaPesquisa::default(),
+        colheita,
+        envio,
+    )
 }
 
 pub(crate) fn buscar_colhendo_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
@@ -139,7 +145,14 @@ pub(crate) fn buscar_colhendo_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     let mut requisicoes = ContagemDeRequisicoes::default();
-    buscar_colhendo_contado_filtrado::<A, V>(sessao, pedido, filtros, colheita, &mut requisicoes, envio)
+    buscar_colhendo_contado_filtrado::<A, V>(
+        sessao,
+        pedido,
+        filtros,
+        colheita,
+        &mut requisicoes,
+        envio,
+    )
 }
 
 /// Variante que deixa a contagem disponível também quando uma tentativa
@@ -151,7 +164,14 @@ pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    buscar_colhendo_contado_filtrado::<A, V>(sessao, pedido, FiltrosDaPesquisa::default(), colheita, requisicoes, envio)
+    buscar_colhendo_contado_filtrado::<A, V>(
+        sessao,
+        pedido,
+        FiltrosDaPesquisa::default(),
+        colheita,
+        requisicoes,
+        envio,
+    )
 }
 
 pub(crate) fn buscar_colhendo_contado_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
@@ -164,7 +184,14 @@ pub(crate) fn buscar_colhendo_contado_filtrado<A: AlvoDaPesquisa, V: EnvioDoCont
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
     let controle = ler_controle_com_contagem(sessao, pedido.unidade, requisicoes, envio)?;
     colheita.colher(&controle.tela.html, Some(&controle.tela.mime));
-    pesquisar_a_partir_do_controle_filtrado::<A, V>(&controle, sessao.cookie, pedido, filtros, requisicoes, envio)
+    pesquisar_a_partir_do_controle_filtrado::<A, V>(
+        &controle,
+        sessao.cookie,
+        pedido,
+        filtros,
+        requisicoes,
+        envio,
+    )
 }
 
 /// Requisições 2 em diante, a partir do Controle já lido (que conta como 1).
@@ -175,7 +202,14 @@ pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoContro
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    pesquisar_a_partir_do_controle_filtrado::<A, V>(controle, cookie, pedido, FiltrosDaPesquisa::default(), requisicoes, envio)
+    pesquisar_a_partir_do_controle_filtrado::<A, V>(
+        controle,
+        cookie,
+        pedido,
+        FiltrosDaPesquisa::default(),
+        requisicoes,
+        envio,
+    )
 }
 
 pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
@@ -196,8 +230,14 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     let tela = obter_tela(cookie, &url_da_tela, requisicoes, envio)?;
     // 3. POST da pesquisa.
     let termo = pedido.termo;
-    let submissao = derivar_pesquisa_em_filtrada(A::EM, instalacao, &servida(&tela)?, (unidade, termo), filtros)
-        .map_err(E::Pesquisa)?;
+    let submissao = derivar_pesquisa_em_filtrada(
+        A::EM,
+        instalacao,
+        &servida(&tela)?,
+        (unidade, termo),
+        filtros,
+    )
+    .map_err(E::Pesquisa)?;
     let (enviada, resultado) = enviar(cookie, envio, requisicoes, submissao)?;
     let interpretado = A::interpretar(enviada, instalacao).map_err(E::Pesquisa)?;
     let (resposta, html) = (interpretado.resposta, interpretado.html);
