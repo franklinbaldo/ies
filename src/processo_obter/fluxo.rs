@@ -52,8 +52,10 @@ pub(crate) struct AcoesDeEstado {
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
     /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
-    pub(crate) ciencia: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
-    pub(crate) lista_ciencias: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(crate) ciencia:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(crate) lista_ciencias:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
