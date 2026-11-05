@@ -29,6 +29,17 @@ pub(crate) fn gravar_fotos(
     diretorio: &Path,
     obtidos: &[DocumentoObtido],
 ) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    gravar_fotos_com_cache(diretorio, obtidos, &[])
+}
+
+/// Com cache ativo, a foto explícita é um hard link para o arquivo privado,
+/// ou uma cópia exclusiva quando o destino estiver em outro filesystem.
+pub(crate) fn gravar_fotos_com_cache(
+    diretorio: &Path,
+    obtidos: &[DocumentoObtido],
+    caches: &[Option<crate::cache_documento::Registro>],
+) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    // Antes da primeira gravação, confere a coerência de todas as fotos.
     for d in obtidos {
         if let Some(f) = &d.versoes.foto {
             foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
@@ -36,12 +47,22 @@ pub(crate) fn gravar_fotos(
     }
     obtidos
         .iter()
-        .map(|d| {
-            d.versoes
-                .foto
-                .as_ref()
-                .map(|f| foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html))
-                .transpose()
+        .enumerate()
+        .map(|(i, d)| {
+            d.versoes.foto.as_ref().map(|f| {
+                let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
+                if !plano.gravado {
+                    return Ok(plano);
+                }
+                let Some(Some(cache)) = caches.get(i) else {
+                    return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
+                };
+                let destino = diretorio.join(&plano.nome);
+                let gravado = crate::cache_documento::copiar_para_saida(
+                    &cache.caminho, &destino, &plano.sha256,
+                ).map_err(|_| ErroCopia::GravacaoFalhou)?;
+                Ok(FotoGravada { gravado, ..plano })
+            }).transpose()
         })
         .collect()
 }
