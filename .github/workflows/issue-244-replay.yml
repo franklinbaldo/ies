@@ -1,0 +1,31 @@
+name: Temporario issue 244 replay publico GO - links da lupa
+
+on:
+  push:
+    branches:
+      - codex/244-unidades-indice-local
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Conferir ZIP publico do acervo GO
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/ies-acervo"
+          curl --fail --location --silent --show-error --retry 0 --max-time 180 \
+            --output "$RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" \
+            "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-e01c45d573ff1591.zip"
+          echo "e01c45d573ff15912f0a5d018165aa3edbf24c89  $RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" | sha1sum --check
+      - name: Replay offline da lupa GO sem pedidos ao SEI
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo
+        run: cargo +1.99.1 test --locked --bin ies replay_da_lupa_go_no_acervo -- --ignored --nocapture
