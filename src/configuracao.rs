@@ -145,6 +145,8 @@ enum FalhaConfiguracaoLocal {
     LinkSimbolico,
     NaoRegular,
     AcimaDoLimite,
+    // Só construída na conferência de permissões Unix.
+    #[cfg_attr(not(unix), allow(dead_code))]
     PermissoesAbertas,
     LeituraFalhou,
     JsonInvalido,

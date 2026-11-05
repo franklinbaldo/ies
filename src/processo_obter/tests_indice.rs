@@ -82,11 +82,7 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
     com_link_da_arvore(&amb);
     // A validade temporal não é inferível do SQLite: o servidor recusa
     // o link uma vez, o palpite cai e a tentativa seguinte não o reutiliza.
-    let (resultado, pedidos) = rodar(
-        &amb,
-        None,
-        vec![r302(LOGIN), r302(LOGIN_RECUSA)],
-    );
+    let (resultado, pedidos) = rodar(&amb, None, vec![r302(LOGIN), r302(LOGIN_RECUSA)]);
     assert!(resultado.is_err());
     assert_eq!(pedidos.len(), 2);
     assert_eq!(pedidos[0], get(&url_arvore(ID)));
