@@ -8,7 +8,7 @@ scope: leitura do mes no Retorno Programado pelo link do menu e links GET de cal
 selected_strategy: web-calendario-mes-inteiro
 alternatives: web-calendario-mes-inteiro,web-um-dia-por-vez,rest-opcional
 evidence_level: todos-323eb01-tests-sinteticos-replay-7-instalacoes-14-meses-pass
-live_validation: not-run-go-pen3
+live_validation: fail-go-pen3-2026-11-05
 ---
 
 # Retornos da unidade: escolher a leitura do mes inteiro (Refs #253)
@@ -69,7 +69,9 @@ O [contrato](../../contracts/cli/unidade-listar-retornos.md), a
 delimitam o recorte executavel. O replay offline das sete
 cassettes originais passou nas 14 paginas mensais
 ([relatorio](../validacao-replay/2026-11-05-unidade-retornos.md));
-a validacao live GO/PEN3 continua independente e a capacidade
+as duas leituras live falharam em treinamento, em GO sem resumo de erro e
+na PEN3 com `calendario_dos_retornos_desconhecido` (ver
+[relatorio live](../validacao-live/2026-11-05-unidade-retornos.md)). A capacidade
 ainda nao esta homologada.
 
 ## Evidências verificáveis
