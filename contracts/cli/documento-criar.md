@@ -18,7 +18,7 @@ O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
-Estado `partial`: o comando público existe e oferece prévia de leitura em telas com link direto e assinado para o cadastro (`documento_gerar`); se a escolha exigir a função `escolher(ID)`, recusa sem inventar navegação. O POST de criação e o `--confirmar` ainda não estão disponíveis: a confirmação recusa antes de carregar a sessão. O núcleo offline de reconciliação existe, mas ainda não foi conectado à escrita.
+Estado `partial`: a CLI oferece prévia de leitura nas telas com link direto e assinado para o cadastro (`documento_gerar`). A confirmação agora tem um caminho de POST único e reconciliação por releitura, **somente para o nível público e formulário com o script observado**; antes de receber CI e replay, essa implementação permanece WIP, não validada para uso real. Instalações que só publicam `escolher(ID)` recusam sem inventar navegação. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
 
 ## Prévia
 
@@ -71,7 +71,10 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
 | `nivel_nao_oferecido_no_cadastro` | O nível solicitado não aparece habilitado |
 | `tela_de_criacao_redirecionada` | A tela de leitura devolveu 302 não seguido |
-| `criacao_de_documento_ainda_nao_validada` | Confirmação bloqueada antes da rede |
+| `nivel_de_documento_requer_hipotese_legal` | Nível não público exige resolver a hipótese legal antes da escrita |
+| `submissao_do_documento_nao_observada` | Cadastro não contém a regra observada de submissão |
+| `arvore_de_documentos_incompleta` | Pasta fechada impede comparação de documentos |
+| `criacao_de_documento_ainda_nao_validada` | Subcódigo histórico da etapa anterior, não emitido pelo novo fluxo |
 | `tipo_de_documento_vazio` | O tipo informado está vazio |
 | `parametro_de_criacao_invalido` | Falha de validação de entrada |
 
@@ -95,5 +98,5 @@ e [decisão](../../docs/decisoes/documento-criar.md).
 Oráculo: Todos `src/todos/documentos.py` (`criar`,
 `_criar_na_arvore`, `cadastrar_da_tela`, `_depois_de_enviado`).
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
-Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; testes de contrato foram publicados antes da implementação, mas não executados localmente por ausência do toolchain e DNS. A contagem RED observada permanece **não aferida**.
-Escrita live: **NOT_RUN até "escrita autorizada" na issue #246**.
+Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; os novos testes de formulário e de identidade foram publicados, mas não executados localmente por ausência de Rust e DNS. Contagem RED observada: **não aferida**. O CI do head precisa ser confirmado antes de considerar GREEN.
+Escrita live: **AUTORIZADA exclusivamente em treinamento**, mas **NOT_RUN**. A autorização está na issue #246; executar apenas depois de validar o branch, fazer prévia ao vivo e comprovar a leitura posterior, registrando o resíduo. Nenhum documento foi criado nesta sessão.
