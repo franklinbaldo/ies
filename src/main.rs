@@ -290,7 +290,7 @@ enum BlocoAcao {
     /// Lista blocos da unidade na página atualmente observada
     Listar {
         /// Tipo de bloco oferecido pelo menu Web
-        #[arg(long, value_enum, default_value_t = bloco::TipoBloco::Assinatura)]
+        #[arg(long, value_enum, default_value = "assinatura")]
         tipo: bloco::TipoBloco,
         /// Página 1: validação da página atual; páginas adicionais em desenvolvimento
         #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
