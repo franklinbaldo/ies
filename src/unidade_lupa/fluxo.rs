@@ -264,10 +264,11 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
         .into_iter()
         .filter(|no| no.get(parser).and_then(tl::Node::as_tag).is_some())
         .count();
-    if achados == 0 {
-        return Err(FalhaDaLupa::LinkAusente);
+    match achados {
+        0 => Err(FalhaDaLupa::LinkAusente),
+        1 => destino(html, url, origem, "grupo_unidade_cadastrar"),
+        _ => Err(FalhaDaLupa::LinkAmbiguo),
     }
-    destino(html, url, origem, "grupo_unidade_cadastrar")
 }
 
 fn consulta(
