@@ -53,6 +53,9 @@ mod processo;
 mod processo_acompanhar;
 mod processo_acompanhar_cli;
 mod processo_buscar_cli;
+pub mod processo_comentar;
+#[allow(dead_code)] // núcleo offline; leitura Web ainda não ligada à CLI (#257)
+pub mod processo_comentarios;
 mod processo_concluir;
 mod processo_concluir_cli;
 #[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
