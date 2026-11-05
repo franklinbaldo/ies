@@ -305,6 +305,19 @@ mod tests {
     }
 
     #[test]
+    fn ids_duplicados_ou_texto_com_controle_nao_sao_sugeridos() {
+        let duplicados = "<select><option value='31'>A</option><option value='31'>B</option></select>";
+        let erro = opcao_unica(duplicados).expect_err("id repetido nao e selecionavel");
+        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        assert_eq!(erro.opcoes_para_escolha(), None);
+
+        let com_controle = "<select><option value='31'>Base A</option><option value='32'>Base\u{001b} B</option></select>";
+        let erro = opcao_unica(com_controle).expect_err("controle nao pode ir ao terminal");
+        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        assert_eq!(erro.opcoes_para_escolha(), None);
+    }
+
+    #[test]
     fn recusa_dupla_declaracao_sem_escolher_url() {
         let linha = format!(
             "{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');"
