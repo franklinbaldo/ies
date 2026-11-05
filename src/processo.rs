@@ -48,6 +48,8 @@ impl NumeroProcesso {
 }
 
 /// A situação é local à unidade, nunca um atributo global do processo.
+// A projeção ainda é serializada, mas o leitor não preenche atuações por unidade (#56).
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SituacaoUnidade {
