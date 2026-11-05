@@ -106,10 +106,9 @@ fn previsualizar(
         EstadoDoPrazo::Concluido => json!({"tipo": "concluido"}),
     };
     let solicitado = match pedido {
-        PedidoDePrazo::Ler => Value::Null,
         PedidoDePrazo::Ate(data) => json!({"ate": data}),
         PedidoDePrazo::Dias(dias) => json!({"dias": dias}),
-        PedidoDePrazo::Excluir => Value::Null,
+        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => Value::Null,
     };
     let campos: Vec<_> = campos_do_pedido(pedido).into_iter().map(|(nome, _)| nome).collect();
     let resultado = json!({
