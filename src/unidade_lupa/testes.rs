@@ -30,7 +30,7 @@ fn total_da_legenda_aceita_faixa_observada_no_go() {
     );
     assert_eq!(total_da_legenda("Lista de Unidades (x registros):"), None);
 }
- #[test]
+#[test]
 fn paginas_inteiras_sem_repeticao() {
     let p0 = ler_pagina(&pagina(0, 2, 3, &["1", "2"])).unwrap();
     let p1 = ler_pagina(&pagina(1, 2, 3, &["3"])).unwrap();
@@ -65,7 +65,7 @@ fn nenhuma_unidade_publicada_na_lupa_eh_uma_lista_vazia() {
     assert_eq!(lida.unidades, Vec::new());
     assert_eq!(reunir_paginas(vec![lida]).unwrap(), Vec::new());
 }
- #[test]
+#[test]
 fn ausencia_de_tabela_sem_aviso_de_vazio_nao_pode_ser_sucesso() {
     let html = "<form id='frmUnidadeLista'>
         <input type='hidden' name='hdnInfraPaginaAtual' value='0'>
@@ -73,11 +73,11 @@ fn ausencia_de_tabela_sem_aviso_de_vazio_nao_pode_ser_sucesso() {
     </form>";
     assert_eq!(ler_pagina(html).err(), Some(ErroLupa::TabelaForaDaForma));
 }
- #[test]
+#[test]
 fn cabecalho_ausente_nao_pode_virar_lista_vazia() {
     assert!(ler_pagina("<form id='frmUnidadeLista'></form>").is_err());
 }
- #[test]
+#[test]
 fn filtros_publicados_precisam_provar_lista_integral() {
     // Cenários de filtro e órgão do Todos tests/test_lupa_unidades_010.py @323eb01.
     let html = pagina(0, 1, 1, &["7"]).replace(
@@ -91,7 +91,7 @@ fn filtros_publicados_precisam_provar_lista_integral() {
          <table class='infraTable'>",
     );
     assert_eq!(conferir_filtros_de_lista_integral(&html), Ok(()));
-     // Uma lista de nove resultados filtrados pode ser internamente
+    // Uma lista de nove resultados filtrados pode ser internamente
     // consistente, mas não substitui a lista integral de destinos.
     for alterada in [
         html.replace(
@@ -126,8 +126,14 @@ fn paginador_so_admite_indices_contiguos_e_unicos() {
     // omitidas ou saltadas não autorizam persistir um snapshot integral.
     let html = pagina(0, 2, 2, &["7", "8"]);
     for alterada in [
-        html.replace("<option value='1'>2</option>", "<option value='0'>2</option>"),
-        html.replace("<option value='1'>2</option>", "<option value='3'>2</option>"),
+        html.replace(
+            "<option value='1'>2</option>",
+            "<option value='0'>2</option>",
+        ),
+        html.replace(
+            "<option value='1'>2</option>",
+            "<option value='3'>2</option>",
+        ),
         html.replace("<option value='1'>2</option>", "<option>2</option>"),
     ] {
         assert_eq!(
