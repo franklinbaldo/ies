@@ -84,7 +84,10 @@ fn replay_da_lupa_go_no_acervo() {
         lidas += 1;
     }
     assert_eq!((get, post, lidas), (3, 3, 6));
-    assert_eq!(cadastros_com_lupa, 3, "GO deve publicar 3 cadastros com lupa");
+    assert_eq!(
+        cadastros_com_lupa, 3,
+        "GO deve publicar 3 cadastros com lupa"
+    );
     assert!(vazias >= 1, "a cassette GO deve ter uma lista vazia");
     println!("replay GO: {lidas} telas lidas ({get} GET, {post} POST), 0 requisições reais");
 }
