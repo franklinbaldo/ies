@@ -1,9 +1,9 @@
 //! Ciência Web de processo/documento: identifica a atividade do aceite e
 //! prova o registro na lista de ciências **novamente lida**.
 //!
-//! Observado em Todos 323eb01, tests/test_ciclo_ciencia_010.py e
-//! tests/test_documento_ciente_010.py; os arquivos da cassette do IES
-//! referenciam capturas UnB (4.0), UFRJ (4.1) e PEN3 (5.0).
+//! Observado em Todos 323eb01, `tests/test_ciclo_ciencia_010.py` e
+//! `tests/test_documento_ciente_010.py`; os arquivos da cassette do IES
+//! referenciam capturas `UnB` (4.0), UFRJ (4.1) e PEN3 (5.0).
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 
@@ -18,6 +18,7 @@ pub(crate) enum AlvoDaCiencia<'a> {
     Processo {
         id_procedimento: &'a str,
     },
+    #[cfg(test)]
     Documento {
         id_procedimento: &'a str,
         id_documento: &'a str,
