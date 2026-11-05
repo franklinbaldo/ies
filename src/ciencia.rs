@@ -9,7 +9,9 @@
 
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod fluxo;
-pub(crate) use fluxo::{CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo};
+pub(crate) use fluxo::{
+    CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AlvoDaCiencia<'a> {
@@ -35,7 +37,9 @@ impl ErroCiencia {
         match self {
             Self::AceiteSemAtividade => "aceite_da_ciencia_sem_atividade",
             Self::AtividadesAmbiguas => "atividades_da_ciencia_ambiguas",
-            Self::ListaDeCienciasForaDaFormaObservada => "lista_de_ciencias_fora_da_forma_observada",
+            Self::ListaDeCienciasForaDaFormaObservada => {
+                "lista_de_ciencias_fora_da_forma_observada"
+            }
             Self::AtividadesRepetidasNaLista => "atividades_repetidas_na_lista_de_ciencias",
         }
     }
@@ -44,8 +48,11 @@ impl ErroCiencia {
 /// Só admite o valor da chave com uma única ocorrência. Uma chave duplicada
 /// não permite escolher o primeiro nem o último valor.
 fn parametro_unico<'a>(consulta: &'a str, chave: &str) -> Option<&'a str> {
-    let mut valores = consulta.split('&').filter_map(|parte| parte.split_once('='))
-        .filter(|(nome, _)| *nome == chave).map(|(_, valor)| valor);
+    let mut valores = consulta
+        .split('&')
+        .filter_map(|parte| parte.split_once('='))
+        .filter(|(nome, _)| *nome == chave)
+        .map(|(_, valor)| valor);
     match (valores.next(), valores.next()) {
         (Some(valor), None) => Some(valor),
         _ => None,
@@ -95,9 +102,14 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
         }
-        AlvoDaCiencia::Documento { id_procedimento, id_documento } => {
-            (id_procedimento, "documento_visualizar_ciencias", Some(id_documento))
-        }
+        AlvoDaCiencia::Documento {
+            id_procedimento,
+            id_documento,
+        } => (
+            id_procedimento,
+            "documento_visualizar_ciencias",
+            Some(id_documento),
+        ),
     };
     if parametro_unico(consulta, "acao") != Some("procedimento_visualizar")
         || parametro_unico(consulta, "id_procedimento") != Some(id_procedimento)
@@ -164,9 +176,13 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     if tabela.name().as_utf8_str() != "table" {
         return Err(fora);
     }
-    let legendas: Vec<String> = tabela.query_selector(parser, "caption").into_iter()
-        .flatten().filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).trim().to_owned()).collect();
+    let legendas: Vec<String> = tabela
+        .query_selector(parser, "caption")
+        .into_iter()
+        .flatten()
+        .filter_map(|no| no.get(parser))
+        .map(|no| no.inner_text(parser).trim().to_owned())
+        .collect();
     if legendas.as_slice() != ["Lista de Ciências:"] {
         return Err(fora);
     }
