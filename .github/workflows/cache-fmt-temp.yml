@@ -1,0 +1,26 @@
+name: Temporary cache rustfmt
+on:
+  push:
+    branches:
+      - codex/236-cache-documentos
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - name: Format and push only this branch
+        run: |
+          cargo +1.99.1 fmt --all
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -u
+            git commit -m "style(cache): rustfmt canonical"
+            git push origin HEAD:codex/236-cache-documentos
+          fi
