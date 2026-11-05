@@ -146,6 +146,7 @@ pub(crate) enum ErroAnexo {
     DisposicaoForaDaFormaObservada,
     AcimaDoLimite,
     Vazio,
+    ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
@@ -166,6 +167,7 @@ impl ErroAnexo {
             Self::DisposicaoForaDaFormaObservada => "disposicao_do_anexo_fora_da_forma_observada",
             Self::AcimaDoLimite => "anexo_acima_do_limite",
             Self::Vazio => "anexo_vazio",
+            Self::ConteudoComLinkAssinado => "conteudo_com_link_assinado",
             Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
             Self::Corpo(erro) => erro.subcodigo(),
             Self::DiretorioAusente => "diretorio_do_anexo_ausente",
@@ -186,6 +188,7 @@ impl ErroAnexo {
             }
             Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
             Self::Vazio => "o anexo veio vazio",
+            Self::ConteudoComLinkAssinado => "o anexo contém credencial de link assinado",
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
             Self::DiretorioAusente => "o diretório de --saida não existe",
@@ -238,6 +241,8 @@ pub(crate) fn ler_anexo<R: Read>(
     let mut guardado = Vec::new();
     let mut hasher = Sha256::new();
     let mut tamanho = 0u64;
+    // O token não pode chegar ao cache, mesmo se cruzar dois blocos.
+    let mut token_lido = 0usize;
     let mut leitor = corpo.take(conferido.limite.saturating_add(1));
     let mut bloco = vec![0u8; BLOCO];
     loop {
@@ -255,6 +260,17 @@ pub(crate) fn ler_anexo<R: Read>(
         tamanho += lido as u64;
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
+        }
+        for &byte in &bloco[..lido] {
+            let token = b"infra_hash";
+            if byte == token[token_lido] {
+                token_lido += 1;
+            } else {
+                token_lido = usize::from(byte == token[0]);
+            }
+            if token_lido == token.len() {
+                return Err(ErroAnexo::ConteudoComLinkAssinado);
+            }
         }
         hasher.update(&bloco[..lido]);
         if let Some(aberto) = &mut arquivo {
