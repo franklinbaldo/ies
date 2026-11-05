@@ -9,9 +9,15 @@ pub(crate) struct Rotulo {
     pub(crate) nome: String,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Operacao { Atribuir, Retirar }
+pub(crate) enum Operacao {
+    Atribuir,
+    Retirar,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Decisao { NadaAFazer, PreviaDeRetirada }
+pub(crate) enum Decisao {
+    NadaAFazer,
+    PreviaDeRetirada,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroMarcar {
     RotuloSemSeparador,
@@ -47,8 +53,12 @@ impl ErroMarcar {
             Self::NomeDoMarcadorVazio => "o nome do marcador não pode ser vazio",
             Self::NomeDoMarcadorComControle => "o nome do marcador contém caractere de controle",
             Self::ListaDeMarcadoresParcial => "a lista de marcadores do processo não está completa",
-            Self::RotuloDiferenteDoMarcadorLido => "o id do marcador tem nome diferente do solicitado",
-            Self::CatalogoDaUnidadeNaoObservado => "o catálogo de marcadores da unidade não foi conferido",
+            Self::RotuloDiferenteDoMarcadorLido => {
+                "o id do marcador tem nome diferente do solicitado"
+            }
+            Self::CatalogoDaUnidadeNaoObservado => {
+                "o catálogo de marcadores da unidade não foi conferido"
+            }
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
@@ -56,7 +66,9 @@ impl ErroMarcar {
     }
 }
 pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
-    let (id, nome) = texto.split_once('#').ok_or(ErroMarcar::RotuloSemSeparador)?;
+    let (id, nome) = texto
+        .split_once('#')
+        .ok_or(ErroMarcar::RotuloSemSeparador)?;
     if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroMarcar::IdDoMarcadorNaoDecimal);
     }
@@ -66,13 +78,18 @@ pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
     if nome.chars().any(char::is_control) {
         return Err(ErroMarcar::NomeDoMarcadorComControle);
     }
-    Ok(Rotulo { id: id.to_owned(), nome: nome.to_owned() })
+    Ok(Rotulo {
+        id: id.to_owned(),
+        nome: nome.to_owned(),
+    })
 }
 
 /// Só decide ausência se o número observado igualar o total declarado.
 /// O id é a identidade da unidade; o nome protege contra reutilização.
 pub(crate) fn decidir(
-    lidos: &MarcadoresLidos, rotulo: &Rotulo, operacao: Operacao
+    lidos: &MarcadoresLidos,
+    rotulo: &Rotulo,
+    operacao: Operacao,
 ) -> Result<Decisao, ErroMarcar> {
     if lidos.itens.len() != lidos.total_declarado {
         return Err(ErroMarcar::ListaDeMarcadoresParcial);
