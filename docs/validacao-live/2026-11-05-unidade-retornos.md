@@ -42,6 +42,44 @@ O [run 42097152925](https://github.com/franklinbaldo/ies/actions/runs/4209715292
 teve guard `NOT_RUN` para rede. O workflow temporario de live foi
 removido apos o ensaio unico PEN3, para evitar repeticoes automatizadas.
 
+## Nova rodada de leitura: PASS em PEN3 e GO (05/11/2026)
+
+[Workflow de leitura unica](https://github.com/franklinbaldo/ies/actions/runs/42122485600),
+head `9d73e95`. Foram usadas somente as origens oficialmente
+documentadas de **treinamento**, contas publicas e arquivos privados
+`0600`, com separacao de pelo menos 65 segundos entre os comandos.
+O pedido novo foi **2026-11**; as tentativas inconclusivas anteriores
+eram de **2026-10**, sem repeticao automatica. O workflow tinha guard
+de commit unico e recusa de rerun, e foi removido depois do ensaio.
+
+| Instalacao | Comando | Resultado | Requisicoes observadas | Resultado |
+| --- | --- | --- | ---: | --- |
+| PEN3 | `ies --json login` | **PASS**, unidade `TESTE` | 6 | Sessao de treinamento |
+| PEN3 | `ies --json unidade retornos --mes 2026-11` | **PASS**, saida 0 | 3 | 2 retornos; faixa 1–2 |
+| GO | `ies --json login` | **PASS**, unidade `SEAD/CDE-09516` | 6 | Sessao de treinamento |
+| GO | `ies --json unidade retornos --mes 2026-11` | **PASS**, saida 0 | 3 | 6 retornos; faixa 1–6 |
+
+**Total observado:** 18 requisicoes (12 dos dois logins, 6 dos dois
+comandos de leitura). Cada leitura usou exatamente o orcamento
+de **3 GET**, sem GET de restauracao, retry, POST de criacao,
+acao assinada vazada, ou escrita de processo/documento. Nenhum
+residuo foi deixado no SEI.
+
+A causa tratada na fatia foi observada
+[no replay estrutural](https://github.com/franklinbaldo/ies/actions/runs/42120788751):
+duas ancoras `Ver todo o mes` apontavam para a mesma URL mensal
+nas sete instalacoes. A deduplicacao estrita preserva recusa de URLs
+diferentes. A anterior falha PEN3 fica historicamente registrada;
+a nova leitura em outro mes passou. O campo `requisicoes` desta
+nova rodada foi publicado pela propria CLI, ao contrario das
+falhas anteriores.
+
+**Limites remanescentes:** o ensaio nao verificou `--mes` ausente
+em calendario deslocado, mes anterior, ou navegacao em mais de um
+salto. Esses caminhos tem testes sinteticos (quando observados)
+ou recusam sem inventar URL. O resultado nao prova paridade em
+instalacoes alem de GO e PEN3 em 05/11.
+
 ## Estado
 
 - **Replay offline:** PASS, 14/14 paginas mensais em sete instalacoes,
@@ -50,9 +88,9 @@ removido apos o ensaio unico PEN3, para evitar repeticoes automatizadas.
 - **Testes sinteticos:** orcamento previsto de 3 GETs no mes exibido,
   mais um por transicao com URL publicada; nao confundir essa contagem
   prevista com os GETs realmente observados nos runs de falha.
-- **Validacao ao vivo:** **FAIL**, nao homologada, ate demonstrar
-  leitura integral da tela de calendario em treinamento com
-  origem e estrutura verificadas, sem retry.
+- **Validacao ao vivo (nova rodada):** **PASS** em PEN3 e GO para 2026-11,
+  com 3 GET por leitura e 6 requisicoes por login. As tentativas anteriores
+  em 2026-10 permanecem documentadas como falhas.
 - **Residuo SEI:** nenhum registro criado ou alterado.
 - **Sandbox:** sem `rustc` e DNS para GitHub; compilacao Rust e suite
   foram executadas no GitHub Actions, e nao localmente.
