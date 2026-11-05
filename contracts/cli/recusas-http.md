@@ -87,7 +87,10 @@ Textarea vazio ou ausente não muda a classificação.
 ```
 
 401/403 continuam `sessao_nao_autorizada`, agora com `status_http` e a
-mensagem; 3xx continua `redirecionamento_recusado`, com `status_http`.
+mensagem; 3xx continua `redirecionamento_recusado`, com `status_http`,
+salvo o 302 do GET do Controle para a entrada do login da própria
+instalação, que é `sessao_encerrada_rode_ies_login`, também com
+`status_http` 302 ([relogin](sessao-login.md#relogin-único-nas-leituras)).
 O 403 com a página de bloqueio de segurança da instalação (`<title>Acesso
 Negado</title>` e "bloqueada por nossa política de segurança" no texto
 visível; visto em GO), ou a do Cloudflare (`<title>Attention Required! |

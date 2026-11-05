@@ -7,6 +7,7 @@
 //! limitado; os GET/POST dos demais comandos continuam recusando 3xx.
 mod cookies;
 mod credenciais;
+pub(crate) mod entrada_do_login;
 mod erro;
 mod fluxo;
 mod gravacao;
@@ -142,3 +143,7 @@ mod tests_colheita;
 #[cfg(test)]
 #[path = "sessao_login/tests_relogin.rs"]
 mod tests_relogin;
+
+#[cfg(test)]
+#[path = "sessao_login/tests_entrada_do_login.rs"]
+mod tests_entrada_do_login;

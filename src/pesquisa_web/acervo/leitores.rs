@@ -110,6 +110,7 @@ fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
         status_code: i32::try_from(r.status).unwrap_or(0),
         mime: gravacao::mime(r.item),
         content_length: None,
+        localizacao: None,
         corpo: std::io::Cursor::new(gravacao::corpo(r.item)),
     }
 }

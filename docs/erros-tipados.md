@@ -69,6 +69,19 @@ sessão continuou válida: não há relogin, retry nem pausa automática. O
 403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
 ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
 
+## 302 do Controle para o login
+
+`FalhaTransporte::ControleRedirecionadoParaOLogin` é o 302 do GET do
+Controle (`envio_post::ler_tela_via`) cujo `Location`, resolvido contra
+a instalação, é uma entrada do login dela: o SIP `/sip/login.php`, o
+módulo de Goiás ou a raiz `<base>/` (`src/sessao_login/entrada_do_login.rs`).
+O subcódigo é o mesmo dos fluxos que já viam o 302 para o login
+(`sessao_encerrada_rode_ies_login`), com `status_http` 302: o fato é o
+mesmo, sessão encerrada. Outro host, outro caminho, fragmento, a recusa
+de link sem assinatura, outro 3xx ou 302 sem `Location` continuam
+`Redirecionamento` (`redirecionamento_recusado`). O 302 nunca é seguido
+([decisão](decisoes/sessao-login/relogin-de-leitura.md#revisão-302-do-controle-para-o-login)).
+
 ## Anexo do documento externo
 
 `ErroAnexo` (`src/anexo_documento.rs`, Refs #60 fatia 3) tem uma

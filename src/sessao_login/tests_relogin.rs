@@ -10,6 +10,7 @@ use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
 use crate::indice_local::IndiceLocal;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso as E;
+use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
@@ -41,26 +42,26 @@ impl TransporteDeLogin for Compartilhado<'_> {
     }
 }
 
-/// A leitura sintética: relê URL e cookie dos arquivos a cada tentativa,
-/// um GET e o reconhecimento do Controle, com as falhas tipadas reais.
+/// A leitura sintética pelo GET do Controle compartilhado (`ler_tela_via`,
+/// o de `unidade *`, `processo buscar` e `documento buscar`): relê URL e
+/// cookie dos arquivos a cada tentativa, com as falhas tipadas reais.
 fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Result<String, E> {
     let url = Ambiente::ler(&arquivos.url_controle).trim().to_owned();
-    let cookie = Ambiente::ler(&arquivos.cookie).trim().to_owned();
-    let resposta = roteiro
-        .borrow_mut()
-        .get(&url, &cookie)
-        .map_err(E::Transporte)?;
-    let web = RespostaWeb {
-        status_code: i32::from(resposta.status),
-        mime: resposta
-            .cabecalho("content-type")
-            .unwrap_or_default()
-            .to_owned(),
-        content_length: None,
-        corpo: Cursor::new(resposta.corpo),
-    };
-    let html = crate::transporte::decodificar_resposta(web).map_err(E::Transporte)?;
-    crate::controle_reconhecido::unidade_do_controle(&html).map_err(E::Controle)
+    let tela = ler_tela_via(&url, &arquivos.cookie, ORIGEM, |url, cookie| {
+        let resposta = roteiro.borrow_mut().get(url, cookie)?;
+        Ok(RespostaWeb {
+            status_code: i32::from(resposta.status),
+            mime: resposta
+                .cabecalho("content-type")
+                .unwrap_or_default()
+                .to_owned(),
+            content_length: None,
+            localizacao: resposta.cabecalho("location").map(str::to_owned),
+            corpo: Cursor::new(resposta.corpo),
+        })
+    })
+    .map_err(E::Transporte)?;
+    crate::controle_reconhecido::unidade_do_controle(&tela.html).map_err(E::Controle)
 }
 
 fn login_unb() -> Vec<Result<RespostaHttp, FalhaTransporte>> {
@@ -310,7 +311,29 @@ fn outras_falhas_nao_relogam_nem_repetem() {
             "bloqueio_de_seguranca_da_instalacao",
         ),
         (Err(FalhaTransporte::Rede), "falha_de_rede"),
-        (Ok(r302(LOGIN_SIP, &[])), "redirecionamento_recusado"),
+        (
+            Ok(r302("https://outro.gov.br/sip/login.php", &[])),
+            "redirecionamento_recusado",
+        ),
+        (
+            Ok(r302(
+                "/sei/controlador.php?acao=procedimento_controlar",
+                &[],
+            )),
+            "redirecionamento_recusado",
+        ),
+        (
+            Ok(status(302, None, &[], "", "text/html")),
+            "redirecionamento_recusado",
+        ),
+        (
+            Ok(r302("/sip/login.php#x", &[])),
+            "redirecionamento_recusado",
+        ),
+        (
+            Ok(status(301, Some(LOGIN_SIP), &[], "", "text/html")),
+            "redirecionamento_recusado",
+        ),
         (
             Ok(status(429, None, &[], "", "text/html")),
             "status_http_de_limite_de_requisicoes",
@@ -333,7 +356,9 @@ fn outras_falhas_nao_relogam_nem_repetem() {
             "{subcodigo}"
         );
         assert!(sem_lock(&ambiente), "{subcodigo}");
-        let _ = erro;
+        if subcodigo != "tela_inesperada" {
+            assert_eq!(erro.subcodigo(), subcodigo);
+        }
     }
 }
 
@@ -387,4 +412,64 @@ fn unidade_diferente_no_relogin_nao_grava_nem_rele() {
     assert_eq!(r.into_inner().sequencia(), esperada);
     assert_eq!(Ambiente::ler(&ambiente.arquivos.cookie).trim(), VENCIDO);
     assert!(!ambiente.geracao().exists());
+}
+
+/// Os 302 do Controle para a entrada do login observada (SIP, módulo de
+/// Goiás, raiz; `http://` no mesmo host): um relogin e uma releitura.
+#[test]
+fn controle_302_para_o_login_reloga_uma_vez_com_a_sequencia_exata() {
+    let modulo = format!("https://{MODULO_GO}");
+    for local in [
+        LOGIN_SIP_INFRA_URL,
+        modulo.as_str(),
+        "/sei/",
+        "http://sei.exemplo.gov.br/sip/login.php?sigla_orgao_sistema=ORGAO-A&sigla_sistema=SEI",
+    ] {
+        let ambiente = vencida();
+        let r = roteiro(vec![
+            vec![Ok(r302(local, &[]))],
+            login_unb(),
+            vec![Ok(r200(&controle("UNIDADE-TESTE"), &[]))],
+        ]);
+        let (unidade, nota) =
+            executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap();
+        assert_eq!(unidade, "UNIDADE-TESTE", "{local}");
+        let mut esperada = vec![format!("GET {}", url_vencida())];
+        esperada.extend(sequencia_do_login());
+        esperada.push(format!("GET {}", url_do_controle()));
+        let r = r.into_inner();
+        assert_eq!(r.sequencia(), esperada, "{local}");
+        assert!(r.esgotado());
+        assert_eq!(r.pedidos[0].cookie, VENCIDO);
+        assert_eq!(r.pedidos[6].cookie, AUTENTICADO);
+        assert_eq!(
+            nota,
+            Some(NotaDoRelogin {
+                relogin: true,
+                antes: 6,
+                releitura: 1
+            }),
+            "{local}"
+        );
+    }
+}
+
+/// Segundo 302 para o login depois do relogin: sai com o erro, sem
+/// segundo login.
+#[test]
+fn segundo_302_para_o_login_sai_com_o_erro_sem_novo_login() {
+    let ambiente = vencida();
+    let r = roteiro(vec![
+        vec![Ok(r302(LOGIN_SIP, &[]))],
+        login_unb(),
+        vec![Ok(r302(LOGIN_SIP, &[]))],
+    ]);
+    let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
+    let FalhaDaLeitura::Leitura { erro, nota } = falha else {
+        panic!("esperada a falha da leitura");
+    };
+    assert_eq!(erro.subcodigo(), "sessao_encerrada_rode_ies_login");
+    assert_eq!(erro.status_http().map(|s| s.status), Some(302));
+    assert_eq!(nota.map(NotaDoRelogin::total), Some(7));
+    assert!(r.into_inner().esgotado());
 }

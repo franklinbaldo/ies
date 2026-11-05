@@ -226,9 +226,16 @@ prévia e a escrita), saem com o erro tipado e o agente decide.
 1. No início do comando, a geração gravada: os SHA-256 do cookie e da URL
    do Controle (os do marcador), lidos dos arquivos, sem rede.
 2. A leitura roda. Só `pagina_de_login_recebida_no_controle` e
-   `sessao_encerrada_rode_ies_login` disparam o relogin. Nenhuma outra
+   `sessao_encerrada_rode_ies_login` disparam o relogin. O segundo vale
+   também para o **302 do GET do Controle** cujo `Location`, resolvido
+   contra a instalação (mesmo host; `http://` no mesmo host conta), é uma
+   entrada do login dela: `/sip/login.php`, o módulo de Goiás
+   (`<base>/modulos/goias/login-sei/MdGoiasLoginSEI.php` ou `login.php`)
+   ou a raiz `<base>/`, sem fragmento e sem `msg=Link sem assinatura`;
+   sai com `status_http` 302 e nunca é seguido. Nenhuma outra
    falha dispara: `sessao_nao_autorizada` (401/403),
-   `bloqueio_de_seguranca_da_instalacao` (WAF), `redirecionamento_recusado`,
+   `bloqueio_de_seguranca_da_instalacao` (WAF), `redirecionamento_recusado`
+   (qualquer outro 3xx, outro host ou caminho, 302 sem `Location`),
    `status_http_*`, `entrada_por_id_recusada_rode_ies_login`,
    `tela_de_login_recebida_apos_envio`, rede, proxy e tela inesperada.
 3. Sem `IES_CREDENCIAIS_FILE`, ou com o arquivo ausente: comportamento

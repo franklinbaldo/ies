@@ -66,6 +66,7 @@ fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
             .unwrap_or_default()
             .to_owned(),
         content_length: None,
+        localizacao: resposta.cabecalho("location").map(str::to_owned),
         corpo: Cursor::new(resposta.corpo),
     }
 }

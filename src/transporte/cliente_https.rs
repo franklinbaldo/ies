@@ -160,6 +160,7 @@ pub(crate) fn resposta_web<R: BufRead>(resposta: Resposta<R>) -> RespostaWeb<Cor
         status_code: i32::from(resposta.status),
         mime,
         content_length: resposta.corpo.tamanho_declarado(),
+        localizacao: resposta.cabecalho("location").map(str::to_owned),
         corpo: resposta.corpo,
     }
 }

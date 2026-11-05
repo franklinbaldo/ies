@@ -214,6 +214,7 @@ impl Roteiro {
                 status_code: status,
                 mime: ISO.to_owned(),
                 content_length: None,
+                localizacao: None,
                 // Servido em ISO-8859-1, como nas instalações.
                 corpo: Cursor::new(
                     corpo

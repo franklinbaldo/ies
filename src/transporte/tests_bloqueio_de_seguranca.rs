@@ -18,6 +18,7 @@ fn resposta(status_code: i32, mime: &str, corpo: &str) -> RespostaWeb<Cursor<Vec
         status_code,
         mime: mime.to_owned(),
         content_length: Some(corpo.len()),
+        localizacao: None,
         corpo: Cursor::new(corpo.as_bytes().to_vec()),
     }
 }

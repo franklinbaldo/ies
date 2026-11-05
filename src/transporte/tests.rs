@@ -15,6 +15,7 @@ fn http_200_com_formulario_de_login_nao_eh_caixa_autenticada() {
         status_code: 200,
         mime: "text/html; charset=utf-8".to_owned(),
         content_length: None,
+        localizacao: None,
         corpo: Cursor::new(corpo),
     };
     assert_eq!(

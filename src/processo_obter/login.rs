@@ -24,15 +24,20 @@ pub(super) fn destino(localizacao: Option<&str>) -> DestinoDoRedirecionamento {
     if !arquivo.eq_ignore_ascii_case("login.php") {
         return D::Outro;
     }
-    let recusa = consulta
-        .split('&')
-        .filter_map(|par| par.split_once('='))
-        .any(|(nome, valor)| nome == "msg" && decodificar(valor).as_deref() == Some(RECUSA));
-    if recusa {
+    if recusa_sem_assinatura(consulta) {
         D::RecusaSemAssinatura
     } else {
         D::Login
     }
+}
+
+/// A consulta traz `msg` com a recusa característica da entrada sem
+/// assinatura (também conferida no 302 do Controle para o login).
+pub(crate) fn recusa_sem_assinatura(consulta: &str) -> bool {
+    consulta
+        .split('&')
+        .filter_map(|par| par.split_once('='))
+        .any(|(nome, valor)| nome == "msg" && decodificar(valor).as_deref() == Some(RECUSA))
 }
 
 /// `application/x-www-form-urlencoded` → texto; `None` se mal formado ou

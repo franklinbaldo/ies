@@ -228,6 +228,7 @@ pub(crate) fn ler_anexo<R: Read>(
             status_code: i32::from(resposta.status),
             mime,
             content_length: None,
+            localizacao: None,
             corpo: resposta.corpo,
         })));
     }

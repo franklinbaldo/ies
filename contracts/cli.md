@@ -234,7 +234,8 @@ proxy.
 - **Travas dos comandos, inalteradas:** só HTTPS; origem da instalação
   conferida antes de abrir o cookie; **nenhum** redirecionamento seguido
   (3xx é `redirecionamento_recusado`, com `status_http`, corpo não lido;
-  302 do POST continua dado da operação); 30 s de tempo limite de conexão,
+  o 302 do GET do Controle para o login da instalação é
+  `sessao_encerrada_rode_ies_login`; 302 do POST continua dado da operação); 30 s de tempo limite de conexão,
   leitura e escrita; HTML limitado a **8 MB** durante o recebimento
   (`Content-Length` maior é recusado antes da leitura; `chunked` e corpo
   até o fim da conexão também); corpo da recusa lido até **64 KiB**;

@@ -179,6 +179,9 @@ pub(crate) struct RespostaWeb<R: Read> {
     pub(crate) status_code: i32,
     pub(crate) mime: String,
     pub(crate) content_length: Option<usize>,
+    /// `Location` da resposta, como dado: nunca seguido. Só o GET do
+    /// Controle o lê, para reconhecer o 302 para o login da instalação.
+    pub(crate) localizacao: Option<String>,
     pub(crate) corpo: R,
 }
 

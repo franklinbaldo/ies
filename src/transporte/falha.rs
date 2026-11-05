@@ -42,6 +42,10 @@ pub enum FalhaTransporte {
     BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
     /// Status HTTP 3xx; o corpo não é lido.
     Redirecionamento(StatusHttpRecusado),
+    /// 302 do GET do Controle cujo `Location` é a entrada do login da
+    /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
+    /// fluxos que veem o 302 para o login (entrada por id, link guardado).
+    ControleRedirecionadoParaOLogin(StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
     StatusHttpDeErroDoServidor(StatusHttpRecusado),
     /// Status HTTP 429.
@@ -79,6 +83,7 @@ impl FalhaTransporte {
             Self::AcessoNegado(_) => "sessao_nao_autorizada",
             Self::BloqueioDeSegurancaDaInstalacao(_) => "bloqueio_de_seguranca_da_instalacao",
             Self::Redirecionamento(_) => "redirecionamento_recusado",
+            Self::ControleRedirecionadoParaOLogin(_) => "sessao_encerrada_rode_ies_login",
             Self::StatusHttpDeErroDoServidor(_) => "status_http_de_erro_do_servidor",
             Self::StatusHttpDeLimiteDeRequisicoes(_) => "status_http_de_limite_de_requisicoes",
             Self::StatusHttpDiferenteDe200(_) => "status_http_diferente_de_200",
@@ -123,6 +128,9 @@ impl FalhaTransporte {
             Self::Redirecionamento(_) => {
                 "redirecionamento recusado; a sessão pode exigir novo login"
             }
+            Self::ControleRedirecionadoParaOLogin(_) => {
+                "o SEI redirecionou o Controle para a tela de login; rode ies login"
+            }
             Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
             Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
             Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
@@ -147,6 +155,7 @@ impl FalhaTransporte {
             Self::AcessoNegado(recusa)
             | Self::BloqueioDeSegurancaDaInstalacao(recusa)
             | Self::Redirecionamento(recusa)
+            | Self::ControleRedirecionadoParaOLogin(recusa)
             | Self::StatusHttpDeErroDoServidor(recusa)
             | Self::StatusHttpDeLimiteDeRequisicoes(recusa)
             | Self::StatusHttpDiferenteDe200(recusa) => Some(recusa),

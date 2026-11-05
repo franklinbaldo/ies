@@ -53,6 +53,29 @@ contexto dos links disponíveis.
   de balanceador, cookie da instalação). Na PEN1 um deles tem `Domain` do
   domínio pai; em GO, `Domain` igual ao host com ponto inicial.
 
+## 302 do Controle com sessão encerrada
+
+Observado em 05/11/2026 para a regra do relogin
+([decisão](../decisoes/sessao-login/relogin-de-leitura.md#revisão-302-do-controle-para-o-login)):
+
+- **Cassettes (7 instalações):** nenhum GET do Controle respondeu 302
+  para o login. Os 302 do `procedimento_controlar` vão para o próprio
+  Controle (`…/sei/controlador.php?acao=procedimento_controlar&…`, na
+  troca de unidade): HTTPS na UnB e na UFRJ, **`http://`** no mesmo host
+  em GO. As entradas do login aparecem na cadeia a partir da raiz e no
+  POST: `/sip/login.php?sigla_orgao_sistema=…&sigla_sistema=SEI[&infra_url=…]`
+  (UnB, PEN1 a PEN3, UFRJ e GO), `/sei/modulos/goias/login-sei/login.php`
+  (GO) e a raiz `/sei/` (PEN1, UFRJ e GO).
+- **PEN4 5.0.4, sessão desconhecida pelo servidor** (`PHPSESSID` trocado
+  numa cópia): o GET do Controle responde 302 (04/11/2026); a entrada por
+  id responde 302 para `login.php` sem `msg`. Em 05/11/2026 o `Location`
+  do Controle caiu numa das entradas acima (o IES relogou); qual delas
+  não foi registrado, porque a consulta pode trazer `infra_url`.
+- **Todos (oráculo):** `_e_login` (`sei/observacoes.py`) trata como
+  sessão caída o `Location` com `acao=login` ou arquivo `*.php` com
+  `login` no nome, sem conferir host. O IES é mais estrito: mesmo host,
+  caminho exato da instalação.
+
 **Não generalizar:** o fato de uma instalação aceitar um envio de
 login sem GET prévio não comprova que outras o farão. Não persista
 credenciais, cookies ou URLs assinadas em evidências públicas. A

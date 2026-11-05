@@ -4,11 +4,11 @@ title: Relogin único depois de sessão vencida, só nos comandos de leitura
 operation: sessao.login
 implementation: partial
 status: adopted-for-scope
-scope: apêndice da decisão de sessao.login (Refs #200); as nove leituras (processo NUP, processo buscar, documento DOC, documento buscar, unidade listar-processos, recebidos, gerados, atual e colunas sem --definir) relogam no máximo uma vez, só depois de pagina_de_login_recebida_no_controle ou sessao_encerrada_rode_ies_login, com as credenciais do arquivo 0600 do ies login, conferindo a geração gravada sob o lock antes de logar, e recomeçam do início uma vez; escrita e prévia de escrita nunca relogam
+scope: apêndice da decisão de sessao.login (Refs #200); as nove leituras (processo NUP, processo buscar, documento DOC, documento buscar, unidade listar-processos, recebidos, gerados, atual e colunas sem --definir) relogam no máximo uma vez, só depois de pagina_de_login_recebida_no_controle ou sessao_encerrada_rode_ies_login (também o 302 do GET do Controle para a entrada do login da instalação, revisão de 05/11/2026), com as credenciais do arquivo 0600 do ies login, conferindo a geração gravada sob o lock antes de logar, e recomeçam do início uma vez; escrita e prévia de escrita nunca relogam
 selected_strategy: relogin-unico-com-geracao-sob-lock
 alternatives: relogin-unico-com-geracao-sob-lock,sem-relogin-agente-roda-ies-login,relogin-sem-conferir-geracao,relogin-tambem-na-escrita,relogin-por-qualquer-falha-de-sessao
 evidence_level: testes-sinteticos-com-sequencia-exata-e-ensaio-live-pen4
-live_validation: pass-pen4-sessao-desconhecida-pelo-servidor-e-geracao-trocada-vencimento-natural-not-run
+live_validation: pass-pen4-sessao-desconhecida-pelo-servidor-geracao-trocada-e-302-do-controle-vencimento-natural-not-run
 ---
 
 # Relogin único nas leituras
@@ -93,7 +93,8 @@ sem marcador.
   por outro processo → `GET`, `GET` com a sessão nova, sem login e sem
   marcador gravado; segunda falha → os mesmos 7 e o erro, roteiro
   esgotado; sem credenciais (variável ausente ou arquivo ausente) → 1
-  pedido, sem lock; 403, WAF, rede, 302, 429 e tela inesperada → 1 pedido,
+  pedido, sem lock; 403, WAF, rede, 302 fora do login (outro host, outro caminho,
+  fragmento, sem `Location`), 301, 429 e tela inesperada → 1 pedido,
   sem lock; credencial recusada e unidade diferente → erro do login, sem
   releitura e sem gravar.
 - Saída e ligação ([`relogin_cli/tests.rs`](../../../src/relogin_cli/tests.rs)):
@@ -114,12 +115,9 @@ sem marcador.
   uma sessão que o servidor não conhece (o `PHPSESSID` de uma cópia
   trocado por outro valor): a entrada por id respondeu 302 para a tela de
   login, `sessao_encerrada_rode_ies_login`, e o relogin aconteceu.
-- **Achado:** na PEN4, o GET do Controle com essa sessão respondeu **302**
-  (`redirecionamento_recusado`), não a tela de login. Pelo desenho, o 302
-  não dispara relogin; então `unidade *`, `processo buscar` e
-  `documento buscar` (que começam pelo Controle) não relogam lá. Tratar o
-  302 do Controle para `login.php` como sessão encerrada pede evidência
-  de vencimento natural e decisão do proprietário.
+- **Achado (resolvido na revisão abaixo):** na PEN4, o GET do Controle
+  com essa sessão respondeu **302** (`redirecionamento_recusado`), e as
+  leituras que começam pelo Controle não relogavam.
 - **Várias contas** na mesma instalação não mudam nada: o lock e a
   geração são por arquivo de sessão. **Sessão única no SIP**: sem
   evidência (na PEN4, as duas sessões valiam juntas).
@@ -128,6 +126,64 @@ sem marcador.
 - A comparação de geração tem uma janela: se outro processo grava entre a
   leitura da geração e a primeira leitura da sessão, a releitura usa a
   sessão que acabou de falhar e sai com o erro. Rever se aparecer.
-- Rever se o SEI publicar outra forma de sessão vencida, se a escrita
+- Rever se o SEI publicar outra forma de sessão vencida (outra entrada
+  de login no `Location` do Controle, por exemplo), se a escrita
   ganhar fluxo idempotente verificável ou se o lock precisar de outro
   arquivo.
+
+## Revisão: 302 do Controle para o login
+
+Aprovada pelo proprietário em 05/11/2026 (Refs #200): corrigir a
+**classificação**, não alargar o gatilho.
+
+**Alternativas.**
+
+- **302-para-o-login-com-o-mesmo-subcodigo (escolhida):** o 302 do GET do
+  Controle cujo `Location`, resolvido contra a instalação, é uma entrada
+  do login dela vira `FalhaTransporte::ControleRedirecionadoParaOLogin`,
+  com o subcódigo `sessao_encerrada_rode_ies_login` e `status_http` 302.
+  É o subcódigo que a entrada por id e o link guardado já davam ao 302
+  para o login: o mesmo fato tem o mesmo código, o agente que já trata
+  esse subcódigo não muda, e a lista dos dois gatilhos fica igual.
+- **subcodigo-novo-aceito-pelo-relogin:** um terceiro subcódigo
+  (`redirecionamento_para_o_login_no_controle`). Mais preciso sobre a
+  origem, mas a origem já está no `status_http` 302; criaria dois nomes
+  para o mesmo fato e um terceiro gatilho a manter.
+- **qualquer-302-do-controle:** rejeitada pelo proprietário. O Controle
+  também responde 302 para ele mesmo (troca de unidade, nas cassettes da
+  UnB, UFRJ e GO), e outro host nunca é fato verificável.
+
+**Regra** ([`entrada_do_login.rs`](../../../src/sessao_login/entrada_do_login.rs),
+chamada só em [`ler_tela_via`](../../../src/transporte/envio_post.rs)):
+status exatamente 302; `Location` resolvido pelo mesmo intérprete do
+login (`resolver_no_host`, que usa `sufixo_da_mesma_origem`: mesmo host,
+`http://` no mesmo host conta, sem `.`/`..`); caminho exatamente
+`/sip/login.php`, `<base>/modulos/goias/login-sei/MdGoiasLoginSEI.php`,
+`<base>/modulos/goias/login-sei/login.php` ou `<base>/`; consulta livre,
+salvo `msg=Link sem assinatura`. Fragmento, outro host, outra porta,
+outro caminho, outro 3xx ou `Location` ausente: `redirecionamento_recusado`,
+como antes. O 302 nunca é seguido: um pedido.
+
+**Onde vale.** Todo GET do Controle por `ler_tela_via`: `unidade atual`,
+`listar-processos`, `recebidos`, `gerados`, `colunas` (com e sem
+`--definir`; a escrita só ganha o subcódigo, nunca o relogin),
+`status --verificar-controle-web`, `processo buscar`, `documento buscar` e
+o Controle de `processo NUP`/`documento DOC`. A entrada por id e o link
+guardado de `processo NUP` e `documento DOC` já davam
+`sessao_encerrada_rode_ies_login` ao 302 para `login.php` e não mudaram.
+Os GETs seguintes de links publicados (nível de detalhe, tela da
+pesquisa) e os POSTs mantêm o tratamento atual.
+
+**Evidência.** As cassettes das 7 instalações não têm GET do Controle com
+302 para o login; as formas das entradas vêm da cadeia de login
+observada ([sessão e login](../../como-o-sei-funciona/sessao-login.md#302-do-controle-com-sessão-encerrada)).
+RED: 5 dos 7 testes novos falharam com o shim (os 2 que passavam afirmam
+o comportamento mantido: outros 302 recusados); GREEN: 1.310 testes da `ies`.
+Live PEN4 em 05/11/2026: `unidade listar-processos` com sessão
+desconhecida, 8 túneis = 1 + login 6 + releitura 1, `relogin: true`
+([relatório](../../validacao-live/2026-11-05-relogin.md)).
+
+**Limites.** Qual das entradas a PEN4 pôs no `Location` não foi
+registrado (a consulta pode trazer `infra_url` com a URL assinada; nada
+foi impresso). Vencimento natural continua NOT_RUN: se ele der um 302
+para outro lugar, a regra não muda sem nova observação.

@@ -34,6 +34,7 @@ impl EnvioDoSalvar {
                 status_code,
                 mime: "text/html; charset=iso-8859-1".to_owned(),
                 content_length: None,
+                localizacao: None,
                 corpo: Cursor::new(
                     html.chars()
                         .map(|c| u8::try_from(u32::from(c)).expect("ISO-8859-1"))

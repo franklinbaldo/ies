@@ -199,6 +199,7 @@ impl Roteiro {
                 }
                 .to_owned(),
                 content_length: Some(corpo.len()),
+                localizacao: None,
                 corpo: Cursor::new(corpo),
             },
             localizacao,
