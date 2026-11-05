@@ -4,9 +4,9 @@
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
-use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
+use crate::processo_obter::{ProcessoAberto, SessaoDoProcesso, abrir_para_escrever};
 use crate::processo_prazo::{
-    EstadoDoPrazo, PedidoDePrazo, campos_do_pedido, interpretar_pedido, ler_tela,
+    EstadoDoPrazo, PedidoDePrazo, TelaDoPrazo, campos_do_pedido, interpretar_pedido, ler_tela,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
@@ -160,6 +160,18 @@ fn previsualizar(
             );
         }
     };
+    publicar_previa(cli, nup, pedido, &aberto, &tela, rede.feitas())
+}
+
+/// Publica a prévia lida, sem escrever: estado atual, pedido e campos.
+fn publicar_previa(
+    cli: &Cli,
+    nup: &NumeroProcesso,
+    pedido: &PedidoDePrazo,
+    aberto: &ProcessoAberto,
+    tela: &TelaDoPrazo,
+    requisicoes: u8,
+) -> ExitCode {
     let atual = match &tela.estado {
         EstadoDoPrazo::SemPrazo => json!({"tipo": "sem_prazo"}),
         EstadoDoPrazo::Data(data) => json!({"tipo": "data", "data": data}),
@@ -184,7 +196,7 @@ fn previsualizar(
         "solicitado": solicitado,
         "campos_da_previa": campos,
         "confirmado": false,
-        "requisicoes": rede.feitas(),
+        "requisicoes": requisicoes,
     });
     if cli.json {
         println!("{resultado}");
@@ -193,7 +205,7 @@ fn previsualizar(
         if !solicitado.is_null() {
             println!("Prévia: {solicitado}. Para aplicar, --confirmar (ainda bloqueado).");
         }
-        println!("Requisições: {}", rede.feitas());
+        println!("Requisições: {}", requisicoes);
     }
     ExitCode::SUCCESS
 }
