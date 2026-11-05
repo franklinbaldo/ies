@@ -68,6 +68,7 @@ pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
     ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
 };
+pub(crate) use barra_do_documento::barra_do_no;
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
