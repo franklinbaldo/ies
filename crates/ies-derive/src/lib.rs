@@ -6,6 +6,10 @@
 //! - `#[causa(interna)]`, numa variante de tupla com um campo, compõe: o
 //!   caminho continua no erro interno e a ação e o status vêm dele.
 //! - `#[causa(acao = "relogar")]` fixa a ação de recuperação.
+//! - `#[causa(fonte)]`, numa variante de tupla com um campo, guarda a
+//!   causa que a levantou: o caminho continua nela, a ação e o status vêm
+//!   dela, mas a variante segue sendo o fato (a `folha`). Várias variantes
+//!   podem ter a mesma fonte; não há `From`.
 //! - `#[causa(http)]`, numa variante de tupla com um `StatusHttpRecusado`,
 //!   publica status e mensagem do SEI.
 //!
@@ -18,6 +22,7 @@ struct Atributos {
     nome: Option<String>,
     acao: Option<String>,
     interna: bool,
+    fonte: bool,
     http: bool,
 }
 
@@ -164,6 +169,7 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
         };
         match chave.to_string().as_str() {
             "interna" => destino.interna = true,
+            "fonte" => destino.fonte = true,
             "http" => destino.http = true,
             chave @ ("nome" | "acao") => {
                 let igual = args.next();
@@ -195,14 +201,18 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
 
 fn validar(v: &Variante) -> Result<(), String> {
     let um_campo = matches!(v.forma, Forma::Tupla(1));
-    if (v.atributos.interna || v.atributos.http) && !um_campo {
+    let ligados = [v.atributos.interna, v.atributos.fonte, v.atributos.http];
+    if ligados.iter().any(|b| *b) && !um_campo {
         return Err(format!(
-            "Causa: {} com interna/http precisa ser tupla de um campo",
+            "Causa: {} com interna/fonte/http precisa ser tupla de um campo",
             v.ident
         ));
     }
-    if v.atributos.interna && v.atributos.http {
-        return Err(format!("Causa: {} não pode ser interna e http", v.ident));
+    if ligados.iter().filter(|b| **b).count() > 1 {
+        return Err(format!(
+            "Causa: {} aceita só um de interna/fonte/http",
+            v.ident
+        ));
     }
     if let Some(nome) = &v.atributos.nome
         && (nome.is_empty()
@@ -263,11 +273,18 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
     let mut caminho = String::new();
     let mut acao = String::new();
     let mut http = String::new();
+    let mut folha = String::new();
     for v in variantes {
         let rotulo = v.atributos.nome.clone().unwrap_or_else(|| snake(&v.ident));
-        let ligado = v.atributos.interna || v.atributos.http;
+        let compoe = v.atributos.interna || v.atributos.fonte;
+        let ligado = compoe || v.atributos.http;
         let p = padrao(v, ligado);
         if v.atributos.interna {
+            let _ = writeln!(folha, "{p} => {T}::Causa::folha(interna),");
+        } else {
+            let _ = writeln!(folha, "{} => {rotulo:?},", padrao(v, false));
+        }
+        if compoe {
             let _ = writeln!(
                 caminho,
                 "{p} => {{ c.push({rotulo:?}); {T}::Causa::caminho(interna, c) }}"
@@ -280,15 +297,15 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
             .acao
             .as_ref()
             .map(|a| format!("{T}::Acao::{}", camel(a)));
-        let a = match (fixa, v.atributos.interna) {
+        let a = match (fixa, compoe) {
             (Some(fixa), _) => fixa,
             (None, true) => format!("{T}::Causa::acao(interna)"),
             (None, false) => format!("{T}::Acao::Reportar"),
         };
-        let _ = writeln!(acao, "{} => {a},", padrao(v, v.atributos.interna));
+        let _ = writeln!(acao, "{} => {a},", padrao(v, compoe));
         if v.atributos.http {
             let _ = writeln!(http, "{p} => Some(interna),");
-        } else if v.atributos.interna {
+        } else if compoe {
             let _ = writeln!(http, "{p} => {T}::Causa::status_http(interna),");
         }
     }
@@ -317,6 +334,10 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
 impl {T}::Causa for {nome} {{
     fn caminho(&self, c: &mut Vec<&'static str>) {{
         match self {{ {caminho} }}
+    }}
+    #[allow(unused_variables)]
+    fn folha(&self) -> &'static str {{
+        match self {{ {folha} }}
     }}
     #[allow(unused_variables)]
     fn acao(&self) -> {T}::Acao {{
