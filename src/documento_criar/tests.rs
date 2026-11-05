@@ -370,7 +370,7 @@ fn cadastro_recusa_controle_obrigatorio_nao_suportado() {
         </form>"#;
     assert_eq!(
         conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CadastroForaDaForma)
+        Err(ErroCriar::CampoObrigatorioNaoAtendido)
     );
 }
 
@@ -383,7 +383,7 @@ fn cadastro_recusa_descricao_obrigatoria_nao_preenchida() {
         </form>"#;
     assert_eq!(
         conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CadastroForaDaForma)
+        Err(ErroCriar::CampoObrigatorioNaoAtendido)
     );
 }
 
@@ -396,6 +396,21 @@ fn cadastro_recusa_selecao_obrigatoria_nao_suportada() {
         </form>"#;
     assert_eq!(
         conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CadastroForaDaForma)
+        Err(ErroCriar::CampoObrigatorioNaoAtendido)
+    );
+}
+
+#[test]
+fn cadastro_aceita_controles_obrigatorios_atendidos_e_ignora_desabilitado() {
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0" required>
+        <input type="text" id="txtDescricao" name="txtDescricao" required>
+        <input type="text" name="txtCampoNaoUsado" required disabled>
+        <input type="hidden" name="hdnIdSerie" value="291" required>
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", Some("Ensaio"), Some("publico")),
+        Ok(())
     );
 }
