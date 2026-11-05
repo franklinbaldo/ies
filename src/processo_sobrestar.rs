@@ -32,6 +32,7 @@ impl Acao {
 
 /// Um pedido de escrita, sem URL nem cookie. Os parâmetros permanecem
 /// associados para a prévia e para a confirmação da mesma ação.
+#[derive(Clone, Copy)]
 pub(crate) struct PedidoDaMudanca<'a> {
     pub(crate) nup: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
