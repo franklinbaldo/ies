@@ -57,3 +57,25 @@ prévia → único confirmar → releitura, registrando o resíduo.
 - **Releitura ao vivo:** NOT_RUN, **0 GETs**. **Resíduo no SEI:** nenhum.
 - **Replay do acervo:** NOT_RUN nesta fatia; os índices fornecem contagens,
   mas não substituem os corpos originais das cassettes.
+
+## Regressões adicionais da segunda fatia
+
+A revisão do comando de retirada passou a recusar o oculto `hdnInfraItemId`
+quando seu `id` DOM não corresponde ao nome, quando o mesmo `id` aparece
+fora do formulário (o `getElementById` escreveria em outro elemento) ou
+quando o input está `disabled` e não seria enviado. Três testes sintéticos
+negativos exercitam essas fronteiras. Outro teste positivo percorre a prévia
+com transporte injetado e afirma **4 GETs exatos, 0 POSTs**. Nenhum teste
+anterior foi ignorado ou enfraquecido.
+
+- **RED inicial:** 1 falha observada no CI
+  [42118873078](https://github.com/franklinbaldo/ies/actions/runs/42118873078).
+  O RED separado dos três testes negativos adicionais ficou `NOT_RUN`;
+  não foi possível executá-los localmente antes da correção por falta de Rust.
+- **GREEN na bancada CI:** [42124400490](https://github.com/franklinbaldo/ies/actions/runs/42124400490),
+  11 gates `PASS`, incluindo Rustfmt, Clippy, Rust, OKF e `wip-ignores`,
+  com uma mescla real da `main` (sem publicação de escrita no SEI).
+  O CI canônico do head final deve ser conferido separadamente.
+- **Prévia autenticada, confirmação, releitura e replay de cassettes:**
+  `NOT_RUN`; 0 GETs ao SEI, 0 POSTs ao SEI; resíduo: **nenhum**.
+  `--deixar --confirmar` ainda recusa antes de ler sessão ou abrir rede.
