@@ -12,6 +12,7 @@ mod barra_do_documento;
 mod barra_do_processo;
 mod concluir;
 mod conteudo;
+mod ciencia;
 pub(crate) mod endereco;
 mod enviar;
 mod erro;
@@ -76,6 +77,7 @@ pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
 };
+pub(crate) use ciencia::{ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
