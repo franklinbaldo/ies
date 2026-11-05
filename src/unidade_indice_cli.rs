@@ -1,6 +1,7 @@
 //! Despacho local das consultas de unidades e caminho do índice (#244).
 //! Sem requisição Web quando há snapshot.
 use crate::{Cli, Domain, Indice, IndiceAcao, Unidade, UnidadeAcao};
+use crate::{indice_caminho_cli, unidade_pesquisar_cli};
 use std::process::ExitCode;
 
 pub(super) fn tentar_consulta_local(cli: &Cli) -> Option<ExitCode> {
