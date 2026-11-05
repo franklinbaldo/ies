@@ -2,7 +2,7 @@
 //! Os ZIPs são conferidos por SHA e esquema. Usamos os leitores da CLI:
 //! lista, cadastro e hipótese legal, não um parser paralelo de semântica.
 //! Uma resposta POST de criação não comprova efeito sem leitura posterior.
-use crate::cassette::acervo::{Resultado, INSTALACOES, gravacao, publicar, tabela};
+use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo_criar_cadastro::{
@@ -32,7 +32,9 @@ fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
         return Err(Resultado::NaoAplicavel("tabela_de_tipos_nao_observada"));
     };
     let parser = dom.parser();
-    let tag = tabela.get(parser).and_then(tl::Node::as_tag)
+    let tag = tabela
+        .get(parser)
+        .and_then(tl::Node::as_tag)
         .ok_or(Resultado::Recusado("lista_de_tipos_html_invalido"))?;
     if tag.name().as_utf8_str() != "table" {
         return Err(Resultado::Recusado("tabela_de_tipos_ausente_ou_repetida"));
@@ -46,12 +48,17 @@ fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
         };
         let classe = valor_do_atributo(ancora, "class")
             .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido"))?;
-        if !classe.as_deref().is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao")) {
+        if !classe
+            .as_deref()
+            .is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao"))
+        {
             continue;
         }
-        let nome = crate::transporte::texto_de_recusa::decodificar_entidades(
-            &ancora.inner_text(parser)
-        ).split_whitespace().collect::<Vec<_>>().join(" ");
+        let nome =
+            crate::transporte::texto_de_recusa::decodificar_entidades(&ancora.inner_text(parser))
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
         if !nome.is_empty() {
             nomes.insert(nome);
         }
@@ -78,7 +85,9 @@ fn ler_lista(html: &str) -> Resultado {
 fn id_tipo_do_cadastro(html: &str) -> Option<String> {
     let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
     let forms = nos_com_id(&dom, "frmProcedimentoCadastro").ok()?;
-    let [form] = forms.as_slice() else { return None };
+    let [form] = forms.as_slice() else {
+        return None;
+    };
     let parser = dom.parser();
     let tag = form.get(parser)?.as_tag()?;
     let mut ids = Vec::new();
@@ -88,7 +97,9 @@ fn id_tipo_do_cadastro(html: &str) -> Option<String> {
             ids.push(valor_do_atributo(input, "value").ok()?);
         }
     }
-    let [Some(id)] = ids.as_slice() else { return None };
+    let [Some(id)] = ids.as_slice() else {
+        return None;
+    };
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.clone())
 }
 
@@ -107,13 +118,17 @@ fn ler_cadastro(html: &str) -> Resultado {
         return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax");
     }
     let erro = conferir_cadastro(html, &id, "publico")
-        .err().unwrap_or(ErroCadastro::HtmlInvalido);
+        .err()
+        .unwrap_or(ErroCadastro::HtmlInvalido);
     Resultado::Recusado(erro.subcodigo())
 }
 
 fn ler_xml(item: &Value) -> Resultado {
     let mime = gravacao::mime(item);
-    if !matches!(mime.split(';').next().unwrap_or_default().trim(), "text/xml" | "application/xml") {
+    if !matches!(
+        mime.split(';').next().unwrap_or_default().trim(),
+        "text/xml" | "application/xml"
+    ) {
         return Resultado::NaoAplicavel("resposta_ajax_sem_mime_xml");
     }
     let corpo = gravacao::corpo(item);
@@ -132,7 +147,8 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
     for r in gravacao::respostas(cassette) {
         let (leitor, resultado) = match (r.operacao, r.metodo, r.status) {
             ("procedimento_gerar", "POST", _) => (
-                "escrita sem verificação", Resultado::NaoAplicavel("post_sem_leitura_verificadora")
+                "escrita sem verificação",
+                Resultado::NaoAplicavel("post_sem_leitura_verificadora"),
             ),
             ("procedimento_escolher_tipo", _, 200) => (
                 "lista de tipos",
@@ -148,11 +164,16 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                     Err(_) => Resultado::NaoAplicavel("html_do_cadastro_nao_observado"),
                 },
             ),
-            ("hipotese_legal_select_nome_base_legal", _, 200) => (
-                "hipótese legal AJAX", ler_xml(r.item)
-            ),
-            ("procedimento_escolher_tipo" | "procedimento_gerar" |
-              "hipotese_legal_select_nome_base_legal", _, _) => (
+            ("hipotese_legal_select_nome_base_legal", _, 200) => {
+                ("hipótese legal AJAX", ler_xml(r.item))
+            }
+            (
+                "procedimento_escolher_tipo"
+                | "procedimento_gerar"
+                | "hipotese_legal_select_nome_base_legal",
+                _,
+                _,
+            ) => (
                 "resposta sem leitura",
                 Resultado::NaoAplicavel("status_nao_observavel_por_leitor"),
             ),
@@ -174,17 +195,19 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
 #[ignore = "lê os ZIPs de treinamento do acervo em IES_ACERVO_CACHE; sem rede"]
 fn replay_de_processo_criar_no_acervo() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
-    let pasta_cache = std::env::var_os("IES_ACERVO_CACHE")
-        .map_or_else(
-            || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
-            PathBuf::from,
-        );
+    let pasta_cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+        PathBuf::from,
+    );
     let mut cards = Vec::new();
     for instalacao in INSTALACOES {
         for entrada in std::fs::read_dir(raiz.join(instalacao)).expect("pasta de cassettes") {
             let caminho = entrada.expect("card").path();
-            if caminho.file_name().is_some_and(|s| s.to_string_lossy().starts_with("processo-criar-"))
-                && caminho.extension().is_some_and(|s| s == "md") {
+            if caminho
+                .file_name()
+                .is_some_and(|s| s.to_string_lossy().starts_with("processo-criar-"))
+                && caminho.extension().is_some_and(|s| s == "md")
+            {
                 cards.push(caminho);
             }
         }
@@ -203,20 +226,30 @@ fn replay_de_processo_criar_no_acervo() {
     }
     let mut s = format!(
         "# Processo criar — replay offline da issue #245\n\n{} cassettes conferidas, {} leituras classificadas. Nenhum POST foi executado.\n\n",
-        cards.len(), registros.len()
+        cards.len(),
+        registros.len()
     );
-    tabela(&mut s, registros.iter().map(|r| (
-        match r.leitor {
-            "lista de tipos" => 0,
-            "cadastro" => 1,
-            "hipótese legal AJAX" => 2,
-            _ => 3,
-        },
-        r.leitor,
-        r.instalacao.as_str(),
-        &r.resultado,
-    )));
-    let _ = writeln!(s, "Passos por instalação: {}.\n", registros.iter().map(|r| r.passo + 1).max().unwrap_or(0));
+    tabela(
+        &mut s,
+        registros.iter().map(|r| {
+            (
+                match r.leitor {
+                    "lista de tipos" => 0,
+                    "cadastro" => 1,
+                    "hipótese legal AJAX" => 2,
+                    _ => 3,
+                },
+                r.leitor,
+                r.instalacao.as_str(),
+                &r.resultado,
+            )
+        }),
+    );
+    let _ = writeln!(
+        s,
+        "Passos por instalação: {}.\n",
+        registros.iter().map(|r| r.passo + 1).max().unwrap_or(0)
+    );
     s.push_str("O corpo da requisição POST pode não existir na gravação; sem releitura correlacionada não se afirma criação.\n");
     publicar(&s);
 }
@@ -258,7 +291,10 @@ mod tests {
         ]});
         let registros = replay("unb", &json);
         assert_eq!(registros.len(), 3);
-        assert_eq!(registros.iter().map(|r| &r.resultado).collect::<Vec<_>>(), vec![&Resultado::Lido; 3]);
+        assert_eq!(
+            registros.iter().map(|r| &r.resultado).collect::<Vec<_>>(),
+            vec![&Resultado::Lido; 3]
+        );
     }
 
     #[test]
@@ -268,7 +304,10 @@ mod tests {
         ]});
         let registros = replay("unb", &json);
         assert_eq!(registros.len(), 1);
-        assert_eq!(registros[0].resultado, Resultado::NaoAplicavel("post_sem_leitura_verificadora"));
+        assert_eq!(
+            registros[0].resultado,
+            Resultado::NaoAplicavel("post_sem_leitura_verificadora")
+        );
     }
 
     #[test]
@@ -279,6 +318,9 @@ mod tests {
         ]});
         let registros = replay("unb", &json);
         assert_eq!(registros.len(), 1);
-        assert_eq!(registros[0].resultado, Resultado::Recusado("tipo_de_processo_ambiguo"));
+        assert_eq!(
+            registros[0].resultado,
+            Resultado::Recusado("tipo_de_processo_ambiguo")
+        );
     }
 }
