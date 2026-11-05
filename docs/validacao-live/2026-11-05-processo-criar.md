@@ -78,3 +78,27 @@ e de segurança da escrita, **não** uma certificação live.
 A autorização para treinamento continua limitada à sequência
 prévia → confirmação única → verificação por leitura. Nenhuma
 escrita foi tentada nesta sessão: resíduo **zero**.
+
+## Replay efetivamente executado — continuação da #245 (05/11/2026)
+
+| Etapa | Resultado | Requisições SEI |
+|---|---|---:|
+| RED sintético do replay, antes da implementação | PASS como evidência: [CI 42101393253](https://github.com/franklinbaldo/ies/actions/runs/42101393253), **3 testes novos falharam**, 1414 passaram, 13 ignorados preexistentes | 0 |
+| RED local | NOT_RUN — sem Rust e sem DNS no sandbox; utilizou-se o CI, nos termos de AGENTS.md | 0 |
+| GREEN dos 3 novos cenários sintéticos | PASS na suíte Rust do [CI 42102042787](https://github.com/franklinbaldo/ies/actions/runs/42102042787), embora Rustfmt desse head ainda exigisse correção | 0 |
+| ZIPs originais do Internet Archive | PASS — sete SHA-1 válidos e cada um dos 15 membros conferido por SHA-256, esquema e host | 0 |
+| Replay pelos leitores Rust de lista, cadastro e AJAX | PASS no [workflow 42102035089](https://github.com/franklinbaldo/ies/actions/runs/42102035089): **15 cassettes, 83 leituras**, sem POST real | 0 |
+| Tipo ambíguo no acervo de Goiás | PASS como recusa fechada observada em 1 lista; não escolher arbitrariamente | 0 |
+| Hipóteses AJAX no acervo de UnB | PASS como recusa fechada observada nas 2 respostas não únicas; seleção explícita a estudar | 0 |
+| Prévia autenticada em instalação de treinamento | NOT_RUN — sem execução autenticada | 0 |
+| Confirmação única `--confirmar` | NOT_RUN — nenhuma escrita ao vivo | 0 |
+| Verificação por leitura, NUP e resíduo | NOT_RUN — nenhum processo criado/alterado nesta sessão | 0 |
+
+Detalhes de classificação e limites constam de [replay de processo criar](../validacao-replay/2026-11-05-processo-criar-acervo.md).
+O ensaio de replay foi somente de respostas *já gravadas*. Não converter uma
+resposta 302 de um POST histórico em prova de escrita verificada. O relatório
+live continua com status **NOT_RUN**. As limitações de rede/autenticação do
+sandbox impedem validar a sequência ao vivo; a tentativa anterior de
+instrumentação live foi recusada pelos controles da ferramenta, que não
+foram contornados. Autorização de escrita vale apenas em treinamento,
+na ordem prévia → um `--confirmar` → leitura verificadora, nunca retry.
