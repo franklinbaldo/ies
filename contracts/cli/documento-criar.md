@@ -4,7 +4,7 @@ title: Criar documento interno no processo pelo cadastro Web
 operation: documento.criar
 command: ies documento criar --processo NUP --tipo TIPO [--descricao TEXTO] [--nivel NIVEL] [--confirmar]
 effect: write
-implementation: stub
+implementation: partial
 source_commit: 323eb01
 ---
 
@@ -19,7 +19,7 @@ contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
 Este contrato especifica o comportamento alvo, não declara a
-capacidade disponível na CLI. Estado `stub` até haver execução testada.
+capacidade disponível na CLI. Estado `partial`: existe apenas o núcleo de seleção e reconciliação offline, sem o comando de rede. Nenhuma escrita está disponível.
 
 ## Prévia
 
