@@ -6,8 +6,7 @@ use crate::historico_processo::tests_apoio::{
     com_link, forma_go, link_do_historico, pagina_do_historico,
 };
 use crate::processo_concluir::tests_apoio::{
-    Ambiente, ID, NUP, Resposta, UNIDADE, abertura, ambiente, arvore,
-    get, ok, r302, rodar_com,
+    Ambiente, ID, NUP, Resposta, UNIDADE, abertura, ambiente, arvore, get, ok, r302, rodar_com,
 };
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
@@ -27,7 +26,9 @@ fn pagina(total: u64) -> String {
 }
 fn pagina_apos() -> String {
     let original = pagina(1);
-    let (_, resto) = original.split_once("<tr class=\"andamentoConcluido\">").unwrap();
+    let (_, resto) = original
+        .split_once("<tr class=\"andamentoConcluido\">")
+        .unwrap();
     let (linha, _) = resto.split_once("</tr>").unwrap();
     let nova = format!(
         "<tr class=\"andamentoConcluido\">{}</tr><tr class=\"andamentoConcluido\">",
@@ -35,7 +36,10 @@ fn pagina_apos() -> String {
     );
     original
         .replacen("<tr class=\"andamentoConcluido\">", &nova, 1)
-        .replace("Lista de Andamentos (1 registro):", "Lista de Andamentos (2 registros):")
+        .replace(
+            "Lista de Andamentos (1 registro):",
+            "Lista de Andamentos (2 registros):",
+        )
 }
 fn form(id: &str) -> String {
     format!(
@@ -57,7 +61,10 @@ fn rodar(
     amb: &Ambiente,
     confirmar: bool,
     respostas: Vec<Resposta>,
-) -> (Result<super::Resultado, Erro>, Vec<crate::processo_concluir::tests_apoio::Pedido>) {
+) -> (
+    Result<super::Resultado, Erro>,
+    Vec<crate::processo_concluir::tests_apoio::Pedido>,
+) {
     rodar_com(amb, respostas, |sessao, nup, indice, roteiro| {
         registrar(sessao, nup, "novo", confirmar, None, indice, roteiro)
     })
@@ -109,7 +116,10 @@ fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     let feito = resultado.ok().expect("reconciliação pela leitura");
-    assert_eq!(feito.resposta_inesperada, Some("resposta_do_andamento_nao_esperada"));
+    assert_eq!(
+        feito.resposta_inesperada,
+        Some("resposta_do_andamento_nao_esperada")
+    );
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
