@@ -114,6 +114,42 @@ fn confirma_com_um_post_e_uma_releitura_sem_retry() {
     assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
+fn redirect_sem_location_nao_prova_a_criacao_mesmo_com_arvore_alterada() {
+    // 302 sem Location não identifica a consequência do POST.
+    // Uma mudança concorrente na árvore não deve legitimá-lo.
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code: 302,
+                    mime: "text/html; charset=UTF-8".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(Vec::<u8>::new()),
+                },
+                localizacao: None,
+            })
+        },
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
+}
+
+#[test]
 fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
