@@ -110,6 +110,9 @@ jobs:
       - name: Testar ensaio manual de escrita única (sem rede ou SEI)
         run: python3 -m unittest discover -s scripts/tests -p 'test_ensaio_processo_criar.py' -v
 
+      - name: Testar conciliação somente leitura de efeito incerto (sem SEI)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_reconciliar_processo_criar.py' -v
+
       - name: Obter ZIPs originais com hashes verificados
         env:
           IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
