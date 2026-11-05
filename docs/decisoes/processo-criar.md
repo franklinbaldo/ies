@@ -125,3 +125,44 @@ cadastro não contemplado.
 [issue #245](https://github.com/franklinbaldo/ies/issues/245).
 Rever quando houver divergência no cadastro servido pela UFRJ/UnB
 ou um replay que refute o redirecionamento observado pelo Todos.
+
+
+## Fase AJAX da hipótese legal restrita — PR #283
+
+Uma captura 4.0.9 do Todos @`323eb01` demonstra o
+`infraAjaxMontarSelect` do `selHipoteseLegal` e sua URL assinada.
+A mesma versão do oráculo consulta diretamente
+`hipotese_legal_select_nome_base_legal` com os quatro campos literais,
+sem executar JavaScript e sem consultar sugestões do tipo.
+A hipótese legal ainda não está presente no select inicial (`null`).
+A implementação IES usa `derivar_consulta_ajax` já existente, no
+mesmo host e sessão, e interpreta apenas as opções efetivas da resposta
+XML. O leitor offline estrito original continua recusando ausência de
+hipótese. O fluxo permite que ela fique temporariamente pendente **só**
+para buscar a lista publicada, antes de qualquer POST criador.
+
+A CLI atual não oferece argumento para especificar a hipótese legal.
+Portanto a escrita só é elegível quando a resposta publica uma opção
+única habilitada. Zero ou várias opções exigem recusa tipada; não
+escolher a primeira nem converter para público. O AJAX é um POST de
+**consulta**, distinto do POST de criação, com uma tentativa.
+Falha HTTP conserva o status e a mensagem saneada na CLI.
+
+Quatro testes de regressão foram publicados antes desse código.
+O RED foi observado no CI
+[42097640389](https://github.com/franklinbaldo/ies/actions/runs/42097640389):
+**4 falhas novas** (1396 passando; 13 ignorados preexistentes);
+o RED e a compilação **locais** ficaram NOT_RUN porque não há
+`cargo`/`rustc` no sandbox e o DNS impediu instalá-los.
+O GREEN sintético inicial está no
+[CI 42098895457](https://github.com/franklinbaldo/ies/actions/runs/42098895457).
+Orçamentos demonstrados: prévia restrita em 4.0 com select inicialmente
+vazio = **4 pedidos** (3 GET, um POST AJAX); confirmação restrita =
+**7 pedidos** (5 GET, POST AJAX e POST criador), terminando em duas
+leituras. HTTP 503 do AJAX e seleção ambígua não iniciam escrita.
+Não extrapolar tais contagens ao SEI vivo, nem confundir esses testes
+com replay do acervo.
+
+O replay das cassettes originais e a prévia/escrita/releitura ao vivo
+em treinamento continuam NOT_RUN. Não houve escrita em produção
+nem em treinamento nesta fatia, logo não há resíduo.
