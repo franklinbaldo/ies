@@ -92,8 +92,10 @@ fn replay_retornos_no_acervo() {
                                         let texto = crate::entidades_html::decodificar_texto(
                                             &tag.inner_text(parser)
                                         );
+                                        let tabelas = tag.query_selector(parser, "table")
+                                            .into_iter().flatten().count();
                                         println!(
-                                            "{instalacao}: area id={id} caracteres={} aviso_vazio={}",
+                                            "{instalacao}: area id={id} caracteres={} aviso_vazio={} tabelas={tabelas}",
                                             texto.len(),
                                             texto.contains("Nenhum registro encontrado.")
                                         );
