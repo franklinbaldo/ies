@@ -62,7 +62,7 @@ Emissor: [src/erro_web.rs](../../src/erro_web.rs).
 | `faixa_desconhecida` | Faixa desconhecida. |
 | `hashes_de_criterios_gerados_repetidos_no_controle` | Hashes de critérios gerados repetidos no controle. |
 | `hashes_de_criterios_recebidos_repetidos_no_controle` | Hashes de critérios recebidos repetidos no controle. |
-| `html_invalido` | HTML inválido. |
+| `html_da_caixa_invalido` | HTML inválido. |
 | `id_invalido` | ID inválido. |
 | `id_repetido` | ID repetido. |
 | `identificacao_da_unidade_ausente_no_controle` | Identificação da unidade ausente no controle. |
@@ -71,7 +71,7 @@ Emissor: [src/erro_web.rs](../../src/erro_web.rs).
 | `legendas_da_tabela_repetidas` | Legendas da tabela repetidas. |
 | `limite_paginas` | Limite páginas. |
 | `link_do_processo_nao_identificado_na_linha` | Link do processo não identificado na linha. |
-| `numero_invalido` | Número inválido. |
+| `numero_da_caixa_invalido` | Número inválido. |
 | `processo_ambiguo` | Processo ambíguo. |
 | `sem_paginas` | Sem páginas. |
 | `tabela_ausente` | Tabela ausente. |
@@ -144,6 +144,7 @@ Emissor: [src/pagina_do_controle/regras.rs](../../src/pagina_do_controle/regras.
 | Subcódigo | Condição neste contexto |
 | --- | --- |
 | `entidade_html_desconhecida_no_controle` | Entidade HTML desconhecida no controle. |
+| `pagina_da_caixa_fora_do_intervalo` | Página da caixa fora do intervalo observado. |
 
 ### visao_do_controle
 
