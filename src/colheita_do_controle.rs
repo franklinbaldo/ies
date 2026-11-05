@@ -103,6 +103,14 @@ impl<'i> Colheita<'i> {
         Self::do_cookie(indice, &instalacao, &cookie, sessao.url_do_controle())
     }
 
+    /// Shim do contrato da #222 (RED): a colheita pela leitura coerente.
+    pub(crate) fn das_referencias(
+        _indice: &'i IndiceLocal,
+        _sessao: &crate::transporte::sessao::ReferenciasDaSessao,
+    ) -> Self {
+        Self::nenhuma()
+    }
+
     /// Colhe uma página do Controle já lida. `mime` é o `Content-Type` da
     /// resposta (o charset do `action` da pesquisa rápida); sem ele, a
     /// pesquisa rápida não é colhida.

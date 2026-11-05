@@ -10,6 +10,7 @@ use std::path::Path;
 pub(crate) struct ReferenciasDaSessao {
     url_do_controle: String,
     origem: String,
+    cookie: String,
 }
 
 impl ReferenciasDaSessao {
@@ -21,7 +22,26 @@ impl ReferenciasDaSessao {
         Ok(Self {
             url_do_controle: url.trim().to_owned(),
             origem: origem.trim().to_owned(),
+            cookie: String::new(),
         })
+    }
+
+    /// Shim do contrato da #222 (RED): `entre` roda depois da URL e antes
+    /// do cookie, o ponto em que um login concorrente pode gravar.
+    pub(crate) fn ler_intercalado(
+        url_file: &Path,
+        origem_file: &Path,
+        cookie_file: &Path,
+        mut entre: impl FnMut(),
+    ) -> Result<Self, FalhaTransporte> {
+        let mut lidas = Self::ler(url_file, origem_file)?;
+        entre();
+        lidas.cookie = lidas.cookie_validado(cookie_file)?;
+        Ok(lidas)
+    }
+
+    pub(crate) fn cookie(&self) -> &str {
+        &self.cookie
     }
 
     pub(crate) fn url_do_controle(&self) -> &str {

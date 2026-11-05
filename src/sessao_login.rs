@@ -133,6 +133,10 @@ mod tests_recusas;
 mod tests_sessao;
 
 #[cfg(test)]
+#[path = "sessao_login/tests_snapshot.rs"]
+mod tests_snapshot;
+
+#[cfg(test)]
 #[path = "sessao_login/tests_proxy.rs"]
 mod tests_proxy;
 
