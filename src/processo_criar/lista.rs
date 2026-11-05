@@ -195,6 +195,18 @@ mod tests {
     }
 
     #[test]
+    fn ancora_desabilitada_nao_pode_ser_escolhida() {
+        let html = tela(
+            "<a class='ancoraOpcao' href='#' onclick='escolher(3)' disabled>Ensaio</a>",
+            true,
+        );
+        assert_eq!(
+            tipo_na_lista(&html, "Ensaio"),
+            Err(ErroListaDeTipos::TipoSemAcao)
+        );
+    }
+
+    #[test]
     fn nao_aceita_js_arbitrario() {
         assert_eq!(escolher_literal("escolher(1); executar()"), None);
         assert_eq!(escolher_literal("escolher('1')"), None);
