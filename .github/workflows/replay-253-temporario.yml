@@ -2,6 +2,7 @@ name: Replay manual #253 (temporario)
 on:
   push:
     branches: [codex/253-unidade-retornos]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
