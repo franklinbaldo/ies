@@ -1,10 +1,10 @@
 //! Ensaios sintéticos da fronteira real de escrita e verificação (#246).
-//! Casos de Todos src/todos/documentos.py::_conferir_criacao @323eb01.
+//! Casos de Todos `src/todos/documentos.py::_conferir_criacao` @323eb01.
 use super::*;
 use crate::arvore_processo::{DocumentoNaArvore, NaturezaDoDocumento};
 use crate::formulario_web::{CodificacaoDaTela, RespostaDoPost};
-use crate::transporte::{FalhaTransporte, RespostaWeb};
 use crate::transporte::sessao::CookieDaSessao;
+use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 
 #[derive(Default)]
@@ -82,10 +82,13 @@ fn resposta_ok() -> RespostaDoPost<Cursor<Vec<u8>>> {
 }
 fn escrever_ok(
     rede: &mut RedeSintetica,
-    _submissao: crate::formulario_web::SubmissaoDerivada,
+    submissao: crate::formulario_web::SubmissaoDerivada,
     _cookie: &str,
 ) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
     rede.chamadas.push("POST criador");
+    if submissao.efeito() != CADASTRAR.efeito {
+        return Err(FalhaTransporte::UrlInvalida);
+    }
     Ok(resposta_ok())
 }
 #[test]
@@ -93,7 +96,11 @@ fn confirma_com_um_post_e_uma_releitura_sem_retry() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let numero = postar_e_verificar(
-        &mut rede, submissao_sintetica(), &cookie, &foto(0), "Despacho",
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
         escrever_ok,
         |rede| {
             rede.chamadas.push("GET arvore");
@@ -108,7 +115,11 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
-        &mut rede, submissao_sintetica(), &cookie, &foto(0), "Despacho",
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
         |rede, _, _| {
             rede.chamadas.push("POST criador");
             Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::UrlInvalida)
@@ -126,7 +137,11 @@ fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
-        &mut rede, submissao_sintetica(), &cookie, &foto(0), "Despacho",
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
         escrever_ok,
         |rede| {
             rede.chamadas.push("GET arvore");
@@ -141,7 +156,11 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
-        &mut rede, submissao_sintetica(), &cookie, &foto(0), "Despacho",
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
         escrever_ok,
         |rede| {
             rede.chamadas.push("GET arvore");
