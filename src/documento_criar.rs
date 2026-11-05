@@ -70,17 +70,10 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
         let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
-        let nativo =
-            href.split('?').nth(1).is_some_and(|consulta| {
-                consulta.split('&').any(|par| par == "acao=documento_gerar")
-            }) || (href == "javascript:void(0);"
-                && onclick.as_deref().is_some_and(|chamada| {
-                    let chamada = chamada.trim().trim_end_matches(';');
-                    chamada
-                        .strip_prefix("escolher(")
-                        .and_then(|v| v.strip_suffix(')'))
-                        .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-                }));
+        let nativo = href.split('?').nth(1).is_some_and(|consulta| {
+            consulta.split('&').any(|par| par == "acao=documento_gerar")
+        }) || (href == "#" || href == "javascript:void(0);")
+            && onclick.as_deref().and_then(id_da_escolha_literal).is_some();
         if !nativo {
             continue;
         }
@@ -160,50 +153,122 @@ pub(crate) fn conferir_criacao(
 }
 
 
-/// Aceita só o href direto e assinado publicado para o tipo exato.
-/// Na forma escolher(id), a navegação depende da tela e ainda não foi derivada:
-/// falha fechado, sem construir uma URL e sem executar JavaScript.
-pub(crate) fn link_direto_do_tipo(
+/// A 4.0 publica URL direta; a 4.1/5.0 publica escolher(id).
+/// Nunca carrega credenciais de sessão nem URL assinada no Debug.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum EscolhaDoDocumento {
+    Link(String),
+    Formulario(String),
+}
+
+fn id_da_escolha_literal(onclick: &str) -> Option<String> {
+    let chamada = onclick.trim().trim_end_matches(';').trim();
+    let id = chamada.strip_prefix("escolher(")?.strip_suffix(')')?;
+    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
+}
+
+/// Reconhece só o corpo literal observado da função, com duas instruções
+/// (reescrita do id e submit da lista). Texto de JS não é executado.
+fn script_prova_escolha(html: &str) -> bool {
+    let compacto: String = html.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    // Não aceitar outra definição com o mesmo nome: poderia sobrescrever a
+    // função observada no navegador, e nosso POST já não seria equivalente.
+    compacto.matches("functionescolher(").count() == 1
+        && compacto.contains(
+            "functionescolher(id){document.getElementById('hdnIdSerie').value=id;document.getElementById('frmDocumentoEscolherTipo').submit();}",
+        )
+}
+
+/// Escolhe o tipo exato na lista observada, sem inventar URL ou executar JS.
+/// O tipo externo (escolher(-1)) não é documento interno.
+pub(crate) fn escolha_do_tipo(
     instalacao: &Instalacao,
     html: &str,
     id_procedimento: &str,
     tipo: &str,
-) -> Result<String, ErroCriar> {
+) -> Result<EscolhaDoDocumento, ErroCriar> {
     use ErroCriar as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
     let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| E::ListaForaDaForma)?;
     let [tabela] = tabelas.as_slice() else {
         return Err(E::ListaForaDaForma);
     };
-    let tabela = tabela.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ListaForaDaForma)?;
+    let tabela = tabela
+        .get(dom.parser())
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::ListaForaDaForma)?;
     if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
         return Err(E::ListaForaDaForma);
     }
     let mut links = Vec::new();
-    for tag in tabela.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+    for tag in tabela
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
             continue;
         }
-        let nome = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+        let nome = tag
+            .inner_text(dom.parser())
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         let nome = decodificar_atributo(&nome).ok_or(E::ListaForaDaForma)?;
         if nome != tipo {
             continue;
         }
-        let href = valor_do_atributo(tag, "href").map_err(|_| E::ListaForaDaForma)?
+        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ListaForaDaForma)?;
+        // A variante -1 é documento externo, não um tipo nativo.
+        if onclick.as_deref().is_some_and(|s| s.trim().trim_end_matches(';') == "escolher(-1)") {
+            continue;
+        }
+        let href = valor_do_atributo(tag, "href")
+            .map_err(|_| E::ListaForaDaForma)?
             .ok_or(E::LinkDoTipoNaoNavegavel)?;
         let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
-        links.push(href);
+        links.push((href, onclick));
     }
-    let link = match links.as_slice() {
+    let (href, onclick) = match links.as_slice() {
         [] => return Err(E::TipoAusente),
         [link] => link,
         _ => return Err(E::TipoAmbiguo),
     };
-    if link.starts_with("javascript:") {
+    if href.starts_with("controlador.php?") {
+        let link = conferir_endereco_relativo(
+            instalacao,
+            href,
+            "documento_gerar",
+            id_procedimento,
+        )
+        .map_err(|_| E::EnderecoDoTipoNaoReconhecido)?;
+        return Ok(EscolhaDoDocumento::Link(link));
+    }
+    if href != "#" && href != "javascript:void(0);" {
         return Err(E::LinkDoTipoNaoNavegavel);
     }
-    conferir_endereco_relativo(instalacao, link, "documento_gerar", id_procedimento)
-        .map_err(|_| E::EnderecoDoTipoNaoReconhecido)
+    let id = onclick
+        .as_deref()
+        .and_then(id_da_escolha_literal)
+        .ok_or(E::LinkDoTipoNaoNavegavel)?;
+    if !script_prova_escolha(html) {
+        return Err(E::LinkDoTipoNaoNavegavel);
+    }
+    Ok(EscolhaDoDocumento::Formulario(id))
+}
+
+/// O redirecionamento do POST de escolha só pode abrir o cadastro assinado
+/// do mesmo processo. Suporta Location relativa ou absoluta da instalação.
+pub(crate) fn cadastro_redirecionado(
+    instalacao: &Instalacao,
+    location: &str,
+    id_procedimento: &str,
+) -> Result<String, ErroCriar> {
+    let base = format!("{}/", instalacao.url_base());
+    let relativo = location.strip_prefix(&base).unwrap_or(location);
+    conferir_endereco_relativo(instalacao, relativo, "documento_gerar", id_procedimento)
+        .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
 }
 
 /// Verifica a identidade do cadastro antes de qualquer POST de criação.
