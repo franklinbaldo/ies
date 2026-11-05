@@ -152,3 +152,11 @@ de GO ou a observação autenticada em UnB e GO. Antes de concluir #244,
 reproduzir as páginas do acervo e medir as requisições de
 `unidade listar --atualizar` e a pesquisa posterior em treinamento,
 sem retry e sem produção. Este relatório não afirma PASS live.
+
+## Retomada 🦊 — navegação segura e replay GO
+
+- **RED (somente CI):** 2 falhas antes da correção do botão `btnNovo`, [run 42110481074](https://github.com/franklinbaldo/ies/actions/runs/42110481074). O leitor emprestava link assinado de outro controle ou declarava ambiguidade indevida. Agora a URL vem apenas do próprio `btnNovo`.
+- **RED (somente CI):** 1 falha no leitor da lista vazia antes da correção, [run 42111627207](https://github.com/franklinbaldo/ies/actions/runs/42111627207). O POST 12 da cassette GO apresenta `frmUnidadeLista` e `Nenhum registro encontrado.`, sem tabela.
+- **Gates:** PASS no head `dc9fbf8`, [run 42112344927](https://github.com/franklinbaldo/ies/actions/runs/42112344927). **Replay:** PASS, seis respostas GO (3 GET, 3 POST), ZIP público conferido, [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185). Zero requisições reais ao SEI nesse replay.
+- **Sandbox Rust / RED local:** NOT_RUN (sem toolchain e sem DNS para instalar). **Live UnB:** NOT_RUN, 0 requisições. **Live GO:** NOT_RUN, 0 requisições. **Pesquisa live:** NOT_RUN. Nenhuma escrita, nenhum resíduo remoto.
+- Ainda faltam ensaios autenticados em UnB/GO, cobertura da coleta integral de múltiplas páginas, integração com a `main` e remoção dos workflows temporários antes de integrar a PR.
