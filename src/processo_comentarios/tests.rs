@@ -152,13 +152,9 @@ fn link_comentarios(id: &str) -> String {
     acao_da_barra(&link_das_propriedades("comentario_listar", id))
 }
 
-fn link_da_arvore(
-    html: &str,
-) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
-    let instalacao = crate::instalacao::Instalacao::interpretar(
-        "https://sei.exemplo.gov.br/sei",
-    )
-    .expect("origem sintética");
+fn link_da_arvore(html: &str) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
+    let instalacao = crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei")
+        .expect("origem sintética");
     crate::arvore_processo::ler_link_dos_comentarios(&instalacao, html, "10")
 }
 
@@ -173,7 +169,10 @@ fn pega_o_link_de_comentarios_assinado_da_barra_do_processo() {
         extraido.as_str(),
         format!("https://sei.exemplo.gov.br/sei/{href}")
     );
-    assert_eq!(format!("{extraido:?}"), "EnderecoDosComentarios(<redigido>)");
+    assert_eq!(
+        format!("{extraido:?}"),
+        "EnderecoDosComentarios(<redigido>)"
+    );
 }
 
 #[test]
