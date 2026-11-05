@@ -130,7 +130,11 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
             }
             _ => None,
         };
-        encontrados.push(escolha.filter(|_| !desabilitada).map(|escolha| TipoEscolhido { nome, escolha }));
+        encontrados.push(
+            escolha
+                .filter(|_| !desabilitada)
+                .map(|escolha| TipoEscolhido { nome, escolha }),
+        );
     }
     match encontrados.as_slice() {
         [Some(escolhido)] => Ok(escolhido.clone()),
