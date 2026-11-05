@@ -363,6 +363,43 @@ fn gravar(
     Ok(gravados)
 }
 
+/// Grava o HTML uma vez ou referencia o anexo já publicado em fluxo.
+fn registrar_cache(
+    host: &str,
+    cache_ativo: bool,
+    d: &DocumentoObtido,
+) -> Result<Option<crate::cache_documento::Registro>, crate::cache_documento::FalhaCache> {
+    use crate::cache_documento::{self, FalhaCache, Registro};
+    if !cache_ativo {
+        return Ok(None);
+    }
+    if let Some(html) = &d.versoes.cache_html {
+        let versao = d.versoes
+            .lida
+            .or_else(|| d.versoes.foto.as_ref().map(|f| f.versao))
+            .map(crate::documento_versoes::VersaoDocumento::numero);
+        return cache_documento::gravar(host, &d.numero, versao, "html", html.as_bytes())
+            .map(Some);
+    }
+    let Some(anexo) = &d.anexo else {
+        return Ok(None);
+    };
+    let extensao = match anexo.mime.as_str() {
+        "application/pdf" => "pdf",
+        "text/plain" => "txt",
+        "text/html" => "html",
+        _ => return Err(FalhaCache::Gravacao),
+    };
+    let raiz = cache_documento::raiz()?;
+    Ok(Some(Registro {
+        caminho: cache_documento::caminho_em(
+            &raiz, host, &d.numero, None, &anexo.sha256, extensao,
+        ),
+        versao: None,
+        sha256: anexo.sha256.clone(),
+    }))
+}
+
 fn publicar(
     json_mode: bool,
     mut obtidos: Vec<DocumentoObtido>,
@@ -373,57 +410,10 @@ fn publicar(
 ) -> ExitCode {
     let mut caches = Vec::new();
     for d in &obtidos {
-        let registro = if cache_ativo {
-            if let Some(html) = &d.versoes.cache_html {
-                match crate::cache_documento::gravar(
-                    host,
-                    &d.numero,
-                    d.versoes
-                        .lida
-                        .or_else(|| d.versoes.foto.as_ref().map(|f| f.versao))
-                        .map(crate::documento_versoes::VersaoDocumento::numero),
-                    "html",
-                    html.as_bytes(),
-                ) {
-                    Ok(registro) => Some(registro),
-                    Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-                }
-            } else if let Some(anexo) = &d.anexo {
-                let extensao = match anexo.mime.as_str() {
-                    "application/pdf" => "pdf",
-                    "text/plain" => "txt",
-                    "text/html" => "html",
-                    _ => {
-                        return erro_fonte(
-                            json_mode,
-                            "tipo_de_anexo_nao_permitido",
-                            "tipo não reconhecido",
-                        );
-                    }
-                };
-                let raiz = match crate::cache_documento::raiz() {
-                    Ok(raiz) => raiz,
-                    Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-                };
-                Some(crate::cache_documento::Registro {
-                    caminho: crate::cache_documento::caminho_em(
-                        &raiz,
-                        host,
-                        &d.numero,
-                        None,
-                        &anexo.sha256,
-                        extensao,
-                    ),
-                    versao: None,
-                    sha256: anexo.sha256.clone(),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        caches.push(registro);
+        match registrar_cache(host, cache_ativo, d) {
+            Ok(registro) => caches.push(registro),
+            Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        }
     }
     let mut gravados = Vec::new();
     if let Some(destino) = destino {
