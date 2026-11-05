@@ -295,3 +295,58 @@ fn geracao_confere_cookie_e_url_gravados_juntos() {
     let marcador = Ambiente::ler(&ambiente.geracao());
     assert!(!marcador.contains("A=1") && !marcador.contains(HASH));
 }
+
+#[test]
+fn reprodutor_relogin_entre_url_e_cookie_expoe_geracoes_distintas() {
+    // Reprodutor do achado #183: NÃO é um teste de propriedade corrigida.
+    // A leitura da URL é anterior à gravação atômica da geração seguinte.
+    let ambiente = Ambiente::novo();
+    let antiga = url_do_controle();
+    let nova = antiga.replace("procedimento_controlar", "procedimento_receber");
+    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &antiga, "PHPSESSID=GERACAO_A").unwrap();
+    let referencias = crate::transporte::sessao::ReferenciasDaSessao::ler(
+        &ambiente.arquivos.url_controle,
+        &ambiente.arquivos.origem,
+    )
+    .unwrap();
+    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &nova, "PHPSESSID=GERACAO_B").unwrap();
+    let cookie = referencias
+        .cookie_validado(&ambiente.arquivos.cookie)
+        .unwrap();
+    assert_eq!(cookie, "PHPSESSID=GERACAO_B");
+    assert_ne!(referencias.url_do_controle(), nova);
+    // O marcador recusa o par; o leitor compartilhado acima não o consulta.
+    assert!(!super::gravacao::mesma_geracao(
+        &ambiente.arquivos,
+        referencias.url_do_controle(),
+        &cookie
+    ));
+}
+
+#[test]
+fn reprodutor_troca_de_unidade_entre_leituras_mantem_url_antiga() {
+    // #205 atualiza a URL e o marcador, mas não regrava o cookie.
+    let ambiente = Ambiente::novo();
+    let antiga = url_do_controle();
+    let nova = antiga.replace("procedimento_controlar", "procedimento_receber");
+    let cookie = "PHPSESSID=GERACAO_A";
+    super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &antiga, cookie).unwrap();
+    let referencias = crate::transporte::sessao::ReferenciasDaSessao::ler(
+        &ambiente.arquivos.url_controle,
+        &ambiente.arquivos.origem,
+    )
+    .unwrap();
+    super::gravacao::regravar_url_do_controle(&ambiente.arquivos, &nova, cookie).unwrap();
+    assert_eq!(
+        referencias
+            .cookie_validado(&ambiente.arquivos.cookie)
+            .unwrap(),
+        cookie
+    );
+    assert_ne!(referencias.url_do_controle(), nova);
+    assert!(!super::gravacao::mesma_geracao(
+        &ambiente.arquivos,
+        referencias.url_do_controle(),
+        cookie
+    ));
+}

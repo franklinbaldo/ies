@@ -99,3 +99,37 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
     let main = include_str!("../main.rs");
     assert!(main.contains("Some(definir) => unidade_colunas_definir_cli::definir_colunas("));
 }
+
+#[test]
+fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
+    use crate::sessao_login::relogin::sessao_encerrada;
+
+    for subcodigo in [
+        "pagina_de_login_recebida_no_controle",
+        "sessao_encerrada_rode_ies_login",
+    ] {
+        assert!(sessao_encerrada(subcodigo), "{subcodigo}");
+    }
+    for subcodigo in [
+        "cookie_invalido",
+        "origem_nao_autorizada",
+        "status_http_de_limite_de_requisicoes",
+        "redirecionamento_recusado",
+    ] {
+        assert!(!sessao_encerrada(subcodigo), "{subcodigo}");
+    }
+    let invalidos = [
+        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
+        (
+            FalhaTransporte::OrigemNaoAutorizada,
+            "origem_nao_autorizada",
+        ),
+    ];
+    for (falha, esperado) in invalidos {
+        assert_eq!(FalhaPublicavel::subcodigo(&falha), esperado);
+        let valor = json_da_falha(esperado, falha.mensagem(), None, None);
+        assert_eq!(valor["codigo"], "fonte_invalida");
+        assert_eq!(valor["subcodigo"], esperado);
+        assert!(valor.get("relogin").is_none());
+    }
+}

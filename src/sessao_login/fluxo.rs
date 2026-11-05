@@ -78,6 +78,12 @@ fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
     crate::controle_reconhecido::unidade_do_controle(html)
 }
 
+/// Exceção inventariada (#183): o login consulta URL e cookie como valores
+/// opcionais antes da rede para distinguir sessão ausente, vazia ou expirada
+/// e conferir o marcador. Uma leitura comum de `ReferenciasDaSessao` recusaria
+/// ausentes/vazios antes dessa decisão. A checagem 0600/sem symlink continua
+/// feita pelo primitivo único `arquivo_privado`.
+///
 /// Um arquivo da sessão gravada; ausente ou vazio vale "sem sessão".
 /// O login precisa ler URL e cookie para conferir a geração antes de
 /// validar a sintaxe. Arquivos de gerações diferentes valem sessão ausente.
@@ -331,6 +337,8 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<ResultadoDoLogin, ErroLogin> {
+    // Exceção inventariada (#183): o login de origem não dispõe ainda da
+    // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
     let origem = origem.trim();
