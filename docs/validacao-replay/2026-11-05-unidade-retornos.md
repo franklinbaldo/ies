@@ -36,3 +36,22 @@ Os testes sintéticos preservam essa recusa e os orçamentos de GET.
 ao vivo), não demonstra login, sessão atual, paginação independente
 das duas tabelas ou procura de `diaHoje` em mês vizinho. Isso requer
 evidência adicional. Nenhuma escrita foi realizada no SEI.
+
+## Navegacao do calendario: duplicatas mensais reais
+
+Uma segunda leitura do **mesmo acervo original**,
+[run 42120788751](https://github.com/franklinbaldo/ies/actions/runs/42120788751),
+conferiu os GETs de calendario sem imprimir URLs, cookies nem hashes.
+Nas sete instalacoes, a maioria das telas publicou **duas ancoras
+mensais e uma URL mensal distinta**. O parser antigo recusava a segunda
+ancora, mesmo que o `href` fosse literalmente igual.
+
+Foi adicionado teste sintetico reproduzindo as duas ancoras com href
+identico e orcamento de 3 GET. **RED: 1 falha** (1546 passando)
+no [CI 42121807194](https://github.com/franklinbaldo/ies/actions/runs/42121807194),
+antes de corrigir a selecao mensal. O teste complementar comprova
+que duas URLs assinadas diferentes continuam recusadas e que a
+recusa nao dispara consulta de listagem extra. O
+[CI com a correcao](https://github.com/franklinbaldo/ies/actions/runs/42122485266)
+aprovou a suite Rust e demais gates.
+
