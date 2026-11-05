@@ -199,7 +199,6 @@ fn ajax_nao_declarado_na_tela_recusa_sem_post() {
     assert!(pedidos.iter().all(|r| r.metodo == "GET"));
 }
 
-
 /// Falha HTTP do AJAX ainda é anterior à escrita; conserva o status e
 /// não gera uma segunda tentativa nem POST de criação.
 #[test]
