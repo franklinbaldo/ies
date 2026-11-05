@@ -86,23 +86,31 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
         return Err(E::TabelaAusenteOuRepetida);
     };
     let parser = dom.parser();
-    let tag = tabela.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+    let tag = tabela
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(E::HtmlInvalido)?;
     if tag.name().as_utf8_str() != "table" {
         return Err(E::TabelaAusenteOuRepetida);
     }
     let mut encontrados = Vec::new();
     for handle in tag.query_selector(parser, "a").into_iter().flatten() {
-        let ancora = handle.get(parser).and_then(tl::Node::as_tag).ok_or(E::HtmlInvalido)?;
+        let ancora = handle
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::HtmlInvalido)?;
         let classe = valor_do_atributo(ancora, "class").map_err(|_| E::HtmlInvalido)?;
-        if !classe.as_deref().is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao")) {
+        if !classe
+            .as_deref()
+            .is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao"))
+        {
             continue;
         }
-        let nome = crate::transporte::texto_de_recusa::decodificar_entidades(
-            &ancora.inner_text(parser),
-        )
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
+        let nome =
+            crate::transporte::texto_de_recusa::decodificar_entidades(&ancora.inner_text(parser))
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
         if nome != pedido.split_whitespace().collect::<Vec<_>>().join(" ") {
             continue;
         }
@@ -139,59 +147,103 @@ mod tests {
 
     fn tela(links: &str, completa: bool) -> String {
         let filtro = if completa { "U" } else { "T" };
-        format!("<button onclick=\"exibirTiposProcedimento('{filtro}')\">Tipos</button><table id=\"tblTipoProcedimento\"><tbody><tr><td>{links}</td></tr></tbody></table>")
+        format!(
+            "<button onclick=\"exibirTiposProcedimento('{filtro}')\">Tipos</button><table id=\"tblTipoProcedimento\"><tbody><tr><td>{links}</td></tr></tbody></table>"
+        )
     }
 
     #[test]
     fn escolhe_link_literal_da_versao_40() {
-        let html = tela("<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12'>Ensaio</a>", true);
+        let html = tela(
+            "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12'>Ensaio</a>",
+            true,
+        );
         // O valor de href é bruto, com a entidade publicada, preservada.
-        assert!(matches!(tipo_na_lista(&html, "Ensaio"), Ok(TipoEscolhido { escolha: EscolhaDoTipo::Link(_), .. })));
+        assert!(matches!(
+            tipo_na_lista(&html, "Ensaio"),
+            Ok(TipoEscolhido {
+                escolha: EscolhaDoTipo::Link(_),
+                ..
+            })
+        ));
     }
 
     #[test]
     fn escolhe_formulario_da_versao_41() {
-        let html = tela("<a class='ancoraOpcao' href='#' onclick='escolher(23)'>Ensaio</a>", true);
-        assert_eq!(tipo_na_lista(&html, "Ensaio").unwrap().escolha, EscolhaDoTipo::Formulario("23".into()));
+        let html = tela(
+            "<a class='ancoraOpcao' href='#' onclick='escolher(23)'>Ensaio</a>",
+            true,
+        );
+        assert_eq!(
+            tipo_na_lista(&html, "Ensaio").unwrap().escolha,
+            EscolhaDoTipo::Formulario("23".into())
+        );
     }
 
     #[test]
     fn nao_confunde_lista_curta_com_tipo_inexistente() {
-        assert_eq!(tipo_na_lista(&tela("", false), "Outro"), Err(ErroListaDeTipos::ListaIncompleta));
+        assert_eq!(
+            tipo_na_lista(&tela("", false), "Outro"),
+            Err(ErroListaDeTipos::ListaIncompleta)
+        );
     }
 
     #[test]
     fn tipo_ausente_so_na_lista_completa() {
-        assert_eq!(tipo_na_lista(&tela("", true), "Outro"), Err(ErroListaDeTipos::TipoNaoOferecido));
+        assert_eq!(
+            tipo_na_lista(&tela("", true), "Outro"),
+            Err(ErroListaDeTipos::TipoNaoOferecido)
+        );
     }
 
     #[test]
     fn nome_duplicado_eh_recusado() {
         let link = "<a class='ancoraOpcao' onclick='escolher(1)' href='#'>Ensaio</a>";
-        assert_eq!(tipo_na_lista(&tela(&format!("{link}{link}"), true), "Ensaio"), Err(ErroListaDeTipos::TipoRepetido));
+        assert_eq!(
+            tipo_na_lista(&tela(&format!("{link}{link}"), true), "Ensaio"),
+            Err(ErroListaDeTipos::TipoRepetido)
+        );
     }
 
     #[test]
     fn acao_nao_reconhecida_eh_recusada() {
-        let html = tela("<a class='ancoraOpcao' href='#' onclick='avaliar(1)'>Ensaio</a>", true);
-        assert_eq!(tipo_na_lista(&html, "Ensaio"), Err(ErroListaDeTipos::TipoSemAcao));
+        let html = tela(
+            "<a class='ancoraOpcao' href='#' onclick='avaliar(1)'>Ensaio</a>",
+            true,
+        );
+        assert_eq!(
+            tipo_na_lista(&html, "Ensaio"),
+            Err(ErroListaDeTipos::TipoSemAcao)
+        );
     }
 
     #[test]
     fn tabela_ausente_eh_recusada() {
-        assert_eq!(tipo_na_lista("<div/>", "Ensaio"), Err(ErroListaDeTipos::TabelaAusenteOuRepetida));
+        assert_eq!(
+            tipo_na_lista("<div/>", "Ensaio"),
+            Err(ErroListaDeTipos::TabelaAusenteOuRepetida)
+        );
     }
 
     #[test]
     fn tabela_repetida_eh_recusada() {
-        let html = format!("{}{}", tela("",true),tela("",true));
-        assert_eq!(tipo_na_lista(&html, "Ensaio"), Err(ErroListaDeTipos::TabelaAusenteOuRepetida));
+        let html = format!("{}{}", tela("", true), tela("", true));
+        assert_eq!(
+            tipo_na_lista(&html, "Ensaio"),
+            Err(ErroListaDeTipos::TabelaAusenteOuRepetida)
+        );
     }
 
     #[test]
     fn nao_aceita_prefixo() {
-        let html = tela("<a class='ancoraOpcao' href='#' onclick='escolher(1)'>Ensaio Especial</a>", true);
-        assert_eq!(tipo_na_lista(&html, "Ensaio"), Err(ErroListaDeTipos::TipoNaoOferecido));
+        let html = tela(
+            "<a class='ancoraOpcao' href='#' onclick='escolher(1)'>Ensaio Especial</a>",
+            true,
+        );
+        assert_eq!(
+            tipo_na_lista(&html, "Ensaio"),
+            Err(ErroListaDeTipos::TipoNaoOferecido)
+        );
     }
 
     #[test]
