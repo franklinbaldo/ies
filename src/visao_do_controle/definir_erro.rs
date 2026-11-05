@@ -8,13 +8,16 @@ use crate::transporte::StatusHttpRecusado;
 /// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
 /// tela de login, com o sinal de gravação). O pedido saiu: o efeito é
 /// incerto até a leitura.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDoSalvar {
     /// Rede, tempo esgotado, 5xx, outro status, MIME, charset, tamanho, login.
+    #[causa(interna)]
     Envio(ErroSubmissaoFormulario),
     /// 302 recebido e não seguido.
+    #[causa(nome = "redirecionamento_ao_salvar_nivel_de_detalhe")]
     Redirecionamento302,
     /// HTML 200 com a tela do Nível sem o sinal de gravação (`''=='1'`).
+    #[causa(nome = "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao")]
     NivelDevolvidoSemSinalDeGravacao,
     /// HTML 200 sem o `inicializar()` observado da tela do Nível.
     RespostaDoSalvarNaoReconhecida,
@@ -22,14 +25,7 @@ pub(crate) enum FalhaDoSalvar {
 
 impl FalhaDoSalvar {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Envio(erro) => erro.subcodigo(),
-            Self::Redirecionamento302 => "redirecionamento_ao_salvar_nivel_de_detalhe",
-            Self::NivelDevolvidoSemSinalDeGravacao => {
-                "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"
-            }
-            Self::RespostaDoSalvarNaoReconhecida => "resposta_do_salvar_nao_reconhecida",
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Status e mensagem do SEI, quando a resposta foi uma recusa HTTP.
@@ -65,9 +61,10 @@ pub(crate) struct ColunasDefinidas {
     pub(crate) reconciliado_por: Option<FalhaDoSalvar>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDefinirColunas {
     /// Falha antes do POST de salvar: nada foi salvo.
+    #[causa(interna)]
     Leitura(ErroVisaoDoControle),
     ColunaIndisponivelNestaInstalacao {
         coluna: ColunaDoDetalhe,
@@ -79,6 +76,7 @@ pub(crate) enum ErroDefinirColunas {
     },
     /// Resposta esperada, mas a leitura mostrou outras marcas (nem o alvo
     /// nem as de antes).
+    #[causa(nome = "marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar")]
     MarcasDiferentesDoAlvoAposSalvar {
         plano: Box<PlanoDasColunas>,
         observadas: Vec<ColunaDoDetalhe>,
@@ -93,19 +91,7 @@ pub(crate) enum ErroDefinirColunas {
 
 impl ErroDefinirColunas {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Leitura(erro) => erro.subcodigo(),
-            Self::ColunaIndisponivelNestaInstalacao { .. } => {
-                "coluna_indisponivel_nesta_instalacao"
-            }
-            Self::ConfiguracaoDeColunasNaoAplicada { .. } => "configuracao_de_colunas_nao_aplicada",
-            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
-                "marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar"
-            }
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => {
-                "efeito_incerto_na_configuracao_de_colunas"
-            }
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Categoria pública: o próximo passo de quem chama.

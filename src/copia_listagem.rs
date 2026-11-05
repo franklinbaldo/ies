@@ -8,18 +8,17 @@ use crate::foto_documento::nome;
 use serde::Serialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroListagem {
+    #[causa(nome = "limite_copias_locais")]
     LimiteDeCopias,
+    #[causa(interna)]
     CopiaInvalida(ErroCopia),
 }
 
 impl ErroListagem {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LimiteDeCopias => "limite_copias_locais",
-            Self::CopiaInvalida(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
@@ -37,16 +36,14 @@ pub(crate) fn listar(
     pasta: &Path,
     documento: &NumeroDocumento,
 ) -> Result<Vec<VersaoLocal>, ErroListagem> {
-    let versoes =
-        copia_documento::versoes_locais(pasta, documento).map_err(ErroListagem::CopiaInvalida)?;
+    let versoes = copia_documento::versoes_locais(pasta, documento)?;
     if versoes.len() > 128 {
         return Err(ErroListagem::LimiteDeCopias);
     }
     let mut lista = Vec::with_capacity(versoes.len());
     for versao in versoes {
         let alvo = pasta.join(nome(documento.as_str(), versao));
-        let bytes =
-            ler_regular(&alvo, ErroCopia::LeituraFalhou).map_err(ErroListagem::CopiaInvalida)?;
+        let bytes = ler_regular(&alvo, ErroCopia::LeituraFalhou)?;
         lista.push(VersaoLocal {
             documento: documento.as_str().to_owned(),
             versao: versao.numero(),

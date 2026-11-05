@@ -134,46 +134,44 @@ impl ArquivoParcial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAnexo {
     /// Status, rede, limite de `chunked`, charset.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// HTML 200 que é a tela de login.
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     TelaDeLogin,
+    #[causa(nome = "anexo_sem_tipo_de_conteudo")]
     SemTipoDeConteudo,
+    #[causa(nome = "tipo_de_anexo_nao_permitido")]
     TipoNaoPermitido,
+    #[causa(nome = "cabecalho_do_anexo_repetido")]
     CabecalhoRepetido,
+    #[causa(nome = "disposicao_do_anexo_fora_da_forma_observada")]
     DisposicaoForaDaFormaObservada,
+    #[causa(nome = "anexo_acima_do_limite")]
     AcimaDoLimite,
+    #[causa(nome = "anexo_vazio")]
     Vazio,
     ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
+    #[causa(nome = "anexo_recusado_pelo_sei")]
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
+    #[causa(interna)]
     Corpo(ErroCorpoDocumento),
+    #[causa(nome = "diretorio_do_anexo_ausente")]
     DiretorioAusente,
+    #[causa(nome = "arquivo_do_anexo_ja_existe")]
     ArquivoJaExiste,
+    #[causa(nome = "escrita_do_anexo_falhou")]
     EscritaFalhou,
 }
 
 impl ErroAnexo {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::TelaDeLogin => "sessao_encerrada_rode_ies_login",
-            Self::SemTipoDeConteudo => "anexo_sem_tipo_de_conteudo",
-            Self::TipoNaoPermitido => "tipo_de_anexo_nao_permitido",
-            Self::CabecalhoRepetido => "cabecalho_do_anexo_repetido",
-            Self::DisposicaoForaDaFormaObservada => "disposicao_do_anexo_fora_da_forma_observada",
-            Self::AcimaDoLimite => "anexo_acima_do_limite",
-            Self::Vazio => "anexo_vazio",
-            Self::ConteudoComLinkAssinado => "conteudo_com_link_assinado",
-            Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::DiretorioAusente => "diretorio_do_anexo_ausente",
-            Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
-            Self::EscritaFalhou => "escrita_do_anexo_falhou",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

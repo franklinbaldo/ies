@@ -18,18 +18,17 @@ use serde_json::{Value, json};
 use std::process::ExitCode;
 
 /// Termo da pesquisa em documentos: texto opaco do campo Protocolo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum TermoDeDocumentoInvalido {
+    #[causa(nome = "termo_de_documento_vazio")]
     Vazio,
+    #[causa(nome = "termo_de_documento_contem_controle")]
     Controle,
 }
 
 impl TermoDeDocumentoInvalido {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Vazio => "termo_de_documento_vazio",
-            Self::Controle => "termo_de_documento_contem_controle",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

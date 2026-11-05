@@ -121,7 +121,7 @@ fn subcodigos_estaveis() {
         E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado),
     ]
     .iter()
-    .map(|e| e.subcodigo())
+    .map(|e| crate::erro_publico::folha(e))
     .collect();
     assert_eq!(
         nomes,
