@@ -21,6 +21,15 @@ testes, integridade de evidências, autotestes Python, auditoria OSV e
 decisões e cobertura documental de subcódigos. O `cargo test --workspace
 --all-targets` compila os targets; não há gate `cargo build` redundante.
 
+## Binário para os agentes
+
+O job `binario` do `ci.yml` não é gate. Ele compila `ies` em release no
+`ubuntu-22.04` (glibc 2.35 e libssl3, para rodar em sandboxes mais
+antigos que o runner do gate) e publica o artifact
+`ies-linux-x86_64-<sha>`, com o binário e o `ies.sha256`, por 7 dias.
+Serve aos agentes sem Rust no sandbox: eles observam o RED no log do
+gate e testam esse binário no sandbox ou num workflow temporário.
+
 ## Auditoria de dependências (OSV)
 
 O hook `auditoria-osv` roda `scripts/osv_audit.py` (só biblioteca padrão).

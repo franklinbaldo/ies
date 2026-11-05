@@ -41,3 +41,38 @@ jobs:
 
       - name: Run canonical prek pre-push gates
         run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
+
+  binario:
+    # Binário para os agentes testarem no sandbox (sem Rust nem rede para
+    # instalá-lo). ubuntu-22.04 = glibc 2.35 e libssl3: roda em mais
+    # sandboxes que um binário do 24.04. Não é gate nem release.
+    name: binário ies (linux x86_64)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Build release binary
+        run: |
+          cargo build --release --locked --bin ies
+          ./target/release/ies --version
+          sha256sum target/release/ies | tee target/release/ies.sha256
+
+      - name: Upload binary
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ies-linux-x86_64-${{ github.sha }}
+          path: |
+            target/release/ies
+            target/release/ies.sha256
+          retention-days: 7
+          if-no-files-found: error

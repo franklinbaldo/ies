@@ -83,6 +83,20 @@ O que falta implementar e em que ordem está na
   seu prefixo; os dos outros você lê. Se uma peça compartilhada precisar
   mudar, faça a mudança mínima e explique na PR.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
+- **Sem Rust no sandbox, o CI é o compilador.** Faça push no branch da
+  PR e leia o resultado do [CI](.github/workflows/ci.yml):
+  - **RED:** faça push dos testes novos antes do código. O hook "Suíte
+    Rust" falha, e o log mostra quantos testes falharam. Esse é o RED
+    observado; registre o run e a contagem.
+  - **Binário:** o job "binário ies" publica o artifact
+    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`, 7 dias),
+    compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3). Baixe-o pelo
+    GitHub (API de artifacts do run ou `gh run download`), confira o
+    SHA-256 e rode no sandbox: comandos offline, replay e ensaio ao vivo
+    em treinamento.
+  - **Sandbox sem rede para o GitHub ou para o SEI:** rode o ensaio num
+    workflow temporário (`workflow_dispatch` ou `push` em `codex/**`) que
+    use esse binário, e remova o workflow antes de a PR sair de DRAFT.
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI](.github/workflows/ci.yml) roda os mesmos gates; não crie outro
