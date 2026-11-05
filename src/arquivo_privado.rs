@@ -1,8 +1,9 @@
 //! Gravação privada única (#211): o par de escrita de
 //! `transporte::arquivo_privado`, que é a leitura. Cria (exclusivo) ou
 //! substitui (atômico) um arquivo `0600` sem nunca seguir link simbólico
-//! no nome final, num diretório real (resolvido com `canonicalize`) que
-//! no Unix não é gravável por grupo ou outros sem sticky bit, por um
+//! no nome final, no diretório real (resolvido com `canonicalize`) que,
+//! se é do IES, no Unix não é gravável por grupo ou outros sem sticky
+//! bit (o do usuário não tem o modo conferido), por um
 //! temporário `.NOME.parcial-PID-N` nesse diretório, `sync_all` e
 //! `hard_link`/`rename`; o parcial nunca fica para trás numa falha.
 //! Links em ancestrais são aceitos. Política, ameaça e limites:
@@ -113,7 +114,8 @@ pub(crate) enum FalhaDaGravacao {
 }
 
 /// O pai do destino existe e é diretório (links no caminho são aceitos)
-/// e, resolvido, não é gravável por grupo ou outros sem sticky bit. Com
+/// e, resolvido e se é do IES, não é gravável por grupo ou outros sem
+/// sticky bit. Com
 /// `criar`, os níveis ausentes nascem `0700`, um por vez, cada um num
 /// diretório que passa pela mesma conferência. Conferência por caminho:
 /// não impede a troca concorrente por quem pode escrever num ancestral
@@ -135,23 +137,29 @@ fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDa
         for nivel in niveis {
             match fs::metadata(nivel) {
                 Ok(info) if info.is_dir() => {}
-                Err(erro) if erro.kind() == ErrorKind::NotFound => criar_nivel(nivel)?,
+                Err(erro) if erro.kind() == ErrorKind::NotFound => {
+                    criar_nivel(nivel, politica.diretorio)?;
+                }
                 Ok(_) | Err(_) => return Err(FalhaDaGravacao::DiretorioAusente),
             }
         }
     }
-    real_e_fechado(pai)
+    real_e_conferido(pai, politica.diretorio)
 }
 
-/// `canonicalize` do diretório e a conferência do modo do diretório real.
-fn real_e_fechado(pasta: &Path) -> Result<PathBuf, FalhaDaGravacao> {
+/// `canonicalize` do diretório e, se é do IES, a conferência do modo do
+/// diretório real.
+fn real_e_conferido(pasta: &Path, dono: Diretorio) -> Result<PathBuf, FalhaDaGravacao> {
     let real = fs::canonicalize(pasta).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
     let info = fs::metadata(&real).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
     if !info.is_dir() {
         return Err(FalhaDaGravacao::DiretorioAusente);
     }
+    // Fora do Unix não há modo: o dono não muda a conferência.
+    #[cfg(not(unix))]
+    let _ = dono;
     #[cfg(unix)]
-    {
+    if dono == Diretorio::DoIes {
         use std::os::unix::fs::PermissionsExt;
         let modo = info.permissions().mode();
         if modo & 0o022 != 0 && modo & 0o1000 == 0 {
@@ -171,11 +179,12 @@ fn absoluto(destino: &Path) -> Result<PathBuf, FalhaDaGravacao> {
         .map_err(|_| FalhaDaGravacao::DiretorioAusente)
 }
 
-/// Cria um nível `0700` dentro de um diretório real fechado a outros.
-fn criar_nivel(nivel: &Path) -> Result<(), FalhaDaGravacao> {
+/// Cria um nível `0700` dentro de um diretório real conferido como o
+/// destino (fechado a outros, se é do IES).
+fn criar_nivel(nivel: &Path, dono: Diretorio) -> Result<(), FalhaDaGravacao> {
     let pai = nivel.parent().ok_or(FalhaDaGravacao::DiretorioAusente)?;
-    let nivel =
-        real_e_fechado(pai)?.join(nivel.file_name().ok_or(FalhaDaGravacao::DiretorioAusente)?);
+    let nivel = real_e_conferido(pai, dono)?
+        .join(nivel.file_name().ok_or(FalhaDaGravacao::DiretorioAusente)?);
     #[cfg(unix)]
     let construtor = {
         use std::os::unix::fs::DirBuilderExt;

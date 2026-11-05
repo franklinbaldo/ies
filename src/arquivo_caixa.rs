@@ -6,7 +6,6 @@ use std::path::Path;
 pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
-    DiretorioDeDestinoGravavelPorOutros,
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
@@ -15,9 +14,6 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino_da_caixa_sem_nome_de_arquivo",
             Self::DiretorioDeDestinoAusente => "diretorio_do_arquivo_da_caixa_ausente",
-            Self::DiretorioDeDestinoGravavelPorOutros => {
-                "diretorio_do_arquivo_da_caixa_gravavel_por_outros"
-            }
             Self::DestinoJaExiste => "arquivo_da_caixa_ja_existe",
             Self::EscritaDeArquivoFalhou => "escrita_de_arquivo_da_caixa_falhou",
         }
@@ -26,16 +22,14 @@ impl ErroArquivoCaixa {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
             Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
-            Self::DiretorioDeDestinoGravavelPorOutros => {
-                "o diretório de destino é gravável por grupo ou outros (sem sticky bit)"
-            }
             Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
             Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
         }
     }
 }
 /// Grava JSON apenas em arquivo novo pela gravação privada única
-/// (`0600`, sem seguir link no destino, em diretório fechado a outros).
+/// (`0600`, sem seguir link no destino). O diretório é da pessoa: o modo
+/// dele não é conferido.
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
     use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
 
@@ -56,9 +50,10 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     .map_err(|falha| match falha {
         F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
         F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
-        F::DiretorioGravavelPorOutros => ErroArquivoCaixa::DiretorioDeDestinoGravavelPorOutros,
         F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
-        F::DestinoNaoEhArquivoRegular
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
         | F::AcimaDoLimite
         | F::CriacaoFalhou
         | F::EscritaFalhou

@@ -146,7 +146,6 @@ pub(crate) enum ErroAnexo {
     /// O texto visível do HTML recebido.
     Corpo(ErroCorpoDocumento),
     DiretorioAusente,
-    DiretorioGravavelPorOutros,
     ArquivoJaExiste,
     EscritaFalhou,
 }
@@ -165,7 +164,6 @@ impl ErroAnexo {
             Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
             Self::Corpo(erro) => erro.subcodigo(),
             Self::DiretorioAusente => "diretorio_do_anexo_ausente",
-            Self::DiretorioGravavelPorOutros => "diretorio_do_anexo_gravavel_por_outros",
             Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
             Self::EscritaFalhou => "escrita_do_anexo_falhou",
         }
@@ -186,9 +184,6 @@ impl ErroAnexo {
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
             Self::DiretorioAusente => "o diretório de --saida não existe",
-            Self::DiretorioGravavelPorOutros => {
-                "o diretório de --saida é gravável por grupo ou outros (sem sticky bit)"
-            }
             Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
             Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
         }
@@ -363,8 +358,8 @@ fn conferir<R: Read>(
     })
 }
 /// Cria o parcial de `DIR/DOC.ext` pela gravação privada única (0600,
-/// novo, no diretório real fechado a outros) depois de conferir que
-/// `DOC.ext` ainda não existe.
+/// novo, no diretório real da pessoa, sem conferir o modo dele) depois
+/// de conferir que `DOC.ext` ainda não existe.
 fn abrir_parcial(
     dir: &Path,
     numero: &str,
@@ -380,9 +375,10 @@ fn abrir_parcial(
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
         F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
-        F::DiretorioGravavelPorOutros => ErroAnexo::DiretorioGravavelPorOutros,
         F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
-        F::DestinoNaoEhArquivoRegular
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
         | F::AcimaDoLimite
         | F::CriacaoFalhou
         | F::EscritaFalhou

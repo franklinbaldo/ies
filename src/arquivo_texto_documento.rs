@@ -6,7 +6,6 @@ use std::path::Path;
 pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
-    DiretorioGravavelPorOutros,
     DestinoJaExiste,
     EscritaFalhou,
 }
@@ -15,7 +14,6 @@ impl ErroArquivoTexto {
         match self {
             Self::NomeAusente => "destino_texto_documento_sem_nome",
             Self::DiretorioAusente => "diretorio_texto_documento_ausente",
-            Self::DiretorioGravavelPorOutros => "diretorio_texto_documento_gravavel_por_outros",
             Self::DestinoJaExiste => "arquivo_texto_documento_ja_existe",
             Self::EscritaFalhou => "escrita_texto_documento_falhou",
         }
@@ -27,9 +25,10 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
     match falha {
         F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
         F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
-        F::DiretorioGravavelPorOutros => ErroArquivoTexto::DiretorioGravavelPorOutros,
         F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
-        F::DestinoNaoEhArquivoRegular
+        // Diretório do usuário: a peça não confere o modo.
+        F::DiretorioGravavelPorOutros
+        | F::DestinoNaoEhArquivoRegular
         | F::AcimaDoLimite
         | F::CriacaoFalhou
         | F::EscritaFalhou
@@ -37,10 +36,10 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
     }
 }
 
-/// O diretório do destino existe e, resolvido (links no caminho são
-/// aceitos), não é gravável por grupo ou outros sem sticky bit: a
-/// conferência da gravação privada única. Não estabelece exclusividade
-/// contra alterações concorrentes do caminho.
+/// O diretório do destino existe e é diretório (links no caminho são
+/// aceitos; o modo é da pessoa): a conferência da gravação privada única
+/// para o diretório do usuário. Não estabelece exclusividade contra
+/// alterações concorrentes do caminho.
 pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto> {
     use crate::arquivo_privado::Politica;
     crate::arquivo_privado::conferir_diretorios(
