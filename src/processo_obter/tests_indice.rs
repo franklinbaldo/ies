@@ -85,7 +85,7 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
     let (resultado, pedidos) = rodar(
         &amb,
         None,
-        vec![r302(LOGIN), Err(crate::transporte::FalhaTransporte::Rede)],
+        vec![r302(LOGIN), r302(LOGIN_RECUSA)],
     );
     assert!(resultado.is_err());
     assert_eq!(pedidos.len(), 2);
@@ -93,8 +93,10 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
     assert_eq!(pedidos[1], get(&url_entrada(ID)));
     let geracao_atual = geracao();
     assert_eq!(
-        amb.indice
-            .link(&instalacao(), chave(&geracao_atual, "procedimento_visualizar", ID)),
+        amb.indice.link(
+            &instalacao(),
+            chave(&geracao_atual, "procedimento_visualizar", ID)
+        ),
         None
     );
 }
