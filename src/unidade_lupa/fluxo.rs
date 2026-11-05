@@ -251,7 +251,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
 
 /// URL publicada em controle da tela; na lupa GO, também em literal
 /// estático de script da tela de cadastro, sem executar JavaScript.
-fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaLupa> {
+pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaLupa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
     let parser = dom.parser();
