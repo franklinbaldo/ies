@@ -29,6 +29,7 @@ pub(crate) enum ErroHipotese {
     RespostaNaoReconhecida,
     OpcaoNaoUnica,
     EscolhaNaoOferecida,
+    EscolhaInlineNaoVerificada,
     Transporte {
         subcodigo: &'static str,
         http: Option<StatusHttpRecusado>,
@@ -43,6 +44,7 @@ impl ErroHipotese {
             Self::RespostaNaoReconhecida => "hipotese_legal_ajax_resposta_nao_reconhecida",
             Self::OpcaoNaoUnica => "hipotese_legal_ajax_nao_unica",
             Self::EscolhaNaoOferecida => "hipotese_legal_escolha_nao_oferecida",
+            Self::EscolhaInlineNaoVerificada => "hipotese_legal_escolha_inline_nao_verificada",
             Self::Transporte { subcodigo, .. } => subcodigo,
         }
     }
@@ -126,10 +128,7 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
 
 /// Seleção por ID e nome exatamente como observados, nunca pela posição.
 /// O ID é opaco; recusar duplicata mesmo se as descrições forem diferentes.
-pub(crate) fn opcao_selecionada(
-    xml: &str,
-    escolha: Option<&str>,
-) -> Result<String, ErroHipotese> {
+pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<String, ErroHipotese> {
     use ErroHipotese as E;
     let Some(escolha) = escolha else {
         return opcao_unica(xml);
