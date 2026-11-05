@@ -52,6 +52,8 @@ mod pesquisa_web;
 mod processo;
 mod processo_acompanhar;
 mod processo_acompanhar_cli;
+mod processo_andamento_registrar;
+mod processo_andamento_registrar_cli;
 mod processo_buscar_cli;
 pub mod processo_comentar;
 #[allow(dead_code)] // núcleo offline; leitura Web ainda não ligada à CLI (#257)
@@ -354,6 +356,7 @@ fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
         .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))

@@ -27,6 +27,14 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Registra andamento livre no histórico do processo (prévia antes da escrita)
+    Andamento {
+        numero: String,
+        #[arg(long)]
+        texto: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Inicia novo processo Web: prévia, ou confirma após validação.
     Criar {
         #[arg(long)]

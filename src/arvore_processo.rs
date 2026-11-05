@@ -7,6 +7,7 @@
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
 mod acompanhar;
+mod andamento;
 mod anexados;
 mod assinatura;
 mod barra_do_documento;
@@ -69,6 +70,7 @@ mod tests_sobrestar;
 pub(crate) mod tests_tela;
 
 pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
+pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,

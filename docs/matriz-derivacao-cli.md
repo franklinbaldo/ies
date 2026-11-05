@@ -135,6 +135,9 @@ RED, replay e live UnB/PEN3: NOT_RUN nesta execução; CI pendente.
 [contrato de documento](../contracts/cli/documento-buscar.md) ·
 [decisão](decisoes/processo-buscar.md).
 
+## Handoff #259 — registrar andamento (PR draft)
+
+O comando de escrita novo, autorizado apenas em treinamento, lê a barra do processo e o histórico, valida frmAtividadeListar e deriva um POST único. A verificação exige linha nova no topo e total anterior +1; resposta HTTP não é prova. Parcial: faltam testes de transporte/contagem, replay e live (NOT_RUN). [Contrato](../contracts/cli/processo-andamento.md) e [decisão](decisoes/processo-andamento.md).
 ## Handoff #269 — sobrestar e retomar (PR Draft #279)
 
 As prévias Web de `processo sobrestar NUP --motivo TEXTO` e
