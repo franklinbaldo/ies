@@ -193,3 +193,41 @@ fn formulario_de_criacao_recusa_action_sem_hash_unico() {
         "acao_do_formulario_sem_infra_hash_unico"
     );
 }
+
+
+#[test]
+fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
+    // Uma confirmação que ainda não pode escrever não deve sequer abrir
+    // o processo: GET também pode registrar recebimento no SEI.
+    use crate::processo_concluir::tests_apoio as apoio;
+    for (nivel, subcodigo) in [
+        (None, "nivel_de_documento_nao_informado_para_escrita"),
+        (Some("restrito"), "nivel_de_documento_requer_hipotese_legal"),
+        (Some("sigiloso"), "nivel_de_documento_requer_hipotese_legal"),
+    ] {
+        let ambiente = apoio::ambiente();
+        let (resultado, pedidos) = apoio::rodar_com(
+            &ambiente,
+            vec![],
+            |sessao, nup, indice, transporte| {
+                let pedido = PedidoCriacao {
+                    nup,
+                    unidade: None,
+                    tipo: "Despacho",
+                    descricao: None,
+                    nivel,
+                };
+                executar_criacao(sessao, &pedido, indice, transporte, true)
+            },
+        );
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some(subcodigo),
+            "recusa tipada do nivel {nivel:?}"
+        );
+        assert!(
+            pedidos.is_empty(),
+            "não deve haver GET/POST ao SEI quando a escrita já está proibida"
+        );
+    }
+}
