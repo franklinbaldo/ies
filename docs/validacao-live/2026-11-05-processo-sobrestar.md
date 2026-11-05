@@ -13,11 +13,12 @@ Testes sintéticos com transporte roteirizado não são ensaios live.
 Os índices das cassettes do Todos não representam replay já executado
 pelo código Rust desta PR.
 
-Pendente: processo de treinamento com situação conhecida, prévia
-ao vivo contada, um único `--confirmar` após implementação e testes,
-leitura nova de verificação, desfazimento da operação e registro do
-resíduo. Nunca produção, nunca retry de escrita. Confirmação
-permanece bloqueada na implementação atual.
+A PR Draft #284 implementou o caminho de confirmação e os testes
+de transporte offline, mas **não realizou nenhuma escrita nem leitura
+ao vivo**. Pendente: processo de treinamento com situação conhecida,
+prévia ao vivo contada, um único `--confirmar` e leitura nova de
+verificação (e, se aplicável, desfazimento da operação e registro do
+resíduo). Nunca produção, nunca retry de escrita.
 
 [Issue #269](https://github.com/franklinbaldo/ies/issues/269) ·
-[PR Draft #279](https://github.com/franklinbaldo/ies/pull/279).
+[PR Draft #284](https://github.com/franklinbaldo/ies/pull/284).
