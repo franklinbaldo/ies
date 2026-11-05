@@ -269,7 +269,12 @@ pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaL
             let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            urls.extend(literais_do_script(tag.inner_text(parser).as_ref()));
+            let chave_da_acao = format!("acao={acao}");
+            urls.extend(
+                literais_do_script(tag.inner_text(parser).as_ref())
+                    .into_iter()
+                    .filter(|url| url.contains(&chave_da_acao)),
+            );
         }
     }
     Ok(urls)
