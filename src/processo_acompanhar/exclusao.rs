@@ -94,7 +94,6 @@ pub(super) fn conferir_oferta_exclusao(
     conferir_script(instalacao, &dom, id_procedimento)
 }
 
-
 fn conferir_linha(
     tabela: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
@@ -150,7 +149,8 @@ fn conferir_script(
     dom: &tl::VDom<'_>,
     id_procedimento: &str,
 ) -> Result<(), ErroAcompanhar> {
-    let sem_oferta = ErroAcompanhar::ExclusaoNaoOferecida;
+    use ErroAcompanhar as E;
+    let sem_oferta = E::ExclusaoNaoOferecida;
     let parser = dom.parser();
     let mut scripts = Vec::new();
     for no in dom.query_selector("script").into_iter().flatten() {
