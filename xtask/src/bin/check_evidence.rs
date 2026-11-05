@@ -73,9 +73,24 @@ fn check_document(
                 file.display()
             ));
         }
-        if frontmatter(content, "source") != Some("todos-demonstration-matrix")
-            || frontmatter(content, "source_commit").is_none()
-        {
+        let matriz_todos = frontmatter(content, "source") == Some("todos-demonstration-matrix")
+            && frontmatter(content, "source_commit").is_some();
+        // Capacidades estritamente locais podem ter proveniência no próprio
+        // IES. Exigir arquivo fonte real, hash do commit e zero passos Web.
+        let fonte_local = frontmatter(content, "source") == Some("ies-local-config")
+            && frontmatter(content, "source_commit").is_some_and(|sha| {
+                sha.len() == 40 && sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+            && frontmatter(content, "upstream_steps") == Some("0")
+            && frontmatter(content, "unresolved_steps") == Some("0")
+            && frontmatter(content, "ies_implemented") == Some("true")
+            && frontmatter(content, "source_file").is_some_and(|source| {
+                source.starts_with("src/")
+                    && !source.contains("..")
+                    && folder.join("../..").join(source).is_file()
+                    && content.contains(&format!("](../../{source})"))
+            });
+        if !(matriz_todos || fonte_local) {
             missing.push(format!("Proveniência ausente: {}", file.display()));
         }
         if !index.contains(&format!("]({name}.md)")) {
