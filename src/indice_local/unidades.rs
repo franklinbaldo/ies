@@ -120,6 +120,45 @@ impl IndiceLocal {
         })
     }
 
+    /// Sugestões de destino para uma sigla não oferecida pelo autocomplete.
+    /// O conjunto é o snapshot da mesma instalação/unidade ativa, sem rede.
+    /// O SEI continua responsável por aceitar efetivamente o destino.
+    pub(crate) fn sugestoes_de_unidades_guardadas(
+        &self,
+        instalacao: &str,
+        unidade_ativa: &str,
+        sigla: &str,
+    ) -> Vec<String> {
+        let Some(lista) = self.lista_de_unidades(instalacao, unidade_ativa) else {
+            return Vec::new();
+        };
+        let pedida = chave(sigla);
+        if pedida.is_empty() {
+            return Vec::new();
+        }
+        let ultimo = sigla.trim().rsplit('/').next().unwrap_or(sigla);
+        let trecho = ultimo.rsplit_once('-').map_or(ultimo, |(parte, sufixo)| {
+            if !sufixo.is_empty() && sufixo.bytes().all(|b| b.is_ascii_digit()) {
+                parte
+            } else {
+                ultimo
+            }
+        });
+        let amplo = chave(trecho);
+        let estritas: Vec<_> = lista.unidades.iter()
+            .filter(|u| chave(&u.sigla).contains(&pedida)).collect();
+        let candidatas: Vec<_> = if !estritas.is_empty() {
+            estritas
+        } else {
+            lista.unidades.iter()
+                .filter(|u| !amplo.is_empty() && chave(&u.sigla).contains(&amplo))
+                .collect()
+        };
+        candidatas.into_iter().take(10)
+            .map(|u| format!("{} - {}", u.sigla, u.descricao))
+            .collect()
+    }
+
     /// Filtra somente o snapshot, por sigla ou descrição, com sigla exata
     /// priorizada. Nenhuma requisição e nenhuma alteração no banco.
     pub(crate) fn pesquisar_unidades_guardadas(
@@ -174,6 +213,36 @@ mod tests {
             descricao: descricao.to_owned(),
             orgao: "Orgão".to_owned(),
         }
+    }
+
+    #[test]
+    fn sugestoes_sem_rede_e_limitadas_ao_snapshot_da_unidade() {
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-244-sugestoes-{}-{}", std::process::id(),
+            std::thread::current().name().unwrap_or("teste")
+        ));
+        std::fs::create_dir_all(&pasta).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&pasta, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let indice = IndiceLocal::em(pasta.join("ies.sqlite3"));
+        let unidades = [
+            unidade("1", "ABC/GECONT-18141", "Contabilidade"),
+            unidade("2", "CBM/GECONT-18149", "Contabilidade"),
+        ];
+        assert!(indice.guardar_lista_de_unidades("https://sei.example", "7", &unidades, 2));
+        assert_eq!(
+            indice.sugestoes_de_unidades_guardadas("https://sei.example", "7", "ABC/GECONT"),
+            vec!["ABC/GECONT-18141 - Contabilidade"]
+        );
+        assert_eq!(indice.sugestoes_de_unidades_guardadas(
+            "https://sei.example", "7", "GECONT"
+        ).len(), 2);
+        assert!(indice.sugestoes_de_unidades_guardadas(
+            "https://sei.example", "8", "GECONT"
+        ).is_empty());
     }
 
     #[test]
