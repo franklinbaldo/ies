@@ -1,5 +1,5 @@
 //! Leitor da tela de atribuição por HTML servido, sem executar JS.
-//! Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
+// Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
 //! O select não informa a atribuição atual: a árvore do processo é a fonte.
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
@@ -68,9 +68,7 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
         match nome {
             "acao" if valor == ACAO => acao += 1,
             "id_procedimento" if valor == id => protocolo += 1,
-            "infra_hash"
-                if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
-            {
+            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hash += 1;
             }
             "acao" | "id_procedimento" | "infra_hash" => return false,
@@ -114,8 +112,12 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     return Err(E::TelaForaDaForma);
                 }
                 match valor(tag, "name")?.as_deref() {
-                    Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => pagina += 1,
-                    Some("hdnIdProtocolo") if valor(tag, "value")?.as_deref() == Some(id) => protocolo += 1,
+                    Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => {
+                        pagina += 1
+                    }
+                    Some("hdnIdProtocolo") if valor(tag, "value")?.as_deref() == Some(id) => {
+                        protocolo += 1
+                    }
                     _ => return Err(E::TelaForaDaForma),
                 }
             }
@@ -127,8 +129,15 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                 {
                     return Err(E::TelaForaDaForma);
                 }
-                match (valor(tag, "type")?.as_deref(), valor(tag, "name")?.as_deref()) {
-                    (Some("submit"), Some("sbmSalvar")) if valor(tag, "value")?.as_deref() == Some("Salvar") => botao += 1,
+                match (
+                    valor(tag, "type")?.as_deref(),
+                    valor(tag, "name")?.as_deref(),
+                ) {
+                    (Some("submit"), Some("sbmSalvar"))
+                        if valor(tag, "value")?.as_deref() == Some("Salvar") =>
+                    {
+                        botao += 1
+                    }
                     (Some("button"), Some("btnCancelar")) => {}
                     _ => return Err(E::TelaForaDaForma),
                 }
@@ -167,17 +176,20 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                         return Err(E::TelaForaDaForma);
                     }
                     let rotulo = decodificar_entidades(&opcao.inner_text(parser))
-                        .split_whitespace().collect::<Vec<_>>().join(" ");
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ");
                     let (login, nome) = rotulo.split_once(" - ").ok_or(E::TelaForaDaForma)?;
                     if login.is_empty() || nome.is_empty() || login.trim() != login {
                         return Err(E::TelaForaDaForma);
                     }
                     usuarios.push(UsuarioDaAtribuicao {
-                        id: id_usuario, login: login.to_owned(), rotulo,
+                        id: id_usuario,
+                        login: login.to_owned(),
+                        rotulo,
                     });
                 }
             }
-            "option" => {}
             "optgroup" | "textarea" => return Err(E::TelaForaDaForma),
             _ => {}
         }
