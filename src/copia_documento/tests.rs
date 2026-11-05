@@ -32,7 +32,7 @@ fn editar(pasta: &Path, n: u32, corpo: &str) {
 }
 
 fn previa(pasta: &Path, n: Option<u32>) -> Result<PreviaCopia, ErroCopia> {
-    previa_local(pasta, &doc(), n.map(v), &|_| None)
+    previa_local(pasta, &doc(), n.map(v))
 }
 
 /// A foto vN como `--saida` a grava.

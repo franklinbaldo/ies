@@ -1,11 +1,10 @@
-//! Inventário das versões locais `DOC.vN.html` (#207), sem sessão, rede
-//! ou links de histórico: cada uma é a foto registrada (SHA-256 igual ao
-//! que o índice local guardou ao gravá-la) ou um arquivo local não
-//! registrado (a edição). Foto registrada e alterada recusa a lista.
+//! Inventário das versões locais `DOC.vN.html` (#207), sem sessão, rede,
+//! índice ou links de histórico: só os arquivos do diretório, sem dizer
+//! qual é foto e qual é edição, nem conferir nenhum com o SEI.
 use crate::arquivo_copia::ler_regular;
-use crate::copia_documento::{self, ErroCopia, Registro};
+use crate::copia_documento::{self, ErroCopia};
 use crate::documento::NumeroDocumento;
-use crate::foto_documento::{nome, sha256};
+use crate::foto_documento::nome;
 use serde::Serialize;
 use std::path::Path;
 
@@ -30,8 +29,6 @@ pub(crate) struct VersaoLocal {
     pub(crate) documento: String,
     pub(crate) versao: u32,
     pub(crate) bytes: usize,
-    /// `true`: a foto que o SEI serviu, conferida pelo SHA-256 registrado.
-    pub(crate) foto: bool,
 }
 
 /// Consulta somente os arquivos do número fornecido. Um arquivo inseguro
@@ -39,7 +36,6 @@ pub(crate) struct VersaoLocal {
 pub(crate) fn listar(
     pasta: &Path,
     documento: &NumeroDocumento,
-    registro: Registro<'_>,
 ) -> Result<Vec<VersaoLocal>, ErroListagem> {
     let versoes =
         copia_documento::versoes_locais(pasta, documento).map_err(ErroListagem::CopiaInvalida)?;
@@ -51,16 +47,10 @@ pub(crate) fn listar(
         let alvo = pasta.join(nome(documento.as_str(), versao));
         let bytes =
             ler_regular(&alvo, ErroCopia::LeituraFalhou).map_err(ErroListagem::CopiaInvalida)?;
-        let foto = match registro(versao) {
-            None => false,
-            Some(sha) if sha == sha256(&bytes) => true,
-            Some(_) => return Err(ErroListagem::CopiaInvalida(ErroCopia::FotoDivergente)),
-        };
         lista.push(VersaoLocal {
             documento: documento.as_str().to_owned(),
             versao: versao.numero(),
             bytes: bytes.len(),
-            foto,
         });
     }
     Ok(lista)
@@ -76,7 +66,7 @@ mod testes {
     const CORPO: &str = "<p>corpo de teste</p>";
 
     fn listar_com(pasta: &Path, doc: &str) -> Result<Vec<VersaoLocal>, ErroListagem> {
-        listar(pasta, &NumeroDocumento::novo(doc).unwrap(), &|_| None)
+        listar(pasta, &NumeroDocumento::novo(doc).unwrap())
     }
 
     fn foto(pasta: &Path, numero: &str, n: u32) {

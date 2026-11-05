@@ -13,7 +13,6 @@ use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
 use crate::foto_documento::{self, FotoGravada};
 use crate::indice_local::IndiceLocal;
-use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
@@ -184,14 +183,10 @@ fn obter(
                 }
             }
         }
-        Ok((obtidos, referencias.origem().to_owned()))
+        Ok(obtidos)
     });
     match lido {
-        Ok(((obtidos, origem), nota)) => {
-            let indice = IndiceLocal::da_configuracao(&arquivos);
-            let destino = saida.map(|diretorio| (diretorio, &indice, origem.as_str()));
-            publicar(cli.json, obtidos, destino, nota.as_ref())
-        }
+        Ok((obtidos, nota)) => publicar(cli.json, obtidos, saida, nota.as_ref()),
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
@@ -286,26 +281,18 @@ impl From<FotoGravada> for ArquivoDaSaida {
     }
 }
 
-/// Onde gravar: `DIR`, o índice que registra o SHA-256 das fotos e a origem.
-type Destino<'a> = (&'a Path, &'a IndiceLocal, &'a str);
-
 /// Confere as fotos do lote inteiro, liga o parcial `DOC.ext` dos externos
-/// e grava as fotos `DOC.vN.html` na ordem; registra no índice o SHA-256
-/// de cada foto gravada ou já igual (a prévia de `salvar` o confere).
+/// e grava as fotos `DOC.vN.html` na ordem.
 fn gravar(
     json_mode: bool,
     obtidos: &mut [DocumentoObtido],
-    (diretorio, indice, origem): Destino<'_>,
+    diretorio: &Path,
 ) -> Result<Vec<Option<ArquivoDaSaida>>, ExitCode> {
     let fotos = documento_versao_cli::gravar_fotos(diretorio, obtidos)
         .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
-    let instalacao = Instalacao::interpretar(origem);
     let mut gravados = Vec::new();
     for (d, foto) in obtidos.iter_mut().zip(fotos) {
         if let Some(foto) = foto {
-            if let (Some(instalacao), Some(n)) = (&instalacao, d.versoes.foto.as_ref()) {
-                let _ = indice.registrar_foto(instalacao, &d.numero, n.versao, &foto.sha256);
-            }
             gravados.push(Some(ArquivoDaSaida::from(foto)));
             continue;
         }
@@ -334,7 +321,7 @@ fn gravar(
 fn publicar(
     json_mode: bool,
     mut obtidos: Vec<DocumentoObtido>,
-    destino: Option<Destino<'_>>,
+    destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
     let mut gravados = Vec::new();
@@ -418,20 +405,18 @@ mod testes {
     #[test]
     fn saida_grava_so_doc_vn_html_e_repetir_e_no_op() {
         let pasta = diretorio();
-        let indice = IndiceLocal::em(pasta.join("indice").join("ies.sqlite3"));
-        let origem = "https://sei.exemplo.gov.br/sei";
         let mut obtidos = vec![com_foto("0011519", 1, HTML)];
-        let gravados = gravar(true, &mut obtidos, (&pasta, &indice, origem)).unwrap();
+        let gravados = gravar(true, &mut obtidos, &pasta).unwrap();
         let g = gravados[0].as_ref().unwrap();
         assert_eq!((g.nome.as_str(), g.gravado), ("0011519.v1.html", true));
-        let de_novo = gravar(true, &mut obtidos, (&pasta, &indice, origem)).unwrap();
+        let de_novo = gravar(true, &mut obtidos, &pasta).unwrap();
         assert!(!de_novo[0].as_ref().unwrap().gravado);
         let mut nomes: Vec<String> = std::fs::read_dir(&pasta)
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         nomes.sort();
-        assert_eq!(nomes, ["0011519.v1.html", "indice"]);
+        assert_eq!(nomes, ["0011519.v1.html"]);
         std::fs::remove_dir_all(pasta).unwrap();
     }
 }

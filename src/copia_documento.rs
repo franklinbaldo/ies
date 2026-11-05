@@ -1,13 +1,14 @@
 //! Prévia local de `ies documento salvar DOC` (#207;
 //! contracts/cli/documento-salvar.md): o par `DOC.vN.html` (a foto que o
 //! SEI serviu da versão N) e `DOC.v(N+1).html` (a edição local). A base é
-//! a própria foto, conferida pelo SHA-256 que o índice local registrou ao
-//! gravá-la; não há base nem manifesto ocultos. Nenhuma rede.
+//! a própria foto; não há base nem manifesto ocultos. Totalmente offline:
+//! sem rede, índice ou configuração, e por isso **não** verifica a base
+//! (a releitura e o salvar remoto a conferem com o SEI).
 use crate::arquivo_copia::ler_regular;
 use crate::arquivo_texto_documento::ErroArquivoTexto;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
-use crate::foto_documento::{nome, sha256};
+use crate::foto_documento::nome;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fs;
@@ -30,8 +31,6 @@ pub enum ErroCopia {
     NomeDaVersaoInvalido,
     VersaoDuplicada,
     BaseAusente,
-    BaseNaoRegistrada,
-    BaseDivergente,
     EdicaoAusente,
     EdicaoIgualABase,
 }
@@ -48,8 +47,6 @@ impl ErroCopia {
             Self::NomeDaVersaoInvalido => "nome_versao_local_invalido",
             Self::VersaoDuplicada => "versao_local_repetida",
             Self::BaseAusente => "base_versao_ausente",
-            Self::BaseNaoRegistrada => "base_versao_nao_registrada",
-            Self::BaseDivergente => "base_versao_divergente",
             Self::EdicaoAusente => "versao_editada_ausente",
             Self::EdicaoIgualABase => "versao_editada_igual_a_base",
         }
@@ -63,9 +60,6 @@ pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
     }
     Ok(())
 }
-
-/// O SHA-256 que o índice local registrou para a foto `DOC.vN.html`.
-pub(crate) type Registro<'a> = &'a dyn Fn(VersaoDocumento) -> Option<String>;
 
 /// As versões `DOC.vN.html` presentes em `pasta`, em ordem numérica, sem
 /// abrir os arquivos; duas grafias da mesma versão são ambíguas.
@@ -144,39 +138,35 @@ fn trecho_divergente(base: &[u8], trabalho: &[u8]) -> Option<TrechoDivergente> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PreviaCopia {
     pub documento: String,
-    /// N: a foto `DOC.vN.html`, conferida pelo SHA-256 registrado.
+    /// N: a foto `DOC.vN.html`, não conferida com o SEI.
     pub versao_base: u32,
     /// N + 1: `DOC.v(N+1).html`, a edição local.
     pub versao_editada: u32,
     pub bytes_base: usize,
     pub bytes_editada: usize,
     pub escrita_remota: bool,
+    /// Sempre `false`: a prévia é offline e não confere a base com o SEI;
+    /// só a releitura (`foto_local_divergente`) ou o salvar remoto (#89).
+    pub base_verificada: bool,
     pub trecho_divergente: Option<TrechoDivergente>,
 }
 
 /// O par a comparar: com `--versao N`, (N, N + 1); sem, a maior versão
-/// local M é a edição (M - 1, M), salvo se M for uma foto registrada
-/// com o mesmo SHA-256, quando a edição N + 1 ainda não existe.
+/// local M: se `DOC.v(M-1).html` existe, o par é (M - 1, M); senão M é a
+/// base e a edição M + 1 ainda falta. Só nomes de arquivo, sem conteúdo.
 fn par(
     pasta: &Path,
     documento: &NumeroDocumento,
     solicitada: Option<VersaoDocumento>,
-    registro: Registro<'_>,
 ) -> Result<(VersaoDocumento, VersaoDocumento), ErroCopia> {
     let base = if let Some(n) = solicitada {
         n
     } else {
-        let maior = *versoes_locais(pasta, documento)?
-            .last()
-            .ok_or(ErroCopia::BaseAusente)?;
-        let bytes = ler_regular(
-            &pasta.join(nome(documento.as_str(), maior)),
-            ErroCopia::BaseAusente,
-        )?;
-        if registro(maior).is_some_and(|sha| sha == sha256(&bytes)) {
-            maior
-        } else {
-            VersaoDocumento::nova(maior.numero() - 1).map_err(|_| ErroCopia::BaseAusente)?
+        let versoes = versoes_locais(pasta, documento)?;
+        let maior = *versoes.last().ok_or(ErroCopia::BaseAusente)?;
+        match VersaoDocumento::nova(maior.numero() - 1) {
+            Ok(anterior) if versoes.contains(&anterior) => anterior,
+            _ => maior,
         }
     };
     let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
@@ -184,23 +174,17 @@ fn par(
     Ok((base, editada))
 }
 
-/// Apenas prévia; nenhuma chamada Web, leitura do editor ou POST. Nunca
-/// afirma a versão atual do SEI.
+/// Apenas prévia; nenhuma chamada Web, leitura do editor, POST, índice
+/// ou configuração. Nunca afirma a versão atual do SEI nem a base.
 pub fn previa_local(
     pasta: &Path,
     documento: &NumeroDocumento,
     solicitada: Option<VersaoDocumento>,
-    registro: Registro<'_>,
 ) -> Result<PreviaCopia, ErroCopia> {
     pasta_segura(pasta)?;
-    let (n, seguinte) = par(pasta, documento, solicitada, registro)?;
+    let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
     let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseAusente)?;
-    match registro(n) {
-        None => return Err(ErroCopia::BaseNaoRegistrada),
-        Some(sha) if sha != sha256(&base) => return Err(ErroCopia::BaseDivergente),
-        Some(_) => {}
-    }
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
         ErroCopia::EdicaoAusente,
@@ -215,6 +199,7 @@ pub fn previa_local(
         bytes_base: base.len(),
         bytes_editada: editada.len(),
         escrita_remota: false,
+        base_verificada: false,
         trecho_divergente: trecho_divergente(&base, &editada),
     })
 }
