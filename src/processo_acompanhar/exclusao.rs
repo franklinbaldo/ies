@@ -245,10 +245,8 @@ fn conferir_script(
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect();
-    let condicao_observada = (inicio.starts_with("if(confirm(\"")
-        && inicio.ends_with("\")){"))
-        || (inicio.starts_with("if(confirm('")
-            && inicio.ends_with("')){"));
+    let condicao_observada = (inicio.starts_with("if(confirm(\"") && inicio.ends_with("\")){"))
+        || (inicio.starts_with("if(confirm('") && inicio.ends_with("')){"));
     let entre_gravar_e_atribuir = corpo[i_gravar + gravar.len()..i_atribuir].trim();
     let depois_do_destino = i_atribuir + atribuir.len() + destino.len() + 1;
     if !condicao_observada
