@@ -134,7 +134,7 @@ fn publicavel(valor: &str) -> bool {
         return false;
     }
     let minusculo = valor.to_ascii_lowercase();
-    ![
+    let fragmentos_sensiveis = [
         "https://",
         "http://",
         "infra_hash",
@@ -142,9 +142,10 @@ fn publicavel(valor: &str) -> bool {
         "senha=",
         "controlador.php?",
         "controlador_ajax.php?",
-    ]
-    .iter()
-    .any(|fragmento| minusculo.contains(*fragmento))
+    ];
+    !fragmentos_sensiveis
+        .iter()
+        .any(|fragmento| minusculo.contains(*fragmento))
 }
 
 /// Sem escolha explícita, apenas uma opção efetiva é segura.
