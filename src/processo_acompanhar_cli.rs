@@ -18,6 +18,10 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
+            // Não abrir credenciais nem rede quando a escrita está bloqueada.
+            if *confirmar {
+                return Some(publicar_erro(cli.json, &ErroPrevia::ConfirmacaoNaoImplementada));
+            }
             let pedido = Pedido {
                 nup: &nup,
                 unidade: cli.unidade.as_deref(),
