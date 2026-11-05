@@ -386,7 +386,7 @@ fn publicar(
                 let mut objeto = json_do_documento(d);
                 documento_versao_cli::inserir_campos(&mut objeto, d);
                 objeto.insert("cache".to_owned(), caches.get(i).and_then(Option::as_ref).map_or(Value::Null, |c| json!({"caminho": c.caminho, "versao": c.versao, "sha256": c.sha256})));
-                objeto.insert("crc_rodape".to_owned(), Value::Null);
+                objeto.insert("crc_rodape".to_owned(), json!(d.versoes.crc_rodape));
                 if let Some(g) = gravado(i) {
                     let arquivo = documento_versao_cli::json_do_arquivo(
                         &g.nome, g.bytes, &g.sha256, g.gravado,
