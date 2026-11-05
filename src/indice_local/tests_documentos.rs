@@ -163,6 +163,7 @@ fn banco_da_versao_1_migra_para_2_sem_perder_linhas() {
     conexao
         .execute_batch(
             "DROP TABLE documento;
+             DROP TABLE foto;
              ALTER TABLE instalacao DROP COLUMN entrada_com_documento;
              ALTER TABLE instalacao DROP COLUMN entrada_com_documento_testado_em;
              ALTER TABLE instalacao DROP COLUMN recusas_com_documento;

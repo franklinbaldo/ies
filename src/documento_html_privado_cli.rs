@@ -53,7 +53,6 @@ fn conferir_comando(
     }
     if documento.processo.is_some()
         || documento.versao.is_some()
-        || documento.sem_copia
         || documento.ocultar_inacessiveis
         || documento.com_propriedades
         || documento.acao.is_some()

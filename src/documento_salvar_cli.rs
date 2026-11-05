@@ -1,8 +1,46 @@
-//! Prévia segura: nunca executa confirmação Web.
+//! Prévia segura: nunca executa confirmação Web. O par local é
+//! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207.
 use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
-use crate::{copia_documento, copia_listagem, documento, documento_versoes};
+use crate::documento_versoes::VersaoDocumento;
+use crate::indice_local::IndiceLocal;
+use crate::instalacao::Instalacao;
+use crate::{
+    configuracao, copia_documento, copia_listagem, documento, documento_versoes, transporte,
+};
 use serde_json::json;
 use std::process::ExitCode;
+
+/// O índice e a instalação da configuração, só para ler o SHA-256 das
+/// fotos registradas; sem configuração, nenhuma foto está registrada.
+struct RegistroDasFotos {
+    acesso: Option<(IndiceLocal, Instalacao)>,
+    documento: String,
+}
+
+impl RegistroDasFotos {
+    fn da_configuracao(documento: &documento::NumeroDocumento) -> Self {
+        let acesso = configuracao::arquivos_de_acesso()
+            .ok()
+            .and_then(|arquivos| {
+                let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                    &arquivos.url_controle,
+                    &arquivos.origem,
+                )
+                .ok()?;
+                let instalacao = Instalacao::interpretar(referencias.origem())?;
+                Some((IndiceLocal::da_configuracao(&arquivos), instalacao))
+            });
+        Self {
+            acesso,
+            documento: documento.as_str().to_owned(),
+        }
+    }
+
+    fn sha(&self, versao: VersaoDocumento) -> Option<String> {
+        let (indice, instalacao) = self.acesso.as_ref()?;
+        indice.foto(instalacao, &self.documento, versao)
+    }
+}
 
 fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
     let Ok(pasta) = std::env::current_dir() else {
@@ -12,32 +50,33 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
             "diretório de trabalho não pode ser lido",
         );
     };
-    match copia_listagem::listar(&pasta, documento) {
+    let registro = RegistroDasFotos::da_configuracao(documento);
+    match copia_listagem::listar(&pasta, documento, &|v| registro.sha(v)) {
         Ok(copias) => {
             if json_mode {
                 println!(
                     "{}",
                     json!({
                         "copias": copias,
-                        "escopo": "copias_de_trabalho_locais_verificadas",
+                        "escopo": "versoes_locais_verificadas",
                         "versao_remota_confirmada": false,
                         "escrita_remota": false
                     })
                 );
             } else {
                 println!(
-                    "IES: {} cópia(s) local(is) verificadas; nenhuma versão remota confirmada.",
+                    "IES: {} versão(ões) local(is) verificadas; nenhuma versão remota confirmada.",
                     copias.len()
                 );
                 for copia in &copias {
                     println!(
                         "  {} v{}: {}",
                         copia.documento,
-                        copia.versao_base,
-                        if copia.alterado {
-                            "alterada"
+                        copia.versao,
+                        if copia.foto {
+                            "foto registrada"
                         } else {
-                            "inalterada"
+                            "arquivo local não registrado"
                         }
                     );
                 }
@@ -86,21 +125,23 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
         Ok(versao) => versao,
         Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), "versão inválida")),
     };
-    let previa = copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao);
+    let registro = RegistroDasFotos::da_configuracao(&documento);
+    let previa =
+        copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao, &|v| {
+            registro.sha(v)
+        });
     match previa {
         Ok(dados) if !confirmar => {
             if cli.json {
                 println!("{}", json!({"previa": dados, "confirmado": false}));
             } else {
                 println!(
-                    "IES: cópia local {} v{}: {} (sem escrita no SEI)",
+                    "IES: {} v{} editada sobre a foto v{} ({} → {} bytes; sem escrita no SEI)",
                     dados.documento,
+                    dados.versao_editada,
                     dados.versao_base,
-                    if dados.alterado {
-                        "modificada"
-                    } else {
-                        "inalterada"
-                    }
+                    dados.bytes_base,
+                    dados.bytes_editada,
                 );
             }
             Some(ExitCode::SUCCESS)

@@ -24,6 +24,7 @@ pub(crate) enum RegistroRecusado {
     LinkSemInfraHashUnico,
     LinkComAcaoAjax,
     LinkDeOutraUnidade,
+    Sha256Invalido,
 }
 
 impl RegistroRecusado {
@@ -44,6 +45,7 @@ impl RegistroRecusado {
             Self::LinkSemInfraHashUnico => "indice_link_sem_infra_hash_unico",
             Self::LinkComAcaoAjax => "indice_link_com_acao_ajax",
             Self::LinkDeOutraUnidade => "indice_link_de_outra_unidade",
+            Self::Sha256Invalido => "indice_sha256_invalido",
         }
     }
 }

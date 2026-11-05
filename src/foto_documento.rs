@@ -1,0 +1,169 @@
+//! A foto `DOC.vN.html` de `ies documento DOC --saida DIR` (#207;
+//! contracts/cli/documento-obter-versoes.md): o HTML que o SEI serviu da
+//! versão N, um arquivo por versão, sem `.txt` nem arquivos ocultos. Uma
+//! versão fechada não muda, então a gravação é idempotente: ausente,
+//! grava (0600, sem seguir link, atômica); igual pelo SHA-256, não grava;
+//! diferente, recusa tipada.
+use crate::arquivo_copia::ler_regular;
+use crate::arquivo_texto_documento::conferir_diretorios;
+use crate::copia_documento::{ErroCopia, pasta_segura};
+use crate::documento::NumeroDocumento;
+use crate::documento_versoes::VersaoDocumento;
+use sha2::{Digest, Sha256};
+use std::fs::{self, OpenOptions};
+use std::io::{ErrorKind, Write};
+use std::path::Path;
+
+/// `DOC.vN.html`.
+pub(crate) fn nome(numero: &str, versao: VersaoDocumento) -> String {
+    format!("{numero}.v{}.html", versao.numero())
+}
+
+/// SHA-256 em hexadecimal minúsculo.
+pub(crate) fn sha256(bytes: &[u8]) -> String {
+    crate::hex::hex_minusculo(&Sha256::digest(bytes))
+}
+
+/// O resultado da gravação de uma foto.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct FotoGravada {
+    /// `DOC.vN.html`, relativo a `--saida`.
+    pub(crate) nome: String,
+    pub(crate) bytes: usize,
+    pub(crate) sha256: String,
+    /// `false`: o arquivo já existia com o mesmo SHA-256 (no-op).
+    pub(crate) gravado: bool,
+}
+
+/// `DIR` existe, é diretório e nenhum ancestral é link simbólico.
+pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
+    conferir_diretorios(&pasta.join("x")).map_err(ErroCopia::DiretorioDeSaida)?;
+    pasta_segura(pasta)
+}
+
+/// Os bytes da foto já presente, lidos sem seguir link e só se privada;
+/// `None` quando não há nada com esse nome.
+pub(crate) fn existente(pasta: &Path, nome: &str) -> Result<Option<Vec<u8>>, ErroCopia> {
+    let alvo = pasta.join(nome);
+    match fs::symlink_metadata(&alvo) {
+        Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(ErroCopia::LeituraFalhou),
+        Ok(_) => ler_regular(&alvo, ErroCopia::LeituraFalhou).map(Some),
+    }
+}
+
+/// A foto local declara o mesmo documento e, se servir rodapé, a mesma
+/// versão do nome.
+fn coerente(bytes: &[u8], numero: &str, versao: VersaoDocumento) -> bool {
+    let Ok(html) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let mesmo_documento =
+        crate::documento_web::identidade_do_titulo(html).is_ok_and(|id| id.numero == numero);
+    let mesma_versao =
+        crate::rodape_do_documento::versao_do_rodape(html).is_none_or(|servida| servida == versao);
+    mesmo_documento && mesma_versao
+}
+
+/// Antes de qualquer rede: `DIR` seguro e, com `--versao N` (o nome já
+/// é conhecido), cada `DOC.vN.html` presente legível, privado e coerente
+/// com o nome (título do mesmo número SEI, rodapé da mesma versão).
+pub(crate) fn conferir_antes_da_rede(
+    pasta: &Path,
+    numeros: &[NumeroDocumento],
+    pedida: Option<VersaoDocumento>,
+) -> Result<(), ErroCopia> {
+    conferir_pasta(pasta)?;
+    let Some(versao) = pedida else {
+        return Ok(());
+    };
+    for numero in numeros {
+        if let Some(bytes) = existente(pasta, &nome(numero.as_str(), versao))?
+            && !coerente(&bytes, numero.as_str(), versao)
+        {
+            return Err(ErroCopia::FotoDivergente);
+        }
+    }
+    Ok(())
+}
+
+/// Sem gravar: o que [`gravar`] faria (`gravado: false` se já igual) ou
+/// a recusa, para conferir o lote inteiro antes da primeira gravação.
+pub(crate) fn planejar(
+    pasta: &Path,
+    numero: &str,
+    versao: VersaoDocumento,
+    html: &str,
+) -> Result<FotoGravada, ErroCopia> {
+    let nome = nome(numero, versao);
+    let sha256 = sha256(html.as_bytes());
+    let gravado = match existente(pasta, &nome)? {
+        None => true,
+        Some(bytes) if self::sha256(&bytes) == sha256 => false,
+        Some(_) => return Err(ErroCopia::FotoDivergente),
+    };
+    Ok(FotoGravada {
+        nome,
+        bytes: html.len(),
+        sha256,
+        gravado,
+    })
+}
+
+/// Grava a foto: parcial `0600` criado novo no mesmo `DIR`, `fsync` e
+/// `hard_link` para o nome final (falha se o nome surgiu: nunca
+/// sobrescreve), e o parcial é removido.
+pub(crate) fn gravar(
+    pasta: &Path,
+    numero: &str,
+    versao: VersaoDocumento,
+    html: &str,
+) -> Result<FotoGravada, ErroCopia> {
+    conferir_pasta(pasta)?;
+    let plano = planejar(pasta, numero, versao, html)?;
+    if !plano.gravado {
+        return Ok(plano);
+    }
+    let parcial = pasta.join(format!(".{}.parcial-{}", plano.nome, std::process::id()));
+    let resultado = criar_parcial(&parcial, html.as_bytes()).and_then(|()| {
+        fs::hard_link(&parcial, pasta.join(&plano.nome)).map_err(|erro| {
+            if erro.kind() == ErrorKind::AlreadyExists {
+                ErroCopia::FotoDivergente
+            } else {
+                ErroCopia::GravacaoFalhou
+            }
+        })
+    });
+    let _ = fs::remove_file(&parcial);
+    match resultado {
+        Ok(()) => Ok(plano),
+        // Surgiu entre a conferência e a ligação: igual é no-op.
+        Err(ErroCopia::FotoDivergente) => {
+            let de_novo = planejar(pasta, numero, versao, html)?;
+            if de_novo.gravado {
+                return Err(ErroCopia::GravacaoFalhou);
+            }
+            Ok(de_novo)
+        }
+        Err(erro) => Err(erro),
+    }
+}
+
+fn criar_parcial(alvo: &Path, bytes: &[u8]) -> Result<(), ErroCopia> {
+    let mut opcoes = OpenOptions::new();
+    opcoes.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opcoes.mode(0o600);
+    }
+    let mut arquivo = opcoes.open(alvo).map_err(|_| ErroCopia::GravacaoFalhou)?;
+    arquivo
+        .write_all(bytes)
+        .and_then(|()| arquivo.sync_all())
+        .map_err(|_| ErroCopia::GravacaoFalhou)
+}
+
+#[cfg(test)]
+#[path = "foto_documento/tests.rs"]
+pub(crate) mod tests;

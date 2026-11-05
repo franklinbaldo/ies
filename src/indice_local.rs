@@ -5,6 +5,8 @@
 //!   `procedimento_trabalhar&id_procedimento=N`? (recusa expira em 30 dias);
 //! - `processo`: identidade durável NUP ↔ `id_procedimento`;
 //! - `documento`: número SEI ↔ (`id_procedimento`, `id_documento`);
+//! - `foto`: o SHA-256 da foto `DOC.vN.html` gravada por `--saida` (#207),
+//!   que a prévia de `documento salvar` confere;
 //! - `link_assinado`: URLs assinadas **literais**, válidas só na geração de
 //!   sessão (e unidade) em que foram vistas.
 //!
@@ -15,6 +17,7 @@
 mod abertura;
 mod documentos;
 mod entrada_por_id;
+mod fotos;
 mod identidade;
 mod links;
 mod validacao;
@@ -25,6 +28,8 @@ pub(crate) mod tests;
 mod tests_documentos;
 #[cfg(test)]
 mod tests_entrada;
+#[cfg(test)]
+mod tests_fotos;
 #[cfg(test)]
 mod tests_links;
 
