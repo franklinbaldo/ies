@@ -26,7 +26,10 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
         Ok(nup) => {
             // Não abrir credenciais nem rede quando a escrita está bloqueada.
             if *confirmar {
-                return Some(publicar_erro(cli.json, &ErroPrevia::ConfirmacaoNaoImplementada));
+                return Some(publicar_erro(
+                    cli.json,
+                    &ErroPrevia::ConfirmacaoNaoImplementada,
+                ));
             }
             let pedido = Pedido {
                 nup: &nup,
