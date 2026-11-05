@@ -102,6 +102,7 @@ fn confirmar_post_unico_e_reler_lista_mesmo_processo() {
     let (resultado, pedidos) = executar(respostas, true);
     let feito = resultado.unwrap();
     assert!(feito.confirmado && feito.alterado && !feito.ja_estava);
+    assert_eq!(feito.id_de_remocao.as_deref(), Some("831"));
     assert_eq!(feito.requisicoes, 7);
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
