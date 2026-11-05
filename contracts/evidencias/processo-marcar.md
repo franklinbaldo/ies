@@ -2,36 +2,56 @@
 type: OperationEvidence
 title: processo.marcar
 operation: processo.marcar
-source: estrutura-observada-pelo-ies-e-indice-de-cassettes-do-todos
+source: todos-demonstration-matrix
+source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
 ies_implemented: false
+upstream_steps: 14
+unresolved_steps: 0
 ---
 
-# Evidências verificáveis para `processo.marcar`
+# Evidências relacionadas ao comando `processo.marcar`
 
-Esta operação contém **escrita**, mas somente o recorte de prévia e
-idempotência está implementado no IES. `ies_implemented: false` refere-se
-à **escrita**, que continua bloqueada. Não há equivalência provada de
-corpo POST por replay ou teste live desta PR.
+Este **card derivado** agrupa as operações distintas
+[`marcador.aplicar`](marcador-aplicar.md) e
+[`marcador.remover`](marcador-remover.md) da matriz do Todos.
+`upstream_steps: 14` é a soma dos **7 passos de aplicação + 7 de
+remoção**, cada qual identificado nas duas fichas originais.
+`unresolved_steps: 0` significa que os 14 vínculos possuem fichas de
+cassette no catálogo, **não** que a escrita foi validada no IES.
+Não afirma que `processo.marcar` seja uma operação literal da matriz.
 
-## Observado antes dos testes RED
+## Estado por instalação na matriz original
+
+- UnB: `marcador-escritas-unb#7` (aplicar) e `#10` (remover).
+- PEN1: `marcador-escritas-pen1#7` e `#10`.
+- PEN2: `marcador-escritas-pen2#7` e `#10`.
+- UFRJ: `marcador-escritas-ufrj#7` e `#10`.
+- PEN3: `marcador-escritas-pen3#7` e `#10`.
+- PEN4: `marcador-escritas-pen4#7` e `#10`.
+- Goiás: `marcador-escritas-go#7` e `#10`.
+
+Esses nomes e índices são **referências do roteiro Todos**;
+as revisões imutáveis e hashes estão nas fichas originais, que devem
+ser confrontadas no replay antes de alegar equivalência.
+
+## Observado pelo IES
 
 - [Estrutura da UnB 4.0.9](../../docs/como-o-sei-funciona/marcadores-do-processo.md):
-  tela `andamento_marcador_gerenciar`, `tblMarcadores`, coluna
-  `id_marcador` usada também em processos diferentes e
-  controles `btnAdicionar`/`btnRemover`.
-- [Leitura live preexistente](../../docs/validacao-live/2026-11-04-processo-obter-marcadores.md):
-  marcadores múltiplos e processo vazio; **não prova escrita**.
-- [Fixture sintética do leitor](../../src/marcadores_processo/tests_apoio.rs)
-  reproduz a forma observada e distingue `id` da associação.
+  `tblMarcadores`, `id_marcador` compartilhado em processos diferentes,
+  botões e formulário de gerenciamento.
+- [Leitura live em 04/11](../../docs/validacao-live/2026-11-04-processo-obter-marcadores.md):
+  mais de um marcador e ausência de marcadores; **não prova escrita**.
+- [Fixture sintética](../../src/marcadores_processo/tests_apoio.rs)
+  reproduz a forma observada.
 
-## Não observado ou não executado
+## Não executado na nova PR
 
-O inventário cita `marcador-escritas-*` e
-`marcador-ciclo-completo-*`, porém esta PR ainda não executou seu
-replay; nenhuma contagem de cassettes ou POST é alegada.
-[Relatório da sessão](../../docs/validacao-live/2026-11-05-processo-marcar.md):
-prévia live e escrita **NOT_RUN**, zero requisições e resíduo nulo.
+Replay das 14 referências e prévia/escrita live em treinamento:
+**NOT_RUN** (zero requisições nesta sessão; sem resíduo no SEI).
+Corpo POST, sucesso e verificação posterior por leitura **não foram
+demonstrados**. Não tratar dados do Todos como resultado do IES.
+Ver [relatório](../../docs/validacao-live/2026-11-05-processo-marcar.md).
 
 [Contrato](../cli/processo-marcar.md) ·
 [Decisão](../../docs/decisoes/processo-marcar.md) ·
