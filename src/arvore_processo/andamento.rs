@@ -1,5 +1,5 @@
 //! "Atualizar Andamento" na barra do nó PROCESSO.
-//! Caso: Todos src/todos/andamento.py @323eb01; cassete UnB
+//! Caso: Todos src/todos/andamento.py @323eb01; cassete `UnB`
 //! processo-andamento-registrar-unb. Nunca executa JS nem publica URL.
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
