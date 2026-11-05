@@ -12,7 +12,6 @@ mod colheita_do_controle;
 mod configuracao;
 mod controle_contexto;
 mod controle_reconhecido;
-#[allow(dead_code)] // A criação dependerá de editor Web validado.
 mod copia_documento;
 mod copia_listagem;
 mod documento;
@@ -23,20 +22,17 @@ mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
 mod documento_versao_cli;
-#[allow(dead_code)] // O parser offline antecede o transporte de histórico Web.
 mod documento_versoes;
 mod documento_web;
 mod dominio;
 mod entidades_html;
 mod erro_web;
 mod esquema_cli;
-#[allow(dead_code)] // Primitivo offline; nenhum comando envia POST nesta fatia.
 mod formulario_web;
 mod hex;
 mod historico;
 mod historico_processo;
 mod html_atributos;
-#[allow(dead_code)] // Índice local (ADR 0003); a integração vem depois.
 mod indice_local;
 mod instalacao;
 mod marcadores_processo;
@@ -46,7 +42,6 @@ mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
-#[allow(dead_code)] // Tipos da próxima operação, ainda sem adaptador de leitura.
 mod processo;
 mod processo_buscar_cli;
 mod processo_concluir;
