@@ -2,7 +2,7 @@
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ErroCadastro {
     HtmlInvalido,
     FormularioAusenteOuRepetido,
