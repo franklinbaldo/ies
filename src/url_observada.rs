@@ -42,12 +42,14 @@ pub(crate) fn partes_https(url: &str) -> Option<UrlHttps<'_>> {
 /// Declara um esquema RFC lexical na primeira componente da referência.
 pub(crate) fn tem_esquema(referencia: &str) -> bool {
     let fim = referencia.find(['/', '?']).unwrap_or(referencia.len());
-    referencia[..fim].split_once(':').is_some_and(|(esquema, _)| {
-        !esquema.is_empty()
-            && esquema
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
-    })
+    referencia[..fim]
+        .split_once(':')
+        .is_some_and(|(esquema, _)| {
+            !esquema.is_empty()
+                && esquema
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
+        })
 }
 
 /// Para login, qualquer prefixo não vazio terminado em ':' era recusado;
@@ -65,8 +67,7 @@ pub(crate) fn esquema_e_resto(referencia: &str) -> Option<(&str, &str)> {
 
 pub(crate) fn resto_http_ou_https(referencia: &str) -> Option<&str> {
     let (esquema, resto) = esquema_e_resto(referencia)?;
-    (esquema.eq_ignore_ascii_case("https") || esquema.eq_ignore_ascii_case("http"))
-        .then_some(resto)
+    (esquema.eq_ignore_ascii_case("https") || esquema.eq_ignore_ascii_case("http")).then_some(resto)
 }
 
 /// Caminho com a barra inicial; não remove segmentos nem resolve '..'.
@@ -88,16 +89,25 @@ mod tests {
     #[test]
     fn decompostos_sem_normalizar_referencia() {
         let p = partes_https("https://exemplo.test/sei/controlador.php?acao=x").unwrap();
-        assert_eq!((p.host, p.caminho, p.consulta), ("exemplo.test", "sei/controlador.php", Some("acao=x")));
+        assert_eq!(
+            (p.host, p.caminho, p.consulta),
+            ("exemplo.test", "sei/controlador.php", Some("acao=x"))
+        );
         assert_eq!(pasta(p.caminho), Some("sei"));
-        assert_eq!(caminho_absoluto("https://exemplo.test/sei/a?b=c"), Some("/sei/a"));
+        assert_eq!(
+            caminho_absoluto("https://exemplo.test/sei/a?b=c"),
+            Some("/sei/a")
+        );
         assert!(partes_https("https://user@exemplo.test/sei/a").is_none());
         assert!(partes_https("https://exemplo.test:444/sei/a").is_none());
     }
 
     #[test]
     fn esquema_e_referencias_continuam_separados() {
-        assert_eq!(resto_http_ou_https("HTTP://EXEMPLO.TEST/sei"), Some("EXEMPLO.TEST/sei"));
+        assert_eq!(
+            resto_http_ou_https("HTTP://EXEMPLO.TEST/sei"),
+            Some("EXEMPLO.TEST/sei")
+        );
         assert!(tem_esquema("mailto:alguem"));
         assert!(tem_prefixo_de_esquema("a!:b"));
         assert!(!tem_esquema("a!:b"));
@@ -105,6 +115,9 @@ mod tests {
         assert!(resto_http_ou_https("//outro.test").is_none());
         assert_eq!(pasta("sei/../documento"), Some("sei/.."));
         assert_eq!(pasta("sei/a%2Fb"), Some("sei"));
-        assert_eq!(caminho_absoluto("https://exemplo.test/sei/a#frag"), Some("/sei/a#frag"));
+        assert_eq!(
+            caminho_absoluto("https://exemplo.test/sei/a#frag"),
+            Some("/sei/a#frag")
+        );
     }
 }
