@@ -389,4 +389,69 @@ mod tests {
             Err(ErroCriar::EfeitoIncerto)
         );
     }
+
+    #[test]
+    fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
+        // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        let href = format!(
+            "controlador.php?acao=documento_gerar&id_procedimento=10&infra_hash={}",
+            "a".repeat(64)
+        );
+        let html = format!(
+            "<table id=\"tblSeries\"><tr><td><a href=\"{href}\">Despacho</a></td></tr></table>"
+        );
+        assert_eq!(
+            link_direto_do_tipo(&instalacao, &html, "10", "Despacho"),
+            Ok(format!("https://sei.exemplo.gov.br/sei/{href}"))
+        );
+        assert_eq!(
+            link_direto_do_tipo(&instalacao, &html, "11", "Despacho"),
+            Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+        );
+        let script = r#"<table id="tblSeries"><tr><td>
+            <a href="javascript:void(0);" onclick="escolher(3);">Despacho</a>
+            </td></tr></table>"#;
+        assert_eq!(
+            link_direto_do_tipo(&instalacao, script, "10", "Despacho"),
+            Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        );
+    }
+
+    #[test]
+    fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
+        // Caso de Todos tests/paginas_reais/documento_gerar.html @323eb01
+        let html = r#"<form id="frmDocumentoCadastro" method="post">
+            <label id="lblSerieTitulo">Despacho</label>
+            <input type="text" id="txtDescricao" name="txtDescricao">
+            <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
+            <input type="radio" id="optRestrito" name="rdoNivelAcesso" value="1" disabled="disabled">
+            </form>"#;
+        assert_eq!(
+            conferir_cadastro(html, "Despacho", Some("Ensaio"), Some("publico")),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_cadastro(html, "Ofício", None, None),
+            Err(ErroCriar::TipoDoCadastroDiferente)
+        );
+        assert_eq!(
+            conferir_cadastro(html, "Despacho", None, Some("restrito")),
+            Err(ErroCriar::NivelNaoOferecido)
+        );
+        assert_eq!(
+            conferir_cadastro(html, "Despacho", None, Some("sigiloso")),
+            Err(ErroCriar::NivelNaoOferecido)
+        );
+        let sem_campo = html.replace("id=\"txtDescricao\"", "id=\"outro\"");
+        assert_eq!(
+            conferir_cadastro(&sem_campo, "Despacho", Some("texto"), None),
+            Err(ErroCriar::DescricaoNaoOferecida)
+        );
+        assert_eq!(
+            conferir_cadastro("<html></html>", "Despacho", None, None),
+            Err(ErroCriar::CadastroForaDaForma)
+        );
+    }
+
 }
