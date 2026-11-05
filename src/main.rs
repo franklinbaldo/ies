@@ -46,6 +46,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
+#[cfg(test)]
+mod processo_atribuir;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
