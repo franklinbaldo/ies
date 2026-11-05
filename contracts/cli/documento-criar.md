@@ -18,7 +18,7 @@ O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
-Estado `partial`: a CLI oferece prévia de leitura nas telas com link direto e assinado para o cadastro (`documento_gerar`). A confirmação agora tem um caminho de POST único e reconciliação por releitura, **somente para o nível público **explicitamente pedido** e formulário com o script observado**; antes de receber CI e replay, essa implementação permanece WIP, não validada para uso real. Instalações que só publicam `escolher(ID)` recusam sem inventar navegação. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
+Estado `partial`: a CLI oferece prévia nas telas com link direto e assinado para o cadastro (`documento_gerar`) **e** nas telas com `escolher(ID)` quando a função servida comprova duas instruções literais: atribuir `hdnIdSerie` e submeter `frmDocumentoEscolherTipo`. Nessa segunda forma, faz um POST **de navegação sem criação** para `documento_escolher_tipo`, valida a Location 302 assinada do mesmo processo e faz um GET do cadastro; não executa JS, não segue redirecionamentos automaticamente e não repete requisições. A confirmação tem um único POST **de escrita** e reconciliação por releitura, somente com `--nivel publico` explícito e script observado. Até CI, replay e ensaio live, tudo permanece WIP, sem validação para uso real. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
 
 ## Prévia
 
@@ -26,7 +26,7 @@ Abrir o processo, confirmar identidade e unidade da sessão, constatar
 que o processo está aberto nessa unidade e seguir o link **publicado**
 "Incluir Documento" (`documento_escolher_tipo`). Ler a lista
 `tblSeries`, recusar nomes ausentes e ambíguos, ignorar "Externo",
-abrir o cadastro do tipo exato e conferir `lblSerieTitulo`, formulário,
+abrir o cadastro do tipo exato (GET direto ou POST de navegação seguido de GET) e conferir `lblSerieTitulo`, formulário,
 campos e nível solicitado. A prévia não envia POST de criação. Uma
 eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
@@ -65,7 +65,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `incluir_documento_nao_publicado_na_barra` | A unidade não publicou a opção de incluir |
 | `unidade_da_sessao_nao_publicada` | A tela não identifica a unidade de trabalho |
 | `situacao_do_processo_nao_lida_antes_de_criar_documento` | A árvore não publicou a situação segura para gravação |
-| `link_do_tipo_de_documento_nao_navegavel` | A escolha depende de script ainda sem navegação derivada |
+| `link_do_tipo_de_documento_nao_navegavel` | O onclick/script não comprova exatamente a navegação segura por formulário |
 | `endereco_do_tipo_de_documento_nao_reconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
 | `tipo_do_cadastro_diferente_do_solicitado` | A tela aberta não identifica o tipo pedido |
 | `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
@@ -99,5 +99,5 @@ e [decisão](../../docs/decisoes/documento-criar.md).
 Oráculo: Todos `src/todos/documentos.py` (`criar`,
 `_criar_na_arvore`, `cadastrar_da_tela`, `_depois_de_enviado`).
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
-Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; os novos testes de formulário e de identidade foram publicados, mas não executados localmente por ausência de Rust e DNS. Contagem RED observada: **não aferida**. O CI do head precisa ser confirmado antes de considerar GREEN.
+Replay, RED local, gate local e prévia live: **NOT_RUN** nesta etapa; novos testes sintéticos cobrem a escolha 4.1, o POST de navegação, a rejeição de scripts alterados e redirects fora do processo/origem, mas não foram executados localmente por ausência de Rust e DNS. Contagem RED observada: **não aferida**. O CI do head precisa ser confirmado antes de considerar GREEN.
 Escrita live: **AUTORIZADA exclusivamente em treinamento**, mas **NOT_RUN**. A autorização está na issue #246; executar apenas depois de validar o branch, fazer prévia ao vivo e comprovar a leitura posterior, registrando o resíduo. Nenhum documento foi criado nesta sessão.
