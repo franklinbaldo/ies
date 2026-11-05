@@ -154,6 +154,24 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
     ler_controles_da_tela(form, &dom, id_procedimento)
 }
 
+/// As duas opções de rádio e os campos que a tela observada sempre publica.
+fn controles_completos(
+    radios: &std::collections::HashSet<String>,
+    vistos: &std::collections::HashSet<String>,
+) -> bool {
+    radios.contains("1")
+        && radios.contains("2")
+        && [
+            "hdnInfraTipoPagina",
+            "hdnIdControlePrazo",
+            "txtPrazo",
+            "txtDias",
+            "chkSinDiasUteis",
+        ]
+        .iter()
+        .all(|nome| vistos.contains(*nome))
+}
+
 /// Confere os nomes e tipos publicados na tela antes de derivar qualquer escrita.
 fn ler_controles_da_tela(
     form: &tl::HTMLTag<'_>,
@@ -241,20 +259,7 @@ fn ler_controles_da_tela(
             _ => return Err(E::TelaNaoObservada),
         }
     }
-    if !id_conferido
-        || botoes != 1
-        || !radios.contains("1")
-        || !radios.contains("2")
-        || ![
-            "hdnInfraTipoPagina",
-            "hdnIdControlePrazo",
-            "txtPrazo",
-            "txtDias",
-            "chkSinDiasUteis",
-        ]
-        .iter()
-        .all(|nome| vistos.contains(*nome))
-    {
+    if !id_conferido || botoes != 1 || !controles_completos(&radios, &vistos) {
         return Err(E::TelaNaoObservada);
     }
     let estado = match marcada.as_deref() {
