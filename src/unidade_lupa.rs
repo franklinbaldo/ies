@@ -392,8 +392,8 @@ mod tests {
         </form>";
         let lida = ler_pagina(html).expect("vazio observado, sem tabela");
         assert_eq!((lida.total, lida.pagina, lida.paginas), (0, 0, 1));
-        assert!(lida.unidades.is_empty());
-        assert!(reunir_paginas(vec![lida]).unwrap().is_empty());
+        assert_eq!(lida.unidades, Vec::new());
+        assert_eq!(reunir_paginas(vec![lida]).unwrap(), Vec::new());
     }
 
     #[test]
