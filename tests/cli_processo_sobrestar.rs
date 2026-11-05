@@ -1,5 +1,5 @@
 //! Superfície de sobrestar e retomar (#269): entradas inválidas e
-//! confirmação não implementada recusam ANTES de ler configuração ou rede.
+//! confirmação exige sessão válida antes de qualquer operação remota.
 use std::process::{Command, Output};
 
 fn sem_sessao(args: &[&str]) -> Output {
@@ -37,7 +37,7 @@ fn motivo_obrigatorio_no_clap() {
     assert_eq!(saida.stdout, b"");
 }
 #[test]
-fn confirmar_nao_escreve_nem_le_sessao_antes_da_implementacao() {
+fn confirmar_exige_sessao_valida_e_nao_produz_sucesso_sem_configuracao() {
     for argumentos in [
         vec![
             "processo",
@@ -54,9 +54,12 @@ fn confirmar_nao_escreve_nem_le_sessao_antes_da_implementacao() {
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
         let valor = json(&saida);
         assert_eq!(
+            valor["retentavel"],
+            false
+        );
+        assert_ne!(
             valor["subcodigo"],
             "confirmacao_de_sobrestamento_nao_implementada"
         );
-        assert_eq!(valor["retentavel"], false);
     }
 }
