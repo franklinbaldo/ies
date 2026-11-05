@@ -76,8 +76,12 @@ falhas anteriores.
 
 **Limites remanescentes:** o ensaio nao verificou `--mes` ausente
 em calendario deslocado, mes anterior, ou navegacao em mais de um
-salto. Esses caminhos tem testes sinteticos (quando observados)
-ou recusam sem inventar URL. O resultado nao prova paridade em
+salto. A nova fatia permite procurar `diaHoje` quando o calendario
+esta deslocado, usando somente links publicados e o UTC como pista;
+a verificacao autenticada especifica permanece **NOT_RUN (0 pedidos)**.
+Os testes sinteticos mostram o custo de 4 GET para mes vizinho,
+sem permitir publicar uma data da maquina como se fosse do SEI.
+Nao se repetiram os ensaios anteriores nem houve novas escritas. O resultado nao prova paridade em
 instalacoes alem de GO e PEN3 em 05/11.
 
 ## Estado
