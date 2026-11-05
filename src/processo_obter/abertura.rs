@@ -6,10 +6,11 @@ use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
     ErroAcompanharNaBarra, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
-    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra, ler_arvore,
-    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
-    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra, ler_retomar_da_barra,
-    ler_sobrestar_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -163,6 +164,7 @@ pub(super) struct ArvoreAberta {
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    pub(super) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
     /// O link do acompanhamento, usado apenas por processo acompanhar.
     pub(super) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
@@ -198,6 +200,7 @@ pub(super) fn ler_arvore_da_pagina(
     let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
     let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let relacionar = ler_relacionar_da_barra(instalacao, html, id);
     let acompanhar = ler_acompanhar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
@@ -211,6 +214,7 @@ pub(super) fn ler_arvore_da_pagina(
         retomar,
         enviar,
         acompanhar,
+        relacionar,
     })
 }
 

@@ -21,6 +21,7 @@ mod movidos;
 mod natureza;
 mod pastas;
 mod reabrir;
+mod relacionar;
 mod situacao;
 mod sobrestar;
 mod tela;
@@ -99,6 +100,7 @@ pub(crate) use reabrir::{
     ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
     ler_endereco_de_reabrir, ler_reabrir_da_barra,
 };
+pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};

@@ -127,4 +127,14 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Prévia de relacionar/desfazer vínculo; escrita ainda bloqueada
+    Relacionar {
+        numero: String,
+        #[arg(long = "com")]
+        com: String,
+        #[arg(long)]
+        remover: bool,
+        #[arg(long)]
+        confirmar: bool,
+    },
 }
