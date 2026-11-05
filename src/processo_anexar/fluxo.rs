@@ -1,0 +1,163 @@
+//! Prévia Web de anexação: abre principal, lê a tela e consulta somente
+//! a identidade do anexado e sua condição de assinatura. Não grava nada.
+//! O POST de escrita permanece bloqueado até teste de transporte/efeito incerto.
+use super::{decidir, ler_confirmacao, ler_destino, ler_tela, Destino};
+use crate::arvore_processo::ErroAnexarNaBarra;
+use crate::formulario_web::{
+    ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
+};
+use crate::indice_local::IndiceLocal;
+use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
+use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_obter::{
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+};
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::visao_do_controle::EnvioDoControle as _;
+
+const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
+    acao_ajax: "protocolo_RI1023",
+    campos: &["idProcedimento"],
+    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+        evidencia: "Todos/src/todos/anexacao.py @323eb01, UnB 4.0.9",
+    },
+};
+const CONFERIR: ConsultaAjax = ConsultaAjax {
+    acao_ajax: "procedimento_anexacao_verificar",
+    campos: &["idProcedimento"],
+    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+        evidencia: "Todos/src/todos/anexacao.py @323eb01, UnB 4.0.9",
+    },
+};
+
+#[derive(Debug)]
+pub(crate) enum FalhaAnexar {
+    ConfirmacaoAindaNaoValidada,
+    Abertura(ErroProcessoObter),
+    Barra(ErroAnexarNaBarra),
+    LinkNaoPublicado,
+    Tela(FalhaTransporte),
+    TelaRedirecionada,
+    SessaoEncerrada,
+    Estrutura(&'static str),
+    ConsultaDerivacao(ErroSubmissaoFormulario),
+    ConsultaTransporte(FalhaTransporte),
+    ConsultaResposta(FalhaTransporte),
+}
+impl FalhaAnexar {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::ConfirmacaoAindaNaoValidada => "confirmacao_de_anexacao_nao_validada",
+            Self::Abertura(erro) => erro.subcodigo(),
+            Self::Barra(erro) => erro.subcodigo(),
+            Self::LinkNaoPublicado => "anexacao_nao_publicada_na_barra",
+            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => erro.subcodigo(),
+            Self::TelaRedirecionada => "tela_de_anexacao_redirecionada",
+            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
+            Self::Estrutura(codigo) => codigo,
+            Self::ConsultaDerivacao(erro) => erro.subcodigo(),
+        }
+    }
+}
+pub(crate) struct Pedido<'a> {
+    pub(crate) anexado: &'a NumeroProcesso,
+    pub(crate) principal: &'a NumeroProcesso,
+    pub(crate) unidade: Option<&'a str>,
+    pub(crate) confirmar: bool,
+}
+pub(crate) struct Previa {
+    pub(crate) principal: String,
+    pub(crate) id_principal: String,
+    pub(crate) anexado: Destino,
+    pub(crate) assinaturas_em_dia: bool,
+    pub(crate) requisicoes: u8,
+}
+
+/// A URL das consultas tem origem exclusivamente no script servido; nunca
+/// construímos URL assinada por inferência nem interpretamos o JavaScript.
+pub(super) fn url_da_consulta(html: &str, inicio: &str) -> Result<String, &'static str> {
+    let mut achados = html.split(inicio).skip(1);
+    let primeiro = achados.next().and_then(|resto| resto.split_once('\'').map(|(url, _)| url));
+    if achados.next().is_some() {
+        return Err("consultas_de_anexacao_repetidas");
+    }
+    let url = primeiro.ok_or("consulta_de_anexacao_nao_publicada")?;
+    if !url.starts_with("controlador_ajax.php?") {
+        return Err("consulta_de_anexacao_fora_da_forma_observada");
+    }
+    Ok(url.to_owned())
+}
+
+/// Sem --confirmar, a única escrita possível no transporte é a consulta AJAX
+/// (POST de leitura, declarada e conferida). Nada de POST criador.
+pub(crate) fn prever<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &Pedido<'_>,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<Previa, FalhaAnexar> {
+    use FalhaAnexar as E;
+    if pedido.confirmar {
+        return Err(E::ConfirmacaoAindaNaoValidada);
+    }
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
+    let mut rede = Contador::novo(envio);
+    let (aberto, acoes) = abrir_para_escrever(
+        sessao, &leitura(pedido.principal, pedido.unidade, true), indice, &mut rede,
+    ).map_err(E::Abertura)?;
+    let id = aberto.arvore.processo.id;
+    let link = acoes.anexar.map_err(E::Barra)?.ok_or(E::LinkNaoPublicado)?;
+    let cookie = ler_cookie(sessao).map_err(E::Tela)?;
+    let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
+        FalhaDaTela::Transporte(falha) => E::Tela(falha),
+        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
+        FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+    })?;
+    let vista = ler_tela(&html).map_err(E::Estrutura)?;
+    let codificacao = codificacao_da_tela(&mime)
+        .ok_or(E::Estrutura("charset_da_tela_de_anexacao_nao_suportado"))?;
+    let tela = TelaServida {
+        url: link.as_str(), html: &html, codificacao,
+    };
+    let url = url_da_consulta(
+        &html, "new infraAjaxComplementar('txtProtocolo','",
+    ).map_err(E::Estrutura)?;
+    let consulta = derivar_consulta_ajax(
+        &IDENTIFICAR, &instalacao, &tela, &url,
+        &[("idProcedimento", pedido.anexado.as_str())],
+    ).map_err(E::ConsultaDerivacao)?;
+    let resposta = rede.post(consulta, &cookie).map_err(E::ConsultaTransporte)?;
+    if resposta.resposta.status_code == 302 {
+        return Err(E::Estrutura("consulta_de_identidade_redirecionada"));
+    }
+    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let anexado = ler_destino(&xml).map_err(E::Estrutura)?;
+    if anexado.nup != pedido.anexado.as_str() {
+        return Err(E::Estrutura("nup_do_anexado_diferente_do_solicitado"));
+    }
+    decidir(pedido.principal.as_str(), &id, &anexado, &vista.anexados)
+        .map_err(E::Estrutura)?;
+
+    let url = url_da_consulta(&html, "new infraAjaxComplementar(null,'")
+        .map_err(E::Estrutura)?;
+    let consulta = derivar_consulta_ajax(
+        &CONFERIR, &instalacao, &tela, &url,
+        &[("idProcedimento", anexado.id.as_str())],
+    ).map_err(E::ConsultaDerivacao)?;
+    let resposta = rede.post(consulta, &cookie).map_err(E::ConsultaTransporte)?;
+    if resposta.resposta.status_code == 302 {
+        return Err(E::Estrutura("consulta_de_assinaturas_redirecionada"));
+    }
+    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
+    Ok(Previa {
+        principal: pedido.principal.as_str().to_owned(),
+        id_principal: id,
+        anexado,
+        assinaturas_em_dia,
+        requisicoes: rede.feitas(),
+    })
+}
