@@ -382,6 +382,27 @@ mod tests {
         assert_eq!(itens[0].situacao, "aguardando");
     }
     #[test]
+    fn area_aguardando_duplicada_nao_parece_mes_vazio_completo() {
+        // Estrutura sintética: area repetida torna ambigua a completude do mes.
+        let html = "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>                    <div id='divAguardandoAreaTabela'>Area pendente de carregamento</div>";
+        assert_eq!(
+            extrair_retornos(html),
+            Err(ErroRetornos::TelaDeRetornosDesconhecida)
+        );
+    }
+    #[test]
+    fn area_devolver_duplicada_nao_parece_mes_completo() {
+        // O aviso de vazio de uma area nao prova a integridade da outra duplicata.
+        let html = format!(
+            "{}<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>             <div id='divDevolverAreaTabela'>Area pendente de carregamento</div>",
+            tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+        );
+        assert_eq!(
+            extrair_retornos(&html),
+            Err(ErroRetornos::TelaDeRetornosDesconhecida)
+        );
+    }
+    #[test]
     fn data_fora_do_calendario_nao_e_publicada() {
         let html = tabela("Para Devolver", "NUP-A", "U1").replace("15/10/2026", "31/02/2026");
         assert_eq!(
