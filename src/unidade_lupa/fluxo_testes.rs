@@ -159,10 +159,15 @@ fn filtro_restaurado_pelo_sei_nao_vira_lista_integral() {
             &url("procedimento_controlar"),
             ORIGEM,
             "PHPSESSID=SINTETICO",
-        ).err(),
+        )
+        .err(),
         Some(FalhaDaLupa::FormularioInesperado),
     );
-    assert_eq!((rede.gets, rede.posts), (4, 1), "falha fechada sem novo POST");
+    assert_eq!(
+        (rede.gets, rede.posts),
+        (4, 1),
+        "falha fechada sem novo POST"
+    );
 }
 #[test]
 fn pagina_repetida_recusa_antes_de_persistir() {
