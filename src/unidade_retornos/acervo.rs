@@ -1,6 +1,6 @@
 //! Replay manual das sete cassettes publicas de Retorno Programado (#253).
 //! So usa GETs registrados e o mesmo extrator estrutural da CLI.
-//! O ZIP e seu membro JSON sao verificados antes da leitura (SHA-1/SHA-256).
+//! Os ZIPs e membros JSON sao conferidos por SHA-1/SHA-256 antes da leitura.
 use super::extrair_retornos;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
@@ -18,14 +18,12 @@ const CARDS: [(&str, &str); 7] = [
 
 fn pasta_do_acervo() -> PathBuf {
     std::env::var_os("IES_ACERVO_CACHE").map_or_else(
-        || PathBuf::from(std::env::var_os("HOME").expect("HOME"))
-            .join(".cache/ies"),
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
         PathBuf::from,
     )
 }
 
-/// O replay exige os ZIPs originais em cache, tal como os outros testes
-/// acervo. Nunca faz rede nem imprime URL assinada ou cookie.
+/// Sem acesso ao SEI; usa exclusivamente o acervo original em cache.
 #[test]
 #[ignore = "replay manual #253: requer ZIPs do acervo verificados em IES_ACERVO_CACHE"]
 fn replay_retornos_no_acervo() {
@@ -35,12 +33,12 @@ fn replay_retornos_no_acervo() {
     let mut total_lidos = 0usize;
     let mut total_recusados = 0usize;
     for (instalacao, revisao) in CARDS {
-        let card = raiz
-            .join(instalacao)
-            .join(format!("unidade-listar-retornos-{instalacao}--{revisao}.md"));
+        let card = raiz.join(instalacao).join(format!(
+            "unidade-listar-retornos-{instalacao}--{revisao}.md"
+        ));
         let arquivo = crate::cassette::archive_filename(&card).expect("card OKF");
-        let zip = ZipDoAcervo::ler(&cache.join(&arquivo))
-            .unwrap_or_else(|e| panic!("{arquivo}: {e}"));
+        let zip =
+            ZipDoAcervo::ler(&cache.join(&arquivo)).unwrap_or_else(|e| panic!("{arquivo}: {e}"));
         let conferida = conferir_cassette_ate(&card, &zip, 120_000_000)
             .expect("integridade SHA-1/SHA-256, schema e instalacao");
         assert_eq!(conferida.instalacao, instalacao);
@@ -56,57 +54,26 @@ fn replay_retornos_no_acervo() {
                 continue;
             }
             meses += 1;
-            match html_da_resposta(resposta.item) {
-                Ok(html) => match extrair_retornos(&html) {
-                    Ok(itens) => {
-                        lidos += 1;
-                        println!("{instalacao}: mes gravado lido ({} retorno(s))", itens.len());
-                    }
-                    Err(erro) => {
-                        recusados += 1;
-                        println!(
-                            "{instalacao}: passo {} recusado ({})",
-                            resposta.passo,
-                            erro.subcodigo()
-                        );
-                        // Diagnostico somente estrutural: sem HTML, links, linhas, cookie ou hash.
-                        if let Ok(dom) = tl::parse(&html, tl::ParserOptions::default()) {
-                            let parser = dom.parser();
-                            for no in dom.query_selector("table").into_iter().flatten() {
-                                if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-                                    let summary = crate::html_atributos::valor_do_atributo(
-                                        tag, "summary"
-                                    ).ok().flatten().unwrap_or_default();
-                                    let palavras: String = summary.chars()
-                                        .filter(|c| c.is_alphabetic() || c.is_whitespace())
-                                        .take(100).collect();
-                                    println!("{instalacao}: tabela resumo_palavras={palavras:?}");
-                                }
-                            }
-                            for no in dom.query_selector("div").into_iter().flatten() {
-                                if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-                                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
-                                        .ok().flatten().unwrap_or_default();
-                                    if id.contains("AreaTabela") {
-                                        let texto = crate::entidades_html::decodificar_texto(
-                                            &tag.inner_text(parser)
-                                        );
-                                        let tabelas = tag.query_selector(parser, "table")
-                                            .into_iter().flatten().count();
-                                        println!(
-                                            "{instalacao}: area id={id} caracteres={} aviso_vazio={} tabelas={tabelas}",
-                                            texto.len(),
-                                            texto.contains("Nenhum registro encontrado.")
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                Err(_) => {
+            let Ok(html) = html_da_resposta(resposta.item) else {
+                recusados += 1;
+                println!("{instalacao}: passo {} sem HTML legivel", resposta.passo);
+                continue;
+            };
+            match extrair_retornos(&html) {
+                Ok(itens) => {
+                    lidos += 1;
+                    println!(
+                        "{instalacao}: mes gravado lido ({} retorno(s))",
+                        itens.len()
+                    );
+                }
+                Err(erro) => {
                     recusados += 1;
-                    println!("{instalacao}: passo {} sem HTML legivel", resposta.passo);
+                    println!(
+                        "{instalacao}: passo {} recusado ({})",
+                        resposta.passo,
+                        erro.subcodigo()
+                    );
                 }
             }
         }
