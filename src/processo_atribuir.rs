@@ -82,6 +82,54 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
     acao == 1 && protocolo == 1 && hash == 1
 }
 
+/// Opções observadas do select, sem executar scripts.
+fn ler_opcoes(
+    tag: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+) -> Result<(Vec<UsuarioDaAtribuicao>, usize), E> {
+    let mut usuarios = Vec::new();
+    let mut item_nulo = 0;
+    for filho in tag.children().all(parser) {
+        let Some(opcao) = filho.as_tag() else {
+            continue;
+        };
+        if opcao.name().as_utf8_str().as_ref() != "option" {
+            return Err(E::TelaForaDaForma);
+        }
+        if presente(opcao, "disabled")? {
+            return Err(E::TelaForaDaForma);
+        }
+        let id_usuario = valor(opcao, "value")?.ok_or(E::TelaForaDaForma)?;
+        if id_usuario == SEM_ATRIBUICAO {
+            if !presente(opcao, "selected")? {
+                return Err(E::TelaForaDaForma);
+            }
+            item_nulo += 1;
+            continue;
+        }
+        if presente(opcao, "selected")?
+            || id_usuario.is_empty()
+            || !id_usuario.bytes().all(|b| b.is_ascii_digit())
+        {
+            return Err(E::TelaForaDaForma);
+        }
+        let rotulo = decodificar_entidades(&opcao.inner_text(parser))
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let (login, nome) = rotulo.split_once(" - ").ok_or(E::TelaForaDaForma)?;
+        if login.is_empty() || nome.is_empty() || login.trim() != login {
+            return Err(E::TelaForaDaForma);
+        }
+        usuarios.push(UsuarioDaAtribuicao {
+            id: id_usuario,
+            login: login.to_owned(),
+            rotulo,
+        });
+    }
+    Ok((usuarios, item_nulo))
+}
+
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
 pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaForaDaForma)?;
@@ -113,10 +161,10 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                 }
                 match valor(tag, "name")?.as_deref() {
                     Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => {
-                        pagina += 1
+                        pagina += 1;
                     }
                     Some("hdnIdProtocolo") if valor(tag, "value")?.as_deref() == Some(id) => {
-                        protocolo += 1
+                        protocolo += 1;
                     }
                     _ => return Err(E::TelaForaDaForma),
                 }
@@ -136,7 +184,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     (Some("submit"), Some("sbmSalvar"))
                         if valor(tag, "value")?.as_deref() == Some("Salvar") =>
                     {
-                        botao += 1
+                        botao += 1;
                     }
                     (Some("button"), Some("btnCancelar")) => {}
                     _ => return Err(E::TelaForaDaForma),
@@ -151,44 +199,9 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     return Err(E::TelaForaDaForma);
                 }
                 selecao += 1;
-                for filho in tag.children().all(parser) {
-                    let Some(opcao) = filho.as_tag() else {
-                        continue;
-                    };
-                    if opcao.name().as_utf8_str().as_ref() != "option" {
-                        return Err(E::TelaForaDaForma);
-                    }
-                    if presente(opcao, "disabled")? {
-                        return Err(E::TelaForaDaForma);
-                    }
-                    let id_usuario = valor(opcao, "value")?.ok_or(E::TelaForaDaForma)?;
-                    if id_usuario == SEM_ATRIBUICAO {
-                        if !presente(opcao, "selected")? {
-                            return Err(E::TelaForaDaForma);
-                        }
-                        item_nulo += 1;
-                        continue;
-                    }
-                    if presente(opcao, "selected")?
-                        || id_usuario.is_empty()
-                        || !id_usuario.bytes().all(|b| b.is_ascii_digit())
-                    {
-                        return Err(E::TelaForaDaForma);
-                    }
-                    let rotulo = decodificar_entidades(&opcao.inner_text(parser))
-                        .split_whitespace()
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    let (login, nome) = rotulo.split_once(" - ").ok_or(E::TelaForaDaForma)?;
-                    if login.is_empty() || nome.is_empty() || login.trim() != login {
-                        return Err(E::TelaForaDaForma);
-                    }
-                    usuarios.push(UsuarioDaAtribuicao {
-                        id: id_usuario,
-                        login: login.to_owned(),
-                        rotulo,
-                    });
-                }
+                let (lidos, nulos) = ler_opcoes(tag, parser)?;
+                usuarios.extend(lidos);
+                item_nulo += nulos;
             }
             "optgroup" | "textarea" => return Err(E::TelaForaDaForma),
             _ => {}

@@ -120,9 +120,24 @@ fn formulario_get_e_select_multiple_sao_recusados() {
 
 #[test]
 fn subcodigos_publicos_do_leitor_sao_estaveis() {
-    assert_eq!(E::TelaForaDaForma.subcodigo(), "tela_da_atribuicao_fora_da_forma");
-    assert_eq!(E::UsuarioNaoAtribuivel.subcodigo(), "usuario_nao_atribuivel");
-    assert_eq!(E::UsuarioAmbiguo.subcodigo(), "usuario_ambiguo_na_atribuicao");
-    assert_eq!(E::SituacaoNaoObservada.subcodigo(), "situacao_da_atribuicao_nao_observada");
-    assert_eq!(E::AtribuicaoJaAplicada.subcodigo(), "atribuicao_ja_aplicada");
+    assert_eq!(
+        E::TelaForaDaForma.subcodigo(),
+        "tela_da_atribuicao_fora_da_forma"
+    );
+    assert_eq!(
+        E::UsuarioNaoAtribuivel.subcodigo(),
+        "usuario_nao_atribuivel"
+    );
+    assert_eq!(
+        E::UsuarioAmbiguo.subcodigo(),
+        "usuario_ambiguo_na_atribuicao"
+    );
+    assert_eq!(
+        E::SituacaoNaoObservada.subcodigo(),
+        "situacao_da_atribuicao_nao_observada"
+    );
+    assert_eq!(
+        E::AtribuicaoJaAplicada.subcodigo(),
+        "atribuicao_ja_aplicada"
+    );
 }
