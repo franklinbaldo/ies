@@ -127,6 +127,11 @@ fn enviar(
     })
 }
 
+#[cfg(test)]
+fn texto_das_sugestoes(_valor: &Value) -> Option<String> {
+    None
+}
+
 /// JSON do sucesso (prévia, ou enviado e conferido).
 pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
     let mut valor = json!({
