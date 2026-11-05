@@ -1,12 +1,12 @@
 """Testes sintéticos do ensaio #245: nenhuma rede, login ou escrita."""
 import json
-from pathlib import Path
 import os
-from unittest.mock import patch
 import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from scripts.ensaio_processo_criar import ensaiar, origens_de_treinamento
+from scripts.ensaio_processo_criar import ensaiar, origens_de_treinamento, origem_privada_permitida
 
 ORIGEM = "https://sei.treinamento.unb.br/sei"
 NUP = "00000.000001/2026-00"
