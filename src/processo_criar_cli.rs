@@ -13,6 +13,7 @@ enum ErroEntradaCriacao {
     Tipo,
     Especificacao,
     Interessado,
+    Hipotese,
 }
 
 impl ErroEntradaCriacao {
@@ -21,6 +22,7 @@ impl ErroEntradaCriacao {
             Self::Tipo => "tipo_de_processo_invalido",
             Self::Especificacao => "especificacao_de_processo_invalida",
             Self::Interessado => "interessado_de_processo_invalido",
+            Self::Hipotese => "hipotese_legal_informada_invalida",
         }
     }
 }
@@ -42,6 +44,25 @@ fn validar(
     }
     if interessados.iter().any(|v| !texto_valido(v)) {
         return Err(ErroEntradaCriacao::Interessado);
+    }
+    Ok(())
+}
+
+/// A seleção explícita é sempre restrita e identifica ID e nome observados.
+fn validar_hipotese(nivel: &str, escolha: Option<&str>) -> Result<(), ErroEntradaCriacao> {
+    let Some(escolha) = escolha else {
+        return Ok(());
+    };
+    let Some((id, nome)) = escolha.split_once('#') else {
+        return Err(ErroEntradaCriacao::Hipotese);
+    };
+    if nivel != "restrito"
+        || !texto_valido(id)
+        || !texto_valido(nome)
+        || id != id.trim()
+        || nome != nome.trim()
+    {
+        return Err(ErroEntradaCriacao::Hipotese);
     }
     Ok(())
 }
@@ -100,6 +121,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                 especificacao,
                 interessado,
                 nivel,
+                hipotese_legal,
                 confirmar,
             }),
         ..
@@ -107,7 +129,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    if let Err(erro) = validar(tipo, especificacao, interessado) {
+    if let Err(erro) = validar(tipo, especificacao, interessado)
+        .and_then(|()| validar_hipotese(nivel, hipotese_legal.as_deref()))
+    {
         return Some(uso_invalido(cli.json, erro));
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
@@ -128,6 +152,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         interessados: interessado,
         nivel,
         unidade: cli.unidade.as_deref(),
+        hipotese_legal: hipotese_legal.as_deref(),
         confirmar: *confirmar,
     };
     let resultado = criar(
@@ -148,6 +173,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                         "assunto": feito.assunto,
                     "interessados": feito.interessados,
                         "nivel": feito.nivel,
+                        "hipotese_legal": feito.hipotese_legal,
                         "unidade": feito.unidade,
                         "confirmado": feito.confirmado,
                         "nup": feito.nup,
@@ -173,6 +199,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                     println!("Interessados: {}", feito.interessados.join("; "));
                 }
                 println!("Acesso: {}", feito.nivel);
+                if let Some(hipotese) = feito.hipotese_legal {
+                    println!("Hipótese legal observada (ID): {hipotese}");
+                }
                 if let Some(nup) = feito.nup {
                     println!("NUP criado e verificado: {nup}");
                 } else {
@@ -199,6 +228,22 @@ mod tests {
         assert_eq!(
             validar("Tipo", "Ensaio", &["\t".to_owned()]),
             Err(ErroEntradaCriacao::Interessado)
+        );
+    }
+
+    #[test]
+    fn hipotese_legal_exige_restrito_e_identificacao_exata() {
+        assert_eq!(
+            validar_hipotese("publico", Some("31#Base A")),
+            Err(ErroEntradaCriacao::Hipotese)
+        );
+        assert_eq!(
+            validar_hipotese("restrito", Some("31")),
+            Err(ErroEntradaCriacao::Hipotese)
+        );
+        assert_eq!(
+            validar_hipotese("restrito", Some("31#Base A")),
+            Ok(())
         );
     }
 
