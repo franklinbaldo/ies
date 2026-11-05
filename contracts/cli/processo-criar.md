@@ -151,7 +151,7 @@ Esses subcódigos precisam de tipos reais e integração a
 | --- | --- |
 | `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
 | `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
-| `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida |
+| `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida; também recusa uma opção única ou escolha explícita com ID/nome não publicável (URL ou caracteres de controle) |
 | `hipotese_legal_ajax_nao_unica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
 
 Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
