@@ -35,10 +35,16 @@ pub enum ErroCopia {
     GravacaoFalhou,
     #[causa(nome = "leitura_copia_falhou")]
     LeituraFalhou,
+    #[causa(nome = "nome_versao_local_invalido")]
+    NomeDaVersaoInvalido,
+    #[causa(nome = "versao_local_repetida")]
+    VersaoDuplicada,
+    #[causa(nome = "base_versao_ausente")]
+    BaseAusente,
+    #[causa(nome = "versao_editada_ausente")]
+    EdicaoAusente,
     #[causa(nome = "versao_editada_igual_a_base")]
     EdicaoIgualABase,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 impl ErroCopia {
     pub fn subcodigo(self) -> &'static str {
@@ -73,17 +79,10 @@ pub(crate) fn versoes_locais(
         else {
             continue;
         };
-        let versao = VersaoDocumento::interpretar(digitos).map_err(|_| {
-            ErroCopia::Html(crate::erro_html::ErroHtml::valor(
-                "nome_versao_local_invalido",
-                "o valor não está na forma observada",
-            ))
-        })?;
+        let versao =
+            VersaoDocumento::interpretar(digitos).map_err(|_| ErroCopia::NomeDaVersaoInvalido)?;
         if !versoes.insert(versao) {
-            return Err(ErroCopia::Html(crate::erro_html::ErroHtml::repetido(
-                "versao_local_repetida",
-                "o elemento aparece mais de uma vez",
-            )));
+            return Err(ErroCopia::VersaoDuplicada);
         }
     }
     Ok(versoes)
@@ -163,23 +162,14 @@ fn par(
         n
     } else {
         let versoes = versoes_locais(pasta, documento)?;
-        let maior = *versoes
-            .last()
-            .ok_or(ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
-                "base_versao_ausente",
-                "a tela não tem o elemento observado",
-            )))?;
+        let maior = *versoes.last().ok_or(ErroCopia::BaseAusente)?;
         match VersaoDocumento::nova(maior.numero() - 1) {
             Ok(anterior) if versoes.contains(&anterior) => anterior,
             _ => maior,
         }
     };
-    let editada = VersaoDocumento::nova(base.numero().saturating_add(1)).map_err(|_| {
-        ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
-            "versao_editada_ausente",
-            "a tela não tem o elemento observado",
-        ))
-    })?;
+    let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
+        .map_err(|_| ErroCopia::EdicaoAusente)?;
     Ok((base, editada))
 }
 
@@ -193,19 +183,10 @@ pub fn previa_local(
     pasta_segura(pasta)?;
     let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
-    let base = ler_regular(
-        &pasta.join(nome(numero, n)),
-        ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
-            "base_versao_ausente",
-            "a tela não tem o elemento observado",
-        )),
-    )?;
+    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseAusente)?;
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
-        ErroCopia::Html(crate::erro_html::ErroHtml::ausente(
-            "versao_editada_ausente",
-            "a tela não tem o elemento observado",
-        )),
+        ErroCopia::EdicaoAusente,
     )?;
     if editada == base {
         return Err(ErroCopia::EdicaoIgualABase);

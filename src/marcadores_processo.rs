@@ -88,12 +88,16 @@ pub(crate) enum ErroMarcadores {
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
+    HtmlDosMarcadoresNaoInterpretado,
     TelaDosMarcadoresAusente,
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
+    TabelasDosMarcadoresRepetidas,
+    LegendaDosMarcadoresForaDaFormaObservada,
+    CabecalhoDosMarcadoresNaoReconhecido,
+    LinhaDoMarcadorForaDaFormaObservada,
+    MarcadorRepetidoNaTela,
     MarcadoresAlemDoTotalDeclarado,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroMarcadores {

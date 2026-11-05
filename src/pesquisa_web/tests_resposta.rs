@@ -93,10 +93,7 @@ fn barra_ausente_ou_repetida_e_recusada() {
     let sem = resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX");
     assert_eq!(
         ler_resposta_html(&sem),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "barra_de_contagem_da_pesquisa_ausente",
-            "a tela não tem o elemento observado"
-        )))
+        Err(E::BarraDeContagemDaPesquisaAusente)
     );
     let dupla = resultado("1", 1, 3, "3").replace(
         "<table border",
@@ -104,10 +101,7 @@ fn barra_ausente_ou_repetida_e_recusada() {
     );
     assert_eq!(
         ler_resposta_html(&dupla),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "barras_de_contagem_da_pesquisa_repetidas",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::BarrasDeContagemDaPesquisaRepetidas)
     );
 }
 

@@ -204,12 +204,7 @@ fn link_presente_mas_repetido_continua_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::LinkDoHistorico(ErroLinkDoHistorico::Html(
-            crate::erro_html::ErroHtml::repetido(
-                "links_do_historico_repetidos_na_arvore",
-                "o elemento aparece mais de uma vez"
-            )
-        ))
+        E::LinkDoHistorico(ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 

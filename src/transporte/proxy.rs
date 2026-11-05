@@ -25,6 +25,9 @@ const MAX_RESPOSTA: usize = 16 * 1024;
 /// Recusas do proxy, uma por fato.
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDoProxy {
+    /// O valor da variável não segue `[http://][cred@]host:porta[/]`.
+    #[causa(nome = "endereco_de_proxy_invalido")]
+    EnderecoInvalido,
     /// Esquema diferente de `http://` (`https://`, `socks5://`...).
     #[causa(nome = "proxy_com_esquema_nao_suportado")]
     EsquemaNaoSuportado,
@@ -37,14 +40,12 @@ pub enum FalhaDoProxy {
     /// O proxy respondeu ao `CONNECT` com status fora de 2xx.
     #[causa(nome = "proxy_recusou_o_tunel")]
     RecusouOTunel { status: u16 },
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl FalhaDoProxy {
     pub fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
+            Self::EnderecoInvalido => "endereço de proxy do ambiente fora de http://host:porta",
             Self::EsquemaNaoSuportado => "só proxy http:// é suportado; nada foi enviado",
             Self::Inacessivel => "não foi possível conectar ao proxy; nada foi enviado ao SEI",
             Self::RespostaNaoInterpretavel => "o proxy respondeu ao CONNECT fora do HTTP/1.x",
@@ -111,19 +112,13 @@ pub(crate) fn proxy_para(
 
 fn porta(texto: &str) -> Result<u16, FalhaDoProxy> {
     if texto.is_empty() || !texto.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_de_proxy_invalido",
-            "endereço de proxy do ambiente fora de http://host:porta",
-        )));
+        return Err(FalhaDoProxy::EnderecoInvalido);
     }
     texto
         .parse::<u16>()
         .ok()
         .filter(|p| *p != 0)
-        .ok_or(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_de_proxy_invalido",
-            "endereço de proxy do ambiente fora de http://host:porta",
-        )))
+        .ok_or(FalhaDoProxy::EnderecoInvalido)
 }
 
 /// `%XX` decodificado; `%` sem dois hexadecimais é endereço inválido.
@@ -135,16 +130,8 @@ fn decodificar_percentual(texto: &str) -> Result<Vec<u8>, FalhaDoProxy> {
         let par = resto
             .get(inicio + 1..inicio + 3)
             .filter(|par| par.bytes().all(|b| b.is_ascii_hexdigit()))
-            .ok_or(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta",
-            )))?;
-        saida.push(u8::from_str_radix(par, 16).map_err(|_| {
-            FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta",
-            ))
-        })?);
+            .ok_or(FalhaDoProxy::EnderecoInvalido)?;
+        saida.push(u8::from_str_radix(par, 16).map_err(|_| FalhaDoProxy::EnderecoInvalido)?);
         resto = &resto[inicio + 3..];
     }
     saida.extend_from_slice(resto.as_bytes());
@@ -160,43 +147,18 @@ fn host_do_proxy(texto: &str) -> bool {
 
 /// `host:porta`, ou `[ipv6]:porta`.
 fn servidor(texto: &str) -> Result<(&str, u16), FalhaDoProxy> {
+    use FalhaDoProxy::EnderecoInvalido as Invalido;
     if let Some(resto) = texto.strip_prefix('[') {
-        let (host, depois) =
-            resto
-                .split_once(']')
-                .ok_or(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                    "endereco_de_proxy_invalido",
-                    "endereço de proxy do ambiente fora de http://host:porta",
-                )))?;
+        let (host, depois) = resto.split_once(']').ok_or(Invalido)?;
         let v6 = !host.is_empty() && host.bytes().all(|b| b.is_ascii_hexdigit() || b == b':');
         if !v6 {
-            return Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta",
-            )));
+            return Err(Invalido);
         }
-        return Ok((
-            host,
-            porta(depois.strip_prefix(':').ok_or(FalhaDoProxy::Html(
-                crate::erro_html::ErroHtml::valor(
-                    "endereco_de_proxy_invalido",
-                    "endereço de proxy do ambiente fora de http://host:porta",
-                ),
-            ))?)?,
-        ));
+        return Ok((host, porta(depois.strip_prefix(':').ok_or(Invalido)?)?));
     }
-    let (host, porta_texto) =
-        texto
-            .split_once(':')
-            .ok_or(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta",
-            )))?;
+    let (host, porta_texto) = texto.split_once(':').ok_or(Invalido)?;
     if !host_do_proxy(host) {
-        return Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_de_proxy_invalido",
-            "endereço de proxy do ambiente fora de http://host:porta",
-        )));
+        return Err(Invalido);
     }
     Ok((host, porta(porta_texto)?))
 }
@@ -228,10 +190,7 @@ pub(crate) fn interpretar(endereco: &str) -> Result<Proxy, FalhaDoProxy> {
         .bytes()
         .any(|b| matches!(b, b'/' | b'?' | b'#') || !(33..=126).contains(&b))
     {
-        return Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_de_proxy_invalido",
-            "endereço de proxy do ambiente fora de http://host:porta",
-        )));
+        return Err(FalhaDoProxy::EnderecoInvalido);
     }
     let (credencial, resto) = match autoridade.rsplit_once('@') {
         Some((credencial, resto)) => (Some(credencial), resto),

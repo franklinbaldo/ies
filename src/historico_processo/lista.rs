@@ -10,12 +10,8 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 /// Lê a página e confere o NUP do título com o pedido.
 pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E> {
     let detalhe = ler_historico(html, nup)?;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente",
-            "a tela não tem o elemento observado",
-        ))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::LegendaDosAndamentosAusente)?;
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if detalhe.andamentos.len() as u64 > total_declarado {
@@ -36,10 +32,7 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         .and_then(|nos| nos.first().copied())
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente",
-            "a tela não tem o elemento observado",
-        )))?;
+        .ok_or(E::LegendaDosAndamentosAusente)?;
     let legendas: Vec<String> = tabela
         .query_selector(parser, "caption")
         .into_iter()
@@ -55,24 +48,11 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         })
         .collect();
     let texto = match legendas.as_slice() {
-        [] => {
-            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-                "legenda_dos_andamentos_ausente",
-                "a tela não tem o elemento observado",
-            )));
-        }
+        [] => return Err(E::LegendaDosAndamentosAusente),
         [texto] => texto,
-        _ => {
-            return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "legenda_dos_andamentos_fora_da_forma_observada",
-                "o valor não está na forma observada",
-            )));
-        }
+        _ => return Err(E::LegendaDosAndamentosForaDaFormaObservada),
     };
-    let fora = E::Html(crate::erro_html::ErroHtml::valor(
-        "legenda_dos_andamentos_fora_da_forma_observada",
-        "o valor não está na forma observada",
-    ));
+    let fora = E::LegendaDosAndamentosForaDaFormaObservada;
     let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
     let numero = resto
         .strip_suffix(" registros):")

@@ -8,7 +8,9 @@ use super::{PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
 use crate::arvore_processo::tests_reabrir::{
     ACAO_REABRIR, link_de_reabrir, tela_do_no_pela_funcao, tela_do_no_pela_variavel,
 };
-use crate::arvore_processo::{ErroEnderecoDeReabrir, FormaDaReabertura, MotivoAbertoEm};
+use crate::arvore_processo::{
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, MotivoAbertoEm,
+};
 use crate::processo_concluir::tests_apoio::*;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura as V};
 use crate::transporte::FalhaTransporte;
@@ -177,10 +179,7 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
         ),
         (
             repetida,
-            R::Barra(crate::erro_html::ErroHtml::repetido(
-                "funcoes_de_reabrir_repetidas_na_barra",
-                "o elemento aparece mais de uma vez",
-            )),
+            R::Barra(ErroReabrirNaBarra::FuncoesDeReabrirRepetidasNaBarra),
         ),
     ];
     for (html, erro) in casos {
@@ -198,12 +197,7 @@ fn tela_do_no_recusada_nao_escreve() {
     let casos = [
         (
             ok(sem),
-            R::EnderecoDeReabrir(ErroEnderecoDeReabrir::Html(
-                crate::erro_html::ErroHtml::ausente(
-                    "endereco_de_reabrir_ausente_na_tela_do_no",
-                    "a tela não tem o elemento observado",
-                ),
-            )),
+            R::EnderecoDeReabrir(ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo),
         ),
         (r302(&volta_a_arvore()), R::TelaDoNoRedirecionada),
         (

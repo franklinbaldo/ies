@@ -35,10 +35,7 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
 }
 
 fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::Html(crate::erro_html::ErroHtml::html(
-        "html_da_caixa_invalido",
-        "o HTML não pôde ser interpretado",
-    )))
+    E::Caixa(ErroCaixa::HtmlInvalido)
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.

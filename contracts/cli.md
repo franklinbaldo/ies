@@ -61,7 +61,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
 - `ies processo sobrestar NUP --motivo TEXTO [--confirmar]` e
   `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
-  prévia Web funcional, `--confirmar` ainda bloqueado na PR #279)
+  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 3 se incerto)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
@@ -71,6 +71,8 @@ legado do Todos faz parte do contrato público por pressuposição.
   com a senha do login, prévia e verificação pela caneta da árvore;
   [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
+- `ies indice caminho` (caminho do SQLite local, sem abrir banco ou consultar SEI)
+- `ies unidade listar`/`pesquisar` (lista da lupa/SQLite; [contratos](cli/unidade-listar.md))
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
 - `ies setup`
 
@@ -125,6 +127,7 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
   detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
 - [unidade.trocar](cli/unidade-trocar.md): troca da unidade da sessão; prévia
   sem POST, efeito incerto sai com 3; vale para todos os agentes da sessão.
+- [indice.caminho](cli/indice-caminho.md): descoberta local do SQLite, sem rede.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
   `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
   host da instalação e gravação atômica por geração, sob lock.

@@ -146,6 +146,10 @@ pub(crate) enum ErroAnexo {
     SemTipoDeConteudo,
     #[causa(nome = "tipo_de_anexo_nao_permitido")]
     TipoNaoPermitido,
+    #[causa(nome = "cabecalho_do_anexo_repetido")]
+    CabecalhoRepetido,
+    #[causa(nome = "disposicao_do_anexo_fora_da_forma_observada")]
+    DisposicaoForaDaFormaObservada,
     #[causa(nome = "anexo_acima_do_limite")]
     AcimaDoLimite,
     #[causa(nome = "anexo_vazio")]
@@ -157,12 +161,12 @@ pub(crate) enum ErroAnexo {
     /// O texto visível do HTML recebido.
     #[causa(interna)]
     Corpo(ErroCorpoDocumento),
+    #[causa(nome = "diretorio_do_anexo_ausente")]
+    DiretorioAusente,
     #[causa(nome = "arquivo_do_anexo_ja_existe")]
     ArquivoJaExiste,
     #[causa(nome = "escrita_do_anexo_falhou")]
     EscritaFalhou,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroAnexo {
@@ -172,16 +176,20 @@ impl ErroAnexo {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
             Self::Transporte(falha) => falha.mensagem(),
             Self::TelaDeLogin => "a sessão foi encerrada; rode ies login",
             Self::SemTipoDeConteudo => "o anexo veio sem Content-Type",
             Self::TipoNaoPermitido => "o tipo do anexo não está na lista observada",
+            Self::CabecalhoRepetido => "cabeçalho do anexo repetido",
+            Self::DisposicaoForaDaFormaObservada => {
+                "o Content-Disposition do anexo não tem a forma observada"
+            }
             Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
             Self::Vazio => "o anexo veio vazio",
             Self::ConteudoComLinkAssinado => "o anexo contém credencial de link assinado",
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
+            Self::DiretorioAusente => "o diretório de --saida não existe",
             Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
             Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
         }
@@ -365,10 +373,7 @@ fn unico<'a, R>(
     match resposta.valores(nome).as_slice() {
         [] => Ok(None),
         [um] => Ok(Some(um)),
-        _ => Err(ErroAnexo::Html(crate::erro_html::ErroHtml::repetido(
-            "cabecalho_do_anexo_repetido",
-            "cabeçalho do anexo repetido",
-        ))),
+        _ => Err(ErroAnexo::CabecalhoRepetido),
     }
 }
 
@@ -384,12 +389,8 @@ fn conferir<R: Read>(
     let extensao = cabecalhos::extensao(&mime).ok_or(ErroAnexo::TipoNaoPermitido)?;
     let (disposicao, nome_original) = match disposicao {
         Some(valor) => {
-            let (d, nome) = cabecalhos::ler_disposicao(valor).map_err(|()| {
-                ErroAnexo::Html(crate::erro_html::ErroHtml::valor(
-                    "disposicao_do_anexo_fora_da_forma_observada",
-                    "o Content-Disposition do anexo não tem a forma observada",
-                ))
-            })?;
+            let (d, nome) = cabecalhos::ler_disposicao(valor)
+                .map_err(|()| ErroAnexo::DisposicaoForaDaFormaObservada)?;
             (Some(d), nome)
         }
         None => (None, None),
@@ -427,18 +428,10 @@ fn abrir_parcial(
         .diretorio_do_usuario()
         .com_limite(conferido.limite);
     if !dir.is_dir() {
-        return Err(ErroAnexo::Html(crate::erro_html::ErroHtml::ausente(
-            "diretorio_do_anexo_ausente",
-            "o diretório de --saida não existe",
-        )));
+        return Err(ErroAnexo::DiretorioAusente);
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
-        F::SemNomeDeArquivo | F::DiretorioAusente => {
-            ErroAnexo::Html(crate::erro_html::ErroHtml::ausente(
-                "diretorio_do_anexo_ausente",
-                "o diretório de --saida não existe",
-            ))
-        }
+        F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
         F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         F::DiretorioGravavelPorOutros

@@ -9,10 +9,16 @@ pub(crate) const ACAO_DE_ANEXAR: &str = "procedimento_anexar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAnexarNaBarra {
+    #[causa(nome = "barra_do_processo_fora_da_forma_observada")]
+    BarraForaDaFormaObservada,
+    #[causa(nome = "barras_do_processo_repetidas_na_arvore")]
+    BarrasRepetidas,
+    #[causa(nome = "links_de_anexar_repetidos_na_barra")]
+    LinksRepetidos,
+    #[causa(nome = "endereco_de_anexar_nao_reconhecido")]
+    EnderecoNaoReconhecido,
     #[causa(nome = "endereco_de_anexar_de_outro_processo")]
     EnderecoDeOutroProcesso,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 impl ErroAnexarNaBarra {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -26,14 +32,8 @@ pub(crate) fn ler_anexar_da_barra(
 ) -> Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra> {
     use ErroAnexarNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => E::Html(crate::erro_html::ErroHtml::valor(
-            "barra_do_processo_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        )),
-        FalhaDaBarra::Repetidas => E::Html(crate::erro_html::ErroHtml::repetido(
-            "barras_do_processo_repetidas_na_arvore",
-            "o elemento aparece mais de uma vez",
-        )),
+        FalhaDaBarra::Fora => E::BarraForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => E::BarrasRepetidas,
     })?;
     let links: Vec<_> = ancoras
         .iter()
@@ -45,15 +45,9 @@ pub(crate) fn ler_anexar_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO_DE_ANEXAR, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => E::Html(crate::erro_html::ErroHtml::valor(
-                    "endereco_de_anexar_nao_reconhecido",
-                    "o valor não está na forma observada",
-                )),
+                EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
                 EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
             }),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_de_anexar_repetidos_na_barra",
-            "o elemento aparece mais de uma vez",
-        ))),
+        _ => Err(E::LinksRepetidos),
     }
 }

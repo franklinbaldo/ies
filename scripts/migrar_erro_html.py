@@ -11,8 +11,9 @@ diz a forma (`...Ausente`, `...Repetida`, `HtmlIlegivel`, `...Invalido`).
 mensagem é o literal do braço da `fn mensagem()` do `enum`, ou uma
 genérica pelo problema.
 
-- `enum` misto: ganha `#[causa(interna)] Html(ErroHtml)`, e `E::V` vira
-  `E::Html(ErroHtml::<problema>("onde", "mensagem"))`.
+- `enum` misto: ganha `#[causa(transparente)] Html(ErroHtml)`, e `E::V`
+  vira `E::Html(ErroHtml::<problema>("onde"))`; `.com_mensagem("...")` só
+  quando a mensagem não é a genérica do problema.
 - `enum` só de forma: some, e o tipo passa a ser `ErroHtml`.
 - `map_err(|_| E::V)` cuja origem é `ErroAtributoHtml` (pelo compilador,
   com o truque `|_: ()|`) passa a carregar a causa.

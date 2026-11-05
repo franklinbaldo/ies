@@ -25,10 +25,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "visao_do_controle_nao_reconhecida",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::VisaoDoControleNaoReconhecida);
     }
     let mut sessao = Sessao {
         instalacao,

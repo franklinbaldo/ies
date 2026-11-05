@@ -39,10 +39,7 @@ fn tipo_de_conteudo_nao_html_tem_variante_propria() {
     ] {
         assert_eq!(
             decodificar_resposta(resposta(200, mime, b"<html>")),
-            Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::html(
-                "tipo_de_conteudo_nao_html",
-                "a resposta não declara Content-Type text/html"
-            ))),
+            Err(FalhaTransporte::TipoDeConteudoNaoHtml),
             "mime {mime:?}"
         );
     }
@@ -73,10 +70,7 @@ fn subcodigos_das_recusas_de_resposta_sao_distintos() {
         FalhaTransporte::StatusHttpDeErroDoServidor(recusa()),
         FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa()),
         FalhaTransporte::StatusHttpDiferenteDe200(recusa()),
-        FalhaTransporte::Html(crate::erro_html::ErroHtml::html(
-            "tipo_de_conteudo_nao_html",
-            "a resposta não declara Content-Type text/html",
-        )),
+        FalhaTransporte::TipoDeConteudoNaoHtml,
         FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
     ];
     let mut subcodigos: Vec<_> = variantes.iter().map(FalhaTransporte::subcodigo).collect();

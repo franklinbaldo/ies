@@ -32,6 +32,10 @@ pub(crate) enum ErroPrevia {
     Barra(ErroAcompanharNaBarra),
     #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(nome = "redirecionamento_de_acompanhamento_inesperado")]
+    RedirecionamentoInesperado,
+    #[causa(nome = "tela_de_acompanhamento_inesperada")]
+    TelaInesperada,
     #[causa(interna)]
     Estrutura(ErroAcompanhar),
     #[causa(interna)]
@@ -40,8 +44,8 @@ pub(crate) enum ErroPrevia {
     ConfirmacaoNaoImplementada,
     #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     EfeitoIncerto,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
+    #[causa(nome = "pedido_de_acompanhamento_invalido")]
+    PedidoInvalido,
 }
 
 impl ErroPrevia {
@@ -75,12 +79,8 @@ pub(crate) struct Previa {
 
 fn url_do_cadastro(instalacao: &Instalacao, ref_url: &str, id: &str) -> Result<String, ErroPrevia> {
     use crate::arvore_processo::conferir_endereco_relativo;
-    conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id).map_err(|_| {
-        ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "redirecionamento_de_acompanhamento_inesperado",
-            "o valor não está na forma observada",
-        ))
-    })
+    conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
+        .map_err(|_| ErroPrevia::RedirecionamentoInesperado)
 }
 
 fn redirecionamento_do_gerenciar(
@@ -91,74 +91,39 @@ fn redirecionamento_do_gerenciar(
 ) -> Result<String, ErroPrevia> {
     let consulta = loc
         .and_then(|v| crate::formulario_web::consulta_do_controlador(v, origem))
-        .ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "redirecionamento_de_acompanhamento_inesperado",
-            "o valor não está na forma observada",
-        )))?;
+        .ok_or(ErroPrevia::RedirecionamentoInesperado)?;
     url_do_cadastro(instalacao, &format!("controlador.php?{consulta}"), id)
 }
 
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "tela_de_acompanhamento_inesperada",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroPrevia::TelaInesperada)?;
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            )))?;
-        let identificador = crate::html_atributos::valor_do_atributo(tag, "id").map_err(|e| {
-            ErroPrevia::Html(crate::erro_html::ErroHtml::atributo(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-                e,
-            ))
-        })?;
+            .ok_or(ErroPrevia::TelaInesperada)?;
+        let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
+            .map_err(|_| ErroPrevia::TelaInesperada)?;
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(|e| {
-                ErroPrevia::Html(crate::erro_html::ErroHtml::atributo(
-                    "tela_de_acompanhamento_inesperada",
-                    "o valor não está na forma observada",
-                    e,
-                ))
-            })?
-            .ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            )))?;
-        let onclick = decodificar_atributo(&onclick).ok_or(ErroPrevia::Html(
-            crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            ),
-        ))?;
+            .map_err(|_| ErroPrevia::TelaInesperada)?
+            .ok_or(ErroPrevia::TelaInesperada)?;
+        let onclick = decodificar_atributo(&onclick).ok_or(ErroPrevia::TelaInesperada)?;
         let url = onclick
             .trim()
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
-            .ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            )))?;
+            .ok_or(ErroPrevia::TelaInesperada)?;
         urls.push(url_do_cadastro(instalacao, url, id)?);
     }
     match urls.as_slice() {
         [url] => Ok(url.to_owned()),
-        _ => Err(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "tela_de_acompanhamento_inesperada",
-            "o valor não está na forma observada",
-        ))),
+        _ => Err(ErroPrevia::TelaInesperada),
     }
 }
 
@@ -170,10 +135,7 @@ fn html_da_tela<V: EnvioDoProcesso>(
 ) -> Result<(String, String), ErroPrevia> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
-        return Err(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "redirecionamento_de_acompanhamento_inesperado",
-            "o valor não está na forma observada",
-        )));
+        return Err(ErroPrevia::RedirecionamentoInesperado);
     }
     let mime = resposta.resposta.mime.clone();
     let html = decodificar_resposta(resposta.resposta)?;
@@ -190,10 +152,7 @@ fn selecionar_previa(
 ) -> Result<Previa, ErroPrevia> {
     if pedido.deixar {
         if pedido.observacao.is_some() {
-            return Err(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "pedido_de_acompanhamento_invalido",
-                "o valor não está na forma observada",
-            )));
+            return Err(ErroPrevia::PedidoInvalido);
         }
         let alvo = if antes.is_empty() {
             None
@@ -213,10 +172,7 @@ fn selecionar_previa(
             requisicoes,
         });
     }
-    let grupos = grupos.ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-        "tela_de_acompanhamento_inesperada",
-        "o valor não está na forma observada",
-    )))?;
+    let grupos = grupos.ok_or(ErroPrevia::TelaInesperada)?;
     let selecionado = escolher_grupo(grupos, pedido.grupo)?;
     Ok(Previa {
         numero: numero.to_owned(),
@@ -233,7 +189,6 @@ fn selecionar_previa(
 }
 
 /// Prévia completa sem escrita, no máximo um GET da lista, mais um do cadastro.
-#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &Pedido<'_>,
@@ -245,10 +200,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Err(ErroPrevia::ConfirmacaoNaoImplementada);
     }
     if pedido.deixar && pedido.observacao.is_some() {
-        return Err(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "pedido_de_acompanhamento_invalido",
-            "o valor não está na forma observada",
-        )));
+        return Err(ErroPrevia::PedidoInvalido);
     }
     let instalacao =
         Instalacao::interpretar(sessao.origem).ok_or(ErroPrevia::OrigemNaoAutorizada)?;
@@ -286,17 +238,10 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let grupos = if pedido.deixar {
         None
     } else {
-        let url = url_cadastro.ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-            "tela_de_acompanhamento_inesperada",
-            "o valor não está na forma observada",
-        )))?;
+        let url = url_cadastro.ok_or(ErroPrevia::TelaInesperada)?;
         let (html, mime) = html_da_tela(&mut rede, &cookie, &url)?;
-        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime).ok_or(
-            ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            )),
-        )?;
+        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+            .ok_or(ErroPrevia::TelaInesperada)?;
         // A prévia só é considerada válida se a submissão exata também
         // puder ser derivada, sem escrever e sem construir URL artificial.
         let tela = crate::formulario_web::TelaServida {
@@ -332,10 +277,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     if plano.ja_estava {
         return Ok(plano);
     }
-    let submissao = submissao.ok_or(ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-        "tela_de_acompanhamento_inesperada",
-        "o valor não está na forma observada",
-    )))?;
+    let submissao = submissao.ok_or(ErroPrevia::TelaInesperada)?;
     confirmar_inclusao(
         &mut rede,
         sessao,
@@ -364,12 +306,9 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         rede.post(formulario, cookie)
     });
     if !enviado {
-        return Err(ErroPrevia::Formulario(resposta.err().ok_or(
-            ErroPrevia::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_acompanhamento_inesperada",
-                "o valor não está na forma observada",
-            )),
-        )?));
+        return Err(ErroPrevia::Formulario(
+            resposta.err().ok_or(ErroPrevia::TelaInesperada)?,
+        ));
     }
     // O 302 é dado, nunca seguido; só a lista relida pode provar efeito.
     let _aceite_302 = matches!(resposta, Ok(RespostaDoEnvio::Redirecionamento(_)));

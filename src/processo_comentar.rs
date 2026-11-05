@@ -5,11 +5,13 @@ use crate::processo_comentarios::ComentariosLidos;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDaConferencia {
+    #[causa(nome = "id_do_comentario_ausente_no_aceite")]
+    IdDoAceiteAusente,
     ComentarioNaoVisivelNaReleitura,
+    #[causa(nome = "comentario_novo_repetido_na_releitura")]
+    ComentarioNovoRepetido,
     #[causa(nome = "texto_do_comentario_diferente_do_pedido")]
     TextoDiferenteDoPedido,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl FalhaDaConferencia {
@@ -33,24 +35,14 @@ pub fn conferir_efeito(
     texto_pedido: &str,
 ) -> Result<(), FalhaDaConferencia> {
     if id_aceite.is_empty() || !id_aceite.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(FalhaDaConferencia::Html(
-            crate::erro_html::ErroHtml::ausente(
-                "id_do_comentario_ausente_no_aceite",
-                "a tela não tem o elemento observado",
-            ),
-        ));
+        return Err(FalhaDaConferencia::IdDoAceiteAusente);
     }
     let mut achados = relidos.itens.iter().filter(|item| item.id == id_aceite);
     let item = achados
         .next()
         .ok_or(FalhaDaConferencia::ComentarioNaoVisivelNaReleitura)?;
     if achados.next().is_some() {
-        return Err(FalhaDaConferencia::Html(
-            crate::erro_html::ErroHtml::repetido(
-                "comentario_novo_repetido_na_releitura",
-                "o elemento aparece mais de uma vez",
-            ),
-        ));
+        return Err(FalhaDaConferencia::ComentarioNovoRepetido);
     }
     if item.texto != texto_pedido {
         return Err(FalhaDaConferencia::TextoDiferenteDoPedido);

@@ -188,10 +188,7 @@ fn arvore_aberta_que_nao_confere_nao_publica_lista_parcial() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::Html(crate::erro_html::ErroHtml::ausente(
-            "protocolo_declarado_ausente_da_pasta",
-            "a tela não tem o elemento observado"
-        )))
+        E::Arvore(ErroArvore::ProtocoloDeclaradoAusenteDaPasta)
     );
     assert_eq!(link(&amb, OBJETO_ABRIR), None);
 }

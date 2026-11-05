@@ -7,42 +7,44 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 const ACAO: &str = "procedimento_escolher_tipo";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum ErroMenuCriacao {
+    #[causa(nome = "link_de_iniciar_processo_ausente")]
+    Ausente,
+    #[causa(nome = "link_de_iniciar_processo_repetido")]
+    Repetido,
+    #[causa(nome = "link_de_iniciar_processo_nao_reconhecido")]
+    NaoReconhecido,
+}
+
+impl ErroMenuCriacao {
+    pub(crate) fn subcodigo(self) -> &'static str {
+        crate::erro_publico::folha(&self)
+    }
+}
+
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
 /// Uma variante onclick desconhecida é recusada, não executada.
 pub(crate) fn link_de_iniciar(
     instalacao: &Instalacao,
     url_controle: &str,
     html: &str,
-) -> Result<String, crate::erro_html::ErroHtml> {
-    use crate::erro_html::ErroHtml as E;
-    let link_de_iniciar_processo_nao_reconhecido = E::valor(
-        "link_de_iniciar_processo_nao_reconhecido",
-        "o valor não está na forma observada",
-    );
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
+) -> Result<String, ErroMenuCriacao> {
+    use ErroMenuCriacao as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::NaoReconhecido)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|e| {
-            E::atributo(
-                "link_de_iniciar_processo_nao_reconhecido",
-                "o valor não está na forma observada",
-                e,
-            )
-        })?
-        else {
+            .ok_or(E::NaoReconhecido)?;
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| E::NaoReconhecido)? else {
             continue;
         };
         let href = match decodificar_atributo(&bruto) {
             Some(href) => href,
-            None if bruto.contains(ACAO) => {
-                return Err(link_de_iniciar_processo_nao_reconhecido);
-            }
+            None if bruto.contains(ACAO) => return Err(E::NaoReconhecido),
             None => continue,
         };
         let aponta = href.split_once('?').is_some_and(|(_, consulta)| {
@@ -56,58 +58,43 @@ pub(crate) fn link_de_iniciar(
     }
     let [href] = candidatos.as_slice() else {
         return Err(if candidatos.is_empty() {
-            E::ausente(
-                "link_de_iniciar_processo_ausente",
-                "a tela não tem o elemento observado",
-            )
+            E::Ausente
         } else {
-            E::repetido(
-                "link_de_iniciar_processo_repetido",
-                "o elemento aparece mais de uma vez",
-            )
+            E::Repetido
         });
     };
     // Não seguir links de outra instalação, nem admitir parâmetros inesperados
     // de ação ou identificador de sessão.
     let consulta = href
         .strip_prefix("controlador.php?")
-        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
+        .ok_or(E::NaoReconhecido)?;
     if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(link_de_iniciar_processo_nao_reconhecido);
+        return Err(E::NaoReconhecido);
     }
     let (mut acoes, mut hashes) = (0, 0);
     for par in consulta.split('&') {
-        let (chave, valor) = par
-            .split_once('=')
-            .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
-        conferir_chave_de_consulta(chave).map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
-        conferir_valor_de_consulta(valor).map_err(|_| link_de_iniciar_processo_nao_reconhecido)?;
+        let (chave, valor) = par.split_once('=').ok_or(E::NaoReconhecido)?;
+        conferir_chave_de_consulta(chave).map_err(|_| E::NaoReconhecido)?;
+        conferir_valor_de_consulta(valor).map_err(|_| E::NaoReconhecido)?;
         match chave {
             "acao" if valor == ACAO => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
-            "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(link_de_iniciar_processo_nao_reconhecido);
-            }
+            "acao" | "infra_hash" | "acao_ajax" => return Err(E::NaoReconhecido),
             _ => {}
         }
     }
     if acoes != 1 || hashes != 1 {
-        return Err(link_de_iniciar_processo_nao_reconhecido);
+        return Err(E::NaoReconhecido);
     }
-    let base = url_controle
-        .split('?')
-        .next()
-        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
-    let (pasta, _) = base
-        .rsplit_once('/')
-        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
+    let base = url_controle.split('?').next().ok_or(E::NaoReconhecido)?;
+    let (pasta, _) = base.rsplit_once('/').ok_or(E::NaoReconhecido)?;
     let url = format!("{pasta}/{href}");
-    let decomposicao = crate::url_observada::UrlHttps::interpretar(&url)
-        .ok_or(link_de_iniciar_processo_nao_reconhecido)?;
+    let decomposicao =
+        crate::url_observada::UrlHttps::interpretar(&url).ok_or(E::NaoReconhecido)?;
     if !instalacao.autoriza_controlador(decomposicao.host, decomposicao.caminho) {
-        return Err(link_de_iniciar_processo_nao_reconhecido);
+        return Err(E::NaoReconhecido);
     }
     Ok(url)
 }
@@ -143,25 +130,16 @@ mod tests {
         let (url, instalacao) = base();
         assert_eq!(
             link_de_iniciar(&instalacao, url, "<div/>"),
-            Err(crate::erro_html::ErroHtml::ausente(
-                "link_de_iniciar_processo_ausente",
-                "a tela não tem o elemento observado"
-            ))
+            Err(ErroMenuCriacao::Ausente)
         );
         let repetido = format!("{}{}", ancora(ACAO), ancora(ACAO));
         assert_eq!(
             link_de_iniciar(&instalacao, url, &repetido),
-            Err(crate::erro_html::ErroHtml::repetido(
-                "link_de_iniciar_processo_repetido",
-                "o elemento aparece mais de uma vez"
-            ))
+            Err(ErroMenuCriacao::Repetido)
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &ancora("procedimento_gerar")),
-            Err(crate::erro_html::ErroHtml::ausente(
-                "link_de_iniciar_processo_ausente",
-                "a tela não tem o elemento observado"
-            ))
+            Err(ErroMenuCriacao::Ausente)
         );
     }
 
@@ -174,18 +152,12 @@ mod tests {
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &externo),
-            Err(crate::erro_html::ErroHtml::valor(
-                "link_de_iniciar_processo_nao_reconhecido",
-                "o valor não está na forma observada"
-            ))
+            Err(ErroMenuCriacao::NaoReconhecido)
         );
         let sem_assinatura = format!("<a href='controlador.php?acao={ACAO}'>Iniciar</a>");
         assert_eq!(
             link_de_iniciar(&instalacao, url, &sem_assinatura),
-            Err(crate::erro_html::ErroHtml::valor(
-                "link_de_iniciar_processo_nao_reconhecido",
-                "o valor não está na forma observada"
-            ))
+            Err(ErroMenuCriacao::NaoReconhecido)
         );
     }
 }

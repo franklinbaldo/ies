@@ -4,26 +4,22 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoTexto {
+    #[causa(nome = "destino_texto_documento_sem_nome")]
+    NomeAusente,
+    #[causa(nome = "diretorio_texto_documento_ausente")]
+    DiretorioAusente,
     #[causa(nome = "arquivo_texto_documento_ja_existe")]
     DestinoJaExiste,
     #[causa(nome = "escrita_texto_documento_falhou")]
     EscritaFalhou,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 impl ErroArquivoTexto {}
 /// A falha da gravação privada única nos subcódigos do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     use crate::arquivo_privado::FalhaDaGravacao as F;
     match falha {
-        F::SemNomeDeArquivo => ErroArquivoTexto::Html(crate::erro_html::ErroHtml::ausente(
-            "destino_texto_documento_sem_nome",
-            "a tela não tem o elemento observado",
-        )),
-        F::DiretorioAusente => ErroArquivoTexto::Html(crate::erro_html::ErroHtml::ausente(
-            "diretorio_texto_documento_ausente",
-            "a tela não tem o elemento observado",
-        )),
+        F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
         F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         F::DiretorioGravavelPorOutros
@@ -51,17 +47,11 @@ pub(crate) fn conferir_diretorios(destino: &Path) -> Result<(), ErroArquivoTexto
 pub fn salvar(destino: &Path, texto: &str) -> Result<usize, ErroArquivoTexto> {
     use crate::arquivo_privado::{self, Politica};
     if destino.file_name().is_none() {
-        return Err(ErroArquivoTexto::Html(crate::erro_html::ErroHtml::ausente(
-            "destino_texto_documento_sem_nome",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(ErroArquivoTexto::NomeAusente);
     }
     // Como antes da #211: nome sem diretório (pai vazio) é recusado.
     if !destino.parent().is_some_and(Path::is_dir) {
-        return Err(ErroArquivoTexto::Html(crate::erro_html::ErroHtml::ausente(
-            "diretorio_texto_documento_ausente",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(ErroArquivoTexto::DiretorioAusente);
     }
     arquivo_privado::gravar(
         destino,
@@ -120,10 +110,7 @@ mod tests {
         let destino = pasta.join("inexistente/0007.txt");
         assert_eq!(
             salvar(&destino, "conteúdo"),
-            Err(ErroArquivoTexto::Html(crate::erro_html::ErroHtml::ausente(
-                "diretorio_texto_documento_ausente",
-                "a tela não tem o elemento observado"
-            )))
+            Err(ErroArquivoTexto::DiretorioAusente)
         );
         assert!(!destino.exists());
         fs::remove_dir_all(pasta).unwrap();

@@ -53,13 +53,7 @@ fn pagina_de_outro_nup_diverge_do_pedido() {
         E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     );
     assert!(erro.diverge_do_pedido());
-    assert!(
-        !E::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente",
-            "a tela não tem o elemento observado"
-        ))
-        .diverge_do_pedido()
-    );
+    assert!(!E::LegendaDosAndamentosAusente.diverge_do_pedido());
 }
 
 #[test]
@@ -71,10 +65,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&sem, NUP),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente",
-            "a tela não tem o elemento observado"
-        )))
+        Err(E::LegendaDosAndamentosAusente)
     );
     for legenda in [
         "Lista de Andamentos (1 registro - 1 a 1):",
@@ -85,10 +76,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
         let trocada = html.replace("Lista de Andamentos (1 registro):", legenda);
         assert_eq!(
             ler_andamentos(&trocada, NUP),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "legenda_dos_andamentos_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::LegendaDosAndamentosForaDaFormaObservada),
             "{legenda}"
         );
     }
@@ -98,10 +86,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&duas, NUP),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "legenda_dos_andamentos_fora_da_forma_observada",
-            "o valor não está na forma observada"
-        )))
+        Err(E::LegendaDosAndamentosForaDaFormaObservada)
     );
 }
 
@@ -126,14 +111,8 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let nomes: Vec<_> = [
-        E::Html(crate::erro_html::ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente",
-            "a tela não tem o elemento observado",
-        )),
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "legenda_dos_andamentos_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        )),
+        E::LegendaDosAndamentosAusente,
+        E::LegendaDosAndamentosForaDaFormaObservada,
         E::AndamentosAlemDoTotalDeclarado,
         E::TipoDoHistoricoNaoPublicado,
         E::CharsetDoHistoricoNaoSuportado,

@@ -10,10 +10,13 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 /// Uma variante por fato verificável do link no Controle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDaPesquisa {
+    LinkDaPesquisaAusenteNoControle,
+    LinksDaPesquisaRepetidosNoControle,
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
+    /// Fora de `controlador.php?`, sem exatamente uma `acao` e um
+    /// `infra_hash` de 64 hex, com chave não canônica ou fora da instalação.
+    LinkDaPesquisaNaoReconhecido,
 }
 
 impl ErroLinkDaPesquisa {}
@@ -34,10 +37,7 @@ pub(crate) fn link_da_pesquisa(
     {
         return Err(E::LinkDaPesquisaComEnderecoAbsoluto);
     }
-    let nao = E::Html(crate::erro_html::ErroHtml::valor(
-        "link_da_pesquisa_nao_reconhecido",
-        "o valor não está na forma observada",
-    ));
+    let nao = E::LinkDaPesquisaNaoReconhecido;
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
@@ -79,10 +79,7 @@ const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
     use ErroLinkDaPesquisa as E;
-    let nao = E::Html(crate::erro_html::ErroHtml::valor(
-        "link_da_pesquisa_nao_reconhecido",
-        "o valor não está na forma observada",
-    ));
+    let nao = E::LinkDaPesquisaNaoReconhecido;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| nao)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -110,15 +107,9 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         }
     }
     match achados.len() {
-        0 => Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "link_da_pesquisa_ausente_no_controle",
-            "a tela não tem o elemento observado",
-        ))),
+        0 => Err(E::LinkDaPesquisaAusenteNoControle),
         1 => Ok(achados.remove(0)),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_da_pesquisa_repetidos_no_controle",
-            "o elemento aparece mais de uma vez",
-        ))),
+        _ => Err(E::LinksDaPesquisaRepetidosNoControle),
     }
 }
 

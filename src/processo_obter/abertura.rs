@@ -6,8 +6,8 @@ use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
     ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
-    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroRelacionarNaBarra,
-    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
     ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
     ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
     ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
@@ -158,10 +158,12 @@ pub(super) struct ArvoreAberta {
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// O link de prazo na barra; falha só pesa em `processo prazo`.
+    pub(super) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
-    pub(super) reabrir: Result<Option<ReabrirNaBarra>, crate::erro_html::ErroHtml>,
+    pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
     pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
@@ -207,6 +209,7 @@ pub(super) fn ler_arvore_da_pagina(
     let historico = ler_link_do_historico(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
     let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
@@ -225,6 +228,7 @@ pub(super) fn ler_arvore_da_pagina(
         historico,
         propriedades,
         marcadores,
+        prazo,
         concluir,
         reabrir,
         sobrestar,

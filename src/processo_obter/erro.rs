@@ -33,6 +33,8 @@ pub(crate) enum ErroProcessoObter {
     /// O 302 para `procedimento_trabalhar` não passou na conferência.
     #[causa(interna)]
     Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    ProcessoRepetidoNoControle,
+    LinksDoProcessoRepetidosNoControle,
     LinkDoProcessoNoControleNaoReconhecido(ErroRedirecionamentoDaPesquisa),
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
@@ -57,8 +59,6 @@ pub(crate) enum ErroProcessoObter {
     /// O link dos marcadores na barra ou a tela deles.
     #[causa(interna)]
     Marcadores(ErroMarcadores),
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroProcessoObter {
@@ -68,7 +68,6 @@ impl ErroProcessoObter {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
             Self::Transporte(erro) => erro.mensagem(),
             Self::Controle(erro) => erro.mensagem(),
             Self::EntradaPorIdRecusada => {
@@ -83,6 +82,9 @@ impl ErroProcessoObter {
             }
             Self::RedirecionamentoNaoReconhecido(_) => "o SEI redirecionou para fora do observado",
             Self::Redirecionamento(_) => "o endereço do processo não foi reconhecido",
+            Self::ProcessoRepetidoNoControle | Self::LinksDoProcessoRepetidosNoControle => {
+                "o número aparece mais de uma vez no Controle"
+            }
             Self::LinkDoProcessoNoControleNaoReconhecido(_) => {
                 "o link do processo no Controle não foi reconhecido"
             }

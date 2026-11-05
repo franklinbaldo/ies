@@ -122,10 +122,7 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
             200,
             "application/json",
             Some(5),
-            FalhaTransporte::Html(crate::erro_html::ErroHtml::html(
-                "tipo_de_conteudo_nao_html",
-                "a resposta não declara Content-Type text/html",
-            )),
+            FalhaTransporte::TipoDeConteudoNaoHtml,
         ),
         (
             200,
@@ -254,10 +251,7 @@ fn matriz_url_host_porta_userinfo_hash_e_duplicatas_sem_cookie() {
         assert!(
             matches!(
                 obtido,
-                Err(FalhaTransporte::Html(crate::erro_html::ErroHtml {
-                    onde: "url_invalida",
-                    ..
-                }) | FalhaTransporte::OrigemNaoAutorizada)
+                Err(FalhaTransporte::UrlInvalida | FalhaTransporte::OrigemNaoAutorizada)
             ),
             "caso {indice} deveria recusar a URL antes do cookie: {obtido:?}"
         );
@@ -352,13 +346,7 @@ fn parametro_generico_duplicado_deve_ser_recusado_antes_do_cookie() {
         },
     );
     assert!(
-        matches!(
-            resultado,
-            Err(FalhaTransporte::Html(crate::erro_html::ErroHtml {
-                onde: "url_invalida",
-                ..
-            }))
-        ),
+        matches!(resultado, Err(FalhaTransporte::UrlInvalida)),
         "URL duplicada não recusada: {resultado:?}"
     );
     assert_eq!(chamadas.get(), 0);

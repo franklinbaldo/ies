@@ -234,10 +234,7 @@ fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
     assert_eq!(registro.len(), 0);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::Html(crate::erro_html::ErroHtml::ausente(
-            "link_do_nivel_de_detalhe_ausente",
-            "a tela não tem o elemento observado"
-        ))
+        ErroVisaoDoControle::LinkDoNivelDeDetalheAusente
     );
 }
 
@@ -259,10 +256,7 @@ fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
         assert_eq!(registro.len(), 0, "{troca:?}");
         assert_eq!(
             resultado.unwrap_err(),
-            ErroVisaoDoControle::Html(crate::erro_html::ErroHtml::valor(
-                "link_do_nivel_de_detalhe_nao_reconhecido",
-                "o valor não está na forma observada"
-            )),
+            ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido,
             "{troca:?}"
         );
     }

@@ -16,10 +16,7 @@ pub(super) struct AnexadoLido {
 }
 
 pub(super) fn ler_anexado(a: &[Literal; ARGUMENTOS]) -> Result<AnexadoLido, ErroArvore> {
-    let fora = ErroArvore::Html(crate::erro_html::ErroHtml::valor(
-        "processo_anexado_fora_da_forma_observada",
-        "o valor não está na forma observada",
-    ));
+    let fora = ErroArvore::ProcessoAnexadoForaDaFormaObservada;
     let id = super::id(&a[1])?;
     let pai = super::id(&a[2])?;
     if !endereco_observado(super::texto(&a[3])?, &pai, &id) {
@@ -85,10 +82,7 @@ pub(super) fn conferir_anexados(
             return Err(E::ProcessoAnexadoIgualAoProcesso);
         }
         if !ids.insert(&a.id) || !nups.insert(&a.nup) {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "processo_anexado_repetido_na_arvore",
-                "o elemento aparece mais de uma vez",
-            )));
+            return Err(E::ProcessoAnexadoRepetidoNaArvore);
         }
     }
     let filho_de_anexado = lidos.iter().any(|l| ids.contains(l.pai.as_str()))

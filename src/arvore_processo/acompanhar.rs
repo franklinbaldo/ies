@@ -9,10 +9,16 @@ pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcompanharNaBarra {
+    #[causa(nome = "barra_de_acompanhamento_fora_da_forma")]
+    BarraForaDaForma,
+    #[causa(nome = "barra_de_acompanhamento_repetida")]
+    BarraRepetida,
+    #[causa(nome = "links_de_acompanhamento_repetidos")]
+    LinksRepetidos,
+    #[causa(nome = "link_de_acompanhamento_nao_reconhecido")]
+    LinkNaoReconhecido,
     #[causa(nome = "link_de_acompanhamento_de_outro_processo")]
     LinkDeOutroProcesso,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroAcompanharNaBarra {}
@@ -24,14 +30,8 @@ pub(crate) fn ler_acompanhar_da_barra(
 ) -> Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra> {
     use ErroAcompanharNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::Html(crate::erro_html::ErroHtml::valor(
-            "barra_de_acompanhamento_fora_da_forma",
-            "o valor não está na forma observada",
-        )),
-        FalhaDaBarra::Repetidas => E::Html(crate::erro_html::ErroHtml::repetido(
-            "barra_de_acompanhamento_repetida",
-            "o elemento aparece mais de uma vez",
-        )),
+        FalhaDaBarra::Fora => E::BarraForaDaForma,
+        FalhaDaBarra::Repetidas => E::BarraRepetida,
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -43,15 +43,9 @@ pub(crate) fn ler_acompanhar_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => E::Html(crate::erro_html::ErroHtml::valor(
-                    "link_de_acompanhamento_nao_reconhecido",
-                    "o valor não está na forma observada",
-                )),
+                EnderecoRecusado::NaoReconhecido => E::LinkNaoReconhecido,
                 EnderecoRecusado::DeOutroProcesso => E::LinkDeOutroProcesso,
             }),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_de_acompanhamento_repetidos",
-            "o elemento aparece mais de uma vez",
-        ))),
+        _ => Err(E::LinksRepetidos),
     }
 }

@@ -392,12 +392,7 @@ fn controle_sem_o_link_da_pesquisa_para_no_primeiro_get() {
     assert_eq!(
         r.unwrap_err(),
         ErroBuscaDeProcesso::Link(
-            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::Html(
-                crate::erro_html::ErroHtml::ausente(
-                    "link_da_pesquisa_ausente_no_controle",
-                    "a tela não tem o elemento observado"
-                )
-            )
+            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle
         )
     );
     assert_eq!(pedidos, vec![get(url_controle())]);

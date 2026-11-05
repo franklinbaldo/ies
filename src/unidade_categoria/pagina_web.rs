@@ -172,11 +172,7 @@ mod tests {
         ));
         assert_eq!(post.status_http().map(|h| h.status), Some(502));
         assert_eq!(post.subcodigo(), "status_http_de_erro_do_servidor");
-        let local =
-            ErroPaginaWeb::Transporte(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
-                "cookie_invalido",
-                "formato de cookie de sessão inválido",
-            )));
+        let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
         assert_eq!(local.status_http(), None);
     }
 }

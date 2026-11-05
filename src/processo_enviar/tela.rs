@@ -118,25 +118,11 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
-#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, E> {
-    let campo_nao_previsto_na_tela_de_envio = E::Html(crate::erro_html::ErroHtml::valor(
-        "campo_nao_previsto_na_tela_de_envio",
-        "o valor não está na forma observada",
-    ));
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::html(
-            "tela_de_envio_nao_interpretada",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::ausente(
-            "formulario_de_envio_ausente",
-            "a tela não tem o elemento observado",
-        ))
-    })?;
+    let form =
+        localizar_formulario(&dom, FORMULARIO_DE_ENVIO).map_err(|_| E::FormularioDeEnvioAusente)?;
     let mut preenchida = false;
     let mut textos = Vec::new();
     let mut selecao: Option<String> = None;
@@ -151,7 +137,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
-            let valor = decodificado(tag, "value")?.ok_or(campo_nao_previsto_na_tela_de_envio)?;
+            let valor = decodificado(tag, "value")?.ok_or(E::CampoNaoPrevistoNaTelaDeEnvio)?;
             let marcada = presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
@@ -163,9 +149,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                 }
                 Some("selUnidades") => preenchida = true,
                 Some(_) => preenchida |= marcada,
-                None => {
-                    return Err(campo_nao_previsto_na_tela_de_envio);
-                }
+                None => return Err(E::CampoNaoPrevistoNaTelaDeEnvio),
             }
             continue;
         }
@@ -212,9 +196,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                     textos.push(*texto);
                 }
             }
-            _ => {
-                return Err(campo_nao_previsto_na_tela_de_envio);
-            }
+            _ => return Err(E::CampoNaoPrevistoNaTelaDeEnvio),
         }
     }
     if preenchida {
@@ -266,10 +248,7 @@ fn ler_script(html: &str) -> Result<(String, bool), E> {
     };
     match formas.as_slice() {
         [Some(unidade_atual)] => Ok((url, *unidade_atual)),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "consulta_do_autocompletar_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        ))),
+        _ => Err(E::ConsultaDoAutocompletarForaDaFormaObservada),
     }
 }
 
@@ -282,30 +261,13 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|e| {
-        E::Html(crate::erro_html::ErroHtml::atributo(
-            "tela_de_envio_nao_interpretada",
-            "o HTML não pôde ser interpretado",
-            e,
-        ))
-    })
+    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
 }
 
 fn decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome)
-        .map_err(|e| {
-            E::Html(crate::erro_html::ErroHtml::atributo(
-                "tela_de_envio_nao_interpretada",
-                "o HTML não pôde ser interpretado",
-                e,
-            ))
-        })?
-        .map(|bruto| {
-            decodificar_atributo(&bruto).ok_or(E::Html(crate::erro_html::ErroHtml::html(
-                "tela_de_envio_nao_interpretada",
-                "o HTML não pôde ser interpretado",
-            )))
-        })
+        .map_err(|_| E::HtmlNaoInterpretado)?
+        .map(|bruto| decodificar_atributo(&bruto).ok_or(E::HtmlNaoInterpretado))
         .transpose()
 }
 

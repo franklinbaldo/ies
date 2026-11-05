@@ -118,17 +118,11 @@ fn recusas_do_anexado() {
         ),
         (
             vec![p(), a(), no_anexado(2, "20", "10", "00003.000003/2026-03")],
-            E::Html(crate::erro_html::ErroHtml::repetido(
-                "processo_anexado_repetido_na_arvore",
-                "o elemento aparece mais de uma vez",
-            )),
+            E::ProcessoAnexadoRepetidoNaArvore,
         ),
         (
             vec![p(), a(), no_anexado(2, "30", "10", NUP_ANEXADO)],
-            E::Html(crate::erro_html::ErroHtml::repetido(
-                "processo_anexado_repetido_na_arvore",
-                "o elemento aparece mais de uma vez",
-            )),
+            E::ProcessoAnexadoRepetidoNaArvore,
         ),
         (
             vec![p(), no_anexado(1, "10", "10", NUP_ANEXADO)],
@@ -192,10 +186,7 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
         let html = arvore(&[no_processo(0, "10", NUP), variante.clone()]);
         assert_eq!(
             ler_arvore(&html, NUP, "10"),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "processo_anexado_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::ProcessoAnexadoForaDaFormaObservada),
             "{variante}"
         );
     }
@@ -205,10 +196,7 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
 fn subcodigos_estaveis_do_anexado() {
     let casos = [
         (
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "processo_anexado_fora_da_forma_observada",
-                "o valor não está na forma observada",
-            )),
+            E::ProcessoAnexadoForaDaFormaObservada,
             "processo_anexado_fora_da_forma_observada",
         ),
         (
@@ -220,10 +208,7 @@ fn subcodigos_estaveis_do_anexado() {
             "processo_anexado_com_pai_diferente_do_processo",
         ),
         (
-            E::Html(crate::erro_html::ErroHtml::repetido(
-                "processo_anexado_repetido_na_arvore",
-                "o elemento aparece mais de uma vez",
-            )),
+            E::ProcessoAnexadoRepetidoNaArvore,
             "processo_anexado_repetido_na_arvore",
         ),
         (
@@ -270,10 +255,7 @@ fn anexado_marcado_como_visitado_na_arvore_aberta_por_ele_e_aceito() {
         );
         assert_eq!(
             ler_arvore(&html, NUP, "10").map(|_| ()),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "processo_anexado_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::ProcessoAnexadoForaDaFormaObservada),
             "{outro}"
         );
     }

@@ -67,27 +67,18 @@ fn recusas_da_tela() {
         .replace("<a id=\"lnkInfraUnidade\" href=\"#\">U</a>", "");
     assert_eq!(
         ler(&sem_unidade, None),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela_do_processo",
-            "a tela não tem o elemento observado"
-        )))
+        Err(E::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[]), None),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "arvore_ausente_na_tela_do_processo",
-            "a tela não tem o elemento observado"
-        )))
+        Err(E::ArvoreAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(
             &tela_do_processo("U", &[src_da_arvore("10"), src_da_arvore("10")]),
             None
         ),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "arvores_repetidas_na_tela_do_processo",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::ArvoresRepetidasNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[src_da_arvore("11")]), None),
@@ -103,10 +94,7 @@ fn recusas_da_tela() {
     ] {
         assert_eq!(
             ler(&tela_do_processo("U", std::slice::from_ref(&src)), None),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_da_arvore_nao_reconhecido",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::EnderecoDaArvoreNaoReconhecido),
             "{src}"
         );
     }

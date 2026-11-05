@@ -65,10 +65,7 @@ fn as_duas_formas_juntas_sao_recusa() {
     let (_, corpo) = forma_go(&url);
     assert_eq!(
         ler(&[(script, corpo)]),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -77,17 +74,11 @@ fn link_repetido_e_recusa() {
     let url = link_do_historico(ID);
     assert_eq!(
         ler(&[forma_go(&url), forma_go(&url)]),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::LinksDoHistoricoRepetidosNaArvore)
     );
     assert_eq!(
         ler(&[forma_unb(&url), forma_unb(&url)]),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -102,10 +93,7 @@ fn onclick_fora_das_formas_e_recusa() {
     ] {
         assert_eq!(
             ler(&[(String::new(), trocado)]),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_do_historico_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            )))
+            Err(E::LinkDoHistoricoForaDaFormaObservada)
         );
     }
 }
@@ -117,10 +105,7 @@ fn funcao_sem_a_linha_do_src_e_recusa() {
     let trocado = script.replace("parent.document", "window.parent.document");
     assert_eq!(
         ler(&[(trocado, corpo)]),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "link_do_historico_fora_da_forma_observada",
-            "o valor não está na forma observada"
-        )))
+        Err(E::LinkDoHistoricoForaDaFormaObservada)
     );
 }
 
@@ -141,10 +126,7 @@ fn url_fora_da_conferencia_e_recusa() {
     ] {
         assert_eq!(
             ler(&[forma_go(&trocada)]),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_do_historico_nao_reconhecido",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::EnderecoDoHistoricoNaoReconhecido),
             "{trocada}"
         );
     }
@@ -161,23 +143,11 @@ fn link_de_outro_processo_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let todos = [
-        E::Html(crate::erro_html::ErroHtml::html(
-            "html_da_arvore_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        )),
+        E::HtmlDaArvoreNaoInterpretado,
         E::LinkDoHistoricoAusenteNaArvore,
-        E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore",
-            "o elemento aparece mais de uma vez",
-        )),
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "link_do_historico_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        )),
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_do_historico_nao_reconhecido",
-            "o valor não está na forma observada",
-        )),
+        E::LinksDoHistoricoRepetidosNaArvore,
+        E::LinkDoHistoricoForaDaFormaObservada,
+        E::EnderecoDoHistoricoNaoReconhecido,
         E::EnderecoDoHistoricoDeOutroProcesso,
     ];
     for erro in todos {

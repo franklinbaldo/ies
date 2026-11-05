@@ -190,10 +190,7 @@ fn interessado_nao_resolvido_nao_cria() {
     assert!(matches!(
         resultado,
         Err(ErroCriar::Interessado(
-            crate::processo_criar_interessados::ErroInteressado::Html(crate::erro_html::ErroHtml {
-                onde: "interessado_controles_ausentes",
-                ..
-            })
+            crate::processo_criar_interessados::ErroInteressado::ControlesAusentes
         ))
     ));
     assert_eq!(requests.len(), 3);

@@ -13,13 +13,7 @@ use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 fn unico<'d>(dom: &'d tl::VDom<'_>, id: &str) -> Result<Option<&'d tl::HTMLTag<'d>>, ErroCaixa> {
-    let nos = nos_com_id(dom, id).map_err(|e| {
-        ErroCaixa::Html(crate::erro_html::ErroHtml::atributo(
-            "html_da_caixa_invalido",
-            "o HTML não pôde ser interpretado",
-            e,
-        ))
-    })?;
+    let nos = nos_com_id(dom, id).map_err(|_| ErroCaixa::HtmlInvalido)?;
     let [no] = nos.as_slice() else {
         return Ok(None);
     };
@@ -46,13 +40,7 @@ fn oculto_zero(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
     let Some(campo) = unico(dom, id)? else {
         return Ok(false);
     };
-    let valor = valor_do_atributo(campo, "value").map_err(|e| {
-        ErroCaixa::Html(crate::erro_html::ErroHtml::atributo(
-            "html_da_caixa_invalido",
-            "o HTML não pôde ser interpretado",
-            e,
-        ))
-    })?;
+    let valor = valor_do_atributo(campo, "value").map_err(|_| ErroCaixa::HtmlInvalido)?;
     Ok(campo.name() == "input" && valor.as_deref() == Some("0"))
 }
 

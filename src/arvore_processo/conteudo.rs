@@ -43,9 +43,15 @@ pub(crate) enum ConteudoNaArvore {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConteudoNaArvore {
+    DocumentoAusenteDaArvore,
+    #[causa(nome = "link_do_conteudo_ausente_na_arvore")]
+    SrcDoDocumentoAusente,
+    #[causa(nome = "link_do_conteudo_repetido_na_arvore")]
+    SrcDoDocumentoRepetido,
+    #[causa(nome = "link_do_conteudo_fora_da_forma_observada")]
+    SrcDoDocumentoForaDaFormaObservada,
+    EnderecoDoConteudoNaoReconhecido,
     EnderecoDoConteudoDeOutroDocumento,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroConteudoNaArvore {}
@@ -71,37 +77,21 @@ pub(crate) fn ler_conteudo_na_arvore(
                 _ => None,
             }
         })
-        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
-            "documento_ausente_da_arvore",
-            "a tela não tem o elemento observado",
-        )))?;
+        .ok_or(E::DocumentoAusenteDaArvore)?;
     let mut lidos = Vec::new();
     for linha in html.split('\n') {
         match ler_src(linha) {
             Ok(Some((i, texto))) if i == indice => lidos.push(texto),
             Err(_) if indice_do_src(linha) == Some(indice) => {
-                return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                    "link_do_conteudo_fora_da_forma_observada",
-                    "o valor não está na forma observada",
-                )));
+                return Err(E::SrcDoDocumentoForaDaFormaObservada);
             }
             _ => {}
         }
     }
     let src = match lidos.as_slice() {
-        [] => {
-            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-                "link_do_conteudo_ausente_na_arvore",
-                "a tela não tem o elemento observado",
-            )));
-        }
+        [] => return Err(E::SrcDoDocumentoAusente),
         [um] => um,
-        _ => {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "link_do_conteudo_repetido_na_arvore",
-                "o elemento aparece mais de uma vez",
-            )));
-        }
+        _ => return Err(E::SrcDoDocumentoRepetido),
     };
     if src.is_empty() {
         return Ok(ConteudoNaArvore::Vazio);
@@ -110,19 +100,10 @@ pub(crate) fn ler_conteudo_na_arvore(
         Some(DOWNLOAD) => {
             // O link não traz `id_documento`: o id conferido é o `id_anexo`
             // único e decimal do próprio link; a ligação é o nó (Refs #60).
-            let id_anexo =
-                id_anexo_unico(src).ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-                    "endereco_do_conteudo_nao_reconhecido",
-                    "o valor não está na forma observada",
-                )))?;
+            let id_anexo = id_anexo_unico(src).ok_or(E::EnderecoDoConteudoNaoReconhecido)?;
             conferir_endereco_relativo_por(instalacao, src, DOWNLOAD, "id_anexo", id_anexo)
                 .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
-                .map_err(|_| {
-                    E::Html(crate::erro_html::ErroHtml::valor(
-                        "endereco_do_conteudo_nao_reconhecido",
-                        "o valor não está na forma observada",
-                    ))
-                })
+                .map_err(|_| E::EnderecoDoConteudoNaoReconhecido)
         }
         Some(VISUALIZAR) => conferir_endereco_relativo_por(
             instalacao,
@@ -133,16 +114,10 @@ pub(crate) fn ler_conteudo_na_arvore(
         )
         .map(|url| ConteudoNaArvore::Visualizar(EnderecoDoConteudo(url)))
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_do_conteudo_nao_reconhecido",
-                "o valor não está na forma observada",
-            )),
+            EnderecoRecusado::NaoReconhecido => E::EnderecoDoConteudoNaoReconhecido,
             EnderecoRecusado::DeOutroProcesso => E::EnderecoDoConteudoDeOutroDocumento,
         }),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_do_conteudo_nao_reconhecido",
-            "o valor não está na forma observada",
-        ))),
+        _ => Err(E::EnderecoDoConteudoNaoReconhecido),
     }
 }
 

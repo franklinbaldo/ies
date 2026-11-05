@@ -226,20 +226,14 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
     ] {
         assert_eq!(
             conferir_controles_do_formulario(&tela_salvavel(&C::TODAS, &[], extra)),
-            Err(ErroNivelDeDetalhe::Html(crate::erro_html::ErroHtml::valor(
-                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe",
-                "o valor não está na forma observada"
-            ))),
+            Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe),
             "{extra}"
         );
     }
     assert_eq!(
-        crate::erro_publico::folha(&ErroNivelDeDetalhe::Html(
-            crate::erro_html::ErroHtml::valor(
-                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe",
-                "o valor não está na forma observada"
-            )
-        )),
+        crate::erro_publico::folha(
+            &ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe
+        ),
         "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
     );
 }

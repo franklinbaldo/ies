@@ -234,7 +234,7 @@ def edicoes_de_enum(plano):
             saida.append((e.arquivo, ini, fim, ''))
         corpo = e.no.child_by_field_name('body')
         fecha = corpo.end_byte - 1
-        saida.append((e.arquivo, fecha, fecha, f'    #[causa(interna)]\n    Html({TIPO}),\n'))
+        saida.append((e.arquivo, fecha, fecha, f'    #[causa(transparente)]\n    Html({TIPO}),\n'))
     return saida
 
 

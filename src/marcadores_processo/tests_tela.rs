@@ -128,10 +128,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
     ] {
         assert_eq!(
             erro(&html.replace("Marcadores (2 registros):", legenda)),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "legenda_dos_marcadores_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            )),
+            E::LegendaDosMarcadoresForaDaFormaObservada,
             "{legenda}"
         );
     }
@@ -140,10 +137,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
             "<th class=\"infraTh\">Texto</th>",
             "<th class=\"infraTh\">Nota</th>"
         )),
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "cabecalho_dos_marcadores_nao_reconhecido",
-            "o valor não está na forma observada"
-        ))
+        E::CabecalhoDosMarcadoresNaoReconhecido
     );
     let duas = html.replace(
         "</div>\n<input type=\"hidden\" id=\"hdnInfraNroItens\"",
@@ -152,13 +146,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
             tabela(&legenda(0), &[])
         ),
     );
-    assert_eq!(
-        erro(&duas),
-        E::Html(crate::erro_html::ErroHtml::repetido(
-            "tabelas_dos_marcadores_repetidas",
-            "o elemento aparece mais de uma vez"
-        ))
-    );
+    assert_eq!(erro(&duas), E::TabelasDosMarcadoresRepetidas);
 }
 
 #[test]
@@ -182,10 +170,7 @@ fn linha_fora_da_forma_observada_e_recusa() {
         let html = tela_com(NUP, ID, &tabela);
         assert_eq!(
             erro(&html),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "linha_do_marcador_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            )),
+            E::LinhaDoMarcadorForaDaFormaObservada,
             "{ruim}"
         );
     }
@@ -196,13 +181,7 @@ fn marcador_repetido_na_tela_e_recusa() {
     let [a, _] = dois();
     let [b, _]: [Linha<'_>; 2] = dois();
     let html = tela_com(NUP, ID, &tabela(&legenda(2), &[a, b]));
-    assert_eq!(
-        erro(&html),
-        E::Html(crate::erro_html::ErroHtml::repetido(
-            "marcador_repetido_na_tela",
-            "o elemento aparece mais de uma vez"
-        ))
-    );
+    assert_eq!(erro(&html), E::MarcadorRepetidoNaTela);
 }
 
 #[test]
@@ -212,10 +191,7 @@ fn subcodigos_estaveis() {
         "marcadores_alem_do_total_declarado"
     );
     assert_eq!(
-        crate::erro_publico::folha(&E::Html(crate::erro_html::ErroHtml::valor(
-            "linha_do_marcador_fora_da_forma_observada",
-            "o valor não está na forma observada"
-        ))),
+        crate::erro_publico::folha(&E::LinhaDoMarcadorForaDaFormaObservada),
         "linha_do_marcador_fora_da_forma_observada"
     );
     assert_eq!(

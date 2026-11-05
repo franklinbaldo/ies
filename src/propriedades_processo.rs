@@ -100,15 +100,22 @@ pub(crate) enum ErroPropriedades {
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
     EnderecoDasPropriedadesDeOutroProcesso,
+    HtmlDasPropriedadesNaoInterpretado,
     FormularioDasPropriedadesAusente,
+    FormulariosDasPropriedadesRepetidos,
+    CampoDasPropriedadesAusente,
+    CampoDasPropriedadesRepetido,
     NumeroDasPropriedadesDiferenteDoSolicitado,
     IdDasPropriedadesDiferenteDoAberto,
     TipoDoProcessoInconsistente,
+    OpcoesMarcadasRepetidas,
+    AssuntoForaDaFormaObservada,
+    InteressadoForaDaFormaObservada,
     ListaOcultaDasPropriedadesNaoObservada,
     NivelDeAcessoNaoMarcado,
+    NivelDeAcessoForaDaFormaObservada,
+    DataDeGeracaoForaDaFormaObservada,
     TextoDasPropriedadesNaoDecodificado,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroPropriedades {

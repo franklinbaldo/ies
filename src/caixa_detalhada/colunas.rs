@@ -58,10 +58,7 @@ pub(crate) fn serializar_categoria<S: Serializer>(
 }
 
 fn ilegivel(_: impl Sized) -> ErroDetalhada {
-    ErroDetalhada::Html(crate::erro_html::ErroHtml::html(
-        "html_detalhado_nao_interpretado",
-        "o HTML não pôde ser interpretado",
-    ))
+    ErroDetalhada::HtmlNaoInterpretado
 }
 
 /// Texto visível com entidades conhecidas decodificadas e espaços colapsados.
@@ -125,10 +122,7 @@ fn papel_do_rotulo(rotulo: &str) -> Result<PapelDaColuna, ErroDetalhada> {
     }
     ColunaDoDetalhe::pelo_cabecalho(rotulo)
         .map(PapelDaColuna::Configurada)
-        .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-            "cabecalho_da_visao_detalhada_nao_reconhecido",
-            "o valor não está na forma observada",
-        )))
+        .ok_or(ErroDetalhada::CabecalhoNaoReconhecido)
 }
 
 fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, ErroDetalhada> {
@@ -148,16 +142,10 @@ fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, Erro
                 return papel_do_rotulo(&rotulo);
             }
             rotulo_do_icone(div, parser)?
-                .ok_or(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-                    "cabecalho_da_visao_detalhada_nao_reconhecido",
-                    "o valor não está na forma observada",
-                )))
+                .ok_or(ErroDetalhada::CabecalhoNaoReconhecido)
                 .and_then(|rotulo| papel_do_rotulo(&rotulo))
         }
-        _ => Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-            "cabecalho_da_visao_detalhada_nao_reconhecido",
-            "o valor não está na forma observada",
-        ))),
+        _ => Err(ErroDetalhada::CabecalhoNaoReconhecido),
     }
 }
 
@@ -178,24 +166,15 @@ pub(super) fn papeis_do_cabecalho(
         let novo = papel(dom, th)?;
         if novo != PapelDaColuna::SemRotulo && papeis.contains(&novo) {
             return Err(if novo == PapelDaColuna::Processo {
-                ErroDetalhada::Html(crate::erro_html::ErroHtml::repetido(
-                    "cabecalho_processo_detalhado_repetido",
-                    "o elemento aparece mais de uma vez",
-                ))
+                ErroDetalhada::CabecalhoProcessoRepetido
             } else {
-                ErroDetalhada::Html(crate::erro_html::ErroHtml::repetido(
-                    "coluna_da_visao_detalhada_repetida",
-                    "o elemento aparece mais de uma vez",
-                ))
+                ErroDetalhada::ColunaRepetida
             });
         }
         papeis.push(novo);
     }
     if !papeis.contains(&PapelDaColuna::Processo) {
-        return Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::ausente(
-            "cabecalho_processo_detalhado_ausente",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(ErroDetalhada::CabecalhoProcessoAusente);
     }
     Ok(papeis)
 }
@@ -237,10 +216,7 @@ pub(super) fn valor_da_celula(
         return Ok(ValorDaColuna::Itens(itens));
     }
     if !tags(dom, celula, "div", "divItemCelula")?.is_empty() {
-        return Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-            "itens_nao_previstos_na_celula_detalhada",
-            "o valor não está na forma observada",
-        )));
+        return Err(ErroDetalhada::ItensNaoPrevistosNaCelula);
     }
     Ok(ValorDaColuna::Texto(
         (!completo.is_empty()).then_some(completo),

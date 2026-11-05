@@ -253,10 +253,7 @@ mod tests {
             ReferenciasDaSessao::ler(&arquivos.url, &arquivos.origem, &arquivos.cookie).unwrap();
         assert_eq!(
             sessao.cookie().valor(),
-            Err(FalhaTransporte::Html(crate::erro_html::ErroHtml::valor(
-                "cookie_invalido",
-                "formato de cookie de sessão inválido"
-            )))
+            Err(FalhaTransporte::CookieInvalido)
         );
     }
 }

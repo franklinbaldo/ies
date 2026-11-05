@@ -63,12 +63,7 @@ fn recusas_pela_situacao_e_pela_barra_so_com_a_abertura() {
         (
             vec![UNIDADE],
             vec![pelo_envio(ID), pelo_envio(ID)],
-            R::Barra(ErroEnviarNaBarra::Html(
-                crate::erro_html::ErroHtml::repetido(
-                    "links_de_enviar_repetidos_na_barra",
-                    "o elemento aparece mais de uma vez",
-                ),
-            )),
+            R::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra),
         ),
         (
             vec![UNIDADE],
@@ -113,10 +108,7 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     for (resposta, erro) in [
         (
             ok(fora),
-            R::TelaDeEnvio(ErroTelaDeEnvio::Html(crate::erro_html::ErroHtml::ausente(
-                "formulario_de_envio_ausente",
-                "a tela não tem o elemento observado",
-            ))),
+            R::TelaDeEnvio(ErroTelaDeEnvio::FormularioDeEnvioAusente),
         ),
         (
             r302("controlador.php?acao=principal"),

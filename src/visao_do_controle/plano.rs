@@ -7,10 +7,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginas::FaixaNaPagina;
 
 fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::Html(crate::erro_html::ErroHtml::html(
-        "html_da_caixa_invalido",
-        "o HTML não pôde ser interpretado",
-    )))
+    E::Caixa(ErroCaixa::HtmlInvalido)
 }
 
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.

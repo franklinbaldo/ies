@@ -27,19 +27,10 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
     let sei = instalacao();
     let url = url_controle(ID_A);
     let sem = "<a id=\"lnkInfraUnidade\" href=\"#\">PR-A</a>";
-    assert_eq!(
-        link_da_troca(&sei, &url, sem),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "link_de_troca_de_unidade_ausente",
-            "o Controle não publica o link de troca de unidade"
-        )))
-    );
+    assert_eq!(link_da_troca(&sei, &url, sem), Err(E::LinkDeTrocaAusente));
     assert_eq!(
         link_da_troca(&sei, &url, "<p>x</p>"),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "link_de_troca_de_unidade_ausente",
-            "o Controle não publica o link de troca de unidade"
-        )))
+        Err(E::LinkDeTrocaAusente)
     );
     let divergente = barra("PR-A", ID_A).replacen(ID_A, ID_B, 1);
     assert_eq!(
@@ -66,10 +57,7 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
         let html = barra("PR-A", ID_A).replace(de, para);
         assert_eq!(
             link_da_troca(&sei, &url, &html),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "link_de_troca_de_unidade_fora_da_forma_observada",
-                "o link de troca de unidade não tem a forma observada"
-            ))),
+            Err(E::LinkDeTrocaForaDaFormaObservada),
             "{para}"
         );
     }
@@ -118,10 +106,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 &duas.replace("selecionarUnidade(110000002)", "selecionarUnidade(9)"),
                 SCRIPT,
             ),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "linha_de_unidade_fora_da_forma_observada",
-                "uma linha da lista de unidades não tem a forma observada",
-            )),
+            E::LinhaDeUnidadeForaDaFormaObservada,
         ),
         (
             tela_com(
@@ -130,10 +115,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 &duas.replace("title=\"PR-B\"", "title=\"PR-C\""),
                 SCRIPT,
             ),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "linha_de_unidade_fora_da_forma_observada",
-                "uma linha da lista de unidades não tem a forma observada",
-            )),
+            E::LinhaDeUnidadeForaDaFormaObservada,
         ),
         (
             tela_com(
@@ -146,10 +128,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 ),
                 SCRIPT,
             ),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "linha_de_unidade_fora_da_forma_observada",
-                "uma linha da lista de unidades não tem a forma observada",
-            )),
+            E::LinhaDeUnidadeForaDaFormaObservada,
         ),
         (
             tela_com(ativa, 2, &duas.replace("checked=\"checked\" ", ""), SCRIPT),
@@ -164,13 +143,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
             ),
             E::UnidadeMarcadaDiferenteDaAtiva,
         ),
-        (
-            controle("PR-A", ID_A),
-            E::Html(crate::erro_html::ErroHtml::valor(
-                "tela_de_troca_de_unidade_nao_reconhecida",
-                "a tela de troca de unidade não foi reconhecida",
-            )),
-        ),
+        (controle("PR-A", ID_A), E::TelaDeTrocaNaoReconhecida),
     ];
     for (html, esperado) in casos {
         assert_eq!(
@@ -291,10 +264,7 @@ fn localizacao_do_salto_fora_da_forma_ou_de_outra_unidade_e_recusada() {
     ] {
         assert_eq!(
             url_do_salto(&ruim, &post, ID_B).map(|_| ()),
-            Err(F::Html(crate::erro_html::ErroHtml::valor(
-                "localizacao_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            ))),
+            Err(F::LocalizacaoForaDaFormaObservada),
             "{ruim}"
         );
     }

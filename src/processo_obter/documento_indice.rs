@@ -76,12 +76,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     leitura: F,
 ) -> Result<F::Saida, E> {
     let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
-    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::Html(
-        crate::erro_html::ErroHtml::ausente(
-            "numero_sei_ausente_da_arvore_do_processo",
-            "o número SEI não está na árvore do processo informado",
-        ),
-    ))?;
+    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
     let lido = NoLido {
         html: &aberta.html,
         no,

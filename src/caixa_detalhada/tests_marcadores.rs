@@ -109,17 +109,11 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
     for ruim in ruins {
         assert_eq!(
             com_marcadores(&ruim),
-            Err(ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-                "marcador_da_celula_detalhada_fora_da_forma_observada",
-                "o valor não está na forma observada"
-            ))),
+            Err(ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada),
             "{ruim}"
         );
     }
-    let erro = ErroDetalhada::Html(crate::erro_html::ErroHtml::valor(
-        "marcador_da_celula_detalhada_fora_da_forma_observada",
-        "o valor não está na forma observada",
-    ));
+    let erro = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
     assert_eq!(
         crate::erro_publico::folha(&erro),
         "marcador_da_celula_detalhada_fora_da_forma_observada"

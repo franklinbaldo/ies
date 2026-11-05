@@ -42,10 +42,16 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTela {
+    #[causa(nome = "tela_do_andamento_invalida")]
+    HtmlInvalido,
+    #[causa(nome = "formulario_do_andamento_ausente_ou_duplicado")]
+    FormularioAusenteOuDuplicado,
+    #[causa(nome = "controles_do_andamento_ausentes_ou_duplicados")]
+    ControleAusenteOuDuplicado,
     #[causa(nome = "formulario_do_andamento_de_outro_processo")]
     ProtocoloDiferente,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
+    #[causa(nome = "campo_inesperado_no_formulario_do_andamento")]
+    CampoInesperado,
 }
 impl ErroTela {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -56,18 +62,8 @@ impl ErroTela {
 /// Um formulário, dois ocultos de identidade e um botão submit.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
     use ErroTela as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::html(
-            "tela_do_andamento_invalida",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
-    let form = localizar_formulario(&dom, FORM).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::ausente(
-            "formulario_do_andamento_ausente_ou_duplicado",
-            "a tela não tem o elemento observado",
-        ))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
+    let form = localizar_formulario(&dom, FORM).map_err(|_| E::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
     let mut descricao = 0;
@@ -85,15 +81,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         ) {
             continue;
         }
-        let attr = |nome| {
-            valor_do_atributo(tag, nome).map_err(|e| {
-                E::Html(crate::erro_html::ErroHtml::atributo(
-                    "tela_do_andamento_invalida",
-                    "o HTML não pôde ser interpretado",
-                    e,
-                ))
-            })
-        };
+        let attr = |nome| valor_do_atributo(tag, nome).map_err(|_| E::HtmlInvalido);
         let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
             continue;
         };
@@ -118,19 +106,11 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             ("textarea", _, TEXTO) => descricao += 1,
             ("input" | "button", "submit", BOTAO) => salvar += 1,
             ("input", "hidden", _) | ("input" | "button", "button" | "reset", _) => {}
-            _ => {
-                return Err(E::Html(crate::erro_html::ErroHtml::valor(
-                    "campo_inesperado_no_formulario_do_andamento",
-                    "o valor não está na forma observada",
-                )));
-            }
+            _ => return Err(E::CampoInesperado),
         }
     }
     if protocolo.len() != 1 || atividade != 1 || descricao != 1 || salvar != 1 {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "controles_do_andamento_ausentes_ou_duplicados",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(E::ControleAusenteOuDuplicado);
     }
     if protocolo[0] != id {
         return Err(E::ProtocoloDiferente);
@@ -402,10 +382,7 @@ mod tests {
         );
         assert_eq!(
             conferir_formulario(&format!("{html}{html}"), "123"),
-            Err(ErroTela::Html(crate::erro_html::ErroHtml::ausente(
-                "formulario_do_andamento_ausente_ou_duplicado",
-                "a tela não tem o elemento observado"
-            )))
+            Err(ErroTela::FormularioAusenteOuDuplicado)
         );
     }
     #[test]
@@ -414,10 +391,7 @@ mod tests {
             formulario("123").replace("</form>", "<input name='acao' value='invasor'></form>");
         assert_eq!(
             conferir_formulario(&html, "123"),
-            Err(ErroTela::Html(crate::erro_html::ErroHtml::valor(
-                "campo_inesperado_no_formulario_do_andamento",
-                "o valor não está na forma observada"
-            )))
+            Err(ErroTela::CampoInesperado)
         );
     }
 }

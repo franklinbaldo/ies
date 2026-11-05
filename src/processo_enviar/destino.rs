@@ -44,45 +44,30 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
 pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, F> {
-    let dom = tl::parse(xml, tl::ParserOptions::default()).map_err(|_| {
-        F::Html(crate::erro_html::ErroHtml::valor(
-            "resposta_do_autocompletar_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let dom = tl::parse(xml, tl::ParserOptions::default())
+        .map_err(|_| F::RespostaDoAutocompletarForaDaForma)?;
     let parser = dom.parser();
     let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
     if contar("itens") != 1 || contar("erro") != 0 {
-        return Err(F::Html(crate::erro_html::ErroHtml::valor(
-            "resposta_do_autocompletar_fora_da_forma_observada",
-            "o valor não está na forma observada",
-        )));
+        return Err(F::RespostaDoAutocompletarForaDaForma);
     }
     let mut itens = Vec::new();
     for no in dom.query_selector("item").into_iter().flatten() {
-        let tag = no.get(parser).and_then(tl::Node::as_tag).ok_or(F::Html(
-            crate::erro_html::ErroHtml::valor(
-                "resposta_do_autocompletar_fora_da_forma_observada",
-                "o valor não está na forma observada",
-            ),
-        ))?;
+        let tag = no
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(F::RespostaDoAutocompletarForaDaForma)?;
         let lido = |nome: &'static str| {
             valor_do_atributo(tag, nome)
                 .ok()
                 .flatten()
                 .and_then(|bruto| decodificar_atributo(&bruto))
                 .filter(|valor| !valor.trim().is_empty())
-                .ok_or(F::Html(crate::erro_html::ErroHtml::valor(
-                    "resposta_do_autocompletar_fora_da_forma_observada",
-                    "o valor não está na forma observada",
-                )))
+                .ok_or(F::RespostaDoAutocompletarForaDaForma)
         };
         itens.push((lido("id")?, lido("descricao")?));
         if itens.len() > MAXIMO_DE_ITENS {
-            return Err(F::Html(crate::erro_html::ErroHtml::valor(
-                "resposta_do_autocompletar_fora_da_forma_observada",
-                "o valor não está na forma observada",
-            )));
+            return Err(F::RespostaDoAutocompletarForaDaForma);
         }
     }
     Ok(itens)

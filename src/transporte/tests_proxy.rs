@@ -72,10 +72,7 @@ fn excecao_minuscula_vem_antes_e_dispensa_ate_proxy_invalido() {
     assert!(com(&[("HTTPS_PROXY", "socks5://px:1"), ("no_proxy", "*")]).is_none());
     assert_eq!(
         proxy_para(SEI, ambiente(&[("HTTPS_PROXY", "px")])),
-        Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_de_proxy_invalido",
-            "endereço de proxy do ambiente fora de http://host:porta"
-        )))
+        Err(FalhaDoProxy::EnderecoInvalido)
     );
 }
 
@@ -117,10 +114,7 @@ fn endereco_do_proxy_aceita_so_http_com_porta() {
     ] {
         assert_eq!(
             interpretar(ruim),
-            Err(FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta"
-            ))),
+            Err(FalhaDoProxy::EnderecoInvalido),
             "{ruim}"
         );
     }
@@ -286,13 +280,7 @@ fn proxy_local_que_recusa_ou_nao_atende() {
 #[test]
 fn subcodigos_nomeiam_o_fato() {
     let casos = [
-        (
-            FalhaDoProxy::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_de_proxy_invalido",
-                "endereço de proxy do ambiente fora de http://host:porta",
-            )),
-            "endereco_de_proxy_invalido",
-        ),
+        (FalhaDoProxy::EnderecoInvalido, "endereco_de_proxy_invalido"),
         (
             FalhaDoProxy::EsquemaNaoSuportado,
             "proxy_com_esquema_nao_suportado",

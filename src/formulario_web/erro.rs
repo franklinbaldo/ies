@@ -5,12 +5,17 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroSubmissaoFormulario {
     EfeitoDaOperacaoNaoAvaliado,
+    IdentificacaoDaUnidadeAusenteNaTela,
+    IdentificacoesDaUnidadeRepetidasNaTela,
     UnidadeDaTelaDiferenteDaSolicitada,
+    FormularioAusenteNaTela,
     FormulariosComMesmoIdentificadorNaTela,
     MetodoDoFormularioDiferenteDePost,
     EnctypeDoFormularioNaoUrlencoded,
     AcceptCharsetPublicadoNoFormulario,
+    AcaoDoFormularioAusente,
     AcaoDoFormularioNaoEhUrlHttps,
+    AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
     EntidadeHtmlDesconhecidaNoAtributo {
@@ -39,6 +44,8 @@ pub(crate) enum ErroSubmissaoFormulario {
     ValorNaoRepresentavelNaCodificacao {
         campo: String,
     },
+    BotaoDeEnvioAusenteNoFormulario,
+    BotoesDeEnvioRepetidosNoFormulario,
     TelaDeLoginRecebidaAposEnvio,
     MarcadorDeResultadoAusenteNaResposta,
     /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
@@ -49,8 +56,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     AtributoHtml(ErroAtributoHtml),
     #[causa(interna)]
     Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroSubmissaoFormulario {

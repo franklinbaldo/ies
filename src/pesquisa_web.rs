@@ -15,23 +15,30 @@ pub struct ResultadoPesquisa {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroResultadoPesquisa {
+    HtmlDePesquisaNaoInterpretado,
+    TabelaDePesquisaAusente,
+    TabelasDePesquisaRepetidas,
     LinhaDePesquisaSemLinkDoProcesso,
+    LinhaDePesquisaComMaisDeUmLinkDoProcesso,
+    LinkDeProcessoForaDaLinhaDePesquisa,
     LinkDeProcessoSemClasseReconhecida,
     /// `a.arvore` da linha com `href` diferente do `a.protocoloNormal`.
     LinkDaArvoreComHrefDiferenteDoLinkDoProcesso,
+    LinhaDePesquisaComMaisDeUmLinkDaArvore,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
+    LinkDePesquisaComIdentificadoresRepetidos,
     LinkDePesquisaComChaveNaoCanonica,
     LinkDePesquisaComAcaoSemIgual,
     LinkDePesquisaComIdentificadorSemIgual,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
+    IdentificadorDoProcessoRepetidoNaPesquisa,
     #[causa(interna)]
     NumeroDePesquisa(NumeroProcessoInvalido),
+    NumeroDePesquisaRepetido,
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
     /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroResultadoPesquisa {}
@@ -105,12 +112,7 @@ fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
         .next()
         .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
     if ids.next().is_some() {
-        return Err(ErroResultadoPesquisa::Html(
-            crate::erro_html::ErroHtml::repetido(
-                "link_de_pesquisa_com_identificadores_repetidos",
-                "o elemento aparece mais de uma vez",
-            ),
-        ));
+        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
     }
     if primeiro_id.is_empty() {
         return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
@@ -130,12 +132,7 @@ fn contar_arvore_da_linha(
     href_do_processo: &str,
 ) -> Result<usize, ErroResultadoPesquisa> {
     use ErroResultadoPesquisa as E;
-    let ilegivel = |_: ErroAtributoHtml| {
-        E::Html(crate::erro_html::ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ))
-    };
+    let ilegivel = |_: ErroAtributoHtml| E::HtmlDePesquisaNaoInterpretado;
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
     let arvores =
         nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
@@ -143,20 +140,12 @@ fn contar_arvore_da_linha(
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => *arvore,
-        _ => {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "linha_de_pesquisa_com_mais_de_um_link_da_arvore",
-                "o elemento aparece mais de uma vez",
-            )));
-        }
+        _ => return Err(E::LinhaDePesquisaComMaisDeUmLinkDaArvore),
     };
     let tag = arvore
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(E::Html(crate::erro_html::ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        )))?;
+        .ok_or(E::HtmlDePesquisaNaoInterpretado)?;
     if valor_do_atributo(tag, "href").map_err(ilegivel)?.as_deref() != Some(href_do_processo) {
         return Err(E::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
     }
@@ -165,44 +154,24 @@ fn contar_arvore_da_linha(
 
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
-#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
-    let tabela_de_pesquisa_ausente =
-        ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::ausente(
-            "tabela_de_pesquisa_ausente",
-            "a tela não tem o elemento observado",
-        ));
-    let html_de_pesquisa_nao_interpretado =
-        ErroResultadoPesquisa::Html(crate::erro_html::ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ));
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| html_de_pesquisa_nao_interpretado)?;
+        .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     let parser = dom.parser();
     // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
-    let ilegivel = |_: ErroAtributoHtml| html_de_pesquisa_nao_interpretado;
+    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
     let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
         .map_err(ilegivel)?
         .as_slice()
     {
-        [] => {
-            return Err(tabela_de_pesquisa_ausente);
-        }
+        [] => return Err(ErroResultadoPesquisa::TabelaDePesquisaAusente),
         [primeira] => *primeira,
-        _ => {
-            return Err(ErroResultadoPesquisa::Html(
-                crate::erro_html::ErroHtml::repetido(
-                    "tabelas_de_pesquisa_repetidas",
-                    "o elemento aparece mais de uma vez",
-                ),
-            ));
-        }
+        _ => return Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas),
     };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(tabela_de_pesquisa_ausente)?;
+        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
     let linhas = nos_por_elemento_e_classe(&dom, Some(tabela), "tr", "pesquisaTituloRegistro")
         .map_err(ilegivel)?;
     let mut observados = HashSet::new();
@@ -228,14 +197,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         let link_no = match candidatos.as_slice() {
             [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
             [link] => *link,
-            _ => {
-                return Err(ErroResultadoPesquisa::Html(
-                    crate::erro_html::ErroHtml::repetido(
-                        "linha_de_pesquisa_com_mais_de_um_link_do_processo",
-                        "o elemento aparece mais de uma vez",
-                    ),
-                ));
-            }
+            _ => return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso),
         };
         let link = link_no
             .get(parser)
@@ -254,22 +216,12 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         links_de_documento += documentos.len();
         let numero = NumeroProcesso::novo(&link.inner_text(parser))?;
         if !observados.insert(numero.as_str().to_owned()) {
-            return Err(ErroResultadoPesquisa::Html(
-                crate::erro_html::ErroHtml::repetido(
-                    "numero_de_pesquisa_repetido",
-                    "o elemento aparece mais de uma vez",
-                ),
-            ));
+            return Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido);
         }
         // O identificador interno é decimal: 7 e 007 denotam a mesma chave.
         // Normalização por string evita overflow em IDs maiores que u64.
         if !ids_observados.insert(primeiro_id.trim_start_matches('0').to_owned()) {
-            return Err(ErroResultadoPesquisa::Html(
-                crate::erro_html::ErroHtml::repetido(
-                    "identificador_do_processo_repetido_na_pesquisa",
-                    "o elemento aparece mais de uma vez",
-                ),
-            ));
+            return Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa);
         }
         arvores += contar_arvore_da_linha(&dom, tag, &href)?;
         resultados.push(ResultadoPesquisa { numero });
@@ -286,12 +238,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     .map_err(ilegivel)?
     .len();
     if links_da_tabela != resultados.len() + links_de_documento {
-        return Err(ErroResultadoPesquisa::Html(
-            crate::erro_html::ErroHtml::valor(
-                "link_de_processo_fora_da_linha_de_pesquisa",
-                "o valor não está na forma observada",
-            ),
-        ));
+        return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }
     // A classe CSS do link não é garantia de que ele seja o único link
     // de trabalho na tabela. Uma versão diferente do SEI pode perder

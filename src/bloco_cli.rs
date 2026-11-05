@@ -1,7 +1,7 @@
 //! CLI Web de blocos: GET Controle, GET lista e, para bloco N, GET detalhe.
 //! Zero POST, JS, retry ou restauração da tela.
 use crate::bloco::{self, ErroBloco, TipoBloco};
-use crate::bloco_detalhe::{self};
+use crate::bloco_detalhe::{self, ErroDetalheBloco};
 use crate::configuracao;
 use crate::controle_reconhecido;
 use crate::erro_web::ErroCaixa;
@@ -19,12 +19,12 @@ enum FalhaLeitura {
     Transporte(FalhaTransporte),
     #[causa(interna)]
     Controle(ErroCaixa),
+    #[causa(nome = "unidade_inesperada_na_leitura_de_blocos")]
+    UnidadeInesperada,
     #[causa(interna)]
     Bloco(ErroBloco),
     #[causa(interna)]
-    Detalhe(crate::erro_html::ErroHtml),
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
+    Detalhe(ErroDetalheBloco),
 }
 impl FalhaLeitura {
     fn subcodigo(&self) -> &'static str {
@@ -32,9 +32,9 @@ impl FalhaLeitura {
     }
     fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
             Self::Transporte(e) => e.mensagem(),
             Self::Controle(_) => "Controle não reconhecido na leitura de blocos",
+            Self::UnidadeInesperada => "unidade atual diferente da solicitada",
             Self::Bloco(e) => e.mensagem(),
             Self::Detalhe(_) => "a tabela de documentos ou processos do bloco não foi reconhecida",
         }
@@ -69,10 +69,7 @@ fn ler_via<V: EnvioDoControle>(
     if unidade_esperada
         .is_some_and(|v| v.split_whitespace().collect::<Vec<_>>().join(" ") != unidade)
     {
-        return Err(FalhaLeitura::Html(crate::erro_html::ErroHtml::valor(
-            "unidade_inesperada_na_leitura_de_blocos",
-            "unidade atual diferente da solicitada",
-        )));
+        return Err(FalhaLeitura::UnidadeInesperada);
     }
     let url_lista = bloco::link_do_menu(&controle.instalacao, &controle.url, &controle.html, tipo)?;
     let cookie = sessao.cookie().valor()?;
@@ -103,8 +100,7 @@ fn ler_via<V: EnvioDoControle>(
         requisicoes += 1;
         let resposta = envio.get(&url, cookie)?;
         let html = transporte::decodificar_resposta(resposta)?;
-        let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo)
-            .map_err(crate::bloco_cli::FalhaLeitura::Detalhe)?;
+        let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo)?;
         return Ok(
             json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"bloco":detalhe}),
         );
@@ -431,13 +427,7 @@ mod tests_fluxo {
         )
         .err()
         .unwrap();
-        assert!(matches!(
-            erro,
-            FalhaLeitura::Html(crate::erro_html::ErroHtml {
-                onde: "unidade_inesperada_na_leitura_de_blocos",
-                ..
-            })
-        ));
+        assert!(matches!(erro, FalhaLeitura::UnidadeInesperada));
         assert_eq!(envio.urls.len(), 1);
     }
 }

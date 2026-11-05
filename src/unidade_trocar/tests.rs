@@ -243,10 +243,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 localizacao_com_aviso("https", ID_B).replace(HOST, "outro.gov.br"),
             )],
             Etapa::Envio,
-            F::Html(crate::erro_html::ErroHtml::valor(
-                "localizacao_fora_da_forma_observada",
-                "o valor não está na forma observada",
-            )),
+            F::LocalizacaoForaDaFormaObservada,
             3,
         ),
         (

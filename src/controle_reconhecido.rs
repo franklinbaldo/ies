@@ -30,10 +30,7 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 ErroDetalhada::UnidadeNaoIdentificada => {
                     ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle
                 }
-                _ => ErroCaixa::Html(crate::erro_html::ErroHtml::html(
-                    "html_da_caixa_invalido",
-                    "o HTML não pôde ser interpretado",
-                )),
+                _ => ErroCaixa::HtmlInvalido,
             });
     }
     paginas::juntar(&[html.to_owned()], None)?

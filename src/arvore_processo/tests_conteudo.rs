@@ -97,10 +97,7 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
     ] {
         assert_eq!(
             com(ruim.clone()),
-            Err(E::Html(crate::erro_html::ErroHtml::valor(
-                "endereco_do_conteudo_nao_reconhecido",
-                "o valor não está na forma observada"
-            ))),
+            Err(E::EnderecoDoConteudoNaoReconhecido),
             "{ruim}"
         );
     }
@@ -121,10 +118,7 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&sem_hash, "22"),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_do_conteudo_nao_reconhecido",
-            "o valor não está na forma observada"
-        )))
+        Err(E::EnderecoDoConteudoNaoReconhecido)
     );
     let outra_acao = com_src(
         &base(),
@@ -133,50 +127,17 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&outra_acao, "22"),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_do_conteudo_nao_reconhecido",
-            "o valor não está na forma observada"
-        )))
+        Err(E::EnderecoDoConteudoNaoReconhecido)
     );
     let fora = base().replace("Nos[2].src = '';", "Nos[2].src = 'a' + b;");
-    assert_eq!(
-        ler(&fora, "22"),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "link_do_conteudo_fora_da_forma_observada",
-            "o valor não está na forma observada"
-        )))
-    );
+    assert_eq!(ler(&fora, "22"), Err(E::SrcDoDocumentoForaDaFormaObservada));
     let sem = base().replace("Nos[2].src = '';", "");
-    assert_eq!(
-        ler(&sem, "22"),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "link_do_conteudo_ausente_na_arvore",
-            "a tela não tem o elemento observado"
-        )))
-    );
+    assert_eq!(ler(&sem, "22"), Err(E::SrcDoDocumentoAusente));
     let dois = base().replace("Nos[2].src = '';", "Nos[2].src = '';\nNos[2].src = '';");
-    assert_eq!(
-        ler(&dois, "22"),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "link_do_conteudo_repetido_na_arvore",
-            "o elemento aparece mais de uma vez"
-        )))
-    );
-    assert_eq!(
-        ler(&base(), "99"),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "documento_ausente_da_arvore",
-            "a tela não tem o elemento observado"
-        )))
-    );
+    assert_eq!(ler(&dois, "22"), Err(E::SrcDoDocumentoRepetido));
+    assert_eq!(ler(&base(), "99"), Err(E::DocumentoAusenteDaArvore));
     // O id do nó PROCESSO não é documento.
-    assert_eq!(
-        ler(&base(), "10"),
-        Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "documento_ausente_da_arvore",
-            "a tela não tem o elemento observado"
-        )))
-    );
+    assert_eq!(ler(&base(), "10"), Err(E::DocumentoAusenteDaArvore));
 }
 
 #[test]
@@ -212,13 +173,7 @@ fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
         "id_procedimento=10",
         "id_procedimento=10&id_procedimento=11",
     );
-    assert_eq!(
-        ler(dois),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_da_arvore_nao_reconhecido",
-            "o valor não está na forma observada"
-        )))
-    );
+    assert_eq!(ler(dois), Err(E::EnderecoDaArvoreNaoReconhecido));
 }
 
 #[test]

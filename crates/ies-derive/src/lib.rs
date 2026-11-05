@@ -10,6 +10,8 @@
 //!   causa que a levantou: o caminho continua nela, a ação e o status vêm
 //!   dela, mas a variante segue sendo o fato (a `folha`). Várias variantes
 //!   podem ter a mesma fonte; não há `From`.
+//! - `#[causa(transparente)]`: como `interna`, mas a variante não entra no
+//!   caminho; o tipo interno já se nomeia (`Html(ErroHtml)` → `html/...`).
 //! - `#[causa(http)]`, numa variante de tupla com um `StatusHttpRecusado`,
 //!   publica status e mensagem do SEI.
 //!
@@ -22,6 +24,7 @@ struct Atributos {
     nome: Option<String>,
     acao: Option<String>,
     interna: bool,
+    transparente: bool,
     fonte: bool,
     http: bool,
 }
@@ -169,6 +172,10 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
         };
         match chave.to_string().as_str() {
             "interna" => destino.interna = true,
+            "transparente" => {
+                destino.interna = true;
+                destino.transparente = true;
+            }
             "fonte" => destino.fonte = true,
             "http" => destino.http = true,
             chave @ ("nome" | "acao") => {
@@ -284,7 +291,9 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
         } else {
             let _ = writeln!(folha, "{} => {rotulo:?},", padrao(v, false));
         }
-        if compoe {
+        if v.atributos.transparente {
+            let _ = writeln!(caminho, "{p} => {T}::Causa::caminho(interna, c),");
+        } else if compoe {
             let _ = writeln!(
                 caminho,
                 "{p} => {{ c.push({rotulo:?}); {T}::Causa::caminho(interna, c) }}"

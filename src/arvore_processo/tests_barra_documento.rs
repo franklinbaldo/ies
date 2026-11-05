@@ -108,10 +108,7 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     let dois = format!("{0}{0}", barra("10", "21", None));
     assert_eq!(
         ler(&com_barra(&base(), 1, &dois)),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "link_das_versoes_repetido_na_barra",
-            "o elemento aparece mais de uma vez"
-        )))
+        Err(E::LinksDasVersoesRepetidosNaBarra)
     );
     let sem_hash = barra("10", "21", None).replace(
         &format!("&infra_hash={HASH_VERSOES}\" tabindex=\"455"),
@@ -119,10 +116,7 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     );
     assert_eq!(
         ler(&com_barra(&base(), 1, &sem_hash)),
-        Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "link_das_versoes_nao_reconhecido",
-            "o valor não está na forma observada"
-        )))
+        Err(E::EnderecoDasVersoesNaoReconhecido)
     );
     assert_eq!(
         crate::erro_publico::folha(&E::EnderecoDasVersoesDeOutroDocumento),

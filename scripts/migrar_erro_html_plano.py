@@ -348,13 +348,15 @@ class Plano:
         return True
 
     def construcao(self, nome, v, prefixo, apelido, causa=None):
+        """`ErroHtml::<problema>("onde")`; a mensagem só vai se não é a genérica."""
         p, onde, msg = self.migra[nome][v]
-        args = f'"{onde}", {msg}' + (f', {causa}' if causa else '')
+        ctor = p if causa is None else 'atributo'
+        args = f'"{onde}"' + (f', {causa}' if causa else '')
+        propria = '' if msg == GENERICA[p] else f'.com_mensagem({msg})'
         if nome in self.some:
             base = prefixo if apelido else TIPO
-            return f'{base}::{p}({args})' if causa is None else f'{base}::atributo({args})'
-        ctor = p if causa is None else 'atributo'
-        return f'{prefixo}::Html({TIPO}::{ctor}({args}))'
+            return f'{base}::{ctor}({args}){propria}'
+        return f'{prefixo}::Html({TIPO}::{ctor}({args}){propria})'
 
     def padrao(self, nome, v, prefixo, apelido):
         _, onde, _ = self.migra[nome][v]

@@ -21,14 +21,8 @@ const CABECALHO: [&str; 6] = [
     "A\u{e7}\u{f5}es",
 ];
 
-const ILEGIVEL: E = E::Html(crate::erro_html::ErroHtml::html(
-    "html_dos_marcadores_nao_interpretado",
-    "o HTML não pôde ser interpretado",
-));
-const LINHA: E = E::Html(crate::erro_html::ErroHtml::valor(
-    "linha_do_marcador_fora_da_forma_observada",
-    "o valor não está na forma observada",
-));
+const ILEGIVEL: E = E::HtmlDosMarcadoresNaoInterpretado;
+const LINHA: E = E::LinhaDoMarcadorForaDaFormaObservada;
 
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer linha.
@@ -45,18 +39,10 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ILEGIVEL)?,
-        _ => {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "tabelas_dos_marcadores_repetidas",
-                "o elemento aparece mais de uma vez",
-            )));
-        }
+        _ => return Err(E::TabelasDosMarcadoresRepetidas),
     };
     if tabela.name() != "table" || !descendentes(tabela, parser, "table").is_empty() {
-        return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "tabelas_dos_marcadores_repetidas",
-            "o elemento aparece mais de uma vez",
-        )));
+        return Err(E::TabelasDosMarcadoresRepetidas);
     }
     let total_declarado = legenda(tabela, parser)?;
     let mut ths = descendentes(tabela, parser, "th").into_iter();
@@ -66,10 +52,7 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
                 .is_some_and(|th| rotulo_do_th(th, parser, i == 0).as_deref() == Ok(*esperado))
         });
     if !cabecalho_ok {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "cabecalho_dos_marcadores_nao_reconhecido",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::CabecalhoDosMarcadoresNaoReconhecido);
     }
     let mut itens = Vec::new();
     let mut ids = HashSet::new();
@@ -80,10 +63,7 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
         }
         let marcador = linha(&celulas, parser)?;
         if !ids.insert(marcador.id.clone()) {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "marcador_repetido_na_tela",
-                "o elemento aparece mais de uma vez",
-            )));
+            return Err(E::MarcadorRepetidoNaTela);
         }
         itens.push(marcador);
     }
@@ -151,10 +131,7 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E>
 
 /// `Marcadores (N registro):` ou `Marcadores (N registros):`, sem faixa.
 fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
-    let fora = E::Html(crate::erro_html::ErroHtml::valor(
-        "legenda_dos_marcadores_fora_da_forma_observada",
-        "o valor não está na forma observada",
-    ));
+    let fora = E::LegendaDosMarcadoresForaDaFormaObservada;
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
         return Err(fora);
     };
@@ -177,10 +154,7 @@ fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
 /// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`
 /// sem texto com `#lnkInfraCheck`.
 fn rotulo_do_th(th: Tag<'_>, parser: &tl::Parser<'_>, selecao: bool) -> Result<String, E> {
-    let fora = E::Html(crate::erro_html::ErroHtml::valor(
-        "cabecalho_dos_marcadores_nao_reconhecido",
-        "o valor não está na forma observada",
-    ));
+    let fora = E::CabecalhoDosMarcadoresNaoReconhecido;
     if selecao {
         let marcado = nos_com_id_em(th, parser, "lnkInfraCheck").map_err(|_| fora)?;
         if marcado.len() != 1 {

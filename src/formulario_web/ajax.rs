@@ -36,9 +36,8 @@ pub(crate) fn derivar_consulta_ajax(
     ) {
         return Err(E::EfeitoDaOperacaoNaoAvaliado);
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::Html(
-        crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
-    )))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
@@ -47,10 +46,7 @@ pub(crate) fn derivar_consulta_ajax(
         || url_declarada.starts_with('/')
         || url_declarada.split(['/', '?']).any(|s| s == "..")
     {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     let absoluta = match servida.caminho.rsplit_once('/') {
         Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
@@ -58,10 +54,7 @@ pub(crate) fn derivar_consulta_ajax(
     };
     let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador_ajax(alvo.host, alvo.caminho) {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta_ajax(alvo.consulta.unwrap_or_default(), consulta.acao_ajax)?;
     for (i, (nome, _)) in campos.iter().enumerate() {
@@ -95,9 +88,7 @@ fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSub
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {

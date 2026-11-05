@@ -47,17 +47,12 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
     };
     let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)?;
     let (id, id_processo) = (aberto.id_documento.clone(), aberto.processo.id.clone());
-    let na_arvore = ler_assinatura_na_arvore(&aberto.html, &id)
-        .map_err(crate::documento_assinar::erro::ErroAssinar::Arvore)?;
+    let na_arvore = ler_assinatura_na_arvore(&aberto.html, &id)?;
     if !na_arvore.publicada {
         return Err(A::AssinaturaNaoPublicadaNaBarra);
     }
-    let tela_do_doc = tela_do_documento(&instalacao, &aberto.html, &id, &id_processo).ok_or(
-        A::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_da_tela_do_documento_nao_reconhecido",
-            "a árvore não publica a tela do documento na forma observada; nada foi assinado",
-        )),
-    )?;
+    let tela_do_doc = tela_do_documento(&instalacao, &aberto.html, &id, &id_processo)
+        .ok_or(A::EnderecoDaTelaDoDocumentoNaoReconhecido)?;
     let cookie = ler_cookie(sessao)
         .map_err(|falha| A::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela_do_doc.as_str()).map_err(da_tela)?;

@@ -109,12 +109,7 @@ pub(super) fn do_externo(
     if pedido.versao.is_some() {
         return Err(match no.barra()?.versoes {
             None => E::ListaDeVersoesNaoPublicadaNaArvore,
-            Some(_) => E::BarraDoDocumento(ErroBarraDoDocumento::Html(
-                crate::erro_html::ErroHtml::valor(
-                    "barra_do_documento_fora_da_forma_observada",
-                    "o valor não está na forma observada",
-                ),
-            )),
+            Some(_) => E::BarraDoDocumento(ErroBarraDoDocumento::BarraForaDaFormaObservada),
         });
     }
     Ok(VersoesDoDocumento {

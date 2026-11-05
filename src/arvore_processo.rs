@@ -77,8 +77,8 @@ pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroLinkDeAssinar, ler_assinatura_na_arvore, ler_link_de_assinar,
-    tela_do_documento,
+    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
+    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
@@ -87,7 +87,9 @@ pub(crate) use barra_do_documento::{
 };
 #[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
-pub(crate) use barra_do_processo::{ler_link_das_propriedades, ler_link_dos_marcadores};
+pub(crate) use barra_do_processo::{
+    ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
+};
 pub(crate) use ciencia::{
     ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
 };
@@ -108,14 +110,17 @@ pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use reabrir::{
-    ErroEnderecoDeReabrir, FormaDaReabertura, ReabrirNaBarra, ler_endereco_de_reabrir,
-    ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
+    ler_endereco_de_reabrir, ler_reabrir_da_barra,
 };
 pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
 #[cfg(test)]
 pub(crate) use situacao::{Atribuicao, UnidadeAberta, UnidadeSobrestada};
-pub(crate) use sobrestar::{ErroAcaoSobrestar, ler_retomar_da_barra, ler_sobrestar_da_barra};
+pub(crate) use sobrestar::{
+    ErroAcaoSobrestar, ErroEnderecoDeRetomar, ler_endereco_de_retomar, ler_retomar_da_barra,
+    ler_sobrestar_da_barra,
+};
 pub(crate) use tela::{
     EnderecoDaArvore, ErroTelaDoProcesso, TelaDoProcesso, ler_tela_do_documento,
     ler_tela_do_processo,
@@ -258,16 +263,11 @@ pub(super) struct DocumentoLido {
 /// Lê os nós da árvore e confere a identidade: o NUP do nó `PROCESSO` tem
 /// de ser **igual** ao pedido (comparação opaca) e o id igual ao aberto.
 /// As pastas carregadas são conferidas pela identidade dos documentos.
-#[allow(clippy::too_many_lines)] // Cada ErroHtml por extenso (ADR 0005); dividir a seguir.
 pub(crate) fn ler_arvore(
     html: &str,
     nup_pedido: &str,
     id_aberto: &str,
 ) -> Result<ArvoreLida, ErroArvore> {
-    let barra_de_no_fora_da_forma_observada = ErroArvore::Html(crate::erro_html::ErroHtml::valor(
-        "barra_de_no_fora_da_forma_observada",
-        "o valor não está na forma observada",
-    ));
     let mut processo: Option<ProcessoNaArvore> = None;
     let mut anexados: Vec<AnexadoLido> = Vec::new();
     let mut movidos: Vec<MovidoLido> = Vec::new();
@@ -287,7 +287,7 @@ pub(crate) fn ler_arvore(
             if let Some(&posicao) = de_pasta.get(&i)
                 && documentos[posicao].barra == Barra::NaoLida
             {
-                return Err(barra_de_no_fora_da_forma_observada);
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             }
             continue;
         }
@@ -295,7 +295,7 @@ pub(crate) fn ler_arvore(
             && let Some(&posicao) = de_pasta.get(&i)
         {
             let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(barra_de_no_fora_da_forma_observada);
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             };
             documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
                 .map_or(Barra::SemIdentidade, Barra::Identidade);
@@ -305,10 +305,7 @@ pub(crate) fn ler_arvore(
             continue;
         };
         if indice != proximo {
-            return Err(ErroArvore::Html(crate::erro_html::ErroHtml::valor(
-                "indice_de_no_fora_da_sequencia",
-                "o valor não está na forma observada",
-            )));
+            return Err(ErroArvore::IndiceDeNoForaDaSequencia);
         }
         proximo += 1;
         let tipo = argumentos
@@ -317,10 +314,7 @@ pub(crate) fn ler_arvore(
         match texto(tipo)? {
             "PROCESSO" => {
                 if processo.is_some() {
-                    return Err(ErroArvore::Html(crate::erro_html::ErroHtml::repetido(
-                        "nos_do_processo_repetidos_na_arvore",
-                        "o elemento aparece mais de uma vez",
-                    )));
+                    return Err(ErroArvore::NosDoProcessoRepetidosNaArvore);
                 }
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
@@ -332,10 +326,7 @@ pub(crate) fn ler_arvore(
                     .iter()
                     .any(|d| d.documento.id == lido.documento.id)
                 {
-                    return Err(ErroArvore::Html(crate::erro_html::ErroHtml::repetido(
-                        "documento_repetido_na_arvore",
-                        "o elemento aparece mais de uma vez",
-                    )));
+                    return Err(ErroArvore::DocumentoRepetidoNaArvore);
                 }
                 if matches!(lido.pai, Pai::Pasta(_)) {
                     de_pasta.insert(indice, documentos.len());

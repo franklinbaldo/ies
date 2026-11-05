@@ -105,10 +105,7 @@ fn location_e_resolvido_no_host_com_https() {
     }
     assert_eq!(
         resolver_no_host(atual, "https://sei.exemplo.gov.br.outro.br/", HOST),
-        Err(ErroLogin::Html(crate::erro_html::ErroHtml::valor(
-            "redirecionamento_para_fora_da_instalacao",
-            "redirecionamento para fora do host da instalação recusado"
-        )))
+        Err(ErroLogin::RedirecionamentoParaForaDaInstalacao)
     );
     assert_eq!(
         resolver_no_host(atual, "./controlador.php", HOST),
@@ -246,10 +243,7 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
     for ruim in ["abrir('x')", "location.href='a' + b", "location.href=\"x\""] {
         assert_eq!(
             tela::link_do_controle(&painel(ruim)),
-            Err(ErroLogin::Html(crate::erro_html::ErroHtml::valor(
-                "link_do_controle_de_processos_nao_reconhecido",
-                "o link do Controle de Processos do menu não é o observado"
-            ))),
+            Err(ErroLogin::LinkDoControleDeProcessosNaoReconhecido),
             "{ruim}"
         );
     }

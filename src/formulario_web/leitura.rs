@@ -34,10 +34,7 @@ pub(crate) fn localizar_formulario<'d>(
         }
     }
     match achados.as_slice() {
-        [] => Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "formulario_ausente_na_tela",
-            "a tela não tem o elemento observado",
-        ))),
+        [] => Err(E::FormularioAusenteNaTela),
         [form] => Ok(form),
         _ => Err(E::FormulariosComMesmoIdentificadorNaTela),
     }
@@ -67,16 +64,9 @@ pub(super) fn resolver_action(
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo =
-        UrlHttps::interpretar(&absoluta).ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
@@ -91,21 +81,14 @@ pub(super) fn resolver_action_no_host(
     instalacao: &Instalacao,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo =
-        UrlHttps::interpretar(&absoluta).ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !alvo.host.eq_ignore_ascii_case(instalacao.host())
         || alvo
             .caminho
             .split('/')
             .any(|segmento| segmento == "." || segmento == "..")
     {
-        return Err(E::Html(crate::erro_html::ErroHtml::valor(
-            "acao_do_formulario_fora_da_instalacao",
-            "o valor não está na forma observada",
-        )));
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     for item in alvo
         .consulta
@@ -115,9 +98,7 @@ pub(super) fn resolver_action_no_host(
     {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
     }
@@ -127,10 +108,7 @@ pub(super) fn resolver_action_no_host(
 /// `action` absoluto em HTTPS, resolvido contra a URL servida, sem o
 /// fragmento. Não normaliza `..`.
 fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result<String, E> {
-    let bruto = atributo(form, "action")?.ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
-        "acao_do_formulario_ausente",
-        "a tela não tem o elemento observado",
-    )))?;
+    let bruto = atributo(form, "action")?.ok_or(E::AcaoDoFormularioAusente)?;
     let decodificado =
         decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
@@ -138,10 +116,7 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     // O navegador não envia o fragmento (`#ancoraBarraPesquisa` observado).
     let referencia = decodificado.split('#').next().unwrap_or_default();
     if referencia.is_empty() {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "acao_do_formulario_ausente",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(E::AcaoDoFormularioAusente);
     }
     let absoluta = if referencia.starts_with("https://") {
         referencia.to_owned()
@@ -165,9 +140,7 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                crate::erro_html::ErroHtml::valor("url_invalida", "URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
@@ -329,21 +302,13 @@ pub(super) fn ler_controles(
             EnvioDoFormulario::BotaoDeEnvio(_)
             | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
             0,
-        ) => {
-            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-                "botao_de_envio_ausente_no_formulario",
-                "a tela não tem o elemento observado",
-            )));
-        }
+        ) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
         (
             EnvioDoFormulario::BotaoDeEnvio(_)
             | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
             _,
         ) => {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "botoes_de_envio_repetidos_no_formulario",
-                "o elemento aparece mais de uma vez",
-            )));
+            return Err(E::BotoesDeEnvioRepetidosNoFormulario);
         }
     }
     if let Some(ausente) = operacao

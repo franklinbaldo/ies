@@ -35,10 +35,7 @@ fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDeriv
 fn janela_sem_unidade_exige_a_declaracao_da_operacao() {
     assert_eq!(
         derivar(&OPERACAO, JANELA).unwrap_err(),
-        E::Html(crate::erro_html::ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela",
-            "a tela não tem o elemento observado"
-        ))
+        E::IdentificacaoDaUnidadeAusenteNaTela
     );
     let s = derivar(&NA_ORIGEM, JANELA).unwrap();
     assert_eq!(

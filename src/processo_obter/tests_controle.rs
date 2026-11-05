@@ -35,10 +35,7 @@ fn repeticoes_sao_recusa() {
     let html = controle(&[(ID, NUP), ("11", NUP)]);
     assert_eq!(
         link_do_processo_no_controle(&html, NUP),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "processo_repetido_no_controle",
-            "o número aparece mais de uma vez no Controle"
-        )))
+        Err(E::ProcessoRepetidoNoControle)
     );
     let duas = controle(&[(ID, NUP)]).replace(
         "</a></td>",
@@ -49,10 +46,7 @@ fn repeticoes_sao_recusa() {
     );
     assert_eq!(
         link_do_processo_no_controle(&duas, NUP),
-        Err(E::Html(crate::erro_html::ErroHtml::repetido(
-            "links_do_processo_repetidos_no_controle",
-            "o número aparece mais de uma vez no Controle"
-        )))
+        Err(E::LinksDoProcessoRepetidosNoControle)
     );
 }
 

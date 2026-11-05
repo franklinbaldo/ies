@@ -15,6 +15,7 @@ pub struct ErroHtml {
     /// O nome público do ponto da leitura (`link_do_processo_ausente`).
     pub(crate) onde: &'static str,
     pub(crate) problema: Problema,
+    /// A genérica do problema, salvo [`ErroHtml::com_mensagem`].
     pub(crate) mensagem: &'static str,
 }
 
@@ -34,42 +35,57 @@ pub(crate) enum Problema {
     Atributo(ErroAtributoHtml),
 }
 
+impl Problema {
+    const fn mensagem(self) -> &'static str {
+        match self {
+            Self::Ausente => "a tela não tem o elemento observado",
+            Self::Repetido => "o elemento aparece mais de uma vez",
+            Self::Valor => "o valor não está na forma observada",
+            Self::Html => "o HTML não pôde ser interpretado",
+            Self::Atributo(_) => "a tag de abertura não pôde ser lida",
+        }
+    }
+}
+
 impl ErroHtml {
-    pub(crate) const fn ausente(onde: &'static str, mensagem: &'static str) -> Self {
-        Self::novo(onde, Problema::Ausente, mensagem)
+    pub(crate) const fn ausente(onde: &'static str) -> Self {
+        Self::novo(onde, Problema::Ausente)
     }
 
-    pub(crate) const fn repetido(onde: &'static str, mensagem: &'static str) -> Self {
-        Self::novo(onde, Problema::Repetido, mensagem)
+    pub(crate) const fn repetido(onde: &'static str) -> Self {
+        Self::novo(onde, Problema::Repetido)
     }
 
-    pub(crate) const fn valor(onde: &'static str, mensagem: &'static str) -> Self {
-        Self::novo(onde, Problema::Valor, mensagem)
+    pub(crate) const fn valor(onde: &'static str) -> Self {
+        Self::novo(onde, Problema::Valor)
     }
 
-    pub(crate) const fn html(onde: &'static str, mensagem: &'static str) -> Self {
-        Self::novo(onde, Problema::Html, mensagem)
+    pub(crate) const fn html(onde: &'static str) -> Self {
+        Self::novo(onde, Problema::Html)
     }
 
     /// A causa sobe: a tag ilegível fica no caminho.
-    pub(crate) const fn atributo(
-        onde: &'static str,
-        mensagem: &'static str,
-        erro: ErroAtributoHtml,
-    ) -> Self {
-        Self::novo(onde, Problema::Atributo(erro), mensagem)
+    pub(crate) const fn atributo(onde: &'static str, erro: ErroAtributoHtml) -> Self {
+        Self::novo(onde, Problema::Atributo(erro))
     }
 
-    const fn novo(onde: &'static str, problema: Problema, mensagem: &'static str) -> Self {
+    /// O texto próprio do ponto, no lugar da genérica do problema.
+    pub(crate) const fn com_mensagem(self, mensagem: &'static str) -> Self {
+        Self { mensagem, ..self }
+    }
+
+    const fn novo(onde: &'static str, problema: Problema) -> Self {
         Self {
             onde,
             problema,
-            mensagem,
+            mensagem: problema.mensagem(),
         }
     }
 }
 
 impl Causa for ErroHtml {
+    /// `html` e o problema. Numa variante `#[causa(transparente)]` o `html`
+    /// é este, e não o nome da variante: o caminho não o repete.
     fn caminho(&self, c: &mut Vec<&'static str>) {
         c.push("html");
         self.problema.caminho(c);
@@ -94,28 +110,46 @@ mod tests {
     use super::*;
     use crate::erro_publico::{caminho_de, folha};
 
+    #[derive(Debug, crate::erro_publico::Causa)]
+    enum Leitor {
+        #[causa(transparente)]
+        Html(ErroHtml),
+        Outro,
+    }
+
     #[test]
     fn folha_e_onde_e_caminho_e_o_problema() {
-        let erro = ErroHtml::ausente("link_do_processo_ausente", "m");
+        let erro = ErroHtml::ausente("link_do_processo_ausente");
         assert_eq!(folha(&erro), "link_do_processo_ausente");
         assert_eq!(caminho_de(&erro), ["html", "ausente"]);
+        assert_eq!(erro.mensagem, "a tela não tem o elemento observado");
         assert_eq!(erro.acao(), Acao::Reportar);
         assert_eq!(erro.status_http(), None);
-        assert_eq!(
-            caminho_de(&ErroHtml::repetido("x", "m")),
-            ["html", "repetido"]
-        );
-        assert_eq!(caminho_de(&ErroHtml::valor("x", "m")), ["html", "valor"]);
-        assert_eq!(caminho_de(&ErroHtml::html("x", "m")), ["html", "html"]);
+        assert_eq!(caminho_de(&ErroHtml::repetido("x")), ["html", "repetido"]);
+        assert_eq!(caminho_de(&ErroHtml::valor("x")), ["html", "valor"]);
+        assert_eq!(caminho_de(&ErroHtml::html("x")), ["html", "html"]);
+    }
+
+    #[test]
+    fn com_mensagem_troca_so_o_texto() {
+        let erro = ErroHtml::valor("x").com_mensagem("própria");
+        assert_eq!(erro.mensagem, "própria");
+        assert_eq!(erro.problema, Problema::Valor);
+        assert_eq!(folha(&erro), "x");
+    }
+
+    #[test]
+    fn variante_transparente_nao_repete_html() {
+        let erro = Leitor::Html(ErroHtml::ausente("tabela_ausente"));
+        assert_eq!(caminho_de(&erro), ["html", "ausente"]);
+        assert_eq!(folha(&erro), "tabela_ausente");
+        assert_eq!(caminho_de(&Leitor::Outro), ["outro"]);
+        let _: Leitor = ErroHtml::html("x").into();
     }
 
     #[test]
     fn atributo_carrega_a_causa_e_mantem_onde() {
-        let erro = ErroHtml::atributo(
-            "link_ilegivel",
-            "m",
-            ErroAtributoHtml::FimDaTagDeAberturaAusente,
-        );
+        let erro = ErroHtml::atributo("link_ilegivel", ErroAtributoHtml::FimDaTagDeAberturaAusente);
         assert_eq!(folha(&erro), "link_ilegivel");
         assert_eq!(
             caminho_de(&erro),

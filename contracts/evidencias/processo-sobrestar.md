@@ -12,10 +12,13 @@ unresolved_steps: 0
 
 # processo.sobrestar
 
-Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB** na
-[PR Draft #279](https://github.com/franklinbaldo/ies/pull/279):
-prévia dos comandos com três GET a frio, sem escrita. A confirmação
-permanece bloqueada. Replay e live: **NOT_RUN** (zero requisições ao SEI).
+Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB**
+na [PR integrada #279](https://github.com/franklinbaldo/ies/pull/279)
+(prévia, três GET a frio) e na
+[PR Draft #284](https://github.com/franklinbaldo/ies/pull/284)
+(escrita única e releitura conferida em testes de transporte).
+Isso não comprova paridade entre cassettes e novo código. Replay e
+live: **NOT_RUN** (zero requisições ao SEI).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

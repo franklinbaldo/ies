@@ -32,12 +32,15 @@ pub(crate) struct TelaDoProcesso {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDoProcesso {
+    HtmlDaTelaDoProcessoNaoInterpretado,
+    IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
     UnidadeDaTelaDiferenteDaSolicitada,
+    ArvoreAusenteNaTelaDoProcesso,
+    ArvoresRepetidasNaTelaDoProcesso,
+    EnderecoDaArvoreNaoReconhecido,
     EnderecoDaArvoreDeOutroProcesso,
     /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
     EnderecoDaArvoreDeOutroDocumento,
-    #[causa(interna)]
-    Html(crate::erro_html::ErroHtml),
 }
 
 impl ErroTelaDoProcesso {}
@@ -82,12 +85,9 @@ pub(crate) fn ler_tela_do_documento(
     if valores("id_documento") != [id_documento] {
         return Err(E::EnderecoDaArvoreDeOutroDocumento);
     }
-    let [id_procedimento] = valores("id_procedimento").try_into().map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_da_arvore_nao_reconhecido",
-            "o valor não está na forma observada",
-        ))
-    })?;
+    let [id_procedimento] = valores("id_procedimento")
+        .try_into()
+        .map_err(|_| E::EnderecoDaArvoreNaoReconhecido)?;
     let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
     Ok((
         TelaDoProcesso {
@@ -105,81 +105,35 @@ fn unidade_e_src(
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
     use ErroTelaDoProcesso as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Html(crate::erro_html::ErroHtml::html(
-            "html_da_tela_do_processo_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-        ))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
     let publicada = crate::controle_contexto::unidade_html(&dom)
-        .map_err(|_| {
-            E::Html(crate::erro_html::ErroHtml::html(
-                "html_da_tela_do_processo_nao_interpretado",
-                "o HTML não pôde ser interpretado",
-            ))
-        })?
-        .ok_or(E::Html(crate::erro_html::ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela_do_processo",
-            "a tela não tem o elemento observado",
-        )))?;
+        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
+        .ok_or(E::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada
     {
         return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
     }
-    let iframes = nos_com_id(&dom, "ifrArvore").map_err(|e| {
-        E::Html(crate::erro_html::ErroHtml::atributo(
-            "html_da_tela_do_processo_nao_interpretado",
-            "o HTML não pôde ser interpretado",
-            e,
-        ))
-    })?;
+    let iframes =
+        nos_com_id(&dom, "ifrArvore").map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
     let iframe = match iframes.as_slice() {
-        [] => {
-            return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-                "arvore_ausente_na_tela_do_processo",
-                "a tela não tem o elemento observado",
-            )));
-        }
+        [] => return Err(E::ArvoreAusenteNaTelaDoProcesso),
         [um] => um
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(E::Html(crate::erro_html::ErroHtml::html(
-                "html_da_tela_do_processo_nao_interpretado",
-                "o HTML não pôde ser interpretado",
-            )))?,
-        _ => {
-            return Err(E::Html(crate::erro_html::ErroHtml::repetido(
-                "arvores_repetidas_na_tela_do_processo",
-                "o elemento aparece mais de uma vez",
-            )));
-        }
+            .ok_or(E::HtmlDaTelaDoProcessoNaoInterpretado)?,
+        _ => return Err(E::ArvoresRepetidasNaTelaDoProcesso),
     };
     if iframe.name() != "iframe" {
-        return Err(E::Html(crate::erro_html::ErroHtml::ausente(
-            "arvore_ausente_na_tela_do_processo",
-            "a tela não tem o elemento observado",
-        )));
+        return Err(E::ArvoreAusenteNaTelaDoProcesso);
     }
     let src = valor_do_atributo(iframe, "src")
-        .map_err(|e| {
-            E::Html(crate::erro_html::ErroHtml::atributo(
-                "html_da_tela_do_processo_nao_interpretado",
-                "o HTML não pôde ser interpretado",
-                e,
-            ))
-        })?
-        .ok_or(E::Html(crate::erro_html::ErroHtml::valor(
-            "endereco_da_arvore_nao_reconhecido",
-            "o valor não está na forma observada",
-        )))?;
+        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
+        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
-    let src = crate::formulario_web::decodificar_atributo(&src).ok_or(E::Html(
-        crate::erro_html::ErroHtml::valor(
-            "endereco_da_arvore_nao_reconhecido",
-            "o valor não está na forma observada",
-        ),
-    ))?;
+    let src = crate::formulario_web::decodificar_atributo(&src)
+        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
     Ok((publicada, src))
 }
 
@@ -194,12 +148,7 @@ fn conferir_endereco(
     conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
         .map(EnderecoDaArvore)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => {
-                ErroTelaDoProcesso::Html(crate::erro_html::ErroHtml::valor(
-                    "endereco_da_arvore_nao_reconhecido",
-                    "o valor não está na forma observada",
-                ))
-            }
+            EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,
             EnderecoRecusado::DeOutroProcesso => {
                 ErroTelaDoProcesso::EnderecoDaArvoreDeOutroProcesso
             }
