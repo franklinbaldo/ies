@@ -16,7 +16,6 @@ pub(crate) struct Retorno {
     pub(crate) prazo_restante: Option<String>,
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroRetornos {
     TelaDeRetornosDesconhecida,
@@ -113,39 +112,12 @@ pub(crate) fn ultimo_dia(ano: u16, mes: u8) -> Option<u8> {
     })
 }
 
-/// So retorna uma lista quando as duas legendas conferem ou quando a area
-/// conhecida publica explicitamente "Nenhum registro encontrado.".
-pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
+fn ler_tabela(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    situacao: &'static str,
+) -> Result<Vec<Retorno>, ErroRetornos> {
     use ErroRetornos as E;
-    for prefixo in ["Aguardando", "Devolver"] {
-        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
-            .map_err(|_| E::TelaDeRetornosDesconhecida)?
-        {
-            return Err(E::PaginacaoDosRetornosNaoObservada);
-        }
-    }
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaDeRetornosDesconhecida)?;
-    let parser = dom.parser();
-    let mut situacoes = HashSet::new();
-    let mut lista = Vec::new();
-    for no in dom.query_selector("table").into_iter().flatten() {
-        let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(summary) = atributo(tabela, "summary")? else {
-            continue;
-        };
-        let Some(situacao) = situacao_da_tabela(&summary) else {
-            continue;
-        };
-        if !situacoes.insert(situacao)
-            || tabela
-                .query_selector(parser, "table")
-                .is_some_and(|mut it| it.next().is_some())
-        {
-            return Err(E::TelaDeRetornosDesconhecida);
-        }
         let legendas: Vec<_> = tabela
             .query_selector(parser, "caption")
             .into_iter()
@@ -180,7 +152,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         }
         let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
         let prazo = titulos.iter().position(|c| c == "prazo restante");
-        let antes = lista.len();
+        let mut lista = Vec::new();
         for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
             let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
@@ -219,27 +191,75 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
                 prazo_restante: opcional(prazo),
             });
         }
-        if lista.len() - antes != declarado {
+        if lista.len() != declarado {
             return Err(E::ListaDeRetornosIncompleta);
+        }
+        Ok(lista)
+}
+
+/// So retorna uma lista quando cada situacao tem tabela conferida ou
+/// evidencia explicita da area sem registros.
+pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
+    use ErroRetornos as E;
+    for prefixo in ["Aguardando", "Devolver"] {
+        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
+            .map_err(|_| E::TelaDeRetornosDesconhecida)?
+        {
+            return Err(E::PaginacaoDosRetornosNaoObservada);
+        }
+    }
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaDeRetornosDesconhecida)?;
+    let parser = dom.parser();
+    let mut situacoes = HashSet::new();
+    let mut lista = Vec::new();
+    for no in dom.query_selector("table").into_iter().flatten() {
+        let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let Some(summary) = atributo(tabela, "summary")? else {
+            continue;
+        };
+        let Some(situacao) = situacao_da_tabela(&summary) else {
+            continue;
+        };
+        if !situacoes.insert(situacao)
+            || tabela
+                .query_selector(parser, "table")
+                .is_some_and(|mut it| it.next().is_some())
+        {
+            return Err(E::TelaDeRetornosDesconhecida);
+        }
+        lista.extend(ler_tabela(tabela, parser, situacao)?);
+    }
+    // A ausencia de uma das tabelas nunca prova ausencia de retornos:
+    // a propria area correspondente precisa dizer que nao ha registros.
+    let mut vazios = HashSet::new();
+    for no in dom.query_selector("div").into_iter().flatten() {
+        let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let situacao = match atributo(area, "id")?.as_deref() {
+            Some("divAguardandoAreaTabela") => "aguardando",
+            Some("divDevolverAreaTabela") => "devolver",
+            _ => continue,
+        };
+        if identificador(&texto(area, parser)) == "nenhum registro encontrado." {
+            if !vazios.insert(situacao) {
+                return Err(E::TelaDeRetornosDesconhecida);
+            }
         }
     }
     if !situacoes.is_empty() {
-        return Ok(lista);
-    }
-    let areas: Vec<_> = dom
-        .query_selector("div")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .filter(|tag| {
-            atributo(tag, "id")
-                .ok()
-                .flatten()
-                .is_some_and(|id| id.ends_with("AreaTabela"))
-        })
-        .collect();
-    if areas.len() == 1 && identificador(&texto(areas[0], parser)) == "nenhum registro encontrado."
-    {
+        if ["aguardando", "devolver"]
+            .iter()
+            .all(|situacao| situacoes.contains(situacao) || vazios.contains(situacao))
+        {
+            Ok(lista)
+        } else {
+            Err(E::ListaDeRetornosIncompleta)
+        }
+    } else if vazios.contains("aguardando") {
         Ok(Vec::new())
     } else {
         Err(E::TelaDeRetornosDesconhecida)
