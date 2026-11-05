@@ -1,0 +1,89 @@
+name: TEMP #236 live expanded
+
+on:
+  push:
+    branches: [codex/236-live-ampliado]
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build IES
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked
+      - name: Leitura UnB — saida, sem-cache, anexo
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export IES_TEST_DIR="${RUNNER_TEMP}/ies-live-expanded-236"
+          mkdir -m 700 -p "$IES_TEST_DIR" "$IES_TEST_DIR/cache" "$IES_TEST_DIR/saida"
+          export XDG_CACHE_HOME="$IES_TEST_DIR/cache"
+          export IES_CREDENCIAIS_FILE="$IES_TEST_DIR/credenciais"
+          export IES_URL_CONTROLE_FILE="$IES_TEST_DIR/url"
+          export IES_COOKIE_FILE="$IES_TEST_DIR/cookie"
+          export IES_ORIGEM_FILE="$IES_TEST_DIR/origem"
+          python3 - <<'PY'
+          import os,pathlib
+          base=pathlib.Path(os.environ["IES_TEST_DIR"])
+          md=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          row=next(line for line in md.splitlines() if line.startswith("| `unb` |"))
+          items=[s.strip().strip("`") for s in row.split("|")]
+          origem,usuario,senha,orgao=items[3:7]
+          values={"credenciais":f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n","origem":origem+"\n","url":"","cookie":""}
+          for name,value in values.items():
+              fd=os.open(base/name,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+              with os.fdopen(fd,"w") as f:f.write(value)
+          PY
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess,time,hashlib,sys
+          exe="./target/debug/ies"
+          root=pathlib.Path(os.environ["IES_TEST_DIR"])
+          previous=None
+          count=0
+          def call(label,args):
+              global previous,count
+              if previous is not None:
+                  delay=30-(time.monotonic()-previous)
+                  if delay>0:time.sleep(delay)
+              p=subprocess.run([exe,"--json",*args],capture_output=True,text=True,timeout=100)
+              previous=time.monotonic()
+              try: d=json.loads(p.stdout)
+              except Exception:d={}
+              req=d.get("requisicoes",0)
+              count+=req
+              print(json.dumps({"case":label,"status":"PASS" if p.returncode==0 else "NOT_RUN","subcodigo":d.get("subcodigo"),"requisicoes":req,"total":count}),flush=True)
+              if p.returncode:
+                  print("STOP: sem repetição do comando falhado",flush=True)
+                  sys.exit(0)
+              return d
+          call("login",["login"])
+          saida=str(root/"saida")
+          d=call("saida_derivada",["documento","0011870","--processo","23106.001748/2026-94","--saida",saida])["documentos"][0]
+          c=d.get("cache");a=d.get("arquivo")
+          assert c and a and c["sha256"]==a["sha256"]
+          foto=pathlib.Path(saida)/a["nome"]
+          assert foto.is_file() and hashlib.sha256(foto.read_bytes()).hexdigest()==c["sha256"]
+          print(json.dumps({"case":"saida_verificada","status":"PASS","crc_presente":d.get("crc_rodape") is not None,"versao":c["versao"]}),flush=True)
+          antes={p.relative_to(root/"cache") for p in (root/"cache").rglob("*") if p.is_file()}
+          d=call("sem_cache_flag",["documento","0011870","--processo","23106.001748/2026-94","--sem-cache"])["documentos"][0]
+          depois={p.relative_to(root/"cache") for p in (root/"cache").rglob("*") if p.is_file()}
+          assert d.get("cache") is None and antes==depois
+          print(json.dumps({"case":"flag_verificada","status":"PASS"}),flush=True)
+          pdf=call("externo_pdf",["documento","0011537"])["documentos"][0]
+          c=pdf.get("cache")
+          assert c and str(c["caminho"]).endswith(".pdf")
+          path=pathlib.Path(c["caminho"])
+          assert path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest()==c["sha256"]
+          assert path.stat().st_mode & 0o077==0
+          print(json.dumps({"case":"pdf_verificado","status":"PASS","tamanho":path.stat().st_size}),flush=True)
+          print(json.dumps({"result":"PASS","requisicoes":count}),flush=True)
+          PY
