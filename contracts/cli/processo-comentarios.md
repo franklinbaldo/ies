@@ -19,7 +19,7 @@ Oráculo: Todos `src/todos/comentarios.py` e
 `tests/test_comentarios_010.py` @323eb01, observação de UFRJ 4.1,
 GO 5.0 e [acervo UnB](../../cassettes/unb/comentarios-ciclo-unb--c7d0c8a53b5e.md).
 
-O link da barra da árvore usa `comentario_listar`. Sem comentários,
+O link da barra da árvore usa `comentario_listar`, extraído sem montar URL e validado quanto à origem, identidade do processo e unicidade. Sem comentários,
 a lista redireciona ao formulário `frmComentarioCadastro`, contendo
 `txaDescricao` e botão `sbmCadastrarComentario`. Com comentários,
 a tela contém `form#frmComentarioLista` e `table#tblComentarios`,
@@ -61,6 +61,11 @@ O fluxo Web ainda não está implementado: **não há POST habilitado**.
 
 | Subcódigo | Fato |
 | --- | --- |
+| `barra_dos_comentarios_fora_da_forma_observada` | barra do processo fora da forma observada |
+| `barras_dos_comentarios_repetidas_na_arvore` | mais de uma barra no nó PROCESSO |
+| `links_dos_comentarios_repetidos_na_barra` | links de comentários repetidos |
+| `endereco_dos_comentarios_nao_reconhecido` | link fora do formato assinado observado |
+| `endereco_dos_comentarios_de_outro_processo` | identidade do processo no link divergente |
 | `html_dos_comentarios_nao_interpretado` | HTML ou atributo inválido |
 | `tela_de_comentarios_nao_reconhecida` | nem lista nem cadastro publicado |
 | `formularios_de_comentarios_repetidos` | formulário repetido |
