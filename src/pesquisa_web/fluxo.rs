@@ -122,6 +122,7 @@ pub(crate) fn buscar_processo<V: EnvioDoControle>(
 
 /// [`buscar_processo`] em `A` (processos ou documentos), com a colheita do
 /// Controle lido (nenhuma requisição a mais).
+#[cfg(test)]
 pub(crate) fn buscar_colhendo<A: AlvoDaPesquisa, V: EnvioDoControle>(
     sessao: &SessaoDaBusca<'_>,
     pedido: &PedidoDeBusca<'_>,
@@ -157,6 +158,7 @@ pub(crate) fn buscar_colhendo_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
 
 /// Variante que deixa a contagem disponível também quando uma tentativa
 /// falha, para que o chamador e os testes observem o custo real do fluxo.
+#[cfg(test)]
 pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     sessao: &SessaoDaBusca<'_>,
     pedido: &PedidoDeBusca<'_>,
@@ -195,23 +197,6 @@ pub(crate) fn buscar_colhendo_contado_filtrado<A: AlvoDaPesquisa, V: EnvioDoCont
 }
 
 /// Requisições 2 em diante, a partir do Controle já lido (que conta como 1).
-pub(crate) fn pesquisar_a_partir_do_controle<A: AlvoDaPesquisa, V: EnvioDoControle>(
-    controle: &ControleLido,
-    cookie: &CookieDaSessao,
-    pedido: &PedidoDeBusca<'_>,
-    requisicoes: &mut ContagemDeRequisicoes,
-    envio: &mut V,
-) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    pesquisar_a_partir_do_controle_filtrado::<A, V>(
-        controle,
-        cookie,
-        pedido,
-        FiltrosDaPesquisa::default(),
-        requisicoes,
-        envio,
-    )
-}
-
 pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     controle: &ControleLido,
     cookie: &CookieDaSessao,
