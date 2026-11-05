@@ -17,6 +17,7 @@ pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes
         None => None,
     };
     Some(PedidoDeVersoes {
+            cache: false, 
         versao,
         foto: saida,
     })
@@ -142,6 +143,7 @@ pub(crate) mod testes {
 
     pub(crate) fn com_foto(numero: &str, n: u32, html: &str) -> DocumentoObtido {
         let mut d = documento(VersoesDoDocumento {
+            cache_html: None, 
             lida: Some(v(n)),
             atual: Ok(v(n)),
             foto: Some(FotoDaVersao {
@@ -168,6 +170,7 @@ pub(crate) mod testes {
         assert_eq!(
             pedido(None, true),
             Some(PedidoDeVersoes {
+            cache: false, 
                 versao: None,
                 foto: true
             })
@@ -175,6 +178,7 @@ pub(crate) mod testes {
         assert_eq!(
             pedido(Some(3), false),
             Some(PedidoDeVersoes {
+            cache: false, 
                 versao: Some(v(3)),
                 foto: false
             })
@@ -186,6 +190,7 @@ pub(crate) mod testes {
     fn lote_grava_so_as_fotos_e_repetir_e_no_op() {
         let pasta = diretorio();
         let mut externo = documento(VersoesDoDocumento {
+            cache_html: None, 
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
             foto: None,
@@ -242,6 +247,7 @@ pub(crate) mod testes {
             json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": false, "motivo": "igual"})
         );
         let nao = documento(VersoesDoDocumento {
+            cache_html: None, 
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
             foto: None,
