@@ -15,6 +15,7 @@ from urllib.request import urlopen
 ORIGEM = "https://archive.org/download/todos-sei-cassettes-2026/"
 INSTALACOES = ("unb", "ufrj", "go", "pen1", "pen2", "pen3", "pen4")
 LIMITE_BYTES = 512 * 1024 * 1024
+MINIMO_CARDS = 15  # Cobertura já demonstrada pelo replay #245 em 05/11/2026
 
 
 def manifestar(raiz: Path) -> dict[str, str]:
@@ -45,7 +46,7 @@ def manifestar(raiz: Path) -> dict[str, str]:
             if nome in manifesto and manifesto[nome] != sha:
                 raise ValueError(f"SHA-1 conflitante: {card.name}")
             manifesto[nome] = sha
-    if cards == 0 or len(manifesto) != len(INSTALACOES):
+    if cards < MINIMO_CARDS or len(manifesto) != len(INSTALACOES):
         raise ValueError("acervo incompleto: faltam cards de uma instalação")
     return manifesto
 
