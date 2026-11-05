@@ -46,8 +46,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
-#[cfg(test)]
 mod processo_anexar;
+mod processo_anexar_cli;
 mod processo_buscar_cli;
 mod processo_concluir;
 mod processo_concluir_cli;
@@ -190,6 +190,14 @@ enum ProcessoAcao {
     },
     Reabrir {
         numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Prévia da anexação do processo NUP ao processo principal (--a).
+    Anexar {
+        numero: String,
+        #[arg(long)]
+        a: String,
         #[arg(long)]
         confirmar: bool,
     },
@@ -384,6 +392,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
 }
