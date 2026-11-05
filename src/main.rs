@@ -52,6 +52,9 @@ mod processo_concluir_cli;
 #[path = "processo_criar/cadastro.rs"]
 mod processo_criar_cadastro;
 mod processo_criar_cli;
+#[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
+#[path = "processo_criar/menu.rs"]
+mod processo_criar_menu;
 #[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
 #[path = "processo_criar/lista.rs"]
 mod processo_criar_lista;
