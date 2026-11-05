@@ -25,8 +25,12 @@ Grupo ausente ou repetido é erro tipado. O nome vazio usa a opção em
 branco servida; não se inventa seu valor.
 
 `--deixar` seleciona uma linha pela identidade; na ausência de
-`--grupo`, exige no máximo uma. Se nenhum acompanhamento existe,
-a prévia informa ausência de efeito. `--observacao` não combina com
+`--grupo`, exige no máximo uma. A prévia exige ainda o link `acaoExcluir`
+da própria linha, o formulário `frmGerenciarAcompanhamento` com
+`hdnInfraItemId` único e o destino `acompanhamento_excluir` publicado
+pela função servida para o mesmo processo. O JavaScript não é executado;
+sem qualquer prova a operação recusa antes de escrever. Se nenhum
+acompanhamento existe, a prévia informa ausência de efeito. `--observacao` não combina com
 `--deixar`. Uma inclusão de grupo já presente informa que nada deve
 ser enviado, independentemente da observação.
 
@@ -45,7 +49,7 @@ ser enviado, independentemente da observação.
   também exige releitura: se a alteração não puder ser comprovada,
   saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
   A inclusão já existente resulta em sucesso sem POST.
-- **Retirada:** `--deixar` tem somente prévia; `--confirmar --deixar`
+- **Retirada:** `--deixar` tem somente prévia com validação estrutural da oferta de exclusão; `--confirmar --deixar`
   continua bloqueado antes da sessão até a derivação segura do
   formulário de exclusão da linha escolhida.
 - **Orçamento:** na bancada sintética sem índice quente, 3 GETs de
@@ -89,6 +93,7 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
 | `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
 | `confirmacao_de_acompanhamento_ainda_bloqueada` | Confirmação da retirada ainda bloqueada antes da sessão |
+| `exclusao_de_acompanhamento_nao_oferecida` | Link, função, oculto ou destino de exclusão da linha escolhida não comprovados |
 | `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
 | `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
 | `grupo_de_acompanhamento_nao_oferecido` | Grupo solicitado não é oferecido na tela |
