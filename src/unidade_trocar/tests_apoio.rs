@@ -204,7 +204,10 @@ impl Roteiro {
         }
     }
 
-    fn proxima(&mut self, pedido: Pedido) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
+    fn proxima(
+        &mut self,
+        pedido: Pedido,
+    ) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
         let (status, corpo, localizacao) = crate::transporte::testes_http::atender(
             &mut self.pedidos,
             &mut self.respostas,
