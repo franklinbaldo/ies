@@ -1,5 +1,5 @@
 //! Conferência estrutural do formulário de sobrestamento observado na UnB (#269).
-//! Fonte: Todos tests/test_ciclo_sobrestar_010.py @323eb01.
+//! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
@@ -139,4 +139,28 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     } else {
         Err(E::CampoInesperado)
     }
+}
+
+/// Aceite da resposta HTTP 302 da sobrestada: mesmo processo, ação e origem.
+/// A resposta não dispensa a releitura; a URL nunca é seguida.
+pub(crate) fn redirecionamento_esperado(
+    localizacao: Option<&str>,
+    url_do_envio: &str,
+    id: &str,
+) -> bool {
+    let Some(consulta) = localizacao.and_then(|l| {
+        crate::formulario_web::consulta_do_controlador(l, url_do_envio)
+    }) else {
+        return false;
+    };
+    let valores = |chave: &str| -> Vec<&str> {
+        consulta.split('&')
+            .filter_map(|par| par.split_once('='))
+            .filter(|(k, _)| *k == chave)
+            .map(|(_, v)| v)
+            .collect()
+    };
+    valores("acao") == ["arvore_visualizar"]
+        && valores("acao_origem") == ["procedimento_sobrestar"]
+        && valores("id_procedimento") == [id]
 }
