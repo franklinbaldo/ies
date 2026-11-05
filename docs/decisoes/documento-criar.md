@@ -54,7 +54,14 @@ precisam persistir; não podem surgir dois ids novos; o novo deve
 publicar número SEI e tipo solicitado. Não aceitar "algum documento
 novo" como êxito. Qualquer inconclusividade depois de enviar é 3.
 
-## Evidência e revisão
+## Evidências verificáveis
+
+- [Contrato](../../contracts/cli/documento-criar.md).
+- [Evidência existente do acervo](../../contracts/evidencias/documento-criar.md).
+- [Teste CLI temporário](../../tests/cli_documento_criar.rs) (garante recusa antes de integrar escrita).
+- Testes unitários de leitura e reconciliação: `src/documento_criar.rs`.
+
+## Limitações e revisão
 
 [Contrato](../../contracts/cli/documento-criar.md);
 [observação](../como-o-sei-funciona/inclusao-documento-interno.md).
