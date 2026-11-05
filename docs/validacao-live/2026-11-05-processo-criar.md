@@ -253,3 +253,42 @@ pertencem a SHAs anteriores e não comprovam o estado atual.
 0 processos criados/alterados e nenhum resíduo.** A autorização de
 escrita permanece válida apenas em treinamento; a sequência
 prévia → um único `--confirmar` → releitura ainda não aconteceu.
+
+## Reconciliação obrigatória após confirmação incerta — UnB treinamento
+
+**Evidência real de 05/11/2026 (UTC, 21h47–21h49):**
+[workflow de ensaio 42115596616](https://github.com/franklinbaldo/ies/actions/runs/42115596616),
+job `UnB treinamento - previa confirmacao unica e releitura`.
+Essa observação é posterior às seções históricas NOT_RUN acima e as
+**substitui** quanto ao estado live da issue. A origem conferida pelo
+roteiro era exclusivamente `https://sei.treinamento.unb.br/sei`.
+
+| Etapa | Resultado observado | Requisições do comando | Resíduo |
+| --- | --- | ---: | --- |
+| Login UnB treinamento | PASS, saída 0 | 6 | sessão privada transitória no runner |
+| Prévia pública de `Teste: Nível de acesso só público` | PASS, saída 0, `confirmado: false` | 3 (3 GET, 0 POST criador) | nenhum processo criado na prévia |
+| **Uma** chamada `--confirmar` | **FAIL / efeito incerto**, saída **3**, `efeito_incerto_na_criacao` | **não observado** na resposta de erro; POST criador possivelmente efetuado | **DESCONHECIDO** |
+| Releitura independente do NUP | NOT_RUN: confirmação terminou com erro e não revelou NUP | 0 | **a verificar na caixa Gerados** |
+
+O roteiro interrompeu a execução imediatamente após a confirmação
+incerta, sem repetir a escrita nem tentar outro backend.
+O valor de NUP **não foi observado**. Portanto, **não é correto
+registrar resíduo zero nem alegar processo criado**. Antes de qualquer
+nova confirmação deve-se reconciliar por **leitura somente** a
+caixa Gerados da conta pública UnB e, quando possível, conferir
+tipo/especificação `Ensaio IES 245 - escrita unica em treinamento`
+contra o processo. Uma leitura sem correspondência não prova que
+a escrita falhou.
+
+**Mitigação:** removido o workflow temporário de disparo por push
+no commit `44005cb2`; não há autorização para reexecutar a confirmação
+incerta. Nova infraestrutura de teste offline/manual da mesma PR
+possui marca durável antes do POST, impede reuso do mesmo registro,
+faz a releitura independente comparando o JSON `numero` com o NUP
+e recusa origens fora das instalações de treinamento. Não foi
+usada para repetir a criação real.
+
+**Contagem real conhecida:** 6 login + 3 prévia + 0 releitura = 9
+requisições observadas; quantidade interna da confirmação incerta
+**não observada**, portanto total HTTP global **desconhecido**.
+Nenhuma produção foi acessada.
