@@ -394,6 +394,15 @@ mod tests {
     }
 
     #[test]
+    fn escolha_segura_nao_aproveita_lista_contaminada() {
+        let xml = "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/marcador</option></select>";
+        assert_eq!(
+            opcao_selecionada(xml, Some("31#Base A")),
+            Err(ErroHipotese::RespostaNaoReconhecida)
+        );
+    }
+
+    #[test]
     fn recusa_dupla_declaracao_sem_escolher_url() {
         let linha = format!(
             "{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');"
