@@ -179,7 +179,10 @@ pub(crate) struct Roteiro {
 }
 
 impl Roteiro {
-    fn proxima(&mut self, pedido: Pedido) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
+    fn proxima(
+        &mut self,
+        pedido: Pedido,
+    ) -> Result<RespostaDoPost<Cursor<Vec<u8>>>, FalhaTransporte> {
         let (status_code, html, localizacao) = crate::transporte::testes_http::atender(
             &mut self.pedidos,
             &mut self.respostas,
@@ -357,7 +360,6 @@ pub(crate) fn links() -> (String, String, String) {
     )
 }
 
-
 /// Cobertura da contagem real (issue #184), inclusive recusas e falha de rede.
 /// A bancada registra o pedido antes da resposta; parsing e índice não entram.
 #[cfg(test)]
@@ -375,7 +377,6 @@ mod tests_contagem {
         let resposta = rede.get_sem_seguir(ORIGEM, COOKIE).unwrap();
         assert_eq!(resposta.resposta.status_code, 200);
         assert_eq!(rede.feitas(), 1);
-        drop(rede);
         assert_eq!(roteiro.pedidos, vec![get(ORIGEM)]);
     }
 
@@ -388,20 +389,18 @@ mod tests_contagem {
         let mut rede = Contador::novo(&mut roteiro);
         let resposta = rede.get_sem_seguir(ORIGEM, COOKIE).unwrap();
         assert_eq!(resposta.resposta.status_code, 302);
-        assert_eq!(resposta.localizacao.as_deref(), Some("controlador.php?acao=teste"));
+        assert_eq!(
+            resposta.localizacao.as_deref(),
+            Some("controlador.php?acao=teste")
+        );
         assert_eq!(rede.feitas(), 1);
-        drop(rede);
         assert_eq!(roteiro.pedidos, vec![get(ORIGEM)]);
     }
 
     #[test]
     fn falha_na_segunda_tentativa_tambem_conta_sem_retry() {
         let mut roteiro = Roteiro {
-            respostas: vec![
-                ok("<html></html>".to_owned()),
-                Err(FalhaTransporte::Rede),
-            ]
-            .into(),
+            respostas: vec![ok("<html></html>".to_owned()), Err(FalhaTransporte::Rede)].into(),
             pedidos: Vec::new(),
         };
         let mut rede = Contador::novo(&mut roteiro);
@@ -411,7 +410,6 @@ mod tests_contagem {
             Err(FalhaTransporte::Rede)
         ));
         assert_eq!(rede.feitas(), 2);
-        drop(rede);
         assert_eq!(roteiro.pedidos, vec![get(ORIGEM), get(ORIGEM)]);
     }
 
