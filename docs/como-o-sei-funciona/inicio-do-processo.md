@@ -118,3 +118,15 @@ antes do POST criador. Um placeholder `null` não é opção efetiva.
 A lista é evidência indireta; o replay do acervo original foi executado,
 mas o ensaio autenticado de prévia → confirmação única → leitura
 permanece NOT_RUN. URLs assinadas e credenciais não são publicadas.
+
+## Diagnóstico seguro quando há opções AJAX múltiplas
+
+O XML de treinamento no acervo da UnB contém múltiplas hipóteses
+habilitadas. A leitura do IES pode informar os pares `ID#NOME`
+que o próprio XML ofereceu, sem seguir URLs adicionais. A falta de
+escolha continua impedindo o POST criador: essa informação ajuda a
+formular uma **nova prévia** explícita, não autoriza confirmação.
+Somente opções habilitadas, com IDs distintos e texto sem controles,
+podem aparecer na saída. O IES não publica URL AJAX assinada,
+`infra_hash` nem cookie. Essa evidência de cassettes não substitui
+um ensaio autenticado em treinamento, ainda NOT_RUN.
