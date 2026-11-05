@@ -153,6 +153,16 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     confirmar: bool,
 ) -> Result<PreviaCriacao, ErroPreviaCriacao> {
     use ErroPreviaCriacao as E;
+    // A operação já sabe que não pode criar sem nível explícito ou sem
+    // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
+    // efeito de recebimento e não serve a uma escrita que será recusada.
+    if confirmar {
+        match pedido.nivel {
+            Some("publico") => {}
+            None => return Err(E::NivelNaoInformado),
+            _ => return Err(E::NivelRestritoSemHipotese),
+        }
+    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
@@ -261,11 +271,6 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     }
     // O cadastro restrito exige escolha de hipótese legal. Enquanto a
     // operação não resolver esse controle, apenas o nível público é seguro.
-    match pedido.nivel {
-        Some("publico") => {}
-        None => return Err(E::NivelNaoInformado),
-        _ => return Err(E::NivelRestritoSemHipotese),
-    }
     conferir_cadastro(
         &html_cadastro,
         pedido.tipo,
