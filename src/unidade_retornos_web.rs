@@ -299,10 +299,10 @@ fn hoje_na_tela(
                 continue;
             };
             let link = conferir_link(&href, servida, instalacao)?;
-            if let Some(data) = link.valor("data_atual").and_then(data_da_consulta) {
-                if marcado.replace(data).is_some() {
-                    return Err(E::CalendarioDosRetornosDesconhecido);
-                }
+            if let Some(data) = link.valor("data_atual").and_then(data_da_consulta)
+                && marcado.replace(data).is_some()
+            {
+                return Err(E::CalendarioDosRetornosDesconhecido);
             }
         }
     }
@@ -386,8 +386,7 @@ where
         let proximo = mes_vizinho(atual, rumo).ok_or(E::MesDosRetornosInacessivel)?;
         let mut escolhido: Option<&str> = None;
         for link in candidatos.iter().filter(|link| {
-            link.valor("data_atual").and_then(data_da_consulta)
-                == Some((proximo.0, proximo.1, 1))
+            link.valor("data_atual").and_then(data_da_consulta) == Some((proximo.0, proximo.1, 1))
         }) {
             match escolhido {
                 Some(url) if url == link.url => {}
@@ -460,7 +459,9 @@ where
             return Err(E::CalendarioDosRetornosDesconhecido);
         }
         let mut candidatos = vec![(ano, mes)];
-        if dia == 1 && let Some(anterior) = mes_vizinho((ano, mes), -1) {
+        if dia == 1
+            && let Some(anterior) = mes_vizinho((ano, mes), -1)
+        {
             candidatos.push(anterior);
         }
         if Some(dia) == unidade_retornos::ultimo_dia(ano, mes)
