@@ -156,8 +156,6 @@ fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
     assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
     assert_eq!(feito.requisicoes, 6);
     let mut esperados = pedidos_da_abertura();
-    esperados.extend([
-        get(&links().1), get(&url_retomar()), get(&url_arvore()),
-    ]);
+    esperados.extend([get(&links().1), get(&url_retomar()), get(&url_arvore())]);
     assert_eq!(pedidos, esperados);
 }

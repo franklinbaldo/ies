@@ -143,16 +143,19 @@ fn conferir_campo(
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
     use ErroTela as E;
-    let atributo = |nome: &'static str| {
-        valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada)
-    };
-    let presente = |nome: &'static str| {
-        atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada)
-    };
+    let atributo =
+        |nome: &'static str| valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada);
+    let presente =
+        |nome: &'static str| atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     let nome = atributo("name")?.ok_or(E::CampoInesperado)?;
     let tipo = atributo("type")?.unwrap_or_else(|| {
-        if elemento == "button" { "submit" } else { "text" }.to_owned()
+        if elemento == "button" {
+            "submit"
+        } else {
+            "text"
+        }
+        .to_owned()
     });
     let valor = atributo("value")?.unwrap_or_default();
     *vistos.entry(nome.clone()).or_default() += 1;
@@ -165,8 +168,9 @@ fn conferir_campo(
         }
         ("input", "hidden", "hdnInfraTipoPagina") => valor == "2",
         ("input", "hidden", "hdnIdProcedimentoDestino")
-        | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") =>
-            valor.is_empty(),
+        | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") => {
+            valor.is_empty()
+        }
         ("input", "radio", "rdoSobrestar") => {
             let valido = matches!(valor.as_str(), "S" | "V") && !presente("checked")?;
             if valido {
@@ -174,13 +178,15 @@ fn conferir_campo(
             }
             valido
         }
-        ("textarea", _, "txaMotivo") =>
-            !presente("readonly")? && tag.inner_text(dom.parser()).trim().is_empty(),
-        ("input" | "button", "submit", "sbmSalvar") =>
+        ("textarea", _, "txaMotivo") => {
+            !presente("readonly")? && tag.inner_text(dom.parser()).trim().is_empty()
+        }
+        ("input" | "button", "submit", "sbmSalvar") => {
             valor == "Salvar"
                 && !presente("formaction")?
                 && !presente("formmethod")?
-                && !presente("formenctype")?,
+                && !presente("formenctype")?
+        }
         ("input" | "button", "button", "btnCancelar") => true,
         ("select", _, "selProcedimentos") => presente("multiple")?,
         _ => false,
@@ -189,9 +195,13 @@ fn conferir_campo(
         Ok(())
     } else {
         match nome.as_str() {
-            "hdnIdProcedimentoDestino" | "txtProcedimentoDestino"
-            | "txtIdentificacaoProcedimentoDestino" if !valor.is_empty() =>
-                Err(E::DestinoPreenchido),
+            "hdnIdProcedimentoDestino"
+            | "txtProcedimentoDestino"
+            | "txtIdentificacaoProcedimentoDestino"
+                if !valor.is_empty() =>
+            {
+                Err(E::DestinoPreenchido)
+            }
             "rdoSobrestar" => Err(E::OpcaoNaoOferecida),
             _ => Err(E::CampoInesperado),
         }
