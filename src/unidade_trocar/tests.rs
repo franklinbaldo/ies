@@ -159,6 +159,32 @@ fn troca_confirmada_segue_os_dois_302_e_verifica_o_controle_novo() {
 }
 
 #[test]
+fn trocar_depende_do_controle_novo_nao_de_estado_local() {
+    // O fluxo nem recebe um índice: a sigla da sessão só é conferida
+    // no Controle fresco depois do POST e dos dois saltos observados.
+    let respostas = com(
+        inicio(),
+        vec![
+            redireciona(localizacao_com_aviso("https", ID_B)),
+            redireciona(localizacao_limpa("https", ID_B)),
+            html(controle("PR-A", ID_B)),
+        ],
+    );
+    let (resultado, pedidos) = executar("PR-B", true, None, respostas);
+    assert!(resultado.is_err(), "sem sigla nova na tela não há confirmação");
+    assert_eq!(
+        metodos_e_urls(&pedidos),
+        [
+            ("GET", url_controle(ID_A)),
+            ("GET", url_da_troca(ID_A)),
+            ("POST", post_da_troca()),
+            ("GET", url_com_aviso(ID_B)),
+            ("GET", url_limpa(ID_B)),
+        ]
+    );
+}
+
+#[test]
 fn primeiro_salto_ja_200_com_o_controle_novo_basta() {
     let respostas = com(
         inicio(),
