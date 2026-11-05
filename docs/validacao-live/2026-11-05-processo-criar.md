@@ -19,7 +19,7 @@ status: not-run
 | Compilação, Clippy, suíte Rust e subcódigos | PASS no CI #948 | 0 |
 | Gate completo no head 1d263ee | PASS (run 42069555057) | 0 |
 | Recusa HTTP do GET preserva status (integração) | PASS no teste sintético | 0 |
-| Replay integral das cassettes publicadas | NOT_RUN | 0 |
+| Replay integral das cassettes publicadas | PASS offline em 42102035089 (15 cassettes, 83 respostas; não prova escrita) | 0 |
 | Prévia ao vivo em UnB/UFRJ | NOT_RUN | 0 |
 | Criação ao vivo | NOT_RUN — autorizada em treinamento (05/11/2026), ainda não executada | 0 |
 | Leitura posterior de NUP criado | NOT_RUN | 0 |
@@ -35,7 +35,8 @@ com o resíduo registrado aqui. Ainda não foi executada.
 
 O código da CLI, da prévia e da confirmação foi implementado
 na PR #249 e testado em transporte injetado (sem rede real).
-Os testes offline NÃO certificam paridade live IES/Todos.
+Os testes offline NÃO certificam paridade live IES/Todos. As linhas
+históricas abaixo distinguem o estado de cada fase do estado atual.
 RED antes da implementação: contagem não medida. A revisão
 final do CI no head atualizado precisa ser consultada no GitHub.
 
@@ -68,7 +69,7 @@ A compilação local e o RED local permaneceram **NOT_RUN**.
 | Duas hipóteses legais: recusa antes do POST criador | PASS sintético no mesmo CI | 4 (3 GET + 1 POST AJAX) | 0 |
 | Consulta AJAX não declarada: recusa sem POST | PASS sintético no mesmo CI | 3 GET | 0 |
 | HTTP 503 no AJAX: status preservado sem escrita | Teste acrescentado, verificar CI do head atualizado | 4 (3 GET + 1 POST AJAX) | 0 |
-| Replay dos ZIPs originais (UnB/UFRJ/GO/PEN) | NOT_RUN — ZIPs fora do Git e ambiente sem acesso à origem | 0 | 0 |
+| Replay dos ZIPs originais (UnB/UFRJ/GO/PEN) | NOT_RUN nesta fase AJAX; executado na fase posterior em 42102035089 | 0 | 0 |
 | Prévia ao vivo em instalação de treinamento | NOT_RUN — sem execução autenticada | 0 | 0 |
 | Um único `--confirmar` em treinamento | NOT_RUN — não executado | 0 | 0 |
 | Leitura posterior live e resíduo | NOT_RUN — nenhum processo criado | 0 | 0 |
