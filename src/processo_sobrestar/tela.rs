@@ -1,4 +1,4 @@
-//! Conferência estrutural do formulário de sobrestamento observado na UnB (#269).
+//! Conferência estrutural do formulário de sobrestamento observado na `UnB` (#269).
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -114,46 +114,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
             return Err(E::CampoInesperado);
         }
-        let nome = atributo(tag, "name")?.ok_or(E::CampoInesperado)?;
-        let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
-            if elemento == "button" {
-                "submit"
-            } else {
-                "text"
-            }
-            .to_owned()
-        });
-        let valor = atributo(tag, "value")?.unwrap_or_default();
-        *vistos.entry(nome.clone()).or_default() += 1;
-        match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
-            ("input", "hidden", "hdnIdProtocolos") if valor != id => return Err(E::OutroProcesso),
-            ("input", "hidden", "hdnInfraTipoPagina") if valor == "2" => {}
-            ("input", "hidden", "hdnIdProtocolos") => {}
-            ("input", "hidden", "hdnIdProcedimentoDestino") if valor.is_empty() => {}
-            ("input", "radio", "rdoSobrestar")
-                if matches!(valor.as_str(), "S" | "V") && !presente(tag, "checked")? =>
-            {
-                *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
-            }
-            ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino")
-                if valor.is_empty() => {}
-            ("textarea", _, "txaMotivo")
-                if !presente(tag, "readonly")?
-                    && tag.inner_text(dom.parser()).trim().is_empty() => {}
-            ("input" | "button", "submit", "sbmSalvar")
-                if valor == "Salvar"
-                    && !presente(tag, "formaction")?
-                    && !presente(tag, "formmethod")?
-                    && !presente(tag, "formenctype")? => {}
-            ("input" | "button", "button", "btnCancelar") => {}
-            ("input", "hidden", "hdnIdProcedimentoDestino")
-            | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") => {
-                return Err(E::DestinoPreenchido);
-            }
-            ("input", "radio", "rdoSobrestar") => return Err(E::OpcaoNaoOferecida),
-            ("select", _, "selProcedimentos") if presente(tag, "multiple")? => {}
-            _ => return Err(E::CampoInesperado),
-        }
+        conferir_campo(&dom, tag, id, &mut vistos)?;
     }
     let esperados = [
         ("hdnInfraTipoPagina", 1),
@@ -177,6 +138,69 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         Err(E::OpcaoNaoOferecida)
     } else {
         Err(E::CampoInesperado)
+    }
+}
+
+/// Um controle enviável, conferido contra a forma observada antes do POST.
+fn conferir_campo(
+    dom: &tl::VDom<'_>,
+    tag: &tl::HTMLTag<'_>,
+    id: &str,
+    vistos: &mut HashMap<String, usize>,
+) -> Result<(), ErroTela> {
+    use ErroTela as E;
+    let atributo = |nome: &'static str| {
+        valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada)
+    };
+    let presente = |nome: &'static str| {
+        atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada)
+    };
+    let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    let nome = atributo("name")?.ok_or(E::CampoInesperado)?;
+    let tipo = atributo("type")?.unwrap_or_else(|| {
+        if elemento == "button" { "submit" } else { "text" }.to_owned()
+    });
+    let valor = atributo("value")?.unwrap_or_default();
+    *vistos.entry(nome.clone()).or_default() += 1;
+    let valido = match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+        ("input", "hidden", "hdnIdProtocolos") => {
+            if valor != id {
+                return Err(E::OutroProcesso);
+            }
+            true
+        }
+        ("input", "hidden", "hdnInfraTipoPagina") => valor == "2",
+        ("input", "hidden", "hdnIdProcedimentoDestino")
+        | ("input", "text", "txtProcedimentoDestino" | "txtIdentificacaoProcedimentoDestino") =>
+            valor.is_empty(),
+        ("input", "radio", "rdoSobrestar") => {
+            let valido = matches!(valor.as_str(), "S" | "V") && !presente("checked")?;
+            if valido {
+                *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
+            }
+            valido
+        }
+        ("textarea", _, "txaMotivo") =>
+            !presente("readonly")? && tag.inner_text(dom.parser()).trim().is_empty(),
+        ("input" | "button", "submit", "sbmSalvar") =>
+            valor == "Salvar"
+                && !presente("formaction")?
+                && !presente("formmethod")?
+                && !presente("formenctype")?,
+        ("input" | "button", "button", "btnCancelar") => true,
+        ("select", _, "selProcedimentos") => presente("multiple")?,
+        _ => false,
+    };
+    if valido {
+        Ok(())
+    } else {
+        match nome.as_str() {
+            "hdnIdProcedimentoDestino" | "txtProcedimentoDestino"
+            | "txtIdentificacaoProcedimentoDestino" if !valor.is_empty() =>
+                Err(E::DestinoPreenchido),
+            "rdoSobrestar" => Err(E::OpcaoNaoOferecida),
+            _ => Err(E::CampoInesperado),
+        }
     }
 }
 
