@@ -143,24 +143,26 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     .map_err(|_| E::ConsultaNaoDerivada)?;
     *requisicoes += 1;
     let resposta = envio.post(consulta, cookie).map_err(|f| E::de_transporte(&f))?;
-    if resposta.resposta.status_code != 200
-        || !matches!(
-            resposta
-                .resposta
-                .mime
-                .split(';')
-                .next()
-                .unwrap_or_default()
-                .trim(),
-            "application/xml" | "text/xml"
-        )
-    {
+    if resposta.resposta.status_code != 200 {
+        let falha = crate::transporte::recusar_status(resposta.resposta);
+        return Err(E::de_transporte(&falha));
+    }
+    if !matches!(
+        resposta
+            .resposta
+            .mime
+            .split(';')
+            .next()
+            .unwrap_or_default()
+            .trim(),
+        "application/xml" | "text/xml"
+    ) {
         return Err(E::RespostaNaoReconhecida);
     }
     let mime = resposta.resposta.mime.clone();
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(|f| E::de_transporte(&f))?;
-    let xml = decode_http_body(&bytes, &mime).map_err(|f| E::de_transporte(&f))?;
+    let xml = decode_http_body(&bytes, &mime).map_err(|_| E::RespostaNaoReconhecida)?;
     opcao_unica(&xml)
 }
 
