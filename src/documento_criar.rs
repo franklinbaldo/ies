@@ -397,6 +397,31 @@ mod tests {
     }
 
     #[test]
+    fn criacao_recusa_arvore_inicial_sem_identidade_unica() {
+        // Um snapshot inicial inconsistente não pode provar escrita única.
+        let original = doc("1", Some("000001"), "Ofício 000001");
+        let antes = [original.clone(), original.clone()];
+        let depois = [
+            original,
+            doc("2", Some("000002"), "Despacho 000002"),
+        ];
+        assert_eq!(
+            conferir_criacao(&antes, &depois, "Despacho"),
+            Err(ErroCriar::EfeitoIncerto)
+        );
+    }
+
+    #[test]
+    fn criacao_recusa_identidade_nova_vazia() {
+        // Um nó sem id não pode estabelecer unicidade no SEI.
+        let depois = [doc("", Some("000002"), "Despacho 000002")];
+        assert_eq!(
+            conferir_criacao(&[], &depois, "Despacho"),
+            Err(ErroCriar::EfeitoIncerto)
+        );
+    }
+
+    #[test]
     fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
         // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
         let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
