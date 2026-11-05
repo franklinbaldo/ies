@@ -7,6 +7,7 @@
 //! `PROCESSO_ANEXADO`, `DOCUMENTO`, `DOCUMENTO_MOVIDO`, `PASTA` e
 //! `AGUARDE`; qualquer outro é recusa.
 mod anexados;
+mod anexar;
 mod assinatura;
 mod barra_do_documento;
 mod barra_do_processo;
@@ -64,6 +65,7 @@ mod tests_situacao;
 pub(crate) mod tests_tela;
 
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
+pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
     ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
