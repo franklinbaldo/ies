@@ -445,7 +445,7 @@ fn run(cli: &Cli) -> ExitCode {
         return status;
     }
     match &cli.command {
-        Domain::Bloco(ref bloco) => return bloco_cli::executar(cli, bloco),
+        Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {
