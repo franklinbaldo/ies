@@ -1,5 +1,10 @@
 //! Núcleo offline da criação de documento interno (#246). Nenhuma rede.
+mod fluxo;
+pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, obter_previa};
+
 use crate::arvore_processo::DocumentoNaArvore;
+use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::instalacao::Instalacao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
@@ -10,6 +15,12 @@ pub(crate) enum ErroCriar {
     TipoAmbiguo,
     NaoAplicado,
     EfeitoIncerto,
+    LinkDoTipoNaoNavegavel,
+    EnderecoDoTipoNaoReconhecido,
+    CadastroForaDaForma,
+    TipoDoCadastroDiferente,
+    DescricaoNaoOferecida,
+    NivelNaoOferecido,
 }
 impl ErroCriar {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -19,6 +30,12 @@ impl ErroCriar {
             Self::TipoAmbiguo => "tipo_de_documento_ambiguo",
             Self::NaoAplicado => "documento_criado_nao_comprovado",
             Self::EfeitoIncerto => "efeito_incerto_na_criacao_de_documento",
+            Self::LinkDoTipoNaoNavegavel => "link_do_tipo_de_documento_nao_navegavel",
+            Self::EnderecoDoTipoNaoReconhecido => "endereco_do_tipo_de_documento_nao_reconhecido",
+            Self::CadastroForaDaForma => "cadastro_de_documento_fora_da_forma_observada",
+            Self::TipoDoCadastroDiferente => "tipo_do_cadastro_diferente_do_solicitado",
+            Self::DescricaoNaoOferecida => "descricao_nao_oferecida_no_cadastro",
+            Self::NivelNaoOferecido => "nivel_nao_oferecido_no_cadastro",
         }
     }
 }
@@ -133,6 +150,125 @@ pub(crate) fn conferir_criacao(
     }
     Ok(numero.to_owned())
 }
+
+
+/// Aceita só o href direto e assinado publicado para o tipo exato.
+/// Na forma escolher(id), a navegação depende da tela e ainda não foi derivada:
+/// falha fechado, sem construir uma URL e sem executar JavaScript.
+pub(crate) fn link_direto_do_tipo(
+    instalacao: &Instalacao,
+    html: &str,
+    id_procedimento: &str,
+    tipo: &str,
+) -> Result<String, ErroCriar> {
+    use ErroCriar as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
+    let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| E::ListaForaDaForma)?;
+    let [tabela] = tabelas.as_slice() else {
+        return Err(E::ListaForaDaForma);
+    };
+    let tabela = tabela.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ListaForaDaForma)?;
+    if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
+        return Err(E::ListaForaDaForma);
+    }
+    let mut links = Vec::new();
+    for tag in tabela.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+            continue;
+        }
+        let nome = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+        let nome = decodificar_atributo(&nome).ok_or(E::ListaForaDaForma)?;
+        if nome != tipo {
+            continue;
+        }
+        let href = valor_do_atributo(tag, "href").map_err(|_| E::ListaForaDaForma)?
+            .ok_or(E::LinkDoTipoNaoNavegavel)?;
+        let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
+        links.push(href);
+    }
+    let link = match links.as_slice() {
+        [] => return Err(E::TipoAusente),
+        [link] => link,
+        _ => return Err(E::TipoAmbiguo),
+    };
+    if link.starts_with("javascript:") {
+        return Err(E::LinkDoTipoNaoNavegavel);
+    }
+    conferir_endereco_relativo(instalacao, link, "documento_gerar", id_procedimento)
+        .map_err(|_| E::EnderecoDoTipoNaoReconhecido)
+}
+
+/// Verifica a identidade do cadastro antes de qualquer POST de criação.
+pub(crate) fn conferir_cadastro(
+    html: &str,
+    tipo: &str,
+    descricao: Option<&str>,
+    nivel: Option<&str>,
+) -> Result<(), ErroCriar> {
+    use ErroCriar as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::CadastroForaDaForma)?;
+    let formularios = nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| E::CadastroForaDaForma)?;
+    let [formulario] = formularios.as_slice() else {
+        return Err(E::CadastroForaDaForma);
+    };
+    let formulario = formulario.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::CadastroForaDaForma)?;
+    if !formulario.name().as_utf8_str().eq_ignore_ascii_case("form")
+        || valor_do_atributo(formulario, "method").map_err(|_| E::CadastroForaDaForma)?
+            .as_deref() != Some("post") {
+        return Err(E::CadastroForaDaForma);
+    }
+    let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(|_| E::CadastroForaDaForma)?;
+    let [rotulo] = rotulos.as_slice() else {
+        return Err(E::CadastroForaDaForma);
+    };
+    let rotulo = rotulo.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::CadastroForaDaForma)?;
+    if !rotulo.name().as_utf8_str().eq_ignore_ascii_case("label") {
+        return Err(E::CadastroForaDaForma);
+    }
+    let lido = rotulo.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+    let lido = decodificar_atributo(&lido).ok_or(E::CadastroForaDaForma)?;
+    if lido != tipo {
+        return Err(E::TipoDoCadastroDiferente);
+    }
+    if descricao.is_some_and(|valor| !valor.is_empty()) {
+        let controles = nos_com_id(&dom, "txtDescricao").map_err(|_| E::CadastroForaDaForma)?;
+        let [controle] = controles.as_slice() else {
+            return Err(E::DescricaoNaoOferecida);
+        };
+        let controle = controle.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::DescricaoNaoOferecida)?;
+        if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
+            || valor_do_atributo(controle, "name").map_err(|_| E::CadastroForaDaForma)?
+                .as_deref() != Some("txtDescricao")
+            || valor_do_atributo(controle, "disabled").map_err(|_| E::CadastroForaDaForma)?.is_some()
+        {
+            return Err(E::DescricaoNaoOferecida);
+        }
+    }
+    if let Some(nivel) = nivel {
+        let id = match nivel {
+            "publico" => "optPublico",
+            "restrito" => "optRestrito",
+            "sigiloso" => "optSigiloso",
+            _ => return Err(E::NivelNaoOferecido),
+        };
+        let controles = nos_com_id(&dom, id).map_err(|_| E::CadastroForaDaForma)?;
+        let [controle] = controles.as_slice() else {
+            return Err(E::NivelNaoOferecido);
+        };
+        let controle = controle.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::NivelNaoOferecido)?;
+        if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
+            || valor_do_atributo(controle, "name").map_err(|_| E::CadastroForaDaForma)?
+                .as_deref() != Some("rdoNivelAcesso")
+            || valor_do_atributo(controle, "type").map_err(|_| E::CadastroForaDaForma)?
+                .as_deref() != Some("radio")
+            || valor_do_atributo(controle, "disabled").map_err(|_| E::CadastroForaDaForma)?.is_some()
+        {
+            return Err(E::NivelNaoOferecido);
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
