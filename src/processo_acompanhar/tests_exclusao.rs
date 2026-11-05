@@ -116,3 +116,42 @@ fn exclusao_recusa_oculto_desabilitado() {
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
     );
 }
+
+#[test]
+fn previa_deixar_com_oferta_valida_somente_le_e_conta_quatro_gets() {
+    // Testa o caminho completo, não somente a função pura de exclusão.
+    use crate::processo_acompanhar::fluxo::{Pedido, previa};
+    use crate::processo_concluir::tests_apoio::{
+        UNIDADE, abertura, absoluta, ambiente, arvore, get, ok, pedidos_da_abertura, rodar_com,
+    };
+    use crate::propriedades_processo::tests_apoio::acao_da_barra;
+
+    let gerenciar = format!(
+        "controlador.php?acao=acompanhamento_gerenciar&id_procedimento=10&infra_hash={}",
+        "a".repeat(64)
+    );
+    let html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar)]);
+    let mut respostas = abertura(html);
+    respostas.push(ok(lista_observada("831")));
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: true,
+            confirmar: false,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    let plano = resultado.unwrap();
+    assert_eq!(plano.operacao, "deixar");
+    assert_eq!(plano.id_de_remocao.as_deref(), Some("831"));
+    assert!(!plano.confirmado && !plano.alterado && !plano.ja_estava);
+    assert_eq!(plano.requisicoes, 4);
+    let mut esperados = pedidos_da_abertura();
+    esperados.push(get(&absoluta(&gerenciar)));
+    assert_eq!(pedidos, esperados);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}
