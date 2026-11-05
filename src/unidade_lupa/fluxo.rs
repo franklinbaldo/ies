@@ -213,8 +213,45 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
     Ok(urls)
 }
 
-/// URL publicada em um link da tela de navegação.
-fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
+/// Extrai somente o conteúdo integral de literais simples entre aspas do
+/// script servido. Não interpreta escapes, variáveis nem executa JavaScript.
+/// A URL ainda precisa passar por validação de origem, ação e infra_hash.
+fn literais_do_script(script: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    let mut caracteres = script.char_indices().peekable();
+    while let Some((_, aspas)) = caracteres.next() {
+        if aspas != '\'' && aspas != '"' {
+            continue;
+        }
+        let inicio = caracteres.peek().map_or(script.len(), |(i, _)| *i);
+        let mut escapado = false;
+        let mut fim = None;
+        while let Some((posicao, c)) = caracteres.next() {
+            if escapado {
+                escapado = false;
+            } else if c == '\\' {
+                escapado = true;
+            } else if c == aspas {
+                fim = Some(posicao);
+                break;
+            }
+        }
+        if let Some(fim) = fim {
+            let literal = &script[inicio..fim];
+            if literal.len() <= 2048
+                && !literal.contains('\\')
+                && literal.contains("controlador.php?")
+            {
+                urls.push(literal.to_owned());
+            }
+        }
+    }
+    urls
+}
+
+/// URL publicada em controle da tela; na lupa GO, também em literal
+/// estático de script da tela de cadastro, sem executar JavaScript.
+fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaLupa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
     let parser = dom.parser();
@@ -225,6 +262,14 @@ fn candidatos(html: &str) -> Result<Vec<String>, FalhaDaLupa> {
                 continue;
             };
             urls.extend(candidatos_do_controle(tag)?);
+        }
+    }
+    if acao == "unidade_selecionar_envio_processo" {
+        for no in dom.query_selector("script").into_iter().flatten() {
+            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            urls.extend(literais_do_script(tag.inner_text(parser).as_ref()));
         }
     }
     Ok(urls)
@@ -266,7 +311,7 @@ fn destino_de_candidatos(
 }
 
 fn destino(html: &str, url_da_tela: &str, origem: &str, acao: &str) -> Result<String, FalhaDaLupa> {
-    destino_de_candidatos(candidatos(html)?, url_da_tela, origem, acao)
+    destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
 }
 
 fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa> {
