@@ -275,3 +275,106 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
     assert_eq!(erro.saida(), 1);
     assert_eq!(requests.len(), 2);
 }
+
+
+/// Caso de Todos tests/test_processo_criar_escolher_tipo_010.py @323eb01:
+/// a variante 4.1 exige um POST de seleção (só abre cadastro) e somente
+/// um POST criador. Após esse segundo POST, há duas leituras de verificação.
+#[test]
+fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(true)),
+        r302(&format!(
+            "controlador.php?acao=procedimento_gerar&infra_hash={HASH}"
+        )),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore(&[UNIDADE], &[])),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado);
+    assert!(feito.nup.is_some());
+    assert_eq!(feito.requisicoes, 7);
+    assert_eq!(requests.len(), 7);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        2
+    );
+    assert!(requests[2].url.contains("acao=procedimento_escolher_tipo"));
+    assert!(requests[4].url.contains("acao=procedimento_gerar"));
+    assert!(requests[5..].iter().all(|req| req.metodo == "GET"));
+}
+
+/// Segurança da confirmação: após POST, a Location não pode trazer duas
+/// ações, mesmo que só uma delas coincida com a ação esperada.
+/// Nenhum GET pode seguir uma Location ambígua: efeito incerto, saída 3.
+#[test]
+fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&acao=procedimento_excluir&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore(&[UNIDADE], &[])),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+}
+
+/// Segurança da confirmação: um id_procedimento inválido não é ignorado
+/// quando outro identificador numérico também aparece. Uma Location com
+/// dois valores do mesmo campo é ambígua e não autoriza GET.
+#[test]
+fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_procedimento=invalido&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore(&[UNIDADE], &[])),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+}
