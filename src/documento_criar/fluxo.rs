@@ -2,12 +2,12 @@
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::{
     ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_criacao,
-    conferir_tipo, escolha_do_tipo, tipos_oferecidos,
+    conferir_tipo, escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
 };
 use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
+    EstadoDeSessao, EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
     derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
@@ -28,6 +28,22 @@ use crate::visao_do_controle::EnvioDoControle as _;
 // hdnFlagDocumentoCadastro para "2". Nenhum JavaScript é executado.
 // Na UFRJ (SEI 4.1.5), escolher(id) só abre o cadastro do tipo:
 // POST de navegação observado, sem inclusão de documento.
+// Exibir todos somente quando a lista curta não mostrou o tipo. POST de
+// leitura da lista, nunca de criação; exige o script observado da tela.
+const FILTRAR_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "documento_escolher_tipo",
+    formulario: "frmDocumentoEscolherTipo",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnFiltroSerie"],
+    campos_ocultos_reescritos: &["hdnFiltroSerie"],
+    campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
+        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
+    },
+};
+
 const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "documento_escolher_tipo",
     formulario: "frmDocumentoEscolherTipo",
@@ -151,9 +167,38 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     }
     let link = acoes.incluir.map_err(E::Link)?.ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
-    let (html_lista, mime_lista) =
+    let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(E::Tela)?;
-    let tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
+    let mut tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
+    if !tipos.iter().any(|nome| nome == pedido.tipo)
+        && filtro_de_todos(&html_lista).map_err(E::Tipo)?
+    {
+        let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
+        let servida = TelaServida {
+            url: link.as_str(),
+            html: &html_lista,
+            codificacao,
+        };
+        let submissao = derivar_submissao(
+            &FILTRAR_TIPOS,
+            &instalacao,
+            &servida,
+            &unidade,
+            &[("hdnFiltroSerie", "T")],
+        )
+        .map_err(E::Formulario)?;
+        let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
+            rede.post(post, cookie)
+        })
+        .map_err(E::Formulario)?;
+        // A evidência conhecida é o HTML da lista completa. Nunca seguir
+        // 302 desconhecido nem repetir o POST da mudança de filtro.
+        let RespostaDoEnvio::Html(completa) = resposta else {
+            return Err(E::SubmissaoNaoComprovada);
+        };
+        html_lista = completa;
+        tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
+    }
     conferir_tipo(pedido.tipo, &tipos).map_err(E::Tipo)?;
     let escolha = escolha_do_tipo(
         &instalacao,
