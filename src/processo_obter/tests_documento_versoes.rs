@@ -118,6 +118,7 @@ fn rodar_em(
 }
 
 fn versao(n: u32) -> PedidoDeVersoes {
+            cache: false, 
     PedidoDeVersoes {
         versao: Some(VersaoDocumento::nova(n).unwrap()),
         foto: false,
@@ -126,6 +127,7 @@ fn versao(n: u32) -> PedidoDeVersoes {
 
 /// `--saida DIR` sem `--versao` (#207).
 const FOTO: PedidoDeVersoes = PedidoDeVersoes {
+            cache: false, 
     versao: None,
     foto: true,
 };
