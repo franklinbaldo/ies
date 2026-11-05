@@ -2,8 +2,8 @@
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::confirmacao::{FotoDaCriacao, postar_e_verificar};
 use super::{
-    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro,
-    conferir_tipo, escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
+    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
+    escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
 };
 use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::formulario_web::{
