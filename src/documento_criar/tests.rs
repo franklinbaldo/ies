@@ -172,6 +172,19 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
 }
 
 #[test]
+fn cadastro_recusa_nivel_com_valor_radio_diferente_do_observado() {
+    // O número do nível vem da tela, não pode ser escolhido por suposição.
+    let html = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>
+        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="9">
+        </form>"#;
+    assert_eq!(
+        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        Err(ErroCriar::NivelNaoOferecido)
+    );
+}
+
+#[test]
 fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
     // Caso de Todos tests/paginas_reais/documento_gerar.html @323eb01
     let html = r#"<form id="frmDocumentoCadastro" method="post">
