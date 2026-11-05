@@ -161,8 +161,10 @@ pub(super) struct ArvoreAberta {
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
     /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
-    pub(super) ciencia: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
-    pub(super) lista_ciencias: Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) ciencia:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) lista_ciencias:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
 }
 
 pub(super) fn ler_arvore_aberta(
