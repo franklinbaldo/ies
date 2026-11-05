@@ -26,7 +26,9 @@ impl ErroConfiguracao {
             Self::CookieSemCaminhoConfigurado => "caminho_cookie_nao_informado",
             Self::OrigemAutorizadaNaoConfigurada => "caminho_origem_nao_informado",
             Self::ArquivoDeConfiguracaoNaoPodeSerLido => "arquivo_configuracao_nao_pode_ser_lido",
-            Self::ArquivoConfiguracaoPermissoesAbertas => "arquivo_configuracao_permissoes_inseguras",
+            Self::ArquivoConfiguracaoPermissoesAbertas => {
+                "arquivo_configuracao_permissoes_inseguras"
+            }
             Self::ArquivoConfiguracaoLinkSimbolico => "arquivo_configuracao_link_simbolico",
             Self::ArquivoConfiguracaoJsonInvalido => "arquivo_configuracao_json_invalido",
             Self::ArquivoConfiguracaoCampoInvalido => "arquivo_configuracao_campo_invalido",
@@ -40,10 +42,14 @@ impl ErroConfiguracao {
             Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
                 "arquivo IES_CONFIG_FILE ausente, não regular, excessivo ou ilegível"
             }
-            Self::ArquivoConfiguracaoPermissoesAbertas => "IES_CONFIG_FILE tem permissões inseguras",
+            Self::ArquivoConfiguracaoPermissoesAbertas => {
+                "IES_CONFIG_FILE tem permissões inseguras"
+            }
             Self::ArquivoConfiguracaoLinkSimbolico => "IES_CONFIG_FILE é link simbólico",
             Self::ArquivoConfiguracaoJsonInvalido => "IES_CONFIG_FILE não contém JSON válido",
-            Self::ArquivoConfiguracaoCampoInvalido => "IES_CONFIG_FILE contém campo de caminho inválido",
+            Self::ArquivoConfiguracaoCampoInvalido => {
+                "IES_CONFIG_FILE contém campo de caminho inválido"
+            }
         }
     }
 }
