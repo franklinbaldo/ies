@@ -241,10 +241,7 @@ mod tests {
             validar_hipotese("restrito", Some("31")),
             Err(ErroEntradaCriacao::Hipotese)
         );
-        assert_eq!(
-            validar_hipotese("restrito", Some("31#Base A")),
-            Ok(())
-        );
+        assert_eq!(validar_hipotese("restrito", Some("31#Base A")), Ok(()));
     }
 
     #[test]
