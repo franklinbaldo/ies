@@ -127,3 +127,29 @@ IES não restaura a tela.
 Validação live: **PASS** na UnB e, em 04/11/2026, na UFRJ 4.1.5, na PEN3 e
 na PEN4 5.0.4 (pesquisa rápida, link da árvore, `--processo`, `--saida`;
 [varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).
+
+## Cache privado automático (#236)
+
+A leitura Web grava automaticamente a representação integral em
+`${XDG_CACHE_HOME:-$HOME/.cache}/ies/<host>/<DOC>/v<N>-<sha256[:16]>.<ext>`;
+sem versão observada, usa `x-<sha256[:16]>.<ext>`. Documento e
+instalação são a identidade, não o processo. Internos usam HTML servido;
+externos usam PDF, TXT ou HTML original em fluxo, com limite e hash
+já conferidos. A leitura não consulta lista apenas para nomear o cache.
+
+`--sem-cache` e `IES_CACHE_DOCUMENTOS=0` desligam a escrita.
+`--saida DIR` continua como cópia opcional, com idempotência:
+link físico quando possível, cópia exclusiva caso contrário.
+O JSON acrescenta `cache: {caminho, versao, sha256}` ou `null` e
+`crc_rodape` do bloco assinado, quando observado, ou `null`.
+CRC não é identidade ou validação criptográfica.
+
+As gravações do cache usam diretórios privados 0700, arquivo 0600
+e nome com SHA-256. Conteúdo com `infra_hash` é recusado; arquivos
+preexistentes têm seu conteúdo confrontado com hash completo.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `diretorio_cache_documento_inseguro` | caminho ou identidade do cache inválido |
+| `gravacao_cache_documento_falhou` | não foi possível gravar ou publicar cache privado |
+| `cache_documento_local_divergente` | cópia existente diverge do conteúdo servido ou do SHA-256 integral |

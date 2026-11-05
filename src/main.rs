@@ -4,6 +4,7 @@ mod arquivo_copia;
 mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
+mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
 #[cfg(test)]
@@ -197,6 +198,9 @@ struct Documento {
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,
+    /// Desativa a gravação automática do cache local de documentos
+    #[arg(long)]
+    sem_cache: bool,
     /// Oculta documentos não acessíveis
     #[arg(long)]
     ocultar_inacessiveis: bool,
