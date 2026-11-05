@@ -154,4 +154,12 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Prévia da anexação do processo NUP ao processo principal (--a).
+    Anexar {
+        numero: String,
+        #[arg(long)]
+        a: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
 }

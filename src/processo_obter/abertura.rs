@@ -5,13 +5,14 @@ use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
-    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroArvore, ErroAtribuirNaBarra,
-    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra, ErroRelacionarNaBarra,
-    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
-    ler_andamento_da_barra, ler_arvore, ler_atribuir_da_barra, ler_concluir_da_barra,
-    ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
-    ler_link_dos_marcadores, ler_reabrir_da_barra, ler_relacionar_da_barra, ler_retomar_da_barra,
-    ler_sobrestar_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
+    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
+    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
+    ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -165,6 +166,7 @@ pub(super) struct ArvoreAberta {
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    pub(super) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
     /// O link de atribuição, só examinado pelo comando atribuir.
     pub(super) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Link do formulário de Atualizar Andamento, quando publicado.
@@ -205,6 +207,7 @@ pub(super) fn ler_arvore_da_pagina(
     let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
     let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let anexar = ler_anexar_da_barra(instalacao, html, id);
     let atribuir = ler_atribuir_da_barra(instalacao, html, id);
     let andamento = ler_andamento_da_barra(instalacao, html, id);
     let relacionar = ler_relacionar_da_barra(instalacao, html, id);
@@ -224,6 +227,7 @@ pub(super) fn ler_arvore_da_pagina(
         relacionar,
         andamento,
         atribuir,
+        anexar,
     })
 }
 

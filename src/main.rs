@@ -54,6 +54,8 @@ mod processo_acompanhar;
 mod processo_acompanhar_cli;
 mod processo_andamento_registrar;
 mod processo_andamento_registrar_cli;
+mod processo_anexar;
+mod processo_anexar_cli;
 mod processo_atribuir;
 mod processo_atribuir_cli;
 mod processo_buscar_cli;
@@ -371,6 +373,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
         .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))

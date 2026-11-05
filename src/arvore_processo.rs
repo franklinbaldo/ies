@@ -9,6 +9,7 @@
 mod acompanhar;
 mod andamento;
 mod anexados;
+mod anexar;
 mod assinatura;
 mod atribuir;
 mod barra_do_documento;
@@ -73,6 +74,7 @@ pub(crate) mod tests_tela;
 pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
+pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
     ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
     ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,

@@ -13,9 +13,9 @@ use super::{
 };
 use crate::arvore_processo::{
     ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroAcompanharNaBarra,
-    ErroAndamentoNaBarra, ErroArvore, ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra,
-    ErroReabrirNaBarra, ErroRelacionarNaBarra, ErroTelaDoProcesso, ReabrirNaBarra,
-    ler_tela_do_processo,
+    ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore, ErroAtribuirNaBarra, ErroConcluirNaBarra,
+    ErroEnviarNaBarra, ErroReabrirNaBarra, ErroRelacionarNaBarra, ErroTelaDoProcesso,
+    ReabrirNaBarra, ler_tela_do_processo,
 };
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
@@ -55,6 +55,7 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    pub(crate) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
     /// Atribuição do processo na unidade atual.
     pub(crate) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Ação de registrar andamento, lida da barra do processo.
@@ -130,6 +131,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         sobrestar: arvore_lida.sobrestar,
         retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
+        anexar: arvore_lida.anexar,
         atribuir: arvore_lida.atribuir,
         andamento: arvore_lida.andamento,
         relacionar: arvore_lida.relacionar,
