@@ -77,7 +77,7 @@ pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
     ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
 };
-pub(crate) use ciencia::{ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo};
+pub(crate) use ciencia::{ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia};
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
