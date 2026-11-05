@@ -2,7 +2,7 @@
 //! Nenhuma credencial nem URL assinada é publicada; efeito incerto sai 3.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
-use crate::processo_sobrestar::{Acao, ErroSobrestamento, executar};
+use crate::processo_sobrestar::{Acao, ErroSobrestamento, PedidoDaMudanca, executar};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -63,16 +63,14 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
         );
     }
     com_sessao(cli, |sessao, indice| {
-        match executar(
-            sessao,
-            &nup,
-            cli.unidade.as_deref(),
+        let pedido = PedidoDaMudanca {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
             acao,
             motivo,
             confirmar,
-            indice,
-            &mut EnvioHttps,
-        ) {
+        };
+        match executar(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(previa) => {
                 if cli.json {
                     println!(
@@ -90,16 +88,15 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             "requisicoes": previa.requisicoes
                         })
                     );
-                } else {
-                    if previa.confirmado {
+                } else if previa.confirmado {
                         println!(
                             "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
                             previa.nup,
                             previa.acao.como_texto(),
                             previa.requisicoes
                         );
-                    } else {
-                        println!(
+                } else {
+                    println!(
                             "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
                             previa.acao.como_texto(),
                             previa.nup,
