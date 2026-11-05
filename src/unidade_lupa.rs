@@ -1,6 +1,8 @@
 //! Leitor estrutural da lupa de unidades (issue #244).
 //! Não executa JavaScript nem presume que autocomplete enumere todos.
 //! Evidência: Todos src/todos/sei/lupa_unidades.py, Goiás 5.0.3.
+mod fluxo;
+pub(crate) use fluxo::{HttpsLupa, ler_integral};
 use crate::entidades_html::decodificar_texto;
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::UnidadeGuardada;
