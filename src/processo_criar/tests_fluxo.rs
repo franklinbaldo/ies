@@ -187,7 +187,12 @@ fn interessado_nao_resolvido_nao_cria() {
             rede,
         )
     });
-    assert!(matches!(resultado, Err(ErroCriar::Interessado(crate::processo_criar_interessados::ErroInteressado::ControlesAusentes))));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Interessado(
+            crate::processo_criar_interessados::ErroInteressado::ControlesAusentes
+        ))
+    ));
     assert_eq!(requests.len(), 3);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -213,16 +218,34 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
         "\n<script>\nobjAutoCompletarInteressadoRI1225 = new infraAjaxAutoCompletar('hdnIdInteressadoProcedimento','txtInteressadoProcedimento','controlador_ajax.php?acao_ajax=contato_auto_completar_contexto_RI1225&infra_hash={HASH}');\n</script>"
     );
     let respostas = vec![
-        ok(tela_controle()), ok(lista(false)), ok(cadastro),
-        ok("<?xml version='1.0'?><itens><item id='77' descricao='Pessoa de Teste'/></itens>".to_owned()),
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro),
+        ok(
+            "<?xml version='1.0'?><itens><item id='77' descricao='Pessoa de Teste'/></itens>"
+                .to_owned(),
+        ),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido, rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido,
+            rede,
+        )
     });
     let feito = resultado.unwrap();
     assert_eq!(feito.interessados, vec!["Pessoa de Teste"]);
     assert!(!feito.confirmado);
     assert_eq!(feito.requisicoes, 4);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
-    assert!(requests[3].url.contains("acao_ajax=contato_auto_completar_contexto_RI1225"));
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
+    assert!(
+        requests[3]
+            .url
+            .contains("acao_ajax=contato_auto_completar_contexto_RI1225")
+    );
 }
