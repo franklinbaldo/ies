@@ -1,4 +1,4 @@
-//! Núcleo offline da criação de documento interno (#246). Nenhuma rede.
+//! Seleção, cadastro e reconciliação offline (#246); prévia Web no módulo fluxo.
 mod fluxo;
 pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, obter_previa};
 
