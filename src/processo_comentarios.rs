@@ -106,10 +106,7 @@ fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentario
         .ok_or(ErroComentarios::HtmlNaoInterpretado)
 }
 
-fn tabela_unica<'p>(
-    dom: &tl::VDom<'p>,
-    id: &str,
-) -> Result<Option<Tag<'p>>, ErroComentarios> {
+fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
     let nos = nos_com_id(dom, id).map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
     match nos.as_slice() {
         [] => Ok(None),
@@ -130,8 +127,8 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
     let parser = dom.parser();
     let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
         .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
-    let listas = nos_com_id(&dom, "frmComentarioLista")
-        .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
+    let listas =
+        nos_com_id(&dom, "frmComentarioLista").map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
     if cadastros.len() == 1 && listas.is_empty() {
         let form = cadastros[0]
             .get(parser)
@@ -140,12 +137,18 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
         if form.name() == "form" {
             let areas = descendentes(form, parser, "textarea");
             let botoes = descendentes(form, parser, "input");
-            let area_ok = areas.iter().filter(|t| {
-                atributo(t, "name").ok().flatten().as_deref() == Some("txaDescricao")
-            }).count() == 1;
-            let botao_ok = botoes.iter().filter(|t| {
-                atributo(t, "name").ok().flatten().as_deref() == Some("sbmCadastrarComentario")
-            }).count() == 1;
+            let area_ok = areas
+                .iter()
+                .filter(|t| atributo(t, "name").ok().flatten().as_deref() == Some("txaDescricao"))
+                .count()
+                == 1;
+            let botao_ok = botoes
+                .iter()
+                .filter(|t| {
+                    atributo(t, "name").ok().flatten().as_deref() == Some("sbmCadastrarComentario")
+                })
+                .count()
+                == 1;
             if area_ok && botao_ok && tabela_unica(&dom, "tblComentarios")?.is_none() {
                 return Ok(TelaDosComentarios::CadastroSemComentarios);
             }
@@ -186,24 +189,34 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
         return Err(ErroComentarios::LegendaInvalida);
     };
     let legenda = texto(caption, parser)?;
-    let (prefixo, resto) = legenda.rsplit_once('(').ok_or(ErroComentarios::LegendaInvalida)?;
+    let (prefixo, resto) = legenda
+        .rsplit_once('(')
+        .ok_or(ErroComentarios::LegendaInvalida)?;
     if !prefixo.to_lowercase().contains("coment") {
         return Err(ErroComentarios::LegendaInvalida);
     }
-    let resto = resto.strip_suffix("):").or_else(|| resto.strip_suffix(')'))
+    let resto = resto
+        .strip_suffix("):")
+        .or_else(|| resto.strip_suffix(')'))
         .ok_or(ErroComentarios::LegendaInvalida)?;
-    let numero = resto.strip_suffix(" registros").or_else(|| resto.strip_suffix(" registro"))
+    let numero = resto
+        .strip_suffix(" registros")
+        .or_else(|| resto.strip_suffix(" registro"))
         .ok_or(ErroComentarios::LegendaInvalida)?;
     if numero.is_empty() || numero.len() > 9 || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroComentarios::LegendaInvalida);
     }
-    let total_declarado = numero.parse::<usize>().map_err(|_| ErroComentarios::LegendaInvalida)?;
+    let total_declarado = numero
+        .parse::<usize>()
+        .map_err(|_| ErroComentarios::LegendaInvalida)?;
     let cabecalho: Vec<_> = descendentes(tabela, parser, "th")
         .iter()
         .map(|t| texto(t, parser))
         .collect::<Result<_, _>>()?;
     let campo = |nome: &str| -> Result<usize, ErroComentarios> {
-        let indices: Vec<usize> = cabecalho.iter().enumerate()
+        let indices: Vec<usize> = cabecalho
+            .iter()
+            .enumerate()
             .filter_map(|(i, c)| (c == nome).then_some(i))
             .collect();
         match indices.as_slice() {
@@ -215,7 +228,8 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
     let texto_idx = cabecalho.iter().position(|h| h == "Texto");
     let protocolo = cabecalho.iter().position(|h| h == "Protocolo");
     let tipo = cabecalho.iter().position(|h| h == "Tipo");
-    if cabecalho.is_empty() || (texto_idx.is_some() && cabecalho.iter().filter(|c| *c == "Texto").count() != 1)
+    if cabecalho.is_empty()
+        || (texto_idx.is_some() && cabecalho.iter().filter(|c| *c == "Texto").count() != 1)
         || (protocolo.is_some() != tipo.is_some())
     {
         return Err(ErroComentarios::CabecalhoInvalido);
@@ -233,7 +247,8 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
             .filter(|c| atributo(c, "type").ok().flatten().as_deref() == Some("checkbox"))
             .collect();
         if caixas.is_empty() {
-            let classe = atributos(tr).map_err(|_| ErroComentarios::HtmlNaoInterpretado)?
+            let classe = atributos(tr)
+                .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?
                 .tem_classe("trComentario")
                 .map_err(|_| ErroComentarios::HtmlNaoInterpretado)?;
             if aguardando_texto && classe && celulas.len() == 1 {
@@ -256,7 +271,9 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
             return Err(ErroComentarios::IdDoComentarioRepetido);
         }
         let valor = |i: usize| -> Result<String, ErroComentarios> {
-            celulas.get(i).map(|td| texto(td, parser))
+            celulas
+                .get(i)
+                .map(|td| texto(td, parser))
                 .ok_or(ErroComentarios::LinhaInvalida)?
         };
         let texto_lido = texto_idx.map(&valor).transpose()?.unwrap_or_default();
