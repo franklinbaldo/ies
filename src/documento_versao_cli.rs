@@ -143,6 +143,7 @@ pub(crate) mod testes {
 
     pub(crate) fn com_foto(numero: &str, n: u32, html: &str) -> DocumentoObtido {
         let mut d = documento(VersoesDoDocumento {
+            crc_rodape: None, 
             cache_html: None, 
             lida: Some(v(n)),
             atual: Ok(v(n)),
@@ -190,6 +191,7 @@ pub(crate) mod testes {
     fn lote_grava_so_as_fotos_e_repetir_e_no_op() {
         let pasta = diretorio();
         let mut externo = documento(VersoesDoDocumento {
+            crc_rodape: None, 
             cache_html: None, 
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
@@ -247,6 +249,7 @@ pub(crate) mod testes {
             json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": false, "motivo": "igual"})
         );
         let nao = documento(VersoesDoDocumento {
+            crc_rodape: None, 
             cache_html: None, 
             lida: None,
             atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
