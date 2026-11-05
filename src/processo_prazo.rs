@@ -1,6 +1,6 @@
 //! Controle de prazo da tela Web observada nas cassettes UnB/GO/UFRJ.
 //! O núcleo não faz rede, não avalia JavaScript e não publica URLs assinadas.
-//! Caso de testes: `Todos` tests/test_ciclo_prazo_010.py @323eb01.
+//! Caso de testes: `Todos` `tests/test_ciclo_prazo_010.py` @323eb01.
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PedidoDePrazo {
