@@ -378,3 +378,52 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
     assert_eq!(requests.len(), 4);
     assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
 }
+
+
+/// Link servido na lista 4.0 com duas identidades não permite abrir
+/// cadastro, mesmo que o primeiro ID seja numérico.
+#[test]
+fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
+    let amb = ambiente();
+    let html = lista(false).replace(
+        "id_tipo_procedimento=12&amp;infra_hash",
+        "id_tipo_procedimento=12&amp;id_tipo_procedimento=invalido&amp;infra_hash",
+    );
+    let respostas = vec![ok(tela_controle()), ok(html), ok(cadastro())];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(resultado, Err(ErroCriar::TipoSemIdentificador));
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
+
+/// A mesma ação esperada mais uma segunda ação não pode ser aceita em link
+/// de escolha; isso é recusado antes de consultar uma URL ambígua.
+#[test]
+fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
+    let amb = ambiente();
+    let html = lista(false).replace(
+        "acao=procedimento_gerar&amp;id_tipo_procedimento",
+        "acao=procedimento_gerar&amp;acao=procedimento_excluir&amp;id_tipo_procedimento",
+    );
+    let respostas = vec![ok(tela_controle()), ok(html), ok(cadastro())];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(resultado, Err(ErroCriar::Formulario));
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
