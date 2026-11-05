@@ -31,7 +31,7 @@ fn tela(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Optio
     let instalacao = gravacao::instalacao(json)?;
     Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
         Ok(_) => "documento selecionado na árvore".to_owned(),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
     })
 }
 
@@ -54,7 +54,7 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
                 Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar",
                 Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo",
                 Ok(ConteudoNaArvore::Vazio) => "vazio",
-                Err(erro) => erro.subcodigo(),
+                Err(erro) => crate::erro_publico::folha(&erro),
             };
             format!("`{icone}` → `{forma}`")
         })
@@ -99,10 +99,10 @@ fn anexo(item: &serde_json::Value) -> String {
 
 fn conteudo(html: &str) -> String {
     match identidade_do_titulo(html) {
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
         Ok(_) => match texto_do_corpo(html) {
             Ok(_) => "título e texto lidos".to_owned(),
-            Err(erro) => format!("`{}`", erro.subcodigo()),
+            Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
         },
     }
 }

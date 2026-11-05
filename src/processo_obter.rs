@@ -13,6 +13,7 @@ mod acervo;
 mod acervo_documento;
 #[cfg(test)]
 mod acervo_versoes;
+mod acoes;
 mod andamentos;
 mod controle;
 mod documento;

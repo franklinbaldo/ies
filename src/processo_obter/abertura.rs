@@ -4,10 +4,14 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroReabrirNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso,
-    ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
-    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra, ler_tela_do_processo,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
+    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
+    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
+    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
     ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
@@ -160,8 +164,23 @@ pub(super) struct ArvoreAberta {
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
     pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
+    pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
+    pub(super) ciencia:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) lista_ciencias:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
+    /// O link de atribuição, só examinado pelo comando atribuir.
+    pub(super) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
+    /// Link do formulário de Atualizar Andamento, quando publicado.
+    pub(super) andamento: Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra>,
+    pub(super) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
+    /// O link do acompanhamento, usado apenas por processo acompanhar.
+    pub(super) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
 
 pub(super) fn ler_arvore_aberta(
@@ -193,7 +212,16 @@ pub(super) fn ler_arvore_da_pagina(
     let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
+    let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
+    let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let ciencia = crate::arvore_processo::ciencia_da_barra(instalacao, html, id);
+    let lista_ciencias = crate::arvore_processo::lista_do_processo(instalacao, html, id);
+    let anexar = ler_anexar_da_barra(instalacao, html, id);
+    let atribuir = ler_atribuir_da_barra(instalacao, html, id);
+    let andamento = ler_andamento_da_barra(instalacao, html, id);
+    let relacionar = ler_relacionar_da_barra(instalacao, html, id);
+    let acompanhar = ler_acompanhar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         html: html.to_owned(),
@@ -203,7 +231,16 @@ pub(super) fn ler_arvore_da_pagina(
         prazo,
         concluir,
         reabrir,
+        sobrestar,
+        retomar,
         enviar,
+        ciencia,
+        lista_ciencias,
+        acompanhar,
+        relacionar,
+        andamento,
+        atribuir,
+        anexar,
     })
 }
 
@@ -225,10 +262,7 @@ pub(super) enum Lida {
 impl<V: EnvioDoProcesso> Rede<'_, V> {
     pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
         self.requisicoes.registrar();
-        let resposta = self
-            .envio
-            .get_sem_seguir(url, &self.cookie)
-            .map_err(E::Transporte)?;
+        let resposta = self.envio.get_sem_seguir(url, &self.cookie)?;
         if resposta.resposta.status_code == 302 {
             return Ok(Lida::Redirecionamento(resposta.localizacao));
         }
@@ -295,8 +329,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
-            .map_err(E::Tela)?;
+        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
         self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
     }
 
@@ -317,7 +350,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let arvore = ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?;
+        let arvore = ler_arvore_aberta(contexto, &html, id)?;
         concluir(
             contexto,
             &arvore.arvore,

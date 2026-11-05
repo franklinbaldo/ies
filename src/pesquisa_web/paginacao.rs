@@ -29,9 +29,13 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 };
 
 /// Uma variante por fato verificável da paginação da pesquisa.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
+    #[causa(nome = "pagina_da_pesquisa_fora_do_intervalo")]
+    PaginaForaDoIntervalo {
+        solicitada: u32,
+        paginas: u64,
+    },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
     LinkDePaginacaoDaPesquisaForaDaRegra,
@@ -40,37 +44,11 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
+    #[causa(nome = "html_da_tela_de_resultado_da_pesquisa_nao_interpretado")]
     HtmlDaTelaDeResultadoNaoInterpretado,
 }
 
-impl ErroPaginacaoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::PaginaForaDoIntervalo { .. } => "pagina_da_pesquisa_fora_do_intervalo",
-            Self::RegraDeNavegacaoDaPesquisaNaoObservada => {
-                "regra_de_navegacao_da_pesquisa_nao_observada"
-            }
-            Self::PaginadorDaPesquisaNaoPublicado => "paginador_da_pesquisa_nao_publicado",
-            Self::LinkDePaginacaoDaPesquisaForaDaRegra => {
-                "link_de_paginacao_da_pesquisa_fora_da_regra"
-            }
-            Self::ProtocoloDaTelaDeResultadoDiferenteDoPesquisado => {
-                "protocolo_da_tela_de_resultado_diferente_do_pesquisado"
-            }
-            Self::RedirecionamentoAoPaginarAPesquisa => "redirecionamento_ao_paginar_a_pesquisa",
-            Self::PaginaDaPesquisaSemResultadoAposPaginar => {
-                "pagina_da_pesquisa_sem_resultado_apos_paginar"
-            }
-            Self::TotalDaPesquisaAlteradoAposPaginar => "total_da_pesquisa_alterado_apos_paginar",
-            Self::FaixaDaPesquisaDiferenteDaPaginaSolicitada => {
-                "faixa_da_pesquisa_diferente_da_pagina_solicitada"
-            }
-            Self::HtmlDaTelaDeResultadoNaoInterpretado => {
-                "html_da_tela_de_resultado_da_pesquisa_nao_interpretado"
-            }
-        }
-    }
-}
+impl ErroPaginacaoDaPesquisa {}
 
 /// O que a paginação precisa da resposta da página 1, em processos ou em
 /// documentos: a forma e, na lista, a faixa e o total da barra.

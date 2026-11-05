@@ -2,20 +2,19 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NumeroDocumento(String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum NumeroDocumentoInvalido {
+    #[causa(nome = "numero_documento_vazio")]
     Vazio,
+    #[causa(nome = "numero_documento_controle")]
     Controle,
+    #[causa(nome = "numero_documento_nao_numerico")]
     NaoNumerico,
 }
 
 impl NumeroDocumentoInvalido {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Vazio => "numero_documento_vazio",
-            Self::Controle => "numero_documento_controle",
-            Self::NaoNumerico => "numero_documento_nao_numerico",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

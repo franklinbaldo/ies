@@ -141,7 +141,7 @@ fn resposta_302_fora_da_regra_e_erro_de_redirecionamento_tipado() {
     );
     let (r, _) = pesquisar(302, "", Some(&localizacao("x")));
     assert_eq!(
-        r.unwrap_err().subcodigo(),
+        crate::erro_publico::folha(&r.unwrap_err()),
         "id_procedimento_nao_decimal_no_redirecionamento"
     );
 }

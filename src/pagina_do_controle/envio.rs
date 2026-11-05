@@ -33,10 +33,8 @@ pub(crate) fn derivar_pagina(
     }
     let usuario = {
         let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
-        let form = localizar_formulario(&dom, OBTER_PAGINA_DO_CONTROLE.formulario)
-            .map_err(E::Submissao)?;
-        regras::campos_do_usuario(form, dom.parser(), regras::CAMPOS_USUARIO)
-            .map_err(E::Formulario)?
+        let form = localizar_formulario(&dom, OBTER_PAGINA_DO_CONTROLE.formulario)?;
+        regras::campos_do_usuario(form, dom.parser(), regras::CAMPOS_USUARIO)?
     };
     let indice = indice.to_string();
     let mut campos: Vec<(&str, &str)> = usuario
@@ -61,7 +59,7 @@ fn conferir_resposta(
     categoria: Categoria,
     esperada: FaixaNaPagina,
 ) -> Result<(), E> {
-    let contexto = contexto_da_pagina(html).map_err(E::Caixa)?;
+    let contexto = contexto_da_pagina(html)?;
     if let Some(diferenca) = origem.diferenca(&contexto) {
         return Err(match diferenca {
             DiferencaDeContexto::Unidade => E::UnidadeAlteradaAposPaginar,
@@ -70,7 +68,7 @@ fn conferir_resposta(
             DiferencaDeContexto::CriteriosGerados => E::CriteriosGeradosAlteradosAposPaginar,
         });
     }
-    match faixa_na_pagina(html, categoria).map_err(E::Caixa)? {
+    match faixa_na_pagina(html, categoria)? {
         Some(faixa) if faixa.total != esperada.total => {
             Err(E::TotalDeclaradoAlteradoAposPaginar { categoria })
         }
@@ -96,9 +94,9 @@ where
     let PlanoDaPagina::Pedir { indice, esperada } = planejar(tela.html, categoria, pagina)? else {
         return Ok(None);
     };
-    let origem = contexto_da_pagina(tela.html).map_err(E::Caixa)?;
+    let origem = contexto_da_pagina(tela.html)?;
     let submissao = derivar_pagina(instalacao, tela, unidade, categoria, indice)?;
-    let html = match enviar_submissao_via(submissao, cookie, enviar).map_err(E::Submissao)? {
+    let html = match enviar_submissao_via(submissao, cookie, enviar)? {
         RespostaDoEnvio::Html(html) => html,
         RespostaDoEnvio::Redirecionamento(_) => return Err(E::RedirecionamentoAposPaginar),
     };

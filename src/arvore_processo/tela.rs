@@ -30,7 +30,7 @@ pub(crate) struct TelaDoProcesso {
     pub(crate) arvore: EnderecoDaArvore,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDoProcesso {
     HtmlDaTelaDoProcessoNaoInterpretado,
     IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
@@ -43,24 +43,7 @@ pub(crate) enum ErroTelaDoProcesso {
     EnderecoDaArvoreDeOutroDocumento,
 }
 
-impl ErroTelaDoProcesso {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDaTelaDoProcessoNaoInterpretado => {
-                "html_da_tela_do_processo_nao_interpretado"
-            }
-            Self::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso => {
-                "identificacao_da_unidade_ausente_na_tela_do_processo"
-            }
-            Self::UnidadeDaTelaDiferenteDaSolicitada => "unidade_da_tela_diferente_da_solicitada",
-            Self::ArvoreAusenteNaTelaDoProcesso => "arvore_ausente_na_tela_do_processo",
-            Self::ArvoresRepetidasNaTelaDoProcesso => "arvores_repetidas_na_tela_do_processo",
-            Self::EnderecoDaArvoreNaoReconhecido => "endereco_da_arvore_nao_reconhecido",
-            Self::EnderecoDaArvoreDeOutroProcesso => "endereco_da_arvore_de_outro_processo",
-            Self::EnderecoDaArvoreDeOutroDocumento => "endereco_da_arvore_de_outro_documento",
-        }
-    }
-}
+impl ErroTelaDoProcesso {}
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
 /// pedida (`--unidade`) é comparada com espaços normalizados.

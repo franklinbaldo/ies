@@ -29,18 +29,17 @@ impl CategoriaLista {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaCategoria {
+    #[causa(nome = "identificacao_da_unidade_ausente_no_controle")]
     UnidadeNaoObservada,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
+    #[causa(interna)]
     FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
 }
 impl FalhaCategoria {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::FaixaNaoPublicavel(erro) => erro.subcodigo(),
-            Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
-        }
+        crate::erro_publico::folha(self)
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
@@ -63,8 +62,7 @@ pub(crate) fn selecionar(
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
     };
-    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
-        .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
+    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)?;
     Ok(crate::saida::lista_da_categoria(
         leitura,
         categoria.categoria(),

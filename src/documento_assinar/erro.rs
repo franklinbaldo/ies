@@ -7,8 +7,9 @@ use crate::sessao_login::ErroLogin;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Assinatura de Documento", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeAssinatura {
+    #[causa(nome = "tela_de_assinatura_nao_interpretada")]
     HtmlNaoInterpretado,
     FormularioDeAssinaturaAusente,
     CampoNaoPrevistoNaTelaDeAssinatura,
@@ -18,19 +19,7 @@ pub(crate) enum ErroTelaDeAssinatura {
     CampoDeSenhaAusenteNaTela,
 }
 
-impl ErroTelaDeAssinatura {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "tela_de_assinatura_nao_interpretada",
-            Self::FormularioDeAssinaturaAusente => "formulario_de_assinatura_ausente",
-            Self::CampoNaoPrevistoNaTelaDeAssinatura => "campo_nao_previsto_na_tela_de_assinatura",
-            Self::TelaDeAssinaturaDeOutroDocumento => "tela_de_assinatura_de_outro_documento",
-            Self::AssinanteNaoPublicadoNaTela => "assinante_nao_publicado_na_tela",
-            Self::OrgaoDoAssinanteNaoSelecionado => "orgao_do_assinante_nao_selecionado",
-            Self::CampoDeSenhaAusenteNaTela => "campo_de_senha_ausente_na_tela",
-        }
-    }
-}
+impl ErroTelaDeAssinatura {}
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter
 /// saído): o efeito é decidido pela leitura.
@@ -80,21 +69,30 @@ impl VerificacaoDaAssinatura {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAssinar {
     /// A abertura do documento (a de `ies documento DOC`) falhou.
+    #[causa(interna)]
     Abertura(ErroDocumentoObter),
     /// Credenciais (`IES_CREDENCIAIS_FILE`) ilegíveis: nada foi pedido.
+    #[causa(interna)]
     Credenciais(ErroLogin),
+    #[causa(interna)]
     Arvore(ErroAssinaturaNaArvore),
     AssinaturaNaoPublicadaNaBarra,
     EnderecoDaTelaDoDocumentoNaoReconhecido,
     /// GET da tela do documento ou da de assinatura, antes da escrita.
+    #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
+    #[causa(nome = "tela_da_assinatura_redirecionada")]
     TelaDaEscritaRedirecionada,
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     SessaoEncerrada,
+    #[causa(interna)]
     LinkDeAssinar(ErroLinkDeAssinar),
+    #[causa(interna)]
     TelaDeAssinatura(ErroTelaDeAssinatura),
+    #[causa(nome = "charset_da_tela_de_assinatura_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     CargoNaoOferecidoPelaTela {
         cargos: Vec<String>,
@@ -105,6 +103,7 @@ pub(crate) enum ErroAssinar {
         antes: Vec<Assinante>,
     },
     /// Derivação do POST ou falha antes de ele sair (cookie).
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
     /// A leitura depois do POST mostra as mesmas assinaturas de antes.
     AssinaturaNaoAplicada {
@@ -121,26 +120,7 @@ pub(crate) enum ErroAssinar {
 
 impl ErroAssinar {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Credenciais(erro) => erro.subcodigo(),
-            Self::Arvore(erro) => erro.subcodigo(),
-            Self::AssinaturaNaoPublicadaNaBarra => "assinatura_nao_publicada_na_barra",
-            Self::EnderecoDaTelaDoDocumentoNaoReconhecido => {
-                "endereco_da_tela_do_documento_nao_reconhecido"
-            }
-            Self::TelaDaEscrita(falha) => falha.subcodigo(),
-            Self::TelaDaEscritaRedirecionada => "tela_da_assinatura_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::LinkDeAssinar(erro) => erro.subcodigo(),
-            Self::TelaDeAssinatura(erro) => erro.subcodigo(),
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_de_assinatura_nao_suportado",
-            Self::CargoNaoOferecidoPelaTela { .. } => "cargo_nao_oferecido_pela_tela",
-            Self::DocumentoAssinadoPorOutroUsuario { .. } => "documento_assinado_por_outro_usuario",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::AssinaturaNaoAplicada { .. } => "assinatura_nao_aplicada",
-            Self::EfeitoIncertoNaAssinatura { .. } => "efeito_incerto_na_assinatura",
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Categoria pública: o próximo passo de quem chama.

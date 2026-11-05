@@ -3,8 +3,9 @@ use crate::dominio::Categoria;
 use std::fmt;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCaixa {
+    #[causa(nome = "html_da_caixa_invalido")]
     HtmlInvalido,
     TabelaAusente {
         categoria: Categoria,
@@ -26,10 +27,12 @@ pub enum ErroCaixa {
         categoria: Categoria,
         id: String,
     },
+    #[causa(nome = "numero_da_caixa_invalido")]
     NumeroInvalido {
         categoria: Categoria,
         id: String,
     },
+    #[causa(nome = "processo_ambiguo")]
     MaisDeUmNumeroNaLinhaDoProcesso {
         categoria: Categoria,
         id: String,
@@ -45,6 +48,7 @@ pub enum ErroCaixa {
     TotalExcedido {
         categoria: Categoria,
     },
+    #[causa(nome = "total_divergente")]
     TotaisDeclaradosDiferentesEntrePaginas {
         categoria: Categoria,
     },
@@ -73,6 +77,7 @@ pub enum ErroCaixa {
         categoria: Categoria,
     },
     LimitePaginas,
+    #[causa(nome = "visao_resumida_com_paginacao_nao_demonstrada")]
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
@@ -83,65 +88,14 @@ pub enum ErroCaixa {
     HashesDeCriteriosRecebidosRepetidosNoControle,
     HashesDeCriteriosGeradosRepetidosNoControle,
     ContextoNaoVerificavel,
+    #[causa(nome = "contexto_divergente")]
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
 }
 
 impl ErroCaixa {
     pub fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "html_da_caixa_invalido",
-            Self::TabelaAusente { .. } => "tabela_ausente",
-            Self::TabelasDaCategoriaRepetidas { .. } => "tabelas_da_categoria_repetidas",
-            Self::TabelaInvalida { .. } => "tabela_invalida",
-            Self::LegendaAusente { .. } => "legenda_ausente",
-            Self::LegendasDaTabelaRepetidas { .. } => "legendas_da_tabela_repetidas",
-            Self::IdInvalido => "id_invalido",
-            Self::IdRepetido { .. } => "id_repetido",
-            Self::NumeroInvalido { .. } => "numero_da_caixa_invalido",
-            Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
-            Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => {
-                "link_do_processo_nao_identificado_na_linha"
-            }
-            Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { .. } => {
-                "classes_de_estado_diferentes_no_link_do_processo"
-            }
-            Self::TotalExcedido { .. } => "total_excedido",
-            Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
-            Self::FaixaInvalida { .. } => "faixa_invalida",
-            Self::FaixaDesconhecida { .. } => "faixa_desconhecida",
-            Self::FaixaAlterada { .. } => "faixa_alterada",
-            Self::FaixaDescontinua { .. } => "faixa_descontinua",
-            Self::TotalNaoDeclaradoNaLegenda { .. } => "total_nao_declarado_na_legenda",
-            Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. } => {
-                "legenda_sem_faixa_com_total_diferente_das_linhas"
-            }
-            Self::PaginadorDaTabelaSemFaixaNaLegenda { .. } => {
-                "paginador_da_tabela_sem_faixa_na_legenda"
-            }
-            Self::LimitePaginas => "limite_paginas",
-            Self::VisaoResumidaComPaginacao => "visao_resumida_com_paginacao_nao_demonstrada",
-            Self::FiltroDeMarcadorAtivoNoControle => "filtro_de_marcador_ativo_no_controle",
-            Self::UnidadeInesperada => "unidade_inesperada",
-            Self::IdentificacaoDaUnidadeAusenteNoControle => {
-                "identificacao_da_unidade_ausente_no_controle"
-            }
-            Self::IdentificacoesDaUnidadeRepetidasNoControle => {
-                "identificacoes_da_unidade_repetidas_no_controle"
-            }
-            Self::TiposDeVisualizacaoRepetidosNoControle => {
-                "tipos_de_visualizacao_repetidos_no_controle"
-            }
-            Self::HashesDeCriteriosRecebidosRepetidosNoControle => {
-                "hashes_de_criterios_recebidos_repetidos_no_controle"
-            }
-            Self::HashesDeCriteriosGeradosRepetidosNoControle => {
-                "hashes_de_criterios_gerados_repetidos_no_controle"
-            }
-            Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
-            Self::ContextoDaPaginaDiferenteDoAnterior => "contexto_divergente",
-            Self::SemPaginas => "sem_paginas",
-        }
+        crate::erro_publico::folha(self)
     }
     pub fn categoria(&self) -> Option<Categoria> {
         match self {

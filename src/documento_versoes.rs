@@ -7,37 +7,35 @@ use std::num::NonZeroU32;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersaoDocumento(NonZeroU32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroVersao {
+    #[causa(nome = "versao_documento_invalida")]
     NumeroInvalido,
+    #[causa(nome = "historico_documento_ausente")]
     HistoricoAusente,
+    #[causa(nome = "historicos_documento_duplicados")]
     HistoricosDuplicados,
+    #[causa(nome = "legendas_historico_versoes_repetidas")]
     LegendasDoHistoricoRepetidas,
+    #[causa(nome = "colunas_historico_inesperadas")]
     ColunasInesperadas,
+    #[causa(nome = "linha_historico_incompleta")]
     LinhaIncompleta,
+    #[causa(nome = "link_versao_ausente_ou_ambiguo")]
     LinkAusenteOuAmbiguo,
+    #[causa(nome = "link_versao_inseguro")]
     LinkInseguro,
+    #[causa(nome = "identidade_documento_divergente")]
     DocumentoDivergente,
+    #[causa(nome = "versao_documento_duplicada")]
     VersaoDuplicada,
+    #[causa(nome = "lista_versoes_incompleta")]
     ListaIncompleta,
     VersaoNaoObservada,
 }
 impl ErroVersao {
     pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::NumeroInvalido => "versao_documento_invalida",
-            Self::HistoricoAusente => "historico_documento_ausente",
-            Self::HistoricosDuplicados => "historicos_documento_duplicados",
-            Self::LegendasDoHistoricoRepetidas => "legendas_historico_versoes_repetidas",
-            Self::ColunasInesperadas => "colunas_historico_inesperadas",
-            Self::LinhaIncompleta => "linha_historico_incompleta",
-            Self::LinkAusenteOuAmbiguo => "link_versao_ausente_ou_ambiguo",
-            Self::LinkInseguro => "link_versao_inseguro",
-            Self::DocumentoDivergente => "identidade_documento_divergente",
-            Self::VersaoDuplicada => "versao_documento_duplicada",
-            Self::ListaIncompleta => "lista_versoes_incompleta",
-            Self::VersaoNaoObservada => "versao_nao_observada",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 

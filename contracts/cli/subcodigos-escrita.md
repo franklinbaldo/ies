@@ -189,3 +189,28 @@ Emissor: [src/visao_do_controle/definir_erro.rs](../../src/visao_do_controle/def
 | `nivel_de_detalhe_devolvido_sem_sinal_de_gravacao` | Nível de detalhe devolvido sem sinal de gravação. |
 | `redirecionamento_ao_salvar_nivel_de_detalhe` | Redirecionamento ao salvar nível de detalhe. |
 | `resposta_do_salvar_nao_reconhecida` | Resposta do salvar não reconhecida. |
+
+
+### processo_atribuir (issue #264; fatia de leitura)
+
+Emissor: [src/processo_atribuir.rs](../../src/processo_atribuir.rs).
+
+| Subcódigo | Condição neste contexto |
+| --- | --- |
+| `tela_da_atribuicao_fora_da_forma` | Formulário, ação assinada, identidade, lista ou controles fora da forma servida e conhecida. |
+| `usuario_nao_atribuivel` | Login exato ausente da lista de usuários publicada. |
+| `usuario_ambiguo_na_atribuicao` | Login aparece em mais de uma opção distinta. |
+| `situacao_da_atribuicao_nao_observada` | A árvore ainda não publicou o atribuído da unidade; não presumir vazio. |
+| `atribuicao_ja_aplicada` | A operação pedida já corresponde ao estado observado. |
+
+### arvore_processo/atribuir
+
+Emissor: src/arvore_processo/atribuir.rs. Todos os links são conferidos antes de abrir a tela.
+
+| Subcódigo | Condição |
+| --- | --- |
+| `barra_da_atribuicao_fora_da_forma` | Barra do processo não interpretada. |
+| `barras_da_atribuicao_repetidas` | Barras repetidas na árvore. |
+| `links_de_atribuir_repetidos_na_barra` | Dois links para a mesma ação. |
+| `endereco_da_atribuicao_nao_reconhecido` | Endereço não assinado ou fora da forma servida. |
+| `endereco_da_atribuicao_de_outro_processo` | Identidade da ação diferente do processo aberto. |
