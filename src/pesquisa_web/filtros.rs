@@ -27,7 +27,7 @@ pub(crate) fn data_valida(data: &str) -> bool {
     let dia: u32 = data[0..2].parse().unwrap_or(0);
     let mes: u32 = data[3..5].parse().unwrap_or(0);
     let ano: u32 = data[6..10].parse().unwrap_or(0);
-    let bissexto = ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0);
+    let bissexto = ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400));
     let limite = match mes {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
         4 | 6 | 9 | 11 => 30,
@@ -43,7 +43,6 @@ pub(crate) enum ErroFiltro {
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
     ControleDeFiltroAmbiguo,
-    ValorDoFiltroDiferenteDoSolicitado,
     AtributoDoFiltroIlegivel,
 }
 
@@ -53,7 +52,6 @@ impl ErroFiltro {
             Self::CriterioNaoOferecidoPelaTela => "criterio_nao_oferecido_pela_tela",
             Self::TipoNaoOferecidoPelaTela => "tipo_nao_oferecido_pela_tela",
             Self::ControleDeFiltroAmbiguo => "controle_de_filtro_ambiguo",
-            Self::ValorDoFiltroDiferenteDoSolicitado => "valor_do_filtro_diferente_do_solicitado",
             Self::AtributoDoFiltroIlegivel => "atributo_do_filtro_ilegivel",
         }
     }
