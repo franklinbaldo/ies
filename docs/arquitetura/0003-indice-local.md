@@ -264,6 +264,44 @@ versão futura. A concorrência entre processos é exercitada por duas instânci
 do próprio executável de testes gravando ao mesmo tempo no mesmo banco; nenhum
 desses cenários faz requisições ao SEI.
 
+## Auditoria complementar #188 (testes offline)
+
+A auditoria do índice em 05/11/2026 distinguiu **validade de geração**
+e **validade temporal de uma autorização do servidor**. A chave
+`(origem, geracao_sessao, unidade, acao, objeto)` impede devolver
+qualquer link de geração anterior ou outra unidade. Um link pode
+deixar de valer **dentro da mesma geração**; não existe TTL observado
+ou relógio confiável da assinatura na tabela. O índice não pode
+antecipar uma expiração desconhecida: o chamador só descobre a recusa
+na primeira tentativa, esquece o palpite e prossegue conforme sua
+própria política, sem reutilizar o link recusado nem repetir uma
+escrita. O teste `link_expirado_recusado_pelo_servidor_nao_volta_do_cache`
+simula exatamente essa recusa, seguida de falha no caminho alternativo,
+e exige que o link antigo não retorne.
+
+**O cache não autoriza escritas.** Os testes de integração
+`indice_com_identidade_quente_nao_confirma_conclusao_sem_releitura_remota`
+e `indice_aquecido_nao_autoriza_envio_sem_situacao_remota` aquecem
+a identidade local, recebem respostas sintéticas de escrita e provam
+que a situação remota prevalece. O teste
+`indice_quente_nao_confirma_assinatura_ausente_na_arvore_relida`
+exige a caneta na árvore posterior, não o palpite. O teste
+`trocar_depende_do_controle_novo_nao_de_estado_local` comprova
+a leitura do Controle da nova unidade antes de declarar a troca.
+Todos usam transporte injetável, sem SEI real, sem retry e sem
+dados de sessão persistidos em fixture nova.
+
+**Desempenho e orçamento.** As sequências de requisições desses
+testes são determinísticas e conferidas por roteiro. O CI padrão
+roda a suíte Rust e os gates canônicos, mas não possui bancada
+pareada reproduzível de latência SQLite com amostragem, warm-up
+e controle do host. Assim, **benchmark de latência: NOT_RUN**.
+É incorreto apresentar tempo local do runner ou comparar operação
+sem índice com consulta que toca a rede como se fossem medidas
+pareadas. A próxima medição, se necessária, deve usar cenários
+offline idênticos de banco aquecido/indisponível, instrumentar
+p50/p95 e manter as requisições constantes.
+
 ## Alternativas
 
 1. **Sem índice.** Zero estado, mas cada `processo NUP` custa a
