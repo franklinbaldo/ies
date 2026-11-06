@@ -60,7 +60,9 @@ fn redirecionamento_do_mesmo_controlador(
     consulta.is_some_and(|consulta| {
         // A resposta precisa identificar o próprio documento observado na
         // árvore, não apenas navegar para qualquer ação do controlador.
-        let mut acoes = consulta.split('&').filter_map(|campo| campo.strip_prefix("acao="));
+        let mut acoes = consulta
+            .split('&')
+            .filter_map(|campo| campo.strip_prefix("acao="));
         let mut ids = consulta
             .split('&')
             .filter_map(|campo| campo.strip_prefix("id_documento="));
