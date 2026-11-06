@@ -132,7 +132,7 @@ impl IndiceLocal {
         if pedida.is_empty() {
             return Vec::new();
         }
-        let ultimo = sigla.trim().rsplit('/').next().unwrap_or(sigla);
+        let ultimo = sigla.rsplit('/').next().unwrap_or(sigla);
         let trecho = ultimo.rsplit_once('-').map_or(ultimo, |(parte, sufixo)| {
             if !sufixo.is_empty() && sufixo.bytes().all(|b| b.is_ascii_digit()) {
                 parte
@@ -193,7 +193,6 @@ pub(crate) fn filtrar_lista(mut lista: ListaGuardada, termo: &str) -> ListaGuard
 /// Normalização de pesquisa local sem expressões regulares; preserva '/'.
 fn chave(texto: &str) -> String {
     texto
-        .trim()
         .chars()
         .flat_map(char::to_lowercase)
         // A lupa pode devolver acentos decompostos (Unicode NFD).

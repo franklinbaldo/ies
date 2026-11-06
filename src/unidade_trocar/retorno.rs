@@ -16,7 +16,7 @@ pub(crate) fn url_do_salto(
     url_anterior: &str,
     id_unidade: &str,
 ) -> Result<String, F> {
-    let serializada = localizacao.trim().replace(' ', "%20");
+    let serializada = localizacao.replace(' ', "%20");
     let consulta = consulta_do_controlador(&serializada, url_anterior)
         .ok_or(F::LocalizacaoForaDaFormaObservada)?;
     if !serializada.bytes().all(|b| (33..=126).contains(&b)) || serializada.contains(['#', '\\']) {

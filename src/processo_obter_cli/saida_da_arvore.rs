@@ -140,7 +140,7 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
         if natureza.cancelado != Some(true)
             && let Some(dica) = &natureza.dica
         {
-            for linha in dica.lines().filter(|l| !l.trim().is_empty()) {
+            for linha in dica.lines().filter(|l| !l.is_empty()) {
                 let _ = write!(texto, "\n    {}", linha.trim());
             }
         }

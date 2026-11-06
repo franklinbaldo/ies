@@ -123,7 +123,7 @@ fn ler_opcoes(
         let (login, nome) = rotulo
             .split_once(" - ")
             .ok_or(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
-        if login.is_empty() || nome.is_empty() || login.trim() != login {
+        if login.is_empty() || nome.is_empty() {
             return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
         usuarios.push(UsuarioDaAtribuicao {
@@ -236,7 +236,7 @@ pub(crate) fn planejar(
         }
         return Ok(SEM_ATRIBUICAO.to_owned());
     };
-    if login.is_empty() || login.trim() != login {
+    if login.is_empty() {
         return Err(E::UsuarioNaoAtribuivel);
     }
     let mut achados = tela.usuarios.iter().filter(|u| u.login == login);

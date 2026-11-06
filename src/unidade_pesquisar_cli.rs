@@ -240,7 +240,7 @@ pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar:
 }
 
 pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
-    if termo.trim().is_empty() {
+    if termo.is_empty() {
         return erro_fonte(
             json_mode,
             "termo_de_unidade_vazio",

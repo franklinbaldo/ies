@@ -84,7 +84,7 @@ fn id_do_href(href: &str, id_procedimento: &str) -> Result<Option<String>, ErroD
         return Ok(None);
     };
     let id = fragmento.strip_prefix("ID-").ok_or(FORA)?;
-    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(FORA);
     }
     Ok(Some(id.to_owned()))
