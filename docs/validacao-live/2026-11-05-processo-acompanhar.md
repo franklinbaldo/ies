@@ -233,3 +233,29 @@ resíduo foi deixado no SEI.
 - **Relatório de replay:** [docs/validacao-replay/2026-11-06-processo-acompanhar-acervo.md](../validacao-replay/2026-11-06-processo-acompanhar-acervo.md). O novo job do `ci.yml` executa o teste com os ZIPs conferidos; `#[ignore]` não substitui o gate.
 - **Live de treinamento:** prévia **NOT_RUN, 0 GET**; confirmação **NOT_RUN, 0 POST**; releitura **NOT_RUN, 0 GET**. Total **0 requisições reais / 0 escritas / 0 resíduos**. Nenhum ambiente de produção foi acessado; **sem retry**.
 - **Retirada `--deixar --confirmar`:** continua recusada antes da sessão/rede, aguardando evidência segura de prévia autenticada, POST único e releitura. **RED comportamental dos testes novos do replay: NOT_RUN** como teste isolado; o RED observado da correção anterior permanece em [42163834327](https://github.com/franklinbaldo/ies/actions/runs/42163834327), 2 falhas.
+
+## Décima fatia — conciliação com retornos programados (06/11/2026)
+
+- **Integração de código (sem escrita no SEI):** merge de dois pais
+  `2cd9749` incorporou a `main` da PR #260 à mesma PR Draft #293.
+  Preservou o replay obrigatório do Acompanhamento Especial e o de
+  retornos programados no `ci.yml`; nenhuma mudança no comportamento
+  público da CLI nem teste antigo desligado.
+- **CI do merge:** [42182232149](https://github.com/franklinbaldo/ies/actions/runs/42182232149),
+  **6/6 PASS** (prek/Rust/Clippy/OKF, Release e quatro replays).
+- **Ensaio autorizado em treinamento:** a tentativa
+  [42182759646](https://github.com/franklinbaldo/ies/actions/runs/42182759646)
+  compilou o binário Release, mas o roteiro temporário falhou
+  **antes de ler as credenciais públicas**, porque a comparação da
+  chave `unb` continha escape literal indevido; a prévia não começou.
+  O workflow temporário foi retirado do branch. **Live: NOT_RUN**;
+  login **NOT_RUN (0 requisições)**, prévia **NOT_RUN (0 GET)**,
+  confirmação **NOT_RUN (0 POST)**, verificação **NOT_RUN (0 GET)**.
+  Total **0 requisições reais ao SEI, 0 escritas, nenhum resíduo**.
+  Não houve retry nem acesso à produção.
+- **RED novo:** NOT_RUN (não houve alteração comportamental). Permanecem
+  as duas falhas do RED da nona fatia
+  [42175520247, tentativa 2](https://github.com/franklinbaldo/ies/actions/runs/42175520247/attempts/2).
+- **Próximo passo:** fazer ensaio live de treinamento com prévia validada,
+  um único `--confirmar` e releitura, registrando o resíduo.
+  Até lá, `--deixar --confirmar` permanece fechado antes da sessão/rede.
