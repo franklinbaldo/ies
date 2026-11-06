@@ -73,8 +73,8 @@ pub(super) fn confirmar_inclusao<V: EnvioDoProcesso>(
 /// Usado na inclusão e retirada; nenhuma resposta é seguida automaticamente.
 fn aceite_do_gerenciador(
     resposta: &Result<RespostaDoEnvio, crate::formulario_web::ErroSubmissaoFormulario>,
-    pub(super) instalacao: &Instalacao,
-    pub(super) id: &str,
+    instalacao: &Instalacao,
+    id: &str,
 ) -> bool {
     let Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) = resposta else {
         return false;
@@ -100,8 +100,8 @@ fn releitura_da_remocao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     instalacao: &Instalacao,
     id: &str,
-    pub(super) link: &str,
-    pub(super) cookie: &str,
+    link: &str,
+    cookie: &str,
 ) -> Option<Vec<Acompanhamento>> {
     let res = rede.get_sem_seguir(link, cookie).ok()?;
     if res.resposta.status_code == 302 {
@@ -118,10 +118,10 @@ fn releitura_da_remocao<V: EnvioDoProcesso>(
 /// Elementos observados na mesma sessão e abertura que originaram o
 /// formulário da remoção. O POST é consumido uma vez.
 pub(super) struct ContextoConferencia<'a> {
-    instalacao: &'a Instalacao,
-    id: &'a str,
-    link: &'a str,
-    cookie: &'a str,
+    pub(super) instalacao: &'a Instalacao,
+    pub(super) id: &'a str,
+    pub(super) link: &'a str,
+    pub(super) cookie: &'a str,
     pub(super) antes: &'a [Acompanhamento],
 }
 
