@@ -199,3 +199,36 @@ não usa regex ou retry e não acrescenta requisição.
 Replay específico das cassettes originais e ensaio ao vivo estão
 pendentes. `--deixar --confirmar` continua fechado na CLI antes
 da rede até homologação segura em treinamento.
+
+
+## Nona fatia — resposta de recusa não vira aceite de inclusão (06/11/2026, 🐢)
+
+**Problema.** A conta de treinamento é compartilhada. Entre um POST e
+o GET verificador, outro agente pode incluir uma linha com o mesmo grupo
+e observação. A condição anterior `resposta.is_err()` aceitava como
+candidata à reconciliação **qualquer** falha do envio, até uma recusa
+explícita do SEI por `txaInfraValidacao` (HTTP 200) ou HTTP 403. Uma
+linha coincidente lida depois podia ser atribuída indevidamente ao
+POST recusado.
+
+**Decisão.** A reconciliação positiva após resposta de erro só é
+admitida para `ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)`,
+quando não houve resposta do servidor e o efeito é desconhecido. Resposta
+explícita de recusa não é aceite; mesmo com linha coincidente, a operação
+falha fechada em `EfeitoIncerto` (saída 3). O aceite normal continua a
+exigir um 302 ao gerenciador do mesmo processo e a **releitura exata**.
+Não há POST adicional, retry ou JavaScript executado.
+
+**RED observado antes da correção:** [CI 42175520247, tentativa 2](https://github.com/franklinbaldo/ies/actions/runs/42175520247/attempts/2),
+head somente com testes `d3c4076`: **2 testes novos falharam,
+1.668 passaram, 18 ignorados preexistentes**; Rustfmt, Clippy e OKF
+passaram. Os testes usam respostas sintéticas com `txaInfraValidacao`
+e HTTP 403, exigem o mesmo orçamento de **5 GETs + 1 POST + 1 GET
+verificador** e demonstram que uma recusa não pode virar sucesso só
+por uma linha coincidente. A alteração de produção veio depois
+(`4f2064c`). A comprovação GREEN pertence ao CI do head final.
+
+**Live:** esta fatia só rodou em transporte injetado. Prévia autenticada,
+confirmação e releitura no SEI de treinamento: **NOT_RUN**, 0 requisições
+reais e nenhum resíduo. A retirada `--deixar --confirmar` permanece
+fechada na CLI antes de sessão/rede.
