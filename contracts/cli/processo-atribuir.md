@@ -51,7 +51,10 @@ o desfecho é `efeito_incerto_na_atribuicao` com saída 3 e sem retry.
 Uma recusa HTTP 5xx na releitura **interrompe** a resolução pelo índice,
 sem buscar outra rota por tratá-la como link envelhecido. A falha tipada
 preserva o status HTTP e a mensagem saneada da releitura quando a resposta
-do POST não os forneceu, inclusive após erro de rede no POST.
+do POST não os forneceu, inclusive após erro de rede no POST. O JSON de
+`efeito_incerto_na_atribuicao` publica também `requisicoes` com a contagem
+real tentada, incluindo o POST único e o GET independente de prova;
+a contagem não implica que a escrita foi aplicada.
 **Releitura coincidente não converte recusa do POST em sucesso.** HTTP 403,
 validação expressa da Infra (ainda que HTTP 200), demais respostas recusadas
 ou um 302 com destino inesperado continuam como efeito incerto (saída 3),
