@@ -175,7 +175,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     } else {
         // A linha humana preserva o HTTP saneado também na saída 3.
         let mensagem = "criação não confirmada; não repita o POST";
-        eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
+        eprintln!(
+            "{}",
+            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+        );
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
