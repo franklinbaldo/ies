@@ -149,6 +149,42 @@ fn lista_de_outro_processo_nao_comprova_aceite_valido() {
 }
 
 #[test]
+fn aceite_sem_id_na_url_nao_herda_processo_de_outra_resposta() {
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let anterior = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    let posterior = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=43#ID-43');</script></html>";
+    let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='43'></td></tr></table></html>";
+    let json = json!({"interactions": [
+        resposta_html(
+            "procedimento_ciencia",
+            &format!("{base}?acao=procedimento_ciencia&id_procedimento=10"),
+            anterior
+        ),
+        resposta_html(
+            "procedimento_ciencia",
+            &format!("{base}?acao=procedimento_ciencia"),
+            posterior
+        ),
+        resposta_html(
+            "protocolo_ciencia_listar",
+            &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10"),
+            lista
+        )
+    ]});
+    let registros = replay("unb", &json);
+    assert_eq!(registros.len(), 3);
+    assert_eq!(registros[0].resultado, Resultado::Lido);
+    assert_eq!(
+        registros[1].resultado,
+        Resultado::NaoAplicavel("id_procedimento_nao_observado")
+    );
+    assert_eq!(
+        registros[2].resultado,
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+    );
+}
+
+#[test]
 fn resposta_302_nao_e_prova_de_aceite() {
     let json = json!({"interactions": [{
         "request": {"operation": "procedimento_ciencia", "method": "GET"},
