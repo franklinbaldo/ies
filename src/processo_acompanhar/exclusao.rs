@@ -10,14 +10,14 @@ const FORMULARIO: &str = "frmGerenciarAcompanhamento";
 const OCULTO: &str = "hdnInfraItemId";
 
 /// Comprova que a linha escolhida oferece exclusão pelo formulário servido.
-/// Não emite requisição nem autoriza `--confirmar`; esta última exige um
-/// derivador de POST e verificação por leitura numa fatia posterior.
+/// Não emite requisição. Devolve SOMENTE o destino assinado extraído
+/// do script servido e conferido para este processo; nunca executa JS.
 pub(super) fn conferir_oferta_exclusao(
     instalacao: &Instalacao,
     html: &str,
     id_procedimento: &str,
     id_alvo: &str,
-) -> Result<(), ErroAcompanhar> {
+) -> Result<String, ErroAcompanhar> {
     use ErroAcompanhar as E;
     let sem_oferta = E::ExclusaoNaoOferecida;
     if html.len() > crate::MAX_HTML_BYTES {
@@ -199,7 +199,7 @@ fn conferir_script(
     instalacao: &Instalacao,
     dom: &tl::VDom<'_>,
     id_procedimento: &str,
-) -> Result<(), ErroAcompanhar> {
+) -> Result<String, ErroAcompanhar> {
     use ErroAcompanhar as E;
     let sem_oferta = E::ExclusaoNaoOferecida;
     let parser = dom.parser();
@@ -263,8 +263,7 @@ fn conferir_script(
         "acompanhamento_excluir",
         id_procedimento,
     )
-    .map_err(|_| sem_oferta)?;
-    Ok(())
+    .map_err(|_| sem_oferta)
 }
 
 #[cfg(test)]
