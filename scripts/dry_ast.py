@@ -126,11 +126,12 @@ def transformations(path, source, root):
         if prefix != b'"{}",' or suffix not in (b"", b","):
             continue
         replacement = replacement.replace(b"json_pretty", b"imprimir_json", 1)
+        recuo = source[source.rfind(b"\\n", 0, n.start_byte) + 1:n.start_byte]
         statement = (
-            b"if let Err(erro) = " + replacement + b" {\n"
-            b'    eprintln!("IES: falha ao emitir JSON: {erro}");\n'
-            b"    return std::process::ExitCode::from(1);\n"
-            b"}"
+            b"if let Err(erro) = " + replacement + b" {\\n"
+            + recuo + b'    eprintln!("IES: falha ao emitir JSON: {erro}");\\n'
+            + recuo + b"    return std::process::ExitCode::from(1);\\n"
+            + recuo + b"}"
         )
         selected.append((n.start_byte, n.end_byte, statement))
     return selected
