@@ -386,7 +386,10 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
     assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
     assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(diagnostico.causa_releitura, Some("status_http_de_erro_do_servidor"));
+    assert_eq!(
+        diagnostico.causa_releitura,
+        Some("status_http_de_erro_do_servidor")
+    );
     assert_eq!(
         diagnostico.http_releitura.as_ref().map(|http| http.status),
         Some(503)
@@ -395,7 +398,8 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
     // RED: status do GET era perdido porque só se consultava a causa do POST.
     assert_eq!(erro.status_http().map(|h| h.status), Some(503));
     assert_eq!(
-        erro.status_http().and_then(|h| h.mensagem_do_servidor.as_deref()),
+        erro.status_http()
+            .and_then(|h| h.mensagem_do_servidor.as_deref()),
         Some("Controle indisponível")
     );
     assert_eq!(requests.len(), 5); // 3 GET prévios + 1 POST + 1 GET falho
@@ -435,7 +439,10 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
     assert_eq!(diagnostico.causa_post, "status_http_de_erro_do_servidor");
-    assert_eq!(diagnostico.causa_releitura, Some("status_http_de_erro_do_servidor"));
+    assert_eq!(
+        diagnostico.causa_releitura,
+        Some("status_http_de_erro_do_servidor")
+    );
     let http_releitura = diagnostico.http_releitura.expect("HTTP da releitura");
     assert_eq!(http_releitura.status, 502);
     assert_eq!(
