@@ -1,10 +1,10 @@
 //! Regressões sintéticas #245: resposta pós-POST sem prova não pode
 //! encerrar o fluxo sem uma única releitura independente de Gerados.
 use super::tests::{HASH, cadastro, lista, pedido, tela_controle};
-use super::*;
 use super::tests_candidatos::{
     arvore_com_propriedades, gerados_com_candidato, propriedades_correspondentes,
 };
+use super::*;
 use crate::processo_concluir::tests_apoio::{NUP, ambiente, ok, r302, rodar_com, trabalhar};
 use crate::transporte::FalhaTransporte;
 
