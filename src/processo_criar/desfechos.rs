@@ -200,12 +200,24 @@ mod tests {
         let mut prova_restrita = prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO));
         prova_restrita.nivel = Some("restrito".into());
         assert_eq!(
-            classificar(&candidatos, &[prova_restrita.clone()], TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &[prova_restrita.clone()],
+                TIPO,
+                ESPECIFICACAO,
+                "publico"
+            ),
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
         prova_restrita.nivel = None;
         assert_eq!(
-            classificar(&candidatos, &[prova_restrita], TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &[prova_restrita],
+                TIPO,
+                ESPECIFICACAO,
+                "publico"
+            ),
             Err(ErroConferencia::PropriedadesNaoObservadas)
         );
     }
@@ -218,7 +230,13 @@ mod tests {
             prova("17", "NUP-17", Some(TIPO), None),
         ] {
             assert_eq!(
-                classificar(&candidatos, &[prova_incompleta], TIPO, ESPECIFICACAO, "publico"),
+                classificar(
+                    &candidatos,
+                    &[prova_incompleta],
+                    TIPO,
+                    ESPECIFICACAO,
+                    "publico"
+                ),
                 Err(ErroConferencia::PropriedadesNaoObservadas)
             );
         }
