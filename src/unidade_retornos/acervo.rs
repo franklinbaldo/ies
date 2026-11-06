@@ -35,6 +35,9 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     let mut links_de_mes = 0usize;
     let mut hrefs_mensais = std::collections::HashSet::new();
     let mut datas_mensais = std::collections::HashSet::new();
+    let mut tamanhos_hash = std::collections::HashSet::new();
+    let mut hrefs_operacao = 0usize;
+    let mut absolutos_https = 0usize;
     let mut links_de_dia = 0usize;
     let mut acoes_js = 0usize;
     let mut hoje = 0usize;
@@ -42,6 +45,13 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
         if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
             links += 1;
             if let Ok(Some(href)) = crate::html_atributos::valor_do_atributo(tag, "href") {
+                if href.contains("retorno_programado_listar") {
+                    hrefs_operacao += 1;
+                    absolutos_https += usize::from(href.starts_with("https://"));
+                    if let Some(valor) = href.split("infra_hash=").nth(1) {
+                        tamanhos_hash.insert(valor.split('&').next().unwrap_or("").len());
+                    }
+                }
                 if href.contains("data_inicial=") && href.contains("data_final=") {
                     links_de_mes += 1;
                     hrefs_mensais.insert(href.clone());
@@ -74,7 +84,7 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
         }
     }
     println!(
-        "{instalacao}: calendario passo={passo} ancoras={links} links_mes={links_de_mes} urls_mensais_distintas={} datas_mensais_distintas={} links_dia={links_de_dia} js_retornos={acoes_js} dia_hoje={hoje}",
+        "{instalacao}: calendario passo={passo} ancoras={links} links_mes={links_de_mes} urls_mensais_distintas={} datas_mensais_distintas={} links_dia={links_de_dia} js_retornos={acoes_js} dia_hoje={hoje} hrefs_operacao={hrefs_operacao} absolutos_https={absolutos_https} tamanhos_hash={tamanhos_hash:?}",
         hrefs_mensais.len(),
         datas_mensais.len()
     );
