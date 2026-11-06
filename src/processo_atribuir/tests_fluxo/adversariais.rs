@@ -295,3 +295,40 @@ fn html_200_generico_e_remocao_concorrente_nao_comprovam_post() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+// Caso adversarial: outro agente atribui o mesmo usuário enquanto nosso POST
+// fica sem resposta. Releitura coincidente é estado observado, não autoria.
+#[test]
+fn sem_resposta_e_atribuicao_concorrente_exigem_efeito_incerto() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
+    assert_eq!(publico["atribuicao_relida"], "aluno2");
+    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+// O mesmo risco existe na remoção: a ausência de atribuição na árvore
+// pode ter sido causada por outra sessão após nosso POST sem resposta.
+#[test]
+fn sem_resposta_e_remocao_concorrente_exigem_efeito_incerto() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let erro = resultado.unwrap_err();
+    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
+    assert_eq!(publico["atribuicao_relida"], "");
+    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
