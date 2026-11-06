@@ -13,6 +13,15 @@ always_run = true
 stages = ["pre-commit", "pre-push"]
 
 [[repos.hooks]]
+id = "sem-binarios"
+name = "Nenhum binário/artefato compilado no Git"
+entry = "python3 -I scripts/check_no_binaries.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
 id = "formato"
 name = "Rustfmt"
 entry = "cargo fmt --all -- --check"
