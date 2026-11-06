@@ -310,3 +310,43 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     }
     ocorrencias == 1 && funcoes_submeter == 1 && confirmacoes == 1
 }
+
+#[cfg(unix)]
+pub(super) fn diagnostico_privado_do_cadastro(html: &str) -> String {
+    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
+        return "dom_invalido".to_owned();
+    };
+    let Some(faixas) = faixas_inertes(&dom) else {
+        return "templates_invalidos".to_owned();
+    };
+    let mut observacoes = vec![format!(
+        "botoes={}",
+        botoes_salvar_publicam_acao(&dom, &faixas)
+    )];
+    for (indice, no) in dom.query_selector("script").into_iter().flatten().enumerate() {
+        let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            observacoes.push(format!("script_{indice}=nao_tag"));
+            continue;
+        };
+        if dentro_de_template(script.boundaries(dom.parser()).0, &faixas) {
+            continue;
+        }
+        let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
+            observacoes.push(format!("script_{indice}=tipo_ilegivel"));
+            continue;
+        };
+        if tipo.as_deref().is_some_and(|v| !v.trim().eq_ignore_ascii_case("text/javascript")) {
+            continue;
+        }
+        if crate::html_atributos::atributo_presente(script, "src") != Ok(false) {
+            continue;
+        }
+        let texto = script.inner_text(dom.parser());
+        let status = match contar_instrucoes(&texto) {
+            Some((instr, funcoes, chamadas)) => format!("{instr}-{funcoes}-{chamadas}"),
+            None => "recusado".to_owned(),
+        };
+        observacoes.push(format!("script_{indice}={status}"));
+    }
+    observacoes.join(",")
+}
