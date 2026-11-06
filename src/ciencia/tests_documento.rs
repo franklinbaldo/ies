@@ -1,11 +1,11 @@
 //! RED/GREEN da ciência documental: Todos test_documento_ciente_010.py
 //! @323eb01, HTML sintético (sem segredos) e contagem exata de GETs.
 use super::documento::{ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento};
-use crate::documento::NumeroDocumento;
 use crate::arvore_processo::tests_assinatura::{
-    arvore_assinavel, barra_assinavel, link_da_tela_do_documento,
-    tela_do_documento_40, tela_do_documento_50,
+    arvore_assinavel, barra_assinavel, link_da_tela_do_documento, tela_do_documento_40,
+    tela_do_documento_50,
 };
+use crate::documento::NumeroDocumento;
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
