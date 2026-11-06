@@ -84,6 +84,17 @@ requisições) para inclusão. Uma falha na resposta do POST não elimina
 a necessidade de verificação. Testes sintéticos não substituem a
 validação nas instalações de treinamento.
 
+## Ausência comprovada do grupo em retirada (#254)
+
+Na tabela completa observada, `--deixar --grupo G` seleciona **somente**
+a linha com nome exato `G`. Se outros grupos estão presentes, mas `G`
+não está, a escolha é uma retirada idempotente, sem derivar ação de
+exclusão para outra linha. A prévia preserva `grupo=G`, publica
+`ja_estava=true` e não inventa ID. A regressão sintética exige apenas
+4 GETs e 0 POST tanto na prévia como no backend confirmado. Sem
+`--grupo`, múltiplas linhas continuam ambíguas. A escrita pública
+`--deixar --confirmar` segue fechada até validação segura em treinamento.
+
 ## Evidências verificáveis
 
 - [Contrato da operação](../../contracts/cli/processo-acompanhar.md).
