@@ -193,3 +193,24 @@ fn lista_com_atividade_divergente_nao_prova() {
     assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
     assert_eq!(pedidos.len(), 7);
 }
+
+#[test]
+fn fixture_da_lista_publica_link_do_documento_conferido() {
+    let html = arvore_com_lista();
+    assert!(html.contains("NosAcoes[9]"));
+    let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
+    let lista = crate::arvore_processo::lista_do_documento(&inst, &html, ID, ID_DOC);
+    assert!(matches!(lista, Ok(Some(_))), "leitura de lista: {lista:?}");
+}
+
+#[test]
+fn fixture_do_aceite_publica_atividade_do_documento_correto() {
+    let atividade = super::atividade_do_aceite(
+        &aceite(ATIVIDADE),
+        super::AlvoDaCiencia::Documento {
+            id_procedimento: ID,
+            id_documento: ID_DOC,
+        },
+    );
+    assert_eq!(atividade, Ok(ATIVIDADE.to_owned()));
+}
