@@ -199,10 +199,10 @@ fn concluir(
     }
     if json_mode {
         let valor = json_de_sucesso(troca, descartados, pedidos);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).unwrap_or_default()
-        );
+        if let Err(erro) = crate::saida::imprimir_json(&valor) {
+            eprintln!("IES: falha ao emitir JSON: {erro}");
+            return std::process::ExitCode::from(1);
+        };
     } else {
         println!("{}", humano(troca, pedidos));
     }
