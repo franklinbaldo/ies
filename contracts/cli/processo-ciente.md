@@ -62,6 +62,8 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 | `lista_de_ciencias_fora_da_forma_observada` | HTML da lista não reconhecido |
 | `atividades_repetidas_na_lista_de_ciencias` | Checkbox duplicado |
 | `efeito_incerto_na_ciencia` | Escrita sem verificação conclusiva |
+| `validacao_da_infra_na_ciencia_do_processo` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
+| `atividade_do_aceite_do_processo_nao_reconhecida` | Resposta do GET mutador sem identidade de atividade comprovável |
 
 
 
@@ -83,6 +85,8 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 - `lista_de_ciencias_fora_da_forma_observada`
 - `atividades_repetidas_na_lista_de_ciencias`
 - `efeito_incerto_na_ciencia`
+- `validacao_da_infra_na_ciencia_do_processo`
+- `atividade_do_aceite_do_processo_nao_reconhecida`
 
 Falhas de transporte são tipadas pela infraestrutura. `--json`
 retorna `numero`, `id_procedimento`, `unidade`,
@@ -103,8 +107,9 @@ Nenhum identificador de atividade é inferido de andamento genérico.
 O custo da abertura depende do índice: 2 GET por link de trabalho
 guardado ou 3 GET a frio pelo Controle; a verificação frequentemente
 custa 1 GET pelo link da árvore. Um processo com pastas fechadas pode
-exigir 1 GET adicional. Os testes integrados de orçamento ainda
-precisam ser escritos; não afirmar live.
+exigir 1 GET adicional. Os testes integrados sintéticos de orçamento verificam 3 GETs na prévia,
+7 GETs com ciência seguida de prova e 6 GETs quando o aceite não
+fornece atividade, sempre um único GET mutador e sem retry. Não afirmar live.
 
 ## Evidências e pendências
 
@@ -112,5 +117,8 @@ Oráculo: Todos `src/todos/ciclo.py` @323eb01 e testes de ciência;
 metadados das cassettes em `contracts/evidencias/processo-ciente.md`,
 sem replay local completo. [Decisão](../../docs/decisoes/processo-ciente.md)
 e [relatório](../../docs/validacao-live/2026-11-05-processo-ciente.md).
-Execução live em instalação de treinamento, inclusive recusa de segunda
-ciência, e testes com transporte injetado permanecem **NOT_RUN**.
+Os testes com transporte injetado afirmam também a preservação de causa
+no GET mutador (403, validação Infra 200 e falha de rede); no efeito
+incerto, causa tipada, status HTTP e mensagem saneada são publicados
+sem repetir a escrita. Execução live em treinamento, inclusive recusa
+de segunda ciência, e replay específico permanecem **NOT_RUN**.

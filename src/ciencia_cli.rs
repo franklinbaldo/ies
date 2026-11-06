@@ -6,7 +6,6 @@ use crate::ciencia::{
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
-use crate::transporte::StatusHttpRecusado;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::{Value, json};
@@ -83,28 +82,31 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     if let ErroCienciaProcesso::EfeitoIncerto {
         motivo,
         requisicoes,
+        falha_do_aceite,
     } = erro
     {
         objeto["verificacao"] = json!(motivo);
         objeto["requisicoes"] = json!(requisicoes);
+        if let Some(falha) = falha_do_aceite {
+            objeto["falha_do_aceite"] = json!({
+                "subcodigo": crate::erro_publico::folha(falha),
+                "causa": crate::erro_publico::caminho_de(falha),
+                "detalhe": falha.detalhe()
+            });
+        }
     }
-    let http: Option<StatusHttpRecusado> = match erro {
-        ErroCienciaProcesso::Abertura(e) => e.status_http().cloned(),
-        ErroCienciaProcesso::Cookie(e) | ErroCienciaProcesso::Tela(e) => e.status_http().cloned(),
-        _ => None,
-    };
-    if let Some(http) = http {
+    if let Some(http) = erro.status_http() {
         if http.status != 200 {
             objeto["status_http"] = json!(http.status);
         }
-        if let Some(mensagem) = http.mensagem_do_servidor {
+        if let Some(mensagem) = &http.mensagem_do_servidor {
             objeto["mensagem_do_servidor"] = json!(mensagem);
         }
     }
     if json_mode {
         println!("{objeto}");
     } else {
-        eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
+        eprintln!("{}", crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http()));
         if let Some(requisicoes) = erro.requisicoes() {
             eprintln!("IES: {requisicoes} requisições, não repetir a escrita; verificar no SEI");
         }

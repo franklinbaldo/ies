@@ -9,7 +9,8 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CienciaDoProcesso {
@@ -20,6 +21,34 @@ pub(crate) struct CienciaDoProcesso {
     pub(crate) verificado: bool,
     pub(crate) id_atividade: Option<String>,
     pub(crate) requisicoes: u8,
+}
+
+/// Causa original do único GET que pode registrar a ciência do processo.
+#[derive(Debug, crate::erro_publico::Causa)]
+pub(crate) enum FalhaDoAceiteProcesso {
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
+    #[causa(http, nome = "validacao_da_infra_na_ciencia_do_processo")]
+    ValidacaoDaInfra(StatusHttpRecusado),
+    #[causa(nome = "atividade_do_aceite_do_processo_nao_reconhecida")]
+    Aceite(super::ErroCiencia),
+}
+
+impl FalhaDoAceiteProcesso {
+    fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Transporte(erro) => erro.status_http(),
+            Self::ValidacaoDaInfra(status) => Some(status),
+            Self::Aceite(_) => None,
+        }
+    }
+
+    pub(crate) fn detalhe(&self) -> Option<&'static str> {
+        match self {
+            Self::Aceite(erro) => Some(erro.subcodigo()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -37,6 +66,7 @@ pub(crate) enum ErroCienciaProcesso {
     EfeitoIncerto {
         motivo: &'static str,
         requisicoes: u8,
+        falha_do_aceite: Option<FalhaDoAceiteProcesso>,
     },
 }
 
@@ -68,6 +98,19 @@ impl ErroCienciaProcesso {
             Self::EfeitoIncerto { .. } => {
                 "a ciência pode ter sido registrada; conferir no SEI antes de repetir"
             }
+        }
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Abertura(erro) => erro.status_http(),
+            Self::Cookie(erro) | Self::Tela(erro) => erro.status_http(),
+            Self::EfeitoIncerto {
+                falha_do_aceite, ..
+            } => falha_do_aceite
+                .as_ref()
+                .and_then(FalhaDoAceiteProcesso::status_http),
+            _ => None,
         }
     }
 
@@ -138,20 +181,13 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
 
     // A partir daqui um único GET da própria ciência: qualquer falha exige
     // verificação por leitura, jamais nova tentativa de escrita.
-    let resposta = rede.get_sem_seguir(url.as_str(), &cookie);
-    let atividade = resposta.ok().and_then(|r| {
-        if r.resposta.status_code == 302 {
-            return None;
-        }
-        let html = decodificar_resposta(r.resposta).ok()?;
-        atividade_do_aceite(
-            &html,
-            AlvoDaCiencia::Processo {
-                id_procedimento: &resultado.id_procedimento,
-            },
-        )
-        .ok()
-    });
+    let aceite = ler_aceite(
+        &mut rede,
+        &cookie,
+        url.as_str(),
+        &resultado.id_procedimento,
+    );
+    let atividade = aceite.as_ref().ok().map(String::as_str);
 
     let prova = verificar(
         sessao,
@@ -163,6 +199,10 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         atividade.as_deref(),
     );
     resultado.requisicoes = rede.feitas();
+    let (atividade, falha_do_aceite) = match aceite {
+        Ok(id) => (Some(id), None),
+        Err(falha) => (None, Some(falha)),
+    };
     match prova {
         Ok(true) => {
             resultado.verificado = true;
@@ -172,12 +212,40 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         Ok(false) => Err(E::EfeitoIncerto {
             motivo: "atividade_da_ciencia_nao_encontrada_na_lista_relida",
             requisicoes: rede.feitas(),
+            falha_do_aceite,
         }),
         Err(motivo) => Err(E::EfeitoIncerto {
             motivo,
             requisicoes: rede.feitas(),
+            falha_do_aceite,
         }),
     }
+}
+
+/// Nunca repete a escrita: mantém a recusa, o HTTP ou o transporte
+/// originais, mesmo quando a releitura posterior não consegue comprovar.
+fn ler_aceite<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    url: &str,
+    id_procedimento: &str,
+) -> Result<String, FalhaDoAceiteProcesso> {
+    let resposta = rede
+        .get_sem_seguir(url, cookie)
+        .map_err(FalhaDoAceiteProcesso::Transporte)?;
+    let html =
+        decodificar_resposta(resposta.resposta).map_err(FalhaDoAceiteProcesso::Transporte)?;
+    if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
+        return Err(FalhaDoAceiteProcesso::ValidacaoDaInfra(StatusHttpRecusado {
+            status: 200,
+            mensagem_do_servidor: Some(mensagem),
+        }));
+    }
+    atividade_do_aceite(
+        &html,
+        AlvoDaCiencia::Processo { id_procedimento },
+    )
+    .map_err(FalhaDoAceiteProcesso::Aceite)
 }
 
 /// Mesmo se o GET mutador falhou, reabre UMA vez o processo. Só consulta a

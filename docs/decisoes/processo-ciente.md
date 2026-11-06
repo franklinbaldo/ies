@@ -83,3 +83,18 @@ do usuário da sessão não pode ser afirmada só pelo valor do checkbox;
 o fluxo comprova somente a presença da atividade vinculada ao processo.
 A CLI de documento ainda não está integrada. Testes de rede sintéticos,
 replay e validação live permanecem pendentes.
+
+## Causa observada do GET mutador (06/11/2026, #271)
+
+A ciência por processo também emprega **um GET de escrita**, como a ciência
+por documento. Antes desta correção, `resposta.ok()` descartava a causa
+original (HTTP 403, validação Infra com HTTP 200 ou falha de rede),
+impedindo o diagnóstico quando a releitura não encontrava a atividade.
+
+A decisão é preservar `FalhaDoAceiteProcesso` dentro do
+`EfeitoIncerto`, sem retry e sem converter status HTTP em confirmação de
+sucesso; somente a lista relida pode provar a atividade. O RED
+[42215714854](https://github.com/franklinbaldo/ies/actions/runs/42215714854)
+mostrou três falhas antes da implementação, com 1.711 PASS. O GREEN
+depende do CI do novo head. Ensaio em treinamento e replay específico
+continuam NOT_RUN, com zero requisições SEI e zero resíduos.
