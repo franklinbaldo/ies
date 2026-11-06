@@ -67,7 +67,9 @@ fn gerados_com_mesmo_nup_em_dois_ids_recusa_antes_do_post_criador() {
     });
     assert!(matches!(
         resultado,
-        Err(ErroCriar::Fotografia(reconciliacao::ErroFotografia::NupRepetido))
+        Err(ErroCriar::Fotografia(
+            reconciliacao::ErroFotografia::NupRepetido
+        ))
     ));
     assert_eq!(requests.len(), 3);
     assert!(requests.iter().all(|r| r.metodo == "GET"));
