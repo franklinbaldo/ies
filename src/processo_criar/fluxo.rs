@@ -1,4 +1,4 @@
-use crate::transporte::sessao::CookieDaSessao;//! Fluxo Web de criação de processo: prévia sem POST criador; escrita única
+//! Fluxo Web de criação de processo: prévia sem POST criador; escrita única
 //! com 302 e verificação da identidade na árvore. Nunca há retry.
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
@@ -18,6 +18,7 @@ use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista
 use crate::processo_criar_menu::link_de_iniciar;
 
 use crate::transporte::decodificar_resposta;
+use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
 
 const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
