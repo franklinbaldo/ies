@@ -57,7 +57,7 @@ pub(super) fn posicao(html: &str, leitura: &LeituraDetalhada) -> Result<PosicaoD
             Some(_) => return Err(E::PaginaAtualDaVisaoDetalhadaIlegivel),
         },
         [valor] => {
-            if valor.is_empty() || valor.len() > 9 || !valor.bytes().all(|b| b.is_ascii_digit()) {
+            if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
                 return Err(E::PaginaAtualDaVisaoDetalhadaIlegivel);
             }
             valor

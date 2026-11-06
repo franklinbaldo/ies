@@ -46,7 +46,6 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroHtm
             .split_once(" a ")
             .ok_or(E::valor("faixa_do_bloco_invalida"))?;
         let de = de
-            .trim()
             .parse::<usize>()
             .map_err(|_| E::valor("faixa_do_bloco_invalida"))?;
         let ate = ate

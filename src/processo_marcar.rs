@@ -25,10 +25,7 @@ pub(crate) enum ErroMarcar {
     IdDoMarcadorNaoDecimal,
     NomeDoMarcadorVazio,
     NomeDoMarcadorComControle,
-    TextoDoMarcadorComControle,
     TextoDoMarcadorLongo,
-    #[causa(nome = "texto_do_marcador_fora_do_latin1")]
-    TextoDoMarcadorForaDoLatin1,
     ListaDeMarcadoresParcial,
     RotuloDiferenteDoMarcadorLido,
     CatalogoDaUnidadeNaoObservado,
@@ -50,11 +47,7 @@ impl ErroMarcar {
             Self::IdDoMarcadorNaoDecimal => "o identificador do marcador deve ser decimal",
             Self::NomeDoMarcadorVazio => "o nome do marcador não pode ser vazio",
             Self::NomeDoMarcadorComControle => "o nome do marcador contém caractere de controle",
-            Self::TextoDoMarcadorComControle => "o texto do marcador contém caractere de controle",
             Self::TextoDoMarcadorLongo => "o texto do marcador excede 250 caracteres",
-            Self::TextoDoMarcadorForaDoLatin1 => {
-                "o texto do marcador contém caractere fora do Latin-1"
-            }
             Self::ListaDeMarcadoresParcial => "a lista de marcadores do processo não está completa",
             Self::RotuloDiferenteDoMarcadorLido => {
                 "o id do marcador tem nome diferente do solicitado"
@@ -88,17 +81,11 @@ pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
     })
 }
 
-/// O Todos limita a 250 caracteres e o formulário é ISO-8859-1.
-/// A validação precede leitura de qualquer arquivo ou chamada Web.
+/// O textarea observado limita o texto a 250 caracteres.
+/// A representabilidade depende do charset do formulário servido.
 pub(crate) fn validar_texto(texto: &str) -> Result<(), ErroMarcar> {
-    if texto.chars().any(char::is_control) {
-        return Err(ErroMarcar::TextoDoMarcadorComControle);
-    }
     if texto.chars().count() > 250 {
         return Err(ErroMarcar::TextoDoMarcadorLongo);
-    }
-    if texto.chars().any(|c| u32::from(c) > 0xff) {
-        return Err(ErroMarcar::TextoDoMarcadorForaDoLatin1);
     }
     Ok(())
 }
