@@ -198,13 +198,13 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
                 break;
             }
         }
-        let inerte = ["disabled", "hidden"].into_iter().try_fold(
-            fieldset_desabilitado,
-            |inerte, atributo| {
+        let inerte = ["disabled", "hidden"]
+            .into_iter()
+            .try_fold(fieldset_desabilitado, |inerte, atributo| {
                 crate::html_atributos::atributo_presente(tag, atributo)
                     .map(|presente| inerte || presente)
-            },
-        ).map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
+            })
+            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
         if inerte {
             return Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into());
         }
