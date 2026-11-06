@@ -53,10 +53,7 @@ impl FotografiaDosGerados {
     /// Identifica *candidatos* novos, não afirma que o POST os criou.
     /// Mudança/desaparecimento de item anterior torna a comparação
     /// inconclusiva (não é prova de que repetir a escrita é seguro).
-    pub(crate) fn novos(
-        &self,
-        depois: &Self,
-    ) -> Result<Vec<CandidatoGerado>, ErroFotografia> {
+    pub(crate) fn novos(&self, depois: &Self) -> Result<Vec<CandidatoGerado>, ErroFotografia> {
         for (id, numero) in &self.por_id {
             match depois.por_id.get(id) {
                 Some(atual) if atual == numero => {}
