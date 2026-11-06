@@ -103,9 +103,9 @@ pub(crate) fn erro_fonte_http(
     http: Option<&StatusHttpRecusado>,
 ) -> ExitCode {
     if json_mode {
-        if let Err(erro) = crate::saida::imprimir_json_compacto(&falha_fonte_publica(
-            subcodigo, mensagem, http,
-        )) {
+        if let Err(erro) =
+            crate::saida::imprimir_json_compacto(&falha_fonte_publica(subcodigo, mensagem, http))
+        {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return ExitCode::from(1);
         }
