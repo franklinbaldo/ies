@@ -114,8 +114,8 @@ nos destinos locais absoluto/relativo, sem requisitar instalações reais.
 A revisão do Gavião no head `c3d0cee` mostrou que uma linha idêntica à
 atribuição de cadastro dentro de `if (false) { … }` era contada como
 instrução ativa, habilitando incorretamente o POST. A guarda agora
-reconhece somente um script sintético mínimo ou a sequência literal
-direta da `function submeter()` observada na captura SEI 4.0.9:
+reconhece somente a sequência literal direta e completa de
+`function submeter()` observada na captura SEI 4.0.9:
 `desabilitarBotaoSalvar(true);`, atribuição da flag e submissão do
 formulário, sem blocos intermediários. Funções não reconhecidas,
 aninhamentos, comentários, scripts externos, literais e definições
@@ -131,3 +131,19 @@ incluem o corpo da função `submeter` lido do oráculo @323eb01.
 Os gates e o live do head corrigido requerem verificação própria;
 não inferir efeito real do teste sintético.
 
+
+## Revisão — atribuição isolada não autoriza escrita (06/11/2026)
+
+O parecer 🦅 no head `951adfd` encontrou que uma atribuição isolada
+podia passar na guarda mesmo sem `function submeter()`, desabilitação
+do botão ou chamada de `frmDocumentoCadastro.submit()`. O script mínimo
+era apenas fixture sintética; não é evidência da submissão do SEI.
+
+A regressão de transporte foi publicada **antes da correção** no commit
+`c18a463`. O [RED 42164978361](https://github.com/franklinbaldo/ies/actions/runs/42164978361)
+registrou **1 FAIL, 1.671 PASS, 18 ignorados**. Uma atribuição isolada
+causava tentativa de requisição além dos cinco GET roteirizados.
+Agora a guarda exige a sequência completa observada, sem executar JS,
+e a fixture positiva a representa. Recusa antes do POST: **5 GET exatos,
+zero POST criador**. O sucesso continua condicionado à conferência por
+leitura após no máximo uma escrita; live continua NOT_RUN.
