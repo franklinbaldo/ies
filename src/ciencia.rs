@@ -86,9 +86,7 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
         .rev()
         .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
         .map_or(0, |i| i + 1);
-    if (inicio_comando..posicao)
-        .any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
-    {
+    if (inicio_comando..posicao).any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace()) {
         return false;
     }
     if nivel == 0 {
