@@ -346,7 +346,14 @@ pub(super) fn diagnostico_privado_do_cadastro(html: &str) -> String {
             Some((instr, funcoes, chamadas)) => format!("{instr}-{funcoes}-{chamadas}"),
             None => "recusado".to_owned(),
         };
-        observacoes.push(format!("script_{indice}={status}"));
+        observacoes.push(format!(
+            "script_{indice}={status}-bytes{}-lines{}-fn{}-sub{}-send{}",
+            texto.len(),
+            texto.lines().count(),
+            texto.contains("function confirmarDados"),
+            texto.contains("function submeter"),
+            texto.contains("frmDocumentoCadastro")
+        ));
     }
     observacoes.join(",")
 }
