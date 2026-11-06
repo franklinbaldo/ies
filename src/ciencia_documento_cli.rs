@@ -94,7 +94,8 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
         if let Some(falha) = falha_do_aceite {
             saida["falha_do_aceite"] = json!({
                 "subcodigo": crate::erro_publico::folha(falha),
-                "causa": crate::erro_publico::caminho_de(falha)
+                "causa": crate::erro_publico::caminho_de(falha),
+                "detalhe": falha.detalhe()
             });
         }
     }
