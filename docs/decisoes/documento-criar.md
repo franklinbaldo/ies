@@ -220,9 +220,15 @@ porém tl::HTMLTag::inner_text, que alimentava a guarda Rust, devolveu
 de funções ficou 0/0/0. Isso demonstra uma divergência **de extração do
 texto JavaScript**, não permissão para relaxar a verificação semântica.
 
-Decisão candidata a provar por RED/GREEN sintético: parear os elementos
-script conferidos no DOM com as faixas de texto bruto do HTML publicado,
-tratando o fechamento de script como terminador lexical da interface Web,
-sem executar JS e sem aceitar atributos fora de html_atributos.
-Se o pareamento ou o encerramento não forem inequívocos, recusar antes de
-escrever. O ensaio não produziu documento nem resíduo no SEI.
+**Implementação na fatia:** identificar primeiro o `script` ativo no DOM,
+validando `type`, `src` e exclusão de `template`, e recuperar sua fonte
+literal no HTML pela posição inicial validada. O `inner_text` do tl não é
+representação adequada de código JS: a remoção de markup pode apagar
+instruções dentro de strings. A extração exige abertura inequívoca,
+aspas fechadas nos atributos e primeiro fechamento literal
+`</script>` (regra HTML, inclusive se aparecer dentro de uma string JS).
+Sem fechamento seguro, recusar antes do POST. A guarda lexical continua
+exigindo a cadeia inteira, sem executar JS, regex nem inserir requisições.
+O teste sintético de `54a7ac1` passou sem RED; **a correção real na UnB
+permanece a verificar** em nova prévia de treinamento antes de decidir
+sobre qualquer confirmação. O diagnóstico não produziu resíduo.
