@@ -1,14 +1,14 @@
 ---
 type: CommandContract
 title: Acompanhamento Especial por prévia e confirmação observada
-description: Prévia de inclusão e retirada; POST único e releitura para inclusão
+description: Prévia e POST único com releitura para inclusão e retirada; live pendente
 operation: processo.acompanhar
 command: ies processo acompanhar NUP [--grupo G] [--observacao T] [--deixar] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo acompanhar NUP` — prévia e inclusão confirmada (Refs #254)
+# `ies processo acompanhar NUP` — inclusão e retirada verificadas (Refs #254)
 
 O comando abre a árvore do processo e confere a unidade da sessão.
 Lê o link assinado `acompanhamento_gerenciar` publicado na barra da raiz.
@@ -49,13 +49,26 @@ ser enviado, independentemente da observação.
   também exige releitura: se a alteração não puder ser comprovada,
   saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
   A inclusão já existente resulta em sucesso sem POST.
-- **Retirada:** `--deixar` tem somente prévia com validação estrutural da oferta de exclusão; `--confirmar --deixar`
-  continua bloqueado antes da sessão até a derivação segura do
-  formulário de exclusão da linha escolhida.
+- **Retirada:** `--deixar` tem somente prévia com validação estrutural da oferta de exclusão; `--deixar --confirmar` deriva a exclusão da action assinada que a função
+  `acaoExcluir` servida publicou e do formulário original da mesma
+  resposta, com `hdnInfraItemId` reescrito pela operação. Emite no máximo
+  um POST, nunca segue 302 e relê o gerenciador. Somente considera
+  sucesso quando a identidade exata desaparece e todas as demais linhas
+  permanecem idênticas. Se o gerenciador redirecionar ao cadastro após
+  a retirada do último acompanhamento, faz um GET explícito ao cadastro
+  e valida sua identidade antes de reconhecer ausência. Resposta sem
+  aceite do mesmo processo, falha do POST, leitura inconclusiva ou
+  alteração concorrente resultam em `efeito_incerto` (saída 3), sem retry.
+  Esta trilha ainda carece de CI e live em treinamento nesta fatia.
 - **Orçamento:** na bancada sintética sem índice quente, 3 GETs de
   abertura + 1 GET gerenciar + 1 GET cadastro + 1 POST + 1 GET
   de verificação = **7 requisições** para inclusão confirmada;
-  a prévia usa **5 GETs e 0 POST**. O custo de abertura real varia
+  a prévia usa **5 GETs e 0 POST**. Para retirada, os cenários
+  sintéticos preveem **4 GET + 1 POST + 1 GET** de conferência,
+  total de **6 requisições**; se a última retirada redirecionar ao
+  cadastro, acrescenta um GET explícito (total **7**).
+  Os testes novos foram publicados antes do miolo, mas o GREEN ainda
+  não foi comprovado no CI. O custo de abertura real varia
   com o índice local. Nenhum retry.
 - **Fonte:** observação histórica do Todos na UnB em 15/10/2026
   (`tests/test_processo_acompanhar_010.py` @323eb01), cassettes
@@ -72,7 +85,7 @@ Os erros possuem `subcodigo` estável:
 `lista_de_acompanhamentos_nao_publicada`,
 `linha_de_acompanhamento_invalida`,
 `acompanhamento_para_remover_ambiguo` e
-`confirmacao_de_acompanhamento_ainda_bloqueada`, entre outros
+`exclusao_de_acompanhamento_nao_oferecida`, entre outros
 em `src/processo_acompanhar.rs`.
 
 Todos os URLs assinados e cookies ficam privados; nenhuma saída ou
@@ -92,7 +105,6 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
 | `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
 | `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
-| `confirmacao_de_acompanhamento_ainda_bloqueada` | Confirmação da retirada ainda bloqueada antes da sessão |
 | `exclusao_de_acompanhamento_nao_oferecida` | Link, função, oculto ou destino de exclusão da linha escolhida não comprovados |
 | `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
 | `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
