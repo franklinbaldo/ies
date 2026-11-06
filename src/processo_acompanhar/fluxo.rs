@@ -175,12 +175,10 @@ fn selecionar_previa(
             requisicoes,
         });
     }
-    // Uma linha do gerenciador prova o grupo ja acompanhado, mesmo se
-    // o cadastro nao oferece mais Adicionar. Nao precisamos de outro GET.
-    if let Some(grupo) = pedido
-        .grupo
-        .filter(|grupo| antes.iter().any(|a| a.grupo == *grupo))
-    {
+    // A lista comprova o grupo exato, inclusive o grupo padrao vazio
+    // quando --grupo foi omitido; nenhum cadastro adicional e necessario.
+    let grupo = pedido.grupo.unwrap_or("");
+    if antes.iter().any(|a| a.grupo == grupo) {
         return Ok(Previa {
             numero: numero.to_owned(),
             unidade: unidade.to_owned(),
@@ -262,9 +260,7 @@ fn ler_gerenciador<V: EnvioDoProcesso>(
         }
         // O grupo pedido ja aparece na lista: nao abrir outro cadastro
         // nem derivar submissao para um POST que nao sera enviado.
-        let ja_acompanhado = pedido
-            .grupo
-            .is_some_and(|grupo| antes.iter().any(|a| a.grupo == grupo));
+        let ja_acompanhado = antes.iter().any(|a| a.grupo == pedido.grupo.unwrap_or(""));
         let url = if pedido.deixar || ja_acompanhado {
             None
         } else {
@@ -307,9 +303,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         &cookie,
         pedido,
     )?;
-    let grupo_ja_existe = pedido
-        .grupo
-        .is_some_and(|grupo| antes.iter().any(|a| a.grupo == grupo));
+    let grupo_ja_existe = antes.iter().any(|a| a.grupo == pedido.grupo.unwrap_or(""));
     let grupos = if pedido.deixar || grupo_ja_existe {
         None
     } else {
