@@ -95,7 +95,6 @@ fn previa_deriva_formulario_sem_post_com_orcamento_exato() {
     assert_eq!(pedidos, &requests_post()[..5]);
 }
 
-
 #[test]
 fn grupo_ja_acompanhado_nao_exige_novo_cadastro_nem_post() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01:
