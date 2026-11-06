@@ -17,7 +17,8 @@ pub(crate) struct ProcessoConferido {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Desfecho {
-    Aplicada { nup: String },
+    /// Uma correspondencia de propriedades: NAO prova qual POST a criou.
+    CoincidenciaUnica { nup: String },
     CandidatosAmbiguos { nups: Vec<String> },
     SemCorrespondenciaObservada,
 }
@@ -97,7 +98,7 @@ pub(crate) fn classificar(
         }
     }
     Ok(match correspondentes.as_slice() {
-        [nup] => Desfecho::Aplicada { nup: nup.clone() },
+        [nup] => Desfecho::CoincidenciaUnica { nup: nup.clone() },
         [] => Desfecho::SemCorrespondenciaObservada,
         _ => Desfecho::CandidatosAmbiguos {
             nups: correspondentes,
@@ -185,7 +186,7 @@ mod tests {
         )];
         assert_eq!(
             classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO, "publico"),
-            Ok(Desfecho::Aplicada {
+            Ok(Desfecho::CoincidenciaUnica {
                 nup: "00000.000017/2026-17".into()
             })
         );
