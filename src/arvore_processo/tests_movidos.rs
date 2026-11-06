@@ -9,6 +9,7 @@
 use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 pub(crate) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
@@ -156,23 +157,23 @@ fn no_movido_fora_da_forma_e_recusa() {
     let casos: Vec<(Vec<String>, E)> = vec![
         (
             vec![p(), d(), m("31", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![p(), d(), m("31-", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![p(), d(), m("-41", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![p(), d(), m("3a-41", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![p(), d(), m("31-41-5", "10")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![
@@ -180,7 +181,7 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3("id_procedimento=10&", "id_procedimento=10&id_documento=31&"),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![
@@ -188,11 +189,11 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3("acao=arvore_visualizar", "acao=procedimento_trabalhar"),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![p(), d(), com_a3("\"controlador.php?", "\"about:blank?")],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         (
             vec![
@@ -200,7 +201,7 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3(",\"Oficio Sintetico (0000103)\",", ",\"\","),
             ],
-            E::DocumentoMovidoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         ),
         // a3 do outro processo acompanha o pai: o pai é que diverge.
         (
@@ -218,7 +219,7 @@ fn no_movido_fora_da_forma_e_recusa() {
                 m("31-41", "10"),
                 no_movido(3, "31-41", "10", "0000104"),
             ],
-            E::DocumentoMovidoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("documento_movido_repetido_na_arvore")),
         ),
         (
             vec![
@@ -227,7 +228,7 @@ fn no_movido_fora_da_forma_e_recusa() {
                 m("31-41", "10"),
                 no_movido(3, "31-42", "10", "0000104"),
             ],
-            E::DocumentoMovidoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("documento_movido_repetido_na_arvore")),
         ),
         (
             vec![
@@ -277,7 +278,9 @@ fn destino_fora_da_forma_e_recusa() {
     for html in fora {
         assert_eq!(
             ler_tudo(&html),
-            Err(E::DestinoDoDocumentoMovidoForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "destino_do_documento_movido_fora_da_forma_observada"
+            ))),
             "{html}"
         );
     }
@@ -290,7 +293,9 @@ fn destino_fora_da_forma_e_recusa() {
     for html in [dois_links, dois_html] {
         assert_eq!(
             ler_tudo(&html),
-            Err(E::DestinosDoDocumentoMovidoRepetidos),
+            Err(E::Html(ErroHtml::repetido(
+                "destinos_do_documento_movido_repetidos"
+            ))),
             "{html}"
         );
     }
@@ -299,11 +304,13 @@ fn destino_fora_da_forma_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let nomes: Vec<&str> = [
-        E::DocumentoMovidoForaDaFormaObservada,
+        E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         E::DocumentoMovidoComPaiDiferenteDoProcesso,
-        E::DocumentoMovidoRepetidoNaArvore,
-        E::DestinoDoDocumentoMovidoForaDaFormaObservada,
-        E::DestinosDoDocumentoMovidoRepetidos,
+        E::Html(ErroHtml::repetido("documento_movido_repetido_na_arvore")),
+        E::Html(ErroHtml::valor(
+            "destino_do_documento_movido_fora_da_forma_observada",
+        )),
+        E::Html(ErroHtml::repetido("destinos_do_documento_movido_repetidos")),
     ]
     .into_iter()
     .map(|e| crate::erro_publico::folha(&e))

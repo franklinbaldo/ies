@@ -4,6 +4,7 @@ use super::ErroLinkDoHistorico as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_processo};
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 const ID: &str = "10";
@@ -65,7 +66,9 @@ fn as_duas_formas_juntas_sao_recusa() {
     let (_, corpo) = forma_go(&url);
     assert_eq!(
         ler(&[(script, corpo)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(E::Html(ErroHtml::repetido(
+            "links_do_historico_repetidos_na_arvore"
+        )))
     );
 }
 
@@ -74,11 +77,15 @@ fn link_repetido_e_recusa() {
     let url = link_do_historico(ID);
     assert_eq!(
         ler(&[forma_go(&url), forma_go(&url)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(E::Html(ErroHtml::repetido(
+            "links_do_historico_repetidos_na_arvore"
+        )))
     );
     assert_eq!(
         ler(&[forma_unb(&url), forma_unb(&url)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(E::Html(ErroHtml::repetido(
+            "links_do_historico_repetidos_na_arvore"
+        )))
     );
 }
 
@@ -93,7 +100,9 @@ fn onclick_fora_das_formas_e_recusa() {
     ] {
         assert_eq!(
             ler(&[(String::new(), trocado)]),
-            Err(E::LinkDoHistoricoForaDaFormaObservada)
+            Err(E::Html(ErroHtml::valor(
+                "link_do_historico_fora_da_forma_observada"
+            )))
         );
     }
 }
@@ -105,7 +114,9 @@ fn funcao_sem_a_linha_do_src_e_recusa() {
     let trocado = script.replace("parent.document", "window.parent.document");
     assert_eq!(
         ler(&[(trocado, corpo)]),
-        Err(E::LinkDoHistoricoForaDaFormaObservada)
+        Err(E::Html(ErroHtml::valor(
+            "link_do_historico_fora_da_forma_observada"
+        )))
     );
 }
 
@@ -126,7 +137,9 @@ fn url_fora_da_conferencia_e_recusa() {
     ] {
         assert_eq!(
             ler(&[forma_go(&trocada)]),
-            Err(E::EnderecoDoHistoricoNaoReconhecido),
+            Err(E::Html(ErroHtml::valor(
+                "endereco_do_historico_nao_reconhecido"
+            ))),
             "{trocada}"
         );
     }
@@ -143,11 +156,11 @@ fn link_de_outro_processo_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let todos = [
-        E::HtmlDaArvoreNaoInterpretado,
+        E::Html(ErroHtml::html("html_da_arvore_nao_interpretado")),
         E::LinkDoHistoricoAusenteNaArvore,
-        E::LinksDoHistoricoRepetidosNaArvore,
-        E::LinkDoHistoricoForaDaFormaObservada,
-        E::EnderecoDoHistoricoNaoReconhecido,
+        E::Html(ErroHtml::repetido("links_do_historico_repetidos_na_arvore")),
+        E::Html(ErroHtml::valor("link_do_historico_fora_da_forma_observada")),
+        E::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido")),
         E::EnderecoDoHistoricoDeOutroProcesso,
     ];
     for erro in todos {

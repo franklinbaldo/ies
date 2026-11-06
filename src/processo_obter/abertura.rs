@@ -6,14 +6,15 @@ use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
     ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
-    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroReabrirNaBarra,
-    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroRelacionarNaBarra,
+    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
     ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
     ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
     ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
     ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
     ler_vinculo_de_anexacao,
 };
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
@@ -163,7 +164,7 @@ pub(super) struct ArvoreAberta {
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
-    pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroHtml>,
     pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).

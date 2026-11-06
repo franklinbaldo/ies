@@ -2,6 +2,7 @@
 //! Forma observada (`UnB` 4.0.9, PEN1 5.0.4, GO 5.0.3; capturas privadas):
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -10,13 +11,10 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 /// Uma variante por fato verificável do link no Controle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDaPesquisa {
-    LinkDaPesquisaAusenteNoControle,
-    LinksDaPesquisaRepetidosNoControle,
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
-    /// Fora de `controlador.php?`, sem exatamente uma `acao` e um
-    /// `infra_hash` de 64 hex, com chave não canônica ou fora da instalação.
-    LinkDaPesquisaNaoReconhecido,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroLinkDaPesquisa {}
@@ -37,7 +35,7 @@ pub(crate) fn link_da_pesquisa(
     {
         return Err(E::LinkDaPesquisaComEnderecoAbsoluto);
     }
-    let nao = E::LinkDaPesquisaNaoReconhecido;
+    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
@@ -79,7 +77,7 @@ const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
     use ErroLinkDaPesquisa as E;
-    let nao = E::LinkDaPesquisaNaoReconhecido;
+    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| nao)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -107,9 +105,9 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         }
     }
     match achados.len() {
-        0 => Err(E::LinkDaPesquisaAusenteNoControle),
+        0 => Err(ErroHtml::ausente("link_da_pesquisa_ausente_no_controle").into()),
         1 => Ok(achados.remove(0)),
-        _ => Err(E::LinksDaPesquisaRepetidosNoControle),
+        _ => Err(ErroHtml::repetido("links_da_pesquisa_repetidos_no_controle").into()),
     }
 }
 

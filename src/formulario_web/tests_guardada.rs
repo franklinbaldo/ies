@@ -5,6 +5,7 @@ use super::super::{
     EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use super::derivar_submissao_guardada;
+use crate::erro_html::ErroHtml;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
@@ -85,7 +86,7 @@ fn recusas_sem_rede() {
     let fora = url.replace("sei.exemplo.gov.br", "outro.exemplo.gov.br");
     assert_eq!(
         derivar(&fora, &[("txtPesquisaRapida", "1")]).unwrap_err(),
-        E::AcaoDoFormularioForaDaInstalacao
+        E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))
     );
     let outra_acao = url.replace("protocolo_pesquisa_rapida", "protocolo_pesquisar");
     assert_eq!(
@@ -108,6 +109,6 @@ fn operacao_com_botao_ou_ocultos_nao_cabe_no_envio_guardado() {
     let (url, referer) = (action(), controle());
     assert_eq!(
         derivar_submissao_guardada(&com_botao, &instalacao(), &url, &referer, &[]).unwrap_err(),
-        E::FormularioAusenteNaTela
+        E::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
     );
 }

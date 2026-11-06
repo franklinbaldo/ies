@@ -5,6 +5,7 @@
 //! antes de `table.pesquisaResultado`; `div.pesquisaSemResultado` sozinho.
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe};
 use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
 
@@ -41,14 +42,10 @@ pub(crate) enum RespostaDaPesquisa {
 /// Uma variante por fato verificável da resposta 200.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRespostaDaPesquisa {
-    #[causa(nome = "html_da_resposta_da_pesquisa_nao_interpretado")]
-    HtmlDaRespostaNaoInterpretado,
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
     /// Aviso de "sem resultado" e barra "Exibindo I - F de N" juntos.
     AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta,
-    BarraDeContagemDaPesquisaAusente,
-    BarrasDeContagemDaPesquisaRepetidas,
     TextoDaBarraDeContagemForaDoFormato,
     NumeroDaBarraDeContagemForaDoFormato,
     FaixaDaBarraDeContagemImpossivel,
@@ -60,6 +57,8 @@ pub(crate) enum ErroRespostaDaPesquisa {
     Documento(super::documentos::ErroDocumentoDaPesquisa),
     #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroRespostaDaPesquisa {}
@@ -146,7 +145,7 @@ pub(crate) fn classificar_resposta<T>(
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
+        .map_err(|_| ErroHtml::html("html_da_resposta_da_pesquisa_nao_interpretado"))?;
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
@@ -158,9 +157,9 @@ pub(crate) fn classificar_resposta<T>(
         (false, _, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
     }
     let barra = match barras.as_slice() {
-        [] => return Err(E::BarraDeContagemDaPesquisaAusente),
+        [] => return Err(ErroHtml::ausente("barra_de_contagem_da_pesquisa_ausente").into()),
         [barra] => *barra,
-        _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
+        _ => return Err(ErroHtml::repetido("barras_de_contagem_da_pesquisa_repetidas").into()),
     };
     let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
     // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só

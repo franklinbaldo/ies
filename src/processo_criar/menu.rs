@@ -1,5 +1,6 @@
 //! Link de "Iniciar Processo" publicado pelo Controle da sessão.
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -7,44 +8,33 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 const ACAO: &str = "procedimento_escolher_tipo";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
-pub(crate) enum ErroMenuCriacao {
-    #[causa(nome = "link_de_iniciar_processo_ausente")]
-    Ausente,
-    #[causa(nome = "link_de_iniciar_processo_repetido")]
-    Repetido,
-    #[causa(nome = "link_de_iniciar_processo_nao_reconhecido")]
-    NaoReconhecido,
-}
-
-impl ErroMenuCriacao {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
 /// Uma variante onclick desconhecida é recusada, não executada.
 pub(crate) fn link_de_iniciar(
     instalacao: &Instalacao,
     url_controle: &str,
     html: &str,
-) -> Result<String, ErroMenuCriacao> {
-    use ErroMenuCriacao as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::NaoReconhecido)?;
+) -> Result<String, ErroHtml> {
+    use ErroHtml as E;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::NaoReconhecido)?;
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| E::NaoReconhecido)? else {
+            .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
+        let Some(bruto) = valor_do_atributo(tag, "href")
+            .map_err(|e| E::atributo("link_de_iniciar_processo_nao_reconhecido", e))?
+        else {
             continue;
         };
         let href = match decodificar_atributo(&bruto) {
             Some(href) => href,
-            None if bruto.contains(ACAO) => return Err(E::NaoReconhecido),
+            None if bruto.contains(ACAO) => {
+                return Err(E::valor("link_de_iniciar_processo_nao_reconhecido"));
+            }
             None => continue,
         };
         let aponta = href.split_once('?').is_some_and(|(_, consulta)| {
@@ -58,43 +48,54 @@ pub(crate) fn link_de_iniciar(
     }
     let [href] = candidatos.as_slice() else {
         return Err(if candidatos.is_empty() {
-            E::Ausente
+            E::ausente("link_de_iniciar_processo_ausente")
         } else {
-            E::Repetido
+            E::repetido("link_de_iniciar_processo_repetido")
         });
     };
     // Não seguir links de outra instalação, nem admitir parâmetros inesperados
     // de ação ou identificador de sessão.
     let consulta = href
         .strip_prefix("controlador.php?")
-        .ok_or(E::NaoReconhecido)?;
+        .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
     if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(E::NaoReconhecido);
+        return Err(E::valor("link_de_iniciar_processo_nao_reconhecido"));
     }
     let (mut acoes, mut hashes) = (0, 0);
     for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or(E::NaoReconhecido)?;
-        conferir_chave_de_consulta(chave).map_err(|_| E::NaoReconhecido)?;
-        conferir_valor_de_consulta(valor).map_err(|_| E::NaoReconhecido)?;
+        let (chave, valor) = par
+            .split_once('=')
+            .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
+        conferir_chave_de_consulta(chave)
+            .map_err(|_| E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
+        conferir_valor_de_consulta(valor)
+            .map_err(|_| E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
         match chave {
             "acao" if valor == ACAO => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(E::NaoReconhecido),
+            "acao" | "infra_hash" | "acao_ajax" => {
+                return Err(E::valor("link_de_iniciar_processo_nao_reconhecido"));
+            }
             _ => {}
         }
     }
     if acoes != 1 || hashes != 1 {
-        return Err(E::NaoReconhecido);
+        return Err(E::valor("link_de_iniciar_processo_nao_reconhecido"));
     }
-    let base = url_controle.split('?').next().ok_or(E::NaoReconhecido)?;
-    let (pasta, _) = base.rsplit_once('/').ok_or(E::NaoReconhecido)?;
+    let base = url_controle
+        .split('?')
+        .next()
+        .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
+    let (pasta, _) = base
+        .rsplit_once('/')
+        .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
     let url = format!("{pasta}/{href}");
-    let decomposicao =
-        crate::url_observada::UrlHttps::interpretar(&url).ok_or(E::NaoReconhecido)?;
+    let decomposicao = crate::url_observada::UrlHttps::interpretar(&url)
+        .ok_or(E::valor("link_de_iniciar_processo_nao_reconhecido"))?;
     if !instalacao.autoriza_controlador(decomposicao.host, decomposicao.caminho) {
-        return Err(E::NaoReconhecido);
+        return Err(E::valor("link_de_iniciar_processo_nao_reconhecido"));
     }
     Ok(url)
 }
@@ -130,16 +131,16 @@ mod tests {
         let (url, instalacao) = base();
         assert_eq!(
             link_de_iniciar(&instalacao, url, "<div/>"),
-            Err(ErroMenuCriacao::Ausente)
+            Err(ErroHtml::ausente("link_de_iniciar_processo_ausente"))
         );
         let repetido = format!("{}{}", ancora(ACAO), ancora(ACAO));
         assert_eq!(
             link_de_iniciar(&instalacao, url, &repetido),
-            Err(ErroMenuCriacao::Repetido)
+            Err(ErroHtml::repetido("link_de_iniciar_processo_repetido"))
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &ancora("procedimento_gerar")),
-            Err(ErroMenuCriacao::Ausente)
+            Err(ErroHtml::ausente("link_de_iniciar_processo_ausente"))
         );
     }
 
@@ -152,12 +153,12 @@ mod tests {
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &externo),
-            Err(ErroMenuCriacao::NaoReconhecido)
+            Err(ErroHtml::valor("link_de_iniciar_processo_nao_reconhecido"))
         );
         let sem_assinatura = format!("<a href='controlador.php?acao={ACAO}'>Iniciar</a>");
         assert_eq!(
             link_de_iniciar(&instalacao, url, &sem_assinatura),
-            Err(ErroMenuCriacao::NaoReconhecido)
+            Err(ErroHtml::valor("link_de_iniciar_processo_nao_reconhecido"))
         );
     }
 }

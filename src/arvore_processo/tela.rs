@@ -1,5 +1,6 @@
 //! Tela `procedimento_trabalhar`: a unidade publicada (`#lnkInfraUnidade`)
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
@@ -32,15 +33,12 @@ pub(crate) struct TelaDoProcesso {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDoProcesso {
-    HtmlDaTelaDoProcessoNaoInterpretado,
-    IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
     UnidadeDaTelaDiferenteDaSolicitada,
-    ArvoreAusenteNaTelaDoProcesso,
-    ArvoresRepetidasNaTelaDoProcesso,
-    EnderecoDaArvoreNaoReconhecido,
     EnderecoDaArvoreDeOutroProcesso,
     /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
     EnderecoDaArvoreDeOutroDocumento,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroTelaDoProcesso {}
@@ -87,7 +85,7 @@ pub(crate) fn ler_tela_do_documento(
     }
     let [id_procedimento] = valores("id_procedimento")
         .try_into()
-        .map_err(|_| E::EnderecoDaArvoreNaoReconhecido)?;
+        .map_err(|_| ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
     let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
     Ok((
         TelaDoProcesso {
@@ -106,34 +104,36 @@ fn unidade_e_src(
 ) -> Result<(String, String), ErroTelaDoProcesso> {
     use ErroTelaDoProcesso as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
+        .map_err(|_| ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?;
     let publicada = crate::controle_contexto::unidade_html(&dom)
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
-        .ok_or(E::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
+        .map_err(|_| ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?
+        .ok_or(ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela_do_processo",
+        ))?;
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada
     {
         return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
     }
-    let iframes =
-        nos_com_id(&dom, "ifrArvore").map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
+    let iframes = nos_com_id(&dom, "ifrArvore")
+        .map_err(|e| ErroHtml::atributo("html_da_tela_do_processo_nao_interpretado", e))?;
     let iframe = match iframes.as_slice() {
-        [] => return Err(E::ArvoreAusenteNaTelaDoProcesso),
+        [] => return Err(ErroHtml::ausente("arvore_ausente_na_tela_do_processo").into()),
         [um] => um
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlDaTelaDoProcessoNaoInterpretado)?,
-        _ => return Err(E::ArvoresRepetidasNaTelaDoProcesso),
+            .ok_or(ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?,
+        _ => return Err(ErroHtml::repetido("arvores_repetidas_na_tela_do_processo").into()),
     };
     if iframe.name() != "iframe" {
-        return Err(E::ArvoreAusenteNaTelaDoProcesso);
+        return Err(ErroHtml::ausente("arvore_ausente_na_tela_do_processo").into());
     }
     let src = valor_do_atributo(iframe, "src")
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
-        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
+        .map_err(|e| ErroHtml::atributo("html_da_tela_do_processo_nao_interpretado", e))?
+        .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
     let src = crate::formulario_web::decodificar_atributo(&src)
-        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
+        .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
     Ok((publicada, src))
 }
 
@@ -148,7 +148,9 @@ fn conferir_endereco(
     conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
         .map(EnderecoDaArvore)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,
+            EnderecoRecusado::NaoReconhecido => {
+                ErroTelaDoProcesso::Html(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))
+            }
             EnderecoRecusado::DeOutroProcesso => {
                 ErroTelaDoProcesso::EnderecoDaArvoreDeOutroProcesso
             }

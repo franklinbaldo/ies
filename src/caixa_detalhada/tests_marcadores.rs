@@ -4,6 +4,7 @@
 //! hashes inventados.
 use super::tests_colunas::{ler, rotulo, tabela};
 use super::*;
+use crate::erro_html::ErroHtml;
 use serde_json::json;
 
 const HASH: &str = "5555555555555555555555555555555555555555555555555555555555555555";
@@ -109,11 +110,15 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
     for ruim in ruins {
         assert_eq!(
             com_marcadores(&ruim),
-            Err(ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada),
+            Err(ErroDetalhada::Html(ErroHtml::valor(
+                "marcador_da_celula_detalhada_fora_da_forma_observada"
+            ))),
             "{ruim}"
         );
     }
-    let erro = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
+    let erro = ErroDetalhada::Html(ErroHtml::valor(
+        "marcador_da_celula_detalhada_fora_da_forma_observada",
+    ));
     assert_eq!(
         crate::erro_publico::folha(&erro),
         "marcador_da_celula_detalhada_fora_da_forma_observada"

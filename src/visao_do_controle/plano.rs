@@ -2,12 +2,13 @@
 //! paginação confere, sem rede.
 use super::ErroVisaoDoControle as E;
 use crate::caixa_detalhada::LeituraDetalhada;
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginas::FaixaNaPagina;
 
 fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::HtmlInvalido)
+    E::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
 }
 
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.

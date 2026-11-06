@@ -1,27 +1,16 @@
 //! Leitura estritamente offline do histórico Web de um processo.
 //! Não confundir histórico parcial com a representação integral do processo.
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::nos_com_id;
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
 /// Condições específicas do parser, independentes de mensagens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroHistorico {
-    #[causa(nome = "html_do_historico_invalido")]
-    HtmlInvalido,
-    TituloAusente,
-    #[causa(nome = "titulos_do_historico_repetidos")]
-    TitulosRepetidos,
-    #[causa(nome = "cabecalhos_html_do_historico_repetidos")]
-    CabecalhosHtmlRepetidos,
-    TituloInvalido,
-    #[causa(nome = "numero_do_historico_invalido")]
-    NumeroInvalido,
     NumeroDoHistoricoDiferenteDoSolicitado,
-    HistoricoAusente,
-    TabelasDoHistoricoRepetidas,
-    HistoricoInvalido,
-    LinhaInvalida,
     HistoricoVazio,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroHistorico {}
@@ -45,12 +34,12 @@ fn titulo_do_historico(
     let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
     let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
         if cabecalhos.next().is_some() {
-            return Err(ErroHistorico::CabecalhosHtmlRepetidos);
+            return Err(ErroHtml::repetido("cabecalhos_html_do_historico_repetidos").into());
         }
         let tag = cabecalho
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHistorico::TituloAusente)?;
+            .ok_or(ErroHtml::ausente("titulo_ausente"))?;
         tag.query_selector(parser, "title")
             .into_iter()
             .flatten()
@@ -59,69 +48,72 @@ fn titulo_do_historico(
         dom.query_selector("title").into_iter().flatten().collect()
     };
     let mut titulos = titulos.into_iter();
-    let primeiro = titulos.next().ok_or(ErroHistorico::TituloAusente)?;
+    let primeiro = titulos.next().ok_or(ErroHtml::ausente("titulo_ausente"))?;
     if titulos.next().is_some() {
-        return Err(ErroHistorico::TitulosRepetidos);
+        return Err(ErroHtml::repetido("titulos_do_historico_repetidos").into());
     }
     primeiro
         .get(parser)
         .map(|no| texto(no, parser))
-        .ok_or(ErroHistorico::TituloAusente)
+        .ok_or(ErroHistorico::Html(ErroHtml::ausente("titulo_ausente")))
 }
 
 #[cfg(test)]
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("html_do_historico_invalido"))?;
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     let (_, protocolo) = titulo
         .split_once("Histórico do Processo ")
-        .ok_or(ErroHistorico::TituloInvalido)?;
-    let numero = NumeroProcesso::novo(protocolo).map_err(|_| ErroHistorico::NumeroInvalido)?;
+        .ok_or(ErroHtml::valor("titulo_invalido"))?;
+    let numero = NumeroProcesso::novo(protocolo)
+        .map_err(|_| ErroHtml::valor("numero_do_historico_invalido"))?;
     Ok(numero.as_str().to_owned())
 }
 
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
-    let numero = NumeroProcesso::novo(numero).map_err(|_| ErroHistorico::NumeroInvalido)?;
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let numero = NumeroProcesso::novo(numero)
+        .map_err(|_| ErroHtml::valor("numero_do_historico_invalido"))?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("html_do_historico_invalido"))?;
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     // O protocolo é opaco. Não fragmentar por pontuação nem remover zeros.
     let (_, mostrado) = titulo
         .split_once("Histórico do Processo ")
-        .ok_or(ErroHistorico::TituloInvalido)?;
+        .ok_or(ErroHtml::valor("titulo_invalido"))?;
     if mostrado != numero.as_str() {
         return Err(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado);
     }
     // O primeiro ID não é suficiente: tabelas duplicadas podem ocultar andamentos.
-    let candidatas = nos_com_id(&dom, "tblHistorico").map_err(|_| ErroHistorico::HtmlInvalido)?;
+    let candidatas = nos_com_id(&dom, "tblHistorico")
+        .map_err(|e| ErroHtml::atributo("html_do_historico_invalido", e))?;
     let primeira = match candidatas.as_slice() {
-        [] => return Err(ErroHistorico::HistoricoAusente),
+        [] => return Err(ErroHtml::ausente("historico_ausente").into()),
         [primeira] => *primeira,
-        _ => return Err(ErroHistorico::TabelasDoHistoricoRepetidas),
+        _ => return Err(ErroHtml::repetido("tabelas_do_historico_repetidas").into()),
     };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHistorico::HistoricoInvalido)?;
+        .ok_or(ErroHtml::valor("historico_invalido"))?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
             .is_some_and(|mut nodes| nodes.next().is_some())
     {
-        return Err(ErroHistorico::HistoricoInvalido);
+        return Err(ErroHtml::valor("historico_invalido").into());
     }
     let mut detalhe = DetalheProcesso::novo(numero);
     let linhas = tabela
         .query_selector(parser, "tr")
-        .ok_or(ErroHistorico::HistoricoInvalido)?;
+        .ok_or(ErroHtml::valor("historico_invalido"))?;
     for linha in linhas {
         let tag = linha
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHistorico::HistoricoInvalido)?;
+            .ok_or(ErroHtml::valor("historico_invalido"))?;
         let cells: Vec<String> = tag
             .query_selector(parser, "td")
             .into_iter()
@@ -133,7 +125,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
             continue;
         }
         if cells.len() != 4 || cells[0].is_empty() || cells[3].is_empty() {
-            return Err(ErroHistorico::LinhaInvalida);
+            return Err(ErroHtml::valor("linha_invalida").into());
         }
         detalhe.andamentos.push(Andamento {
             ocorrido_em: Some(cells[0].clone()),
@@ -214,7 +206,7 @@ mod tests {
         let invalido = "<title>Histórico do Processo 202600005002487</title>        <table id='tblHistorico'><tr><td>12/07/2026</td></tr></table>";
         assert_eq!(
             ler_historico(invalido, "202600005002487").unwrap_err(),
-            ErroHistorico::LinhaInvalida
+            ErroHistorico::Html(ErroHtml::valor("linha_invalida"))
         );
     }
 
@@ -226,7 +218,10 @@ mod tests {
             fixture(numero)
         );
         let erro = ler_historico(&html, numero).unwrap_err();
-        assert_eq!(erro, ErroHistorico::TabelasDoHistoricoRepetidas);
+        assert_eq!(
+            erro,
+            ErroHistorico::Html(ErroHtml::repetido("tabelas_do_historico_repetidas"))
+        );
         assert_eq!(
             crate::erro_publico::folha(&erro),
             "tabelas_do_historico_repetidas"
@@ -239,7 +234,7 @@ mod tests {
         let html = format!("<div id='tblHistorico'>navegação</div>{}", fixture(numero));
         assert_eq!(
             ler_historico(&html, numero).unwrap_err(),
-            ErroHistorico::TabelasDoHistoricoRepetidas
+            ErroHistorico::Html(ErroHtml::repetido("tabelas_do_historico_repetidas"))
         );
     }
 
@@ -259,10 +254,13 @@ mod tests {
         let html = "<html><head></head><body><svg>
             <title>SEI - Histórico do Processo 000123</title>
             </svg></body></html>";
-        assert_eq!(numero_do_historico(html), Err(ErroHistorico::TituloAusente));
+        assert_eq!(
+            numero_do_historico(html),
+            Err(ErroHistorico::Html(ErroHtml::ausente("titulo_ausente")))
+        );
         assert_eq!(
             ler_historico(html, "000123"),
-            Err(ErroHistorico::TituloAusente)
+            Err(ErroHistorico::Html(ErroHtml::ausente("titulo_ausente")))
         );
     }
 
@@ -273,22 +271,30 @@ mod tests {
             <title>SEI - Histórico do Processo 000124</title></head></html>";
         assert_eq!(
             numero_do_historico(titulos),
-            Err(ErroHistorico::TitulosRepetidos)
+            Err(ErroHistorico::Html(ErroHtml::repetido(
+                "titulos_do_historico_repetidos"
+            )))
         );
         assert_eq!(
             ler_historico(titulos, "000123"),
-            Err(ErroHistorico::TitulosRepetidos)
+            Err(ErroHistorico::Html(ErroHtml::repetido(
+                "titulos_do_historico_repetidos"
+            )))
         );
         let cabecalhos = "<html>
             <head><title>SEI - Histórico do Processo 000123</title></head>
             <head><title>SEI - Histórico do Processo 000124</title></head></html>";
         assert_eq!(
             numero_do_historico(cabecalhos),
-            Err(ErroHistorico::CabecalhosHtmlRepetidos)
+            Err(ErroHistorico::Html(ErroHtml::repetido(
+                "cabecalhos_html_do_historico_repetidos"
+            )))
         );
         assert_eq!(
             ler_historico(cabecalhos, "000123"),
-            Err(ErroHistorico::CabecalhosHtmlRepetidos)
+            Err(ErroHistorico::Html(ErroHtml::repetido(
+                "cabecalhos_html_do_historico_repetidos"
+            )))
         );
     }
 }
