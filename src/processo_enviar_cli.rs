@@ -188,9 +188,7 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     };
     let depois = match erro {
         E::EnvioNaoAplicado { depois, .. }
-        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => {
-            Some(depois.as_slice())
-        }
+        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
         _ => None,
     };
     for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
