@@ -64,9 +64,13 @@ falso sucesso por ação concorrente, conforme RED de duas regressões
 adversariais no [CI 42214490209](https://github.com/franklinbaldo/ies/actions/runs/42214490209)
 (**2 FAIL novos, 1.716 PASS, 23 ignored existentes**) e observação
 do destino `ACEITE` com ID nos testes do Todos @323eb01. Apenas uma resposta
-aceita e **identificada** (302 para ação e processo esperados) ou uma
-falha sem resposta de rede pode ser conciliada pela leitura, conservando
-a causa; não há nova escrita nem navegação pelo Location. O 302 do aceite observado no Todos @323eb01 também publica
+aceita e **identificada** (302 para ação, processo e origem esperados)
+pode ser confirmada pela releitura; não há nova escrita nem navegação
+pelo Location. Uma **falha de rede sem resposta não prova autoria**,
+mesmo que a árvore relida coincida: outro agente pode ter feito a mesma
+atribuição/remoção. Conserva-se a falha original, o estado relido como
+possível resíduo e a saída 3, sem retry. Esta regra corrige o falso
+sucesso apontado na revisão 🦅 de #316 (head `72bab3b`). O 302 do aceite observado no Todos @323eb01 também publica
 `acao_origem=procedimento_atribuicao_cadastrar`. Não basta a ação de
 destino com o ID correto: um 302 sem ação de origem não vincula o POST
 à leitura coincidente, que pode ter resultado de outro agente. O RED
