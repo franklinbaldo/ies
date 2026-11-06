@@ -1,0 +1,206 @@
+//! Regressões adversariais de escrita da atribuição: recusas, concorrência e prova.
+//! Cenários sintéticos compartilham o roteiro e os orçamentos da fatia #264.
+use super::*;
+
+/// Caso de concorrência: outro agente publicou o resultado desejado durante
+/// o POST recusado. A leitura coincidente NÃO prova que nosso POST escreveu.
+#[test]
+fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Ok((
+        403,
+        "<html><body>Acesso negado.</body></html>".to_owned(),
+        None,
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET prévia + POST único + GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Uma validação da Infra é recusa expressa, mesmo que outra sessão tenha
+/// produzido a atribuição desejada antes da releitura da árvore.
+#[test]
+fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(ok(
+        "<html><body><textarea id=\"txaInfraValidacao\">Atribuição recusada.</textarea></body></html>".to_owned(),
+    ));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(200));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Atribuição recusada.")
+    );
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// 302 é dado, nunca navegação automática; destino de ação diferente não
+/// pode ser aceito como resposta comprovadora, ainda que a árvore coincida.
+#[test]
+fn redirecionamento_para_acao_estranha_nao_comprova_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_excluir&id_procedimento=999",
+    ));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Mesmo controlador e ação esperada não bastam se o 302 publica outro
+/// processo. A prova da árvore coincidente pode ser ato de outro agente.
+#[test]
+fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(
+        "controlador.php?acao=arvore_visualizar&id_procedimento=999",
+    ));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Regressão adversarial: um 302 genérico para a árvore não vincula o
+/// resultado do POST ao processo. Outra sessão pode publicar a atribuição
+/// desejada antes do GET de prova; isso continua efeito incerto.
+#[test]
+fn arvore_sem_id_e_atribuicao_concorrente_nao_comprovam_nosso_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + POST único + GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Na remoção, uma árvore sem identidade também não demonstra que o
+/// POST removeu: outra sessão pode ter removido antes da releitura.
+#[test]
+fn arvore_sem_id_e_remocao_concorrente_nao_comprovam_nosso_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Regressão de segurança: voltar à tela principal não identifica o processo
+/// modificado. Uma atribuição concorrente pode fazer a releitura coincidir.
+/// Caso seguro derivado da política de falhar fechado para Location genérica.
+#[test]
+fn principal_sem_id_nao_comprova_atribuicao_concorrente() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=principal"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn principal_com_id_explicito_confirma_apos_releitura() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=principal&id_procedimento={ID}&acao_origem=procedimento_atribuicao_cadastrar"
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.requisicoes, 6);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+/// Regressão da fronteira entre POST e releitura: se a escrita já foi
+/// tentada, o erro HTTP da leitura de prova não pode desaparecer do
+/// diagnóstico público de efeito incerto.
+#[test]
+fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(retorno_arvore_com_identidade_observado());
+    respostas.push(Ok((
+        503,
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>"
+            .to_owned(),
+        None,
+    )));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Serviço indisponível.")
+    );
+    let publico = crate::processo_concluir_cli::json_base_da_falha(
+        "atribuicao_recusada",
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http().cloned(),
+    );
+    assert_eq!(publico["status_http"], 503);
+    assert_eq!(publico["mensagem_do_servidor"], "Serviço indisponível.");
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Falha de rede do POST não encobre a recusa HTTP da nova leitura:
+/// mesmo sem resposta do envio, nunca repetir o POST.
+#[test]
+fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(Ok((
+        503,
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>"
+            .to_owned(),
+        None,
+    )));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
