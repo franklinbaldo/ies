@@ -48,6 +48,9 @@ pub(crate) enum ErroCriar {
     Arvore(crate::arvore_processo::ErroArvore),
     Propriedades(crate::propriedades_processo::ErroPropriedades),
     PropriedadesNaoOferecidas,
+    /// Falha de leitura após Location legítimo do POST criador.
+    /// A causa é da verificação; a criação já pode ter sido aplicada.
+    VerificacaoAposPost(Box<ErroCriar>),
     /// Validação expressa da Infra: o próprio SEI publicou não aplicação.
     RecusaDoPost(ErroSubmissaoFormulario),
     /// HTTP 4xx após o POST não prova se a escrita teve efeito: falhar
@@ -92,6 +95,7 @@ impl ErroCriar {
             Self::Arvore(erro) => crate::erro_publico::folha(erro),
             Self::Propriedades(erro) => crate::erro_publico::folha(erro),
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
+            Self::VerificacaoAposPost(erro) => erro.subcodigo(),
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
             Self::PosEscrita {
                 correspondentes: Some(_),
@@ -117,6 +121,7 @@ impl ErroCriar {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
+            Self::VerificacaoAposPost(erro) => erro.status_http(),
             Self::Hipotese(erro) => erro.status_http(),
             Self::PosEscrita { causa_post, .. } => causa_post.status_http(),
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.status_http(),
@@ -152,6 +157,7 @@ impl ErroCriar {
         if matches!(
             self,
             Self::EfeitoIncerto
+                | Self::VerificacaoAposPost(_)
                 | Self::RespostaHttpSemProva(_)
                 | Self::PosEscrita { .. }
                 | Self::PosRespostaInesperada { .. }
