@@ -86,11 +86,12 @@ pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
         requisicoes,
     } = erro
     {
-        let objeto = valor.as_object_mut().expect("a falha pública é objeto JSON");
-        objeto.insert("unidade".to_owned(), json!(unidade));
-        objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-        objeto.insert("motivo".to_owned(), json!(motivo));
-        objeto.insert("requisicoes".to_owned(), json!(requisicoes));
+        if let Some(objeto) = valor.as_object_mut() {
+            objeto.insert("unidade".to_owned(), json!(unidade));
+            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
+            objeto.insert("motivo".to_owned(), json!(motivo));
+            objeto.insert("requisicoes".to_owned(), json!(requisicoes));
+        }
     }
     valor
 }
