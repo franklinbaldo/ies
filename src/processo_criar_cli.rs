@@ -173,20 +173,9 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         }
         println!("{valor}");
     } else {
-        // O 4xx isolado não prova ausência de efeito, mas seu status e
-        // mensagem saneada continuam disponíveis para diagnóstico.
-        if erro.status_http().is_some() {
-            eprintln!(
-                "{}",
-                linha_humana(
-                    erro.subcodigo(),
-                    "criação não confirmada; não repita o POST",
-                    erro.status_http(),
-                )
-            );
-        } else {
-            eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
-        }
+        // A linha humana preserva o HTTP saneado também na saída 3.
+        let mensagem = "criação não confirmada; não repita o POST";
+        eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
