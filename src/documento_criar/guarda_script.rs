@@ -262,7 +262,11 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
         if id.as_deref() != Some("btnSalvar") {
             continue;
         }
-        if dentro_de_template(botao.boundaries(dom.parser()).0, &faixas_inativas) {
+        let inicio = botao.boundaries(dom.parser()).0;
+        if faixas_inativas
+            .iter()
+            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio))
+        {
             return false;
         }
         encontrados += 1;
