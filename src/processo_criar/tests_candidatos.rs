@@ -48,6 +48,10 @@ fn post_falha_mas_propriedades_conferidas_provam_criacao_unica() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
+        ok(gerados_com_candidato()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
