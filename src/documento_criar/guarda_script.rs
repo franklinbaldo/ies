@@ -163,7 +163,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
 }
 
 /// A arvore do parser inclui nos de `template`, mas o navegador
-/// conserva seu conteudo em DocumentFragment inerte. A posicao de cada
+/// conserva seu conteudo em `DocumentFragment` inerte. A posicao de cada
 /// controle deve estar fora dessas faixas para constituir evidencia.
 fn faixas_inertes(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
     let mut faixas = Vec::new();
