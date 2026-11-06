@@ -309,9 +309,6 @@ fn location_para_id_preexistente_nao_confirma_criacao() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
-        ok(trabalhar()),
-        ok(arvore_com_propriedades()),
-        ok(propriedades_correspondentes()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
