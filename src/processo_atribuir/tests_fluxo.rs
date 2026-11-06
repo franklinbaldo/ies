@@ -149,23 +149,17 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
 }
 
 #[test]
-fn confirmar_direto_no_fluxo_falha_antes_da_sessao_e_da_rede() {
-    let amb = ambiente();
-    let (resultado, pedidos) = rodar_com(&amb, vec![], |sessao, nup, indice, envio| {
-        executar_previa(
-            sessao,
-            &PedidoDaAtribuicao {
-                nup,
-                unidade: None,
-                usuario: Some("aluno2"),
-                confirmar: true,
-            },
-            indice,
-            envio,
-        )
-    });
-    assert_eq!(resultado, Err(E::EscritaAindaNaoVerificada));
-    assert_eq!(pedidos, Vec::<Pedido>::new());
+fn confirmar_login_inexistente_falha_antes_do_post() {
+    let (resultado, pedidos) = rodar_confirmacao(
+        Some("login_ausente"),
+        respostas_previa("aluno20"),
+    );
+    assert_eq!(
+        resultado.unwrap_err().subcodigo(),
+        "usuario_nao_atribuivel"
+    );
+    assert_eq!(pedidos, pedidos_previa());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
 
 fn rodar_confirmacao(
@@ -238,6 +232,7 @@ fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
     assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
