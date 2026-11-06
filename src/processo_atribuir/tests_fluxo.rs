@@ -165,5 +165,5 @@ fn confirmar_direto_no_fluxo_falha_antes_da_sessao_e_da_rede() {
         )
     });
     assert_eq!(resultado, Err(E::EscritaAindaNaoVerificada));
-    assert!(pedidos.is_empty());
+    assert_eq!(pedidos, Vec::<Pedido>::new());
 }
