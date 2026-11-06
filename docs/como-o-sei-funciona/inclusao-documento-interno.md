@@ -90,3 +90,19 @@ de submissão. Instruções em `if (false)` ou função arbitrária também
 são insuficientes. O IES exige a função completa observada ou falha
 antes do POST.
 
+
+## Vínculo do botão Salvar com a confirmação (06/11/2026)
+
+Na captura Todos `tests/paginas_reais/documento_gerar.html @323eb01`,
+linhas 810 e 1061, existem dois botões `button#btnSalvar`, ambos
+`type="button"` e `onclick="confirmarDados()"`. A função
+`confirmarDados()` (linhas 615–619) chama `submeter()` somente depois
+que `OnSubmitForm()` aprova os dados. Uma função `submeter()` presente
+em um `<script>`, mas sem controle Salvar que a acione, é **código
+potencialmente inativo** e não comprova a oferta de criação pela tela.
+Antes de permitir o POST, exigir ao menos um botão Salvar habilitado com
+o acionador literal observado, e recusar a tela inteira quando houver
+outro `button#btnSalvar` divergente. Os dois botões iguais são
+legítimos na captura; não exigir ID único nesse caso. Nunca executar JS.
+A conferência desses atributos usa `html_atributos` e não substitui a
+validação de controles obrigatórios feita no formulário.
