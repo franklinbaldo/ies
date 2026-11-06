@@ -39,6 +39,8 @@ pub(crate) enum FalhaDepoisDoEnvio {
     /// 302 sem `Location`.
     #[causa(nome = "redirecionamento_da_troca_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
+    /// `Location` fora do host, da pasta ou da forma observada.
+    LocalizacaoForaDaFormaObservada,
     /// `Location` para outra unidade que a escolhida.
     LocalizacaoDeOutraUnidade,
     /// Status fora de 200 e 302 (recusa do transporte com o status).
@@ -48,8 +50,6 @@ pub(crate) enum FalhaDepoisDoEnvio {
     ControleNaoReconhecido(ErroCaixa),
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
-    #[causa(transparente)]
-    Html(ErroHtml),
 }
 
 impl FalhaDepoisDoEnvio {

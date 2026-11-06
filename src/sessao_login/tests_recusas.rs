@@ -34,7 +34,7 @@ fn redirecionamento_para_outro_host_e_recusado_sem_segui_lo() {
         let (erro, roteiro) = erro_com(vec![r302(local, &[])]);
         assert_eq!(
             erro,
-            ErroLogin::Html(ErroHtml::valor("redirecionamento_para_fora_da_instalacao")),
+            ErroLogin::RedirecionamentoParaForaDaInstalacao,
             "{local}"
         );
         assert_eq!(roteiro.pedidos.len(), 1);

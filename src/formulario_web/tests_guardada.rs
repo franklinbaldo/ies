@@ -86,7 +86,7 @@ fn recusas_sem_rede() {
     let fora = url.replace("sei.exemplo.gov.br", "outro.exemplo.gov.br");
     assert_eq!(
         derivar(&fora, &[("txtPesquisaRapida", "1")]).unwrap_err(),
-        E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))
+        E::AcaoDoFormularioForaDaInstalacao
     );
     let outra_acao = url.replace("protocolo_pesquisa_rapida", "protocolo_pesquisar");
     assert_eq!(

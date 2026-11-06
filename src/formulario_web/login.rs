@@ -11,7 +11,6 @@ use super::{
     EfeitoAvaliado, ErroSubmissaoFormulario as E, OperacaoDeFormulario, SubmissaoDerivada,
     TelaServida, codificar_corpo, ordenar_campos,
 };
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 
@@ -28,9 +27,8 @@ pub(crate) fn derivar_submissao_de_login(
     if tela.html.len() > crate::MAX_HTML_BYTES {
         return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::Html(
-        ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-    )))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !servida.host.eq_ignore_ascii_case(instalacao.host()) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }

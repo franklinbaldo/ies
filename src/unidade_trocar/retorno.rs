@@ -7,7 +7,6 @@
 //! do navegador); a URL devolvida é sempre `https://`.
 use super::FalhaDepoisDoEnvio as F;
 use super::tela::conferir_consulta;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::consulta_do_controlador;
 
 /// URL HTTPS a pedir para `localizacao`, recebida na resposta de
@@ -19,20 +18,20 @@ pub(crate) fn url_do_salto(
 ) -> Result<String, F> {
     let serializada = localizacao.trim().replace(' ', "%20");
     let consulta = consulta_do_controlador(&serializada, url_anterior)
-        .ok_or(ErroHtml::valor("localizacao_fora_da_forma_observada"))?;
+        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
     if !serializada.bytes().all(|b| (33..=126).contains(&b)) || serializada.contains(['#', '\\']) {
-        return Err(ErroHtml::valor("localizacao_fora_da_forma_observada").into());
+        return Err(F::LocalizacaoForaDaFormaObservada);
     }
     let unidade = conferir_consulta(consulta, "procedimento_controlar", hash_do_salto)
-        .map_err(|_| ErroHtml::valor("localizacao_fora_da_forma_observada"))?
-        .ok_or(ErroHtml::valor("localizacao_fora_da_forma_observada"))?;
+        .map_err(|_| F::LocalizacaoForaDaFormaObservada)?
+        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
     if unidade != id_unidade {
         return Err(F::LocalizacaoDeOutraUnidade);
     }
     let base = url_anterior
         .strip_prefix("https://")
         .and_then(|r| r.split('?').next())
-        .ok_or(ErroHtml::valor("localizacao_fora_da_forma_observada"))?;
+        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
     Ok(format!("https://{base}?{consulta}"))
 }
 

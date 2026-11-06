@@ -3,7 +3,6 @@
 use crate::arvore_processo::{
     AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, ErroEnderecoDeRetomar, MotivoAbertoEm,
 };
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
 mod fluxo;
@@ -68,6 +67,8 @@ pub(crate) enum ErroSobrestamento {
     JaSobrestado,
     #[causa(nome = "processo_nao_sobrestado")]
     NaoSobrestado,
+    #[causa(nome = "processo_nao_aberto_na_unidade_para_sobrestar")]
+    ForaDaUnidade,
     #[causa(nome = "processo_sobrestado_em_outra_unidade")]
     SobrestadoEmOutraUnidade,
     #[causa(nome = "acao_de_sobrestamento_nao_oferecida")]
@@ -92,8 +93,6 @@ pub(crate) enum ErroSobrestamento {
     EscritaNaoAplicada,
     #[causa(nome = "efeito_incerto_no_sobrestamento")]
     EfeitoIncerto,
-    #[causa(transparente)]
-    Html(ErroHtml),
 }
 
 impl ErroSobrestamento {
@@ -103,13 +102,13 @@ impl ErroSobrestamento {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
             Self::Abertura(e) => e.mensagem(),
             Self::UnidadeNaoPublicada => "o SEI não publicou a unidade da sessão",
             Self::SituacaoNaoLida(_) => "a situação do processo não foi observada com segurança",
             Self::Barra(_) => "a ação da barra não está na forma observada",
             Self::JaSobrestado => "o processo já está sobrestado; nenhuma escrita enviada",
             Self::NaoSobrestado => "o processo não está sobrestado; nenhuma escrita enviada",
+            Self::ForaDaUnidade => "o processo não está aberto na unidade ativa",
             Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
             Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
             Self::MotivoVazio => "motivo obrigatório para sobrestar",
@@ -174,11 +173,7 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
         }
         (Acao::Sobrestar, AbertoEm::Unidades(unidades)) => {
             if !unidades.iter().any(|u| u.sigla == atual) {
-                return Err(
-                    ErroHtml::valor("processo_nao_aberto_na_unidade_para_sobrestar")
-                        .com_mensagem("o processo não está aberto na unidade ativa")
-                        .into(),
-                );
+                return Err(ErroSobrestamento::ForaDaUnidade);
             }
         }
         (Acao::Retomar, AbertoEm::Sobrestado(unidades)) => {

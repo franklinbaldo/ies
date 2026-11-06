@@ -49,8 +49,13 @@ O que falta implementar e em que ordem está na
   nunca escreva `fn subcodigo()` manual. Componha com `#[causa(interna)]`
   e `?`, em vez de `map_err(|_| …)` que descarta uma causa tipada.
   Classifique e teste por `match`/`matches!` na variante, nunca pelo
-  texto. Valide uma vez num tipo e não devolva `Result` onde o tipo já
-  garante a pré-condição.
+  texto. Propague o erro original com `?` sem embrulhar; crie uma variante
+  contextual só se acrescentar um fato ou decisão observável. Cada falha
+  deve ter, preferencialmente, um ponto de origem responsável em `src/`:
+  centralize a validação e propague o `Result`, sem eliminar verificações
+  necessárias nas fronteiras de segurança. Defina erros específicos perto
+  da camada que efetivamente os consome. Valide uma vez num tipo e não
+  devolva `Result` onde o tipo já garante a pré-condição.
   Forma não observada (ausente, repetido, valor, HTML ilegível) não vira
   variante: devolva `ErroHtml` (`src/erro_html.rs`), com `onde` como nome.
 - **Falhar fechado e dizer por quê.** Cada falha observável é uma
