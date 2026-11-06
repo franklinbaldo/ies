@@ -1,0 +1,126 @@
+name: Ensaio unico 244 (somente leitura, treinamento)
+on:
+  push:
+    branches: [codex/244-lupa-paginacao-integral]
+permissions:
+  contents: read
+jobs:
+  leitura:
+    if: ${{ github.event.head_commit.message == 'live(#244): ensaio unico de leitura' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Build
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Leitura uma vez em treinamento, sem retry e sem revelar segredos
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import tempfile
+          import time
+
+          doc = pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          binario = str(pathlib.Path("target/release/ies").resolve())
+          autorizadas = {
+              "unb": "https://sei.treinamento.unb.br/sei",
+              "go": "https://seitreinamento.go.gov.br/sei",
+          }
+          ultima = None
+
+          def privado(caminho, texto):
+              fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              with os.fdopen(fd, "w") as arquivo:
+                  arquivo.write(texto)
+
+          def executar(site, etapa, args, ambiente, limite):
+              global ultima
+              if ultima is not None:
+                  pausa = max(0.0, 31.0 - (time.monotonic() - ultima))
+                  if pausa:
+                      time.sleep(pausa)
+              try:
+                  saida = subprocess.run(
+                      [binario, *args], env=ambiente, capture_output=True,
+                      text=True, timeout=limite, check=False,
+                  )
+              except subprocess.TimeoutExpired:
+                  ultima = time.monotonic()
+                  print(f"{site} {etapa}: FAIL timeout; contagem de HTTP nao observavel")
+                  return None
+              ultima = time.monotonic()
+              try:
+                  valor = json.loads(saida.stdout)
+              except (json.JSONDecodeError, ValueError):
+                  valor = {}
+              if saida.returncode != 0 or not isinstance(valor, dict):
+                  causa = valor.get("subcodigo", "sem_json") if isinstance(valor, dict) else "sem_json"
+                  print(f"{site} {etapa}: FAIL saida={saida.returncode} subcodigo={causa}; requisicoes nao observadas")
+                  return None
+              print(f"{site} {etapa}: PASS requisicoes={valor.get('requisicoes', 'nao_observado')} total={valor.get('total', 'n/a')} persistida={valor.get('persistida_no_indice', 'n/a')}")
+              return valor
+
+          with tempfile.TemporaryDirectory(prefix="ies-244-live-", dir=os.environ["RUNNER_TEMP"]) as raiz:
+              os.chmod(raiz, 0o700)
+              for site in ["unb", "go"]:
+                  marcador = f"`{site}`:\n\n```text\n"
+                  if marcador not in doc:
+                      raise RuntimeError("fonte oficial das credenciais nao encontrada")
+                  credenciais = doc.split(marcador, 1)[1].split("\n```", 1)[0] + "\n"
+                  linhas = next(linha for linha in doc.splitlines() if linha.startswith(f"| `{site}` |"))
+                  campos = [valor.strip() for valor in linhas.strip("|").split("|")]
+                  origem = campos[2].strip("`")
+                  if origem != autorizadas[site]:
+                      raise RuntimeError("origem mudou: recusar sem consultar")
+                  pasta = pathlib.Path(raiz) / site
+                  pasta.mkdir(mode=0o700)
+                  privado(pasta / "origem", origem + "\n")
+                  privado(pasta / "url", "")
+                  privado(pasta / "cookie", "")
+                  privado(pasta / "credenciais", credenciais)
+                  ambiente = dict(os.environ)
+                  ambiente.pop("IES_CONFIG_FILE", None)
+                  ambiente.pop("IES_SEM_INDICE", None)
+                  ambiente.update({
+                      "IES_ORIGEM_FILE": str(pasta / "origem"),
+                      "IES_URL_CONTROLE_FILE": str(pasta / "url"),
+                      "IES_COOKIE_FILE": str(pasta / "cookie"),
+                      "IES_CREDENCIAIS_FILE": str(pasta / "credenciais"),
+                      "IES_INDICE_FILE": str(pasta / "ies.sqlite3"),
+                  })
+                  login = executar(site, "login", ["login", "--json"], ambiente, 180)
+                  if login is None:
+                      if site == "unb":
+                          print("UnB falhou, GO nao iniciado por seguranca")
+                          break
+                      continue
+                  lista = executar(
+                      site, "listar_atualizar",
+                      ["unidade", "listar", "--atualizar", "--json"],
+                      ambiente, 1600,
+                  )
+                  if lista is None:
+                      if site == "unb":
+                          print("UnB falhou, GO nao iniciado por seguranca")
+                          break
+                      continue
+                  pesquisa = executar(
+                      site, "pesquisar_offline",
+                      ["unidade", "pesquisar", "a", "--json"],
+                      ambiente, 60,
+                  )
+                  if pesquisa is not None:
+                      if pesquisa.get("requisicoes") != 0 or pesquisa.get("origem") != "indice":
+                          print(f"{site} pesquisar_offline: FAIL nao houve prova de zero HTTP")
+                      else:
+                          print(f"{site} pesquisar_offline: PASS comprovado 0 HTTP")
+          PY
