@@ -1,6 +1,7 @@
 //! Resultado e recusas de `ies documento assinar`
 //! (contracts/cli/documento-assinar.md). Uma variante por fato.
-use crate::arvore_processo::{Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar};
+use crate::arvore_processo::{Assinante, ErroLinkDeAssinar};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::sessao_login::ErroLogin;
@@ -9,14 +10,11 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 /// Recusas da tela "Assinatura de Documento", antes do POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeAssinatura {
-    #[causa(nome = "tela_de_assinatura_nao_interpretada")]
-    HtmlNaoInterpretado,
-    FormularioDeAssinaturaAusente,
-    CampoNaoPrevistoNaTelaDeAssinatura,
     TelaDeAssinaturaDeOutroDocumento,
     AssinanteNaoPublicadoNaTela,
     OrgaoDoAssinanteNaoSelecionado,
-    CampoDeSenhaAusenteNaTela,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroTelaDeAssinatura {}
@@ -55,7 +53,7 @@ impl FalhaDoEnvio {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum VerificacaoDaAssinatura {
     Lida(Vec<Assinante>),
-    ArvoreNaoLida(ErroAssinaturaNaArvore),
+    ArvoreNaoLida(ErroHtml),
     LeituraFalhou(ErroDocumentoObter),
 }
 
@@ -63,7 +61,7 @@ impl VerificacaoDaAssinatura {
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
             Self::Lida(_) => None,
-            Self::ArvoreNaoLida(erro) => Some(erro.subcodigo()),
+            Self::ArvoreNaoLida(erro) => Some(erro.onde),
             Self::LeituraFalhou(erro) => Some(erro.subcodigo()),
         }
     }
@@ -78,9 +76,8 @@ pub(crate) enum ErroAssinar {
     #[causa(interna)]
     Credenciais(ErroLogin),
     #[causa(interna)]
-    Arvore(ErroAssinaturaNaArvore),
+    Arvore(ErroHtml),
     AssinaturaNaoPublicadaNaBarra,
-    EnderecoDaTelaDoDocumentoNaoReconhecido,
     /// GET da tela do documento ou da de assinatura, antes da escrita.
     #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
@@ -116,6 +113,8 @@ pub(crate) enum ErroAssinar {
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoDaAssinatura>,
     },
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroAssinar {
@@ -156,6 +155,7 @@ impl ErroAssinar {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Abertura(erro) => erro.mensagem(),
             Self::Credenciais(erro) => erro.mensagem(),
             Self::Arvore(_) => {
@@ -163,9 +163,6 @@ impl ErroAssinar {
             }
             Self::AssinaturaNaoPublicadaNaBarra => {
                 "a barra do documento não oferece assinar nesta sessão; nada foi assinado"
-            }
-            Self::EnderecoDaTelaDoDocumentoNaoReconhecido => {
-                "a árvore não publica a tela do documento na forma observada; nada foi assinado"
             }
             Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
                 "a tela da assinatura não foi servida; nada foi assinado"

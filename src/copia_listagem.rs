@@ -105,7 +105,9 @@ mod testes {
         fs::write(pasta.join("0007.v02.html"), "outro").unwrap();
         assert_eq!(
             listar_com(&pasta, "0007"),
-            Err(ErroListagem::CopiaInvalida(ErroCopia::VersaoDuplicada))
+            Err(ErroListagem::CopiaInvalida(ErroCopia::Html(
+                crate::erro_html::ErroHtml::repetido("versao_local_repetida")
+            )))
         );
         fs::remove_dir_all(&pasta).unwrap();
         let pasta = crate::foto_documento::tests::pasta();

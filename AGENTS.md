@@ -51,6 +51,8 @@ O que falta implementar e em que ordem está na
   Classifique e teste por `match`/`matches!` na variante, nunca pelo
   texto. Valide uma vez num tipo e não devolva `Result` onde o tipo já
   garante a pré-condição.
+  Forma não observada (ausente, repetido, valor, HTML ilegível) não vira
+  variante: devolva `ErroHtml` (`src/erro_html.rs`), com `onde` como nome.
 - **Falhar fechado e dizer por quê.** Cada falha observável é uma
   variante tipada, nomeada pelo fato verificável
   ([erros tipados](docs/erros-tipados.md)); recusas expõem `status_http` e

@@ -66,6 +66,34 @@ Restam à mão:
   `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
   (`ErroSubmissaoFormulario`).
 
+## Forma não observada
+
+Um elemento ausente, repetido, com valor fora da forma ou um HTML
+ilegível não sustenta decisão: só diz onde a leitura da tela falhou.
+Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
+(`src/erro_html.rs`), e não uma variante por leitor.
+
+- `onde` é o diagnóstico e a folha pública: o `subcodigo` legado não
+  muda. `problema` (`ausente`, `repetido`, `valor`, `html`, ou
+  `atributo` com o `ErroAtributoHtml` que subiu) vai no caminho, depois
+  de `html`.
+- A mensagem é a genérica do problema (`ErroHtml::ausente("onde")`);
+  `.com_mensagem("...")` só onde o ponto tem texto próprio. A igualdade
+  compara `onde` e `problema`, não a mensagem.
+- Um `enum` com outras causas compõe com `#[causa(transparente)]
+  Html(ErroHtml)`: o `From` derivado deixa `?` e `.into()` converterem, e
+  o caminho não repete `html`. Um leitor que só falha por forma devolve
+  `ErroHtml`.
+- A variante de forma que algum código casa fora de teste (`match` em
+  fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
+  continua sendo variante.
+- **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
+
+`scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
+oráculo) migrou 350 variantes de 68 tipos e eliminou 4 tipos inteiros. Os
+77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
+carregar a causa. As 21 variantes casadas fora de teste ficaram.
+
 ## Consequências
 
 - Erro novo: `#[derive(Causa)]`; nunca `fn subcodigo()` manual.

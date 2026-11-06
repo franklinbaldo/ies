@@ -3,6 +3,7 @@
 //! mensagem de recusa e o link do Controle no Painel. As `const` da
 //! operação ficam aqui; o primitivo de formulário deriva o POST.
 use super::{Credenciais, ErroLogin};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     ResultadoDoEnvio, SubmissaoDerivada, TelaServida, decodificar_atributo,
@@ -130,19 +131,49 @@ fn url_do_onclick(onclick: &str) -> Option<&str> {
 /// URL (relativa, como publicada) do `lnkControleProcessos` do menu.
 /// Vários links iguais (barras móvel e padrão) valem como um.
 pub(crate) fn link_do_controle(html: &str) -> Result<Option<String>, ErroLogin> {
-    use ErroLogin::LinkDoControleDeProcessosNaoReconhecido as Ilegivel;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| Ilegivel)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
+        ErroLogin::Html(
+            ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+        )
+    })?;
     let parser = dom.parser();
     let mut achado: Option<String> = None;
-    for h in nos_com_id(&dom, "lnkControleProcessos").map_err(|_| Ilegivel)? {
-        let tag = h.get(parser).and_then(tl::Node::as_tag).ok_or(Ilegivel)?;
+    for h in nos_com_id(&dom, "lnkControleProcessos").map_err(|e| {
+        ErroHtml::atributo("link_do_controle_de_processos_nao_reconhecido", e)
+            .com_mensagem("o link do Controle de Processos do menu não é o observado")
+    })? {
+        let tag = h
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(ErroLogin::Html(
+                ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                    .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+            ))?;
         let bruto = valor_do_atributo(tag, "onclick")
-            .map_err(|_| Ilegivel)?
-            .ok_or(Ilegivel)?;
-        let onclick = decodificar_atributo(&bruto).ok_or(Ilegivel)?;
-        let url = url_do_onclick(&onclick).ok_or(Ilegivel)?.to_owned();
+            .map_err(|e| {
+                ErroHtml::atributo("link_do_controle_de_processos_nao_reconhecido", e)
+                    .com_mensagem("o link do Controle de Processos do menu não é o observado")
+            })?
+            .ok_or(ErroLogin::Html(
+                ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                    .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+            ))?;
+        let onclick = decodificar_atributo(&bruto).ok_or(ErroLogin::Html(
+            ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+        ))?;
+        let url = url_do_onclick(&onclick)
+            .ok_or(ErroLogin::Html(
+                ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                    .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+            ))?
+            .to_owned();
         if achado.as_ref().is_some_and(|anterior| *anterior != url) {
-            return Err(Ilegivel);
+            return Err(ErroLogin::Html(
+                ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
+                    .com_mensagem("o link do Controle de Processos do menu não é o observado"),
+            ));
         }
         achado = Some(url);
     }
@@ -193,9 +224,21 @@ fn valor_do_orgao(
         .filter(|tag| atributo_decodificado(tag, "name").as_deref() == Some("selOrgao"))
         .collect();
     let select = match selects.as_slice() {
-        [] => return Err(ErroLogin::SelecaoDeOrgaoAusenteNaTelaDeLogin),
+        [] => {
+            return Err(
+                ErroHtml::ausente("selecao_de_orgao_ausente_na_tela_de_login")
+                    .com_mensagem("a tela de login não publica selOrgao")
+                    .into(),
+            );
+        }
         [select] => *select,
-        _ => return Err(ErroLogin::SelecaoDeOrgaoRepetidaNaTelaDeLogin),
+        _ => {
+            return Err(
+                ErroHtml::repetido("selecao_de_orgao_repetida_na_tela_de_login")
+                    .com_mensagem("a tela de login publica mais de um selOrgao")
+                    .into(),
+            );
+        }
     };
     let mut casados = Vec::new();
     for opcao in select
@@ -212,9 +255,15 @@ fn valor_do_orgao(
         }
     }
     match casados.as_slice() {
-        [] => Err(ErroLogin::OrgaoNaoEncontradoNaTelaDeLogin),
+        [] => Err(ErroHtml::ausente("orgao_nao_encontrado_na_tela_de_login")
+            .com_mensagem("nenhuma opção de órgão da tela é igual ao órgão configurado")
+            .into()),
         [valor] => Ok(valor.clone()),
-        _ => Err(ErroLogin::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin),
+        _ => Err(
+            ErroHtml::repetido("orgao_com_mais_de_uma_opcao_na_tela_de_login")
+                .com_mensagem("mais de uma opção de órgão da tela é igual ao órgão configurado")
+                .into(),
+        ),
     }
 }
 
@@ -252,7 +301,9 @@ fn operacao_do_botao(
         [nome] if nome == "sbmAcessar" && html.contains(SBM_ACESSAR_DESABILITADO) => {
             Ok(&ENTRAR_COM_SBM_ACESSAR)
         }
-        _ => Err(ErroLogin::BotaoDeEnvioDoLoginNaoReconhecido),
+        _ => Err(ErroHtml::valor("botao_de_envio_do_login_nao_reconhecido")
+            .com_mensagem("botão de envio do login diferente dos observados")
+            .into()),
     }
 }
 
@@ -263,8 +314,10 @@ pub(crate) fn derivar_login(
     tela: &TelaServida<'_>,
     credenciais: &Credenciais,
 ) -> Result<SubmissaoDerivada, ErroLogin> {
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| ErroLogin::TelaDeLoginNaoReconhecida)?;
+    let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| {
+        ErroHtml::valor("tela_de_login_nao_reconhecida")
+            .com_mensagem("a raiz não levou a um formulário de login")
+    })?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;

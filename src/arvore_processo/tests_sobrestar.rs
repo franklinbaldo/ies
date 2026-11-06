@@ -5,6 +5,7 @@ use super::sobrestar::{ErroAcaoSobrestar as E, ler_retomar_da_barra, ler_sobrest
 use super::tests::NUP;
 use super::tests_concluir::{absoluta, arvore_para_concluir, link_da_tela_do_no};
 use super::tests_tela::instalacao;
+use crate::erro_html::ErroHtml;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
 fn link(id: &str) -> String {
@@ -37,7 +38,9 @@ fn nao_escolhe_entre_links_de_sobrestar_duplicados() {
     let html = arvore(&[barra("10"), barra("10")]);
     assert_eq!(
         ler_sobrestar_da_barra(&instalacao(), &html, "10"),
-        Err(E::AcoesRepetidas)
+        Err(E::Html(ErroHtml::repetido(
+            "acoes_de_sobrestamento_repetidas_na_barra"
+        )))
     );
 }
 #[test]
@@ -61,6 +64,8 @@ fn retomar_repetido_recusado_antes_de_escrever() {
     let html = arvore(&[retomar(), retomar()]);
     assert_eq!(
         ler_retomar_da_barra(&instalacao(), &html, "10"),
-        Err(E::AcoesRepetidas)
+        Err(E::Html(ErroHtml::repetido(
+            "acoes_de_sobrestamento_repetidas_na_barra"
+        )))
     );
 }

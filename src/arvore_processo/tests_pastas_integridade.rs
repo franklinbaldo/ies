@@ -5,6 +5,7 @@ use super::ErroArvore as E;
 use super::tests::NUP;
 use super::tests_pastas::*;
 use super::*;
+use crate::erro_html::ErroHtml;
 
 fn p(k: usize) -> String {
     format!("PASTA{k}")
@@ -52,14 +53,16 @@ fn identidade_e_nao_contagem() {
     faltando.remove(3);
     assert_eq!(
         ler(&aberta(declaradas, faltando)),
-        Err(E::ProtocoloDeclaradoAusenteDaPasta)
+        Err(E::Html(ErroHtml::ausente(
+            "protocolo_declarado_ausente_da_pasta"
+        )))
     );
     // O mesmo protocolo duas vezes, com a contagem certa.
     let mut repetido = os_quatro();
     repetido[1] = No::Documento("22", p(1), Some("900"));
     assert_eq!(
         ler(&aberta(declaradas, repetido)),
-        Err(E::ProtocoloRepetidoNaPasta)
+        Err(E::Html(ErroHtml::repetido("protocolo_repetido_na_pasta")))
     );
     // Protocolo de outra pasta.
     let mut de_outra = os_quatro();
@@ -85,23 +88,33 @@ fn declaracoes_das_pastas_conferidas() {
         (vec![(1, &PASTA1)], E::PastaSemProtocolosDeclarados),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (3, &["904"])],
-            E::ProtocolosDeclaradosParaPastaAusente,
+            E::Html(ErroHtml::ausente(
+                "protocolos_declarados_para_pasta_ausente",
+            )),
         ),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (2, &PASTA2)],
-            E::ProtocolosDaPastaDeclaradosMaisDeUmaVez,
+            E::Html(ErroHtml::repetido(
+                "protocolos_da_pasta_declarados_mais_de_uma_vez",
+            )),
         ),
         (
             vec![(1, &["900", "x"]), (2, &PASTA2)],
-            E::ProtocolosDaPastaForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "protocolos_da_pasta_fora_da_forma_observada",
+            )),
         ),
         (
             vec![(1, &["900", "900"]), (2, &PASTA2)],
-            E::ProtocolosDaPastaForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "protocolos_da_pasta_fora_da_forma_observada",
+            )),
         ),
         (
             vec![(1, &[]), (2, &PASTA2)],
-            E::ProtocolosDaPastaForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "protocolos_da_pasta_fora_da_forma_observada",
+            )),
         ),
     ];
     for (declaradas, esperado) in casos {
@@ -115,7 +128,12 @@ fn declaracoes_das_pastas_conferidas() {
         "Pastas[2]['protocolos'] = '",
         "Pastas[2]['protocolos'] = x + '",
     );
-    assert_eq!(ler(&mal), Err(E::ProtocolosDaPastaForaDaFormaObservada));
+    assert_eq!(
+        ler(&mal),
+        Err(E::Html(ErroHtml::valor(
+            "protocolos_da_pasta_fora_da_forma_observada"
+        )))
+    );
 }
 
 #[test]
@@ -138,11 +156,11 @@ fn nos_de_pasta_na_forma_observada() {
         // Ação diferente de abrirFecharPasta da própria pasta.
         (
             base.replace("abrirFecharPasta('PASTA1')", "abrirFecharPasta('PASTA2')"),
-            E::PastaForaDaFormaObservada,
+            E::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
         ),
         (
             base.replace("\"PASTA\",\"PASTA1\"", "\"PASTA\",\"P1\""),
-            E::PastaForaDaFormaObservada,
+            E::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
         ),
         // A mesma pasta duas vezes.
         (
@@ -150,7 +168,7 @@ fn nos_de_pasta_na_forma_observada() {
                 "\"PASTA2\",\"10\",\"javascript:abrirFecharPasta('PASTA2');\"",
                 "\"PASTA1\",\"10\",\"javascript:abrirFecharPasta('PASTA1');\"",
             ),
-            E::PastaRepetidaNaArvore,
+            E::Html(ErroHtml::repetido("pasta_repetida_na_arvore")),
         ),
         // Documento numa pasta que não existe.
         (
@@ -168,7 +186,7 @@ fn aguarde_na_forma_observada() {
     let base = arvore_fechada();
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE1\",\"PASTA2\"")),
-        Err(E::AguardeForaDaFormaObservada)
+        Err(E::Html(ErroHtml::valor("aguarde_fora_da_forma_observada")))
     );
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE7\",\"PASTA7\"")),
@@ -200,7 +218,12 @@ fn aguarde_na_forma_observada() {
 #[test]
 fn barra_de_documento_de_pasta_fora_da_forma_e_recusa() {
     let html = arvore_aberta().replace("Nos[3].acoes = '", "Nos[3].acoes = x + '");
-    assert_eq!(ler(&html), Err(E::BarraDeNoForaDaFormaObservada));
+    assert_eq!(
+        ler(&html),
+        Err(E::Html(ErroHtml::valor(
+            "barra_de_no_fora_da_forma_observada"
+        )))
+    );
 }
 
 #[test]
@@ -256,38 +279,38 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let casos = [
         (
             url.replace("abrir_pastas=1", "abrir_pastas=0"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace("&abrir_pastas=1", ""),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("{url}&fechar_pastas=1"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("{url}&abrir_pastas=1"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace("id_procedimento=10", "id_procedimento=11"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace(
                 "acao=procedimento_visualizar&",
                 "acao=procedimento_paginar&",
             ),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace(&"f".repeat(64), "f"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("https://outro.exemplo/{url}"),
-            E::EnderecoDeAbrirPastasNaoReconhecido,
+            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
     ];
     for (endereco, esperado) in casos {
@@ -300,7 +323,9 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let duas = format!("{}{}", acoes_das_pastas(&url), acoes_das_pastas(&url));
     assert_eq!(
         ler_acao_de_abrir_pastas(&inst, &com(duas), ID).map(|_| ()),
-        Err(E::AcoesDeAbrirPastasRepetidas)
+        Err(E::Html(ErroHtml::repetido(
+            "acoes_de_abrir_pastas_repetidas"
+        )))
     );
     for mal in [
         acoes_das_pastas(&url).replace("\"AP10\"", "\"AP11\""),
@@ -310,7 +335,9 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler_acao_de_abrir_pastas(&inst, &com(mal), ID).map(|_| ()),
-            Err(E::AcaoDeAbrirPastasForaDaFormaObservada)
+            Err(E::Html(ErroHtml::valor(
+                "acao_de_abrir_pastas_fora_da_forma_observada"
+            )))
         );
     }
 }
@@ -370,7 +397,7 @@ fn contagem_diferente_da_declarada_e_recusa() {
     nos.extend(vazios(2, &["31", "21"]));
     assert_eq!(
         ler(&aberta(declaradas, nos)),
-        Err(E::DocumentoRepetidoNaArvore)
+        Err(E::Html(ErroHtml::repetido("documento_repetido_na_arvore")))
     );
 }
 
@@ -436,11 +463,13 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             No::Documento("32", p(2), Some("902")),
             No::Documento("33", p(2), None),
         ]),
-        Err(E::ProtocoloRepetidoNaPasta)
+        Err(E::Html(ErroHtml::repetido("protocolo_repetido_na_pasta")))
     );
     // Toda por identidade e faltando um: o subcódigo de identidade.
     assert_eq!(
         com_pasta2(vec![No::Documento("31", p(2), Some("902"))]),
-        Err(E::ProtocoloDeclaradoAusenteDaPasta)
+        Err(E::Html(ErroHtml::ausente(
+            "protocolo_declarado_ausente_da_pasta"
+        )))
     );
 }

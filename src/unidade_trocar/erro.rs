@@ -2,6 +2,7 @@
 //! POST nada mudou (saída 1); depois dele, todo desvio é efeito incerto
 //! (saída 3), com a etapa e o fato.
 use super::tela::UnidadeOferecida;
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -38,8 +39,6 @@ pub(crate) enum FalhaDepoisDoEnvio {
     /// 302 sem `Location`.
     #[causa(nome = "redirecionamento_da_troca_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
-    /// `Location` fora do host, da pasta ou da forma observada.
-    LocalizacaoForaDaFormaObservada,
     /// `Location` para outra unidade que a escolhida.
     LocalizacaoDeOutraUnidade,
     /// Status fora de 200 e 302 (recusa do transporte com o status).
@@ -49,6 +48,8 @@ pub(crate) enum FalhaDepoisDoEnvio {
     ControleNaoReconhecido(ErroCaixa),
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl FalhaDepoisDoEnvio {
@@ -73,16 +74,9 @@ pub(crate) enum ErroTroca {
     #[causa(interna)]
     ControleNaoReconhecido(ErroCaixa),
     UnidadeExibidaDiferenteDaSolicitada,
-    #[causa(nome = "link_de_troca_de_unidade_ausente")]
-    LinkDeTrocaAusente,
     #[causa(nome = "links_de_troca_de_unidade_divergentes")]
     LinksDeTrocaDivergentes,
-    #[causa(nome = "link_de_troca_de_unidade_fora_da_forma_observada")]
-    LinkDeTrocaForaDaFormaObservada,
-    #[causa(nome = "tela_de_troca_de_unidade_nao_reconhecida")]
-    TelaDeTrocaNaoReconhecida,
     ListaDeUnidadesIncompleta,
-    LinhaDeUnidadeForaDaFormaObservada,
     UnidadeMarcadaDiferenteDaAtiva,
     SelecaoDeUnidadePorScriptNaoPublicada,
     UnidadeNaoOferecida {
@@ -98,6 +92,8 @@ pub(crate) enum ErroTroca {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,
     },
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroTroca {
@@ -122,6 +118,7 @@ impl ErroTroca {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Transporte(falha) => falha.mensagem(),
             Self::ControleNaoReconhecido(_) => {
                 "resposta não contém Controle de Processos verificável"
@@ -129,19 +126,11 @@ impl ErroTroca {
             Self::UnidadeExibidaDiferenteDaSolicitada => {
                 "a unidade mostrada pelo SEI não corresponde à solicitada"
             }
-            Self::LinkDeTrocaAusente => "o Controle não publica o link de troca de unidade",
             Self::LinksDeTrocaDivergentes => {
                 "o Controle publica links de troca de unidade diferentes"
             }
-            Self::LinkDeTrocaForaDaFormaObservada => {
-                "o link de troca de unidade não tem a forma observada"
-            }
-            Self::TelaDeTrocaNaoReconhecida => "a tela de troca de unidade não foi reconhecida",
             Self::ListaDeUnidadesIncompleta => {
                 "a lista de unidades não tem o total que a legenda declara"
-            }
-            Self::LinhaDeUnidadeForaDaFormaObservada => {
-                "uma linha da lista de unidades não tem a forma observada"
             }
             Self::UnidadeMarcadaDiferenteDaAtiva => {
                 "a unidade marcada na tela de troca não é a ativa no Controle"

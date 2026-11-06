@@ -4,6 +4,7 @@ use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -35,7 +36,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
         return Ok((unidade.clone(), nivel));
     }
     if !encontrado.eh_resumida() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(ErroHtml::valor("visao_do_controle_nao_reconhecida").into());
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     let nivel = ler_pelo_link(&mut sessao, &detalhada)?;
@@ -74,14 +75,14 @@ pub(super) fn link_do_nivel_de_detalhe(
     instalacao: &Instalacao,
     tela: &TelaAtual,
 ) -> Result<String, E> {
-    let invalido = E::LinkDoNivelDeDetalheNaoReconhecido;
+    let invalido = E::Html(ErroHtml::valor("link_do_nivel_de_detalhe_nao_reconhecido"));
     let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;
     let no = match nos.as_slice() {
-        [] => return Err(E::LinkDoNivelDeDetalheAusente),
+        [] => return Err(ErroHtml::ausente("link_do_nivel_de_detalhe_ausente").into()),
         [no] => *no,
-        _ => return Err(E::LinksDoNivelDeDetalheRepetidos),
+        _ => return Err(ErroHtml::repetido("links_do_nivel_de_detalhe_repetidos").into()),
     };
     let tag = no
         .get(parser)
