@@ -193,6 +193,12 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
     linhas.join("\n")
 }
 
+// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
+#[cfg(test)]
+fn linhas_da_falha(_erro: &ErroReabrir) -> Vec<String> {
+    Vec::new()
+}
+
 #[cfg(test)]
 #[path = "processo_reabrir_cli/tests.rs"]
 mod tests;
