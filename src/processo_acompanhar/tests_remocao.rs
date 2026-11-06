@@ -128,7 +128,7 @@ fn resposta_de_post_sem_aceite_do_processo_e_incerta_sem_retry() {
     let desvio = gerenciar().replace("id_procedimento=10", "id_procedimento=999");
     respostas.extend([r302(&desvio), ok(lista(""))]);
     let (resultado, pedidos) = executar(respostas);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, pedidos_confirmados());
 }
 
@@ -137,7 +137,7 @@ fn falha_na_resposta_do_post_ainda_rele_com_efeito_incerto() {
     let mut respostas = preparar();
     respostas.extend([Err(FalhaTransporte::Rede), ok(lista(""))]);
     let (resultado, pedidos) = executar(respostas);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, pedidos_confirmados());
 }
 
@@ -146,7 +146,7 @@ fn sem_prova_na_releitura_da_retirada_e_incerto() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista(&linha("831", "G")))]);
     let (resultado, pedidos) = executar(respostas);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, pedidos_confirmados());
 }
 
@@ -159,7 +159,7 @@ fn cadastro_apos_retirar_ultimo_precisa_publicar_processo() {
         ok("<html>cortado</html>".to_owned()),
     ]);
     let (resultado, pedidos) = executar(respostas);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     let mut esperados = pedidos_confirmados();
     esperados.push(get(&absoluta(&cadastrar())));
     assert_eq!(pedidos, esperados);
