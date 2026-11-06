@@ -360,3 +360,16 @@ fn checkbox_de_ciencia_em_noscript_nao_e_prova() {
         "checkbox em noscript não comprova ciência"
     );
 }
+
+/// RED #271: <noscript> não executa seus scripts quando JS está ativo.
+/// A URL de uma ciência anterior presente só nesse trecho é inerte.
+#[test]
+fn script_dentro_de_noscript_nao_prova_aceite() {
+    let html = aceite_processo("42457")
+        .replacen("<script>", "<noscript><script>", 1)
+        .replacen("</script>", "</script></noscript>", 1);
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
