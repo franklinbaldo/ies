@@ -76,3 +76,30 @@ live UnB/GO NOT_RUN. Nenhuma requisição real foi feita nesta fatia.
 ## Replay público GO (05/11/2026)
 
 No [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185), o ZIP do acervo foi conferido e o leitor Rust interpretou as seis telas da ação `unidade_selecionar_envio_processo` (três GET e três POST) sem pedidos ao SEI. No POST do passo 12, o formulário `frmUnidadeLista` aparece sem tabela `infraTable`, encerrado por `Nenhum registro encontrado.`. A estrutura agora é reconhecida como lista vazia somente para página zero e paginador de uma página; ausência de tabela sem aviso é recusada. O replay não demonstra a coleta integral de 274 páginas nem substitui as leituras live em UnB e GO.
+
+## Replay da coleta integral GO (06/11/2026)
+
+Identificamos no acervo um cenário mais forte que a cassette curta:
+`cassettes/go/unidade-destinos-no-indice-go--85f61d670bfc.md`,
+com **4 GET e 274 POST** em 278 interações reais gravadas,
+**13.671 unidades**. O ZIP e a cassette são verificados pelos
+hashes do card; o CI executa obrigatoriamente o leitor de 274
+páginas, os filtros e a derivação de cada formulário, sem rede SEI.
+
+A resposta do primeiro GET da lupa (passo 3) mostrou
+**dois elementos `input type=submit` com `id=btnPesquisar`
+e sem `name`**. Ambos são controles de submissão do formulário
+`frmUnidadeLista`; como não têm nome, o navegador não transmite
+um par `btnPesquisar=...`. O botão previamente exigido por
+`name` era hipótese das fixtures sintéticas e causava
+`formulario_da_lupa_inesperado`. A regra revisada confere o
+submit servido e omite somente o parâmetro não publicado,
+sem executar JavaScript ou alterar o orçamento de requests.
+
+No [RED 42161586924](https://github.com/franklinbaldo/ies/actions/runs/42161586924)
+o teste novo da derivação integral falhou na primeira página;
+após a correção, [GREEN do replay integral 42162187792](https://github.com/franklinbaldo/ies/actions/runs/42162187792)
+aprovou todas as 275 respostas e a união de 274 páginas.
+Isso comprova a **compatibilidade offline com a cassette GO**,
+não o êxito de coleta autenticada. Os ensaios live de UnB/GO
+continuam com os resultados antigos e não foram repetidos.

@@ -61,6 +61,12 @@ nem revela URL assinada, cookie ou credenciais. O erro tipado e o
 não provoca retry. Falhas de pré-condições locais, anteriores ao
 início da coleta, mantêm o contrato geral de erro local.
 
+O replay integral da lupa GO (SEI 5.0.3) mostrou os botões
+`btnPesquisar` sem `name`; a operação os confere no formulário
+servido e, nesse caso, não inventa um par `btnPesquisar` no POST.
+A regra é local à lupa e conserva a recusa de formulários
+não reconhecidos. A evidência é offline, sem atestar live.
+
 Erros tipados desta operação:
 - `lupa_transporte_recusado`: falha de transporte ou status na navegação/consulta;
 - `link_da_lupa_ausente`: ação obrigatória não foi publicada;

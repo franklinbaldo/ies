@@ -57,6 +57,23 @@ A recusa continua recusada, sem persistir snapshot parcial.
 - [Implementação](../../src/unidade_pesquisar_cli.rs)
 - [Observação da lupa](../como-o-sei-funciona/lupa-de-unidades.md)
 
+## Botões sem nome da lupa GO (cassette integral, #244)
+
+O replay integral GO revelou duas entradas `input type=submit`
+com `id=btnPesquisar` e sem `name`. O modelo anterior,
+baseado em submit com nome, recusava o formulário real.
+A decisão é reconhecer as duas formas por estrutura local:
+exatamente um submit nomeado (fixture anterior) ou um/dois
+submits sem nome e com id observado (GO real). Sem nome,
+a submissão HTML não inclui par de botão. O IES aplica a
+derivação sem esse par, mas só depois de conferir a presença
+e a forma dos botões na operação. Isso evita mudar regras
+de formulários de outras capacidades; não executa JS.
+Forms inesperados continuam recusados.
+
+[Replay e RED/GREEN](../validacao-live/2026-11-05-unidades-falhas-contadas.md).
+A decisão não afirma que a coleta live GO voltou a funcionar.
+
 ## Limitações e revisão
 
 CI e gates devem ser medidos no head desta PR. RED local e live

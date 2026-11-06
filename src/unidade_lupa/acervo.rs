@@ -110,7 +110,7 @@ fn replay_da_lupa_go_no_acervo() {
 }
 
 #[test]
-#[ignore = "wip #244: cassette integral GO exige ZIP publico conferido no CI"]
+#[ignore = "exige ZIP integral GO em IES_ACERVO_CACHE; executado no CI"]
 fn replay_274_paginas_go_no_acervo() {
     // Caso Todos test_lupa_unidades_010.py @323eb01: paginas reais,
     // nao simuladas; orcamento gravado 4 GET + 274 POST, 0 HTTP aqui.

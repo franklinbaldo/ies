@@ -51,8 +51,9 @@ CI final da PR #303; não antecipar PASS.
 Nenhuma requisição ao SEI foi feita nesta fatia. Não repetir
 as chamadas falhadas dos ensaios anteriores apenas para colher a
 contagem. Não há novo resíduo de processo, documento ou unidade.
-Replay GO já obrigatório na CI canônica; esta alteração não muda
-cassette, protocolo ou conteúdo das páginas.
+A cassette GO já tinha um replay curto obrigatório no CI. Na
+continuação de 06/11, a cassette **integral** foi conferida e incorporada
+ao replay obrigatório, sem requisições ao SEI.
 
 ## Pendente na issue
 
@@ -60,3 +61,42 @@ Resolver as diferenças estruturais reais de UnB e GO com evidência,
 obter a lista integral, pesquisar offline com zero HTTP e capturar
 stdout/stderr real da CLI de sugestões. A contagem nas falhas
 não é prova de sucesso da listagem nem conclui a issue.
+
+## Continuação: cassette integral GO (06/11/2026)
+
+A cassette `unidade-destinos-no-indice-go--85f61d670bfc.md`
+documenta **278 interações**: 4 GET e 274 POST, com 13.671
+identidades. O ZIP público `lote-5b6af062ae69d8c7.zip`
+tem SHA-1 conferido `5b6af062ae69d8c7db0293c93ce30342c0aa364a`.
+O novo replay Rust leu **274 páginas reais** pelo leitor de produção,
+validou cada filtro e reuniu **13.671 IDs sem duplicatas**, sem
+acesso HTTP. A derivação do formulário também é exercitada sobre
+as 275 respostas da lupa.
+
+**RED observado** no
+[CI 42161586924](https://github.com/franklinbaldo/ies/actions/runs/42161586924):
+o replay das 274 páginas passou, mas a derivação recusou o primeiro
+formulário (passo 3). O diagnóstico saneado apontou
+`botao_de_envio_ausente_no_formulario`. A forma real possui **dois**
+`input type=submit id=btnPesquisar` **sem atributo `name`**.
+A implementação anterior esperava um submit com `name=btnPesquisar`,
+como nas fixtures sintéticas. O DOM de GO não tinha esse campo,
+sem que isso significasse ausência do botão.
+
+A correção distingue, dentro da operação da lupa, exatamente um
+submit **nomeado** dos **um ou dois submits sem nome** publicados
+sob `id=btnPesquisar`. Quando não há `name`, o corpo omite o
+par de botão, como a submissão HTML normal; os campos observados
+permanecem. Não executa JavaScript, não inventa links e não cria
+requisições. Casos sem botão identificável, duplicados nomeados ou
+mais de dois botões sem nome recusam antes do POST.
+[GREEN do replay integral GO no CI 42162187792](https://github.com/franklinbaldo/ies/actions/runs/42162187792):
+três testes de cassette passaram, incluindo a derivação de todos
+os 275 formulários.
+
+**Live após correção:** UnB NOT_RUN (0), GO NOT_RUN (0),
+pesquisa offline NOT_RUN (0); escrita de domínio 0, resíduos 0.
+A falha anterior da GO permanece registrada como FAIL histórico;
+o replay offline não a reclassifica como PASS live. A incompatibilidade
+de links da UnB ainda não está corrigida. O teste da CLI real para
+sugestões também permanece pendente.

@@ -30,7 +30,7 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// O GO serve dois submits com id btnPesquisar, ambos sem name.
 /// O navegador nao transmite botao sem name. A forma sintética mais antiga
- /// serve um submit nomeado: nesse caso, seu par entra no corpo.
+/// serve um submit nomeado: nesse caso, seu par entra no corpo.
 fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
@@ -50,8 +50,16 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
         }
         let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
             .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
-        let padrao = if elemento == "button" { "submit" } else { "text" };
-        if !tipo.as_deref().unwrap_or(padrao).eq_ignore_ascii_case("submit") {
+        let padrao = if elemento == "button" {
+            "submit"
+        } else {
+            "text"
+        };
+        if !tipo
+            .as_deref()
+            .unwrap_or(padrao)
+            .eq_ignore_ascii_case("submit")
+        {
             continue;
         }
         if crate::html_atributos::atributo_presente(tag, "disabled")
@@ -123,7 +131,7 @@ mod replay_integral_go {
     use std::path::Path;
 
     #[test]
-    #[ignore = "wip #244: cassette integral GO exige ZIP publico conferido no CI"]
+    #[ignore = "exige ZIP integral GO em IES_ACERVO_CACHE; executado no CI"]
     fn formularios_da_lupa_integral_go_no_acervo() {
         // Observacao: cassette GO 85f61d67, 4 GET + 274 POST gravados.
         // Sem HTTP; nunca imprimir URLs assinadas nem corpo de formulario.
@@ -159,7 +167,7 @@ mod replay_integral_go {
                 atual
             };
             let html = html_da_resposta(resposta.item)
-                .unwrap_or_else(|_| panic!("HTML ilegiveI no passo {}", resposta.passo));
+                .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo));
             let url = gravacao::url_sem_consulta(&conferida.json, resposta.item);
             let mime = gravacao::mime(resposta.item);
             consulta(&instalacao, &url, &html, &mime, pagina)
