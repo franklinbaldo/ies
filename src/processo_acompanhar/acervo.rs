@@ -21,7 +21,7 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                 match html_da_resposta(r.item) {
                     Ok(html) => match acompanhamentos_da_lista(&html) {
                         Ok(_) => Resultado::Lido,
-                        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
                     },
                     Err(_) => Resultado::NaoAplicavel("html_da_lista_nao_gravado"),
                 },
@@ -31,7 +31,7 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                 match (gravacao::id_procedimento(r.item), html_da_resposta(r.item)) {
                     (Some(id), Ok(html)) => match grupos_do_cadastro(&html, &id) {
                         Ok(_) => Resultado::Lido,
-                        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
                     },
                     _ => Resultado::NaoAplicavel("cadastro_ou_id_nao_gravado"),
                 },
