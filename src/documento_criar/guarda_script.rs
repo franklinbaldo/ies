@@ -99,7 +99,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
 }
 
 /// A captura 4.0.9 publica btnSalvar como button habilitado com
-/// onclick=confirmarDados(); a mera funcao submeter() morta nao prova
+/// `onclick=confirmarDados()`; a mera funcao `submeter()` morta nao prova
 /// que a tela oferece a escrita. Topo e rodape podem repetir o botao.
 fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>) -> bool {
     let mut encontrados = 0_usize;
