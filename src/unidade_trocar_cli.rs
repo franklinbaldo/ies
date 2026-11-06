@@ -364,25 +364,42 @@ fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
     }
 }
 
+/// A saída humana parte exclusivamente da falha tipada, sem montar JSON.
+fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
+    let mut linhas = vec![saida_erro::linha_humana(
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    )];
+    match erro {
+        ErroTroca::UnidadeNaoOferecida { oferecidas } => {
+            let siglas: Vec<_> = oferecidas.iter().map(|u| u.sigla.as_str()).collect();
+            linhas.push(format!("IES: oferecidas: {}", siglas.join(", ")));
+        }
+        ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
+            let siglas: Vec<_> = candidatas.iter().map(|u| u.sigla.as_str()).collect();
+            linhas.push(format!("IES: candidatas: {}", siglas.join(", ")));
+        }
+        ErroTroca::EfeitoIncerto { etapa, falha } => {
+            linhas.push(format!(
+                "IES: etapa {}: {}; {AVISO_DE_ESCOPO}",
+                etapa.nome(),
+                falha.subcodigo()
+            ));
+        }
+        _ => {}
+    }
+    linhas.push(format!("IES: {pedidos} requisições."));
+    linhas
+}
+
 fn publicar_falha(json_mode: bool, erro: &ErroTroca, pedidos: u32) -> ExitCode {
-    let valor = json_de_falha(erro, pedidos);
     if json_mode {
-        println!("{valor}");
+        println!("{}", json_de_falha(erro, pedidos));
     } else {
-        eprintln!(
-            "{}",
-            saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-        for campo in ["oferecidas", "candidatas"] {
-            if let Some(lista) = valor[campo].as_array() {
-                let siglas: Vec<_> = lista.iter().filter_map(|u| u["sigla"].as_str()).collect();
-                eprintln!("IES: {campo}: {}", siglas.join(", "));
-            }
+        for linha in linhas_da_falha(erro, pedidos) {
+            eprintln!("{linha}");
         }
-        if let (Some(etapa), Some(falha)) = (valor["etapa"].as_str(), valor["falha"].as_str()) {
-            eprintln!("IES: etapa {etapa}: {falha}; {AVISO_DE_ESCOPO}");
-        }
-        eprintln!("IES: {pedidos} requisições.");
     }
     ExitCode::from(erro.saida())
 }
