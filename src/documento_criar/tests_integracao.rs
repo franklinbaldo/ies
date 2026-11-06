@@ -286,9 +286,11 @@ fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post()
         original.replace("onclick=\"confirmarDados()\"", "onclick=\"outraAcao()\""),
         original.replace("type=\"button\"", "type=\"submit\""),
         original.replace("onclick=\"confirmarDados()\"", "disabled onclick=\"confirmarDados()\""),
-        original.replace("</body>", &format!("{botao}</body>")).replace(
-            "onclick=\"confirmarDados()\">Salvar</button>",
-            "onclick=\"outraAcao()\">Salvar</button>",
+        // Um segundo botao divergente nao pode ser ignorado so porque
+        // o primeiro continua valido.
+        original.replace(
+            "</body>",
+            "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\" onclick=\"outraAcao()\">Salvar</button></body>",
         ),
     ];
     for html in casos {
