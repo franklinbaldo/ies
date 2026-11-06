@@ -227,3 +227,24 @@ fn chamada_em_funcao_nao_invocada_nao_comprova_aceite() {
         Err(E::AceiteSemAtividade)
     );
 }
+
+
+/// RED #271: um retorno antecipado ou outra interrupção antes da recarga
+/// não pode transformar uma atividade antiga em prova de ciência nova.
+#[test]
+fn retorno_ou_interrupcao_antes_da_recarga_nao_comprova_aceite() {
+    let chamada = "atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457');";
+    for corpo in [
+        format!("return; {chamada}"),
+        format!("return;\n {chamada}"),
+        format!("throw new Error('parou'); {chamada}"),
+        format!("if(true) return; {chamada}"),
+    ] {
+        let html = format!("<html><script>function inicializar(){{ {corpo} }}</script></html>");
+        assert_eq!(
+            atividade_do_aceite(&html, processo()),
+            Err(E::AceiteSemAtividade),
+            "código após interrupção não pode provar atividade: {corpo}"
+        );
+    }
+}
