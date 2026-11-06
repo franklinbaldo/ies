@@ -197,3 +197,34 @@ fn script_aninhado_em_template_nao_publica_atividade_da_ciencia() {
         Err(E::AceiteSemAtividade)
     );
 }
+
+
+/// RED #271: código que o navegador nunca chama não comprova ciência.
+/// A forma legítima observada é a recarga do SEI, não um if(false).
+#[test]
+fn chamada_em_if_false_nao_comprova_aceite() {
+    let chamada = "atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457');";
+    for script in [
+        format!("if(false) {{ {chamada} }}"),
+        format!("function inicializar(){{ if(false) {{ {chamada} }} }}"),
+        format!("if(false) {chamada}"),
+        format!("if(false)\\n{chamada}").replace("\\n", "\n"),
+        format!("function inicializar(){{ if(false) {chamada} }}"),
+    ] {
+        let html = format!("<html><script>{script}</script></html>");
+        assert_eq!(
+            atividade_do_aceite(&html, processo()),
+            Err(E::AceiteSemAtividade),
+            "ramo inativo não pode publicar atividade: {script}"
+        );
+    }
+}
+
+#[test]
+fn chamada_em_funcao_nao_invocada_nao_comprova_aceite() {
+    let html = aceite_processo("42457").replace("inicializar", "funcaoNaoInvocada");
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
