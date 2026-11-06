@@ -1,6 +1,7 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::confirmacao::{FotoDaCriacao, postar_e_verificar};
+use super::guarda_script::cadastro_publica_script_de_criacao;
 use super::{
     ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
     escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
@@ -72,140 +73,6 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
         o_que: EstadoDoProcesso::DocumentoCriadoNoProcesso,
     },
 };
-
-/// Apenas uma instrução ativa no <script> servido autoriza reescrever
-/// o oculto de cadastro. HTML inerte, tipo JSON e comentários não
-/// demonstram comportamento do formulário; não se executa JavaScript.
-/// A forma não observada é recusada ANTES de iniciar o POST criador.
-fn cadastro_publica_script_de_criacao(html: &str) -> bool {
-    const INSTRUCAO: &str = "document.getElementById('hdnFlagDocumentoCadastro').value = '2';";
-
-    // Só uma instrução literal fora de comentários ou cadeias JS conta
-    // como evidência. Não interpretamos nem executamos JavaScript.
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    enum Estado {
-        Codigo,
-        ComentarioDeBloco,
-        Cadeia(char),
-    }
-
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
-    // A captura SEI 4.0.9 publica a atribuição dentro de
-    // function submeter(), na sequência desabilitar → atribuir → enviar.
-    // Formas aninhadas e código fora dessa forma observada falham fechadas.
-    const DESABILITAR: &str = "desabilitarBotaoSalvar(true);";
-    const ENVIAR: &str = "document.getElementById('frmDocumentoCadastro').submit();";
-    let mut ocorrencias = 0;
-    let mut funcoes_submeter = 0;
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            return false;
-        };
-        let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
-            return false;
-        };
-        if tipo
-            .as_deref()
-            .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
-        {
-            continue;
-        }
-        // Com src, o navegador IGNORA o conteúdo inline do elemento.
-        // Uma string que aparece ali nunca prova a submissão criadora.
-        match crate::html_atributos::atributo_presente(script, "src") {
-            Ok(true) => continue,
-            Ok(false) => {}
-            Err(_) => return false,
-        }
-
-        let texto = script.inner_text(dom.parser());
-        let mut estado = Estado::Codigo;
-        let mut blocos: Vec<bool> = Vec::new();
-        let mut passo_submeter = 0_u8;
-        for linha in texto.lines() {
-            let linha = linha.trim();
-            if estado == Estado::Codigo {
-                if blocos.len() == 1 && blocos[0] && linha != "}" {
-                    passo_submeter = match (passo_submeter, linha) {
-                        (0, DESABILITAR) => 1,
-                        (1, INSTRUCAO) => 2,
-                        (2, ENVIAR) => 3,
-                        _ => return false,
-                    };
-                } else if linha == INSTRUCAO {
-                    // O exemplo sintético mínimo é uma peça única.
-                    // Em if(false), função não observada ou script maior
-                    // esta linha NÃO demonstra submissão criadora.
-                    if !blocos.is_empty() || texto.trim() != INSTRUCAO {
-                        return false;
-                    }
-                    ocorrencias += 1;
-                }
-            }
-            let mut prefixo = String::new();
-            let mut caracteres = linha.chars().peekable();
-            while let Some(c) = caracteres.next() {
-                match estado {
-                    Estado::Codigo => match c {
-                        '/' if caracteres.peek().copied() == Some('/') => break,
-                        '/' if caracteres.peek().copied() == Some('*') => {
-                            caracteres.next();
-                            estado = Estado::ComentarioDeBloco;
-                        }
-                        '\'' | '"' | '`' => estado = Estado::Cadeia(c),
-                        '{' => {
-                            let submeter = blocos.is_empty()
-                                && prefixo.trim() == "function submeter()";
-                            if submeter {
-                                funcoes_submeter += 1;
-                                if funcoes_submeter > 1 {
-                                    return false;
-                                }
-                            }
-                            blocos.push(submeter);
-                        }
-                        '}' => {
-                            let Some(submeter) = blocos.pop() else {
-                                return false;
-                            };
-                            if submeter {
-                                if passo_submeter != 3 {
-                                    return false;
-                                }
-                                ocorrencias += 1;
-                                passo_submeter = 0;
-                            }
-                        }
-                        _ => prefixo.push(c),
-                    },
-                    Estado::ComentarioDeBloco => {
-                        if c == '*' && caracteres.peek().copied() == Some('/') {
-                            caracteres.next();
-                            estado = Estado::Codigo;
-                        }
-                    }
-                    Estado::Cadeia(delimitador) => {
-                        if c == '\\' {
-                            caracteres.next();
-                        } else if c == delimitador {
-                            estado = Estado::Codigo;
-                        }
-                    }
-                }
-            }
-            if ocorrencias > 1 {
-                return false;
-            }
-        }
-        // Script truncado, bloco aberto ou literal incompleto é desconhecido.
-        if estado != Estado::Codigo || !blocos.is_empty() {
-            return false;
-        }
-    }
-    ocorrencias == 1
-}
 
 pub(crate) struct PedidoCriacao<'a> {
     pub(crate) nup: &'a NumeroProcesso,
