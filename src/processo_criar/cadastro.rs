@@ -51,7 +51,6 @@ impl CadastroObservado {
     }
 }
 
-
 /// Valida que o cadastro efetivamente ofereceu tipo, descrição, um assunto
 /// sugerido e o nível pedido. Não autoriza uma submissão: a ação, todos
 /// os hidden e os interessados ainda precisam ser conferidos pelo fluxo.
