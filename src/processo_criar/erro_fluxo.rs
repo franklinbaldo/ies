@@ -48,8 +48,11 @@ pub(crate) enum ErroCriar {
     Arvore(crate::arvore_processo::ErroArvore),
     Propriedades(crate::propriedades_processo::ErroPropriedades),
     PropriedadesNaoOferecidas,
-    /// Recusa explícita do SEI: não atribuir processos concorrentes a este POST.
+    /// Validação expressa da Infra: o próprio SEI publicou não aplicação.
     RecusaDoPost(ErroSubmissaoFormulario),
+    /// HTTP 4xx após o POST não prova se a escrita teve efeito: falhar
+    /// fechado, sem reconciliar com criação possivelmente concorrente.
+    RespostaHttpSemProva(ErroSubmissaoFormulario),
     /// O POST foi tentado; uma leitura única do Controle apurou apenas
     /// candidatos, nunca causalidade. As duas falhas são preservadas.
     PosEscrita {
@@ -86,7 +89,7 @@ impl ErroCriar {
             Self::Arvore(erro) => crate::erro_publico::folha(erro),
             Self::Propriedades(erro) => crate::erro_publico::folha(erro),
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
-            Self::RecusaDoPost(erro) => erro.subcodigo(),
+            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
             Self::PosEscrita {
                 correspondentes: Some(_),
                 ..
@@ -113,7 +116,7 @@ impl ErroCriar {
             Self::Transporte { http, .. } => http.as_ref(),
             Self::Hipotese(erro) => erro.status_http(),
             Self::PosEscrita { causa_post, .. } => causa_post.status_http(),
-            Self::RecusaDoPost(erro) => erro.status_http(),
+            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.status_http(),
             _ => None,
         }
     }
@@ -145,7 +148,10 @@ impl ErroCriar {
     pub(crate) fn saida(&self) -> u8 {
         if matches!(
             self,
-            Self::EfeitoIncerto | Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. }
+            Self::EfeitoIncerto
+                | Self::RespostaHttpSemProva(_)
+                | Self::PosEscrita { .. }
+                | Self::PosRespostaInesperada { .. }
         ) {
             3
         } else {
