@@ -313,7 +313,6 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
-
 #[test]
 fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
     // A fotografia posterior foi lida e revelou NUP novo, mas a leitura
@@ -339,11 +338,19 @@ fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
     });
     let erro = resultado.expect_err("falha da conferência não comprova criação");
     assert_eq!(erro.saida(), 3);
-    let diagnostico = erro.diagnostico_apos_post().expect("diagnóstico com ambas causas");
+    let diagnostico = erro
+        .diagnostico_apos_post()
+        .expect("diagnóstico com ambas causas");
     assert_eq!(diagnostico.causa_post, "falha_de_rede");
     assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
-    assert_eq!(diagnostico.candidatos_observados, Some(vec![NUP.to_owned()]));
+    assert_eq!(
+        diagnostico.candidatos_observados,
+        Some(vec![NUP.to_owned()])
+    );
     assert_eq!(diagnostico.candidatos_compativeis, None);
     assert_eq!(requests.len(), 6); // 3 GET + 1 POST + Controle + tela do candidato
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
 }
