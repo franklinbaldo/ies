@@ -146,12 +146,95 @@ fn conferir_linha(
     Ok(())
 }
 
+/// Localiza a declaração global exigida pelo onclick, ignorando texto de
+/// comentários e strings. Não interpreta JS: blocos, expressões de função,
+/// templates e sintaxe não reconhecida não provam uma função global.
+/// Os bytes ASCII de controle não são parte de sequências UTF-8 multibyte.
+fn inicio_declaracao_global(codigo: &str) -> Option<usize> {
+    let assinatura = b"function acaoExcluir(";
+    let bytes = codigo.as_bytes();
+    let mut i = 0;
+    let mut nivel = 0usize;
+    let mut aspas: Option<u8> = None;
+    let mut escapado = false;
+    let mut comentario_linha = false;
+    let mut comentario_bloco = false;
+    let mut anterior = None;
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        let proximo = bytes.get(i + 1).copied();
+        if comentario_linha {
+            if c == 10 || c == 13 {
+                comentario_linha = false;
+            }
+            i += 1;
+            continue;
+        }
+        if comentario_bloco {
+            if c == b'*' && proximo == Some(b'/') {
+                comentario_bloco = false;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if let Some(delimitador) = aspas {
+            if escapado {
+                escapado = false;
+            } else if c == 92 {
+                escapado = true;
+            } else if c == delimitador {
+                aspas = None;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'/' && proximo == Some(b'/') {
+            comentario_linha = true;
+            i += 2;
+            continue;
+        }
+        if c == b'/' && proximo == Some(b'*') {
+            comentario_bloco = true;
+            i += 2;
+            continue;
+        }
+        if c == 39 || c == 34 {
+            aspas = Some(c);
+            i += 1;
+            continue;
+        }
+        // Backticks (96) e barra não comentada podem ter semântica
+        // de template/regex: sem prova segura, recusar conservadoramente.
+        if c == 96 || c == b'/' {
+            return None;
+        }
+        if nivel == 0 && bytes[i..].starts_with(assinatura) {
+            // Declaração em posição de comando global, e não expressão
+            // "const x = function acaoExcluir(...)" ou trecho em string.
+            return matches!(anterior, None | Some(b';' | b'}'))
+                .then_some(i + assinatura.len());
+        }
+        match c {
+            b'{' => nivel += 1,
+            b'}' => nivel = nivel.checked_sub(1)?,
+            _ => {}
+        }
+        if nivel == 0 && !c.is_ascii_whitespace() {
+            anterior = Some(c);
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Identifica o corpo da única função observada, sem avaliar JavaScript.
 /// Chaves em strings não delimitam blocos; comentários e template literals
 /// não são suportados: qualquer variante ambígua falha fechada.
 fn corpo_da_acao_excluir(codigo: &str) -> Option<&str> {
-    let assinatura = "function acaoExcluir(";
-    let inicio = codigo.find(assinatura)? + assinatura.len();
+    let inicio = inicio_declaracao_global(codigo)?;
     let (parametros, resto) = codigo[inicio..].split_once(')')?;
     let mut nomes = parametros.split(',').map(str::trim);
     if nomes.next() != Some("id")
