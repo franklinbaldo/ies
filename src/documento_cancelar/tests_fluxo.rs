@@ -120,6 +120,22 @@ fn charset_da_tela_recusa_valor_nao_representavel_antes_do_post() {
 }
 
 #[test]
+fn post_preserva_texto_e_motivo_remoto_diferente_nao_comprova_cancelamento() {
+    let motivo = "  Revisão\nnecessária  ";
+    let mut respostas = ate_tela(arvore_ativa());
+    respostas.extend([r302(&location()), ok(arvore_cancelada())]);
+    let (resultado, pedidos) = executar_com_motivo(true, respostas, motivo);
+    assert!(matches!(resultado, Err(ErroCancelar::EfeitoIncerto { .. })));
+    let mut esperados = pedidos_previa();
+    esperados.push(post(
+        &absoluta(&action()),
+        "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=++Revis%E3o%0Anecess%E1ria++",
+    ));
+    esperados.push(get(&url_arvore()));
+    assert_eq!(pedidos, esperados);
+}
+
+#[test]
 fn previa_abre_arvore_e_tela_em_quatro_gets_sem_post() {
     let (resultado, pedidos) = executar(false, ate_tela(arvore_ativa()));
     let feito = resultado.unwrap();
