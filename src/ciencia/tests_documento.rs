@@ -1,4 +1,4 @@
-//! RED/GREEN da ciência documental: Todos test_documento_ciente_010.py
+//! RED/GREEN da ciência documental: Todos `test_documento_ciente_010.py`
 //! @323eb01, HTML sintético (sem segredos) e contagem exata de GETs.
 use super::documento::{ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento};
 use crate::arvore_processo::tests_assinatura::{
