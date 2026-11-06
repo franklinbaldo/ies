@@ -55,6 +55,7 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         return Err(err);
     };
     let parser = dom.parser();
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(err)?;
     let tabela = tabela.get(parser).and_then(tl::Node::as_tag).ok_or(err)?;
     if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
         return Err(err);
@@ -66,7 +67,10 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+        // Um tipo no fragmento inerte de <template> não é oferecido.
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
+            || guarda_script::dentro_de_template(tag.boundaries(parser).0, &faixas)
+        {
             continue;
         }
         let href = valor_do_atributo(tag, "href").map_err(|_| err)?;
@@ -200,7 +204,18 @@ fn script_prova_escolha(html: &str) -> bool {
 pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     use ErroCriar as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
-    let botoes = nos_com_id(&dom, "ancExibirSeries").map_err(|_| E::ListaForaDaForma)?;
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(E::ListaForaDaForma)?;
+    let botoes = nos_com_id(&dom, "ancExibirSeries")
+        .map_err(|_| E::ListaForaDaForma)?
+        .into_iter()
+        .filter(|no| {
+            !no.get(dom.parser())
+                .and_then(tl::Node::as_tag)
+                .is_some_and(|tag| {
+                    guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
+                })
+        })
+        .collect::<Vec<_>>();
     let [botao] = botoes.as_slice() else {
         return if botoes.is_empty() {
             Ok(false)
@@ -257,6 +272,7 @@ pub(crate) fn escolha_do_tipo(
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
         .ok_or(E::ListaForaDaForma)?;
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(E::ListaForaDaForma)?;
     if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
         return Err(E::ListaForaDaForma);
     }
@@ -267,7 +283,9 @@ pub(crate) fn escolha_do_tipo(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
+            || guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
+        {
             continue;
         }
         let nome = tag

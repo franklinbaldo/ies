@@ -198,12 +198,17 @@ fn controles_de_tipo_dentro_de_template_nao_sao_oferta() {
     assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
     assert_eq!(
         escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
-        Ok(EscolhaDoDocumento::Link(format!("https://sei.exemplo.gov.br/sei/{href}")))
+        Ok(EscolhaDoDocumento::Link(format!(
+            "https://sei.exemplo.gov.br/sei/{href}"
+        )))
     );
     let apenas_inerte = format!(
         r#"<table id="tblSeries"><tr><td><template>{visivel}</template></td></tr></table>"#
     );
-    assert_eq!(tipos_oferecidos(&apenas_inerte).unwrap(), Vec::<String>::new());
+    assert_eq!(
+        tipos_oferecidos(&apenas_inerte).unwrap(),
+        Vec::<String>::new()
+    );
     assert_eq!(
         escolha_do_tipo(&instalacao, &apenas_inerte, "4864", "Despacho"),
         Err(ErroCriar::TipoAusente)
