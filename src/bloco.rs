@@ -167,7 +167,6 @@ fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>)
             .split_once(" a ")
             .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?;
         let de = de
-            .trim()
             .parse::<usize>()
             .map_err(|_| ErroHtml::valor("legenda_de_blocos_invalida"))?;
         let ate = ate
@@ -237,7 +236,7 @@ fn ler_linhas(
         if td.len() != nomes.len() {
             return Err(ErroHtml::valor("linha_de_bloco_fora_da_forma").into());
         }
-        let numero = td[indice_numero].inner_text(parser).trim().to_owned();
+        let numero = td[indice_numero].inner_text(parser).into_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroHtml::valor("numero_do_bloco_invalido").into());
         }

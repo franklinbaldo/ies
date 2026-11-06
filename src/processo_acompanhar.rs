@@ -138,12 +138,12 @@ pub(crate) fn grupos_do_cadastro(
             "opcoes_de_grupo_de_acompanhamento_invalidas",
         ))?;
         let nome = texto(&tag.inner_text(parser));
-        if nome.is_empty() && valor.trim().is_empty() {
+        if nome.is_empty() && valor.is_empty() {
             // Uma opção em branco pode ter valor vazio; não é ambiguidade de grupo.
             grupos.push(GrupoOferecido { valor, nome });
             continue;
         }
-        if valor.is_empty() || valor.chars().any(char::is_control) {
+        if valor.is_empty() {
             return Err(ErroHtml::valor("opcoes_de_grupo_de_acompanhamento_invalidas").into());
         }
         grupos.push(GrupoOferecido { valor, nome });
@@ -250,7 +250,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             }
         }
         let id = match ids.as_slice() {
-            [id] if !id.is_empty() && !id.chars().any(char::is_control) => id.clone(),
+            [id] if !id.is_empty() => id.clone(),
             _ => return Err(ErroHtml::valor("linha_de_acompanhamento_invalida").into()),
         };
         if linhas.iter().any(|l: &Acompanhamento| l.id == id) {

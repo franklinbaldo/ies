@@ -83,7 +83,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
     let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
-    Ok((!unidade.is_empty() && unidade.len() <= 128).then_some(unidade))
+    Ok((!unidade.is_empty()).then_some(unidade))
 }
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
@@ -104,8 +104,7 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
     let Some(valor) = valor_do_atributo(elemento, "value").map_err(ilegivel)? else {
         return Ok(None);
     };
-    let valor = valor.trim().to_owned();
-    Ok((!valor.is_empty() && valor.len() <= 128).then_some(valor))
+    Ok((!valor.is_empty()).then_some(valor))
 }
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
@@ -139,7 +138,7 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
             .is_some_and(|resto| !resto.is_empty() && resto.bytes().all(|b| b.is_ascii_digit()))
             && valor_do_atributo(tag, "value")
                 .map_err(ilegivel)?
-                .is_some_and(|valor| !valor.trim().is_empty())
+                .is_some_and(|valor| !valor.is_empty())
         {
             return Ok(true);
         }

@@ -59,7 +59,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 ("rdoSobrestar", "S"),
                 ("txtProcedimentoDestino", ""),
                 ("txtIdentificacaoProcedimentoDestino", ""),
-                ("txaMotivo", motivo.unwrap_or_default().trim()),
+                ("txaMotivo", motivo.unwrap_or_default()),
             ];
             let submissao = derivar_submissao(
                 &tela::OPERACAO,
