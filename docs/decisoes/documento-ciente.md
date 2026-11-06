@@ -49,7 +49,11 @@ do processo e o histórico genérico não provam. O backend REST/WSSEI
 não foi observado e não é selecionado.
 
 O GET é escrita; falha de rede, validação ou 302 não disparam nova
-tentativa. Não restaurar telas. O código reutiliza `formulario_web`
+tentativa. O resultado do GET é mantido como causa tipada dentro da falha
+de efeito incerto; a prova é sempre a releitura, sem presumir que HTTP
+403, validação da Infra ou timeout significam não aplicação. A URL
+de <script> aninhado em <template> também é recusada, independentemente
+de o parser expor esse nó. Não restaurar telas. O código reutiliza `formulario_web`
 quando aplicável, a abertura de documento, o transporte/contador
 compartilhados, leitores HTML e os erros tipados.
 
