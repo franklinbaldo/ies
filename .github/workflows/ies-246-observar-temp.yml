@@ -196,5 +196,29 @@ jobs:
                               for j in vizinhas[:100]
                           ],
                       }, ensure_ascii=False), flush=True)
+              # Comparações booleanas com os literais da guarda 4.0.9;
+              # jamais imprimir os literais realmente servidos, URLs ou HTML.
+              for i, script in enumerate(resumo.scripts):
+                  linhas = "\n".join(script["texto"]).splitlines()
+                  for k, linha in enumerate(linhas):
+                      if linha.strip() == "function submeter()" + " {":
+                          corpo = [s.strip() for s in linhas[k + 1:k + 5]]
+                          if len(corpo) < 4:
+                              continue
+                          print(json.dumps({
+                              "prova_submeter_script": i,
+                              "linha_inicio": k + 1,
+                              "desabilitar_exact": corpo[0] == "desabilitarBotaoSalvar(true);",
+                              "flag_id_observado": "hdnFlagDocumentoCadastro" in corpo[1],
+                              "flag_exact": corpo[1] == "document.getElementById('hdnFlagDocumentoCadastro').value = '2';",
+                              "flag_aspas_duplas_id": 'getElementById("hdnFlagDocumentoCadastro")' in corpo[1],
+                              "flag_aspas_duplas_valor": '"2"' in corpo[1],
+                              "flag_comprimento": len(corpo[1]),
+                              "submit_id_observado": "frmDocumentoCadastro" in corpo[2],
+                              "submit_exact": corpo[2] == "document.getElementById('frmDocumentoCadastro').submit();",
+                              "submit_aspas_duplas_id": 'getElementById("frmDocumentoCadastro")' in corpo[2],
+                              "submit_comprimento": len(corpo[2]),
+                              "terminador_chave": corpo[3] == "}",
+                          }, ensure_ascii=False), flush=True)
               capture.unlink()
           PY

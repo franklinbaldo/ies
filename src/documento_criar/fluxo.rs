@@ -299,8 +299,9 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     // Diagnóstico TEMPORÁRIO #246: permitido só em TREINAMENTO UnB.
     // Nunca publica HTML; sempre recusa antes de qualquer POST criador.
     #[cfg(unix)]
-    if sessao.origem == "https://sei.treinamento.unb.br/sei" {
-        if let Ok(caminho) = std::env::var("IES246_CAPTURA_PRIVADA") {
+    if sessao.origem == "https://sei.treinamento.unb.br/sei"
+        && let Ok(caminho) = std::env::var("IES246_CAPTURA_PRIVADA")
+    {
             let resultado = crate::arquivo_privado::gravar(
                 std::path::Path::new(&caminho),
                 html_cadastro.as_bytes(),
@@ -312,7 +313,6 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 eprintln!("IES246: diagnostico privado indisponivel");
             }
             return Err(E::SubmissaoNaoComprovada);
-        }
     }
     if !cadastro_publica_script_de_criacao(&html_cadastro) {
         return Err(E::SubmissaoNaoComprovada);
