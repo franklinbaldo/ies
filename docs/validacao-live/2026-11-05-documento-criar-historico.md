@@ -147,3 +147,65 @@ A prévia autenticada anterior na UnB está registrada no [ensaio 42198707929](h
 O [diagnóstico temporário 42205095624](https://github.com/franklinbaldo/ies/actions/runs/42205095624) **falhou no parser Python do próprio runner antes do login**; nenhuma captura foi obtida. O workflow e a instrumentação temporária foram excluídos do branch, sem permanecer código que exponha HTML ou dados privados.
 
 **Live desta retomada:** login **NOT_RUN**, prévia **NOT_RUN**, `--confirmar` **NOT_RUN**, releitura **NOT_RUN**; **0 requisições novas ao SEI, 0 POST criador, 0 escritas, 0 resíduos**. Não houve repetição de escrita nem acesso à produção. A confirmação única segue pendente de uma observação segura do formulário efetivo e de nova prévia autenticada. CI final será conferido no head que incluir esta nota.
+
+## Observação estrutural autenticada UnB — 06/11/2026 (issue #246)
+
+Foram executados diagnósticos **somente em TREINAMENTO UnB**, usando
+credenciais públicas, sessão privada e pausa de pelo menos 30 segundos entre
+comandos. A captura HTML temporária foi mantida em arquivo privado no
+runner, convertida em **tokens saneados e comparações booleanas** (nenhuma
+string livre, URL assinada, cookie, senha ou `infra_hash` publicada) e
+apagada antes da conclusão. O workflow e o código de instrumentação foram
+removidos da branch após a observação.
+
+- [Diagnóstico estrutural 42208886718](https://github.com/franklinbaldo/ies/actions/runs/42208886718):
+  login **PASS (5 requisições)**; prévia **PASS (4)**; inspeção via
+  `--confirmar` deliberadamente interceptado **antes do POST**,
+  `submissao_do_documento_nao_observada`, saída 1, requisições da
+  invocação **null (não observadas)**; **0 POST criador, 0 resíduo**.
+- [Tokens relevantes 42209629903](https://github.com/franklinbaldo/ies/actions/runs/42209629903):
+  nova leitura independente, login **PASS (5)** e prévia **PASS (4)**.
+  Observados **dois botões Salvar ativos fora de `template`**, com
+  `onclick=confirmarDados()`; **25 scripts**, cadeia relevante no script
+  inline clássico #24 (índice zero), fora de `template`. As funções
+  `confirmarDados`, `submeter` e `OnSubmitForm` aparecem com a chamada
+  `submeter()` condicionada a `OnSubmitForm()`; a função de envio
+  desabilita Salvar, altera a flag e submete o formulário. Não executar JS.
+- [Comparação restrita 42210460693](https://github.com/franklinbaldo/ies/actions/runs/42210460693):
+  login **PASS (5)**, prévia **PASS (4)**, diagnóstico pré-POST **FAIL
+  fechado** (saída 1, subcódigo `submissao_do_documento_nao_observada`,
+  contagem desta invocação **null**). A função `submeter(){` observada
+  coincide literalmente, nas três instruções diretas, com a evidência
+  estática do Todos @323eb01: desabilitar Salvar, escrever a flag
+  `hdnFlagDocumentoCadastro` com valor `2`, submeter
+  `frmDocumentoCadastro`. O par de botões também coincide com a captura.
+  Isso **descarta como causa direta** a ausência do botão, a cadeia
+  inteiramente em `template` ou a divergência dessas três instruções.
+  Ainda **não localiza** o ponto preciso em que o leitor Rust rejeita a
+  página integral; não ampliar a permissão de escrita por suposição.
+
+**RED:** a regressão anterior para conteúdo HTML inerte teve **1 FAIL,
+1.739 PASS, 23 ignorados** no
+[run 42205490983](https://github.com/franklinbaldo/ies/actions/runs/42205490983)
+antes do código que a corrigiu. Nesta etapa de observação não houve
+teste RED funcional novo; a primeira instrumentação temporária encontrou
+falha no teste de política de gravação privada, a segunda usou a peça
+`arquivo_privado` e a última foi somente diagnóstico. Os gates da
+instrumentação transitória **não** comprovam o código de produção; o
+head definitivo deve ser validado pelo CI depois da remoção.
+
+**Live neste conjunto:** login e prévias **PASS (5 + 4 requisições em
+cada um dos três ensaios)**; confirmação **NOT_RUN como escrita** (o
+diagnóstico de `--confirmar` sempre recusou antes do POST);
+verificação de efeito após escrita **NOT_RUN**. Contagens HTTP das
+invocações diagnósticas: **null, não observadas**. Nenhuma gravação,
+documento novo, número SEI ou resíduo; produção nunca acessada. Não repetir
+um POST de efeito incerto.
+
+**Próximo passo:** diagnosticar, com teste sintético antes do ajuste,
+qual detalhe do HTML de treinamento faz
+`cadastro_publica_script_de_criacao` devolver `false`, preservando os
+casos adversariais e o orçamento exato. Só depois de RED/GREEN, CI e nova
+prévia autenticada considerar **um único** POST de criação autorizado em
+treinamento, seguido obrigatoriamente de releitura e registro do resíduo.
+A issue permanece **WIP**.
