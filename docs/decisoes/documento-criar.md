@@ -108,3 +108,26 @@ ainda ocorre, mas o efeito permanece **incerto (saída 3)**, sem retry.
 Testes sintéticos em `src/documento_criar/tests_confirmacao.rs` afirmam
 um POST e um GET de releitura tanto na recusa da Location externa quanto
 nos destinos locais absoluto/relativo, sem requisitar instalações reais.
+
+## Revisão — ramos inatingíveis da guarda (05/11/2026)
+
+A revisão do Gavião no head \`c3d0cee\` mostrou que uma linha idêntica à
+atribuição de cadastro dentro de \`if (false) { … }\` era contada como
+instrução ativa, habilitando incorretamente o POST. A guarda agora
+reconhece somente um script sintético mínimo ou a sequência literal
+direta da \`function submeter()\` observada na captura SEI 4.0.9:
+\`desabilitarBotaoSalvar(true);\`, atribuição da flag e submissão do
+formulário, sem blocos intermediários. Funções não reconhecidas,
+aninhamentos, comentários, scripts externos, literais e definições
+duplicadas falham fechados. É **reconhecimento de forma**, não um
+interpretador de JavaScript.
+
+Os testes integrados em \`tests_integracao.rs\` incluem ramos
+inalcançáveis e exigem **5 GET / 0 POST** na recusa. O novo teste foi
+publicado no commit \`58839c8\`, antes da correção; no
+[CI 42158719053](https://github.com/franklinbaldo/ies/actions/runs/42158719053)
+houve **1 teste FAIL, 1.659 PASS, 18 ignorados**. Os controles positivos
+incluem o corpo da função \`submeter\` lido do oráculo @323eb01.
+Os gates e o live do head corrigido requerem verificação própria;
+não inferir efeito real do teste sintético.
+
