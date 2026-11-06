@@ -14,8 +14,8 @@ enum Estado {
 }
 
 /// Ler as linhas como texto, excluindo comentários, strings e blocos
-/// aninhados. Dentro de submeter() só vale a sequência da captura
-/// Todos tests/paginas_reais/documento_gerar.html @323eb01.
+/// aninhados. Dentro de `submeter()` só vale a sequência da captura
+/// Todos `tests/paginas_reais/documento_gerar.html` @323eb01.
 fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
     let mut ocorrencias = 0;
     let mut funcoes_submeter = 0;
@@ -54,8 +54,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                     }
                     '\'' | '"' | '`' => estado = Estado::Cadeia(c),
                     '{' => {
-                        let submeter =
-                            blocos.is_empty() && prefixo.trim() == "function submeter()";
+                        let submeter = blocos.is_empty() && prefixo.trim() == "function submeter()";
                         if submeter {
                             funcoes_submeter += 1;
                             if funcoes_submeter > 1 {
@@ -65,9 +64,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                         blocos.push(submeter);
                     }
                     '}' => {
-                        let Some(submeter) = blocos.pop() else {
-                            return None;
-                        };
+                        let submeter = blocos.pop()?;
                         if submeter {
                             if passo_submeter != 3 {
                                 return None;
@@ -105,7 +102,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
 }
 
 /// Somente script inline clássico, sem src. Um segundo corpo que
-/// redefina submeter() torna a prova ambígua. Falha fechada antes do POST.
+/// redefina `submeter()` torna a prova ambígua. Falha fechada antes do POST.
 pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
