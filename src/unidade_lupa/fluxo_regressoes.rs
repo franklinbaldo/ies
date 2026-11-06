@@ -184,6 +184,35 @@ fn botao_novo_repetido_eh_recusado_sem_get() {
 }
 
 #[test]
+fn btn_novo_repetido_com_mesmo_alvo_observado_na_unb_eh_unico() {
+    // Caso do acervo UnB 57497bc11c4f: dois btnNovo idênticos.
+    let consulta = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let botao = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{consulta}';\">Novo</button>"
+    );
+    assert_eq!(
+        botao_novo(&format!("{botao}{botao}"), &controle(), ORIGEM),
+        Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
+    );
+}
+
+#[test]
+fn btn_novo_repetido_com_alvos_assinados_distintos_falha_fechado() {
+    let outro_hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let primeiro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let segundo = format!("acao=grupo_unidade_cadastrar&infra_hash={outro_hash}");
+    let html = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{primeiro}';\">Novo</button>\
+         <button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{segundo}';\">Novo</button>"
+    );
+    assert_eq!(
+        botao_novo(&html, &controle(), ORIGEM),
+        Err(FalhaDaLupa::LinkAmbiguo),
+        "sem escolher hash arbitrário e sem requisitar a Web"
+    );
+}
+
+#[test]
 fn lupa_go_publicada_como_literal_de_script_eh_lida_sem_executar_js() {
     // Observação estrutural: cassette GO unidade-listar-destinos-go,
     // grupo_unidade_cadastrar (passos 2, 6, 10): a URL da lupa aparece
