@@ -275,3 +275,21 @@ Alternativa recusada: usar nível divergente como prova de não aplicação.
 Não elimina a possibilidade de escrita não observada, portanto manter
 `SemCorrespondenciaObservada`/saída 3 é necessário. Na ausência de
 nova prova, não anunciar repetição segura.
+
+## Identidade dos interessados na prova de escrita (06/11, #245)
+
+A tela de propriedades observada na UnB 4.0.9 contém o select
+`selInteressadosProcedimento`, que o leitor `propriedades_processo`
+já interpreta sem rede adicional. Na reconciliação da criação,
+tipo/especificação/nível iguais podiam coincidir com um processo
+concorrente para interessado diferente. Escolha: quando há interessado
+explícito no pedido, comparar o multiconjunto de nomes publicados,
+desconsiderando apenas a ordem da seleção. Aplicar a mesma guarda à
+prova após `Location` e às coincidências parciais de outros candidatos.
+
+Alternativas recusadas: confiar somente no NUP ou tipo/especificação,
+atribuir autoria por aproximação e pedir nova tela. Uma divergência não
+prova que o POST falhou: o fluxo permanece inconclusivo, saída 3,
+sem retry. Na ausência de interessados explícitos, não se inventa uma
+restrição. Testes usam apenas fixtures sintéticas já derivadas de
+estruturas observadas; nenhum ensaio live adicional.
