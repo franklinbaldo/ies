@@ -314,6 +314,32 @@ mod tests {
     }
 
     #[test]
+    fn lista_de_outro_processo_nao_comprova_aceite_valido() {
+        let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+        let html = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+        let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='42'></td></tr></table></html>";
+        let json = json!({"interactions": [
+            resposta_html(
+                "procedimento_ciencia",
+                &format!("{base}?acao=procedimento_ciencia&id_procedimento=10"),
+                html
+            ),
+            resposta_html(
+                "protocolo_ciencia_listar",
+                &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=11"),
+                lista
+            )
+        ]});
+        let registros = replay("unb", &json);
+        assert_eq!(registros.len(), 2);
+        assert_eq!(registros[0].resultado, Resultado::Lido);
+        assert_eq!(
+            registros[1].resultado,
+            Resultado::NaoAplicavel("lista_de_outro_processo")
+        );
+    }
+
+    #[test]
     fn resposta_302_nao_e_prova_de_aceite() {
         let json = json!({"interactions": [{
             "request": {"operation": "procedimento_ciencia", "method": "GET"},
