@@ -123,3 +123,9 @@ fn texto_do_marcador_obedece_a_latin1_e_limite_250() {
         Err(ErroMarcar::TextoDoMarcadorComControle)
     );
 }
+#[test]
+fn texto_de_textarea_admite_multiplas_linhas_e_nao_presume_charset() {
+    for texto in ["Primeira linha\nSegunda linha", "Emoji 🚀", "  Texto preservado  "] {
+        assert_eq!(validar_texto(texto), Ok(()));
+    }
+}
