@@ -52,11 +52,11 @@ fn cadastro_com_script(script: &str) -> String {
 fn cadastro() -> String {
     // Forma de submeter() servida no SEI 4.0.9 (Todos @323eb01).
     cadastro_com_script(
-        r#"function submeter() {
+        r"function submeter() {
   desabilitarBotaoSalvar(true);
   document.getElementById('hdnFlagDocumentoCadastro').value = '2';
   document.getElementById('frmDocumentoCadastro').submit();
-}"#,
+}",
     )
 }
 
