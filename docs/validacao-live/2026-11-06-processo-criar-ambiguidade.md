@@ -79,3 +79,40 @@ resíduos novos. A escrita UnB histórica permanece registrada sem repetição.
 **Issue WIP:** faltam prova não aplicada para outros cenários com evidência
 independente, homologação segura em segunda instalação de treinamento e
 revisão/integração da fatia.
+
+
+## Continuação 🦉 — HTTP 403 após POST não comprova não aplicação (06/11/2026)
+
+**Observação anterior ao RED:** o cenário HTTP 403 do transporte injetado
+já estava representado em `tests_candidatos.rs` e havia parecer do 🦅
+[para o head 00dffe9](https://github.com/franklinbaldo/ies/pull/315#issuecomment-6680875093):
+um 403 isolado pode ser emitido por intermediário, logo não prova
+ausência de criação. A correção não se baseou em novo ensaio real.
+
+**RED observado:** [CI 42195250905](https://github.com/franklinbaldo/ies/actions/runs/42195250905),
+commit de testes `de8fa69`: **1 FAIL, 1.688 PASS, 22 ignored
+preexistentes**. Falhou precisamente o teste de HTTP 403:
+esperava saída 3 e recebeu 1. Nenhum teste foi desativado.
+
+**GREEN:** correção tipada separa validação expressa da Infra (saída 1,
+`nao_aplicada`) de HTTP 4xx sem prova (saída 3,
+`efeito_incerto`); mantém subcódigo, status e mensagem saneada,
+sem releitura que possa atribuir processo concorrente e sem retry.
+O CI do head final deve ser conferido na PR antes de integrar.
+
+**Orçamento sintético exato:** recusa Infra e HTTP 403: **3 GET +
+1 POST criador, 4 pedidos**, zero GET posterior, zero segundo POST.
+
+| Etapa de treinamento nesta fatia | Estado | Requisições reais | Resíduo novo |
+| --- | --- | ---: | --- |
+| Prévia autenticada | NOT_RUN | 0 | Nenhum |
+| Um único `--confirmar` | NOT_RUN | 0 | Nenhum |
+| Verificação por leitura | NOT_RUN | 0 | Nenhum |
+| Replay público (gate CI) | A conferir no head final | 0 | Nenhum |
+
+**Total live: 0 requisições reais, 0 escritas, 0 resíduos novos.**
+Não repetir o POST da UnB que criou `23106.001875/2026-93`.
+Pendente: prova adicional de não aplicação onde houver, teste
+autenticado em outra instalação **de treinamento** com prévia →
+confirmação única → verificação por leitura e registro do resíduo.
+A issue continua WIP.
