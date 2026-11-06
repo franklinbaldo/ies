@@ -215,3 +215,19 @@ efetuam exatamente **4 GET / 0 POST**, sem tentar o cadastro. O botão
 acionável continua com **5 GET / 0 POST** na prévia. A retirada pública
 `--deixar --confirmar` permanece bloqueada antes de sessão/rede;
 esta guarda não é autorização para nova escrita.
+
+## Oferta de exclusão inerte — guarda do backend (#254)
+
+Na prévia `--deixar`, a URL de `acaoExcluir` só é prova estrutural de
+oferta se o link da linha identificada não estiver `hidden`/`inert`, nem
+sob ancestral com esses atributos. O campo obrigatório
+`hdnInfraItemId` deve ser efetivamente enviável: além de não ter
+`disabled`, não pode pertencer a `fieldset disabled` (inclusive
+aninhado), nem estar em contêiner inerte. O HTML da UnB fundamenta
+IDs, campos e caminho; as formas inertes são adversariais sintéticas
+conformes à semântica HTML. A checagem partilha a guarda DOM do botão
+Adicionar; âncoras não são desabilitadas apenas por `fieldset`.
+
+Oferta inerte recusa com `exclusao_de_acompanhamento_nao_oferecida`
+**antes de escrever**, sem novo POST nem novo subcódigo. O fluxo
+público `--deixar --confirmar` permanece bloqueado antes da sessão/rede.
