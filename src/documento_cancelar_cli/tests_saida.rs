@@ -27,7 +27,10 @@ fn conferir_mesmos_bytes(feito: &DocumentoCancelado) {
     assert_eq!(std::str::from_utf8(&bytes).unwrap(), esperado);
     let texto = std::str::from_utf8(&bytes).unwrap();
     assert!(!texto.contains("infra_hash"));
-    assert!(!texto.contains("Processo público"), "tipo interno não pode ser exposto");
+    assert!(
+        !texto.contains("Processo público"),
+        "tipo interno não pode ser exposto"
+    );
     assert!(!texto.contains('\u{1b}'));
 }
 
