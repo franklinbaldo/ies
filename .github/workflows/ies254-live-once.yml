@@ -1,0 +1,106 @@
+name: WIP #254 live treinamento UnB (descartavel)
+on:
+  push:
+    branches: [codex/254-tartaruga-exclusao]
+    paths: [.github/workflows/ies254-live-once.yml]
+permissions:
+  contents: read
+jobs:
+  ensaio:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Live unica, apenas UnB treinamento; falha fechada, sem retry
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, tempfile, time
+          URL = "https://sei.treinamento.unb.br/sei"
+          NUP = "23106.001559/2026-11"
+          MARCADOR = "Ensaio IES #254 Tartaruga 06-11-2026"
+          guia = pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          chave = "| " + chr(96) + "unb" + chr(96) + " |"
+          linhas = [l for l in guia.splitlines() if l.startswith(chave)]
+          if len(linhas) != 1:
+              raise SystemExit("NOT_RUN: origem unb nao identificada unicamente; 0 requests")
+          celulas = [x.strip().strip(chr(96)) for x in linhas[0].split("|")]
+          if len(celulas) != 9 or celulas[3] != URL:
+              raise SystemExit("NOT_RUN: origem nao e a UnB de treinamento; 0 requests")
+          usuario, senha, orgao = celulas[4], celulas[5], celulas[6]
+          if not usuario or not senha or not orgao:
+              raise SystemExit("NOT_RUN: credenciais publicas incompletas; 0 requests")
+          pasta = pathlib.Path(tempfile.mkdtemp(prefix="ies254-"))
+          pasta.chmod(0o700)
+          def privado(nome, texto):
+              p = pasta / nome
+              fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              with os.fdopen(fd, "w", encoding="utf-8") as f:
+                  f.write(texto)
+              return str(p)
+          env = os.environ.copy()
+          env.pop("IES_CONFIG_FILE", None)
+          env.update({
+              "IES_ORIGEM_FILE": privado("origem", URL + "\n"),
+              "IES_COOKIE_FILE": privado("cookie", ""),
+              "IES_URL_CONTROLE_FILE": privado("url", ""),
+              "IES_CREDENCIAIS_FILE": privado("credenciais", f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),
+              "IES_INDICE_FILE": str(pasta / "indice.sqlite3"),
+          })
+          binario = str(pathlib.Path("target/release/ies").resolve())
+          def comando(nome, args):
+              try:
+                  p = subprocess.run([binario, *args, "--json"], env=env, text=True, capture_output=True, timeout=150)
+              except subprocess.TimeoutExpired:
+                  print(f"{nome}: FAIL (timeout; se houve POST, efeito incerto, nao repetir)")
+                  return 124, {}
+              try:
+                  obj = json.loads(p.stdout)
+              except (ValueError, TypeError):
+                  obj = {}
+              campos = ["codigo", "subcodigo", "requisicoes", "numero", "operacao", "grupo", "ja_estava", "confirmado", "alterado", "id_acompanhamento"]
+              resumo = {k: obj[k] for k in campos if k in obj}
+              print(f"{nome}: rc={p.returncode}, {json.dumps(resumo, ensure_ascii=False)}")
+              return p.returncode, obj
+          print("UnB treinamento: rota fixa; um login, uma previa, no maximo um confirmar e uma verificacao; zero retry")
+          rc, login = comando("LOGIN", ["login"])
+          if rc != 0 or not isinstance(login.get("requisicoes"), int):
+              raise SystemExit("NOT_RUN: login falhou; zero POST de acompanhamento")
+          time.sleep(35)
+          args = ["processo", "acompanhar", NUP, "--grupo", "", "--observacao", MARCADOR]
+          rc, previa = comando("PREVIA", args)
+          if rc != 0 or any((
+              previa.get("numero") != NUP,
+              previa.get("operacao") != "acompanhar",
+              previa.get("grupo") != "",
+              previa.get("ja_estava") is not False,
+              previa.get("confirmado") is not False,
+              previa.get("alterado") is not False,
+              not isinstance(previa.get("requisicoes"), int),
+              previa.get("requisicoes", 99) > 8,
+          )):
+              raise SystemExit("NOT_RUN: previa nao atendeu criterios; zero POST de acompanhamento")
+          time.sleep(35)
+          rc, confirmacao = comando("CONFIRMACAO_UNICA", [*args, "--confirmar"])
+          # A partir daqui NUNCA repetir a escrita, mesmo com rc=3, timeout ou falha.
+          time.sleep(35)
+          rv, verificacao = comando("RELEITURA_INDEPENDENTE", ["processo", "acompanhar", NUP, "--grupo", ""])
+          confirmado = (
+              rc == 0 and confirmacao.get("numero") == NUP
+              and confirmacao.get("operacao") == "acompanhar"
+              and confirmacao.get("confirmado") is True
+              and confirmacao.get("alterado") is True
+              and isinstance(confirmacao.get("id_acompanhamento"), str)
+              and bool(confirmacao["id_acompanhamento"])
+              and rv == 0 and verificacao.get("ja_estava") is True
+          )
+          if confirmado:
+              print("LIVE PASS: POST unico verificado pela leitura interna e releitura independente; residuo: acompanhamento do grupo vazio no NUP de treinamento, id=" + confirmacao["id_acompanhamento"])
+          else:
+              print("LIVE FAIL/INCERTO: confirmacao nao demonstrada, verificar residuo por leitura; NAO repetir POST")
+              raise SystemExit(1)
+          PY
