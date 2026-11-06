@@ -204,3 +204,27 @@ fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+
+
+/// O diagnóstico público de uma escrita incerta deve contar também o
+/// POST tentado e o GET de prova, sem inventar sucesso por coincidência.
+#[test]
+fn falha_concorrente_publica_orcamento_exato_em_json() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Ok((
+        403,
+        "<html><body>Acesso negado.</body></html>".to_owned(),
+        None,
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
+    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
+    assert_eq!(publico["status_http"], 403);
+    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
