@@ -216,6 +216,20 @@ pub(crate) fn atividade_do_aceite(
         let Some(tag) = script.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
+        // Scripts de dados (application/json, text/plain) e scripts com src
+        // não executam seu conteúdo inline. Jamais publicar um id_atividade
+        // apenas porque o HTML contém texto JavaScript inerte.
+        let Ok(atributos) = crate::html_atributos::atributos(tag) else {
+            continue;
+        };
+        let Ok(tipo) = atributos.valor("type") else {
+            continue;
+        };
+        if atributos.presente("src")
+            || tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript")
+        {
+            continue;
+        }
         for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
