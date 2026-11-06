@@ -200,6 +200,12 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
     valor
 }
 
+// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
+#[cfg(test)]
+fn linhas_da_falha(_erro: &ErroCancelar) -> Vec<String> {
+    Vec::new()
+}
+
 #[cfg(test)]
 #[path = "documento_cancelar_cli/tests_saida.rs"]
 mod tests_saida;
