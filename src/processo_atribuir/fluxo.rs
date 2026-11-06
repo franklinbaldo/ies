@@ -280,7 +280,15 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
             return false;
         }
     }
-    matches!(acao, Some("arvore_visualizar" | "principal"))
+    // `principal` é uma navegação genérica e só é prova admissível
+    // quando também identifica expressamente este processo. Sem ID, a
+    // releitura coincidente pode refletir escrita de outro agente.
+    let acao_esperada = match acao {
+        Some("arvore_visualizar") => true,
+        Some("principal") => procedimento == Some(id),
+        _ => false,
+    };
+    acao_esperada
         && procedimento.is_none_or(|observado| observado == id)
         && origem.is_none_or(|observada| observada == "procedimento_atribuicao_cadastrar")
 }
