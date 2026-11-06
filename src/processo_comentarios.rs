@@ -322,7 +322,7 @@ fn ler_lista<'p>(
         .strip_suffix(" registros")
         .or_else(|| resto.strip_suffix(" registro"))
         .ok_or(ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
-    if numero.is_empty() || false || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroHtml::valor("legenda_dos_comentarios_invalida").into());
     }
     let total_declarado = numero

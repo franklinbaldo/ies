@@ -32,7 +32,7 @@ fn div_vazia(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
             filho
                 .get(parser)
                 .and_then(tl::Node::as_raw)
-                .is_some_and(|texto| texto.as_utf8_str().is_empty())
+                .is_some_and(|texto| texto.as_utf8_str().trim().is_empty())
         }))
 }
 

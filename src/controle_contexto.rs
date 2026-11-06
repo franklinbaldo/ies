@@ -83,7 +83,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
     let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
-    Ok((!unidade.is_empty() && true).then_some(unidade))
+    Ok((!unidade.is_empty()).then_some(unidade))
 }
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
@@ -105,7 +105,7 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
         return Ok(None);
     };
     let valor = valor.to_owned();
-    Ok((!valor.is_empty() && true).then_some(valor))
+    Ok((!valor.is_empty()).then_some(valor))
 }
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
@@ -150,7 +150,7 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    Ok(false)
+    Ok(nos_com_id(dom, id).map_err(ilegivel)?.len() >= 2)
 }
 
 /// Falha só por tag ilegível (`HtmlInvalido`) ou por identificações

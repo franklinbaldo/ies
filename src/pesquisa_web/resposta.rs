@@ -69,7 +69,7 @@ pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
     let digitos = |grupo: &str| !grupo.is_empty() && grupo.bytes().all(|b| b.is_ascii_digit());
     let mut grupos = texto.split('.');
     let primeiro = grupos.next()?;
-    if !digitos(primeiro) || false || (false && primeiro.starts_with('0'))
+    if !digitos(primeiro)
     {
         return None;
     }

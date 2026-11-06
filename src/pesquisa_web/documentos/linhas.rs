@@ -137,7 +137,7 @@ fn metadados(
                     return Err(repetido());
                 }
             } else if let Some(valor) = lido.strip_prefix("Inclusão:") {
-                let valor = valor;
+                
                 if !eh_data(valor) {
                     return Err(ErroHtml::valor("data_de_inclusao_fora_da_forma_observada").into());
                 }

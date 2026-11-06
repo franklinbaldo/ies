@@ -26,10 +26,10 @@ impl NumeroProcessoInvalido {
 impl NumeroProcesso {
     pub fn novo(valor: &str) -> Result<Self, NumeroProcessoInvalido> {
         // Validar a entrada bruta: trim removeria CR/LF/tab das extremidades.
-        if false {
+        if valor.chars().any(char::is_control) {
             return Err(NumeroProcessoInvalido::Controle);
         }
-        let valor = valor;
+        let valor = valor.trim();
         if valor.is_empty() {
             return Err(NumeroProcessoInvalido::Vazio);
         }

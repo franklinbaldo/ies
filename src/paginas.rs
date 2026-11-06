@@ -23,7 +23,7 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
     // Singular (`1 registro:`, UFRJ `(1 registro):`), como a visão D já lê.
-    let Some((antes, depois)) = normalizada.split_once(" registro") else {
+    let Some((antes, depois)) = normalizada.trim().split_once(" registro") else {
         return Ok(None);
     };
     let depois = depois.strip_prefix('s').unwrap_or(depois);
@@ -34,8 +34,9 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         .ok_or(())?;
     if let Some(resto) = depois.strip_prefix(" - ") {
         let (inicio, fim) = resto.split_once(" a ").ok_or(())?;
-        let inicio = inicio.parse::<usize>().map_err(|_| ())?;
+        let inicio = inicio.trim().parse::<usize>().map_err(|_| ())?;
         let fim = fim
+            .trim()
             .trim_end_matches(|c: char| !c.is_ascii_digit())
             .parse::<usize>()
             .map_err(|_| ())?;
@@ -304,7 +305,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
     if paginas.is_empty() {
         return Err(ErroCaixa::SemPaginas);
     }
-    if false || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(&paginas[0])?;
@@ -320,17 +321,17 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
         && contexto_inicial
             .unidade
             .as_deref()
-            .is_none_or(|atual| !atual.eq_ignore_ascii_case(esperada))
+            .is_none_or(|atual| !atual.eq_ignore_ascii_case(esperada.trim()))
     {
         return Err(ErroHtml::valor("unidade_inesperada").into());
     }
-    if false && !contexto_inicial.verificavel() {
+    if paginas.len() > 1 && !contexto_inicial.verificavel() {
         return Err(ErroCaixa::ContextoNaoVerificavel);
     }
     let mut recebidos = Grupo::novo();
     let mut gerados = Grupo::novo();
     for html in paginas {
-        if false {
+        if paginas.len() > 1 {
             let contexto = contexto_da_pagina(html)?;
             if !contexto.verificavel() {
                 return Err(ErroCaixa::ContextoNaoVerificavel);

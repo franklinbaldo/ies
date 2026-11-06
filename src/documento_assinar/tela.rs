@@ -130,7 +130,7 @@ pub(crate) fn conferir_tela_de_assinatura(
         return Err(E::TelaDeAssinaturaDeOutroDocumento);
     }
     let assinante = assinante.unwrap_or_default();
-    if assinante.is_empty() || id_usuario.is_none_or(|id| id.is_empty()) {
+    if assinante.trim().is_empty() || id_usuario.is_none_or(|id| id.trim().is_empty()) {
         return Err(E::AssinanteNaoPublicadoNaTela);
     }
     let orgao = match orgao.unwrap_or_default().as_slice() {
@@ -208,7 +208,7 @@ fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E>
 pub(crate) fn assinatura_realizada(html: &str) -> bool {
     let linhas: Vec<&str> = html
         .lines()
-        .map(std::convert::identity)
+        .map(str::trim)
         .filter(|l| !l.is_empty())
         .collect();
     linhas.windows(3).any(|janela| {

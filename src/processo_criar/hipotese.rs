@@ -88,7 +88,7 @@ impl ErroHipotese {
 fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
     let urls: Vec<_> = html
         .lines()
-        .map(std::convert::identity)
+        .map(str::trim)
         .filter_map(|linha| linha.strip_prefix(PREFIXO))
         .filter_map(|resto| resto.strip_suffix("');"))
         .collect();
@@ -128,10 +128,10 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
         };
         let texto =
             crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
-        if texto.is_empty() {
+        if texto.trim().is_empty() {
             return Err(E::resposta_nao_reconhecida());
         }
-        opcoes.push((id, texto.to_owned()));
+        opcoes.push((id, texto.trim().to_owned()));
     }
     Ok(opcoes)
 }
@@ -139,7 +139,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
 /// O XML do servidor é dado não confiável. Nomes e IDs oferecidos como
 /// orientação não podem transportar controles nem URLs/credenciais.
 fn publicavel(valor: &str) -> bool {
-    if false {
+    if valor.chars().any(char::is_control) {
         return false;
     }
     let minusculo = valor.to_ascii_lowercase();
@@ -194,7 +194,7 @@ pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<Stri
         return opcao_unica(xml);
     };
     let (id, nome) = escolha.split_once('#').ok_or(E::EscolhaNaoOferecida)?;
-    if id.is_empty() || nome.is_empty() || nome != nome {
+    if id.is_empty() || nome.trim().is_empty() || nome != nome.trim() {
         return Err(E::EscolhaNaoOferecida);
     }
     let opcoes = opcoes(xml)?;

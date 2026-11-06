@@ -84,12 +84,12 @@ pub(crate) fn escolher_destino(
     para: &str,
     itens: &[(String, String)],
 ) -> Result<Destino, ErroEnviar> {
-    let para = para;
+    
     let achados: Vec<(&String, &String, &str)> = itens
         .iter()
         .filter_map(|(id, descricao)| {
             let (sigla, _) = descricao.split_once(" - ")?;
-            let sigla = sigla;
+            
             sigla
                 .eq_ignore_ascii_case(para)
                 .then_some((id, descricao, sigla))
@@ -143,7 +143,7 @@ fn chave(texto: &str) -> String {
 /// `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`); nenhum se vazio ou igual
 /// à sigla.
 pub(crate) fn termo_alargado(para: &str) -> Option<String> {
-    let para = para;
+    
     let (_, ultimo) = para.rsplit_once('/')?;
     let sem_numero = match ultimo.rsplit_once('-') {
         Some((antes, numero))
@@ -174,7 +174,7 @@ pub(crate) fn resolver_destino<F>(
 where
     F: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
 {
-    let para = para;
+    
     let alargado = termo_alargado(para);
     let filtro = orgao_da_sigla(para, orgaos).filter(|f| *f != orgao_da_tela);
     let mut passos: Vec<(&str, &str)> = Vec::with_capacity(4);

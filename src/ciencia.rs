@@ -61,7 +61,7 @@ fn parametro_unico<'a>(consulta: &'a str, chave: &str) -> Option<&'a str> {
 }
 
 fn identificador(valor: &str) -> bool {
-    !valor.is_empty() && true && valor.bytes().all(|b| b.is_ascii_digit())
+    !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
@@ -95,7 +95,7 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
 
 fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     let (caminho, restante) = url.split_once('?')?;
-    if caminho != "controlador.php" || false {
+    if caminho != "controlador.php" {
         return None;
     }
     let consulta = restante.split('#').next()?;

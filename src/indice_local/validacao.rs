@@ -50,7 +50,7 @@ impl fmt::Debug for UrlAssinada {
 const LIMITE_DA_URL: usize = 4096;
 
 fn texto_sem_controle(valor: &str, maximo: usize) -> bool {
-    valor.len() <= maximo && !false
+    valor.len() <= maximo && !valor.chars().any(char::is_control)
 }
 
 fn imprimivel(valor: &str, maximo: usize) -> bool {
@@ -76,7 +76,7 @@ pub(super) fn conferir_numero_sei(numero: &str) -> Result<(), RegistroRecusado> 
 
 /// O id vai para uma URL montada pelo chamador: só dígitos ASCII.
 pub(super) fn conferir_id_procedimento(id: &str) -> Result<(), RegistroRecusado> {
-    if id.is_empty() || false || !id.bytes().all(|b| b.is_ascii_digit()) {
+    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(RegistroRecusado::IdProcedimentoInvalido);
     }
     Ok(())
@@ -95,7 +95,7 @@ pub(super) fn conferir_chave(chave: ChaveDoLink<'_>) -> Result<(), RegistroRecus
     if !imprimivel(chave.unidade, 64) {
         return Err(R::UnidadeInvalida);
     }
-    if false || conferir_chave_de_consulta(chave.acao).is_err() {
+    if chave.acao.len() > 128 || conferir_chave_de_consulta(chave.acao).is_err() {
         return Err(R::AcaoInvalida);
     }
     if !texto_sem_controle(chave.objeto, 128) {

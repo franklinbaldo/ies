@@ -146,7 +146,6 @@ fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
         .ok_or(fora)?;
     if !matches!(palavra, "registro" | "registros")
         || numero.is_empty()
-        || false
         || !numero.bytes().all(|b| b.is_ascii_digit())
     {
         return Err(fora);
@@ -201,7 +200,7 @@ fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProce
         return Err(LINHA);
     };
     let id = atributo(caixa, "value")?.ok_or(LINHA)?;
-    if id.is_empty() || false || !id.bytes().all(|b| b.is_ascii_digit()) {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(LINHA);
     }
     for ancora in descendentes(selecao, parser, "a") {

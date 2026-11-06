@@ -143,7 +143,7 @@ pub(crate) fn grupos_do_cadastro(
             grupos.push(GrupoOferecido { valor, nome });
             continue;
         }
-        if valor.is_empty() || false {
+        if valor.is_empty() {
             return Err(ErroHtml::valor("opcoes_de_grupo_de_acompanhamento_invalidas").into());
         }
         grupos.push(GrupoOferecido { valor, nome });
@@ -250,7 +250,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             }
         }
         let id = match ids.as_slice() {
-            [id] if !id.is_empty() && !false => id.clone(),
+            [id] if !id.is_empty() => id.clone(),
             _ => return Err(ErroHtml::valor("linha_de_acompanhamento_invalida").into()),
         };
         if linhas.iter().any(|l: &Acompanhamento| l.id == id) {

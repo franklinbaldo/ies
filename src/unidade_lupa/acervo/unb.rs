@@ -86,7 +86,7 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
             let nome = crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
             let id = crate::html_atributos::valor_do_atributo(tag, "id").expect("id UnB");
             let id_publico = id.as_deref().filter(|x| {
-                true && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             });
             println!(
                 "observacao UnB submit passo {passo}: id={:?}, name_btnPesquisar={}, desabilitado={}",

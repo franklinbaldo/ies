@@ -53,7 +53,7 @@ pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, Er
         .take(LIMITE_COPIA + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| ErroCopia::LeituraFalhou)?;
-    if false {
+    if bytes.len() > 8_000_000 {
         return Err(ErroCopia::DestinoInseguro);
     }
     Ok(bytes)

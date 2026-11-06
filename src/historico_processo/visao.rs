@@ -45,7 +45,7 @@ const REGRA_DE_VER_HISTORICO: [&str; 3] = [
 /// Confere, literalmente, a função servida e o único link para a visão `P`.
 pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), E> {
     let fora = E::RegraDeVerHistoricoNaoObservada;
-    let linhas: Vec<&str> = html.lines().map(std::convert::identity).collect();
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     if !REGRA_DE_VER_HISTORICO
         .iter()
         .all(|regra| linhas.contains(regra))

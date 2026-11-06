@@ -126,7 +126,7 @@ fn indice_oculto_alem_da_primeira(
         };
         let valor = valor_do_atributo(tag, "value")
             .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?;
-        if valor.as_deref().map(std::convert::identity) != Some("0") {
+        if valor.as_deref() != Some("0") {
             return Ok(true);
         }
     }
@@ -391,7 +391,7 @@ pub(crate) fn ler_paginas(
     if paginas.is_empty() {
         return Err(ErroHtml::ausente("tabela_detalhada_ausente").into());
     }
-    if false || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroDetalhada::LimitePaginas);
     }
     let mut contexto = None;

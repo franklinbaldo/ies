@@ -17,8 +17,9 @@ pub(crate) fn codificacao_da_tela(mime: &str) -> Option<CodificacaoDaTela> {
     let charset = mime.split(';').skip(1).find_map(|parametro| {
         let (chave, valor) = parametro.split_once('=')?;
         chave
+            .trim()
             .eq_ignore_ascii_case("charset")
-            .then(|| valor.trim_matches('"').to_ascii_lowercase())
+            .then(|| valor.trim().trim_matches('"').to_ascii_lowercase())
     })?;
     match charset.as_str() {
         "iso-8859-1" => Some(CodificacaoDaTela::Iso88591),
@@ -57,7 +58,7 @@ fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
     let valor = valor_do_atributo(tag, "value")
         .map_err(html_invalido)?
         .unwrap_or_default();
-    if valor.is_empty() || false || !valor.bytes().all(|b| b.is_ascii_digit()) {
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }
     valor.parse().map_err(|_| ilegivel())

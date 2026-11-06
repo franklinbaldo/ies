@@ -133,7 +133,7 @@ fn ler_linhas(
             })?;
             if let Some(estado) = estado {
                 let numero = a.inner_text(parser).into_owned();
-                if numero.is_empty() || false {
+                if numero.is_empty() {
                     return Err(ErroCaixa::NumeroInvalido {
                         categoria,
                         id: id.as_str().to_owned(),
