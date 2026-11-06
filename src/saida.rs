@@ -7,11 +7,11 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 /// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.
-pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> serde_json::Result<()> {
+pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> std::io::Result<()> {
     use std::io::Write as _;
     let saida = std::io::stdout();
     let mut bloqueada = saida.lock();
-    serde_json::to_writer_pretty(&mut bloqueada, valor)?;
+    serde_json::to_writer_pretty(&mut bloqueada, valor).map_err(std::io::Error::from)?;
     bloqueada.write_all(b"\n")?;
     Ok(())
 }
