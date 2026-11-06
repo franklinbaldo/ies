@@ -312,7 +312,9 @@ fn redirecionamento_para_acao_estranha_nao_comprova_atribuicao() {
 #[test]
 fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
     let mut respostas = respostas_previa("aluno20");
-    respostas.push(r302("controlador.php?acao=arvore_visualizar&id_procedimento=999"));
+    respostas.push(r302(
+        "controlador.php?acao=arvore_visualizar&id_procedimento=999",
+    ));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
