@@ -184,7 +184,7 @@ fn inclusao_nao_confirma_redirect_para_outro_processo_mesmo_com_linha_nova() {
     let destino_errado = gerenciar().replace("id_procedimento=10", "id_procedimento=99");
     respostas.extend([r302(&destino_errado), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
@@ -196,7 +196,7 @@ fn inclusao_nao_confirma_redirect_para_cadastro_apos_post() {
     let mut respostas = preparar();
     respostas.extend([r302(&cadastrar()), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
 }
 
@@ -211,7 +211,7 @@ fn recusa_da_validacao_infra_nao_se_torna_sucesso_por_linha_coincidente() {
         ok(lista("G")),
     ]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
@@ -224,8 +224,11 @@ fn status_http_recusado_nao_se_torna_sucesso_por_linha_coincidente() {
         ok(lista("G")),
     ]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "resposta_sem_aceite")));
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(
+        resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(),
+        Some((7, "resposta_sem_aceite"))
+    );
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
@@ -244,8 +247,11 @@ fn falha_na_releitura_depois_do_post_e_efeito_incerto_sem_retry() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "releitura_indisponivel")));
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(
+        resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(),
+        Some((7, "releitura_indisponivel"))
+    );
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
 }
 
@@ -254,8 +260,11 @@ fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista("Outro"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "estado_divergente")));
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(
+        resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(),
+        Some((7, "estado_divergente"))
+    );
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
 }
 
