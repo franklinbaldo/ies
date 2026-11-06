@@ -37,7 +37,8 @@ pub(crate) fn derivar_consulta_ajax(
     ) {
         return Err(E::EfeitoDaOperacaoNaoAvaliado);
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
