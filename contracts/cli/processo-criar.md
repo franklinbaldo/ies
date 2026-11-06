@@ -277,8 +277,9 @@ e especificação exatos; falta de leitura, identidade divergente,
 prova duplicada e propriedades não observadas são recusadas.
 Uma correspondência: `Aplicada`; duas ou mais: `CandidatosAmbiguos`;
 zero: `SemCorrespondenciaObservada` — **não** prova de não aplicação.
-O classificador ainda NÃO está ligado à leitura de propriedades no
-transporte. Os quatro desfechos automáticos e o ensaio live faltam.
+O classificador já confere candidatos pela Web depois de resposta inconclusiva.
+Ainda faltam desfechos públicos de não aplicação comprovada e ambiguidade,
+além do ensaio live.
 
 | Subcódigo | Fato |
 | --- | --- |
