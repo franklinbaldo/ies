@@ -90,7 +90,9 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
         return false;
     }
     if nivel == 0 {
-        return true;
+        // Chamada direta só prova recarga quando é a primeira instrução
+        // executável do script: um throw anterior pode torná-la inalcançável.
+        return (0..posicao).all(|i| niveis[i] != Some(0) || bytes[i].is_ascii_whitespace());
     }
 
     // Profundidade 1 só é aceita no corpo direto da função de inicialização
@@ -109,7 +111,12 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
         .filter(|&i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
         .map(|i| bytes[i])
         .collect();
+    // O corpo observado começa com a recarga. Não interpretar fluxo JS:
+    // return, throw, condicionais ou qualquer outra instrução anterior
+    // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
     assinatura == b"functioninicializar()"
+        && (abertura + 1..posicao)
+            .all(|i| niveis[i] != Some(1) || bytes[i].is_ascii_whitespace())
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
