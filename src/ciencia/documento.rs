@@ -17,7 +17,7 @@ use crate::processo_obter::{
     abrir_documento_na_arvore,
 };
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CienciaDoDocumento {
@@ -31,6 +31,28 @@ pub(crate) struct CienciaDoDocumento {
     pub(crate) verificado: bool,
     pub(crate) id_atividade: Option<String>,
     pub(crate) requisicoes: u8,
+}
+
+/// Causa tipada da resposta do GET que pode registrar ciência. A decisão de
+/// conferir o efeito não elimina o fato observado durante o único envio.
+#[derive(Debug, crate::erro_publico::Causa)]
+pub(crate) enum FalhaDoAceite {
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
+    #[causa(http, nome = "validacao_da_infra_na_ciencia_do_documento")]
+    ValidacaoDaInfra(StatusHttpRecusado),
+    #[causa(nome = "atividade_do_aceite_documental_nao_reconhecida")]
+    Aceite(super::ErroCiencia),
+}
+
+impl FalhaDoAceite {
+    fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Transporte(e) => e.status_http(),
+            Self::ValidacaoDaInfra(status) => Some(status),
+            Self::Aceite(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -59,6 +81,7 @@ pub(crate) enum ErroCienciaDocumento {
     EfeitoIncerto {
         motivo: &'static str,
         requisicoes: u8,
+        falha_do_aceite: Option<FalhaDoAceite>,
     },
 }
 
@@ -94,6 +117,9 @@ impl ErroCienciaDocumento {
         match self {
             Self::Abertura(e) => e.status_http(),
             Self::Cookie(e) | Self::Tela(e) => e.status_http(),
+            Self::EfeitoIncerto { falha_do_aceite, .. } => {
+                falha_do_aceite.as_ref().and_then(FalhaDoAceite::status_http)
+            }
             _ => None,
         }
     }
@@ -163,24 +189,27 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     .map_err(E::Html)?;
     // Este GET pode gravar a ciência. Após qualquer resposta ou timeout,
     // apenas releitura, nunca segundo GET mutador.
-    let resposta = rede.get_sem_seguir(url.as_str(), &cookie);
-    let atividade = resposta.ok().and_then(|r| {
-        if r.resposta.status_code != 200 {
-            return None;
-        }
-        let html = decodificar_resposta(r.resposta).ok()?;
-        if mensagem_de_validacao_da_infra(&html).is_some() {
-            return None;
-        }
-        atividade_do_aceite(
-            &html,
-            AlvoDaCiencia::Documento {
-                id_procedimento: &feito.id_procedimento,
-                id_documento: &feito.id_documento,
-            },
-        )
-        .ok()
-    });
+    let aceite = rede
+        .get_sem_seguir(url.as_str(), &cookie)
+        .map_err(FalhaDoAceite::Transporte)
+        .and_then(|r| {
+            let html = decodificar_resposta(r.resposta).map_err(FalhaDoAceite::Transporte)?;
+            if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
+                return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
+                    status: 200,
+                    mensagem_do_servidor: Some(mensagem),
+                }));
+            }
+            atividade_do_aceite(
+                &html,
+                AlvoDaCiencia::Documento {
+                    id_procedimento: &feito.id_procedimento,
+                    id_documento: &feito.id_documento,
+                },
+            )
+            .map_err(FalhaDoAceite::Aceite)
+        });
+    let atividade = aceite.as_ref().ok().map(String::as_str);
     let prova = verificar(
         sessao,
         pedido,
@@ -190,8 +219,12 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &mut rede,
         &feito.id_procedimento,
         &feito.id_documento,
-        atividade.as_deref(),
+        atividade,
     );
+    let (atividade, falha_do_aceite) = match aceite {
+        Ok(id) => (Some(id), None),
+        Err(falha) => (None, Some(falha)),
+    };
     feito.requisicoes = rede.feitas();
     match prova {
         Ok(true) => {
@@ -202,10 +235,12 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         Ok(false) => Err(E::EfeitoIncerto {
             motivo: "atividade_da_ciencia_nao_encontrada_na_lista_do_documento",
             requisicoes: rede.feitas(),
+            falha_do_aceite,
         }),
         Err(motivo) => Err(E::EfeitoIncerto {
             motivo,
             requisicoes: rede.feitas(),
+            falha_do_aceite,
         }),
     }
 }
