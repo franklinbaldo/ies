@@ -144,9 +144,10 @@ status 403 produzido possivelmente por um intermediário. Apenas a
 primeira prova permite emitir `desfecho: nao_aplicada` com saída 1,
 causa original e a orientação de **nova prévia antes de nova confirmação**.
 `retentavel: false` permanece: não há retry automático. Status 4xx sem
-essa prova segue com sua causa e sem desfecho de não aplicação;
-nenhuma consulta de Gerados é feita após recusa explícita e nenhum
-candidato de outro agente se torna sucesso da nossa operação.
+essa prova conserva o subcódigo/status e retorna **saída 3 (efeito
+incerto)**, sem desfecho de não aplicação nem autorização de retry;
+não se consulta Gerados após esses HTTP 4xx porque candidato concorrente
+não deve virar sucesso da nossa operação.
 Alternativa rejeitada: concluir não aplicação a partir de uma fotografia
 sem novos candidatos, ou de qualquer HTTP 4xx.
 
