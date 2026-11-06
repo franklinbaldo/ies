@@ -55,7 +55,7 @@ A cassette GO já tinha um replay curto obrigatório no CI. Na
 continuação de 06/11, a cassette **integral** foi conferida e incorporada
 ao replay obrigatório, sem requisições ao SEI.
 
-## Pendente na issue
+## Pendente na issue (registrado antes dos ensaios de 06/11)
 
 Resolver as diferenças estruturais reais de UnB e GO com evidência,
 obter a lista integral, pesquisar offline com zero HTTP e capturar
@@ -127,3 +127,59 @@ a correção preservou os asserts e não desabilitou testes.
 pesquisa pós-coleta autenticada NOT_RUN (0), escrita NOT_RUN (0),
 resíduos nenhum. A prova sintética não substitui o ensaio autenticado
 nem corrige retroativamente os FAIL históricos.
+
+## Ensaios autenticados em treinamento — 06/11/2026
+
+A [execução 42180230873](https://github.com/franklinbaldo/ies/actions/runs/42180230873)
+rodou **o binário real** em UnB e GO, em jobs independentes,
+somente leitura. Os números abaixo saíram dos eventos JSON do
+comando no log, não só da conclusão verde do workflow.
+
+| Instalação e operação | Live | HTTP da operação | Resultado |
+| --- | --- | ---: | --- |
+| UnB: `login --json` | PASS | 5 | sessão de treinamento |
+| UnB: `unidade listar --atualizar --json` | PASS | 5 | `origem=sei`, 14 unidades, snapshot persistido |
+| UnB: `unidade pesquisar --json` | PASS | 0 | `origem=indice`, 14 unidades |
+| GO: `login --json` | PASS | 6 | sessão de treinamento |
+| GO: `unidade listar --atualizar --json` | PASS | 278 | `origem=sei`, 13.671 unidades, snapshot persistido |
+| GO: `unidade pesquisar --json` | PASS | 0 | `origem=indice`, 13.453 resultados filtrados |
+
+Em GO, a coleta foi **4 GET + 274 POST = 278**, sem repetir
+páginas. O resultado de 13.453 na pesquisa representa um **filtro**
+sobre as 13.671 unidades persistidas, não perda de registros.
+UnB: **4 GET + 1 POST = 5**, 14 unidades persistidas.
+Em ambas, a pesquisa depois da coleta efetuou **0 HTTP**.
+Os FAIL live antigos permanecem como histórico das versões
+anteriores; não foram reclassificados retroativamente.
+
+A [execução 42181899282](https://github.com/franklinbaldo/ies/actions/runs/42181899282)
+verificou a **saída humana real das sugestões** em UnB, com índice
+SQLite *sintético*, montado após login autenticado (PASS,
+**5 requisições**). Após intervalo de 30 segundos, o comando
+`processo enviar 23106.001868/2026-91 --para Unida`
+foi executado **sem `--confirmar`** e terminou com código 1,
+`destino_nao_oferecido_pelo_sei`, mostrando no stderr
+`Unidade2 - Unidade de treino`, «sugestões guardadas»
+e «não confirmadas pelo SEI»; stdout vazio.
+Resultado: **PASS**, **escritas de domínio 0**, **resíduo nenhum**.
+Os logs publicaram apenas condições booleanas saneadas, não
+cookie, URL assinada, senha ou HTML privado.
+As requisições feitas **pela prévia** não foram contadas pelo
+roteiro e devem constar como **não observadas**, não zero.
+Na execução anterior [42181693551](https://github.com/franklinbaldo/ies/actions/runs/42181693551),
+o preparo do snapshot sintético falhou após o login porque o
+esquema SQLite já havia sido migrado. A preparação foi corrigida;
+a execução anterior nem chegou à prévia.
+
+O [CI anterior 42181906085](https://github.com/franklinbaldo/ies/actions/runs/42181906085)
+passou **5/5 jobs** no head `9f9eab1`: prek, release, replay da
+lupa GO/UnB, replay de processo criar e replay de retornos.
+A atualização deste relatório e a remoção do workflow temporário
+exigem **novo CI** no head final; não atribuir ao novo SHA
+o CI do anterior.
+
+**Situação:** coleta integral autenticada, persistência, pesquisa
+posterior com zero HTTP e sugestões na saída humana agora têm
+evidência real em treinamento. Não houve escrita de domínio no
+SEI nem resíduo. Encerramento depende da revisão do head final
+e da decisão da rotina integradora.
