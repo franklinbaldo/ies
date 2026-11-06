@@ -14,7 +14,9 @@ mod caixa_detalhada;
 mod cassette;
 mod ciencia;
 mod ciencia_cli;
+mod ciencia_documento_cli;
 mod classe_link_processo;
+mod cli_documento;
 mod cli_processo;
 mod cli_unidade_aux;
 mod colheita_do_controle;
@@ -140,6 +142,7 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+pub(crate) use cli_documento::DocumentoAcao;
 pub(crate) use cli_processo::{Processo, ProcessoAcao};
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
@@ -210,76 +213,6 @@ struct Documento {
     com_propriedades: bool,
     #[command(subcommand)]
     acao: Option<DocumentoAcao>,
-}
-
-#[derive(Debug, Subcommand)]
-enum DocumentoAcao {
-    /// Inclui documento interno: prévia Web; confirmar faz escrita única com releitura.
-    Criar {
-        #[arg(long, required = true)]
-        processo: String,
-        #[arg(long, required = true)]
-        tipo: String,
-        #[arg(long)]
-        descricao: Option<String>,
-        #[arg(long, value_parser = ["publico", "restrito", "sigiloso"])]
-        nivel: Option<String>,
-        #[arg(long)]
-        confirmar: bool,
-    },
-    /// Prévia de cópia local; confirmação remota ainda bloqueada
-    Salvar {
-        numero: String,
-        #[arg(long)]
-        versao: Option<u32>,
-        #[arg(long)]
-        confirmar: bool,
-        /// Lista as cópias locais versionadas sem consultar o SEI
-        #[arg(long, conflicts_with_all = ["versao", "confirmar"])]
-        listar_copias: bool,
-    },
-    /// Pesquisa documento na Web (GET, GET e POST); com --pagina N, mais um POST
-    Buscar {
-        /// Número SEI exato ou parcial, como digitado no campo Protocolo
-        termo: String,
-        /// Pede a página N do resultado (um POST que altera a página lembrada)
-        #[arg(
-            long,
-            value_name = "N",
-            value_parser = clap::value_parser!(u32).range(1..)
-        )]
-        pagina: Option<u32>,
-        /// Tipo exato da lista publicada na tela
-        #[arg(long, value_name = "TIPO")]
-        tipo: Option<String>,
-        /// Assunto publicado pela tela (autocompletar exige ID observado)
-        #[arg(long, value_name = "TEXTO")]
-        assunto: Option<String>,
-        /// Data inicial no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
-        de: Option<String>,
-        /// Data final no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
-        ate: Option<String>,
-    },
-    /// Cancela um documento com motivo, prévia e confirmação irreversível
-    Cancelar {
-        numero: String,
-        #[arg(long, required = true)]
-        motivo: String,
-        #[arg(long)]
-        confirmar: bool,
-    },
-    /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
-    Assinar {
-        numero: String,
-        /// Cargo/função exatamente como uma opção da tela de assinatura
-        #[arg(long, value_name = "TEXTO")]
-        cargo: Option<String>,
-        /// Assina (não se desfaz); exige --cargo
-        #[arg(long, requires = "cargo")]
-        confirmar: bool,
-    },
 }
 
 #[derive(Debug, Args)]
@@ -441,6 +374,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| processo_prazo_cli::tentar_prazo(cli))
         .or_else(|| ciencia_cli::tentar_ciente(cli))
+        .or_else(|| ciencia_documento_cli::tentar_ciente_documento(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
