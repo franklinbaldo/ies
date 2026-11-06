@@ -45,13 +45,13 @@ O que falta implementar e em que ordem está na
   mesma conta ficariam desfazendo uns aos outros, e todos querem a visão
   detalhada com todas as colunas.
 - **Erros por tipo** ([ADR 0005](docs/arquitetura/0005-erros-por-tipo.md)).
-  O erro é declarado no módulo que o levanta, com `#[derive(Causa)]`;
-  nunca escreva `fn subcodigo()` manual. Componha com `#[causa(interna)]`
-  e `?`, em vez de `map_err(|_| …)` que descarta uma causa tipada.
+  O erro é declarado perto do ponto que o levanta. Novas fatias usam o
+  próprio tipo na fronteira Serde, sem subcódigos ou tabela de nomes
+  paralela. `Causa` permanece para consumidores legados durante a migração.
   Classifique e teste por `match`/`matches!` na variante, nunca pelo
   texto. Propague o erro original com `?` sem embrulhar; crie uma variante
   contextual só se acrescentar um fato ou decisão observável. Cada falha
-  deve ter, preferencialmente, um ponto de origem responsável em `src/`:
+  deve ter, em regra, um único ponto de construção em produção:
   centralize a validação e propague o `Result`, sem eliminar verificações
   necessárias nas fronteiras de segurança. Defina erros específicos perto
   da camada que efetivamente os consome. Valide uma vez num tipo e não
