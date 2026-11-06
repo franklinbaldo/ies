@@ -247,7 +247,14 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
 }
 
 fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
-    publicar_valor_da_falha(json_mode, &json_de_falha(erro), erro.saida())
+    if json_mode {
+        println!("{}", json_de_falha(erro));
+    } else {
+        for linha in linhas_da_falha(erro) {
+            eprintln!("{linha}");
+        }
+    }
+    ExitCode::from(erro.saida())
 }
 
 /// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
@@ -317,10 +324,43 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
     linhas.join("\n")
 }
 
-// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
-#[cfg(test)]
-fn linhas_da_falha(_erro: &ErroConcluir) -> Vec<String> {
-    Vec::new()
+/// Mensagens humanas projetadas diretamente do erro de conclusão, sem
+/// montar nem interpretar a representação JSON destinada aos agentes.
+fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
+    use ErroConcluir as E;
+
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let aberto_em = match erro {
+        E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
+        | E::ConclusaoNaoPublicadaNaBarra { aberto_em }
+        | E::ConclusaoNaoAplicada { aberto_em, .. }
+        | E::EfeitoIncertoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
+        _ => None,
+    };
+    let depois = match erro {
+        E::ConclusaoNaoAplicada { depois, .. } => Some(depois.as_slice()),
+        _ => None,
+    };
+    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
+        if let Some(unidades) = unidades {
+            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
+            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
+        }
+    }
+    let falha_do_envio = match erro {
+        E::ConclusaoNaoAplicada { falha_do_envio, .. }
+        | E::EfeitoIncertoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let E::EfeitoIncertoNaConclusao { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 #[cfg(test)]
