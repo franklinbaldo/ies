@@ -1,7 +1,6 @@
 //! Falhas tipadas do transporte Web: uma variante por fato, subcódigos
 //! estáveis (docs/erros-tipados.md). Contrato: contracts/cli.md.
 use super::proxy;
-use crate::erro_html::ErroHtml;
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
 /// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
@@ -28,6 +27,12 @@ pub enum FalhaTransporte {
     #[causa(nome = "separador_de_consulta_do_controle_ambiguo")]
     SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
+    /// URL assinada inválida: falha da validação do transporte.
+    UrlInvalida,
+    /// Cookie local fora do formato permitido.
+    CookieInvalido,
+    /// A resposta não declarou o Content-Type HTML esperado.
+    TipoDeConteudoNaoHtml,
     ArquivoPrivadoAusenteOuInacessivel,
     #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
@@ -74,8 +79,6 @@ pub enum FalhaTransporte {
     /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
     #[causa(interna)]
     Proxy(proxy::FalhaDoProxy),
-    #[causa(transparente)]
-    Html(ErroHtml),
 }
 
 impl FalhaTransporte {
@@ -84,7 +87,6 @@ impl FalhaTransporte {
     }
     pub fn mensagem(&self) -> &'static str {
         match self {
-            Self::Html(e) => e.mensagem,
             Self::ChaveDeConsultaNaoCanonica => {
                 "nome de parâmetro da URL de controle não é canônico"
             }
@@ -92,6 +94,9 @@ impl FalhaTransporte {
                 "separador de parâmetros da URL de controle não é inequívoco"
             }
             Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
+            Self::UrlInvalida => "URL assinada da caixa inválida",
+            Self::CookieInvalido => "formato de cookie de sessão inválido",
+            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
             Self::ArquivoPrivadoAusenteOuInacessivel => {
                 "arquivo privado não encontrado ou sem acesso"
             }
