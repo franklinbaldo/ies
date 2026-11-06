@@ -1,5 +1,5 @@
 //! Links de tipo publicados na lista de documentos (#246).
-//! O oráculo SEI 4.0.9 repete id_procedimento com o mesmo valor.
+//! O oráculo SEI 4.0.9 repete `id_procedimento` com o mesmo valor.
 //! Conserva a URL assinada original para o GET; só a cópia usada para
 //! validação perde a segunda ocorrência idêntica.
 use super::ErroCriar;
@@ -36,13 +36,8 @@ pub(super) fn conferir_link_do_tipo(
     if !(1..=2).contains(&identidades) {
         return Err(recusado);
     }
-    conferir_endereco_relativo(
-        instalacao,
-        &copia,
-        "documento_gerar",
-        id_procedimento,
-    )
-    .map_err(|_| recusado)?;
+    conferir_endereco_relativo(instalacao, &copia, "documento_gerar", id_procedimento)
+        .map_err(|_| recusado)?;
     // Não reconstruir nem reinterpretar a assinatura do link original.
     Ok(format!("{}/{href}", instalacao.url_base()))
 }
