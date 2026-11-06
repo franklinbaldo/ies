@@ -296,6 +296,39 @@ fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
+/// O redirecionamento de um POST criador não prova criação nova se o
+/// mesmo ID já estava na fotografia completa dos Gerados anterior ao POST.
+/// A leitura das propriedades poderia coincidir até em conta compartilhada.
+#[test]
+fn location_para_id_preexistente_nao_confirma_criacao() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(gerados_com_candidato()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("ID preexistente não comprova nova criação");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "id_preexistente_no_retorno_criador");
+    assert_eq!(requests.len(), 4); // 3 GET de preparação + 1 POST, zero GET inútil
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
 #[test]
 fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
     // #245: a conta compartilhada pode ganhar processo com mesmo tipo e
