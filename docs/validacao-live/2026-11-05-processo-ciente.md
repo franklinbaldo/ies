@@ -80,3 +80,22 @@ comportamento sintético, não a compatibilidade ao vivo.
   **NOT_RUN (0)**; `--confirmar` **NOT_RUN (0)**; releitura live
   **NOT_RUN (0)**; replay específico de ciência **NOT_RUN**.
   **0 requisições reais, 0 escritas e 0 resíduos novos**.
+
+
+## Segundo argumento impede recarga — 🦊 Raposa (06/11/2026)
+
+- **Observação pré-RED:** formas de aceite nos testes do Todos
+  @323eb01 usam apenas uma URL literal em atualizarArvore.
+  O leitor IES admitia segundo argumento sem evidência de execução.
+- **RED real:** [CI 42278019363](https://github.com/franklinbaldo/ies/actions/runs/42278019363):
+  **2 FAIL, 1.766 PASS e 22 ignorados preexistentes**. Com segundo
+  argumento que lança exceção, o leitor devolveu Ok("42457")
+  indevido e o fluxo consultou a lista além do roteiro de seis GET.
+- **Correção:** reconhecer apenas chamada com um argumento literal.
+  Exigir efeito incerto (saída 3), **6 GET, 1 GET mutador, zero retry**,
+  sem consultar lista antiga sem atividade comprovada.
+  GREEN no CI do head final a conferir.
+- **Live:** UnB NOT_RUN (0 requisições), segunda instalação
+  NOT_RUN (0), confirmação única NOT_RUN (0), releitura live
+  NOT_RUN (0), replay específico NOT_RUN.
+  **Zero requisições reais, zero escritas e zero resíduos** nesta sessão.
