@@ -104,23 +104,7 @@ fn enviar(
                 erro.status_http(),
             ),
             Err(erro) => {
-                let mut valor = json_de_falha(&erro);
-                // Apenas quando o SEI não ofereceu a sigla pedida:
-                // sugestões locais não alteram a decisão do autocomplete.
-                if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
-                    let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
-                    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
-                    if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
-                        let sugestoes = indice.sugestoes_de_unidades_guardadas(
-                            &instalacao.url_base(),
-                            &ativa,
-                            para,
-                        );
-                        if !sugestoes.is_empty() {
-                            valor["sugestoes_guardadas"] = json!(sugestoes);
-                        }
-                    }
-                }
+                let valor = json_de_falha_com_sugestoes(&erro, sessao, indice, para);
                 let resultado = publicar_valor_da_falha(cli.json, &valor, erro.saida());
                 if !cli.json
                     && let Some(mensagem) = texto_das_sugestoes(&valor)
@@ -131,6 +115,17 @@ fn enviar(
             }
         }
     })
+}
+
+/// Shim contratual para testar a composição erro SEI + snapshot antes do
+/// GREEN. A coleta local será ligada depois do RED observado.
+fn json_de_falha_com_sugestoes(
+    erro: &ErroEnviar,
+    _sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
+    _indice: &crate::indice_local::IndiceLocal,
+    _para: &str,
+) -> Value {
+    json_de_falha(erro)
 }
 
 /// Complemento apenas da apresentação humana de processo enviar. A lista
