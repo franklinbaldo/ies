@@ -92,7 +92,7 @@ fn valor_do_tipo(
         if atributo(tag, "disabled")?.is_some() {
             continue;
         }
-        if tag.inner_text(parser).trim() == tipo {
+        if tag.inner_text(parser) == tipo {
             let valor = atributo(tag, "value")?
                 .filter(|v| !v.is_empty() && v != "null")
                 .ok_or(ErroFiltro::TipoNaoOferecidoPelaTela)?;

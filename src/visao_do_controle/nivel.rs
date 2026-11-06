@@ -93,7 +93,6 @@ pub(super) fn link_do_nivel_de_detalhe(
         .and_then(|v| decodificar_atributo(&v))
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick
-        .trim()
         .strip_prefix("acaoConfigurarDetalhe('")
         .ok_or_else(|| invalido.clone())?;
     let resto = resto.strip_suffix(';').unwrap_or(resto);
