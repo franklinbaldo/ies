@@ -329,9 +329,7 @@ fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
     let erro = resultado.expect_err("nível divergente não comprova a criação");
     assert_eq!(erro.saida(), 3);
     assert_eq!(
-        erro.diagnostico_apos_post()
-            .unwrap()
-            .candidatos_observados,
+        erro.diagnostico_apos_post().unwrap().candidatos_observados,
         Some(vec![NUP.to_owned()])
     );
     assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
