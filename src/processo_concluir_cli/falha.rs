@@ -21,7 +21,10 @@ pub(crate) struct FalhaDaSituacao<'a> {
     status_http: Option<u16>,
     subcodigo: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[expect(clippy::option_option, reason = "o contrato distingue campo ausente de verificação nula")]
+    #[expect(
+        clippy::option_option,
+        reason = "o contrato distingue campo ausente de verificação nula"
+    )]
     pub(crate) verificacao: Option<Option<&'static str>>,
 }
 
@@ -36,7 +39,10 @@ impl<'a> FalhaDaSituacao<'a> {
             codigo,
             subcodigo,
             erro,
-            status_http: http.as_ref().map(|h| h.status).filter(|status| *status != 200),
+            status_http: http
+                .as_ref()
+                .map(|h| h.status)
+                .filter(|status| *status != 200),
             mensagem_do_servidor: http.and_then(|h| h.mensagem_do_servidor),
             ..Self::default()
         }

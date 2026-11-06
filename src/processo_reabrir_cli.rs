@@ -58,7 +58,8 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
             ),
             Err(erro) => {
                 if cli.json {
-                    if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(&erro)) {
+                    if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(&erro))
+                    {
                         eprintln!("IES: falha ao emitir JSON: {falha}");
                     }
                 } else {
