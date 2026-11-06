@@ -100,19 +100,41 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao) -> ExitCode {
-    if matches!(erro, ErroPreviaCriacao::EfeitoIncerto) {
+    if matches!(
+        erro,
+        ErroPreviaCriacao::EfeitoIncerto | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
+    ) {
         if json_mode {
-            println!(
-                "{}",
-                json!({
-                    "codigo": "efeito_incerto",
-                    "subcodigo": erro.subcodigo(),
-                    "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
-                    "retentavel": false
-                })
-            );
+            let mut saida = json!({
+                "codigo": "efeito_incerto",
+                "subcodigo": erro.subcodigo(),
+                "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
+                "retentavel": false
+            });
+            if let Some(causa) = erro.causa_envio() {
+                saida["causa_envio"] = json!(causa.subcodigo());
+                if let Some(http) = causa.status_http() {
+                    if http.status != 200 {
+                        saida["status_http"] = json!(http.status);
+                    }
+                    if let Some(mensagem) = &http.mensagem_do_servidor {
+                        saida["mensagem_do_servidor"] = json!(mensagem);
+                    }
+                }
+            }
+            println!("{saida}");
         } else {
             eprintln!("IES: efeito incerto na criação do documento; não repita --confirmar");
+            if let Some(causa) = erro.causa_envio() {
+                eprintln!(
+                    "{}",
+                    saida_erro::linha_humana(
+                        causa.subcodigo(),
+                        "falha observada no envio do documento",
+                        causa.status_http(),
+                    )
+                );
+            }
         }
         return ExitCode::from(3);
     }
