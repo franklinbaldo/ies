@@ -117,3 +117,21 @@ Decisão: validação Infra ou HTTP 4xx após POST encerra com a causa
 original, sem GET de Gerados; um candidato idêntico pode ser de outro
 agente. Sem resposta e 5xx seguem reconciliação sem retry. Teste RED
 adversarial com a conta compartilhada precedeu a correção.
+
+
+### Classificação de múltiplos candidatos (06/11, #245)
+
+Quando a releitura observa dois processos novos e a conferência da
+identidade, da unidade, do tipo e da especificação confirma **ambos**,
+nenhum deles prova autoria do POST que falhou. Adotado um desfecho
+público distinto, `candidatos_ambiguos_na_criacao`, com saída 3,
+NUPs comprovadamente compatíveis e causa do POST preservada.
+Alternativas rejeitadas: escolher o primeiro e contar candidatos como
+prova de criação; ou esconder a ambiguidade sob o diagnóstico genérico.
+Caso haja uma só correspondência, todas as demais candidatas ainda
+precisam de leitura independente antes da conclusão. Se não houver
+correspondência, não afirmar não aplicação nem permitir retry.
+
+A fatia é suportada por dois cenários de transporte sintético de 11
+requisições, cada qual com um único POST. O ensaio ao vivo em segunda
+instalação de treinamento permanece NOT_RUN: zero requisições e escritas.
