@@ -18,6 +18,43 @@ Operação: `documento.criar`, issue
 | Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
 | Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
 
+## Retomada 🐙 — script ativo e causas tipadas (05/11/2026)
+
+- **Observação antes dos testes:** a guarda de confirmação anterior
+  aceitava a sequência de `hdnFlagDocumentoCadastro` como qualquer
+  substring do HTML, inclusive em `template`, `script type=application/json`,
+  comentário JavaScript ou script duplicado. Essas estruturas não provam
+  que o formulário Web ofereceu a instrução ativa. Nenhum JS foi executado.
+- **RED/ordem:** primeiro commit `772bac7` com quatro fixtures
+  sintéticas adversariais, depois `7a32f7c` com a correção. Primeiro
+  commit `f015675` exigindo composição de `Causa`, depois migração
+  das variantes. Teste adicional de preservação do HTTP 200 da Infra em
+  `bf6c27b` antes do ajuste `aae94d0`. **RED isolado desses testes:
+  NOT_RUN (falhas não aferidas)**, pois nenhuma execução CI foi
+  observada nesses heads intermediários; não se infere contagem.
+- **Implementação:** o leitor do cadastro agora exige uma única
+  instrução literal em elemento `script` ativo reconhecido, não
+  texto inerte ou duplicado, e recusa antes de enviar POST. Os erros
+  de seleção, barra e prévia usam `#[derive(Causa)]`, preservam
+  subcódigos anteriores, composição tipada, status e mensagem HTTP
+  conhecidos; o erro após POST continua com saída 3.
+- **CI:** [run 42140055432](https://github.com/franklinbaldo/ies/actions/runs/42140055432)
+  observou suíte Rust **PASS** e binário Release **PASS**; `prek`
+  **FAIL** por Rustfmt, métodos não usados em Clippy e checkout sem
+  `origin/main` para a auditoria `wip-ignores`. Correções subsequentes
+  de formatação, remoção de wrappers mortos e checkout com histórico
+  completo foram publicadas no mesmo branch; **CI final ainda a
+  verificar**. Não se desativou nem enfraqueceu um teste/gate.
+- **LIVE (esta retomada):** login **NOT_RUN**; prévia **NOT_RUN**;
+  `--confirmar` **NOT_RUN**; verificação independente **NOT_RUN**.
+  **0 requisições ao SEI, 0 POSTs criadores, 0 documentos criados ou
+  alterados e nenhum resíduo.** Não houve acesso a produção nem
+  tentativa de escrita em treinamento sem prévia e gates seguros.
+- **Pendente:** CI integralmente verde no head final; só depois,
+  prévia autenticada em TREINAMENTO → uma confirmação única se
+  for segura → releitura independente com número SEI, orçamento
+  de requisições real e resíduo. Não repetir POST de efeito incerto.
+
 ## Continuidade 🐙 — 302 sem Location (05/11/2026)
 
 - **Observação anterior ao RED:** `enviar_submissao_via` trata 302 como dado e não segue redirecionamentos. Um 302 **sem Location** não comprova consequência da escrita; outra sessão poderia ter alterado a árvore entre as leituras.
