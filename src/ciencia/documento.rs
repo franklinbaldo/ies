@@ -53,6 +53,13 @@ impl FalhaDoAceite {
             Self::Aceite(_) => None,
         }
     }
+
+    pub(crate) fn detalhe(&self) -> Option<&'static str> {
+        match self {
+            Self::Aceite(erro) => Some(erro.subcodigo()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
