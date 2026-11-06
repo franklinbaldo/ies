@@ -162,6 +162,41 @@ fn redirecionamento_do_gerenciar(
     url_do_cadastro(instalacao, &format!("controlador.php?{consulta}"), id)
 }
 
+/// Atributos de inércia se propagam pela árvore: o botão pode ser neto
+/// de um fieldset desabilitado ou de contêiner hidden/inert. Na dúvida,
+/// recusar a oferta; não interpretar onclick nem enviar escrita.
+fn ancestral_inerte(dom: &tl::VDom<'_>, botao: &tl::HTMLTag<'_>) -> Result<bool, ErroPrevia> {
+    for ancestral in dom.nodes().iter().filter_map(tl::Node::as_tag) {
+        let oculto = crate::html_atributos::atributo_presente(ancestral, "hidden")
+            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
+        let inerte = crate::html_atributos::atributo_presente(ancestral, "inert")
+            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
+        let campo_desabilitado = if ancestral
+            .name()
+            .as_utf8_str()
+            .eq_ignore_ascii_case("fieldset")
+        {
+            crate::html_atributos::atributo_presente(ancestral, "disabled")
+                .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
+        } else {
+            false
+        };
+        if !(oculto || inerte || campo_desabilitado) {
+            continue;
+        }
+        let mut descendentes = ancestral.children().all(dom.parser());
+        while let Some(filho) = descendentes.pop() {
+            if let Some(tag) = filho.as_tag() {
+                if std::ptr::eq(tag, botao) {
+                    return Ok(true);
+                }
+                descendentes.extend(tag.children().all(dom.parser()));
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -177,35 +212,17 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
-        // A oferta precisa ser acionável na Web: hidden e disabled
-        // tornam o botão inerte, assim como um fieldset disabled ancestral.
-        // As descendências usam a identidade do nó do DOM, não texto/regex.
-        let mut fieldset_desabilitado = false;
-        for campo in dom.query_selector("fieldset").into_iter().flatten() {
-            let campo = campo
-                .get(dom.parser())
-                .and_then(tl::Node::as_tag)
-                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
-            if crate::html_atributos::atributo_presente(campo, "disabled")
-                .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
-                && campo
-                    .children()
-                    .all(dom.parser())
-                    .iter()
-                    .any(|filho| filho.as_tag().is_some_and(|t| std::ptr::eq(t, tag)))
-            {
-                fieldset_desabilitado = true;
-                break;
-            }
-        }
-        let inerte = ["disabled", "hidden"]
+        // A URL servida no onclick não oferece ação quando o botão está
+        // inerte ou dentro de um ancestral oculto/inert/fieldset disabled.
+        // O teste de descendência usa identidade de nó DOM, sem CSS/JS.
+        let inerte = ["disabled", "hidden", "inert"]
             .into_iter()
-            .try_fold(fieldset_desabilitado, |inerte, atributo| {
+            .try_fold(false, |inerte, atributo| {
                 crate::html_atributos::atributo_presente(tag, atributo)
                     .map(|presente| inerte || presente)
             })
             .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
-        if inerte {
+        if inerte || ancestral_inerte(&dom, tag)? {
             return Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into());
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
