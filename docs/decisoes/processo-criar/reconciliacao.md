@@ -190,3 +190,27 @@ ocorrências live adicionais. RED no
 2 FAIL novos, 1.705 PASS, 22 ignored preexistentes (status 503
 perdido e `falha_de_rede` substituída pelo genérico).
 Orçamento: 3 GET + 1 POST + 1 GET de verificação, sem repetição.
+
+### Causas HTTP de dois estágios (06/11/2026, #245)
+
+Observação prévia: o transporte já distingue `FalhaTransporte::Rede`
+de `StatusHttpDeErroDoServidor` e conserva mensagem saneada. O caminho
+de reconciliação guardava a causa do POST e a variante da releitura, mas
+o método `status_http` consultava **apenas a primeira causa**. Quando
+o POST falhava sem status e o GET Controle retornava 503, o HTTP 503
+realmente observado desaparecia da saída.
+
+Alternativas: atribuir o status do GET ao POST (falso fato), descartar
+o status como antes (perda de diagnóstico), ou preservar o contexto das
+duas operações. Escolhida a terceira: `status_http` dá preferência à
+resposta do POST e, na ausência dela, consulta a releitura;
+`status_http_releitura` expõe separadamente o segundo estágio quando
+observado. A mensagem da releitura vem do saneador existente. Sem
+requisição nova, sem retry e sem alterar a classificação de efeito
+incerto (saída 3).
+
+RED test-first no CI 42217861035: **1 FAIL novo, 1.708 PASS, 22 ignored
+preexistentes**, falha `None != Some(503)` no teste de releitura
+posterior ao POST sem resposta. Cenário adicional cobre 503 do POST e
+502 do GET, com orçamento sintético de 5 pedidos, um único POST.
+GREEN e ensaio live dependem de confirmação posterior.
