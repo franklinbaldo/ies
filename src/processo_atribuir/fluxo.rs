@@ -333,7 +333,5 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     // O aceite observado publica também a ação que originou o 302.
     // Sem essa ligação ao POST de atribuição, a árvore coincidente
     // pode ter sido alterada por outro agente: não declarar sucesso.
-    acao_esperada
-        && procedimento == Some(id)
-        && origem == Some("procedimento_atribuicao_cadastrar")
+    acao_esperada && procedimento == Some(id) && origem == Some("procedimento_atribuicao_cadastrar")
 }
