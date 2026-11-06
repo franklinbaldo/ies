@@ -10,7 +10,8 @@ description: Testes sintéticos e pendências de treinamento da issue 271
 | --- | --- | ---: |
 | Observação: Todos @323eb01, UnB 4.0.9 | REFERÊNCIA | 0 |
 | RED da superfície CLI, GitHub Actions [42193308344](https://github.com/franklinbaldo/ies/actions/runs/42193308344) | FAIL esperado: 3 falhas novas, 0 pass, 0 ignored | 0 |
-| GREEN e suíte Rust | PENDENTE do CI do head final | 0 |
+| Suíte Rust, [CI 42197217607](https://github.com/franklinbaldo/ies/actions/runs/42197217607) | PASS nos testes da ciência; Clippy detectou documentação e estilo, corrigidos em commits posteriores | 0 |
+| CI consolidado do head final | Conferir o run correspondente ao SHA atual da [PR #317](https://github.com/franklinbaldo/ies/pull/317) | 0 |
 | Replay das cassettes de ciência | NOT_RUN | 0 |
 | Prévia na UnB treinamento | NOT_RUN | 0 |
 | Prévia em segunda instalação de treinamento | NOT_RUN | 0 |
@@ -26,3 +27,11 @@ Não há comprovação da segunda ciência e do replay completo; permanecem
 pendências da issue. Nunca executar em produção. A sequência segura de
 treinamento é prévia ao vivo → uma confirmação → leitura de prova,
 com registro do documento e do resíduo, caso seja possível completá-la.
+
+O teste de regressão `template_inerte_nao_autoriza_get_mutador` comprova que
+texto inerte em `<template>` não autoriza GET de escrita. O leitor agora
+considera somente scripts inline ativos e ignora scripts de dados e fontes
+externas sem prova observada. A tentativa de RED isolado desse novo teste
+foi cancelada no [CI 42197133423](https://github.com/franklinbaldo/ies/actions/runs/42197133423)
+antes de obter resultado; **RED novo: NOT_RUN**, não se confunde com o
+RED inicial da superfície da CLI (três falhas já documentadas).
