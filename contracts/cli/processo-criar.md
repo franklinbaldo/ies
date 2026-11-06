@@ -52,7 +52,7 @@ que não publicaram essa consulta.
 Uma única submissão do cadastro publicado; sem retry nem
 redirect automático. A resposta esperada é um 302 para
 a árvore com `id_procedimento`, cuja identidade deve ser
-confirmada em leitura nova e associada a um NUP não vazio.
+confirmada em leituras novas de tela e árvore, associada a um NUP não vazio. Uma terceira leitura, das propriedades oferecidas pela barra do processo, deve demonstrar tipo, especificação e nível de acesso iguais aos solicitados. Resposta 302 e NUP sem essas propriedades não permitem publicar `confirmado: true` (saída 3; sem retry).
 A resposta sozinha nunca prova a criação. No `Location`, aceitar
 **uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
 `id_procedimento` numérico; quaisquer repetições, mesmo com um
@@ -122,6 +122,7 @@ Esses subcódigos precisam de tipos reais e integração a
 | `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; efeito incerto, saída 3 |
 | `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
 | `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
