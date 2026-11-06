@@ -55,3 +55,16 @@ recusa nao dispara consulta de listagem extra. O
 [CI com a correcao](https://github.com/franklinbaldo/ies/actions/runs/42122485266)
 aprovou a suite Rust e demais gates.
 
+## Contrato de navegacao multissalto (teste sintetico)
+
+A regressao complementar em
+`src/unidade_retornos_web/tests/saltos.rs` cobre calendario
+dois meses atras e dois meses adiante do `diaHoje` servido pelo SEI,
+exigindo, a cada passo, URL assinada ja publicada na pagina. O custo
+afirmado e de **5 GETs** (Controle + calendario inicial + 2 transicoes
++ consulta mensal), **zero POST**, sem restaurar a tela. Esses dois
+testes exercitam o codigo de navegacao com respostas sinteticas;
+**nao sao replay de uma sequencia real de calendario**. O replay
+obrigatorio do CI continua sendo o dos 14 HTMLs mensais do acervo.
+A leitura ao vivo **sem `--mes`** em GO e PEN3 esta registrada no
+[relatorio live](../validacao-live/2026-11-05-unidade-retornos.md).
