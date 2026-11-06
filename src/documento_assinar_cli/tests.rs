@@ -74,9 +74,9 @@ fn apresentacao_humana_parte_do_erro_tipado() {
     let incerto = ErroAssinar::EfeitoIncertoNaAssinatura {
         antes: vec![],
         falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
-        verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(
-            ErroHtml::ausente("assinatura_da_arvore_ausente"),
-        )),
+        verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
+            "assinatura_da_arvore_ausente",
+        ))),
     };
     assert_eq!(incerto.saida(), 3);
     assert_eq!(
@@ -116,6 +116,9 @@ fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
     ];
     for (erro, esperado) in casos {
         assert_eq!(erro.saida(), 1);
-        assert_eq!(serde_json::to_string(&json_de_falha(&erro)).unwrap(), esperado);
+        assert_eq!(
+            serde_json::to_string(&json_de_falha(&erro)).unwrap(),
+            esperado
+        );
     }
 }
