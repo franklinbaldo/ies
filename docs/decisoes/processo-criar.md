@@ -338,3 +338,16 @@ exige essas quatro provas, rejeita parcialidade e mantém ambiguidade
 quando vários candidatos correspondem. Ainda falta ligar
 o classificador ao transporte e à apresentação dos quatro desfechos.
 Nenhuma escrita, leitura ou ensaio live novo foi efetuado nesta fatia.
+
+## Resposta do criador sem identidade (fatia de 06/11/2026)
+
+Adotada uma reconciliação conservadora também para respostas não excepcionais
+**inesperadas** após o POST criador: HTML 200 em lugar de redirecionamento, ou
+302 com `Location` inválida/ambígua. Sem seguir a `Location`, o fluxo pede
+exatamente uma leitura do Controle originalmente observado, compara as
+fotografias completas dos Gerados e preserva a causa distinta da resposta e
+a falha da releitura, quando houver. Um único POST; nenhum retry. Publicar
+candidatos não é inferir efeito. Por isso a saída permanece 3 até conferir
+propriedades de todos os candidatos e decidir o resultado; a reconciliação
+automática conclusiva segue pendente. Essa alternativa usa a página de
+Controle já conhecida, sem tentar inventar o endereço do processo novo.
