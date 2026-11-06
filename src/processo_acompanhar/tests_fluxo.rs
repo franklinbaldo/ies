@@ -119,6 +119,8 @@ fn grupo_ja_acompanhado_nao_exige_novo_cadastro_nem_post() {
     let plano = resultado.unwrap();
     assert!(plano.ja_estava && plano.confirmado && !plano.alterado);
     assert_eq!(plano.grupo, "G");
+    // O id da linha foi efetivamente observado: null seria enganoso.
+    assert_eq!(plano.id_de_remocao.as_deref(), Some("831"));
     // A linha existente publica "Prazo."; a observacao nao foi alterada.
     assert_eq!(plano.observacao, "Prazo.");
     assert_eq!(plano.requisicoes, 4);
@@ -150,6 +152,8 @@ fn grupo_padrao_ja_acompanhado_nao_exige_cadastro_nem_post() {
     let plano = resultado.unwrap();
     assert!(plano.ja_estava && plano.confirmado && !plano.alterado);
     assert_eq!(plano.grupo, "");
+    // Mesmo no grupo padrao, a identidade da linha ja foi lida.
+    assert_eq!(plano.id_de_remocao.as_deref(), Some("831"));
     // Grupo padrao ja presente: publicar a observacao lida, nao um vazio ficticio.
     assert_eq!(plano.observacao, "Prazo.");
     assert_eq!(plano.requisicoes, 4);
