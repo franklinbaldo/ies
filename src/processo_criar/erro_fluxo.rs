@@ -132,10 +132,14 @@ impl ErroCriar {
         }
     }
 
-    /// Shim test-first: rejeição explícita comprovada não autoriza inferências
-    /// de Gerados. O RED exige que o fluxo identifique a recusa do cadastro.
+    /// Só a validação explícita da Infra prova que o formulário foi
+    /// recusado pelo próprio SEI. HTTP 4xx pode vir de intermediário e não
+    /// atesta a ausência do efeito; Gerados vazio tampouco é prova.
     pub(crate) fn nao_aplicada_comprovada(&self) -> bool {
-        false
+        matches!(
+            self,
+            Self::RecusaDoPost(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
+        )
     }
 
     pub(crate) fn saida(&self) -> u8 {
