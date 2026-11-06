@@ -24,6 +24,28 @@ fn id_documento_da_resposta(item: &Value) -> Option<String> {
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| (*id).to_owned())
 }
 
+fn conferir_lista(item: &Value, atividade: Option<(String, String)>) -> Resultado {
+    match (
+        html_da_resposta(item),
+        atividade,
+        gravacao::id_procedimento(item),
+    ) {
+        (Ok(html), Some((processo, id)), Some(processo_da_lista))
+            if processo == processo_da_lista =>
+        {
+            match atividade_na_lista(&html, &id) {
+                Ok(true) => Resultado::Lido,
+                Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
+                Err(erro) => Resultado::Recusado(erro.subcodigo()),
+            }
+        }
+        (Err(_), _, _) => Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
+        (_, None, _) => Resultado::NaoAplicavel("aceite_sem_atividade_observada"),
+        (_, Some(_), None) => Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado"),
+        (_, Some(_), Some(_)) => Resultado::NaoAplicavel("lista_de_outro_processo"),
+    }
+}
+
 fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
     let mut registros = Vec::new();
     // A prova pendente pertence ao ultimo aceite, nunca a aceites anteriores.
@@ -88,30 +110,10 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 "aceite da ciência",
                 Resultado::NaoAplicavel("status_sem_prova_de_aceite"),
             ),
-            ("protocolo_ciencia_listar", "GET", 200) => {
-                let resultado = match (
-                    html_da_resposta(resposta.item),
-                    atividade.take(),
-                    gravacao::id_procedimento(resposta.item),
-                ) {
-                    (Ok(html), Some((processo, id)), Some(processo_da_lista))
-                        if processo == processo_da_lista =>
-                    {
-                        match atividade_na_lista(&html, &id) {
-                            Ok(true) => Resultado::Lido,
-                            Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-                            Err(erro) => Resultado::Recusado(erro.subcodigo()),
-                        }
-                    }
-                    (Err(_), _, _) => Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
-                    (_, None, _) => Resultado::NaoAplicavel("aceite_sem_atividade_observada"),
-                    (_, Some(_), None) => {
-                        Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado")
-                    }
-                    (_, Some(_), Some(_)) => Resultado::NaoAplicavel("lista_de_outro_processo"),
-                };
-                ("lista de ciências", resultado)
-            }
+            ("protocolo_ciencia_listar", "GET", 200) => (
+                "lista de ciências",
+                conferir_lista(resposta.item, atividade.take()),
+            ),
             ("protocolo_ciencia_listar", "GET", _) => {
                 atividade = None;
                 (
