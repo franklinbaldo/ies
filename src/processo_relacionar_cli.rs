@@ -29,13 +29,6 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         Ok(n) => n,
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
     };
-    if *confirmar {
-        // Zero rede, zero escrita até integrar a reconciliação.
-        return Some(falha(
-            cli.json,
-            &FalhaRelacionar::ConfirmacaoAindaNaoValidada,
-        ));
-    }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = Pedido {
             nup: &nup,
@@ -58,6 +51,22 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
 }
 
 fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
+    if matches!(erro, FalhaRelacionar::EfeitoIncerto) {
+        if json_mode {
+            println!(
+                "{}",
+                json!({
+                    "codigo": "efeito_incerto",
+                    "subcodigo": "efeito_incerto",
+                    "erro": "a escrita foi submetida, mas a verificação por leitura não comprovou o efeito",
+                    "retentavel": false,
+                })
+            );
+        } else {
+            eprintln!("IES: efeito incerto [efeito_incerto]");
+        }
+        return ExitCode::from(3);
+    }
     if json_mode {
         println!(
             "{}",
@@ -84,12 +93,25 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
                 "destino": previa.destino,
                 "id_destino": previa.id_destino,
                 "remover": previa.remover,
-                "confirmado": false,
-                "alterado": false,
+                "confirmado": previa.confirmado,
+                "alterado": previa.alterado,
                 "sem_efeito": previa.sem_efeito,
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
             })
+        );
+    } else if previa.confirmado {
+        println!(
+            "Processo {} {} {} (id: {}). Requisições: {}.",
+            previa.nup,
+            if previa.remover {
+                "desvinculado de"
+            } else {
+                "relacionado com"
+            },
+            previa.destino,
+            previa.id_destino.as_deref().unwrap_or("não observado"),
+            previa.requisicoes
         );
     } else if previa.sem_efeito {
         println!(

@@ -21,7 +21,10 @@ pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
 pub(crate) use guardada::derivar_submissao_guardada;
 pub(crate) use leitura::localizar_formulario;
-use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action};
+use leitura::{
+    Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action,
+    resolver_action_declarada,
+};
 pub(crate) use login::derivar_submissao_de_login;
 pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
@@ -65,6 +68,8 @@ pub(crate) enum EstadoDoProcesso {
     ProcessoCriadoNaUnidade,
     /// Sobrestar ou remover o sobrestamento de um processo.
     Sobrestamento,
+    /// Relacionamento entre processos.
+    Relacionamento,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.
@@ -331,6 +336,18 @@ pub(crate) fn derivar_submissao(
     unidade_solicitada: &str,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    derivar_submissao_com_action(operacao, instalacao, tela, unidade_solicitada, campos, None)
+}
+
+/// Deriva a submissão com action declarada opcional (ex: sobrescrita por script).
+pub(crate) fn derivar_submissao_com_action(
+    operacao: &OperacaoDeFormulario,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade_solicitada: &str,
+    campos: &[(&str, &str)],
+    url_declarada: Option<&str>,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     use ErroSubmissaoFormulario as E;
     if operacao.efeito == EfeitoAvaliado::Desconhecido {
         return Err(E::EfeitoDaOperacaoNaoAvaliado);
@@ -356,7 +373,10 @@ pub(crate) fn derivar_submissao(
     }
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
-    let url = resolver_action(form, &servida, instalacao, operacao)?;
+    let url = match url_declarada {
+        Some(d) => resolver_action_declarada(d, &servida, instalacao, operacao)?,
+        None => resolver_action(form, &servida, instalacao, operacao)?,
+    };
     let controles = ler_controles(form, dom.parser(), operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;

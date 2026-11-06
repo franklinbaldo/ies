@@ -65,12 +65,39 @@ pub(super) fn resolver_action(
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    resolver_action_absoluta(&absoluta, instalacao, operacao)
+}
+
+pub(super) fn resolver_action_declarada(
+    url_declarada: &str,
+    servida: &UrlHttps<'_>,
+    instalacao: &Instalacao,
+    operacao: &OperacaoDeFormulario,
+) -> Result<String, E> {
+    if url_declarada.contains(':')
+        || url_declarada.starts_with('/')
+        || url_declarada.split(['/', '?']).any(|s| s == "..")
+    {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    let absoluta = match servida.caminho.rsplit_once('/') {
+        Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
+        None => format!("https://{}/{url_declarada}", servida.host),
+    };
+    resolver_action_absoluta(&absoluta, instalacao, operacao)
+}
+
+fn resolver_action_absoluta(
+    absoluta: &str,
+    instalacao: &Instalacao,
+    operacao: &OperacaoDeFormulario,
+) -> Result<String, E> {
+    let alvo = UrlHttps::interpretar(absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
         return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
-    Ok(absoluta)
+    Ok(absoluta.to_owned())
 }
 
 /// `action` do login: resolvido contra a URL servida, no **host** da

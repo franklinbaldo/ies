@@ -35,7 +35,7 @@ fn sem_configuracao_previa_recusa_sem_rede() {
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
 #[test]
-fn confirmar_e_remover_confirmar_nao_abrem_sessao_nem_escrevem() {
+fn confirmar_e_remover_confirmar_sem_configuracao_recusam_sem_rede() {
     for remover in [false, true] {
         let mut args = vec![
             "processo",
@@ -51,10 +51,7 @@ fn confirmar_e_remover_confirmar_nao_abrem_sessao_nem_escrevem() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1));
-        assert_eq!(
-            json(&saida)["subcodigo"],
-            "confirmacao_de_relacionamento_nao_validada"
-        );
+        assert_eq!(json(&saida)["codigo"], "fonte_invalida");
     }
 }
 #[test]

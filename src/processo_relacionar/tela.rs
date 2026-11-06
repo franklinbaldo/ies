@@ -134,6 +134,26 @@ pub(super) fn url_complementar(html: &str) -> Result<String, &'static str> {
     }
 }
 
+/// Extrai a URL declarada em `acaoRemover` para `procedimento_excluir_relacionamento`.
+pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
+    const INICIO: &str = ".action='controlador.php?acao=procedimento_excluir_relacionamento";
+    let urls: Vec<_> = html
+        .lines()
+        .filter_map(|linha| {
+            let (_, depois) = linha.split_once(INICIO)?;
+            let url = format!("controlador.php?acao=procedimento_excluir_relacionamento{depois}");
+            let (limpa, _) = url.split_once("';")?;
+            Some(limpa.to_owned())
+        })
+        .collect();
+    match urls.as_slice() {
+        [url] if url.starts_with("controlador.php?acao=procedimento_excluir_relacionamento") => {
+            Ok(url.clone())
+        }
+        _ => Err("acao_excluir_relacionamento_nao_declarada"),
+    }
+}
+
 /// Só devolve identidade observada nos complementos únicos da resposta.
 pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> {
     let dom = tl::parse(xml, tl::ParserOptions::default())

@@ -77,7 +77,7 @@ e [contrato provisório](../cli.md).
 - [Contrato da prévia](../cli/processo-relacionar.md).
 - [Decisão](../../docs/decisoes/processo-relacionar.md).
 - [Testes estruturais](../../src/processo_relacionar/tests.rs) e
-  [testes da CLI](../../tests/cli_processo_relacionar.rs).
-- RED local NOT_RUN; replay NOT_RUN; live PEN1 e UnB NOT_RUN,
-  zero requisições, nenhum resíduo SEI.
-- **Escrita não implementada**: o comando recusa --confirmar antes de rede.
+- RED local executado com 5 falhas observadas em tests_escrita.rs; GREEN implementado
+  com 5 testes sintéticos passando; live PEN1 e UnB NOT_RUN, zero requisições, nenhum resíduo SEI.
+- **Escrita implementada com confirmação e releitura**: POST único da tela servida, sem seguir 302,
+  e verificação independente por releitura da lista de relacionamentos. Exit 3 em efeito_incerto.
