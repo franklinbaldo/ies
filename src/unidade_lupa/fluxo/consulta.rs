@@ -2,9 +2,8 @@
 //! Separado da navegação para manter cada peça menor que 20 KB.
 use super::FalhaDaLupa;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
-    OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_submissao,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
+    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
