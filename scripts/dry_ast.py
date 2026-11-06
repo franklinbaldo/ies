@@ -1,9 +1,9 @@
 """Auditoria DRY global e codemod conservador com Tree-sitter Rust.
 
 Uso:
-  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --audit
-  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --apply
-  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --check
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --audit
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --apply
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --check
 
 Percorre todos os arquivos Rust em src/. Somente a formatação JSON repetida,
 com sintaxe reconhecida, é reescrita. Clones de fluxos com efeitos remotos
