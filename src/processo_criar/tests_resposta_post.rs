@@ -182,6 +182,49 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
     );
 }
 
+/// #245: Location e árvore identificam o NUP, mas não demonstram por si
+/// que o processo possui o tipo e a especificação enviados. A leitura
+/// independente das propriedades é a prova antes de publicar confirmado.
+#[test]
+fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
+    use crate::processo_concluir::tests_apoio::{NUP, UNIDADE, arvore, trabalhar};
+    use crate::propriedades_processo::tests_apoio::{
+        acao_da_barra, link_das_propriedades, tela_das_propriedades,
+    };
+
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore(
+            &[UNIDADE],
+            &[acao_da_barra(&link_das_propriedades("procedimento_alterar", "10"))],
+        )),
+        // Mesmo ID/NUP, mas tipo e especificação diferentes dos do pedido.
+        ok(tela_das_propriedades(NUP, "10")),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "propriedades_divergentes_apos_post_criador");
+    assert_eq!(requests.len(), 7); // 3 GET + 1 POST + tela + árvore + propriedades
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert_eq!(requests[6].metodo, "GET");
+}
+
 #[test]
 fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
     // O POST recebeu um Location esperado, mas o GET verificador foi
