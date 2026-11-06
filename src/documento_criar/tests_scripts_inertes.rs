@@ -96,3 +96,49 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
         );
     }
 }
+
+
+#[test]
+fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
+    // Regressão adversarial #246: nome de expressão function é local e
+    // não define a função global chamada pelo onclick do SEI.
+    // Oráculo positivo: Todos tests/test_escolha_na_lista_010.py @323eb01.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let tabela = r##"<table id="tblSeries"><tr><td>
+        <a href="#" onclick="escolher(291)">Despacho</a>
+        </td></tr></table>"##;
+    let filtro = r#"<a id="ancExibirSeries" href="javascript:void(0);"
+        onclick="exibirSeries('T');">Todos</a><table id="tblSeries"></table>"#;
+    for expressao in [
+        format!("const interna = {ESCOLHER};"),
+        format!("const interna = ({ESCOLHER});"),
+    ] {
+        let html = format!("<script>{expressao}</script>{tabela}");
+        assert_eq!(
+            escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),
+            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            "expressão não-global não autoriza POST de escolha"
+        );
+    }
+    for expressao in [
+        format!("const interna = {EXIBIR};"),
+        format!("const interna = ({EXIBIR});"),
+    ] {
+        let html = format!("<script>{expressao}</script>{filtro}");
+        assert_eq!(
+            filtro_de_todos(&html),
+            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            "expressão não-global não autoriza POST de filtro"
+        );
+    }
+    // Uma declaração real após outro comando completo segue aceita.
+    assert_eq!(
+        escolha_do_tipo(
+            &instalacao,
+            &format!("<script>const marcador = 1; {ESCOLHER}</script>{tabela}"),
+            "4864",
+            "Despacho",
+        ),
+        Ok(EscolhaDoDocumento::Formulario("291".to_owned()))
+    );
+}
