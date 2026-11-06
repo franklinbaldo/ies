@@ -66,9 +66,9 @@ jobs:
                   unidade=ids[0]
                   p=folder/"ies.sqlite3"
                   with sqlite3.connect(p) as db:
-                      db.executescript("CREATE TABLE lista_unidade(instalacao TEXT NOT NULL,unidade_ativa TEXT NOT NULL,lida_em REAL NOT NULL,total INTEGER NOT NULL,PRIMARY KEY(instalacao,unidade_ativa)) STRICT;"
-                                       "CREATE TABLE unidade(instalacao TEXT NOT NULL,unidade_ativa TEXT NOT NULL,id TEXT NOT NULL,sigla TEXT NOT NULL,descricao TEXT NOT NULL,orgao TEXT NOT NULL,lida_em REAL NOT NULL,PRIMARY KEY(instalacao,unidade_ativa,id)) STRICT;"
-                                       "PRAGMA user_version=3;")
+                      # Login may already have migrated the index: reuse its schema.
+                      version=db.execute("PRAGMA user_version").fetchone()[0]
+                      assert version==3
                       db.execute("INSERT INTO lista_unidade VALUES (?,?,?,?)",(origin,unidade,1234.0,1))
                       db.execute("INSERT INTO unidade VALUES (?,?,?,?,?,?,?)",(origin,unidade,"110000847","Unidade2","Unidade de treino","UnB",1234.0))
                   p.chmod(0o600)
