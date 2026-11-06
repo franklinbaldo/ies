@@ -75,7 +75,7 @@ Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a f
 `hdnInfraTipoPagina`, `sbmSalvar`, `selAtribuicao`, `hdnIdProtocolo`
 nessa ordem. A CLI `--confirmar` continua fechada antes da sessão.
 RED de transporte: [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454), **4 testes novos FAIL, 1.689 PASS**.
-Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Live na UnB e numa segunda instalação: **NOT_RUN**, 0 GET, 0 POST, nenhum resíduo.
+Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Prévia live na UnB: **PASS** no [ensaio 42205702494](https://github.com/franklinbaldo/ies/actions/runs/42205702494), com login de 5 requisições e 4 GET de prévia, **0 POST de atribuição e 0 resíduo**. Segunda instalação e escritas/remoções live: **NOT_RUN**, sem requisições de atribuição.
 RED da regressão de `principal` sem identidade: [CI 42204843683](https://github.com/franklinbaldo/ies/actions/runs/42204843683), **1 FAIL novo, 1.706 PASS, 23 ignored preexistentes**. Nenhuma escrita no SEI.
 
 [Decisão](../../docs/decisoes/processo-atribuir.md),
