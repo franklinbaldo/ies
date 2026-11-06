@@ -6,6 +6,7 @@ use super::{escolher_grupo, grupos_do_cadastro};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
+    derivar_submissao_com_action_do_script,
 };
 use crate::instalacao::Instalacao;
 
@@ -47,6 +48,44 @@ pub(crate) fn derivar_inclusao(
             ("selGrupoAcompanhamento", &escolhido.valor),
             ("txaObservacao", observacao),
         ],
+    )
+    .map_err(ErroPrevia::Formulario)
+}
+
+/// Forma observada na UnB: o script da linha reescreve o `action`
+/// do formulário da lista e o oculto `hdnInfraItemId`, e chama submit().
+/// Não há botão de envio nesse caminho.
+const EXCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "acompanhamento_excluir",
+    formulario: "frmGerenciarAcompanhamento",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnInfraItemId"],
+    campos_ocultos_reescritos: &["hdnInfraItemId"],
+    campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::AcompanhamentoEspecial,
+    },
+};
+
+/// Deriva um POST único: o destino é a URL assinada comprovada em
+/// `acaoExcluir`, e os controles pertencem ao formulário da MESMA tela.
+pub(crate) fn derivar_exclusao(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    id_alvo: &str,
+    destino_observado: &str,
+) -> Result<SubmissaoDerivada, ErroPrevia> {
+    derivar_submissao_com_action_do_script(
+        &EXCLUIR,
+        instalacao,
+        tela,
+        unidade,
+        "acompanhamento_gerenciar",
+        destino_observado,
+        &[("hdnInfraItemId", id_alvo)],
     )
     .map_err(ErroPrevia::Formulario)
 }
