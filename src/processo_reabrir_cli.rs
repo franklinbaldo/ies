@@ -5,14 +5,15 @@
 use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
+    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
 };
 use crate::processo_reabrir::{
     ErroReabrir, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
 };
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
-use serde_json::{Value, json};
+#[cfg(test)]
+use serde_json::Value;
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo reabrir`.
@@ -57,7 +58,10 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
             ),
             Err(erro) => {
                 if cli.json {
-                    println!("{}", json_de_falha(&erro));
+                    if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(&erro))
+                    {
+                        eprintln!("IES: falha ao emitir JSON: {falha}");
+                    }
                 } else {
                     for linha in linhas_da_falha(&erro) {
                         eprintln!("{linha}");
@@ -121,45 +125,38 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
 }
 
 /// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroReabrir) -> Value {
-    let mut valor = json_base_da_falha(
+pub(crate) fn json_de_falha(erro: &ErroReabrir) -> FalhaDaSituacao<'_> {
+    let mut valor = FalhaDaSituacao::nova(
         erro.codigo(),
         erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
     match erro {
         ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo } => {
-            objeto.insert("motivo".to_owned(), json!(motivo.como_texto()));
+            valor.motivo = Some(motivo.como_texto());
         }
         ErroReabrir::UnidadeDaSessaoJaNaSituacao { aberto_em }
         | ErroReabrir::ReaberturaNaoPublicadaNaBarra { aberto_em } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
+            valor.aberto_em = Some(aberto_em);
         }
         ErroReabrir::ReaberturaNaoAplicada {
             aberto_em,
             depois,
             falha_do_envio,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("depois".to_owned(), json!(depois));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.depois = Some(depois);
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroReabrir::EfeitoIncertoNaReabertura {
             aberto_em,
             falha_do_envio,
             verificacao,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.verificacao = Some(verificacao.motivo());
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
     }
