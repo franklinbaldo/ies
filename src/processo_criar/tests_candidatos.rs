@@ -10,7 +10,7 @@ use crate::propriedades_processo::tests_apoio::{
 };
 use crate::transporte::FalhaTransporte;
 
-fn gerados_com_candidato() -> String {
+pub(super) fn gerados_com_candidato() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
@@ -21,7 +21,7 @@ fn gerados_com_candidato() -> String {
     )
 }
 
-fn arvore_com_propriedades() -> String {
+pub(super) fn arvore_com_propriedades() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
@@ -31,7 +31,7 @@ fn arvore_com_propriedades() -> String {
     )
 }
 
-fn propriedades_correspondentes() -> String {
+pub(super) fn propriedades_correspondentes() -> String {
     tela_das_propriedades(NUP, "10")
         .replace("Tipo Sintetico: Teste", "Administração Geral: Ensaio")
         .replace(
@@ -498,44 +498,3 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
-#[test]
-fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
-    // #245: a conta compartilhada pode ganhar processo com mesmo tipo e
-    // especificação, mas nível de acesso diferente do POST.
-    let amb = ambiente();
-    let propriedades = propriedades_correspondentes()
-        .replace("value=\"0\" checked=\"checked\" class", "value=\"0\" class")
-        .replace(
-            "value=\"1\"  class=\"infraRadio\"",
-            "value=\"1\" checked=\"checked\" class=\"infraRadio\"",
-        );
-    let respostas = vec![
-        ok(tela_controle()),
-        ok(lista(false)),
-        ok(cadastro()),
-        Err(FalhaTransporte::Rede),
-        ok(gerados_com_candidato()),
-        ok(trabalhar()),
-        ok(arvore_com_propriedades()),
-        ok(propriedades),
-    ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(
-            sessao.origem,
-            sessao.url_do_controle,
-            sessao.cookie,
-            &pedido(true),
-            rede,
-        )
-    });
-    let erro = resultado.expect_err("nível divergente não comprova a criação");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(
-        erro.diagnostico_apos_post()
-            .unwrap()
-            .candidatos_observados,
-        Some(vec![NUP.to_owned()])
-    );
-    assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
-    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
-}
