@@ -331,14 +331,6 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
     assert!(requests[5..].iter().all(|req| req.metodo == "GET"));
 }
 
-/// Segurança da confirmação: após POST, a Location não pode trazer duas
-/// ações, mesmo que só uma delas coincida com a ação esperada.
-/// Nenhum GET pode seguir uma Location ambígua: efeito incerto, saída 3.
-
-/// Segurança da confirmação: um `id_procedimento` inválido não é ignorado
-/// quando outro identificador numérico também aparece. Uma Location com
-/// dois valores do mesmo campo é ambígua e não autoriza GET.
-
 /// Link servido na lista 4.0 com duas identidades não permite abrir
 /// cadastro, mesmo que o primeiro ID seja numérico.
 #[test]
