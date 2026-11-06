@@ -93,3 +93,18 @@ foram reconhecidos como evidência textual inerte. O leitor ignora o corpo
 inline de script externo e só aceita instrução literal em contexto de
 código do script inline servido; não interpreta nem executa JS.
 Os testes negativos impedem POST criador com orçamento **5 GET/0 POST**.
+
+## Revisão — Location após o POST de criação
+
+Uma Location 302 não vazia, isoladamente, não comprova que o POST provocou
+a mudança observada: uma resposta para host externo ou outro caminho pode
+coincidir com criação concorrente na árvore. O leitor passou a exigir
+que a URL absoluta HTTPS ou relativa aponte para o mesmo
+`controlador.php` da submissão e contenha exatamente uma ação não vazia.
+A validação é sintática, sem seguir o redirecionamento ou executar JS.
+Se a resposta não satisfizer essa condição, a verificação por leitura
+ainda ocorre, mas o efeito permanece **incerto (saída 3)**, sem retry.
+
+Testes sintéticos em `src/documento_criar/tests_confirmacao.rs` afirmam
+um POST e um GET de releitura tanto na recusa da Location externa quanto
+nos destinos locais absoluto/relativo, sem requisitar instalações reais.
