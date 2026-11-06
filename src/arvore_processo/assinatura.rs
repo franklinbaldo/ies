@@ -127,7 +127,7 @@ fn ler_dica(dica: &str) -> Option<Vec<Assinante>> {
     let [nome, cargo, unidade] = partes.as_slice() else {
         return None;
     };
-    if [nome, cargo, unidade].iter().any(|p| p.is_empty()) {
+    if [nome, cargo, unidade].iter().any(|p| p.trim().is_empty()) {
         return None;
     }
     Some(vec![Assinante {
@@ -195,7 +195,7 @@ pub(crate) fn ler_link_de_assinar(
     id_procedimento: &str,
 ) -> Result<EnderecoDeEscrita, ErroLinkDeAssinar> {
     use ErroLinkDeAssinar as E;
-    let linhas: Vec<&str> = html.lines().map(std::convert::identity).collect();
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
         if let Some(resto) = linha.strip_prefix(VARIAVEL) {

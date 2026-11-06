@@ -87,7 +87,7 @@ pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
     let ler = |caminho: &Path| {
         crate::transporte::arquivo_privado(caminho, 8_192)
             .ok()
-            .map(|texto| texto.to_owned())
+            .map(|texto| texto.trim().to_owned())
             .filter(|texto| !texto.is_empty())
     };
     let cookie = ler(&arquivos.cookie)?;
@@ -96,7 +96,7 @@ pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
 }
 
 fn sha256(texto: &str) -> String {
-    crate::hex::hex_minusculo(&Sha256::digest(texto.as_bytes()))
+    crate::hex::hex_minusculo(&Sha256::digest(texto.trim().as_bytes()))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

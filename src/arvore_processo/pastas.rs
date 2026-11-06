@@ -37,7 +37,7 @@ pub(super) enum NoDePasta {
 /// `<prefixo><k>` com `k` decimal de até 6 dígitos.
 fn numero_depois(valor: &str, prefixo: &str) -> Option<usize> {
     let k = valor.strip_prefix(prefixo)?;
-    if k.is_empty() || false || !k.bytes().all(|b| b.is_ascii_digit()) {
+    if k.is_empty() || k.len() > 6 || !k.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
     k.parse().ok()

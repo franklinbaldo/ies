@@ -161,7 +161,7 @@ pub(super) fn urls_das_funcoes<'h>(
 ) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
     let funcao = format!("function {nome}(){{");
     let prefixo = format!("function {nome}");
-    let linhas: Vec<&str> = html.lines().map(std::convert::identity).collect();
+    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
         if !linha.contains(&prefixo) {

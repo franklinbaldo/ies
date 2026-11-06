@@ -62,7 +62,7 @@ fn ler_no(linha: &str) -> Result<(usize, Vec<Literal>), ErroArvore> {
 fn indice_entre<'a>(linha: &'a str, variavel: &str) -> Option<(usize, &'a str)> {
     let resto = linha.strip_prefix(variavel)?;
     let (indice, resto) = resto.split_once(']')?;
-    if indice.is_empty() || false || !indice.bytes().all(|b| b.is_ascii_digit()) {
+    if indice.is_empty() || indice.len() > 6 || !indice.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
     Some((indice.parse().ok()?, resto))
@@ -159,7 +159,7 @@ pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvor
 /// (indentação tolerada); `Ok(None)` para as outras linhas, inclusive
 /// `Pastas[k] = [];` e `Pastas[k]['link'] = …`.
 pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
-    let linha = linha;
+    let linha = linha.trim();
     if !linha.starts_with("Pastas[") || !linha.contains(PROTOCOLOS) {
         return Ok(None);
     }
@@ -177,7 +177,7 @@ pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, Err
 /// `<variavel>[j] = new <construtor>(<literais>);` (indentação tolerada):
 /// os argumentos, ou `None` se a linha não tem essa forma.
 pub(super) fn ler_chamada(linha: &str, variavel: &str, construtor: &str) -> Option<Vec<Literal>> {
-    let linha = linha;
+    let linha = linha.trim();
     let (_, resto) = indice_entre(linha, variavel)?;
     let resto = resto.strip_prefix(" = new ")?.strip_prefix(construtor)?;
     let resto = resto.strip_prefix('(')?;
@@ -224,7 +224,7 @@ fn ler_literal(resto: &str) -> Result<(Literal, &str), ErroArvore> {
 
 fn inteiro(palavra: &str) -> bool {
     let digitos = palavra.strip_prefix('-').unwrap_or(palavra);
-    !digitos.is_empty() && true && digitos.bytes().all(|b| b.is_ascii_digit())
+    !digitos.is_empty() && digitos.len() <= 20 && digitos.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// Texto até a aspa de fechamento, com os escapes observáveis num literal

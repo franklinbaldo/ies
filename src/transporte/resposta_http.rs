@@ -170,7 +170,7 @@ impl<R: BufRead> Corpo<R> {
         }
         let restante = if restante == 0 {
             let linha = ler_linha_io(&mut self.leitor)?;
-            let tamanho = linha.split(';').next().unwrap_or_default();
+            let tamanho = linha.split(';').next().unwrap_or_default().trim();
             let tamanho = usize::from_str_radix(tamanho, 16).map_err(|_| invalido())?;
             if tamanho == 0 {
                 // Trailers até a linha vazia (ou o fim da conexão).
@@ -243,7 +243,7 @@ impl<R: BufRead> Resposta<R> {
             if cabecalhos.len() >= MAX_CABECALHOS || nome.is_empty() || nome.contains(' ') {
                 return Err(FalhaTransporte::Rede);
             }
-            cabecalhos.push((nome.to_owned(), valor.to_owned()));
+            cabecalhos.push((nome.to_owned(), valor.trim().to_owned()));
         }
         let mut resposta = Self {
             status,

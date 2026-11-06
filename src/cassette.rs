@@ -12,7 +12,7 @@ fn campo<'a>(source: &'a str, field: &str) -> Option<&'a str> {
     let rest = source.strip_prefix("---\n")?;
     rest.split("\n---\n").next()?.lines().find_map(|line| {
         let (key, value) = line.split_once(':')?;
-        (key == field).then_some(value)
+        (key == field).then_some(value.trim())
     })
 }
 
