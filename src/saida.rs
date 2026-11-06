@@ -6,7 +6,7 @@ use crate::paginas::Leitura;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-/// Emissão de JSON pela fronteira da CLI, sem String ou Value intermediário.
+/// Emissão de JSON pela fronteira da CLI, sem `String` ou `Value` intermediário.
 /// O formato compacto mantém os bytes históricos das mensagens de falha.
 fn escrever_json<T: Serialize>(valor: &T, formatado: bool) -> std::io::Result<()> {
     use std::io::Write as _;
