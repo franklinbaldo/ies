@@ -229,12 +229,13 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
                 let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
                     .expect("onclick válido");
                 println!(
-                    "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}",
+                    "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
                     tag.name().as_utf8_str(),
                     href.as_deref().is_some_and(|x| x.contains("controlador.php?")),
                     onclick.as_deref().is_some_and(|x| x.contains("controlador.php?")),
                     onclick.as_deref().is_some_and(|x| x.contains("location")),
-                    onclick.as_deref().map_or(0, |x| x.matches("controlador.php?").count())
+                    onclick.as_deref().map_or(0, |x| x.matches("controlador.php?").count()),
+                    onclick.as_deref().is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
                 );
             }
         }
