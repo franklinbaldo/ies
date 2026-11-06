@@ -82,3 +82,12 @@ código reconhecido da resposta: texto em comentário, literal ou
 `<template>` não comprova `id_atividade`. A ausência de prova
 depois do GET potencialmente mutador é efeito incerto, saída 3,
 sem repetição da escrita.
+
+
+### Aceite com argumento adicional (#271)
+
+A prova estática exige atualizarArvore('url') com um único argumento
+literal. Um argumento adicional pode lançar uma exceção antes da
+recarga e não comprova uma ciência documental. O leitor compartilhado
+recusa a forma não observada; após o GET mutador, verifica por leitura
+e devolve efeito incerto, sem retry ou sucesso por ciência anterior.
