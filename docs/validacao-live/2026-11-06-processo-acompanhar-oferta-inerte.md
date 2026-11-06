@@ -66,3 +66,29 @@ nova cobre `fieldset disabled` aninhado, contêiner `hidden` e
 contêiner `inert`, cada um com e sem `--confirmar`, todos com
 **4 GET/0 POST**. Live nesta fatia: NOT_RUN, **0 requisições,
 0 escritas, 0 resíduos novos**. A retirada confirmada segue bloqueada.
+
+## Retirada com oferta inerte (06/11/2026, 🐢)
+
+A tela observada de Acompanhamento Especial na UnB contém link
+`acaoExcluir` na linha do grupo e campo `hdnInfraItemId` no form de
+gerenciamento. A semântica de `hidden`/`inert` e `fieldset disabled`
+foi exercitada com **HTML sintético**; não se afirma que a UnB tenha
+servido essas variantes ao vivo. Link oculto, ancestral `inert` e
+`input hidden` dentro de `fieldset disabled` eram indevidamente
+interpretados como oferta de retirada. A guarda agora examina a
+identidade do controle e todos os ancestrais, distinguindo âncoras de
+campos enviáveis. Sem regex nem JS executado.
+
+**RED** [CI 42289429307](https://github.com/franklinbaldo/ies/actions/runs/42289429307):
+**2 testes novos falharam, 1.785 passaram, 23 ignorados existentes**;
+o Rustfmt do próprio teste também exigiu dois ajustes de apresentação.
+A sequência foi: teste primeiro, CI vermelho, código/extração compartilhada
+em seguida. Teste puro, **0 GET e 0 POST**, sem mexer na contagem
+já contratada dos fluxos de transporte. GREEN final: conferir head
+exato da PR #293.
+
+**Live desta fatia: NOT_RUN**, prévia 0 GET, confirmação 0 POST,
+releitura 0 GET, 0 requisições SEI, 0 escritas e 0 novos resíduos.
+IDs anteriores UnB 850 / UFRJ 142 continuam inconclusivos e não
+foram alterados. `--deixar --confirmar` continua fechado antes de
+sessão/rede. Próxima etapa: ensaio seguro no treinamento em novo NUP.
