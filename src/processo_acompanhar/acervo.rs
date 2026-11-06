@@ -36,14 +36,19 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                     _ => Resultado::NaoAplicavel("cadastro_ou_id_nao_gravado"),
                 },
             ),
-            ("acompanhamento_gerenciar" | "acompanhamento_cadastrar" | "acompanhamento_excluir", "POST", _) => (
+            (
+                "acompanhamento_gerenciar" | "acompanhamento_cadastrar" | "acompanhamento_excluir",
+                "POST",
+                _,
+            ) => (
                 "POST",
                 Resultado::NaoAplicavel("post_nao_comprova_alteracao"),
             ),
-            ("acompanhamento_gerenciar" | "acompanhamento_cadastrar" | "acompanhamento_excluir", _, _) => (
-                "sem HTML",
-                Resultado::NaoAplicavel("resposta_nao_legivel"),
-            ),
+            (
+                "acompanhamento_gerenciar" | "acompanhamento_cadastrar" | "acompanhamento_excluir",
+                _,
+                _,
+            ) => ("sem HTML", Resultado::NaoAplicavel("resposta_nao_legivel")),
             _ => continue,
         };
         registros.push(Registro {
@@ -68,15 +73,20 @@ fn replay_do_acompanhamento_no_acervo() {
     for instalacao in INSTALACOES {
         for entrada in std::fs::read_dir(raiz.join(instalacao)).expect("pasta de cassettes") {
             let caminho = entrada.expect("card").path();
-            if caminho.file_name().is_some_and(|s| {
-                s.to_string_lossy().starts_with("processo-acompanhar-")
-            }) && caminho.extension().is_some_and(|s| s == "md") {
+            if caminho
+                .file_name()
+                .is_some_and(|s| s.to_string_lossy().starts_with("processo-acompanhar-"))
+                && caminho.extension().is_some_and(|s| s == "md")
+            {
                 cards.push(caminho);
             }
         }
     }
     cards.sort();
-    assert!(cards.len() >= INSTALACOES.len(), "faltam cassettes de acompanhamento");
+    assert!(
+        cards.len() >= INSTALACOES.len(),
+        "faltam cassettes de acompanhamento"
+    );
     let mut zips: HashMap<String, ZipDoAcervo> = HashMap::new();
     let mut registros = Vec::new();
     for card in &cards {
@@ -89,8 +99,14 @@ fn replay_do_acompanhamento_no_acervo() {
             .unwrap_or_else(|e| panic!("{}: {e}", card.display()));
         registros.extend(replay(&conferida.instalacao, &conferida.json));
     }
-    assert!(registros.iter().any(|r| r.leitor == "lista"), "sem listas gravadas");
-    assert!(registros.iter().any(|r| r.leitor == "cadastro"), "sem cadastros gravados");
+    assert!(
+        registros.iter().any(|r| r.leitor == "lista"),
+        "sem listas gravadas"
+    );
+    assert!(
+        registros.iter().any(|r| r.leitor == "cadastro"),
+        "sem cadastros gravados"
+    );
     let mut relatorio = format!(
         "# Acompanhamento Especial — replay #254\n\n{} cassettes conferidas; {} respostas classificadas. Zero requisições ao SEI e zero escritas.\n\n",
         cards.len(),
