@@ -143,3 +143,10 @@ oráculo é uma **hipótese verificável** para a segunda recusa, não uma
 causa já comprovada ao vivo. Nenhum `--confirmar` foi executado,
 nenhum documento foi criado. Testar a aceitação restrita de IDs
 idênticos **sem alterar nem reconstruir** a URL publicada.
+
+
+## Conteúdo inerte em template (verificação de segurança, 06/11/2026)
+
+A [semântica HTML de `template`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/template) distingue o fragmento armazenado do DOM ativo: conteúdo aninhado, incluindo botões e scripts, não representa por si só controle acionável da tela. A captura positiva Todos @323eb01 já forneceu a cadeia Salvar → `confirmarDados` → `submeter`; um texto idêntico dentro de `template` não acrescenta evidência de execução. Este é um caso **adversarial sintético**, não uma forma observada ao vivo na UnB.
+
+O leitor deve recusar a confirmação **antes de qualquer POST** se a única cadeia ou o único botão estiverem dentro de `template`, sem considerar o conteúdo inerte como prova de oferta de escrita. A prévia permanece somente leitura. A divergência live `submissao_do_documento_nao_observada` do [ensaio 42198707929](https://github.com/franklinbaldo/ies/actions/runs/42198707929) continua sem diagnóstico estrutural; não presumir que se trate de `template` nem relaxar a guarda com base nessa hipótese.
