@@ -108,6 +108,10 @@ jobs:
             --output "$RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" \
             "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-e01c45d573ff1591.zip"
           echo "e01c45d573ff15912f0a5d018165aa3edbf24c89  $RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" | sha1sum --check
+          curl --fail --location --silent --show-error --retry 0 --max-time 180 \
+            --output "$RUNNER_TEMP/ies-acervo/lote-5b6af062ae69d8c7.zip" \
+            "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-5b6af062ae69d8c7.zip"
+          echo "5b6af062ae69d8c7db0293c93ce30342c0aa364a  $RUNNER_TEMP/ies-acervo/lote-5b6af062ae69d8c7.zip" | sha1sum --check
 
       - name: Mandatory offline replay (3 GET, 3 POST from cassette)
         shell: bash
@@ -119,6 +123,8 @@ jobs:
           cargo +1.99.1 test --locked --bin ies -- --list --ignored |
             grep -F 'unidade_lupa::acervo::replay_da_lupa_go_no_acervo: test'
           cargo +1.99.1 test --locked --bin ies replay_da_lupa_go_no_acervo -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies replay_274_paginas_go_no_acervo -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies formularios_da_lupa_integral_go_no_acervo -- --ignored --nocapture --test-threads=1
 
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
