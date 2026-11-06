@@ -354,20 +354,23 @@ fn deixar_confirmado_com_observacao_invalida_recusa_antes_da_rede() {
 fn botao_adicionar_desabilitado_na_lista_nao_oferece_cadastro() {
     // A tabela da UnB pode listar outros grupos. O botão Adicionar
     // desabilitado não é uma oferta de abrir o cadastro para G.
-    let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
-    let mut respostas = abertura(arvore);
-    let botao = format!(
-        r#"<button id="btnAdicionar" disabled="disabled" onclick="location.href='{}';">Adicionar</button>"#,
-        cadastrar().replace('&', "&amp;")
-    );
-    respostas.extend([ok(format!("{}{}", lista("Outro"), botao)), ok(formulario())]);
-    let (resultado, pedidos) = executar(respostas, false);
+    // Mesmo --confirmar não permite uma quinta leitura nem tenta POST.
+    for confirmar in [false, true] {
+        let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
+        let mut respostas = abertura(arvore);
+        let botao = format!(
+            r#"<button id="btnAdicionar" disabled="disabled" onclick="location.href='{}';">Adicionar</button>"#,
+            cadastrar().replace('&', "&amp;")
+        );
+        respostas.extend([ok(format!("{}{}", lista("Outro"), botao)), ok(formulario())]);
+        let (resultado, pedidos) = executar(respostas, confirmar);
 
-    assert!(matches!(resultado, Err(ErroPrevia::Html(_))));
-    let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
-    esperados.push(get(&absoluta(&gerenciar())));
-    assert_eq!(pedidos, esperados);
-    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+        assert!(matches!(resultado, Err(ErroPrevia::Html(_))));
+        let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
+        esperados.push(get(&absoluta(&gerenciar())));
+        assert_eq!(pedidos, esperados);
+        assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+    }
 }
 
 #[test]
