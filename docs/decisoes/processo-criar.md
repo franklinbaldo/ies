@@ -268,3 +268,34 @@ A escrita real anteriormente tentada na UnB treinamento permanece com
 efeito **INCONCLUSIVO**; nenhuma mudança de tipagem autoriza repetir
 o POST de criação. A conciliação exclusivamente por leitura e a
 remoção do workflow temporário ainda precisam de evidências próprias.
+
+## Continuação da reconciliação: retratos de Gerados (#245)
+
+A conciliação histórica **já confirmou por leitura** que a única
+confirmação incerta da UnB de treinamento foi aplicada:
+NUP `23106.001875/2026-93`, id `51731`
+([evidência](../validacao-live/2026-11-05-processo-criar-reconciliacao.md)).
+Essa confirmação **não será repetida**. O relato anterior de efeito
+inconclusivo se refere à resposta da CLI no momento do POST, não ao
+resultado conhecido posteriormente.
+
+Para o mecanismo automático ainda pendente, a primeira fatia escolhe
+reutilizar `paginas::juntar` e a tabela tipada de Gerados em vez de
+fazer novo parser ou inferir IDs a partir de NUPs.
+A fotografia exige cobertura integral de uma página, unidade
+coincidente e IDs anteriores estáveis. Uma página paginada é
+**inconclusiva**, mesmo com ausência aparente de candidatos.
+Um ID que desapareceu ou mudou de NUP também impede conclusão.
+Quando há dois candidatos, ambos permanecem candidatos, sem escolher
+um por ordem nem inferir autoria da criação. A diferença é uma
+**observação**, não ainda prova de aplicação ou de segurança de retry.
+
+Foram considerados (1) comparar apenas a primeira página sem verificar
+total, (2) inferir criação pelo maior ID e (3) comparar tabelas tipadas
+com cobertura demonstrada. Escolhida a terceira alternativa: mais
+restritiva, porém evita falso negativo após uma escrita.
+A próxima etapa deve obter Gerados antes/depois, verificar tipo e
+especificação dos candidatos por leitura independente e preservar a
+causa original do POST sem expor URLs/cookies. Os quatro desfechos
+exigidos pela issue continuam pendentes; não liberar novos
+`--confirmar` para ensaios de efeito incerto.
