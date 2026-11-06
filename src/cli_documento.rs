@@ -63,4 +63,3 @@ pub(crate) enum DocumentoAcao {
         confirmar: bool,
     },
 }
-
