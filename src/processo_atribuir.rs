@@ -4,12 +4,12 @@
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    OperacaoDeFormulario, ResultadoDoEnvio, EstadoDoProcesso, SubmissaoDerivada, TelaServida,
+    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
     decodificar_atributo, derivar_submissao, localizar_formulario,
 };
+use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::transporte::texto_de_recusa::decodificar_entidades;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
