@@ -223,3 +223,5 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
 mod tests;
 #[cfg(test)]
 mod tests_fluxo;
+#[cfg(test)]
+mod tests_documento;
