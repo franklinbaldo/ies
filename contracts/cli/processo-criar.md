@@ -245,3 +245,15 @@ offline como reconciliação completa.
 | `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
 | `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
 | `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
+
+### Guarda de segurança antes do POST (#245 — continuação)
+
+Na confirmação, depois de validar o cadastro e **antes do primeiro POST
+criador**, o fluxo monta uma fotografia de **Gerados** com a leitura do
+Controle já efetuada. Exige mesma unidade, total declarado e cobertura
+integral; legenda paginada/indeterminada recusa com causa tipada
+`gerados_sem_cobertura_completa_para_reconciliacao`, saída 1, **sem
+POST criador** e **sem GET extra**. A prévia permanece disponível.
+Esse é um pré-requisito da reconciliação, **não** sua implementação:
+ainda não há comparação posterior nem classificação automática da falha
+do POST. Não interpretar a proteção como escrita homologada em live.
