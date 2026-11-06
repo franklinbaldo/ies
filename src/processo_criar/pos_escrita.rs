@@ -132,6 +132,7 @@ fn conferir_candidato<V: EnvioDoControle>(
         nup: candidato.nup.clone(),
         tipo: propriedades.tipo,
         especificacao: Some(propriedades.especificacao),
+        nivel: Some(propriedades.nivel_de_acesso.como_texto().to_owned()),
     })
 }
 
@@ -175,12 +176,13 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             )?;
             if conferido.tipo.as_deref() == Some(feito.tipo.as_str())
                 && conferido.especificacao.as_deref() == Some(especificacao)
+                && conferido.nivel.as_deref() == Some(feito.nivel.as_str())
             {
                 correspondentes_parciais.push(conferido.nup.clone());
             }
             provas.push(conferido);
         }
-        let desfecho = classificar(&candidatos, &provas, &feito.tipo, especificacao)
+        let desfecho = classificar(&candidatos, &provas, &feito.tipo, especificacao, &feito.nivel)
             .map_err(ErroCriar::Conferencia)?;
         Ok::<_, ErroCriar>((candidatos, desfecho))
     })();
