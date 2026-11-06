@@ -510,8 +510,8 @@ pub(crate) fn criar<V: EnvioDoControle>(
             cookie_valor,
             &mut requisicoes,
         )?;
-        let nup =
-            crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
+        let nup = crate::arvore_processo::nup_declarado_na_arvore(&arvore.html)
+            .ok_or(E::EfeitoIncerto)?;
         crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(E::Arvore)?;
         Ok::<_, E>(nup)
     })()
