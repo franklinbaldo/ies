@@ -99,7 +99,13 @@ fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
 /// Construção pura para testar que a recusa do próprio cadastro distingue
 /// não aplicação comprovada de erro HTTP sem garantia de não aplicação.
 fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str) -> serde_json::Value {
-    json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http())
+    let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+    if erro.nao_aplicada_comprovada() {
+        valor["desfecho"] = json!("nao_aplicada");
+        valor["repeticao_segura_com_nova_previa"] = json!(true);
+    }
+    // Nunca autoriza retry automático, mesmo com validação expressa.
+    valor
 }
 
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
@@ -126,6 +132,13 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         // Status e mensagem saneada do SEI vão para a saída quando houve.
         if json_mode {
             println!("{}", json_da_recusa_criadora(erro, mensagem));
+            return ExitCode::from(1);
+        }
+        if erro.nao_aplicada_comprovada() {
+            eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
+            eprintln!(
+                "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
+            );
             return ExitCode::from(1);
         }
         return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
