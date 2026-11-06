@@ -32,7 +32,7 @@ jobs:
           from pathlib import Path
 
           ORIGEM = "https://sei.treinamento.unb.br/sei"
-          NUP = "23106.001875/2026-93"
+          NUP = "23106.001868/2026-91"
           TIPO = "Despacho"
           DESCRICAO = "Teste IES issue 246 - 2026-11-06"
           EXE = "./target/release/ies"
