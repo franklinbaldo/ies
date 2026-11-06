@@ -163,3 +163,36 @@ jobs:
         env:
           IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
         run: scripts/replay processo_criar_fluxo::acervo::replay_de_processo_criar_no_acervo
+
+  replay-processo-acompanhar:
+    # Gate da #254: somente respostas gravadas em ZIPs públicos, nenhum acesso ao SEI.
+    name: replay acompanhamento especial (acervo público)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Testar manifesto sem rede
+        run: python3 -m unittest discover -s scripts/tests -p 'test_baixar_acervo_processo_acompanhar.py' -v
+
+      - name: Baixar ZIPs públicos e verificar SHA-1
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-acompanhar
+        run: python3 scripts/baixar_acervo_processo_acompanhar.py
+
+      - name: Executar leitores Rust com SHA-256 dos membros
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-acompanhar
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'processo_acompanhar::acervo::replay_do_acompanhamento_no_acervo: test'
+          scripts/replay processo_acompanhar::acervo::replay_do_acompanhamento_no_acervo
