@@ -33,3 +33,18 @@ PASS a partir da execução RED).
 **Nesta continuação: 0 requisições reais ao SEI, 0 escritas,
 0 resíduos novos.** O NUP histórico da UnB segue
 `23106.001875/2026-93` (id 51731); sua confirmação não foi repetida.
+
+## Coruja — resposta inesperada pós-POST (06/11/2026)
+
+Regressão com três testes sintéticos escritos antes da implementação,
+RED no [CI 42168412163](https://github.com/franklinbaldo/ies/actions/runs/42168412163):
+**3 testes falharam, 1.633 passaram, 17 ignorados preexistentes**. O RED
+provou que um HTML 200 ou uma `Location` ambígua encerrava a execução
+sem consumir a releitura prevista. A nova fatia exige cinco pedidos exatos
+(3 GET iniciais, 1 POST criador, 1 GET fresco do Controle), sem retry e sem
+seguir o redirecionamento suspeito, inclusive quando a releitura falha.
+
+O teste e o código são sintéticos: **prévia live NOT_RUN; confirmação live
+NOT_RUN; releitura live NOT_RUN; 0 GET reais, 0 POST reais, nenhum resíduo
+novo**. Não repetir o POST histórico de treinamento na UnB que gerou
+`23106.001875/2026-93` (id 51731).
