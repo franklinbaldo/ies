@@ -202,7 +202,9 @@ pub(crate) fn url_da_ciencia_do_documento(
             continue;
         }
         let script = tag.inner_text(dom.parser());
-        urls.extend(javascript::urls_ativas_da_ciencia_do_documento(script.as_ref())?);
+        urls.extend(javascript::urls_ativas_da_ciencia_do_documento(
+            script.as_ref(),
+        )?);
     }
     let url = match urls.as_slice() {
         [] => return Err(E::ausente("link_de_ciencia_do_documento_ausente")),
