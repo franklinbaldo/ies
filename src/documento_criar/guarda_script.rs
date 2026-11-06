@@ -13,30 +13,60 @@ enum Estado {
     Cadeia(char),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Bloco {
+    Outro,
+    Submeter,
+    ConfirmarDados,
+    ConferirFormulario,
+}
+
 /// Ler as linhas como texto, excluindo comentários, strings e blocos
 /// aninhados. Dentro de `submeter()` só vale a sequência da captura
 /// Todos `tests/paginas_reais/documento_gerar.html` @323eb01.
-fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
+fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
     let mut ocorrencias = 0;
     let mut funcoes_submeter = 0;
+    let mut confirmacoes = 0;
+    let mut funcoes_confirmar = 0;
     let mut estado = Estado::Codigo;
-    let mut blocos: Vec<bool> = Vec::new();
+    let mut blocos: Vec<Bloco> = Vec::new();
     let mut passo_submeter = 0_u8;
+    let mut passo_confirmar = 0_u8;
     for linha in texto.lines() {
         let linha = linha.trim();
         if estado == Estado::Codigo {
-            if blocos.len() == 1 && blocos[0] && linha != "}" {
-                passo_submeter = match (passo_submeter, linha) {
-                    (0, DESABILITAR) => 1,
-                    (1, INSTRUCAO) => 2,
-                    (2, ENVIAR) => 3,
-                    _ => return None,
-                };
-            } else if linha == INSTRUCAO {
-                // A flag isolada nunca comprova o submit publicado.
-                // A unica forma suportada e a sequencia direta completa
-                // dentro de function submeter().
-                return None;
+            match blocos.as_slice() {
+                [Bloco::Submeter] if linha != "}" => {
+                    passo_submeter = match (passo_submeter, linha) {
+                        (0, DESABILITAR) => 1,
+                        (1, INSTRUCAO) => 2,
+                        (2, ENVIAR) => 3,
+                        _ => return None,
+                    };
+                }
+                [Bloco::ConfirmarDados] if linha != "}" => {
+                    // Captura Todos @323eb01: a confirmação só chama
+                    // submeter() se a validação do formulário passar.
+                    if passo_confirmar != 0
+                        || (linha != "if (OnSubmitForm()) {"
+                            && linha != "if (OnSubmitForm()){")
+                    {
+                        return None;
+                    }
+                    passo_confirmar = 1;
+                }
+                [Bloco::ConfirmarDados, Bloco::ConferirFormulario] if linha != "}" => {
+                    if passo_confirmar != 1 || linha != "submeter();" {
+                        return None;
+                    }
+                    passo_confirmar = 2;
+                }
+                _ if linha == INSTRUCAO => {
+                    // A flag isolada não demonstra uma escrita acionável.
+                    return None;
+                }
+                _ => {}
             }
         }
         let mut prefixo = String::new();
@@ -51,25 +81,52 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                     }
                     '\'' | '"' | '`' => estado = Estado::Cadeia(c),
                     '{' => {
-                        let submeter = blocos.is_empty() && prefixo.trim() == "function submeter()";
-                        if submeter {
+                        let bloco = if blocos.is_empty() && prefixo.trim() == "function submeter()" {
                             funcoes_submeter += 1;
                             if funcoes_submeter > 1 {
                                 return None;
                             }
-                        }
-                        blocos.push(submeter);
+                            Bloco::Submeter
+                        } else if blocos.is_empty()
+                            && prefixo.trim() == "function confirmarDados()"
+                        {
+                            funcoes_confirmar += 1;
+                            if funcoes_confirmar > 1 {
+                                return None;
+                            }
+                            Bloco::ConfirmarDados
+                        } else if blocos.as_slice() == [Bloco::ConfirmarDados]
+                            && prefixo.trim() == "if (OnSubmitForm())"
+                        {
+                            Bloco::ConferirFormulario
+                        } else {
+                            Bloco::Outro
+                        };
+                        blocos.push(bloco);
                     }
-                    '}' => {
-                        let submeter = blocos.pop()?;
-                        if submeter {
+                    '}' => match blocos.pop()? {
+                        Bloco::Submeter => {
                             if passo_submeter != 3 {
                                 return None;
                             }
                             ocorrencias += 1;
                             passo_submeter = 0;
                         }
-                    }
+                        Bloco::ConferirFormulario => {
+                            if passo_confirmar != 2 {
+                                return None;
+                            }
+                            passo_confirmar = 3;
+                        }
+                        Bloco::ConfirmarDados => {
+                            if passo_confirmar != 3 {
+                                return None;
+                            }
+                            confirmacoes += 1;
+                            passo_confirmar = 0;
+                        }
+                        Bloco::Outro => {}
+                    },
                     _ => prefixo.push(c),
                 },
                 Estado::ComentarioDeBloco => {
@@ -95,7 +152,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
     if estado != Estado::Codigo || !blocos.is_empty() {
         return None;
     }
-    Some((ocorrencias, funcoes_submeter))
+    Some((ocorrencias, funcoes_submeter, confirmacoes))
 }
 
 /// A captura 4.0.9 publica btnSalvar como button habilitado com
@@ -148,6 +205,7 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     }
     let mut ocorrencias = 0;
     let mut funcoes_submeter = 0;
+    let mut confirmacoes = 0;
     for no in dom.query_selector("script").into_iter().flatten() {
         let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             return false;
@@ -167,14 +225,15 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
             Err(_) => return false,
         }
         let texto = script.inner_text(dom.parser());
-        let Some((instrucoes, funcoes)) = contar_instrucoes(&texto) else {
+        let Some((instrucoes, funcoes, chamadas)) = contar_instrucoes(&texto) else {
             return false;
         };
         ocorrencias += instrucoes;
         funcoes_submeter += funcoes;
-        if ocorrencias > 1 || funcoes_submeter > 1 {
+        confirmacoes += chamadas;
+        if ocorrencias > 1 || funcoes_submeter > 1 || confirmacoes > 1 {
             return false;
         }
     }
-    ocorrencias == 1 && funcoes_submeter == 1
+    ocorrencias == 1 && funcoes_submeter == 1 && confirmacoes == 1
 }
