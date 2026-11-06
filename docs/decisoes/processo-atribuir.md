@@ -127,8 +127,9 @@ derivado; não comprovam POST nem efeito no SEI.
 
 `--confirmar` ainda recusa `escrita_de_atribuicao_ainda_nao_verificada`
 antes de abrir sessão. O fluxo injetável possui testes de POST único,
-releitura e saída 3, mas a decisão será revista após replays e validações
-em duas instalações de treinamento. O RED observou 4 testes falhando,
+releitura e saída 3. Prévia em duas instalações de treinamento já
+comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão será revista
+após validar o POST e sua reversão por leitura em treinamento. O RED observou 4 testes falhando,
 1.689 aprovados no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454).
 
 ## Controles efetivamente acionáveis (06/11/2026)
