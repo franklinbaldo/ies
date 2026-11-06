@@ -326,30 +326,11 @@ controle habilitado conserva **5 GET, 0 POST**.
 **1 FAIL novo, 1.757 PASS, 23 ignored preexistentes**. A evidência de
 GREEN depende do CI do head final; a execução não fez acesso live ao SEI.
 `--deixar --confirmar` continua bloqueado antes da sessão/rede.
-
+ 
 ## Guarda de ancestrais inertes do Adicionar (06/11/2026, 🐢)
 
-**Observado:** a UnB publica `btnAdicionar` com URL de cadastro no
-`onclick`. A guarda anterior conferia `disabled` no botão e
-`fieldset disabled` **somente quando o botão era filho direto**.
-Com o botão dentro de `<fieldset disabled><div>…</div></fieldset>`,
-o leitor concluía incorretamente que o cadastro estava disponível.
-Contêineres `hidden` e `inert` também tornam inerte a oferta mesmo
-que o botão interno tenha URL plausível. Os arranjos aninhados são casos
-adversariais sintéticos baseados na estrutura observada.
-
-**Decisão:** verificar toda a descendência do ancestral inerte no DOM,
-por identidade de tag e sem executar JS ou procurar atributos por regex.
-Recusar antes do GET de cadastro e do POST, sem novo subcódigo ou mudança
-de flags. Optou-se por falhar fechado em situações de HTML não observadas,
-mesmo que o navegador pudesse tratar exceções de um `legend` de modo
-distinto. O botão habilitado isolado mantém o caminho original.
-
-**RED:** CI do teste isolado [42282321667](https://github.com/franklinbaldo/ies/actions/runs/42282321667),
-`1055bdc`: **1 FAIL funcional novo / 1.784 PASS / 23 ignorados
-preexistentes**; falha `requisição além do roteiro` comprovou o GET
-não autorizado. **GREEN:** aferir no CI do commit posterior. A bateria
-nova cobre `fieldset disabled` aninhado, contêiner `hidden` e
-contêiner `inert`, cada um com e sem `--confirmar`, todos com
-**4 GET/0 POST**. Live nesta fatia: NOT_RUN, **0 requisições,
-0 escritas, 0 resíduos novos**. A retirada confirmada segue bloqueada.
+A oferta de cadastro é recusada quando o botão está dentro de
+`fieldset disabled`, `hidden` ou `inert`, inclusive em descendência
+aninhada; a decisão, os casos RED e o orçamento estão no
+[relatório de evidência da oferta inerte](../validacao-live/2026-11-06-processo-acompanhar-oferta-inerte.md).
+A CLI de retirada confirmada continua bloqueada.
