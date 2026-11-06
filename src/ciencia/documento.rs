@@ -1,4 +1,4 @@
-//! Ciência do documento, oráculo Todos tests/test_documento_ciente_010.py
+//! Ciência do documento, oráculo Todos `tests/test_documento_ciente_010.py`
 //! @323eb01: prévia sem mutação, um GET mutador, releitura independente.
 //! A lista CD<id> do documento é a única prova, nunca a C do processo.
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
