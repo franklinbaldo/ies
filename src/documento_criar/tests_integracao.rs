@@ -438,10 +438,7 @@ fn fechamento_de_script_dentro_de_literal_interrompe_cadeia() {
     // Pela tokenizacao HTML, </script> encerra o elemento mesmo se os
     // caracteres estiverem escritos numa string JavaScript.
     // As funcoes seguintes NAO sao codigo daquele script.
-    let html = cadastro().replace(
-        "<script>",
-        "<script>\nconst fragmento = '</script>';\n",
-    );
+    let html = cadastro().replace("<script>", "<script>\nconst fragmento = '</script>';\n");
     let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
     assert_eq!(
         resultado.err().map(|erro| erro.subcodigo()),
