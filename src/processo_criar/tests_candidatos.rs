@@ -387,6 +387,10 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
     assert_eq!(diagnostico.causa_post, "falha_de_rede");
     assert_eq!(diagnostico.causa_releitura, Some("status_http_de_erro_do_servidor"));
+    assert_eq!(
+        diagnostico.http_releitura.as_ref().map(|http| http.status),
+        Some(503)
+    );
     assert_eq!(diagnostico.candidatos_observados, None);
     // RED: status do GET era perdido porque só se consultava a causa do POST.
     assert_eq!(erro.status_http().map(|h| h.status), Some(503));
@@ -395,5 +399,49 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
         Some("Controle indisponível")
     );
     assert_eq!(requests.len(), 5); // 3 GET prévios + 1 POST + 1 GET falho
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
+    // O POST pode retornar 503 enquanto a leitura posterior retorna 502.
+    // Nunca ocultar o segundo fato pela existência de status no primeiro.
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado::sem_mensagem(503),
+        )),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado {
+                status: 502,
+                mensagem_do_servidor: Some("Falha de leitura saneada".to_owned()),
+            },
+        )),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("duas falhas nao confirmam criacao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|http| http.status), Some(503));
+    let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
+    assert_eq!(diagnostico.causa_post, "status_http_de_erro_do_servidor");
+    assert_eq!(diagnostico.causa_releitura, Some("status_http_de_erro_do_servidor"));
+    let http_releitura = diagnostico.http_releitura.expect("HTTP da releitura");
+    assert_eq!(http_releitura.status, 502);
+    assert_eq!(
+        http_releitura.mensagem_do_servidor.as_deref(),
+        Some("Falha de leitura saneada")
+    );
+    assert_eq!(requests.len(), 5); // 3 GET + POST único + GET posterior
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
