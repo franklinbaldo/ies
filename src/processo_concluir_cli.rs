@@ -317,6 +317,12 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
     linhas.join("\n")
 }
 
+// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
+#[cfg(test)]
+fn linhas_da_falha(_erro: &ErroConcluir) -> Vec<String> {
+    Vec::new()
+}
+
 #[cfg(test)]
 #[path = "processo_concluir_cli/tests.rs"]
 mod tests;
