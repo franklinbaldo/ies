@@ -88,6 +88,7 @@ pub(crate) enum ErroCriar {
     EscolhaInesperada,
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),
+    Fotografia(reconciliacao::ErroFotografia),
     EfeitoIncerto,
 }
 
@@ -104,6 +105,7 @@ impl ErroCriar {
             Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
             Self::Interessado(erro) => erro.subcodigo(),
             Self::Hipotese(erro) => erro.subcodigo(),
+            Self::Fotografia(erro) => crate::erro_publico::folha(erro),
             Self::EfeitoIncerto => "efeito_incerto_na_criacao",
         }
     }
@@ -468,6 +470,13 @@ pub(crate) fn criar<V: EnvioDoControle>(
     if !pedido.confirmar {
         return Ok(feito);
     }
+    // Sem prova de cobertura dos Gerados *antes* do POST, não existe
+    // base segura para comparar o efeito de uma resposta incerta.
+    // Esta leitura usa o Controle que já foi obtido: zero novos requests.
+    // A fotografia será reutilizada na ligação do fluxo de reconciliação.
+    let _gerados_antes =
+        reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
+            .map_err(E::Fotografia)?;
     // Não há retry após a submissão.
     let mut tentou = false;
     let resposta = enviar_submissao_via(submissao, cookie, |s, c| {
@@ -527,3 +536,7 @@ mod tests_hipotese;
 #[cfg(test)]
 #[path = "acervo.rs"]
 mod acervo;
+
+#[allow(dead_code)] // etapa offline da #245; ligação ao transporte em próxima fatia.
+#[path = "reconciliacao.rs"]
+mod reconciliacao;

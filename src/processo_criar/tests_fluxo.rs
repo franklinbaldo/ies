@@ -434,3 +434,57 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
+
+/// #245: a lista Gerados precisa ter cobertura provada ANTES de uma escrita.
+/// O controle inicial publica cinco registros e apenas a primeira linha;
+/// isso não permite reconciliar futuramente a criação.
+#[test]
+fn confirma_recusa_gerados_paginados_antes_de_post_criador() {
+    let amb = ambiente();
+    let parcial = tela_controle().replace(
+        "<caption>0 registros:</caption></table>",
+        "<caption>5 registros - 1 a 1):</caption>\
+         <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
+    );
+    let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(
+        resultado.unwrap_err().subcodigo(),
+        "gerados_sem_cobertura_completa_para_reconciliacao"
+    );
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
+
+/// A restrição à escrita não transforma uma prévia legítima em erro.
+/// A fotografia só é exigida quando há intenção de enviar o POST criador.
+#[test]
+fn previa_nao_exige_fotografia_completa_de_gerados() {
+    let amb = ambiente();
+    let parcial = tela_controle().replace(
+        "<caption>0 registros:</caption></table>",
+        "<caption>5 registros - 1 a 1):</caption>\
+         <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
+    );
+    let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(false),
+            rede,
+        )
+    });
+    assert!(!resultado.unwrap().confirmado);
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
