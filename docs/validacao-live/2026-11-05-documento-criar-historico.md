@@ -209,3 +209,26 @@ casos adversariais e o orçamento exato. Só depois de RED/GREEN, CI e nova
 prévia autenticada considerar **um único** POST de criação autorizado em
 treinamento, seguido obrigatoriamente de releitura e registro do resíduo.
 A issue permanece **WIP**.
+
+## Regexp lexical em código auxiliar — retomada 🐙 de 06/11
+
+Observação anterior ao RED: o [diagnóstico UnB 42209629903](https://github.com/franklinbaldo/ies/actions/runs/42209629903)
+mostra 25 scripts, cadeia Salvar ativa no script #24 e código auxiliar
+extenso. **Não há prova de regexp na página real.** A hipótese foi
+isolada numa fixture sintética de script adicional com uma chave de
+regexp escapada. O leitor anterior rejeitava a cadeia correta porque
+interpretava essa chave como bloco JavaScript.
+
+**RED observado** no job Rust do [run 42212158041](https://github.com/franklinbaldo/ies/actions/runs/42212158041):
+**1 FAIL / 1.749 PASS / 23 ignorados** antes da correção; a execução
+geral foi posteriormente cancelada por concorrência. Teste adversarial
+novo permanece ativo. A mudança léxica não amplia a cadeia de submissão
+aceita e não executa JavaScript.
+
+**Live nesta retomada:** login **NOT_RUN**, prévia **NOT_RUN**,
+`--confirmar` **NOT_RUN**, releitura **NOT_RUN**; **0 requisições novas
+ao SEI**, **0 POST real**, **0 documentos criados/alterados**, **nenhum
+resíduo**. O ensaio UnB histórico permanece como prévia PASS e
+confirmação FAIL antes do POST; não declarar resolução live sem nova
+observação e sequência segura em treinamento. Compilação local NOT_RUN
+(sandbox sem Rust/DNS), validação delegada ao CI canônico do head.
