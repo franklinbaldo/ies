@@ -119,6 +119,10 @@ jobs:
       - name: Replay verified monthly returns with production parser
         run: cargo test --locked --bin ies unidade_retornos::acervo::replay_retornos_no_acervo -- --ignored --exact --nocapture --test-threads=1
 
+      - name: Replay obrigatório do processo atribuir (#264, offline)
+        run: |
+          cargo +1.99.1 test --locked --bin ies processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo -- --ignored --exact --nocapture --test-threads=1
+
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas
     # respostas gravadas: nunca requisita a instalação do SEI.
