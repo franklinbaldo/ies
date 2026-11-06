@@ -137,3 +137,33 @@ não confirma aplicação, não repete a escrita e não divulga URL assinada.
 **LIVE:** prévia NOT_RUN (0), confirmar NOT_RUN (0), releitura NOT_RUN (0);
 **0 requisições reais, 0 escritas, nenhum resíduo novo**. Não repetir
 `23106.001875/2026-93` (UnB de treinamento). A issue segue WIP.
+
+
+## Continuação 🦉 — falha após `Location` válido (06/11/2026)
+
+**Observação pré-RED:** o fluxo Web documentado devolve um redirecionamento
+após o POST criador, mas só a leitura independente da tela e árvore
+confere NUP e ID. Um status de erro no GET de verificação é fato
+distinto de recusa do POST: não comprova não aplicação.
+
+**RED observado:** [CI 42210005212](https://github.com/franklinbaldo/ies/actions/runs/42210005212),
+**2 FAIL, 1.705 PASS, 22 ignored preexistentes**. O HTTP 503 no primeiro
+GET verificador perdia `status_http`; a falha de rede perdia o
+subcódigo `falha_de_rede`. Os testes permanecem ativos.
+
+**Implementação:** a verificação após `Location` preserva a causa do
+GET/DOM em variante tipada, mas continua **saída 3** até comprovar a
+criação. Sem retry, sem novo POST, sem sucesso por redirecionamento.
+
+**Orçamento sintético exato:** cada teste usa 3 GET iniciais + 1 POST
+criador + 1 GET verificador que falha = **5 pedidos** (4 GET, 1 POST),
+zero requisições posteriores.
+
+**Live em treinamento nesta fatia:** prévia **NOT_RUN** (0 requisições);
+confirmação **NOT_RUN** (0); verificação por leitura **NOT_RUN** (0).
+Total **0 requisições reais**, **0 escritas**, **0 resíduos novos**.
+Não repetir o POST histórico da UnB que criou o NUP
+`23106.001875/2026-93` (id 51731). Segunda instalação ainda
+pendente; confirmar somente se for possível cumprir toda a sequência
+prévia → confirmação única → verificação por leitura → registro do
+resíduo. Issue #245 continua WIP.
