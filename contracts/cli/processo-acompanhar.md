@@ -19,9 +19,10 @@ origem e assinatura antes de fazer um GET explícito.
 
 Com acompanhamentos, a página publica a tabela com resumo
 `Tabela de Acompanhamentos.` e `btnAdicionar`, cuja URL vem da própria
-tela. O botão precisa estar habilitado: `disabled` não oferece cadastro,
-mesmo que publique um `onclick` com URL; a operação recusa antes de buscar
-o formulário ou enviar POST. A lista incompleta não prova ausência. O grupo é escolhido pelo
+tela. O botão precisa estar acionável na Web: `disabled`, `hidden` ou
+um `<fieldset disabled>` ancestral não oferecem cadastro, mesmo com
+`onclick` válido; a operação recusa antes de buscar o formulário ou enviar
+POST. A lista incompleta não prova ausência. O grupo é escolhido pelo
 **nome exato** entre as opções habilitadas de `selGrupoAcompanhamento`.
 Grupo ausente ou repetido é erro tipado. A lista também recusa duas
 linhas com o mesmo grupo e IDs distintos: nesse estado, selecionar a
