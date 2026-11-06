@@ -199,6 +199,20 @@ fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
             "</script>",
             "\n`;\n</script>",
         ),
+        // Atribuição em ramo comprovadamente inatingível: nenhuma escrita.
+        cadastro()
+            .replace("<script>", "<script>if (false) {\n")
+            .replace("</script>", "\n}</script>"),
+        // Uma função arbitrária que não integra o caminho de salvar não
+        // comprova a operação, ainda que seu corpo contenha a instrução.
+        cadastro()
+            .replace("<script>", "<script>function exemploNaoChamado() {\n")
+            .replace("</script>", "\n}</script>"),
+        // Mesmo uma função chamada submeter não autoriza instrução
+        // dentro de seu próprio ramo não alcançável.
+        cadastro()
+            .replace("<script>", "<script>function submeter() {\nif (false) {\n")
+            .replace("</script>", "\n}\n}</script>"),
     ];
     for html in casos {
         let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
