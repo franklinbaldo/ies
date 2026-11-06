@@ -159,10 +159,12 @@ fn formulario_de_outro_processo_recusa_sem_post() {
 fn previa_preserva_o_texto_original_do_andamento() {
     let amb = ambiente();
     let texto = "  novo\ntexto  ";
-    let (resultado, pedidos) = rodar_com(&amb, respostas_previa(), |sessao, nup, indice, roteiro| {
-        registrar(sessao, nup, texto, false, None, indice, roteiro)
-    });
-    assert_eq!(resultado.unwrap().texto, texto);
+    let (resultado, pedidos) =
+        rodar_com(&amb, respostas_previa(), |sessao, nup, indice, roteiro| {
+            registrar(sessao, nup, texto, false, None, indice, roteiro)
+        });
+    let feito = resultado.ok().expect("prévia da tela sintética");
+    assert_eq!(feito.texto, texto);
     assert_eq!(pedidos.len(), 5);
     assert!(pedidos.iter().all(|pedido| pedido.metodo == "GET"));
 }
@@ -180,8 +182,17 @@ fn post_preserva_espacos_e_quebra_de_linha_sem_repetir_escrita() {
         registrar(sessao, nup, "  novo\ntexto  ", true, None, indice, roteiro)
     });
     assert!(matches!(resultado, Err(Erro::EfeitoIncerto)));
-    let postagens: Vec<_> = pedidos.iter().filter(|pedido| pedido.metodo == "POST").collect();
+    let postagens: Vec<_> = pedidos
+        .iter()
+        .filter(|pedido| pedido.metodo == "POST")
+        .collect();
     assert_eq!(postagens.len(), 1);
-    assert!(postagens[0].corpo.as_deref().unwrap().contains("txaDescricao=++novo%0Atexto++"));
+    assert!(
+        postagens[0]
+            .corpo
+            .as_deref()
+            .unwrap()
+            .contains("txaDescricao=++novo%0Atexto++")
+    );
     assert_eq!(pedidos.len(), 8);
 }
