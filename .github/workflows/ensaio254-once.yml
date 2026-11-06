@@ -9,7 +9,9 @@ permissions:
 
 jobs:
   ensaio:
-    if: github.run_attempt == 1 && github.event.head_commit.message == 'ci(#254): executar somente um ensaio de treinamento'
+    if: >-
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci(#254): executar somente um ensaio de treinamento'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
