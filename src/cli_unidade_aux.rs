@@ -19,3 +19,15 @@ pub(crate) fn listar(
     )
 }
 
+/// Exibe colunas ou encaminha sua definição, preservando o fluxo original.
+pub(crate) fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
+    match definir {
+        None => crate::unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
+        Some(definir) => crate::unidade_colunas_definir_cli::definir_colunas(
+            cli.unidade.as_deref(),
+            cli.json,
+            definir,
+            confirmar,
+        ),
+    }
+}
