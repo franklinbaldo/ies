@@ -75,6 +75,9 @@ mod erro_fluxo;
 mod pos_escrita;
 #[path = "verificacao_apos_post.rs"]
 mod verificacao_apos_post;
+#[path = "links.rs"]
+mod links;
+use links::{id_do_link, resolver_link, retorno_da_criacao, url_do_redirecionamento};
 pub(crate) use erro_fluxo::{ErroCriar, EvidenciaDeCoincidencia};
 
 pub(crate) struct PedidoCriar<'a> {
@@ -165,118 +168,6 @@ fn enviada<V: EnvioDoControle>(
     })
 }
 
-fn id_do_link(link: &str) -> Option<&str> {
-    let mut ids =
-        link.split('?').nth(1)?.split('&').filter(|par| {
-            par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
-        });
-    let primeiro = ids.next()?.strip_prefix("id_tipo_procedimento=")?;
-    (ids.next().is_none() && !primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit()))
-        .then_some(primeiro)
-}
-
-/// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
-/// esperado. Uma segunda ação diferente também torna a URL ambígua.
-fn acao_unica(consulta: &str, esperada: &str) -> bool {
-    let mut acoes = consulta.split('&').filter_map(|par| {
-        let (nome, valor) = par.split_once('=').unwrap_or((par, ""));
-        (nome == "acao").then_some(valor)
-    });
-    acoes.next() == Some(esperada) && acoes.next().is_none()
-}
-
-fn resolver_link(
-    instalacao: &Instalacao,
-    base: &str,
-    referencia: &str,
-    acao: &str,
-) -> Result<String, ErroCriar> {
-    if !referencia.starts_with("controlador.php?")
-        || referencia.contains(['#', '\\', '\''])
-        || !referencia.bytes().all(|b| (33..=126).contains(&b))
-    {
-        return Err(ErroCriar::Formulario);
-    }
-    let base = base.split('?').next().ok_or(ErroCriar::Formulario)?;
-    let (pasta, _) = base.rsplit_once('/').ok_or(ErroCriar::Formulario)?;
-    let url = format!("{pasta}/{referencia}");
-    let partes = crate::url_observada::UrlHttps::interpretar(&url).ok_or(ErroCriar::Formulario)?;
-    if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
-        return Err(ErroCriar::Formulario);
-    }
-    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
-        return Err(ErroCriar::Formulario);
-    }
-    Ok(url)
-}
-
-fn url_do_redirecionamento(
-    instalacao: &Instalacao,
-    localizacao: &str,
-    url_envio: &str,
-    acao: &str,
-) -> Result<String, ErroCriar> {
-    let absoluta = if localizacao.starts_with("https://") {
-        localizacao.to_owned()
-    } else {
-        resolver_link(instalacao, url_envio, localizacao, acao)?
-    };
-    let partes =
-        crate::url_observada::UrlHttps::interpretar(&absoluta).ok_or(ErroCriar::EfeitoIncerto)?;
-    if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
-        return Err(ErroCriar::EfeitoIncerto);
-    }
-    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
-        return Err(ErroCriar::EfeitoIncerto);
-    }
-    Ok(absoluta)
-}
-
-fn retorno_da_criacao(
-    instalacao: &Instalacao,
-    localizacao: &str,
-    url_envio: &str,
-) -> Result<(String, String), ErroCriar> {
-    let url = url_do_redirecionamento(instalacao, localizacao, url_envio, "procedimento_trabalhar")
-        .map_err(|_| ErroCriar::EfeitoIncerto)?;
-    let consulta = crate::url_observada::UrlHttps::interpretar(&url)
-        .and_then(|p| p.consulta)
-        .ok_or(ErroCriar::EfeitoIncerto)?;
-    let mut ids = consulta
-        .split('&')
-        .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
-    let primeiro = ids.next().ok_or(ErroCriar::EfeitoIncerto)?;
-    if ids.next().is_some() {
-        return Err(ErroCriar::EfeitoIncerto);
-    }
-    let id = primeiro
-        .strip_prefix("id_procedimento=")
-        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::EfeitoIncerto)?
-        .to_owned();
-    Ok((url, id))
-}
-
-/// Compatibilidade dos cenários offline que só verificam o resultado.
-#[cfg(test)]
-pub(crate) fn criar<V: EnvioDoControle>(
-    origem: &str,
-    url_controle: &str,
-    cookie: &CookieDaSessao,
-    pedido: &PedidoCriar<'_>,
-    envio: &mut V,
-) -> Result<Criacao, ErroCriar> {
-    let mut requisicoes = 0;
-    criar_com_contagem(
-        origem,
-        url_controle,
-        cookie,
-        pedido,
-        envio,
-        &mut requisicoes,
-    )
-}
-
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -289,9 +180,9 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     requisicoes: &mut u32,
 ) -> Result<Criacao, ErroCriar> {
     use ErroCriar as E;
+    *requisicoes = 0;
     let instalacao = Instalacao::interpretar(origem).ok_or_else(E::local)?;
     let cookie_valor = cookie.valor().map_err(|_| E::local())?;
-    *requisicoes = 0;
     let controle = get(envio, url_controle, cookie_valor, requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
         .map_err(|_| E::UnidadeDiferente)?;
