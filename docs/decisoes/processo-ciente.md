@@ -116,3 +116,28 @@ Comentários, literais de string e scripts de template foram os três
 contraexemplos que antes devolviam a atividade fictícia. O GREEN deve
 ser conferido no CI do head atualizado da PR #317. Replay específico
 e validação em treinamento permanecem NOT_RUN.
+
+
+## Aceite em ramo condicional — correção após revisão 🦅 (06/11/2026)
+
+A profundidade de chaves do leitor estático não prova execução: tanto
+`function inicializar(){ atualizarArvore(...) }` quanto
+`if(false){ atualizarArvore(...) }` têm profundidade 1. A chamada
+também pode estar em função arbitrária não invocada, condição sem chaves
+ou expressão cujo efeito não foi comprovado. Portanto, admitir qualquer
+posição lexical fora de comentários e literais era inseguro.
+
+A extração agora admite somente uma instrução independente no nível
+principal do script ou no corpo direto da função `inicializar()`
+observada na resposta do SEI. Não avalia condições nem executa JS;
+quando o controle de fluxo não é comprovado, devolve
+`AceiteSemAtividade`. Mesmo que a releitura já contenha o id da
+atividade, não o usa para confirmar a escrita: **efeito incerto e
+saída 3, sem repetir o GET mutador**.
+
+Regressões sintéticas em `src/ciencia/tests.rs` e
+`src/ciencia/tests_fluxo.rs` cobrem `if(false)` com e sem chaves,
+função não invocada e resposta com lista preexistente. O RED anterior
+à correção está no [CI 42223177117](https://github.com/franklinbaldo/ies/actions/runs/42223177117):
+**3 FAIL / 1.717 PASS / 22 ignored preexistentes**; a confirmação
+de GREEN depende dos gates do novo head.
