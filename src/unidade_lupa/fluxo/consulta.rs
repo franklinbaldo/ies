@@ -115,7 +115,11 @@ pub(super) fn consulta(
         .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
     let mut superior = 0;
     let mut inferior = 0;
-    for no in form.query_selector(dom.parser(), "select").into_iter().flatten() {
+    for no in form
+        .query_selector(dom.parser(), "select")
+        .into_iter()
+        .flatten()
+    {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
