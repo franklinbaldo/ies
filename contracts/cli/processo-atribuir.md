@@ -26,6 +26,13 @@ o login **inteiro e exato** escolhe uma opção.
 
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
 situação não observada e atribuição já aplicada são recusas tipadas.
+Quando a situação não está observada na unidade da **tela autenticada**,
+a recusa conserva `situacao_da_atribuicao_nao_observada` e publica
+`unidade` (tela), `aberto_em` (siglas da árvore, `null` se não lidas),
+`motivo` da leitura (`null` quando as unidades foram lidas) e
+`requisicoes` efetivamente tentadas até a recusa. A presença de PR-P
+na árvore não autoriza escolher PR-P se a tela publicou outra unidade.
+Este diagnóstico é só leitura, não relaxa a validação nem habilita escrita.
 Nenhum URL assinado, cookie ou senha é publicado. O subcódigo
 `charset_da_tela_nao_suportado` indica MIME sem codificação suportada.
 
