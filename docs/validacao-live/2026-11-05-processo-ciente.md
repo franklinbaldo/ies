@@ -55,3 +55,28 @@ comportamento sintético, não a compatibilidade ao vivo.
 - **GREEN:** exigir CI verde no head final desta PR; nenhum PASS presumido.
 - **Live:** UnB **NOT_RUN (0 requisições)**, segunda instalação **NOT_RUN (0)**, confirmação **NOT_RUN (0)**, verificação **NOT_RUN (0)** e replay específico **NOT_RUN**. **0 requisições reais ao SEI, 0 escritas, 0 resíduos**.
 
+
+
+## Script de dados ou externo no aceite — 🦊 Raposa (06/11/2026)
+
+- **Observação:** o leitor existente de `documento_ciencia` já distingue
+  `script` executável de `script type=application/json` ou com `src`;
+  o leitor do aceite ignorava esses atributos e podia atribuir uma atividade
+  anterior à tentativa atual. As cassettes do acervo foram consultadas
+  apenas por metadados; replay específico ainda não foi executado.
+- **RED real antes da implementação:** [CI 42268070022](https://github.com/franklinbaldo/ies/actions/runs/42268070022):
+  **1 FAIL / 1.739 PASS / 22 ignored preexistentes**; um script de dados
+  forneceu `Ok("42457")` indevidamente, contra `AceiteSemAtividade`.
+- **Correção:** em `src/ciencia.rs`, ler `type` e `src` por
+  `html_atributos` antes de extrair `id_atividade`; ignorar scripts
+  de dados ou com fonte externa, sem interpretar/executar JS. O teste
+  de fluxo também protege contra a releitura de ciência antiga.
+- **GREEN:** [CI 42268811765](https://github.com/franklinbaldo/ies/actions/runs/42268811765),
+  head `9b72e70`, **5/5 PASS** (prek, binário e três replays gerais).
+- **Orçamento sintético:** **6 GET, 1 potencialmente mutador, 0 retry**
+  e **saída 3** quando o aceite só existe em script inerte. Uma releitura
+  da árvore é feita, sem requisitar lista da atividade não comprovada.
+- **Live:** prévia UnB **NOT_RUN (0 requisições)**; segunda instalação
+  **NOT_RUN (0)**; `--confirmar` **NOT_RUN (0)**; releitura live
+  **NOT_RUN (0)**; replay específico de ciência **NOT_RUN**.
+  **0 requisições reais, 0 escritas e 0 resíduos novos**.
