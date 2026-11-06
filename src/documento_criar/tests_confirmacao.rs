@@ -544,7 +544,9 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
                     content_length: None,
                     localizacao: None,
                     corpo: Cursor::new(
-                        b"<html><textarea id=\"txaInfraValidacao\">Recusa sintética</textarea></html>".to_vec(),
+                        "<html><textarea id=\"txaInfraValidacao\">Recusa sintética</textarea></html>"
+                            .as_bytes()
+                            .to_vec(),
                     ),
                 },
                 localizacao: None,
