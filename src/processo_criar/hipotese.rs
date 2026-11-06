@@ -378,7 +378,10 @@ mod tests {
         // mesmo quando só existe uma hipótese habilitada.
         let xml =
             "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
-        assert_eq!(opcao_unica(xml), Err(ErroHipotese::resposta_nao_reconhecida()));
+        assert_eq!(
+            opcao_unica(xml),
+            Err(ErroHipotese::resposta_nao_reconhecida())
+        );
         assert_eq!(
             opcao_selecionada(xml, Some("https://example.invalid/marcador#Base A")),
             Err(ErroHipotese::resposta_nao_reconhecida())
@@ -394,7 +397,10 @@ mod tests {
             opcao_selecionada(xml, Some("31#https://example.invalid/marcador")),
             Err(ErroHipotese::resposta_nao_reconhecida())
         );
-        assert_eq!(opcao_unica(xml), Err(ErroHipotese::resposta_nao_reconhecida()));
+        assert_eq!(
+            opcao_unica(xml),
+            Err(ErroHipotese::resposta_nao_reconhecida())
+        );
     }
 
     #[test]
@@ -430,12 +436,10 @@ mod tests {
     #[test]
     fn causa_ajax_propagada_mantem_http_saneado() {
         use crate::erro_publico::folha;
-        let falha = FalhaTransporte::StatusHttpDeErroDoServidor(
-            StatusHttpRecusado::sem_mensagem(503),
-        );
+        let falha =
+            FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado::sem_mensagem(503));
         let erro = ErroHipotese::de_transporte(&falha);
         assert_eq!(folha(&erro), "status_http_de_erro_do_servidor");
         assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     }
-
 }
