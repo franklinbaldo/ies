@@ -345,3 +345,7 @@ pub(crate) fn conferir_remocao(
 #[cfg(test)]
 #[path = "processo_acompanhar_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "processo_acompanhar/acervo.rs"]
+mod acervo;
