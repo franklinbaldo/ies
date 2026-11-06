@@ -104,38 +104,47 @@ pub(super) fn consulta(
         envio: envio_da_lupa(html)?,
         ..CONSULTAR
     };
-    // Controles de paginação devem existir como o SEI os publica.
-    // A biblioteca de formulário insere os ocultos fixos na ordem correta.
-    derivar_submissao(
-        &operacao,
-        instalacao,
-        &tela,
-        "",
-        &[
-            ("selOrgaoUnidade", ""),
-            ("txtSiglaUnidade", ""),
-            ("txtDescricaoUnidade", ""),
-            ("hdnInfraPaginaAtual", &indice),
-            ("selInfraPaginacaoSuperior", &indice),
-            ("selInfraPaginacaoInferior", &indice),
-        ],
-    )
-    .map_err(|e| {
-        #[cfg(test)]
-        if instalacao.host() == "sei.treinamento.unb.br" {
-            let campo = match &e {
-                crate::formulario_web::ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { campo }
-                    if CONSULTAR.campos_usuario.contains(&campo.as_str())
-                        || CONSULTAR.campos_ocultos_reescritos.contains(&campo.as_str()) =>
-                {
-                    campo.as_str()
-                }
-                _ => "<fora-dos-campos-esperados>",
-            };
-            println!("diagnostico derivacao da lupa UnB: {}, campo={campo}", e.subcodigo());
+    // UnB (cassette 57497bc11c4f) publica só uma página, sem seletores
+    // de paginação. GO (cassette 85f61d67) publica ambos. Nunca inventar
+    // campos de formulário ausentes; a identidade e o paginador da página
+    // são conferidos estruturalmente antes de derivar o único POST.
+    let lida = super::ler_pagina(html).map_err(FalhaDaLupa::Tela)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let mut superior = 0;
+    let mut inferior = 0;
+    for no in form.query_selector(dom.parser(), "select").into_iter().flatten() {
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(FalhaDaLupa::FormularioInesperado)?;
+        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        match nome.as_deref() {
+            Some("selInfraPaginacaoSuperior") => superior += 1,
+            Some("selInfraPaginacaoInferior") => inferior += 1,
+            _ => {}
         }
-        FalhaDaLupa::FormularioInesperado
-    })
+    }
+    if superior > 1 || inferior > 1 || (lida.paginas > 1 && superior != 1) {
+        return Err(FalhaDaLupa::FormularioInesperado);
+    }
+    let mut campos = vec![
+        ("selOrgaoUnidade", ""),
+        ("txtSiglaUnidade", ""),
+        ("txtDescricaoUnidade", ""),
+        ("hdnInfraPaginaAtual", indice.as_str()),
+    ];
+    if superior == 1 {
+        campos.push(("selInfraPaginacaoSuperior", indice.as_str()));
+    }
+    if inferior == 1 {
+        campos.push(("selInfraPaginacaoInferior", indice.as_str()));
+    }
+    derivar_submissao(&operacao, instalacao, &tela, "", &campos)
+        .map_err(|_| FalhaDaLupa::FormularioInesperado)
 }
 
 #[cfg(test)]
