@@ -90,92 +90,6 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     );
 }
 
-/// Diagnostico agregado e saneado para um calendario historico recusado.
-fn diagnosticar_recusa_calendario(
-    html: &str,
-    url_servida: &str,
-    origem: &crate::instalacao::Instalacao,
-) {
-    let servida = crate::url_observada::UrlHttps::interpretar(url_servida);
-    let origem_valida = servida
-        .as_ref()
-        .is_some_and(|u| origem.autoriza_controlador(u.host, u.caminho));
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        println!("diagnostico: HTML nao estruturado; origem_valida={origem_valida}");
-        return;
-    };
-    let parser = dom.parser();
-    let mut formatos = [0usize; 5];
-    let mut sem_hash = 0usize;
-    let mut caracteres_recusados = 0usize;
-    let mut hash_64 = 0usize;
-    let mut hash_nao_hex = 0usize;
-    let mut nomes_invalidos = 0usize;
-    let mut valores_invalidos = 0usize;
-    let mut nomes_repetidos = 0usize;
-    let mut acao_incorreta = 0usize;
-    let mut ajax_encontrado = 0usize;
-    let mut entidades_invalidas = 0usize;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Ok(Some(href)) = crate::html_atributos::valor_do_atributo(tag, "href") else {
-            continue;
-        };
-        if !href.contains("retorno_programado_listar") {
-            continue;
-        }
-        let classe = if href.starts_with("controlador.php?") {
-            0
-        } else if href.starts_with('/') {
-            1
-        } else if href.starts_with("https://") {
-            2
-        } else if href.starts_with("javascript:") {
-            3
-        } else {
-            4
-        };
-        formatos[classe] += 1;
-        sem_hash += usize::from(!href.contains("infra_hash="));
-        caracteres_recusados +=
-            usize::from(href.contains(['#', '\\', '\'']) || href.contains(".."));
-        if let Some(hash) = href.split("infra_hash=").nth(1) {
-            hash_64 += usize::from(hash.split('&').next().is_some_and(|v| v.len() == 64));
-        }
-        let Some(decodificado) = crate::formulario_web::decodificar_atributo(&href) else {
-            entidades_invalidas += 1;
-            continue;
-        };
-        let Some((_, consulta)) = decodificado.split_once('?') else {
-            continue;
-        };
-        let mut vistos = std::collections::HashSet::new();
-        for par in consulta.split('&') {
-            let Some((nome, valor)) = par.split_once('=') else {
-                nomes_invalidos += 1;
-                continue;
-            };
-            nomes_invalidos += usize::from(
-                crate::transporte::conferir_chave_de_consulta(nome).is_err(),
-            );
-            valores_invalidos += usize::from(
-                crate::transporte::conferir_valor_de_consulta(valor).is_err(),
-            );
-            nomes_repetidos += usize::from(!vistos.insert(nome));
-            acao_incorreta += usize::from(nome == "acao" && valor != "retorno_programado_listar");
-            ajax_encontrado += usize::from(nome == "acao_ajax");
-            hash_nao_hex += usize::from(
-                nome == "infra_hash" && !valor.bytes().all(|b| b.is_ascii_hexdigit()),
-            );
-        }
-    }
-    println!(
-        "diagnostico saneado: origem_valida={origem_valida} formatos_relativo_absoluto_https_js_outros={formatos:?} sem_hash={sem_hash} hash_64={hash_64} caracteres_recusados={caracteres_recusados} hash_nao_hex={hash_nao_hex} nomes_invalidos={nomes_invalidos} valores_invalidos={valores_invalidos} nomes_repetidos={nomes_repetidos} acao_incorreta={acao_incorreta} ajax_encontrado={ajax_encontrado} entidades_invalidas={entidades_invalidas}"
-    );
-}
-
 /// Exercita o parser da CLI nas respostas originais, sem rede ou logs de URLs.
 fn conferir_calendario_real(
     html: &str,
@@ -188,7 +102,6 @@ fn conferir_calendario_real(
         .expect("URL original da resposta gravada");
     crate::unidade_retornos_web::conferir_calendario_gravado(html, url_servida, origem)
         .unwrap_or_else(|erro| {
-            diagnosticar_recusa_calendario(html, url_servida, origem);
             panic!(
                 "{nome}: calendario passo {} recusado: {}",
                 resposta.passo,
