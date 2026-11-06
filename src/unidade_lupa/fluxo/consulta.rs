@@ -135,10 +135,47 @@ mod replay_integral_go {
                 )
                 .err()
                 .expect("derivacao recusada");
+                let dom = tl::parse(&html, tl::ParserOptions::default()).expect("dom");
+                let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+                    .expect("formulario publicado");
+                let mut botoes = Vec::new();
+                for tag in form
+                    .children()
+                    .all(dom.parser())
+                    .iter()
+                    .filter_map(tl::Node::as_tag)
+                {
+                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
+                        .ok()
+                        .flatten();
+                    let name = crate::html_atributos::valor_do_atributo(tag, "name")
+                        .ok()
+                        .flatten();
+                    if id.as_deref() == Some("btnPesquisar")
+                        || name.as_deref() == Some("btnPesquisar")
+                    {
+                        botoes.push((
+                            tag.name().as_utf8_str().to_string(),
+                            crate::html_atributos::valor_do_atributo(tag, "type")
+                                .ok()
+                                .flatten(),
+                            name.is_some(),
+                            crate::html_atributos::valor_do_atributo(tag, "onclick")
+                                .ok()
+                                .flatten()
+                                .is_some(),
+                        ));
+                    }
+                }
                 panic!(
-                    "formulario passo {}: {}",
+                    "formulario passo {}: {}; botoes={:?}; onsubmit={}",
                     resposta.passo,
-                    causa.subcodigo()
+                    causa.subcodigo(),
+                    botoes,
+                    crate::html_atributos::valor_do_atributo(form, "onsubmit")
+                        .ok()
+                        .flatten()
+                        .is_some()
                 );
             }
             resultado.expect("submissao sem recusa");
