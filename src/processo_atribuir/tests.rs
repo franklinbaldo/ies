@@ -145,3 +145,18 @@ fn subcodigos_publicos_do_leitor_sao_estaveis() {
         "atribuicao_ja_aplicada"
     );
 }
+
+
+/// Um valor numérico precisa identificar um único usuário; caso contrário,
+/// escolher pelo login poderia atribuir a outra pessoa.
+#[test]
+fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
+    let html = HTML.replace(
+        "<option value=\"100000036\">aluno20 - aluno20</option>",
+        "<option value=\"100000035\">aluno20 - aluno20</option>",
+    );
+    assert_eq!(
+        ler_tela(&html, ID),
+        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+    );
+}
