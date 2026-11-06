@@ -177,7 +177,11 @@ Sem botão, com tipo/callback divergente, desabilitado ou com outro botão
 `submissao_do_documento_nao_observada`, após os **5 GET de prévia e
 sem POST criador**, nos testes sintéticos. A função JS não é executada;
 atributos são lidos por `html_atributos`. Testes positivos aceitam dois
-botões iguais, como na captura. Isso ainda não comprova live em treinamento.
+botões iguais, como na captura. Além do atributo `disabled` direto,
+`hidden` no botão ou em ancestral e `fieldset disabled` que o contém
+recusam a escrita: 5 GET de prévia, 0 POST criador (casos adversariais
+sintéticos; não atribuídos ao SEI real). Isso ainda não comprova live
+em treinamento.
 
 **RED do novo teste antes da implementação:** [CI 42170278378](https://github.com/franklinbaldo/ies/actions/runs/42170278378),
 **1 falha nova, 1.683 testes aprovados, 18 ignorados**. O teste
