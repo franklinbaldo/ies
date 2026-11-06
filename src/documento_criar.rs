@@ -4,6 +4,7 @@ mod acervo;
 mod confirmacao;
 mod fluxo;
 mod guarda_script;
+mod link_do_tipo;
 pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 
 use crate::arvore_processo::DocumentoNaArvore;
@@ -298,8 +299,7 @@ pub(crate) fn escolha_do_tipo(
         _ => return Err(E::TipoAmbiguo),
     };
     if href.starts_with("controlador.php?") {
-        let link = conferir_endereco_relativo(instalacao, href, "documento_gerar", id_procedimento)
-            .map_err(|_| E::EnderecoDoTipoNaoReconhecido)?;
+        let link = link_do_tipo::conferir_link_do_tipo(instalacao, href, id_procedimento)?;
         return Ok(EscolhaDoDocumento::Link(link));
     }
     if href != "#" && href != "javascript:void(0);" {
