@@ -122,6 +122,7 @@ Esses subcódigos precisam de tipos reais e integração a
 | `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
 | `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
