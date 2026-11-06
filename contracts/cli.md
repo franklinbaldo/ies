@@ -66,6 +66,7 @@ legado do Todos faz parte do contrato público por pressuposição.
   ([contrato](cli/processo-enviar.md))
 - `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
   releitura da árvore e da lista; [contrato](cli/processo-ciente.md); #271)
+- `ies documento ciente NUMERO [--confirmar]` (GET único da ciência e verificação pela Lista de Ciências do documento; [contrato](cli/documento-ciente.md); #271)
 - `ies documento cancelar NUMERO --motivo TEXTO [--confirmar]` (prévia e cancelamento Web irreversível, um POST com verificação pela árvore; [contrato](cli/documento-cancelar.md))
 - `ies documento assinar NUMERO [--cargo TEXTO] [--confirmar]` (assinatura
   com a senha do login, prévia e verificação pela caneta da árvore;
