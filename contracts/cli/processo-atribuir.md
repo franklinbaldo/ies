@@ -57,11 +57,14 @@ real tentada, incluindo o POST único e o GET independente de prova;
 a contagem não implica que a escrita foi aplicada.
 **Releitura coincidente não converte recusa do POST em sucesso.** HTTP 403,
 validação expressa da Infra (ainda que HTTP 200), demais respostas recusadas
-ou um 302 com destino inesperado continuam como efeito incerto (saída 3),
-mesmo quando outro agente deixou a árvore no estado solicitado. A causa,
-o status e a mensagem saneada da recusa são preservados. Só a resposta sem
-recusa (HTML 200 ou 302 reconhecido) ou falha de rede sem resposta admite
-conciliação por leitura; nenhuma dessas vias repete o POST. O 302
+um 302 com destino inesperado **ou HTML 200 genérico sem marcador
+positivo de aceite** continuam como efeito incerto (saída 3), mesmo
+quando outro agente deixou a árvore no estado solicitado. A causa,
+o status e a mensagem saneada da recusa expressa são preservados.
+A observação UnB registrada no Todos @323eb01 mostra aceite por 302;
+um HTML 200 genérico não identifica quem alterou a árvore. Somente o
+302 reconhecido ou uma falha de rede sem resposta admitem conciliação
+por releitura; nenhuma dessas vias repete o POST. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
 solicitado**, sem publicar outra ação de origem. As duas ações são
