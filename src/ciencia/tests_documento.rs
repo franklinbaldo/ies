@@ -169,6 +169,14 @@ fn falha_da_escrita_nao_repetida_seguida_de_leitura() {
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
+    assert!(matches!(
+        erro,
+        E::EfeitoIncerto {
+            falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(FalhaTransporte::Rede)),
+            requisicoes: 6,
+            ..
+        }
+    ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos
@@ -194,6 +202,16 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|s| s.status), Some(403));
     assert!(erro.status_http().and_then(|s| s.mensagem_do_servidor.as_ref()).is_some());
+    assert!(matches!(
+        erro,
+        E::EfeitoIncerto {
+            falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
+                FalhaTransporte::AcessoNegado(_)
+            )),
+            requisicoes: 6,
+            ..
+        }
+    ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
@@ -213,6 +231,14 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|s| s.status), Some(200));
     assert_eq!(erro.status_http().and_then(|s| s.mensagem_do_servidor.as_deref()), Some("Solicitacao recusada"));
+    assert!(matches!(
+        erro,
+        E::EfeitoIncerto {
+            falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
+            requisicoes: 6,
+            ..
+        }
+    ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
