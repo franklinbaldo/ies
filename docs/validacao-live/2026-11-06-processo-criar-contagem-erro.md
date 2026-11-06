@@ -63,3 +63,35 @@ da UnB treinamento `23106.001875/2026-93` (ID 51731) já foi criado
 em execução anterior: **não repetir o POST**. A issue permanece WIP até
 validar prévia → confirmação única → leitura e registrar o resíduo numa
 outra instalação segura.
+
+## Continuação — maxlength publicado no cadastro (#245 / Todos #1248)
+
+**Observação anterior ao RED:** a captura 4.0.9
+`tests/paginas_reais/procedimento_gerar.html` do Todos @`323eb01`
+mostra o `input txtDescricao` com `maxlength="100"`; captura GO 5.0.3
+também publica esse atributo. Não foi necessário acessar produção.
+
+**RED test-first:** branch da PR #340, commit `b57fde8` com quatro
+cenários de transporte sintético (três negativos, um positivo).
+[CI 42311417257](https://github.com/franklinbaldo/ies/actions/runs/42311417257):
+**3 FAIL novos / 1.777 PASS / 22 ignored preexistentes**.
+Antes da implementação a prévia de 101 ASCII retornava sucesso,
+a confirmação chegava a um POST simulado e 51 emoji não-BMP não
+eram recusados. Rustfmt do teste test-first também ficou pendente;
+corrigir sem enfraquecer testes.
+
+**Implementação e orçamento sintético esperado:** interpretar somente o
+`maxlength` servido na tela da sessão, contar comprimento UTF-16,
+recusar `101 > 100` tanto na prévia quanto na confirmação, e
+`102 > 100` para 51 emoji, todos com **3 GET / 0 POST criador**.
+Para 100 caracteres ou formulário sem limite, a prévia continua
+sem escrita (3 GET). Atributo ilegível é erro de HTML, não
+permissão para escrever. Nenhuma requisição adicional foi introduzida.
+
+**Live desta continuação:** prévia em segunda instalação de treinamento
+**NOT_RUN (0 pedidos reais)**; confirmação **NOT_RUN (0 POST real)**;
+verificação **NOT_RUN (0 GET real)**. Total **0 requisições
+reais / 0 escritas / 0 novos resíduos**. O NUP histórico da UnB de
+treinamento não deve receber novo POST; nenhuma instalação de produção
+foi acessada. A issue permanece aberta até o ensaio autenticado
+completo numa segunda instalação.
