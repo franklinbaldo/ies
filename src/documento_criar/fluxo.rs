@@ -296,26 +296,6 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         Some("publico"),
     )
     .map_err(E::Tipo)?;
-    // Diagnóstico temporário #246, somente na UnB de TREINAMENTO.
-    // A captura fica exclusivamente em arquivo privado 0600 no runner;
-    // este ramo SEMPRE recusa ANTES do POST de criação.
-    #[cfg(unix)]
-    if sessao.origem == "https://sei.treinamento.unb.br/sei" {
-        if let Ok(caminho) = std::env::var("IES246_CAPTURA_PRIVADA") {
-            use std::io::Write as _;
-            use std::os::unix::fs::OpenOptionsExt as _;
-            let resultado = std::fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .mode(0o600)
-                .open(caminho)
-                .and_then(|mut arquivo| arquivo.write_all(html_cadastro.as_bytes()));
-            if resultado.is_err() {
-                eprintln!("IES246: diagnostico privado indisponivel");
-            }
-            return Err(E::SubmissaoNaoComprovada);
-        }
-    }
     if !cadastro_publica_script_de_criacao(&html_cadastro) {
         return Err(E::SubmissaoNaoComprovada);
     }
