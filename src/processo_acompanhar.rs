@@ -22,6 +22,7 @@ const TABELA: &str = "Tabela de Acompanhamentos.";
 /// se seu onclick/action contém uma URL plausível. Contêineres hidden/inert
 /// afetam qualquer ação; fieldset disabled desativa apenas controles de
 /// formulário (não âncoras), inclusive descendentes intermediários.
+/// Um <template> ancestral também torna inertes quaisquer controles/scripts.
 /// Na exceção HTML de primeiro legend não observada, falha fechado.
 pub(super) fn controle_inerte(
     dom: &tl::VDom<'_>,
@@ -41,6 +42,7 @@ pub(super) fn controle_inerte(
     for ancestral in dom.nodes().iter().filter_map(tl::Node::as_tag) {
         let bloqueado = presente(ancestral, "hidden")?
             || presente(ancestral, "inert")?
+            || ancestral.name().as_utf8_str().eq_ignore_ascii_case("template")
             || (campo_form
                 && ancestral
                     .name()

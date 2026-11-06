@@ -306,6 +306,11 @@ fn conferir_script(
             .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
         let codigo = tag.inner_text(parser);
         if codigo.contains("function acaoExcluir(") {
+            // O DOM pode expor <script> dentro de <template>, mas o
+            // navegador não executa esse conteúdo inerte.
+            if super::controle_inerte(dom, tag, false, "html_de_acompanhamento_invalido")? {
+                return Err(sem_oferta);
+            }
             // Texto em <script type="application/json">, escopo module ou
             // <script src> não publica a função global que o onclick chama.
             // Nunca tomar código inerte como prova de oferta de escrita.
