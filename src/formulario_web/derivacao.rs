@@ -1,7 +1,7 @@
 //! Derivação de POST da tela servida, com destino original ou reescrito
 //! por script observado (sem executar JavaScript). Refs #254.
 use super::{
-    CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, ErroSubmissaoFormulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, ErroSubmissaoFormulario,
     OperacaoDeFormulario, SubmissaoDerivada, TelaServida, codificar_corpo,
     conferir_unidade, ordenar_campos,
 };
