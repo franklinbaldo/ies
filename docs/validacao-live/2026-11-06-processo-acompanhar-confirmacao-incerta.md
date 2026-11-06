@@ -38,4 +38,13 @@ O script primeiro exigiu prévia com processo, operação, grupo, observação, 
 - O replay obrigatório de acompanhamento usa 8 cassettes de 7 instalações e 189 respostas; não comprova POST live.
 - **`--deixar --confirmar` permanece recusado antes de sessão/rede**. Nenhuma retirada foi tentada. Outra instalação de treinamento: **NOT_RUN, 0 requisições**.
 
+## Regressão funcional após a observação live
+
+A leitura independente posterior à confirmação incerta encontrou grupo existente, mas a CLI publicava `id_acompanhamento: null` para inclusão idempotente, embora a tabela já tivesse uma identidade de linha. Pelo princípio **null = não observado**, isto perdia informação útil para reconciliar o caso, sem autorizar inferência sobre a autoria da escrita.
+
+- Foram acrescentadas **duas asserções** aos testes sintéticos de grupo explícito e grupo padrão já acompanhado, exigindo `id_acompanhamento = "831"` lido na fixture, sem GET adicional ou POST.
+- **RED observado antes do código:** [CI 42216759415](https://github.com/franklinbaldo/ies/actions/runs/42216759415), `prek` com **2 FAIL novos / 1.734 PASS / 23 ignored preexistentes**. Ambas falharam em `None != Some("831")`; Rustfmt e Clippy PASS.
+- Correção mínima em `src/processo_acompanhar/fluxo.rs`: quando a lista comprova o grupo, retornar o ID **já observado** da linha, junto com sua observação; a operação continua idempotente, com 4 GET e **0 POST** nos testes. Contrato atualizado.
+- **GREEN:** depende do CI do head final; não antecipar aprovação. Nenhuma escrita nova foi enviada ao SEI nesta correção.
+
 **Próxima sessão:** investigar **somente por leitura**, sem refazer a escrita, a observação/ID da linha no grupo padrão e as evidências já disponíveis de redirecionamento e releitura; distinguir a recusa do aceite HTTP sem ampliar a confiança indevidamente. Para testar uma nova confirmação futura, usar outro processo de treinamento genuinamente não acompanhado e repetir a sequência apenas nesse novo alvo, com orçamento e resíduo verificáveis. Esta issue permanece WIP; não liberar retirada nem fechar.
