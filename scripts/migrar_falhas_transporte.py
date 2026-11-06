@@ -104,38 +104,37 @@ def aplicar_fonte(caminho: str, fonte: bytes):
 
 
 def corrigir_enum(fonte: bytes):
-    alvo = b"    OrigemNaoAutorizada,\n"
+    """Adiciona variantes do transporte sem criar categorias de erro HTML."""
+    alvo = "    OrigemNaoAutorizada,\n".encode()
     insercao = (
-        b"    OrigemNaoAutorizada,\n"
-        b"    /// URL assinada inválida: falha de validação do transporte.\n"
-        b"    UrlInvalida,\n"
-        b"    /// Cookie local fora da forma permitida.\n"
-        b"    CookieInvalido,\n"
-        b"    /// A resposta HTTP não declarou um Content-Type HTML.\n"
-        b"    TipoDeConteudoNaoHtml,\n"
-    )
+        "    OrigemNaoAutorizada,\n"
+        "    /// URL assinada inválida: falha da validação do transporte.\n"
+        "    UrlInvalida,\n"
+        "    /// Cookie local fora do formato permitido.\n"
+        "    CookieInvalido,\n"
+        "    /// A resposta não declarou o Content-Type HTML esperado.\n"
+        "    TipoDeConteudoNaoHtml,\n"
+    ).encode()
     if b"    UrlInvalida,\n" not in fonte:
         if fonte.count(alvo) != 1:
             raise ValueError("FalhaTransporte: âncora OrigemNaoAutorizada não única")
         fonte = fonte.replace(alvo, insercao)
-    fonte = fonte.replace(
-        b"    #[causa(transparente)]\n    Html(ErroHtml),\n", b"",
-    )
+    fonte = fonte.replace(b"    #[causa(transparente)]\n    Html(ErroHtml),\n", b"")
     fonte = fonte.replace(b"use crate::erro_html::ErroHtml;\n", b"")
-    ancora = b"            Self::OrigemNaoAutorizada => \"destino HTTPS diferente da origem autorizada da sessão\",\n"
-    novas = (
-        ancora +
-        b"            Self::UrlInvalida => \"URL assinada da caixa inválida\",\n"
-        b"            Self::CookieInvalido => \"formato de cookie de sessão inválido\",\n"
-        b"            Self::TipoDeConteudoNaoHtml => \"a resposta não declara Content-Type text/html\",\n"
-    )
+    ancora = (
+        '            Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",\n'
+    ).encode()
+    novas = ancora + (
+        '            Self::UrlInvalida => "URL assinada da caixa inválida",\n'
+        '            Self::CookieInvalido => "formato de cookie de sessão inválido",\n'
+        '            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",\n'
+    ).encode()
     if b"Self::UrlInvalida =>" not in fonte:
         if fonte.count(ancora) != 1:
             raise ValueError("FalhaTransporte: braço da mensagem não encontrado")
         fonte = fonte.replace(ancora, novas)
     fonte = fonte.replace(b"            Self::Html(e) => e.mensagem,\n", b"")
     return fonte
-
 
 def main():
     cli = argparse.ArgumentParser()
