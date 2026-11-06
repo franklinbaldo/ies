@@ -47,6 +47,12 @@ impl ErroPrevia {
     pub(crate) fn subcodigo(&self) -> &'static str {
         crate::erro_publico::folha(self)
     }
+
+    // Diagnóstico público limitado a fatos seguros, sem URLs/cookies.
+    // WIP #254: primeiro RED dos cenários, antes de preencher o valor.
+    pub(crate) fn diagnostico_efeito_incerto(&self) -> Option<(u8, &'static str)> {
+        None
+    }
 }
 
 pub(crate) struct Pedido<'a> {
