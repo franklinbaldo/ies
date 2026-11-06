@@ -150,7 +150,14 @@ mod tests {
         // mas outro interessado. O POST original pode ter falhado.
         let desejado = vec!["Pessoa Sintetica B".to_owned()];
         assert_eq!(
-            super::classificar(&candidatos, &[lido], TIPO, ESPECIFICACAO, "publico", &desejado),
+            super::classificar(
+                &candidatos,
+                &[lido],
+                TIPO,
+                ESPECIFICACAO,
+                "publico",
+                &desejado
+            ),
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
     }
