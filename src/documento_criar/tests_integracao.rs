@@ -351,3 +351,29 @@ fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
         );
     }
 }
+
+
+#[test]
+fn template_inerte_nao_autoriza_post_criador_ao_conter_script_ou_botao() {
+    // Semantica de HTMLTemplateElement: o conteudo nao integra a arvore
+    // ativa; nao autoriza escrita mesmo se copiar a forma literal de Salvar.
+    // Caso adversarial sintético, nao atribuido ao cadastro real da UnB.
+    let original = cadastro();
+    let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
+    assert!(original.contains("<script>"));
+    assert!(original.contains(botao));
+
+    let script_inerte = original
+        .replace("<script>", "<template><script>")
+        .replace("</script>", "</script></template>");
+    let botao_inerte = original.replace(botao, &format!("<template>{botao}</template>"));
+    for html in [script_inerte, botao_inerte] {
+        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some("submissao_do_documento_nao_observada"),
+            "script e botao em template nao sao controles ativos"
+        );
+        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
+    }
+}
