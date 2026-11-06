@@ -16,7 +16,8 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
         acao: Some(DocumentoAcao::Ciente { numero, confirmar }),
         processo,
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     let numero = match NumeroDocumento::novo(numero) {
@@ -44,22 +45,27 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
 
 fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "numero": feito.numero,
-            "id_documento": feito.id_documento,
-            "rotulo": feito.rotulo,
-            "processo": {"nup": feito.processo_nup, "id": feito.id_procedimento},
-            "unidade": feito.unidade,
-            "origem": "web",
-            "confirmado": feito.confirmado,
-            "verificado": feito.verificado,
-            "id_atividade": feito.id_atividade,
-            "requisicoes": feito.requisicoes,
-        }));
+        println!(
+            "{}",
+            json!({
+                "numero": feito.numero,
+                "id_documento": feito.id_documento,
+                "rotulo": feito.rotulo,
+                "processo": {"nup": feito.processo_nup, "id": feito.id_procedimento},
+                "unidade": feito.unidade,
+                "origem": "web",
+                "confirmado": feito.confirmado,
+                "verificado": feito.verificado,
+                "id_atividade": feito.id_atividade,
+                "requisicoes": feito.requisicoes,
+            })
+        );
     } else if feito.verificado {
         println!(
             "Ciência no documento {} verificada na Lista de Ciências (atividade {}). Requisições: {}.",
-            feito.numero, feito.id_atividade.as_deref().unwrap_or("não observada"), feito.requisicoes
+            feito.numero,
+            feito.id_atividade.as_deref().unwrap_or("não observada"),
+            feito.requisicoes
         );
     } else {
         println!(
@@ -77,7 +83,11 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaDocumento::EfeitoIncerto { motivo, requisicoes } = erro {
+    if let ErroCienciaDocumento::EfeitoIncerto {
+        motivo,
+        requisicoes,
+    } = erro
+    {
         saida["verificacao"] = json!(motivo);
         saida["requisicoes"] = json!(requisicoes);
     }
