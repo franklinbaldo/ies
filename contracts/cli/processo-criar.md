@@ -124,6 +124,7 @@ Esses subcódigos precisam de tipos reais e integração a
 | `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; efeito incerto, saída 3 |
 | `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
+| `candidato_unico_sem_prova_causal` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 3, possível resíduo, sem retry |
 | `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
