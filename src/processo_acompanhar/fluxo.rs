@@ -380,8 +380,8 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     // A releitura prova o efeito, mas não legitima um 302 para outra
     // operação ou outro processo. Sem resposta de rede, o POST ainda
     // pode ter sido consumido: apenas uma leitura exata pode conciliá-lo.
-    let aceite = resposta.is_err()
-        || aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
+    let aceite =
+        resposta.is_err() || aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
     let depois = rede.get_sem_seguir(contexto.link, contexto.cookie);
     let depois = match depois {
         Ok(resposta) if resposta.resposta.status_code != 302 => {
@@ -402,7 +402,10 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         .as_deref()
         .and_then(|linhas| {
             linhas.iter().find(|linha| {
-                !contexto.antes.iter().any(|anterior| anterior.id == linha.id)
+                !contexto
+                    .antes
+                    .iter()
+                    .any(|anterior| anterior.id == linha.id)
                     && linha.grupo == plano.grupo
                     && linha.observacao == plano.observacao
             })
