@@ -486,3 +486,5 @@ fn conferir_controles_obrigatorios(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_scripts_inertes;
