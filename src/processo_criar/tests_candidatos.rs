@@ -520,11 +520,22 @@ fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
         ok(propriedades),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     let erro = resultado.expect_err("nível divergente não comprova a criação");
     assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.diagnostico_apos_post().unwrap().candidatos_observados, Some(vec![NUP.to_owned()]));
+    assert_eq!(
+        erro.diagnostico_apos_post()
+            .unwrap()
+            .candidatos_observados,
+        Some(vec![NUP.to_owned()])
+    );
     assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
