@@ -63,12 +63,22 @@ pub(super) fn resolver_action(
     instalacao: &Instalacao,
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
+    resolver_action_para_acao(form, servida, instalacao, operacao.acao)
+}
+
+/// Ação original do formulário, antes de um script observado reescrevê-la.
+pub(super) fn resolver_action_para_acao(
+    form: &tl::HTMLTag<'_>,
+    servida: &UrlHttps<'_>,
+    instalacao: &Instalacao,
+    acao: &str,
+) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
     let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
         return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
-    conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
+    conferir_consulta(alvo.consulta.unwrap_or_default(), acao)?;
     Ok(absoluta)
 }
 
