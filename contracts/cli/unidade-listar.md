@@ -51,6 +51,22 @@ internamente coerente **não** constitui um snapshot integral. O resultado avisa
 `requisicoes` e `persistida_no_indice` (false quando o índice
 estiver indisponível). Sem índice, a leitura retorna sem persistir.
 
+**Orçamento também nas recusas:** quando a coleta Web falha, a saída
+JSON inclui `requisicoes` com o número de tentativas GET e POST até a
+recusa (inclusive a que falhou). A saída humana mostra a mesma contagem.
+Uma recusa antes do primeiro HTTP publica `requisicoes: 0` quando a
+coleta Web chegou ao validador. A contagem não inclui login anterior
+nem revela URL assinada, cookie ou credenciais. O erro tipado e o
+`status_http`, quando observado, são preservados. Uma tentativa falha
+não provoca retry. Falhas de pré-condições locais, anteriores ao
+início da coleta, mantêm o contrato geral de erro local.
+
+O replay integral da lupa GO (SEI 5.0.3) mostrou os botões
+`btnPesquisar` sem `name`; a operação os confere no formulário
+servido e, nesse caso, não inventa um par `btnPesquisar` no POST.
+A regra é local à lupa e conserva a recusa de formulários
+não reconhecidos. A evidência é offline, sem atestar live.
+
 Erros tipados desta operação:
 - `lupa_transporte_recusado`: falha de transporte ou status na navegação/consulta;
 - `link_da_lupa_ausente`: ação obrigatória não foi publicada;
