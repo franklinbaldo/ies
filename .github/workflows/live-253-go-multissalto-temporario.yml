@@ -22,7 +22,7 @@ jobs:
         id: guard
         shell: bash
         run: |
-          if [ "$(git log -1 --format=%s)" = "live(#253): ensaio unico GO multissalto" ]; then
+          if [ "$(git log -1 --format=%s)" = "live(#253): ensaio unico GO multissalto com hash corrigido" ]; then
             echo 'executar=true' >> "$GITHUB_OUTPUT"
           else
             echo 'executar=false' >> "$GITHUB_OUTPUT"
@@ -40,7 +40,8 @@ jobs:
             --name 'ies-linux-x86_64-04496853ebbcda5c82e994e8ee5807c8cfe44a7c' \
             --dir "$RUNNER_TEMP/binario"
           cd "$RUNNER_TEMP/binario"
-          sha256sum -c ies.sha256
+          test "$(sha256sum ies | cut -d' ' -f1)" = "$(cut -d' ' -f1 ies.sha256)"
+          echo 'SHA-256 do binario Release: PASS'
           chmod 700 ies
       - name: GO treinamento — dois saltos publicados sem retry nem escrita
         if: steps.guard.outputs.executar == 'true'
