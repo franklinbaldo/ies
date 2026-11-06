@@ -328,7 +328,6 @@ pub(crate) fn cadastro_redirecionado(
         .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
 }
 
-
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
