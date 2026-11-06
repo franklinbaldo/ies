@@ -151,3 +151,54 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
     esperados.push(a::get(&a::url_arvore()));
     assert_eq!(pedidos, esperados);
 }
+
+fn executar_com_cadastro_sintetico(
+    html_cadastro: String,
+) -> (Result<PreviaCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+    let ambiente = a::ambiente();
+    let mut respostas = a::abertura(arvore_inicial());
+    respostas.push(a::ok(lista_de_tipos()));
+    respostas.push(a::ok(html_cadastro));
+    a::rodar_com(&ambiente, respostas, |sessao, nup, indice, rede| {
+        let pedido = PedidoCriacao {
+            nup,
+            unidade: None,
+            tipo: "Despacho",
+            descricao: Some("Ensaio"),
+            nivel: Some("publico"),
+        };
+        executar_criacao(sessao, &pedido, indice, rede, true)
+    })
+}
+
+#[test]
+fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
+    // O HTML de treinamento não prova uma instrução executável quando a
+    // sequência aparece em template, JSON, comentário ou script duplicado.
+    // O teste não executa JavaScript nem faz requisições ao SEI.
+    let casos = [
+        cadastro()
+            .replace("<script>", "<template>")
+            .replace("</script>", "</template>"),
+        cadastro().replace("<script>", "<script type=\"application/json\">"),
+        cadastro()
+            .replace("<script>", "<script>/*")
+            .replace("</script>", "*/</script>"),
+        cadastro().replace(
+            "</script>",
+            "</script><script>document.getElementById('hdnFlagDocumentoCadastro').value = '2';</script>",
+        ),
+    ];
+    for html in casos {
+        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some("submissao_do_documento_nao_observada")
+        );
+        assert_eq!(
+            pedidos,
+            pedidos_antes_da_escrita(),
+            "somente os cinco GETs de prévia; nenhum POST criador"
+        );
+    }
+}
