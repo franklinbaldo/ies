@@ -325,6 +325,39 @@ fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
+/// Regressão adversarial: um 302 genérico para a árvore não vincula o
+/// resultado do POST ao processo. Outra sessão pode publicar a atribuição
+/// desejada antes do GET de prova; isso continua efeito incerto.
+#[test]
+fn arvore_sem_id_e_atribuicao_concorrente_nao_comprovam_nosso_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + POST único + GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Na remoção, uma árvore sem identidade também não demonstra que o
+/// POST removeu: outra sessão pode ter removido antes da releitura.
+#[test]
+fn arvore_sem_id_e_remocao_concorrente_nao_comprovam_nosso_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
 /// Regressão de segurança: voltar à tela principal não identifica o processo
 /// modificado. Uma atribuição concorrente pode fazer a releitura coincidir.
 /// Caso seguro derivado da política de falhar fechado para Location genérica.
