@@ -199,3 +199,19 @@ não evidência de escrita nova. A tabela deve ter seis colunas, com `Grupo` na 
 `Observação` na terceira, sem rótulos duplicados, e o cabeçalho precisa
 preceder as linhas de dados. Outras disposições não observadas são recusadas
 com `colunas_de_acompanhamentos_invalidas`, sem POST.
+
+## Contêineres inertes do botão Adicionar (#254, 06/11/2026)
+
+A prévia só segue o `btnAdicionar` se a oferta estiver efetivamente
+acionável. Além de `disabled`, `hidden` ou `inert` no próprio
+`button`, recusa-se o botão contido em contêiner com `hidden` ou
+`inert` ou em `fieldset disabled`, **inclusive com elementos
+intermediários**. A checagem usa a descendência por identidade do nó no
+DOM `tl`, não texto de HTML nem execução de JavaScript. Atributos de
+ancestral não conferem autorização apenas pela URL do `onclick`.
+
+No transporte sintético, os casos negativos com e sem `--confirmar`
+efetuam exatamente **4 GET / 0 POST**, sem tentar o cadastro. O botão
+acionável continua com **5 GET / 0 POST** na prévia. A retirada pública
+`--deixar --confirmar` permanece bloqueada antes de sessão/rede;
+esta guarda não é autorização para nova escrita.
