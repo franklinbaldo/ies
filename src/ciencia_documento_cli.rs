@@ -86,10 +86,17 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     if let ErroCienciaDocumento::EfeitoIncerto {
         motivo,
         requisicoes,
+        falha_do_aceite,
     } = erro
     {
         saida["verificacao"] = json!(motivo);
         saida["requisicoes"] = json!(requisicoes);
+        if let Some(falha) = falha_do_aceite {
+            saida["falha_do_aceite"] = json!({
+                "subcodigo": crate::erro_publico::folha(falha),
+                "causa": crate::erro_publico::caminho_de(falha)
+            });
+        }
     }
     if let Some(http) = erro.status_http() {
         if http.status != 200 {
@@ -102,7 +109,10 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     if json_mode {
         println!("{saida}");
     } else {
-        eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
         if erro.saida() == 3 {
             eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
         }
