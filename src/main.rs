@@ -15,8 +15,8 @@ mod cassette;
 mod ciencia;
 mod ciencia_cli;
 mod ciencia_documento_cli;
-mod cli_documento;
 mod classe_link_processo;
+mod cli_documento;
 mod cli_processo;
 mod colheita_do_controle;
 mod configuracao;
@@ -138,8 +138,8 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-pub(crate) use cli_processo::{Processo, ProcessoAcao};
 pub(crate) use cli_documento::DocumentoAcao;
+pub(crate) use cli_processo::{Processo, ProcessoAcao};
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
 
