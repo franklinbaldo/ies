@@ -351,3 +351,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_remocao.rs"]
+mod tests_remocao;
