@@ -40,8 +40,6 @@ pub(crate) enum ErroPrevia {
     Estrutura(ErroAcompanhar),
     #[causa(interna)]
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
-    #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
-    ConfirmacaoNaoImplementada,
     #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     EfeitoIncerto,
     #[causa(nome = "pedido_de_acompanhamento_invalido")]
@@ -304,11 +302,13 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return confirmar_remocao(
             &mut rede,
             sessao,
-            &instalacao,
-            &id,
-            link.as_str(),
-            &cookie,
-            &antes,
+            ContextoRemocao {
+                instalacao: &instalacao,
+                id: &id,
+                link: link.as_str(),
+                cookie: &cookie,
+                antes: &antes,
+            },
             plano,
             submissao,
         );
@@ -433,17 +433,23 @@ fn releitura_da_remocao<V: EnvioDoProcesso>(
     acompanhamentos_da_lista(&html).ok()
 }
 
+/// Elementos observados na mesma sessão e abertura que originaram o
+/// formulário da remoção. O POST é consumido uma vez.
+struct ContextoRemocao<'a> {
+    instalacao: &'a Instalacao,
+    id: &'a str,
+    link: &'a str,
+    cookie: &'a str,
+    antes: &'a [Acompanhamento],
+}
+
 /// A escrita nunca se repete, nem após erro de rede. O único critério de
 /// sucesso é o aceite observado E a leitura nova com desaparecimento
 /// exclusivo da linha alvo, preservando todas as demais identidades.
 fn confirmar_remocao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
-    instalacao: &Instalacao,
-    id: &str,
-    link: &str,
-    cookie: &str,
-    antes: &[Acompanhamento],
+    contexto: ContextoRemocao<'_>,
     mut plano: Previa,
     submissao: SubmissaoDerivada,
 ) -> Result<Previa, ErroPrevia> {
@@ -457,11 +463,17 @@ fn confirmar_remocao<V: EnvioDoProcesso>(
             resposta.err().ok_or(ErroPrevia::TelaInesperada)?,
         ));
     }
-    let aceite = aceite_da_remocao(&resposta, instalacao, id);
-    let depois = releitura_da_remocao(rede, instalacao, id, link, cookie);
+    let aceite = aceite_da_remocao(&resposta, contexto.instalacao, contexto.id);
+    let depois = releitura_da_remocao(
+        rede,
+        contexto.instalacao,
+        contexto.id,
+        contexto.link,
+        contexto.cookie,
+    );
     let verificado = depois.as_deref().is_some_and(|linhas| {
         super::conferir_remocao(
-            antes,
+            contexto.antes,
             linhas,
             plano.id_de_remocao.as_deref().unwrap_or_default(),
         )
