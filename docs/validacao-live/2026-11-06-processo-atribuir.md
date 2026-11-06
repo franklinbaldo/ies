@@ -50,3 +50,21 @@ verificação, embora a resposta não identificasse o processo. A correção
 exige `id_procedimento` explícito em redirects para `principal`;
 rejeição continua com saída 3, sem segundo POST. Um destino `principal`
 com ID correto permanece aceito e é testado; sem tráfego real nesta etapa.
+
+## Regressão de destino `arvore_visualizar` genérico
+
+A revisão 🦅 do head `0fc1922` identificou que
+`acao=arvore_visualizar` sem `id_procedimento` ainda era aceito.
+Um segundo agente poderia produzir a atribuição ou remoção desejada
+entre o POST e o GET de verificação, causando falso sucesso.
+O RED [CI 42214490209](https://github.com/franklinbaldo/ies/actions/runs/42214490209)
+comprovou o defeito em **dois testes novos** (atribuir/remover):
+**2 FAIL, 1.716 PASS, 23 ignored existentes**, após **4 GET de
+prévia + 1 POST + 1 GET de releitura** por cenário.
+O fluxo agora exige ID explícito também para `arvore_visualizar`.
+Os testes de sucesso usam a forma `ACEITE` observada no Todos @323eb01,
+com ação, origem e ID do mesmo processo. Os destinos genéricos continuam
+efeito incerto (saída 3), sem repetir POST ou seguir o 302.
+**Live desta fatia: NOT_RUN**, 0 requisições reais e 0 resíduos.
+A prévia autenticada da UnB registrada acima continua sendo a última
+evidência ao vivo; a confirmação pública segue travada.
