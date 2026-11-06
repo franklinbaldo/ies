@@ -145,3 +145,25 @@ O registro cronológico integral (incluindo WIP, limites e contagens) foi preser
   Não houve acesso a produção; só se escreverá em treinamento após
   prévia autenticada e gates verdes.
 
+
+## Continuidade 🐙 — vínculo de Salvar com a submissão (06/11/2026)
+
+- **Observação pré-RED:** captura Todos `documento_gerar.html @323eb01`,
+  linhas 810/1061: botões Salvar habilitados `button#btnSalvar`,
+  `type=button`, `onclick=confirmarDados()`. Uma função `submeter()`
+  sem esse controle pode ser inerte. Nota de observação publicada no
+  commit `0c0a4d2` antes do teste.
+- **RED:** [CI 42170278378](https://github.com/franklinbaldo/ies/actions/runs/42170278378),
+  commit de testes `f16ee68`: **1 FAIL / 1.683 PASS / 18 ignorados**.
+  O caso negativo ultrapassou as cinco GET sintéticas ao tentar
+  prosseguir sem botão Salvar; não houve rede real.
+- **Correção:** `guarda_script.rs` confere os botões servidos por
+  `html_atributos` e recusa controle ausente, divergente, desabilitado
+  ou duplicação contraditória. Dois controles iguais do topo/rodapé são
+  legítimos. Testes de fronteira exigem **5 GET / 0 POST**, e os casos
+  positivos mantêm **6 GET / 1 POST / 1 releitura**.
+- **LIVE (esta sessão):** login **NOT_RUN**, prévia **NOT_RUN**,
+  `--confirmar` **NOT_RUN**, leitura independente **NOT_RUN**;
+  **0 requisições reais**, **0 POST criador**, **0 documentos criados ou
+  alterados**, **nenhum resíduo**. Autorização restrita a TREINAMENTO;
+  sem conectividade que permita sequência segura, não tentar escrita.
