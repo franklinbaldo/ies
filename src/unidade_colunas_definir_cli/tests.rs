@@ -137,3 +137,32 @@ fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
     assert_eq!(valor["verificacao"], "falha_de_rede");
     assert_eq!(valor.get("status_http"), None);
 }
+
+#[test]
+fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
+    let mut feito = previa();
+    for reconciliar in [false, true] {
+        if reconciliar {
+            feito.confirmado = true;
+            feito.alterado = true;
+            feito.depois = Some(feito.plano.alvo.clone());
+            feito.reconciliado_por = Some(erro_500());
+        }
+        let mut bytes = Vec::new();
+        serde_json::to_writer_pretty(&mut bytes, &resultado_colunas(&feito)).unwrap();
+        let legado = json_de_sucesso(&feito);
+        assert_eq!(
+            std::str::from_utf8(&bytes).unwrap(),
+            serde_json::to_string_pretty(&legado).unwrap()
+        );
+        let valor: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(valor["envio"]["metodo"], "POST");
+        if reconciliar {
+            assert_eq!(valor["falha_do_salvar"]["status_http"], 503);
+        } else {
+            assert!(valor.get("falha_do_salvar").is_none());
+            assert!(valor["depois"].is_null());
+        }
+        assert!(!std::str::from_utf8(&bytes).unwrap().contains("infra_hash"));
+    }
+}

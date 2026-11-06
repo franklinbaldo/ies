@@ -129,10 +129,10 @@ fn assinar_na_sessao(
     match assinar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap_or_default()
-                );
+                if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                    eprintln!("IES: falha ao emitir JSON: {erro}");
+                    return std::process::ExitCode::from(1);
+                }
             } else {
                 println!("{}", humano(&feito));
             }
