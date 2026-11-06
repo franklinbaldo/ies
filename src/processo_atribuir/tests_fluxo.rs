@@ -95,16 +95,12 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
 
-
 // Caso de diagnóstico UFRJ: árvore expôs PR-P mas a prévia recusou
 // situacao_da_atribuicao_nao_observada (runs 42229686084, 42230157551).
 // A divergência da unidade da tela é uma HIPÓTESE sintética, não fato live.
 #[test]
 fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() {
-    let (resultado, pedidos) = rodar(
-        Some("aluno2"),
-        abertura(arvore(&["PR-P"], &acao())),
-    );
+    let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&["PR-P"], &acao())));
     let erro = resultado.unwrap_err();
     assert_eq!(erro.subcodigo(), "situacao_da_atribuicao_nao_observada");
     assert_eq!(
