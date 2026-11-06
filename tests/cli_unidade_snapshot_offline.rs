@@ -127,6 +127,15 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
     assert_eq!(exata["unidades"][0]["id"], "1");
     assert_eq!(exata["requisicoes"], 0);
 
+    // Falha fechada: --atualizar não pode mostrar o cache antigo como novo.
+    // Sem cookie, a coleta é recusada antes da primeira requisição.
+    let atualizar = ambiente.executar(&["unidade", "listar", "--atualizar", "--json"]);
+    assert_eq!(atualizar.status.code(), Some(1));
+    let recusada: serde_json::Value = serde_json::from_slice(&atualizar.stdout).unwrap();
+    assert_eq!(recusada["requisicoes"], 0);
+    assert_ne!(recusada["origem"], "indice");
+    assert!(recusada["subcodigo"].is_string());
+
     // A tabela documentada é consultável por um agente externo em modo
     // somente leitura, e os comandos não mudam o snapshot nem o esquema.
     let banco =
