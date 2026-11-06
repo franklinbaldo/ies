@@ -226,3 +226,10 @@ resíduo foi deixado no SEI.
 - **Pendente:** GREEN do novo head, replay específico, prévia
   autenticada e somente então confirmação única em treinamento
   com releitura segura. A retirada continua bloqueada.
+
+## Oitava fatia — replay conferido (06/11/2026, 🐢)
+
+- **Replay específico da capacidade: PASS**, no job de Acompanhamento Especial do [CI 42170324775](https://github.com/franklinbaldo/ies/actions/runs/42170324775). Oito cassettes de sete instalações conferidas, **189 respostas** classificadas: 82 listas e 45 cadastros lidos pelos próprios leitores Rust; 39 POSTs sem leitura correlacionada e 23 outras respostas marcados **não aplicáveis**, sem inventar sucesso. Todos os seis ZIPs públicos e os membros foram conferidos por hash, schema e origem. Teste Rust de replay e três testes Python de manifesto **PASS**. A execução de CI citada teve apenas Rustfmt vermelho em outro job, corrigido em commit posterior; não afirmar CI global verde com base nela.
+- **Relatório de replay:** [docs/validacao-replay/2026-11-06-processo-acompanhar-acervo.md](../validacao-replay/2026-11-06-processo-acompanhar-acervo.md). O novo job do `ci.yml` executa o teste com os ZIPs conferidos; `#[ignore]` não substitui o gate.
+- **Live de treinamento:** prévia **NOT_RUN, 0 GET**; confirmação **NOT_RUN, 0 POST**; releitura **NOT_RUN, 0 GET**. Total **0 requisições reais / 0 escritas / 0 resíduos**. Nenhum ambiente de produção foi acessado; **sem retry**.
+- **Retirada `--deixar --confirmar`:** continua recusada antes da sessão/rede, aguardando evidência segura de prévia autenticada, POST único e releitura. **RED comportamental dos testes novos do replay: NOT_RUN** como teste isolado; o RED observado da correção anterior permanece em [42163834327](https://github.com/franklinbaldo/ies/actions/runs/42163834327), 2 falhas.
