@@ -67,7 +67,7 @@ um HTML 200 genérico não identifica quem alterou a árvore. Somente o
 por releitura; nenhuma dessas vias repete o POST. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
-solicitado**, sem publicar outra ação de origem. As duas ações são
+solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 3 após a leitura única. As duas ações são
 genéricas sem identidade: a releitura coincidente pode ser efeito de
 outro agente, inclusive na remoção. Sem ID, o resultado é efeito incerto
 (saída 3), sem novo POST. A forma de `arvore_visualizar` com ID foi
