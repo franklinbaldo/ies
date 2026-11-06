@@ -363,3 +363,10 @@ propriedades publicadas, falha fechado e preserva a causa do POST.
 O novo leitor consome 1 GET da caixa e 3 GET por candidato; não faz
 retry nem novo POST. A ausência de candidatos não prova não aplicação.
 O ensaio live nesta fatia não foi executado.
+
+### Recusa explícita e concorrência (06/11, #245)
+
+Decisão: validação Infra ou HTTP 4xx após POST encerra com a causa
+original, sem GET de Gerados; um candidato idêntico pode ser de outro
+agente. Sem resposta e 5xx seguem reconciliação sem retry. Teste RED
+adversarial com a conta compartilhada precedeu a correção.
