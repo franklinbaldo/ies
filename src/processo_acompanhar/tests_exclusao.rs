@@ -325,3 +325,46 @@ fn previa_deixar_com_oferta_valida_somente_le_e_conta_quatro_gets() {
     assert_eq!(pedidos, esperados);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
 }
+
+#[test]
+fn previa_deixar_com_funcao_inteiramente_comentada_recusa_sem_post() {
+    // Caso adversarial da mesma tela UnB: oferta textual inerte não
+    // autoriza escrita e não provoca nenhuma requisição além dos 4 GETs.
+    use crate::processo_acompanhar::fluxo::{ErroPrevia, Pedido, previa};
+    use crate::processo_concluir::tests_apoio::{
+        UNIDADE, abertura, absoluta, ambiente, arvore, get, ok, pedidos_da_abertura, rodar_com,
+    };
+    use crate::propriedades_processo::tests_apoio::acao_da_barra;
+
+    let gerenciar = format!(
+        "controlador.php?acao=acompanhamento_gerenciar&id_procedimento=10&infra_hash={}",
+        "a".repeat(64)
+    );
+    let arvore_html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar)]);
+    let mut respostas = abertura(arvore_html);
+    let html = lista_observada("831")
+        .replacen("<script>", "<script>/*", 1)
+        .replacen("</script>", "*/</script>", 1);
+    respostas.push(ok(html));
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: true,
+            confirmar: false,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    assert!(matches!(
+        resultado,
+        Err(ErroPrevia::Estrutura(ErroAcompanhar::ExclusaoNaoOferecida))
+    ));
+    let mut esperados = pedidos_da_abertura();
+    esperados.push(get(&absoluta(&gerenciar)));
+    assert_eq!(pedidos, esperados);
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|pedido| pedido.metodo == "POST").count(), 0);
+}
