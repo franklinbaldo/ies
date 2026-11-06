@@ -198,8 +198,9 @@ fn concluir(
             .colher(&inicial.html, Some(&inicial.mime));
     }
     if json_mode {
-        let valor = json_de_sucesso(troca, descartados, pedidos);
-        if let Err(erro) = crate::saida::imprimir_json(&valor) {
+        if let Err(erro) =
+            crate::saida::imprimir_json(&resultado_troca(troca, descartados, pedidos))
+        {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
         }
@@ -217,6 +218,66 @@ fn json_das_unidades(lista: &[UnidadeOferecida]) -> Value {
     Value::Array(lista.iter().map(json_da_unidade).collect())
 }
 
+/// A representação externa expõe somente os campos observados da unidade.
+#[derive(serde::Serialize)]
+struct UnidadePublica<'a> {
+    descricao: &'a str,
+    id_unidade: &'a str,
+    sigla: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct EnvioTrocaPublico<'a> {
+    acao: &'static str,
+    campos: &'a [String],
+    metodo: &'static str,
+}
+
+#[derive(serde::Serialize)]
+struct ResultadoTroca<'a> {
+    alterado: bool,
+    antes: &'a str,
+    confirmado: bool,
+    depois: Option<&'a str>,
+    envio: Option<EnvioTrocaPublico<'a>>,
+    escopo: &'static str,
+    id_unidade: Option<&'a str>,
+    links_descartados: Option<usize>,
+    oferecidas: Option<Vec<UnidadePublica<'a>>>,
+    pedida: &'a str,
+    requisicoes: u32,
+}
+
+fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> ResultadoTroca<'_> {
+    let alterado = troca.controle_novo.is_some();
+    let ja_na_unidade = troca.escolhida.is_none();
+    ResultadoTroca {
+        alterado,
+        antes: &troca.antes,
+        confirmado: troca.confirmado,
+        depois: (alterado || ja_na_unidade).then_some(troca.pedida.as_str()),
+        envio: troca.campos_do_envio.as_deref().map(|campos| EnvioTrocaPublico {
+            acao: ACAO_DE_TROCAR,
+            campos,
+            metodo: "POST",
+        }),
+        escopo: "sessao_da_conta",
+        id_unidade: troca.escolhida.as_ref().map(|u| u.id_unidade.as_str()),
+        links_descartados: descartados,
+        oferecidas: (!ja_na_unidade).then(|| {
+            troca.oferecidas.iter().map(|u| UnidadePublica {
+                descricao: &u.descricao,
+                id_unidade: &u.id_unidade,
+                sigla: &u.sigla,
+            }).collect()
+        }),
+        pedida: &troca.pedida,
+        requisicoes: pedidos,
+    }
+}
+
+/// Contrato legado usado somente como oráculo dos testes de paridade.
+#[cfg(test)]
 pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> Value {
     let alterado = troca.controle_novo.is_some();
     let envio = troca.campos_do_envio.as_ref().map_or(
