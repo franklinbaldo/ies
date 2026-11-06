@@ -327,18 +327,13 @@ fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
 
-
 // Regressão #271: script de dados não executa atualizarArvore. A lista
 // antiga, mesmo contendo a atividade, não pode transformar o aceite
 // inerte em confirmação desta única escrita.
 #[test]
 fn script_inerte_no_aceite_mantem_efeito_incerto_sem_consultar_lista_antiga() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
-    let html = aceite("42457").replacen(
-        "<script>",
-        "<script type='application/json'>",
-        1,
-    );
+    let html = aceite("42457").replacen("<script>", "<script type='application/json'>", 1);
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("script de dados não pode publicar ciência");
