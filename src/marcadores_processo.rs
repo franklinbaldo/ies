@@ -14,6 +14,7 @@ pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
+use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_marcadores;
 
 /// `acao` do link na barra, da tela e do link guardado no índice.
@@ -88,16 +89,12 @@ pub(crate) enum ErroMarcadores {
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
-    HtmlDosMarcadoresNaoInterpretado,
     TelaDosMarcadoresAusente,
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
-    TabelasDosMarcadoresRepetidas,
-    LegendaDosMarcadoresForaDaFormaObservada,
-    CabecalhoDosMarcadoresNaoReconhecido,
-    LinhaDoMarcadorForaDaFormaObservada,
-    MarcadorRepetidoNaTela,
     MarcadoresAlemDoTotalDeclarado,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroMarcadores {

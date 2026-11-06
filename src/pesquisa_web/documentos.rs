@@ -8,6 +8,7 @@
 use super::ErroResultadoPesquisa;
 use super::resposta::FaixaDaPesquisa;
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::ErroAtributoHtml;
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 
@@ -67,21 +68,14 @@ pub(crate) enum ErroDocumentoDaPesquisa {
     Linha(ErroResultadoPesquisa),
     #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
-    CelulaDoTituloDoDocumentoAusenteOuRepetida,
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
-    LinkDoDocumentoAusenteNaLinha,
-    LinksDoDocumentoRepetidosNaLinha,
-    LinkDaLinhaDeDocumentoNaoReconhecido,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,
-    NumeroSeiAusenteNaLinha,
-    RotuloDoDocumentoAusente,
-    MetadadoDoDocumentoRepetido,
-    DataDeInclusaoForaDaFormaObservada,
     LinhaDaPesquisaForaDeUmRegistro,
-    NumeroSeiRepetidoNaPesquisa,
     #[causa(interna)]
     NumeroDoProcesso(NumeroProcessoInvalido),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroDocumentoDaPesquisa {}

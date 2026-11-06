@@ -72,13 +72,14 @@ mod tests_sobrestar;
 #[cfg(test)]
 pub(crate) mod tests_tela;
 
+use crate::erro_html::ErroHtml;
 pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
-    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
+    ACAO_DE_ASSINAR, Assinante, ErroLinkDeAssinar, ler_assinatura_na_arvore, ler_link_de_assinar,
+    tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
@@ -110,8 +111,8 @@ pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai, conferir_pastas};
 pub(crate) use reabrir::{
-    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
-    ler_endereco_de_reabrir, ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, FormaDaReabertura, ReabrirNaBarra, ler_endereco_de_reabrir,
+    ler_reabrir_da_barra,
 };
 pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
@@ -287,7 +288,7 @@ pub(crate) fn ler_arvore(
             if let Some(&posicao) = de_pasta.get(&i)
                 && documentos[posicao].barra == Barra::NaoLida
             {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
             }
             continue;
         }
@@ -295,7 +296,7 @@ pub(crate) fn ler_arvore(
             && let Some(&posicao) = de_pasta.get(&i)
         {
             let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
             };
             documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
                 .map_or(Barra::SemIdentidade, Barra::Identidade);
@@ -305,7 +306,7 @@ pub(crate) fn ler_arvore(
             continue;
         };
         if indice != proximo {
-            return Err(ErroArvore::IndiceDeNoForaDaSequencia);
+            return Err(ErroHtml::valor("indice_de_no_fora_da_sequencia").into());
         }
         proximo += 1;
         let tipo = argumentos
@@ -314,7 +315,7 @@ pub(crate) fn ler_arvore(
         match texto(tipo)? {
             "PROCESSO" => {
                 if processo.is_some() {
-                    return Err(ErroArvore::NosDoProcessoRepetidosNaArvore);
+                    return Err(ErroHtml::repetido("nos_do_processo_repetidos_na_arvore").into());
                 }
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
@@ -326,7 +327,7 @@ pub(crate) fn ler_arvore(
                     .iter()
                     .any(|d| d.documento.id == lido.documento.id)
                 {
-                    return Err(ErroArvore::DocumentoRepetidoNaArvore);
+                    return Err(ErroHtml::repetido("documento_repetido_na_arvore").into());
                 }
                 if matches!(lido.pai, Pai::Pasta(_)) {
                     de_pasta.insert(indice, documentos.len());

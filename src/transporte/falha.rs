@@ -22,12 +22,17 @@ impl StatusHttpRecusado {
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaTransporte {
-    UrlInvalida,
     #[causa(nome = "chave_de_consulta_do_controle_nao_canonica")]
     ChaveDeConsultaNaoCanonica,
     #[causa(nome = "separador_de_consulta_do_controle_ambiguo")]
     SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
+    /// URL assinada inválida: falha da validação do transporte.
+    UrlInvalida,
+    /// Cookie local fora do formato permitido.
+    CookieInvalido,
+    /// A resposta não declarou o Content-Type HTML esperado.
+    TipoDeConteudoNaoHtml,
     ArquivoPrivadoAusenteOuInacessivel,
     #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
@@ -37,8 +42,6 @@ pub enum FalhaTransporte {
     ArquivoPrivadoVazio,
     ArquivoPrivadoAcimaDoLimite,
     ArquivoPrivadoNaoPodeSerLido,
-    #[causa(acao = "relogar")]
-    CookieInvalido,
     /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
@@ -66,8 +69,6 @@ pub enum FalhaTransporte {
     /// Qualquer outro status diferente de 200.
     #[causa(http)]
     StatusHttpDiferenteDe200(StatusHttpRecusado),
-    /// `Content-Type` cujo tipo principal não é `text/html`.
-    TipoDeConteudoNaoHtml,
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
     CorpoNaoDecodificavelNoCharsetDeclarado,
     #[causa(acao = "relogar")]
@@ -86,7 +87,6 @@ impl FalhaTransporte {
     }
     pub fn mensagem(&self) -> &'static str {
         match self {
-            Self::UrlInvalida => "URL assinada da caixa inválida",
             Self::ChaveDeConsultaNaoCanonica => {
                 "nome de parâmetro da URL de controle não é canônico"
             }
@@ -94,6 +94,9 @@ impl FalhaTransporte {
                 "separador de parâmetros da URL de controle não é inequívoco"
             }
             Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
+            Self::UrlInvalida => "URL assinada da caixa inválida",
+            Self::CookieInvalido => "formato de cookie de sessão inválido",
+            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
             Self::ArquivoPrivadoAusenteOuInacessivel => {
                 "arquivo privado não encontrado ou sem acesso"
             }
@@ -107,7 +110,6 @@ impl FalhaTransporte {
             Self::ArquivoPrivadoVazio => "arquivo privado vazio",
             Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
             Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
-            Self::CookieInvalido => "formato de cookie de sessão inválido",
             Self::SessaoTrocadaDuranteALeitura => {
                 "a sessão local foi regravada durante a leitura, duas vezes; nada foi pedido ao SEI"
             }
@@ -124,7 +126,6 @@ impl FalhaTransporte {
             Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
             Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
             Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
-            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
             Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
                 "o corpo da resposta não decodifica no charset declarado"
             }

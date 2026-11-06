@@ -1,23 +1,19 @@
 //! Validação offline do cadastro de processo servido pelo SEI.
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCadastro {
-    #[causa(nome = "cadastro_de_processo_html_invalido")]
-    HtmlInvalido,
-    #[causa(nome = "cadastro_de_processo_ausente_ou_repetido")]
-    FormularioAusenteOuRepetido,
     #[causa(nome = "tipo_do_cadastro_divergente")]
     TipoDeCadastroDivergente,
-    #[causa(nome = "especificacao_nao_publicada_no_cadastro")]
-    EspecificacaoAusente,
-    AssuntoSugeridoNaoUnico,
     #[causa(nome = "nivel_de_acesso_nao_oferecido")]
     NivelNaoOferecido,
     #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
     HipoteseLegalNaoIdentificada,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroCadastro {
@@ -43,19 +39,41 @@ pub(crate) fn conferir_cadastro(
     id_tipo: &str,
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
+    conferir_cadastro_interno(html, id_tipo, nivel, false)
+}
+
+/// A tela pode publicar a lista de hipóteses ainda vazia: ela é carregada
+/// por AJAX observado, que o fluxo consulta antes de derivar a escrita.
+/// Nada aqui autoriza escolher um valor ausente da resposta real.
+pub(crate) fn conferir_cadastro_com_ajax_pendente(
+    html: &str,
+    id_tipo: &str,
+    nivel: &str,
+) -> Result<CadastroObservado, ErroCadastro> {
+    conferir_cadastro_interno(html, id_tipo, nivel, true)
+}
+
+fn conferir_cadastro_interno(
+    html: &str,
+    id_tipo: &str,
+    nivel: &str,
+    permite_ajax_pendente: bool,
+) -> Result<CadastroObservado, ErroCadastro> {
     use ErroCadastro as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
-    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro").map_err(|_| E::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
+        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
     let [formulario] = formularios.as_slice() else {
-        return Err(E::FormularioAusenteOuRepetido);
+        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
     };
     let parser = dom.parser();
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(E::HtmlInvalido)?;
+        .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
     if form.name().as_utf8_str() != "form" {
-        return Err(E::FormularioAusenteOuRepetido);
+        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
     }
 
     let mut ids = Vec::new();
@@ -65,22 +83,29 @@ pub(crate) fn conferir_cadastro(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
-        let nome = valor_do_atributo(tag, "name").map_err(|_| E::HtmlInvalido)?;
+            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+        let nome = valor_do_atributo(tag, "name")
+            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
         match nome.as_deref() {
             Some("hdnIdTipoProcedimento") => {
-                ids.push(valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?);
+                ids.push(
+                    valor_do_atributo(tag, "value")
+                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?,
+                );
             }
             Some("txtDescricao") => {
-                if atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)? {
-                    return Err(E::EspecificacaoAusente);
+                if atributo_presente(tag, "disabled")
+                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                {
+                    return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
                 }
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
-                let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
-                let desabilitado =
-                    atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)?;
+                let valor = valor_do_atributo(tag, "value")
+                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+                let desabilitado = atributo_presente(tag, "disabled")
+                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
                 radios.push((valor, desabilitado));
             }
             _ => {}
@@ -90,7 +115,7 @@ pub(crate) fn conferir_cadastro(
         return Err(E::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
-        return Err(E::EspecificacaoAusente);
+        return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
     }
     let valor_nivel = match nivel {
         "publico" => "0",
@@ -107,7 +132,8 @@ pub(crate) fn conferir_cadastro(
         _ => return Err(E::NivelNaoOferecido),
     }
 
-    let (id_assunto, assunto, hipotese_legal) = conferir_listas(form, parser, nivel)?;
+    let (id_assunto, assunto, hipotese_legal) =
+        conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
     Ok(CadastroObservado {
         id_tipo: id_tipo.to_owned(),
         assunto,
@@ -123,6 +149,7 @@ fn conferir_listas(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     nivel: &str,
+    permite_ajax_pendente: bool,
 ) -> Result<(String, String, Option<String>), ErroCadastro> {
     use ErroCadastro as E;
     let mut assuntos = Vec::new();
@@ -133,8 +160,9 @@ fn conferir_listas(
         let select = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
-        let nome = valor_do_atributo(select, "name").map_err(|_| E::HtmlInvalido)?;
+            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+        let nome = valor_do_atributo(select, "name")
+            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
         let destino = match nome.as_deref() {
             Some("selAssuntos") => {
                 selects_assunto += 1;
@@ -154,32 +182,36 @@ fn conferir_listas(
             let tag = opcao
                 .get(parser)
                 .and_then(tl::Node::as_tag)
-                .ok_or(E::HtmlInvalido)?;
-            if atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)? {
+                .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+            if atributo_presente(tag, "disabled")
+                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+            {
                 continue;
             }
-            let valor = valor_do_atributo(tag, "value").map_err(|_| E::HtmlInvalido)?;
+            let valor = valor_do_atributo(tag, "value")
+                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
             let titulo =
                 crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
-            if let Some(valor) = valor.filter(|v| !v.is_empty()) {
+            if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo.trim().to_owned()));
             }
         }
     }
     let [(id_assunto, assunto)] = assuntos.as_slice() else {
-        return Err(E::AssuntoSugeridoNaoUnico);
+        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
     };
     if selects_assunto != 1 || assunto.is_empty() {
-        return Err(E::AssuntoSugeridoNaoUnico);
+        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
     }
     let hipotese_legal = if nivel == "restrito" {
-        let [(id, titulo)] = hipotese.as_slice() else {
-            return Err(E::HipoteseLegalNaoIdentificada);
-        };
-        if selects_hipotese != 1 || titulo.is_empty() {
+        if selects_hipotese != 1 {
             return Err(E::HipoteseLegalNaoIdentificada);
         }
-        Some(id.clone())
+        match hipotese.as_slice() {
+            [(id, titulo)] if !titulo.is_empty() => Some(id.clone()),
+            [] if permite_ajax_pendente => None,
+            _ => return Err(E::HipoteseLegalNaoIdentificada),
+        }
     } else {
         None
     };
@@ -213,7 +245,9 @@ mod tests {
     fn recusa_formulario_ausente_e_tipo_de_outro_cadastro() {
         assert_eq!(
             conferir_cadastro("<div></div>", "12", "publico"),
-            Err(ErroCadastro::FormularioAusenteOuRepetido)
+            Err(ErroCadastro::Html(ErroHtml::ausente(
+                "cadastro_de_processo_ausente_ou_repetido"
+            )))
         );
         assert_eq!(
             conferir_cadastro(&tela(ASSUNTO, "", HIPOTESE), "13", "publico"),
@@ -229,7 +263,9 @@ mod tests {
         ] {
             assert_eq!(
                 conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
-                Err(ErroCadastro::AssuntoSugeridoNaoUnico)
+                Err(ErroCadastro::Html(ErroHtml::valor(
+                    "assunto_sugerido_nao_unico"
+                )))
             );
         }
     }
@@ -240,6 +276,17 @@ mod tests {
             conferir_cadastro(&tela(ASSUNTO, "disabled", HIPOTESE), "12", "publico"),
             Err(ErroCadastro::NivelDesabilitado)
         );
+    }
+
+    #[test]
+    fn placeholder_null_precisa_de_ajax_antes_de_uma_escrita() {
+        let html = tela(ASSUNTO, "", "<option value='null'> </option>");
+        assert_eq!(
+            conferir_cadastro(&html, "12", "restrito"),
+            Err(ErroCadastro::HipoteseLegalNaoIdentificada)
+        );
+        let observado = conferir_cadastro_com_ajax_pendente(&html, "12", "restrito").unwrap();
+        assert_eq!(observado.hipotese_legal, None);
     }
 
     #[test]

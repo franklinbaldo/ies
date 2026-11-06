@@ -3,6 +3,7 @@
 //! Estrutura derivada da `UnB` em Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use super::{ErroAcompanhar, TABELA, campo};
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::atributo_presente;
 use crate::instalacao::Instalacao;
 
@@ -21,19 +22,19 @@ pub(super) fn conferir_oferta_exclusao(
     use ErroAcompanhar as E;
     let sem_oferta = E::ExclusaoNaoOferecida;
     if html.len() > crate::MAX_HTML_BYTES {
-        return Err(E::HtmlInvalido);
+        return Err(ErroHtml::html("html_de_acompanhamento_invalido").into());
     }
     if id_alvo.is_empty() || !id_alvo.chars().all(|c| c.is_ascii_digit()) {
         return Err(sem_oferta);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHtml::html("html_de_acompanhamento_invalido"))?;
     let parser = dom.parser();
     let mut form = None;
     for no in dom.query_selector("form").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
+            .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
         if campo(tag, "id")?.as_deref() == Some(FORMULARIO) && form.replace(tag).is_some() {
             return Err(sem_oferta);
         }
@@ -46,7 +47,7 @@ pub(super) fn conferir_oferta_exclusao(
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
+            .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
         if campo(tag, "id")?.as_deref() == Some(OCULTO) {
             ids_do_oculto += 1;
         }
@@ -77,7 +78,7 @@ pub(super) fn conferir_oferta_exclusao(
             if campo(tag, "type")?.as_deref() != Some("hidden")
                 || campo(tag, "id")?.as_deref() != Some(OCULTO)
                 || campo(tag, "value")?.as_deref() != Some("")
-                || atributo_presente(tag, "disabled").map_err(|_| E::HtmlInvalido)?
+                || atributo_presente(tag, "disabled").map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
             {
                 return Err(sem_oferta);
             }
@@ -293,7 +294,7 @@ fn conferir_script(
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlInvalido)?;
+            .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
         let codigo = tag.inner_text(parser);
         if codigo.contains("function acaoExcluir(") {
             // Texto em <script type="application/json">, escopo module ou
@@ -307,7 +308,7 @@ fn conferir_script(
                     || valor.is_empty()
             });
             if !tipo_classico
-                || atributo_presente(tag, "src").map_err(|_| E::HtmlInvalido)?
+                || atributo_presente(tag, "src").map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
             {
                 return Err(sem_oferta);
             }

@@ -11,6 +11,7 @@ use crate::arvore_processo::tests_conteudo::{
 };
 use crate::arvore_processo::tests_tela::tela_do_processo;
 use crate::documento::NumeroDocumento;
+use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
 
 const DOC: &str = "0000101";
@@ -180,7 +181,10 @@ fn duplicidade_e_numero_diferente_na_arvore() {
         1,
         &src_visualizar(ID_DOC),
     );
-    assert_eq!(recusa(duplicada), E::NumeroSeiRepetidoNaArvore);
+    assert_eq!(
+        recusa(duplicada),
+        E::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
+    );
     // Zeros à esquerda são parte do número: 101 não é 0000101.
     let outro = com_src(
         &arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, "101")]),
@@ -191,7 +195,9 @@ fn duplicidade_e_numero_diferente_na_arvore() {
     let ausente = arvore(&[no_processo(0, ID, NUP), no_documento(1, "22", ID, DOC)]);
     assert_eq!(
         recusa(ausente),
-        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::DocumentoAusenteDaArvore)
+        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
+            ErroHtml::ausente("documento_ausente_da_arvore")
+        ))
     );
 }
 

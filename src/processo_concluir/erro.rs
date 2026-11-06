@@ -1,6 +1,7 @@
 //! Resultado e recusas de `ies processo concluir`
 //! (contracts/cli/processo-concluir.md). Uma variante por fato.
 use crate::arvore_processo::{ErroConcluirNaBarra, ErroFuncaoDeConcluir, MotivoAbertoEm};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -8,13 +9,11 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 /// Recusas da tela "Conclusão de Processo", antes do POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTelaDeConclusao {
-    #[causa(nome = "tela_de_conclusao_nao_interpretada")]
-    HtmlNaoInterpretado,
-    FormularioDeConclusaoAusente,
-    CampoNaoPrevistoNaTelaDeConclusao,
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroTelaDeConclusao {}

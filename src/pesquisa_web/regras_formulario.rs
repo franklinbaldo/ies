@@ -2,24 +2,18 @@
 //! JavaScript servido em `unb`, `pen1`, `ufrj` e `go` (GET de
 //! `protocolo_pesquisar` das cassettes `processo-busca-*`). Nada de JS é
 //! executado ou interpretado aqui. Evidência: docs/decisoes/processo-buscar.md.
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use ErroRegraDoFormularioDePesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRegraDoFormularioDePesquisa {
-    OpcaoDeProcessosAusenteNaTela,
-    OpcoesDeProcessosRepetidasNaTela,
-    OpcaoDeProcessosSemValorNaTela,
     OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
     AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-    SeletorDeOrgaoDePesquisaAusenteNaTela,
-    SeletoresDeOrgaoDePesquisaRepetidosNaTela,
     SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
     OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-    OpcaoDeOrgaoSelecionadaSemValorNaTela,
     InicioDaPaginacaoDiferenteDeZeroNaTela,
-    EntidadeHtmlDesconhecidaNaRegra,
     /// O termo tem mais unidades UTF-16 que o `maxlength` servido, que o
     /// navegador não deixaria digitar.
     TermoAcimaDoMaxlengthDaTela {
@@ -27,22 +21,15 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     },
     /// `maxlength` do termo servido fora de um inteiro decimal não negativo.
     MaxlengthDoTermoIlegivelNaTela,
-    CamposDoTermoRepetidosNaTela,
-    /// Pesquisa em documentos: `#optDocumentos` como `#optProcessos`.
-    OpcaoDeDocumentosAusenteNaTela,
-    OpcoesDeDocumentosRepetidasNaTela,
-    OpcaoDeDocumentosSemValorNaTela,
     OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
-    /// `chkSinDocumentosGerados`/`Recebidos`, que `onSubmitForm()` lê por id.
-    CaixaDeTipoDeDocumentoAusenteNaTela,
-    CaixasDeTipoDeDocumentoRepetidasNaTela,
-    CaixaDeTipoDeDocumentoSemValorNaTela,
     /// Nenhuma das duas servida marcada: `onSubmitForm()` não envia.
     NenhumTipoDeDocumentoMarcadoNaTela,
     AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
     /// Tag de abertura que o tokenizador de atributos recusou.
     #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroRegraDoFormularioDePesquisa {}
@@ -70,7 +57,11 @@ pub(crate) struct RegrasDaTela {
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome)?
-        .map(|bruto| decodificar_atributo(&bruto).ok_or(E::EntidadeHtmlDesconhecidaNaRegra))
+        .map(|bruto| {
+            decodificar_atributo(&bruto).ok_or(E::Html(ErroHtml::html(
+                "entidade_html_desconhecida_na_regra",
+            )))
+        })
         .transpose()
 }
 
@@ -88,16 +79,16 @@ fn opcao(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<String, E> {
     let (id, ausente, repetidas, sem_valor, outro_nome) = match em {
         PesquisarEm::Processos => (
             "optProcessos",
-            E::OpcaoDeProcessosAusenteNaTela,
-            E::OpcoesDeProcessosRepetidasNaTela,
-            E::OpcaoDeProcessosSemValorNaTela,
+            E::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela")),
+            E::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela")),
+            E::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela")),
             E::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
         ),
         PesquisarEm::Documentos => (
             "optDocumentos",
-            E::OpcaoDeDocumentosAusenteNaTela,
-            E::OpcoesDeDocumentosRepetidasNaTela,
-            E::OpcaoDeDocumentosSemValorNaTela,
+            E::Html(ErroHtml::ausente("opcao_de_documentos_ausente_na_tela")),
+            E::Html(ErroHtml::repetido("opcoes_de_documentos_repetidas_na_tela")),
+            E::Html(ErroHtml::ausente("opcao_de_documentos_sem_valor_na_tela")),
             E::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
         ),
     };
@@ -135,15 +126,23 @@ fn caixas_de_documento(tags: &[&tl::HTMLTag<'_>]) -> Result<Vec<(&'static str, S
             }
         }
         let (tag, id, nome) = match achadas.as_slice() {
-            [] => return Err(E::CaixaDeTipoDeDocumentoAusenteNaTela),
+            [] => {
+                return Err(ErroHtml::ausente("caixa_de_tipo_de_documento_ausente_na_tela").into());
+            }
             [achada] => achada,
-            _ => return Err(E::CaixasDeTipoDeDocumentoRepetidasNaTela),
+            _ => {
+                return Err(
+                    ErroHtml::repetido("caixas_de_tipo_de_documento_repetidas_na_tela").into(),
+                );
+            }
         };
         if id.as_deref() != Some(caixa) || nome.as_deref() != Some(caixa) {
-            return Err(E::CaixaDeTipoDeDocumentoAusenteNaTela);
+            return Err(ErroHtml::ausente("caixa_de_tipo_de_documento_ausente_na_tela").into());
         }
         if presente(tag, "checked")? {
-            let valor = atributo(tag, "value")?.ok_or(E::CaixaDeTipoDeDocumentoSemValorNaTela)?;
+            let valor = atributo(tag, "value")?.ok_or(ErroHtml::ausente(
+                "caixa_de_tipo_de_documento_sem_valor_na_tela",
+            ))?;
             marcadas.push((caixa, valor));
         }
     }
@@ -190,9 +189,13 @@ fn orgaos_selecionados(
         }
     }
     let select = match achados.as_slice() {
-        [] => return Err(E::SeletorDeOrgaoDePesquisaAusenteNaTela),
+        [] => return Err(ErroHtml::ausente("seletor_de_orgao_de_pesquisa_ausente_na_tela").into()),
         [select] => *select,
-        _ => return Err(E::SeletoresDeOrgaoDePesquisaRepetidosNaTela),
+        _ => {
+            return Err(
+                ErroHtml::repetido("seletores_de_orgao_de_pesquisa_repetidos_na_tela").into(),
+            );
+        }
     };
     if !presente(select, "multiple")? {
         return Err(E::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
@@ -227,8 +230,9 @@ fn orgaos_selecionados(
             continue;
         }
         if presente(opcao, "selected")? {
-            valores
-                .push(atributo(opcao, "value")?.ok_or(E::OpcaoDeOrgaoSelecionadaSemValorNaTela)?);
+            valores.push(atributo(opcao, "value")?.ok_or(ErroHtml::ausente(
+                "opcao_de_orgao_selecionada_sem_valor_na_tela",
+            ))?);
         }
     }
     if valores.is_empty() {
@@ -250,7 +254,7 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<Option<u32>, E> {
     let campo = match campos.as_slice() {
         [] => return Ok(None),
         [campo] => *campo,
-        _ => return Err(E::CamposDoTermoRepetidosNaTela),
+        _ => return Err(ErroHtml::repetido("campos_do_termo_repetidos_na_tela").into()),
     };
     let Some(valor) = atributo(campo, "maxlength")? else {
         return Ok(None);

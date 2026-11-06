@@ -13,6 +13,7 @@
 use super::Destino;
 use super::erro::ErroTelaDeEnvio as E;
 use crate::arvore_processo::ACAO_DE_ENVIAR;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -119,10 +120,11 @@ pub(crate) struct TelaDeEnvio {
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
 pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("tela_de_envio_nao_interpretada"))?;
     let parser = dom.parser();
-    let form =
-        localizar_formulario(&dom, FORMULARIO_DE_ENVIO).map_err(|_| E::FormularioDeEnvioAusente)?;
+    let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
+        .map_err(|_| ErroHtml::ausente("formulario_de_envio_ausente"))?;
     let mut preenchida = false;
     let mut textos = Vec::new();
     let mut selecao: Option<String> = None;
@@ -137,7 +139,8 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
-            let valor = decodificado(tag, "value")?.ok_or(E::CampoNaoPrevistoNaTelaDeEnvio)?;
+            let valor = decodificado(tag, "value")?
+                .ok_or(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio"))?;
             let marcada = presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
@@ -149,7 +152,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                 }
                 Some("selUnidades") => preenchida = true,
                 Some(_) => preenchida |= marcada,
-                None => return Err(E::CampoNaoPrevistoNaTelaDeEnvio),
+                None => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio").into()),
             }
             continue;
         }
@@ -196,7 +199,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
                     textos.push(*texto);
                 }
             }
-            _ => return Err(E::CampoNaoPrevistoNaTelaDeEnvio),
+            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio").into()),
         }
     }
     if preenchida {
@@ -248,7 +251,7 @@ fn ler_script(html: &str) -> Result<(String, bool), E> {
     };
     match formas.as_slice() {
         [Some(unidade_atual)] => Ok((url, *unidade_atual)),
-        _ => Err(E::ConsultaDoAutocompletarForaDaFormaObservada),
+        _ => Err(ErroHtml::valor("consulta_do_autocompletar_fora_da_forma_observada").into()),
     }
 }
 
@@ -261,13 +264,17 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+    atributo_presente(tag, nome)
+        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_envio_nao_interpretada", e)))
 }
 
 fn decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome)
-        .map_err(|_| E::HtmlNaoInterpretado)?
-        .map(|bruto| decodificar_atributo(&bruto).ok_or(E::HtmlNaoInterpretado))
+        .map_err(|e| ErroHtml::atributo("tela_de_envio_nao_interpretada", e))?
+        .map(|bruto| {
+            decodificar_atributo(&bruto)
+                .ok_or(E::Html(ErroHtml::html("tela_de_envio_nao_interpretada")))
+        })
         .transpose()
 }
 

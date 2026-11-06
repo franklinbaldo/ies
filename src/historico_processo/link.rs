@@ -10,6 +10,7 @@
 //! Só essas formas exatas; nada de regex nem de JavaScript executado.
 use super::ErroLinkDoHistorico as E;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -48,19 +49,21 @@ pub(crate) fn ler_link_do_historico(
     let url = match achados.as_slice() {
         [] => return Err(E::LinkDoHistoricoAusenteNaArvore),
         [url] => url,
-        _ => return Err(E::LinksDoHistoricoRepetidosNaArvore),
+        _ => return Err(ErroHtml::repetido("links_do_historico_repetidos_na_arvore").into()),
     };
     conferir_endereco_relativo(instalacao, url, super::ACAO_DO_HISTORICO, id)
         .map(EnderecoDoHistorico)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoDoHistoricoNaoReconhecido,
+            EnderecoRecusado::NaoReconhecido => {
+                E::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido"))
+            }
             EnderecoRecusado::DeOutroProcesso => E::EnderecoDoHistoricoDeOutroProcesso,
         })
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
 fn do_onclick(html: &str) -> Result<Vec<String>, E> {
-    let ilegivel = E::HtmlDaArvoreNaoInterpretado;
+    let ilegivel = E::Html(ErroHtml::html("html_da_arvore_nao_interpretado"));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -74,7 +77,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, E> {
             };
             let bruto = valor_do_atributo(a, "onclick")
                 .map_err(|_| ilegivel)?
-                .ok_or(E::LinkDoHistoricoForaDaFormaObservada)?;
+                .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
             let onclick = decodificar_atributo(&bruto).ok_or(ilegivel)?;
             if onclick == SEM_ARGUMENTO {
                 continue;
@@ -82,7 +85,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, E> {
             let url = onclick
                 .strip_prefix(COM_ARGUMENTO)
                 .and_then(|resto| resto.strip_suffix("');"))
-                .ok_or(E::LinkDoHistoricoForaDaFormaObservada)?;
+                .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
             achados.push(url.to_owned());
         }
     }
@@ -102,7 +105,7 @@ fn do_script(html: &str) -> Result<Vec<String>, E> {
             .flatten()
             .and_then(|seguinte| seguinte.strip_prefix(SRC))
             .and_then(|resto| resto.strip_suffix("';"))
-            .ok_or(E::LinkDoHistoricoForaDaFormaObservada)?;
+            .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
         achados.push(url.to_owned());
     }
     Ok(achados)

@@ -78,3 +78,88 @@ jobs:
             target/release/ies.sha256
           retention-days: 7
           if-no-files-found: error
+
+  replay-lupa-go:
+    # Regressão permanente da #244. ZIP público, hash conferido e apenas
+    # respostas gravadas: nunca requisita a instalação do SEI.
+    name: replay GO da lupa de unidades
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-workspace-crates: true
+
+      - name: Download and verify public GO archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ies-acervo"
+          curl --fail --location --silent --show-error --retry 0 --max-time 180 \
+            --output "$RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" \
+            "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-e01c45d573ff1591.zip"
+          echo "e01c45d573ff15912f0a5d018165aa3edbf24c89  $RUNNER_TEMP/ies-acervo/lote-e01c45d573ff1591.zip" | sha1sum --check
+
+      - name: Mandatory offline replay (3 GET, 3 POST from cassette)
+        shell: bash
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo
+        run: |
+          set -euo pipefail
+          # A ausencia do teste nao pode transformar este gate em sucesso vazio.
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored |
+            grep -F 'unidade_lupa::acervo::replay_da_lupa_go_no_acervo: test'
+          cargo +1.99.1 test --locked --bin ies replay_da_lupa_go_no_acervo -- --ignored --nocapture --test-threads=1
+
+  replay-processo-criar:
+    # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
+    # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
+    # Nenhum endpoint SEI é acessado aqui.
+    name: replay processo criar (acervo público)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Cache dos ZIPs públicos conferidos
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/ies-acervo-processo-criar
+          key: ies-acervo-processo-criar-${{ hashFiles('cassettes/**/processo-criar-*.md') }}
+
+      - name: Testar a obtenção dos ZIPs sem rede real
+        run: python3 -m unittest discover -s scripts/tests -p 'test_baixar_acervo_processo_criar.py' -v
+
+      - name: Testar ensaio manual de escrita única (sem rede ou SEI)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_ensaio_processo_criar.py' -v
+
+      - name: Testar conciliação somente leitura de efeito incerto (sem SEI)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_reconciliar_processo_criar.py' -v
+
+      - name: Obter ZIPs originais com hashes verificados
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
+        run: python3 scripts/baixar_acervo_processo_criar.py
+
+      - name: Executar obrigatoriamente o replay dos leitores Rust
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
+        run: scripts/replay processo_criar_fluxo::acervo::replay_de_processo_criar_no_acervo

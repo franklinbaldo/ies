@@ -7,6 +7,7 @@ use super::barra_do_documento::{
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::instalacao;
+use crate::erro_html::ErroHtml;
 
 pub(crate) const HASH_VERSOES: &str =
     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -108,7 +109,9 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     let dois = format!("{0}{0}", barra("10", "21", None));
     assert_eq!(
         ler(&com_barra(&base(), 1, &dois)),
-        Err(E::LinksDasVersoesRepetidosNaBarra)
+        Err(E::Html(ErroHtml::repetido(
+            "link_das_versoes_repetido_na_barra"
+        )))
     );
     let sem_hash = barra("10", "21", None).replace(
         &format!("&infra_hash={HASH_VERSOES}\" tabindex=\"455"),
@@ -116,7 +119,7 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     );
     assert_eq!(
         ler(&com_barra(&base(), 1, &sem_hash)),
-        Err(E::EnderecoDasVersoesNaoReconhecido)
+        Err(E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido")))
     );
     assert_eq!(
         crate::erro_publico::folha(&E::EnderecoDasVersoesDeOutroDocumento),

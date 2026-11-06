@@ -17,6 +17,7 @@ use crate::documento_versoes::{
     ErroVersao, HistoricoDocumento, VersaoDocumento, interpretar_historico,
 };
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::rodape_do_documento::versao_do_rodape;
 
@@ -109,7 +110,9 @@ pub(super) fn do_externo(
     if pedido.versao.is_some() {
         return Err(match no.barra()?.versoes {
             None => E::ListaDeVersoesNaoPublicadaNaArvore,
-            Some(_) => E::BarraDoDocumento(ErroBarraDoDocumento::BarraForaDaFormaObservada),
+            Some(_) => E::BarraDoDocumento(ErroBarraDoDocumento::Html(ErroHtml::valor(
+                "barra_do_documento_fora_da_forma_observada",
+            ))),
         });
     }
     Ok(VersoesDoDocumento {

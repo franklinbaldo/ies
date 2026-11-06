@@ -4,6 +4,7 @@ use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atua
 use super::*;
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
 
 /// R da `UnB`/PEN1 em miniatura: Recebidos P1, P2 (completos); Gerados com
@@ -206,9 +207,9 @@ fn cabecalho_desconhecido_na_d_falha_fechado_sem_post_de_volta() {
     assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::Detalhada(
-            crate::caixa_detalhada::ErroDetalhada::CabecalhoNaoReconhecido
-        )
+        ErroVisaoDoControle::Detalhada(crate::caixa_detalhada::ErroDetalhada::Html(
+            ErroHtml::valor("cabecalho_da_visao_detalhada_nao_reconhecido")
+        ))
     );
 }
 
