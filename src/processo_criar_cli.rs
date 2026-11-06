@@ -6,8 +6,11 @@ use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
+#[path = "processo_criar_cli/apresentacao.rs"]
+mod apresentacao;
 #[path = "processo_criar_cli/coincidencias.rs"]
 mod coincidencias;
+use apresentacao::informar_sucesso;
 use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
@@ -241,66 +244,6 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
     ExitCode::from(3)
-}
-
-fn informar_causa_post(causa: Option<&str>) {
-    if let Some(causa) = causa {
-        println!("Causa do POST reconciliado por leitura: {causa}");
-    }
-}
-
-fn informar_sucesso(
-    json_mode: bool,
-    feito: crate::processo_criar_fluxo::Criacao,
-    especificacao: &str,
-) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "tipo": feito.tipo,
-                "especificacao": especificacao,
-                "assunto": feito.assunto,
-                "interessados": feito.interessados,
-                "nivel": feito.nivel,
-                "hipotese_legal": feito.hipotese_legal,
-                "unidade": feito.unidade,
-                "confirmado": feito.confirmado,
-                "nup": feito.nup,
-                "causa_post": feito.causa_post,
-                "origem": "web",
-                "requisicoes": feito.requisicoes,
-            })
-        );
-    } else {
-        println!(
-            "IES: {} processo «{}» na unidade {} ({} requisições).",
-            if feito.confirmado {
-                "criado"
-            } else {
-                "prévia de criação de"
-            },
-            feito.tipo,
-            feito.unidade,
-            feito.requisicoes
-        );
-        println!("Especificação: {especificacao}");
-        println!("Assunto sugerido: {}", feito.assunto);
-        if !feito.interessados.is_empty() {
-            println!("Interessados: {}", feito.interessados.join("; "));
-        }
-        println!("Acesso: {}", feito.nivel);
-        if let Some(hipotese) = feito.hipotese_legal {
-            println!("Hipótese legal observada (ID): {hipotese}");
-        }
-        informar_causa_post(feito.causa_post);
-        if let Some(nup) = feito.nup {
-            println!("NUP criado e verificado: {nup}");
-        } else {
-            println!("Para criar, repita com --confirmar.");
-        }
-    }
-    ExitCode::SUCCESS
 }
 
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
