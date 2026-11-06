@@ -37,25 +37,33 @@ da opção, sem POST. Também deriva o payload pelo formulário servido
 (botão Salvar, ocultos originais e `selAtribuicao` exato) e recusa método,
 charset ou codificação incompatíveis, sem escrever. ID numérico que aparece
 para dois logins diferentes é recusado: não há identidade unívoca.
-**--confirmar está temporariamente bloqueado** por
+O fluxo interno injetável faz **um único POST** e lê novamente a árvore para
+conferir a atribuição do processo, inclusive se a resposta do POST falhar.
+Se a atribuição relida for diferente, faltar a unidade ou a leitura falhar,
+o desfecho é `efeito_incerto_na_atribuicao` com saída 3 e sem retry.
+**Na CLI pública, --confirmar continua temporariamente bloqueado** por
 `escrita_de_atribuicao_ainda_nao_verificada`, sem acessar o SEI: a
 integração de escrita só será habilitada quando houver teste de
 POST único e releitura.
 
-A escrita definitiva deverá usar o formulário servido como fonte do
-payload, exatamente um POST sem retry, verificação por uma árvore nova
-e saída 3 em efeito incerto. A autorização se restringe às instalações
+O fluxo de escrita injetável utiliza o formulário servido como fonte do
+payload, exatamente um POST sem retry e uma árvore nova para verificação.
+A habilitação da escrita na CLI depende ainda de ensaio seguro em treinamento,
+com prévia, confirmação única e registro da atribuição ou remoção residual. A autorização se restringe às instalações
 de treinamento; ordem prévia → confirmar uma vez → leitura de prova.
 
 ## Orçamento conhecido e pendências
 
 Prévia: abertura do processo pelo índice/Controle, mais 1 GET da tela.
-A escrita futura acrescentará 1 POST e 1 leitura da árvore; os testes
-integrados ainda precisam afirmar os totais por caminho de abertura.
+A escrita no fluxo de transporte acrescenta 1 POST e 1 GET de verificação,
+sem repetir o POST mesmo sob falha de rede. O teste sintético a frio afirma
+**5 GET + 1 POST = 6 requisições**, para atribuição e remoção; os caminhos
+com índice local precisam de testes específicos.
 Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a frio (3 da abertura e 1 da tela); barra ausente custa 3 GET e 0 POST. As recusas HTTP da prévia preservam status e mensagem saneada. Testes sintéticos do corpo do POST e da remoção usam 0 requisições:
 `hdnInfraTipoPagina`, `sbmSalvar`, `selAtribuicao`, `hdnIdProtocolo`
-nessa ordem. `--confirmar` continua fechado antes da sessão. Replay do
-acervo e live: NOT_RUN nesta fatia, sem escrita.
+nessa ordem. A CLI `--confirmar` continua fechada antes da sessão.
+RED de transporte: [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454), **4 testes novos FAIL, 1.689 PASS**.
+Replay do acervo e live: NOT_RUN nesta fatia, sem escrita.
 
 [Decisão](../../docs/decisoes/processo-atribuir.md),
 [casos no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/test_ciclo_atribuir_010.py),
