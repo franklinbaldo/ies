@@ -289,3 +289,20 @@ fn script_javascript_explicito_preserva_o_aceite_observado() {
     let html = aceite_processo("42457").replacen("<script>", "<script type='text/javascript'>", 1);
     assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
 }
+
+/// RED #271: argumentos adicionais são avaliados antes da chamada JS.
+/// Um segundo argumento que lança exceção impede a recarga: a URL literal
+/// do primeiro argumento não prova que atualizarArvore foi executada.
+#[test]
+fn segundo_argumento_pode_impedir_recarga_e_nao_prova_ciencia() {
+    let html = aceite_processo("42457").replacen(
+        "#ID-42457');",
+        "#ID-42457', (() => { throw new Error('abortar'); })());",
+        1,
+    );
+    assert!(html.contains("throw new Error"));
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
