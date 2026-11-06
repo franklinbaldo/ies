@@ -80,9 +80,17 @@ impl ErroProcessoAtribuir {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),
-            Self::EfeitoIncertoNaAtribuicao { falha_do_envio, .. } => falha_do_envio
+            Self::EfeitoIncertoNaAtribuicao {
+                falha_do_envio,
+                leitura,
+                ..
+            } => falha_do_envio
                 .as_deref()
-                .and_then(ErroSubmissaoFormulario::status_http),
+                .and_then(ErroSubmissaoFormulario::status_http)
+                // O POST pode ter sido aceito ou falhado sem resposta,
+                // enquanto a leitura de prova recebeu recusa HTTP.
+                // Não apagar o status e a mensagem dessa última falha.
+                .or_else(|| leitura.as_deref().and_then(ErroProcessoObter::status_http)),
             _ => crate::erro_publico::Causa::status_http(self),
         }
     }
