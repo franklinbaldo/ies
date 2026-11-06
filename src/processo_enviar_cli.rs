@@ -165,6 +165,7 @@ struct DestinoPublico<'a> {
     sigla: &'a str,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "quatro campos independentes exigidos pelo contrato JSON")]
 #[derive(serde::Serialize)]
 struct ResultadoEnvio<'a> {
     aberto_em: &'a [String],
@@ -203,7 +204,9 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         depois: feito.depois.as_deref(),
         reconciliado_por_leitura: feito.reconciliado_por.is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref()
+        falha_do_envio: feito
+            .reconciliado_por
+            .as_ref()
             .map(crate::processo_concluir_cli::FalhaEnvioPublica::de),
     }
 }
