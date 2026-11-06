@@ -319,3 +319,99 @@ fn filtro_adulterado_na_ultima_das_274_paginas_aborta_sem_retry() {
     assert_eq!(roteiro.navegacao.gets, 4);
     assert_eq!(roteiro.posts, PAGINAS_GO_SINTETICAS);
 }
+
+#[test]
+fn falha_de_filtro_publica_cinco_tentativas_sem_post_repetido() {
+    // Cenario derivado da falha GO: quatro GET de navegacao e uma
+    // consulta rejeitada nao podem sumir da telemetria de falha.
+    let mut rede = Fake {
+        gets: 0,
+        posts: 0,
+        repetir: false,
+        filtro_sobreposto: true,
+    };
+    let mut requisicoes = 0;
+    assert_eq!(
+        ler_integral_com_contador(
+            &mut rede,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        )
+        .err(),
+        Some(FalhaDaLupa::FormularioInesperado),
+    );
+    assert_eq!(requisicoes, 5, "4 GET + 1 POST, mesmo na recusa");
+    assert_eq!((rede.gets, rede.posts), (4, 1));
+}
+
+#[test]
+fn falha_tardia_na_pagina_final_conta_todas_as_tentativas() {
+    // A pagina final rejeitada nao apaga as 278 tentativas da varredura.
+    let mut roteiro = RoteiroPaginacaoIntegral::novo(true);
+    let mut requisicoes = 0;
+    assert_eq!(
+        ler_integral_com_contador(
+            &mut roteiro,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        )
+        .err(),
+        Some(FalhaDaLupa::FormularioInesperado),
+    );
+    assert_eq!(requisicoes, 4 + PAGINAS_GO_SINTETICAS);
+    assert_eq!((roteiro.navegacao.gets, roteiro.posts), (4, 274));
+}
+
+#[test]
+fn dois_submits_sem_name_da_lupa_go_nao_entram_no_corpo() {
+    // Forma observada no replay GO integral, cassette 85f61d67.
+    // Ambos os botoes carregam id, nao name. Browser nao envia
+    // pares de botao sem name; os filtros continuam vazios.
+    let html = pagina(0, &[]).replace(
+        "<input type='submit' name='btnPesquisar' value='Pesquisar'>",
+        "<input type='submit' id='btnPesquisar' value='Pesquisar'>\
+         <input type='submit' id='btnPesquisar' value='Pesquisar'>",
+    );
+    let instalacao = Instalacao::interpretar(ORIGEM).expect("origem sintetica");
+    let post = consulta(
+        &instalacao,
+        &url("unidade_selecionar_envio_processo"),
+        &html,
+        "text/html; charset=utf-8",
+        0,
+    )
+    .expect("forma GO observada deve derivar uma consulta");
+    let corpo = String::from_utf8_lossy(post.corpo());
+    assert!(!corpo.contains("btnPesquisar="), "botao sem name nao entra");
+    assert!(corpo.contains("hdnInfraPaginaAtual=0"));
+    assert!(corpo.contains("selOrgaoUnidade="));
+    assert!(corpo.contains("txtSiglaUnidade="));
+}
+
+#[test]
+fn botoes_sem_nome_ausentes_ou_repetidos_demais_falham_fechados() {
+    let instalacao = Instalacao::interpretar(ORIGEM).expect("origem sintetica");
+    let forma = pagina(0, &[]).replace("name='btnPesquisar'", "id='btnPesquisar'");
+    let ausente = forma.replace("id='btnPesquisar'", "id='outro'");
+    let duplicada = forma.replace(
+        "</form>",
+        "<input type='submit' id='btnPesquisar' value='Pesquisar'>\
+         <input type='submit' id='btnPesquisar' value='Pesquisar'></form>",
+    );
+    for html in [&ausente, &duplicada] {
+        assert!(matches!(
+            consulta(
+                &instalacao,
+                &url("unidade_selecionar_envio_processo"),
+                html,
+                "text/html; charset=utf-8",
+                0,
+            ),
+            Err(FalhaDaLupa::FormularioInesperado)
+        ));
+    }
+}

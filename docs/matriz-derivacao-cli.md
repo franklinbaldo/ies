@@ -139,3 +139,9 @@ Se só houver nova flag, parser ou contrato sem redução demonstrável
 do caminho incompleto, redirecionar o esforço para as lacunas acima.
 A nova capacidade **não** fecha issue ampla enquanto os critérios
 de aceitação não forem integralmente comprovados.
+
+## Handoff #253 — retornos programados (PR Draft)
+
+| Comando | Estado deste branch | Evidência | Lacuna |
+| --- | --- | --- | --- |
+| `ies unidade retornos [--mes AAAA-MM] [--json]` | **PARCIAL WEB (PR DRAFT)**: GET do Controle, link publicado de `retorno_programado_listar`, calendário por mês e tabelas com legenda conferida; recusa paginação não observada | [Contrato](../contracts/cli/unidade-listar-retornos.md), [decisão](decisoes/unidade-listar-retornos.md), [observação](como-o-sei-funciona/retorno-programado.md), testes sintéticos Rust derivados de Todos @323eb01 | Replay original PASS 14/14; live em GO e PEN3 com `--mes 2026-11` PASS (18 requisições, 0 escrita). Navegação live sem `--mes` com calendário deslocado NOT_RUN; paginação independente ainda não observada. [Relatório](validacao-replay/2026-11-05-unidade-retornos.md). Não contar como capacidade em `main` antes da integração. |
