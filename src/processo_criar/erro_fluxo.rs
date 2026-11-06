@@ -25,8 +25,17 @@ pub(crate) enum ProvaDaCriacao {
     IdentidadePreexistente,
 }
 
+/// Classificacao por fatos tipados, sem interpretar textos de subcodigos.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenciaDeCoincidencia {
+    UnicaSemProvaCausal,
+    Multiplas,
+    Parcial,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
+    pub(crate) evidencia: Option<EvidenciaDeCoincidencia>,
     pub(crate) causa_post: &'static str,
     pub(crate) causa_releitura: Option<&'static str>,
     /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
@@ -111,6 +120,16 @@ impl ErroCriar {
             Self::ProvaDaCriacao(erro) => crate::erro_publico::folha(erro),
             Self::VerificacaoAposPost(erro) => erro.subcodigo(),
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
+            Self::PosEscrita {
+                correspondentes: Some(nups),
+                posterior: Ok(_),
+                ..
+            }
+            | Self::PosRespostaInesperada {
+                correspondentes: Some(nups),
+                posterior: Ok(_),
+                ..
+            } if nups.len() == 1 => "candidato_unico_sem_prova_causal",
             Self::PosEscrita {
                 correspondentes: Some(_),
                 posterior: Ok(_),
@@ -221,7 +240,17 @@ impl ErroCriar {
             ),
             _ => return None,
         };
+        let evidencia = correspondentes.as_ref().map(|nups| {
+            if posterior.is_err() {
+                EvidenciaDeCoincidencia::Parcial
+            } else if nups.len() == 1 {
+                EvidenciaDeCoincidencia::UnicaSemProvaCausal
+            } else {
+                EvidenciaDeCoincidencia::Multiplas
+            }
+        });
         Some(DiagnosticoPosEscrita {
+            evidencia,
             causa_post,
             causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
             http_releitura: posterior
