@@ -16,6 +16,13 @@ pub(crate) enum CausaRespostaCriadora {
     LocalizacaoInvalida,
 }
 
+/// Fato observado na verificação independente após Location legítimo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum ProvaDaCriacao {
+    #[causa(nome = "propriedades_divergentes_apos_post_criador")]
+    PropriedadesDivergentes,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) causa_post: &'static str,
@@ -51,6 +58,7 @@ pub(crate) enum ErroCriar {
     Arvore(crate::arvore_processo::ErroArvore),
     Propriedades(crate::propriedades_processo::ErroPropriedades),
     PropriedadesNaoOferecidas,
+    ProvaDaCriacao(ProvaDaCriacao),
     /// Falha de leitura após Location legítimo do POST criador.
     /// A causa é da verificação; a criação já pode ter sido aplicada.
     VerificacaoAposPost(Box<ErroCriar>),
@@ -98,6 +106,7 @@ impl ErroCriar {
             Self::Arvore(erro) => crate::erro_publico::folha(erro),
             Self::Propriedades(erro) => crate::erro_publico::folha(erro),
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
+            Self::ProvaDaCriacao(erro) => crate::erro_publico::folha(erro),
             Self::VerificacaoAposPost(erro) => erro.subcodigo(),
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
             Self::PosEscrita {
