@@ -38,9 +38,7 @@ pub(crate) fn derivar_submissao_guardada(
         return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
-    let servida = UrlHttps::interpretar(referer).ok_or(E::Transporte(FalhaTransporte::Html(
-        ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-    )))?;
+    let servida = UrlHttps::interpretar(referer).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
