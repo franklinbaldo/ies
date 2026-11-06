@@ -24,6 +24,10 @@ pub(crate) enum ErroFotografia {
     IdentidadeAlterada,
     #[causa(nome = "identidade_anterior_ausente_na_reconciliacao")]
     IdentidadeAnteriorAusente,
+    #[causa(nome = "link_do_candidato_nao_comprovado")]
+    LinkDoCandidatoNaoComprovado,
+    #[causa(nome = "links_do_candidato_repetidos")]
+    LinksDoCandidatoRepetidos,
 }
 
 impl FotografiaDosGerados {
@@ -48,6 +52,12 @@ impl FotografiaDosGerados {
             .map(|p| (p.id.as_str().to_owned(), p.numero.clone()))
             .collect();
         Ok(Self { por_id })
+    }
+
+    /// A fotografia anterior ao POST pode vetar um Location que aponta
+    /// para identidade já existente. Não prova causalidade por si só.
+    pub(crate) fn contem_id(&self, id: &str) -> bool {
+        self.por_id.contains_key(id)
     }
 
     /// Identifica *candidatos* novos, não afirma que o POST os criou.

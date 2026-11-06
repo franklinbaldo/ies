@@ -96,6 +96,66 @@ fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
     )
 }
 
+/// Construção pura para testar que a recusa do próprio cadastro distingue
+/// não aplicação comprovada de erro HTTP sem garantia de não aplicação.
+fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str) -> serde_json::Value {
+    let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+    if erro.nao_aplicada_comprovada() {
+        valor["desfecho"] = json!("nao_aplicada");
+        valor["repeticao_segura_com_nova_previa"] = json!(true);
+    }
+    // Nunca autoriza retry automático, mesmo com validação expressa.
+    valor
+}
+
+/// Mantém o HTTP da leitura posterior separado do HTTP do POST.
+fn anexar_http_releitura_json(
+    valor: &mut serde_json::Value,
+    http: Option<transporte::StatusHttpRecusado>,
+) {
+    if let Some(http) = http {
+        valor["status_http_releitura"] = json!(http.status);
+        valor["mensagem_do_servidor_releitura"] = json!(http.mensagem_do_servidor);
+    }
+}
+
+/// Só a conferência integral permite o desfecho de candidatos ambíguos.
+/// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
+fn anexar_coincidencias_json(valor: &mut serde_json::Value, subcodigo: &str, nups: &[String]) {
+    if subcodigo == "candidatos_ambiguos_na_criacao" {
+        valor["desfecho"] = json!("candidatos_ambiguos");
+        valor["candidatos_compativeis"] = json!(nups);
+    } else {
+        valor["coincidencias_parciais_conferidas"] = json!(nups);
+    }
+}
+
+fn informar_coincidencias_humanas(nups: &[String], subcodigo: &str) {
+    if subcodigo == "candidatos_ambiguos_na_criacao" {
+        eprintln!(
+            "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
+            nups.len()
+        );
+    } else {
+        eprintln!(
+            "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
+            nups.len()
+        );
+    }
+    for nup in nups {
+        eprintln!("  {nup}");
+    }
+}
+
+fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
+    if let Some(http) = http {
+        eprintln!("IES: releitura HTTP {}.", http.status);
+        if let Some(mensagem) = http.mensagem_do_servidor {
+            eprintln!("IES: mensagem saneada da releitura: {mensagem}");
+        }
+    }
+}
+
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     if erro.saida() != 3 {
         let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
@@ -118,7 +178,21 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             return ExitCode::from(1);
         }
         // Status e mensagem saneada do SEI vão para a saída quando houve.
-        return erro_fonte_http(json_mode, erro.subcodigo(), mensagem, erro.status_http());
+        if json_mode {
+            println!("{}", json_da_recusa_criadora(erro, mensagem));
+            return ExitCode::from(1);
+        }
+        if erro.nao_aplicada_comprovada() {
+            eprintln!(
+                "{}",
+                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+            );
+            eprintln!(
+                "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
+            );
+            return ExitCode::from(1);
+        }
+        return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
     }
     // O GET de reconciliação é só observação: sem conferir tipo e
     // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
@@ -136,6 +210,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_post"] = json!(causa_post);
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
+            anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
+            if let Some(nups) = diagnostico.candidatos_compativeis {
+                anexar_coincidencias_json(&mut valor, erro.subcodigo(), &nups);
+            }
         }
         if let Some(http) = erro.status_http() {
             valor["status_http"] = json!(http.status);
@@ -143,7 +221,12 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         }
         println!("{valor}");
     } else {
-        eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
+        // A linha humana preserva o HTTP saneado também na saída 3.
+        let mensagem = "criação não confirmada; não repita o POST";
+        eprintln!(
+            "{}",
+            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+        );
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
@@ -152,19 +235,29 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             if let Some(causa) = falha_leitura {
                 eprintln!("IES: causa da releitura: {causa}");
             }
+            informar_http_releitura(diagnostico.http_releitura);
             if let Some(nups) = candidatos {
                 eprintln!(
-                    "IES: candidatos observados (sem comprovação de criação): {}",
+                    "IES: candidatos observados na caixa Gerados: {}",
                     nups.len()
                 );
                 for nup in nups {
                     eprintln!("  {nup}");
                 }
             }
+            if let Some(nups) = diagnostico.candidatos_compativeis {
+                informar_coincidencias_humanas(&nups, erro.subcodigo());
+            }
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
     ExitCode::from(3)
+}
+
+fn informar_causa_post(causa: Option<&str>) {
+    if let Some(causa) = causa {
+        println!("Causa do POST reconciliado por leitura: {causa}");
+    }
 }
 
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
@@ -233,6 +326,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                         "unidade": feito.unidade,
                         "confirmado": feito.confirmado,
                         "nup": feito.nup,
+                        "causa_post": feito.causa_post,
                         "origem": "web",
                         "requisicoes": feito.requisicoes,
                     })
@@ -258,6 +352,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                 if let Some(hipotese) = feito.hipotese_legal {
                     println!("Hipótese legal observada (ID): {hipotese}");
                 }
+                informar_causa_post(feito.causa_post);
                 if let Some(nup) = feito.nup {
                     println!("NUP criado e verificado: {nup}");
                 } else {
@@ -313,6 +408,91 @@ mod tests {
                 { "id": "32", "nome": "Base B", "argumento": "32#Base B" }
             ])
         );
+    }
+
+    #[test]
+    fn recusa_explicita_publica_nao_aplicada_sem_inferir_de_403() {
+        use crate::formulario_web::ErroSubmissaoFormulario;
+        use crate::transporte::StatusHttpRecusado;
+        let recusada = ErroCriar::RecusaDoPost(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+            StatusHttpRecusado {
+                status: 200,
+                mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
+            },
+        ));
+        assert_eq!(recusada.saida(), 1);
+        let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida");
+        assert_eq!(json["desfecho"], "nao_aplicada");
+        assert_eq!(json["repeticao_segura_com_nova_previa"], true);
+        assert_eq!(json["retentavel"], false); // nunca retry automatico
+        assert_eq!(json["mensagem_do_servidor"], "Cadastro recusado");
+        assert!(json.get("status_http").is_none()); // validacao da Infra foi HTTP 200
+
+        // Um 403 pode vir de intermediário: não confundir com prova do SEI.
+        let http = ErroCriar::RespostaHttpSemProva(ErroSubmissaoFormulario::Transporte(
+            crate::transporte::FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("Proibido".to_owned()),
+            }),
+        ));
+        assert_eq!(http.saida(), 3); // não autorizar repetição após 403
+        let json_http = json_da_recusa_criadora(&http, "Recusa HTTP");
+        assert!(json_http.get("desfecho").is_none());
+        assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
+        assert_eq!(json_http["status_http"], 403);
+    }
+
+    #[test]
+    fn json_separa_os_status_http_do_post_e_da_releitura() {
+        let mut saida = json!({
+            "status_http": 503,
+            "mensagem_do_servidor": null
+        });
+        anexar_http_releitura_json(
+            &mut saida,
+            Some(transporte::StatusHttpRecusado {
+                status: 502,
+                mensagem_do_servidor: Some("Falha de leitura saneada".to_owned()),
+            }),
+        );
+        assert_eq!(saida["status_http"], 503); // status anterior, do POST
+        assert_eq!(saida["status_http_releitura"], 502); // status do GET
+        assert_eq!(
+            saida["mensagem_do_servidor_releitura"],
+            "Falha de leitura saneada"
+        );
+        let mut sem_http = json!({"causa_releitura": "falha_de_rede"});
+        anexar_http_releitura_json(&mut sem_http, None);
+        assert!(sem_http.get("status_http_releitura").is_none());
+    }
+
+    #[test]
+    fn coincidencia_parcial_no_json_nao_vira_candidatos_ambiguos() {
+        let mut parcial = json!({"codigo": "efeito_incerto"});
+        anexar_coincidencias_json(
+            &mut parcial,
+            "efeito_incerto_na_criacao",
+            &["NUP-sintetico-10".into()],
+        );
+        assert_eq!(
+            parcial["coincidencias_parciais_conferidas"],
+            json!(["NUP-sintetico-10"])
+        );
+        assert!(parcial.get("desfecho").is_none());
+        assert!(parcial.get("candidatos_compativeis").is_none());
+
+        let mut completa = json!({"codigo": "efeito_incerto"});
+        anexar_coincidencias_json(
+            &mut completa,
+            "candidatos_ambiguos_na_criacao",
+            &["NUP-sintetico-10".into(), "NUP-sintetico-11".into()],
+        );
+        assert_eq!(completa["desfecho"], "candidatos_ambiguos");
+        assert_eq!(
+            completa["candidatos_compativeis"],
+            json!(["NUP-sintetico-10", "NUP-sintetico-11"])
+        );
+        assert!(completa.get("coincidencias_parciais_conferidas").is_none());
     }
 
     #[test]
