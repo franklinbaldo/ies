@@ -6,7 +6,6 @@
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
     com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
-    publicar_valor_da_falha,
 };
 use crate::processo_enviar::{ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
@@ -104,21 +103,49 @@ fn enviar(
                 erro.status_http(),
             ),
             Err(erro) => {
-                let valor = json_de_falha_com_sugestoes(&erro, sessao, indice, para);
-                let resultado = publicar_valor_da_falha(cli.json, &valor, erro.saida());
-                if !cli.json
-                    && let Some(mensagem) = texto_das_sugestoes(&valor)
-                {
-                    eprintln!("{mensagem}");
+                if cli.json {
+                    println!(
+                        "{}",
+                        json_de_falha_com_sugestoes(&erro, sessao, indice, para)
+                    );
+                } else {
+                    for linha in linhas_da_falha(&erro) {
+                        eprintln!("{linha}");
+                    }
+                    let sugestoes = sugestoes_guardadas(&erro, sessao, indice, para);
+                    if let Some(mensagem) = texto_das_sugestoes(&sugestoes) {
+                        eprintln!("{mensagem}");
+                    }
                 }
-                resultado
+                ExitCode::from(erro.saida())
             }
         }
     })
 }
 
-/// Compõe a falha observada na Web com sugestões exclusivamente locais.
-/// A lista guardada não autoriza envio e nunca faz outra requisição ao SEI.
+/// Sugestões locais não são oferta do SEI nem autorizam uma escrita.
+/// Não faz pedidos HTTP e somente é consultado para a falha pertinente.
+fn sugestoes_guardadas(
+    erro: &ErroEnviar,
+    sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    para: &str,
+) -> Vec<String> {
+    if !matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
+        return Vec::new();
+    }
+    let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
+    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+    match (instalacao, ativa) {
+        (Some(instalacao), Some(ativa)) => {
+            indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para)
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// Projeção de falha para agentes; não cria sugestões nem as converte
+/// de volta a valores Rust para a saída humana.
 fn json_de_falha_com_sugestoes(
     erro: &ErroEnviar,
     sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
@@ -126,34 +153,65 @@ fn json_de_falha_com_sugestoes(
     para: &str,
 ) -> Value {
     let mut valor = json_de_falha(erro);
-    // Apenas quando o SEI não ofereceu a sigla pedida:
-    // sugestões locais não alteram a decisão do autocomplete.
-    if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
-        let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
-        let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
-        if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
-            let sugestoes =
-                indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para);
-            if !sugestoes.is_empty() {
-                valor["sugestoes_guardadas"] = json!(sugestoes);
-            }
-        }
+    let sugestoes = sugestoes_guardadas(erro, sessao, indice, para);
+    if !sugestoes.is_empty() {
+        valor["sugestoes_guardadas"] = json!(sugestoes);
     }
     valor
 }
 
-/// Complemento apenas da apresentação humana de processo enviar. A lista
-/// vem do índice local; jamais equivale a destinos aceitos pelo SEI.
-fn texto_das_sugestoes(valor: &Value) -> Option<String> {
-    let sugeridas = valor.get("sugestoes_guardadas")?.as_array()?;
-    let siglas: Vec<_> = sugeridas.iter().filter_map(Value::as_str).collect();
-    if siglas.is_empty() {
+/// Apresentação humana só a partir de dados tipados do índice local.
+fn texto_das_sugestoes(sugestoes: &[String]) -> Option<String> {
+    if sugestoes.is_empty() {
         return None;
     }
     Some(format!(
         "IES: sugestões guardadas (não confirmadas pelo SEI): {}",
-        siglas.join(", ")
+        sugestoes.join(", ")
     ))
+}
+
+/// Mantém a ordem histórica: mensagem, situação, falha de escrita,
+/// verificação. Não constrói nem interpreta `serde_json::Value`.
+fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
+    use ErroEnviar as E;
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let aberto_em = match erro {
+        E::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
+        | E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
+        | E::EnvioNaoPublicadoNaBarra { aberto_em }
+        | E::ProcessoJaAbertoNoDestino { aberto_em }
+        | E::EnvioNaoAplicado { aberto_em, .. }
+        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { aberto_em, .. }
+        | E::EfeitoIncertoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
+        _ => None,
+    };
+    let depois = match erro {
+        E::EnvioNaoAplicado { depois, .. }
+        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
+        _ => None,
+    };
+    for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
+        if let Some(lista) = lista {
+            let siglas: Vec<_> = lista.iter().map(String::as_str).collect();
+            linhas.push(format!("IES: {campo}: {}", lista_humana(&siglas)));
+        }
+    }
+    let falha_do_envio = match erro {
+        E::EnvioNaoAplicado { falha_do_envio, .. }
+        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
+        | E::EfeitoIncertoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let E::EfeitoIncertoNoEnvio { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 /// JSON do sucesso (prévia, ou enviado e conferido).

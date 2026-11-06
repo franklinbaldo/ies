@@ -118,28 +118,20 @@ fn sigla_de_destino_e_conferida_antes_de_tudo() {
 
 #[test]
 fn erro_de_envio_exibe_sugestoes_guardadas_no_modo_humano() {
-    // #244: o JSON ja continha as sugestoes, mas o texto humano nao.
-    // Somente unidades guardadas; nunca declarar que o SEI as ofereceu.
-    let erro = json!({
-        "subcodigo": "destino_nao_oferecido_pelo_sei",
-        "sugestoes_guardadas": [
-            "ABC/GECONT - Contabilidade",
-            "ABC/GECONT-18141 - Contabilidade regional"
-        ]
-    });
+    // A apresentação humana recebe strings tipadas, não serde_json::Value.
+    let sugeridas = vec![
+        "ABC/GECONT - Contabilidade".to_owned(),
+        "ABC/GECONT-18141 - Contabilidade regional".to_owned(),
+    ];
     assert_eq!(
-        super::texto_das_sugestoes(&erro).as_deref(),
+        super::texto_das_sugestoes(&sugeridas).as_deref(),
         Some(concat!(
             "IES: sugestões guardadas (não confirmadas pelo SEI): ",
             "ABC/GECONT - Contabilidade, ",
             "ABC/GECONT-18141 - Contabilidade regional"
         ))
     );
-    assert_eq!(super::texto_das_sugestoes(&json!({})), None);
-    assert_eq!(
-        super::texto_das_sugestoes(&json!({"sugestoes_guardadas": []})),
-        None
-    );
+    assert_eq!(super::texto_das_sugestoes(&[]), None);
 }
 
 #[test]
@@ -202,7 +194,9 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                 let valor = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
                 (
                     valor.clone(),
-                    super::texto_das_sugestoes(&valor),
+                    super::texto_das_sugestoes(&super::sugestoes_guardadas(
+                        &erro, sessao, indice, DESTINO,
+                    )),
                     erro.subcodigo().to_owned(),
                     erro.saida(),
                 )
@@ -259,4 +253,32 @@ fn saida_tipificada_serializa_destino_sem_value_intermediario() {
     assert_eq!(recebido["destino"]["id_unidade"], "110000002");
     assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
     assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
+}
+
+#[test]
+fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
+    let nao_aplicado = ErroEnviar::EnvioNaoAplicado {
+        aberto_em: vec!["TESTE".into()],
+        depois: vec!["OUTRA".into()],
+        falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+    };
+    let linhas = super::linhas_da_falha(&nao_aplicado);
+    assert!(linhas[0].contains(nao_aplicado.subcodigo()));
+    assert_eq!(linhas[1], "IES: aberto_em: TESTE");
+    assert_eq!(linhas[2], "IES: depois: OUTRA");
+    assert_eq!(
+        linhas[3],
+        "IES: resposta da escrita: redirecionamento_nao_reconhecido_apos_enviar"
+    );
+    let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
+        aberto_em: vec![],
+        falha_do_envio: None,
+        verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
+            crate::arvore_processo::MotivoAbertoEm::HtmlDaRaizNaoPublicado,
+        )),
+    };
+    let linhas = super::linhas_da_falha(&incerto);
+    assert_eq!(linhas[1], "IES: aberto_em: (nenhuma unidade)");
+    assert_eq!(linhas[2], "IES: verificação: html_da_raiz_nao_publicado");
+    assert_eq!(incerto.saida(), 3);
 }
