@@ -124,7 +124,7 @@ pub(crate) fn url_da_ciencia(
 }
 
 /// A ciência do documento é oferecida somente pela barra do próprio nó.
-/// O documento sem assinatura pode não publicar o botão (UnB 4.0.9).
+/// O documento sem assinatura pode não publicar o botão (`UnB` 4.0.9).
 pub(crate) fn ciencia_do_documento_na_barra(
     html: &str,
     id_documento: &str,
@@ -169,9 +169,9 @@ pub(crate) fn ciencia_do_documento_na_barra(
     }
 }
 
-/// O GET mutador vem da tela assinada do nó. Observados na UnB: função
+/// O GET mutador vem da tela assinada do nó. Observados na `UnB`: função
 /// ciênciaDocumento (4.0) e linkCienciaDocumento (4.1/5.0). Lê a fonte,
-/// nunca executa JS. A URL às vezes não traz id_procedimento, mas a tela
+/// nunca executa JS. A URL às vezes não traz `id_procedimento`, mas a tela
 /// do nó já foi vinculada ao processo na árvore.
 pub(crate) fn url_da_ciencia_do_documento(
     instalacao: &Instalacao,
@@ -232,7 +232,7 @@ pub(crate) fn url_da_ciencia_do_documento(
     .map_err(|_| E::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
     // Se a instalação também publicou id_procedimento, ele tem de ser único
     // e corresponder ao processo; a ausência é a forma observada na UnB.
-    let consulta = url.split_once('?').map(|(_, q)| q).unwrap_or("");
+    let consulta = url.split_once('?').map_or("", |(_, q)| q);
     let ids: Vec<&str> = consulta
         .split('&')
         .filter_map(|p| p.strip_prefix("id_procedimento="))
