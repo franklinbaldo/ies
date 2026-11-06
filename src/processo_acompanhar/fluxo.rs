@@ -330,7 +330,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return confirmar_remocao(
             &mut rede,
             sessao,
-            &ContextoRemocao {
+            &ContextoConferencia {
                 instalacao: &instalacao,
                 id: &id,
                 link: link.as_str(),
@@ -344,11 +344,13 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     confirmar_inclusao(
         &mut rede,
         sessao,
-        &instalacao,
-        &id,
-        link.as_str(),
-        &cookie,
-        &antes,
+        &ContextoConferencia {
+            instalacao: &instalacao,
+            id: &id,
+            link: link.as_str(),
+            cookie: &cookie,
+            antes: &antes,
+        },
         plano,
         submissao,
     )
@@ -359,11 +361,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
 fn confirmar_inclusao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
-    instalacao: &Instalacao,
-    id: &str,
-    link: &str,
-    cookie: &str,
-    antes: &[Acompanhamento],
+    contexto: &ContextoConferencia<'_>,
     mut plano: Previa,
     submissao: SubmissaoDerivada,
 ) -> Result<Previa, ErroPrevia> {
@@ -382,8 +380,9 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     // A releitura prova o efeito, mas não legitima um 302 para outra
     // operação ou outro processo. Sem resposta de rede, o POST ainda
     // pode ter sido consumido: apenas uma leitura exata pode conciliá-lo.
-    let aceite = resposta.is_err() || aceite_do_gerenciador(&resposta, instalacao, id);
-    let depois = rede.get_sem_seguir(link, cookie);
+    let aceite = resposta.is_err()
+        || aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
+    let depois = rede.get_sem_seguir(contexto.link, contexto.cookie);
     let depois = match depois {
         Ok(resposta) if resposta.resposta.status_code != 302 => {
             decodificar_resposta(resposta.resposta)
@@ -393,7 +392,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         _ => None,
     };
     let verificado = depois.as_deref().is_some_and(|linhas| {
-        conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
+        conferir_inclusao(contexto.antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !aceite || !verificado {
         return Err(ErroPrevia::EfeitoIncerto);
@@ -403,7 +402,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         .as_deref()
         .and_then(|linhas| {
             linhas.iter().find(|linha| {
-                !antes.iter().any(|anterior| anterior.id == linha.id)
+                !contexto.antes.iter().any(|anterior| anterior.id == linha.id)
                     && linha.grupo == plano.grupo
                     && linha.observacao == plano.observacao
             })
@@ -463,7 +462,7 @@ fn releitura_da_remocao<V: EnvioDoProcesso>(
 
 /// Elementos observados na mesma sessão e abertura que originaram o
 /// formulário da remoção. O POST é consumido uma vez.
-struct ContextoRemocao<'a> {
+struct ContextoConferencia<'a> {
     instalacao: &'a Instalacao,
     id: &'a str,
     link: &'a str,
@@ -477,7 +476,7 @@ struct ContextoRemocao<'a> {
 fn confirmar_remocao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
-    contexto: &ContextoRemocao<'_>,
+    contexto: &ContextoConferencia<'_>,
     mut plano: Previa,
     submissao: SubmissaoDerivada,
 ) -> Result<Previa, ErroPrevia> {
