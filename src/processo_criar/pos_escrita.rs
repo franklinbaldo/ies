@@ -8,19 +8,15 @@ use crate::instalacao::Instalacao;
 use crate::visao_do_controle::EnvioDoControle;
 use reconciliacao::desfechos::{Desfecho, ProcessoConferido, classificar};
 
+#[derive(crate::erro_publico::Causa)]
 pub(super) enum CausaPosEscrita {
+    #[causa(interna)]
     Transporte(ErroSubmissaoFormulario),
+    #[causa(interna)]
     Resposta(CausaRespostaCriadora),
 }
 
 impl CausaPosEscrita {
-    fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(e) => e.subcodigo(),
-            Self::Resposta(e) => crate::erro_publico::folha(e),
-        }
-    }
-
     fn inconclusiva(
         self,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar>,
@@ -170,7 +166,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
         Ok((_, Desfecho::Aplicada { nup })) => {
             feito.confirmado = true;
             feito.nup = Some(nup);
-            feito.causa_post = Some(causa.subcodigo());
+            feito.causa_post = Some(crate::erro_publico::folha(&causa));
             feito.requisicoes = *requisicoes;
             Ok(())
         }
