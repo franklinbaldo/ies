@@ -283,3 +283,17 @@ fn recusas_da_fronteira_preservam_tipo_sem_html_intermediario() {
         ["tipo_de_conteudo_nao_html"]
     );
 }
+
+#[test]
+fn falhas_de_fronteira_sao_tipos_proprios_sem_causa_html() {
+    use crate::erro_publico::{caminho_de, folha};
+    for (erro, esperado) in [
+        (FalhaTransporte::UrlInvalida, "url_invalida"),
+        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
+        (FalhaTransporte::TipoDeConteudoNaoHtml, "tipo_de_conteudo_nao_html"),
+    ] {
+        assert_eq!(folha(&erro), esperado);
+        assert_eq!(caminho_de(&erro), [esperado]);
+        assert_eq!(erro.status_http(), None);
+    }
+}
