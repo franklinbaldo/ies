@@ -2,8 +2,9 @@
 //! sequência POST único e releitura estar coberta por teste de transporte.
 use crate::arvore_processo::AbertoEm;
 use crate::indice_local::IndiceLocal;
+use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_atribuir::{ler_tela, planejar};
+use crate::processo_atribuir::preparar_submissao;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
@@ -99,7 +100,7 @@ fn previa(
         Ok(v) => v,
         Err(erro) => return falhar(cli.json, erro.subcodigo()),
     };
-    let (html, _) = match obter_tela(&mut rede, &cookie, link.as_str()) {
+    let (html, mime) = match obter_tela(&mut rede, &cookie, link.as_str()) {
         Ok(v) => v,
         Err(FalhaDaTela::Redirecionada) => {
             return falhar(cli.json, "tela_da_atribuicao_redirecionada");
@@ -109,11 +110,20 @@ fn previa(
         }
         Err(FalhaDaTela::Transporte(erro)) => return falhar(cli.json, erro.subcodigo()),
     };
-    let tela = match ler_tela(&html, &aberto.arvore.processo.id) {
-        Ok(v) => v,
-        Err(erro) => return falhar(cli.json, erro.subcodigo()),
+    let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
+        return falhar(cli.json, "origem_nao_autorizada");
     };
-    let valor = match planejar(&tela, usuario, atual) {
+    // A prévia comprova também a forma exata do POST, sem enviá-lo.
+    let (valor, _submissao) = match preparar_submissao(
+        &instalacao,
+        link.as_str(),
+        &html,
+        &mime,
+        &aberto.arvore.processo.id,
+        unidade,
+        usuario,
+        atual,
+    ) {
         Ok(v) => v,
         Err(erro) => return falhar(cli.json, erro.subcodigo()),
     };
