@@ -88,3 +88,108 @@ fn previa_sem_confirmar_expoe_a_mesma_contagem_que_o_transporte() {
     );
     assert_eq!(contador, 3);
 }
+
+
+/// A captura de procedimento_gerar.html no Todos @323eb01 publica
+/// maxlength=100 em txtDescricao. O limite vem da tela, não do IES.
+fn cadastro_com_maxlength(limite: &str) -> String {
+    cadastro().replace(
+        "name='txtDescricao' value=''",
+        &format!("name='txtDescricao' maxlength='{limite}' value=''"),
+    )
+}
+
+#[test]
+fn previa_recusa_especificacao_acima_do_maxlength_observado() {
+    let amb = ambiente();
+    let longa = "A".repeat(101);
+    let mut solicitado = pedido(false);
+    solicitado.especificacao = &longa;
+    let mut contador = 0;
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro_com_maxlength("100")),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar_com_contagem(
+            sessao.origem, sessao.url_do_controle, sessao.cookie,
+            &solicitado, rede, &mut contador,
+        )
+    });
+    let erro = resultado.expect_err("prévia deve respeitar maxlength da tela");
+    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite_do_cadastro");
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(contador, 3);
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
+
+#[test]
+fn confirmacao_recusa_especificacao_longa_antes_de_post() {
+    let amb = ambiente();
+    let longa = "A".repeat(101);
+    let mut solicitado = pedido(true);
+    solicitado.especificacao = &longa;
+    let mut contador = 0;
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro_com_maxlength("100")),
+        Err(FalhaTransporte::Rede), // sentinela: nunca deve ser consumida
+        ok(tela_controle()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar_com_contagem(
+            sessao.origem, sessao.url_do_controle, sessao.cookie,
+            &solicitado, rede, &mut contador,
+        )
+    });
+    let erro = resultado.expect_err("maxlength deve impedir a escrita");
+    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite_do_cadastro");
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(contador, 3);
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
+
+#[test]
+fn comprimento_html_de_especificacao_considera_unidades_utf16() {
+    let amb = ambiente();
+    let longa = "🦉".repeat(51); // 51 escalares; 102 unidades UTF-16
+    let mut solicitado = pedido(false);
+    solicitado.especificacao = &longa;
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro_com_maxlength("100")),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &solicitado, rede)
+    });
+    assert_eq!(
+        resultado.expect_err("maxlength HTML considera UTF-16").subcodigo(),
+        "especificacao_acima_do_limite_do_cadastro"
+    );
+    assert_eq!(requests.len(), 3);
+}
+
+#[test]
+fn limite_exato_e_cadastro_sem_maxlength_nao_inventam_recusa() {
+    let amb = ambiente();
+    let exata = "A".repeat(100);
+    let mut solicitado = pedido(false);
+    solicitado.especificacao = &exata;
+    for cadastro_html in [cadastro_com_maxlength("100"), cadastro()] {
+        let respostas = vec![
+            ok(tela_controle()),
+            ok(lista(false)),
+            ok(cadastro_html),
+        ];
+        let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+            criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &solicitado, rede)
+        });
+        assert!(!resultado.unwrap().confirmado);
+        assert_eq!(requests.len(), 3);
+    }
+}
