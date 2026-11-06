@@ -210,3 +210,16 @@ a releitura independente uma vez; o efeito segue incerto (saída 3),
 com `causa_envio` tipada, `status_http` e mensagem saneada quando observados.
 Nenhum segundo POST é autorizado, inclusive quando a árvore mudou.
 A forma efetiva do retorno do SEI em treinamento permanece a validar.
+
+## Prova de script ativo antes dos POSTs de navegação
+
+A seleção do tipo por `escolher(id)` e a troca do filtro por
+`exibirSeries(tipo)` exigem a função literal observada publicada em
+um único `script` clássico inline ativo. Texto idêntico em
+`template`, comentário HTML ou `script type=application/json` não
+autoriza o POST de navegação; não se executa JavaScript nem se inventa
+endpoint. A recusa conserva `link_do_tipo_de_documento_nao_navegavel`
+e acontece antes do envio daquele formulário. Testes adversariais
+sintéticos cobrem os três conteúdos inertes em ambos os caminhos e
+controles positivos com código ativo. Não extrapolar para outras
+versões/instalações sem observação.
