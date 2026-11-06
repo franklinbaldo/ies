@@ -35,8 +35,20 @@ do retorno histórico do POST. O replay utilizou **zero requisições reais**.
 | Remoção única e releitura | treinamento | **NOT_RUN** | 0 | 0 | nenhum |
 
 Não houve autenticação, requisição, escrita, retry nem consulta a produção.
-A falta de ensaio live **não equivale a PASS**. A capacidade continua incompleta: faltam replay específico do acervo,
-validação em duas instalações de treinamento e habilitação segura da
-CLI pública. Nenhuma evidência sintética equivale a autorização para
-escrita sem prévia ao vivo, confirmação única e releitura com registro
-do resíduo.
+A falta de ensaio live **não equivale a PASS**. A capacidade continua incompleta:
+faltam validação em duas instalações de treinamento, confirmação e remoção
+únicas com prova por releitura e habilitação segura da CLI pública.
+Nenhuma evidência sintética equivale a confirmação real de escrita.
+
+## Regressão de destino 302 genérico
+
+Observação de segurança: `acao=principal` não identifica, por si só,
+o processo atribuído. A leitura coincidente após esse 302 pode ter sido
+produzida por outro agente. O teste sintético foi introduzido antes
+da correção, e o [CI 42204843683](https://github.com/franklinbaldo/ies/actions/runs/42204843683)
+registrou **1 FAIL novo, 1.706 PASS e 23 ignored preexistentes**:
+o fluxo marcava `confirmado=true` com 4 GET de prévia, 1 POST e 1 GET de
+verificação, embora a resposta não identificasse o processo. A correção
+exige `id_procedimento` explícito em redirects para `principal`;
+rejeição continua com saída 3, sem segundo POST. Um destino `principal`
+com ID correto permanece aceito e é testado; sem tráfego real nesta etapa.
