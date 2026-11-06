@@ -60,7 +60,7 @@ pub(crate) enum ErroCriar {
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
         correspondentes: Option<Vec<String>>,
         /// Fotografia posterior já lida quando uma prova individual falha.
-        observados_antes_da_falha: Option<Box<Vec<reconciliacao::CandidatoGerado>>>,
+        observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     },
     /// O POST recebeu resposta sem prova de identidade; uma releitura
     /// única do Controle preserva o fato da resposta e a falha posterior.
@@ -68,7 +68,7 @@ pub(crate) enum ErroCriar {
         causa: CausaRespostaCriadora,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
         correspondentes: Option<Vec<String>>,
-        observados_antes_da_falha: Option<Box<Vec<reconciliacao::CandidatoGerado>>>,
+        observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     },
     EfeitoIncerto,
 }
@@ -196,6 +196,7 @@ impl ErroCriar {
             candidatos_observados: posterior
                 .as_ref()
                 .ok()
+                .map(Vec::as_slice)
                 .or(observados.as_deref())
                 .map(|candidatos| candidatos.iter().map(|c| c.nup.clone()).collect()),
             candidatos_compativeis: correspondentes.clone(),

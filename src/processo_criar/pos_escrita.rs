@@ -21,7 +21,7 @@ impl CausaPosEscrita {
         self,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar>,
         correspondentes: Option<Vec<String>>,
-        observados_antes_da_falha: Option<Box<Vec<reconciliacao::CandidatoGerado>>>,
+        observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     ) -> ErroCriar {
         let posterior = posterior.map_err(Box::new);
         match self {
@@ -157,7 +157,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
         let candidatos = antes.novos(&depois).map_err(ErroCriar::Fotografia)?;
         // A fotografia já observou estes candidatos; uma falha posterior
         // de conferência não torna os NUPs não observados no diagnóstico.
-        observados_antes_da_falha = Some(Box::new(candidatos.clone()));
+        observados_antes_da_falha = Some(candidatos.clone().into_boxed_slice());
         let mut provas = Vec::new();
         for candidato in &candidatos {
             provas.push(conferir_candidato(
