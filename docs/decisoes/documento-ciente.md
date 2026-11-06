@@ -95,3 +95,25 @@ que a ciência foi gravada. Optou-se por **recusar apenas quando o template
 é ancestral ou descendente da tabela de prova**, sem invalidar templates
 sem relação com ela. Teste RED (antes do código) e fluxo de efeito incerto
 no relatório live; não há JavaScript executado, retry ou GET extra.
+
+## Decisão adicional: prova HTML inerte e ciência repetida (06/11/2026)
+
+**Alternativa escolhida:** tratar `<noscript>` como contêiner de prova
+não confiável, tal qual `<template>`, somente quando ancestral ou
+descendente da tabela `tblAndamentos`. Com scripts habilitados no SEI,
+uma linha inerte achada pelo parser não demonstra execução nem registro.
+É preferível sair com efeito incerto após uma leitura a aceitar um
+falso sucesso. Não interpretar nem executar JavaScript.
+
+Para a segunda ciência, manter a diferença observada no Todos:
+processo = repetição no mesmo dia; documento = repetição no documento,
+sem limite diário. A validação `txaInfraValidacao` de HTTP 200 é uma
+recusa, não um aceite com atividade, e exige a mesma reconciliação sem
+retry; o IES ainda não afirma equivalência live ou idempotência.
+
+RED sintético da prova em `<noscript>`:
+[run 42294900770](https://github.com/franklinbaldo/ies/actions/runs/42294900770),
+2 FAIL, 1.770 PASS, 22 ignores anteriores. Testes acrescentados em
+`src/ciencia/tests.rs`, `src/ciencia/tests_fluxo.rs` e
+`src/ciencia/tests_documento/efeitos_incertos.rs`. CI de GREEN deve ser
+conferido na PR #337, sempre no head exato.
