@@ -326,14 +326,17 @@ fn tabela_inteira_dentro_de_template_nao_confirma_ciencia() {
     );
 }
 
-
 /// RED #271: com JS habilitado, <noscript> é conteúdo inerte.
 /// A presença da tabela nele não comprova que a Lista de Ciências
 /// publicada pelo SEI contém a atividade recém-criada.
 #[test]
 fn tabela_de_ciencias_sob_noscript_nao_e_prova() {
     let html = lista("42457", "chkInfraItem")
-        .replacen("<table id='tblAndamentos'", "<noscript><table id='tblAndamentos'", 1)
+        .replacen(
+            "<table id='tblAndamentos'",
+            "<noscript><table id='tblAndamentos'",
+            1,
+        )
         .replacen("</table>", "</table></noscript>", 1);
     assert_eq!(
         atividade_na_lista(&html, "42457"),
@@ -346,12 +349,11 @@ fn tabela_de_ciencias_sob_noscript_nao_e_prova() {
 /// utilizável da lista, mesmo se a tabela em si está ativa.
 #[test]
 fn checkbox_de_ciencia_em_noscript_nao_e_prova() {
-    let html = lista("42457", "chkInfraItem")
-        .replacen(
-            "<input type='checkbox' name='chkInfraItem' value='42457' />",
-            "<noscript><input type='checkbox' name='chkInfraItem' value='42457' /></noscript>",
-            1,
-        );
+    let html = lista("42457", "chkInfraItem").replacen(
+        "<input type='checkbox' name='chkInfraItem' value='42457' />",
+        "<noscript><input type='checkbox' name='chkInfraItem' value='42457' /></noscript>",
+        1,
+    );
     assert_eq!(
         atividade_na_lista(&html, "42457"),
         Err(E::ListaDeCienciasForaDaFormaObservada),
