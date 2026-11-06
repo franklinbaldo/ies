@@ -77,24 +77,7 @@ fn clap_rejeita_sem_operacao_duas_operacoes_e_texto_na_retirada() {
 }
 
 #[test]
-fn texto_de_marcador_que_o_sei_nao_suporta_sai_2_sem_abrir_sessao() {
-    for (texto, esperado) in [
-        ("ABC\nDEF", "texto_do_marcador_com_controle"),
-        ("😀", "texto_do_marcador_fora_do_latin1"),
-    ] {
-        let saida = sem_sessao(&[
-            "processo",
-            "marcar",
-            "NUP",
-            "--marcador",
-            "501#A",
-            "--texto",
-            texto,
-            "--json",
-        ]);
-        assert_eq!(saida.status.code(), Some(2));
-        assert_eq!(json(&saida)["subcodigo"], esperado);
-    }
+fn texto_acima_do_limite_observado_sai_2_sem_abrir_sessao() {
     let longo = "A".repeat(251);
     let saida = sem_sessao(&[
         "processo",
@@ -114,7 +97,14 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
     for texto in ["Primeira linha\nSegunda linha", "Emoji 🚀"] {
         for confirmar in [false, true] {
             let mut args = vec![
-                "processo", "marcar", "NUP", "--marcador", "501#A", "--texto", texto, "--json",
+                "processo",
+                "marcar",
+                "NUP",
+                "--marcador",
+                "501#A",
+                "--texto",
+                texto,
+                "--json",
             ];
             if confirmar {
                 args.push("--confirmar");
@@ -122,7 +112,11 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
             if confirmar {
-                assert_eq!(json(&saida)["subcodigo"], "escrita_de_marcador_ainda_fechada");
+                assert_eq!(
+                    json(&saida)["subcodigo"],
+                    "escrita_de_marcador_ainda_fechada"
+                );
+                assert_eq!(json(&saida)["requisicoes"], 0);
             } else {
                 assert_eq!(json(&saida)["codigo"], "fonte_invalida");
             }

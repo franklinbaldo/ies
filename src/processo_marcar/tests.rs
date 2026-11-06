@@ -108,24 +108,20 @@ fn mesmo_id_com_outro_nome_nao_e_identidade_igual() {
 }
 
 #[test]
-fn texto_do_marcador_obedece_a_latin1_e_limite_250() {
+fn texto_do_marcador_respeita_o_limite_observado_de_250() {
     assert_eq!(validar_texto(&"Á".repeat(250)), Ok(()));
     assert_eq!(
         validar_texto(&"a".repeat(251)),
         Err(ErroMarcar::TextoDoMarcadorLongo)
     );
-    assert_eq!(
-        validar_texto("Emoji 😀"),
-        Err(ErroMarcar::TextoDoMarcadorForaDoLatin1)
-    );
-    assert_eq!(
-        validar_texto("Uma linha\noutra"),
-        Err(ErroMarcar::TextoDoMarcadorComControle)
-    );
 }
 #[test]
 fn texto_de_textarea_admite_multiplas_linhas_e_nao_presume_charset() {
-    for texto in ["Primeira linha\nSegunda linha", "Emoji 🚀", "  Texto preservado  "] {
+    for texto in [
+        "Primeira linha\nSegunda linha",
+        "Emoji 🚀",
+        "  Texto preservado  ",
+    ] {
         assert_eq!(validar_texto(texto), Ok(()));
     }
 }
