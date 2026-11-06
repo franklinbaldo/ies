@@ -253,8 +253,14 @@ fn html_sem_redirecionamento_nao_autoriza_sucesso_na_conta_compartilhada() {
     respostas.extend([ok("<html>Sucesso</html>".to_owned()), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.diagnostico_efeito_incerto(), Some((7, "resposta_sem_aceite")));
-    assert_eq!(erro.resposta_post_observada(), Some("html_sem_redirecionamento"));
+    assert_eq!(
+        erro.diagnostico_efeito_incerto(),
+        Some((7, "resposta_sem_aceite"))
+    );
+    assert_eq!(
+        erro.resposta_post_observada(),
+        Some("html_sem_redirecionamento")
+    );
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
