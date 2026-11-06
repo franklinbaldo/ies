@@ -145,3 +145,16 @@ sessão ou rede (`confirmacao_de_acompanhamento_ainda_bloqueada`). Os
 testes injetados exercitam o backend diretamente, sem o SEI. A remoção
 externa só será liberada quando CI, replay e prévia autenticada em
 instalação de treinamento tiverem evidência concreta, não por inferência.
+
+## Quinta fatia — script executável da ação de exclusão (🐢)
+
+A presença textual de `function acaoExcluir` não demonstra que o navegador
+publique uma função global para o `onclick`. Um `<script>` de dados
+(`type=application/json`), um módulo (`type=module`) ou um script com
+`src` não executa esse corpo inline como função global clássica. A
+verificação da oferta passa a recusar tais casos, mantendo o `script`
+clássico observado e a forma explícita `text/javascript`. Quatro cenários
+sintéticos foram publicados antes da correção. RED e GREEN novos são
+**NOT_RUN**: o sandbox está sem Rust e os commits do conector não
+acionaram um run no head. A CLI continua a recusar `--deixar --confirmar`
+antes da sessão e rede; nenhuma escrita é permitida por esta fatia.
