@@ -252,6 +252,18 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     if tabela.name().as_utf8_str() != "table" {
         return Err(fora);
     }
+    // O parser DOM também percorre descendentes de <template>, mas um
+    // checkbox inerte não prova a ciência. Recusar a tabela inteira é
+    // mais seguro do que escolher uma atividade sem prova de visibilidade.
+    if tabela
+        .query_selector(parser, "template")
+        .into_iter()
+        .flatten()
+        .next()
+        .is_some()
+    {
+        return Err(fora);
+    }
     let legendas: Vec<String> = tabela
         .query_selector(parser, "caption")
         .into_iter()
