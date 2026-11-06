@@ -128,6 +128,75 @@ fn exclusao_aceita_script_classico_com_tipo_explicito() {
 }
 
 #[test]
+fn exclusao_recusa_funcao_inteira_dentro_de_comentario_de_bloco() {
+    // O navegador não publica funções que aparecem apenas em /* ... */.
+    let html = lista_observada("831")
+        .replacen("<script>", "<script>/*", 1)
+        .replacen("</script>", "*/</script>", 1);
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_assinatura_comentada_por_linha() {
+    // Um comentário não define a função global invocada pelo onclick.
+    let html = lista_observada("831").replacen(
+        "function acaoExcluir(id,desc){",
+        "// function acaoExcluir(id,desc){",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_funcao_declarada_apenas_em_bloco_inativo() {
+    // Uma declaração dentro de if(false) não prova ação global disponível.
+    let html = lista_observada("831")
+        .replacen(
+            "function acaoExcluir(id,desc){",
+            "if(false){ function acaoExcluir(id,desc){",
+            1,
+        )
+        .replacen("</script>", "}</script>", 1);
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_expressao_de_funcao_nao_global() {
+    // Uma função nomeada atribuída a variável não vira window.acaoExcluir.
+    let html = lista_observada("831")
+        .replacen(
+            "function acaoExcluir(id,desc){",
+            "const interna = function acaoExcluir(id,desc){",
+            1,
+        )
+        .replacen("</script>", ";</script>", 1);
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_aceita_comentario_antes_da_declaracao_global_real() {
+    // Comentário anterior não torna inerte uma declaração global subsequente.
+    let html = lista_observada("831").replacen(
+        "<script>",
+        "<script>/* comentário sintético */",
+        1,
+    );
+    assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
+}
+
+#[test]
 fn exclusao_recusa_comandos_em_outra_funcao_apos_acao_excluir_vazia() {
     // O código fora do corpo de acaoExcluir não prova uma ação oferecida.
     // RED: a antiga busca por substrings no script inteiro aceitava isso.
