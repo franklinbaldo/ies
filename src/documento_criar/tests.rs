@@ -440,3 +440,47 @@ fn cadastro_recusa_descricao_com_disabled_booleano() {
         Err(ErroCriar::DescricaoNaoOferecida)
     );
 }
+
+
+#[test]
+fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura() {
+    // Caso Todos tests/paginas_reais/documento_escolher_tipo.html @323eb01:
+    // o href de Despacho publica duas vezes id_procedimento=50693.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_gerar&acao_origem=documento_escolher_tipo&id_procedimento=50693&id_serie=291&id_procedimento=50693&infra_hash={}",
+        "a".repeat(64)
+    );
+    let html = format!(
+        "<table id=\"tblSeries\"><tr><td><a href=\"{href}\">Despacho</a></td></tr></table>"
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &html, "50693", "Despacho"),
+        Ok(EscolhaDoDocumento::Link(format!(
+            "https://sei.exemplo.gov.br/sei/{href}"
+        )))
+    );
+    let divergente = href.replacen(
+        "&id_procedimento=50693&infra_hash=",
+        "&id_procedimento=50000&infra_hash=",
+        1,
+    );
+    let html_divergente = format!(
+        "<table id=\"tblSeries\"><tr><td><a href=\"{divergente}\">Despacho</a></td></tr></table>"
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &html_divergente, "50693", "Despacho"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    );
+    let triplo = href.replace(
+        "&infra_hash=",
+        "&id_procedimento=50693&infra_hash=",
+    );
+    let html_triplo = format!(
+        "<table id=\"tblSeries\"><tr><td><a href=\"{triplo}\">Despacho</a></td></tr></table>"
+    );
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &html_triplo, "50693", "Despacho"),
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    );
+}
