@@ -1,5 +1,5 @@
 //! Testes de ciência documental: prova inerte e recusa na segunda ciência.
-//! Referência: Todos tests/test_documento_ciente_010.py @323eb01.
+//! Referência: Todos `tests/test_documento_ciente_010.py` @323eb01.
 use super::*;
 
 /// Regressão #271: <noscript> depende do modo de scripts do navegador.
@@ -37,7 +37,7 @@ fn lista_em_noscript_nao_prova_ciencia_documental() {
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
 }
 
-/// Caso do Todos tests/test_documento_ciente_010.py @323eb01:
+/// Caso do Todos `tests/test_documento_ciente_010.py` @323eb01:
 /// no documento a segunda ciência é recusada SEM limite diário. A
 /// validação de Infra 200 é preservada, mas não comprova escrita nova.
 /// Não se repete o GET potencialmente mutador.
@@ -71,7 +71,8 @@ fn segunda_ciencia_documental_e_validacao_sem_retry() {
     ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
-        pedidos.iter()
+        pedidos
+            .iter()
             .filter(|p| p.url == absoluta(&link_da_escrita()))
             .count(),
         1
