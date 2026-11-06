@@ -399,11 +399,11 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
         html: &html,
         codificacao: CodificacaoDaTela::Utf8,
     };
-    let campos = [("txtProtocoloPesquisa", "ação")];
+    let campos = [("txtProtocoloPesquisa", "ação 🚀")];
     let s = derivar_submissao(&OPERACAO, &instalacao(), &tela, "UNIDADE TESTE", &campos).unwrap();
     let corpo = String::from_utf8(s.corpo().to_vec()).unwrap();
     assert!(
-        corpo.contains("txtProtocoloPesquisa=a%C3%A7%C3%A3o&"),
+        corpo.contains("txtProtocoloPesquisa=a%C3%A7%C3%A3o+%F0%9F%9A%80&"),
         "{corpo}"
     );
 }
