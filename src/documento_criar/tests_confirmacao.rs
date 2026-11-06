@@ -331,3 +331,42 @@ fn redirect_para_host_externo_nao_comprova_criacao() {
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
+
+#[test]
+fn redirecionamento_302_local_com_arvore_comprovada() {
+    for localizacao in [
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_visualizar&id_documento=102",
+        "controlador.php?acao=documento_visualizar&id_documento=102",
+    ] {
+        let mut rede = RedeSintetica::default();
+        let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+        let numero = postar_e_verificar(
+            &mut rede,
+            submissao_sintetica(),
+            &cookie,
+            &foto(0),
+            "Despacho",
+            |rede, submissao, _| {
+                rede.chamadas.push("POST criador");
+                rede.submissoes.push(submissao);
+                Ok(RespostaDoPost {
+                    resposta: RespostaWeb {
+                        status_code: 302,
+                        mime: "text/html; charset=UTF-8".to_owned(),
+                        content_length: None,
+                        localizacao: Some(localizacao.to_owned()),
+                        corpo: Cursor::new(Vec::<u8>::new()),
+                    },
+                    localizacao: Some(localizacao.to_owned()),
+                })
+            },
+            |rede| {
+                rede.chamadas.push("GET arvore");
+                Ok(foto(1))
+            },
+        );
+        assert!(matches!(numero, Ok(ref numero) if numero == "0000002"));
+        assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+        assert_eq!(rede.submissoes.len(), 1);
+    }
+}
