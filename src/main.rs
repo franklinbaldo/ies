@@ -127,6 +127,9 @@ mod unidade_indice_cli;
 mod unidade_lista_cli;
 mod unidade_lupa;
 mod unidade_pesquisar_cli;
+mod unidade_retornos;
+mod unidade_retornos_cli;
+mod unidade_retornos_web;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
@@ -363,6 +366,12 @@ enum UnidadeAcao {
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
     Gerados(ListaDaUnidade),
+    /// Lista os retornos programados da unidade na tela Web do SEI
+    Retornos {
+        /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
+        #[arg(long, value_name = "AAAA-MM")]
+        mes: Option<String>,
+    },
 }
 
 /// Opções de uma lista independente da caixa (Recebidos ou Gerados).
@@ -477,6 +486,11 @@ fn run(cli: &Cli) -> ExitCode {
             return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
         }
         Domain::Unidade(Unidade {
+            acao: Some(UnidadeAcao::Retornos { mes }),
+        }) => {
+            return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref());
+        }
+        Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
             return unidade_lista_cli::listar_processos_da_unidade(
@@ -535,6 +549,10 @@ fn run(cli: &Cli) -> ExitCode {
         }
         _ => {}
     }
+    comando_nao_implementado(cli)
+}
+
+fn comando_nao_implementado(cli: &Cli) -> ExitCode {
     let detail = format!("{:?}", cli.command);
     if cli.json {
         println!(
