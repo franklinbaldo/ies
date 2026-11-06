@@ -119,8 +119,7 @@ fn lista_recusa_cabecalho_com_colunas_invertidas() {
 
 #[test]
 fn lista_recusa_coluna_de_grupo_duplicada() {
-    let html = tabela(&linha("831", "G", "Obs."))
-        .replace("<th>Usuário</th>", "<th>Grupo</th>");
+    let html = tabela(&linha("831", "G", "Obs.")).replace("<th>Usuário</th>", "<th>Grupo</th>");
     assert_eq!(
         acompanhamentos_da_lista(&html),
         Err(ErroAcompanhar::Html(ErroHtml::valor(

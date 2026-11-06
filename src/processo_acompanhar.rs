@@ -228,8 +228,11 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         if !th.is_empty() {
             if cabecalho
-                || !th.iter().any(|h| h == "Grupo")
-                || !th.iter().any(|h| h == "Observação")
+                || th.len() != 6
+                || th[1] != "Grupo"
+                || th[2] != "Observação"
+                || th.iter().filter(|h| h.as_str() == "Grupo").count() != 1
+                || th.iter().filter(|h| h.as_str() == "Observação").count() != 1
             {
                 return Err(ErroHtml::valor("colunas_de_acompanhamentos_invalidas").into());
             }
@@ -238,6 +241,9 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         if td.is_empty() {
             continue;
+        }
+        if !cabecalho {
+            return Err(ErroHtml::valor("colunas_de_acompanhamentos_invalidas").into());
         }
         if td.len() != 6 {
             return Err(ErroHtml::valor("linha_de_acompanhamento_invalida").into());

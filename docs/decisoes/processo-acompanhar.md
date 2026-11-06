@@ -255,3 +255,35 @@ commit somente de teste `d3a4e96`: 1 falha nova, 1.721 testes
 aprovados, 23 ignorados ja existentes. Rustfmt tambem apontou somente
 uma linha vazia excedente, corrigida separadamente antes do GREEN.
 Orcamento novo: **4 GETs / 0 POSTs**, sem acesso real ao SEI.
+
+## Décima quarta fatia — esquema da lista e observação comprovada (06/11/2026, 🐢)
+
+**Problema verificado no parser:** `acompanhamentos_da_lista` reconhecia
+qualquer cabeçalho que contivesse as palavras Grupo e Observação, mas
+interpretava os valores por posição fixa. Um cabeçalho invertido,
+duplicado ou publicado depois dos dados poderia confundir o campo
+`grupo` e induzir inclusão idempotente ou seleção de retirada sobre
+identidade sem prova. Além disso, ao detectar grupo já acompanhado, a
+prévia publicava `--observacao` (ou string vazia) como se fosse a
+observação existente, apesar de não ter ocorrido escrita.
+
+**Decisão:** aceitar apenas o esquema posicional de seis colunas
+observado (Grupo na segunda, Observação na terceira, sem rótulos
+duplicados e com cabeçalho anterior aos dados); falhar fechado com
+`colunas_de_acompanhamentos_invalidas` diante de forma desconhecida.
+Na idempotência, devolver a observação da linha da lista; não a
+observação solicitada que não foi aplicada. Sem nova requisição,
+novo POST, execução de JS ou mudança da CLI pública.
+
+**TDD:** no RED [CI 42211745935](https://github.com/franklinbaldo/ies/actions/runs/42211745935)
+dois testes de idempotência falharam (1.731 PASS); no RED
+[CI 42212114534](https://github.com/franklinbaldo/ies/actions/runs/42212114534)
+falharam cinco testes (os dois anteriores e três rejeições de esquema),
+com 1.731 PASS e 23 ignorados anteriores. Rustfmt também pediu uma
+única união de linha de teste, corrigida junto do código. GREEN e replay
+devem ser aferidos no CI exato do novo head.
+
+**Live:** NOT_RUN nesta fatia (0 GET, 0 POST, 0 escrita, 0 resíduo).
+A prévia autenticada UnB anterior e seu grupo já acompanhado são
+evidência histórica, não confirmação de escrita. `--deixar --confirmar`
+permanece bloqueado antes da sessão/rede.

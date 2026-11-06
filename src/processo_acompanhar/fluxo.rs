@@ -178,13 +178,13 @@ fn selecionar_previa(
     // A lista comprova o grupo exato, inclusive o grupo padrao vazio
     // quando --grupo foi omitido; nenhum cadastro adicional e necessario.
     let grupo = pedido.grupo.unwrap_or("");
-    if antes.iter().any(|a| a.grupo == grupo) {
+    if let Some(existente) = antes.iter().find(|a| a.grupo == grupo) {
         return Ok(Previa {
             numero: numero.to_owned(),
             unidade: unidade.to_owned(),
             operacao: "acompanhar",
             grupo: grupo.to_owned(),
-            observacao: pedido.observacao.unwrap_or("").to_owned(),
+            observacao: existente.observacao.clone(),
             id_de_remocao: None,
             ja_estava: true,
             confirmado: false,
