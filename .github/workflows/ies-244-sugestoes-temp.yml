@@ -1,0 +1,98 @@
+name: TEMP #244 real CLI suggestions read-only
+on:
+  push:
+    branches: [codex/244-contagem-falhas-raposa]
+permissions:
+  contents: read
+jobs:
+  suggestion:
+    name: CLI stderr suggestions (UnB training)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Build release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: One read-only preview, capture real stdout stderr, report only booleans
+        run: |
+          python3 - <<'PY'
+          import json, os, sqlite3, subprocess, sys, tempfile, time
+          from pathlib import Path
+          from urllib.parse import urlsplit, parse_qs
+          
+          target="unb"
+          origin="https://sei.treinamento.unb.br/sei"
+          tick=chr(96)
+          doc=Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          label=f"{tick}{target}{tick}:\n\n{tick*3}text\n"
+          try:
+              credentials=doc.split(label, 1)[1].split(tick*3, 1)[0]
+          except IndexError:
+              print(json.dumps({"stage":"setup","status":"FAIL","cause":"public_credentials_missing"}),flush=True)
+              sys.exit(0)
+          with tempfile.TemporaryDirectory(prefix="ies244-sugestoes-") as raw:
+              folder=Path(raw)
+              folder.chmod(0o700)
+              for name,value in (("origem",origin+"\n"),("credenciais",credentials),("cookie",""),("controle","")):
+                  p=folder/name
+                  p.write_text(value)
+                  p.chmod(0o600)
+              env=os.environ.copy()
+              env.pop("IES_CONFIG_FILE",None)
+              env.pop("IES_SEM_INDICE",None)
+              for key,file in (("IES_ORIGEM_FILE","origem"),("IES_CREDENCIAIS_FILE","credenciais"),("IES_COOKIE_FILE","cookie"),("IES_URL_CONTROLE_FILE","controle")):
+                  env[key]=str(folder/file)
+              env["IES_INDICE_FILE"]=str(folder/"ies.sqlite3")
+              exe="./target/release/ies"
+              login=subprocess.run([exe,"login","--json"],capture_output=True,text=True,env=env,timeout=300)
+              try:
+                  login_data=json.loads(login.stdout)
+              except ValueError:
+                  login_data={}
+              print(json.dumps({"stage":"login","status":"PASS" if login.returncode==0 else "FAIL","requisicoes":login_data.get("requisicoes") if isinstance(login_data.get("requisicoes"),int) else None,"subcodigo":login_data.get("subcodigo") if isinstance(login_data.get("subcodigo"),str) else None}),flush=True)
+              if login.returncode!=0:
+                  sys.exit(0)
+              try:
+                  signed=(folder/"controle").read_text().strip()
+                  ids=parse_qs(urlsplit(signed).query).get("infra_unidade_atual",[])
+                  assert len(ids)==1 and ids[0].isdigit()
+                  unidade=ids[0]
+                  p=folder/"ies.sqlite3"
+                  with sqlite3.connect(p) as db:
+                      db.executescript("CREATE TABLE lista_unidade(instalacao TEXT NOT NULL,unidade_ativa TEXT NOT NULL,lida_em REAL NOT NULL,total INTEGER NOT NULL,PRIMARY KEY(instalacao,unidade_ativa)) STRICT;"
+                                       "CREATE TABLE unidade(instalacao TEXT NOT NULL,unidade_ativa TEXT NOT NULL,id TEXT NOT NULL,sigla TEXT NOT NULL,descricao TEXT NOT NULL,orgao TEXT NOT NULL,lida_em REAL NOT NULL,PRIMARY KEY(instalacao,unidade_ativa,id)) STRICT;"
+                                       "PRAGMA user_version=3;")
+                      db.execute("INSERT INTO lista_unidade VALUES (?,?,?,?)",(origin,unidade,1234.0,1))
+                      db.execute("INSERT INTO unidade VALUES (?,?,?,?,?,?,?)",(origin,unidade,"110000847","Unidade2","Unidade de treino","UnB",1234.0))
+                  p.chmod(0o600)
+              except Exception as exc:
+                  print(json.dumps({"stage":"setup_snapshot","status":"FAIL","cause":type(exc).__name__}),flush=True)
+                  sys.exit(0)
+              time.sleep(30)
+              try:
+                  # Read-only preview, never --confirmar. Request not previously attempted.
+                  out=subprocess.run([exe,"processo","enviar","23106.001868/2026-91","--para","Unida"],capture_output=True,text=True,env=env,timeout=240)
+              except subprocess.TimeoutExpired:
+                  print(json.dumps({"stage":"sugestoes_cli","status":"FAIL","cause":"timeout_no_retry"}),flush=True)
+                  sys.exit(0)
+              stderr=out.stderr
+              stdout=out.stdout
+              expected=(out.returncode==1
+                  and "destino_nao_oferecido_pelo_sei" in stderr
+                  and "sugestões guardadas" in stderr
+                  and "não confirmadas pelo SEI" in stderr
+                  and "Unidade2 - Unidade de treino" in stderr)
+              # Whitelisted booleans only: never expose raw stdout or stderr, signed URL, cookie or private data.
+              print(json.dumps({"stage":"sugestoes_cli","status":"PASS" if expected else "FAIL",
+                "exit_code":out.returncode,"human_stderr_contains_suggestion":"Unidade2 - Unidade de treino" in stderr,
+                "human_stderr_marks_unconfirmed":"não confirmadas pelo SEI" in stderr,
+                "subcodigo_expected":"destino_nao_oferecido_pelo_sei" in stderr,
+                "stdout_nonempty":bool(stdout.strip()),"writes":0}),flush=True)
+          PY
