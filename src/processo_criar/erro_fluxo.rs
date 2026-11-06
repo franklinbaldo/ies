@@ -72,7 +72,7 @@ impl ErroCriar {
             Self::Fotografia(erro) => crate::erro_publico::folha(erro),
             Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
                 "efeito_incerto_na_criacao"
-            },
+            }
         }
     }
 
