@@ -9,7 +9,9 @@ use crate::entidades_html::decodificar_texto;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::UnidadeGuardada;
-pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral, ler_integral_com_contador};
+pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
+#[cfg(test)]
+pub(crate) use fluxo::ler_integral;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ErroLupa {
