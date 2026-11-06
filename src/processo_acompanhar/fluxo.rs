@@ -162,45 +162,6 @@ fn redirecionamento_do_gerenciar(
     url_do_cadastro(instalacao, &format!("controlador.php?{consulta}"), id)
 }
 
-/// Atributos de inércia se propagam pela árvore: o botão pode ser neto
-/// de um fieldset desabilitado ou de contêiner hidden/inert. Na dúvida,
-/// recusar a oferta; não interpretar onclick nem enviar escrita.
-fn ancestral_inerte(dom: &tl::VDom<'_>, botao: &tl::HTMLTag<'_>) -> Result<bool, ErroPrevia> {
-    for ancestral in dom.nodes().iter().filter_map(tl::Node::as_tag) {
-        let oculto = crate::html_atributos::atributo_presente(ancestral, "hidden")
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
-        let inerte = crate::html_atributos::atributo_presente(ancestral, "inert")
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
-        let campo_desabilitado = if ancestral
-            .name()
-            .as_utf8_str()
-            .eq_ignore_ascii_case("fieldset")
-        {
-            crate::html_atributos::atributo_presente(ancestral, "disabled")
-                .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
-        } else {
-            false
-        };
-        if !(oculto || inerte || campo_desabilitado) {
-            continue;
-        }
-        // tl devolve uma fatia imutável em children().all(); o intervalo
-        // de descendentes do parser permite incluir netos sem clones.
-        if let Some((inicio, fim)) = ancestral.children().boundaries(dom.parser()) {
-            for indice in inicio..=fim {
-                if tl::NodeHandle::new(indice)
-                    .get(dom.parser())
-                    .and_then(tl::Node::as_tag)
-                    .is_some_and(|tag| std::ptr::eq(tag, botao))
-                {
-                    return Ok(true);
-                }
-            }
-        }
-    }
-    Ok(false)
-}
-
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -219,14 +180,7 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
         // A URL servida no onclick não oferece ação quando o botão está
         // inerte ou dentro de um ancestral oculto/inert/fieldset disabled.
         // O teste de descendência usa identidade de nó DOM, sem CSS/JS.
-        let inerte = ["disabled", "hidden", "inert"]
-            .into_iter()
-            .try_fold(false, |inerte, atributo| {
-                crate::html_atributos::atributo_presente(tag, atributo)
-                    .map(|presente| inerte || presente)
-            })
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
-        if inerte || ancestral_inerte(&dom, tag)? {
+        if super::controle_inerte(&dom, tag, true, "tela_de_acompanhamento_inesperada")? {
             return Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into());
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
