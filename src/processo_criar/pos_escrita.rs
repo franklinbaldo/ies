@@ -182,8 +182,14 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             }
             provas.push(conferido);
         }
-        let desfecho = classificar(&candidatos, &provas, &feito.tipo, especificacao, &feito.nivel)
-            .map_err(ErroCriar::Conferencia)?;
+        let desfecho = classificar(
+            &candidatos,
+            &provas,
+            &feito.tipo,
+            especificacao,
+            &feito.nivel,
+        )
+        .map_err(ErroCriar::Conferencia)?;
         Ok::<_, ErroCriar>((candidatos, desfecho))
     })();
     match posterior {
