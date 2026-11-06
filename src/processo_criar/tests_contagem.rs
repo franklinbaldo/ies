@@ -179,12 +179,12 @@ fn comprimento_html_de_especificacao_considera_unidades_utf16() {
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
-                sessao.origem,
-                sessao.url_do_controle,
-                sessao.cookie,
-                &solicitado,
-                rede,
-            )
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &solicitado,
+            rede,
+        )
     });
     assert_eq!(
         resultado
