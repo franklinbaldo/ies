@@ -97,7 +97,6 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
     }
 }
 
-
 #[test]
 fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
     // Regressão adversarial #246: nome de expressão function é local e
@@ -143,14 +142,13 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
     );
 }
 
-
 #[test]
 fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
     // Regressão end-to-end para a guarda do POST de navegação: sem função
     // global publicada, quatro GETs de prévia; nenhum POST de filtro/escolha.
+    use super::fluxo::{ErroPreviaCriacao, PedidoCriacao, executar_criacao};
     use crate::processo_concluir::tests_apoio as apoio;
     use crate::propriedades_processo::tests_apoio::acao_da_barra;
-    use super::fluxo::{ErroPreviaCriacao, PedidoCriacao, executar_criacao};
     let link = format!(
         "controlador.php?acao=documento_escolher_tipo&id_procedimento=10&infra_hash={}",
         "e".repeat(64),
@@ -164,10 +162,8 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
     let mut respostas = apoio::abertura(arvore);
     respostas.push(apoio::ok(lista));
     let ambiente = apoio::ambiente();
-    let (resultado, pedidos) = apoio::rodar_com(
-        &ambiente,
-        respostas,
-        |sessao, nup, indice, rede| {
+    let (resultado, pedidos) =
+        apoio::rodar_com(&ambiente, respostas, |sessao, nup, indice, rede| {
             let pedido = PedidoCriacao {
                 nup,
                 unidade: None,
@@ -176,8 +172,7 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
                 nivel: Some("publico"),
             };
             executar_criacao(sessao, &pedido, indice, rede, true)
-        },
-    );
+        });
     assert!(matches!(
         resultado,
         Err(ErroPreviaCriacao::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
