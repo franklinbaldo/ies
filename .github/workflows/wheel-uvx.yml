@@ -34,7 +34,7 @@ jobs:
 
       - name: Gerar wheel do executavel nativo
         shell: bash
-        run: uvx --from "maturin[patchelf]==1.16.0" maturin build --locked --out dist
+        run: uvx --from "maturin==1.16.0" maturin build --locked --out dist
 
       - name: Verificar wheel executando a CLI real pelo uvx
         shell: bash
