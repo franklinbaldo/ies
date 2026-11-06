@@ -407,3 +407,18 @@ fn template_inerte_nao_autoriza_post_criador_ao_conter_script_ou_botao() {
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
     }
 }
+
+#[test]
+fn html_literal_dentro_de_script_nao_oculta_a_cadeia_de_salvar() {
+    // Diagnóstico em TREINAMENTO UnB #246 / run 42222453651:
+    // tl::inner_text perdeu o corpo do script extenso (15 bytes).
+    // O literal HTML auxiliar é sintético: não pertence à captura privada.
+    let html = cadastro().replace(
+        "<script>",
+        "<script>\nconst fragmento = '<div><span>auxiliar</span></div>';\n",
+    );
+    assert!(
+        cadastro_publica_script_de_criacao(&html),
+        "script ativo preserva a cadeia literal mesmo com HTML em strings JS"
+    );
+}
