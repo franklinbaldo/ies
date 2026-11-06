@@ -91,8 +91,10 @@ pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{
     ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
 };
+pub(crate) use ciencia::niveis_js;
 pub(crate) use ciencia::{
-    ErroCienciaNaArvore, ciencia_da_barra, lista_do_processo, url_da_ciencia,
+    ErroCienciaNaArvore, ciencia_da_barra, ciencia_do_documento_na_barra, lista_do_documento,
+    lista_do_processo, url_da_ciencia, url_da_ciencia_do_documento,
 };
 pub(crate) use concluir::{
     ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,

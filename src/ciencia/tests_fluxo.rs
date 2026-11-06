@@ -1,5 +1,6 @@
 //! Orçamento exato de requisições de `processo ciente` com transporte
 //! sintético; cenários do Todos 323eb01 (ciência do processo).
+use super::fluxo::FalhaDoAceiteProcesso;
 use super::{ErroCienciaProcesso as E, PedidoDaCiencia, ciencia_no_processo};
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
@@ -169,4 +170,214 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
             .count(),
         0
     );
+}
+
+/// RED #271: o erro tipado do único GET de escrita do processo não pode ser
+/// descartado enquanto a releitura independente tenta provar a atividade.
+#[derive(Clone, Copy)]
+enum FalhaEsperada {
+    Http403,
+    Infra200,
+    Rede,
+}
+
+fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    respostas.extend([ok(tela()), resposta, ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    match causa {
+        FalhaEsperada::Http403 => {
+            assert_eq!(erro.status_http().map(|s| s.status), Some(403));
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(
+                        FalhaTransporte::AcessoNegado(_)
+                    )),
+                    ..
+                }
+            ));
+        }
+        FalhaEsperada::Infra200 => {
+            assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+            assert_eq!(
+                erro.status_http()
+                    .and_then(|s| s.mensagem_do_servidor.as_deref()),
+                Some("Solicitacao recusada")
+            );
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
+                    ..
+                }
+            ));
+        }
+        FalhaEsperada::Rede => {
+            assert!(erro.status_http().is_none());
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(FalhaTransporte::Rede)),
+                    ..
+                }
+            ));
+        }
+    }
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "o GET potencialmente mutador não pode ser repetido"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+#[test]
+fn get_de_ciencia_http_403_preserva_a_recusa_tipificada() {
+    conferir_falha_do_aceite_sem_retry(
+        Ok((
+            403,
+            "<html><body>Solicitação recusada</body></html>".to_owned(),
+            None,
+        )),
+        FalhaEsperada::Http403,
+    );
+}
+
+#[test]
+fn get_de_ciencia_infra_200_preserva_a_recusa_tipificada() {
+    conferir_falha_do_aceite_sem_retry(
+        ok(
+            "<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>"
+                .to_owned(),
+        ),
+        FalhaEsperada::Infra200,
+    );
+}
+
+#[test]
+fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
+    conferir_falha_do_aceite_sem_retry(Err(FalhaTransporte::Rede), FalhaEsperada::Rede);
+}
+
+/// RED #271: a Lista de Ciências preexistente não pode converter uma
+/// chamada dentro de if(false) em prova do aceite desta tentativa.
+#[test]
+fn aceite_condicional_inativo_mantem_efeito_incerto_sem_retry() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = format!(
+        "<html><script>function inicializar(){{ if(false) {{ {} }} }}</script></html>",
+        "atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457');"
+    );
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(
+        pedidos.len(),
+        6,
+        "sem id comprovado, só releitura da árvore"
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "jamais repetir o GET mutador"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+/// RED #271: uma atividade que já estava na lista não prova esta tentativa
+/// se a única chamada do aceite seria inalcançável após "return".
+#[test]
+fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = format!(
+        "<html><script>function inicializar(){{ return; atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento={ID}&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457'); }}</script></html>"
+    );
+    // O roteiro não oferece resposta da lista: consultá-la aqui seria
+    // reutilizar prova de outra tentativa e exceder as 6 requisições.
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("atividade antiga não prova novo aceite");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(
+        pedidos.len(),
+        6,
+        "não consultar lista sem aceite comprovado"
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "GET mutador único, sem retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+// Regressão #271: script de dados não executa atualizarArvore. A lista
+// antiga, mesmo contendo a atividade, não pode transformar o aceite
+// inerte em confirmação desta única escrita.
+#[test]
+fn script_inerte_no_aceite_mantem_efeito_incerto_sem_consultar_lista_antiga() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457").replacen("<script>", "<script type='application/json'>", 1);
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("script de dados não pode publicar ciência");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "não consultar lista sem atividade válida");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "um GET mutador, sem retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+/// RED #271: o segundo argumento é avaliado antes do GET conseguir
+/// publicar a atividade via atualizarArvore. Não usar ciência antiga
+/// da lista como prova; o GET mutador permanece único e a saída é 3.
+#[test]
+fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457").replacen(
+        "#ID-42457');",
+        "#ID-42457', (() => { throw new Error('abortar'); })());",
+        1,
+    );
+    assert!(html.contains("throw new Error"));
+    // Sem resposta para a lista: ela não pode ser consultada sem
+    // comprovação de atividade executada na resposta do GET mutador.
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("recarga não executada não comprova ciência");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "não consultar lista de ciência antiga");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "GET potencialmente mutador único, sem retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }

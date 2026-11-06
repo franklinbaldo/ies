@@ -8,7 +8,11 @@
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+mod documento;
 mod fluxo;
+pub(crate) use documento::{
+    CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
+};
 pub(crate) use fluxo::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
@@ -18,7 +22,6 @@ pub(crate) enum AlvoDaCiencia<'a> {
     Processo {
         id_procedimento: &'a str,
     },
-    #[cfg(test)]
     Documento {
         id_procedimento: &'a str,
         id_documento: &'a str,
@@ -64,15 +67,76 @@ fn identificador(valor: &str) -> bool {
     !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit())
 }
 
+/// A resposta de ciência observada recarrega a árvore diretamente no
+/// script ou no corpo de `function inicializar()`. A profundidade do lexer
+/// sozinha não basta: um `if(false)` também tem profundidade 1.
+/// Só um comando independente dessas duas formas fornece prova.
+fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: usize) -> bool {
+    let bytes = script.as_bytes();
+    let Some(nivel) = niveis.get(posicao).copied().flatten() else {
+        return false;
+    };
+    if nivel > 1 {
+        return false;
+    }
+    // O texto imediatamente anterior não pode ser uma condição, atribuição,
+    // retorno ou outra expressão que contenha a chamada. Comentários e
+    // literais são ignorados pelo lexer; não se interpreta JavaScript.
+    let inicio_comando = (0..posicao)
+        .rev()
+        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .map_or(0, |i| i + 1);
+    if (inicio_comando..posicao).any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace()) {
+        return false;
+    }
+    if nivel == 0 {
+        // Chamada direta só prova recarga quando é a primeira instrução
+        // executável do script: um throw anterior pode torná-la inalcançável.
+        return (0..posicao).all(|i| niveis[i] != Some(0) || bytes[i].is_ascii_whitespace());
+    }
+
+    // Profundidade 1 só é aceita no corpo direto da função de inicialização
+    // publicada pelo SEI, e nunca em um if, callback ou função arbitrária.
+    let Some(abertura) = (0..posicao)
+        .rev()
+        .find(|&i| bytes[i] == b'{' && niveis[i] == Some(0))
+    else {
+        return false;
+    };
+    let inicio_declaracao = (0..abertura)
+        .rev()
+        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .map_or(0, |i| i + 1);
+    let assinatura: Vec<u8> = (inicio_declaracao..abertura)
+        .filter(|&i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
+        .map(|i| bytes[i])
+        .collect();
+    // O corpo observado começa com a recarga. Não interpretar fluxo JS:
+    // return, throw, condicionais ou qualquer outra instrução anterior
+    // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
+    assinatura == b"functioninicializar()"
+        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || bytes[i].is_ascii_whitespace())
+}
+
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
 /// variável (PEN3) são ignoradas: não identificam uma atividade. Nenhum JS
 /// é interpretado; a forma literal não comporta escapes.
 fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
+    const CHAMADA: &str = "atualizarArvore(";
+    // O mesmo lexer estático usado para autorizar o link de documento:
+    // nenhuma chamada dentro de comentário, string ou template é ativa.
+    let Some(niveis) = crate::arvore_processo::niveis_js(script) else {
+        return Vec::new();
+    };
     let mut achados = Vec::new();
-    let mut restante = script;
-    while let Some((_, depois)) = restante.split_once("atualizarArvore(") {
-        restante = depois;
-        let argumento = depois.trim_start();
+    let mut cursor = 0;
+    while let Some(indice) = script[cursor..].find(CHAMADA) {
+        let posicao = cursor + indice;
+        cursor = posicao + CHAMADA.len();
+        if !chamada_na_forma_do_aceite(script, &niveis, posicao) {
+            continue;
+        }
+        let argumento = script[cursor..].trim_start();
         let aspas = match argumento.as_bytes().first() {
             Some(b'\'') => '\'',
             Some(b'"') => '"',
@@ -84,9 +148,9 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         };
         let literal = &resto[..fim];
         let depois_do_literal = resto[fim + 1..].trim_start();
-        if !literal.contains('\\')
-            && (depois_do_literal.starts_with(')') || depois_do_literal.starts_with(','))
-        {
+        // Só a chamada literal com um argumento foi observada no aceite.
+        // Um segundo argumento pode lançar erro ANTES de executar a função.
+        if !literal.contains('\\') && depois_do_literal.starts_with(')') {
             achados.push(literal);
         }
     }
@@ -103,7 +167,6 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
         }
-        #[cfg(test)]
         AlvoDaCiencia::Documento {
             id_procedimento,
             id_documento,
@@ -135,6 +198,17 @@ pub(crate) fn atividade_do_aceite(
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
     use ErroCiencia as E;
+    // Script de template é inerte mesmo se o seletor DOM o percorrer.
+    // Não inferir atividade a partir de trecho que o navegador não executaria.
+    let minusculas = html.to_ascii_lowercase();
+    if minusculas.split("<template").skip(1).any(|parte| {
+        parte
+            .split("</template")
+            .next()
+            .is_some_and(|fragmento| fragmento.contains("<script"))
+    }) {
+        return Err(E::AceiteSemAtividade);
+    }
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
     let parser = dom.parser();
     let mut atividades = Vec::new();
@@ -142,6 +216,20 @@ pub(crate) fn atividade_do_aceite(
         let Some(tag) = script.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
+        // Scripts de dados (application/json, text/plain) e scripts com src
+        // não executam seu conteúdo inline. Jamais publicar um id_atividade
+        // apenas porque o HTML contém texto JavaScript inerte.
+        let Ok(atributos) = crate::html_atributos::atributos(tag) else {
+            continue;
+        };
+        let Ok(tipo) = atributos.valor("type") else {
+            continue;
+        };
+        if atributos.presente("src")
+            || tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript")
+        {
+            continue;
+        }
         for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
@@ -176,6 +264,36 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     };
     let tabela = unica.get(parser).and_then(tl::Node::as_tag).ok_or(fora)?;
     if tabela.name().as_utf8_str() != "table" {
+        return Err(fora);
+    }
+    // A tabela inteira também pode estar em um <template> ancestral. Nesse
+    // caso o parser a encontra pelo ID, mas o navegador não a exibe como
+    // Lista de Ciências: não serve como prova de escrita.
+    if dom
+        .query_selector("template")
+        .into_iter()
+        .flatten()
+        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+        .any(|template| {
+            template
+                .query_selector(parser, "table")
+                .into_iter()
+                .flatten()
+                .any(|no| no == *unica)
+        })
+    {
+        return Err(fora);
+    }
+    // O parser DOM também percorre descendentes de <template>, mas um
+    // checkbox inerte não prova a ciência. Recusar a tabela inteira é
+    // mais seguro do que escolher uma atividade sem prova de visibilidade.
+    if tabela
+        .query_selector(parser, "template")
+        .into_iter()
+        .flatten()
+        .next()
+        .is_some()
+    {
         return Err(fora);
     }
     let legendas: Vec<String> = tabela
@@ -221,5 +339,7 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_documento;
 #[cfg(test)]
 mod tests_fluxo;
