@@ -100,3 +100,30 @@ A falha anterior da GO permanece registrada como FAIL histórico;
 o replay offline não a reclassifica como PASS live. A incompatibilidade
 de links da UnB ainda não está corrigida. O teste da CLI real para
 sugestões também permanece pendente.
+
+## Prova de CLI real com índice local sintético (06/11/2026)
+
+O teste de integração `tests/cli_unidade_snapshot_offline.rs` executa
+**o binário real** `ies` como subprocesso (não chama funções internas).
+Prepara os dois arquivos privados de origem e Controle com modos `0600`,
+diretório `0700`, e a tabela pública SQLite versão 3 com três unidades.
+A sessão é inteiramente sintética e **não possui arquivo de cookie**:
+qualquer tentativa de consultar o SEI não conseguiria autenticar-se.
+
+O teste exige `unidade listar --json` com `origem=indice`, três
+unidades, `lida_em=1234`, `requisicoes=0`; depois
+`unidade pesquisar sao/cde --json`, que encontra `SÃO/CDE` sem
+HTTP, e consulta direta SQLite em modo somente leitura, sem alteração
+de esquema nem de linhas. Confere também que nenhuma saída contém
+`infra_hash`, `PHPSESSID` ou `controlador.php`.
+Com `--atualizar` e cookie ausente, exige **recusa com zero
+requisições** e sem fazer o cache antigo parecer leitura nova.
+
+**RED novo:** não observado — o teste foi acrescentado à capacidade já
+implementada, e a primeira execução da suíte Rust o aprovou. O primeiro
+gate `prek` desse acréscimo falhou apenas em Rustfmt/Clippy;
+a correção preservou os asserts e não desabilitou testes.
+**Live desta sessão:** UnB NOT_RUN (0 requisições), GO NOT_RUN (0),
+pesquisa pós-coleta autenticada NOT_RUN (0), escrita NOT_RUN (0),
+resíduos nenhum. A prova sintética não substitui o ensaio autenticado
+nem corrige retroativamente os FAIL históricos.
