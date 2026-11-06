@@ -216,6 +216,28 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         let Some(proxima) = proxima else { continue };
         let html = html_da_resposta(resposta.item)
             .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
+        if resposta.operacao == "grupo_unidade_listar" {
+            let dom = tl::parse(&html, tl::ParserOptions::default())
+                .expect("lista UnB analisável");
+            for no in crate::html_atributos::nos_com_id(&dom, "btnNovo")
+                .expect("id do btnNovo sem ambiguidade")
+            {
+                let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)
+                    .expect("btnNovo é elemento HTML");
+                let href = crate::html_atributos::valor_do_atributo(tag, "href")
+                    .expect("href válido");
+                let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
+                    .expect("onclick válido");
+                println!(
+                    "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}",
+                    tag.name().as_utf8_str(),
+                    href.as_deref().is_some_and(|x| x.contains("controlador.php?")),
+                    onclick.as_deref().is_some_and(|x| x.contains("controlador.php?")),
+                    onclick.as_deref().is_some_and(|x| x.contains("location")),
+                    onclick.as_deref().map_or(0, |x| x.matches("controlador.php?").count())
+                );
+            }
+        }
         let candidatos = super::fluxo::candidatos(&html, proxima)
             .expect("controle UnB precisa ser analisável");
         let distintos: std::collections::HashSet<_> = candidatos
