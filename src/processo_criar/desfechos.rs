@@ -11,6 +11,8 @@ pub(crate) struct ProcessoConferido {
     pub(crate) especificacao: Option<String>,
     /// O nível lido integra a identidade do pedido; ausência não prova sucesso.
     pub(crate) nivel: Option<String>,
+    /// Interessados publicados na tela de propriedades.
+    pub(crate) interessados: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +42,7 @@ pub(crate) fn classificar(
     tipo: &str,
     especificacao: &str,
     nivel: &str,
+    _interessados_solicitados: &[String],
 ) -> Result<Desfecho, ErroConferencia> {
     use std::collections::BTreeMap;
 
@@ -102,7 +105,33 @@ mod tests {
             tipo: tipo.map(str::to_owned),
             especificacao: esp.map(str::to_owned),
             nivel: Some("publico".into()),
+            interessados: vec!["Pessoa Sintetica A".into()],
         }
+    }
+
+    // O classificador em produção recebe também o pedido de interessados.
+    // Os testes legados aqui não solicitam interessado explícito.
+    fn classificar(
+        candidatos: &[CandidatoGerado],
+        conferidos: &[ProcessoConferido],
+        tipo: &str,
+        especificacao: &str,
+        nivel: &str,
+    ) -> Result<Desfecho, ErroConferencia> {
+        super::classificar(candidatos, conferidos, tipo, especificacao, nivel, &[])
+    }
+
+    #[test]
+    fn interessado_explicito_divergente_nao_comprova_aplicacao_concorrente() {
+        let candidatos = vec![candidato("17", "NUP-17")];
+        let lido = prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO));
+        // O processo concorrente tem o mesmo tipo, especificacao e nivel,
+        // mas outro interessado. O POST original pode ter falhado.
+        let desejado = vec!["Pessoa Sintetica B".to_owned()];
+        assert_eq!(
+            super::classificar(&candidatos, &[lido], TIPO, ESPECIFICACAO, "publico", &desejado),
+            Ok(Desfecho::SemCorrespondenciaObservada)
+        );
     }
 
     #[test]
