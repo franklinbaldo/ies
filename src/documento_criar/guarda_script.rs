@@ -30,7 +30,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                     (0, DESABILITAR) => 1,
                     (1, INSTRUCAO) => 2,
                     (2, ENVIAR) => 3,
-                    _ => return false,
+                    _ => return None,
                 };
             } else if linha == INSTRUCAO {
                 // O exemplo sintético mínimo é uma peça única.
@@ -54,8 +54,8 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                     }
                     '\'' | '"' | '`' => estado = Estado::Cadeia(c),
                     '{' => {
-                        let submeter = blocos.is_empty()
-                            && prefixo.trim() == "function submeter()";
+                        let submeter =
+                            blocos.is_empty() && prefixo.trim() == "function submeter()";
                         if submeter {
                             funcoes_submeter += 1;
                             if funcoes_submeter > 1 {
