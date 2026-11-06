@@ -259,3 +259,15 @@ resíduo foi deixado no SEI.
 - **Próximo passo:** fazer ensaio live de treinamento com prévia validada,
   um único `--confirmar` e releitura, registrando o resíduo.
   Até lá, `--deixar --confirmar` permanece fechado antes da sessão/rede.
+
+
+## Décima primeira fatia — observação autenticada no treinamento UnB (06/11/2026)
+
+- **Fonte:** [ensaio 42196189957](https://github.com/franklinbaldo/ies/actions/runs/42196189957), exclusivamente no host de treinamento da UnB. Compilação Release **PASS**.
+- **Login:** **PASS**, rc=0, **5 requisições** contadas pela CLI. Credenciais públicas obtidas do guia; arquivos privados no runner; nenhuma credencial de sessão registrada.
+- **Prévia autenticada:** **PASS**, rc=0, mais **5 requisições**; processo de treinamento 23106.001559/2026-11, unidade Unidade2, operacao=acompanhar, grupo vazio, ja_estava=false, alterado=false, confirmado=false. Total do ensaio: **10 requisições** (login + prévia); nenhum POST de acompanhamento.
+- **Confirmação única:** **NOT_RUN**, **0 POST**. O guarda temporário exigia operacao=incluir, enquanto a saída observada publicada pela CLI usa operacao=acompanhar. O runner recusou escrever **antes da escrita**. Não confundir sucesso do job com sucesso da confirmação.
+- **Releitura após escrita:** **NOT_RUN**, **0 requisições**. **Resíduo criado/alterado: nenhum**. Nenhuma produção acessada, nenhum retry.
+- O filtro da credencial unb foi corrigido em relação à tentativa anterior. O workflow temporário foi removido. A CLI continua recusando --deixar --confirmar antes de sessão/rede.
+- **RED comportamental desta fatia:** NOT_RUN (nenhuma mudança de produção/testes). O replay é avaliado pelo CI do head final, não por este job de live.
+- **Próximo passo:** nova prévia autenticada segura, um único --confirmar em treinamento, leitura independente e registro do resíduo; nunca repetir escrita com efeito incerto.
