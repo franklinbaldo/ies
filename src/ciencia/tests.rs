@@ -162,7 +162,6 @@ fn lista_que_nao_e_de_ciencias_nao_comprova() {
     );
 }
 
-
 // RED #271: um aceite relatado só num comentário nunca prova a ciência.
 #[test]
 fn comentario_js_nao_publica_atividade_da_ciencia() {
