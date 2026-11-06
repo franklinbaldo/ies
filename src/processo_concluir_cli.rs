@@ -171,7 +171,9 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
         origem: "web",
         confirmado: feito.confirmado,
         alterado: feito.alterado,
-        forma: feito.forma.map(crate::processo_concluir::FormaDaConclusao::como_texto),
+        forma: feito
+            .forma
+            .map(crate::processo_concluir::FormaDaConclusao::como_texto),
         aberto_em: &feito.aberto_em,
         depois_esperado: feito.depois_esperado(),
         depois: feito.depois.as_deref(),
@@ -182,7 +184,7 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
 }
 
 /// Compatibilidade com os testes de contrato: o runtime serializa a struct
-/// diretamente, sem construir serde_json::Value no caminho de sucesso.
+/// diretamente, sem construir `serde_json::Value` no caminho de sucesso.
 #[cfg(test)]
 pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
     serde_json::to_value(resultado_conclusao(feito))
