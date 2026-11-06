@@ -115,7 +115,6 @@ pub(crate) fn erro_fonte_http(
     ExitCode::from(1)
 }
 
-
 /// Atalho da CLI para falha sem resposta HTTP observada.
 pub(crate) fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     erro_fonte_http(json_mode, subcodigo, mensagem, None)
