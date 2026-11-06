@@ -9,7 +9,6 @@ use super::{
     EfeitoAvaliado, ErroSubmissaoFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
     codificar_corpo,
 };
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 
@@ -47,7 +46,7 @@ pub(crate) fn derivar_consulta_ajax(
         || url_declarada.starts_with('/')
         || url_declarada.split(['/', '?']).any(|s| s == "..")
     {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     let absoluta = match servida.caminho.rsplit_once('/') {
         Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
@@ -55,7 +54,7 @@ pub(crate) fn derivar_consulta_ajax(
     };
     let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador_ajax(alvo.host, alvo.caminho) {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta_ajax(alvo.consulta.unwrap_or_default(), consulta.acao_ajax)?;
     for (i, (nome, _)) in campos.iter().enumerate() {

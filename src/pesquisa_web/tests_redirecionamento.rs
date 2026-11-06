@@ -1,7 +1,6 @@
 //! RED/GREEN do 302 da pesquisa: `Location` sintético com a forma observada
 //! (relativo, `acao=procedimento_trabalhar`), hashes e IDs fictícios.
 use super::*;
-use crate::erro_html::ErroHtml;
 use ErroRedirecionamentoDaPesquisa as E;
 
 const HASH_ENVIO: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -91,15 +90,11 @@ fn location_http_so_aceita_o_mesmo_host_sem_porta_alternativa() {
         ("https://sei.exemplo.gov.br", Ok(())),
         (
             "http://outro.gov.br",
-            Err(E::Html(ErroHtml::valor(
-                "localizacao_do_redirecionamento_fora_da_instalacao",
-            ))),
+            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
         ),
         (
             "//outro.gov.br",
-            Err(E::Html(ErroHtml::valor(
-                "localizacao_do_redirecionamento_fora_da_instalacao",
-            ))),
+            Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao),
         ),
         (
             "http://sei.exemplo.gov.br:8080",
@@ -115,12 +110,9 @@ fn location_http_so_aceita_o_mesmo_host_sem_porta_alternativa() {
 fn location_ausente_ou_vazio_e_recusado() {
     assert_eq!(
         interpretar(None).unwrap_err(),
-        E::Html(ErroHtml::ausente("localizacao_do_redirecionamento_ausente"))
+        E::LocalizacaoDoRedirecionamentoAusente
     );
-    assert_eq!(
-        erro(""),
-        E::Html(ErroHtml::ausente("localizacao_do_redirecionamento_ausente"))
-    );
+    assert_eq!(erro(""), E::LocalizacaoDoRedirecionamentoAusente);
 }
 
 #[test]
@@ -145,9 +137,7 @@ fn location_para_outro_host_ou_outro_caminho_e_recusado() {
         let localizacao = format!("{prefixo}{}", consulta("7"));
         assert_eq!(
             erro(&localizacao),
-            E::Html(ErroHtml::valor(
-                "localizacao_do_redirecionamento_fora_da_instalacao"
-            )),
+            E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
             "{prefixo}"
         );
     }
@@ -209,26 +199,11 @@ fn acao_diferente_ausente_ou_repetida_e_recusada() {
 #[test]
 fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
     let sem_id = observado().replace("id_procedimento=7&", "");
-    assert_eq!(
-        erro(&sem_id),
-        E::Html(ErroHtml::ausente(
-            "id_procedimento_ausente_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&sem_id), E::IdProcedimentoAusenteNoRedirecionamento);
     let vazio = format!("controlador.php?{}", consulta(""));
-    assert_eq!(
-        erro(&vazio),
-        E::Html(ErroHtml::ausente(
-            "id_procedimento_ausente_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&vazio), E::IdProcedimentoAusenteNoRedirecionamento);
     let repetido = format!("{}&id_procedimento=7", observado());
-    assert_eq!(
-        erro(&repetido),
-        E::Html(ErroHtml::repetido(
-            "id_procedimento_repetido_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&repetido), E::IdProcedimentoRepetidoNoRedirecionamento);
     for id in ["7a", "-7", "+7", "%37", "0x7"] {
         let alterado = format!("controlador.php?{}", consulta(id));
         assert_eq!(
@@ -242,17 +217,9 @@ fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
 #[test]
 fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
     let sem_hash = observado().replace(&format!("&infra_hash={HASH_DESTINO}"), "");
-    assert_eq!(
-        erro(&sem_hash),
-        E::Html(ErroHtml::ausente("infra_hash_ausente_no_redirecionamento"))
-    );
+    assert_eq!(erro(&sem_hash), E::InfraHashAusenteNoRedirecionamento);
     let repetido = format!("{}&infra_hash={HASH_DESTINO}", observado());
-    assert_eq!(
-        erro(&repetido),
-        E::Html(ErroHtml::repetido(
-            "infra_hash_repetido_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&repetido), E::InfraHashRepetidoNoRedirecionamento);
     for hash in [
         "e".repeat(63),
         "e".repeat(65),
@@ -272,19 +239,9 @@ fn infra_hash_ausente_repetido_ou_fora_do_formato_e_recusado() {
 #[test]
 fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
     let sem = observado().replace("&infra_unidade_atual=5", "");
-    assert_eq!(
-        erro(&sem),
-        E::Html(ErroHtml::ausente(
-            "unidade_atual_ausente_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&sem), E::UnidadeAtualAusenteNoRedirecionamento);
     let repetida = format!("{}&infra_unidade_atual=5", observado());
-    assert_eq!(
-        erro(&repetida),
-        E::Html(ErroHtml::repetido(
-            "unidade_atual_repetida_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&repetida), E::UnidadeAtualRepetidaNoRedirecionamento);
     let outra = observado().replace("infra_unidade_atual=5", "infra_unidade_atual=6");
     assert_eq!(
         erro(&outra),
@@ -293,31 +250,21 @@ fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
     let envio_sem = url_do_envio().replace("&infra_unidade_atual=5", "");
     assert_eq!(
         interpretar_com_envio(Some(&observado()), &envio_sem).unwrap_err(),
-        E::Html(ErroHtml::ausente("unidade_atual_ausente_na_url_do_envio"))
+        E::UnidadeAtualAusenteNaUrlDoEnvio
     );
     let envio_repetido = format!("{}&infra_unidade_atual=5", url_do_envio());
     assert_eq!(
         interpretar_com_envio(Some(&observado()), &envio_repetido).unwrap_err(),
-        E::Html(ErroHtml::repetido("unidade_atual_repetida_na_url_do_envio"))
+        E::UnidadeAtualRepetidaNaUrlDoEnvio
     );
 }
 
 #[test]
 fn acao_de_origem_ausente_repetida_ou_diferente_da_pesquisa_e_recusada() {
     let sem = observado().replace("&acao_origem=protocolo_pesquisar", "");
-    assert_eq!(
-        erro(&sem),
-        E::Html(ErroHtml::ausente(
-            "acao_de_origem_ausente_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&sem), E::AcaoDeOrigemAusenteNoRedirecionamento);
     let repetida = format!("{}&acao_origem=protocolo_pesquisar", observado());
-    assert_eq!(
-        erro(&repetida),
-        E::Html(ErroHtml::repetido(
-            "acao_de_origem_repetida_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&repetida), E::AcaoDeOrigemRepetidaNoRedirecionamento);
     for origem in ["procedimento_controlar", "", "PROTOCOLO_PESQUISAR"] {
         let outra = observado().replace(
             "acao_origem=protocolo_pesquisar",
@@ -334,19 +281,9 @@ fn acao_de_origem_ausente_repetida_ou_diferente_da_pesquisa_e_recusada() {
 #[test]
 fn infra_sistema_do_redirecionamento_precisa_ser_decimal_e_o_do_envio() {
     let sem = observado().replace("&infra_sistema=1", "");
-    assert_eq!(
-        erro(&sem),
-        E::Html(ErroHtml::ausente(
-            "infra_sistema_ausente_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&sem), E::InfraSistemaAusenteNoRedirecionamento);
     let repetido = format!("{}&infra_sistema=1", observado());
-    assert_eq!(
-        erro(&repetido),
-        E::Html(ErroHtml::repetido(
-            "infra_sistema_repetido_no_redirecionamento"
-        ))
-    );
+    assert_eq!(erro(&repetido), E::InfraSistemaRepetidoNoRedirecionamento);
     for valor in ["", "1a", "-1", "%31", "+1"] {
         let alterado = observado().replace("infra_sistema=1", &format!("infra_sistema={valor}"));
         assert_eq!(
@@ -371,11 +308,11 @@ fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado()
     let casos = [
         (
             url_do_envio().replace("&infra_sistema=1", ""),
-            E::Html(ErroHtml::ausente("infra_sistema_ausente_na_url_do_envio")),
+            E::InfraSistemaAusenteNaUrlDoEnvio,
         ),
         (
             format!("{}&infra_sistema=1", url_do_envio()),
-            E::Html(ErroHtml::repetido("infra_sistema_repetido_na_url_do_envio")),
+            E::InfraSistemaRepetidoNaUrlDoEnvio,
         ),
         (
             url_do_envio().replace("infra_sistema=1", "infra_sistema=x"),
@@ -394,51 +331,31 @@ fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado()
 #[test]
 fn subcodigos_sao_estaveis_e_distintos() {
     let todos = [
-        E::Html(ErroHtml::ausente("localizacao_do_redirecionamento_ausente")),
+        E::LocalizacaoDoRedirecionamentoAusente,
         E::LocalizacaoDoRedirecionamentoAcimaDoLimite,
         E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
-        E::Html(ErroHtml::valor(
-            "localizacao_do_redirecionamento_fora_da_instalacao",
-        )),
+        E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
         E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
         E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
-        E::Html(ErroHtml::ausente(
-            "id_procedimento_ausente_no_redirecionamento",
-        )),
-        E::Html(ErroHtml::repetido(
-            "id_procedimento_repetido_no_redirecionamento",
-        )),
+        E::IdProcedimentoAusenteNoRedirecionamento,
+        E::IdProcedimentoRepetidoNoRedirecionamento,
         E::IdProcedimentoNaoDecimalNoRedirecionamento,
-        E::Html(ErroHtml::ausente("infra_hash_ausente_no_redirecionamento")),
-        E::Html(ErroHtml::repetido(
-            "infra_hash_repetido_no_redirecionamento",
-        )),
+        E::InfraHashAusenteNoRedirecionamento,
+        E::InfraHashRepetidoNoRedirecionamento,
         E::InfraHashForaDoFormatoNoRedirecionamento,
-        E::Html(ErroHtml::ausente(
-            "unidade_atual_ausente_no_redirecionamento",
-        )),
-        E::Html(ErroHtml::repetido(
-            "unidade_atual_repetida_no_redirecionamento",
-        )),
-        E::Html(ErroHtml::ausente("unidade_atual_ausente_na_url_do_envio")),
-        E::Html(ErroHtml::repetido("unidade_atual_repetida_na_url_do_envio")),
+        E::UnidadeAtualAusenteNoRedirecionamento,
+        E::UnidadeAtualRepetidaNoRedirecionamento,
+        E::UnidadeAtualAusenteNaUrlDoEnvio,
+        E::UnidadeAtualRepetidaNaUrlDoEnvio,
         E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
-        E::Html(ErroHtml::ausente(
-            "acao_de_origem_ausente_no_redirecionamento",
-        )),
-        E::Html(ErroHtml::repetido(
-            "acao_de_origem_repetida_no_redirecionamento",
-        )),
+        E::AcaoDeOrigemAusenteNoRedirecionamento,
+        E::AcaoDeOrigemRepetidaNoRedirecionamento,
         E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
-        E::Html(ErroHtml::ausente(
-            "infra_sistema_ausente_no_redirecionamento",
-        )),
-        E::Html(ErroHtml::repetido(
-            "infra_sistema_repetido_no_redirecionamento",
-        )),
+        E::InfraSistemaAusenteNoRedirecionamento,
+        E::InfraSistemaRepetidoNoRedirecionamento,
         E::InfraSistemaNaoDecimalNoRedirecionamento,
-        E::Html(ErroHtml::ausente("infra_sistema_ausente_na_url_do_envio")),
-        E::Html(ErroHtml::repetido("infra_sistema_repetido_na_url_do_envio")),
+        E::InfraSistemaAusenteNaUrlDoEnvio,
+        E::InfraSistemaRepetidoNaUrlDoEnvio,
         E::InfraSistemaNaoDecimalNaUrlDoEnvio,
         E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
     ];

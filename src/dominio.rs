@@ -1,6 +1,5 @@
 //! Domínio da caixa do SEI: dados tipados, sem completude armazenada,
 //! apresentação, origem da sessão, HTML ou links assinados.
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -12,7 +11,7 @@ pub struct IdProcedimento(String);
 impl IdProcedimento {
     pub fn novo(valor: &str) -> Result<Self, ErroCaixa> {
         if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroHtml::valor("id_invalido").into());
+            return Err(ErroCaixa::IdInvalido);
         }
         Ok(Self(valor.to_owned()))
     }
