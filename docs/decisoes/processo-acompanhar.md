@@ -1,11 +1,11 @@
 ---
 type: ImplementationDecision
 title: Acompanhamento Especial pela barra e cadastro da interface Web
-description: Estratégia Web de prévia, POST único e releitura da inclusão, mantendo retirada bloqueada
+description: Estratégia Web de prévia, POST único e releitura da inclusão e retirada
 operation: processo.acompanhar
 implementation: partial
 status: adopted-for-scope
-scope: ies processo acompanhar NUP com inclusão confirmada por um POST e uma releitura, além de prévia de retirada; confirmação da retirada ainda bloqueada
+scope: ies processo acompanhar NUP com inclusão e retirada por um POST cada e uma releitura; live pendente
 selected_strategy: web-barra-cadastro-tabela
 alternatives: web-barra-cadastro-tabela,rest-acompanhamento,simular-estado
 evidence_level: todos-unb-e-indices-de-cassettes
@@ -58,16 +58,21 @@ submissão reenvia ocultos, grupo, observação e botão conforme servidos.
 Nenhum 302 é seguido e nenhuma falha de rede dispara retry.
 O gerente é relido uma vez após o POST; só uma linha nova com
 grupo/observação correspondentes e linhas anteriores preservadas
-comprova sucesso. Sem prova, a saída é 3. A confirmação de retirada
-continua bloqueada antes da sessão. A nova prévia de retirada não se
+comprova sucesso. Sem prova, a saída é 3. A retirada confirmada deriva um POST da mesma tela da lista, com a ação
+alterada por `acaoExcluir` apenas inspecionado, sem executar JavaScript. A nova prévia de retirada não se
 baseia somente numa checkbox: exige a oferta `acaoExcluir` na linha,
 o formulário `frmGerenciarAcompanhamento`, o oculto reescrito pelo
 script `hdnInfraItemId` (nome e ID únicos no DOM, não desabilitado)
 e a ação assinada `acompanhamento_excluir`
 para o mesmo processo. Esses elementos são examinados como texto e DOM,
 sem executar JavaScript ou publicar hash. Falha fechada nas variantes
-não observadas; o POST de exclusão continua fechado até derivação
-segura e releitura comprovada.
+não observadas. A resposta 302 de exclusão tem de apontar ao mesmo
+processo; a leitura nova deve comprovar a remoção exata, preservando
+todas as outras linhas. A retirada final pode retornar 302 ao cadastro:
+a operação faz GET explícito e valida o formulário do processo antes
+de reconhecer a lista vazia. Sem as duas evidências, a saída é 3.
+O fluxo está implementado em branch, mas **sem GREEN ou live comprovado**
+para esta nova fatia.
 
 A suíte injetada mede 5 GETs para prévia e 3 GETs de abertura +
 GET de gerenciar + GET de cadastro + POST + GET de releitura (7
@@ -95,8 +100,9 @@ substrings no `script` inteiro aceitaria três instruções numa segunda
 função ou num ramo morto. Os testes sintéticos reproduzem ambas as
 armadilhas e chaves no texto de confirmação. A lógica é propositalmente
 estrita para a forma observada na UnB; outras formas falham fechadas,
-sem executar JavaScript. A confirmação de retirada **não** é liberada
-por esse reforço da prévia.
+sem executar JavaScript. O reforço da prévia foi preservado no percurso confirmado, com
+POST único e verificação independente. A habilitação requer revisão
+antes de uso real, pois CI/live desta fatia ainda não foram observados.
 
 ## Limitações e revisão
 
@@ -107,6 +113,24 @@ Nenhuma escrita e nenhum resíduo foram produzidos.
 
 Ainda faltam replay integral do acervo e teste ao vivo em
 treinamento, com prévia anterior ao `--confirmar`, envio único,
-releitura e registro de resíduo. A retirada exige derivar a
-`acompanhamento_excluir` da linha e conferir sua identidade, sem
-copiar a arquitetura do Todos. A versão parcial permanece DRAFT.
+releitura e registro de resíduo. A retirada agora deriva `acompanhamento_excluir` da linha e confere sua
+identidade, sem copiar a arquitetura do Todos. Falta comprovar RED/GREEN,
+replay do acervo e validação em treinamento. A PR permanece DRAFT.
+
+## Quarta fatia — remoção verificada (🐢)
+
+A implementação expõe a `action` assinada a partir da inspeção estrita da
+função `acaoExcluir` sem JS, valida também a `action` original do
+formulário no primitivo `formulario_web`, deriva apenas o corpo
+`hdnInfraItemId=<id>` e consome uma única submissão. Evita
+seguir redirects e não repete POST após falha de rede. A verificação
+é uma nova leitura, não a confiança no status HTTP.
+
+Seis testes de transporte sintético foram publicados **antes** do código:
+POST único com releitura da tabela, retirada do último com GET de cadastro,
+302 para outro processo, falha no POST, linha persistente e cadastro
+incompleto. Seus orçamentos esperados são 6 ou 7 requisições, conforme
+o redirect. A contagem RED nova e o GREEN são **NOT_RUN / não observados**,
+pois o CI canônico não foi disparado pelos commits desta fatia e o
+sandbox carece de Rust e rede. Não inferir gates verdes. Também não
+houve ensaio real: 0 requests e 0 resíduos no SEI.
