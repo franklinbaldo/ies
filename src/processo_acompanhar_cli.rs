@@ -127,6 +127,7 @@ fn valor_da_falha(erro: &ErroPrevia) -> serde_json::Value {
         },
         "requisicoes": diagnostico.map(|(total, _)| total),
         "motivo": diagnostico.map(|(_, motivo)| motivo),
+        "resposta_post": erro.resposta_post_observada(),
         "retentavel": false
     })
 }
@@ -143,13 +144,14 @@ fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processo_acompanhar::MotivoEfeitoIncerto;
+    use crate::processo_acompanhar::{MotivoEfeitoIncerto, RespostaPost};
 
     #[test]
     fn erro_apos_post_publica_contagem_e_motivo_sem_segredos() {
         let erro = ErroPrevia::EfeitoIncerto {
             requisicoes: 7,
             motivo: MotivoEfeitoIncerto::ReleituraIndisponivel,
+            resposta_post: RespostaPost::RedirecionamentoObservado,
         };
         let valor = valor_da_falha(&erro);
         assert_eq!(valor["codigo"], "efeito_incerto");
@@ -171,6 +173,7 @@ mod tests {
         let valor = valor_da_falha(&ErroPrevia::ConfirmacaoNaoImplementada);
         assert_eq!(valor["requisicoes"], serde_json::Value::Null);
         assert_eq!(valor["motivo"], serde_json::Value::Null);
+        assert_eq!(valor["resposta_post"], serde_json::Value::Null);
         assert_eq!(valor["codigo"], "operacao_recusada");
     }
 }
