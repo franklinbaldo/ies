@@ -203,7 +203,8 @@ fn links(
         let bruto =
             valor_do_atributo(tag, "href").map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
         let Some(bruto) = bruto else { continue };
-        if bruto.contains("retorno_programado_listar") {
+        // acao_origem pode mencionar retornos em um link de outra operacao.
+        if bruto.contains("acao=retorno_programado_listar") {
             saida.push(conferir_link(&bruto, servida, instalacao)?);
         }
     }
