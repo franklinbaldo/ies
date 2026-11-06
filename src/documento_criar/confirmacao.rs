@@ -24,6 +24,47 @@ impl FotoDaCriacao {
     }
 }
 
+/// O 302 não é seguido, mas só serve de indício se seu destino
+/// continuar no controlador HTTPS da própria instalação. Um Location
+/// externo/inválido pode coincidir com criação concorrente na árvore.
+fn redirecionamento_do_mesmo_controlador(localizacao: &str, url_do_envio: &str) -> bool {
+    let Some(origem) = crate::url_observada::UrlHttps::interpretar(url_do_envio) else {
+        return false;
+    };
+    if !origem.caminho.ends_with("/controlador.php")
+        || !localizacao.bytes().all(|byte| (33..=126).contains(&byte))
+        || localizacao.contains(['#', '\\'])
+    {
+        return false;
+    }
+    let consulta = if localizacao.starts_with("https://") {
+        let Some(destino) = crate::url_observada::UrlHttps::interpretar(localizacao) else {
+            return false;
+        };
+        if destino.host != origem.host || destino.caminho != origem.caminho {
+            return false;
+        }
+        destino.consulta
+    } else {
+        // O SEI publica Location absoluto ou relativo ao controlador.
+        // Nunca resolver caminhos arbitrários, //host nem outro esquema.
+        localizacao
+            .strip_prefix("controlador.php?")
+            .or_else(|| localizacao.strip_prefix('?'))
+            .or_else(|| {
+                localizacao.strip_prefix(&format!("/{}?", origem.caminho))
+            })
+    };
+    consulta.is_some_and(|consulta| {
+        consulta
+            .split('&')
+            .filter_map(|campo| campo.strip_prefix("acao="))
+            .filter(|acao| !acao.is_empty())
+            .count()
+            == 1
+    })
+}
+
 pub(super) fn postar_e_verificar<T, R, P, L>(
     transporte: &mut T,
     submissao: SubmissaoDerivada,
@@ -68,7 +109,9 @@ where
         Ok(RespostaDoEnvio::Html(_)) => true,
         Ok(RespostaDoEnvio::Redirecionamento(redirect)) => redirect
             .localizacao()
-            .is_some_and(|destino| !destino.trim().is_empty()),
+            .is_some_and(|destino| {
+                redirecionamento_do_mesmo_controlador(destino, redirect.url_do_envio())
+            }),
         Err(_) => false,
     };
     if !resposta_conferivel {
