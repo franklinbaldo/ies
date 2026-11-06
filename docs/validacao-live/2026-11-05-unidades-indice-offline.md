@@ -183,3 +183,40 @@ e processa seis respostas (3 GET e 3 POST) sem contato com o SEI,
 mas ainda está fora do CI canônico. A nova PR integra o replay
 à execução obrigatória do mesmo `ci.yml`. Este replay não demonstra
 coleta integral de 274 páginas e não substitui live UnB/GO.
+
+## Retomada 🦊 — integração da sugestão, com transporte e SQLite sintéticos
+
+A revisão da [PR #297](https://github.com/franklinbaldo/ies/pull/297#issuecomment-6672507390)
+pediu prova além da função formatadora. A observação pré-RED identificou
+que o autocomplete Web continua sendo a autoridade e que a sugestão
+vem exclusivamente do snapshot da mesma instalação e unidade ativa,
+como nos cenários do Todos `tests/test_destinos_indice_010.py`
+@`323eb01` e no fluxo sintético de `processo_enviar/tests_apoio.rs`.
+
+O novo teste `sugestoes_guardadas_compoem_erro_web_sem_consulta_extra`
+executa o fluxo de envio com **transporte roteirizado sintético**,
+autocomplete recusando a sigla e SQLite real em diretório temporário.
+Confronta JSON, aviso humano, código de saída, isolamento por unidade,
+ausência de lista e `--confirmar` sem POST de escrita. O roteiro exige
+**4 GET + 1 POST de consulta = 5 requisições simuladas**, sem pedidos
+adicionais para sugestões, sem contato com o SEI. Não é teste de captura
+real do stdout/stderr do binário, nem substitui o live.
+
+- **RED antes do GREEN:** 1 falha no teste novo, 1.574 passes e
+  16 ignorados no [CI 42134942869](https://github.com/franklinbaldo/ies/actions/runs/42134942869),
+  commit `689367f`; o shim ainda devolvia apenas o erro Web
+  (`sugestoes_guardadas = null`). Outros gates e replay offline passaram.
+- **GREEN de comportamento:** suíte Rust PASS após ligar a consulta
+  SQLite no commit `3f9d0bc`, [CI 42135235123](https://github.com/franklinbaldo/ies/actions/runs/42135235123).
+  Esse run permaneceu vermelho em **Rustfmt e Clippy do teste novo**,
+  corrigidos no commit subsequente, sem enfraquecer as asserções.
+- **Sandbox local:** `cargo`/`rustup` NOT_RUN (ausentes; DNS bloqueado);
+  compilação real, suíte e replay conferidos no GitHub Actions.
+- **Live UnB:** NOT_RUN, 0 requisições. **Live GO:** NOT_RUN,
+  0 requisições. **Pesquisa após coleta live:** NOT_RUN, 0 requisições.
+  **Escrita remota:** NOT_RUN, 0 requisições e nenhum resíduo.
+
+Faltam a coleta autenticada integral UnB/GO, a pesquisa local subsequente
+com 0 HTTP e a captura ponta a ponta de stdout/stderr humano da CLI.
+O replay GO obrigatório no CI comprova somente 3 GET e 3 POST **gravados**,
+não as 274 páginas da lista GO. A issue não está concluída.
