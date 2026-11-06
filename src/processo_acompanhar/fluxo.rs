@@ -42,6 +42,8 @@ pub(crate) enum ErroPrevia {
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
     #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     EfeitoIncerto,
+    #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
+    ConfirmacaoNaoImplementada,
     #[causa(nome = "pedido_de_acompanhamento_invalido")]
     PedidoInvalido,
 }
