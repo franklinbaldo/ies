@@ -326,3 +326,12 @@ fim das seções anteriores, sem apagar o estado que era conhecido
 
 A etapa de segurança anterior ao POST e seus testes RED estão no
 [relatório de guarda pré-POST](2026-11-05-processo-criar-guarda-pre-post.md).
+
+## Continuidade 🦉 em 06/11 — conferência dos candidatos
+
+RED sintético: [CI 42173910486](https://github.com/franklinbaldo/ies/actions/runs/42173910486),
+3 FAIL, 1636 PASS, 17 ignored preexistentes. Fatia posterior: leitura
+por ID/NUP, árvore e propriedades com um GET por etapa, sem POST novo.
+Live nesta sessão: **NOT_RUN** (0 requisições reais; 0 escritas;
+0 resíduos novos). O resíduo histórico UnB 23106.001875/2026-93
+permanece inalterado e não será recriado.
