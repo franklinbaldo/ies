@@ -69,6 +69,11 @@ pub(crate) fn erro_fonte_http(
     ExitCode::from(1)
 }
 
+/// Atalho público da CLI para uma falha sem resposta HTTP observada.
+pub(crate) fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+    erro_fonte_http(json_mode, subcodigo, mensagem, None)
+}
+
 #[cfg(test)]
 #[path = "saida_erro/tests.rs"]
 mod tests;
