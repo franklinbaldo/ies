@@ -1,6 +1,6 @@
 //! Saída JSON e humana de `processo reabrir`: campos do contrato, nada de
 //! URL, e a falha com a situação e a verificação.
-use super::{humano, json_de_falha, json_de_sucesso};
+use super::{humano, json_de_sucesso};
 use crate::arvore_processo::{FormaDaReabertura, MotivoAbertoEm};
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_reabrir::{ErroReabrir, ProcessoReaberto};
@@ -172,24 +172,38 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
             r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi reaberto","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada_na_abertura"}"#,
         ),
         (
-            ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo: MotivoAbertoEm::HtmlDaRaizNaoPublicado },
+            ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir {
+                motivo: MotivoAbertoEm::HtmlDaRaizNaoPublicado,
+            },
             r#"{"codigo":"fonte_invalida","erro":"a árvore não publica onde o processo está aberto, e a reabertura não poderia ser conferida; nada foi reaberto","motivo":"html_da_raiz_nao_publicado","retentavel":false,"subcodigo":"situacao_do_processo_nao_lida_antes_de_reabrir"}"#,
         ),
         (
-            ErroReabrir::ReaberturaNaoAplicada { aberto_em: vec![], depois: vec![], falha_do_envio: None },
+            ErroReabrir::ReaberturaNaoAplicada {
+                aberto_em: vec![],
+                depois: vec![],
+                falha_do_envio: None,
+            },
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de reabrir não lista a unidade da sessão: o processo não foi reaberto","retentavel":false,"subcodigo":"reabertura_nao_aplicada"}"#,
         ),
         (
-            ErroReabrir::EfeitoIncertoNaReabertura { aberto_em: vec!["TESTE".into()], falha_do_envio: None, verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            ErroReabrir::EfeitoIncertoNaReabertura {
+                aberto_em: vec!["TESTE".into()],
+                falha_do_envio: None,
+                verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
+            },
             r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","retentavel":false,"subcodigo":"efeito_incerto_na_reabertura","verificacao":null}"#,
         ),
         (
-            ErroReabrir::EfeitoIncertoNaReabertura { aberto_em: vec!["TESTE".into()], falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura), verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            ErroReabrir::EfeitoIncertoNaReabertura {
+                aberto_em: vec!["TESTE".into()],
+                falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
+                verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
+            },
             r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_na_reabertura"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_reabertura","verificacao":null}"#,
         ),
     ];
     for (erro, esperado) in casos {
-        let projecao = json_de_falha(&erro);
+        let projecao = super::json_de_falha(&erro);
         assert_eq!(serde_json::to_string(&projecao).unwrap(), esperado);
         // RED: o contrato deve ser uma projeção Serialize, não um Value.
         assert_ne!(
@@ -197,5 +211,50 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
             std::any::type_name::<serde_json::Value>()
         );
         assert!(!esperado.contains('\u{1b}'));
+    }
+}
+
+fn json_de_falha(erro: &ErroReabrir) -> serde_json::Value {
+    serde_json::to_value(super::json_de_falha(erro)).unwrap()
+}
+
+#[test]
+fn falha_http_preserva_mensagem_status_e_identidade_original() {
+    use crate::formulario_web::ErroSubmissaoFormulario;
+    use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+
+    let casos = [
+        (
+            FalhaDoEnvio::Envio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                StatusHttpRecusado {
+                    status: 200,
+                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
+                },
+            )),
+            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","subcodigo":"validacao_recusada_pelo_sei"},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"subcodigo":"efeito_incerto_na_reabertura","verificacao":"html_da_raiz_nao_publicado"}"#,
+        ),
+        (
+            FalhaDoEnvio::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
+                StatusHttpRecusado {
+                    status: 500,
+                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
+                },
+            )),
+            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500,"subcodigo":"status_http_de_erro_do_servidor"},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500,"subcodigo":"efeito_incerto_na_reabertura","verificacao":"html_da_raiz_nao_publicado"}"#,
+        ),
+    ];
+    for (falha, esperado) in casos {
+        let erro = ErroReabrir::EfeitoIncertoNaReabertura {
+            aberto_em: vec![],
+            falha_do_envio: Some(falha),
+            verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
+                MotivoAbertoEm::HtmlDaRaizNaoPublicado,
+            )),
+        };
+        assert_eq!(erro.saida(), 3);
+        assert_eq!(
+            serde_json::to_string(&super::json_de_falha(&erro)).unwrap(),
+            esperado
+        );
     }
 }
