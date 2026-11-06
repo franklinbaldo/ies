@@ -285,3 +285,21 @@ verificação 0 GET, **0 requisições reais e 0 resíduos novos**. A
 criação histórica da UnB NUP `23106.001875/2026-93`, id 51731, não
 foi repetida. O ensaio em segunda instalação de treinamento continua
 pendente, na ordem prévia → uma confirmação → leitura e registro do resíduo.
+
+## 🦉 Guarda de identidade anterior ao POST (06/11/2026)
+
+A fotografia completa da caixa Gerados do Controle anterior ao POST pode
+revelar que o ID de `302 Location` **já existia**. Esse retorno não atesta
+nova criação, mesmo que tela, árvore e propriedades do processo antigo
+coincidam com o pedido. A regressão sintética foi publicada antes da
+implementação: [CI RED 42271272286](https://github.com/franklinbaldo/ies/actions/runs/42271272286),
+**1 FAIL / 1.733 PASS / 22 ignored preexistentes**; a CLI antiga
+respondia `confirmado: true` e NUP para identidade preexistente.
+Após a guarda, o caso fica inconclusivo (saída 3), subcódigo tipado,
+**3 GET iniciais + 1 POST = 4 pedidos**, sem GET adicional nem retry.
+
+**LIVE desta fatia:** prévia **NOT_RUN (0 req.)**, confirmação única
+**NOT_RUN (0 POST)**, verificação **NOT_RUN (0 req.)**;
+**0 requisições reais, 0 escritas, 0 resíduos novos**. Não repetir o
+NUP histórico UnB `23106.001875/2026-93` / ID 51731. A execução em
+segunda instalação exclusivamente de treinamento continua pendente.
