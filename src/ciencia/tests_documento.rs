@@ -1,20 +1,19 @@
 //! RED/GREEN da ciência documental: Todos test_documento_ciente_010.py
 //! @323eb01, HTML sintético (sem segredos) e contagem exata de GETs.
-use super::documento::{
-    ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento,
-};
+use super::documento::{ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento};
 use crate::documento::NumeroDocumento;
 use crate::arvore_processo::tests_assinatura::{
     arvore_assinavel, barra_assinavel, link_da_tela_do_documento,
     tela_do_documento_40, tela_do_documento_50,
 };
+use crate::processo_concluir::tests_apoio::*;
+use crate::transporte::FalhaTransporte;
+
 const DOC: &str = "0000101";
 const ID_DOC: &str = "21";
 fn url_da_tela_do_documento() -> String {
     absoluta(&link_da_tela_do_documento(ID, ID_DOC))
 }
-use crate::processo_concluir::tests_apoio::*;
-use crate::transporte::FalhaTransporte;
 
 const ATIVIDADE: &str = "42457";
 const BOTAO: &str = "<a href=\"#\" onclick=\"cienciaDocumento();\" title=\"Ciência\">Ciência</a>";
@@ -30,23 +29,31 @@ fn arvore_com_lista() -> String {
         "NosAcoes[9] = new infraArvoreAcao(\"CIENCIAS\",\"CD{ID_DOC}\",\"{ID_DOC}\",         \"{link}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
         link = link_da_lista()
     );
-    html = html.replacen("  if (Nos.length){", &format!("{acao}  if (Nos.length){{"), 1);
+    html = html.replacen(
+        "  if (Nos.length){",
+        &format!("{acao}  if (Nos.length){{"),
+        1,
+    );
     html
 }
 
 fn link_da_lista() -> String {
     format!(
-        "controlador.php?acao=protocolo_ciencia_listar&id_procedimento={ID}         &id_documento={ID_DOC}&infra_hash={}", "6".repeat(64)
+        "controlador.php?acao=protocolo_ciencia_listar&id_procedimento={ID}&id_documento={ID_DOC}&infra_hash={}",
+        "6".repeat(64)
     )
 }
 
 fn link_da_escrita() -> String {
-    format!("controlador.php?acao=documento_ciencia&id_documento={ID_DOC}&infra_hash={}", "7".repeat(64))
+    format!(
+        "controlador.php?acao=documento_ciencia&id_documento={ID_DOC}&infra_hash={}",
+        "7".repeat(64)
+    )
 }
 
 fn aceite(atividade: &str) -> String {
     format!(
-        "<html><head><script>function inicializar(){{ atualizarArvore(         'controlador.php?acao=procedimento_visualizar&id_procedimento={ID}         &id_documento={ID_DOC}&documento_visualizar_ciencias=1&id_atividade={atividade}         #ID-{atividade}'); }}</script></head></html>"
+        "<html><head><script>function inicializar(){{ atualizarArvore(         'controlador.php?acao=procedimento_visualizar&id_procedimento={ID}         &id_documento={ID_DOC}&documento_visualizar_ciencias=1&id_atividade={atividade}#ID-{atividade}'); }}</script></head></html>"
     )
 }
 
@@ -56,9 +63,10 @@ fn lista(atividade: &str) -> String {
     )
 }
 
-fn rodar(confirmar: bool, respostas: Vec<Resposta>)
-    -> (Result<super::documento::CienciaDoDocumento, E>, Vec<Pedido>)
-{
+fn rodar(
+    confirmar: bool,
+    respostas: Vec<Resposta>,
+) -> (Result<super::documento::CienciaDoDocumento, E>, Vec<Pedido>) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
         let doc = NumeroDocumento::novo(DOC).unwrap();
@@ -70,7 +78,8 @@ fn rodar(confirmar: bool, respostas: Vec<Resposta>)
                 unidade: None,
                 confirmar,
             },
-            indice, rede,
+            indice,
+            rede,
         )
     })
 }
@@ -86,8 +95,13 @@ fn previa_tres_get_sem_escrita() {
 
 #[test]
 fn barra_sem_ciencia_recusa_antes_de_get_mutador() {
-    let arvore = arvore_assinavel(ID, ID_DOC, DOC,
-        &barra_assinavel(ID, ID_DOC, Some('S')), &[]);
+    let arvore = arvore_assinavel(
+        ID,
+        ID_DOC,
+        DOC,
+        &barra_assinavel(ID, ID_DOC, Some('S')),
+        &[],
+    );
     let (resultado, pedidos) = rodar(true, abertura(arvore));
     assert!(matches!(resultado, Err(E::CienciaNaoOferecida)));
     assert_eq!(pedidos, pedidos_da_abertura());
@@ -115,7 +129,13 @@ fn confirmar_sete_gets_exatos_com_um_mutador_e_lista_do_documento() {
         get(&absoluta(&link_da_lista())),
     ]);
     assert_eq!(pedidos, esperado);
-    assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -129,7 +149,13 @@ fn aceite_de_outro_documento_nunca_prova_ciencia() {
     let (resultado, pedidos) = rodar(true, respostas);
     assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -144,7 +170,13 @@ fn falha_da_escrita_nao_repetida_seguida_de_leitura() {
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
+    );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
 
