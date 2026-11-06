@@ -156,8 +156,8 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
     };
     use crate::processo_enviar::{PedidoDoEnvio, enviar_processo};
 
-    let instalacao = crate::instalacao::Instalacao::interpretar(ORIGEM)
-        .expect("origem sintética HTTPS");
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar(ORIGEM).expect("origem sintética HTTPS");
     let chave = instalacao.url_base();
     let ativa = unidade_dos_links(&url_controle()).expect("unidade da sessão sintética");
     let guardada = UnidadeGuardada {
@@ -177,14 +177,17 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
             assert!(ambiente.indice.guardar_lista_de_unidades(
                 &chave,
                 unidade,
-                &[guardada.clone()],
+                std::slice::from_ref(&guardada),
                 1,
             ));
         }
         let mut respostas = abertura(arvore(&[UNIDADE], &enviar()));
         respostas.extend([
             ok(tela_de_envio(Versao::V41, ID)),
-            ok(resposta_xml(&[("901", "OUTRA - Destino publicado pelo SEI")])),
+            ok(resposta_xml(&[(
+                "901",
+                "OUTRA - Destino publicado pelo SEI",
+            )])),
         ]);
         let ((valor, mensagem, subcodigo, saida), pedidos) =
             rodar_com(&ambiente, respostas, |sessao, nup, indice, roteiro| {
@@ -196,9 +199,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
-                let valor = super::json_de_falha_com_sugestoes(
-                    &erro, sessao, indice, DESTINO,
-                );
+                let valor = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
                 (
                     valor.clone(),
                     super::texto_das_sugestoes(&valor),
@@ -226,7 +227,9 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
             );
             assert_eq!(
                 mensagem.as_deref(),
-                Some("IES: sugestões guardadas (não confirmadas pelo SEI): TESTE_1_1 - Unidade guardada"),
+                Some(
+                    "IES: sugestões guardadas (não confirmadas pelo SEI): TESTE_1_1 - Unidade guardada"
+                ),
             );
         } else {
             assert!(valor.get("sugestoes_guardadas").is_none());
