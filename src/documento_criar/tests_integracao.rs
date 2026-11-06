@@ -320,14 +320,18 @@ fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
     // if (OnSubmitForm()) -> submeter() -> frmDocumentoCadastro.submit().
     // Ter o botao e a funcao submeter separados nao prova essa cadeia.
     let original = cadastro();
-    let confirmacao = "function confirmarDados() {\n  if (OnSubmitForm()) {\n    submeter();\n  }\n}\n";
+    let confirmacao =
+        "function confirmarDados() {\n  if (OnSubmitForm()) {\n    submeter();\n  }\n}\n";
     assert!(original.contains(confirmacao));
     let casos = [
         original.replace(confirmacao, ""),
         original.replace("function confirmarDados()", "function naoChamado()"),
         original.replace("if (OnSubmitForm()) {", "if (false) {"),
         original.replace("    submeter();", "    outraAcao();"),
-        original.replace("  if (OnSubmitForm()) {\n    submeter();\n  }", "  submeter();"),
+        original.replace(
+            "  if (OnSubmitForm()) {\n    submeter();\n  }",
+            "  submeter();",
+        ),
         original.replace(
             "</script>",
             "</script><script>function confirmarDados() {}</script>",
