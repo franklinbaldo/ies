@@ -64,20 +64,20 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
 /// JSON do sucesso (prévia, nada a fazer, ou reaberto e conferido).
 #[derive(serde::Serialize)]
 struct ResultadoReabertura<'a> {
-    nup: &'a str,
-    id_procedimento: &'a str,
-    unidade: &'a str,
-    origem: &'static str,
-    confirmado: bool,
-    alterado: bool,
-    reabertura_oferecida: bool,
-    forma: Option<&'static str>,
     aberto_em: &'a [String],
+    alterado: bool,
+    confirmado: bool,
     depois: Option<&'a [String]>,
-    reconciliado_por_leitura: bool,
-    requisicoes: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_envio: Option<crate::processo_concluir_cli::FalhaEnvioPublica>,
+    forma: Option<&'static str>,
+    id_procedimento: &'a str,
+    nup: &'a str,
+    origem: &'static str,
+    reabertura_oferecida: bool,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
 }
 
 fn resultado_reabertura(feito: &ProcessoReaberto) -> ResultadoReabertura<'_> {
