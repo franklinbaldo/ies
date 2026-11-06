@@ -53,7 +53,7 @@ fn link_da_escrita() -> String {
 
 fn aceite(atividade: &str) -> String {
     format!(
-        "<html><head><script>function inicializar(){{ atualizarArvore(         'controlador.php?acao=procedimento_visualizar&id_procedimento={ID}         &id_documento={ID_DOC}&documento_visualizar_ciencias=1&id_atividade={atividade}#ID-{atividade}'); }}</script></head></html>"
+        "<html><head><script>function inicializar(){{ atualizarArvore(         'controlador.php?acao=procedimento_visualizar&id_procedimento={ID}&id_documento={ID_DOC}&documento_visualizar_ciencias=1&id_atividade={atividade}#ID-{atividade}'); }}</script></head></html>"
     )
 }
 
