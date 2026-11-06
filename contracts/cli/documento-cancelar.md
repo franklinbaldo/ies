@@ -55,7 +55,19 @@ Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`
 | `cancelamento_nao_aplicado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `efeito_incerto_no_cancelamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 
-A tela de login, o transporte e o primitivo de formulário propagam seus próprios subcódigos. Entrada inválida: `motivo_vazio`, `motivo_com_controle`, `motivo_fora_da_codificacao` e os da validação de DOC/NUP.
+A tela de login, o transporte, o primitivo de formulário e a validação de DOC/NUP mantêm os subcódigos desse contrato.
+
+### Recusas tipadas do motivo
+
+O pedido exige `MotivoDoCancelamento`, construído pela validação de entrada. A operação recebe esse tipo e não repete a validação. Cada variante de `ErroMotivoDoCancelamento` nasce em um único ponto dessa validação.
+
+As recusas de `--motivo` saem com 2 antes de ler a sessão, inclusive com `--confirmar`. O JSON contém `causa`, a serialização direta da variante Rust, e não contém `subcodigo`:
+
+```json
+{"causa":{"tipo":"MotivoVazio"},"codigo":"entrada_invalida","erro":"o motivo está vazio","retentavel":false}
+```
+
+`tipo` deriva do nome da variante, sem tabela de nomes públicos. A saída humana contém a mensagem da mesma variante, sem identificador entre colchetes. Essa representação substitui os três subcódigos de motivo; consumidores devem ler `causa` para essas recusas.
 
 ## Evidências e lacunas
 
