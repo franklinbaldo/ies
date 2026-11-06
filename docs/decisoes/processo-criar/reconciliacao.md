@@ -169,3 +169,24 @@ A alternativa de tratar o candidato como criação foi rejeitada: não há
 prova independente de tipo, especificação nem causalidade. O orçamento
 de regressão é 6 requisições (3 GET + 1 POST + 1 GET Controle + 1 GET
 verificador que falha), com um POST único e sem retry.
+
+
+### Causa da verificação pós-redirecionamento (06/11, #245)
+
+Um POST que devolveu `Location` válido ainda precisa da leitura
+independente para provar o NUP. Antes, erro de rede ou HTTP no GET
+verificador era descartado e substituído por `efeito_incerto_na_criacao`,
+sem conservar status HTTP. A decisão foi manter um invólucro
+`VerificacaoAposPost` para assinalar efeito incerto (saída 3), mas
+propagar a causa tipada da leitura, status HTTP e mensagem saneada.
+Também se propagam erros estruturais da tela/árvore, sem reduzir todas
+as falhas a um erro genérico. A alternativa de confiar no `Location`
+foi recusada, assim como repetir a criação.
+
+Observação anterior: fluxo 302 + dois GET verificadores da evidência
+Web existente; os casos de falha são injeções sintéticas, **não**
+ocorrências live adicionais. RED no
+[CI 42210005212](https://github.com/franklinbaldo/ies/actions/runs/42210005212):
+2 FAIL novos, 1.705 PASS, 22 ignored preexistentes (status 503
+perdido e `falha_de_rede` substituída pelo genérico).
+Orçamento: 3 GET + 1 POST + 1 GET de verificação, sem repetição.
