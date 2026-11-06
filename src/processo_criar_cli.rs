@@ -111,6 +111,10 @@ fn json_da_recusa_criadora(
 ) -> serde_json::Value {
     let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
     valor["requisicoes"] = json!(requisicoes);
+    if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
+        valor["limite_da_especificacao"] = json!(limite);
+        valor["comprimento_da_especificacao_utf16"] = json!(tamanho);
+    }
     if erro.nao_aplicada_comprovada() {
         valor["desfecho"] = json!("nao_aplicada");
         valor["repeticao_segura_com_nova_previa"] = json!(true);
@@ -167,6 +171,16 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
         // Status e mensagem saneada do SEI vão para a saída quando houve.
         if json_mode {
             println!("{}", json_da_recusa_criadora(erro, mensagem, requisicoes));
+            return ExitCode::from(1);
+        }
+        if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
+            eprintln!(
+                "{}",
+                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+            );
+            eprintln!(
+                "IES: especificação com {tamanho} unidades UTF-16; máximo publicado pelo cadastro: {limite}. Nenhuma escrita foi tentada."
+            );
             return ExitCode::from(1);
         }
         if erro.nao_aplicada_comprovada() {
@@ -349,6 +363,22 @@ mod tests {
                 { "id": "32", "nome": "Base B", "argumento": "32#Base B" }
             ])
         );
+    }
+
+    #[test]
+    fn erro_de_maxlength_publica_limite_observado_sem_texto_da_especificacao() {
+        let erro = ErroCriar::Cadastro(
+            crate::processo_criar_cadastro::ErroCadastro::EspecificacaoAcimaDoLimite {
+                limite: 100,
+                tamanho: 102,
+            },
+        );
+        let json = json_da_recusa_criadora(&erro, "Limite do cadastro", 3);
+        assert_eq!(json["limite_da_especificacao"], 100);
+        assert_eq!(json["comprimento_da_especificacao_utf16"], 102);
+        assert_eq!(json["requisicoes"], 3);
+        assert_eq!(json["retentavel"], false);
+        assert!(json.get("desfecho").is_none());
     }
 
     #[test]
