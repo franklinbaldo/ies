@@ -3,6 +3,7 @@
 //! depois de releitura da árvore. Não há retry.
 use crate::documento_criar::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain, saida_erro};
@@ -39,9 +40,12 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
             descricao: descricao.as_deref(),
             nivel: nivel.as_deref(),
         };
-        match executar_criacao(sessao, &pedido, indice, &mut EnvioHttps, *confirmar) {
+        // A contagem externa sobrevive ao Result::Err, inclusive depois do POST.
+        let mut envio = EnvioHttps;
+        let mut contagem = Contador::novo(&mut envio);
+        match executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar) {
             Ok(previa) => publicar_previa(cli.json, &previa),
-            Err(erro) => publicar_erro(cli.json, &erro),
+            Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas()),
         }
     }))
 }
@@ -100,13 +104,13 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
 }
 
 
-fn erro_incerto_json(erro: &ErroPreviaCriacao, _requisicoes: u8) -> serde_json::Value {
-    // Primeiro commit RED: a projeção ainda não expõe a contagem observada.
+fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::Value {
     let mut saida = json!({
         "codigo": "efeito_incerto",
         "subcodigo": erro.subcodigo(),
         "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
-        "retentavel": false
+        "retentavel": false,
+        "requisicoes": requisicoes
     });
     if let Some(causa) = erro.causa_envio() {
         saida["causa_envio"] = json!(causa.subcodigo());
@@ -135,32 +139,16 @@ mod tests {
     }
 }
 
-fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao) -> ExitCode {
+fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> ExitCode {
     if matches!(
         erro,
         ErroPreviaCriacao::EfeitoIncerto | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
     ) {
         if json_mode {
-            let mut saida = json!({
-                "codigo": "efeito_incerto",
-                "subcodigo": erro.subcodigo(),
-                "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
-                "retentavel": false
-            });
-            if let Some(causa) = erro.causa_envio() {
-                saida["causa_envio"] = json!(causa.subcodigo());
-                if let Some(http) = causa.status_http() {
-                    if http.status != 200 {
-                        saida["status_http"] = json!(http.status);
-                    }
-                    if let Some(mensagem) = &http.mensagem_do_servidor {
-                        saida["mensagem_do_servidor"] = json!(mensagem);
-                    }
-                }
-            }
-            println!("{saida}");
+            println!("{}", erro_incerto_json(erro, requisicoes));
         } else {
             eprintln!("IES: efeito incerto na criação do documento; não repita --confirmar");
+            eprintln!("Requisições: {requisicoes}");
             if let Some(causa) = erro.causa_envio() {
                 eprintln!(
                     "{}",
