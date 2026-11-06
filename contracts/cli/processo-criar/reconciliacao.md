@@ -180,3 +180,23 @@ não teve resposta HTTP. Assim, se o POST retornou 503 e o GET posterior
 502, o diagnóstico preserva **ambos**, sem confundir os estágios.
 Teste sintético: **3 GET prévios + 1 POST + 1 GET posterior = 5 pedidos**,
 um POST exato, zero retry. Live em segunda instalação: NOT_RUN.
+
+
+## Coincidências parciais antes da falha de outro candidato (#245)
+
+Quando Gerados apresenta vários candidatos, cada leitura independente
+concluída pode comprovar correspondência de **ID/NUP, tipo e especificação**.
+Se a verificação de um candidato posterior falhar, essas coincidências
+já obtidas não desaparecem: o diagnóstico publica
+`coincidencias_parciais_conferidas` com os NUPs efetivamente verificados,
+e mantém `candidatos_observados_na_caixa` com todos os NUPs da fotografia.
+Isso **não** permite concluir que a escrita foi aplicada, nem que a
+correspondência é única: saída **3**, `efeito_incerto_na_criacao`,
+sem `desfecho` conclusivo e sem retry.
+
+`candidatos_compativeis` e `desfecho: candidatos_ambiguos` permanecem
+reservados ao caso em que **todos** os candidatos foram verificados e
+ao menos dois coincidem. O cenário adversarial sintético usa 3 GET de
+preparação + 1 POST incerto + 1 GET Controle + 3 GET do primeiro
+candidato + 1 GET falho do segundo = **9 requisições**, um único POST.
+Nenhum resultado parcial autoriza nova escrita.
