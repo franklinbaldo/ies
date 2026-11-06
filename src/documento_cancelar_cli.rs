@@ -197,3 +197,7 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
     }
     valor
 }
+
+#[cfg(test)]
+#[path = "documento_cancelar_cli/tests_saida.rs"]
+mod tests_saida;
