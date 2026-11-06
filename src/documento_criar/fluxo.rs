@@ -132,10 +132,24 @@ pub(crate) enum ErroPreviaCriacao {
         acao = "conferir_escrita"
     )]
     EfeitoIncerto,
+    /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
+    /// preservar sua causa sem autorizar uma segunda tentativa.
+    #[causa(
+        nome = "efeito_incerto_na_criacao_de_documento",
+        acao = "conferir_escrita"
+    )]
+    EfeitoIncertoNoEnvio(ErroSubmissaoFormulario),
 }
 impl ErroPreviaCriacao {
     pub(crate) fn subcodigo(&self) -> &'static str {
         crate::erro_publico::folha(self)
+    }
+
+    pub(crate) fn causa_envio(&self) -> Option<&ErroSubmissaoFormulario> {
+        match self {
+            Self::EfeitoIncertoNoEnvio(causa) => Some(causa),
+            _ => None,
+        }
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
@@ -145,6 +159,7 @@ impl ErroPreviaCriacao {
             Self::Abertura(erro) => erro.status_http(),
             Self::Formulario(erro) => erro.status_http(),
             Self::Transporte(erro) | Self::TelaTransporte(erro) => erro.status_http(),
+            Self::EfeitoIncertoNoEnvio(causa) => causa.status_http(),
             _ => None,
         }
     }
