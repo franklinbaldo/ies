@@ -200,3 +200,18 @@ ao menos dois coincidem. O cenário adversarial sintético usa 3 GET de
 preparação + 1 POST incerto + 1 GET Controle + 3 GET do primeiro
 candidato + 1 GET falho do segundo = **9 requisições**, um único POST.
 Nenhum resultado parcial autoriza nova escrita.
+
+## Nível de acesso como parte da prova de aplicação (#245)
+
+A leitura independente do candidato confirma também o **nível de acesso**
+observado em `rdoNivelAcesso`, além de ID/NUP, tipo e especificação.
+Um processo concorrente com mesmo tipo e especificação, mas nível
+`restrito` quando o pedido foi `publico` (ou vice-versa), **não**
+comprova esta escrita. Nível ausente tampouco autoriza conclusão positiva
+ou negativa. O classificador retorna `SemCorrespondenciaObservada` para
+nível divergente, e a CLI mantém saída 3 com a fotografia posterior.
+
+O orçamento não muda: **3 GET de preparação + 1 POST tentado + 1 GET
+do Controle + 3 GET de verificação = 8 pedidos**, exatamente um POST,
+sem retry. Essa regra também vale para as coincidências parciais em
+caso de falha ao verificar outro candidato.
