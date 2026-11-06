@@ -191,7 +191,11 @@ fn selecionar_previa(
     })
 }
 
-type LeituraGerenciador = (Vec<Acompanhamento>, Option<String>, Option<SubmissaoDerivada>);
+type LeituraGerenciador = (
+    Vec<Acompanhamento>,
+    Option<String>,
+    Option<SubmissaoDerivada>,
+);
 
 /// Lê o gerenciador e a oferta de exclusão, sem enviar escrita.
 fn ler_gerenciador<V: EnvioDoProcesso>(
