@@ -103,7 +103,6 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-
 fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::Value {
     let mut saida = json!({
         "codigo": "efeito_incerto",
@@ -124,19 +123,6 @@ fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::V
         }
     }
     saida
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
-        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
-        assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(saida["requisicoes"], 7, "null não informa a contagem já observada");
-        assert_eq!(saida["retentavel"], false);
-    }
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> ExitCode {
@@ -168,4 +154,17 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
         "criação do documento não pôde ser conferida",
         erro.status_http(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
+        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
+        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["requisicoes"], 7, "null não informa a contagem já observada");
+        assert_eq!(saida["retentavel"], false);
+    }
 }
