@@ -442,18 +442,6 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
 }
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
-    match definir {
-        None => unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
-        Some(definir) => unidade_colunas_definir_cli::definir_colunas(
-            cli.unidade.as_deref(),
-            cli.json,
-            definir,
-            confirmar,
-        ),
-    }
-}
-
 fn run(cli: &Cli) -> ExitCode {
     if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
         return status;
@@ -500,7 +488,7 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return colunas(cli, definir.as_deref(), *confirmar),
+        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
         }) => {
