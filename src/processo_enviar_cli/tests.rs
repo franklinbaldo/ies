@@ -282,3 +282,45 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
     assert_eq!(linhas[2], "IES: verificação: html_da_raiz_nao_publicado");
     assert_eq!(incerto.saida(), 3);
 }
+
+#[test]
+fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
+    let casos = [
+        (
+            ErroEnviar::DestinoNaoOferecidoPeloSei {
+                oferecidos: vec![],
+            },
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":[],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#,
+        ),
+        (
+            ErroEnviar::VariosDestinosComASigla {
+                candidatos: vec!["TESTE - A".into(), "TESTE - B".into()],
+            },
+            r#"{"candidatos":["TESTE - A","TESTE - B"],"codigo":"fonte_invalida","erro":"o SEI oferece mais de uma unidade com essa sigla; nada foi enviado","retentavel":false,"subcodigo":"varios_destinos_com_a_sigla"}"#,
+        ),
+        (
+            ErroEnviar::EnvioNaoAplicado {
+                aberto_em: vec![],
+                depois: vec![],
+                falha_do_envio: None,
+            },
+            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false,"subcodigo":"envio_nao_aplicado"}"#,
+        ),
+        (
+            ErroEnviar::EfeitoIncertoNoEnvio {
+                aberto_em: vec![],
+                falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+                verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
+            },
+            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido_apos_enviar"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_no_envio","verificacao":null}"#,
+        ),
+    ];
+    for (erro, esperado) in casos {
+        let projecao = super::json_de_falha(&erro);
+        assert_eq!(serde_json::to_string(&projecao).unwrap(), esperado);
+        assert_ne!(
+            std::any::type_name_of_val(&projecao),
+            std::any::type_name::<serde_json::Value>()
+        );
+    }
+}
