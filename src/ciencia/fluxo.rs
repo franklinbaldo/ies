@@ -191,7 +191,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         &cookie,
         &mut rede,
         &resultado.id_procedimento,
-        atividade.as_deref(),
+        atividade,
     );
     resultado.requisicoes = rede.feitas();
     let (atividade, falha_do_aceite) = match aceite {

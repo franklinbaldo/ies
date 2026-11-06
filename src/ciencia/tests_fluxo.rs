@@ -1,7 +1,7 @@
 //! Orçamento exato de requisições de `processo ciente` com transporte
 //! sintético; cenários do Todos 323eb01 (ciência do processo).
-use super::{ErroCienciaProcesso as E, PedidoDaCiencia, ciencia_no_processo};
 use super::fluxo::FalhaDoAceiteProcesso;
+use super::{ErroCienciaProcesso as E, PedidoDaCiencia, ciencia_no_processo};
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
@@ -174,6 +174,7 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
 
 /// RED #271: o erro tipado do único GET de escrita do processo não pode ser
 /// descartado enquanto a releitura independente tenta provar a atividade.
+#[derive(Clone, Copy)]
 enum FalhaEsperada {
     Http403,
     Infra200,
