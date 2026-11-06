@@ -147,3 +147,21 @@ Agora a guarda exige a sequência completa observada, sem executar JS,
 e a fixture positiva a representa. Recusa antes do POST: **5 GET exatos,
 zero POST criador**. O sucesso continua condicionado à conferência por
 leitura após no máximo uma escrita; live continua NOT_RUN.
+
+## Revisão — botão Salvar realmente oferecido (06/11/2026)
+
+**Alternativa rejeitada:** aceitar `function submeter()` sem controle
+acionável no cadastro. Essa função pode existir como código inerte;
+o POST manual do IES não deve substituir sem prova a ação oferecida
+pela interface Web. **Estratégia adotada:** exigir a ligação literal do
+botão `btnSalvar` à chamada `confirmarDados()` nas formas observadas,
+recusando botão ausente, desabilitado ou contraditório. O oráculo
+`documento_gerar.html @323eb01` mostra dois botões iguais (linhas
+810 e 1061), portanto a guarda permite duplicação idêntica e não escolhe
+arbitrariamente um deles. Usar `html_atributos`, não JS executado.
+A restrição pode recusar formas válidas de outras instalações; só
+ampliar mediante nova observação + teste. Ela protege contra falso
+positivo antes do POST e mantém a confirmação por releitura posterior.
+**RED:** [42170278378](https://github.com/franklinbaldo/ies/actions/runs/42170278378),
+1 teste novo falhou antes da correção, 1.683 aprovados, 18 ignorados.
+Live de treinamento ainda NOT_RUN, sem resíduo.
