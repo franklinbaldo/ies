@@ -1,5 +1,5 @@
 ---
-type: AgentGaviao
+type: TeamMember
 title: "🦅 Gavião — Revisão independente"
 description: "Ficha da rotina Gavião do time IES"
 avatar: "🦅"

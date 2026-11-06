@@ -1,5 +1,5 @@
 ---
-type: AgentCoruja
+type: TeamMember
 title: "🦉 Coruja — Processos e reconciliação"
 description: "Ficha da rotina Coruja do time IES"
 avatar: "🦉"

@@ -1,5 +1,5 @@
 ---
-type: AgentElefante
+type: TeamMember
 title: "🐘 Elefante — Integração e gestão da fila"
 description: "Ficha da rotina Elefante do time IES"
 avatar: "🐘"

@@ -1,5 +1,5 @@
 ---
-type: AgentPolvo
+type: TeamMember
 title: "🐙 Polvo — Documentos e editor do SEI"
 description: "Ficha da rotina Polvo do time IES"
 avatar: "🐙"

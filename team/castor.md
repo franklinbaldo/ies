@@ -1,5 +1,5 @@
 ---
-type: AgentCastor
+type: TeamMember
 title: "🦫 Castor — Qualidade de código Rust"
 description: "Ficha da rotina Castor do time IES"
 avatar: "🦫"

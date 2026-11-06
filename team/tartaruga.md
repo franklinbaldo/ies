@@ -1,5 +1,5 @@
 ---
-type: AgentTartaruga
+type: TeamMember
 title: "🐢 Tartaruga — Segurança das fronteiras Web"
 description: "Ficha da rotina Tartaruga do time IES"
 avatar: "🐢"

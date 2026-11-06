@@ -1,5 +1,5 @@
 ---
-type: AgentRaposa
+type: TeamMember
 title: "🦊 Raposa — Experiência do usuário da CLI"
 description: "Ficha da rotina Raposa do time IES"
 avatar: "🦊"

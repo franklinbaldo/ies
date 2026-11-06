@@ -14,7 +14,7 @@ comportamento**, não arquitetura a portar.
 ## Equipe de agentes e avatares
 
 O emoji é o **avatar** e o identificador de reserva da rotina. Cada membro
-possui ficha própria em `team/`, com tipo OKF individual e especificação em
+possui ficha própria em `team/`, com o tipo OKF compartilhado `TeamMember` e especificação em
 `.okf/specs/`. Leia **este AGENTS.md e a ficha** antes de trabalhar: os
 prompts de agendamento só identificam quem executa.
 
