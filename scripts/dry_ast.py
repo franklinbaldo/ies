@@ -1,9 +1,9 @@
 """Auditoria DRY global e codemod conservador com Tree-sitter Rust.
 
 Uso:
-  uvx --with tree-sitter==0.26.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --audit
-  uvx --with tree-sitter==0.26.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --apply
-  uvx --with tree-sitter==0.26.0 --with tree-sitter-rust==0.24.2 python scripts/dry_ast.py --check
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.3 python scripts/dry_ast.py --audit
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.3 python scripts/dry_ast.py --apply
+  uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.3 python scripts/dry_ast.py --check
 
 Percorre todos os arquivos Rust em src/. Somente a formatação JSON repetida,
 com sintaxe reconhecida, é reescrita. Clones de fluxos com efeitos remotos
@@ -138,7 +138,10 @@ def audit():
         source = path.read_bytes()
         tree = PARSER.parse(source)
         if tree.root_node.has_error:
-            raise ValueError(f"Rust AST invalida: {path}")
+            metrics["arquivos_ast_parcial"] += 1
+            # Não reescrever fonte cuja gramática não interpretou integralmente.
+            files.append((path, source, []))
+            continue
         metrics["arquivos_rust"] += 1
         changes = transformations(path, source, tree.root_node)
         metrics["serializacoes_json_repetidas"] += len(changes)
