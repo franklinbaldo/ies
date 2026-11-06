@@ -66,7 +66,16 @@ adversariais no [CI 42214490209](https://github.com/franklinbaldo/ies/actions/ru
 do destino `ACEITE` com ID nos testes do Todos @323eb01. Apenas uma resposta
 aceita e **identificada** (302 para ação e processo esperados) ou uma
 falha sem resposta de rede pode ser conciliada pela leitura, conservando
-a causa; não há nova escrita nem navegação pelo Location. Uma resposta
+a causa; não há nova escrita nem navegação pelo Location. O 302 do aceite observado no Todos @323eb01 também publica
+`acao_origem=procedimento_atribuicao_cadastrar`. Não basta a ação de
+destino com o ID correto: um 302 sem ação de origem não vincula o POST
+à leitura coincidente, que pode ter resultado de outro agente. O RED
+[42267049782](https://github.com/franklinbaldo/ies/actions/runs/42267049782)
+demonstrou dois falsos sucessos (atribuir/remover): **2 FAIL novos,
+1.739 PASS, 23 ignored existentes**, com seis tentativas por caso.
+Agora a falta de origem resulta em saída 3, sem segundo POST nem seguir
+Location. Não se aceita origem diferente ou repetida.
+Uma resposta
 HTML 200 genérica também não é prova do POST, mesmo quando a árvore
 coincide: a escrita pode ter sido feita por outro agente. O teste-first
 [RED 42257965685](https://github.com/franklinbaldo/ies/actions/runs/42257965685)
