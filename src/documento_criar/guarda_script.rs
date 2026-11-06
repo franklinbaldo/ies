@@ -162,15 +162,36 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
     Some((ocorrencias, funcoes_submeter, confirmacoes))
 }
 
+/// A arvore do parser inclui nos de `template`, mas o navegador
+/// conserva seu conteudo em DocumentFragment inerte. A posicao de cada
+/// controle deve estar fora dessas faixas para constituir evidencia.
+fn faixas_inertes(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
+    let mut faixas = Vec::new();
+    for no in dom.query_selector("template").into_iter().flatten() {
+        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)?;
+        faixas.push(tag.boundaries(dom.parser()));
+    }
+    Some(faixas)
+}
+
+fn dentro_de_template(inicio: usize, faixas: &[(usize, usize)]) -> bool {
+    faixas
+        .iter()
+        .any(|(primeiro, ultimo)| inicio > *primeiro && inicio <= *ultimo)
+}
+
 /// A captura 4.0.9 publica btnSalvar como button habilitado com
 /// `onclick=confirmarDados()`; a mera funcao `submeter()` morta nao prova
 /// que a tela oferece a escrita. Topo e rodape podem repetir o botao.
-fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>) -> bool {
+fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) -> bool {
     let mut encontrados = 0_usize;
     for no in dom.query_selector("button").into_iter().flatten() {
         let Some(botao) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             return false;
         };
+        if dentro_de_template(botao.boundaries(dom.parser()).0, faixas) {
+            continue;
+        }
         let Ok(id) = crate::html_atributos::valor_do_atributo(botao, "id") else {
             return false;
         };
@@ -207,7 +228,10 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
     };
-    if !botoes_salvar_publicam_acao(&dom) {
+    let Some(faixas) = faixas_inertes(&dom) else {
+        return false;
+    };
+    if !botoes_salvar_publicam_acao(&dom, &faixas) {
         return false;
     }
     let mut ocorrencias = 0;
@@ -217,6 +241,9 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
         let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             return false;
         };
+        if dentro_de_template(script.boundaries(dom.parser()).0, &faixas) {
+            continue;
+        }
         let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
             return false;
         };
