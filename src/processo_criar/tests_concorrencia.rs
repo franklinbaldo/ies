@@ -53,7 +53,8 @@ fn gerados_com_mesmo_nup_em_dois_ids_recusa_antes_do_post_criador() {
     // A tela publica duas linhas e cobertura integral, mas ambas referem
     // o mesmo NUP sob IDs diferentes. Não é fotografia segura para escrita.
     let amb = ambiente();
-    let controle = gerados_com_dois_candidatos().replace(SEGUNDO_NUP, NUP);
+    let controle = super::tests_candidatos::gerados_com_dois_candidatos()
+        .replace(super::tests_candidatos::SEGUNDO_NUP, NUP);
     let respostas = vec![ok(controle), ok(lista(false)), ok(cadastro())];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
