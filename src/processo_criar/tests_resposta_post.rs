@@ -2,7 +2,10 @@
 //! encerrar o fluxo sem uma única releitura independente de Gerados.
 use super::tests::{HASH, cadastro, lista, pedido, tela_controle};
 use super::*;
-use crate::processo_concluir::tests_apoio::{ambiente, ok, r302, rodar_com};
+use super::tests_candidatos::{
+    arvore_com_propriedades, gerados_com_candidato, propriedades_correspondentes,
+};
+use crate::processo_concluir::tests_apoio::{NUP, ambiente, ok, r302, rodar_com, trabalhar};
 use crate::transporte::FalhaTransporte;
 
 #[test]
@@ -290,5 +293,47 @@ fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.subcodigo(), "falha_de_rede");
     assert_eq!(requests.len(), 5);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
+    // #245: a conta compartilhada pode ganhar processo com mesmo tipo e
+    // especificação, mas nível de acesso diferente do POST.
+    let amb = ambiente();
+    let propriedades = propriedades_correspondentes()
+        .replace("value=\"0\" checked=\"checked\" class", "value=\"0\" class")
+        .replace(
+            "value=\"1\"  class=\"infraRadio\"",
+            "value=\"1\" checked=\"checked\" class=\"infraRadio\"",
+        );
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_candidato()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("nível divergente não comprova a criação");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(
+        erro.diagnostico_apos_post()
+            .unwrap()
+            .candidatos_observados,
+        Some(vec![NUP.to_owned()])
+    );
+    assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
