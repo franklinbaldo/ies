@@ -9,6 +9,13 @@ use crate::processo_criar_lista::ErroListaDeTipos;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DiagnosticoPosEscrita {
+    pub(crate) causa_post: &'static str,
+    pub(crate) causa_releitura: Option<&'static str>,
+    pub(crate) candidatos_observados: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCriar {
     /// Falha antes da escrita; guarda o subcódigo do transporte e, quando
     /// houve, o status e a mensagem saneada do SEI.
@@ -93,19 +100,21 @@ impl ErroCriar {
 
     /// O retorno não infere ausência quando não houve candidato novo.
     /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
-    pub(crate) fn diagnostico_apos_post(
-        &self,
-    ) -> Option<(&'static str, Option<&'static str>, Option<Vec<String>>)> {
-        let Self::PosEscrita { causa_post, posterior } = self else {
+    pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
+        let Self::PosEscrita {
+            causa_post,
+            posterior,
+        } = self
+        else {
             return None;
         };
-        Some((
-            causa_post.subcodigo(),
-            posterior.as_ref().err().map(|erro| erro.subcodigo()),
-            posterior.as_ref().ok().map(|candidatos| {
-                candidatos.iter().map(|c| c.nup.clone()).collect()
-            }),
-        ))
+        Some(DiagnosticoPosEscrita {
+            causa_post: causa_post.subcodigo(),
+            causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
+            candidatos_observados: posterior
+                .as_ref()
+                .ok()
+                .map(|candidatos| candidatos.iter().map(|c| c.nup.clone()).collect()),
+        })
     }
 }
-
