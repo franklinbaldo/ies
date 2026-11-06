@@ -338,7 +338,8 @@ pub(crate) fn derivar_submissao(
     if tela.html.len() > crate::MAX_HTML_BYTES {
         return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
