@@ -211,6 +211,21 @@ fn conferir_script(
             .ok_or(E::HtmlInvalido)?;
         let codigo = tag.inner_text(parser);
         if codigo.contains("function acaoExcluir(") {
+            // Texto em <script type="application/json">, escopo module ou
+            // <script src> não publica a função global que o onclick chama.
+            // Nunca tomar código inerte como prova de oferta de escrita.
+            let tipo = campo(tag, "type")?;
+            let tipo_classico = tipo.as_deref().is_none_or(|valor| {
+                let valor = valor.trim();
+                valor.eq_ignore_ascii_case("text/javascript")
+                    || valor.eq_ignore_ascii_case("application/javascript")
+                    || valor.is_empty()
+            });
+            if !tipo_classico
+                || atributo_presente(tag, "src").map_err(|_| E::HtmlInvalido)?
+            {
+                return Err(sem_oferta);
+            }
             scripts.push(codigo.to_string());
         }
     }
