@@ -233,6 +233,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                         "unidade": feito.unidade,
                         "confirmado": feito.confirmado,
                         "nup": feito.nup,
+                        "causa_post": feito.causa_post,
                         "origem": "web",
                         "requisicoes": feito.requisicoes,
                     })
@@ -257,6 +258,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                 println!("Acesso: {}", feito.nivel);
                 if let Some(hipotese) = feito.hipotese_legal {
                     println!("Hipótese legal observada (ID): {hipotese}");
+                }
+                if let Some(causa) = feito.causa_post {
+                    println!("Causa do POST reconciliado por leitura: {causa}");
                 }
                 if let Some(nup) = feito.nup {
                     println!("NUP criado e verificado: {nup}");

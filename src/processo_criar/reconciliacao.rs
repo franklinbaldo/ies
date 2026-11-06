@@ -24,6 +24,10 @@ pub(crate) enum ErroFotografia {
     IdentidadeAlterada,
     #[causa(nome = "identidade_anterior_ausente_na_reconciliacao")]
     IdentidadeAnteriorAusente,
+    #[causa(nome = "link_do_candidato_nao_comprovado")]
+    LinkDoCandidatoNaoComprovado,
+    #[causa(nome = "links_do_candidato_repetidos")]
+    LinksDoCandidatoRepetidos,
 }
 
 impl FotografiaDosGerados {

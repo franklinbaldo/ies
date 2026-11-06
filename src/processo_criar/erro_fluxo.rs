@@ -41,6 +41,11 @@ pub(crate) enum ErroCriar {
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),
     Fotografia(reconciliacao::ErroFotografia),
+    Conferencia(reconciliacao::desfechos::ErroConferencia),
+    Tela(crate::arvore_processo::ErroTelaDoProcesso),
+    Arvore(crate::arvore_processo::ErroArvore),
+    Propriedades(crate::propriedades_processo::ErroPropriedades),
+    PropriedadesNaoOferecidas,
     /// O POST foi tentado; uma leitura única do Controle apurou apenas
     /// candidatos, nunca causalidade. As duas falhas são preservadas.
     PosEscrita {
@@ -70,6 +75,11 @@ impl ErroCriar {
             Self::Interessado(erro) => erro.subcodigo(),
             Self::Hipotese(erro) => erro.subcodigo(),
             Self::Fotografia(erro) => crate::erro_publico::folha(erro),
+            Self::Conferencia(erro) => crate::erro_publico::folha(erro),
+            Self::Tela(erro) => crate::erro_publico::folha(erro),
+            Self::Arvore(erro) => crate::erro_publico::folha(erro),
+            Self::Propriedades(erro) => crate::erro_publico::folha(erro),
+            Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
             Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
                 "efeito_incerto_na_criacao"
             }

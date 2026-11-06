@@ -71,6 +71,8 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[path = "erro_fluxo.rs"]
 mod erro_fluxo;
+#[path = "pos_escrita.rs"]
+mod pos_escrita;
 pub(crate) use erro_fluxo::ErroCriar;
 
 pub(crate) struct PedidoCriar<'a> {
@@ -93,6 +95,7 @@ pub(crate) struct Criacao {
     pub(crate) confirmado: bool,
     pub(crate) interessados: Vec<String>,
     pub(crate) nup: Option<String>,
+    pub(crate) causa_post: Option<&'static str>,
     pub(crate) requisicoes: u32,
 }
 
@@ -252,39 +255,6 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
-/// Releitura única do Controle após erro da escrita. A diferença na caixa
-/// é apenas evidência de candidatos; sem verificar propriedades não há
-/// prova de aplicação ou de que uma repetição é segura.
-fn reler_gerados<V: EnvioDoControle>(
-    envio: &mut V,
-    url_controle: &str,
-    cookie: &str,
-    unidade: &str,
-    antes: &reconciliacao::FotografiaDosGerados,
-    requisicoes: &mut u32,
-) -> Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar> {
-    let controle = get(envio, url_controle, cookie, requisicoes)?;
-    let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, unidade)
-        .map_err(ErroCriar::Fotografia)?;
-    antes.novos(&depois).map_err(ErroCriar::Fotografia)
-}
-
-/// Resposta sem prova de identidade após POST: uma única leitura do
-/// Controle conhecido, sem seguir a resposta nem repetir a escrita.
-fn reconciliar_resposta_inesperada<V: EnvioDoControle>(
-    envio: &mut V,
-    url_controle: &str,
-    cookie: &str,
-    unidade: &str,
-    antes: &reconciliacao::FotografiaDosGerados,
-    requisicoes: &mut u32,
-    causa: erro_fluxo::CausaRespostaCriadora,
-) -> ErroCriar {
-    let posterior =
-        reler_gerados(envio, url_controle, cookie, unidade, antes, requisicoes).map_err(Box::new);
-    ErroCriar::PosRespostaInesperada { causa, posterior }
-}
-
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -409,6 +379,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         confirmado: false,
         interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
         nup: None,
+        causa_post: None,
         requisicoes,
     };
     let lupa = format!("{}±{}", observado.id_assunto, observado.assunto);
@@ -448,32 +419,24 @@ pub(crate) fn criar<V: EnvioDoControle>(
     }) {
         Ok(resposta) => resposta,
         Err(causa_post) if tentou => {
-            let posterior = reler_gerados(
-                envio,
-                url_controle,
-                cookie_valor,
-                &feito.unidade,
-                &gerados_antes,
-                &mut requisicoes,
-            )
-            .map_err(Box::new);
-            return Err(E::PosEscrita {
-                causa_post,
-                posterior,
-            });
+            pos_escrita::reconciliar(
+                envio, &instalacao, url_controle, cookie_valor, &mut feito,
+                &gerados_antes, pedido.especificacao, &mut requisicoes,
+                pos_escrita::CausaPosEscrita::Transporte(causa_post),
+            )?;
+            return Ok(feito);
         }
         Err(_) => return Err(E::Formulario),
     };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
-        return Err(reconciliar_resposta_inesperada(
-            envio,
-            url_controle,
-            cookie_valor,
-            &feito.unidade,
-            &gerados_antes,
-            &mut requisicoes,
-            erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
-        ));
+        pos_escrita::reconciliar(
+            envio, &instalacao, url_controle, cookie_valor, &mut feito,
+            &gerados_antes, pedido.especificacao, &mut requisicoes,
+            pos_escrita::CausaPosEscrita::Resposta(
+                erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
+            ),
+        )?;
+        return Ok(feito);
     };
     let retorno = redirecionamento
         .localizacao()
@@ -482,15 +445,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
             retorno_da_criacao(&instalacao, localizacao, redirecionamento.url_do_envio())
         });
     let Ok((url, id)) = retorno else {
-        return Err(reconciliar_resposta_inesperada(
-            envio,
-            url_controle,
-            cookie_valor,
-            &feito.unidade,
-            &gerados_antes,
-            &mut requisicoes,
-            erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
-        ));
+        pos_escrita::reconciliar(
+            envio, &instalacao, url_controle, cookie_valor, &mut feito,
+            &gerados_antes, pedido.especificacao, &mut requisicoes,
+            pos_escrita::CausaPosEscrita::Resposta(
+                erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
+            ),
+        )?;
+        return Ok(feito);
     };
     // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
     let tela_do_processo =
