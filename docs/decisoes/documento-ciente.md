@@ -13,6 +13,8 @@ live_validation: not-run
 
 # Decisão de ciência documental — #271
 
+## Contexto
+
 O comando trabalha pelo SEI Web, aproveitando a abertura de documento na
 árvore conferida. A ação de documento é distinta de `procedimento_ciencia`:
 a barra `cienciaDocumento();`, o GET `documento_ciencia` e o marcador
@@ -21,6 +23,23 @@ a barra `cienciaDocumento();`, o GET `documento_ciencia` e o marcador
 Na tela do nó há função 4.0 ou variável 4.1/5.0. Inspecionar, não
 executar JavaScript. URLs precisam ser assinadas, da origem permitida,
 vinculadas ao documento e conferidas antes do GET.
+
+## Alternativas consideradas
+
+1. **GET observado + Lista CD do documento relida** (escolhida): prova pelo marcador exato de atividade.
+2. **Aceite HTTP apenas**: não comprova registro persistido.
+3. **Lista de Ciências do processo**: não distingue o documento.
+4. **REST/WSSEI**: não há evidência para selecionar.
+
+## Comparação
+
+| Critério | Lista CD relida | Só aceite HTTP | Lista do processo | REST |
+| --- | --- | --- | --- | --- |
+| Prova vinculada ao documento | sim | não | não | não observado |
+| Sem retry e URL servida | sim | sim | sim | não observado |
+| Identifica a atividade nova | sim | não suficiente | não | não observado |
+
+## Decisão
 
 **Escolha:** prévia só da árvore; confirmação por um único GET;
 depois reabrir a árvore e exigir a ação de Lista de Ciências do
@@ -34,12 +53,18 @@ tentativa. Não restaurar telas. O código reutiliza `formulario_web`
 quando aplicável, a abertura de documento, o transporte/contador
 compartilhados, leitores HTML e os erros tipados.
 
+## Limitações e revisão
+
 **Trade-offs:** mais uma leitura para prova e uma para a lista;
 pode haver efeito incerto e o usuário deve consultar o SEI antes de
 repetir. A prévia não modifica o documento. Uma instalação não
 comprova todas as demais.
 
+## Evidências verificáveis
+
 [Contrato](../../contracts/cli/documento-ciente.md) ·
+[matriz de evidências](../../contracts/evidencias/documento-ciente.md) ·
+[teste da CLI](../../tests/cli_documento_ciente.rs) ·
 [observação](../validacao-live/2026-11-06-documento-ciente.md).
 Revisão pendente: replay do acervo, comportamento da segunda ciência e
 prévia/confirmação/releitura em duas instalações de treinamento.
