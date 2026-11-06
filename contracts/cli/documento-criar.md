@@ -145,14 +145,14 @@ não seguir Location e não repetir a escrita.
 
 O campo oculto de cadastro só é reescrito se a tela publicar exatamente
 uma forma de código reconhecida; não basta encontrar a atribuição como
-substring. A captura Todos \`documento_gerar.html @323eb01\` contém
-\`function submeter()\` com desabilitação do botão, sinalizador igual a
-\`2\` e envio direto de \`frmDocumentoCadastro\`, nessa ordem.
+substring. A captura Todos `documento_gerar.html @323eb01` contém
+`function submeter()` com desabilitação do botão, sinalizador igual a
+`2` e envio direto de `frmDocumentoCadastro`, nessa ordem.
 O leitor admite essa sequência literal direta, ou o script mínimo
-sintético de regressão, e recusa instruções em \`if(false)\`,
+sintético de regressão, e recusa instruções em `if(false)`,
 funções não relacionadas, aninhamentos, strings, templates, comentários,
-\`script[src]\` e redefinições ambíguas. Forma não observada:
-\`submissao_do_documento_nao_observada\`, **antes do POST**.
+`script[src]` e redefinições ambíguas. Forma não observada:
+`submissao_do_documento_nao_observada`, **antes do POST**.
 
 RED observado no [CI 42158719053](https://github.com/franklinbaldo/ies/actions/runs/42158719053):
 1 teste novo falhou, 1.659 passaram, 18 ignorados; orçamento adversarial
