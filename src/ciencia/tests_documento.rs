@@ -283,8 +283,13 @@ fn if_false_sem_chaves_nao_autoriza_get_mutador() {
 #[test]
 fn funcao_somente_comentada_nao_autoriza_get_mutador() {
     let funcao = tela_do_documento_40(ID, ID_DOC);
-    let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
-        .split("</script>").next().unwrap();
+    let trecho = funcao
+        .split("<script type=\"text/javascript\">")
+        .nth(1)
+        .unwrap()
+        .split("</script>")
+        .next()
+        .unwrap();
     let tela = format!("<html><script>/*\n{trecho}\n*/</script></html>");
     rejeitar_tela_sem_get_mutador(tela);
 }
@@ -292,8 +297,13 @@ fn funcao_somente_comentada_nao_autoriza_get_mutador() {
 #[test]
 fn funcao_em_ramo_inativo_nao_autoriza_get_mutador() {
     let funcao = tela_do_documento_40(ID, ID_DOC);
-    let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
-        .split("</script>").next().unwrap();
+    let trecho = funcao
+        .split("<script type=\"text/javascript\">")
+        .nth(1)
+        .unwrap()
+        .split("</script>")
+        .next()
+        .unwrap();
     let tela = format!("<html><script>if (false) {{\n{trecho}\n}}</script></html>");
     rejeitar_tela_sem_get_mutador(tela);
 }
