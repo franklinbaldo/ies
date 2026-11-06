@@ -476,10 +476,18 @@ fn run(cli: &Cli) -> ExitCode {
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
+        }) => {
+            return cli_unidade_aux::listar(
+                cli,
+                lista,
+                unidade_categoria::CategoriaLista::Recebidos,
+            );
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
+        }) => {
+            return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
