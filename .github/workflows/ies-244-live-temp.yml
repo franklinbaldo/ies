@@ -1,0 +1,117 @@
+name: TEMP #244 training read-only - remove after run
+on:
+  push:
+    branches:
+      - codex/244-contagem-falhas-raposa
+permissions:
+  contents: read
+jobs:
+  training-read-only:
+    name: Training units (${{ matrix.target }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [unb, go]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Build release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Training only - login then read units once then offline search
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          import time
+          import sys
+          
+          target = os.environ["TARGET"]
+          hosts = {
+              "unb": "https://sei.treinamento.unb.br/sei",
+              "go": "https://seitreinamento.go.gov.br/sei",
+          }
+          if target not in hosts:
+              raise SystemExit("invalid target")
+          # Only public training credentials as published by the installations.
+          doc = Path("docs/interfaces/credenciais-de-treinamento.md").read_text()
+          label = "\`" + target + "\`:\n\n" + "\`\`\`text\n"
+          try:
+              credentials = doc.split(label, 1)[1].split("\`\`\`", 1)[0]
+          except IndexError:
+              print(json.dumps({"target": target, "stage": "setup", "status": "FAIL", "cause": "public_credentials_not_found"}), flush=True)
+              sys.exit(0)
+          with tempfile.TemporaryDirectory(prefix="ies244-live-") as temp:
+              folder = Path(temp)
+              folder.chmod(0o700)
+              for name, value in (
+                  ("origem", hosts[target] + "\n"),
+                  ("credenciais", credentials),
+                  ("cookie", ""),
+                  ("controle", ""),
+              ):
+                  p = folder / name
+                  p.write_text(value)
+                  p.chmod(0o600)
+              env = os.environ.copy()
+              env.pop("IES_CONFIG_FILE", None)
+              env.pop("IES_SEM_INDICE", None)
+              for k, file in (
+                  ("IES_ORIGEM_FILE", "origem"),
+                  ("IES_CREDENCIAIS_FILE", "credenciais"),
+                  ("IES_COOKIE_FILE", "cookie"),
+                  ("IES_URL_CONTROLE_FILE", "controle"),
+              ):
+                  env[k] = str(folder / file)
+              env["IES_INDICE_FILE"] = str(folder / "ies.sqlite3")
+              exe = "./target/release/ies"
+          
+              def execute(stage, arguments, timeout=2400):
+                  try:
+                      p = subprocess.run([exe, *arguments, "--json"], text=True, capture_output=True, env=env, timeout=timeout, check=False)
+                  except subprocess.TimeoutExpired:
+                      print(json.dumps({"target": target, "stage": stage, "status": "FAIL", "cause": "timeout_no_retry"}), flush=True)
+                      return None
+                  except Exception as exc:
+                      print(json.dumps({"target": target, "stage": stage, "status": "FAIL", "cause": type(exc).__name__}), flush=True)
+                      return None
+                  try:
+                      data = json.loads(p.stdout)
+                  except ValueError:
+                      data = {}
+                  report = {"target": target, "stage": stage,
+                            "status": "PASS" if p.returncode == 0 else "FAIL",
+                            "exit_code": p.returncode}
+                  # Whitelisted, scalar, nonsecret values only; never print raw output.
+                  for field in ("requisicoes", "origem", "total", "persistida_no_indice",
+                                "subcodigo", "status_http", "conexao"):
+                      value = data.get(field)
+                      if isinstance(value, (int, float, bool)) or (isinstance(value, str) and field in ("subcodigo", "origem", "conexao") and len(value) < 80 and all(c.isalnum() or c in "_-" for c in value)):
+                          report[field] = value
+                  print(json.dumps(report, ensure_ascii=False), flush=True)
+                  return (p.returncode, data)
+              login = execute("login", ["login"], timeout=300)
+              if login is None or login[0] != 0:
+                  sys.exit(0)
+              time.sleep(30)
+              listing = execute("listar_atualizar", ["unidade", "listar", "--atualizar"], timeout=2400)
+              if listing is None or listing[0] != 0:
+                  sys.exit(0)
+              time.sleep(30)
+              search = execute("pesquisar_offline", ["unidade", "pesquisar", "a"], timeout=120)
+              if search is not None and search[0] == 0:
+                  _, answer = search
+                  result = answer.get("origem") == "indice" and answer.get("requisicoes") == 0
+                  print(json.dumps({"target": target, "stage": "zero_http_after_live", "status": "PASS" if result else "FAIL"}), flush=True)
+          
