@@ -36,6 +36,19 @@ sem publicar URL assinada ou cookies e sem alegar sessão remota válida.
 A captura Web para índice ausente e a atualização integral seguem
 pendentes da issue #244.
 
+## Contagem de tentativas em falhas Web
+
+Os ensaios de treinamento demonstraram que a listagem pode recusar
+uma tela sem informar quantas requisições já foram feitas. Manter o
+contador em um argumento de saída da coleta, separado do erro tipado,
+permite publicar a quantidade também na falha. Contamos cada GET/POST
+antes do transporte, inclusive a tentativa que falha, e não refazemos
+a chamada. Essa alternativa preserva a forma dos subcódigos e não
+mistura telemetria de requisições com credenciais ou mensagens HTML.
+A recusa continua recusada, sem persistir snapshot parcial.
+
+[Observação e ensaios sintéticos](../validacao-live/2026-11-05-unidades-falhas-contadas.md).
+
 ## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/unidade-listar.md)
@@ -43,6 +56,23 @@ pendentes da issue #244.
 - [Teste Rust](../../tests/cli_unidade_indice.rs)
 - [Implementação](../../src/unidade_pesquisar_cli.rs)
 - [Observação da lupa](../como-o-sei-funciona/lupa-de-unidades.md)
+
+## Botões sem nome da lupa GO (cassette integral, #244)
+
+O replay integral GO revelou duas entradas `input type=submit`
+com `id=btnPesquisar` e sem `name`. O modelo anterior,
+baseado em submit com nome, recusava o formulário real.
+A decisão é reconhecer as duas formas por estrutura local:
+exatamente um submit nomeado (fixture anterior) ou um/dois
+submits sem nome e com id observado (GO real). Sem nome,
+a submissão HTML não inclui par de botão. O IES aplica a
+derivação sem esse par, mas só depois de conferir a presença
+e a forma dos botões na operação. Isso evita mudar regras
+de formulários de outras capacidades; não executa JS.
+Forms inesperados continuam recusados.
+
+[Replay e RED/GREEN](../validacao-live/2026-11-05-unidades-falhas-contadas.md).
+A decisão não afirma que a coleta live GO voltou a funcionar.
 
 ## Limitações e revisão
 
