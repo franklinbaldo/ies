@@ -173,7 +173,6 @@ fn link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario() {
     assert_eq!(requisicoes, 2);
 }
 
-
 #[test]
 fn nome_de_parametro_com_sufixo_acao_nao_simula_acao_de_retornos() {
     // A substring "acao=retorno_programado_listar" em "outra_acao="
