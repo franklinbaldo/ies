@@ -383,6 +383,7 @@ fn consulta(
 
 /// Consulta integral: quatro GETs de navegação + um POST por página;
 /// a própria lupa custa 1 GET + N POSTs, sem pagina repetida.
+#[cfg(test)]
 pub(crate) fn ler_integral<T: TransporteLupa>(
     transporte: &mut T,
     url_controle: &str,
