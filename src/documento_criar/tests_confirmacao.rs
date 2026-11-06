@@ -565,7 +565,10 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
     assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
     let status = erro.status_http().expect("causa de validacao preservada");
     assert_eq!(status.status, 200);
-    assert_eq!(status.mensagem_do_servidor.as_deref(), Some("Recusa sintética"));
+    assert_eq!(
+        status.mensagem_do_servidor.as_deref(),
+        Some("Recusa sintética")
+    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
