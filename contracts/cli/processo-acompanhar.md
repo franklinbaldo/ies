@@ -163,10 +163,11 @@ sem indice aquecido, o orcamento e de **4 GETs, 0 POSTs**. Se a lista nao
 comprova aquele grupo, a derivacao segura do cadastro segue obrigatoria:
 nao se infere ausencia nem se cria URL de formulario.
 
-A saída de inclusão idempotente publica a **observação da linha realmente
+A saída de inclusão idempotente publica o **ID** e a **observação da linha realmente
 lida** no gerenciador, mesmo quando `--observacao` pede outro texto:
 não ocorreu alteração e não se pode anunciar o valor solicitado como
-estado existente. A tabela deve ter seis colunas, com `Grupo` na segunda e
+estado existente. `id_acompanhamento` nesse caso é identidade **já observada**,
+não evidência de escrita nova. A tabela deve ter seis colunas, com `Grupo` na segunda e
 `Observação` na terceira, sem rótulos duplicados, e o cabeçalho precisa
 preceder as linhas de dados. Outras disposições não observadas são recusadas
 com `colunas_de_acompanhamentos_invalidas`, sem POST.
