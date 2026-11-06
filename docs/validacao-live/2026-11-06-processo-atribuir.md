@@ -223,3 +223,29 @@ UFRJ: duas prévias históricas FAIL (requisições dos comandos
 não observadas). A causa UFRJ continua a verificar. O
 `--confirmar` público permanece bloqueado antes da sessão/rede;
 não houve tentativa de escrita nem repetição de ensaio falho.
+
+## Regressão: 302 sem origem da atribuição não prova autoria
+
+**Observação antes do RED:** o caso de aceite Web do Todos
+`tests/test_ciclo_atribuir_010.py @323eb01` publica, além de
+`arvore_visualizar` e `id_procedimento`, a ação de origem
+`procedimento_atribuicao_cadastrar`. Sem esse vínculo, mesmo a
+releitura coincidente pode retratar uma escrita concorrente.
+A forma sem `acao_origem` não foi observada como aceite.
+
+**RED:** commit `d7af6f3`,
+[CI 42267049782](https://github.com/franklinbaldo/ies/actions/runs/42267049782),
+**1.739 PASS / 2 FAIL novos / 23 ignored preexistentes**.
+Nos dois testes (atribuir e remover), o código anunciava aplicação após
+302 com ID correto mas sem ação de origem e releitura alterada por outro
+agente. A regressão exige efeito incerto (saída 3), exatamente
+**4 GET de prévia + 1 POST + 1 GET de verificação = 6 requisições**,
+sem seguir Location nem repetir POST.
+
+**Correção:** a ação de origem deve constar explicitamente e ser única;
+a falta dela não se concilia como sucesso. As respostas positivas com
+ação, ID e origem conferidos permanecem cobertas pelos testes existentes.
+**Live nesta fatia: NOT_RUN**, 0 GET, 0 POST, 0 escritas e 0 resíduos.
+Prévia UnB histórica PASS (4 GET); duas prévias UFRJ permanecem FAIL
+(contagens não observadas), sem prova da causa. Não repetidas.
+`--confirmar` público segue fechado antes da sessão/rede.
