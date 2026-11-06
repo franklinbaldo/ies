@@ -256,7 +256,7 @@ fn rejeitar_tela_sem_get_mutador(tela: String) {
 #[test]
 fn comentario_de_bloco_nao_autoriza_get_mutador() {
     let tela = format!(
-        "<html><script>/*\\nvar linkCienciaDocumento = '{}';\\n*/</script></html>",
+        "<html><script>/*\nvar linkCienciaDocumento = '{}';\n*/</script></html>",
         link_da_escrita()
     );
     rejeitar_tela_sem_get_mutador(tela);
@@ -265,7 +265,7 @@ fn comentario_de_bloco_nao_autoriza_get_mutador() {
 #[test]
 fn ramo_if_false_nao_autoriza_get_mutador() {
     let tela = format!(
-        "<html><script>if (false) {{\\nvar linkCienciaDocumento = '{}';\\n}}</script></html>",
+        "<html><script>if (false) {{\nvar linkCienciaDocumento = '{}';\n}}</script></html>",
         link_da_escrita()
     );
     rejeitar_tela_sem_get_mutador(tela);
@@ -274,7 +274,7 @@ fn ramo_if_false_nao_autoriza_get_mutador() {
 #[test]
 fn if_false_sem_chaves_nao_autoriza_get_mutador() {
     let tela = format!(
-        "<html><script>if (false)\\nvar linkCienciaDocumento = '{}';</script></html>",
+        "<html><script>if (false)\nvar linkCienciaDocumento = '{}';</script></html>",
         link_da_escrita()
     );
     rejeitar_tela_sem_get_mutador(tela);
@@ -285,7 +285,7 @@ fn funcao_somente_comentada_nao_autoriza_get_mutador() {
     let funcao = tela_do_documento_40(ID, ID_DOC);
     let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
         .split("</script>").next().unwrap();
-    let tela = format!("<html><script>/*\\n{trecho}\\n*/</script></html>");
+    let tela = format!("<html><script>/*\n{trecho}\n*/</script></html>");
     rejeitar_tela_sem_get_mutador(tela);
 }
 
@@ -294,6 +294,6 @@ fn funcao_em_ramo_inativo_nao_autoriza_get_mutador() {
     let funcao = tela_do_documento_40(ID, ID_DOC);
     let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
         .split("</script>").next().unwrap();
-    let tela = format!("<html><script>if (false) {{\\n{trecho}\\n}}</script></html>");
+    let tela = format!("<html><script>if (false) {{\n{trecho}\n}}</script></html>");
     rejeitar_tela_sem_get_mutador(tela);
 }
