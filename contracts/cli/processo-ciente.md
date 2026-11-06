@@ -122,3 +122,10 @@ no GET mutador (403, validação Infra 200 e falha de rede); no efeito
 incerto, causa tipada, status HTTP e mensagem saneada são publicados
 sem repetir a escrita. Execução live em treinamento, inclusive recusa
 de segunda ciência, e replay específico permanecem **NOT_RUN**.
+
+A `id_atividade` só é aceita se a chamada literal
+`atualizarArvore` constar em código de script ativo da resposta.
+Texto somente em comentário, string ou script aninhado em
+`<template>` não é prova; essas formas geram aceite não reconhecido
+e a verificação posterior não presume sucesso. Regressões sintéticas
+RED/GREEN documentadas na [decisão](../../docs/decisoes/processo-ciente.md).
