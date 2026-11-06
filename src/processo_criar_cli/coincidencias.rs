@@ -25,7 +25,9 @@ pub(super) fn anexar_coincidencias_json(
 pub(super) fn informar_coincidencias_humanas(nups: &[String], evidencia: EvidenciaDeCoincidencia) {
     match evidencia {
         EvidenciaDeCoincidencia::UnicaSemProvaCausal => {
-            eprintln!("IES: um candidato confere, mas a leitura não demonstra que este POST o criou.");
+            eprintln!(
+                "IES: um candidato confere, mas a leitura não demonstra que este POST o criou."
+            );
         }
         EvidenciaDeCoincidencia::Multiplas => {
             eprintln!(
@@ -44,4 +46,3 @@ pub(super) fn informar_coincidencias_humanas(nups: &[String], evidencia: Evidenc
         eprintln!("  {nup}");
     }
 }
-
