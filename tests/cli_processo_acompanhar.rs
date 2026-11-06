@@ -20,19 +20,16 @@ fn json(saida: &Output) -> serde_json::Value {
 }
 
 #[test]
-fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
+fn remocao_confirmada_nao_e_stub_e_exige_sessao_privada() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01:
-    // a confirmação exige fluxo próprio; nunca iniciar escrita sem esse fluxo.
+    // o fluxo confirmado exige sessão autenticada, não aceita atalhos
     for acao in [vec!["--deixar"], vec!["--deixar", "--grupo", "G"]] {
         let mut args = vec!["processo", "acompanhar", NUP, "--confirmar", "--json"];
         args.extend(acao);
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
-        assert_eq!(
-            valor["subcodigo"],
-            "confirmacao_de_acompanhamento_ainda_bloqueada"
-        );
+        assert_eq!(valor["codigo"], "fonte_invalida");
         assert_eq!(valor["retentavel"], false);
     }
 }
