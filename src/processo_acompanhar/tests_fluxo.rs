@@ -404,6 +404,39 @@ fn botao_adicionar_oculto_ou_em_fieldset_desabilitado_nao_oferece_cadastro() {
 }
 
 #[test]
+fn botao_adicionar_com_ancestral_inerte_nao_oferece_cadastro() {
+    // A lista e btnAdicionar foram observados na UnB (#254). Um fieldset
+    // desabilitado pode conter o botao sob divs intermediarias; atributos
+    // hidden/inert tambem podem estar no ancestral, nao no proprio botao.
+    // Nenhum desses controles autoriza GET ao cadastro ou POST.
+    let destino = cadastrar().replace('&', "&amp;");
+    let casos = [
+        format!(
+            r#"<fieldset disabled><div><section><button id="btnAdicionar" onclick="location.href='{destino}';">Adicionar</button></section></div></fieldset>"#
+        ),
+        format!(
+            r#"<div hidden><button id="btnAdicionar" onclick="location.href='{destino}';">Adicionar</button></div>"#
+        ),
+        format!(
+            r#"<section inert><div><button id="btnAdicionar" onclick="location.href='{destino}';">Adicionar</button></div></section>"#
+        ),
+    ];
+    for botao in casos {
+        for confirmar in [false, true] {
+            let html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
+            let mut respostas = abertura(html);
+            respostas.push(ok(format!("{}{}", lista("Outro"), botao)));
+            let (resultado, pedidos) = executar(respostas, confirmar);
+            assert!(matches!(resultado, Err(ErroPrevia::Html(_))));
+            let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
+            esperados.push(get(&absoluta(&gerenciar())));
+            assert_eq!(pedidos, esperados);
+            assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+        }
+    }
+}
+
+#[test]
 fn botao_adicionar_habilitado_na_lista_abre_cadastro_uma_vez() {
     // Controle: não recusar a forma acionável realmente publicada.
     let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
