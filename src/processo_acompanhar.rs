@@ -9,9 +9,9 @@ use crate::html_atributos::{atributo_presente, valor_do_atributo};
 mod exclusao;
 mod fluxo;
 mod submissao;
+pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
 #[cfg(test)]
 pub(crate) use fluxo::{MotivoEfeitoIncerto, RespostaPost};
-pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
 
 const FORMULARIO: &str = "frmAcompanhamentoCadastro";
 const GRUPO: &str = "selGrupoAcompanhamento";
