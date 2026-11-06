@@ -111,6 +111,11 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
          format!("{erro:?}"),
          "SituacaoDaAtribuicaoNaoObservada { unidade: \"TESTE\", aberto_em: Some([\"PR-P\"]), motivo: None, requisicoes: 3 }"
      );
+     let publicado = crate::processo_atribuir_cli::json_de_falha(&erro);
+     assert_eq!(publicado["unidade"], "TESTE");
+     assert_eq!(publicado["aberto_em"], serde_json::json!(["PR-P"]));
+     assert!(publicado["motivo"].is_null());
+     assert_eq!(publicado["requisicoes"], 3);
      assert_eq!(pedidos, pedidos_da_abertura());
      assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
  }
