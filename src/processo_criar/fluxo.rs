@@ -418,6 +418,19 @@ pub(crate) fn criar<V: EnvioDoControle>(
         envio.post(s, c)
     }) {
         Ok(resposta) => resposta,
+        // Recusa explícita não pode virar sucesso por candidato idêntico de
+        // outro agente na conta compartilhada. Não consultar Gerados depois.
+        Err(causa_post)
+            if tentou
+                && (matches!(
+                    &causa_post,
+                    crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+                ) || causa_post
+                    .status_http()
+                    .is_some_and(|status| (400..500).contains(&status.status))) =>
+        {
+            return Err(E::RecusaDoPost(causa_post));
+        }
         Err(causa_post) if tentou => {
             pos_escrita::reconciliar(
                 envio,
