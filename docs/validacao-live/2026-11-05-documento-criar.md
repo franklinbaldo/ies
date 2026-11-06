@@ -253,3 +253,12 @@ Próximo ensaio: obter nova prévia de treinamento em processo aberto na
 unidade da sessão, observar o link real de escolha sem expor assinatura,
 e só então decidir sobre confirmação única segura. Nunca repetir uma
 escrita incerta ou publicar URL assinada.
+
+
+## Retomada de 06/11 — scripts e botões em `template` (issue #246)
+
+A prévia autenticada anterior na UnB está registrada no [ensaio 42198707929](https://github.com/franklinbaldo/ies/actions/runs/42198707929), mas a estrutura efetiva do botão Salvar **ainda não foi capturada**. A hipótese de `template` **não** explica por si essa falha. Como prova negativa independente, uma regressão sintética reproduz a cadeia Salvar dentro de conteúdo HTML inerte. O [RED 42205490983](https://github.com/franklinbaldo/ies/actions/runs/42205490983) registrou **1 FAIL, 1.739 PASS e 23 ignorados** antes da correção; o teste exigia 5 GET e 0 POST.
+
+O [diagnóstico temporário 42205095624](https://github.com/franklinbaldo/ies/actions/runs/42205095624) **falhou no parser Python do próprio runner antes do login**; nenhuma captura foi obtida. O workflow e a instrumentação temporária foram excluídos do branch, sem permanecer código que exponha HTML ou dados privados.
+
+**Live desta retomada:** login **NOT_RUN**, prévia **NOT_RUN**, `--confirmar` **NOT_RUN**, releitura **NOT_RUN**; **0 requisições novas ao SEI, 0 POST criador, 0 escritas, 0 resíduos**. Não houve repetição de escrita nem acesso à produção. A confirmação única segue pendente de uma observação segura do formulário efetivo e de nova prévia autenticada. CI final será conferido no head que incluir esta nota.
