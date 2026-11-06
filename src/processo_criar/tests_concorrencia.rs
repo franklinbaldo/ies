@@ -47,3 +47,27 @@ fn red_candidato_identico_de_outro_agente_nao_prova_autoria_do_post() {
     assert_eq!(requests.len(), 8); // 3 GET + 1 POST + 1 GET Gerados + 3 GET prova
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+#[test]
+fn gerados_com_mesmo_nup_em_dois_ids_recusa_antes_do_post_criador() {
+    // A tela publica duas linhas e cobertura integral, mas ambas referem
+    // o mesmo NUP sob IDs diferentes. Não é fotografia segura para escrita.
+    let amb = ambiente();
+    let controle = gerados_com_dois_candidatos().replace(SEGUNDO_NUP, NUP);
+    let respostas = vec![ok(controle), ok(lista(false)), ok(cadastro())];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Fotografia(reconciliacao::ErroFotografia::NupRepetido))
+    ));
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|r| r.metodo == "GET"));
+}
