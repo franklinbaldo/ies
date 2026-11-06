@@ -352,7 +352,6 @@ fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
     }
 }
 
-
 #[test]
 fn script_alheio_com_regex_literal_nao_invalida_cadeia_salvar() {
     // Observação UnB 42209629903: o script ativo que contém a cadeia
