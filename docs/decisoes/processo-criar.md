@@ -351,3 +351,15 @@ candidatos não é inferir efeito. Por isso a saída permanece 3 até conferir
 propriedades de todos os candidatos e decidir o resultado; a reconciliação
 automática conclusiva segue pendente. Essa alternativa usa a página de
 Controle já conhecida, sem tentar inventar o endereço do processo novo.
+
+### Candidatos verificados pela Web (#245)
+
+A próxima fatia usa links **servidos na linha Gerados**, nunca links
+inferidos de IDs, e os leitores já disponíveis de tela, árvore e
+propriedades. Para cada candidato é necessário comprovar unidade,
+ID/NUP, tipo e especificação. Retornar sucesso é permitido apenas para
+uma correspondência exata com todos os candidatos conferidos. Sem
+propriedades publicadas, falha fechado e preserva a causa do POST.
+O novo leitor consome 1 GET da caixa e 3 GET por candidato; não faz
+retry nem novo POST. A ausência de candidatos não prova não aplicação.
+O ensaio live nesta fatia não foi executado.

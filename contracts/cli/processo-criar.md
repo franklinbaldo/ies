@@ -299,3 +299,21 @@ e a causa independente da releitura, quando esta falhar. A resposta continua
 `efeito_incerto_na_criacao`/saída 3 porque diferença de Gerados, inclusive
 vazia, não prova por si só criação nem não aplicação. Conferência de cada
 candidato por `processo NUP` e classificação final são trabalho pendente.
+
+### Verificação independente de novos candidatos (#245, fatia seguinte)
+
+Depois da tentativa de POST criador, a nova leitura de Gerados identifica
+os candidatos. Para **cada** ID/NUP novo, a CLI segue somente o link
+de trabalho servido na linha correspondente, confere árvore e unidade e
+lê propriedades (tipo e especificação). São **1 GET da caixa + 3 GET
+por candidato**, sem retry. Uma única correspondência exata permite
+retornar criação aplicada (saída 0), NUP e `causa_post`; se a
+reconciliação falhar ou continuar ambígua, saída 3, sem autorizar
+outra escrita. A prova não inclui ainda um desfecho automático
+conclusivo de não aplicação. Live: NOT_RUN nesta fatia.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
+| `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
+| `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |

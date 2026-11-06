@@ -34,7 +34,10 @@ fn arvore_com_propriedades() -> String {
 fn propriedades_correspondentes() -> String {
     tela_das_propriedades(NUP, "10")
         .replace("Tipo Sintetico: Teste", "Administração Geral: Ensaio")
-        .replace("Especificação sintética &amp; teste", "Ensaio automatizado issue 245")
+        .replace(
+            "Especificação sintética &amp; teste",
+            "Ensaio automatizado issue 245",
+        )
 }
 
 #[test]
@@ -51,7 +54,13 @@ fn post_falha_mas_propriedades_conferidas_provam_criacao_unica() {
         ok(propriedades_correspondentes()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     let feito = resultado.expect("um candidato comprovado nao permanece incerto");
     assert!(feito.confirmado);
@@ -79,7 +88,13 @@ fn candidato_com_propriedades_de_outro_tipo_nao_e_prova_de_criacao() {
         ok(tela_das_propriedades(NUP, "10")),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     assert!(resultado.is_err());
     assert_eq!(requests.len(), 8);
@@ -100,7 +115,13 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
         Err(FalhaTransporte::Rede),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     let erro = resultado.expect_err("falha da leitura nao e confirmacao");
     assert_eq!(erro.saida(), 3);

@@ -167,6 +167,12 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     ExitCode::from(3)
 }
 
+fn informar_causa_post(causa: Option<&str>) {
+    if let Some(causa) = causa {
+        println!("Causa do POST reconciliado por leitura: {causa}");
+    }
+}
+
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
 /// Nenhum retry: o fluxo remoto consome cada resposta exatamente uma vez.
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
@@ -259,9 +265,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
                 if let Some(hipotese) = feito.hipotese_legal {
                     println!("Hipótese legal observada (ID): {hipotese}");
                 }
-                if let Some(causa) = feito.causa_post {
-                    println!("Causa do POST reconciliado por leitura: {causa}");
-                }
+                informar_causa_post(feito.causa_post);
                 if let Some(nup) = feito.nup {
                     println!("NUP criado e verificado: {nup}");
                 } else {

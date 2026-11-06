@@ -1,7 +1,7 @@
 //! Reconciliação do POST criador #245 pela caixa Gerados e propriedades
 //! independentes. Não fabrica links, não repete requisições e nunca executa JS.
-use super::{Criacao, ErroCriar, get, reconciliacao, retorno_da_criacao};
 use super::erro_fluxo::CausaRespostaCriadora;
+use super::{Criacao, ErroCriar, get, reconciliacao, retorno_da_criacao};
 use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -27,7 +27,10 @@ impl CausaPosEscrita {
     ) -> ErroCriar {
         let posterior = posterior.map_err(Box::new);
         match self {
-            Self::Transporte(causa_post) => ErroCriar::PosEscrita { causa_post, posterior },
+            Self::Transporte(causa_post) => ErroCriar::PosEscrita {
+                causa_post,
+                posterior,
+            },
             Self::Resposta(causa) => ErroCriar::PosRespostaInesperada { causa, posterior },
         }
     }
@@ -44,18 +47,32 @@ fn link_do_gerado(
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| erro())?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(|_| erro())?;
-    let [tabela] = tabelas.as_slice() else { return Err(erro()); };
-    let tabela = tabela.get(parser).and_then(tl::Node::as_tag).ok_or_else(erro)?;
+    let [tabela] = tabelas.as_slice() else {
+        return Err(erro());
+    };
+    let tabela = tabela
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or_else(erro)?;
     let alvo = format!("P{}", candidato.id);
     let mut encontrado = None;
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
+        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
         let id = valor_do_atributo(linha, "id").map_err(|_| erro())?;
-        if id.as_deref() != Some(alvo.as_str()) { continue; }
+        if id.as_deref() != Some(alvo.as_str()) {
+            continue;
+        }
         for link in linha.query_selector(parser, "a").into_iter().flatten() {
-            let Some(ancora) = link.get(parser).and_then(tl::Node::as_tag) else { continue };
-            if ancora.inner_text(parser).trim() != candidato.nup { continue; }
-            let href = valor_do_atributo(ancora, "href").map_err(|_| erro())?
+            let Some(ancora) = link.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            if ancora.inner_text(parser).trim() != candidato.nup {
+                continue;
+            }
+            let href = valor_do_atributo(ancora, "href")
+                .map_err(|_| erro())?
                 .ok_or_else(erro)?;
             let href = decodificar_atributo(&href).ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {
@@ -78,30 +95,33 @@ fn conferir_candidato<V: EnvioDoControle>(
     requisicoes: &mut u32,
 ) -> Result<ProcessoConferido, ErroCriar> {
     let href = link_do_gerado(html_controle, candidato)?;
-    let (url, id) = retorno_da_criacao(instalacao, &href, url_controle)
-        .map_err(|_| ErroCriar::Fotografia(
-            reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado,
-        ))?;
+    let (url, id) = retorno_da_criacao(instalacao, &href, url_controle).map_err(|_| {
+        ErroCriar::Fotografia(reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado)
+    })?;
     if id != candidato.id {
         return Err(ErroCriar::Fotografia(
             reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado,
         ));
     }
     let pagina = get(envio, &url, cookie, requisicoes)?;
-    let tela = crate::arvore_processo::ler_tela_do_processo(
-        instalacao, &pagina.html, &id, Some(unidade),
-    ).map_err(ErroCriar::Tela)?;
+    let tela =
+        crate::arvore_processo::ler_tela_do_processo(instalacao, &pagina.html, &id, Some(unidade))
+            .map_err(ErroCriar::Tela)?;
     let pagina_arvore = get(envio, tela.arvore.as_str(), cookie, requisicoes)?;
     crate::arvore_processo::ler_arvore(&pagina_arvore.html, &candidato.nup, &id)
         .map_err(ErroCriar::Arvore)?;
-    let endereco = crate::arvore_processo::ler_link_das_propriedades(
-        instalacao, &pagina_arvore.html, &id,
-    ).map_err(ErroCriar::Propriedades)?
-        .ok_or(ErroCriar::PropriedadesNaoOferecidas)?;
+    let endereco =
+        crate::arvore_processo::ler_link_das_propriedades(instalacao, &pagina_arvore.html, &id)
+            .map_err(ErroCriar::Propriedades)?
+            .ok_or(ErroCriar::PropriedadesNaoOferecidas)?;
     let pagina_propriedades = get(envio, endereco.as_str(), cookie, requisicoes)?;
     let propriedades = crate::propriedades_processo::ler_propriedades(
-        &pagina_propriedades.html, &candidato.nup, &id, endereco.fonte,
-    ).map_err(ErroCriar::Propriedades)?;
+        &pagina_propriedades.html,
+        &candidato.nup,
+        &id,
+        endereco.fonte,
+    )
+    .map_err(ErroCriar::Propriedades)?;
     Ok(ProcessoConferido {
         id: candidato.id.clone(),
         nup: candidato.nup.clone(),
@@ -126,15 +146,20 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
 ) -> Result<(), ErroCriar> {
     let posterior = (|| {
         let controle = get(envio, url_controle, cookie, requisicoes)?;
-        let depois = reconciliacao::FotografiaDosGerados::da_tela(
-            &controle.html, &feito.unidade,
-        ).map_err(ErroCriar::Fotografia)?;
+        let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
+            .map_err(ErroCriar::Fotografia)?;
         let candidatos = antes.novos(&depois).map_err(ErroCriar::Fotografia)?;
         let mut provas = Vec::new();
         for candidato in &candidatos {
             provas.push(conferir_candidato(
-                envio, instalacao, url_controle, cookie, &feito.unidade,
-                &controle.html, candidato, requisicoes,
+                envio,
+                instalacao,
+                url_controle,
+                cookie,
+                &feito.unidade,
+                &controle.html,
+                candidato,
+                requisicoes,
             )?);
         }
         let desfecho = classificar(&candidatos, &provas, &feito.tipo, especificacao)

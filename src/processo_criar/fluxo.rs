@@ -420,8 +420,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
         Ok(resposta) => resposta,
         Err(causa_post) if tentou => {
             pos_escrita::reconciliar(
-                envio, &instalacao, url_controle, cookie_valor, &mut feito,
-                &gerados_antes, pedido.especificacao, &mut requisicoes,
+                envio,
+                &instalacao,
+                url_controle,
+                cookie_valor,
+                &mut feito,
+                &gerados_antes,
+                pedido.especificacao,
+                &mut requisicoes,
                 pos_escrita::CausaPosEscrita::Transporte(causa_post),
             )?;
             return Ok(feito);
@@ -430,8 +436,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
     };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
         pos_escrita::reconciliar(
-            envio, &instalacao, url_controle, cookie_valor, &mut feito,
-            &gerados_antes, pedido.especificacao, &mut requisicoes,
+            envio,
+            &instalacao,
+            url_controle,
+            cookie_valor,
+            &mut feito,
+            &gerados_antes,
+            pedido.especificacao,
+            &mut requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
                 erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
             ),
@@ -446,8 +458,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
         });
     let Ok((url, id)) = retorno else {
         pos_escrita::reconciliar(
-            envio, &instalacao, url_controle, cookie_valor, &mut feito,
-            &gerados_antes, pedido.especificacao, &mut requisicoes,
+            envio,
+            &instalacao,
+            url_controle,
+            cookie_valor,
+            &mut feito,
+            &gerados_antes,
+            pedido.especificacao,
+            &mut requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
                 erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
             ),
