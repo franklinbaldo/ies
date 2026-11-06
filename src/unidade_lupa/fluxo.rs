@@ -381,6 +381,21 @@ fn consulta(
     .map_err(|_| FalhaDaLupa::FormularioInesperado)
 }
 
+/// Contador observavel nas falhas; a implementacao definitiva precisa contar
+/// cada tentativa mesmo quando a coleta e recusada (issue #244).
+/// Shim intencional para observar o RED dos testes antes da correção.
+pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
+    transporte: &mut T,
+    url_controle: &str,
+    origem: &str,
+    cookie: &str,
+    requisicoes: &mut usize,
+) -> Result<ListaWeb, FalhaDaLupa> {
+    let resposta = ler_integral(transporte, url_controle, origem, cookie);
+    *requisicoes = resposta.as_ref().map_or(0, |r| r.requisicoes);
+    resposta
+}
+
 /// Consulta integral: quatro GETs de navegação + um POST por página;
 /// a própria lupa custa 1 GET + N POSTs, sem pagina repetida.
 pub(crate) fn ler_integral<T: TransporteLupa>(
