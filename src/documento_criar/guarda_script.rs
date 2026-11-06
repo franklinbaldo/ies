@@ -21,6 +21,44 @@ enum Bloco {
     ConferirFormulario,
 }
 
+/// A forma servida precisa ser uma cadeia direta, sem ramos extras.
+fn conferir_passos(
+    linha: &str,
+    blocos: &[Bloco],
+    passo_submeter: &mut u8,
+    passo_confirmar: &mut u8,
+) -> Option<()> {
+    match blocos {
+        [Bloco::Submeter] if linha != "}" => {
+            *passo_submeter = match (*passo_submeter, linha) {
+                (0, DESABILITAR) => 1,
+                (1, INSTRUCAO) => 2,
+                (2, ENVIAR) => 3,
+                _ => return None,
+            };
+        }
+        [Bloco::ConfirmarDados] if linha != "}" => {
+            // Captura Todos @323eb01: confirmacao so chama submeter()
+            // depois de OnSubmitForm() aprovar o formulario.
+            if *passo_confirmar != 0
+                || (linha != "if (OnSubmitForm()) {" && linha != "if (OnSubmitForm()){")
+            {
+                return None;
+            }
+            *passo_confirmar = 1;
+        }
+        [Bloco::ConfirmarDados, Bloco::ConferirFormulario] if linha != "}" => {
+            if *passo_confirmar != 1 || linha != "submeter();" {
+                return None;
+            }
+            *passo_confirmar = 2;
+        }
+        _ if linha == INSTRUCAO => return None,
+        _ => {}
+    }
+    Some(())
+}
+
 /// Ler as linhas como texto, excluindo comentários, strings e blocos
 /// aninhados. Dentro de `submeter()` só vale a sequência da captura
 /// Todos `tests/paginas_reais/documento_gerar.html` @323eb01.
@@ -36,38 +74,7 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
     for linha in texto.lines() {
         let linha = linha.trim();
         if estado == Estado::Codigo {
-            match blocos.as_slice() {
-                [Bloco::Submeter] if linha != "}" => {
-                    passo_submeter = match (passo_submeter, linha) {
-                        (0, DESABILITAR) => 1,
-                        (1, INSTRUCAO) => 2,
-                        (2, ENVIAR) => 3,
-                        _ => return None,
-                    };
-                }
-                [Bloco::ConfirmarDados] if linha != "}" => {
-                    // Captura Todos @323eb01: a confirmação só chama
-                    // submeter() se a validação do formulário passar.
-                    if passo_confirmar != 0
-                        || (linha != "if (OnSubmitForm()) {"
-                            && linha != "if (OnSubmitForm()){")
-                    {
-                        return None;
-                    }
-                    passo_confirmar = 1;
-                }
-                [Bloco::ConfirmarDados, Bloco::ConferirFormulario] if linha != "}" => {
-                    if passo_confirmar != 1 || linha != "submeter();" {
-                        return None;
-                    }
-                    passo_confirmar = 2;
-                }
-                _ if linha == INSTRUCAO => {
-                    // A flag isolada não demonstra uma escrita acionável.
-                    return None;
-                }
-                _ => {}
-            }
+            conferir_passos(linha, &blocos, &mut passo_submeter, &mut passo_confirmar)?;
         }
         let mut prefixo = String::new();
         let mut caracteres = linha.chars().peekable();
@@ -81,14 +88,14 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
                     }
                     '\'' | '"' | '`' => estado = Estado::Cadeia(c),
                     '{' => {
-                        let bloco = if blocos.is_empty() && prefixo.trim() == "function submeter()" {
+                        let bloco = if blocos.is_empty() && prefixo.trim() == "function submeter()"
+                        {
                             funcoes_submeter += 1;
                             if funcoes_submeter > 1 {
                                 return None;
                             }
                             Bloco::Submeter
-                        } else if blocos.is_empty()
-                            && prefixo.trim() == "function confirmarDados()"
+                        } else if blocos.is_empty() && prefixo.trim() == "function confirmarDados()"
                         {
                             funcoes_confirmar += 1;
                             if funcoes_confirmar > 1 {
