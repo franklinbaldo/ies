@@ -498,7 +498,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
     // O Location legítimo não prova o efeito da criação. Preservar a
     // causa da verificação, inclusive status HTTP, sem fazer novo POST.
     let nup = verificacao_apos_post::verificar(
-        envio, &instalacao, &url, &id, cookie_valor, &feito, pedido, &mut requisicoes,
+        envio,
+        &instalacao,
+        &url,
+        &id,
+        cookie_valor,
+        &feito,
+        pedido,
+        &mut requisicoes,
     )
     .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
     feito.confirmado = true;
