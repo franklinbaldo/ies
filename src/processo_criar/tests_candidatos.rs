@@ -189,7 +189,6 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
-
 const SEGUNDO_NUP: &str = "00000.000011/2026-11";
 
 /// Dois processos de ensaio distintos apareceram entre as fotografias.
@@ -212,7 +211,10 @@ fn arvore_com_propriedades_de(id: &str, nup: &str) -> String {
         id,
         nup,
         &crate::processo_concluir::tests_apoio::situacao(&[UNIDADE]),
-        &[acao_da_barra(&link_das_propriedades("procedimento_alterar", id))],
+        &[acao_da_barra(&link_das_propriedades(
+            "procedimento_alterar",
+            id,
+        ))],
     )
 }
 
