@@ -143,3 +143,26 @@ função não invocada e resposta com lista preexistente. O RED anterior
 no [CI 42224041949](https://github.com/franklinbaldo/ies/actions/runs/42224041949)
 do head `e646671`, com **5/5 jobs PASS** (prek, release e três
 replays gerais). Replay específico de ciência continua NOT_RUN.
+
+
+## Instrução inalcançável após retorno — regressão #271 (06/11/2026)
+
+O reconhecimento por nível lexical e assinatura `inicializar()` ainda
+aceitava `return; atualizarArvore(...)` dentro da função. O ponto e
+vírgula fazia a chamada seguinte parecer independente, embora o retorno
+impedisse sua execução; um ID preexistente na lista podia produzir
+confirmação falsa. A decisão restringe a prova à **primeira instrução
+executável** do próprio script (chamada direta) ou do corpo direto
+da função `inicializar()`. Comentários e espaços são tolerados pelo
+leitor lexical, mas qualquer outra instrução anterior faz recusar o
+aceite, sem executar JavaScript ou inferir o fluxo de controle. Se uma
+instalação servir forma diferente, o fluxo falha fechado (saída 3),
+até observação específica e novo contrato.
+
+**RED observado antes do código:** [CI 42231850140](https://github.com/franklinbaldo/ies/actions/runs/42231850140),
+**2 FAIL / 1.724 PASS / 22 ignored preexistentes**. A regressão unitária
+detectou falso `Ok("42457")` após `return;` e a de fluxo detectou
+`confirmado=true` quando a lista continha ciência anterior.
+O teste de fluxo exige **6 GET, exatamente 1 mutador e nenhuma consulta
+à lista sem atividade do aceite comprovada**. GREEN do head posterior
+é verificado separadamente no CI; replay específico e live NOT_RUN.
