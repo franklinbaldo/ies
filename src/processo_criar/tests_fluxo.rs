@@ -495,7 +495,6 @@ fn previa_nao_exige_fotografia_completa_de_gerados() {
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
 
-
 /// #245: resposta de POST sem prova exige leitura nova do Controle, não retry.
 #[test]
 fn falha_do_post_dispara_uma_unica_leitura_nova_dos_gerados() {
@@ -508,7 +507,13 @@ fn falha_do_post_dispara_uma_unica_leitura_nova_dos_gerados() {
         ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     assert_eq!(resultado.unwrap_err().saida(), 3);
     assert_eq!(requests.len(), 5);
@@ -530,11 +535,24 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
         )),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
     });
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.diagnostico_apos_post(), Some(("falha_de_rede", Some("status_http_de_erro_do_servidor"), None)));
+    assert_eq!(
+        erro.diagnostico_apos_post(),
+        Some((
+            "falha_de_rede",
+            Some("status_http_de_erro_do_servidor"),
+            None
+        ))
+    );
 }
