@@ -157,3 +157,70 @@ fn replay_274_paginas_go_no_acervo() {
     assert_eq!(reunidas.len(), 13_671);
     println!("replay integral GO: 274 paginas e 13.671 ids, 0 HTTP real");
 }
+
+
+#[test]
+#[ignore = "exige ZIP público UnB em IES_ACERVO_CACHE; executado no CI"]
+fn observacao_dos_links_da_lupa_unb_no_acervo() {
+    // Pré-RED da #244: gravação existente, sem acesso ao SEI.
+    // Não imprimir URLs assinadas, hashes, cookies nem HTML do acervo.
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let card = raiz.join("cassettes/unb/unidade-destinos-no-indice-unb--57497bc11c4f.md");
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || {
+            Path::new(&std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE"))
+                .join(".cache/ies")
+        },
+        std::path::PathBuf::from,
+    );
+    let zip = ZipDoAcervo::ler(&cache.join("lote-5b6af062ae69d8c7.zip"))
+        .expect("ZIP público UnB ausente");
+    let conferida = conferir_cassette_ate(&card, &zip, 120_000_000)
+        .expect("cassette UnB não confere hashes ou origem");
+    assert_eq!(conferida.instalacao, "unb");
+    let mut get = 0;
+    let mut post = 0;
+    let origem = "https://sei.treinamento.unb.br/sei";
+    let url_tela = "https://sei.treinamento.unb.br/sei/controlador.php";
+    for resposta in gravacao::respostas(&conferida.json) {
+        if resposta.metodo == "POST" {
+            post += 1;
+            continue;
+        }
+        assert_eq!(resposta.metodo, "GET");
+        get += 1;
+        if resposta.status != 200 {
+            continue;
+        }
+        let proxima = if resposta.operacao == "procedimento_controlar" {
+            Some("grupo_unidade_listar")
+        } else if resposta.operacao == "grupo_unidade_listar" {
+            Some("grupo_unidade_cadastrar")
+        } else if resposta.operacao == "grupo_unidade_cadastrar" {
+            Some("unidade_selecionar_envio_processo")
+        } else {
+            None
+        };
+        let Some(proxima) = proxima else { continue };
+        let html = html_da_resposta(resposta.item)
+            .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
+        let candidatos = super::fluxo::candidatos(&html, proxima)
+            .expect("controle UnB precisa ser analisável");
+        let distintos: std::collections::HashSet<_> = candidatos
+            .iter()
+            .filter(|u| u.contains(&format!("acao={proxima}")))
+            .collect();
+        let resultado = super::fluxo::destino(&html, url_tela, origem, proxima);
+        let estado = match resultado {
+            Ok(_) => "unico",
+            Err(super::fluxo::FalhaDaLupa::LinkAmbiguo) => "ambiguo",
+            Err(super::fluxo::FalhaDaLupa::LinkAusente) => "ausente",
+            Err(_) => "outra_recusa",
+        };
+        println!(
+            "observacao UnB passo {}: proxima={proxima}, candidatos={}, distintos={}, estado={estado}",
+            resposta.passo, candidatos.len(), distintos.len()
+        );
+    }
+    assert_eq!((get, post), (4, 1), "apenas 5 respostas gravadas, sem rede");
+}
