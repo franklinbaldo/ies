@@ -114,9 +114,10 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
-    let incerto = matches!(erro, ErroPrevia::EfeitoIncerto);
-    let valor = json!({
+fn valor_da_falha(erro: &ErroPrevia) -> serde_json::Value {
+    let diagnostico = erro.diagnostico_efeito_incerto();
+    let incerto = diagnostico.is_some();
+    json!({
         "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
         "subcodigo": erro.subcodigo(),
         "erro": if incerto {
@@ -124,7 +125,43 @@ fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
         } else {
             "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
         },
+        "requisicoes": diagnostico.map(|(total, _)| total),
+        "motivo": diagnostico.map(|(_, motivo)| motivo),
         "retentavel": false
-    });
-    publicar_valor_da_falha(json_mode, &valor, if incerto { 3 } else { 1 })
+    })
+}
+
+fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
+    let incerto = erro.diagnostico_efeito_incerto().is_some();
+    publicar_valor_da_falha(json_mode, &valor_da_falha(erro), if incerto { 3 } else { 1 })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::processo_acompanhar::fluxo::MotivoEfeitoIncerto;
+
+    #[test]
+    fn erro_apos_post_publica_contagem_e_motivo_sem_segredos() {
+        let erro = ErroPrevia::EfeitoIncerto {
+            requisicoes: 7,
+            motivo: MotivoEfeitoIncerto::ReleituraIndisponivel,
+        };
+        let valor = valor_da_falha(&erro);
+        assert_eq!(valor["codigo"], "efeito_incerto");
+        assert_eq!(valor["subcodigo"], "acompanhamento_nao_confirmado_por_leitura");
+        assert_eq!(valor["requisicoes"], 7);
+        assert_eq!(valor["motivo"], "releitura_indisponivel");
+        assert_eq!(valor["retentavel"], false);
+        assert!(valor.get("url").is_none());
+        assert!(valor.get("cookie").is_none());
+    }
+
+    #[test]
+    fn recusa_antes_do_post_nao_inventa_requisicoes() {
+        let valor = valor_da_falha(&ErroPrevia::ConfirmacaoNaoImplementada);
+        assert_eq!(valor["requisicoes"], serde_json::Value::Null);
+        assert_eq!(valor["motivo"], serde_json::Value::Null);
+        assert_eq!(valor["codigo"], "operacao_recusada");
+    }
 }
