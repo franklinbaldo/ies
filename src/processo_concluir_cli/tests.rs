@@ -77,3 +77,64 @@ fn efeito_incerto_sai_com_tres_e_a_verificacao() {
     };
     assert_eq!((nao.saida(), nao.codigo()), (1, "escrita_nao_aplicada"));
 }
+
+#[test]
+fn saida_tipificada_serializa_direto_sem_value_intermediario() {
+    let feito = ProcessoConcluido {
+        confirmado: true,
+        alterado: true,
+        depois: Some(vec!["TESTE_1_1".into()]),
+        reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+        ..previa()
+    };
+    let mut bytes = Vec::new();
+    serde_json::to_writer_pretty(&mut bytes, &super::resultado_conclusao(&feito)).unwrap();
+    // O objeto JSON legado ordenava as chaves: manter também os bytes pretty.
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap()
+    );
+    let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(recebido, json_de_sucesso(&feito));
+    assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
+    let texto = String::from_utf8(bytes).unwrap();
+    assert!(!texto.contains("infra_hash") && !texto.contains("PHPSESSID"));
+    assert!(!texto.contains('\u{1b}'));
+}
+
+#[test]
+fn erro_tipado_da_conclusao_publica_situacao_e_resposta_sem_json() {
+    let erro = ErroConcluir::ConclusaoNaoAplicada {
+        aberto_em: vec!["TESTE".into()],
+        depois: vec!["OUTRA".into()],
+        falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+    };
+    assert_eq!(
+        super::linhas_da_falha(&erro),
+        vec![
+            format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo()),
+            "IES: aberto_em: TESTE".to_owned(),
+            "IES: depois: OUTRA".to_owned(),
+            "IES: resposta da escrita: redirecionamento_nao_reconhecido_apos_concluir".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn erro_tipado_da_conclusao_conserva_verificacao_sem_situacao_vazia() {
+    let erro = ErroConcluir::EfeitoIncertoNaConclusao {
+        aberto_em: Vec::new(),
+        falha_do_envio: None,
+        verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
+            MotivoAbertoEm::HtmlDaRaizNaoPublicado,
+        )),
+    };
+    assert_eq!(
+        super::linhas_da_falha(&erro),
+        vec![
+            format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo()),
+            "IES: aberto_em: (nenhuma unidade)".to_owned(),
+            "IES: verificação: html_da_raiz_nao_publicado".to_owned(),
+        ]
+    );
+}

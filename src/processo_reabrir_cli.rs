@@ -6,7 +6,6 @@ use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
     com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
-    publicar_valor_da_falha,
 };
 use crate::processo_reabrir::{
     ErroReabrir, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
@@ -41,10 +40,10 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
         match reabrir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(feito) => {
                 if cli.json {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap_or_default()
-                    );
+                    if let Err(erro) = crate::saida::imprimir_json(&resultado_reabertura(&feito)) {
+                        eprintln!("IES: falha ao emitir JSON: {erro}");
+                        return std::process::ExitCode::from(1);
+                    }
                 } else {
                     println!("{}", humano(&feito));
                 }
@@ -56,31 +55,69 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
                 erro.mensagem(),
                 erro.status_http(),
             ),
-            Err(erro) => publicar_valor_da_falha(cli.json, &json_de_falha(&erro), erro.saida()),
+            Err(erro) => {
+                if cli.json {
+                    println!("{}", json_de_falha(&erro));
+                } else {
+                    for linha in linhas_da_falha(&erro) {
+                        eprintln!("{linha}");
+                    }
+                }
+                ExitCode::from(erro.saida())
+            }
         }
     })
 }
 
 /// JSON do sucesso (prévia, nada a fazer, ou reaberto e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "reabertura_oferecida": feito.oferecido,
-        "forma": feito.forma.map(FormaDaReabertura::como_texto),
-        "aberto_em": feito.aberto_em,
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "quatro campos independentes exigidos pelo contrato JSON"
+)]
+#[derive(serde::Serialize)]
+struct ResultadoReabertura<'a> {
+    aberto_em: &'a [String],
+    alterado: bool,
+    confirmado: bool,
+    depois: Option<&'a [String]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    forma: Option<&'static str>,
+    id_procedimento: &'a str,
+    nup: &'a str,
+    origem: &'static str,
+    reabertura_oferecida: bool,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
+}
+
+fn resultado_reabertura(feito: &ProcessoReaberto) -> ResultadoReabertura<'_> {
+    ResultadoReabertura {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado,
+        alterado: feito.alterado,
+        reabertura_oferecida: feito.oferecido,
+        forma: feito.forma.map(FormaDaReabertura::como_texto),
+        aberto_em: &feito.aberto_em,
+        depois: feito.depois.as_deref(),
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito
+            .reconciliado_por
+            .as_ref()
+            .map(crate::processo_concluir_cli::falha_do_envio_publica),
     }
-    valor
+}
+
+/// Compatibilidade com os testes: o runtime usa serialização direta.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
+    serde_json::to_value(resultado_reabertura(feito))
+        .expect("a projeção de sucesso só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
@@ -162,6 +199,45 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
+}
+
+/// Mensagens humanas a partir do erro de reabertura; não dependem
+/// da montagem JSON nem reinterpretam subcódigos como variantes.
+fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
+    use ErroReabrir as E;
+
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let aberto_em = match erro {
+        E::UnidadeDaSessaoJaNaSituacao { aberto_em }
+        | E::ReaberturaNaoPublicadaNaBarra { aberto_em }
+        | E::ReaberturaNaoAplicada { aberto_em, .. }
+        | E::EfeitoIncertoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
+        _ => None,
+    };
+    let depois = match erro {
+        E::ReaberturaNaoAplicada { depois, .. } => Some(depois.as_slice()),
+        _ => None,
+    };
+    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
+        if let Some(unidades) = unidades {
+            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
+            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
+        }
+    }
+    let falha_do_envio = match erro {
+        E::ReaberturaNaoAplicada { falha_do_envio, .. }
+        | E::EfeitoIncertoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let E::EfeitoIncertoNaReabertura { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 #[cfg(test)]
