@@ -187,7 +187,14 @@ impl ErroPreviaCriacao {
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        // A folha tipada preserva a classificação, mas o status HTTP
+        // público inclui recusas da Infra (200) que o derive não marca.
+        match self {
+            Self::Abertura(erro) => erro.status_http(),
+            Self::Formulario(erro) => erro.status_http(),
+            Self::Transporte(erro) | Self::TelaTransporte(erro) => erro.status_http(),
+            _ => None,
+        }
     }
 }
 
