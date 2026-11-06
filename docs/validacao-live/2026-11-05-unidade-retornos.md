@@ -98,3 +98,31 @@ instalacoes alem de GO e PEN3 em 05/11.
 - **Residuo SEI:** nenhum registro criado ou alterado.
 - **Sandbox:** sem `rustc` e DNS para GitHub; compilacao Rust e suite
   foram executadas no GitHub Actions, e nao localmente.
+
+## Leitura sem `--mes` em treinamento (05/11/2026)
+
+[Run 42141337897](https://github.com/franklinbaldo/ies/actions/runs/42141337897),
+head `d1e7548`: **PASS** na PEN3 e em Goiás, com guard de execução
+única e sem retry. Login e comando executados uma vez por instalação,
+com pelo menos 65 segundos entre comandos, apenas em treinamento.
+O workflow temporário foi retirado do branch depois do ensaio.
+
+| Instalação | Operação | Estado | HTTP contado | Observação |
+| --- | --- | --- | ---: | --- |
+| PEN3 | login | PASS, saída 0 | 6 | Unidade TESTE |
+| PEN3 | `ies --json unidade retornos` | PASS, saída 0 | 3 GET | Mês observado 2026-11; total 2, faixa 1–2 |
+| GO | login | PASS, saída 0 | 6 | Unidade SEAD/CDE-09516 |
+| GO | `ies --json unidade retornos` | PASS, saída 0 | 3 GET | Mês observado 2026-11; total 6, faixa 1–6 |
+
+**Total da nova rodada:** 18 requisições (12 de login + 6 de
+consulta), zero POST, zero retry, zero escrita, zero resíduo no SEI.
+Somente os campos saneados de saída foram publicados; sessão, cookies
+e URLs assinadas não foram registrados.
+
+**Limite da evidência:** o resultado comprovou o comando sem `--mes`
+nas duas instalações com calendário no mês observado, **não** comprovou
+calendário inicialmente deslocado nem transição real por mês anterior ou
+por dois saltos. Esses percursos ganharam regressões **sintéticas** com
+orçamento exato de 5 GET (incluindo o Controle) quando ambas as URLs
+de mês vizinho foram publicadas pelo SEI. A validação desses percursos
+específicos ao vivo permanece **NOT_RUN, 0 requisições**.
