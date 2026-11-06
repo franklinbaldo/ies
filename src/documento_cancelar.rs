@@ -182,6 +182,27 @@ mod tests {
     }
 
     #[test]
+    fn motivo_validado_carrega_a_garantia_no_tipo() {
+        let motivo = conferir_motivo("  Revisão necessária  ").unwrap();
+        assert_eq!(motivo.as_str(), "Revisão necessária");
+        assert_ne!(
+            std::any::type_name_of_val(&motivo),
+            std::any::type_name::<String>()
+        );
+    }
+
+    #[test]
+    fn recusa_do_motivo_preserva_identidade_tipada() {
+        for entrada in ["", " \t ", "Motivo 🚫"] {
+            let erro = conferir_motivo(entrada).unwrap_err();
+            assert_ne!(
+                std::any::type_name_of_val(&erro),
+                std::any::type_name::<&str>()
+            );
+        }
+    }
+
+    #[test]
     fn nao_inventa_cancelamento_quando_barra_nao_oferece() {
         assert_eq!(
             ler_link_cancelar(&instalacao(), &arvore(""), "21", "10"),
