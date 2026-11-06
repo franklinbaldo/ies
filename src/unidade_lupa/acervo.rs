@@ -185,11 +185,23 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
     for resposta in gravacao::respostas(&conferida.json) {
         if resposta.metodo == "POST" {
             post += 1;
-            continue;
+        } else {
+            assert_eq!(resposta.metodo, "GET");
+            get += 1;
         }
-        assert_eq!(resposta.metodo, "GET");
-        get += 1;
-        if resposta.status != 200 {
+        assert_eq!(resposta.status, 200, "passo {}", resposta.passo);
+        if resposta.operacao == "unidade_selecionar_envio_processo" {
+            let html = html_da_resposta(resposta.item)
+                .unwrap_or_else(|_| panic!("lupa UnB ilegível no passo {}", resposta.passo));
+            let lida = ler_pagina(&html)
+                .unwrap_or_else(|e| panic!("lupa UnB passo {}: {e:?}", resposta.passo));
+            assert!(lida.paginas >= 1);
+            assert!(lida.pagina < lida.paginas);
+            assert!(lida.unidades.len() <= lida.total);
+            println!(
+                "observacao UnB lupa passo {}: paginas={}, linhas={}",
+                resposta.passo, lida.paginas, lida.unidades.len()
+            );
             continue;
         }
         let proxima = if resposta.operacao == "procedimento_controlar" {
@@ -221,6 +233,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             "observacao UnB passo {}: proxima={proxima}, candidatos={}, distintos={}, estado={estado}",
             resposta.passo, candidatos.len(), distintos.len()
         );
+        assert_eq!(estado, "unico", "cassette UnB deve publicar um destino autorizado");
     }
     assert_eq!((get, post), (4, 1), "apenas 5 respostas gravadas, sem rede");
 }
