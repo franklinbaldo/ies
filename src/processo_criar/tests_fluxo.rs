@@ -2,14 +2,14 @@
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
 use crate::erro_html::ErroHtml;
+use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
-use crate::transporte::FalhaTransporte;
 use crate::propriedades_processo::tests_apoio::{
     acao_da_barra, link_das_propriedades, tela_das_propriedades,
 };
-use crate::processo_concluir::tests_apoio::NUP;
+use crate::transporte::FalhaTransporte;
 
 const TIPO: &str = "Administração Geral: Ensaio";
 pub(super) const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -58,7 +58,10 @@ pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
 fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
-        &[acao_da_barra(&link_das_propriedades("procedimento_alterar", "10"))],
+        &[acao_da_barra(&link_das_propriedades(
+            "procedimento_alterar",
+            "10",
+        ))],
     )
 }
 
