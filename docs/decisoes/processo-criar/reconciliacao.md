@@ -135,3 +135,24 @@ correspondência, não afirmar não aplicação nem permitir retry.
 A fatia é suportada por dois cenários de transporte sintético de 11
 requisições, cada qual com um único POST. O ensaio ao vivo em segunda
 instalação de treinamento permanece NOT_RUN: zero requisições e escritas.
+
+### Não aplicada: recusa comprovada pelo próprio SEI (#245)
+
+A tela de validação da Infra em HTTP 200 publica uma rejeição expressa
+em `txaInfraValidacao`; esse fato é diferente de falha de rede ou de
+status 403 produzido possivelmente por um intermediário. Apenas a
+primeira prova permite emitir `desfecho: nao_aplicada` com saída 1,
+causa original e a orientação de **nova prévia antes de nova confirmação**.
+`retentavel: false` permanece: não há retry automático. Status 4xx sem
+essa prova segue com sua causa e sem desfecho de não aplicação;
+nenhuma consulta de Gerados é feita após recusa explícita e nenhum
+candidato de outro agente se torna sucesso da nossa operação.
+Alternativa rejeitada: concluir não aplicação a partir de uma fotografia
+sem novos candidatos, ou de qualquer HTTP 4xx.
+
+Teste sintético de transporte: 3 GET antes + 1 POST (exatamente quatro
+pedidos), zero GET posterior, tanto com recusa Infra quanto HTTP 403.
+O RED que precedeu esta distinção registrou 2 FAIL, 1.679 PASS e
+18 testes ignorados preexistentes no
+[CI 42187792547](https://github.com/franklinbaldo/ies/actions/runs/42187792547).
+A escrita live em outra instalação de treinamento ainda está NOT_RUN.
