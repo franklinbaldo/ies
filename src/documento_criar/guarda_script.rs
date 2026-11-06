@@ -11,6 +11,7 @@ enum Estado {
     Codigo,
     ComentarioDeBloco,
     Cadeia(char),
+    ExpressaoRegular { dentro_de_classe: bool },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -87,6 +88,13 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
                         estado = Estado::ComentarioDeBloco;
                     }
                     '\'' | '"' | '`' => estado = Estado::Cadeia(c),
+                    // Um regexp literal em atribuicao pode conter chaves
+                    // escapadas ou classes: nao sao blocos JS ativos.
+                    '/' if prefixo.trim_end().ends_with('=') => {
+                        estado = Estado::ExpressaoRegular {
+                            dentro_de_classe: false,
+                        };
+                    }
                     '{' => {
                         let bloco = if blocos.is_empty() && prefixo.trim() == "function submeter()"
                         {
@@ -149,6 +157,23 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
                         estado = Estado::Codigo;
                     }
                 }
+                Estado::ExpressaoRegular { dentro_de_classe } => match c {
+                    '\\' => {
+                        caracteres.next();
+                    }
+                    '[' if !dentro_de_classe => {
+                        estado = Estado::ExpressaoRegular {
+                            dentro_de_classe: true,
+                        };
+                    }
+                    ']' if dentro_de_classe => {
+                        estado = Estado::ExpressaoRegular {
+                            dentro_de_classe: false,
+                        };
+                    }
+                    '/' if !dentro_de_classe => estado = Estado::Codigo,
+                    _ => {}
+                },
             }
         }
         if ocorrencias > 1 {
