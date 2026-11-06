@@ -294,3 +294,7 @@ resíduo foi deixado no SEI.
   um unico `--confirmar` → verificacao independente por leitura,
   contagem das requisicoes e residuo; outra instalacao de treinamento.
   `--deixar --confirmar` permanece bloqueado antes da sessao/rede.
+
+## Décima terceira fatia — grupo padrão já acompanhado (06/11/2026)
+
+Observação live, RED, mudança de fluxo e limites no [relatório da fatia](2026-11-06-processo-acompanhar-grupo-padrao.md).
