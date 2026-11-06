@@ -177,11 +177,35 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
-        // O atributo disabled torna a ação indisponível no navegador.
-        // Não transformar um botão inerte em URL de cadastro autorizada.
-        if crate::html_atributos::atributo_presente(tag, "disabled")
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
-        {
+        // A oferta precisa ser acionável na Web: hidden e disabled
+        // tornam o botão inerte, assim como um fieldset disabled ancestral.
+        // As descendências usam a identidade do nó do DOM, não texto/regex.
+        let mut fieldset_desabilitado = false;
+        for campo in dom.query_selector("fieldset").into_iter().flatten() {
+            let campo = campo
+                .get(dom.parser())
+                .and_then(tl::Node::as_tag)
+                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+            if crate::html_atributos::atributo_presente(campo, "disabled")
+                .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
+                && campo
+                    .children()
+                    .all(dom.parser())
+                    .iter()
+                    .any(|filho| filho.as_tag().is_some_and(|t| std::ptr::eq(t, tag)))
+            {
+                fieldset_desabilitado = true;
+                break;
+            }
+        }
+        let inerte = ["disabled", "hidden"].into_iter().try_fold(
+            fieldset_desabilitado,
+            |inerte, atributo| {
+                crate::html_atributos::atributo_presente(tag, atributo)
+                    .map(|presente| inerte || presente)
+            },
+        ).map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
+        if inerte {
             return Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into());
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
