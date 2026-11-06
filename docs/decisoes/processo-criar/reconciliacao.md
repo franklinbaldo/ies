@@ -259,3 +259,19 @@ uma resposta adicional não consumida, evidenciando que o leitor parava
 na árvore. As verificações positivas sintéticas 4.0, 4.1 e restrita
 passam a ter três leituras pós-POST em vez de duas. O comportamento ao
 vivo em segunda instalação continua NOT_RUN.
+
+## Conservação do nível de acesso na reconciliação (06/11/2026)
+
+Um candidato independente pode ser criado simultaneamente por outro
+agente na mesma unidade, com o mesmo tipo e especificação, porém outro
+nível de acesso. A reconciliação até então considerava somente os dois
+primeiros campos e atribuía ao POST falho o NUP concorrente. A correção
+reaproveita o nível já lido na terceira requisição verificadora; não
+introduz GET, POST, retry nem novos parâmetros públicos. O classificador
+puro só admite correspondência se **tipo, especificação e nível**
+coincidirem; leitura incompleta continua inconclusiva.
+
+Alternativa recusada: usar nível divergente como prova de não aplicação.
+Não elimina a possibilidade de escrita não observada, portanto manter
+`SemCorrespondenciaObservada`/saída 3 é necessário. Na ausência de
+nova prova, não anunciar repetição segura.
