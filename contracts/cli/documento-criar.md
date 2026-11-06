@@ -107,3 +107,21 @@ O replay GO das duas cassettes é **obrigatório no CI**: ZIP e membros conferid
 Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e efeito incerto sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
 
 **Live:** login, prévia, escrita e releitura em treinamento **NOT_RUN**, 0 requisições, 0 POSTs e nenhum resíduo nesta sessão. A escrita está autorizada só em treinamento; falta a sequência prévia observada → uma única confirmação → leitura independente, com número SEI e resíduo registrados.
+
+## Guarda de script e causas da retomada 🐙
+
+A confirmação não pode inferir a instrução de submissão de uma
+substring arbitrária do HTML. Exige uma única atribuição literal
+observada de `hdnFlagDocumentoCadastro` em `script` ativo;
+`template`, `script type=application/json`, comentário de bloco
+e script duplicado não autorizam a escrita. Os quatro casos são
+testados com transporte injetável e exatamente 5 GET / 0 POST.
+Formas não reconhecidas recusam com
+`submissao_do_documento_nao_observada` antes do POST.
+
+As causas da prévia, escolha e barra de inclusão são compostas por
+`#[derive(Causa)]`, sem mapeamento manual de subcódigos. A saída
+legada mantém as folhas de erro publicadas, com caminho tipado
+interno e preservação da mensagem/status HTTP quando observados.
+A escrita incerta continua saída 3.
+
