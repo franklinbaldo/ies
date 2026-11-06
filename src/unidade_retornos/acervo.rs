@@ -90,7 +90,6 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     );
 }
 
-
 /// Exercita o parser da CLI nas respostas originais, sem rede ou logs de URLs.
 fn conferir_calendario_real(
     html: &str,
@@ -109,6 +108,24 @@ fn conferir_calendario_real(
                 crate::erro_publico::folha(&erro)
             )
         })
+}
+
+/// Somente GET do calendario: nao reexecuta a operacao gravada.
+fn verificar_resposta_de_calendario(
+    resposta: &gravacao::Resposta<'_>,
+    nome: &str,
+    origem: &crate::instalacao::Instalacao,
+) -> Option<(bool, bool)> {
+    if resposta.operacao != "retorno_programado_listar"
+        || resposta.metodo != "GET"
+        || resposta.status != 200
+        || !gravacao::parametro(resposta.item, "data_inicial").is_empty()
+    {
+        return None;
+    }
+    let html = html_da_resposta(resposta.item).expect("HTML do calendario gravado");
+    diagnosticar_calendario(&html, nome, resposta.passo);
+    Some(conferir_calendario_real(&html, resposta, origem, nome))
 }
 
 /// Sem acesso ao SEI; usa exclusivamente o acervo original em cache.
@@ -140,19 +157,12 @@ fn replay_retornos_no_acervo() {
         let origem =
             gravacao::instalacao(&conferida.json).expect("instalacao verificada no acervo");
         for resposta in gravacao::respostas(&conferida.json) {
-            if resposta.operacao == "retorno_programado_listar"
-                && resposta.metodo == "GET"
-                && resposta.status == 200
-                && gravacao::parametro(resposta.item, "data_inicial").is_empty()
+            if let Some((hoje, vizinho)) =
+                verificar_resposta_de_calendario(&resposta, instalacao, &origem)
             {
-                if let Ok(html) = html_da_resposta(resposta.item) {
-                    diagnosticar_calendario(&html, instalacao, resposta.passo);
-                    let (hoje, vizinho) =
-                        conferir_calendario_real(&html, &resposta, &origem, instalacao);
-                    calendarios += 1;
-                    calendarios_com_hoje += usize::from(hoje);
-                    calendarios_com_vizinho += usize::from(vizinho);
-                }
+                calendarios += 1;
+                calendarios_com_hoje += usize::from(hoje);
+                calendarios_com_vizinho += usize::from(vizinho);
                 continue;
             }
             if resposta.operacao != "retorno_programado_listar"
