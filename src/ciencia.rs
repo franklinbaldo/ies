@@ -67,6 +67,53 @@ fn identificador(valor: &str) -> bool {
     !valor.is_empty() && valor.len() <= 20 && valor.bytes().all(|b| b.is_ascii_digit())
 }
 
+/// A resposta de ciência observada recarrega a árvore diretamente no
+/// script ou no corpo de `function inicializar()`. A profundidade do lexer
+/// sozinha não basta: um `if(false)` também tem profundidade 1.
+/// Só um comando independente dessas duas formas fornece prova.
+fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: usize) -> bool {
+    let bytes = script.as_bytes();
+    let Some(nivel) = niveis.get(posicao).copied().flatten() else {
+        return false;
+    };
+    if nivel > 1 {
+        return false;
+    }
+    // O texto imediatamente anterior não pode ser uma condição, atribuição,
+    // retorno ou outra expressão que contenha a chamada. Comentários e
+    // literais são ignorados pelo lexer; não se interpreta JavaScript.
+    let inicio_comando = (0..posicao)
+        .rev()
+        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .map_or(0, |i| i + 1);
+    if (inicio_comando..posicao)
+        .any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
+    {
+        return false;
+    }
+    if nivel == 0 {
+        return true;
+    }
+
+    // Profundidade 1 só é aceita no corpo direto da função de inicialização
+    // publicada pelo SEI, e nunca em um if, callback ou função arbitrária.
+    let Some(abertura) = (0..posicao)
+        .rev()
+        .find(|&i| bytes[i] == b'{' && niveis[i] == Some(0))
+    else {
+        return false;
+    };
+    let inicio_declaracao = (0..abertura)
+        .rev()
+        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .map_or(0, |i| i + 1);
+    let assinatura: Vec<u8> = (inicio_declaracao..abertura)
+        .filter(|&i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
+        .map(|i| bytes[i])
+        .collect();
+    assinatura == b"functioninicializar()"
+}
+
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
 /// variável (PEN3) são ignoradas: não identificam uma atividade. Nenhum JS
 /// é interpretado; a forma literal não comporta escapes.
@@ -82,7 +129,7 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
     while let Some(indice) = script[cursor..].find(CHAMADA) {
         let posicao = cursor + indice;
         cursor = posicao + CHAMADA.len();
-        if niveis.get(posicao).copied().flatten().is_none() {
+        if !chamada_na_forma_do_aceite(script, &niveis, posicao) {
             continue;
         }
         let argumento = script[cursor..].trim_start();
