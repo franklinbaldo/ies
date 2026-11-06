@@ -46,6 +46,8 @@ pub(crate) enum ErroCriar {
     Arvore(crate::arvore_processo::ErroArvore),
     Propriedades(crate::propriedades_processo::ErroPropriedades),
     PropriedadesNaoOferecidas,
+    /// Recusa explícita do SEI: não atribuir processos concorrentes a este POST.
+    RecusaDoPost(ErroSubmissaoFormulario),
     /// O POST foi tentado; uma leitura única do Controle apurou apenas
     /// candidatos, nunca causalidade. As duas falhas são preservadas.
     PosEscrita {
@@ -80,6 +82,7 @@ impl ErroCriar {
             Self::Arvore(erro) => crate::erro_publico::folha(erro),
             Self::Propriedades(erro) => crate::erro_publico::folha(erro),
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
+            Self::RecusaDoPost(erro) => erro.subcodigo(),
             Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
                 "efeito_incerto_na_criacao"
             }
@@ -98,6 +101,7 @@ impl ErroCriar {
             Self::Transporte { http, .. } => http.as_ref(),
             Self::Hipotese(erro) => erro.status_http(),
             Self::PosEscrita { causa_post, .. } => causa_post.status_http(),
+            Self::RecusaDoPost(erro) => erro.status_http(),
             _ => None,
         }
     }
