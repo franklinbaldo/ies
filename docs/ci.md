@@ -21,6 +21,26 @@ testes, integridade de evidências, autotestes Python, auditoria OSV e
 decisões e cobertura documental de subcódigos. O `cargo test --workspace
 --all-targets` compila os targets; não há gate `cargo build` redundante.
 
+## Testes pendentes de fatias WIP
+
+O hook `wip-ignores` (`scripts/wip_ignores.py`, só biblioteca padrão)
+deixa fatias incompletas entrarem na `main` sem esconder regressão.
+Proíbe `#[ignore]` sem motivo; exige `wip #<issue>: <o que falta>` em
+motivo que começa com `wip`; e recusa teste que existia sem `#[ignore]`
+na base e passou a ser ignorado. A base é o primeiro pai do commit de
+merge (por isso o checkout do gate usa `fetch-depth: 2`) ou o
+`merge-base` com `origin/main`. Sem base, falha no CI e fica `NOT_RUN`
+local. O relatório lista os pendentes por issue.
+
+## Binário para os agentes
+
+O job `binario` do `ci.yml` não é gate. Ele compila `ies` em release no
+`ubuntu-22.04` (glibc 2.35 e libssl3, para rodar em sandboxes mais
+antigos que o runner do gate) e publica o artifact
+`ies-linux-x86_64-<sha>` (o head da PR, ou o commit no push), com o binário e o `ies.sha256`, por 7 dias.
+Serve aos agentes sem Rust no sandbox: eles observam o RED no log do
+gate e testam esse binário no sandbox ou num workflow temporário.
+
 ## Auditoria de dependências (OSV)
 
 O hook `auditoria-osv` roda `scripts/osv_audit.py` (só biblioteca padrão).

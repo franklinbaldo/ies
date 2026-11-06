@@ -2,6 +2,7 @@
 //! intervalo, sem rede. HTML sintético com a estrutura observada.
 use super::*;
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::resposta::ler_resposta_html;
 use crate::pesquisa_web::tests_fixtures::resultado;
 use ErroPaginacaoDaPesquisa as E;
@@ -144,7 +145,9 @@ fn links_de_navegar_fora_da_regra_sao_recusados() {
         let alterado = html.replacen("navegar('10')", errado, 1);
         assert_eq!(
             planejar(&alterado, &resposta, 2),
-            Err(E::LinkDePaginacaoDaPesquisaForaDaRegra),
+            Err(E::Html(ErroHtml::valor(
+                "link_de_paginacao_da_pesquisa_fora_da_regra"
+            ))),
             "{errado}"
         );
     }

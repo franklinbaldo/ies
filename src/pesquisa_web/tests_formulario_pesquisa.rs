@@ -1,6 +1,7 @@
 //! RED/GREEN da operação de pesquisa de protocolo: HTML sintético com os
 //! nomes e a estrutura observados (rádio `D` marcado, órgão `multiple`).
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
 use ErroRegraDoFormularioDePesquisa as R;
 
@@ -101,15 +102,24 @@ fn deriva_opcao_de_processos_e_orgaos_selecionados_servidos_na_ordem_do_document
 #[test]
 fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() {
     let sem = observado().replace("id='optProcessos'", "id='outro'");
-    assert_eq!(regra(&sem), R::OpcaoDeProcessosAusenteNaTela);
+    assert_eq!(
+        regra(&sem),
+        R::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela"))
+    );
     let repetida = observado().replace(
         "<input type='checkbox' id='chkSinConsiderarDocumentos'",
         "<input type='radio' id='optProcessos' name='rdoPesquisarEm' value='P'>\
          <input type='checkbox' id='chkSinConsiderarDocumentos'",
     );
-    assert_eq!(regra(&repetida), R::OpcoesDeProcessosRepetidasNaTela);
+    assert_eq!(
+        regra(&repetida),
+        R::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela"))
+    );
     let sem_valor = observado().replace("name='rdoPesquisarEm' value='P'", "name='rdoPesquisarEm'");
-    assert_eq!(regra(&sem_valor), R::OpcaoDeProcessosSemValorNaTela);
+    assert_eq!(
+        regra(&sem_valor),
+        R::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela"))
+    );
     let outro_nome = observado().replace(
         "id='optProcessos' name='rdoPesquisarEm'",
         "id='optProcessos' name='rdoOutro'",
@@ -137,7 +147,9 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     // O `select` fora do `<form>` em `pagina` não conta.
     assert_eq!(
         regra(&pagina(&interior(""))),
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela
+        R::Html(ErroHtml::ausente(
+            "seletor_de_orgao_de_pesquisa_ausente_na_tela"
+        ))
     );
     let dois = format!(
         "{}{}",
@@ -146,7 +158,9 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     );
     assert_eq!(
         regra(&pagina(&interior(&dois))),
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela
+        R::Html(ErroHtml::repetido(
+            "seletores_de_orgao_de_pesquisa_repetidos_na_tela"
+        ))
     );
     let simples = observado().replace(" multiple='multiple'", "");
     assert_eq!(
@@ -165,12 +179,14 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let sem_valor = select_de_orgao("<option selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&sem_valor))),
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela
+        R::Html(ErroHtml::ausente(
+            "opcao_de_orgao_selecionada_sem_valor_na_tela"
+        ))
     );
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&entidade))),
-        R::EntidadeHtmlDesconhecidaNaRegra
+        R::Html(ErroHtml::html("entidade_html_desconhecida_na_regra"))
     );
 }
 
@@ -265,27 +281,38 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     let sem_form = html.replace("frmPesquisaProtocolo", "frmOutro");
     assert_eq!(
         derivar(&sem_form).unwrap_err(),
-        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::FormularioAusenteNaTela)
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Html(ErroHtml::ausente(
+            "formulario_ausente_na_tela"
+        )))
     );
 }
 
 #[test]
 fn subcodigos_das_regras_sao_distintos() {
     let todos = [
-        R::OpcaoDeProcessosAusenteNaTela,
-        R::OpcoesDeProcessosRepetidasNaTela,
-        R::OpcaoDeProcessosSemValorNaTela,
+        R::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela")),
+        R::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela")),
+        R::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela")),
         R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
         R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela,
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela,
+        R::Html(ErroHtml::ausente(
+            "seletor_de_orgao_de_pesquisa_ausente_na_tela",
+        )),
+        R::Html(ErroHtml::repetido(
+            "seletores_de_orgao_de_pesquisa_repetidos_na_tela",
+        )),
         R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
         R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela,
+        R::Html(ErroHtml::ausente(
+            "opcao_de_orgao_selecionada_sem_valor_na_tela",
+        )),
         R::InicioDaPaginacaoDiferenteDeZeroNaTela,
-        R::EntidadeHtmlDesconhecidaNaRegra,
+        R::Html(ErroHtml::html("entidade_html_desconhecida_na_regra")),
     ];
-    let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
+    let unicos: std::collections::HashSet<_> = todos
+        .iter()
+        .map(|e| crate::erro_publico::folha(e))
+        .collect();
     assert_eq!(unicos.len(), todos.len());
 }
 
@@ -359,7 +386,10 @@ fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
     let html = com_campo_do_termo(CAMPO_COM_50);
     let erro = regra_do_termo(&html, &"1".repeat(51));
     assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
-    assert_eq!(erro.subcodigo(), "termo_acima_do_maxlength_da_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "termo_acima_do_maxlength_da_tela"
+    );
 }
 
 #[test]
@@ -398,13 +428,18 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
         );
     }
     let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
-    assert_eq!(regra_do_termo(&html, "1"), R::CamposDoTermoRepetidosNaTela);
     assert_eq!(
-        R::MaxlengthDoTermoIlegivelNaTela.subcodigo(),
+        regra_do_termo(&html, "1"),
+        R::Html(ErroHtml::repetido("campos_do_termo_repetidos_na_tela"))
+    );
+    assert_eq!(
+        crate::erro_publico::folha(&R::MaxlengthDoTermoIlegivelNaTela),
         "maxlength_do_termo_ilegivel_na_tela"
     );
     assert_eq!(
-        R::CamposDoTermoRepetidosNaTela.subcodigo(),
+        crate::erro_publico::folha(&R::Html(ErroHtml::repetido(
+            "campos_do_termo_repetidos_na_tela"
+        ))),
         "campos_do_termo_repetidos_na_tela"
     );
 }
@@ -450,7 +485,10 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
         },
     )
     .unwrap_err();
-    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "criterio_nao_oferecido_pela_tela"
+    );
 }
 #[test]
 fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
@@ -466,5 +504,8 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
         },
     )
     .unwrap_err();
-    assert_eq!(erro.subcodigo(), "criterio_nao_oferecido_pela_tela");
+    assert_eq!(
+        crate::erro_publico::folha(&erro),
+        "criterio_nao_oferecido_pela_tela"
+    );
 }

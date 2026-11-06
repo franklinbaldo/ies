@@ -49,7 +49,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_reabrir_da_barra(inst, html, id) {
         Ok(oferece) => oferece.is_some(),
-        Err(erro) => return format!("`{}`", erro.subcodigo()),
+        Err(erro) => return format!("`{}`", crate::erro_publico::folha(&erro)),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         let barra = if oferece { "oferece" } else { "não oferece" };
@@ -137,7 +137,7 @@ fn replay_de_processo_reabrir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_endereco_de_reabrir(&inst, &h, &id) {
                         Ok((_, forma)) => format!("`{}`", forma.como_texto()),
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
                     };
                     somar(&mut contagem, "URL na tela do nó", classe, nome);
                 }

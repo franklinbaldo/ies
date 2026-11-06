@@ -2,6 +2,7 @@
 //! apresentação; o subcódigo é a classificação. Nenhuma variante carrega
 //! credencial, cookie, URL assinada ou HTML.
 use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -24,12 +25,16 @@ impl CampoDasCredenciais {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLogin {
+    #[causa(interna)]
     Configuracao(ErroConfiguracao),
     /// Origem da instalação ilegível ou fora do formato `Instalacao`.
+    #[causa(interna)]
     Origem(FalhaTransporte),
+    #[causa(nome = "caminho_credenciais_nao_informado")]
     CaminhoDasCredenciaisNaoInformado,
+    #[causa(interna)]
     ArquivoDeCredenciais(FalhaTransporte),
     CampoDasCredenciaisAusente(CampoDasCredenciais),
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
@@ -38,107 +43,48 @@ pub(crate) enum ErroLogin {
     LoginEmAndamentoEmOutroProcesso,
     ArquivoDeLockDoLoginInacessivel,
     /// URL ou cookie gravados que o transporte recusa antes da rede.
+    #[causa(interna)]
     ArquivoDaSessao(FalhaTransporte),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
+    #[causa(nome = "controle_web_nao_reconhecido")]
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
+    #[causa(nome = "redirecionamento_do_login_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     LocalizacaoDeRedirecionamentoNaoInterpretavel,
-    RedirecionamentoParaForaDaInstalacao,
     RedirecionamentosAcimaDoLimite,
     /// 307/308 depois do POST: seguir repetiria as credenciais.
     RedirecionamentoQueRepetiriaOEnvioDoLogin,
     CookieRecebidoForaDoFormatoAceito,
-    TelaDeLoginNaoReconhecida,
     CharsetDaTelaDeLoginNaoSuportado,
     CaptchaExigido,
     SegundoFatorExigido,
-    SelecaoDeOrgaoAusenteNaTelaDeLogin,
-    SelecaoDeOrgaoRepetidaNaTelaDeLogin,
-    OrgaoNaoEncontradoNaTelaDeLogin,
-    OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
     RegraDoOnsubmitDoLoginNaoObservada,
-    BotaoDeEnvioDoLoginNaoReconhecido,
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
     /// A tela de login voltou depois do POST: o SEI recusou a credencial.
     CredencialRecusada {
         mensagem_do_servidor: Option<String>,
     },
-    TelaAposOLoginNaoReconhecida,
-    LinkDoControleDeProcessosNaoReconhecido,
     ControleAposOLoginNaoReconhecido(ErroCaixa),
     CookieDaSessaoNaoRecebido,
     DestinoDaSessaoNaoEhArquivoRegular(ArquivoPrivado),
     DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
     UnidadeExibidaDiferenteDaSolicitada,
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroLogin {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Configuracao(erro) => erro.subcodigo(),
-            Self::Origem(falha)
-            | Self::ArquivoDeCredenciais(falha)
-            | Self::ArquivoDaSessao(falha)
-            | Self::Transporte(falha) => falha.subcodigo(),
-            Self::CaminhoDasCredenciaisNaoInformado => "caminho_credenciais_nao_informado",
-            Self::CampoDasCredenciaisAusente(_) => "campo_das_credenciais_ausente",
-            Self::CampoDasCredenciaisRepetido(_) => "campo_das_credenciais_repetido",
-            Self::CampoDasCredenciaisVazio(_) => "campo_das_credenciais_vazio",
-            Self::LinhaDasCredenciaisSemCampoConhecido => {
-                "linha_das_credenciais_sem_campo_conhecido"
-            }
-            Self::LoginEmAndamentoEmOutroProcesso => "login_em_andamento_em_outro_processo",
-            Self::ArquivoDeLockDoLoginInacessivel => "arquivo_de_lock_do_login_inacessivel",
-            Self::ControleDaSessaoExistenteNaoReconhecido(_) => "controle_web_nao_reconhecido",
-            Self::RedirecionamentoSemLocalizacao => "redirecionamento_do_login_sem_localizacao",
-            Self::LocalizacaoDeRedirecionamentoNaoInterpretavel => {
-                "localizacao_de_redirecionamento_nao_interpretavel"
-            }
-            Self::RedirecionamentoParaForaDaInstalacao => {
-                "redirecionamento_para_fora_da_instalacao"
-            }
-            Self::RedirecionamentosAcimaDoLimite => "redirecionamentos_acima_do_limite",
-            Self::RedirecionamentoQueRepetiriaOEnvioDoLogin => {
-                "redirecionamento_que_repetiria_o_envio_do_login"
-            }
-            Self::CookieRecebidoForaDoFormatoAceito => "cookie_recebido_fora_do_formato_aceito",
-            Self::TelaDeLoginNaoReconhecida => "tela_de_login_nao_reconhecida",
-            Self::CharsetDaTelaDeLoginNaoSuportado => "charset_da_tela_de_login_nao_suportado",
-            Self::CaptchaExigido => "captcha_exigido",
-            Self::SegundoFatorExigido => "segundo_fator_exigido",
-            Self::SelecaoDeOrgaoAusenteNaTelaDeLogin => "selecao_de_orgao_ausente_na_tela_de_login",
-            Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin => {
-                "selecao_de_orgao_repetida_na_tela_de_login"
-            }
-            Self::OrgaoNaoEncontradoNaTelaDeLogin => "orgao_nao_encontrado_na_tela_de_login",
-            Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin => {
-                "orgao_com_mais_de_uma_opcao_na_tela_de_login"
-            }
-            Self::RegraDoOnsubmitDoLoginNaoObservada => "regra_do_onsubmit_do_login_nao_observada",
-            Self::BotaoDeEnvioDoLoginNaoReconhecido => "botao_de_envio_do_login_nao_reconhecido",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::CredencialRecusada { .. } => "credencial_recusada",
-            Self::TelaAposOLoginNaoReconhecida => "tela_apos_o_login_nao_reconhecida",
-            Self::LinkDoControleDeProcessosNaoReconhecido => {
-                "link_do_controle_de_processos_nao_reconhecido"
-            }
-            Self::ControleAposOLoginNaoReconhecido(_) => "controle_apos_o_login_nao_reconhecido",
-            Self::CookieDaSessaoNaoRecebido => "cookie_da_sessao_nao_recebido",
-            Self::DestinoDaSessaoNaoEhArquivoRegular(_) => {
-                "destino_da_sessao_nao_eh_arquivo_regular"
-            }
-            Self::DiretorioDaSessaoGravavelPorOutros(_) => {
-                "diretorio_da_sessao_gravavel_por_outros"
-            }
-            Self::GravacaoDaSessaoFalhou(_) => "gravacao_da_sessao_falhou",
-            Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Configuracao(erro) => erro.mensagem(),
             Self::Origem(_) => "arquivo de origem da instalação ausente, inseguro ou inválido",
             Self::ArquivoDeCredenciais(_) => "arquivo de credenciais ausente, inseguro ou ilegível",
@@ -168,9 +114,6 @@ impl ErroLogin {
             Self::LocalizacaoDeRedirecionamentoNaoInterpretavel => {
                 "Location do redirecionamento não interpretável"
             }
-            Self::RedirecionamentoParaForaDaInstalacao => {
-                "redirecionamento para fora do host da instalação recusado"
-            }
             Self::RedirecionamentosAcimaDoLimite => "mais de 8 redirecionamentos seguidos",
             Self::RedirecionamentoQueRepetiriaOEnvioDoLogin => {
                 "redirecionamento 307/308 repetiria o envio das credenciais"
@@ -178,36 +121,16 @@ impl ErroLogin {
             Self::CookieRecebidoForaDoFormatoAceito => {
                 "o SEI enviou cookie fora do formato aceito pelo arquivo de cookie"
             }
-            Self::TelaDeLoginNaoReconhecida => "a raiz não levou a um formulário de login",
             Self::CharsetDaTelaDeLoginNaoSuportado => {
                 "a tela de login não declara charset ISO-8859-1 ou UTF-8"
             }
             Self::CaptchaExigido => "a tela de login exige captcha; nada foi enviado de novo",
             Self::SegundoFatorExigido => "o SEI pediu segundo fator de autenticação",
-            Self::SelecaoDeOrgaoAusenteNaTelaDeLogin => "a tela de login não publica selOrgao",
-            Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin => {
-                "a tela de login publica mais de um selOrgao"
-            }
-            Self::OrgaoNaoEncontradoNaTelaDeLogin => {
-                "nenhuma opção de órgão da tela é igual ao órgão configurado"
-            }
-            Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin => {
-                "mais de uma opção de órgão da tela é igual ao órgão configurado"
-            }
             Self::RegraDoOnsubmitDoLoginNaoObservada => {
                 "o onsubmit do login não é o observado (acaoLogin com hdnAcao)"
             }
-            Self::BotaoDeEnvioDoLoginNaoReconhecido => {
-                "botão de envio do login diferente dos observados"
-            }
             Self::Formulario(_) => "formulário de login fora do observado",
             Self::CredencialRecusada { .. } => "o SEI recusou a credencial; não repetir",
-            Self::TelaAposOLoginNaoReconhecida => {
-                "a resposta do login não é Controle, Painel nem tela de login"
-            }
-            Self::LinkDoControleDeProcessosNaoReconhecido => {
-                "o link do Controle de Processos do menu não é o observado"
-            }
             Self::ControleAposOLoginNaoReconhecido(_) => {
                 "o login não chegou a um Controle de Processos verificável"
             }

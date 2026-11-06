@@ -2,6 +2,7 @@
 //! sem seguir o destino. Respostas sintéticas, no máximo uma chamada.
 use super::*;
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use crate::formulario_web::{RespostaDoPost, derivar_submissao};
 use crate::pesquisa_web::ErroResultadoPesquisa;
@@ -135,13 +136,13 @@ fn resposta_302_fora_da_regra_e_erro_de_redirecionamento_tipado() {
     let (r, _) = pesquisar(302, "", None);
     assert_eq!(
         r.unwrap_err(),
-        ErroPesquisaProtocolo::Redirecionamento(
-            ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAusente
-        )
+        ErroPesquisaProtocolo::Redirecionamento(ErroRedirecionamentoDaPesquisa::Html(
+            ErroHtml::ausente("localizacao_do_redirecionamento_ausente")
+        ))
     );
     let (r, _) = pesquisar(302, "", Some(&localizacao("x")));
     assert_eq!(
-        r.unwrap_err().subcodigo(),
+        crate::erro_publico::folha(&r.unwrap_err()),
         "id_procedimento_nao_decimal_no_redirecionamento"
     );
 }

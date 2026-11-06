@@ -7,6 +7,7 @@
 use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 pub(crate) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
@@ -120,7 +121,9 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     for html in casos {
         assert_eq!(
             ler(&html),
-            Err(E::VinculoDeAnexacaoForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "vinculo_de_anexacao_fora_da_forma_observada"
+            ))),
             "{html}"
         );
     }
@@ -130,17 +133,29 @@ fn link_do_pai_fora_da_forma_e_recusa() {
 fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let link = html_do_anexado(&href_do_pai(ID_PAI, "10"), NUP_PAI);
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));
-    assert_eq!(ler(&dois), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&dois),
+        Err(E::Html(ErroHtml::repetido(
+            "vinculos_de_anexacao_repetidos"
+        )))
+    );
     let duas_linhas = padrao().replace(
         "Nos[0].src = '';",
         &format!("Nos[0].src = '';\nNos[0].html = '{link}';"),
     );
-    assert_eq!(ler(&duas_linhas), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&duas_linhas),
+        Err(E::Html(ErroHtml::repetido(
+            "vinculos_de_anexacao_repetidos"
+        )))
+    );
     let nao_literal = arvore(&[no_processo(0, "10", NUP)])
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
     assert_eq!(
         ler(&nao_literal),
-        Err(E::HtmlDoNoDoProcessoForaDaFormaObservada)
+        Err(E::Html(ErroHtml::html(
+            "html_do_no_do_processo_fora_da_forma_observada"
+        )))
     );
 }
 
@@ -148,19 +163,23 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
 fn subcodigos_estaveis_do_vinculo() {
     for (erro, subcodigo) in [
         (
-            E::VinculoDeAnexacaoForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "vinculo_de_anexacao_fora_da_forma_observada",
+            )),
             "vinculo_de_anexacao_fora_da_forma_observada",
         ),
         (
-            E::VinculosDeAnexacaoRepetidos,
+            E::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
             "vinculos_de_anexacao_repetidos",
         ),
         (
-            E::HtmlDoNoDoProcessoForaDaFormaObservada,
+            E::Html(ErroHtml::html(
+                "html_do_no_do_processo_fora_da_forma_observada",
+            )),
             "html_do_no_do_processo_fora_da_forma_observada",
         ),
     ] {
-        assert_eq!(erro.subcodigo(), subcodigo);
+        assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }

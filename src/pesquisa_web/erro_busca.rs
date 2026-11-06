@@ -7,32 +7,29 @@ use super::resposta::ErroRespostaDaPesquisa;
 use crate::erro_web::ErroCaixa;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroBuscaDeProcesso {
     /// GET do Controle ou da tela de pesquisa (inclui sessão vencida).
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// O Controle não foi reconhecido em nenhuma visão.
+    #[causa(interna)]
     Controle(ErroCaixa),
+    #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDoControleDiferenteDaSolicitada,
+    #[causa(nome = "charset_da_tela_da_pesquisa_nao_suportado")]
     CharsetDaTelaNaoSuportado,
+    #[causa(interna)]
     Link(ErroLinkDaPesquisa),
+    #[causa(interna)]
     Pesquisa(ErroPesquisaProtocolo),
+    #[causa(interna)]
     Paginacao(ErroPaginacaoDaPesquisa),
 }
 
 impl ErroBuscaDeProcesso {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::Controle(erro) => erro.subcodigo(),
-            Self::UnidadeDoControleDiferenteDaSolicitada => {
-                "unidade_da_tela_diferente_da_solicitada"
-            }
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_da_pesquisa_nao_suportado",
-            Self::Link(erro) => erro.subcodigo(),
-            Self::Pesquisa(erro) => erro.subcodigo(),
-            Self::Paginacao(erro) => erro.subcodigo(),
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

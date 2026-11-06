@@ -5,6 +5,7 @@
 //! página seguinte lida e conferida contra o plano feito da página 1.
 use super::{Cassette, Opcao, derivar, opcao_marcada, url, web};
 use crate::cassette::acervo::gravacao::{self, Resposta};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
 };
@@ -54,7 +55,7 @@ pub(super) fn tela(
             tela,
             (unidade, TERMO),
         )
-        .map_err(|e| e.subcodigo())
+        .map_err(|e| crate::erro_publico::folha(&e))
     });
     match derivada {
         Ok(submissao) => {
@@ -95,7 +96,7 @@ fn primeiro_envio(
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = falha_do_envio(erro).subcodigo();
+            let sub = crate::erro_publico::folha(&falha_do_envio(erro));
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -109,12 +110,15 @@ fn primeiro_envio(
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
-        Err(ErroPesquisaProtocolo::Redirecionamento(R::IdDocumentoAusenteNoRedirecionamento)) => {
+        Err(ErroPesquisaProtocolo::Redirecionamento(R::Html(ErroHtml {
+            onde: "id_documento_ausente_no_redirecionamento",
+            ..
+        }))) => {
             let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
             return vec![c.registro(leitor, r.passo, motivo)];
         }
         Err(erro) => {
-            let sub = erro.subcodigo();
+            let sub = crate::erro_publico::folha(&erro);
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -156,7 +160,13 @@ fn plano(
         Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { paginas: 1, .. }) => {
             return c.lido(leitor, r.passo, "uma_pagina_so");
         }
-        Err(erro) => return c.registro(leitor, r.passo, Resultado::Recusado(erro.subcodigo())),
+        Err(erro) => {
+            return c.registro(
+                leitor,
+                r.passo,
+                Resultado::Recusado(crate::erro_publico::folha(&erro)),
+            );
+        }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         let pedido_da_tela = (unidade, TERMO);
@@ -167,7 +177,7 @@ fn plano(
             pedido_da_tela,
             pedido.inicio,
         )
-        .map_err(|e| e.subcodigo())
+        .map_err(|e| crate::erro_publico::folha(&e))
     });
     match derivada {
         Ok(_) => c.lido(leitor, r.passo, "pagina_2_planejada"),
@@ -192,7 +202,7 @@ fn pagina_seguinte(
     let Some((primeira, html_1)) = &d.pagina_1 else {
         return match ler_resposta_de_documentos(&html, None) {
             Ok(_) => Some(c.lido(leitor, r.passo, "pagina_lida_sem_pagina_1")),
-            Err(erro) => recusa(erro.subcodigo()),
+            Err(erro) => recusa(crate::erro_publico::folha(&erro)),
         };
     };
     let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
@@ -203,11 +213,11 @@ fn pagina_seguinte(
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => return Some(c.lido(leitor, r.passo, "pagina_1_reenviada")),
-        Err(erro) => return recusa(erro.subcodigo()),
+        Err(erro) => return recusa(crate::erro_publico::folha(&erro)),
     };
     let resposta = match ler_resposta_de_documentos(&html, Some((pedido.esperada, pedido.numero))) {
         Ok(resposta) => resposta,
-        Err(erro) => return recusa(erro.subcodigo()),
+        Err(erro) => return recusa(crate::erro_publico::folha(&erro)),
     };
     let forma = match &resposta {
         RespostaDeDocumentos::Lista(l) if l.linhas_ausentes_da_faixa > 0 => {
@@ -218,7 +228,11 @@ fn pagina_seguinte(
     Some(
         match conferir_contagem(&pedido, EmDocumentos::contagem(&resposta)) {
             Ok(()) => c.lido(leitor, r.passo, forma),
-            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(erro.subcodigo())),
+            Err(erro) => c.registro(
+                leitor,
+                r.passo,
+                Resultado::Recusado(crate::erro_publico::folha(&erro)),
+            ),
         },
     )
 }

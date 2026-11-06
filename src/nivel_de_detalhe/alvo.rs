@@ -12,7 +12,7 @@ pub(crate) enum AlvoDasColunas {
 }
 
 /// Erro de uso em `--definir` (saída 2, zero requisições).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDaListaDeColunas {
     ListaDeColunasVazia,
     /// Item vazio entre vírgulas (`tipo,,anotacao`).
@@ -28,12 +28,7 @@ pub(crate) enum ErroDaListaDeColunas {
 
 impl ErroDaListaDeColunas {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::ListaDeColunasVazia => "lista_de_colunas_vazia",
-            Self::ItemVazioNaListaDeColunas => "item_vazio_na_lista_de_colunas",
-            Self::ColunaDesconhecida { .. } => "coluna_desconhecida",
-            Self::ColunaRepetidaNaLista { .. } => "coluna_repetida_na_lista",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

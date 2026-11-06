@@ -10,7 +10,6 @@ O IES adota a disciplina do [Todos](https://github.com/franklinbaldo/todos/blob/
 cada condição semanticamente distinta tem identidade tipada; mensagem
 não determina lógica de tratamento. Em Rust, variantes de `enum` substituem
 a hierarquia de subclasses Python quando a família é fechada.
-
 ## Regras
 
 - Declare erro junto à operação ou adaptador que o produz; não faça
@@ -54,296 +53,40 @@ classificação: o status e a mensagem são só apresentação e nenhum
 código os inspeciona para decidir tratamento. Ver o
 [contrato da CLI](../contracts/cli.md).
 
-## Bloqueio de segurança da instalação
+## Partes do guia
 
-`FalhaTransporte::BloqueioDeSegurancaDaInstalacao`
-(`bloqueio_de_seguranca_da_instalacao`) é o 403 com a página de bloqueio
-do WAF de GO (03/11/2026, depois de rajadas): `<title>Acesso Negado</title>`
-e a frase "bloqueada por nossa política de segurança" no texto visível
-do corpo; ou a do Cloudflare da PEN2 (04/11/2026, segundo GET de
-`ies login`; também na PEN3, no POST da pesquisa com termo só de
-dígitos): `<title>Attention Required! | Cloudflare</title>` e
-"Sorry, you have been blocked". É reconhecimento de **tela** (como o da tela de login), feito
-na camada de transporte para todos os comandos Web
-(`src/transporte/bloqueio_de_seguranca.rs`), não leitura da mensagem para
-decidir tratamento. Expõe `status_http` 403 e a mensagem saneada com o
-código de bloqueio (não é segredo; URLs e cookies saem redigidos). A
-sessão continuou válida: não há relogin, retry nem pausa automática. O
-403 sem essa página continua `sessao_nao_autorizada`. Espace as execuções
-ao vivo ([estado e instalações](como-o-sei-funciona/estado-e-instalacoes.md)).
+- [Erros de transporte e sessão](erros-tipados/transporte-e-sessao.md): bloqueio de segurança, 302 do Controle para o login e leitura coerente da sessão.
+- [Erros das leituras](erros-tipados/leituras.md): anexo externo, pesquisa em documentos, versões e filtros da pesquisa.
+- [Erros das escritas](erros-tipados/escritas.md): concluir, reabrir, assinar e enviar o processo.
+- [Erros locais](erros-tipados/locais.md): configuração local e gravação privada de arquivos.
+- [Catálogo de subcódigos](erros-tipados/catalogo.md): catálogo literal por contexto, nomes contextuais e históricos e literais passados por helpers.
 
-## 302 do Controle para o login
 
-`FalhaTransporte::ControleRedirecionadoParaOLogin` é o 302 do GET do
-Controle (`envio_post::ler_tela_via`) cujo `Location`, resolvido contra
-a instalação, é uma entrada do login dela: o SIP `/sip/login.php`, o
-módulo de Goiás ou a raiz `<base>/` (`src/sessao_login/entrada_do_login.rs`).
-O subcódigo é o mesmo dos fluxos que já viam o 302 para o login
-(`sessao_encerrada_rode_ies_login`), com `status_http` 302: o fato é o
-mesmo, sessão encerrada. Outro host, outro caminho, fragmento, a recusa
-de link sem assinatura, outro 3xx ou 302 sem `Location` continuam
-`Redirecionamento` (`redirecionamento_recusado`). O 302 nunca é seguido
-([decisão](decisoes/sessao-login/relogin-de-leitura.md#revisão-302-do-controle-para-o-login)).
+## Subcódigos de blocos (#256)
 
-## Anexo do documento externo
+Os seguintes subcódigos discriminam a causa de falha fechada em leitura Web de bloco; links e cookies nunca aparecem na saída.
 
-`ErroAnexo` (`src/anexo_documento.rs`, Refs #60 fatia 3) tem uma
-variante por fato da resposta de `documento_download_anexo`: sem tipo,
-tipo fora da lista observada, cabeçalho repetido, `Content-Disposition`
-fora da forma, acima do limite, vazio, exceção do SEI (com status 200 e a
-mensagem saneada como apresentação) e as falhas de gravação do parcial.
-Status, rede e charset continuam `FalhaTransporte`; a tela de login, a
-sessão encerrada de `processo NUP`. Lista no
-[contrato](../contracts/cli/documento-obter-externo.md).
-
-## Pesquisa em documentos
-
-`ies documento buscar` ([contrato](../contracts/cli/documento-buscar.md))
-reaproveita as variantes de `processo buscar` e acrescenta, cada uma pelo
-fato verificável: na tela, `ErroRegraDoFormularioDePesquisa` com a opção
-`#optDocumentos` (`opcao_de_documentos_*`), as caixas de tipo
-(`caixa_de_tipo_de_documento_ausente_na_tela`,
-`caixas_de_tipo_de_documento_repetidas_na_tela`,
-`caixa_de_tipo_de_documento_sem_valor_na_tela`,
-`nenhum_tipo_de_documento_marcado_na_tela`) e
-`assinante_oculto_preenchido_na_pesquisa_em_documentos`; no 302,
-`ErroRedirecionamentoDaPesquisa::IdDocumento*`
-(`id_documento_ausente_no_redirecionamento`, `…_repetido_…`,
-`…_nao_decimal_…`); na linha, `ErroDocumentoDaPesquisa`, que embute a
-recusa comum do link do processo (`ErroResultadoPesquisa`) em vez de
-repeti-la. O termo inválido é `TermoDeDocumentoInvalido`
-(`termo_de_documento_vazio`, `termo_de_documento_contem_controle`).
-
-## Concluir o processo
-
-`ErroConcluir` (`src/processo_concluir/erro.rs`) separa o que impede a
-escrita (abertura, situação não lida, barra, tela, função, derivação:
-saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
-(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
-com `VerificacaoPorLeitura`). `FalhaDoEnvio` classifica a resposta não
-esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
-sem retry ([contrato](../contracts/cli/processo-concluir.md)).
-
-## Versões de documento (Refs #88)
-
-`ErroDocumentoObter` ganhou `BarraDoDocumento(ErroBarraDoDocumento)`
-(`barra_do_documento_fora_da_forma_observada`,
-`barras_do_documento_repetidas_na_arvore`,
-`link_das_versoes_repetido_na_barra`, `link_das_versoes_nao_reconhecido`,
-`link_das_versoes_de_outro_documento`),
-`ListaDeVersoesNaoPublicadaNaArvore`
-(`lista_de_versoes_nao_publicada_na_arvore`), `Versoes(ErroVersao)`
-(os subcódigos do leitor da lista, inclusive `versao_nao_observada`) e
-`VersaoServidaDiferenteDaPedida` (`versao_servida_diferente_da_pedida`).
-Com #207, `ConteudoComLinkAssinado` (`conteudo_com_link_assinado`) e, sem
-rodapé nem lista, `ListaDeVersoesNaoPublicadaNaArvore` também recusam a
-foto de `--saida`. A gravação local é `ErroCopia`
-(`src/copia_documento.rs`): `foto_local_divergente`,
-`gravacao_foto_falhou` e, na prévia offline de `salvar`,
-`base_versao_ausente`, `versao_editada_ausente` e
-`versao_editada_igual_a_base` (a prévia não confere a base com o SEI)
-([contrato](../contracts/cli/documento-obter-versoes.md)).
-
-## Reabrir o processo
-
-`ErroReabrir` (`src/processo_reabrir/erro.rs`) segue a mesma divisão: o
-que impede a escrita (abertura, situação não lida, barra, tela do nó,
-cookie: saída 1, nada enviado) e o resultado depois dela,
-`ReaberturaNaoAplicada` (a leitura não lista a unidade) e
-`EfeitoIncertoNaReabertura` (saída 3). A resposta não esperada é a mesma
-`FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
-a verificação é a mesma `VerificacaoPorLeitura`
-([contrato](../contracts/cli/processo-reabrir.md)).
-
-## Assinar o documento (Refs #174)
-
-`ErroAssinar` (`src/documento_assinar/erro.rs`) separa o que impede a
-escrita (abertura, credenciais, `ErroAssinaturaNaArvore` da ação e da
-caneta, tela do documento, `ErroLinkDeAssinar`, `ErroTelaDeAssinatura`,
-`cargo_nao_oferecido_pela_tela`, `documento_assinado_por_outro_usuario`,
-derivação: saída 1, nada enviado) do resultado depois dela:
-`AssinaturaNaoAplicada` (a caneta relida é a de antes) e
-`EfeitoIncertoNaAssinatura` (saída 3, com `VerificacaoDaAssinatura`).
-`FalhaDoEnvio` da assinatura (`redirecionamento_apos_assinar`,
-`resposta_da_assinatura_sem_finalizacao` ou o erro do primitivo) não
-decide o efeito: a leitura decide, uma vez, sem retry
-([contrato](../contracts/cli/documento-assinar.md)).
-
-## Enviar o processo
-
-`ErroEnviar` (`src/processo_enviar/erro.rs`) segue a divisão de concluir:
-antes do POST (abertura, situação, barra `ErroEnviarNaBarra`, tela
-`ErroTelaDeEnvio`, consulta `FalhaDaConsulta`, destino não oferecido ou
-repetido, já aberto no destino, derivação: saída 1, nada enviado) e depois
-dele: `EnvioNaoAplicado` (sem o destino), `SituacaoDaOrigemDiferenteDaPedidaAposEnvio`
-(o destino abriu, mas a unidade da sessão não ficou como `--manter-aberto`
-pediu) e `EfeitoIncertoNoEnvio` (saída 3). A resposta não esperada é a
-`FalhaDoEnvio` de concluir, com `RedirecionamentoNaoReconhecidoAposEnviar`
-e `RespostaDoEnvioSemRedirecionamento`
-([contrato](../contracts/cli/processo-enviar.md)).
-
-## Configuração local: causas tipadas (#212)
-
-`ler_configuracao_local` devolve `Result`, com causas internas
-separadas para ausência, metadados, link simbólico, não regular, tamanho
-excessivo, permissão aberta, leitura, JSON e campos inválidos. Não inclui
-caminhos nem conteúdo no erro ou na saída pública.
-
-O subcódigo legado `arquivo_configuracao_nao_pode_ser_lido` permanece
-para arquivo ausente, não regular, excessivo ou ilegível. Novas causas
-com remediação própria: `arquivo_configuracao_link_simbolico`,
-`arquivo_configuracao_permissoes_inseguras`,
-`arquivo_configuracao_json_invalido` e
-`arquivo_configuracao_campo_invalido`. O campo inválido inclui
-caminho ausente, não textual, vazio ou relativo. Não há fallback
-para variáveis individuais quando `IES_CONFIG_FILE` é informado.
-A verificação usa `symlink_metadata` antes da abertura e confere
-o arquivo aberto, sem consumir ou registrar dados de sessão.
-
-## Gravação privada local (#211)
-
-Toda gravação de arquivo privado passa por `crate::arquivo_privado`,
-que devolve uma falha tipada sem caminho nem conteúdo (destino já
-existente, destino não regular, diretório ausente, diretório gravável
-por outros, limite, criação, escrita, publicação). Cada módulo a traduz
-para os seus subcódigos
-([decisão](decisoes/arquivos-privados/gravacao-privada.md#migração)).
-
-Desde 05/11/2026 link simbólico em ancestral, ou no próprio `DIR` dado
-pela pessoa, é **aceito**: o diretório é resolvido com `canonicalize`.
-O modo do diretório real só é conferido nos caminhos que o IES gerencia
-(sessão, índice, configuração): no Unix, gravável por grupo ou outros
-sem sticky bit é recusado. Nos diretórios que a pessoa escolhe
-(`--saida DIR`, o arquivo da caixa) o modo é dela e não é conferido
-([modelo de ameaça](decisoes/arquivos-privados/gravacao-privada.md#modelo-de-ameaça)).
-Mudanças públicas:
-
-| Subcódigo | Mudança |
-|---|---|
-| `diretorio_do_arquivo_da_caixa_link_simbolico` | removido (novo na PR #232, não chegou ao `main`) |
-| `diretorio_do_anexo_link_simbolico` | removido; o `DIR` por link é aceito |
-| `diretorio_texto_documento_link_simbolico` | removido (texto, foto e `--saida` dos comandos de documento); o `DIR` por link é aceito |
-| `diretorio_da_sessao_gravavel_por_outros` | novo: diretório real da sessão gravável por grupo ou outros sem sticky bit, no `ies login` e na troca de unidade |
-| `destino_da_sessao_nao_eh_arquivo_regular` | muda: só o nome final (link ou não regular), não mais ancestral link |
-| `configuracao_ja_existe_ou_sem_permissao` | muda: cobre o diretório gravável por outros sem sticky bit, não mais o ancestral link |
-| `destino_copia_inseguro` | muda: na gravação das fotos, o `DIR` por link deixa de ser recusado (não diretório continua) |
-
-O índice local não tem subcódigo público: diretório gravável por outros
-o desliga, como antes. Nenhum subcódigo novo para `--saida` ou caixa.
-
-O nome final nunca é seguido em nenhum modo, e os arquivos da sessão
-continuam recusados como link no nome final
-(`arquivo_privado_link_simbolico`).
-
-## Leitura coerente da sessão (#222)
-
-`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1): os
-comandos que leem a sessão sem o lock do login conferem o marcador
-`<url-controle>.geracao` antes e depois de URL, origem e cookie. O
-marcador mudou (ou não confere com o par lido) duas vezes seguidas: um
-`ies login` ou `ies unidade trocar --confirmar` gravou no meio das duas
-leituras locais. Nada foi pedido ao SEI e não há relogin; rodar de novo
-lê a sessão nova. Origem divergente e cookie ilegível continuam com os
-subcódigos de antes, no mesmo ponto da operação
-([decisão](decisoes/sessao-login/leitura-coerente-da-sessao.md)).
-
-## Catálogo literal por contexto
-
-As tabelas complementares enumeram os literais, inclusive os antes
-citados só por curinga ou delegação. A verificação procura a união dos
-contratos: não exige duplicar cada erro de transporte em cada operação.
-
-- [Sessão, configuração e transporte](../contracts/cli/subcodigos-sessao.md).
-- [Controle, listas e atributos HTML](../contracts/cli/subcodigos-controle.md).
-- [Pesquisa de processos e documentos](../contracts/cli/subcodigos-pesquisa.md).
-- [Árvore e vínculos](../contracts/cli/subcodigos-arvore.md).
-- [Histórico, propriedades e marcadores](../contracts/cli/subcodigos-processo.md).
-- [Documentos, versões e arquivos locais](../contracts/cli/subcodigos-documento.md).
-- [Prévias, escritas e verificações](../contracts/cli/subcodigos-escrita.md).
-
-São inventários conservadores dos leitores, não prova de alcançabilidade
-de cada variante em toda instalação. Códigos aninhados em `falha` ou
-`verificacao` conservam a identidade do emissor. O literal isolado não
-identifica necessariamente um único contexto.
-
-## Nomes contextuais e históricos
-
-Os subcódigos das quatro condições antes reutilizadas agora identificam o
-contexto diretamente, sem depender da etapa e sem aliases (decisão
-[#229](https://github.com/franklinbaldo/ies/issues/229)).
-
-| Subcódigo atual | Fato identificado |
+| Subcódigo | Descrição |
 | --- | --- |
-| `html_da_caixa_invalido` | HTML da caixa não interpretado. |
-| `html_do_historico_invalido` | HTML do histórico não interpretado. |
-| `numero_da_caixa_invalido` | Número do processo inválido na caixa. |
-| `numero_do_historico_invalido` | Número do processo inválido no título do histórico. |
-| `pagina_da_caixa_fora_do_intervalo` | Página solicitada fora do intervalo da caixa, resumida ou detalhada. |
-| `pagina_da_pesquisa_fora_do_intervalo` | Página solicitada fora do intervalo da pesquisa. |
-| `redirecionamento_do_login_sem_localizacao` | Resposta do login sem localização de redirecionamento. |
-| `redirecionamento_da_troca_sem_localizacao` | Resposta da troca de unidade sem localização. |
-
-### Subcódigos históricos
-
-Estes nomes foram aposentados diretamente pela
-[#229](https://github.com/franklinbaldo/ies/issues/229), sem compatibilidade
-transitória e sem emissão nas versões novas.
-
-| Subcódigo histórico | Substituição |
-| --- | --- |
-| `html_invalido` | `html_da_caixa_invalido` / `html_do_historico_invalido` |
-| `numero_invalido` | `numero_da_caixa_invalido` / `numero_do_historico_invalido` |
-| `pagina_fora_do_intervalo` | `pagina_da_caixa_fora_do_intervalo` / `pagina_da_pesquisa_fora_do_intervalo` |
-| `redirecionamento_sem_localizacao` | `redirecionamento_do_login_sem_localizacao` / `redirecionamento_da_troca_sem_localizacao` |
-
-Outros reusos analisados em #229 mantêm a mesma condição factual,
-independentemente do emissor: `unidade_da_tela_diferente_da_solicitada`,
-`unidade_exibida_diferente_da_solicitada`,
-`controle_web_nao_reconhecido`, `arquivo_privado_vazio` e
-`arquivo_privado_link_simbolico`. O contexto indica onde a falha ocorreu,
-mas não altera o significado desses fatos. Eles não exigem renomeação.
-
-## Literais passados por helpers da CLI
-
-Estas emissões não estão em métodos `subcodigo`: os helpers recebem o
-literal por parâmetro, ou o setup devolve um `Result` com literal. O gate
-pode avisar que não as encontrou; isso não autoriza removê-las do contrato.
-
-| Subcódigo | Condição e emissor |
-| --- | --- |
-| `opcoes_incompativeis_com_busca` | `processo buscar` recebeu opções da leitura de processo. |
-| `sem_andamentos_incompativel_com_andamentos_completos` | Leitura de processo recebeu simultaneamente as duas opções incompatíveis. |
-| `leitura_diretorio_copias_falhou` | `documento salvar --listar-copias` não conseguiu obter o diretório de trabalho. |
-| `escrita_remota_nao_validada` | `documento salvar --confirmar`: confirmação remota ainda bloqueada. |
-| `caminho_privado_ausente_ou_nao_absoluto` | Setup: caminho de um dos três arquivos não é absoluto ou não aponta a arquivo. |
-| `arquivo_privado_nao_lido` | Setup: metadados de arquivo privado não puderam ser lidos. |
-| `permissoes_de_arquivo_privado_inseguras` | Setup no Unix: arquivo privado com permissões para grupo ou outros. |
-| `configuracao_deve_ter_caminho_absoluto` | Setup: destino da configuração não é absoluto. |
-| `configuracao_nao_serializada` | Setup: falha ao serializar os caminhos em JSON. |
-| `configuracao_ja_existe_ou_sem_permissao` | Setup: criação exclusiva do destino recusada, inclusive se já existe. |
-| `configuracao_nao_gravada` | Setup: escrita do JSON falhou após abertura do arquivo. |
-
-
-## Filtros da pesquisa (#247)
-
-Em `pesquisa_web::filtros::ErroFiltro`:
-
-- `criterio_nao_oferecido_pela_tela`: o critério pedido não tem controle
-  observável, ou depende de ID de autocompletar ainda não resolvido.
-- `tipo_nao_oferecido_pela_tela`: a opção exata pedida não existe na lista.
-- `controle_de_filtro_ambiguo`: campo ou opção duplicado; não escolher um.
-- `valor_do_filtro_diferente_do_solicitado`: nome/valor publicado mudou
-  durante a navegação; não publicar página potencialmente não filtrada.
-- `atributo_do_filtro_ilegivel`: valor de atributo não interpretável.
-
-Na borda: `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`
-são erros de uso (saída 2), avaliados antes da configuração e da rede.
-
-## Inventário normativo dos subcódigos de filtro (#247)
-
-| Subcódigo | Condição |
-| --- | --- |
-| `criterio_nao_oferecido_pela_tela` | Critério sem controle observável ou sem ID de autocompletar. |
-| `tipo_nao_oferecido_pela_tela` | Nome exato de tipo não está na lista servida. |
-| `controle_de_filtro_ambiguo` | Mais de um controle ou opção compatível. |
-| `atributo_do_filtro_ilegivel` | Atributo HTML não interpretável. |
+| `bloco_nao_encontrado_na_pagina` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `cabecalho_de_blocos_nao_reconhecido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `cabecalho_do_bloco_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `faixa_de_blocos_incoerente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `faixa_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `html_de_blocos_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `html_do_bloco_ilegivel` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `legenda_de_blocos_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `legenda_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `linha_de_bloco_fora_da_forma` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `linha_do_bloco_invalida` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `link_de_blocos_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `link_de_blocos_nao_reconhecido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `links_de_blocos_repetidos` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `numero_do_bloco_invalido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `numero_do_bloco_repetido` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `pagina_de_blocos_nao_implementada` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabela_de_blocos_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabela_do_bloco_ausente` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabelas_de_blocos_repetidas` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `tabelas_do_bloco_repetidas` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |
+| `unidade_inesperada_na_leitura_de_blocos` | Leitura Web de blocos: observação insuficiente, forma inesperada ou opção ainda não implementada; nenhuma escrita ou retry |

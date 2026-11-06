@@ -5,6 +5,7 @@
 //! antes de `table.pesquisaResultado`; `div.pesquisaSemResultado` sozinho.
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe};
 use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
 
@@ -39,54 +40,28 @@ pub(crate) enum RespostaDaPesquisa {
 }
 
 /// Uma variante por fato verificável da resposta 200.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRespostaDaPesquisa {
-    HtmlDaRespostaNaoInterpretado,
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
     /// Aviso de "sem resultado" e barra "Exibindo I - F de N" juntos.
     AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta,
-    BarraDeContagemDaPesquisaAusente,
-    BarrasDeContagemDaPesquisaRepetidas,
     TextoDaBarraDeContagemForaDoFormato,
     NumeroDaBarraDeContagemForaDoFormato,
     FaixaDaBarraDeContagemImpossivel,
     LinhasDaTabelaDiferentesDaFaixaDaBarra,
+    #[causa(interna)]
     Resultado(ErroResultadoPesquisa),
     /// Linha da pesquisa em documentos (`ies documento buscar`).
+    #[causa(interna)]
     Documento(super::documentos::ErroDocumentoDaPesquisa),
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroRespostaDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDaRespostaNaoInterpretado => "html_da_resposta_da_pesquisa_nao_interpretado",
-            Self::RespostaDaPesquisaNaoReconhecida => "resposta_da_pesquisa_nao_reconhecida",
-            Self::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta => {
-                "tabela_de_resultado_e_aviso_de_sem_resultado_na_mesma_resposta"
-            }
-            Self::BarraDeContagemDaPesquisaAusente => "barra_de_contagem_da_pesquisa_ausente",
-            Self::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta => {
-                "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
-            }
-            Self::BarrasDeContagemDaPesquisaRepetidas => "barras_de_contagem_da_pesquisa_repetidas",
-            Self::TextoDaBarraDeContagemForaDoFormato => {
-                "texto_da_barra_de_contagem_fora_do_formato"
-            }
-            Self::NumeroDaBarraDeContagemForaDoFormato => {
-                "numero_da_barra_de_contagem_fora_do_formato"
-            }
-            Self::FaixaDaBarraDeContagemImpossivel => "faixa_da_barra_de_contagem_impossivel",
-            Self::LinhasDaTabelaDiferentesDaFaixaDaBarra => {
-                "linhas_da_tabela_diferentes_da_faixa_da_barra"
-            }
-            Self::Resultado(erro) => erro.subcodigo(),
-            Self::Documento(erro) => erro.subcodigo(),
-            Self::AtributoHtml(erro) => erro.subcodigo(),
-        }
-    }
-}
+impl ErroRespostaDaPesquisa {}
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
 /// 1 a 3, sem zero à esquerda); qualquer outra forma é `None`.
@@ -137,8 +112,7 @@ fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroResposta
 pub(crate) fn pagina_selecionada(
     dom: &tl::VDom<'_>,
 ) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
-    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")
-        .map_err(ErroRespostaDaPesquisa::AtributoHtml)?;
+    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")?;
     Ok(match marcadas.as_slice() {
         [uma] => ler_contagem(texto_visivel(*uma, dom.parser()).trim()),
         _ => None,
@@ -171,13 +145,10 @@ pub(crate) fn classificar_resposta<T>(
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     use ErroRespostaDaPesquisa as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::HtmlDaRespostaNaoInterpretado)?;
-    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
-        .map_err(E::AtributoHtml)?;
-    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")
-        .map_err(E::AtributoHtml)?;
-    let barras =
-        nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD").map_err(E::AtributoHtml)?;
+        .map_err(|_| ErroHtml::html("html_da_resposta_da_pesquisa_nao_interpretado"))?;
+    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
+    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
+    let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
     match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
         (true, 1, true) => return Ok(Classificada::SemResultado),
         (true, 1, false) => return Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
@@ -186,9 +157,9 @@ pub(crate) fn classificar_resposta<T>(
         (false, _, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
     }
     let barra = match barras.as_slice() {
-        [] => return Err(E::BarraDeContagemDaPesquisaAusente),
+        [] => return Err(ErroHtml::ausente("barra_de_contagem_da_pesquisa_ausente").into()),
         [barra] => *barra,
-        _ => return Err(E::BarrasDeContagemDaPesquisaRepetidas),
+        _ => return Err(ErroHtml::repetido("barras_de_contagem_da_pesquisa_repetidas").into()),
     };
     let texto = decodificar_entidades(&texto_visivel(barra, dom.parser()));
     // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só

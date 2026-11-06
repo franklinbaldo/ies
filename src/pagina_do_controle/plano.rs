@@ -3,6 +3,7 @@
 use super::{ErroPaginaDoControle as E, PlanoDaPagina};
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::CodificacaoDaTela;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -35,7 +36,7 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
 }
 
 fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::HtmlInvalido)
+    E::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
@@ -70,7 +71,7 @@ fn plano_sem_linhas(
     atual: usize,
     pagina: usize,
 ) -> Result<PlanoDaPagina, E> {
-    let caixa = crate::caixa::parse_html(html).map_err(E::Caixa)?;
+    let caixa = crate::caixa::parse_html(html)?;
     let linhas = match categoria {
         Categoria::Recebidos => caixa.recebidos.processos.len(),
         Categoria::Gerados => caixa.gerados.processos.len(),
@@ -117,12 +118,12 @@ pub(crate) fn planejar(
     categoria: Categoria,
     pagina: usize,
 ) -> Result<PlanoDaPagina, E> {
-    let contexto = contexto_da_pagina(html).map_err(E::Caixa)?;
+    let contexto = contexto_da_pagina(html)?;
     if !contexto.eh_resumida() {
         return Err(E::PaginaExigeVisaoResumida);
     }
     let atual = pagina_atual(html, categoria)?;
-    let Some(faixa) = faixa_na_pagina(html, categoria).map_err(E::Caixa)? else {
+    let Some(faixa) = faixa_na_pagina(html, categoria)? else {
         return plano_sem_linhas(html, categoria, atual, pagina);
     };
     let tamanho = tamanho_da_pagina(atual, faixa)
@@ -138,7 +139,7 @@ pub(crate) fn planejar(
     if pagina == atual + 1 {
         return Ok(PlanoDaPagina::JaExibida);
     }
-    if !paginador_da_tabela(html, categoria).map_err(E::Caixa)? {
+    if !paginador_da_tabela(html, categoria)? {
         return Err(E::PaginadorDaTabelaNaoPublicado { categoria });
     }
     let indice = pagina - 1;

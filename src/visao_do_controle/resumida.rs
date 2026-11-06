@@ -6,6 +6,7 @@ use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::{PlanoDaPagina, codificacao_da_tela, obter_pagina_via, planejar};
@@ -25,7 +26,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(ErroHtml::valor("visao_do_controle_nao_reconhecida").into());
     }
     let mut sessao = Sessao {
         instalacao,
@@ -37,7 +38,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     let Some(numero) = pagina else {
         return Ok(resumida.html);
     };
-    if planejar(&resumida.html, categoria, numero).map_err(E::Pagina)? == PlanoDaPagina::JaExibida {
+    if planejar(&resumida.html, categoria, numero)? == PlanoDaPagina::JaExibida {
         return Ok(resumida.html);
     }
     Ok(postar_pagina(&mut sessao, &resumida, categoria, numero)?.unwrap_or(resumida.html))
@@ -66,8 +67,7 @@ fn postar_pagina<V: EnvioDoControle>(
         numero,
         sessao.cookie,
         |submissao, cookie| envio.post(submissao, cookie),
-    )
-    .map_err(E::Pagina)?;
+    )?;
     if let Some(html) = &pagina {
         // O mesmo servidor e a mesma sessão: o charset da tela de origem.
         sessao.envio.colher_controle(html, Some(&tela.mime));

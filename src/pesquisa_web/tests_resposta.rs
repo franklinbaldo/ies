@@ -1,6 +1,7 @@
 //! RED/GREEN da resposta 200 da pesquisa: barra com separador de milhar,
 //! lista, "sem resultado" e formas não reconhecidas. HTML sintético.
 use super::*;
+use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::tests_fixtures::{
     conteudo_da_lista, formulario, numero, resultado, resultado_numa_pagina, sem_resultado,
 };
@@ -93,7 +94,9 @@ fn barra_ausente_ou_repetida_e_recusada() {
     let sem = resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX");
     assert_eq!(
         ler_resposta_html(&sem),
-        Err(E::BarraDeContagemDaPesquisaAusente)
+        Err(E::Html(ErroHtml::ausente(
+            "barra_de_contagem_da_pesquisa_ausente"
+        )))
     );
     let dupla = resultado("1", 1, 3, "3").replace(
         "<table border",
@@ -101,7 +104,9 @@ fn barra_ausente_ou_repetida_e_recusada() {
     );
     assert_eq!(
         ler_resposta_html(&dupla),
-        Err(E::BarrasDeContagemDaPesquisaRepetidas)
+        Err(E::Html(ErroHtml::repetido(
+            "barras_de_contagem_da_pesquisa_repetidas"
+        )))
     );
 }
 
@@ -246,7 +251,7 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
         Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
     );
     assert_eq!(
-        E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta.subcodigo(),
+        crate::erro_publico::folha(&E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
         "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
     );
 }

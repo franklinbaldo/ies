@@ -38,7 +38,7 @@ pub(crate) struct FotoGravada {
 /// `DIR` existe e é diretório (links no caminho, inclusive o próprio
 /// `DIR`, são aceitos); o modo é da pessoa e não é conferido.
 pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
-    conferir_diretorios(&pasta.join("x")).map_err(ErroCopia::DiretorioDeSaida)?;
+    conferir_diretorios(&pasta.join("x"))?;
     pasta_segura(&fs::canonicalize(pasta).map_err(|_| ErroCopia::DestinoInseguro)?)
 }
 

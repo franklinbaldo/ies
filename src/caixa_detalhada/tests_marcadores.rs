@@ -4,6 +4,7 @@
 //! hashes inventados.
 use super::tests_colunas::{ler, rotulo, tabela};
 use super::*;
+use crate::erro_html::ErroHtml;
 use serde_json::json;
 
 const HASH: &str = "5555555555555555555555555555555555555555555555555555555555555555";
@@ -109,13 +110,17 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
     for ruim in ruins {
         assert_eq!(
             com_marcadores(&ruim),
-            Err(ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada),
+            Err(ErroDetalhada::Html(ErroHtml::valor(
+                "marcador_da_celula_detalhada_fora_da_forma_observada"
+            ))),
             "{ruim}"
         );
     }
-    let erro = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
+    let erro = ErroDetalhada::Html(ErroHtml::valor(
+        "marcador_da_celula_detalhada_fora_da_forma_observada",
+    ));
     assert_eq!(
-        erro.subcodigo(),
+        crate::erro_publico::folha(&erro),
         "marcador_da_celula_detalhada_fora_da_forma_observada"
     );
 }
@@ -135,7 +140,7 @@ fn texto_fora_das_ancoras_e_recusa_e_nao_vira_marcador() {
         );
     }
     assert_eq!(
-        ErroDetalhada::TextoForaDosMarcadoresNaCelula.subcodigo(),
+        crate::erro_publico::folha(&ErroDetalhada::TextoForaDosMarcadoresNaCelula),
         "texto_fora_dos_marcadores_na_celula_detalhada"
     );
 }

@@ -8,6 +8,7 @@ use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_pastas::no_pasta;
 use super::*;
+use crate::erro_html::ErroHtml;
 
 pub(crate) const NUP_ANEXADO: &str = "00002.000002/2026-02";
 
@@ -118,11 +119,11 @@ fn recusas_do_anexado() {
         ),
         (
             vec![p(), a(), no_anexado(2, "20", "10", "00003.000003/2026-03")],
-            E::ProcessoAnexadoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
         ),
         (
             vec![p(), a(), no_anexado(2, "30", "10", NUP_ANEXADO)],
-            E::ProcessoAnexadoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
         ),
         (
             vec![p(), no_anexado(1, "10", "10", NUP_ANEXADO)],
@@ -186,7 +187,9 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
         let html = arvore(&[no_processo(0, "10", NUP), variante.clone()]);
         assert_eq!(
             ler_arvore(&html, NUP, "10"),
-            Err(E::ProcessoAnexadoForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "processo_anexado_fora_da_forma_observada"
+            ))),
             "{variante}"
         );
     }
@@ -196,7 +199,7 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
 fn subcodigos_estaveis_do_anexado() {
     let casos = [
         (
-            E::ProcessoAnexadoForaDaFormaObservada,
+            E::Html(ErroHtml::valor("processo_anexado_fora_da_forma_observada")),
             "processo_anexado_fora_da_forma_observada",
         ),
         (
@@ -208,7 +211,7 @@ fn subcodigos_estaveis_do_anexado() {
             "processo_anexado_com_pai_diferente_do_processo",
         ),
         (
-            E::ProcessoAnexadoRepetidoNaArvore,
+            E::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
             "processo_anexado_repetido_na_arvore",
         ),
         (
@@ -221,7 +224,7 @@ fn subcodigos_estaveis_do_anexado() {
         ),
     ];
     for (erro, subcodigo) in casos {
-        assert_eq!(erro.subcodigo(), subcodigo);
+        assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }
@@ -255,7 +258,9 @@ fn anexado_marcado_como_visitado_na_arvore_aberta_por_ele_e_aceito() {
         );
         assert_eq!(
             ler_arvore(&html, NUP, "10").map(|_| ()),
-            Err(E::ProcessoAnexadoForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "processo_anexado_fora_da_forma_observada"
+            ))),
             "{outro}"
         );
     }

@@ -3,6 +3,7 @@
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
@@ -10,137 +11,29 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use ErroRedirecionamentoDaPesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRedirecionamentoDaPesquisa {
-    LocalizacaoDoRedirecionamentoAusente,
     LocalizacaoDoRedirecionamentoAcimaDoLimite,
     LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
-    LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
-    AcaoDeOrigemAusenteNoRedirecionamento,
-    AcaoDeOrigemRepetidaNoRedirecionamento,
     AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
-    IdProcedimentoAusenteNoRedirecionamento,
-    IdProcedimentoRepetidoNoRedirecionamento,
     IdProcedimentoNaoDecimalNoRedirecionamento,
-    InfraHashAusenteNoRedirecionamento,
-    InfraHashRepetidoNoRedirecionamento,
     InfraHashForaDoFormatoNoRedirecionamento,
-    UnidadeAtualAusenteNoRedirecionamento,
-    UnidadeAtualRepetidaNoRedirecionamento,
-    UnidadeAtualAusenteNaUrlDoEnvio,
-    UnidadeAtualRepetidaNaUrlDoEnvio,
     UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
-    InfraSistemaAusenteNoRedirecionamento,
-    InfraSistemaRepetidoNoRedirecionamento,
     InfraSistemaNaoDecimalNoRedirecionamento,
-    InfraSistemaAusenteNaUrlDoEnvio,
-    InfraSistemaRepetidoNaUrlDoEnvio,
     InfraSistemaNaoDecimalNaUrlDoEnvio,
     InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
-    /// `acao_origem` presente onde a forma observada não o traz (entrada por id).
-    AcaoDeOrigemInesperadaNoRedirecionamento,
     /// O id endereçado não é o pedido (entrada por id, linha do Controle).
     IdProcedimentoDoRedirecionamentoDiferenteDoPedido,
     /// A entrada com documento respondeu sem o `id_documento` pedido, uma vez.
     IdDocumentoDoRedirecionamentoDiferenteDoPedido,
-    /// Pesquisa em documentos: o 302 do número SEI traz `id_documento`
-    /// decimal; vazio (a forma do processo) ou ausente não é documento.
-    IdDocumentoAusenteNoRedirecionamento,
-    IdDocumentoRepetidoNoRedirecionamento,
     IdDocumentoNaoDecimalNoRedirecionamento,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroRedirecionamentoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::LocalizacaoDoRedirecionamentoAusente => "localizacao_do_redirecionamento_ausente",
-            Self::LocalizacaoDoRedirecionamentoAcimaDoLimite => {
-                "localizacao_do_redirecionamento_acima_do_limite"
-            }
-            Self::LocalizacaoDoRedirecionamentoNaoEhUrlHttps => {
-                "localizacao_do_redirecionamento_nao_eh_url_https"
-            }
-            Self::LocalizacaoDoRedirecionamentoForaDaInstalacao => {
-                "localizacao_do_redirecionamento_fora_da_instalacao"
-            }
-            Self::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento => {
-                "parametro_nao_canonico_na_localizacao_do_redirecionamento"
-            }
-            Self::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar => {
-                "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
-            }
-            Self::AcaoDeOrigemAusenteNoRedirecionamento => {
-                "acao_de_origem_ausente_no_redirecionamento"
-            }
-            Self::AcaoDeOrigemRepetidaNoRedirecionamento => {
-                "acao_de_origem_repetida_no_redirecionamento"
-            }
-            Self::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa => {
-                "acao_de_origem_do_redirecionamento_diferente_da_pesquisa"
-            }
-            Self::IdProcedimentoAusenteNoRedirecionamento => {
-                "id_procedimento_ausente_no_redirecionamento"
-            }
-            Self::IdProcedimentoRepetidoNoRedirecionamento => {
-                "id_procedimento_repetido_no_redirecionamento"
-            }
-            Self::IdProcedimentoNaoDecimalNoRedirecionamento => {
-                "id_procedimento_nao_decimal_no_redirecionamento"
-            }
-            Self::InfraHashAusenteNoRedirecionamento => "infra_hash_ausente_no_redirecionamento",
-            Self::InfraHashRepetidoNoRedirecionamento => "infra_hash_repetido_no_redirecionamento",
-            Self::InfraHashForaDoFormatoNoRedirecionamento => {
-                "infra_hash_fora_do_formato_no_redirecionamento"
-            }
-            Self::UnidadeAtualAusenteNoRedirecionamento => {
-                "unidade_atual_ausente_no_redirecionamento"
-            }
-            Self::UnidadeAtualRepetidaNoRedirecionamento => {
-                "unidade_atual_repetida_no_redirecionamento"
-            }
-            Self::UnidadeAtualAusenteNaUrlDoEnvio => "unidade_atual_ausente_na_url_do_envio",
-            Self::UnidadeAtualRepetidaNaUrlDoEnvio => "unidade_atual_repetida_na_url_do_envio",
-            Self::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio => {
-                "unidade_atual_do_redirecionamento_diferente_da_do_envio"
-            }
-            Self::InfraSistemaAusenteNoRedirecionamento => {
-                "infra_sistema_ausente_no_redirecionamento"
-            }
-            Self::InfraSistemaRepetidoNoRedirecionamento => {
-                "infra_sistema_repetido_no_redirecionamento"
-            }
-            Self::InfraSistemaNaoDecimalNoRedirecionamento => {
-                "infra_sistema_nao_decimal_no_redirecionamento"
-            }
-            Self::InfraSistemaAusenteNaUrlDoEnvio => "infra_sistema_ausente_na_url_do_envio",
-            Self::InfraSistemaRepetidoNaUrlDoEnvio => "infra_sistema_repetido_na_url_do_envio",
-            Self::InfraSistemaNaoDecimalNaUrlDoEnvio => "infra_sistema_nao_decimal_na_url_do_envio",
-            Self::InfraSistemaDoRedirecionamentoDiferenteDoEnvio => {
-                "infra_sistema_do_redirecionamento_diferente_do_envio"
-            }
-            Self::AcaoDeOrigemInesperadaNoRedirecionamento => {
-                "acao_de_origem_inesperada_no_redirecionamento"
-            }
-            Self::IdProcedimentoDoRedirecionamentoDiferenteDoPedido => {
-                "id_procedimento_do_redirecionamento_diferente_do_pedido"
-            }
-            Self::IdDocumentoDoRedirecionamentoDiferenteDoPedido => {
-                "id_documento_do_redirecionamento_diferente_do_pedido"
-            }
-            Self::IdDocumentoAusenteNoRedirecionamento => {
-                "id_documento_ausente_no_redirecionamento"
-            }
-            Self::IdDocumentoRepetidoNoRedirecionamento => {
-                "id_documento_repetido_no_redirecionamento"
-            }
-            Self::IdDocumentoNaoDecimalNoRedirecionamento => {
-                "id_documento_nao_decimal_no_redirecionamento"
-            }
-        }
-    }
-}
+impl ErroRedirecionamentoDaPesquisa {}
 
 /// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
 /// uma `acao`, chaves canônicas, `infra_hash` de 64 hex). É assinada:
@@ -232,7 +125,9 @@ fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<
         });
     Ok(if let Some(resto) = resto_absoluto {
         let sufixo = sufixo_da_mesma_origem(resto, host, http).map_err(|erro| match erro {
-            ErroDeOrigem::OutroHost => E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
+            ErroDeOrigem::OutroHost => E::Html(ErroHtml::valor(
+                "localizacao_do_redirecionamento_fora_da_instalacao",
+            )),
             ErroDeOrigem::AutoridadeInvalida => E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
         })?;
         format!("https://{host}{sufixo}")
@@ -282,9 +177,9 @@ fn parametros_do_envio(url_do_envio: &str) -> Vec<(&str, &str)> {
 
 fn unidade_do_envio(url_do_envio: &str) -> Result<String, E> {
     match valores(&parametros_do_envio(url_do_envio), "infra_unidade_atual").as_slice() {
-        [] => Err(E::UnidadeAtualAusenteNaUrlDoEnvio),
+        [] => Err(ErroHtml::ausente("unidade_atual_ausente_na_url_do_envio").into()),
         [unidade] => Ok((*unidade).to_owned()),
-        _ => Err(E::UnidadeAtualRepetidaNaUrlDoEnvio),
+        _ => Err(ErroHtml::repetido("unidade_atual_repetida_na_url_do_envio").into()),
     }
 }
 
@@ -296,10 +191,10 @@ fn decimal(valor: &str) -> bool {
 /// `infra_sistema`; sem ele não há com o que comparar: falha fechada.
 fn sistema_do_envio(url_do_envio: &str) -> Result<String, E> {
     match valores(&parametros_do_envio(url_do_envio), "infra_sistema").as_slice() {
-        [] => Err(E::InfraSistemaAusenteNaUrlDoEnvio),
+        [] => Err(ErroHtml::ausente("infra_sistema_ausente_na_url_do_envio").into()),
         [sistema] if decimal(sistema) => Ok((*sistema).to_owned()),
         [_] => Err(E::InfraSistemaNaoDecimalNaUrlDoEnvio),
-        _ => Err(E::InfraSistemaRepetidoNaUrlDoEnvio),
+        _ => Err(ErroHtml::repetido("infra_sistema_repetido_na_url_do_envio").into()),
     }
 }
 
@@ -332,7 +227,7 @@ pub(crate) fn conferir_trabalho(
 ) -> Result<ProcessoRedirecionado, ErroRedirecionamentoDaPesquisa> {
     let localizacao = localizacao
         .filter(|l| !l.is_empty())
-        .ok_or(E::LocalizacaoDoRedirecionamentoAusente)?;
+        .ok_or(ErroHtml::ausente("localizacao_do_redirecionamento_ausente"))?;
     if localizacao.len() > LIMITE_DA_LOCALIZACAO {
         return Err(E::LocalizacaoDoRedirecionamentoAcimaDoLimite);
     }
@@ -341,7 +236,7 @@ pub(crate) fn conferir_trabalho(
     let (host, caminho, consulta) =
         partir_https(&absoluta).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao);
+        return Err(ErroHtml::valor("localizacao_do_redirecionamento_fora_da_instalacao").into());
     }
     let pares = parametros(consulta)?;
     if valores(&pares, "acao") != ["procedimento_trabalhar"] {
@@ -352,18 +247,26 @@ pub(crate) fn conferir_trabalho(
         origem.acao_de_origem(),
     ) {
         ([], None) => {}
-        ([], Some(_)) => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
-        ([_, ..], None) => return Err(E::AcaoDeOrigemInesperadaNoRedirecionamento),
+        ([], Some(_)) => {
+            return Err(ErroHtml::ausente("acao_de_origem_ausente_no_redirecionamento").into());
+        }
+        ([_, ..], None) => {
+            return Err(ErroHtml::valor("acao_de_origem_inesperada_no_redirecionamento").into());
+        }
         ([observada], Some(esperada)) if *observada == esperada => {}
         ([_], Some(_)) => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
-        (_, Some(_)) => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
+        (_, Some(_)) => {
+            return Err(ErroHtml::repetido("acao_de_origem_repetida_no_redirecionamento").into());
+        }
     }
     let id = match valores(&pares, origem.chave_do_id()).as_slice() {
-        [] | [""] => return Err(E::IdProcedimentoAusenteNoRedirecionamento),
+        [] | [""] => {
+            return Err(ErroHtml::ausente("id_procedimento_ausente_no_redirecionamento").into());
+        }
         [id] => {
             IdProcedimento::novo(id).map_err(|_| E::IdProcedimentoNaoDecimalNoRedirecionamento)?
         }
-        _ => return Err(E::IdProcedimentoRepetidoNoRedirecionamento),
+        _ => return Err(ErroHtml::repetido("id_procedimento_repetido_no_redirecionamento").into()),
     };
     if let OrigemDoTrabalho::EntradaPorId { id: pedido }
     | OrigemDoTrabalho::Controle { id: pedido }
@@ -378,15 +281,15 @@ pub(crate) fn conferir_trabalho(
         return Err(E::IdDocumentoDoRedirecionamentoDiferenteDoPedido);
     }
     match valores(&pares, "infra_hash").as_slice() {
-        [] => return Err(E::InfraHashAusenteNoRedirecionamento),
+        [] => return Err(ErroHtml::ausente("infra_hash_ausente_no_redirecionamento").into()),
         [hash] if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) => {}
         [_] => return Err(E::InfraHashForaDoFormatoNoRedirecionamento),
-        _ => return Err(E::InfraHashRepetidoNoRedirecionamento),
+        _ => return Err(ErroHtml::repetido("infra_hash_repetido_no_redirecionamento").into()),
     }
     let unidade = match valores(&pares, "infra_unidade_atual").as_slice() {
-        [] => return Err(E::UnidadeAtualAusenteNoRedirecionamento),
+        [] => return Err(ErroHtml::ausente("unidade_atual_ausente_no_redirecionamento").into()),
         [unidade] => *unidade,
-        _ => return Err(E::UnidadeAtualRepetidaNoRedirecionamento),
+        _ => return Err(ErroHtml::repetido("unidade_atual_repetida_no_redirecionamento").into()),
     };
     let sem_referencia = matches!(
         origem,
@@ -396,10 +299,10 @@ pub(crate) fn conferir_trabalho(
         return Err(E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio);
     }
     let sistema = match valores(&pares, "infra_sistema").as_slice() {
-        [] => return Err(E::InfraSistemaAusenteNoRedirecionamento),
+        [] => return Err(ErroHtml::ausente("infra_sistema_ausente_no_redirecionamento").into()),
         [sistema] if decimal(sistema) => *sistema,
         [_] => return Err(E::InfraSistemaNaoDecimalNoRedirecionamento),
-        _ => return Err(E::InfraSistemaRepetidoNoRedirecionamento),
+        _ => return Err(ErroHtml::repetido("infra_sistema_repetido_no_redirecionamento").into()),
     };
     // Comparação exata, sem normalizar zeros à esquerda.
     if !sem_referencia && sistema != sistema_do_envio(url_base)? {
@@ -419,10 +322,10 @@ pub(crate) fn documento_do_trabalho(
     let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
     let pares = parametros(consulta)?;
     match valores(&pares, "id_documento").as_slice() {
-        [] | [""] => Err(E::IdDocumentoAusenteNoRedirecionamento),
+        [] | [""] => Err(ErroHtml::ausente("id_documento_ausente_no_redirecionamento").into()),
         [id] if decimal(id) => Ok((*id).to_owned()),
         [_] => Err(E::IdDocumentoNaoDecimalNoRedirecionamento),
-        _ => Err(E::IdDocumentoRepetidoNoRedirecionamento),
+        _ => Err(ErroHtml::repetido("id_documento_repetido_no_redirecionamento").into()),
     }
 }
 

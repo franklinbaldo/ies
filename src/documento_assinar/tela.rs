@@ -11,6 +11,7 @@
 //! resposta aceita é a mesma tela com `inicializar()` chamando `finalizar()`.
 use super::erro::ErroTelaDeAssinatura as E;
 use crate::arvore_processo::ACAO_DE_ASSINAR;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo, localizar_formulario,
@@ -80,10 +81,11 @@ pub(crate) fn conferir_tela_de_assinatura(
     html: &str,
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
-        .map_err(|_| E::FormularioDeAssinaturaAusente)?;
+        .map_err(|_| ErroHtml::ausente("formulario_de_assinatura_ausente"))?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
     for tag in form
@@ -121,7 +123,7 @@ pub(crate) fn conferir_tela_de_assinatura(
             ("input", "password", SENHA) if !senha => senha = true,
             ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
             ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
-            _ => return Err(E::CampoNaoPrevistoNaTelaDeAssinatura),
+            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura").into()),
         }
     }
     if documentos.as_deref() != Some(id_documento) {
@@ -143,9 +145,9 @@ pub(crate) fn conferir_tela_de_assinatura(
     }
     .ok_or(E::OrgaoDoAssinanteNaoSelecionado)?;
     if !senha {
-        return Err(E::CampoDeSenhaAusenteNaTela);
+        return Err(ErroHtml::ausente("campo_de_senha_ausente_na_tela").into());
     }
-    let opcoes = cargos.ok_or(E::CampoNaoPrevistoNaTelaDeAssinatura)?;
+    let opcoes = cargos.ok_or(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura"))?;
     let validas: Vec<&(String, bool)> = opcoes
         .iter()
         .filter(|(v, _)| v != VAZIA && !v.is_empty())
@@ -174,22 +176,28 @@ fn opcoes(select: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<(Stri
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
-        let valor = valor(tag, "value")?.ok_or(E::HtmlNaoInterpretado)?;
+        let valor =
+            valor(tag, "value")?.ok_or(ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
         lidas.push((valor, presente(tag, "selected")?));
     }
     Ok(lidas)
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|_| E::HtmlNaoInterpretado)
+    atributo_presente(tag, nome)
+        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_assinatura_nao_interpretada", e)))
 }
 
 /// Valor do atributo com as entidades decodificadas.
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    match valor_do_atributo(tag, nome).map_err(|_| E::HtmlNaoInterpretado)? {
+    match valor_do_atributo(tag, nome)
+        .map_err(|e| ErroHtml::atributo("tela_de_assinatura_nao_interpretada", e))?
+    {
         Some(bruto) => decodificar_atributo(&bruto)
             .map(Some)
-            .ok_or(E::HtmlNaoInterpretado),
+            .ok_or(E::Html(ErroHtml::html(
+                "tela_de_assinatura_nao_interpretada",
+            ))),
         None => Ok(None),
     }
 }

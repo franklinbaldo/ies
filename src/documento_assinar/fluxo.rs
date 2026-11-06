@@ -12,6 +12,7 @@ use crate::arvore_processo::{
     Assinante, EdicaoNaBarra, ler_assinatura_na_arvore, ler_barra_do_documento,
     ler_link_de_assinar, tela_do_documento,
 };
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
     enviar_submissao_via,
@@ -45,22 +46,25 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
         processo: pedido.processo,
         anexo: PedidoDoAnexo::default(),
     };
-    let aberto =
-        abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede).map_err(A::Abertura)?;
+    let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)?;
     let (id, id_processo) = (aberto.id_documento.clone(), aberto.processo.id.clone());
-    let na_arvore = ler_assinatura_na_arvore(&aberto.html, &id).map_err(A::Arvore)?;
+    let na_arvore = ler_assinatura_na_arvore(&aberto.html, &id)
+        .map_err(crate::documento_assinar::erro::ErroAssinar::Arvore)?;
     if !na_arvore.publicada {
         return Err(A::AssinaturaNaoPublicadaNaBarra);
     }
-    let tela_do_doc = tela_do_documento(&instalacao, &aberto.html, &id, &id_processo)
-        .ok_or(A::EnderecoDaTelaDoDocumentoNaoReconhecido)?;
+    let tela_do_doc =
+        tela_do_documento(&instalacao, &aberto.html, &id, &id_processo).ok_or(A::Html(
+            ErroHtml::valor("endereco_da_tela_do_documento_nao_reconhecido").com_mensagem(
+                "a árvore não publica a tela do documento na forma observada; nada foi assinado",
+            ),
+        ))?;
     let cookie = ler_cookie(sessao)
         .map_err(|falha| A::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela_do_doc.as_str()).map_err(da_tela)?;
-    let link =
-        ler_link_de_assinar(&instalacao, &html, &id, &id_processo).map_err(A::LinkDeAssinar)?;
+    let link = ler_link_de_assinar(&instalacao, &html, &id, &id_processo)?;
     let (html_da_tela, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;
-    let tela = conferir_tela_de_assinatura(&html_da_tela, &id).map_err(A::TelaDeAssinatura)?;
+    let tela = conferir_tela_de_assinatura(&html_da_tela, &id)?;
     let mut feito = previa(&instalacao, &aberto, &tela, na_arvore.assinantes, pedido);
     feito.requisicoes = rede.feitas();
     if feito.assinaturas.iter().any(|a| a.nome == tela.assinante) {

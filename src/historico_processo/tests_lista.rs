@@ -4,6 +4,7 @@ use super::ErroAndamentos as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
+use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 
 #[test]
@@ -53,7 +54,7 @@ fn pagina_de_outro_nup_diverge_do_pedido() {
         E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     );
     assert!(erro.diverge_do_pedido());
-    assert!(!E::LegendaDosAndamentosAusente.diverge_do_pedido());
+    assert!(!E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")).diverge_do_pedido());
 }
 
 #[test]
@@ -65,7 +66,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&sem, NUP),
-        Err(E::LegendaDosAndamentosAusente)
+        Err(E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")))
     );
     for legenda in [
         "Lista de Andamentos (1 registro - 1 a 1):",
@@ -76,7 +77,9 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
         let trocada = html.replace("Lista de Andamentos (1 registro):", legenda);
         assert_eq!(
             ler_andamentos(&trocada, NUP),
-            Err(E::LegendaDosAndamentosForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "legenda_dos_andamentos_fora_da_forma_observada"
+            ))),
             "{legenda}"
         );
     }
@@ -86,7 +89,9 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&duas, NUP),
-        Err(E::LegendaDosAndamentosForaDaFormaObservada)
+        Err(E::Html(ErroHtml::valor(
+            "legenda_dos_andamentos_fora_da_forma_observada"
+        )))
     );
 }
 
@@ -111,8 +116,10 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
 #[test]
 fn subcodigos_estaveis() {
     let nomes: Vec<_> = [
-        E::LegendaDosAndamentosAusente,
-        E::LegendaDosAndamentosForaDaFormaObservada,
+        E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")),
+        E::Html(ErroHtml::valor(
+            "legenda_dos_andamentos_fora_da_forma_observada",
+        )),
         E::AndamentosAlemDoTotalDeclarado,
         E::TipoDoHistoricoNaoPublicado,
         E::CharsetDoHistoricoNaoSuportado,
@@ -121,7 +128,7 @@ fn subcodigos_estaveis() {
         E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado),
     ]
     .iter()
-    .map(|e| e.subcodigo())
+    .map(|e| crate::erro_publico::folha(e))
     .collect();
     assert_eq!(
         nomes,

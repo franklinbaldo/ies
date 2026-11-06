@@ -1,16 +1,19 @@
 //! Recusas de `ies processo reabrir` (contracts/cli/processo-reabrir.md).
 //! Uma variante por fato; a resposta não esperada da escrita é a
 //! `FalhaDoEnvio` de `processo concluir`, e a verificação, a mesma leitura.
-use crate::arvore_processo::{ErroEnderecoDeReabrir, ErroReabrirNaBarra, MotivoAbertoEm};
+use crate::arvore_processo::{ErroEnderecoDeReabrir, MotivoAbertoEm};
+use crate::erro_html::ErroHtml;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroReabrir {
     /// A abertura do processo (a de `ies processo NUP`) falhou.
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
+    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeReabrir {
         motivo: MotivoAbertoEm,
@@ -23,13 +26,18 @@ pub(crate) enum ErroReabrir {
     ReaberturaNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
-    Barra(ErroReabrirNaBarra),
+    #[causa(interna)]
+    Barra(ErroHtml),
     /// O cookie não pôde ser lido antes da tela do nó.
+    #[causa(interna)]
     Cookie(FalhaTransporte),
     /// GET da tela do nó, antes da escrita.
+    #[causa(interna)]
     TelaDoNo(FalhaTransporte),
     TelaDoNoRedirecionada,
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     SessaoEncerrada,
+    #[causa(interna)]
     EnderecoDeReabrir(ErroEnderecoDeReabrir),
     /// A leitura depois da escrita não lista a unidade da sessão.
     ReaberturaNaoAplicada {
@@ -47,22 +55,7 @@ pub(crate) enum ErroReabrir {
 
 impl ErroReabrir {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::UnidadeDaSessaoNaoPublicada => "unidade_da_sessao_nao_publicada_na_abertura",
-            Self::SituacaoDoProcessoNaoLidaAntesDeReabrir { .. } => {
-                "situacao_do_processo_nao_lida_antes_de_reabrir"
-            }
-            Self::UnidadeDaSessaoJaNaSituacao { .. } => "unidade_da_sessao_ja_na_situacao",
-            Self::ReaberturaNaoPublicadaNaBarra { .. } => "reabertura_nao_publicada_na_barra",
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::Cookie(falha) | Self::TelaDoNo(falha) => falha.subcodigo(),
-            Self::TelaDoNoRedirecionada => "tela_do_no_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::EnderecoDeReabrir(erro) => erro.subcodigo(),
-            Self::ReaberturaNaoAplicada { .. } => "reabertura_nao_aplicada",
-            Self::EfeitoIncertoNaReabertura { .. } => "efeito_incerto_na_reabertura",
-        }
+        crate::erro_publico::folha(self)
     }
 
     /// Categoria pública: o próximo passo de quem chama.

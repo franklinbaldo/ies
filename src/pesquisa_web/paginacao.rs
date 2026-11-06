@@ -7,6 +7,7 @@ use super::formulario_pesquisa::CAMPOS_OCULTOS_DA_PESQUISA;
 #[cfg(test)]
 use super::resposta::ListaDaPesquisa;
 use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     decodificar_atributo, localizar_formulario,
@@ -29,48 +30,25 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 };
 
 /// Uma variante por fato verificável da paginação da pesquisa.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
+    #[causa(nome = "pagina_da_pesquisa_fora_do_intervalo")]
+    PaginaForaDoIntervalo {
+        solicitada: u32,
+        paginas: u64,
+    },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
-    LinkDePaginacaoDaPesquisaForaDaRegra,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
     RedirecionamentoAoPaginarAPesquisa,
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    HtmlDaTelaDeResultadoNaoInterpretado,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroPaginacaoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::PaginaForaDoIntervalo { .. } => "pagina_da_pesquisa_fora_do_intervalo",
-            Self::RegraDeNavegacaoDaPesquisaNaoObservada => {
-                "regra_de_navegacao_da_pesquisa_nao_observada"
-            }
-            Self::PaginadorDaPesquisaNaoPublicado => "paginador_da_pesquisa_nao_publicado",
-            Self::LinkDePaginacaoDaPesquisaForaDaRegra => {
-                "link_de_paginacao_da_pesquisa_fora_da_regra"
-            }
-            Self::ProtocoloDaTelaDeResultadoDiferenteDoPesquisado => {
-                "protocolo_da_tela_de_resultado_diferente_do_pesquisado"
-            }
-            Self::RedirecionamentoAoPaginarAPesquisa => "redirecionamento_ao_paginar_a_pesquisa",
-            Self::PaginaDaPesquisaSemResultadoAposPaginar => {
-                "pagina_da_pesquisa_sem_resultado_apos_paginar"
-            }
-            Self::TotalDaPesquisaAlteradoAposPaginar => "total_da_pesquisa_alterado_apos_paginar",
-            Self::FaixaDaPesquisaDiferenteDaPaginaSolicitada => {
-                "faixa_da_pesquisa_diferente_da_pagina_solicitada"
-            }
-            Self::HtmlDaTelaDeResultadoNaoInterpretado => {
-                "html_da_tela_de_resultado_da_pesquisa_nao_interpretado"
-            }
-        }
-    }
-}
+impl ErroPaginacaoDaPesquisa {}
 
 /// O que a paginação precisa da resposta da página 1, em processos ou em
 /// documentos: a forma e, na lista, a faixa e o total da barra.
@@ -184,7 +162,9 @@ fn conferir_links_de_navegar(
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
+    let ilegivel = E::Html(ErroHtml::html(
+        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut publicados = 0;
@@ -206,7 +186,7 @@ fn conferir_links_de_navegar(
             .and_then(|k| k.parse::<u64>().ok())
             .is_some_and(|k| k % tamanho == 0 && k < total);
         if !na_regra {
-            return Err(E::LinkDePaginacaoDaPesquisaForaDaRegra);
+            return Err(ErroHtml::valor("link_de_paginacao_da_pesquisa_fora_da_regra").into());
         }
         publicados += 1;
     }
@@ -223,7 +203,9 @@ pub(crate) fn conferir_protocolo_servido(
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
+    let ilegivel = E::Html(ErroHtml::html(
+        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
+    ));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)

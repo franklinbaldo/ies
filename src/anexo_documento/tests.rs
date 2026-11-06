@@ -4,6 +4,7 @@
 //! `inline; filename="…"` (`UnB`, pelo oráculo Todos) e `text/plain` do
 //! ícone `documento_txt`. Nenhum valor real.
 use super::*;
+use crate::erro_html::ErroHtml;
 use std::io::{self, Cursor};
 use std::path::PathBuf;
 
@@ -269,7 +270,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-type", "application/pdf"),
             ("content-type", "application/pdf")
         ]),
-        E::CabecalhoRepetido
+        E::Html(ErroHtml::repetido("cabecalho_do_anexo_repetido"))
     );
     assert_eq!(
         sem_ler(&[
@@ -277,7 +278,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-length", "1"),
             ("content-length", "1"),
         ]),
-        E::CabecalhoRepetido
+        E::Html(ErroHtml::repetido("cabecalho_do_anexo_repetido"))
     );
     for ruim in [
         "form-data; filename=\"a.pdf\"",
@@ -292,7 +293,9 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
                 ("content-type", "application/pdf"),
                 ("content-disposition", ruim)
             ]),
-            E::DisposicaoForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "disposicao_do_anexo_fora_da_forma_observada"
+            )),
             "{ruim:?}"
         );
     }

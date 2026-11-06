@@ -312,6 +312,7 @@ dependencies = [
  "base64",
  "clap",
  "ies-core",
+ "ies-derive",
  "native-tls",
  "rusqlite",
  "serde",
@@ -324,6 +325,10 @@ dependencies = [
 
 [[package]]
 name = "ies-core"
+version = "0.1.0"
+
+[[package]]
+name = "ies-derive"
 version = "0.1.0"
 
 [[package]]

@@ -76,6 +76,29 @@ const MIGRACOES: &[&str] = &[
         CHECK (entrada_com_documento IN (0, 1));
     ALTER TABLE instalacao ADD COLUMN entrada_com_documento_testado_em REAL;
     ALTER TABLE instalacao ADD COLUMN recusas_com_documento INTEGER NOT NULL DEFAULT 0;",
+    // 2 → 3 (#244): snapshot completo por instalação e unidade ativa.
+    // A tabela 'unidade' é contrato público exclusivamente de leitura.
+    "CREATE TABLE lista_unidade (
+        instalacao TEXT NOT NULL,
+        unidade_ativa TEXT NOT NULL,
+        lida_em REAL NOT NULL,
+        total INTEGER NOT NULL CHECK (total >= 0),
+        PRIMARY KEY (instalacao, unidade_ativa)
+    ) STRICT;
+    CREATE TABLE unidade (
+        instalacao TEXT NOT NULL,
+        unidade_ativa TEXT NOT NULL,
+        id TEXT NOT NULL,
+        sigla TEXT NOT NULL,
+        descricao TEXT NOT NULL,
+        orgao TEXT NOT NULL,
+        lida_em REAL NOT NULL,
+        PRIMARY KEY (instalacao, unidade_ativa, id),
+        FOREIGN KEY (instalacao, unidade_ativa)
+            REFERENCES lista_unidade(instalacao, unidade_ativa)
+    ) STRICT;
+    CREATE INDEX unidade_sigla
+        ON unidade(instalacao, unidade_ativa, sigla);",
 ];
 
 pub(super) fn versao_do_esquema() -> i64 {

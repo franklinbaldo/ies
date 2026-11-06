@@ -8,6 +8,7 @@
 use super::ErroResultadoPesquisa;
 use super::resposta::FaixaDaPesquisa;
 use crate::dominio::IdProcedimento;
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::ErroAtributoHtml;
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 
@@ -60,57 +61,24 @@ pub(crate) enum RespostaDeDocumentos {
 }
 
 /// Uma variante por fato verificável da linha de documento.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDocumentoDaPesquisa {
     /// Recusa da leitura comum do link do processo e da árvore.
+    #[causa(interna)]
     Linha(ErroResultadoPesquisa),
+    #[causa(interna)]
     AtributoHtml(ErroAtributoHtml),
-    CelulaDoTituloDoDocumentoAusenteOuRepetida,
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
-    LinkDoDocumentoAusenteNaLinha,
-    LinksDoDocumentoRepetidosNaLinha,
-    LinkDaLinhaDeDocumentoNaoReconhecido,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,
-    NumeroSeiAusenteNaLinha,
-    RotuloDoDocumentoAusente,
-    MetadadoDoDocumentoRepetido,
-    DataDeInclusaoForaDaFormaObservada,
     LinhaDaPesquisaForaDeUmRegistro,
-    NumeroSeiRepetidoNaPesquisa,
+    #[causa(interna)]
     NumeroDoProcesso(NumeroProcessoInvalido),
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroDocumentoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Linha(erro) => erro.subcodigo(),
-            Self::AtributoHtml(erro) => erro.subcodigo(),
-            Self::CelulaDoTituloDoDocumentoAusenteOuRepetida => {
-                "celula_do_titulo_do_documento_ausente_ou_repetida"
-            }
-            Self::LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso => {
-                "linha_de_documento_sem_id_documento_no_link_do_processo"
-            }
-            Self::LinkDoDocumentoAusenteNaLinha => "link_do_documento_ausente_na_linha",
-            Self::LinksDoDocumentoRepetidosNaLinha => "links_do_documento_repetidos_na_linha",
-            Self::LinkDaLinhaDeDocumentoNaoReconhecido => {
-                "link_da_linha_de_documento_nao_reconhecido"
-            }
-            Self::LinkDoDocumentoDiferenteDoProcesso => "link_do_documento_diferente_do_processo",
-            Self::NumeroSeiComLinkDiferenteDoDocumento => {
-                "numero_sei_com_link_diferente_do_documento"
-            }
-            Self::NumeroSeiAusenteNaLinha => "numero_sei_ausente_na_linha",
-            Self::RotuloDoDocumentoAusente => "rotulo_do_documento_ausente",
-            Self::MetadadoDoDocumentoRepetido => "metadado_do_documento_repetido",
-            Self::DataDeInclusaoForaDaFormaObservada => "data_de_inclusao_fora_da_forma_observada",
-            Self::LinhaDaPesquisaForaDeUmRegistro => "linha_da_pesquisa_fora_de_um_registro",
-            Self::NumeroSeiRepetidoNaPesquisa => "numero_sei_repetido_na_pesquisa",
-            Self::NumeroDoProcesso(erro) => erro.subcodigo(),
-        }
-    }
-}
+impl ErroDocumentoDaPesquisa {}
 
 #[cfg(test)]
 mod tests;

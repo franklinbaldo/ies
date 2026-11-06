@@ -5,6 +5,7 @@ mod colunas;
 
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
@@ -51,88 +52,43 @@ impl LeituraDetalhada {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDetalhada {
-    HtmlNaoInterpretado,
-    TabelaAusente,
-    TabelasRepetidas,
+    #[causa(nome = "modo_detalhado_nao_confirmado")]
     VisualizacaoIncorreta,
+    #[causa(nome = "unidade_da_detalhada_ausente")]
     UnidadeNaoIdentificada,
+    #[causa(nome = "unidade_da_detalhada_diferente_da_solicitada")]
     UnidadeDiferente,
+    #[causa(nome = "contexto_detalhado_alterado")]
     ContextoDiferente,
-    CabecalhoProcessoAusente,
-    CabecalhoProcessoRepetido,
+    #[causa(nome = "colunas_da_linha_detalhada_diferentes")]
     ColunasDaLinhaDiferentes,
-    LinkDoProcessoAusente,
-    LinksDoProcessoRepetidos,
+    #[causa(nome = "classes_de_estado_diferentes_no_link_detalhado")]
     ClassesDeEstadoDiferentesNoLink,
-    NumeroDoProcessoAusente,
-    IdentificadorInvalido,
-    IdentificadorRepetido,
-    NumeroRepetido,
-    LegendaAusente,
-    LegendasRepetidas,
+    #[causa(nome = "total_detalhado_nao_declarado")]
     TotalNaoDeclarado,
-    FaixaInvalida,
+    #[causa(nome = "faixa_detalhada_sem_intervalo_com_paginacao")]
     FaixaSemIntervaloComPaginacao,
+    #[causa(nome = "faixa_detalhada_descontinua")]
     FaixaDescontinua,
+    #[causa(nome = "total_detalhado_alterado")]
     TotalAlterado,
+    #[causa(nome = "limite_paginas_detalhadas")]
     LimitePaginas,
-    CabecalhoNaoReconhecido,
-    ColunaRepetida,
+    #[causa(nome = "rotulo_da_celula_detalhada_diferente_do_cabecalho")]
     RotuloDaCelulaDiferenteDoCabecalho,
+    #[causa(nome = "itens_da_celula_detalhada_nao_separados")]
     ItensDaCelulaNaoSeparados,
-    ItensNaoPrevistosNaCelula,
+    #[causa(nome = "cabecalho_detalhado_diferente_entre_paginas")]
     CabecalhoDiferenteEntrePaginas,
-    MarcadorDaCelulaForaDaFormaObservada,
+    #[causa(nome = "texto_fora_dos_marcadores_na_celula_detalhada")]
     TextoForaDosMarcadoresNaCelula,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroDetalhada {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_detalhado_nao_interpretado",
-            Self::TabelaAusente => "tabela_detalhada_ausente",
-            Self::TabelasRepetidas => "tabelas_detalhadas_repetidas",
-            Self::VisualizacaoIncorreta => "modo_detalhado_nao_confirmado",
-            Self::UnidadeNaoIdentificada => "unidade_da_detalhada_ausente",
-            Self::UnidadeDiferente => "unidade_da_detalhada_diferente_da_solicitada",
-            Self::ContextoDiferente => "contexto_detalhado_alterado",
-            Self::CabecalhoProcessoAusente => "cabecalho_processo_detalhado_ausente",
-            Self::CabecalhoProcessoRepetido => "cabecalho_processo_detalhado_repetido",
-            Self::ColunasDaLinhaDiferentes => "colunas_da_linha_detalhada_diferentes",
-            Self::LinkDoProcessoAusente => "link_do_processo_detalhado_ausente",
-            Self::LinksDoProcessoRepetidos => "links_do_processo_detalhado_repetidos",
-            Self::ClassesDeEstadoDiferentesNoLink => {
-                "classes_de_estado_diferentes_no_link_detalhado"
-            }
-            Self::NumeroDoProcessoAusente => "numero_do_processo_detalhado_ausente",
-            Self::IdentificadorInvalido => "identificador_detalhado_invalido",
-            Self::IdentificadorRepetido => "identificador_detalhado_repetido",
-            Self::NumeroRepetido => "numero_detalhado_repetido",
-            Self::LegendaAusente => "legenda_detalhada_ausente",
-            Self::LegendasRepetidas => "legendas_detalhadas_repetidas",
-            Self::TotalNaoDeclarado => "total_detalhado_nao_declarado",
-            Self::FaixaInvalida => "faixa_detalhada_invalida",
-            Self::FaixaSemIntervaloComPaginacao => "faixa_detalhada_sem_intervalo_com_paginacao",
-            Self::FaixaDescontinua => "faixa_detalhada_descontinua",
-            Self::TotalAlterado => "total_detalhado_alterado",
-            Self::LimitePaginas => "limite_paginas_detalhadas",
-            Self::CabecalhoNaoReconhecido => "cabecalho_da_visao_detalhada_nao_reconhecido",
-            Self::ColunaRepetida => "coluna_da_visao_detalhada_repetida",
-            Self::RotuloDaCelulaDiferenteDoCabecalho => {
-                "rotulo_da_celula_detalhada_diferente_do_cabecalho"
-            }
-            Self::ItensDaCelulaNaoSeparados => "itens_da_celula_detalhada_nao_separados",
-            Self::ItensNaoPrevistosNaCelula => "itens_nao_previstos_na_celula_detalhada",
-            Self::CabecalhoDiferenteEntrePaginas => "cabecalho_detalhado_diferente_entre_paginas",
-            Self::MarcadorDaCelulaForaDaFormaObservada => {
-                "marcador_da_celula_detalhada_fora_da_forma_observada"
-            }
-            Self::TextoForaDosMarcadoresNaCelula => "texto_fora_dos_marcadores_na_celula_detalhada",
-        }
-    }
-}
+impl ErroDetalhada {}
 
 struct Pagina {
     contexto: ContextoPagina,
@@ -163,13 +119,13 @@ fn indice_oculto_alem_da_primeira(
     parser: &tl::Parser<'_>,
 ) -> Result<bool, ErroDetalhada> {
     let nos = nos_com_id(dom, "hdnDetalhadoPaginaAtual")
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+        .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?;
     for no in nos {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             return Ok(true);
         };
-        let valor =
-            valor_do_atributo(tag, "value").map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+        let valor = valor_do_atributo(tag, "value")
+            .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?;
         if valor.as_deref().map(str::trim) != Some("0") {
             return Ok(true);
         }
@@ -203,20 +159,20 @@ fn faixa(
     };
     let (inicio, fim) = intervalo
         .split_once(" a ")
-        .ok_or(ErroDetalhada::FaixaInvalida)?;
+        .ok_or(ErroHtml::valor("faixa_detalhada_invalida"))?;
     let inicio = inicio
         .trim()
         .parse::<usize>()
-        .map_err(|_| ErroDetalhada::FaixaInvalida)?;
+        .map_err(|_| ErroHtml::valor("faixa_detalhada_invalida"))?;
     let fim = fim
         .trim()
         .chars()
         .take_while(char::is_ascii_digit)
         .collect::<String>()
         .parse::<usize>()
-        .map_err(|_| ErroDetalhada::FaixaInvalida)?;
+        .map_err(|_| ErroHtml::valor("faixa_detalhada_invalida"))?;
     if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
-        return Err(ErroDetalhada::FaixaInvalida);
+        return Err(ErroHtml::valor("faixa_detalhada_invalida").into());
     }
     Ok((total, inicio, fim))
 }
@@ -245,7 +201,8 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
 
 /// Lido da fonte da tag; tag ilegível não vira atributo ausente.
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
-    valor_do_atributo(tag, nome).map_err(|_| ErroDetalhada::HtmlNaoInterpretado)
+    valor_do_atributo(tag, nome)
+        .map_err(|e| ErroDetalhada::Html(ErroHtml::atributo("html_detalhado_nao_interpretado", e)))
 }
 
 fn ler_linha(
@@ -260,7 +217,8 @@ fn ler_linha(
     let Some(id) = id.strip_prefix('P') else {
         return Ok(None);
     };
-    let id = IdProcedimento::novo(id).map_err(|_| ErroDetalhada::IdentificadorInvalido)?;
+    let id = IdProcedimento::novo(id)
+        .map_err(|_| ErroHtml::valor("identificador_detalhado_invalido"))?;
     let celulas: Vec<_> = tag
         .children()
         .top()
@@ -286,10 +244,10 @@ fn ler_linha(
             colunas::PapelDaColuna::SemRotulo => {}
         }
     }
-    let celula = celula.ok_or(ErroDetalhada::CabecalhoProcessoAusente)?;
+    let celula = celula.ok_or(ErroHtml::ausente("cabecalho_processo_detalhado_ausente"))?;
     let links = celula
         .query_selector(parser, "a")
-        .ok_or(ErroDetalhada::LinkDoProcessoAusente)?;
+        .ok_or(ErroHtml::ausente("link_do_processo_detalhado_ausente"))?;
     let mut escolhido = None;
     for link in links {
         let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
@@ -301,13 +259,13 @@ fn ler_linha(
             continue;
         };
         if escolhido.is_some() {
-            return Err(ErroDetalhada::LinksDoProcessoRepetidos);
+            return Err(ErroHtml::repetido("links_do_processo_detalhado_repetidos").into());
         }
         let classe = atributo(link, "class")?.unwrap_or_default();
         let estado = crate::classe_link_processo::estado_do_link(&classe)
             .map_err(|_| ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
-            .map_err(|_| ErroDetalhada::NumeroDoProcessoAusente)?;
+            .map_err(|_| ErroHtml::ausente("numero_do_processo_detalhado_ausente"))?;
         escolhido = Some((
             ProcessoDetalhado {
                 id: id.clone(),
@@ -322,11 +280,14 @@ fn ler_linha(
     }
     escolhido
         .map(Some)
-        .ok_or(ErroDetalhada::LinkDoProcessoAusente)
+        .ok_or(ErroDetalhada::Html(ErroHtml::ausente(
+            "link_do_processo_detalhado_ausente",
+        )))
 }
 
 fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
-    let contexto = contexto_da_pagina(html).map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+    let contexto =
+        contexto_da_pagina(html).map_err(|_| ErroHtml::html("html_detalhado_nao_interpretado"))?;
     if !contexto.eh_detalhada() {
         return Err(ErroDetalhada::VisualizacaoIncorreta);
     }
@@ -334,34 +295,38 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         return Err(ErroDetalhada::UnidadeNaoIdentificada);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+        .map_err(|_| ErroHtml::html("html_detalhado_nao_interpretado"))?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosDetalhado")
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+        .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?;
     let tabela = match tabelas.as_slice() {
-        [] => return Err(ErroDetalhada::TabelaAusente),
+        [] => return Err(ErroHtml::ausente("tabela_detalhada_ausente").into()),
         [tabela] => *tabela,
-        _ => return Err(ErroDetalhada::TabelasRepetidas),
+        _ => return Err(ErroHtml::repetido("tabelas_detalhadas_repetidas").into()),
     };
     let tabela = tabela
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroDetalhada::TabelaAusente)?;
+        .ok_or(ErroHtml::ausente("tabela_detalhada_ausente"))?;
     if tabela.name() != "table"
         || tabela
             .query_selector(parser, "table")
             .is_some_and(|mut itens| itens.next().is_some())
     {
-        return Err(ErroDetalhada::TabelaAusente);
+        return Err(ErroHtml::ausente("tabela_detalhada_ausente").into());
     }
     let mut legendas = tabela
         .query_selector(parser, "caption")
-        .ok_or(ErroDetalhada::LegendaAusente)?;
-    let legenda = legendas.next().ok_or(ErroDetalhada::LegendaAusente)?;
+        .ok_or(ErroHtml::ausente("legenda_detalhada_ausente"))?;
+    let legenda = legendas
+        .next()
+        .ok_or(ErroHtml::ausente("legenda_detalhada_ausente"))?;
     if legendas.next().is_some() {
-        return Err(ErroDetalhada::LegendasRepetidas);
+        return Err(ErroHtml::repetido("legendas_detalhadas_repetidas").into());
     }
-    let legenda = legenda.get(parser).ok_or(ErroDetalhada::LegendaAusente)?;
+    let legenda = legenda
+        .get(parser)
+        .ok_or(ErroHtml::ausente("legenda_detalhada_ausente"))?;
     let papeis = colunas::papeis_do_cabecalho(&dom, tabela)?;
     let configuradas: Vec<ColunaDoDetalhe> = papeis
         .iter()
@@ -387,9 +352,9 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
     let paginacao_visivel = indice_oculto_alem_da_primeira(&dom, parser)?
         || crate::paginacao_controle::controles_de_paginacao(html)
-            .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+            .map_err(|_| ErroHtml::html("html_detalhado_nao_interpretado"))?
         || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")
-            .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?;
+            .map_err(|_| ErroHtml::html("html_detalhado_nao_interpretado"))?;
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {
         contexto,
@@ -426,7 +391,7 @@ pub(crate) fn ler_paginas(
     unidade_esperada: Option<&str>,
 ) -> Result<LeituraDetalhada, ErroDetalhada> {
     if paginas.is_empty() {
-        return Err(ErroDetalhada::TabelaAusente);
+        return Err(ErroHtml::ausente("tabela_detalhada_ausente").into());
     }
     if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroDetalhada::LimitePaginas);
@@ -476,10 +441,10 @@ pub(crate) fn ler_paginas(
         proximo = pagina.fim.saturating_add(1);
         for processo in pagina.processos {
             if !ids.insert(processo.id.clone()) {
-                return Err(ErroDetalhada::IdentificadorRepetido);
+                return Err(ErroHtml::repetido("identificador_detalhado_repetido").into());
             }
             if !numeros.insert(processo.numero.clone()) {
-                return Err(ErroDetalhada::NumeroRepetido);
+                return Err(ErroHtml::repetido("numero_detalhado_repetido").into());
             }
             processos.push(processo);
         }

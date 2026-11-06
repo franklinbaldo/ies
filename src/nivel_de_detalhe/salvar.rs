@@ -9,6 +9,7 @@
 //! observado: o efeito é conferido por um GET da mesma tela.
 use super::tela::{ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
 use super::{ColunaDoDetalhe, PlanoDasColunas};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
     PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
@@ -67,11 +68,11 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// observado não tem: só `hdnInfraTipoPagina`, `sbmSalvar` e as caixas do
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
 pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
-    use ErroNivelDeDetalhe as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("html_do_nivel_de_detalhe_nao_interpretado"))?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
-        .map_err(|_| E::FormularioDoNivelDeDetalheAusente)?;
+        .map_err(|_| ErroHtml::ausente("formulario_do_nivel_de_detalhe_ausente"))?;
     for tag in form
         .children()
         .all(parser)
@@ -82,14 +83,11 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled").map_err(E::AtributoHtml)?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
-        let Some(nome) = valor_do_atributo(tag, "name")
-            .map_err(E::AtributoHtml)?
-            .filter(|n| !n.is_empty())
-        else {
+        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -97,8 +95,7 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
         } else {
             "text"
         };
-        let tipo = valor_do_atributo(tag, "type")
-            .map_err(E::AtributoHtml)?
+        let tipo = valor_do_atributo(tag, "type")?
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
         let previsto = match (elemento.as_str(), tipo.as_str()) {
             // Não participam do envio.
@@ -109,7 +106,9 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
             _ => false,
         };
         if !previsto {
-            return Err(E::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe);
+            return Err(
+                ErroHtml::valor("campo_nao_previsto_no_formulario_do_nivel_de_detalhe").into(),
+            );
         }
     }
     Ok(())

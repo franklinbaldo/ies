@@ -5,6 +5,7 @@
 //! blocos, com SHA-256, para um parcial 0600 em `--saida` ou só para o
 //! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
 use crate::documento_web::ErroCorpoDocumento;
+use crate::erro_html::ErroHtml;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, recusar_status};
@@ -134,64 +135,54 @@ impl ArquivoParcial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAnexo {
     /// Status, rede, limite de `chunked`, charset.
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     /// HTML 200 que é a tela de login.
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
     TelaDeLogin,
+    #[causa(nome = "anexo_sem_tipo_de_conteudo")]
     SemTipoDeConteudo,
+    #[causa(nome = "tipo_de_anexo_nao_permitido")]
     TipoNaoPermitido,
-    CabecalhoRepetido,
-    DisposicaoForaDaFormaObservada,
+    #[causa(nome = "anexo_acima_do_limite")]
     AcimaDoLimite,
+    #[causa(nome = "anexo_vazio")]
     Vazio,
     ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
+    #[causa(nome = "anexo_recusado_pelo_sei")]
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
+    #[causa(interna)]
     Corpo(ErroCorpoDocumento),
-    DiretorioAusente,
+    #[causa(nome = "arquivo_do_anexo_ja_existe")]
     ArquivoJaExiste,
+    #[causa(nome = "escrita_do_anexo_falhou")]
     EscritaFalhou,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
 impl ErroAnexo {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::TelaDeLogin => "sessao_encerrada_rode_ies_login",
-            Self::SemTipoDeConteudo => "anexo_sem_tipo_de_conteudo",
-            Self::TipoNaoPermitido => "tipo_de_anexo_nao_permitido",
-            Self::CabecalhoRepetido => "cabecalho_do_anexo_repetido",
-            Self::DisposicaoForaDaFormaObservada => "disposicao_do_anexo_fora_da_forma_observada",
-            Self::AcimaDoLimite => "anexo_acima_do_limite",
-            Self::Vazio => "anexo_vazio",
-            Self::ConteudoComLinkAssinado => "conteudo_com_link_assinado",
-            Self::RecusadoPeloSei(_) => "anexo_recusado_pelo_sei",
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::DiretorioAusente => "diretorio_do_anexo_ausente",
-            Self::ArquivoJaExiste => "arquivo_do_anexo_ja_existe",
-            Self::EscritaFalhou => "escrita_do_anexo_falhou",
-        }
+        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Html(e) => e.mensagem,
             Self::Transporte(falha) => falha.mensagem(),
             Self::TelaDeLogin => "a sessão foi encerrada; rode ies login",
             Self::SemTipoDeConteudo => "o anexo veio sem Content-Type",
             Self::TipoNaoPermitido => "o tipo do anexo não está na lista observada",
-            Self::CabecalhoRepetido => "cabeçalho do anexo repetido",
-            Self::DisposicaoForaDaFormaObservada => {
-                "o Content-Disposition do anexo não tem a forma observada"
-            }
             Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
             Self::Vazio => "o anexo veio vazio",
             Self::ConteudoComLinkAssinado => "o anexo contém credencial de link assinado",
             Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
             Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
-            Self::DiretorioAusente => "o diretório de --saida não existe",
             Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
             Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
         }
@@ -375,7 +366,9 @@ fn unico<'a, R>(
     match resposta.valores(nome).as_slice() {
         [] => Ok(None),
         [um] => Ok(Some(um)),
-        _ => Err(ErroAnexo::CabecalhoRepetido),
+        _ => Err(ErroHtml::repetido("cabecalho_do_anexo_repetido")
+            .com_mensagem("cabeçalho do anexo repetido")
+            .into()),
     }
 }
 
@@ -391,8 +384,10 @@ fn conferir<R: Read>(
     let extensao = cabecalhos::extensao(&mime).ok_or(ErroAnexo::TipoNaoPermitido)?;
     let (disposicao, nome_original) = match disposicao {
         Some(valor) => {
-            let (d, nome) = cabecalhos::ler_disposicao(valor)
-                .map_err(|()| ErroAnexo::DisposicaoForaDaFormaObservada)?;
+            let (d, nome) = cabecalhos::ler_disposicao(valor).map_err(|()| {
+                ErroHtml::valor("disposicao_do_anexo_fora_da_forma_observada")
+                    .com_mensagem("o Content-Disposition do anexo não tem a forma observada")
+            })?;
             (Some(d), nome)
         }
         None => (None, None),
@@ -430,10 +425,15 @@ fn abrir_parcial(
         .diretorio_do_usuario()
         .com_limite(conferido.limite);
     if !dir.is_dir() {
-        return Err(ErroAnexo::DiretorioAusente);
+        return Err(ErroHtml::ausente("diretorio_do_anexo_ausente")
+            .com_mensagem("o diretório de --saida não existe")
+            .into());
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
-        F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
+        F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::Html(
+            ErroHtml::ausente("diretorio_do_anexo_ausente")
+                .com_mensagem("o diretório de --saida não existe"),
+        ),
         F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         F::DiretorioGravavelPorOutros

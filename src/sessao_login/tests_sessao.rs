@@ -4,6 +4,7 @@ use super::cookies::PoteDeCookies;
 use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
 use super::{CampoDasCredenciais as C, Credenciais, ErroLogin, RespostaHttp, http, tela};
+use crate::erro_html::ErroHtml;
 use std::io::Cursor;
 
 #[test]
@@ -105,7 +106,9 @@ fn location_e_resolvido_no_host_com_https() {
     }
     assert_eq!(
         resolver_no_host(atual, "https://sei.exemplo.gov.br.outro.br/", HOST),
-        Err(ErroLogin::RedirecionamentoParaForaDaInstalacao)
+        Err(ErroLogin::Html(ErroHtml::valor(
+            "redirecionamento_para_fora_da_instalacao"
+        )))
     );
     assert_eq!(
         resolver_no_host(atual, "./controlador.php", HOST),
@@ -243,7 +246,9 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
     for ruim in ["abrir('x')", "location.href='a' + b", "location.href=\"x\""] {
         assert_eq!(
             tela::link_do_controle(&painel(ruim)),
-            Err(ErroLogin::LinkDoControleDeProcessosNaoReconhecido),
+            Err(ErroLogin::Html(ErroHtml::valor(
+                "link_do_controle_de_processos_nao_reconhecido"
+            ))),
             "{ruim}"
         );
     }

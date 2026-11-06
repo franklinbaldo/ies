@@ -16,6 +16,7 @@ use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{ErroTelaDoProcesso, ler_tela_do_documento};
+use crate::erro_html::ErroHtml;
 use crate::indice_local::{DocumentoGuardado, url_da_entrada_por_id_com_documento};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa as Redir, OrigemDoTrabalho, conferir_trabalho,
@@ -39,13 +40,11 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
         return Ok(None);
     };
     let processo = contexto.com_nup(&nup);
-    let aberto = match link_da_arvore(&processo, rede).map_err(E::Processo)? {
+    let aberto = match link_da_arvore(&processo, rede)? {
         Some(aberto) => Some(aberto),
-        None => match link_de_trabalho(&processo, rede).map_err(E::Processo)? {
+        None => match link_de_trabalho(&processo, rede)? {
             Some(aberto) => Some(aberto),
-            None => {
-                entrada_com_documento(&processo, rede, &guardado, numero).map_err(E::Processo)?
-            }
+            None => entrada_com_documento(&processo, rede, &guardado, numero)?,
         },
     };
     let Some((arvore_aberta, unidade, resolvido_por)) = aberto else {
@@ -77,9 +76,11 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     numero: &str,
     leitura: F,
 ) -> Result<F::Saida, E> {
-    let (aberta, unidade, resolvido_por) =
-        abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
-    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
+    let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
+    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(
+        ErroHtml::ausente("numero_sei_ausente_da_arvore_do_processo")
+            .com_mensagem("o número SEI não está na árvore do processo informado"),
+    )?;
     let lido = NoLido {
         html: &aberta.html,
         no,

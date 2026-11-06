@@ -1,5 +1,6 @@
 //! Identificação offline de documento pelo título do HTML observado.
 //! Não é leitura integral de documento nem consulta da instalação.
+use crate::erro_html::ErroHtml;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -8,48 +9,33 @@ pub struct IdentidadeDoDocumento {
     pub tipo: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroTituloDocumento {
-    HtmlNaoInterpretado,
-    TituloAusente,
-    TitulosDeDocumentoRepetidos,
-    CabecalhosHtmlRepetidos,
+    #[causa(nome = "titulo_documento_sem_numero_sei")]
     TituloSemNumeroSei,
+    #[causa(nome = "titulo_documento_sem_tipo")]
     TituloSemTipoDocumento,
-    IdentificacaoDaInstalacaoAusenteNoTitulo,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 
-impl ErroTituloDocumento {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_documento_nao_interpretado",
-            Self::TituloAusente => "titulo_documento_ausente",
-            Self::TitulosDeDocumentoRepetidos => "titulos_de_documento_repetidos",
-            Self::CabecalhosHtmlRepetidos => "cabecalhos_html_repetidos",
-            Self::TituloSemNumeroSei => "titulo_documento_sem_numero_sei",
-            Self::TituloSemTipoDocumento => "titulo_documento_sem_tipo",
-            Self::IdentificacaoDaInstalacaoAusenteNoTitulo => {
-                "titulo_documento_sem_identificacao_sei"
-            }
-        }
-    }
-}
+impl ErroTituloDocumento {}
 
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTituloDocumento::HtmlNaoInterpretado)?;
+        .map_err(|_| ErroHtml::html("html_documento_nao_interpretado"))?;
     let parser = dom.parser();
     // O <title> de SVG no corpo descreve um ícone, não um documento SEI.
     // Em um HTML com <head>, é esse cabeçalho que define a identidade.
     let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
     let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
         if cabecalhos.next().is_some() {
-            return Err(ErroTituloDocumento::CabecalhosHtmlRepetidos);
+            return Err(ErroHtml::repetido("cabecalhos_html_repetidos").into());
         }
         let tag = cabecalho
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroTituloDocumento::TituloAusente)?;
+            .ok_or(ErroHtml::ausente("titulo_documento_ausente"))?;
         tag.query_selector(parser, "title")
             .into_iter()
             .flatten()
@@ -74,18 +60,20 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
             .collect()
     };
     let mut titulos = titulos.into_iter();
-    let primeiro = titulos.next().ok_or(ErroTituloDocumento::TituloAusente)?;
+    let primeiro = titulos
+        .next()
+        .ok_or(ErroHtml::ausente("titulo_documento_ausente"))?;
     if titulos.next().is_some() {
-        return Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos);
+        return Err(ErroHtml::repetido("titulos_de_documento_repetidos").into());
     }
     let titulo = primeiro
         .get(parser)
         .map(|node| node.inner_text(parser).into_owned())
-        .ok_or(ErroTituloDocumento::TituloAusente)?;
+        .ok_or(ErroHtml::ausente("titulo_documento_ausente"))?;
     let mut campos = titulo.splitn(3, " - ");
     let instalacao = campos.next().unwrap_or_default();
     if !instalacao.starts_with("SEI/") || instalacao.len() <= 4 {
-        return Err(ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo);
+        return Err(ErroHtml::ausente("titulo_documento_sem_identificacao_sei").into());
     }
     let numero = campos
         .next()
@@ -114,7 +102,9 @@ mod tests {
         let html = "<svg><title>SEI/UnB - 0007 - Ofício</title></svg>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::TituloAusente)
+            Err(ErroTituloDocumento::Html(ErroHtml::ausente(
+                "titulo_documento_ausente"
+            )))
         );
     }
 
@@ -126,7 +116,9 @@ mod tests {
         ] {
             assert_eq!(
                 identidade_do_titulo(html),
-                Err(ErroTituloDocumento::TituloAusente)
+                Err(ErroTituloDocumento::Html(ErroHtml::ausente(
+                    "titulo_documento_ausente"
+                )))
             );
         }
     }
@@ -144,7 +136,9 @@ mod tests {
                     <title>SEI/UnB - 0008 - Memorando</title>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+            Err(ErroTituloDocumento::Html(ErroHtml::repetido(
+                "titulos_de_documento_repetidos"
+            )))
         );
     }
 
@@ -160,7 +154,7 @@ mod tests {
     fn titulo_sem_numero_nao_fabrica_documento() {
         assert_eq!(
             identidade_do_titulo("<title>SEI - Documento</title>").unwrap_err(),
-            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
+            ErroTituloDocumento::Html(ErroHtml::ausente("titulo_documento_sem_identificacao_sei"))
         );
     }
     #[test]
@@ -168,7 +162,9 @@ mod tests {
         let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title><title>SEI/UnB - 0008 - Memorando</title></head></html>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+            Err(ErroTituloDocumento::Html(ErroHtml::repetido(
+                "titulos_de_documento_repetidos"
+            )))
         );
     }
     #[test]
@@ -186,7 +182,9 @@ mod tests {
                     <body><svg><title>SEI/UnB - 0007 - Ofício</title></svg></body></html>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::TituloAusente)
+            Err(ErroTituloDocumento::Html(ErroHtml::ausente(
+                "titulo_documento_ausente"
+            )))
         );
     }
 
@@ -196,7 +194,9 @@ mod tests {
                     <head><title>SEI/UnB - 0008 - Memorando</title></head></html>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::CabecalhosHtmlRepetidos)
+            Err(ErroTituloDocumento::Html(ErroHtml::repetido(
+                "cabecalhos_html_repetidos"
+            )))
         );
     }
 
@@ -206,7 +206,9 @@ mod tests {
                     <title>SEI/UnB - 0008 - Memorando</title></head></html>";
         assert_eq!(
             identidade_do_titulo(html),
-            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
+            Err(ErroTituloDocumento::Html(ErroHtml::repetido(
+                "titulos_de_documento_repetidos"
+            )))
         );
     }
 
@@ -214,35 +216,24 @@ mod tests {
     fn titulo_generico_com_digitos_nao_e_documento_sei() {
         assert_eq!(
             identidade_do_titulo("<title>Portal - 123 - Página</title>").unwrap_err(),
-            ErroTituloDocumento::IdentificacaoDaInstalacaoAusenteNoTitulo
+            ErroTituloDocumento::Html(ErroHtml::ausente("titulo_documento_sem_identificacao_sei"))
         );
     }
 }
 
 /// Erros de extração textual; não convertidos em mensagens livres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCorpoDocumento {
-    HtmlNaoInterpretado,
-    CorpoAusente,
-    CorposDeDocumentoRepetidos,
+    #[causa(nome = "corpo_documento_vazio")]
     CorpoVazio,
+    #[causa(nome = "corpo_documento_contem_script_ou_estilo")]
     CorpoComConteudoExecutavel,
+    #[causa(nome = "texto_documento_acima_do_limite")]
     TextoAcimaDoLimite,
-    AninhamentoExcessivo,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
-impl ErroCorpoDocumento {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlNaoInterpretado => "html_corpo_documento_nao_interpretado",
-            Self::CorpoAusente => "corpo_documento_ausente",
-            Self::CorposDeDocumentoRepetidos => "corpos_de_documento_repetidos",
-            Self::CorpoVazio => "corpo_documento_vazio",
-            Self::CorpoComConteudoExecutavel => "corpo_documento_contem_script_ou_estilo",
-            Self::TextoAcimaDoLimite => "texto_documento_acima_do_limite",
-            Self::AninhamentoExcessivo => "arvore_documento_aninhamento_excessivo",
-        }
-    }
-}
+impl ErroCorpoDocumento {}
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
     nome.eq_ignore_ascii_case("svg") || nome.eq_ignore_ascii_case("template")
@@ -256,7 +247,7 @@ fn anexar_texto(
     profundidade: usize,
 ) -> Result<(), ErroCorpoDocumento> {
     if profundidade > 256 {
-        return Err(ErroCorpoDocumento::AninhamentoExcessivo);
+        return Err(ErroHtml::valor("arvore_documento_aninhamento_excessivo").into());
     }
     match no {
         tl::Node::Raw(valor) => saida.push_str(valor.as_utf8_str().as_ref()),
@@ -310,20 +301,22 @@ fn anexar_texto(
 /// Recusa conteúdo executável no corpo para evitar expor scripts ou segredos.
 pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCorpoDocumento::HtmlNaoInterpretado)?;
+        .map_err(|_| ErroHtml::html("html_corpo_documento_nao_interpretado"))?;
     let parser = dom.parser();
     let mut corpos = dom
         .query_selector("body")
-        .ok_or(ErroCorpoDocumento::CorpoAusente)?;
-    let primeiro = corpos.next().ok_or(ErroCorpoDocumento::CorpoAusente)?;
+        .ok_or(ErroHtml::ausente("corpo_documento_ausente"))?;
+    let primeiro = corpos
+        .next()
+        .ok_or(ErroHtml::ausente("corpo_documento_ausente"))?;
     if corpos.next().is_some() {
-        return Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos);
+        return Err(ErroHtml::repetido("corpos_de_documento_repetidos").into());
     }
     let corpo = primeiro
         .get(parser)
-        .ok_or(ErroCorpoDocumento::CorpoAusente)?;
+        .ok_or(ErroHtml::ausente("corpo_documento_ausente"))?;
     if corpo.as_tag().is_none() {
-        return Err(ErroCorpoDocumento::CorpoAusente);
+        return Err(ErroHtml::ausente("corpo_documento_ausente").into());
     }
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
@@ -434,7 +427,9 @@ mod testes_texto {
     fn corpo_ausente_tem_erro_distinto() {
         assert_eq!(
             texto_do_corpo("<html><head></head></html>"),
-            Err(ErroCorpoDocumento::CorpoAusente)
+            Err(ErroCorpoDocumento::Html(ErroHtml::ausente(
+                "corpo_documento_ausente"
+            )))
         );
     }
     #[test]
@@ -442,7 +437,9 @@ mod testes_texto {
         let html = "<html><body><p>Primeiro documento</p></body><body><p>Segundo documento</p></body></html>";
         assert_eq!(
             texto_do_corpo(html),
-            Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos)
+            Err(ErroCorpoDocumento::Html(ErroHtml::repetido(
+                "corpos_de_documento_repetidos"
+            )))
         );
     }
     #[test]

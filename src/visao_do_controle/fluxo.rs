@@ -8,6 +8,7 @@ use super::passos::{contexto, ler_detalhada, paginar_detalhada, trocar, unidade_
 use super::plano::{planejar, posicao};
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
 use std::collections::HashMap;
@@ -34,7 +35,7 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
         return na_detalhada(&mut sessao, tela, pagina);
     }
     if !encontrado.eh_resumida() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(ErroHtml::valor("visao_do_controle_nao_reconhecida").into());
     }
     vindo_da_resumida(&mut sessao, tela, pagina)
 }
@@ -63,8 +64,7 @@ fn vindo_da_resumida<V: EnvioDoControle>(
     tela: &TelaAtual,
     pagina: Option<usize>,
 ) -> Result<LeituraDetalhada, E> {
-    let resumida = crate::paginas::juntar(std::slice::from_ref(&tela.html), Some(sessao.unidade))
-        .map_err(E::Caixa)?;
+    let resumida = crate::paginas::juntar(std::slice::from_ref(&tela.html), Some(sessao.unidade))?;
     let mut categorias: HashMap<String, Categoria> = HashMap::new();
     let mut total = 0usize;
     for (categoria, tabela) in [

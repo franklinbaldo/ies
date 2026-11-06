@@ -7,10 +7,12 @@
 //! classificam nada.
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{self, EnderecoDosMarcadores, ErroMarcadores};
+use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{
     EnderecoDasPropriedades, ErroPropriedades as E, FonteDasPropriedades,
 };
@@ -53,6 +55,51 @@ pub(crate) fn ler_link_das_propriedades(
         })
 }
 
+/// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ErroLinkPrazo {
+    BarraNaoInterpretada,
+    LinksRepetidos,
+    EnderecoNaoReconhecido,
+    EnderecoDeOutroProcesso,
+}
+
+impl ErroLinkPrazo {
+    pub(crate) fn subcodigo(self) -> &'static str {
+        match self {
+            Self::BarraNaoInterpretada => "barra_de_prazo_nao_interpretada",
+            Self::LinksRepetidos => "links_de_prazo_repetidos",
+            Self::EnderecoNaoReconhecido => "endereco_de_prazo_nao_reconhecido",
+            Self::EnderecoDeOutroProcesso => "endereco_de_prazo_de_outro_processo",
+        }
+    }
+}
+
+/// Ação de prazo servida na barra do próprio processo, nunca fabricada.
+pub(crate) fn ler_link_do_prazo(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<String>, ErroLinkPrazo> {
+    use ErroLinkPrazo as E;
+    let hrefs = hrefs_da_barra(html).map_err(|_| E::BarraNaoInterpretada)?;
+    let candidatos: Vec<_> = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some("controle_prazo_definir"))
+        .collect();
+    let href = match candidatos.as_slice() {
+        [] => return Ok(None),
+        [unico] => *unico,
+        _ => return Err(E::LinksRepetidos),
+    };
+    conferir_endereco_relativo(instalacao, href, "controle_prazo_definir", id)
+        .map(Some)
+        .map_err(|falha| match falha {
+            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+        })
+}
+
 /// O link da tela "Marcadores do Processo" (`andamento_marcador_gerenciar`)
 /// publicado na barra do processo `id`; `Ok(None)` se a barra não o publica
 /// (contracts/cli/processo-obter-marcadores.md).
@@ -81,6 +128,42 @@ pub(crate) fn ler_link_dos_marcadores(
             EnderecoRecusado::DeOutroProcesso => {
                 ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso
             }
+        })
+}
+
+/// Link assinado de `comentario_listar` da própria barra do processo.
+/// Não forma URL, não executa JS e não segue links de documentos.
+#[allow(dead_code)] // ligado ao fluxo Web de comentários na próxima fatia (#257)
+pub(crate) fn ler_link_dos_comentarios(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
+    use ErroLinkDosComentarios as E;
+    let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
+        FalhaDaBarra::Fora => E::Html(ErroHtml::valor(
+            "barra_dos_comentarios_fora_da_forma_observada",
+        )),
+        FalhaDaBarra::Repetidas => E::Html(ErroHtml::repetido(
+            "barras_dos_comentarios_repetidas_na_arvore",
+        )),
+    })?;
+    let achados: Vec<_> = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some("comentario_listar"))
+        .collect();
+    let href = match achados.as_slice() {
+        [] => return Ok(None),
+        [unico] => unico,
+        _ => return Err(ErroHtml::repetido("links_dos_comentarios_repetidos_na_barra").into()),
+    };
+    conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
+        .map(|url| Some(EnderecoDosComentarios::novo(url)))
+        .map_err(|falha| match falha {
+            EnderecoRecusado::NaoReconhecido => {
+                E::Html(ErroHtml::valor("endereco_dos_comentarios_nao_reconhecido"))
+            }
+            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
         })
 }
 

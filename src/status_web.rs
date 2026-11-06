@@ -4,19 +4,16 @@ use crate::{configuracao, transporte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaControleWeb {
+    #[causa(nome = "controle_web_nao_reconhecido")]
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,
     UnidadeExibidaDiferenteDaSolicitada,
 }
 impl FalhaControleWeb {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::ControleNaoReconhecido(_) => "controle_web_nao_reconhecido",
-            Self::IdentidadeUnidadeNaoObservada => "identidade_unidade_nao_observada",
-            Self::UnidadeExibidaDiferenteDaSolicitada => "unidade_exibida_diferente_da_solicitada",
-        }
+        crate::erro_publico::folha(self)
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {

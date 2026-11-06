@@ -5,6 +5,7 @@ use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
+use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico, TipoDoHistorico};
 
@@ -204,7 +205,9 @@ fn link_presente_mas_repetido_continua_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::LinkDoHistorico(ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
+        E::LinkDoHistorico(ErroLinkDoHistorico::Html(ErroHtml::repetido(
+            "links_do_historico_repetidos_na_arvore"
+        )))
     );
 }
 
