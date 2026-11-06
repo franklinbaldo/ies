@@ -132,6 +132,12 @@ impl ErroCriar {
         }
     }
 
+    /// Shim test-first: rejeição explícita comprovada não autoriza inferências
+    /// de Gerados. O RED exige que o fluxo identifique a recusa do cadastro.
+    pub(crate) fn nao_aplicada_comprovada(&self) -> bool {
+        false
+    }
+
     pub(crate) fn saida(&self) -> u8 {
         if matches!(
             self,
