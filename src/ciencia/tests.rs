@@ -161,3 +161,40 @@ fn lista_que_nao_e_de_ciencias_nao_comprova() {
         Err(E::ListaDeCienciasForaDaFormaObservada)
     );
 }
+
+ 
+// RED #271: um aceite relatado só num comentário nunca prova a ciência.
+#[test]
+fn comentario_js_nao_publica_atividade_da_ciencia() {
+    let html = aceite_processo("42457")
+        .replace("<script>", "<script>/*")
+        .replace("</script>", "*/</script>");
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
+
+// RED #271: texto citado em JavaScript não é chamada executada.
+#[test]
+fn literal_js_nao_publica_atividade_da_ciencia() {
+    let html = r#"<html><script>
+const diagnostico = "atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457')";
+</script></html>"#;
+    assert_eq!(
+        atividade_do_aceite(html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
+
+// RED #271: um script aninhado em template é inerte.
+#[test]
+fn script_aninhado_em_template_nao_publica_atividade_da_ciencia() {
+    let html = aceite_processo("42457")
+        .replace("<script>", "<template><script>")
+        .replace("</script>", "</script></template>");
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
