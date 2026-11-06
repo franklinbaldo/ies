@@ -17,7 +17,7 @@ publica URL assinada, cookie ou `infra_hash`.
 ## Fatia funcional implementada
 
 - Entrada `NUP` e `id#nome` inválida sai 2 **antes de ler a sessão**.
-  Exige exatamente `--marcador` ou `--retirar`; `--texto` só com atribuição e respeita o limite de 250 caracteres ISO-8859-1 observado no Todos.
+  Exige exatamente `--marcador` ou `--retirar`; `--texto` só com atribuição e respeita o limite de 250 caracteres do textarea observado. Aceita múltiplas linhas e não presume Latin-1; a codificação pertence ao formulário servido quando a escrita for implementada.
 - Usa a leitura Web existente do processo, **sem andamentos e propriedades**,
   mas com os marcadores; exige a unidade publicada pela tela, ignorando
   o atalho que não permite conferi-la.
@@ -74,9 +74,7 @@ a escrita não for observada, `--confirmar` recusa
 | `escrita_de_marcador_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
-| `texto_do_marcador_com_controle` | Texto de entrada contém controle |
 | `texto_do_marcador_longo` | Texto excede 250 caracteres |
-| `texto_do_marcador_fora_do_latin1` | Texto não é representável em ISO-8859-1 |
 
 ## Falhas tipadas
 
@@ -84,8 +82,7 @@ Entrada (2): `numero_processo_vazio`, `numero_processo_controle`,
 `referencia_processo_legada`, `marcador_nao_informado`,
 `rotulo_do_marcador_sem_separador`, `id_do_marcador_nao_decimal`,
 `nome_do_marcador_vazio`, `nome_do_marcador_com_controle`,
-`texto_do_marcador_com_controle`, `texto_do_marcador_longo`,
-`texto_do_marcador_fora_do_latin1`.
+`texto_do_marcador_longo`.
 
 Leitura/decisão (1): erros específicos da abertura do processo, além de
 `marcadores_nao_lidos_para_escrita`,

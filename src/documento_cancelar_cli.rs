@@ -1,9 +1,8 @@
 //! `ies documento cancelar DOC --motivo T [--confirmar]` (#273).
-//! Motivo e números são validados antes de abrir arquivo privado ou rede.
+//! Números são validados antes da sessão; o motivo segue como texto opaco.
 use crate::documento::NumeroDocumento;
 use crate::documento_cancelar::{
-    DocumentoCancelado, ErroCancelar, FalhaDoCancelamento, PedidoDoCancelamento,
-    cancelar_documento, conferir_motivo,
+    DocumentoCancelado, ErroCancelar, FalhaDoCancelamento, PedidoDoCancelamento, cancelar_documento,
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
@@ -48,16 +47,12 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
             ));
         }
     };
-    let motivo = match conferir_motivo(motivo) {
-        Ok(m) => m,
-        Err(sub) => return Some(uso_invalido(cli.json, sub, "motivo inválido")),
-    };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDoCancelamento {
             numero: &numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
-            motivo: &motivo,
+            motivo,
             confirmar: *confirmar,
         };
         match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
