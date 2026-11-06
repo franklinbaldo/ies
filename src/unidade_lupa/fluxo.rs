@@ -174,7 +174,6 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
             // Apenas literal entre aspas atribuído a location, sem JS.
             let local = decodificado.split("location").nth(1);
             local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
-                
                 let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
                 let fim = if decodificado.contains("='") {
                     '\''
@@ -216,9 +215,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
         }
         if let Some(fim) = fim {
             let literal = &script[inicio..fim];
-            if !literal.contains('\\')
-                && literal.contains("controlador.php?")
-            {
+            if !literal.contains('\\') && literal.contains("controlador.php?") {
                 urls.push(literal.to_owned());
             }
         }

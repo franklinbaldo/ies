@@ -409,9 +409,7 @@ pub(crate) fn ler_paginas(
                 return Err(ErroDetalhada::ContextoDiferente);
             }
         } else {
-            if unidade_esperada
-                .is_some_and(|v| pagina.contexto.unidade.as_deref() != Some(v))
-            {
+            if unidade_esperada.is_some_and(|v| pagina.contexto.unidade.as_deref() != Some(v)) {
                 return Err(ErroDetalhada::UnidadeDiferente);
             }
             contexto = Some(pagina.contexto.clone());

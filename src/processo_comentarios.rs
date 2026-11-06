@@ -90,7 +90,6 @@ fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroCome
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentarios> {
     let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
     decodificar_atributo(&bruto)
-        .map(|s| s.to_owned())
         .ok_or(ErroComentarios::Html(ErroHtml::html(
             "html_dos_comentarios_nao_interpretado",
         )))

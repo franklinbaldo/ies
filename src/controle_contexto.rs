@@ -104,7 +104,6 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
     let Some(valor) = valor_do_atributo(elemento, "value").map_err(ilegivel)? else {
         return Ok(None);
     };
-    let valor = valor.to_owned();
     Ok((!valor.is_empty()).then_some(valor))
 }
 

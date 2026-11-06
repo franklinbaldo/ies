@@ -122,7 +122,6 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
                 )))
         };
         itens.push((ler("id")?, ler("descricao")?));
-        
     }
     Ok(itens)
 }
