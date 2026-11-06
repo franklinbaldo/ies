@@ -191,7 +191,57 @@ fn replay_da_ciencia_no_acervo() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
     use serde_json::json;
+
+    fn resposta_html(operacao: &str, url: &str, html: &str) -> Value {
+        json!({
+            "request": {"operation": operacao, "method": "GET"},
+            "response": {
+                "status_code": 200,
+                "url": url,
+                "headers": {"content-type": "text/html"},
+                "encoding": "utf-8",
+                "body_base64": STANDARD.encode(html)
+            }
+        })
+    }
+
+    #[test]
+    fn replay_de_aceite_e_lista_usa_leitores_de_ambos_alvos() {
+        let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+        let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='42'></td></tr></table></html>";
+        let casos = [
+            (
+                "procedimento_ciencia",
+                format!("{base}?acao=procedimento_ciencia&id_procedimento=10"),
+                "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>",
+            ),
+            (
+                "documento_ciencia",
+                format!("{base}?acao=documento_ciencia&id_procedimento=10&id_documento=21"),
+                "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=21&documento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>",
+            ),
+        ];
+        for (operacao, url, aceite) in casos {
+            let json = json!({
+                "interactions": [
+                    resposta_html(operacao, &url, aceite),
+                    resposta_html(
+                        "protocolo_ciencia_listar",
+                        &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10"),
+                        lista
+                    )
+                ]
+            });
+            let registros = replay("unb", &json);
+            assert_eq!(registros.len(), 2);
+            assert!(
+                registros.iter().all(|r| r.resultado == Resultado::Lido),
+                "{operacao}: {registros:?}"
+            );
+        }
+    }
 
     #[test]
     fn resposta_302_nao_e_prova_de_aceite() {
