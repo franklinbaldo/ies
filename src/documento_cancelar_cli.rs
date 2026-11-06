@@ -66,7 +66,7 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
                     if let Err(erro) = crate::saida::imprimir_json(&json_do_sucesso(&feito)) {
                         eprintln!("IES: falha ao emitir JSON: {erro}");
                         return std::process::ExitCode::from(1);
-                    };
+                    }
                 } else if feito.alterado {
                     println!(
                         "Documento {} cancelado e conferido pela árvore. Requisições: {}.",
