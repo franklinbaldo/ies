@@ -132,6 +132,35 @@ fn inclusao_nao_confirma_redirect_para_cadastro_apos_post() {
     assert_eq!(pedidos, requests_post());
 }
 
+// O SEI pode rejeitar explicitamente o POST (Infra/HTTP), enquanto
+// outro agente da conta compartilhada cria uma linha igual antes do GET.
+// Só falha de transporte sem resposta é candidata a reconciliação.
+#[test]
+fn recusa_da_validacao_infra_nao_se_torna_sucesso_por_linha_coincidente() {
+    let mut respostas = preparar();
+    respostas.extend([
+        ok("<html><textarea id='txaInfraValidacao' style='display:none'>Grupo recusado</textarea></html>".to_owned()),
+        ok(lista("G")),
+    ]);
+    let (resultado, pedidos) = executar(respostas, true);
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(pedidos, requests_post());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn status_http_recusado_nao_se_torna_sucesso_por_linha_coincidente() {
+    let mut respostas = preparar();
+    respostas.extend([
+        Ok((403, "<html>Acesso negado</html>".to_owned(), None)),
+        ok(lista("G")),
+    ]);
+    let (resultado, pedidos) = executar(respostas, true);
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(pedidos, requests_post());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
 #[test]
 fn falha_de_rede_no_post_nao_repete_e_reconcilia_pela_leitura() {
     let mut respostas = preparar();
