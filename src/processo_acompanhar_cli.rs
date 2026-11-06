@@ -133,13 +133,17 @@ fn valor_da_falha(erro: &ErroPrevia) -> serde_json::Value {
 
 fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
     let incerto = erro.diagnostico_efeito_incerto().is_some();
-    publicar_valor_da_falha(json_mode, &valor_da_falha(erro), if incerto { 3 } else { 1 })
+    publicar_valor_da_falha(
+        json_mode,
+        &valor_da_falha(erro),
+        if incerto { 3 } else { 1 },
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processo_acompanhar::fluxo::MotivoEfeitoIncerto;
+    use crate::processo_acompanhar::MotivoEfeitoIncerto;
 
     #[test]
     fn erro_apos_post_publica_contagem_e_motivo_sem_segredos() {
@@ -149,7 +153,10 @@ mod tests {
         };
         let valor = valor_da_falha(&erro);
         assert_eq!(valor["codigo"], "efeito_incerto");
-        assert_eq!(valor["subcodigo"], "acompanhamento_nao_confirmado_por_leitura");
+        assert_eq!(
+            valor["subcodigo"],
+            "acompanhamento_nao_confirmado_por_leitura"
+        );
         assert_eq!(valor["requisicoes"], 7);
         assert_eq!(valor["motivo"], "releitura_indisponivel");
         assert_eq!(valor["retentavel"], false);
