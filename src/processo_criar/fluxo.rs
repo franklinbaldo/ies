@@ -513,6 +513,24 @@ pub(crate) fn criar<V: EnvioDoControle>(
         let nup = crate::arvore_processo::nup_declarado_na_arvore(&arvore.html)
             .ok_or(E::EfeitoIncerto)?;
         crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(E::Arvore)?;
+        // O redirecionamento e a árvore provam apenas ID/NUP. A resposta
+        // de sucesso deve comprovar também os dados cadastrados pelo POST.
+        let endereco = crate::arvore_processo::ler_link_das_propriedades(
+            &instalacao, &arvore.html, &id,
+        )
+        .map_err(E::Propriedades)?
+        .ok_or(E::PropriedadesNaoOferecidas)?;
+        let pagina = get(envio, endereco.as_str(), cookie_valor, &mut requisicoes)?;
+        let propriedades = crate::propriedades_processo::ler_propriedades(
+            &pagina.html, &nup, &id, endereco.fonte,
+        )
+        .map_err(E::Propriedades)?;
+        if propriedades.tipo.as_deref() != Some(feito.tipo.as_str())
+            || propriedades.especificacao != pedido.especificacao
+            || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
+        {
+            return Err(E::ProvaDaCriacao(erro_fluxo::ProvaDaCriacao::PropriedadesDivergentes));
+        }
         Ok::<_, E>(nup)
     })()
     .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
