@@ -180,20 +180,46 @@ pub(crate) fn url_da_ciencia_do_documento(
     id_procedimento: &str,
 ) -> Result<EnderecoDeEscrita, crate::erro_html::ErroHtml> {
     use crate::erro_html::ErroHtml as E;
-    let mut urls = urls_das_funcoes(html, "cienciaDocumento")
-        .map_err(|_| E::valor("funcao_de_ciencia_do_documento_fora_da_forma"))?;
-    for linha in html.lines().map(str::trim) {
-        if let Some(resto) = linha.strip_prefix("var linkCienciaDocumento = '") {
-            urls.push(
-                resto
-                    .strip_suffix("';")
-                    .ok_or(E::valor("link_de_ciencia_do_documento_fora_da_forma"))?,
-            );
+    // Só o conteúdo de scripts inline ativos comprova o link do GET
+    // mutador. Texto em templates, campos e scripts de dados não é ação
+    // publicada pelo SEI; nunca se interpreta nem executa JavaScript.
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
+    let mut urls = Vec::<String>::new();
+    for no in dom.query_selector("script").into_iter().flatten() {
+        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let fora = || E::valor("script_da_ciencia_do_documento_fora_da_forma");
+        let lidos = crate::html_atributos::atributos(tag).map_err(|_| fora())?;
+        if lidos.valor("src").map_err(|_| fora())?.is_some() {
+            continue;
+        }
+        let tipo = lidos.valor("type").map_err(|_| fora())?;
+        if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
+            continue;
+        }
+        let script = tag.inner_text(dom.parser());
+        urls.extend(
+            urls_das_funcoes(script.as_ref(), "cienciaDocumento")
+                .map_err(|_| E::valor("funcao_de_ciencia_do_documento_fora_da_forma"))?
+                .into_iter()
+                .map(str::to_owned),
+        );
+        for linha in script.lines().map(str::trim) {
+            if let Some(resto) = linha.strip_prefix("var linkCienciaDocumento = '") {
+                urls.push(
+                    resto
+                        .strip_suffix("';")
+                        .ok_or(E::valor("link_de_ciencia_do_documento_fora_da_forma"))?
+                        .to_owned(),
+                );
+            }
         }
     }
     let url = match urls.as_slice() {
         [] => return Err(E::ausente("link_de_ciencia_do_documento_ausente")),
-        [url] => *url,
+        [url] => url.as_str(),
         _ => return Err(E::repetido("links_de_ciencia_do_documento_repetidos")),
     };
     let absoluta = super::endereco::conferir_endereco_relativo_por(
