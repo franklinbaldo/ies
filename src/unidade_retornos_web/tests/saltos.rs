@@ -76,13 +76,12 @@ fn calendario_deslocado_dois_meses_atras_exige_ambos_links_publicados() {
     assert!(pedidos[3].contains("data_inicial=01%2F11%2F2026"));
 }
 
-
 #[test]
 fn virada_utc_para_ano_novo_somente_publica_o_dia_hoje_servido() {
     // Na virada de ano, o SEI pode estar em 01/01 quando ainda e 31/12 UTC.
     // Nao usar dezembro do relogio como se fosse a data observada.
-    let janeiro_com_hoje = calendario(2027, 1, true)
-        .replace("data_atual=15%2F01%2F2027", "data_atual=01%2F01%2F2027");
+    let janeiro_com_hoje =
+        calendario(2027, 1, true).replace("data_atual=15%2F01%2F2027", "data_atual=01%2F01%2F2027");
     let mut pedidos = Vec::new();
     let lido = ler_com_data_utc(
         CONTROLE,
