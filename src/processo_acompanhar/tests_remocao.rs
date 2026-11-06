@@ -149,7 +149,7 @@ fn sem_prova_na_releitura_da_retirada_e_incerto() {
 #[test]
 fn cadastro_apos_retirar_ultimo_precisa_publicar_processo() {
     let mut respostas = preparar();
-    respostas.extend([r302(&gerenciar()), r302(&cadastrar()), ok("<html>cortado</html>")]);
+    respostas.extend([r302(&gerenciar()), r302(&cadastrar()), ok("<html>cortado</html>".to_owned())]);
     let (resultado, pedidos) = executar(respostas);
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     let mut esperados = pedidos_confirmados();
