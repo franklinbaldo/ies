@@ -99,6 +99,42 @@ fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+
+fn erro_incerto_json(erro: &ErroPreviaCriacao, _requisicoes: u8) -> serde_json::Value {
+    // Primeiro commit RED: a projeção ainda não expõe a contagem observada.
+    let mut saida = json!({
+        "codigo": "efeito_incerto",
+        "subcodigo": erro.subcodigo(),
+        "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
+        "retentavel": false
+    });
+    if let Some(causa) = erro.causa_envio() {
+        saida["causa_envio"] = json!(causa.subcodigo());
+        if let Some(http) = causa.status_http() {
+            if http.status != 200 {
+                saida["status_http"] = json!(http.status);
+            }
+            if let Some(mensagem) = &http.mensagem_do_servidor {
+                saida["mensagem_do_servidor"] = json!(mensagem);
+            }
+        }
+    }
+    saida
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
+        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
+        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["requisicoes"], 7, "null não informa a contagem já observada");
+        assert_eq!(saida["retentavel"], false);
+    }
+}
+
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao) -> ExitCode {
     if matches!(
         erro,
