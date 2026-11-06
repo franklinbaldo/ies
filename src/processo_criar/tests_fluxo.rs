@@ -8,9 +8,9 @@ use crate::processo_concluir::tests_apoio::{
 use crate::transporte::FalhaTransporte;
 
 const TIPO: &str = "Administração Geral: Ensaio";
-const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub(super) const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-fn tela_controle() -> String {
+pub(super) fn tela_controle() -> String {
     controle().replace(
         "</body>",
         &format!(
@@ -19,7 +19,7 @@ fn tela_controle() -> String {
     )
 }
 
-fn lista(versao_41: bool) -> String {
+pub(super) fn lista(versao_41: bool) -> String {
     let escolha = if versao_41 {
         "<a class='ancoraOpcao' href='#' onclick='escolher(12)'>Administração Geral: Ensaio</a>"
             .to_owned()
@@ -33,13 +33,13 @@ fn lista(versao_41: bool) -> String {
     )
 }
 
-fn cadastro() -> String {
+pub(super) fn cadastro() -> String {
     format!(
         "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
     )
 }
 
-fn pedido(confirmar: bool) -> PedidoCriar<'static> {
+pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
     PedidoCriar {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
