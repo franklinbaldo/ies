@@ -64,7 +64,7 @@ impl Credenciais {
             let valor = if campo == C::Senha {
                 valor
             } else {
-                valor.trim()
+                valor
             };
             if valor.is_empty() {
                 return Err(ErroLogin::CampoDasCredenciaisVazio(campo));

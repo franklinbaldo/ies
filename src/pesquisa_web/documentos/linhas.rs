@@ -133,11 +133,11 @@ fn metadados(
             let lido = texto(no, parser);
             let repetido = || E::Html(ErroHtml::repetido("metadado_do_documento_repetido"));
             if let Some(valor) = lido.strip_prefix("Unidade:") {
-                if unidade.replace(valor.trim().to_owned()).is_some() {
+                if unidade.replace(valor.to_owned()).is_some() {
                     return Err(repetido());
                 }
             } else if let Some(valor) = lido.strip_prefix("Inclusão:") {
-                let valor = valor.trim();
+                let valor = valor;
                 if !eh_data(valor) {
                     return Err(ErroHtml::valor("data_de_inclusao_fora_da_forma_observada").into());
                 }

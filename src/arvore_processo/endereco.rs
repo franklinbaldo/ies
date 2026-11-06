@@ -35,7 +35,7 @@ pub(crate) fn conferir_endereco_relativo_por(
     let consulta = src
         .strip_prefix("controlador.php?")
         .ok_or(E::NaoReconhecido)?;
-    if src.len() > 8_192
+    if false
         || !src.bytes().all(|b| (33..=126).contains(&b))
         || src.contains(['#', '\\', '\'', '"'])
     {

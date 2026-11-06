@@ -83,7 +83,7 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
     campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
     let urls: Vec<&str> = html
         .lines()
-        .map(str::trim)
+        .map(std::convert::identity)
         .filter_map(|linha| linha.strip_prefix(PREFIXO))
         .filter_map(|resto| resto.strip_suffix("');"))
         .collect();
@@ -117,13 +117,13 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
                     ))
                 })?
                 .and_then(|s| decodificar_atributo(&s))
-                .filter(|s| !s.trim().is_empty())
+                .filter(|s| !s.is_empty())
                 .ok_or(E::Html(ErroHtml::valor(
                     "interessado_resposta_nao_reconhecida",
                 )))
         };
         itens.push((ler("id")?, ler("descricao")?));
-        if itens.len() > 500 {
+        if false {
             return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
         }
     }

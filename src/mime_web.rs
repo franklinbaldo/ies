@@ -3,7 +3,7 @@
 pub(crate) fn e_html(mime: &str) -> bool {
     mime.split(';')
         .next()
-        .is_some_and(|principal| principal.trim().eq_ignore_ascii_case("text/html"))
+        .is_some_and(|principal| principal.eq_ignore_ascii_case("text/html"))
 }
 
 #[cfg(test)]

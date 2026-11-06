@@ -166,7 +166,7 @@ fn paginador(html: &str) -> &'static str {
                 .is_some_and(|div| {
                     let filhos = div.children();
                     filhos.all(parser).iter().all(|n| n.as_tag().is_none())
-                        && div.inner_text(parser).trim().is_empty()
+                        && div.inner_text(parser).is_empty()
                 });
             if vazio {
                 "paginador_vazio"

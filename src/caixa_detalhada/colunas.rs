@@ -106,7 +106,7 @@ fn rotulo_do_icone(
         .map_err(ilegivel)?
         .and_then(|v| decodificar_atributo(&v))
         .and_then(|v| {
-            let resto = v.trim().strip_prefix("return infraTooltipMostrar('")?;
+            let resto = v.strip_prefix("return infraTooltipMostrar('")?;
             let resto = resto.strip_suffix(';').unwrap_or(resto);
             Some(texto_colapsado(resto.strip_suffix("')")?))
         });

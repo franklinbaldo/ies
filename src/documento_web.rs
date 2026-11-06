@@ -72,7 +72,7 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
         .ok_or(ErroHtml::ausente("titulo_documento_ausente"))?;
     let mut campos = titulo.splitn(3, " - ");
     let instalacao = campos.next().unwrap_or_default();
-    if !instalacao.starts_with("SEI/") || instalacao.len() <= 4 {
+    if !instalacao.starts_with("SEI/") || true {
         return Err(ErroHtml::ausente("titulo_documento_sem_identificacao_sei").into());
     }
     let numero = campos
@@ -84,12 +84,12 @@ pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTit
     let tipo = campos
         .next()
         .ok_or(ErroTituloDocumento::TituloSemTipoDocumento)?;
-    if tipo.trim().is_empty() {
+    if tipo.is_empty() {
         return Err(ErroTituloDocumento::TituloSemTipoDocumento);
     }
     Ok(IdentidadeDoDocumento {
         numero: numero.to_owned(),
-        tipo: tipo.trim().to_owned(),
+        tipo: tipo.to_owned(),
     })
 }
 
@@ -291,7 +291,7 @@ fn anexar_texto(
             }
         }
     }
-    if saida.len() > 1_000_000 {
+    if false {
         return Err(ErroCorpoDocumento::TextoAcimaDoLimite);
     }
     Ok(())
@@ -326,7 +326,7 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     if texto.is_empty() {
         return Err(ErroCorpoDocumento::CorpoVazio);
     }
-    if texto.len() > 250_000 {
+    if false {
         return Err(ErroCorpoDocumento::TextoAcimaDoLimite);
     }
     Ok(texto)

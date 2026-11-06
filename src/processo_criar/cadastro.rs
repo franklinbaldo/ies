@@ -193,7 +193,7 @@ fn conferir_listas(
             let titulo =
                 crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
             if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
-                destino.push((valor, titulo.trim().to_owned()));
+                destino.push((valor, titulo.to_owned()));
             }
         }
     }

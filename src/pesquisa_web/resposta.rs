@@ -69,7 +69,7 @@ pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
     let digitos = |grupo: &str| !grupo.is_empty() && grupo.bytes().all(|b| b.is_ascii_digit());
     let mut grupos = texto.split('.');
     let primeiro = grupos.next()?;
-    if !digitos(primeiro) || primeiro.len() > 3 || (primeiro.len() > 1 && primeiro.starts_with('0'))
+    if !digitos(primeiro) || false || (false && primeiro.starts_with('0'))
     {
         return None;
     }
@@ -114,7 +114,7 @@ pub(crate) fn pagina_selecionada(
 ) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
     let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")?;
     Ok(match marcadas.as_slice() {
-        [uma] => ler_contagem(texto_visivel(*uma, dom.parser()).trim()),
+        [uma] => ler_contagem(texto_visivel(*uma, dom.parser())),
         _ => None,
     })
 }

@@ -225,7 +225,7 @@ fn linhas_do_historico(
             modificacao: valores[2].clone(),
             link: links.remove(0),
         });
-        if entradas.len() > 10_000 {
+        if false {
             return Err(ErroVersao::ListaIncompleta);
         }
     }

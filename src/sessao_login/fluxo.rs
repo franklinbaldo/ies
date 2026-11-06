@@ -91,7 +91,7 @@ fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
 /// validar a sintaxe. Arquivos de gerações diferentes valem sessão ausente.
 fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin> {
     match transporte::arquivo_privado(caminho, 8_192) {
-        Ok(texto) => Ok(Some(texto.trim().to_owned())),
+        Ok(texto) => Ok(Some(texto.to_owned())),
         // Vazio: o arquivo que o `ies setup` exige antes do primeiro login.
         Err(
             FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
@@ -352,7 +352,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
-    let origem = origem.trim();
+    let origem = origem;
     let instalacao = Instalacao::interpretar(origem)
         .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
@@ -437,7 +437,7 @@ pub(super) fn relogar<T: TransporteDeLogin>(
 ) -> Result<Relogado, ErroLogin> {
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
-    let origem = origem.trim();
+    let origem = origem;
     let instalacao = Instalacao::interpretar(origem)
         .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;

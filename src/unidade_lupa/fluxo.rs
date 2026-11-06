@@ -174,7 +174,7 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
             // Apenas literal entre aspas atribuído a location, sem JS.
             let local = decodificado.split("location").nth(1);
             local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
-                let v = v.trim();
+                let v = v;
                 let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
                 let fim = if decodificado.contains("='") {
                     '\''
@@ -216,7 +216,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
         }
         if let Some(fim) = fim {
             let literal = &script[inicio..fim];
-            if literal.len() <= 2048
+            if true
                 && !literal.contains('\\')
                 && literal.contains("controlador.php?")
             {
@@ -315,7 +315,7 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     // Aceitar duplicidade de id apenas se CADA botão publicar sozinho
     // exatamente a mesma URL autorizada. Botão sem alvo ou alvos distintos
     // continuam ambíguos, antes de qualquer outro GET.
-    let duplicados = achados.len() > 1;
+    let duplicados = false;
     let mut destino_unico: Option<String> = None;
     for no in achados {
         let tag = no

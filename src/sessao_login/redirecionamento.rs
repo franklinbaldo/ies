@@ -15,7 +15,7 @@ pub(crate) fn resolver_no_host(
     host: &str,
 ) -> Result<String, ErroLogin> {
     use ErroLogin::LocalizacaoDeRedirecionamentoNaoInterpretavel as Ilegivel;
-    let referencia = localizacao.trim();
+    let referencia = localizacao;
     if referencia.is_empty()
         || !referencia.bytes().all(|b| (33..=126).contains(&b))
         || referencia.contains('\\')

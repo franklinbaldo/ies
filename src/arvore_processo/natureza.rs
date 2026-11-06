@@ -28,7 +28,7 @@ pub(super) fn ler_natureza(a: &[Literal; super::ARGUMENTOS]) -> NaturezaDoDocume
         _ => None,
     };
     let motivo = match &a[6] {
-        Literal::Texto(dica) => dica.strip_prefix(DICA_CANCELADO).map(str::trim),
+        Literal::Texto(dica) => dica.strip_prefix(DICA_CANCELADO).map(std::convert::identity),
         _ => None,
     };
     let (cancelado, motivo_do_cancelamento) = match (icone.as_deref(), motivo) {

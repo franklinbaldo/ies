@@ -33,7 +33,7 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     // Tag ilegível: não se afirma o contêiner; vale o texto geral da tela.
     if let Some(handle) = conteiner_de_erro(&dom) {
         let texto = texto_visivel(handle, parser);
-        if !texto.trim().is_empty() {
+        if !texto.is_empty() {
             return Some(decodificar_entidades(&texto));
         }
     }
@@ -57,7 +57,7 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     };
     let partes: Vec<&str> = [titulo.as_deref().unwrap_or(""), corpo.as_str()]
         .into_iter()
-        .map(str::trim)
+        .map(std::convert::identity)
         .filter(|parte| !parte.is_empty())
         .collect();
     if partes.is_empty() {

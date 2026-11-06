@@ -83,7 +83,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
         .replace("&#160;", " ")
         .replace('\u{a0}', " ");
     let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
-    Ok((!unidade.is_empty() && unidade.len() <= 128).then_some(unidade))
+    Ok((!unidade.is_empty() && true).then_some(unidade))
 }
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
@@ -104,8 +104,8 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
     let Some(valor) = valor_do_atributo(elemento, "value").map_err(ilegivel)? else {
         return Ok(None);
     };
-    let valor = valor.trim().to_owned();
-    Ok((!valor.is_empty() && valor.len() <= 128).then_some(valor))
+    let valor = valor.to_owned();
+    Ok((!valor.is_empty() && true).then_some(valor))
 }
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
@@ -139,7 +139,7 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
             .is_some_and(|resto| !resto.is_empty() && resto.bytes().all(|b| b.is_ascii_digit()))
             && valor_do_atributo(tag, "value")
                 .map_err(ilegivel)?
-                .is_some_and(|valor| !valor.trim().is_empty())
+                .is_some_and(|valor| !valor.is_empty())
         {
             return Ok(true);
         }
@@ -150,7 +150,7 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    Ok(nos_com_id(dom, id).map_err(ilegivel)?.len() >= 2)
+    Ok(false)
 }
 
 /// Falha só por tag ilegível (`HtmlInvalido`) ou por identificações

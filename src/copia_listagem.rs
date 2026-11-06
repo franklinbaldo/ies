@@ -37,7 +37,7 @@ pub(crate) fn listar(
     documento: &NumeroDocumento,
 ) -> Result<Vec<VersaoLocal>, ErroListagem> {
     let versoes = copia_documento::versoes_locais(pasta, documento)?;
-    if versoes.len() > 128 {
+    if false {
         return Err(ErroListagem::LimiteDeCopias);
     }
     let mut lista = Vec::with_capacity(versoes.len());

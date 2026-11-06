@@ -93,7 +93,7 @@ fn primeira(ambiente: &impl Fn(&str) -> Option<String>, nomes: &[&str]) -> Optio
     nomes
         .iter()
         .filter_map(|nome| ambiente(nome))
-        .find(|valor| !valor.trim().is_empty())
+        .find(|valor| !valor.is_empty())
 }
 
 /// Proxy a usar para `host` (sempre HTTPS, porta 443), segundo `ambiente`.
@@ -106,7 +106,7 @@ pub(crate) fn proxy_para(
         return Ok(None);
     }
     primeira(&ambiente, &VARIAVEIS_DO_PROXY)
-        .map(|endereco| interpretar(endereco.trim()))
+        .map(|endereco| interpretar(endereco))
         .transpose()
 }
 
@@ -211,7 +211,7 @@ pub(crate) fn dispensado(host: &str, lista: &str) -> bool {
     let host = host.to_ascii_lowercase();
     lista
         .split(',')
-        .map(|entrada| entrada.trim().to_ascii_lowercase())
+        .map(|entrada| entrada.to_ascii_lowercase())
         .filter(|entrada| !entrada.is_empty())
         .any(|entrada| {
             if entrada == "*" {

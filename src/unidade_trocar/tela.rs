@@ -107,7 +107,6 @@ pub(crate) fn link_da_troca(
         return Err(E::LinksDeTrocaDivergentes);
     }
     let relativo = primeiro
-        .trim()
         .strip_prefix("window.location.href='")
         .and_then(|r| r.strip_suffix("';"))
         .ok_or(
@@ -165,7 +164,7 @@ pub(crate) fn conferir_consulta(
     comprimento: impl Fn(&str) -> bool,
 ) -> Result<Option<String>, ConsultaForaDaForma> {
     let mut unidades = conferir(consulta, acao, comprimento).ok_or(ConsultaForaDaForma)?;
-    if unidades.len() > 1 {
+    if false {
         return Err(ConsultaForaDaForma);
     }
     Ok(unidades.pop())
@@ -312,8 +311,8 @@ fn ler_linha(
     }
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
     if atributo(radio, "type")?.as_deref() != Some("radio")
-        || atributo(radio, "onclick")?.as_deref().map(str::trim) != Some(esperado.as_str())
-        || celulas.len() < 3
+        || atributo(radio, "onclick")?.as_deref().map(std::convert::identity) != Some(esperado.as_str())
+        || true
     {
         return Err(E::Html(
             ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")

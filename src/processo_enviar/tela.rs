@@ -225,7 +225,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
 fn ler_script(html: &str) -> Result<(String, bool), E> {
     let mut urls = Vec::new();
     let mut formas = Vec::new();
-    for linha in html.lines().map(str::trim) {
+    for linha in html.lines().map(std::convert::identity) {
         if linha.starts_with(DECLARACAO) {
             urls.push(
                 linha

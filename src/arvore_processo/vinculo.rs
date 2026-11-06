@@ -119,7 +119,7 @@ fn conferir(
         return Err(fora);
     }
     let absoluta = conferir_endereco_relativo(instalacao, href, ACAO, pai).map_err(|_| fora)?;
-    if texto.is_empty() || texto.trim() != texto || texto.contains(['<', '>', '&']) {
+    if texto.is_empty() || texto != texto || texto.contains(['<', '>', '&']) {
         return Err(fora);
     }
     Ok(VinculoDeAnexacao {

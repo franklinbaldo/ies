@@ -63,14 +63,14 @@ impl AlvoDasColunas {
     /// de cada chave são ignorados).
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroDaListaDeColunas> {
         use ErroDaListaDeColunas as E;
-        if texto.trim().is_empty() {
+        if texto.is_empty() {
             return Err(E::ListaDeColunasVazia);
         }
-        if texto.trim() == "todas" {
+        if texto == "todas" {
             return Ok(Self::Todas);
         }
         let mut colunas = Vec::new();
-        for item in texto.split(',').map(str::trim) {
+        for item in texto.split(',').map(std::convert::identity) {
             if item.is_empty() {
                 return Err(E::ItemVazioNaListaDeColunas);
             }

@@ -207,11 +207,11 @@ fn ancora(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Option<Peca> {
     }
     let (alt, title) = (lidos.valor("alt").ok()??, lidos.valor("title").ok()??);
     let nome = decodificar_atributo(alt)?;
-    if alt != title || nome.is_empty() || nome.trim() != nome {
+    if alt != title || nome.is_empty() || nome != nome {
         return None;
     }
     let sigla = texto_unico(tag, parser);
-    if sigla.is_empty() || sigla.trim() != sigla || sigla.contains(['<', '>', '&']) {
+    if sigla.is_empty() || sigla != sigla || sigla.contains(['<', '>', '&']) {
         return None;
     }
     Some(Peca::Ancora { sigla, nome })

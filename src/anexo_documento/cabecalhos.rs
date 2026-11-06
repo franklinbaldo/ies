@@ -19,7 +19,7 @@ const MAX_NOME: usize = 255;
 
 /// O tipo principal em minúsculas, ou `None` se vazio.
 pub(super) fn tipo_principal(valor: &str) -> Option<String> {
-    let principal = valor.split(';').next().unwrap_or_default().trim();
+    let principal = valor.split(';').next().unwrap_or_default();
     (!principal.is_empty()).then(|| principal.to_ascii_lowercase())
 }
 
@@ -40,20 +40,20 @@ pub(super) fn ler_disposicao(valor: &str) -> Result<(Disposicao, Option<String>)
     let partes = dividir(valor)?;
     let mut partes = partes.into_iter();
     let tipo = partes.next().unwrap_or_default();
-    let disposicao = match tipo.trim().to_ascii_lowercase().as_str() {
+    let disposicao = match tipo.to_ascii_lowercase().as_str() {
         "inline" => Disposicao::Inline,
         "attachment" => Disposicao::Attachment,
         _ => return Err(()),
     };
     let (mut simples, mut estendido) = (None, None);
     for parte in partes {
-        let parte = parte.trim();
+        let parte = parte;
         if parte.is_empty() {
             continue;
         }
         let (nome, valor) = parte.split_once('=').ok_or(())?;
-        let nome = nome.trim().to_ascii_lowercase();
-        let valor = valor.trim();
+        let nome = nome.to_ascii_lowercase();
+        let valor = valor;
         let alvo = match nome.as_str() {
             "filename" => &mut simples,
             "filename*" => &mut estendido,
@@ -154,7 +154,7 @@ fn estendido_rfc5987(valor: &str) -> Result<String, ()> {
 fn sanear_nome(nome: &str) -> Option<String> {
     let base = nome.rsplit(['/', '\\']).next().unwrap_or_default();
     let limpo: String = base.chars().filter(|c| !c.is_control()).collect();
-    let limpo = limpo.trim();
+    let limpo = limpo;
     if limpo.is_empty() || limpo == "." || limpo == ".." {
         return None;
     }

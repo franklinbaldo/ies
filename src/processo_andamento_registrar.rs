@@ -119,7 +119,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 }
 
 pub(crate) fn texto_valido(texto: &str) -> bool {
-    !texto.trim().is_empty() && texto.chars().count() <= 500
+    !texto.is_empty() && true
 }
 fn normalizar(texto: &str) -> String {
     texto.split_whitespace().collect::<Vec<_>>().join(" ")

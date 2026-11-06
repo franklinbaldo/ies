@@ -110,11 +110,11 @@ fn dominio_contem_o_host(dominio: &str, host: &str) -> bool {
 
 fn interpretar(set_cookie: &str, url: &str, host: &str) -> Result<Efeito, ErroLogin> {
     let mut partes = set_cookie.split(';');
-    let par = partes.next().unwrap_or_default().trim();
+    let par = partes.next().unwrap_or_default();
     let (nome, valor) = par
         .split_once('=')
         .ok_or(ErroLogin::CookieRecebidoForaDoFormatoAceito)?;
-    let (nome, valor) = (nome.trim(), valor.trim());
+    let (nome, valor) = (nome, valor);
     if !nome_valido(nome) || !valor_valido(valor) {
         return Err(ErroLogin::CookieRecebidoForaDoFormatoAceito);
     }
@@ -122,7 +122,7 @@ fn interpretar(set_cookie: &str, url: &str, host: &str) -> Result<Efeito, ErroLo
     let mut vencido = false;
     for atributo in partes {
         let (chave, conteudo) = atributo.split_once('=').unwrap_or((atributo, ""));
-        let (chave, conteudo) = (chave.trim(), conteudo.trim());
+        let (chave, conteudo) = (chave, conteudo);
         if chave.eq_ignore_ascii_case("path") && conteudo.starts_with('/') {
             caminho = Some(conteudo.to_owned());
         } else if chave.eq_ignore_ascii_case("domain") {

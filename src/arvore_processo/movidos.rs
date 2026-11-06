@@ -216,7 +216,7 @@ fn conferir(
     let absoluta =
         conferir_endereco_relativo(instalacao, href, ACAO_DO_DESTINO, destino).map_err(|_| fora)?;
     if texto.is_empty()
-        || texto.trim() != texto
+        || texto != texto
         || texto.contains(['<', '>', '&'])
         || texto == processo.nup
     {

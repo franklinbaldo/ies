@@ -122,7 +122,7 @@ pub(crate) fn mensagem_de_recusa(html: &str) -> Option<String> {
 /// URL de `onclick` nas duas formas observadas do menu:
 /// `location.href='…'` e `window.location.href='…'`, com `;` opcional.
 fn url_do_onclick(onclick: &str) -> Option<&str> {
-    let texto = onclick.trim();
+    let texto = onclick;
     let texto = texto.strip_prefix("window.").unwrap_or(texto);
     let (url, depois) = texto.strip_prefix("location.href='")?.split_once('\'')?;
     (!url.is_empty() && matches!(depois.trim(), "" | ";")).then_some(url)
@@ -192,7 +192,6 @@ fn atributo_decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Option<St
 fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, ErroLogin> {
     let onsubmit = atributo_decodificado(form, "onsubmit").unwrap_or_default();
     onsubmit
-        .trim()
         .strip_prefix("return acaoLogin(")
         .and_then(|resto| resto.strip_suffix(");"))
         .filter(|n| (1..=3).contains(&n.len()) && n.bytes().all(|b| b.is_ascii_digit()))

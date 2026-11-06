@@ -16,7 +16,7 @@ impl CookieDaSessao {
     /// O chamador deve ter autorizado a URL de destino antes desta função.
     pub(crate) fn ler(cookie_file: &Path) -> Self {
         Self(arquivo_privado(cookie_file, 8_192).and_then(|texto| {
-            let cookie = texto.trim().to_owned();
+            let cookie = texto.to_owned();
             validar_cookie(&cookie)?;
             Ok(cookie)
         }))
@@ -88,8 +88,8 @@ impl ReferenciasDaSessao {
         entre: &mut impl FnMut(),
     ) -> Result<Option<Self>, FalhaTransporte> {
         let antes = marcador(url_file)?;
-        let url = arquivo_privado(url_file, 8_192)?.trim().to_owned();
-        let origem = arquivo_privado(origem_file, 512)?.trim().to_owned();
+        let url = arquivo_privado(url_file, 8_192)?.to_owned();
+        let origem = arquivo_privado(origem_file, 512)?.to_owned();
         entre();
         // A origem é conferida ANTES de abrir o cookie; a recusa fica
         // guardada no lugar do cookie, para a primeira requisição.

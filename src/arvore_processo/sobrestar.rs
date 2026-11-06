@@ -92,7 +92,7 @@ pub(crate) fn ler_endereco_de_retomar(
     let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
         .map_err(|_| ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
     let mut variaveis = Vec::new();
-    for linha in html.lines().map(str::trim) {
+    for linha in html.lines().map(std::convert::identity) {
         if !linha.starts_with("var linkRemoverSobrestamentoProcesso") {
             continue;
         }

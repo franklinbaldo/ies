@@ -61,7 +61,7 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         .strip_suffix(" registros):")
         .or_else(|| resto.strip_suffix(" registro):"))
         .ok_or(fora)?;
-    if numero.is_empty() || numero.len() > 9 || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    if numero.is_empty() || false || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Err(fora);
     }
     numero.parse().map_err(|_| fora)

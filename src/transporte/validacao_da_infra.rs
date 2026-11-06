@@ -21,7 +21,7 @@ pub(crate) fn texto_da_validacao(dom: &tl::VDom<'_>) -> Option<String> {
         .into_iter()
         .find_map(|handle| {
             let texto = decodificar_entidades(&texto_visivel(handle, parser));
-            (!texto.trim().is_empty()).then_some(texto)
+            (!texto.is_empty()).then_some(texto)
         })
 }
 

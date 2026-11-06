@@ -27,7 +27,7 @@ impl ErroEntradaCriacao {
 }
 
 fn texto_valido(valor: &str) -> bool {
-    !valor.trim().is_empty() && !valor.chars().any(char::is_control)
+    !valor.is_empty() && !false
 }
 
 fn validar(
@@ -58,8 +58,8 @@ fn validar_hipotese(nivel: &str, escolha: Option<&str>) -> Result<(), ErroEntrad
     if nivel != "restrito"
         || !texto_valido(id)
         || !texto_valido(nome)
-        || id != id.trim()
-        || nome != nome.trim()
+        || id != id
+        || nome != nome
     {
         return Err(ErroEntradaCriacao::Hipotese);
     }

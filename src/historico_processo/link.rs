@@ -94,7 +94,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, E> {
 
 /// Forma `UnB`: a linha da função seguida da linha que atribui o `src`.
 fn do_script(html: &str) -> Result<Vec<String>, E> {
-    let linhas: Vec<&str> = html.lines().map(str::trim).collect();
+    let linhas: Vec<&str> = html.lines().map(std::convert::identity).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
         if !linha.contains("function consultarAndamento") {

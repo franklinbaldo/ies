@@ -94,7 +94,7 @@ pub(crate) fn ler_endereco_de_reabrir(
         ErroHtml::valor("endereco_de_reabrir_fora_da_forma_observada")
     })?;
     let mut variaveis = Vec::new();
-    for linha in html.lines().map(str::trim) {
+    for linha in html.lines().map(std::convert::identity) {
         if !linha.starts_with(VARIAVEL) {
             continue;
         }
