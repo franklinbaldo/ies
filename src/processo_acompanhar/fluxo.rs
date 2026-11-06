@@ -191,6 +191,8 @@ fn selecionar_previa(
     })
 }
 
+type LeituraGerenciador = (Vec<Acompanhamento>, Option<String>, Option<SubmissaoDerivada>);
+
 /// Lê o gerenciador e a oferta de exclusão, sem enviar escrita.
 fn ler_gerenciador<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
@@ -200,7 +202,7 @@ fn ler_gerenciador<V: EnvioDoProcesso>(
     link: &str,
     cookie: &str,
     pedido: &Pedido<'_>,
-) -> Result<(Vec<Acompanhamento>, Option<String>, Option<SubmissaoDerivada>), ErroPrevia> {
+) -> Result<LeituraGerenciador, ErroPrevia> {
     let res = rede.get_sem_seguir(link, cookie)?;
     let mut submissao: Option<SubmissaoDerivada> = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
@@ -414,12 +416,9 @@ fn aceite_da_remocao(
     let Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) = resposta else {
         return false;
     };
-    let Some(consulta) = redirecionamento
-        .localizacao()
-        .and_then(|loc| crate::formulario_web::consulta_do_controlador(
-            loc, redirecionamento.url_do_envio(),
-        ))
-    else {
+    let Some(consulta) = redirecionamento.localizacao().and_then(|loc| {
+        crate::formulario_web::consulta_do_controlador(loc, redirecionamento.url_do_envio())
+    }) else {
         return false;
     };
     crate::arvore_processo::conferir_endereco_relativo(
@@ -443,12 +442,8 @@ fn releitura_da_remocao<V: EnvioDoProcesso>(
 ) -> Option<Vec<Acompanhamento>> {
     let res = rede.get_sem_seguir(link, cookie).ok()?;
     if res.resposta.status_code == 302 {
-        let url = redirecionamento_do_gerenciar(
-            instalacao,
-            res.localizacao.as_deref(),
-            link,
-            id,
-        ).ok()?;
+        let url =
+            redirecionamento_do_gerenciar(instalacao, res.localizacao.as_deref(), link, id).ok()?;
         let (html, _) = html_da_tela(rede, cookie, &url).ok()?;
         grupos_do_cadastro(&html, id).ok()?;
         return Some(Vec::new());
@@ -484,7 +479,9 @@ fn confirmar_remocao<V: EnvioDoProcesso>(
     });
     if !enviado {
         return Err(ErroPrevia::Formulario(
-            resposta.err().ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
+            resposta
+                .err()
+                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
         ));
     }
     let aceite = aceite_da_remocao(&resposta, contexto.instalacao, contexto.id);

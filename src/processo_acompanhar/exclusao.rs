@@ -27,7 +27,8 @@ pub(super) fn conferir_oferta_exclusao(
     if id_alvo.is_empty() || !id_alvo.chars().all(|c| c.is_ascii_digit()) {
         return Err(sem_oferta);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroHtml::html("html_de_acompanhamento_invalido"))?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("html_de_acompanhamento_invalido"))?;
     let parser = dom.parser();
     let mut form = None;
     for no in dom.query_selector("form").into_iter().flatten() {
@@ -78,7 +79,8 @@ pub(super) fn conferir_oferta_exclusao(
             if campo(tag, "type")?.as_deref() != Some("hidden")
                 || campo(tag, "id")?.as_deref() != Some(OCULTO)
                 || campo(tag, "value")?.as_deref() != Some("")
-                || atributo_presente(tag, "disabled").map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
+                || atributo_presente(tag, "disabled")
+                    .map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
             {
                 return Err(sem_oferta);
             }
@@ -308,7 +310,8 @@ fn conferir_script(
                     || valor.is_empty()
             });
             if !tipo_classico
-                || atributo_presente(tag, "src").map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
+                || atributo_presente(tag, "src")
+                    .map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
             {
                 return Err(sem_oferta);
             }

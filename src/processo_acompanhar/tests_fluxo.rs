@@ -182,5 +182,5 @@ fn deixar_confirmado_com_observacao_invalida_recusa_antes_da_rede() {
         resultado,
         Err(ErroPrevia::Html(erro)) if erro == ErroHtml::valor("pedido_de_acompanhamento_invalido")
     ));
-    assert!(pedidos.is_empty());
+    assert_eq!(pedidos.len(), 0);
 }

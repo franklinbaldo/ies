@@ -1,13 +1,12 @@
 //! Derivação de POST da tela servida, com destino original ou reescrito
 //! por script observado (sem executar JavaScript). Refs #254.
-use super::{
-    ConferenciaDaUnidade, EfeitoAvaliado, ErroSubmissaoFormulario,
-    OperacaoDeFormulario, SubmissaoDerivada, TelaServida, codificar_corpo,
-    conferir_unidade, ordenar_campos,
-};
 use super::leitura::{
-    self, UrlHttps, conferir_metodo_e_codificacao, ler_controles,
-    localizar_formulario, resolver_action,
+    self, UrlHttps, conferir_metodo_e_codificacao, ler_controles, localizar_formulario,
+    resolver_action,
+};
+use super::{
+    ConferenciaDaUnidade, EfeitoAvaliado, ErroSubmissaoFormulario, OperacaoDeFormulario,
+    SubmissaoDerivada, TelaServida, codificar_corpo, conferir_unidade, ordenar_campos,
 };
 use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
@@ -80,13 +79,11 @@ fn derivar_submissao_interna(
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
     let url = if let Some((acao_original, destino)) = action_do_script {
-        let original = leitura::resolver_action_para_acao(
-            form, &servida, instalacao, acao_original,
-        )?;
-        let original = UrlHttps::interpretar(&original)
-            .ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
-        let alvo = UrlHttps::interpretar(destino)
-            .ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
+        let original =
+            leitura::resolver_action_para_acao(form, &servida, instalacao, acao_original)?;
+        let original =
+            UrlHttps::interpretar(&original).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+        let alvo = UrlHttps::interpretar(destino).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
         if !instalacao.autoriza_controlador(alvo.host, alvo.caminho)
             || !alvo.host.eq_ignore_ascii_case(servida.host)
             || alvo.caminho != original.caminho
@@ -113,4 +110,3 @@ fn derivar_submissao_interna(
         resultado: operacao.resultado,
     })
 }
-

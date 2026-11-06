@@ -1,5 +1,5 @@
-//! RED/GREEN da retirada: forma observada na UnB, transporte injetado.
-//! Cenários de Todos tests/test_processo_acompanhar_010.py @323eb01.
+//! RED/GREEN da retirada: forma observada na `UnB`, transporte injetado.
+//! Cenários de Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 use super::*;
 use crate::processo_concluir::tests_apoio::{
     ID, Pedido as PedidoHttp, Resposta, UNIDADE, abertura, absoluta, ambiente, arvore, get, ok,
@@ -27,7 +27,8 @@ fn cadastrar() -> String {
     )
 }
 fn cadastro() -> String {
-    format!("<form id=\"frmAcompanhamentoCadastro\" method=\"post\" action=\"{}\">\
+    format!(
+        "<form id=\"frmAcompanhamentoCadastro\" method=\"post\" action=\"{}\">\
         <input type=\"hidden\" name=\"hdnIdProtocolo\" value=\"{ID}\">\
         <select name=\"selGrupoAcompanhamento\"><option value=\"null\">&nbsp;</option></select>\
         </form>",
@@ -35,7 +36,8 @@ fn cadastro() -> String {
     )
 }
 fn lista(linhas: &str) -> String {
-    format!(r##"<html><head><script>
+    format!(
+        r#"<html><head><script>
         function acaoExcluir(id,desc){{
           if(confirm("Excluir?")){{
             document.getElementById('hdnInfraItemId').value=id;
@@ -50,15 +52,17 @@ fn lista(linhas: &str) -> String {
             <tr><th></th><th>Grupo</th><th>Observação</th><th>Usuário</th><th>Data</th><th>Ações</th></tr>
             {linhas}
           </table>
-        </form></body></html>"##,
+        </form></body></html>"#,
         excluir(),
         gerenciar()
     )
 }
 fn linha(id: &str, grupo: &str) -> String {
-    format!(r##"<tr><td><input type="checkbox" value="{id}"></td>
+    format!(
+        r##"<tr><td><input type="checkbox" value="{id}"></td>
         <td>{grupo}</td><td>Obs.</td><td>Aluna</td><td>05/11</td>
-        <td><a href="#ID-{id}" onclick="acaoExcluir('{id}','Obs.');">Excluir</a></td></tr>"##)
+        <td><a href="#ID-{id}" onclick="acaoExcluir('{id}','Obs.');">Excluir</a></td></tr>"##
+    )
 }
 fn preparar() -> Vec<Resposta> {
     let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
@@ -149,7 +153,11 @@ fn sem_prova_na_releitura_da_retirada_e_incerto() {
 #[test]
 fn cadastro_apos_retirar_ultimo_precisa_publicar_processo() {
     let mut respostas = preparar();
-    respostas.extend([r302(&gerenciar()), r302(&cadastrar()), ok("<html>cortado</html>".to_owned())]);
+    respostas.extend([
+        r302(&gerenciar()),
+        r302(&cadastrar()),
+        ok("<html>cortado</html>".to_owned()),
+    ]);
     let (resultado, pedidos) = executar(respostas);
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     let mut esperados = pedidos_confirmados();

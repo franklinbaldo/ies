@@ -82,11 +82,7 @@ fn exclusao_recusa_script_de_exclusao_ausente() {
 fn exclusao_recusa_funcao_em_script_nao_executavel() {
     // Em script de dados, acaoExcluir existe apenas como texto e o onclick não a invoca.
     // Caso sintético derivado da semântica de <script type="application/json">.
-    let html = lista_observada("831").replacen(
-        "<script>",
-        "<script type=\"application/json\">",
-        1,
-    );
+    let html = lista_observada("831").replacen("<script>", "<script type=\"application/json\">", 1);
     assert_eq!(
         conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
@@ -106,11 +102,8 @@ fn exclusao_recusa_script_module_sem_funcao_global() {
 #[test]
 fn exclusao_recusa_script_com_src_que_ignora_corpo_inline() {
     // O navegador ignora o código inline quando o script clássico possui src.
-    let html = lista_observada("831").replacen(
-        "<script>",
-        "<script src=\"/arquivo-exemplo.js\">",
-        1,
-    );
+    let html =
+        lista_observada("831").replacen("<script>", "<script src=\"/arquivo-exemplo.js\">", 1);
     assert_eq!(
         conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
@@ -119,11 +112,7 @@ fn exclusao_recusa_script_com_src_que_ignora_corpo_inline() {
 
 #[test]
 fn exclusao_aceita_script_classico_com_tipo_explicito() {
-    let html = lista_observada("831").replacen(
-        "<script>",
-        "<script type=\"text/javascript\">",
-        1,
-    );
+    let html = lista_observada("831").replacen("<script>", "<script type=\"text/javascript\">", 1);
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
 }
 
@@ -188,11 +177,7 @@ fn exclusao_recusa_expressao_de_funcao_nao_global() {
 #[test]
 fn exclusao_aceita_comentario_antes_da_declaracao_global_real() {
     // Comentário anterior não torna inerte uma declaração global subsequente.
-    let html = lista_observada("831").replacen(
-        "<script>",
-        "<script>/* comentário sintético */",
-        1,
-    );
+    let html = lista_observada("831").replacen("<script>", "<script>/* comentário sintético */", 1);
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
 }
 
@@ -366,5 +351,11 @@ fn previa_deixar_com_funcao_inteiramente_comentada_recusa_sem_post() {
     esperados.push(get(&absoluta(&gerenciar)));
     assert_eq!(pedidos, esperados);
     assert_eq!(pedidos.len(), 4);
-    assert_eq!(pedidos.iter().filter(|pedido| pedido.metodo == "POST").count(), 0);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|pedido| pedido.metodo == "POST")
+            .count(),
+        0
+    );
 }
