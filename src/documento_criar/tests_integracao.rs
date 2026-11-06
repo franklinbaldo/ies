@@ -35,10 +35,10 @@ fn lista_de_tipos() -> String {
     )
 }
 
-fn cadastro() -> String {
+fn cadastro_com_script(script: &str) -> String {
     let action = link_cadastro().replace('&', "&amp;");
     format!(
-        r#"<html><head><script>document.getElementById('hdnFlagDocumentoCadastro').value = '2';</script></head><body>
+        r#"<html><head><script>{script}</script></head><body>
         <label id="lblSerieTitulo">Despacho</label>
         <form id="frmDocumentoCadastro" method="post" action="{action}">
           <input type="hidden" name="hdnIdSerie" value="291">
@@ -46,6 +46,17 @@ fn cadastro() -> String {
           <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
           <input type="text" id="txtDescricao" name="txtDescricao" value="">
         </form></body></html>"#
+    )
+}
+
+fn cadastro() -> String {
+    // Forma de submeter() servida no SEI 4.0.9 (Todos @323eb01).
+    cadastro_com_script(
+        r#"function submeter() {
+  desabilitarBotaoSalvar(true);
+  document.getElementById('hdnFlagDocumentoCadastro').value = '2';
+  document.getElementById('frmDocumentoCadastro').submit();
+}"#,
     )
 }
 
@@ -173,18 +184,9 @@ fn executar_com_cadastro_sintetico(
 
 #[test]
 fn funcao_submeter_observada_no_sei_409_publica_sinalizador() {
-    // Fonte: Todos tests/paginas_reais/documento_gerar.html @323eb01,
-    // linhas 627-632. Essa é uma estrutura de código lida, não JS executado.
-    let html = cadastro()
-        .replace(
-            "<script>",
-            "<script>function submeter(){\n  desabilitarBotaoSalvar(true);\n",
-        )
-        .replace(
-            "</script>",
-            "\n  document.getElementById('frmDocumentoCadastro').submit();\n}</script>",
-        );
-    assert!(cadastro_publica_script_de_criacao(&html));
+    // O controle positivo usa a forma completa observada, nunca uma
+    // atribuicao sintetica isolada.
+    assert!(cadastro_publica_script_de_criacao(&cadastro()));
 }
 
 #[test]
@@ -193,7 +195,9 @@ fn atribuicao_isolada_nao_comprova_caminho_de_submissao_e_recusa_post() {
     // exige a funcao submeter(), a desabilitacao e o submit do formulario.
     // Uma atribuicao isolada pode existir numa tela que nunca envia.
     // Nao executar JS; recusar ANTES da escrita, com cinco GET exatos.
-    let (resultado, pedidos) = executar_com_cadastro_sintetico(cadastro());
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(cadastro_com_script(
+        "document.getElementById('hdnFlagDocumentoCadastro').value = '2';",
+    ));
     assert_eq!(
         resultado.err().map(|erro| erro.subcodigo()),
         Some("submissao_do_documento_nao_observada"),
