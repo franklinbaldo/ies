@@ -166,6 +166,17 @@ positivo antes do POST e mantém a confirmação por releitura posterior.
 1 teste novo falhou antes da correção, 1.683 aprovados, 18 ignorados.
 Live de treinamento ainda NOT_RUN, sem resíduo.
 
+**Revisão adversarial (06/11):** um `onclick` no HTML não torna o
+controle acionável se o próprio botão ou um ancestral tiver `hidden`,
+ou se estiver dentro de `fieldset disabled`. Uma guarda DOM conservadora
+recusa estes casos antes do POST, sem interpretar CSS ou executar JS,
+mas aceita `fieldset` habilitado. A localização usa os limites dos nós
+e os atributos pela peça `html_atributos`. São cenários sintéticos,
+não estruturas afirmadas como observadas em treinamento.
+[RED 42274703937](https://github.com/franklinbaldo/ies/actions/runs/42274703937):
+1 teste novo FAIL/1.775 PASS/23 ignored; Rustfmt também apontou a
+formatação do teste, corrigida depois, sem afrouxar gates.
+
 ## Revisão — comprovar ligação entre controle e escrita (06/11/2026)
 
 **Alternativa rejeitada:** verificar isoladamente botão
