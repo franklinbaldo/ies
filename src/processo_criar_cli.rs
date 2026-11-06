@@ -184,8 +184,14 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
             anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                valor["desfecho"] = json!("candidatos_ambiguos");
-                valor["candidatos_compativeis"] = json!(nups);
+                if erro.subcodigo() == "candidatos_ambiguos_na_criacao" {
+                    valor["desfecho"] = json!("candidatos_ambiguos");
+                    valor["candidatos_compativeis"] = json!(nups);
+                } else {
+                    // Nem todos os candidatos foram conferidos: publicar
+                    // somente as coincidências já lidas, sem desfecho.
+                    valor["coincidencias_parciais_conferidas"] = json!(nups);
+                }
             }
         }
         if let Some(http) = erro.status_http() {
@@ -219,10 +225,17 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                 }
             }
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                eprintln!(
-                    "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
-                    nups.len()
-                );
+                if erro.subcodigo() == "candidatos_ambiguos_na_criacao" {
+                    eprintln!(
+                        "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
+                        nups.len()
+                    );
+                } else {
+                    eprintln!(
+                        "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
+                        nups.len()
+                    );
+                }
                 for nup in nups {
                     eprintln!("  {nup}");
                 }
