@@ -24,3 +24,9 @@ A execução ao vivo exige acesso comprovado a instalação de
 treinamento, prévia no próprio processo, um único `--confirmar`
 e verificação por leitura. Não usar produção. O CI só prova o
 comportamento sintético, não a compatibilidade ao vivo.
+
+## Aceite JS inerte — regressão da 🦊 Raposa (06/11/2026)
+
+- **RED:** [run 42218975613](https://github.com/franklinbaldo/ies/actions/runs/42218975613), 3 FAIL novos, 1.714 PASS, 22 ignored preexistentes. Um comentário de bloco, um literal de string e um script em template eram interpretados incorretamente como atividade confirmada.
+- **GREEN:** CI do head atualizado da PR #317 a conferir. A correção reaproveita o lexer estático do leitor documental para descartar chamadas dentro de comentário/literal e recusa scripts em template, sem executar JS.
+- **Requisições SEI nesta rodada:** 0. Prévia UnB NOT_RUN (0); segunda instalação NOT_RUN (0); confirmação NOT_RUN (0); releitura live NOT_RUN (0); replay específico NOT_RUN. **Zero escritas e zero resíduos.**
