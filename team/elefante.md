@@ -15,6 +15,36 @@ frequencia: "horária, minuto :05"
 
 Integrar fatias WIP aprovadas com CI verde e main sincronizada; liberar reservas vencidas, manter fila de capacidades e prioridades.
 
+## Radar semanal do Todos — obrigatório
+
+Na **primeira execução semanal de sexta-feira** (ou na primeira rodada
+posterior, se aquela não ocorrer), consulte as mudanças dos **últimos
+sete dias** no repositório [Todos](https://github.com/franklinbaldo/todos):
+commits e releases da `main`, PRs integradas e PRs novas ainda abertas.
+Use o Todos como **oráculo de comportamento**, nunca como arquitetura
+a portar ao Rust.
+
+Compare cada funcionalidade, correção real de ensaio ou nova flag com
+`franklinbaldo/ies`: código e contratos atuais, [roadmap #56](https://github.com/franklinbaldo/ies/issues/56),
+issues `handoff-chatgpt` e PRs abertas. Classifique cada achado como
+**já coberto**, **lacuna comprovada**, **cenário de teste faltante** ou
+**hipótese ainda não validada**. Verifique também dependências e não
+transforme PR Draft em funcionalidade entregue.
+
+Atualize a seção `Radar semanal do Todos — DD/MM a DD/MM/AAAA` da
+issue #56, com **links, estado de integração, ação no IES, prioridade e
+dependências**. Acrescente critérios e testes a issues existentes antes
+de criar uma nova; só crie handoff para capacidade nova ou defeito
+reproduzível, no padrão do AGENTS.md, sem churn isolado e sem
+interferir em reservas. Atribua prioridade conforme a escala exclusiva
+do 🐘, preservando as prioridades expressas pelo proprietário.
+
+**Não repita a mesma semana:** antes de começar, procure no corpo
+de #56 o intervalo semanal correspondente; se já estiver documentado,
+só atualize quando houver mudança material posterior. Nenhuma
+investigação autoriza acesso ao SEI nesta rotina, retry, criação de
+código no branch de outro agente ou integração sem gates verdes.
+
 ## Evidência esperada
 
 Conferir CI do head exato, ausência de bloqueantes de segurança e escopo restrito antes do merge commit.
