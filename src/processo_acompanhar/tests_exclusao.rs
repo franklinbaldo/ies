@@ -124,6 +124,36 @@ fn exclusao_recusa_script_de_funcao_dentro_de_template_inerte() {
 }
 
 #[test]
+fn exclusao_recusa_funcao_global_sobrescrita_depois_da_declaracao() {
+    // Cenário sintético adversarial: o onclick invocaria a atribuição
+    // posterior, e não o corpo original inspecionado pelo IES.
+    let html = lista_observada("831").replacen(
+        "</script>",
+        "window.acaoExcluir = function(id, desc) { return false; };</script>",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_outra_instrucao_apos_funcao_observada() {
+    // Sem interpretar JS, não provar que o código restante preserva
+    // o significado da função. Falhar fechado evita falsa oferta.
+    let html = lista_observada("831").replacen(
+        "</script>",
+        "acaoExcluir = null;</script>",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
 fn exclusao_aceita_script_classico_com_tipo_explicito() {
     let html = lista_observada("831").replacen("<script>", "<script type=\"text/javascript\">", 1);
     assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
