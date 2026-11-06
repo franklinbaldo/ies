@@ -346,10 +346,7 @@ fn parametro_generico_duplicado_deve_ser_recusado_antes_do_cookie() {
         },
     );
     assert!(
-        matches!(
-            resultado,
-            Err(FalhaTransporte::UrlInvalida)
-        ),
+        matches!(resultado, Err(FalhaTransporte::UrlInvalida)),
         "URL duplicada não recusada: {resultado:?}"
     );
     assert_eq!(chamadas.get(), 0);
