@@ -204,3 +204,25 @@ a partir do texto da regex e não alterar a sequência estrita
 `btnSalvar → confirmarDados → OnSubmitForm → submeter → POST`.
 Expressões desconhecidas continuam falhando fechadas. A hipótese não
 autoriza POST live sem observação segura, prévia nova e gates verdes.
+
+
+## Revisão — script extenso da UnB e texto truncado (06/11/2026)
+
+Observação **antes do RED**: no ensaio somente leitura em TREINAMENTO
+[42222453651](https://github.com/franklinbaldo/ies/actions/runs/42222453651),
+a prévia PASS usou quatro requisições, enquanto a confirmação instrumentada
+recusou **antes de qualquer POST criador**. O HTML integral ficou apenas
+em arquivo temporário privado 0600, sem artifact nem log. Dois botões Salvar
+publicaram o acionador observado. A leitura independente do script bruto
+por HTMLParser identificou confirmarDados e submeter na cadeia esperada;
+porém tl::HTMLTag::inner_text, que alimentava a guarda Rust, devolveu
+**só 15 bytes/2 linhas** para o script ativo de índice 24, e a contagem
+de funções ficou 0/0/0. Isso demonstra uma divergência **de extração do
+texto JavaScript**, não permissão para relaxar a verificação semântica.
+
+Decisão candidata a provar por RED/GREEN sintético: parear os elementos
+script conferidos no DOM com as faixas de texto bruto do HTML publicado,
+tratando o fechamento de script como terminador lexical da interface Web,
+sem executar JS e sem aceitar atributos fora de html_atributos.
+Se o pareamento ou o encerramento não forem inequívocos, recusar antes de
+escrever. O ensaio não produziu documento nem resíduo no SEI.
