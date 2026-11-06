@@ -290,7 +290,10 @@ fn falhas_de_fronteira_sao_tipos_proprios_sem_causa_html() {
     for (erro, esperado) in [
         (FalhaTransporte::UrlInvalida, "url_invalida"),
         (FalhaTransporte::CookieInvalido, "cookie_invalido"),
-        (FalhaTransporte::TipoDeConteudoNaoHtml, "tipo_de_conteudo_nao_html"),
+        (
+            FalhaTransporte::TipoDeConteudoNaoHtml,
+            "tipo_de_conteudo_nao_html",
+        ),
     ] {
         assert_eq!(folha(&erro), esperado);
         assert_eq!(caminho_de(&erro), [esperado]);
