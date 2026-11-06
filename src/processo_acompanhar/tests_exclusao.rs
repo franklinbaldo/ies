@@ -273,6 +273,43 @@ fn exclusao_recusa_oculto_desabilitado() {
 }
 
 #[test]
+fn exclusao_recusa_link_oculto_ou_em_regiao_inerte() {
+    // A URL de acaoExcluir presente no HTML nao oferece uma acao clicavel.
+    // Mesmo com o id correto, hidden/inert impedem o clique pelo navegador.
+    let base = lista_observada("831");
+    let link_oculto = base.replace(
+        "<a href=\"#ID-831\"",
+        "<a hidden href=\"#ID-831\"",
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &link_oculto, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+    let pai_inerte = base
+        .replace("<td><a href=\"#ID-831\"", "<td><div inert><a href=\"#ID-831\"")
+        .replace("</a></td></tr>", "</a></div></td></tr>");
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &pai_inerte, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_oculto_enviavel_dentro_de_fieldset_desabilitado() {
+    // Form com input hidden sob fieldset disabled nao envia o alvo da exclusao.
+    // O proprio input nao tem disabled, mas o fieldset invalida a oferta.
+    let html = lista_observada("831")
+        .replace(
+            "<input type=\"hidden\" name=\"hdnInfraItemId\" id=\"hdnInfraItemId\" value=\"\">",
+            "<fieldset disabled><input type=\"hidden\" name=\"hdnInfraItemId\" id=\"hdnInfraItemId\" value=\"\"></fieldset>",
+        );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
 fn previa_deixar_com_oferta_valida_somente_le_e_conta_quatro_gets() {
     // Testa o caminho completo, não somente a função pura de exclusão.
     use crate::processo_acompanhar::fluxo::{Pedido, previa};
