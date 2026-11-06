@@ -150,6 +150,9 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
     causa: CausaPosEscrita,
 ) -> Result<(), ErroCriar> {
     let mut observados_antes_da_falha = None;
+    // Provas positivas obtidas antes de uma falha posterior continuam
+    // observadas, mas NÃO permitem concluir unicidade nem autoria.
+    let mut correspondentes_parciais = Vec::new();
     let posterior = (|| {
         let controle = get(envio, url_controle, cookie, requisicoes)?;
         let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
@@ -160,7 +163,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
         observados_antes_da_falha = Some(candidatos.clone().into_boxed_slice());
         let mut provas = Vec::new();
         for candidato in &candidatos {
-            provas.push(conferir_candidato(
+            let conferido = conferir_candidato(
                 envio,
                 instalacao,
                 url_controle,
@@ -169,7 +172,13 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
                 &controle.html,
                 candidato,
                 requisicoes,
-            )?);
+            )?;
+            if conferido.tipo.as_deref() == Some(feito.tipo.as_str())
+                && conferido.especificacao.as_deref() == Some(especificacao)
+            {
+                correspondentes_parciais.push(conferido.nup.clone());
+            }
+            provas.push(conferido);
         }
         let desfecho = classificar(&candidatos, &provas, &feito.tipo, especificacao)
             .map_err(ErroCriar::Conferencia)?;
@@ -187,6 +196,10 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             Err(causa.inconclusiva(Ok(candidatos), Some(nups), None))
         }
         Ok((candidatos, _)) => Err(causa.inconclusiva(Ok(candidatos), None, None)),
-        Err(erro) => Err(causa.inconclusiva(Err(erro), None, observados_antes_da_falha)),
+        Err(erro) => Err(causa.inconclusiva(
+            Err(erro),
+            (!correspondentes_parciais.is_empty()).then_some(correspondentes_parciais),
+            observados_antes_da_falha,
+        )),
     }
 }
