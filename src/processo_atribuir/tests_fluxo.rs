@@ -102,11 +102,15 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
 fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() {
     let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&["PR-P"], &acao())));
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "situacao_da_atribuicao_nao_observada");
-    assert_eq!(
-        format!("{erro:?}"),
-        "SituacaoDaAtribuicaoNaoObservada { unidade: \"TESTE\", aberto_em: Some([\"PR-P\"]), motivo: None, requisicoes: 3 }"
-    );
+    assert!(matches!(
+        &erro,
+        E::SituacaoDaAtribuicaoNaoObservada {
+            unidade,
+            aberto_em: Some(siglas),
+            motivo: None,
+            requisicoes: 3,
+        } if unidade == "TESTE" && siglas.as_slice() == ["PR-P"]
+    ));
     let publicado = crate::processo_atribuir_cli::json_de_falha(&erro);
     assert_eq!(publicado["unidade"], "TESTE");
     assert_eq!(publicado["aberto_em"], serde_json::json!(["PR-P"]));
