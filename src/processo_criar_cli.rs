@@ -1,7 +1,7 @@
 //! Superfície da criação de processos (#245).
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
-use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
+use crate::processo_criar_fluxo::{ErroCriar, EvidenciaDeCoincidencia, PedidoCriar, criar};
 use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
@@ -121,26 +121,43 @@ fn anexar_http_releitura_json(
 
 /// Só a conferência integral permite o desfecho de candidatos ambíguos.
 /// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
-fn anexar_coincidencias_json(valor: &mut serde_json::Value, subcodigo: &str, nups: &[String]) {
-    if subcodigo == "candidatos_ambiguos_na_criacao" {
-        valor["desfecho"] = json!("candidatos_ambiguos");
-        valor["candidatos_compativeis"] = json!(nups);
-    } else {
-        valor["coincidencias_parciais_conferidas"] = json!(nups);
+fn anexar_coincidencias_json(
+    valor: &mut serde_json::Value,
+    evidencia: EvidenciaDeCoincidencia,
+    nups: &[String],
+) {
+    match evidencia {
+        EvidenciaDeCoincidencia::UnicaSemProvaCausal => {
+            valor["desfecho"] = json!("possivel_residuo");
+            valor["candidatos_compativeis"] = json!(nups);
+        }
+        EvidenciaDeCoincidencia::Multiplas => {
+            valor["desfecho"] = json!("candidatos_ambiguos");
+            valor["candidatos_compativeis"] = json!(nups);
+        }
+        EvidenciaDeCoincidencia::Parcial => {
+            valor["coincidencias_parciais_conferidas"] = json!(nups);
+        }
     }
 }
 
-fn informar_coincidencias_humanas(nups: &[String], subcodigo: &str) {
-    if subcodigo == "candidatos_ambiguos_na_criacao" {
-        eprintln!(
-            "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
-            nups.len()
-        );
-    } else {
-        eprintln!(
-            "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
-            nups.len()
-        );
+fn informar_coincidencias_humanas(nups: &[String], evidencia: EvidenciaDeCoincidencia) {
+    match evidencia {
+        EvidenciaDeCoincidencia::UnicaSemProvaCausal => {
+            eprintln!("IES: um candidato confere, mas a leitura não demonstra que este POST o criou.");
+        }
+        EvidenciaDeCoincidencia::Multiplas => {
+            eprintln!(
+                "IES: {} candidatos coincidentes; autoria da criação ambígua.",
+                nups.len()
+            );
+        }
+        EvidenciaDeCoincidencia::Parcial => {
+            eprintln!(
+                "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
+                nups.len()
+            );
+        }
     }
     for nup in nups {
         eprintln!("  {nup}");
@@ -212,7 +229,9 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
             anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                anexar_coincidencias_json(&mut valor, erro.subcodigo(), &nups);
+                if let Some(evidencia) = diagnostico.evidencia {
+                    anexar_coincidencias_json(&mut valor, evidencia, &nups);
+                }
             }
         }
         if let Some(http) = erro.status_http() {
@@ -246,7 +265,9 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                 }
             }
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                informar_coincidencias_humanas(&nups, erro.subcodigo());
+                if let Some(evidencia) = diagnostico.evidencia {
+                    informar_coincidencias_humanas(&nups, evidencia);
+                }
             }
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
@@ -471,7 +492,7 @@ mod tests {
         let mut parcial = json!({"codigo": "efeito_incerto"});
         anexar_coincidencias_json(
             &mut parcial,
-            "efeito_incerto_na_criacao",
+            EvidenciaDeCoincidencia::Parcial,
             &["NUP-sintetico-10".into()],
         );
         assert_eq!(
@@ -484,7 +505,7 @@ mod tests {
         let mut completa = json!({"codigo": "efeito_incerto"});
         anexar_coincidencias_json(
             &mut completa,
-            "candidatos_ambiguos_na_criacao",
+            EvidenciaDeCoincidencia::Multiplas,
             &["NUP-sintetico-10".into(), "NUP-sintetico-11".into()],
         );
         assert_eq!(completa["desfecho"], "candidatos_ambiguos");
@@ -493,6 +514,15 @@ mod tests {
             json!(["NUP-sintetico-10", "NUP-sintetico-11"])
         );
         assert!(completa.get("coincidencias_parciais_conferidas").is_none());
+        let mut unica = json!({"codigo": "efeito_incerto"});
+        anexar_coincidencias_json(
+            &mut unica,
+            EvidenciaDeCoincidencia::UnicaSemProvaCausal,
+            &["NUP-sintetico-10".into()],
+        );
+        assert_eq!(unica["desfecho"], "possivel_residuo");
+        assert_eq!(unica["candidatos_compativeis"], json!(["NUP-sintetico-10"]));
+        assert!(unica.get("coincidencias_parciais_conferidas").is_none());
     }
 
     #[test]
