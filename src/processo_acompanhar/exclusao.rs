@@ -277,6 +277,12 @@ fn corpo_da_acao_excluir(codigo: &str) -> Option<&str> {
             '}' => {
                 nivel -= 1;
                 if nivel == 0 {
+                    // A declaração observada só prova a ação se não houver
+                    // código posterior capaz de reatribuir acaoExcluir.
+                    // Não interpretar JS não observado: falhar fechado.
+                    if !inicio_corpo[i + 1..].trim().is_empty() {
+                        return None;
+                    }
                     let corpo = &inicio_corpo[..i];
                     if corpo.contains("//") || corpo.contains("/*") {
                         return None;
