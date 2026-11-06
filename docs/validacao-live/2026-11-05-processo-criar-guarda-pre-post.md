@@ -48,3 +48,18 @@ O teste e o código são sintéticos: **prévia live NOT_RUN; confirmação live
 NOT_RUN; releitura live NOT_RUN; 0 GET reais, 0 POST reais, nenhum resíduo
 novo**. Não repetir o POST histórico de treinamento na UnB que gerou
 `23106.001875/2026-93` (id 51731).
+
+## Coruja — recusa explícita versus candidato concorrente (06/11/2026)
+
+Observação anterior: comportamento de validação Infra no leitor Web e
+resposta HTTP 403 já documentados nos testes existentes; a conta SEI
+pode ser compartilhada. RED sintético do commit `e61bc47` no
+[CI 42180304698](https://github.com/franklinbaldo/ies/actions/runs/42180304698):
+**2 testes FAIL, 1.676 PASS, 18 ignorados preexistentes**.
+As duas recusas foram indevidamente classificadas como sucesso ao ver
+um candidato concorrente com o mesmo tipo/especificação.
+Após a correção, os dois casos exigem **3 GET + 1 POST**, zero GET
+pós-recusa, e preservam a causa do SEI (Infra 200 ou HTTP 403).
+
+LIVE: **NOT_RUN**, zero requisições reais, zero POST real, zero escritas,
+zero resíduos novos. O NUP histórico da UnB não foi recriado.
