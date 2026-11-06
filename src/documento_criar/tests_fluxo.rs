@@ -227,3 +227,27 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
         );
     }
 }
+
+#[test]
+fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
+    // O código público continua sendo a folha, mas a causa deve incluir
+    // cada etapa tipada do fluxo, sem depender de textos para classificar.
+    let tipo = ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente);
+    assert_eq!(
+        crate::erro_publico::folha(&tipo),
+        "tipo_de_documento_nao_oferecido"
+    );
+    assert_eq!(
+        crate::erro_publico::caminho_de(&tipo),
+        ["tipo", "tipo_de_documento_nao_oferecido"]
+    );
+    let link = ErroPreviaCriacao::Link(ErroLinkIncluirDocumento::LinkRepetido);
+    assert_eq!(
+        crate::erro_publico::folha(&link),
+        "links_de_incluir_documento_repetidos"
+    );
+    assert_eq!(
+        crate::erro_publico::caminho_de(&link),
+        ["link", "links_de_incluir_documento_repetidos"]
+    );
+}
