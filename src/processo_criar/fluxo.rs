@@ -75,7 +75,7 @@ mod erro_fluxo;
 mod pos_escrita;
 #[path = "verificacao_apos_post.rs"]
 mod verificacao_apos_post;
-pub(crate) use erro_fluxo::ErroCriar;
+pub(crate) use erro_fluxo::{ErroCriar, EvidenciaDeCoincidencia};
 
 pub(crate) struct PedidoCriar<'a> {
     pub(crate) tipo: &'a str,
@@ -545,3 +545,7 @@ mod reconciliacao;
 #[cfg(test)]
 #[path = "tests_candidatos.rs"]
 mod tests_candidatos;
+
+#[cfg(test)]
+#[path = "tests_concorrencia.rs"]
+mod tests_concorrencia;
