@@ -143,57 +143,62 @@ fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
     }
 }
 
+/// Apresenta recusas anteriores à criação, separadas do efeito incerto.
+fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
+    let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
+    if let Some(opcoes) = erro.opcoes_para_escolha() {
+        if json_mode {
+            let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+            valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
+            valor["requisicoes"] = json!(requisicoes);
+            println!("{valor}");
+        } else {
+            eprintln!(
+                "{}",
+                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+            );
+            eprintln!("IES: hipóteses legais ofertadas no AJAX:");
+            for (id, nome) in opcoes {
+                eprintln!("  {id}#{nome}");
+            }
+            eprintln!("IES: faça nova prévia com --hipotese-legal ID#NOME antes de confirmar.");
+        }
+        return ExitCode::from(1);
+    }
+    // Status e mensagem saneada do SEI vão para a saída quando houve.
+    if json_mode {
+        println!("{}", json_da_recusa_criadora(erro, mensagem, requisicoes));
+        return ExitCode::from(1);
+    }
+    if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
+        eprintln!(
+            "{}",
+            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+        );
+        eprintln!(
+            "IES: especificação com {tamanho} unidades UTF-16; máximo publicado pelo cadastro: {limite}. Nenhuma escrita foi tentada."
+        );
+        return ExitCode::from(1);
+    }
+    if erro.nao_aplicada_comprovada() {
+        eprintln!(
+            "{}",
+            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+        );
+        eprintln!(
+            "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
+        );
+        return ExitCode::from(1);
+    }
+    return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
+}
+    
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
     if !json_mode {
         eprintln!("IES: {requisicoes} requisições efetivamente tentadas neste fluxo.");
     }
     if erro.saida() != 3 {
-        let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
-        if let Some(opcoes) = erro.opcoes_para_escolha() {
-            if json_mode {
-                let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
-                valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
-                valor["requisicoes"] = json!(requisicoes);
-                println!("{valor}");
-            } else {
-                eprintln!(
-                    "{}",
-                    linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-                );
-                eprintln!("IES: hipóteses legais ofertadas no AJAX:");
-                for (id, nome) in opcoes {
-                    eprintln!("  {id}#{nome}");
-                }
-                eprintln!("IES: faça nova prévia com --hipotese-legal ID#NOME antes de confirmar.");
-            }
-            return ExitCode::from(1);
-        }
-        // Status e mensagem saneada do SEI vão para a saída quando houve.
-        if json_mode {
-            println!("{}", json_da_recusa_criadora(erro, mensagem, requisicoes));
-            return ExitCode::from(1);
-        }
-        if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
-            eprintln!(
-                "{}",
-                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-            );
-            eprintln!(
-                "IES: especificação com {tamanho} unidades UTF-16; máximo publicado pelo cadastro: {limite}. Nenhuma escrita foi tentada."
-            );
-            return ExitCode::from(1);
-        }
-        if erro.nao_aplicada_comprovada() {
-            eprintln!(
-                "{}",
-                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-            );
-            eprintln!(
-                "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
-            );
-            return ExitCode::from(1);
-        }
-        return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
+        return erro_antes_da_escrita(json_mode, erro, requisicoes);
     }
     // O GET de reconciliação é só observação: sem conferir tipo e
     // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
