@@ -341,3 +341,18 @@ fn principal_sem_id_nao_comprova_atribuicao_concorrente() {
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET independente
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+
+#[test]
+fn principal_com_id_explicito_confirma_apos_releitura() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=principal&id_procedimento={ID}&acao_origem=procedimento_atribuicao_cadastrar"
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.requisicoes, 6);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
