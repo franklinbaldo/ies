@@ -313,8 +313,10 @@ do cadastro depende do botão `btnAdicionar` servido. O atributo HTML
 `disabled` impede o acionamento pelo navegador; um `onclick` presente
 no mesmo elemento não prova uma ação oferecida.
 
-**Decisão:** antes de derivar a URL do cadastro, exigir que o botão
-selecionado não possua `disabled`. Reutilizar `html_atributos` e a recusa
+**Decisão:** antes de derivar a URL do cadastro, recusar botão
+`disabled`, `hidden` ou contido num `<fieldset disabled>`. A descendência
+é verificada por identidade do nó DOM, não por regex nem pela presença de
+outro elemento com ID parecido. Reutilizar `html_atributos` e a recusa
 estrutural já contratada (`tela_de_acompanhamento_inesperada`); sem
 regex, execução de JS, requisições adicionais ou mudança da CLI.
 O teste sintético negativo tem exatamente **4 GET, 0 POST**, e o
