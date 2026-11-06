@@ -45,6 +45,11 @@ automaticamente. A prévia nunca consulta `documento_ciencia`.
 
 ## Subcódigos próprios
 
+| Subcódigo | Condição observada |
+| --- | --- |
+| `barra_da_ciencia_do_documento_fora_da_forma` | Atributos da barra inválidos |
+| `botoes_de_ciencia_do_documento_repetidos` | Botão duplicado |
+
 - `barra_da_ciencia_do_documento_fora_da_forma` — atributos da barra inválidos
 - `botoes_de_ciencia_do_documento_repetidos` — botão duplicado
 - `ciencia_nao_oferecida_no_documento` — barra sem botão
