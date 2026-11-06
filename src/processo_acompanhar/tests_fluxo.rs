@@ -184,6 +184,7 @@ fn inclusao_nao_confirma_redirect_para_outro_processo_mesmo_com_linha_nova() {
     let destino_errado = gerenciar().replace("id_procedimento=10", "id_procedimento=99");
     respostas.extend([r302(&destino_errado), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
+    assert_eq!(resultado.as_ref().unwrap_err().resposta_post_observada(), Some("redirecionamento_observado"));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -211,6 +212,7 @@ fn recusa_da_validacao_infra_nao_se_torna_sucesso_por_linha_coincidente() {
         ok(lista("G")),
     ]);
     let (resultado, pedidos) = executar(respostas, true);
+    assert_eq!(resultado.as_ref().unwrap_err().resposta_post_observada(), Some("validacao_infra_recusada"));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -228,7 +230,22 @@ fn status_http_recusado_nao_se_torna_sucesso_por_linha_coincidente() {
         resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(),
         Some((7, "resposta_sem_aceite"))
     );
+    assert_eq!(resultado.as_ref().unwrap_err().resposta_post_observada(), Some("status_http_recusado"));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
+    assert_eq!(pedidos, requests_post());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn html_sem_redirecionamento_nao_autoriza_sucesso_na_conta_compartilhada() {
+    // Ensaio UFRJ #254: resposta_sem_aceite nao distingue HTTP 200 de 302.
+    // Diagnosticar sem inventar aceite, sem expor corpo ou URL assinada.
+    let mut respostas = preparar();
+    respostas.extend([ok("<html>Sucesso</html>".to_owned()), ok(lista("G"))]);
+    let (resultado, pedidos) = executar(respostas, true);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.diagnostico_efeito_incerto(), Some((7, "resposta_sem_aceite")));
+    assert_eq!(erro.resposta_post_observada(), Some("html_sem_redirecionamento"));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
