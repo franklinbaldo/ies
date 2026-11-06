@@ -97,7 +97,7 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         };
         let literal = &resto[..fim];
         let depois_do_literal = resto[fim + 1..].trim_start();
-        if !literal.contains('\\\\')
+        if !literal.contains('\\')
             && (depois_do_literal.starts_with(')') || depois_do_literal.starts_with(','))
         {
             achados.push(literal);
