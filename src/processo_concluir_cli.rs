@@ -13,7 +13,7 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{
     Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, saida_erro, transporte,
 };
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo concluir`.
@@ -97,7 +97,7 @@ fn concluir_na_sessao(
     match concluir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                if let Err(erro) = crate::saida::imprimir_json(&resultado_conclusao(&feito)) {
                     eprintln!("IES: falha ao emitir JSON: {erro}");
                     return std::process::ExitCode::from(1);
                 }
@@ -116,40 +116,77 @@ fn concluir_na_sessao(
     }
 }
 
-pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    let mut valor = Map::new();
-    valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
-    if let Some(http) = falha.status_http() {
-        if http.status != 200 {
-            valor.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            valor.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    Value::Object(valor)
+/// Projeção de falha de escrita, tipada até a fronteira de serialização.
+/// Não contém URLs assinadas nem cookies.
+#[derive(serde::Serialize)]
+pub(crate) struct FalhaEnvioPublica {
+    subcodigo: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status_http: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mensagem_do_servidor: Option<String>,
 }
 
-/// JSON do sucesso (prévia, nada a fazer, ou concluído e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "forma": feito.forma.map(crate::processo_concluir::FormaDaConclusao::como_texto),
-        "aberto_em": feito.aberto_em,
-        "depois_esperado": feito.depois_esperado(),
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+impl FalhaEnvioPublica {
+    pub(crate) fn de(falha: &FalhaDoEnvio) -> Self {
+        let http = falha.status_http();
+        Self {
+            subcodigo: falha.subcodigo(),
+            status_http: http.as_ref().map(|h| h.status).filter(|s| *s != 200),
+            mensagem_do_servidor: http.and_then(|h| h.mensagem_do_servidor),
+        }
     }
-    valor
+}
+
+/// Mantém o contrato JSON dos erros ainda publicados como Value.
+pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
+    serde_json::to_value(FalhaEnvioPublica::de(falha))
+        .expect("a projeção tipada de falha só possui valores JSON")
+}
+
+/// Projeção do sucesso: a função de domínio nunca constrói um JSON.
+#[derive(serde::Serialize)]
+struct ResultadoConclusao<'a> {
+    nup: &'a str,
+    id_procedimento: &'a str,
+    unidade: &'a str,
+    origem: &'static str,
+    confirmado: bool,
+    alterado: bool,
+    forma: Option<&'static str>,
+    aberto_em: &'a [String],
+    depois_esperado: Vec<String>,
+    depois: Option<&'a [String]>,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<FalhaEnvioPublica>,
+}
+
+fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
+    ResultadoConclusao {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado,
+        alterado: feito.alterado,
+        forma: feito.forma.map(crate::processo_concluir::FormaDaConclusao::como_texto),
+        aberto_em: &feito.aberto_em,
+        depois_esperado: feito.depois_esperado(),
+        depois: feito.depois.as_deref(),
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito.reconciliado_por.as_ref().map(FalhaEnvioPublica::de),
+    }
+}
+
+/// Compatibilidade com os testes de contrato: o runtime serializa a struct
+/// diretamente, sem construir serde_json::Value no caminho de sucesso.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
+    serde_json::to_value(resultado_conclusao(feito))
+        .expect("a projeção tipada de sucesso só possui valores JSON")
 }
 
 /// O corpo comum das falhas depois da abertura (também as de `processo
