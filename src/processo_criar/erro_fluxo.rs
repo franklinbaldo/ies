@@ -8,6 +8,14 @@ use crate::processo_criar_interessados::ErroInteressado;
 use crate::processo_criar_lista::ErroListaDeTipos;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum CausaRespostaCriadora {
+    #[causa(nome = "resposta_inesperada_apos_post_criador")]
+    RespostaInesperada,
+    #[causa(nome = "localizacao_invalida_apos_post_criador")]
+    LocalizacaoInvalida,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) causa_post: &'static str,
@@ -39,6 +47,12 @@ pub(crate) enum ErroCriar {
         causa_post: ErroSubmissaoFormulario,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
     },
+    /// O POST recebeu resposta sem prova de identidade; uma releitura
+    /// única do Controle preserva o fato da resposta e a falha posterior.
+    PosRespostaInesperada {
+        causa: CausaRespostaCriadora,
+        posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
+    },
     EfeitoIncerto,
 }
 
@@ -56,7 +70,7 @@ impl ErroCriar {
             Self::Interessado(erro) => erro.subcodigo(),
             Self::Hipotese(erro) => erro.subcodigo(),
             Self::Fotografia(erro) => crate::erro_publico::folha(erro),
-            Self::PosEscrita { .. } | Self::EfeitoIncerto => "efeito_incerto_na_criacao",
+            Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => "efeito_incerto_na_criacao",
         }
     }
 
@@ -91,7 +105,7 @@ impl ErroCriar {
     }
 
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto | Self::PosEscrita { .. }) {
+        if matches!(self, Self::EfeitoIncerto | Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. }) {
             3
         } else {
             1
@@ -101,15 +115,18 @@ impl ErroCriar {
     /// O retorno não infere ausência quando não houve candidato novo.
     /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
     pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
-        let Self::PosEscrita {
-            causa_post,
-            posterior,
-        } = self
-        else {
-            return None;
+        let (causa_post, posterior) = match self {
+            Self::PosEscrita {
+                causa_post,
+                posterior,
+            } => (causa_post.subcodigo(), posterior),
+            Self::PosRespostaInesperada { causa, posterior } => {
+                (crate::erro_publico::folha(causa), posterior)
+            }
+            _ => return None,
         };
         Some(DiagnosticoPosEscrita {
-            causa_post: causa_post.subcodigo(),
+            causa_post,
             causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
             candidatos_observados: posterior
                 .as_ref()
