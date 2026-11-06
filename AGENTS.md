@@ -33,6 +33,18 @@ assumida mesmo quando for de outro domínio. Não edite branches de outros
 donos; relate problemas verificados na issue e ao 🦅. Revisora e
 integradora não assumem issues de implementação.
 
+**Autoria dos commits por avatar.** A **primeira coisa da mensagem de
+todo commit feito por uma rotina** é o emoji **da própria rotina** (sem
+espaço, `WIP:`, `fix:` ou qualquer texto antes). Exemplos:
+`🦊 fix: prévia`, `🦉 WIP: reconciliação`, `🐢 test: fronteira`,
+`🐙 feat: editor`, `🦫 refactor: erros`, `🐘 merge: integrar fatia`.
+Vale para código, testes, documentação e commits de merge: o 🐘 deve
+personalizar o título do merge commit para começar com `🐘`.
+O 🦅 apenas revisa e não cria commits na rotina; se excepcionalmente
+produzir um commit autorizado, o título começa por `🦅`.
+Nunca usar avatar alheio. O avatar sinaliza a rotina autora, sem substituir
+a identidade Git do autor.
+
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
