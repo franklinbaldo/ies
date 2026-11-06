@@ -49,11 +49,14 @@ o status e a mensagem saneada da recusa são preservados. Só a resposta sem
 recusa (HTML 200 ou 302 reconhecido) ou falha de rede sem resposta admite
 conciliação por leitura; nenhuma dessas vias repete o POST. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
-controlador e não pode publicar outro processo ou outra ação de origem.
+controlador, sem publicar outro processo nem outra ação de origem. Como
+`principal` é navegação genérica, **exige `id_procedimento` explícito
+igual ao processo solicitado**; sem a identidade, releitura coincidente
+pode refletir escrita concorrente e é efeito incerto (saída 3).
 **Na CLI pública, --confirmar continua temporariamente bloqueado** por
-`escrita_de_atribuicao_ainda_nao_verificada`, sem acessar o SEI: a
-integração de escrita só será habilitada quando houver teste de
-POST único e releitura.
+`escrita_de_atribuicao_ainda_nao_verificada`, antes de abrir sessão ou
+rede. Os testes de POST único e releitura já passaram; a habilitação
+pública ainda depende de validação live autorizada em treinamento.
 
 O fluxo de escrita injetável utiliza o formulário servido como fonte do
 payload, exatamente um POST sem retry e uma árvore nova para verificação.
@@ -72,7 +75,8 @@ Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a f
 `hdnInfraTipoPagina`, `sbmSalvar`, `selAtribuicao`, `hdnIdProtocolo`
 nessa ordem. A CLI `--confirmar` continua fechada antes da sessão.
 RED de transporte: [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454), **4 testes novos FAIL, 1.689 PASS**.
-Replay do acervo e live: NOT_RUN nesta fatia, sem escrita.
+Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Live na UnB e numa segunda instalação: **NOT_RUN**, 0 GET, 0 POST, nenhum resíduo.
+RED da regressão de `principal` sem identidade: [CI 42204843683](https://github.com/franklinbaldo/ies/actions/runs/42204843683), **1 FAIL novo, 1.706 PASS, 23 ignored preexistentes**. Nenhuma escrita no SEI.
 
 [Decisão](../../docs/decisoes/processo-atribuir.md),
 [casos no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/test_ciclo_atribuir_010.py),
