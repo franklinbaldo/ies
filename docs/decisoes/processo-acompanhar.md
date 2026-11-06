@@ -304,3 +304,23 @@ devem ser aferidos no CI exato do novo head.
 A prévia autenticada UnB anterior e seu grupo já acompanhado são
 evidência histórica, não confirmação de escrita. `--deixar --confirmar`
 permanece bloqueado antes da sessão/rede.
+
+
+## Guarda de ação indisponível na lista (#254, 06/11/2026)
+
+**Observação estrutural:** na lista de Acompanhamento Especial, a abertura
+do cadastro depende do botão `btnAdicionar` servido. O atributo HTML
+`disabled` impede o acionamento pelo navegador; um `onclick` presente
+no mesmo elemento não prova uma ação oferecida.
+
+**Decisão:** antes de derivar a URL do cadastro, exigir que o botão
+selecionado não possua `disabled`. Reutilizar `html_atributos` e a recusa
+estrutural já contratada (`tela_de_acompanhamento_inesperada`); sem
+regex, execução de JS, requisições adicionais ou mudança da CLI.
+O teste sintético negativo tem exatamente **4 GET, 0 POST**, e o
+controle habilitado conserva **5 GET, 0 POST**.
+
+**RED anterior à implementação:** [run 42263555032](https://github.com/franklinbaldo/ies/actions/runs/42263555032),
+**1 FAIL novo, 1.757 PASS, 23 ignored preexistentes**. A evidência de
+GREEN depende do CI do head final; a execução não fez acesso live ao SEI.
+`--deixar --confirmar` continua bloqueado antes da sessão/rede.
