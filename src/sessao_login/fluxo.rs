@@ -188,10 +188,9 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         return Err(ErroLogin::Transporte(transporte::recusar_status(web)));
     }
     if !crate::mime_web::e_html(&mime) {
-        return Err(ErroLogin::Transporte(FalhaTransporte::Html(
-            ErroHtml::html("tipo_de_conteudo_nao_html")
-                .com_mensagem("a resposta não declara Content-Type text/html"),
-        )));
+        return Err(ErroLogin::Transporte(
+            FalhaTransporte::TipoDeConteudoNaoHtml,
+        ));
     }
     let html =
         crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|_| {

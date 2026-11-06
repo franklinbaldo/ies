@@ -489,10 +489,7 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         "UNIDADE TESTE",
         &[],
     );
-    assert_eq!(
-        r.unwrap_err(),
-        E::Transporte(FalhaTransporte::Html(ErroHtml::valor("url_invalida")))
-    );
+    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::UrlInvalida));
 }
 
 #[test]

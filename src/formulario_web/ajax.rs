@@ -37,9 +37,8 @@ pub(crate) fn derivar_consulta_ajax(
     ) {
         return Err(E::EfeitoDaOperacaoNaoAvaliado);
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::Html(
-        ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-    )))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
@@ -90,9 +89,7 @@ fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSub
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {

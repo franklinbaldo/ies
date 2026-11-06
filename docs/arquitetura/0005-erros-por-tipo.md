@@ -42,6 +42,28 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
   código compara o texto de um erro: classifica-se por `match`, e os
   testes casam o tipo.
 
+## Propagação e origem única
+
+- **Propagar antes de converter.** Se o erro já é o tipo aceito pelo
+  consumidor, devolver `Err` com `?` diretamente. Não criar uma variante
+  de passagem só para registrar o módulo ou a função intermediária.
+- **Erro específico perto de quem decide.** Uma nova variante é justificada
+  por um fato distinto e observável ou por uma decisão diferente; não por
+  mera mudança de camada. Rust não tem subclasses de erros: preferir
+  composição explícita apenas quando necessária, sem perda da causa.
+- **Um lugar para levantar cada falha, quando viável.** Centralizar a
+  validação que origina o fato e deixar as chamadas propagarem seu
+  `Result`, em vez de construir a mesma variante em vários consumidores.
+  Não remover validações nas fronteiras de segurança para obter esse
+  objetivo artificialmente.
+- **Falha da resposta não é falha do DOM.** URL assinada inválida, cookie
+  inválido e MIME não HTML pertencem ao transporte; recusa de HTML não
+  observado só aparece depois de uma resposta HTML válida.
+- **Decisões são locais ao consumidor.** O tipo da falha não deve
+  determinar ações automáticas por padrão; `Acao` pública é uma
+  apresentação explícita, não motivo para embrulhar ou reclassificar
+  erros dentro do domínio.
+
 ## Migração
 
 `scripts/migrar_causas.py` (tree-sitter, fora do gate) converteu 83 tipos

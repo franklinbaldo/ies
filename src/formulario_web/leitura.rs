@@ -101,9 +101,7 @@ pub(super) fn resolver_action_no_host(
     {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
     }
@@ -145,9 +143,7 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
