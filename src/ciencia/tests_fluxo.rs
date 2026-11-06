@@ -1,6 +1,7 @@
 //! Orçamento exato de requisições de `processo ciente` com transporte
 //! sintético; cenários do Todos 323eb01 (ciência do processo).
 use super::{ErroCienciaProcesso as E, PedidoDaCiencia, ciencia_no_processo};
+use super::FalhaDoAceiteProcesso;
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
@@ -171,22 +172,65 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
     );
 }
 
-
 /// RED #271: o erro tipado do único GET de escrita do processo não pode ser
 /// descartado enquanto a releitura independente tenta provar a atividade.
-fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: &str) {
+enum FalhaEsperada {
+    Http403,
+    Infra200,
+    Rede,
+}
+
+fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     respostas.extend([ok(tela()), resposta, ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
-    assert!(
-        format!("{erro:?}").contains(causa),
-        "a causa tipada do GET mutador precisa sobreviver: {erro:?}"
-    );
+    match causa {
+        FalhaEsperada::Http403 => {
+            assert_eq!(erro.status_http().map(|s| s.status), Some(403));
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(
+                        FalhaTransporte::AcessoNegado(_)
+                    )),
+                    ..
+                }
+            ));
+        }
+        FalhaEsperada::Infra200 => {
+            assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+            assert_eq!(
+                erro.status_http()
+                    .and_then(|s| s.mensagem_do_servidor.as_deref()),
+                Some("Solicitacao recusada")
+            );
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
+                    ..
+                }
+            ));
+        }
+        FalhaEsperada::Rede => {
+            assert!(erro.status_http().is_none());
+            assert!(matches!(
+                erro,
+                E::EfeitoIncerto {
+                    falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(FalhaTransporte::Rede)),
+                    ..
+                }
+            ));
+        }
+    }
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
-        pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(),
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
         1,
         "o GET potencialmente mutador não pode ser repetido"
     );
@@ -196,20 +240,27 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: &str) {
 #[test]
 fn get_de_ciencia_http_403_preserva_a_recusa_tipificada() {
     conferir_falha_do_aceite_sem_retry(
-        Ok((403, "<html><body>Solicitação recusada</body></html>".to_owned(), None)),
-        "AcessoNegado",
+        Ok((
+            403,
+            "<html><body>Solicitação recusada</body></html>".to_owned(),
+            None,
+        )),
+        FalhaEsperada::Http403,
     );
 }
 
 #[test]
 fn get_de_ciencia_infra_200_preserva_a_recusa_tipificada() {
     conferir_falha_do_aceite_sem_retry(
-        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
-        "ValidacaoDaInfra",
+        ok(
+            "<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>"
+                .to_owned(),
+        ),
+        FalhaEsperada::Infra200,
     );
 }
 
 #[test]
 fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
-    conferir_falha_do_aceite_sem_retry(Err(FalhaTransporte::Rede), "Rede");
+    conferir_falha_do_aceite_sem_retry(Err(FalhaTransporte::Rede), FalhaEsperada::Rede);
 }

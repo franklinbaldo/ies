@@ -106,7 +106,10 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     if json_mode {
         println!("{objeto}");
     } else {
-        eprintln!("{}", crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http()));
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
         if let Some(requisicoes) = erro.requisicoes() {
             eprintln!("IES: {requisicoes} requisições, não repetir a escrita; verificar no SEI");
         }

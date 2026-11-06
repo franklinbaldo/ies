@@ -181,12 +181,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
 
     // A partir daqui um único GET da própria ciência: qualquer falha exige
     // verificação por leitura, jamais nova tentativa de escrita.
-    let aceite = ler_aceite(
-        &mut rede,
-        &cookie,
-        url.as_str(),
-        &resultado.id_procedimento,
-    );
+    let aceite = ler_aceite(&mut rede, &cookie, url.as_str(), &resultado.id_procedimento);
     let atividade = aceite.as_ref().ok().map(String::as_str);
 
     let prova = verificar(
@@ -236,16 +231,15 @@ fn ler_aceite<V: EnvioDoProcesso>(
     let html =
         decodificar_resposta(resposta.resposta).map_err(FalhaDoAceiteProcesso::Transporte)?;
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
-        return Err(FalhaDoAceiteProcesso::ValidacaoDaInfra(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: Some(mensagem),
-        }));
+        return Err(FalhaDoAceiteProcesso::ValidacaoDaInfra(
+            StatusHttpRecusado {
+                status: 200,
+                mensagem_do_servidor: Some(mensagem),
+            },
+        ));
     }
-    atividade_do_aceite(
-        &html,
-        AlvoDaCiencia::Processo { id_procedimento },
-    )
-    .map_err(FalhaDoAceiteProcesso::Aceite)
+    atividade_do_aceite(&html, AlvoDaCiencia::Processo { id_procedimento })
+        .map_err(FalhaDoAceiteProcesso::Aceite)
 }
 
 /// Mesmo se o GET mutador falhou, reabre UMA vez o processo. Só consulta a
