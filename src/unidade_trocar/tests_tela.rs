@@ -277,9 +277,7 @@ fn localizacao_do_salto_fora_da_forma_ou_de_outra_unidade_e_recusada() {
     ] {
         assert_eq!(
             url_do_salto(&ruim, &post, ID_B).map(|_| ()),
-            Err(F::Html(ErroHtml::valor(
-                "localizacao_fora_da_forma_observada"
-            ))),
+            Err(F::LocalizacaoForaDaFormaObservada),
             "{ruim}"
         );
     }

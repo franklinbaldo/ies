@@ -65,10 +65,9 @@ pub(super) fn resolver_action(
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta)
-        .ok_or(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
@@ -83,15 +82,14 @@ pub(super) fn resolver_action_no_host(
     instalacao: &Instalacao,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta)
-        .ok_or(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !alvo.host.eq_ignore_ascii_case(instalacao.host())
         || alvo
             .caminho
             .split('/')
             .any(|segmento| segmento == "." || segmento == "..")
     {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     for item in alvo
         .consulta
@@ -101,9 +99,7 @@ pub(super) fn resolver_action_no_host(
     {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
     }
@@ -145,9 +141,7 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::Html(
-                ErroHtml::valor("url_invalida").com_mensagem("URL assinada da caixa inválida"),
-            )))?;
+            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
