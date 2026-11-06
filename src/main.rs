@@ -111,6 +111,7 @@ mod relogin_cli;
 mod rodape_do_documento;
 mod saida;
 mod saida_erro;
+pub(crate) use saida_erro::erro_fonte;
 mod sessao_login;
 mod sessao_login_cli;
 mod setup_cli;
@@ -412,10 +413,6 @@ struct SetupArgs {
     origem: PathBuf,
 }
 
-fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
-}
-
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
@@ -442,6 +439,19 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_criar_cli::tentar_criar(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
+}
+
+/// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
+fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
+    match definir {
+        None => unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
+        Some(definir) => unidade_colunas_definir_cli::definir_colunas(
+            cli.unidade.as_deref(),
+            cli.json,
+            definir,
+            confirmar,
+        ),
+    }
 }
 
 fn run(cli: &Cli) -> ExitCode {
@@ -482,7 +492,7 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
+        }) => return colunas(cli, definir.as_deref(), *confirmar),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
         }) => {
