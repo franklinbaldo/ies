@@ -90,6 +90,17 @@ em `src/processo_acompanhar.rs`.
 Todos os URLs assinados e cookies ficam privados; nenhuma saída ou
 fixture contém credencial real. Nenhuma operação é dirigida à produção.
 
+## Diagnóstico de confirmação não comprovada
+
+Se um POST foi tentado e a operação sai com código 3, o JSON mantém o
+subcódigo histórico e acrescenta `requisicoes` (total de chamadas de
+transporte tentadas na invocação, incluindo o POST e a releitura) e
+`motivo`: `resposta_sem_aceite`, `releitura_indisponivel` ou
+`estado_divergente`. Essas categorias são evidência limitada, nunca
+prova de aplicação. Não incluem cookie, URL assinada ou corpo de resposta.
+Uma recusa anterior à submissão publica `null` nesses campos, sem
+inventar contagem. Nenhum desses motivos autoriza repetir a escrita.
+
 ## Inventário de erros tipados
 
 A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
