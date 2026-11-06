@@ -213,7 +213,11 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     // rede admite conciliação. HTTP 4xx, validação da Infra e destinos
     // inesperados permanecem incertos mesmo com o estado desejado.
     let (falha_do_envio, resposta_permite_confirmar) = match resposta {
-        Ok(RespostaDoEnvio::Html(_)) => (None, true),
+        // A observação do SEI/UnB (Todos @323eb01) mostra 302 com
+        // identidade explícita como aceite. HTML 200 genérico não vincula
+        // este POST à alteração relida: outro agente pode tê-la feito.
+        // Sem marcador positivo observado, falhar fechado (saída 3).
+        Ok(RespostaDoEnvio::Html(_)) => (None, false),
         Ok(RespostaDoEnvio::Redirecionamento(redir)) => (
             None,
             redirecionamento_esperado(&redir, &feito.id_procedimento),
