@@ -153,3 +153,39 @@ URLs assinadas, e sem relaxar a guarda. O teste foi enviado primeiro
 como RED no commit `9a3b964`; a execução RED e o CI do head novo
 precisam ser confirmados no GitHub. Não houve nova execução live,
 nem escrita, nem resíduo nesta fatia (**NOT_RUN, 0 GET/POST reais**).
+
+
+## Retomada 🦫 — contagem pública após POST incerto e merge da main
+
+A observação anterior permanece a mesma: na UFRJ de **treinamento**
+houve duas prévias **FAIL**, com contagens de requests **não observadas**
+nos logs antigos; a causa da discrepância entre unidade da tela e árvore
+continua **não comprovada**. Não repetimos esses ensaios.
+
+O fluxo interno de atribuição já contava as tentativas em
+`ProcessoAtribuido.requisicoes`, mas descartava a contagem quando o
+POST tinha sido tentado e a releitura devolvia
+`efeito_incerto_na_atribuicao` (saída 3). A regressão sintética foi
+adicionada primeiro no commit `91862af`: recusa expressa HTTP 403,
+árvore alterada concorrentemente por outro agente, **4 GET de prévia +
+1 POST + 1 GET de prova = 6 tentativas**, sem retry e sem falsa
+confirmação. O JSON da falha agora inclui `requisicoes: 6` além da
+causa/status, sem divulgar URL assinada ou cookie. A leitura real
+desse resultado ainda precisa de CI; **RED do commit de teste:
+NOT_RUN**, pois nenhum workflow foi localizado para aquele SHA.
+
+A `main` foi incorporada por merge de dois pais no commit `ec2d21b`
+(sem rebase ou force-push). O workflow de replay manteve o cache dos
+retornos já integrado à main, adicionou o sétimo ZIP ao manifesto com
+SHA-1 verificado e conservou o replay obrigatório #264; a árvore
+sintetizada foi comparada com a árvore da main sem alterações
+inesperadas. **CI do novo head: ainda não comprovado**. Não declarar
+PASS, GREEN ou prontidão de integração enquanto os gates não rodarem.
+
+**Live nesta retomada: NOT_RUN**, 0 GET reais, 0 POST reais,
+0 escritas, 0 resíduos, nenhum retry. Prévia UnB histórica permanece
+PASS (4 GET), UFRJ permanece FAIL (duas prévias). O `--confirmar`
+público continua fechado **antes de abrir sessão ou rede**. Para
+concluir #264 ainda faltam CI no head atual, prévia PASS numa segunda
+instalação de treinamento e confirmação/remoção únicas verificadas
+por leitura, com registro dos efeitos e resíduos.
