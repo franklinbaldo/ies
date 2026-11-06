@@ -317,3 +317,12 @@ conclusivo de não aplicação. Live: NOT_RUN nesta fatia.
 | `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
 | `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
 | `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |
+
+## Recusa explícita e concorrência (#245)
+
+Quando o SEI devolve validação da Infra (HTML 200) ou HTTP 4xx ao
+POST criador, o IES conserva a causa tipada original e sai com código 1,
+sem consultar Gerados depois da recusa. Um processo equivalente surgido
+na conta compartilhada pode ter sido criado por outro agente: nunca
+transformar uma recusa explícita em sucesso. Falha de rede sem resposta e
+5xx continuam elegíveis para reconciliação conservadora, sem retry.
