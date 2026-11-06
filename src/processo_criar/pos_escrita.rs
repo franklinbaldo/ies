@@ -133,6 +133,7 @@ fn conferir_candidato<V: EnvioDoControle>(
         tipo: propriedades.tipo,
         especificacao: Some(propriedades.especificacao),
         nivel: Some(propriedades.nivel_de_acesso.como_texto().to_owned()),
+        interessados: propriedades.interessados,
     })
 }
 
@@ -188,6 +189,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             &feito.tipo,
             especificacao,
             &feito.nivel,
+            &feito.interessados,
         )
         .map_err(ErroCriar::Conferencia)?;
         Ok::<_, ErroCriar>((candidatos, desfecho))
