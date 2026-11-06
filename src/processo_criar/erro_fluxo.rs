@@ -1,5 +1,12 @@
 //! Erros tipados do fluxo de criação; o envio e a releitura preservam as causas.
-use super::*;
+use super::reconciliacao;
+use crate::erro_html::ErroHtml;
+use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::processo_criar_cadastro::ErroCadastro;
+use crate::processo_criar_hipotese::ErroHipotese;
+use crate::processo_criar_interessados::ErroInteressado;
+use crate::processo_criar_lista::ErroListaDeTipos;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCriar {
