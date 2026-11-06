@@ -374,6 +374,36 @@ fn botao_adicionar_desabilitado_na_lista_nao_oferece_cadastro() {
 }
 
 #[test]
+fn botao_adicionar_oculto_ou_em_fieldset_desabilitado_nao_oferece_cadastro() {
+    // A mesma oferta da barra observada no ensaio UnB (#254), agora
+    // exercitada sob dois estados HTML inertes do botão.
+    // O atributo hidden e um fieldset disabled impedem o clique na Web,
+    // mesmo quando o próprio botão contém um onclick com URL plausível.
+    let destino = cadastrar().replace('&', "&amp;");
+    let botoes = [
+        format!(
+            r#"<button id="btnAdicionar" hidden onclick="location.href='{destino}';">Adicionar</button>"#
+        ),
+        format!(
+            r#"<fieldset disabled><button id="btnAdicionar" onclick="location.href='{destino}';">Adicionar</button></fieldset>"#
+        ),
+    ];
+    for botao in botoes {
+        for confirmar in [false, true] {
+            let html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
+            let mut respostas = abertura(html);
+            respostas.push(ok(format!("{}{}", lista("Outro"), botao)));
+            let (resultado, pedidos) = executar(respostas, confirmar);
+            assert!(matches!(resultado, Err(ErroPrevia::Html(_))));
+            let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
+            esperados.push(get(&absoluta(&gerenciar())));
+            assert_eq!(pedidos, esperados);
+            assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+        }
+    }
+}
+
+#[test]
 fn botao_adicionar_habilitado_na_lista_abre_cadastro_uma_vez() {
     // Controle: não recusar a forma acionável realmente publicada.
     let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
