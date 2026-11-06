@@ -18,6 +18,19 @@ Operação: `documento.criar`, issue
 | Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
 | Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
 
+## Diagnóstico UnB 06/11 — sem POST
+
+[Run 42222453651](https://github.com/franklinbaldo/ies/actions/runs/42222453651),
+somente TREINAMENTO: login **PASS (6 requisições)**; prévia **PASS (4)**;
+diagnóstico `--confirmar` **FAIL pré-POST**, subcódigo
+`submissao_do_documento_nao_observada`, requisições **null**.
+**0 POST criador, 0 escrita, 0 resíduo**; releitura **NOT_RUN**.
+Botões Salvar ativos; `tl::inner_text` extraiu só 15 bytes do script
+ativo 24, mas leitura independente encontrou a cadeia estática.
+HTML apenas em arquivo privado temporário, já descartado; workflow
+e captura temporários removidos. O teste sintético em `54a7ac1`
+passou sem RED; correção de extração requer CI e novo ensaio seguro.
+
 ## Ensaio autenticado UnB após correção da escolha (06/11/2026)
 
 - Execução **somente em treinamento**, via [workflow temporário
