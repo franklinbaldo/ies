@@ -271,6 +271,16 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         Ok(match decodificar_resposta(resposta.resposta) {
             Ok(html) => Lida::Html { html, mime },
             Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Lida::Login,
+            // Um 5xx é uma recusa do servidor, não evidência de link
+            // envelhecido. Não abrir outro caminho/pedido em seguida:
+            // após uma escrita, a releitura de prova deve ser única.
+            Err(falha)
+                if falha
+                    .status_http()
+                    .is_some_and(|http| http.status >= 500) =>
+            {
+                return Err(E::Transporte(falha));
+            }
             Err(falha) => Lida::Falha(falha),
         })
     }
