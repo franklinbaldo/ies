@@ -165,3 +165,16 @@ positivo antes do POST e mantém a confirmação por releitura posterior.
 **RED:** [42170278378](https://github.com/franklinbaldo/ies/actions/runs/42170278378),
 1 teste novo falhou antes da correção, 1.683 aprovados, 18 ignorados.
 Live de treinamento ainda NOT_RUN, sem resíduo.
+
+## Revisão — comprovar ligação entre controle e escrita (06/11/2026)
+
+**Alternativa rejeitada:** verificar isoladamente botão
+`onclick="confirmarDados()"` e `function submeter()`: uma página
+pode publicar ambos sem caminho de execução entre eles. **Decisão:**
+exigir a cadeia direta da captura SEI 4.0.9: botão → `confirmarDados()`
+→ `if (OnSubmitForm())` → `submeter()` → flag e `submit()`.
+Função ausente, chamada divergente, ramo alterado e definições
+duplicadas falham fechadas antes do POST, sem interpretar/executar JS.
+[RED 42176956473](https://github.com/franklinbaldo/ies/actions/runs/42176956473):
+1 teste FAIL e 1.684 PASS (18 ignored); a requisição excedeu
+o orçamento sintético de 5 GET. Live treinamento segue NOT_RUN.

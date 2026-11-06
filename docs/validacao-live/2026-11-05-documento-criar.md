@@ -168,3 +168,19 @@ O registro cronológico integral (incluindo WIP, limites e contagens) foi preser
   **0 requisições reais**, **0 POST criador**, **0 documentos criados ou
   alterados**, **nenhum resíduo**. Autorização restrita a TREINAMENTO;
   sem conectividade que permita sequência segura, não tentar escrita.
+
+## Continuidade 🐙 — cadeia de confirmação (06/11/2026)
+
+- **Observação anterior ao RED:** Todos `documento_gerar.html @323eb01`
+  linhas 615–633: `confirmarDados()` → `OnSubmitForm()` →
+  `submeter()`; botões Salvar nas linhas 810/1061.
+- **RED:** testes primeiro no commit `d8e0461`, [CI 42176956473](https://github.com/franklinbaldo/ies/actions/runs/42176956473):
+  **1 FAIL, 1.684 PASS, 18 ignorados**; tentou exceder os 5 GET
+  sintéticos ao aceitar a função de submissão sem cadeia acionável.
+- **Código:** guarda reconhece a cadeia inteira sem interpretar ou
+  executar JS, com regressões **5 GET/0 POST** e controle positivo
+  **6 GET/1 POST com releitura**.
+- **Live TREINAMENTO:** login **NOT_RUN**, prévia **NOT_RUN**,
+  `--confirmar` **NOT_RUN**, releitura **NOT_RUN**; **0 requisições
+  reais, 0 escritas e nenhum resíduo**. Sem ambiente seguro para a
+  sequência completa; nunca executar em produção.

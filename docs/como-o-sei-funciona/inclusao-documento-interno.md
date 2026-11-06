@@ -106,3 +106,14 @@ outro `button#btnSalvar` divergente. Os dois botões iguais são
 legítimos na captura; não exigir ID único nesse caso. Nunca executar JS.
 A conferência desses atributos usa `html_atributos` e não substitui a
 validação de controles obrigatórios feita no formulário.
+
+## Cadeia completa de Salvar (06/11/2026)
+
+Na captura Todos `documento_gerar.html @323eb01` (linhas 615–633),
+`confirmarDados()` chama `submeter()` somente após
+`if (OnSubmitForm())`. A função `submeter()` desabilita Salvar,
+reescreve a flag e envia `frmDocumentoCadastro`. O botão com
+`onclick="confirmarDados()"` é apenas a primeira ligação; uma função
+`submeter()` morta não comprova a oferta de criação. A guarda exige
+a cadeia literal completa, sem executar JavaScript, e recusa caminhos
+ausentes, desviados ou duplicados antes do POST.

@@ -180,3 +180,13 @@ botões iguais, como na captura. Isso ainda não comprova live em treinamento.
 **1 falha nova, 1.683 testes aprovados, 18 ignorados**. O teste
 `salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post`
 excedeu o roteiro de cinco GET na guarda anterior; nenhuma requisição real.
+
+## Prova da cadeia acionável (06/11/2026)
+
+O botão `btnSalvar` e uma função `submeter()` separadamente não
+autorizam a escrita. A guarda exige uma única `confirmarDados()`
+com chamada `submeter()` dentro de `if (OnSubmitForm())`,
+além de `submeter()` completo. Recusas por cadeia ausente, alterada
+ou duplicada geram `submissao_do_documento_nao_observada` antes do
+POST. Testes adversariais: 5 GET/0 POST; confirmação positiva: 6 GET,
+1 POST e verificação por leitura. Não se executa JS.
