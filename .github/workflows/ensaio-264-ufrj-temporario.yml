@@ -58,17 +58,48 @@ jobs:
           PY
           if [ "$login_rc" -ne 0 ]; then exit 0; fi
           sleep 35
-          # NUP documentado em ensaio anterior na UFRJ; --remover é apenas prévia.
+          nup="99079.901790/2026-43"
           set +e
-          ./target/release/ies --json processo atribuir "99079.900901/2026-02" --remover >"$localdir/previa.out" 2>"$localdir/previa.err"
-          previa_rc=$?
+          ./target/release/ies --json processo "$nup" >"$localdir/estado.out" 2>"$localdir/estado.err"
+          estado_rc=$?
           set -e
+          python3 - "$localdir/estado.out" "$estado_rc" "$localdir/opcao" <<'PY'
+          import json, sys
+          try:
+              data = json.load(open(sys.argv[1]))
+          except (ValueError, OSError):
+              data = {}
+          aberto = data.get("aberto_em", [])
+          unidade = next((u for u in aberto if isinstance(u, dict) and u.get("sigla") == "PR-P"), None) if isinstance(aberto, list) else None
+          op = None
+          assigned = None
+          if unidade is not None and int(sys.argv[2]) == 0:
+              attr = unidade.get("atribuido_a")
+              assigned = attr.get("sigla") if isinstance(attr, dict) else None
+              op = "--remover" if assigned else "--usuario"
+              with open(sys.argv[3], "w") as file:
+                  file.write(op)
+          print(json.dumps({"etapa":"leitura_ufrj_segundo_nup", "saida":int(sys.argv[2]), "subcodigo":data.get("subcodigo"), "requisicoes":data.get("requisicoes"), "unidade_na_arvore":unidade is not None, "atribuido_na_unidade":bool(assigned), "opcao_previa":op}, ensure_ascii=False))
+          PY
+          if [ ! -s "$localdir/opcao" ]; then exit 0; fi
+          sleep 35
+          if [ "$(cat "$localdir/opcao")" = "--remover" ]; then
+            set +e
+            ./target/release/ies --json processo atribuir "$nup" --remover >"$localdir/previa.out" 2>"$localdir/previa.err"
+            previa_rc=$?
+            set -e
+          else
+            set +e
+            ./target/release/ies --json processo atribuir "$nup" --usuario servidor1 >"$localdir/previa.out" 2>"$localdir/previa.err"
+            previa_rc=$?
+            set -e
+          fi
           python3 - "$localdir/previa.out" "$previa_rc" <<'PY'
           import json, sys
           try:
               data = json.load(open(sys.argv[1]))
           except (ValueError, OSError):
               data = {}
-          print(json.dumps({"etapa":"previa_ufrj_remover", "saida":int(sys.argv[2]), "subcodigo":data.get("subcodigo"), "requisicoes":data.get("requisicoes"), "confirmado":data.get("confirmado"), "alterado":data.get("alterado"), "usuario_atual":data.get("usuario_atual"), "sem_post": True}, ensure_ascii=False))
+          print(json.dumps({"etapa":"previa_ufrj_segundo_nup", "saida":int(sys.argv[2]), "subcodigo":data.get("subcodigo"), "requisicoes":data.get("requisicoes"), "confirmado":data.get("confirmado"), "alterado":data.get("alterado"), "sem_post": True}, ensure_ascii=False))
           PY
-          # Jamais executar --confirmar neste workflow.
+          # Nunca usar --confirmar. Processos anteriores não são repetidos.
