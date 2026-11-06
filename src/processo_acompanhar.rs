@@ -267,9 +267,15 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         if linhas.iter().any(|l: &Acompanhamento| l.id == id) {
             return Err(ErroHtml::repetido("id_de_acompanhamento_repetido").into());
         }
+        // Duas linhas com o mesmo grupo não provam qual ID está
+        // acompanhado: recusar em vez de escolher arbitrariamente a primeira.
+        let grupo = texto(&td[1].inner_text(parser));
+        if linhas.iter().any(|l: &Acompanhamento| l.grupo == grupo) {
+            return Err(E::GrupoAmbiguo);
+        }
         linhas.push(Acompanhamento {
             id,
-            grupo: texto(&td[1].inner_text(parser)),
+            grupo,
             observacao: texto(&td[2].inner_text(parser)),
         });
     }
