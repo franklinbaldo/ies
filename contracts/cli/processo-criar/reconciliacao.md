@@ -163,3 +163,20 @@ Cenários sintéticos do primeiro GET verificador: **3 GET iniciais +
 1 POST criador + 1 GET verificador falho = 5 pedidos**, exatamente
 um POST. HTTP 503 permanece 503; falha de rede mantém
 `falha_de_rede`. Live em outra instalação: NOT_RUN.
+
+## Falha HTTP na leitura de reconciliação (#245)
+
+Se o único POST criador terminar inconclusivo, uma falha HTTP do **GET
+posterior do Controle** continua sendo uma causa de leitura, distinta da
+causa da escrita. A saída é 3, sem retry. O JSON conserva
+`causa_post`, `causa_releitura`, e acrescenta
+`status_http_releitura` e `mensagem_do_servidor_releitura` **somente
+quando o GET publicar esses fatos**. A mensagem já foi saneada pelo
+transporte; nenhuma URL ou credencial é exposta.
+
+O campo genérico `status_http` prioriza o status da resposta do POST,
+se ele existe, e usa o status da releitura quando a tentativa de POST
+não teve resposta HTTP. Assim, se o POST retornou 503 e o GET posterior
+502, o diagnóstico preserva **ambos**, sem confundir os estágios.
+Teste sintético: **3 GET prévios + 1 POST + 1 GET posterior = 5 pedidos**,
+um POST exato, zero retry. Live em segunda instalação: NOT_RUN.
