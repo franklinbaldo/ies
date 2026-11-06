@@ -159,6 +159,8 @@ mod tests {
         );
         assert_eq!(valor["requisicoes"], 7);
         assert_eq!(valor["motivo"], "releitura_indisponivel");
+        // #254: a resposta do POST deve ter diagnóstico seguro, sem URL assinada.
+        assert_eq!(valor["resposta_post"], "redirecionamento_observado");
         assert_eq!(valor["retentavel"], false);
         assert!(valor.get("url").is_none());
         assert!(valor.get("cookie").is_none());
