@@ -1,7 +1,7 @@
 //! Superfície da criação de processos (#245).
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
-use crate::processo_criar_fluxo::{ErroCriar, EvidenciaDeCoincidencia, PedidoCriar, criar};
+use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
 use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
@@ -122,9 +122,6 @@ fn anexar_http_releitura_json(
     }
 }
 
-/// Só a conferência integral permite o desfecho de candidatos ambíguos.
-/// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
-
 fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
     if let Some(http) = http {
         eprintln!("IES: releitura HTTP {}.", http.status);
@@ -189,10 +186,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
             anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
-            if let Some(nups) = diagnostico.candidatos_compativeis {
-                if let Some(evidencia) = diagnostico.evidencia {
-                    anexar_coincidencias_json(&mut valor, evidencia, &nups);
-                }
+            if let Some(nups) = diagnostico.candidatos_compativeis
+                && let Some(evidencia) = diagnostico.evidencia
+            {
+                anexar_coincidencias_json(&mut valor, evidencia, &nups);
             }
         }
         if let Some(http) = erro.status_http() {
@@ -225,10 +222,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                     eprintln!("  {nup}");
                 }
             }
-            if let Some(nups) = diagnostico.candidatos_compativeis {
-                if let Some(evidencia) = diagnostico.evidencia {
-                    informar_coincidencias_humanas(&nups, evidencia);
-                }
+            if let Some(nups) = diagnostico.candidatos_compativeis
+                && let Some(evidencia) = diagnostico.evidencia
+            {
+                informar_coincidencias_humanas(&nups, evidencia);
             }
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
@@ -350,6 +347,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::processo_criar_fluxo::EvidenciaDeCoincidencia;
 
     #[test]
     fn entrada_invalida_eh_recusada_sem_sessao() {
