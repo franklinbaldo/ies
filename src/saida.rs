@@ -6,6 +6,16 @@ use crate::paginas::Leitura;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+/// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.
+pub(crate) fn imprimir_json(valor: &Value) -> serde_json::Result<()> {
+    use std::io::Write as _;
+    let saida = std::io::stdout();
+    let mut bloqueada = saida.lock();
+    serde_json::to_writer_pretty(&mut bloqueada, valor)?;
+    bloqueada.write_all(b"\n")?;
+    Ok(())
+}
+
 /// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
 /// da legenda, nunca afirmação de lista integral.
 pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
