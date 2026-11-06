@@ -13,7 +13,8 @@ description: Testes sintéticos e pendências de treinamento da issue 271
 | Suíte Rust, [CI 42197217607](https://github.com/franklinbaldo/ies/actions/runs/42197217607) | PASS nos testes da ciência; Clippy detectou documentação e estilo, corrigidos em commits posteriores | 0 |
 | RED de segurança: JS inerte (primeira rodada), [CI 42200846375](https://github.com/franklinbaldo/ies/actions/runs/42200846375) | FAIL esperado: 2 falhas, 1.690 PASS, 22 ignores preexistentes | 0 |
 | RED com quebras de linha reais, [CI 42201110316](https://github.com/franklinbaldo/ies/actions/runs/42201110316) | CANCELLED por push subsequente; não atribuir contagem | 0 |
-| GREEN da correção | Consultar head e CI atuais da [PR #317](https://github.com/franklinbaldo/ies/pull/317) | 0 |
+| RED do bloqueante 403/Infra/template aninhado, [CI 42208759616](https://github.com/franklinbaldo/ies/actions/runs/42208759616) | CANCELLED após push de implementação, **sem contagem RED confirmada** | 0 |
+| GREEN da correção do aceite | Consultar o CI do head atual da [PR #317](https://github.com/franklinbaldo/ies/pull/317); não presumir resultado | 0 |
 | Replay das cassettes de ciência | NOT_RUN | 0 |
 | Prévia na UnB treinamento | NOT_RUN | 0 |
 | Prévia em segunda instalação de treinamento | NOT_RUN | 0 |
@@ -46,3 +47,20 @@ atribuição de destino diretamente no corpo. Comentários, literais,
 templates, declarações sob condição e trechos sem forma reconhecida
 recusam antes da escrita. Novos testes exigem **4 GET de preparação,
 zero GET mutadores** nesses cenários; não se executa JavaScript.
+
+## Retomada 🦊 — causa do GET mutador
+
+A revisão do Gavião no head `97a8e35` encontrou perda do erro de
+`rede.get_sem_seguir` causada por `resposta.ok()`. Agora o erro de
+aceite é tipado e anexado ao efeito incerto, distinguindo transporte,
+recusa HTTP, validação Infra e atividade não reconhecida, sem repetir o
+GET. A saída JSON e a linha humana preservam status e mensagem saneada.
+Testes sintéticos afirmam 403 (6 GET; 1 mutador), Infra 200 (6 GET;
+1 mutador), falha de rede (6 GET; 1 mutador) e recusa de
+`<template><script>` (4 GET; 0 mutador). O run RED desta rodada foi
+cancelado sem evidência de contagem; **RED desta rodada: NOT_RUN**.
+
+**Live:** prévia NOT_RUN (0), confirmação NOT_RUN (0), releitura NOT_RUN (0),
+replay específico NOT_RUN. Nenhuma requisição ao SEI ou resíduo criado;
+a escrita ao vivo continua dependente de prévia autenticada e confirmação
+única em treinamento, seguida de prova por leitura.
