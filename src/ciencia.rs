@@ -9,6 +9,8 @@
 
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod fluxo;
+mod documento;
+pub(crate) use documento::{CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
 pub(crate) use fluxo::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
@@ -18,7 +20,6 @@ pub(crate) enum AlvoDaCiencia<'a> {
     Processo {
         id_procedimento: &'a str,
     },
-    #[cfg(test)]
     Documento {
         id_procedimento: &'a str,
         id_documento: &'a str,
@@ -103,7 +104,6 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
         }
-        #[cfg(test)]
         AlvoDaCiencia::Documento {
             id_procedimento,
             id_documento,
