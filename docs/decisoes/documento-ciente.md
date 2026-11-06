@@ -53,6 +53,18 @@ tentativa. Não restaurar telas. O código reutiliza `formulario_web`
 quando aplicável, a abertura de documento, o transporte/contador
 compartilhados, leitores HTML e os erros tipados.
 
+## Decisão de segurança da URL mutadora
+
+A publicação do botão na barra não basta: a URL do GET mutador precisa
+estar em código ativo da tela do próprio nó. O leitor reconhece apenas
+a atribuição estática no topo do script (4.1/5.0) ou a forma observada
+da função com destino literal (4.0). Não interpreta JavaScript: ignora
+comentários, templates, strings e ramos condicionais, inclusive quando
+a forma textual da URL é idêntica à legítima. Na dúvida, recusa
+antes do GET mutador, ainda que haja botão. A regressão está em
+`src/ciencia/tests_documento.rs` e o RED na
+[observação live](../validacao-live/2026-11-06-documento-ciente.md).
+
 ## Limitações e revisão
 
 **Trade-offs:** mais uma leitura para prova e uma para a lista;
