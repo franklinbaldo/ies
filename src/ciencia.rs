@@ -64,7 +64,7 @@ fn parametro_unico<'a>(consulta: &'a str, chave: &str) -> Option<&'a str> {
 }
 
 fn identificador(valor: &str) -> bool {
-    !valor.is_empty() && valor.len() <= 20 && valor.bytes().all(|b| b.is_ascii_digit())
+    !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// A resposta de ciência observada recarrega a árvore diretamente no
@@ -159,7 +159,7 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
 
 fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     let (caminho, restante) = url.split_once('?')?;
-    if caminho != "controlador.php" || url.len() > 8_192 {
+    if caminho != "controlador.php" {
         return None;
     }
     let consulta = restante.split('#').next()?;
@@ -269,7 +269,7 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         .into_iter()
         .flatten()
         .filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).trim().to_owned())
+        .map(|no| no.inner_text(parser).into_owned())
         .collect();
     if legendas.as_slice() != ["Lista de Ciências:"] {
         return Err(fora);

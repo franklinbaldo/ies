@@ -18,6 +18,8 @@ publicada pelo SEI. Nenhuma URL assinada, senha ou cookie é exibido.
 NUP usa o mesmo validador de `ies processo NUP`. `--motivo` é
 obrigatório em sobrestar; branco ou vazio recusa com código de saída 2
 (`motivo_do_sobrestamento_vazio`) antes de qualquer arquivo ou rede.
+O motivo aceito é preservado integralmente no formulário e na saída JSON,
+incluindo espaços nas extremidades e quebras de linha.
 
 Sem `--confirmar`: lê o processo pela mesma abertura de
 [`processo concluir`](processo-concluir.md), sem link guardado da árvore,

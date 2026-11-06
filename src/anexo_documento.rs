@@ -400,7 +400,7 @@ fn conferir<R: Read>(
     } else {
         limite.bytes()
     };
-    if let Some(declarado) = tamanho.and_then(|t| t.trim().parse::<u64>().ok())
+    if let Some(declarado) = tamanho.and_then(|t| t.parse::<u64>().ok())
         && declarado > limite
     {
         return Err(ErroAnexo::AcimaDoLimite);

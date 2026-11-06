@@ -89,11 +89,9 @@ fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroCome
 
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentarios> {
     let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
-    decodificar_atributo(&bruto)
-        .map(|s| s.trim().to_owned())
-        .ok_or(ErroComentarios::Html(ErroHtml::html(
-            "html_dos_comentarios_nao_interpretado",
-        )))
+    decodificar_atributo(&bruto).ok_or(ErroComentarios::Html(ErroHtml::html(
+        "html_dos_comentarios_nao_interpretado",
+    )))
 }
 
 fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
@@ -322,7 +320,7 @@ fn ler_lista<'p>(
         .strip_suffix(" registros")
         .or_else(|| resto.strip_suffix(" registro"))
         .ok_or(ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
-    if numero.is_empty() || numero.len() > 9 || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroHtml::valor("legenda_dos_comentarios_invalida").into());
     }
     let total_declarado = numero
