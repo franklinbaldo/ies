@@ -269,6 +269,22 @@ fn reler_gerados<V: EnvioDoControle>(
     antes.novos(&depois).map_err(ErroCriar::Fotografia)
 }
 
+/// Resposta sem prova de identidade após POST: uma única leitura do
+/// Controle conhecido, sem seguir a resposta nem repetir a escrita.
+fn reconciliar_resposta_inesperada<V: EnvioDoControle>(
+    envio: &mut V,
+    url_controle: &str,
+    cookie: &str,
+    unidade: &str,
+    antes: &reconciliacao::FotografiaDosGerados,
+    requisicoes: &mut u32,
+    causa: erro_fluxo::CausaRespostaCriadora,
+) -> ErroCriar {
+    let posterior = reler_gerados(envio, url_controle, cookie, unidade, antes, requisicoes)
+        .map_err(Box::new);
+    ErroCriar::PosRespostaInesperada { causa, posterior }
+}
+
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -448,14 +464,40 @@ pub(crate) fn criar<V: EnvioDoControle>(
         }
         Err(_) => return Err(E::Formulario),
     };
-    let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
-        return Err(E::EfeitoIncerto);
+    let redirecionamento = match resposta {
+        RespostaDoEnvio::Redirecionamento(redirecionamento) => redirecionamento,
+        _ => {
+            return Err(reconciliar_resposta_inesperada(
+                envio,
+                url_controle,
+                cookie_valor,
+                &feito.unidade,
+                &gerados_antes,
+                &mut requisicoes,
+                erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
+            ));
+        }
     };
-    let (url, id) = retorno_da_criacao(
-        &instalacao,
-        redirecionamento.localizacao().ok_or(E::EfeitoIncerto)?,
-        redirecionamento.url_do_envio(),
-    )?;
+    let retorno = redirecionamento
+        .localizacao()
+        .ok_or(E::EfeitoIncerto)
+        .and_then(|localizacao| {
+            retorno_da_criacao(&instalacao, localizacao, redirecionamento.url_do_envio())
+        });
+    let (url, id) = match retorno {
+        Ok(retorno) => retorno,
+        Err(_) => {
+            return Err(reconciliar_resposta_inesperada(
+                envio,
+                url_controle,
+                cookie_valor,
+                &feito.unidade,
+                &gerados_antes,
+                &mut requisicoes,
+                erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
+            ));
+        }
+    };
     // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
     let tela_do_processo =
         get(envio, &url, cookie_valor, &mut requisicoes).map_err(|_| E::EfeitoIncerto)?;
