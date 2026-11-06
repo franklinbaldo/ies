@@ -71,3 +71,19 @@ O acervo GO foi reproduzido no CI obrigatório com ZIP e membros verificados (15
 Os testes sintéticos integrados cobrem 5 GET sem POST na prévia e 6 GET + 1 POST na confirmação com releitura. Um 302 sem Location, mesmo diante de alteração simultânea na árvore, não demonstra a consequência do POST: [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) seguido de correção para `EfeitoIncerto`, sem segundo POST. A compilação e os gates dessa correção precisam ser conferidos no head final.
 
 A decisão será revista após validação autenticada em treinamento: prévia → um `--confirmar` → leitura independente, com número SEI, requisições e resíduo. Escrita autorizada em 05/11 exclusivamente em treinamento, ainda **NOT_RUN**; nenhuma requisição real nesta sessão.
+
+## Revisão — guarda estrutural antes da escrita (05/11/2026)
+
+A verificação antiga da atribuição do campo oculto aceitava
+qualquer ocorrência textual na página, incluindo em marcação inerte.
+A decisão agora é conferir o elemento `script` servido, seu tipo,
+e a unicidade da instrução literal observada, sem executar JavaScript.
+Uma forma de script não reconhecida falha fechada antes da escrita.
+O teste sintético integrado verifica quatro falsos positivos de HTML
+e exige cinco GET sem POST de criação.
+
+Os erros da seleção e da prévia passaram a compor causas tipadas
+com `#[derive(Causa)]` e preservar nomes legados e HTTP, inclusive
+recusa da Infra. Nenhum destes testes prova a escrita ao vivo:
+ela continua pendente exclusivamente em treinamento.
+
