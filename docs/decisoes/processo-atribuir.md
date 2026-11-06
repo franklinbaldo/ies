@@ -126,3 +126,14 @@ antes de abrir sessão. O fluxo injetável possui testes de POST único,
 releitura e saída 3, mas a decisão será revista após replays e validações
 em duas instalações de treinamento. O RED observou 4 testes falhando,
 1.689 aprovados no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454).
+
+## Controles efetivamente acionáveis (06/11/2026)
+
+Uma lista e um botão presentes no HTML podem não ser oferecidos pela
+interface Web: `hidden` no próprio formulário, no botão Salvar ou no
+`select`, e `fieldset disabled`, tornam a ação inerte. Em vez de
+derivar um POST de campos estruturalmente válidos mas inacessíveis,
+recusar a tela com `ErroHtml` antes de qualquer escrita. O leitor
+inspeciona somente atributos via `html_atributos`; nenhum JS é executado.
+Teste sintético com RED antes da mudança e cenário de transporte para
+quatro GET de prévia e nenhum POST. A CLI `--confirmar` segue fechada.

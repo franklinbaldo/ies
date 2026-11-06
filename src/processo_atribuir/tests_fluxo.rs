@@ -277,5 +277,25 @@ fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
 }
 
+
+/// O fieldset desabilita o botão mesmo sem atributo disabled no botão.
+/// Não se tenta o POST: a leitura de prévia custa exatamente quatro GETs.
+#[test]
+fn fieldset_desabilitado_recusa_confirmacao_sem_post() {
+    let mut respostas = abertura(arvore_atual("aluno20"));
+    respostas.push(ok(formulario().replace(
+        "<button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button>",
+        "<fieldset disabled><button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button></fieldset>",
+    )));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    assert_eq!(
+        resultado.unwrap_err().subcodigo(),
+        "tela_da_atribuicao_fora_da_forma"
+    );
+    assert_eq!(pedidos, pedidos_previa());
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+}
+
 #[path = "tests_fluxo/adversariais.rs"]
 mod adversariais;

@@ -24,6 +24,11 @@ do processo. A tela tem `frmAtividadeAtribuir`, POST, um
 selecionado. Usuários são `sigla - nome`, com valor numérico, e apenas
 o login **inteiro e exato** escolhe uma opção.
 
+O formulário e os controles efetivamente acionáveis devem estar disponíveis:
+`hidden` no formulário, botão Salvar ou `select`, assim como um
+`fieldset disabled` interno, recusam a prévia antes de qualquer POST.
+A recusa é `tela_da_atribuicao_fora_da_forma`, sem novo subcódigo.
+
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
 situação não observada e atribuição já aplicada são recusas tipadas.
 Quando a situação não está observada na unidade da **tela autenticada**,

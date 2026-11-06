@@ -172,6 +172,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
         .map_err(|_| ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
     if valor(form, "method")?.as_deref() != Some("post")
         || presente(form, "disabled")?
+        || presente(form, "hidden")?
         || !valor(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
@@ -206,6 +207,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
             }
             "button" => {
                 if presente(tag, "disabled")?
+                    || presente(tag, "hidden")?
                     || presente(tag, "formaction")?
                     || presente(tag, "formmethod")?
                     || presente(tag, "formenctype")?
@@ -230,6 +232,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || valor(tag, "name")?.as_deref() != Some(SELECAO)
                     || presente(tag, "multiple")?
                     || presente(tag, "disabled")?
+                    || presente(tag, "hidden")?
                 {
                     return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
                 }
@@ -237,6 +240,10 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                 let (lidos, nulos) = ler_opcoes(tag, parser)?;
                 usuarios.extend(lidos);
                 item_nulo += nulos;
+            }
+            "fieldset" if presente(tag, "disabled")? => {
+                // Controles dentro do fieldset não estão acionáveis no DOM.
+                return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
             }
             "optgroup" | "textarea" => {
                 return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());

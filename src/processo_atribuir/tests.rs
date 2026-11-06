@@ -264,7 +264,6 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
     ));
 }
 
-
 /// Regressão #264: uma ação de escrita não é oferecida quando o próprio
 /// formulário, a escolha ou o botão são inertes no DOM. O campo pode
 /// continuar visível no HTML sem ser acionável na interface Web.

@@ -249,3 +249,18 @@ ação, ID e origem conferidos permanecem cobertas pelos testes existentes.
 Prévia UnB histórica PASS (4 GET); duas prévias UFRJ permanecem FAIL
 (contagens não observadas), sem prova da causa. Não repetidas.
 `--confirmar` público segue fechado antes da sessão/rede.
+
+## Controles inertes no formulário (06/11/2026)
+
+**Observação:** a semântica Web de `hidden` e `fieldset disabled`
+não permite tratar a presença estrutural de botão ou `select` como
+autorização para escrever. O caso é adversarial sintético; não foi
+observado como mudança da instalação.
+**RED:** commit `461b2df`, [CI 42275581498](https://github.com/franklinbaldo/ies/actions/runs/42275581498):
+**1 FAIL novo / 1.741 PASS / 23 ignored preexistentes**; o leitor
+aceitava o formulário inerte. O orçamento da regressão de transporte
+é **4 GET / 0 POST**, sem retry. O leitor agora recusa diretamente
+formulário, botão ou seleção ocultos e `fieldset disabled`.
+**Live nesta fatia: NOT_RUN**, zero requisições reais, zero escritas,
+nenhum resíduo. UnB histórica PASS; UFRJ histórica FAIL sem causa
+comprovada. `--confirmar` público continua fechado antes da sessão.
