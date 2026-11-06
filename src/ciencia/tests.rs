@@ -198,7 +198,6 @@ fn script_aninhado_em_template_nao_publica_atividade_da_ciencia() {
     );
 }
 
-
 /// RED #271: código que o navegador nunca chama não comprova ciência.
 /// A forma legítima observada é a recarga do SEI, não um if(false).
 #[test]
