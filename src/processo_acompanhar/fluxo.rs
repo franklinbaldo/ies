@@ -344,6 +344,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     confirmar_inclusao(
         &mut rede,
         sessao,
+        &instalacao,
+        &id,
         link.as_str(),
         &cookie,
         &antes,
@@ -357,6 +359,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
 fn confirmar_inclusao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    id: &str,
     link: &str,
     cookie: &str,
     antes: &[Acompanhamento],
@@ -375,8 +379,10 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
                 .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
         ));
     }
-    // O 302 é dado, nunca seguido; só a lista relida pode provar efeito.
-    let _aceite_302 = matches!(resposta, Ok(RespostaDoEnvio::Redirecionamento(_)));
+    // A releitura prova o efeito, mas não legitima um 302 para outra
+    // operação ou outro processo. Sem resposta de rede, o POST ainda
+    // pode ter sido consumido: apenas uma leitura exata pode conciliá-lo.
+    let aceite = resposta.is_err() || aceite_do_gerenciador(&resposta, instalacao, id);
     let depois = rede.get_sem_seguir(link, cookie);
     let depois = match depois {
         Ok(resposta) if resposta.resposta.status_code != 302 => {
@@ -389,7 +395,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     let verificado = depois.as_deref().is_some_and(|linhas| {
         conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
-    if !verificado {
+    if !aceite || !verificado {
         return Err(ErroPrevia::EfeitoIncerto);
     }
     // Somente depois da prova exata podemos publicar o ID observado.
@@ -409,10 +415,9 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     Ok(plano)
 }
 
-/// Depois do único POST da linha, exige redirect assinado ao gerenciador
-/// do MESMO processo. A releitura é independente, mas nunca é tomada como
-/// confirmação se a resposta do envio desviou para outra operação.
-fn aceite_da_remocao(
+/// O 302 do POST precisa apontar ao gerenciador do mesmo processo.
+/// Usado na inclusão e retirada; nenhuma resposta é seguida automaticamente.
+fn aceite_do_gerenciador(
     resposta: &Result<RespostaDoEnvio, crate::formulario_web::ErroSubmissaoFormulario>,
     instalacao: &Instalacao,
     id: &str,
@@ -488,7 +493,7 @@ fn confirmar_remocao<V: EnvioDoProcesso>(
                 .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
         ));
     }
-    let aceite = aceite_da_remocao(&resposta, contexto.instalacao, contexto.id);
+    let aceite = aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
     let depois = releitura_da_remocao(
         rede,
         contexto.instalacao,
