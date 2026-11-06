@@ -50,7 +50,7 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCod
         if let Err(erro) = crate::saida::imprimir_json(&valor) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
-        };
+        }
     } else {
         relogin_cli::avisar(json_mode, nota.as_ref());
         println!("IES: Nível de detalhe da unidade {rotulo}:");
