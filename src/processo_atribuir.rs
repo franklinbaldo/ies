@@ -322,3 +322,7 @@ mod tests;
 #[cfg(test)]
 #[path = "processo_atribuir/tests_fluxo.rs"]
 mod tests_fluxo;
+
+#[cfg(test)]
+#[path = "processo_atribuir/acervo.rs"]
+mod acervo;
