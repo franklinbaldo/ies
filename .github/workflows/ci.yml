@@ -125,6 +125,8 @@ jobs:
           cargo +1.99.1 test --locked --bin ies replay_da_lupa_go_no_acervo -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies replay_274_paginas_go_no_acervo -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies formularios_da_lupa_integral_go_no_acervo -- --ignored --nocapture --test-threads=1
+          # #244: observação offline da cassette UnB, no mesmo ZIP público verificado.
+          cargo +1.99.1 test --locked --bin ies observacao_dos_links_da_lupa_unb_no_acervo -- --ignored --nocapture --test-threads=1
 
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
