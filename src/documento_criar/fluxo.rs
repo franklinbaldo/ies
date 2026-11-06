@@ -314,6 +314,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
             eprintln!("IES246: diagnostico privado indisponivel");
         }
         eprintln!("IES246: prova_guardada={}", cadastro_publica_script_de_criacao(&html_cadastro));
+        eprintln!("IES246: componentes={}", super::guarda_script::diagnostico_privado_do_cadastro(&html_cadastro));
         return Err(E::SubmissaoNaoComprovada);
     }
     if !cadastro_publica_script_de_criacao(&html_cadastro) {
