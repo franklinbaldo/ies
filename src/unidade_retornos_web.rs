@@ -203,9 +203,20 @@ fn links(
         let bruto =
             valor_do_atributo(tag, "href").map_err(|_| E::LinkDeRetornosForaDaInstalacao)?;
         let Some(bruto) = bruto else { continue };
-        // acao_origem pode mencionar retornos em um link de outra operacao.
+        // O nome da acao precisa ser uma chave exata, nunca sufixo de
+        // outra_acao nem acao_origem. Decodificar &amp; antes de separar.
         if bruto.contains("acao=retorno_programado_listar") {
-            saida.push(conferir_link(&bruto, servida, instalacao)?);
+            let href = decodificar_atributo(&bruto)
+                .ok_or(E::LinkDeRetornosForaDaInstalacao)?;
+            let eh_retorno = href.split_once('?').is_some_and(|(_, consulta)| {
+                consulta.split('&').any(|par| {
+                    matches!(par.split_once('='), Some(("acao", valor))
+                        if valor.starts_with("retorno_programado_listar"))
+                })
+            });
+            if eh_retorno {
+                saida.push(conferir_link(&bruto, servida, instalacao)?);
+            }
         }
     }
     Ok(saida)
