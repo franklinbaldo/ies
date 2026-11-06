@@ -6,7 +6,7 @@ use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo_criar_cadastro::{
-    ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
+    conferir_cadastro, conferir_cadastro_com_ajax_pendente,
 };
 use crate::processo_criar_hipotese::opcao_unica;
 use crate::processo_criar_lista::tipo_na_lista;
@@ -117,10 +117,12 @@ fn ler_cadastro(html: &str) -> Resultado {
     if conferir_cadastro_com_ajax_pendente(html, &id, "restrito").is_ok() {
         return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax");
     }
-    let erro = conferir_cadastro(html, &id, "publico")
-        .err()
-        .unwrap_or(ErroCadastro::HtmlInvalido);
-    Resultado::Recusado(erro.subcodigo())
+    // Após a mesma validação ter falhado, não invente uma variante:
+    // preserve a causa tipada concreta, inclusive na API ErroHtml atual.
+    match conferir_cadastro(html, &id, "publico") {
+        Ok(_) => Resultado::Lido,
+        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+    }
 }
 
 fn ler_xml(item: &Value) -> Resultado {
