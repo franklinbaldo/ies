@@ -222,3 +222,23 @@ si só, que o fluxo seja equivalente a todas as instalações.
   treinamento (prévia → exatamente um `--confirmar` → verificação por
   leitura e resíduo), com contagem live e cobertura adicional das outras
   instalações. Não declarar o cenário sintético como validação live.
+
+## Continuidade 🐙 — Location de host externo (05/11/2026)
+
+- **Observação pré-RED:** `postar_e_verificar` já recusava 302 sem
+  Location, mas aceitava qualquer cadeia não vazia, inclusive um
+  redirecionamento para domínio estranho à instalação. Uma alteração
+  concorrente da árvore podia então ser atribuída indevidamente ao POST.
+- **Teste antes do código:** commit `61378b8` adicionou regressão sintética
+  com Location externa, **um POST e um GET** de releitura, saída 3 exigida.
+  O CI desse commit foi cancelado pela concorrência de novos pushes;
+  **RED isolado não observado** (não declarar contagem de falhas).
+- **Implementação:** commit `e00a5c5` restringe 302 a Location do
+  mesmo controlador HTTPS com ação explícita. Commit `db3dd8a`
+  adicionou controles positivos para Location absoluta e relativa locais.
+  Nenhum redirect é seguido, nenhuma escrita é repetida.
+- **GREEN do novo head:** ainda a verificar no CI `ci.yml`.
+  **LIVE:** login, prévia, confirmação e releitura em treinamento
+  **NOT_RUN** nesta execução; **0 requisições novas, 0 POST criador,
+  0 resíduo**. Ensaio remoto com credenciais de treinamento não foi
+  iniciado devido ao bloqueio do ambiente de execução.
