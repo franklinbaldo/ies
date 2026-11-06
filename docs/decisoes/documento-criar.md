@@ -178,3 +178,29 @@ duplicadas falham fechadas antes do POST, sem interpretar/executar JS.
 [RED 42176956473](https://github.com/franklinbaldo/ies/actions/runs/42176956473):
 1 teste FAIL e 1.684 PASS (18 ignored); a requisição excedeu
 o orçamento sintético de 5 GET. Live treinamento segue NOT_RUN.
+
+## Revisão — regex lexical em script alheio (06/11/2026)
+
+**Observação pré-RED:** [diagnóstico UnB 42209629903](https://github.com/franklinbaldo/ies/actions/runs/42209629903)
+mostrou dois botões Salvar ativos e a cadeia de três funções dentro de
+um script inline clássico com mais de 600 linhas. O diagnóstico não
+estabeleceu a causa exata da recusa pré-POST. A hipótese de uma expressão
+regular em código auxiliar é **sintética**, não uma afirmação sobre o HTML
+servido pela UnB.
+
+**Regressão:** um segundo script auxiliar com regexp literal `/\\{/`
+não altera a cadeia de Salvar nem redefine as funções relevantes.
+O antigo scanner contava a chave escapada como abertura de bloco e
+recusava a operação. Publicados testes antes da mudança nos commits
+`0d1c819` e `a9d9098`. O [RED 42212158041](https://github.com/franklinbaldo/ies/actions/runs/42212158041)
+registrou **1 falha nova / 1.749 PASS / 23 ignorados** na suíte Rust;
+o job final da execução foi cancelado pela concorrência após gerar a
+evidência do teste.
+
+**Decisão:** distinguir somente regexp literal iniciado na expressão
+de atribuição, inclusive escapes e classes de caracteres, no reconhecedor
+léxico da guarda. Não executar ou avaliar JavaScript, não inferir prova
+a partir do texto da regex e não alterar a sequência estrita
+`btnSalvar → confirmarDados → OnSubmitForm → submeter → POST`.
+Expressões desconhecidas continuam falhando fechadas. A hipótese não
+autoriza POST live sem observação segura, prévia nova e gates verdes.
