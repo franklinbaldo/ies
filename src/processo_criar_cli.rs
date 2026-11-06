@@ -108,6 +108,26 @@ fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str) -> serde_json::Valu
     valor
 }
 
+/// Mantém o HTTP da leitura posterior separado do HTTP do POST.
+fn anexar_http_releitura_json(
+    valor: &mut serde_json::Value,
+    http: Option<transporte::StatusHttpRecusado>,
+) {
+    if let Some(http) = http {
+        valor["status_http_releitura"] = json!(http.status);
+        valor["mensagem_do_servidor_releitura"] = json!(http.mensagem_do_servidor);
+    }
+}
+
+fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
+    if let Some(http) = http {
+        eprintln!("IES: releitura HTTP {}.", http.status);
+        if let Some(mensagem) = http.mensagem_do_servidor {
+            eprintln!("IES: mensagem saneada da releitura: {mensagem}");
+        }
+    }
+}
+
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     if erro.saida() != 3 {
         let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
@@ -162,10 +182,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_post"] = json!(causa_post);
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
-            if let Some(http) = diagnostico.http_releitura {
-                valor["status_http_releitura"] = json!(http.status);
-                valor["mensagem_do_servidor_releitura"] = json!(http.mensagem_do_servidor);
-            }
+            anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
             if let Some(nups) = diagnostico.candidatos_compativeis {
                 valor["desfecho"] = json!("candidatos_ambiguos");
                 valor["candidatos_compativeis"] = json!(nups);
@@ -191,12 +208,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             if let Some(causa) = falha_leitura {
                 eprintln!("IES: causa da releitura: {causa}");
             }
-            if let Some(http) = diagnostico.http_releitura {
-                eprintln!("IES: releitura HTTP {}.", http.status);
-                if let Some(mensagem) = http.mensagem_do_servidor {
-                    eprintln!("IES: mensagem saneada da releitura: {mensagem}");
-                }
-            }
+            informar_http_releitura(diagnostico.http_releitura);
             if let Some(nups) = candidatos {
                 eprintln!(
                     "IES: candidatos observados na caixa Gerados: {}",
