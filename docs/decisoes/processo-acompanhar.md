@@ -232,3 +232,26 @@ por uma linha coincidente. A alteração de produção veio depois
 confirmação e releitura no SEI de treinamento: **NOT_RUN**, 0 requisições
 reais e nenhum resíduo. A retirada `--deixar --confirmar` permanece
 fechada na CLI antes de sessão/rede.
+
+
+## Decima segunda fatia — grupo ja acompanhado dispensa novo cadastro (06/11/2026, 🐢)
+
+**Observacao:** a estrutura da lista do gerenciador na UnB, descrita em
+`todos/tests/test_processo_acompanhar_010.py` @323eb01, identifica cada
+acompanhamento por grupo, enquanto o cadastro serve para preparar uma
+nova inclusao. A issue exige resultado idempotente quando o grupo ja
+esta acompanhado na unidade. A implementacao anterior abria o cadastro
+antes de verificar esse fato; uma lista valida sem botao Adicionar
+produzia erro apesar de o grupo ja estar observado.
+
+**Escolha:** para `--grupo` explicito e igual a uma linha validada da
+lista, devolver estado observado sem abrir cadastro e sem POST. Sem
+`--grupo` explicito, a selecao do item em branco ainda precisa da tela
+do cadastro; outros grupos exigem oferta exata e formulario derivado.
+A verificacao usa somente o HTML recebido, sem executar JavaScript.
+
+**RED comprovado:** [CI 42204125145](https://github.com/franklinbaldo/ies/actions/runs/42204125145),
+commit somente de teste `d3a4e96`: 1 falha nova, 1.721 testes
+aprovados, 23 ignorados ja existentes. Rustfmt tambem apontou somente
+uma linha vazia excedente, corrigida separadamente antes do GREEN.
+Orcamento novo: **4 GETs / 0 POSTs**, sem acesso real ao SEI.
