@@ -459,10 +459,10 @@ fn publicar(
             .collect();
         let mut valor = json!({"documentos": documentos, "requisicoes": total});
         relogin_cli::anotar(&mut valor, nota);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).unwrap_or_default()
-        );
+        if let Err(erro) = crate::saida::imprimir_json(&valor) {
+            eprintln!("IES: falha ao emitir JSON: {erro}");
+            return std::process::ExitCode::from(1);
+        };
     } else {
         relogin_cli::avisar(json_mode, nota);
         for (i, d) in obtidos.iter().enumerate() {
