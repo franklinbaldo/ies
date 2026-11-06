@@ -275,11 +275,6 @@ pub(crate) enum ErroLinkIncluirDocumento {
     #[causa(nome = "endereco_de_incluir_documento_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
-impl ErroLinkIncluirDocumento {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 
 /// Extrai exclusivamente o link publicado na barra do nó PROCESSO.
 /// Nunca constrói URLs assinadas nem executa JavaScript.
