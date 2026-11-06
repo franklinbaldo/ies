@@ -104,27 +104,56 @@ fn enviar(
                 erro.status_http(),
             ),
             Err(erro) => {
-                let mut valor = json_de_falha(&erro);
-                // Apenas quando o SEI não ofereceu a sigla pedida:
-                // sugestões locais não alteram a decisão do autocomplete.
-                if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
-                    let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
-                    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
-                    if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
-                        let sugestoes = indice.sugestoes_de_unidades_guardadas(
-                            &instalacao.url_base(),
-                            &ativa,
-                            para,
-                        );
-                        if !sugestoes.is_empty() {
-                            valor["sugestoes_guardadas"] = json!(sugestoes);
-                        }
-                    }
+                let valor = json_de_falha_com_sugestoes(&erro, sessao, indice, para);
+                let resultado = publicar_valor_da_falha(cli.json, &valor, erro.saida());
+                if !cli.json
+                    && let Some(mensagem) = texto_das_sugestoes(&valor)
+                {
+                    eprintln!("{mensagem}");
                 }
-                publicar_valor_da_falha(cli.json, &valor, erro.saida())
+                resultado
             }
         }
     })
+}
+
+/// Compõe a falha observada na Web com sugestões exclusivamente locais.
+/// A lista guardada não autoriza envio e nunca faz outra requisição ao SEI.
+fn json_de_falha_com_sugestoes(
+    erro: &ErroEnviar,
+    sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    para: &str,
+) -> Value {
+    let mut valor = json_de_falha(erro);
+    // Apenas quando o SEI não ofereceu a sigla pedida:
+    // sugestões locais não alteram a decisão do autocomplete.
+    if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
+        let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
+        let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+        if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
+            let sugestoes =
+                indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para);
+            if !sugestoes.is_empty() {
+                valor["sugestoes_guardadas"] = json!(sugestoes);
+            }
+        }
+    }
+    valor
+}
+
+/// Complemento apenas da apresentação humana de processo enviar. A lista
+/// vem do índice local; jamais equivale a destinos aceitos pelo SEI.
+fn texto_das_sugestoes(valor: &Value) -> Option<String> {
+    let sugeridas = valor.get("sugestoes_guardadas")?.as_array()?;
+    let siglas: Vec<_> = sugeridas.iter().filter_map(Value::as_str).collect();
+    if siglas.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "IES: sugestões guardadas (não confirmadas pelo SEI): {}",
+        siglas.join(", ")
+    ))
 }
 
 /// JSON do sucesso (prévia, ou enviado e conferido).
