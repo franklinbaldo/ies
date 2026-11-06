@@ -29,6 +29,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
+          python3 - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -114,4 +115,4 @@ jobs:
                   _, answer = search
                   result = answer.get("origem") == "indice" and answer.get("requisicoes") == 0
                   print(json.dumps({"target": target, "stage": "zero_http_after_live", "status": "PASS" if result else "FAIL"}), flush=True)
-          
+          PY
