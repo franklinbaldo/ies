@@ -265,3 +265,23 @@ divergente não prova não aplicação.
 0 resíduos**. A criação histórica da UnB não deve ser repetida.
 O ensaio autorizado numa segunda instalação de treinamento continua
 pendente (prévia → um único `--confirmar` → releitura e registro do resíduo).
+
+## 🦉 Continuação — interessados explícitos e criação concorrente (06/11)
+
+**Evidência anterior ao RED:** `selInteressadosProcedimento` na
+tela de propriedades sintética baseada na UnB 4.0.9; o leitor Web já
+retorna nomes observados. Uma criação concorrente pode coincidir em
+tipo/especificação/nível, mas diferir nos interessados.
+
+**RED em [CI 42251678538](https://github.com/franklinbaldo/ies/actions/runs/42251678538)**:
+**1 FAIL novo, 1.730 PASS, 22 ignored preexistentes**, ao classificar
+como `Aplicada` um candidato com interessado divergente. Implementada
+conferência por multiconjunto quando o pedido contém interessado
+explícito, tanto na reconciliação quanto depois de `Location`.
+Nenhum GET/POST adicional; orçamentos anteriores permanecem.
+
+**LIVE desta fatia: NOT_RUN** — prévia 0 GET, confirmação 0 POST,
+verificação 0 GET, **0 requisições reais e 0 resíduos novos**. A
+criação histórica da UnB NUP `23106.001875/2026-93`, id 51731, não
+foi repetida. O ensaio em segunda instalação de treinamento continua
+pendente, na ordem prévia → uma confirmação → leitura e registro do resíduo.
