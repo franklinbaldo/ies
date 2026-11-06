@@ -189,3 +189,37 @@ público continua fechado **antes de abrir sessão ou rede**. Para
 concluir #264 ainda faltam CI no head atual, prévia PASS numa segunda
 instalação de treinamento e confirmação/remoção únicas verificadas
 por leitura, com registro dos efeitos e resíduos.
+
+
+## Regressão: HTML 200 genérico após POST não é aceite identificado
+
+Observação **antes do RED**: o oráculo Todos
+`tests/test_ciclo_atribuir_010.py @323eb01` registra aceite Web
+da UnB via **302 com `arvore_visualizar` e ID explícito**.
+O replay histórico deste projeto classificou 14 respostas POST como
+**insuficientes para provar escrita**. Uma resposta HTML 200 genérica,
+sem validação da Infra e sem marcador positivo conhecido, não vincula
+a alteração posteriormente observada ao nosso POST. Na conta
+compartilhada, outro agente pode ter alterado a atribuição durante
+a releitura. Não se inferiu da observação que todo HTML 200 seja recusa;
+o resultado é **efeito incerto**.
+
+**RED test-first**: commit `deee836`,
+[CI 42257965685](https://github.com/franklinbaldo/ies/actions/runs/42257965685),
+suíte Rust **1.737 PASS / 2 FAIL novos / 23 ignored
+preexistentes**. Os dois FAIL mostraram que o fluxo anunciava
+`confirmado=true` tanto para atribuir quanto para remover após
+HTML 200 genérico e mudança sintética concorrente. A correção exige
+aceite identificado antes de reconciliar. Cada cenário usa exatamente
+**4 GET de prévia + 1 POST único + 1 GET de prova = 6 requisições**,
+sem retry. O resultado esperado agora é `efeito_incerto_na_atribuicao`,
+**saída 3**, ainda que a árvore coincida. Não foi alterado o tratamento
+de 302 com identidade do mesmo processo nem da falha de rede sem
+resposta do POST. Nenhum teste antigo foi desligado ou enfraquecido.
+
+**Live nesta fatia: NOT_RUN**, 0 GET reais, 0 POST reais,
+0 escritas e 0 resíduos. UnB: prévia histórica PASS (4 GET).
+UFRJ: duas prévias históricas FAIL (requisições dos comandos
+não observadas). A causa UFRJ continua a verificar. O
+`--confirmar` público permanece bloqueado antes da sessão/rede;
+não houve tentativa de escrita nem repetição de ensaio falho.
