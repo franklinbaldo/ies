@@ -103,3 +103,24 @@ fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
         assert_eq!(json(&r)["codigo"], "fonte_invalida");
     }
 }
+#[test]
+fn motivo_e_texto_opaco_que_segue_ate_a_sessao() {
+    for motivo in ["", "   ", "  Revisão\nnecessária  ", "Cópia 🚀"] {
+        for confirmar in [false, true] {
+            let mut args = vec![
+                "documento",
+                "cancelar",
+                "0000101",
+                "--motivo",
+                motivo,
+                "--json",
+            ];
+            if confirmar {
+                args.push("--confirmar");
+            }
+            let saida = sem_sessao(&args);
+            assert_eq!(saida.status.code(), Some(1), "{motivo:?}");
+            assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+        }
+    }
+}

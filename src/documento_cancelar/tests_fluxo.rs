@@ -75,6 +75,14 @@ fn executar(
     confirmar: bool,
     respostas: Vec<Resposta>,
 ) -> (Result<DocumentoCancelado, ErroCancelar>, Vec<Pedido>) {
+    executar_com_motivo(confirmar, respostas, MOTIVO)
+}
+
+fn executar_com_motivo(
+    confirmar: bool,
+    respostas: Vec<Resposta>,
+    motivo: &str,
+) -> (Result<DocumentoCancelado, ErroCancelar>, Vec<Pedido>) {
     let ambiente = ambiente();
     rodar_com(&ambiente, respostas, |sessao, nup, indice, envio| {
         let numero = NumeroDocumento::novo(DOC).unwrap();
@@ -82,11 +90,33 @@ fn executar(
             numero: &numero,
             processo: Some(nup),
             unidade: None,
-            motivo: conferir_motivo(MOTIVO).unwrap(),
+            motivo: conferir_motivo(motivo).unwrap(),
             confirmar,
         };
         cancelar_documento(sessao, &pedido, indice, envio)
     })
+}
+
+#[test]
+fn previa_preserva_o_texto_do_motivo_sem_trim_ou_recusa_de_quebra_de_linha() {
+    let motivo = "  Revisão\nnecessária  ";
+    let (resultado, pedidos) = executar_com_motivo(false, ate_tela(arvore_ativa()), motivo);
+    assert_eq!(resultado.unwrap().motivo, motivo);
+    assert_eq!(pedidos, pedidos_previa());
+}
+
+#[test]
+fn charset_da_tela_recusa_valor_nao_representavel_antes_do_post() {
+    let (resultado, pedidos) = executar_com_motivo(true, ate_tela(arvore_ativa()), "Cópia 🚀");
+    assert!(matches!(
+        resultado,
+        Err(ErroCancelar::Formulario(
+            crate::formulario_web::ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao {
+                campo
+            }
+        )) if campo == "txaMotivo"
+    ));
+    assert_eq!(pedidos, pedidos_previa());
 }
 
 #[test]
