@@ -214,3 +214,25 @@ fn fixture_do_aceite_publica_atividade_do_documento_correto() {
     );
     assert_eq!(atividade, Ok(ATIVIDADE.to_owned()));
 }
+
+#[test]
+fn template_inerte_nao_autoriza_get_mutador() {
+    // Oráculo: linkCienciaDocumento só é acionável no script ativo da tela.
+    // Um template inerte não pode autorizar a escrita do usuário da sessão.
+    let tela = format!(
+        "<html><body><template>\nvar linkCienciaDocumento = '{}';\n</template></body></html>",
+        link_da_escrita()
+    );
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.push(ok(tela));
+    let (resultado, pedidos) = rodar(true, respostas);
+    assert!(matches!(resultado, Err(E::Html(_))), "{resultado:?}");
+    assert_eq!(pedidos.len(), 4);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        0
+    );
+}
