@@ -257,6 +257,20 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
+/// Instrumentação inicial RED: testes exigem contagem inclusive na falha.
+/// A implementação correta substitui este shim, que ainda perde o contador.
+pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
+    origem: &str,
+    url_controle: &str,
+    cookie: &CookieDaSessao,
+    pedido: &PedidoCriar<'_>,
+    envio: &mut V,
+    requisicoes_observadas: &mut u32,
+) -> Result<Criacao, ErroCriar> {
+    *requisicoes_observadas = 0;
+    criar(origem, url_controle, cookie, pedido, envio)
+}
+
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -549,3 +563,7 @@ mod tests_candidatos;
 #[cfg(test)]
 #[path = "tests_concorrencia.rs"]
 mod tests_concorrencia;
+
+#[cfg(test)]
+#[path = "tests_contagem.rs"]
+mod tests_contagem;
