@@ -161,7 +161,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         Some(atual),
     )
     .map_err(E::Preparacao)?;
-    Ok(ProcessoAtribuido {
+    let mut feito = ProcessoAtribuido {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: aberto.arvore.processo.id,
         unidade: unidade.to_owned(),
@@ -170,6 +170,64 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         valor_da_opcao: valor,
         confirmado: false,
         alterado: false,
+        reconciliado_por: None,
         requisicoes: rede.feitas(),
-    })
+    };
+    if !pedido.confirmar {
+        return Ok(feito);
+    }
+
+    // O envio consome o formulário uma única vez. Mesmo falhando a
+    // resposta, a escrita pode ter ocorrido: reler, nunca repetir.
+    let mut enviado = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, cookie| {
+        enviado = true;
+        rede.post(s, cookie)
+    });
+    let falha_do_envio = match resposta {
+        Ok(_) => None,
+        Err(erro) if enviado => Some(erro),
+        Err(erro) => return Err(E::Formulario(erro)),
+    };
+
+    // A leitura de prova faz GET novo, nunca reutiliza o estado anterior.
+    let verificado = obter_processo(
+        sessao,
+        &leitura(pedido.nup, pedido.unidade, false),
+        indice,
+        &mut rede,
+    );
+    feito.requisicoes = rede.feitas();
+    let (atribuicao_relida, leitura) = match verificado {
+        Ok(lido) if lido.arvore.processo.id == feito.id_procedimento => (
+            atribuicao_observada(&lido.arvore.aberto_em, &feito.unidade).map(str::to_owned),
+            None,
+        ),
+        Ok(_) => (None, None),
+        Err(erro) => (None, Some(erro)),
+    };
+    // A unidade precisa estar publicada: ausência da unidade NÃO significa
+    // remoção da atribuição. Divergência após POST é efeito incerto (3).
+    if atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or("")) {
+        return Err(E::EfeitoIncertoNaAtribuicao {
+            falha_do_envio,
+            leitura,
+            atribuicao_relida,
+        });
+    }
+    feito.confirmado = true;
+    feito.alterado = true;
+    feito.reconciliado_por = falha_do_envio;
+    Ok(feito)
+}
+
+/// None significa que a árvore não publicou a situação da unidade.
+fn atribuicao_observada<'a>(aberto_em: &'a AbertoEm, unidade: &str) -> Option<&'a str> {
+    match aberto_em {
+        AbertoEm::Unidades(unidades) => unidades
+            .iter()
+            .find(|u| u.sigla == unidade)
+            .map(|u| u.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str())),
+        AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => None,
+    }
 }
