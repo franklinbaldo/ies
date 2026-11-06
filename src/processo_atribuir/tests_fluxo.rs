@@ -265,16 +265,31 @@ fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
+// Depois de POST sem resposta, a árvore pode refletir alteração concorrente.
+// Mesmo coincidente, a leitura não identifica qual agente atribuiu o processo.
 #[test]
-fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
+fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
     let mut respostas = respostas_previa("aluno20");
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado);
-    assert_eq!(feito.requisicoes, 6);
+    let erro = resultado.unwrap_err();
+    assert!(matches!(
+        &erro,
+        E::EfeitoIncertoNaAtribuicao {
+            falha_do_envio: Some(falha),
+            leitura: None,
+            atribuicao_relida: Some(atual),
+            requisicoes: 6,
+        } if matches!(
+            falha.as_ref(),
+            crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+        ) && atual == "aluno2"
+    ));
+    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
 /// O fieldset desabilita o botão mesmo sem atributo disabled no botão.
