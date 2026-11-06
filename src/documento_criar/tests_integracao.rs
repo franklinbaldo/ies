@@ -45,14 +45,21 @@ fn cadastro_com_script(script: &str) -> String {
           <input type="hidden" name="hdnFlagDocumentoCadastro" value="1">
           <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
           <input type="text" id="txtDescricao" name="txtDescricao" value="">
-        </form></body></html>"#
+        </form>
+        <button type="button" id="btnSalvar" name="btnSalvar"
+          onclick="confirmarDados()">Salvar</button></body></html>"#
     )
 }
 
 fn cadastro() -> String {
     // Forma de submeter() servida no SEI 4.0.9 (Todos @323eb01).
     cadastro_com_script(
-        r"function submeter() {
+        r"function confirmarDados() {
+  if (OnSubmitForm()) {
+    submeter();
+  }
+}
+function submeter() {
   desabilitarBotaoSalvar(true);
   document.getElementById('hdnFlagDocumentoCadastro').value = '2';
   document.getElementById('frmDocumentoCadastro').submit();
@@ -264,4 +271,42 @@ fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
             "somente os cinco GETs de prévia; nenhum POST criador"
         );
     }
+}
+
+#[test]
+fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post() {
+    // Captura Todos documento_gerar.html @323eb01: linhas 810 e 1061
+    // publicam dois botoes btnSalvar habilitados e onclick=confirmarDados().
+    // Nao basta uma funcao submeter() morta no script para autorizar escrita.
+    let original = cadastro();
+    let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
+    assert!(original.contains(botao));
+    let casos = [
+        original.replace(botao, ""),
+        original.replace("onclick=\"confirmarDados()\"", "onclick=\"outraAcao()\""),
+        original.replace("type=\"button\"", "type=\"submit\""),
+        original.replace("onclick=\"confirmarDados()\"", "disabled onclick=\"confirmarDados()\""),
+        original.replace("</body>", &format!("{botao}</body>")).replace(
+            "onclick=\"confirmarDados()\">Salvar</button>",
+            "onclick=\"outraAcao()\">Salvar</button>",
+        ),
+    ];
+    for html in casos {
+        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some("submissao_do_documento_nao_observada")
+        );
+        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
+    }
+}
+
+#[test]
+fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
+    // Topo e rodape da captura 4.0.9 repetem intencionalmente btnSalvar.
+    let original = cadastro();
+    let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
+    assert!(cadastro_publica_script_de_criacao(
+        &original.replace("</body>", &format!("{botao}</body>"))
+    ));
 }
