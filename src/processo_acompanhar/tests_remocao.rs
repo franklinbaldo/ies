@@ -176,28 +176,23 @@ fn grupo_de_retirada_ausente_com_outro_acompanhamento_e_idempotente_sem_post() {
     // A ausência de G não autoriza remover Outro nem abrir cadastro.
     for confirmar in [false, true] {
         let mut respostas = preparar();
-        *respostas.last_mut().expect("gerenciador sintético") =
-            ok(lista(&linha("832", "Outro")));
+        *respostas.last_mut().expect("gerenciador sintético") = ok(lista(&linha("832", "Outro")));
         let amb = ambiente();
-        let (resultado, pedidos) = rodar_com(
-            &amb,
-            respostas,
-            |sessao, nup, indice, roteiro| {
-                previa(
-                    sessao,
-                    &Pedido {
-                        nup,
-                        unidade: None,
-                        grupo: Some("G"),
-                        observacao: None,
-                        deixar: true,
-                        confirmar,
-                    },
-                    indice,
-                    roteiro,
-                )
-            },
-        );
+        let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+            previa(
+                sessao,
+                &Pedido {
+                    nup,
+                    unidade: None,
+                    grupo: Some("G"),
+                    observacao: None,
+                    deixar: true,
+                    confirmar,
+                },
+                indice,
+                roteiro,
+            )
+        });
         let plano = resultado.expect("retirada de grupo ausente deve ser no-op");
         assert!(plano.ja_estava);
         assert_eq!(plano.grupo, "G");
