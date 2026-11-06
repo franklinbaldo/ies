@@ -8,7 +8,10 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_criar_cadastro::{ErroCadastro, conferir_cadastro};
+use crate::processo_criar_cadastro::{
+    ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
+};
+use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
 use crate::processo_criar_interessados::{
     ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
 };
@@ -84,6 +87,7 @@ pub(crate) enum ErroCriar {
     TipoSemIdentificador,
     EscolhaInesperada,
     Interessado(ErroInteressado),
+    Hipotese(ErroHipotese),
     EfeitoIncerto,
 }
 
@@ -99,13 +103,22 @@ impl ErroCriar {
             Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
             Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
             Self::Interessado(erro) => erro.subcodigo(),
+            Self::Hipotese(erro) => erro.subcodigo(),
             Self::EfeitoIncerto => "efeito_incerto_na_criacao",
+        }
+    }
+
+    pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
+        match self {
+            Self::Hipotese(erro) => erro.opcoes_para_escolha(),
+            _ => None,
         }
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
+            Self::Hipotese(erro) => erro.status_http(),
             _ => None,
         }
     }
@@ -135,6 +148,7 @@ pub(crate) struct PedidoCriar<'a> {
     pub(crate) interessados: &'a [String],
     pub(crate) nivel: &'a str,
     pub(crate) unidade: Option<&'a str>,
+    pub(crate) hipotese_legal: Option<&'a str>,
     pub(crate) confirmar: bool,
 }
 
@@ -143,6 +157,7 @@ pub(crate) struct Criacao {
     pub(crate) tipo: String,
     pub(crate) assunto: String,
     pub(crate) nivel: String,
+    pub(crate) hipotese_legal: Option<String>,
     pub(crate) unidade: String,
     pub(crate) confirmado: bool,
     pub(crate) interessados: Vec<String>,
@@ -215,16 +230,23 @@ fn enviada<V: EnvioDoControle>(
 }
 
 fn id_do_link(link: &str) -> Option<&str> {
-    let mut ids = link.split('?').nth(1)?.split('&').filter_map(|par| {
-        par.split_once('=').and_then(|(nome, valor)| {
-            (nome == "id_tipo_procedimento"
-                && !valor.is_empty()
-                && valor.bytes().all(|b| b.is_ascii_digit()))
-            .then_some(valor)
-        })
+    let mut ids =
+        link.split('?').nth(1)?.split('&').filter(|par| {
+            par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
+        });
+    let primeiro = ids.next()?.strip_prefix("id_tipo_procedimento=")?;
+    (ids.next().is_none() && !primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit()))
+        .then_some(primeiro)
+}
+
+/// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
+/// esperado. Uma segunda ação diferente também torna a URL ambígua.
+fn acao_unica(consulta: &str, esperada: &str) -> bool {
+    let mut acoes = consulta.split('&').filter_map(|par| {
+        let (nome, valor) = par.split_once('=').unwrap_or((par, ""));
+        (nome == "acao").then_some(valor)
     });
-    let primeiro = ids.next()?;
-    ids.next().is_none().then_some(primeiro)
+    acoes.next() == Some(esperada) && acoes.next().is_none()
 }
 
 fn resolver_link(
@@ -246,13 +268,7 @@ fn resolver_link(
     if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
         return Err(ErroCriar::Formulario);
     }
-    let mut acoes = 0;
-    for par in partes.consulta.unwrap_or_default().split('&') {
-        if par == format!("acao={acao}") {
-            acoes += 1;
-        }
-    }
-    if acoes != 1 {
+    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
         return Err(ErroCriar::Formulario);
     }
     Ok(url)
@@ -274,13 +290,7 @@ fn url_do_redirecionamento(
     if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
         return Err(ErroCriar::EfeitoIncerto);
     }
-    let vezes = partes
-        .consulta
-        .unwrap_or_default()
-        .split('&')
-        .filter(|par| *par == format!("acao={acao}"))
-        .count();
-    if vezes != 1 {
+    if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
         return Err(ErroCriar::EfeitoIncerto);
     }
     Ok(absoluta)
@@ -296,15 +306,18 @@ fn retorno_da_criacao(
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::EfeitoIncerto)?;
-    let ids: Vec<_> = consulta
+    let mut ids = consulta
         .split('&')
-        .filter_map(|par| par.strip_prefix("id_procedimento="))
-        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .collect();
-    let [id] = ids.as_slice() else {
+        .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
+    let primeiro = ids.next().ok_or(ErroCriar::EfeitoIncerto)?;
+    if ids.next().is_some() {
         return Err(ErroCriar::EfeitoIncerto);
-    };
-    let id = (*id).to_owned();
+    }
+    let id = primeiro
+        .strip_prefix("id_procedimento=")
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        .ok_or(ErroCriar::EfeitoIncerto)?
+        .to_owned();
     Ok((url, id))
 }
 
@@ -382,14 +395,38 @@ pub(crate) fn criar<V: EnvioDoControle>(
             (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
         }
     };
-    let observado =
-        conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel).map_err(E::Cadastro)?;
+    let mut observado = match conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel) {
+        Ok(observado) => observado,
+        Err(ErroCadastro::HipoteseLegalNaoIdentificada) if pedido.nivel == "restrito" => {
+            conferir_cadastro_com_ajax_pendente(&cadastro.html, &id_tipo, pedido.nivel)
+                .map_err(E::Cadastro)?
+        }
+        Err(erro) => return Err(E::Cadastro(erro)),
+    };
     let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
     let servida = TelaServida {
         url: &cadastro.url,
         html: &cadastro.html,
         codificacao,
     };
+    // A escolha explícita é autorizada só para a lista AJAX observada.
+    // Uma opção inline não tem seu texto provado por essa mesma leitura.
+    if pedido.hipotese_legal.is_some() && observado.hipotese_legal.is_some() {
+        return Err(E::Hipotese(ErroHipotese::EscolhaInlineNaoVerificada));
+    }
+    if pedido.nivel == "restrito" && observado.hipotese_legal.is_none() {
+        observado.hipotese_legal = Some(
+            resolver_hipotese(
+                envio,
+                &instalacao,
+                &servida,
+                cookie_valor,
+                &mut requisicoes,
+                pedido.hipotese_legal,
+            )
+            .map_err(E::Hipotese)?,
+        );
+    }
     let interessados = resolver_interessados(
         envio,
         &instalacao,
@@ -403,6 +440,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
         nivel: pedido.nivel.to_owned(),
+        hipotese_legal: observado.hipotese_legal.clone(),
         unidade,
         confirmado: false,
         interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
@@ -481,3 +519,11 @@ pub(crate) fn criar<V: EnvioDoControle>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_hipotese.rs"]
+mod tests_hipotese;
+
+#[cfg(test)]
+#[path = "acervo.rs"]
+mod acervo;

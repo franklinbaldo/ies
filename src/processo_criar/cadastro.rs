@@ -39,6 +39,26 @@ pub(crate) fn conferir_cadastro(
     id_tipo: &str,
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
+    conferir_cadastro_interno(html, id_tipo, nivel, false)
+}
+
+/// A tela pode publicar a lista de hipóteses ainda vazia: ela é carregada
+/// por AJAX observado, que o fluxo consulta antes de derivar a escrita.
+/// Nada aqui autoriza escolher um valor ausente da resposta real.
+pub(crate) fn conferir_cadastro_com_ajax_pendente(
+    html: &str,
+    id_tipo: &str,
+    nivel: &str,
+) -> Result<CadastroObservado, ErroCadastro> {
+    conferir_cadastro_interno(html, id_tipo, nivel, true)
+}
+
+fn conferir_cadastro_interno(
+    html: &str,
+    id_tipo: &str,
+    nivel: &str,
+    permite_ajax_pendente: bool,
+) -> Result<CadastroObservado, ErroCadastro> {
     use ErroCadastro as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("cadastro_de_processo_html_invalido"))?;
@@ -112,7 +132,8 @@ pub(crate) fn conferir_cadastro(
         _ => return Err(E::NivelNaoOferecido),
     }
 
-    let (id_assunto, assunto, hipotese_legal) = conferir_listas(form, parser, nivel)?;
+    let (id_assunto, assunto, hipotese_legal) =
+        conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
     Ok(CadastroObservado {
         id_tipo: id_tipo.to_owned(),
         assunto,
@@ -128,6 +149,7 @@ fn conferir_listas(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     nivel: &str,
+    permite_ajax_pendente: bool,
 ) -> Result<(String, String, Option<String>), ErroCadastro> {
     use ErroCadastro as E;
     let mut assuntos = Vec::new();
@@ -170,7 +192,7 @@ fn conferir_listas(
                 .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
             let titulo =
                 crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
-            if let Some(valor) = valor.filter(|v| !v.is_empty()) {
+            if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo.trim().to_owned()));
             }
         }
@@ -182,13 +204,14 @@ fn conferir_listas(
         return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
     }
     let hipotese_legal = if nivel == "restrito" {
-        let [(id, titulo)] = hipotese.as_slice() else {
-            return Err(E::HipoteseLegalNaoIdentificada);
-        };
-        if selects_hipotese != 1 || titulo.is_empty() {
+        if selects_hipotese != 1 {
             return Err(E::HipoteseLegalNaoIdentificada);
         }
-        Some(id.clone())
+        match hipotese.as_slice() {
+            [(id, titulo)] if !titulo.is_empty() => Some(id.clone()),
+            [] if permite_ajax_pendente => None,
+            _ => return Err(E::HipoteseLegalNaoIdentificada),
+        }
     } else {
         None
     };
@@ -253,6 +276,17 @@ mod tests {
             conferir_cadastro(&tela(ASSUNTO, "disabled", HIPOTESE), "12", "publico"),
             Err(ErroCadastro::NivelDesabilitado)
         );
+    }
+
+    #[test]
+    fn placeholder_null_precisa_de_ajax_antes_de_uma_escrita() {
+        let html = tela(ASSUNTO, "", "<option value='null'> </option>");
+        assert_eq!(
+            conferir_cadastro(&html, "12", "restrito"),
+            Err(ErroCadastro::HipoteseLegalNaoIdentificada)
+        );
+        let observado = conferir_cadastro_com_ajax_pendente(&html, "12", "restrito").unwrap();
+        assert_eq!(observado.hipotese_legal, None);
     }
 
     #[test]
