@@ -135,3 +135,11 @@ Próxima execução: obter compilação e testes no CI, corrigir eventuais
 falhas sem desligar gates; executar replay das cassettes e, depois,
 prévia autenticada em treinamento → único `--confirmar` →
 verificação independente por leitura, relatando o resíduo.
+
+### Mitigação do estado WIP
+
+Como o head ainda não tem compilação/CI comprovados, mantive
+`--deixar --confirmar` **bloqueado na CLI antes da sessão/rede**. A
+implementação da confirmação existe no backend para testes sintéticos
+injetados, não para execução real. Nenhum POST real foi disparado, nenhum
+resíduo foi deixado no SEI.
