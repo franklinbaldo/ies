@@ -100,8 +100,14 @@ transporte tentadas na invocação, incluindo o POST e a releitura) e
 `motivo`: `resposta_sem_aceite`, `releitura_indisponivel` ou
 `estado_divergente`. Essas categorias são evidência limitada, nunca
 prova de aplicação. Não incluem cookie, URL assinada ou corpo de resposta.
-Uma recusa anterior à submissão publica `null` nesses campos, sem
-inventar contagem. Nenhum desses motivos autoriza repetir a escrita.
+O campo `resposta_post` classifica apenas a resposta observada: `html_sem_redirecionamento`,
+`redirecionamento_observado`, `validacao_infra_recusada`,
+`status_http_recusado`, `rede_sem_resposta` ou `falha_da_submissao`.
+Ele não expõe corpo, `Location`, URL assinada nem segredo, e não muda
+o critério de aceite: estado posterior coincidente sem resposta admissível
+continua saída 3. Uma recusa anterior à submissão publica `null` nesses
+campos, sem inventar contagem ou classificação. Nenhum motivo autoriza
+repetir a escrita.
 
 ## Inventário de erros tipados
 
