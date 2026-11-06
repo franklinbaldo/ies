@@ -1,0 +1,138 @@
+name: Ensaio temporario 254 UFRJ treinamento
+on:
+  push:
+    branches: [codex/254-tartaruga-exclusao]
+    paths: [.github/workflows/ensaio254-ufrj-temporario.yml]
+permissions:
+  contents: read
+concurrency:
+  group: ensaio-254-ufrj-unico
+  cancel-in-progress: false
+jobs:
+  ensaio-ufrj:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar toolchain fixo
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Compilar release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Treinamento UFRJ - previa, unico confirmar condicional, releitura
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import tempfile
+          import time
+
+          chave = "ufrj"
+          origem_permitida = "https://teste.sei.tic.ufrj.br/sei"
+          numero = "99079.901790/2026-43"
+          marca = "IES254 Tartaruga UFRJ 2026-11-06 tentativa unica"
+
+          # Apenas a tabela de credenciais PUBLICAS das instalacoes de treinamento.
+          tabela = Path("docs/interfaces/credenciais-de-treinamento.md").read_text(encoding="utf-8")
+          linhas = [[p.strip().strip(chr(96)) for p in linha.split("|")[1:-1]]
+                    for linha in tabela.splitlines() if linha.startswith("|")]
+          linhas = [campos for campos in linhas if len(campos) >= 6 and campos[0] == chave]
+          if len(linhas) != 1 or linhas[0][2] != origem_permitida:
+              print("GUARDA: origem nao e a UFRJ de treinamento autorizada")
+              sys.exit(1)
+          _, _, origem, usuario, senha, orgao, *_ = linhas[0]
+          env = os.environ.copy()
+          env["IES_SEM_INDICE"] = "1"
+          with tempfile.TemporaryDirectory(prefix="ies254-") as d:
+              base = Path(d)
+              base.chmod(0o700)
+              def privado(nome, conteudo):
+                  arquivo = base / nome
+                  fd = os.open(arquivo, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                  with os.fdopen(fd, "w", encoding="utf-8") as f:
+                      f.write(conteudo)
+                  return str(arquivo)
+
+              env["IES_ORIGEM_FILE"] = privado("origem", origem + "\n")
+              env["IES_CREDENCIAIS_FILE"] = privado(
+                  "credenciais", "usuario=" + usuario + "\nsenha=" + senha + "\norgao=" + orgao + "\n"
+              )
+              env["IES_COOKIE_FILE"] = privado("cookie", "")
+              env["IES_URL_CONTROLE_FILE"] = privado("url-controle", "")
+
+              exe = str(Path("target/release/ies").resolve())
+              def chamada(fase, args):
+                  try:
+                      processo = subprocess.run([exe] + args, env=env, text=True,
+                                               capture_output=True, timeout=180, check=False)
+                  except (OSError, subprocess.TimeoutExpired):
+                      print(json.dumps({"fase": fase, "status": "NOT_RUN", "motivo": "falha local"}, ensure_ascii=False))
+                      return 99, {}
+                  try:
+                      valor = json.loads(processo.stdout)
+                  except (ValueError, TypeError):
+                      valor = {}
+                  # NAO publique stdout/stderr completos, URL assinada ou cookie.
+                  publico = {k: valor.get(k) for k in (
+                      "numero", "unidade", "operacao", "grupo", "observacao",
+                      "id_acompanhamento", "ja_estava", "confirmado", "alterado",
+                      "requisicoes", "codigo", "subcodigo", "motivo"
+                  ) if k in valor}
+                  print(json.dumps({"fase": fase, "rc": processo.returncode, "dados": publico},
+                                   ensure_ascii=False, sort_keys=True))
+                  return processo.returncode, valor
+
+              rc_login, login = chamada("login", ["login", "--json"])
+              if rc_login != 0:
+                  print("RESULTADO: FAIL, login; 0 POST de acompanhamento")
+                  sys.exit(1)
+              print(json.dumps({"fase": "login", "requisicoes": login.get("requisicoes")}))
+              time.sleep(35)
+
+              argumentos = ["processo", "acompanhar", numero, "--grupo", "",
+                             "--observacao", marca, "--json"]
+              rc_previa, p = chamada("previa", argumentos)
+              if rc_previa != 0:
+                  print("RESULTADO: FAIL, previa; 0 POST de acompanhamento")
+                  sys.exit(1)
+              precondicoes = (
+                  p.get("numero") == numero and p.get("operacao") == "acompanhar"
+                  and p.get("grupo") == "" and p.get("observacao") == marca
+                  and p.get("ja_estava") is False and p.get("confirmado") is False
+                  and p.get("alterado") is False and p.get("id_acompanhamento") is None
+                  and isinstance(p.get("requisicoes"), int) and 1 <= p["requisicoes"] <= 16
+                  and bool(p.get("unidade"))
+              )
+              if not precondicoes:
+                  print("RESULTADO: SKIP, guarda de previa recusa escrita, 0 POST")
+                  sys.exit(0)
+
+              # Uma unica invocacao confirmadora, sem retry nem backend alternativo.
+              time.sleep(35)
+              rc_confirmar, confirmado = chamada("confirmacao_unica", argumentos + ["--confirmar"])
+              print("CONFIRMACAO_UNICA_INVOCADA: sim; nunca repetir este NUP")
+              time.sleep(35)
+
+              # Releitura independente, mesmo em rc=3.
+              rc_reler, releitura = chamada(
+                  "verificacao_independente",
+                  ["processo", "acompanhar", numero, "--grupo", "", "--json"]
+              )
+              id_confirmado = confirmado.get("id_acompanhamento")
+              sucesso = (
+                  rc_confirmar == 0 and confirmado.get("alterado") is True
+                  and confirmado.get("confirmado") is True and id_confirmado
+                  and rc_reler == 0 and releitura.get("ja_estava") is True
+                  and releitura.get("observacao") == marca
+                  and releitura.get("id_acompanhamento") == id_confirmado
+              )
+              print("RESULTADO: " + ("PASS confirmado e relido" if sucesso
+                                    else "FAIL/INCERTO, nao repetir POST"))
+              sys.exit(0 if sucesso else 1)
+          PY
