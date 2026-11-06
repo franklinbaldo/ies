@@ -148,8 +148,9 @@ uma forma de código reconhecida; não basta encontrar a atribuição como
 substring. A captura Todos `documento_gerar.html @323eb01` contém
 `function submeter()` com desabilitação do botão, sinalizador igual a
 `2` e envio direto de `frmDocumentoCadastro`, nessa ordem.
-O leitor admite essa sequência literal direta, ou o script mínimo
-sintético de regressão, e recusa instruções em `if(false)`,
+O leitor exige a sequência literal direta **completa**; a atribuição
+isolada, inclusive em um script sintético mínimo, não comprova a
+submissão e é recusada antes da escrita. Também recusa `if(false)`,
 funções não relacionadas, aninhamentos, strings, templates, comentários,
 `script[src]` e redefinições ambíguas. Forma não observada:
 `submissao_do_documento_nao_observada`, **antes do POST**.
