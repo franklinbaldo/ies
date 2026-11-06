@@ -3,7 +3,7 @@
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
+    ErroSubmissaoFormulario, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
     enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
@@ -89,6 +89,12 @@ pub(crate) enum ErroCriar {
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),
     Fotografia(reconciliacao::ErroFotografia),
+    /// O POST foi tentado; uma leitura única do Controle apurou apenas
+    /// candidatos, nunca causalidade. As duas falhas são preservadas.
+    PosEscrita {
+        causa_post: ErroSubmissaoFormulario,
+        posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
+    },
     EfeitoIncerto,
 }
 
@@ -106,7 +112,7 @@ impl ErroCriar {
             Self::Interessado(erro) => erro.subcodigo(),
             Self::Hipotese(erro) => erro.subcodigo(),
             Self::Fotografia(erro) => crate::erro_publico::folha(erro),
-            Self::EfeitoIncerto => "efeito_incerto_na_criacao",
+            Self::PosEscrita { .. } | Self::EfeitoIncerto => "efeito_incerto_na_criacao",
         }
     }
 
@@ -121,6 +127,7 @@ impl ErroCriar {
         match self {
             Self::Transporte { http, .. } => http.as_ref(),
             Self::Hipotese(erro) => erro.status_http(),
+            Self::PosEscrita { causa_post, .. } => causa_post.status_http(),
             _ => None,
         }
     }
@@ -140,7 +147,28 @@ impl ErroCriar {
     }
 
     pub(crate) fn saida(&self) -> u8 {
-        if *self == Self::EfeitoIncerto { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto | Self::PosEscrita { .. }) {
+            3
+        } else {
+            1
+        }
+    }
+
+    /// O retorno não infere ausência quando não houve candidato novo.
+    /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
+    pub(crate) fn diagnostico_apos_post(
+        &self,
+    ) -> Option<(&'static str, Option<&'static str>, Option<Vec<String>>)> {
+        let Self::PosEscrita { causa_post, posterior } = self else {
+            return None;
+        };
+        Some((
+            causa_post.subcodigo(),
+            posterior.as_ref().err().map(|erro| erro.subcodigo()),
+            posterior.as_ref().ok().map(|candidatos| {
+                candidatos.iter().map(|c| c.nup.clone()).collect()
+            }),
+        ))
     }
 }
 
@@ -323,6 +351,23 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
+/// Releitura única do Controle após erro da escrita. A diferença na caixa
+/// é apenas evidência de candidatos; sem verificar propriedades não há
+/// prova de aplicação ou de que uma repetição é segura.
+fn reler_gerados<V: EnvioDoControle>(
+    envio: &mut V,
+    url_controle: &str,
+    cookie: &str,
+    unidade: &str,
+    antes: &reconciliacao::FotografiaDosGerados,
+    requisicoes: &mut u32,
+) -> Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar> {
+    let controle = get(envio, url_controle, cookie, requisicoes)?;
+    let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, unidade)
+        .map_err(ErroCriar::Fotografia)?;
+    antes.novos(&depois).map_err(ErroCriar::Fotografia)
+}
+
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -474,23 +519,31 @@ pub(crate) fn criar<V: EnvioDoControle>(
     // base segura para comparar o efeito de uma resposta incerta.
     // Esta leitura usa o Controle que já foi obtido: zero novos requests.
     // A fotografia será reutilizada na ligação do fluxo de reconciliação.
-    let _gerados_antes =
+    let gerados_antes =
         reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
             .map_err(E::Fotografia)?;
     // Não há retry após a submissão.
     let mut tentou = false;
-    let resposta = enviar_submissao_via(submissao, cookie, |s, c| {
+    let resposta = match enviar_submissao_via(submissao, cookie, |s, c| {
         tentou = true;
         requisicoes += 1;
         envio.post(s, c)
-    })
-    .map_err(|_| {
-        if tentou {
-            E::EfeitoIncerto
-        } else {
-            E::Formulario
+    }) {
+        Ok(resposta) => resposta,
+        Err(causa_post) if tentou => {
+            let posterior = reler_gerados(
+                envio,
+                url_controle,
+                cookie_valor,
+                &feito.unidade,
+                &gerados_antes,
+                &mut requisicoes,
+            )
+            .map_err(Box::new);
+            return Err(E::PosEscrita { causa_post, posterior });
         }
-    })?;
+        Err(_) => return Err(E::Formulario),
+    };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
         return Err(E::EfeitoIncerto);
     };
