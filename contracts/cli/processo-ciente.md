@@ -189,3 +189,13 @@ O replay de ciência dispõe de teste `ciencia::acervo::replay_da_ciencia_no_ace
 que confere os 14 cards, respectivos ZIPs/membros e chama os leitores
 reais offline. Sucesso do replay **não comprova sozinho** a ciência
 persistida; identidade do usuário e efeito ainda exigem ensaio live.
+
+## Replay dedicado executado — alcance parcial (#271)
+
+O [replay de 14 cards](../../docs/validacao-replay/2026-11-06-ciencia.md)
+passou na conferência de ZIPs/cassettes e execução Rust, mas **não
+reconheceu nenhuma atividade de aceite** nas 28 respostas gravadas;
+as 14 listas não puderam provar atividade. Não reivindicar equivalência
+ao vivo nem compatibilidade funcional dessas respostas. Caracterizar
+os formatos das respostas antes de alterar o leitor. A prévia live e
+a confirmação única seguem pendentes.

@@ -139,3 +139,20 @@ efetivo do replay: pendente da execução no runner**; não marcar PASS
 antes dos logs. Prévia live UnB **NOT_RUN (0 req)**; segunda instalação
 **NOT_RUN (0)**; confirmação **NOT_RUN (0 mutadores)**; releitura live
 **NOT_RUN (0)**. Até aqui, **0 requisições SEI, 0 escritas, 0 resíduos**.
+
+## Resultado real do replay específico — 06/11/2026
+
+[GitHub Actions 42303368527](https://github.com/franklinbaldo/ies/actions/runs/42303368527)
+**PASS técnico**, execução offline de 14 cassettes verificadas, 42
+respostas classificadas, sem acesso ao SEI. **Não foi PASS funcional:**
+28 respostas relacionadas ao aceite retornaram
+`aceite_da_ciencia_sem_atividade` e 14 respostas de Lista de Ciências
+ficaram não aplicáveis (`aceite_sem_atividade_observada`).
+**Zero atividades aceitas.** Ver
+[relatório detalhado](../validacao-replay/2026-11-06-ciencia.md).
+Investigar formato do HTML gravado e sequência das respostas antes
+de alegar conformidade, sem relaxar segurança ou inventar prova.
+
+Prévia UnB **NOT_RUN (0 req)**; segunda instalação **NOT_RUN (0)**;
+um `--confirmar` autorizado **NOT_RUN (0 mutadores)**; releitura live
+**NOT_RUN (0)**; **0 requisições reais, 0 escritas e 0 resíduos**.

@@ -135,3 +135,15 @@ lê exclusivamente os 14 cards das sete instalações; reutiliza o
 conferidor de ZIP/cassette e os leitores `atividade_do_aceite` e
 `atividade_na_lista`, sem executar GET nem JavaScript. A classificação
 é somente das **respostas gravadas**, não prova de escrita atual.
+
+## Lacuna observada no replay dedicado (#271)
+
+A conferência offline de 14 cards passou no
+[run 42303368527](https://github.com/franklinbaldo/ies/actions/runs/42303368527),
+mas 28 respostas de `procedimento_ciencia`/`documento_ciencia` não
+forneceram atividade reconhecida pelo leitor atual; 14 listas ficaram
+sem `id_atividade` verificável. Isso é **evidência de lacuna de
+conformidade**, não prova de falha do SEI. Próxima investigação:
+confrontar, de forma saneada, respostas preparatórias e mutadoras
+das capturas e seus HTMLs; manter saída 3 quando não houver prova.
+O teste offline não substitui prévia nem escrita live.

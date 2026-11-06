@@ -131,3 +131,13 @@ sem repetir escrita. RED do leitor e do fluxo de processo:
 O replay offline dedicado de `processo-ciente` e `documento-ciente`
 usa os mesmos leitores e hashes do acervo. Não converte resposta 200/302
 em confirmação, nem dispensa leitura independente live.
+
+## Replay específico do acervo (#271)
+
+O [relatório de replay](../../docs/validacao-replay/2026-11-06-ciencia.md)
+registra 14 cards, 42 respostas e integridade verificada em sete
+instalações; porém o leitor recusou os 28 aceites como sem atividade
+reconhecida e não pôde verificar nenhuma das 14 listas. O teste de
+execução passou, **não a prova semântica**. Confrontar as respostas
+reais e separar tela preparatória de GET mutador antes de alegar
+compatibilidade. Os testes sintéticos ainda não substituem live.
