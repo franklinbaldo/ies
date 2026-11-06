@@ -312,3 +312,38 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
     assert_eq!(requests.len(), 11);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+
+#[test]
+fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
+    // A fotografia posterior foi lida e revelou NUP novo, mas a leitura
+    // independente da tela do candidato falhou. Null significaria
+    // indevidamente que nenhum candidato foi observado.
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_candidato()),
+        Err(FalhaTransporte::Rede),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("falha da conferência não comprova criação");
+    assert_eq!(erro.saida(), 3);
+    let diagnostico = erro.diagnostico_apos_post().expect("diagnóstico com ambas causas");
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
+    assert_eq!(diagnostico.candidatos_observados, Some(vec![NUP.to_owned()]));
+    assert_eq!(diagnostico.candidatos_compativeis, None);
+    assert_eq!(requests.len(), 6); // 3 GET + 1 POST + Controle + tela do candidato
+    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+}
