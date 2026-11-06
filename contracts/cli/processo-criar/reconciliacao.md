@@ -231,3 +231,16 @@ Divergência não prova não aplicação: no caminho pós-`Location`, saída
 3 com a causa de divergência; na reconciliação, candidato não coincidente
 e saída 3 se faltar outra prova. A conferência reutiliza o terceiro GET
 de propriedades, **sem novo request, POST, retry ou execução de JS**.
+
+## `Location` aponta para ID anterior ao POST (#245)
+
+Mesmo com `302 Location` sintaticamente válido, tela, árvore e propriedades
+coincidentes, não se declara **criação nova** se o `id_procedimento`
+retornado já consta da fotografia **completa** dos Gerados anterior ao POST.
+Esta evidência negativa evita atribuir uma identidade antiga ao POST
+presente. O resultado é efeito incerto (**saída 3**), subcódigo
+`id_preexistente_no_retorno_criador`, sem recomendar repetição,
+sem abrir o processo preexistente e sem tentar outro POST. O caso adversarial
+sintético exige **3 GET iniciais + 1 POST = 4 requisições**,
+zero GET de verificação supérfluo, zero retry. A fotografia não é
+prova universal de causalidade, mas é uma condição necessária adicional.
