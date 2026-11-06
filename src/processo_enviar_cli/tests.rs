@@ -237,3 +237,26 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
         }
     }
 }
+
+#[test]
+fn saida_tipificada_serializa_destino_sem_value_intermediario() {
+    let feito = ProcessoEnviado {
+        confirmado: true,
+        alterado: true,
+        depois: Some(vec!["TESTE_1_1".into()]),
+        reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+        ..previa()
+    };
+    let mut bytes = Vec::new();
+    serde_json::to_writer_pretty(&mut bytes, &super::resultado_envio(&feito)).unwrap();
+    // O objeto JSON legado ordenava as chaves: manter também os bytes pretty.
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap()
+    );
+    let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(recebido, json_de_sucesso(&feito));
+    assert_eq!(recebido["destino"]["id_unidade"], "110000002");
+    assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
+    assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
+}

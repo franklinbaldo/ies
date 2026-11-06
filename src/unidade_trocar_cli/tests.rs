@@ -126,7 +126,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
         html: String::new(),
         mime: String::new(),
     };
-    let troca = Troca {
+    let mut troca = Troca {
         antes: "PR-A".into(),
         pedida: "PR-B".into(),
         escolhida: Some(unidade("PR-B", ID_B)),
@@ -143,7 +143,61 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     assert_eq!(valor["links_descartados"], 4);
     assert_eq!(valor["requisicoes"], 5);
     assert_eq!(valor["envio"]["campos"][1], "selInfraUnidades");
+    let mut bytes = Vec::new();
+    serde_json::to_writer_pretty(&mut bytes, &resultado_troca(&troca, Some(4), 5)).unwrap();
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&valor).unwrap()
+    );
     let texto = valor.to_string();
     assert!(!texto.contains("infra_hash") && !texto.contains("https://"));
     assert!(humano(&troca, 5).contains("toda a sessão da conta"));
+
+    // Já na unidade: oferecidas e envio devem continuar null, não [].
+    troca.escolhida = None;
+    troca.campos_do_envio = None;
+    troca.controle_novo = None;
+    let legado = json_de_sucesso(&troca, None, 2);
+    let direto = serde_json::to_value(resultado_troca(&troca, None, 2)).unwrap();
+    assert_eq!(direto, legado);
+    assert!(direto["oferecidas"].is_null());
+    assert!(direto["envio"].is_null());
+    assert_eq!(direto["depois"], "PR-B");
+}
+
+#[test]
+fn falhas_de_troca_sao_apresentadas_direto_do_tipo_sem_json() {
+    let u = |sigla: &str| UnidadeOferecida {
+        sigla: sigla.to_owned(),
+        descricao: format!("Unidade {sigla}"),
+        id_unidade: "7".into(),
+    };
+    let nao_oferecida = ErroTroca::UnidadeNaoOferecida {
+        oferecidas: vec![u("PR-A"), u("PR-B")],
+    };
+    let linhas = linhas_da_falha(&nao_oferecida, 2);
+    assert_eq!(linhas[1], "IES: oferecidas: PR-A, PR-B");
+    assert_eq!(linhas[2], "IES: 2 requisições.");
+    assert!(linhas[0].contains(nao_oferecida.subcodigo()));
+
+    let ambigua = ErroTroca::SiglaDeUnidadeAmbigua {
+        candidatas: vec![u("PR-A"), u("PR-A")],
+    };
+    let linhas = linhas_da_falha(&ambigua, 1);
+    assert_eq!(linhas[1], "IES: candidatas: PR-A, PR-A");
+    assert_eq!(linhas[2], "IES: 1 requisições.");
+
+    let incerta = ErroTroca::EfeitoIncerto {
+        etapa: crate::unidade_trocar::EtapaDaTroca::SegundoRedirecionamento,
+        falha: crate::unidade_trocar::FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
+    };
+    let linhas = linhas_da_falha(&incerta, 3);
+    assert_eq!(
+        linhas[1],
+        format!(
+            "IES: etapa segundo_redirecionamento: redirecionamento_da_troca_sem_localizacao; {AVISO_DE_ESCOPO}"
+        )
+    );
+    assert_eq!(linhas[2], "IES: 3 requisições.");
+    assert_eq!(incerta.saida(), 3);
 }
