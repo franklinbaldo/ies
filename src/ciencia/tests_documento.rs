@@ -444,3 +444,39 @@ fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
     );
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
 }
+
+
+/// Regressão #271: <noscript> depende do modo de scripts do navegador.
+/// O conteúdo nele não prova que a Lista de Ciências relida contém a
+/// atividade nova, mesmo que o parser indexe o checkbox.
+#[test]
+fn lista_em_noscript_nao_prova_ciencia_documental() {
+    let html = lista(ATIVIDADE)
+        .replacen(
+            "<table id='tblAndamentos'",
+            "<noscript><table id='tblAndamentos'",
+            1,
+        )
+        .replacen("</table>", "</table></noscript>", 1);
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        ok(aceite(ATIVIDADE)),
+        ok(arvore_com_lista()),
+        ok(html),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { requisicoes: 7, .. }));
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1,
+        "sem retry da ciência"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
+}
