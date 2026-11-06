@@ -18,8 +18,12 @@ pub(crate) struct ProcessoConferido {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Desfecho {
     /// Uma correspondencia de propriedades: NAO prova qual POST a criou.
-    CoincidenciaUnica { nup: String },
-    CandidatosAmbiguos { nups: Vec<String> },
+    CoincidenciaUnica {
+        nup: String,
+    },
+    CandidatosAmbiguos {
+        nups: Vec<String>,
+    },
     SemCorrespondenciaObservada,
 }
 
