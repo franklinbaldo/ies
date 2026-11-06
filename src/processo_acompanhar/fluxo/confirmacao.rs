@@ -47,7 +47,17 @@ pub(super) fn confirmar_inclusao<V: EnvioDoProcesso>(
         conferir_inclusao(contexto.antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !aceite || !verificado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        let motivo = if !aceite {
+            MotivoEfeitoIncerto::RespostaSemAceite
+        } else if depois.is_none() {
+            MotivoEfeitoIncerto::ReleituraIndisponivel
+        } else {
+            MotivoEfeitoIncerto::EstadoDivergente
+        };
+        return Err(ErroPrevia::EfeitoIncerto {
+            requisicoes: rede.feitas(),
+            motivo,
+        });
     }
     // Somente depois da prova exata podemos publicar o ID observado.
     let novo = depois
@@ -62,7 +72,10 @@ pub(super) fn confirmar_inclusao<V: EnvioDoProcesso>(
                     && linha.observacao == plano.observacao
             })
         })
-        .ok_or(ErroPrevia::EfeitoIncerto)?;
+        .ok_or(ErroPrevia::EfeitoIncerto {
+            requisicoes: rede.feitas(),
+            motivo: MotivoEfeitoIncerto::EstadoDivergente,
+        })?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.alterado = true;
     plano.requisicoes = rede.feitas();
@@ -164,7 +177,17 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
         .is_ok()
     });
     if !aceite || !verificado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        let motivo = if !aceite {
+            MotivoEfeitoIncerto::RespostaSemAceite
+        } else if depois.is_none() {
+            MotivoEfeitoIncerto::ReleituraIndisponivel
+        } else {
+            MotivoEfeitoIncerto::EstadoDivergente
+        };
+        return Err(ErroPrevia::EfeitoIncerto {
+            requisicoes: rede.feitas(),
+            motivo,
+        });
     }
     plano.alterado = true;
     plano.requisicoes = rede.feitas();
