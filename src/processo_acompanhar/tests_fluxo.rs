@@ -109,6 +109,30 @@ fn confirmar_post_unico_e_reler_lista_mesmo_processo() {
 }
 
 #[test]
+fn inclusao_nao_confirma_redirect_para_outro_processo_mesmo_com_linha_nova() {
+    // A releitura exata não transforma um redirect do POST para outro
+    // processo em aceite da operação. Rejeitar sem repetir a escrita.
+    let mut respostas = preparar();
+    let destino_errado = gerenciar().replace("id_procedimento=10", "id_procedimento=99");
+    respostas.extend([r302(&destino_errado), ok(lista("G"))]);
+    let (resultado, pedidos) = executar(respostas, true);
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(pedidos, requests_post());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn inclusao_nao_confirma_redirect_para_cadastro_apos_post() {
+    // A operação observada redireciona ao gerenciador; outra tela
+    // não comprova aceite, mesmo que a lista tenha uma linha nova.
+    let mut respostas = preparar();
+    respostas.extend([r302(&cadastrar()), ok(lista("G"))]);
+    let (resultado, pedidos) = executar(respostas, true);
+    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert_eq!(pedidos, requests_post());
+}
+
+#[test]
 fn falha_de_rede_no_post_nao_repete_e_reconcilia_pela_leitura() {
     let mut respostas = preparar();
     respostas.extend([Err(FalhaTransporte::Rede), ok(lista("G"))]);
