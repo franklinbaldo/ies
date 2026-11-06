@@ -293,3 +293,19 @@ prova que o POST falhou: o fluxo permanece inconclusivo, saída 3,
 sem retry. Na ausência de interessados explícitos, não se inventa uma
 restrição. Testes usam apenas fixtures sintéticas já derivadas de
 estruturas observadas; nenhum ensaio live adicional.
+
+### `Location` que reutiliza identidade já existente (06/11, #245)
+
+Observação anterior ao RED: o Controle já fornece fotografia completa dos
+Gerados antes da escrita, e a resposta 302 do criador contém o ID da árvore.
+Uma resposta pode referenciar processo que já estava na fotografia; conferir
+apenas ID/NUP, propriedades, tipo, nível e interessados não prova que o
+**único POST** o criou. Alternativas: confiar no 302 e propriedades
+(falso positivo), reler Gerados novamente (requisição extra sem superar
+a identidade anterior), ou rejeitar o sucesso quando o ID já foi visto.
+Escolhida a última: causa tipada `id_preexistente_no_retorno_criador`,
+saída 3, sem abrir o processo antigo, sem retry. RED test-first no
+[CI 42271272286](https://github.com/franklinbaldo/ies/actions/runs/42271272286):
+**1 FAIL novo, 1.733 PASS e 22 ignorados preexistentes**; o sistema
+publicava `confirmado: true` para o NUP preexistente. Budget após
+correção: 3 GET prévios + 1 POST, nenhum GET posterior.
