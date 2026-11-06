@@ -129,9 +129,9 @@ impl ErroCriar {
                 causa_post,
                 posterior,
                 ..
-            } => causa_post.status_http().or_else(|| {
-                posterior.as_ref().err().and_then(|erro| erro.status_http())
-            }),
+            } => causa_post
+                .status_http()
+                .or_else(|| posterior.as_ref().err().and_then(|erro| erro.status_http())),
             Self::PosRespostaInesperada { posterior, .. } => {
                 posterior.as_ref().err().and_then(|erro| erro.status_http())
             }
