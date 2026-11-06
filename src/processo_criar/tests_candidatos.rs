@@ -314,6 +314,50 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
 }
 
 #[test]
+fn falha_no_segundo_candidato_preserva_primeira_coincidencia_sem_declarar_aplicacao() {
+    // A primeira conferência de tipo e especificação já foi observada.
+    // A segunda leitura falha: a autoria e a unicidade NÃO foram provadas.
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_dois_candidatos()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+        Err(FalhaTransporte::Rede),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("a segunda leitura falhou; efeito segue incerto");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
+    let diagnostico = erro.diagnostico_apos_post().expect("duas causas e provas parciais");
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
+    assert_eq!(
+        diagnostico.candidatos_observados,
+        Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
+    );
+    assert_eq!(diagnostico.candidatos_compativeis, None); // não houve conferência completa
+    assert_eq!(
+        diagnostico.coincidentes_parciais,
+        Some(vec![NUP.to_owned()])
+    ); // prova de propriedades, nunca de autoria
+    assert_eq!(requests.len(), 9); // 3 GET + 1 POST + 1 Controle + 3 GET + 1 GET falho
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
+#[test]
 fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
     // A fotografia posterior foi lida e revelou NUP novo, mas a leitura
     // independente da tela do candidato falhou. Null significaria
