@@ -10,6 +10,8 @@ mod exclusao;
 mod fluxo;
 mod submissao;
 pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
+#[cfg(test)]
+pub(crate) use fluxo::MotivoEfeitoIncerto;
 
 const FORMULARIO: &str = "frmAcompanhamentoCadastro";
 const GRUPO: &str = "selGrupoAcompanhamento";
