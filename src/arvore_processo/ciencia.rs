@@ -123,7 +123,6 @@ pub(crate) fn url_da_ciencia(
         .map_err(|_: EnderecoRecusado| E::EnderecoDaCienciaNaoReconhecido)
 }
 
-
 /// A ciência do documento é oferecida somente pela barra do próprio nó.
 /// O documento sem assinatura pode não publicar o botão (UnB 4.0.9).
 pub(crate) fn ciencia_do_documento_na_barra(
@@ -142,12 +141,18 @@ pub(crate) fn ciencia_do_documento_na_barra(
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag)
-            .map_err(|e| E::Html(crate::erro_html::ErroHtml::atributo("barra_da_ciencia_do_documento_fora_da_forma", e)))?;
-        if let Some(onclick) = lidos
-            .valor("onclick")
-            .map_err(|e| E::Html(crate::erro_html::ErroHtml::atributo("barra_da_ciencia_do_documento_fora_da_forma", e)))?
-        {
+        let lidos = atributos(tag).map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "barra_da_ciencia_do_documento_fora_da_forma",
+                e,
+            ))
+        })?;
+        if let Some(onclick) = lidos.valor("onclick").map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "barra_da_ciencia_do_documento_fora_da_forma",
+                e,
+            ))
+        })? {
             let onclick = crate::formulario_web::decodificar_atributo(onclick)
                 .ok_or_else(|| E::Html(fora()))?;
             if onclick == "cienciaDocumento();" {
@@ -179,9 +184,11 @@ pub(crate) fn url_da_ciencia_do_documento(
         .map_err(|_| E::valor("funcao_de_ciencia_do_documento_fora_da_forma"))?;
     for linha in html.lines().map(str::trim) {
         if let Some(resto) = linha.strip_prefix("var linkCienciaDocumento = '") {
-            urls.push(resto.strip_suffix("';").ok_or(E::valor(
-                "link_de_ciencia_do_documento_fora_da_forma",
-            ))?);
+            urls.push(
+                resto
+                    .strip_suffix("';")
+                    .ok_or(E::valor("link_de_ciencia_do_documento_fora_da_forma"))?,
+            );
         }
     }
     let url = match urls.as_slice() {
@@ -190,12 +197,18 @@ pub(crate) fn url_da_ciencia_do_documento(
         _ => return Err(E::repetido("links_de_ciencia_do_documento_repetidos")),
     };
     let absoluta = super::endereco::conferir_endereco_relativo_por(
-        instalacao, url, "documento_ciencia", "id_documento", id_documento,
-    ).map_err(|_| E::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
+        instalacao,
+        url,
+        "documento_ciencia",
+        "id_documento",
+        id_documento,
+    )
+    .map_err(|_| E::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
     // Se a instalação também publicou id_procedimento, ele tem de ser único
     // e corresponder ao processo; a ausência é a forma observada na UnB.
     let consulta = url.split_once('?').map(|(_, q)| q).unwrap_or("");
-    let ids: Vec<&str> = consulta.split('&')
+    let ids: Vec<&str> = consulta
+        .split('&')
         .filter_map(|p| p.strip_prefix("id_procedimento="))
         .collect();
     if !ids.is_empty() && ids.as_slice() != [id_procedimento] {
@@ -222,14 +235,21 @@ pub(crate) fn lista_do_documento(
         let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
             .ok_or(E::valor("lista_de_ciencias_do_documento_fora_da_forma"))?;
         match argumentos.as_slice() {
-            [Literal::Texto(tipo), Literal::Texto(codigo), Literal::Texto(alvo),
-             Literal::Texto(url), ..] if tipo == "CIENCIAS" && codigo == &chave && alvo == id_documento => {
-                 urls.push(url.clone());
+            [
+                Literal::Texto(tipo),
+                Literal::Texto(codigo),
+                Literal::Texto(alvo),
+                Literal::Texto(url),
+                ..,
+            ] if tipo == "CIENCIAS" && codigo == &chave && alvo == id_documento => {
+                urls.push(url.clone());
             }
             [Literal::Texto(tipo), Literal::Texto(codigo), ..]
                 if tipo == "CIENCIAS" && codigo == &chave =>
             {
-                return Err(E::valor("lista_de_ciencias_do_documento_com_alvo_divergente"));
+                return Err(E::valor(
+                    "lista_de_ciencias_do_documento_com_alvo_divergente",
+                ));
             }
             [Literal::Texto(tipo), ..] if tipo == "CIENCIAS" => {}
             _ => return Err(E::valor("lista_de_ciencias_do_documento_fora_da_forma")),
@@ -240,9 +260,16 @@ pub(crate) fn lista_do_documento(
         [url] => url,
         _ => return Err(E::repetido("listas_de_ciencias_do_documento_repetidas")),
     };
-    let por = |chave, id| super::endereco::conferir_endereco_relativo_por(
-        instalacao, url, "protocolo_ciencia_listar", chave, id,
-    ).map_err(|_| E::valor("endereco_da_lista_de_ciencias_do_documento_nao_reconhecido"));
+    let por = |chave, id| {
+        super::endereco::conferir_endereco_relativo_por(
+            instalacao,
+            url,
+            "protocolo_ciencia_listar",
+            chave,
+            id,
+        )
+        .map_err(|_| E::valor("endereco_da_lista_de_ciencias_do_documento_nao_reconhecido"))
+    };
     por("id_procedimento", id_procedimento)?;
     por("id_documento", id_documento).map(|u| Some(EnderecoDeEscrita::novo(u)))
 }
