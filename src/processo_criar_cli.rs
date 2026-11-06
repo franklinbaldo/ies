@@ -121,16 +121,29 @@ fn anexar_http_releitura_json(
 
 /// Só a conferência integral permite o desfecho de candidatos ambíguos.
 /// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
-fn anexar_coincidencias_json(
-    valor: &mut serde_json::Value,
-    subcodigo: &str,
-    nups: Vec<String>,
-) {
+fn anexar_coincidencias_json(valor: &mut serde_json::Value, subcodigo: &str, nups: &[String]) {
     if subcodigo == "candidatos_ambiguos_na_criacao" {
         valor["desfecho"] = json!("candidatos_ambiguos");
         valor["candidatos_compativeis"] = json!(nups);
     } else {
         valor["coincidencias_parciais_conferidas"] = json!(nups);
+    }
+}
+
+fn informar_coincidencias_humanas(nups: &[String], subcodigo: &str) {
+    if subcodigo == "candidatos_ambiguos_na_criacao" {
+        eprintln!(
+            "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
+            nups.len()
+        );
+    } else {
+        eprintln!(
+            "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
+            nups.len()
+        );
+    }
+    for nup in nups {
+        eprintln!("  {nup}");
     }
 }
 
@@ -199,7 +212,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
             anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                anexar_coincidencias_json(&mut valor, erro.subcodigo(), nups);
+                anexar_coincidencias_json(&mut valor, erro.subcodigo(), &nups);
             }
         }
         if let Some(http) = erro.status_http() {
@@ -233,20 +246,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                 }
             }
             if let Some(nups) = diagnostico.candidatos_compativeis {
-                if erro.subcodigo() == "candidatos_ambiguos_na_criacao" {
-                    eprintln!(
-                        "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
-                        nups.len()
-                    );
-                } else {
-                    eprintln!(
-                        "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
-                        nups.len()
-                    );
-                }
-                for nup in nups {
-                    eprintln!("  {nup}");
-                }
+                informar_coincidencias_humanas(&nups, erro.subcodigo());
             }
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
@@ -472,7 +472,7 @@ mod tests {
         anexar_coincidencias_json(
             &mut parcial,
             "efeito_incerto_na_criacao",
-            vec!["NUP-sintetico-10".into()],
+            &["NUP-sintetico-10".into()],
         );
         assert_eq!(
             parcial["coincidencias_parciais_conferidas"],
@@ -485,7 +485,7 @@ mod tests {
         anexar_coincidencias_json(
             &mut completa,
             "candidatos_ambiguos_na_criacao",
-            vec!["NUP-sintetico-10".into(), "NUP-sintetico-11".into()],
+            &["NUP-sintetico-10".into(), "NUP-sintetico-11".into()],
         );
         assert_eq!(completa["desfecho"], "candidatos_ambiguos");
         assert_eq!(
