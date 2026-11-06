@@ -39,3 +39,11 @@ comportamento sintético, não a compatibilidade ao vivo.
 - **GREEN:** [CI 42224041949](https://github.com/franklinbaldo/ies/actions/runs/42224041949), head `e646671`, **5/5 PASS**: prek (Rustfmt, Clippy, suíte Rust, OKF, 20 KB, subcódigos), release e três replays gerais. O replay específico de ciência permanece NOT_RUN.
 - **Orçamento sintético do caso adversarial:** 3 GET de abertura + 1 GET de tela + 1 GET potencialmente mutador + 1 GET de releitura = **6 GET, exatamente 1 mutador e zero retries**; não consultar lista sem atividade publicada por aceite válido.
 - **Live:** UnB NOT_RUN (0 requisições); segunda instalação NOT_RUN (0); confirmação única NOT_RUN (0); verificação por leitura NOT_RUN (0). Replay específico de ciência NOT_RUN. **Nenhum acesso SEI, 0 escritas e 0 resíduos.**
+
+
+## Regressão de retorno antes do aceite — 🦊 Raposa (06/11/2026)
+
+- **RED real anterior à correção:** [run 42231850140](https://github.com/franklinbaldo/ies/actions/runs/42231850140), **2 FAIL novos, 1.724 PASS, 22 ignored preexistentes**. Um `return;` antes da recarga falsa ainda devolvia o ID `42457` e o fluxo anunciava ciência confirmada com base na lista antiga. Rustfmt dos dois testes novos também falhou no RED; formatação corrigida sem remover testes.
+- **Correção:** aceitar `atualizarArvore` somente como primeira instrução executável no script ou diretamente no corpo de `inicializar()`, recusando código anterior cujo fluxo não foi comprovado. Não executar JS nem fazer retry.
+- **Orçamento sintético exigido:** **6 GET / 1 GET mutador / 0 retry**, incluindo releitura independente da árvore. Sem ID do aceite, não buscar a lista preexistente. CI GREEN do novo head deve ser conferido separadamente.
+- **Live:** UnB **NOT_RUN (0)**; segunda instalação **NOT_RUN (0)**; confirmação única **NOT_RUN (0)**; verificação de leitura **NOT_RUN (0)**; replay específico de ciência **NOT_RUN**. **0 requisições reais SEI, 0 escritas e 0 resíduos**.
