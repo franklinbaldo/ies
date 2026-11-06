@@ -84,7 +84,9 @@ botão Salvar, a atribuição literal
 `document.getElementById('hdnFlagDocumentoCadastro').value = '2';`
 e `document.getElementById('frmDocumentoCadastro').submit();`.
 Isso é **observação estática do HTML capturado**, não execução de JS nem
-prova de criação ao vivo. A instrução isolada sob `if (false)` ou em
-função arbitrária não demonstra esse caminho. O IES exige a forma
-conservadora reconhecida ou falha antes do POST.
+prova de criação ao vivo. **Nem mesmo uma atribuição isolada de
+`hdnFlagDocumentoCadastro`** demonstra o caminho, pois falta a chamada
+de submissão. Instruções em `if (false)` ou função arbitrária também
+são insuficientes. O IES exige a função completa observada ou falha
+antes do POST.
 
