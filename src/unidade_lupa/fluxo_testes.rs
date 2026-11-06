@@ -2,6 +2,7 @@
 use super::*;
 use crate::formulario_web::RespostaDoPost;
 use crate::transporte::RespostaWeb;
+use std::fmt::Write as _;
 use std::io::Cursor;
 const ORIGEM: &str = "https://sei.example/sei";
 const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -202,7 +203,6 @@ fn pagina_integral_sintetica(indice: usize, adulterar_filtro: bool) -> String {
     let fim = ((indice + 1) * TAMANHO_PAGINA).min(TOTAL_GO_SINTETICO);
     let ids: Vec<String> = (inicio..fim).map(|id| id.to_string()).collect();
     let referencias: Vec<&str> = ids.iter().map(String::as_str).collect();
-    use std::fmt::Write as _;
     let mut opcoes = String::new();
     for i in 0..PAGINAS_GO_SINTETICAS {
         write!(&mut opcoes, "<option value='{i}'>{}</option>", i + 1)
