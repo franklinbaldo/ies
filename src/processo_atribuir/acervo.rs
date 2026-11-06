@@ -53,8 +53,8 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 match html_da_resposta(resposta.item) {
                     Err(_) => Resultado::NaoAplicavel("html_nao_observado"),
                     Ok(html) => {
-                        let id = gravacao::id_procedimento(resposta.item)
-                            .or_else(|| id_da_tela(&html));
+                        let id =
+                            gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&html));
                         match id {
                             None => Resultado::NaoAplicavel("id_do_processo_nao_observado"),
                             Some(id) => match super::ler_tela(&html, &id) {
@@ -121,7 +121,11 @@ fn replay_de_processo_atribuir_no_acervo() {
         let mut cards = std::fs::read_dir(raiz.join(instalacao))
             .expect("pasta das cassettes")
             .map(|item| item.expect("card").path())
-            .filter(|p| p.file_name().is_some_and(|s| s.to_string_lossy().starts_with("processo-atribuir-")) && p.extension().is_some_and(|s| s == "md"))
+            .filter(|p| {
+                p.file_name()
+                    .is_some_and(|s| s.to_string_lossy().starts_with("processo-atribuir-"))
+                    && p.extension().is_some_and(|s| s == "md")
+            })
             .collect::<Vec<_>>();
         cards.sort();
         for card in cards {
@@ -136,24 +140,35 @@ fn replay_de_processo_atribuir_no_acervo() {
             registros.extend(replay(instalacao, &conferida.json));
         }
     }
-    assert_eq!(total_cards, INSTALACOES.len(), "uma cassette por instalação");
-    assert!(!registros.is_empty(), "nenhuma resposta de atribuição gravada");
+    assert_eq!(
+        total_cards,
+        INSTALACOES.len(),
+        "uma cassette por instalação"
+    );
+    assert!(
+        !registros.is_empty(),
+        "nenhuma resposta de atribuição gravada"
+    );
     let mut saida = format!(
         "# Atribuição — replay offline #264\n\n{} cassettes, {} respostas classificadas, zero requisições reais. POST histórico não prova escrita.\n\n",
-        total_cards, registros.len()
+        total_cards,
+        registros.len()
     );
     tabela(
         &mut saida,
         registros.iter().map(|r| {
             (
-                if r.leitor == "formulário de atribuição" { 0 } else { 1 },
+                usize::from(r.leitor != "formulário de atribuição"),
                 r.leitor,
                 r.instalacao.as_str(),
                 &r.resultado,
             )
         }),
     );
-    let lidos = registros.iter().filter(|r| r.resultado == Resultado::Lido).count();
+    let lidos = registros
+        .iter()
+        .filter(|r| r.resultado == Resultado::Lido)
+        .count();
     let _ = writeln!(saida, "Formulários aceitos pelo leitor real: {lidos}.\n");
     publicar(&saida);
 }
