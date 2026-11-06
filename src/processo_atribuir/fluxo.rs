@@ -77,11 +77,9 @@ impl ErroProcessoAtribuir {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),
-            Self::EfeitoIncertoNaAtribuicao { falha_do_envio, .. } => {
-                falha_do_envio
-                    .as_deref()
-                    .and_then(ErroSubmissaoFormulario::status_http)
-            }
+            Self::EfeitoIncertoNaAtribuicao { falha_do_envio, .. } => falha_do_envio
+                .as_deref()
+                .and_then(ErroSubmissaoFormulario::status_http),
             _ => crate::erro_publico::Causa::status_http(self),
         }
     }
