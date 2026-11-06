@@ -1,5 +1,6 @@
 //! RED/GREEN da saída da falha `fonte_invalida` com recusa HTTP.
 use super::*;
+use serde_json::json;
 use std::collections::BTreeSet;
 
 fn chaves(valor: &Value) -> BTreeSet<&str> {
