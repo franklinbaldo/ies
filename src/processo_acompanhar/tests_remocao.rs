@@ -168,3 +168,46 @@ fn cadastro_apos_retirar_ultimo_precisa_publicar_processo() {
     esperados.push(get(&absoluta(&cadastrar())));
     assert_eq!(pedidos, esperados);
 }
+
+#[test]
+fn grupo_de_retirada_ausente_com_outro_acompanhamento_e_idempotente_sem_post() {
+    // Cenário sintético baseado na tabela observada na UnB (#254):
+    // há o grupo "Outro", mas não o grupo exato "G" solicitado.
+    // A ausência de G não autoriza remover Outro nem abrir cadastro.
+    for confirmar in [false, true] {
+        let mut respostas = preparar();
+        *respostas.last_mut().expect("gerenciador sintético") =
+            ok(lista(&linha("832", "Outro")));
+        let amb = ambiente();
+        let (resultado, pedidos) = rodar_com(
+            &amb,
+            respostas,
+            |sessao, nup, indice, roteiro| {
+                previa(
+                    sessao,
+                    &Pedido {
+                        nup,
+                        unidade: None,
+                        grupo: Some("G"),
+                        observacao: None,
+                        deixar: true,
+                        confirmar,
+                    },
+                    indice,
+                    roteiro,
+                )
+            },
+        );
+        let plano = resultado.expect("retirada de grupo ausente deve ser no-op");
+        assert!(plano.ja_estava);
+        assert_eq!(plano.grupo, "G");
+        assert_eq!(plano.id_de_remocao, None);
+        assert!(!plano.alterado);
+        assert_eq!(plano.confirmado, confirmar);
+        assert_eq!(plano.requisicoes, 4);
+        let mut esperados = pedidos_da_abertura();
+        esperados.push(get(&absoluta(&gerenciar())));
+        assert_eq!(pedidos, esperados);
+        assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+    }
+}
