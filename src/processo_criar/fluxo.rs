@@ -493,26 +493,29 @@ pub(crate) fn criar<V: EnvioDoControle>(
         )?;
         return Ok(feito);
     };
-    // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
-    let tela_do_processo =
-        get(envio, &url, cookie_valor, &mut requisicoes).map_err(|_| E::EfeitoIncerto)?;
-    let tela_lida = crate::arvore_processo::ler_tela_do_processo(
-        &instalacao,
-        &tela_do_processo.html,
-        &id,
-        Some(&feito.unidade),
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
-    let arvore = get(
-        envio,
-        tela_lida.arvore.as_str(),
-        cookie_valor,
-        &mut requisicoes,
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
-    let nup =
-        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
-    crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(|_| E::EfeitoIncerto)?;
+    // O Location legítimo não prova o efeito da criação. Preservar a
+    // causa da verificação, inclusive status HTTP, sem fazer novo POST.
+    let nup = (|| {
+        let tela_do_processo = get(envio, &url, cookie_valor, &mut requisicoes)?;
+        let tela_lida = crate::arvore_processo::ler_tela_do_processo(
+            &instalacao,
+            &tela_do_processo.html,
+            &id,
+            Some(&feito.unidade),
+        )
+        .map_err(E::Tela)?;
+        let arvore = get(
+            envio,
+            tela_lida.arvore.as_str(),
+            cookie_valor,
+            &mut requisicoes,
+        )?;
+        let nup =
+            crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
+        crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(E::Arvore)?;
+        Ok::<_, E>(nup)
+    })()
+    .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
     feito.confirmado = true;
     feito.nup = Some(nup);
     feito.requisicoes = requisicoes;
