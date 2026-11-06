@@ -120,11 +120,11 @@ fn concluir_na_sessao(
 /// Não contém URLs assinadas nem cookies.
 #[derive(serde::Serialize)]
 pub(crate) struct FalhaEnvioPublica {
-    subcodigo: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    status_http: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mensagem_do_servidor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status_http: Option<u16>,
+    subcodigo: &'static str,
 }
 
 impl FalhaEnvioPublica {
@@ -147,20 +147,20 @@ pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
 #[derive(serde::Serialize)]
 struct ResultadoConclusao<'a> {
-    nup: &'a str,
-    id_procedimento: &'a str,
-    unidade: &'a str,
-    origem: &'static str,
-    confirmado: bool,
-    alterado: bool,
-    forma: Option<&'static str>,
     aberto_em: &'a [String],
-    depois_esperado: Vec<String>,
+    alterado: bool,
+    confirmado: bool,
     depois: Option<&'a [String]>,
-    reconciliado_por_leitura: bool,
-    requisicoes: u8,
+    depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_envio: Option<FalhaEnvioPublica>,
+    forma: Option<&'static str>,
+    id_procedimento: &'a str,
+    nup: &'a str,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
 }
 
 fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
