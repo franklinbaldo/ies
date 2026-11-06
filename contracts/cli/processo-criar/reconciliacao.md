@@ -273,3 +273,6 @@ pedidos com dois candidatos, **sempre 1 POST criador, sem retry**.
 A mudança não envia requisições novas. A validação real em segunda
 instalação de treinamento continua NOT_RUN, e o POST histórico da UnB
 não deve ser repetido.
+
+[Decisão de concorrência causal](../../../docs/decisoes/processo-criar/concorrencia-pos-post.md)
+· [Evidência RED e live NOT_RUN](../../../docs/validacao-live/2026-11-06-processo-criar-concorrencia-causal.md)
