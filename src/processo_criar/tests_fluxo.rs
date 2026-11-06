@@ -6,6 +6,10 @@ use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
 use crate::transporte::FalhaTransporte;
+use crate::propriedades_processo::tests_apoio::{
+    acao_da_barra, link_das_propriedades, tela_das_propriedades,
+};
+use crate::processo_concluir::tests_apoio::NUP;
 
 const TIPO: &str = "Administração Geral: Ensaio";
 pub(super) const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -49,6 +53,22 @@ pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
         hipotese_legal: None,
         confirmar,
     }
+}
+
+fn arvore_verificadora() -> String {
+    arvore(
+        &[UNIDADE],
+        &[acao_da_barra(&link_das_propriedades("procedimento_alterar", "10"))],
+    )
+}
+
+fn propriedades_verificadoras() -> String {
+    tela_das_propriedades(NUP, "10")
+        .replace("Tipo Sintetico: Teste", TIPO)
+        .replace(
+            "Especificação sintética &amp; teste",
+            "Ensaio automatizado issue 245",
+        )
 }
 
 /// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: prévia 4.0
@@ -117,7 +137,8 @@ fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -131,8 +152,8 @@ fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
     let feito = resultado.unwrap();
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
-    assert_eq!(feito.requisicoes, 6);
-    assert_eq!(requests.len(), 6);
+    assert_eq!(feito.requisicoes, 7);
+    assert_eq!(requests.len(), 7);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
@@ -306,7 +327,8 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -320,8 +342,8 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
     let feito = resultado.unwrap();
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
-    assert_eq!(feito.requisicoes, 7);
-    assert_eq!(requests.len(), 7);
+    assert_eq!(feito.requisicoes, 8);
+    assert_eq!(requests.len(), 8);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         2
