@@ -206,11 +206,11 @@ def helper(source):
         raise ValueError("src/saida.rs: ancora de import nao encontrada")
     implementation = (
         b"\n/// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.\n"
-        b"pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> serde_json::Result<()> {\n"
+        b"pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> std::io::Result<()> {\n"
         b"    use std::io::Write as _;\n"
         b"    let saida = std::io::stdout();\n"
         b"    let mut bloqueada = saida.lock();\n"
-        b"    serde_json::to_writer_pretty(&mut bloqueada, valor)?;\n"
+        b"    serde_json::to_writer_pretty(&mut bloqueada, valor).map_err(std::io::Error::from)?;\n"
         b'    bloqueada.write_all(b"\\n")?;\n'
         b"    Ok(())\n"
         b"}\n"
