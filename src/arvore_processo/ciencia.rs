@@ -2,6 +2,7 @@
 //! usa o leitor compartilhado de atributos, e a URL da Lista de Ciências
 //! vem exclusivamente da ação CIENCIAS da raiz. Nada executa JavaScript.
 mod javascript;
+pub(crate) use javascript::niveis_js;
 
 use super::barra_do_processo::{FalhaDaBarra, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes};
