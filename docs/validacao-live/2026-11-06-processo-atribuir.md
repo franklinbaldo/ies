@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
-title: Validação de processo atribuir — transporte sintético, live não executado
-description: Estado NOT_RUN de atribuição, sem sessão remota nem escrita, com POST único comprovado apenas em testes sintéticos
+title: Validação de processo atribuir — transporte sintético e prévia UnB
+description: Ensaio de prévia autenticada UnB sem escrita e transporte sintético com POST único
 ---
 
 # processo atribuir — 06/11/2026
@@ -29,16 +29,14 @@ do retorno histórico do POST. O replay utilizou **zero requisições reais**.
 
 | Ensaio | Instalação | Estado | GET | POST | Resíduo |
 | --- | --- | --- | ---: | ---: | --- |
-| Prévia Web | UnB treinamento | **NOT_RUN** | 0 | 0 | nenhum |
+| Prévia Web | UnB treinamento | **PASS** | 4 | 0 | nenhum |
 | Prévia Web | segunda instalação de treinamento | **NOT_RUN** | 0 | 0 | nenhum |
 | Confirmação única e releitura | treinamento | **NOT_RUN** | 0 | 0 | nenhum |
 | Remoção única e releitura | treinamento | **NOT_RUN** | 0 | 0 | nenhum |
 
-Não houve autenticação, requisição, escrita, retry nem consulta a produção.
-A falta de ensaio live **não equivale a PASS**. A capacidade continua incompleta:
-faltam validação em duas instalações de treinamento, confirmação e remoção
-únicas com prova por releitura e habilitação segura da CLI pública.
-Nenhuma evidência sintética equivale a confirmação real de escrita.
+**Ensaio UnB, 06/11/2026:** [GitHub Actions 42205702494](https://github.com/franklinbaldo/ies/actions/runs/42205702494), conta pública da instalação de treinamento. Login **PASS, saída 0, 5 requisições**; após intervalo superior a 30 segundos, prévia `processo atribuir 23106.001559/2026-11 --usuario aluno2` **PASS, saída 0, 4 GET e 0 POST de atribuição**. `confirmado=false` e `alterado=false`. Valores de cookie, credencial, URL assinada e `infra_hash` permaneceram em arquivos privados do executor; apenas código de saída e contagem foram publicados. A prévia NÃO comprova escrita. Não houve confirmação, remoção, retry de escrita, resíduo nem acesso a produção.
+
+O ensaio em segunda instalação segue **NOT_RUN**, assim como a confirmação única e a remoção, porque `--confirmar` permanece fechado antes da rede. A capacidade continua incompleta: faltam ensaio na segunda instalação, confirmação e remoção únicas em treinamento com prova por releitura, resíduo registrado e habilitação segura da CLI pública.
 
 ## Regressão de destino 302 genérico
 
