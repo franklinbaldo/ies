@@ -190,11 +190,12 @@ pub(crate) fn url_da_ciencia_do_documento(
     // Rejeita a tela inteira quando a região inerte contém script: não
     // precisa inferir qual ramo o navegador ativaria nem executar JS.
     let minusculas = html.to_ascii_lowercase();
-    if minusculas
-        .split("<template")
-        .skip(1)
-        .any(|resto| resto.split("</template").next().is_some_and(|parte| parte.contains("<script")))
-    {
+    if minusculas.split("<template").skip(1).any(|resto| {
+        resto
+            .split("</template")
+            .next()
+            .is_some_and(|parte| parte.contains("<script"))
+    }) {
         return Err(E::valor("script_da_ciencia_do_documento_fora_da_forma"));
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
