@@ -60,4 +60,3 @@ pub(super) fn consulta(
     )
     .map_err(|_| FalhaDaLupa::FormularioInesperado)
 }
-
