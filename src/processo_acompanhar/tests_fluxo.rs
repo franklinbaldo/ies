@@ -224,6 +224,7 @@ fn status_http_recusado_nao_se_torna_sucesso_por_linha_coincidente() {
         ok(lista("G")),
     ]);
     let (resultado, pedidos) = executar(respostas, true);
+    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "resposta_sem_aceite")));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     assert_eq!(pedidos, requests_post());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -243,6 +244,7 @@ fn falha_na_releitura_depois_do_post_e_efeito_incerto_sem_retry() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(respostas, true);
+    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "releitura_indisponivel")));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     assert_eq!(pedidos, requests_post());
 }
@@ -252,6 +254,7 @@ fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista("Outro"))]);
     let (resultado, pedidos) = executar(respostas, true);
+    assert_eq!(resultado.as_ref().unwrap_err().diagnostico_efeito_incerto(), Some((7, "estado_divergente")));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
     assert_eq!(pedidos, requests_post());
 }
