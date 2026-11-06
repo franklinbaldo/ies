@@ -406,7 +406,8 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     respostas.push(retorno_arvore_com_identidade_observado());
     respostas.push(Ok((
         503,
-        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>".to_owned(),
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>"
+            .to_owned(),
         None,
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
@@ -440,7 +441,8 @@ fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(Ok((
         503,
-        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>".to_owned(),
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>"
+            .to_owned(),
         None,
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
