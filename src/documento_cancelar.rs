@@ -8,11 +8,13 @@ use crate::instalacao::Instalacao;
 
 mod erro;
 mod fluxo;
+mod motivo;
 #[cfg(test)]
 mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
+pub(crate) use motivo::{MotivoDoCancelamento, conferir_motivo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkCancelar {
@@ -104,22 +106,6 @@ pub(crate) fn ler_link_cancelar(
     Ok(Some(LinkDeCancelamento(url)))
 }
 
-/// Trims without changing Latin-1 glyphs, and refuses controls/unsupported
-/// characters before opening a session.
-pub(crate) fn conferir_motivo(motivo: &str) -> Result<String, &'static str> {
-    if motivo.chars().any(char::is_control) {
-        return Err("motivo_com_controle");
-    }
-    let limpo = motivo.trim();
-    if limpo.is_empty() {
-        return Err("motivo_vazio");
-    }
-    if !limpo.chars().all(|c| u32::from(c) <= 255) {
-        return Err("motivo_fora_da_codificacao");
-    }
-    Ok(limpo.to_owned())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,8 +161,8 @@ mod tests {
     fn motivo_com_espacos_e_recusado_e_acentuado_e_preservado() {
         assert!(conferir_motivo("   ").is_err());
         assert_eq!(
-            conferir_motivo("  Revisão necessária  "),
-            Ok("Revisão necessária".into())
+            conferir_motivo("  Revisão necessária  ").unwrap().as_str(),
+            "Revisão necessária"
         );
         assert!(conferir_motivo("Linha\nquebrada").is_err());
     }
@@ -193,8 +179,16 @@ mod tests {
 
     #[test]
     fn recusa_do_motivo_preserva_identidade_tipada() {
-        for entrada in ["", " \t ", "Motivo 🚫"] {
+        use super::motivo::ErroMotivoDoCancelamento as E;
+
+        for (entrada, esperada, subcodigo) in [
+            ("", E::Vazio, "motivo_vazio"),
+            (" \t ", E::ComControle, "motivo_com_controle"),
+            ("Motivo 🚫", E::ForaDaCodificacao, "motivo_fora_da_codificacao"),
+        ] {
             let erro = conferir_motivo(entrada).unwrap_err();
+            assert_eq!(erro, esperada);
+            assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
             assert_ne!(
                 std::any::type_name_of_val(&erro),
                 std::any::type_name::<&str>()

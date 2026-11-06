@@ -50,14 +50,20 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     };
     let motivo = match conferir_motivo(motivo) {
         Ok(m) => m,
-        Err(sub) => return Some(uso_invalido(cli.json, sub, "motivo inválido")),
+        Err(erro) => {
+            return Some(uso_invalido(
+                cli.json,
+                crate::erro_publico::folha(&erro),
+                "motivo inválido",
+            ));
+        }
     };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDoCancelamento {
             numero: &numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
-            motivo: &motivo,
+            motivo,
             confirmar: *confirmar,
         };
         match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {

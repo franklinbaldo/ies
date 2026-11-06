@@ -60,6 +60,17 @@ fn recusa_uso_invalido_sem_tocar_na_sessao() {
             ],
             "motivo_fora_da_codificacao",
         ),
+        (
+            vec![
+                "documento",
+                "cancelar",
+                "0000101",
+                "--motivo",
+                "Motivo\ncom controle",
+                "--json",
+            ],
+            "motivo_com_controle",
+        ),
     ];
     for (args, subcodigo) in casos {
         let r = sem_sessao(&args);
