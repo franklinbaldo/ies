@@ -1,0 +1,54 @@
+name: Wheel Rust para uvx
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    name: maturin + uvx (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15-intel, windows-2022]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.5"
+          enable-cache: false
+
+      - name: Instalar toolchain Rust fixada
+        shell: bash
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Gerar wheel do executavel nativo
+        shell: bash
+        run: uvx --from "maturin==1.16.0" maturin build --locked --out dist
+
+      - name: Verificar wheel executando a CLI real pelo uvx
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheels=(dist/*.whl)
+          test "${#wheels[@]}" -eq 1
+          uvx --from "${wheels[0]}" ies --version
+          uvx --from "${wheels[0]}" ies --help
+
+      - name: Disponibilizar wheel temporario (sem comitar binarios)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ies-sei-wheel-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist/*.whl
+          retention-days: 7
+          if-no-files-found: error

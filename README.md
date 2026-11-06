@@ -24,6 +24,20 @@ O IES Python histórico está preservado no cofre privado
 O CI público em [GitHub Actions](.github/workflows/ci.yml) executa os mesmos
 gates do `prek` usados localmente.
 
+## Executar pelo uvx
+
+O binário Rust `ies` também pode ser distribuído como wheel pelo
+`maturin` (`bindings = "bin"`, sem PyO3). Quando o pacote
+`ies-sei` estiver publicado com wheels pré-compilados:
+
+```sh
+uvx --from ies-sei ies --help
+```
+
+O pacote **ainda não foi publicado no PyPI**. Veja o
+[guia de instalação via uvx](docs/instalacao-uvx.md) para testar wheels
+do CI ou compilar a fonte Git; `ies` isolado no PyPI é outro projeto.
+
 ## Documentação do SEI
 
 O [catálogo OKF de cassettes](docs/cassettes.md) registra 495 revisões
