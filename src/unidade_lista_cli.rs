@@ -129,7 +129,7 @@ pub(crate) fn mostrar_caixa_detalhada(
         if let Err(erro) = crate::saida::imprimir_json(&saida) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
-        };
+        }
     } else {
         relogin_cli::avisar(json_mode, nota);
         println!("{}", humano_da_detalhada(leitura));
