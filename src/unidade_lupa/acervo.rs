@@ -237,3 +237,109 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
     }
     assert_eq!((get, post), (4, 1), "apenas 5 respostas gravadas, sem rede");
 }
+
+
+#[test]
+#[ignore = "exige ZIP público UnB em IES_ACERVO_CACHE; executado no CI"]
+fn replay_do_fluxo_completo_unb() {
+    // Cinco respostas reais gravadas (4 GET + 1 POST), sem rede.
+    // Reproduz os HTMLs na ordem da cassette, com cookie apenas sintético.
+    use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+    use crate::transporte::{FalhaTransporte, RespostaWeb};
+    use std::io::Cursor;
+
+    struct TransporteGravado {
+        passos: Vec<(bool, String)>,
+        proximo: usize,
+        gets: usize,
+        posts: usize,
+    }
+    impl TransporteGravado {
+        fn resposta(&mut self, post: bool) -> RespostaDoPost<Cursor<Vec<u8>>> {
+            let (metodo_post, html) = self
+                .passos
+                .get(self.proximo)
+                .expect("o IES não pode exceder as cinco interações gravadas");
+            assert_eq!(*metodo_post, post, "método do passo {} da cassette", self.proximo);
+            self.proximo += 1;
+            if post {
+                self.posts += 1;
+            } else {
+                self.gets += 1;
+            }
+            RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code: 200,
+                    mime: "text/html; charset=utf-8".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(html.as_bytes().to_vec()),
+                },
+                localizacao: None,
+            }
+        }
+    }
+    impl super::fluxo::TransporteLupa for TransporteGravado {
+        type Corpo = Cursor<Vec<u8>>;
+        fn get(
+            &mut self,
+            _url: &str,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            Ok(self.resposta(false))
+        }
+        fn post(
+            &mut self,
+            _submissao: SubmissaoDerivada,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            Ok(self.resposta(true))
+        }
+    }
+
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let card = raiz.join("cassettes/unb/unidade-destinos-no-indice-unb--57497bc11c4f.md");
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || {
+            Path::new(&std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE"))
+                .join(".cache/ies")
+        },
+        std::path::PathBuf::from,
+    );
+    let zip = ZipDoAcervo::ler(&cache.join("lote-5b6af062ae69d8c7.zip"))
+        .expect("ZIP público UnB ausente");
+    let conferida = conferir_cassette_ate(&card, &zip, 120_000_000)
+        .expect("cassette UnB não confere hashes ou origem");
+    assert_eq!(conferida.instalacao, "unb");
+    let passos: Vec<_> = gravacao::respostas(&conferida.json)
+        .map(|r| {
+            assert_eq!(r.status, 200);
+            (
+                r.metodo == "POST",
+                html_da_resposta(r.item).expect("HTML público da cassette deve ser legível"),
+            )
+        })
+        .collect();
+    assert_eq!(passos.len(), 5);
+    let mut transporte = TransporteGravado {
+        passos,
+        proximo: 0,
+        gets: 0,
+        posts: 0,
+    };
+    let mut requisicoes = 0;
+    let resultado = super::fluxo::ler_integral_com_contador(
+        &mut transporte,
+        "https://sei.treinamento.unb.br/sei/controlador.php?acao=procedimento_controlar",
+        "https://sei.treinamento.unb.br/sei",
+        "PHPSESSID=SINTETICO",
+        &mut requisicoes,
+    );
+    println!(
+        "fluxo UnB: resultado={}, GET={}, POST={}, tentativas={}",
+        if resultado.is_ok() { "ok" } else { "recusado" },
+        transporte.gets, transporte.posts, requisicoes
+    );
+    assert!(resultado.is_ok(), "o replay UnB completo deve ser aceito: {:?}", resultado.err());
+    assert_eq!((transporte.gets, transporte.posts, requisicoes), (4, 1, 5));
+}
