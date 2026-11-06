@@ -215,3 +215,19 @@ O orçamento não muda: **3 GET de preparação + 1 POST tentado + 1 GET
 do Controle + 3 GET de verificação = 8 pedidos**, exatamente um POST,
 sem retry. Essa regra também vale para as coincidências parciais em
 caso de falha ao verificar outro candidato.
+
+## Interessados explícitos na prova de criação (#245)
+
+Se o pedido incluiu `--interessado`, uma correspondência somente de
+tipo, especificação e nível **não** comprova o mesmo pedido: outro agente
+pode criar um processo semelhante para outra pessoa. A leitura Web de
+propriedades já publica `selInteressadosProcedimento`. A confirmação
+pós-`Location` e a reconciliação só admitem correspondência quando a
+lista observada contém **exatamente os interessados solicitados**, sem
+depender da ordem, mas preservando multiplicidade. Nenhum interessado
+explícito significa que o pedido não impôs essa condição adicional.
+
+Divergência não prova não aplicação: no caminho pós-`Location`, saída
+3 com a causa de divergência; na reconciliação, candidato não coincidente
+e saída 3 se faltar outra prova. A conferência reutiliza o terceiro GET
+de propriedades, **sem novo request, POST, retry ou execução de JS**.
