@@ -33,13 +33,10 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
                     _ => return None,
                 };
             } else if linha == INSTRUCAO {
-                // O exemplo sintético mínimo é uma peça única.
-                // Em if(false), função não observada ou script maior
-                // esta linha NÃO demonstra submissão criadora.
-                if !blocos.is_empty() || texto.trim() != INSTRUCAO {
-                    return None;
-                }
-                ocorrencias += 1;
+                // A flag isolada nunca comprova o submit publicado.
+                // A unica forma suportada e a sequencia direta completa
+                // dentro de function submeter().
+                return None;
             }
         }
         let mut prefixo = String::new();
@@ -137,5 +134,5 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
             return false;
         }
     }
-    ocorrencias == 1
+    ocorrencias == 1 && funcoes_submeter == 1
 }
