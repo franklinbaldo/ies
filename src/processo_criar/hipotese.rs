@@ -26,8 +26,8 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 pub(crate) enum ErroHipotese {
     // Formato de tela não é categoria de domínio: nome da fronteira HTML
     // mantém o subcódigo público, enquanto a causa é tipada por Problema.
-    #[causa(interna)]
-    Tela(crate::erro_html::ErroHtml),
+    #[causa(transparente)]
+    Html(crate::erro_html::ErroHtml),
     #[causa(nome = "hipotese_legal_ajax_nao_unica")]
     OpcaoNaoUnica,
     #[causa(nome = "hipotese_legal_ajax_nao_unica")]
@@ -48,19 +48,19 @@ impl ErroHipotese {
     }
 
     fn consulta_nao_declarada() -> Self {
-        Self::Tela(crate::erro_html::ErroHtml::ausente(
+        Self::Html(crate::erro_html::ErroHtml::ausente(
             "hipotese_legal_ajax_nao_declarada",
         ))
     }
 
     fn consulta_nao_derivada() -> Self {
-        Self::Tela(crate::erro_html::ErroHtml::valor(
+        Self::Html(crate::erro_html::ErroHtml::valor(
             "hipotese_legal_ajax_nao_derivada",
         ))
     }
 
     fn resposta_nao_reconhecida() -> Self {
-        Self::Tela(crate::erro_html::ErroHtml::html(
+        Self::Html(crate::erro_html::ErroHtml::html(
             "hipotese_legal_ajax_resposta_nao_reconhecida",
         ))
     }
@@ -427,7 +427,7 @@ mod tests {
         use crate::erro_publico::{caminho_de, folha};
         let ausente = url_publicada("<html></html>").expect_err("URL não publicada");
         assert_eq!(folha(&ausente), "hipotese_legal_ajax_nao_declarada");
-        assert_eq!(caminho_de(&ausente), ["tela", "html", "ausente"]);
+        assert_eq!(caminho_de(&ausente), ["html", "ausente"]);
         let transporte = ErroHipotese::de_transporte(&FalhaTransporte::Rede);
         assert_eq!(folha(&transporte), "falha_de_rede");
         assert_eq!(caminho_de(&transporte), ["transporte", "rede"]);
