@@ -203,7 +203,10 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
         ok(trabalhar()),
         ok(arvore(
             &[UNIDADE],
-            &[acao_da_barra(&link_das_propriedades("procedimento_alterar", "10"))],
+            &[acao_da_barra(&link_das_propriedades(
+                "procedimento_alterar",
+                "10",
+            ))],
         )),
         // Mesmo ID/NUP, mas tipo e especificação diferentes dos do pedido.
         ok(tela_das_propriedades(NUP, "10")),
@@ -219,7 +222,10 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
     });
     let erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
     assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "propriedades_divergentes_apos_post_criador");
+    assert_eq!(
+        erro.subcodigo(),
+        "propriedades_divergentes_apos_post_criador"
+    );
     assert_eq!(requests.len(), 7); // 3 GET + 1 POST + tela + árvore + propriedades
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(requests[6].metodo, "GET");
