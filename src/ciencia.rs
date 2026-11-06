@@ -198,16 +198,22 @@ pub(crate) fn atividade_do_aceite(
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
     use ErroCiencia as E;
-    // Script de template é inerte mesmo se o seletor DOM o percorrer.
-    // Não inferir atividade a partir de trecho que o navegador não executaria.
+    // Com JavaScript ativo, scripts em <template> e <noscript> não rodam,
+    // ainda que o parser HTML exponha esses nós a query_selector("script").
+    // Não inferir atividade de recarga inerte: poderia ser ciência antiga.
     let minusculas = html.to_ascii_lowercase();
-    if minusculas.split("<template").skip(1).any(|parte| {
-        parte
-            .split("</template")
-            .next()
-            .is_some_and(|fragmento| fragmento.contains("<script"))
-    }) {
-        return Err(E::AceiteSemAtividade);
+    for (abertura, fechamento) in [
+        ("<template", "</template"),
+        ("<noscript", "</noscript"),
+    ] {
+        if minusculas.split(abertura).skip(1).any(|parte| {
+            parte
+                .split(fechamento)
+                .next()
+                .is_some_and(|fragmento| fragmento.contains("<script"))
+        }) {
+            return Err(E::AceiteSemAtividade);
+        }
     }
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
     let parser = dom.parser();
