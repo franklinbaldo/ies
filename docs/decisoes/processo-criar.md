@@ -235,3 +235,36 @@ e **zero POST criador** na recusa. A execução Rust RED e os gates
 do head desta continuação ainda dependem de CI; o sandbox não tem
 `cargo` nem DNS para obter a toolchain. Não extrapolar uma verificação
 estática para PASS nem alegar que houve validação ao vivo.
+
+
+## Causa tipada da hipótese legal AJAX — continuação #245
+
+A recusa de hipótese legal carregada por AJAX não deve reconstruir um
+subcódigo de transporte a partir de string. O leitor agora deriva
+`crate::erro_publico::Causa`, compõe `FalhaTransporte` integralmente
+com `#[causa(interna)]` e delega a folha pública ao derive. Isso mantém
+o status HTTP e a mensagem saneada, inclusive numa resposta 503, sem
+perder a variante do erro.
+
+Formas não observadas da tela/XML passam pela variante transparente
+`ErroHtml`: link AJAX não publicado (`ausente`), derivação de consulta
+sem forma segura (`valor`) e XML/resposta ilegível (`html`). Seus nomes
+públicos anteriores são conservados em `onde`, sem criar uma variante
+de domínio para cada defeito de formato. As duas recusas de lista
+(`OpcaoNaoUnica` e `OpcoesDisponiveis`) conservam a mesma folha
+`hipotese_legal_ajax_nao_unica`, mas continuam diferenciáveis por tipo
+e apenas a segunda carrega opções publicáveis.
+
+Foram publicados dois testes sintéticos **antes** da refatoração, no
+commit `95bc21e`, cobrindo folha/caminho tipados e propagação HTTP
+503. O CI desse commit foi cancelado após mostrar falha de compilação;
+**não há contagem isolada de testes RED aferida**. A implementação e o
+merge da `main` foram publicados na mesma PR #283, sem rebase, incluindo
+ajuste da chamada ao leitor de cadastro no replay após migração de
+`ErroCadastro` para `ErroHtml`. O fluxo HTTP não ganhou requisições
+nem autorização nova de escrita.
+
+A escrita real anteriormente tentada na UnB treinamento permanece com
+efeito **INCONCLUSIVO**; nenhuma mudança de tipagem autoriza repetir
+o POST de criação. A conciliação exclusivamente por leitura e a
+remoção do workflow temporário ainda precisam de evidências próprias.
