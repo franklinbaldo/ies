@@ -172,3 +172,20 @@ A recusa conservadora é a mesma já aplicada a `<template>`: após o GET
 único, ausência de prova visível da atividade retorna saída 3, sem
 transformar uma ciência antiga em confirmação da tentativa. Esse controle
 não adiciona requisições. Live e replay específico ainda pendentes.
+
+## Aceite inerte dentro de `noscript` (regressão #271)
+
+A resposta do GET mutador também não comprova `id_atividade` quando
+`<script>atualizarArvore(...)</script>` aparece apenas dentro de
+`<noscript>` (com JavaScript habilitado). Assim como `<template>`,
+o contêiner não executa a recarga, embora o parser encontre a chamada.
+A verificação lê novamente a árvore, não usa a lista antiga sem aceite
+válido e retorna **efeito incerto (3)**: 6 GET sintéticos, exatamente
+um potencialmente mutador e zero retry. Testes RED de leitor e fluxo
+foram publicados antes da correção, no [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
+(2 FAIL / 1.775 PASS / 22 ignored anteriores).
+
+O replay de ciência dispõe de teste `ciencia::acervo::replay_da_ciencia_no_acervo`
+que confere os 14 cards, respectivos ZIPs/membros e chama os leitores
+reais offline. Sucesso do replay **não comprova sozinho** a ciência
+persistida; identidade do usuário e efeito ainda exigem ensaio live.

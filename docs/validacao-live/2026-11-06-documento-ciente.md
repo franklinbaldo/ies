@@ -116,3 +116,26 @@ verificação live NOT_RUN (0). Replay específico de `processo-ciente`/
 `documento-ciente` NOT_RUN. **0 requisições reais, 0 escritas e 0
 resíduos novos no SEI.** Os replays genéricos do CI não suprem essa prova.
 A issue permanece WIP até replay dedicado e ensaio seguro em treinamento.
+
+## 🦊 Continuação — script do aceite em `noscript` (#271)
+
+O parser do IES expunha a chamada `atualizarArvore` inserida dentro de
+`<noscript><script>...`, apesar de o navegador com JS habilitado não
+executá-la. O oráculo estrutural é a exigência de script ativo no aceite:
+a URL de uma ciência antiga não pode comprovar o GET atual.
+
+**RED comprovado:** [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489):
+`script_dentro_de_noscript_nao_prova_aceite` devolvia indevidamente
+`Ok("42457")`; `script_inerte_em_noscript_nao_confirma_ciencia_antiga`
+tentava GET de lista além do roteiro sintético.
+**2 FAIL novos / 1.775 PASS / 22 ignorados anteriores**. Não houve
+`#[ignore]` novo para mascarar a falha. Correção: recusa estática de
+script em `noscript`, releitura sem lista antiga e saída 3; orçamento
+sintético 6 GET, um único mutador, zero retry.
+
+Foi acrescentado replay offline específico com 14 cards das sete
+instalações e hashes verificados pelo leitor comum do acervo. **Resultado
+efetivo do replay: pendente da execução no runner**; não marcar PASS
+antes dos logs. Prévia live UnB **NOT_RUN (0 req)**; segunda instalação
+**NOT_RUN (0)**; confirmação **NOT_RUN (0 mutadores)**; releitura live
+**NOT_RUN (0)**. Até aqui, **0 requisições SEI, 0 escritas, 0 resíduos**.

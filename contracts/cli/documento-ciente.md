@@ -117,3 +117,17 @@ reconhecedor rejeita `<noscript>` ou `<template>` ancestral/descendente
 da tabela de prova; a confirmação sem prova fica em **efeito incerto (3)**.
 Teste documental: 7 GET, exatamente 1 mutador, sem retry. Nenhum efeito
 adicional da prévia. Falta validar as formas nas instalações de treinamento.
+
+## Script de aceite em `noscript` (regressão #271)
+
+Em `<noscript>`, um `<script>` não executado não comprova a recarga
+da árvore nem o `id_atividade` do documento quando a sessão Web usa JS.
+O leitor compartilhado recusa a forma inerte, mesmo que o parser HTML
+a exponha, e a ausência de prova após o GET único resulta em saída 3,
+sem repetir escrita. RED do leitor e do fluxo de processo:
+[CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489),
+2 falhas novas / 1.775 PASS / 22 ignored preexistentes.
+
+O replay offline dedicado de `processo-ciente` e `documento-ciente`
+usa os mesmos leitores e hashes do acervo. Não converte resposta 200/302
+em confirmação, nem dispensa leitura independente live.

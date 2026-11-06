@@ -117,3 +117,21 @@ RED sintético da prova em `<noscript>`:
 `src/ciencia/tests.rs`, `src/ciencia/tests_fluxo.rs` e
 `src/ciencia/tests_documento/efeitos_incertos.rs`. CI de GREEN deve ser
 conferido na PR #337, sempre no head exato.
+
+## Recusa de scripts em `noscript` e replay específico
+
+O leitor de aceite, além de recusar provas de tabela inerte, rejeita
+`atualizarArvore` quando o script está em `<noscript>` e o SEI exige
+JavaScript ativo. A árvore deve ser relida mesmo se a resposta do GET
+mutador for ilegível; não usar ciência anterior como sucesso.
+
+O [RED 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
+provou duas falhas antes do código: leitor retornava `Ok(id)` para
+script inerte e o fluxo tentava ler a lista sem aceite comprovável
+(1.775 PASS, 2 FAIL, 22 ignorados anteriores).
+
+Para confrontar as cassettes, o teste Rust `ciencia::acervo::replay_da_ciencia_no_acervo`
+lê exclusivamente os 14 cards das sete instalações; reutiliza o
+conferidor de ZIP/cassette e os leitores `atividade_do_aceite` e
+`atividade_na_lista`, sem executar GET nem JavaScript. A classificação
+é somente das **respostas gravadas**, não prova de escrita atual.
