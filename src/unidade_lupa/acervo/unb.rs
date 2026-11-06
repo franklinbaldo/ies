@@ -2,10 +2,10 @@
 //! Somente leitura de ZIP verificado, nunca rede nem segredos.
 use super::super::fluxo;
 use super::{ZipDoAcervo, conferir_cassette_ate, gravacao, html_da_resposta, ler_pagina};
-use std::path::Path;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
+use std::path::Path;
 
 struct TransporteGravado {
     passos: Vec<(bool, String)>,
