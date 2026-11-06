@@ -294,3 +294,40 @@ fn foto_inicial_sem_id_do_processo_recusa_antes_do_post() {
         "identidade ausente não autoriza POST"
     );
 }
+
+#[test]
+fn redirect_para_host_externo_nao_comprova_criacao() {
+    // Um 302 não seguido para outro host NÃO vincula o documento novo
+    // ao único POST. Mudança concorrente da árvore continua inconclusiva.
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let externo = "https://externo.exemplo.test/sei/controlador.php?acao=procedimento_trabalhar";
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code: 302,
+                    mime: "text/html; charset=UTF-8".to_owned(),
+                    content_length: None,
+                    localizacao: Some(externo.to_owned()),
+                    corpo: Cursor::new(Vec::<u8>::new()),
+                },
+                localizacao: Some(externo.to_owned()),
+            })
+        },
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
+}
