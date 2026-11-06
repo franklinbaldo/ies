@@ -104,11 +104,16 @@ Depois da tentativa de POST criador, a nova leitura de Gerados identifica
 os candidatos. Para **cada** ID/NUP novo, a CLI segue somente o link
 de trabalho servido na linha correspondente, confere árvore e unidade e
 lê propriedades (tipo e especificação). São **1 GET da caixa + 3 GET
-por candidato**, sem retry. Uma única correspondência exata permite
-retornar criação aplicada (saída 0), NUP e `causa_post`; se a
-reconciliação falhar ou continuar ambígua, saída 3, sem autorizar
-outra escrita. A prova não inclui ainda um desfecho automático
-conclusivo de não aplicação. Live: NOT_RUN nesta fatia.
+por candidato**, sem retry. A conferência prova a identidade e
+as propriedades de um **candidato**, mas não atribui causalidade ao POST
+sem resposta em uma conta compartilhada: um agente concorrente poderia
+ter criado um processo indistinguível na mesma janela. Mesmo havendo
+exatamente um correspondente, o resultado é saída 3, possível resíduo
+e causa do POST preservada. Duas ou mais coincidências são ambíguas;
+nenhuma ou leitura interrompida continua inconclusiva. Somente um
+`Location` legítimo vinculado ao POST e verificado por leituras
+independentes pode produzir sucesso. A recusa literal da Infra é
+a prova distinta de não aplicação. Live: NOT_RUN nesta fatia.
 
 | Subcódigo | Fato |
 | --- | --- |
@@ -244,3 +249,27 @@ sem abrir o processo preexistente e sem tentar outro POST. O caso adversarial
 sintético exige **3 GET iniciais + 1 POST = 4 requisições**,
 zero GET de verificação supérfluo, zero retry. A fotografia não é
 prova universal de causalidade, mas é uma condição necessária adicional.
+
+## Concorrência indistinguível: candidato único não prova autoria (06/11/2026)
+
+Depois de um POST sem resposta, mesmo a diferença entre fotografias
+completas de Gerados seguida de três GET por candidato, confirmação de
+ID/NUP, tipo, especificação, nível e interessados só demonstra
+**coincidência**. Sem o recibo causal da escrita, outra sessão
+pode produzir exatamente a mesma diferença durante a janela observada.
+
+O classificador tipado devolve `CoincidenciaUnica` (fato sobre
+propriedades), mas a fronteira de escrita **não** define
+`confirmado: true`: devolve código 3, subcódigo
+`candidato_unico_sem_prova_causal`, JSON `desfecho: possivel_residuo`,
+`candidatos_compativeis`, causa original do POST e proibição de retry.
+Com dois candidatos dos quais só um coincide, lê **ambos** antes de
+classificar; não atribui o correspondente à operação. As coincidências
+parciais após falha de outra leitura permanecem sem desfecho conclusivo.
+
+Testes sintéticos verificam 8 pedidos com um candidato (3 GET iniciais,
+1 POST, 1 GET Controle posterior, 3 GET propriedades/árvore), e 11
+pedidos com dois candidatos, **sempre 1 POST criador, sem retry**.
+A mudança não envia requisições novas. A validação real em segunda
+instalação de treinamento continua NOT_RUN, e o POST histórico da UnB
+não deve ser repetido.
