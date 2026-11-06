@@ -148,9 +148,9 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         };
         let literal = &resto[..fim];
         let depois_do_literal = resto[fim + 1..].trim_start();
-        if !literal.contains('\\')
-            && (depois_do_literal.starts_with(')') || depois_do_literal.starts_with(','))
-        {
+        // Só a chamada literal com um argumento foi observada no aceite.
+        // Um segundo argumento pode lançar erro ANTES de executar a função.
+        if !literal.contains('\\') && depois_do_literal.starts_with(')') {
             achados.push(literal);
         }
     }
