@@ -185,7 +185,8 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
     let erro = resultado.expect_err("recusa HTTP 403 nao confirma escrita");
     assert_eq!(erro.subcodigo(), "sessao_nao_autorizada");
     assert!(!erro.nao_aplicada_comprovada()); // 403 por si não prova ausência de efeito
-    assert_eq!(erro.saida(), 1);
+    // HTTP 403 não prova não aplicação: o efeito segue incerto, saída 3.
+    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|status| status.status), Some(403));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
