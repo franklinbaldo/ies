@@ -160,3 +160,63 @@ sem retry e sem produção. Este relatório não afirma PASS live.
 - **Gates:** PASS no head `dc9fbf8`, [run 42112344927](https://github.com/franklinbaldo/ies/actions/runs/42112344927). **Replay:** PASS, seis respostas GO (3 GET, 3 POST), ZIP público conferido, [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185). Zero requisições reais ao SEI nesse replay.
 - **Sandbox Rust / RED local:** NOT_RUN (sem toolchain e sem DNS para instalar). **Live UnB:** NOT_RUN, 0 requisições. **Live GO:** NOT_RUN, 0 requisições. **Pesquisa live:** NOT_RUN. Nenhuma escrita, nenhum resíduo remoto.
 - Ainda faltam ensaios autenticados em UnB/GO, cobertura da coleta integral de múltiplas páginas, integração com a `main` e remoção dos workflows temporários antes de integrar a PR.
+
+
+## Nova fatia 🦊 após a integração da PR #250 — observação pré-RED
+
+**Fonte observada (código já publicado na main, não resposta live):**
+`src/processo_enviar_cli.rs` associa `sugestoes_guardadas` ao erro
+`DestinoNaoOferecidoPeloSei` quando encontra sugestões do snapshot
+SQLite. Porém a apresentação humana é delegada a
+`processo_concluir_cli::publicar_valor_da_falha`, que exibe
+`erro`, `subcodigo`, `aberto_em`, `depois`, `falha_do_envio`
+e `verificacao`, **não** `sugestoes_guardadas`. Assim as sugestões
+ficam acessíveis no modo JSON, mas invisíveis no modo humano.
+A correção terá escopo limitado a `processo enviar`; o SEI
+continuará sendo a autoridade sobre o destino efetivamente oferecido.
+
+**Acervo observado:** o card
+`cassettes/go/unidade-listar-destinos-go--965da599b3e4.md`
+identifica o ZIP público com SHA-1 fixo. O teste Rust existente
+`unidade_lupa::acervo::replay_da_lupa_go_no_acervo` confere o membro
+e processa seis respostas (3 GET e 3 POST) sem contato com o SEI,
+mas ainda está fora do CI canônico. A nova PR integra o replay
+à execução obrigatória do mesmo `ci.yml`. Este replay não demonstra
+coleta integral de 274 páginas e não substitui live UnB/GO.
+
+## Retomada 🦊 — integração da sugestão, com transporte e SQLite sintéticos
+
+A revisão da [PR #297](https://github.com/franklinbaldo/ies/pull/297#issuecomment-6672507390)
+pediu prova além da função formatadora. A observação pré-RED identificou
+que o autocomplete Web continua sendo a autoridade e que a sugestão
+vem exclusivamente do snapshot da mesma instalação e unidade ativa,
+como nos cenários do Todos `tests/test_destinos_indice_010.py`
+@`323eb01` e no fluxo sintético de `processo_enviar/tests_apoio.rs`.
+
+O novo teste `sugestoes_guardadas_compoem_erro_web_sem_consulta_extra`
+executa o fluxo de envio com **transporte roteirizado sintético**,
+autocomplete recusando a sigla e SQLite real em diretório temporário.
+Confronta JSON, aviso humano, código de saída, isolamento por unidade,
+ausência de lista e `--confirmar` sem POST de escrita. O roteiro exige
+**4 GET + 1 POST de consulta = 5 requisições simuladas**, sem pedidos
+adicionais para sugestões, sem contato com o SEI. Não é teste de captura
+real do stdout/stderr do binário, nem substitui o live.
+
+- **RED antes do GREEN:** 1 falha no teste novo, 1.574 passes e
+  16 ignorados no [CI 42134942869](https://github.com/franklinbaldo/ies/actions/runs/42134942869),
+  commit `689367f`; o shim ainda devolvia apenas o erro Web
+  (`sugestoes_guardadas = null`). Outros gates e replay offline passaram.
+- **GREEN de comportamento:** suíte Rust PASS após ligar a consulta
+  SQLite no commit `3f9d0bc`, [CI 42135235123](https://github.com/franklinbaldo/ies/actions/runs/42135235123).
+  Esse run permaneceu vermelho em **Rustfmt e Clippy do teste novo**,
+  corrigidos no commit subsequente, sem enfraquecer as asserções.
+- **Sandbox local:** `cargo`/`rustup` NOT_RUN (ausentes; DNS bloqueado);
+  compilação real, suíte e replay conferidos no GitHub Actions.
+- **Live UnB:** NOT_RUN, 0 requisições. **Live GO:** NOT_RUN,
+  0 requisições. **Pesquisa após coleta live:** NOT_RUN, 0 requisições.
+  **Escrita remota:** NOT_RUN, 0 requisições e nenhum resíduo.
+
+Faltam a coleta autenticada integral UnB/GO, a pesquisa local subsequente
+com 0 HTTP e a captura ponta a ponta de stdout/stderr humano da CLI.
+O replay GO obrigatório no CI comprova somente 3 GET e 3 POST **gravados**,
+não as 274 páginas da lista GO. A issue não está concluída.

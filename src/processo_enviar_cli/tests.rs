@@ -115,3 +115,125 @@ fn sigla_de_destino_e_conferida_antes_de_tudo() {
         Err("mais_de_um_destino_nao_suportado")
     );
 }
+
+#[test]
+fn erro_de_envio_exibe_sugestoes_guardadas_no_modo_humano() {
+    // #244: o JSON ja continha as sugestoes, mas o texto humano nao.
+    // Somente unidades guardadas; nunca declarar que o SEI as ofereceu.
+    let erro = json!({
+        "subcodigo": "destino_nao_oferecido_pelo_sei",
+        "sugestoes_guardadas": [
+            "ABC/GECONT - Contabilidade",
+            "ABC/GECONT-18141 - Contabilidade regional"
+        ]
+    });
+    assert_eq!(
+        super::texto_das_sugestoes(&erro).as_deref(),
+        Some(concat!(
+            "IES: sugestões guardadas (não confirmadas pelo SEI): ",
+            "ABC/GECONT - Contabilidade, ",
+            "ABC/GECONT-18141 - Contabilidade regional"
+        ))
+    );
+    assert_eq!(super::texto_das_sugestoes(&json!({})), None);
+    assert_eq!(
+        super::texto_das_sugestoes(&json!({"sugestoes_guardadas": []})),
+        None
+    );
+}
+
+#[test]
+fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
+    // Caso de Todos tests/test_destinos_indice_010.py @323eb01:
+    // apenas o autocomplete do SEI escolhe o destino. A lista SQLite
+    // pode sugerir, mas não acrescenta HTTP, nem autoriza escrita.
+    use crate::indice_local::{UnidadeGuardada, unidade_dos_links};
+    use crate::processo_concluir::tests_apoio::{
+        ID, ORIGEM, UNIDADE, abertura, ambiente, arvore, ok, rodar_com, url_controle,
+    };
+    use crate::processo_enviar::tests_apoio::{
+        DESTINO, Versao, enviar, resposta_xml, tela_de_envio,
+    };
+    use crate::processo_enviar::{PedidoDoEnvio, enviar_processo};
+
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar(ORIGEM).expect("origem sintética HTTPS");
+    let chave = instalacao.url_base();
+    let ativa = unidade_dos_links(&url_controle()).expect("unidade da sessão sintética");
+    let guardada = UnidadeGuardada {
+        id: "900".into(),
+        sigla: DESTINO.into(),
+        descricao: "Unidade guardada".into(),
+        orgao: "Sintético".into(),
+    };
+
+    for (unidade_da_lista, confirmar) in [
+        (Some(ativa.as_str()), false),
+        (Some("999"), true),
+        (None, false),
+    ] {
+        let ambiente = ambiente();
+        if let Some(unidade) = unidade_da_lista {
+            assert!(ambiente.indice.guardar_lista_de_unidades(
+                &chave,
+                unidade,
+                std::slice::from_ref(&guardada),
+                1,
+            ));
+        }
+        let mut respostas = abertura(arvore(&[UNIDADE], &enviar()));
+        respostas.extend([
+            ok(tela_de_envio(Versao::V41, ID)),
+            ok(resposta_xml(&[(
+                "901",
+                "OUTRA - Destino publicado pelo SEI",
+            )])),
+        ]);
+        let ((valor, mensagem, subcodigo, saida), pedidos) =
+            rodar_com(&ambiente, respostas, |sessao, nup, indice, roteiro| {
+                let pedido = PedidoDoEnvio {
+                    nup,
+                    unidade: None,
+                    para: DESTINO,
+                    manter_aberto: false,
+                    confirmar,
+                };
+                let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
+                let valor = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
+                (
+                    valor.clone(),
+                    super::texto_das_sugestoes(&valor),
+                    erro.subcodigo().to_owned(),
+                    erro.saida(),
+                )
+            });
+        // Quatro GET de navegação e um POST apenas de consulta.
+        // Mesmo confirmar=true não faz POST de escrita sem destino do SEI.
+        assert_eq!(
+            pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(),
+            vec!["GET", "GET", "GET", "GET", "POST"],
+        );
+        assert_eq!(pedidos.len(), 5);
+        assert_eq!(subcodigo, "destino_nao_oferecido_pelo_sei");
+        assert_eq!(saida, 1);
+        assert_eq!(
+            valor["oferecidos"],
+            json!(["OUTRA - Destino publicado pelo SEI"]),
+        );
+        if unidade_da_lista == Some(ativa.as_str()) {
+            assert_eq!(
+                valor["sugestoes_guardadas"],
+                json!(["TESTE_1_1 - Unidade guardada"]),
+            );
+            assert_eq!(
+                mensagem.as_deref(),
+                Some(
+                    "IES: sugestões guardadas (não confirmadas pelo SEI): TESTE_1_1 - Unidade guardada"
+                ),
+            );
+        } else {
+            assert!(valor.get("sugestoes_guardadas").is_none());
+            assert_eq!(mensagem, None);
+        }
+    }
+}
