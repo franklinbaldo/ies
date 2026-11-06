@@ -237,3 +237,25 @@ relaxamento de validação. RED sintético:
 [CI 42226093955](https://github.com/franklinbaldo/ies/actions/runs/42226093955),
 **1 FAIL / 1.711 PASS / 22 ignored preexistentes** na asserção
 que exigia o NUP comprovado. Budget: 9 pedidos, um POST.
+
+
+### Prova completa após Location válido (06/11, #245)
+
+Mesmo quando o POST recebe `302 Location` válido e a árvore apresenta
+ID/NUP coerentes, esses dois fatos não comprovam que o processo contém
+o tipo, a especificação e o nível de acesso pedidos. A alternativa de
+considerar o NUP suficiente publicava `confirmado: true` antes da leitura
+das propriedades. A escolha agora é reutilizar o leitor de propriedades
+existente, a partir do link servido na árvore (sem construir URL), e
+comparar esses três campos antes de confirmar. Falta do link, falha da
+leitura ou divergência encerram com saída 3 e causa tipada; sem retry.
+
+O novo teste adversarial usa 3 GET de preparo, 1 POST de criação,
+1 GET de tela, 1 GET de árvore e 1 GET de propriedades (7 requisições
+sintéticas). O RED do teste anterior ao código foi observado no
+[CI 42234422953](https://github.com/franklinbaldo/ies/actions/runs/42234422953):
+**1 FAIL / 1.718 PASS / 22 ignored preexistentes**; o teste encontrou
+uma resposta adicional não consumida, evidenciando que o leitor parava
+na árvore. As verificações positivas sintéticas 4.0, 4.1 e restrita
+passam a ter três leituras pós-POST em vez de duas. O comportamento ao
+vivo em segunda instalação continua NOT_RUN.
