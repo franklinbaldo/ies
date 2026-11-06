@@ -260,7 +260,7 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
     assert_eq!(diagnostico.causa_post, "falha_de_rede");
     assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(
-        diagnostico.candidatos_compativeis,
+        diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
     );
     assert_eq!(requests.len(), 11); // 3 GET + 1 POST + 1 Controle + 3 GET por candidato
