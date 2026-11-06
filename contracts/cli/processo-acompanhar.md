@@ -21,8 +21,10 @@ Com acompanhamentos, a página publica a tabela com resumo
 `Tabela de Acompanhamentos.` e `btnAdicionar`, cuja URL vem da própria
 tela. A lista incompleta não prova ausência. O grupo é escolhido pelo
 **nome exato** entre as opções habilitadas de `selGrupoAcompanhamento`.
-Grupo ausente ou repetido é erro tipado. O nome vazio usa a opção em
-branco servida; não se inventa seu valor.
+Grupo ausente ou repetido é erro tipado. A lista também recusa duas
+linhas com o mesmo grupo e IDs distintos: nesse estado, selecionar a
+primeira linha não comprovaria idempotência nem identidade do acompanhamento.
+O nome vazio usa a opção em branco servida; não se inventa seu valor.
 
 `--deixar` seleciona uma linha pela identidade; na ausência de
 `--grupo`, exige no máximo uma. A prévia exige ainda o link `acaoExcluir`
