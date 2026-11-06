@@ -96,6 +96,12 @@ fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
     )
 }
 
+/// Construção pura para testar que a recusa do próprio cadastro distingue
+/// não aplicação comprovada de erro HTTP sem garantia de não aplicação.
+fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str) -> serde_json::Value {
+    json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http())
+}
+
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
     if erro.saida() != 3 {
         let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
@@ -118,7 +124,11 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             return ExitCode::from(1);
         }
         // Status e mensagem saneada do SEI vão para a saída quando houve.
-        return erro_fonte_http(json_mode, erro.subcodigo(), mensagem, erro.status_http());
+        if json_mode {
+            println!("{}", json_da_recusa_criadora(erro, mensagem));
+            return ExitCode::from(1);
+        }
+        return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
     }
     // O GET de reconciliação é só observação: sem conferir tipo e
     // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
@@ -334,6 +344,36 @@ mod tests {
                 { "id": "32", "nome": "Base B", "argumento": "32#Base B" }
             ])
         );
+    }
+
+    #[test]
+    fn recusa_explicita_publica_nao_aplicada_sem_inferir_de_403() {
+        use crate::formulario_web::ErroSubmissaoFormulario;
+        use crate::transporte::StatusHttpRecusado;
+        let recusada = ErroCriar::RecusaDoPost(
+            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
+                status: 200,
+                mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
+            }),
+        );
+        let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida");
+        assert_eq!(json["desfecho"], "nao_aplicada");
+        assert_eq!(json["repeticao_segura_com_nova_previa"], true);
+        assert_eq!(json["retentavel"], false); // nunca retry automatico
+        assert_eq!(json["mensagem_do_servidor"], "Cadastro recusado");
+        assert!(json.get("status_http").is_none()); // validacao da Infra foi HTTP 200
+
+        // Um 403 pode vir de intermediário: não confundir com prova do SEI.
+        let http = ErroCriar::RecusaDoPost(ErroSubmissaoFormulario::Transporte(
+            crate::transporte::FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("Proibido".to_owned()),
+            }),
+        ));
+        let json_http = json_da_recusa_criadora(&http, "Recusa HTTP");
+        assert!(json_http.get("desfecho").is_none());
+        assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
+        assert_eq!(json_http["status_http"], 403);
     }
 
     #[test]
