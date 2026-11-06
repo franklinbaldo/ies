@@ -73,6 +73,10 @@ impl FotografiaDosGerados {
     }
 }
 
+#[allow(dead_code)] // classificador test-first; ligação de transporte em fatia seguinte.
+#[path = "desfechos.rs"]
+pub(crate) mod desfechos;
+
 #[cfg(test)]
 #[path = "tests_reconciliacao.rs"]
 mod tests;
