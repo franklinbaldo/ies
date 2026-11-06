@@ -301,14 +301,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     #[cfg(unix)]
     if sessao.origem == "https://sei.treinamento.unb.br/sei" {
         if let Ok(caminho) = std::env::var("IES246_CAPTURA_PRIVADA") {
-            use std::io::Write as _;
-            use std::os::unix::fs::OpenOptionsExt as _;
-            let resultado = std::fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .mode(0o600)
-                .open(caminho)
-                .and_then(|mut arquivo| arquivo.write_all(html_cadastro.as_bytes()));
+            let resultado = crate::arquivo_privado::gravar(
+                std::path::Path::new(&caminho),
+                html_cadastro.as_bytes(),
+                crate::arquivo_privado::Politica::exclusiva()
+                    .diretorio_do_ies()
+                    .com_limite(1_000_000),
+            );
             if resultado.is_err() {
                 eprintln!("IES246: diagnostico privado indisponivel");
             }

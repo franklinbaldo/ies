@@ -179,15 +179,22 @@ jobs:
                   corpo = "\n".join(script["texto"])
                   if ("confirmarDados" in corpo or "submeter" in corpo or "hdnFlagDocumentoCadastro" in corpo):
                       linhas = corpo.splitlines()
-                      selecionadas = [s for s in linhas if any(x in s for x in
-                                     ("function", "confirmarDados", "submeter", "OnSubmitForm",
-                                      "hdnFlagDocumentoCadastro", "frmDocumentoCadastro",
-                                      "desabilitarBotaoSalvar", "btnSalvar"))]
+                      alvos = ("confirmarDados", "submeter", "OnSubmitForm",
+                               "hdnFlagDocumentoCadastro", "frmDocumentoCadastro",
+                               "desabilitarBotaoSalvar", "btnSalvar")
+                      posicoes = {j for j, s in enumerate(linhas)
+                                  if any(alvo in s for alvo in alvos)}
+                      vizinhas = sorted({k for j in posicoes
+                                          for k in range(max(0, j - 2), min(len(linhas), j + 3))})
                       print(json.dumps({
                           "script_index": i, "src": script["src"],
                           "type_classico": script["type_classico"],
                           "inerte_template": script["inerte_template"],
-                          "linhas_relevantes_tokenizadas": [tokens(s, 90) for s in selecionadas[:35]],
+                          "total_linhas_relevantes": len(posicoes),
+                          "linhas_relevantes_tokenizadas": [
+                              {"linha": j + 1, "tokens": tokens(linhas[j], 110)}
+                              for j in vizinhas[:100]
+                          ],
                       }, ensure_ascii=False), flush=True)
               capture.unlink()
           PY
