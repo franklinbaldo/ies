@@ -167,3 +167,21 @@ Não repetir o POST histórico da UnB que criou o NUP
 pendente; confirmar somente se for possível cumprir toda a sequência
 prévia → confirmação única → verificação por leitura → registro do
 resíduo. Issue #245 continua WIP.
+
+## Continuação 🦉 — HTTP do GET de reconciliação (06/11/2026)
+
+A evidência de base é a distinção já tipada entre falha de rede e
+HTTP 5xx no transporte, sem alegar uma nova ocorrência real no SEI.
+RED no [CI 42217861035](https://github.com/franklinbaldo/ies/actions/runs/42217861035):
+**1 FAIL novo, 1.708 PASS e 22 ignored preexistentes**, porque o POST
+sem resposta tinha `status_http: null`, embora o GET posterior houvesse
+observado HTTP 503. A correção preserva o status da releitura e,
+quando os dois estágios têm status distintos, publica-os separadamente.
+
+Nos testes sintéticos, cada execução consome **3 GET prévios + 1 POST
+criador + 1 GET posterior = 5 pedidos**, um único POST, zero retry.
+Live nesta fatia: prévia **NOT_RUN (0)**; confirmação **NOT_RUN (0)**;
+releitura **NOT_RUN (0)**; total **0 requisições reais**, **0 escritas**
+e **0 resíduos novos**. O histórico UnB `23106.001875/2026-93`
+não será repetido. Segunda instalação de treinamento e sequência
+segura prévia → confirmação única → leitura seguem pendentes.
