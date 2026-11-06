@@ -60,9 +60,7 @@ pub(crate) fn classificar(
         let lido = por_id
             .get(candidato.id.as_str())
             .ok_or(ErroConferencia::LeituraAusente)?;
-        let (Some(tipo_lido), Some(especificacao_lida)) =
-            (&lido.tipo, &lido.especificacao)
-        else {
+        let (Some(tipo_lido), Some(especificacao_lida)) = (&lido.tipo, &lido.especificacao) else {
             return Err(ErroConferencia::PropriedadesNaoObservadas);
         };
         if tipo_lido == tipo && especificacao_lida == especificacao {
@@ -86,7 +84,10 @@ mod tests {
     const ESPECIFICACAO: &str = "Ensaio issue 245";
 
     fn candidato(id: &str, nup: &str) -> CandidatoGerado {
-        CandidatoGerado { id: id.into(), nup: nup.into() }
+        CandidatoGerado {
+            id: id.into(),
+            nup: nup.into(),
+        }
     }
 
     fn prova(id: &str, nup: &str, tipo: Option<&str>, esp: Option<&str>) -> ProcessoConferido {
@@ -101,10 +102,17 @@ mod tests {
     #[test]
     fn unica_prova_com_tipo_e_especificacao_exatos_conclui_aplicada() {
         let candidatos = vec![candidato("17", "00000.000017/2026-17")];
-        let conferidos = vec![prova("17", "00000.000017/2026-17", Some(TIPO), Some(ESPECIFICACAO))];
+        let conferidos = vec![prova(
+            "17",
+            "00000.000017/2026-17",
+            Some(TIPO),
+            Some(ESPECIFICACAO),
+        )];
         assert_eq!(
             classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO),
-            Ok(Desfecho::Aplicada { nup: "00000.000017/2026-17".into() })
+            Ok(Desfecho::Aplicada {
+                nup: "00000.000017/2026-17".into()
+            })
         );
     }
 
@@ -117,7 +125,9 @@ mod tests {
         ];
         assert_eq!(
             classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO),
-            Ok(Desfecho::CandidatosAmbiguos { nups: vec!["NUP-17".into(), "NUP-18".into()] })
+            Ok(Desfecho::CandidatosAmbiguos {
+                nups: vec!["NUP-17".into(), "NUP-18".into()]
+            })
         );
     }
 
