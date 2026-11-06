@@ -148,6 +148,7 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
+        ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -158,8 +159,13 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
             rede,
         )
     });
-    assert!(matches!(resultado, Err(ErroCriar::EfeitoIncerto)));
-    assert_eq!(requests.len(), 4);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    let diagnostico = erro.diagnostico_apos_post().unwrap();
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_releitura, None);
+    assert_eq!(diagnostico.candidatos_observados, Some(Vec::new()));
+    assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
@@ -487,4 +493,65 @@ fn previa_nao_exige_fotografia_completa_de_gerados() {
     assert!(!resultado.unwrap().confirmado);
     assert_eq!(requests.len(), 3);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
+}
+
+/// #245: resposta de POST sem prova exige leitura nova do Controle, não retry.
+#[test]
+fn falha_do_post_dispara_uma_unica_leitura_nova_dos_gerados() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(tela_controle()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(resultado.unwrap_err().saida(), 3);
+    assert_eq!(requests.len(), 5);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert_eq!(requests[4].metodo, "GET");
+}
+
+/// #245: falha da própria leitura nunca autoriza concluir que não criou.
+#[test]
+fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado::sem_mensagem(503),
+        )),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(requests.len(), 5);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    let diagnostico = erro.diagnostico_apos_post().unwrap();
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(
+        diagnostico.causa_releitura,
+        Some("status_http_de_erro_do_servidor")
+    );
+    assert_eq!(diagnostico.candidatos_observados, None);
 }

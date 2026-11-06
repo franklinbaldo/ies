@@ -317,3 +317,24 @@ A fotografia é preservada no escopo do fluxo, ainda não consumida
 após falha: falta a reconciliação Web completa e a verificação independente
 de tipo/especificação, sem repetir escritas. Esta guarda restringe
 a confirmação e não constitui validação autenticada ao vivo.
+
+### Releitura única depois de falha do POST — 06/11 (#245)
+
+A evidência do ensaio UnB anterior mostrou uma criação real mesmo
+quando o POST voltou à CLI com saída 3. Foi rejeitada a alternativa
+de repetir o POST, seguir o redirect ou afirmar não aplicação só porque
+o NUP não surgiu na resposta. O caminho escolhido reutiliza a
+fotografia completa prévia de Gerados e, exclusivamente após falha
+de submissão já iniciada, lê uma única vez o Controle para obter
+candidatos novos, preservando a causa original da falha e também
+a da releitura, quando houver. Contagem sintética: 5 requests
+(3 GET, 1 POST criador e 1 GET de conferência).
+
+Esse passo é conservador: mesmo com zero candidatos, não se afirma
+que a escrita falhou; outros processos e efeitos de sessão podem
+interferir. A saída permanece 3 até leitura verificadora de cada
+candidato com ID/NUP, tipo e especificação. O classificador puro
+exige essas quatro provas, rejeita parcialidade e mantém ambiguidade
+quando vários candidatos correspondem. Ainda falta ligar
+o classificador ao transporte e à apresentação dos quatro desfechos.
+Nenhuma escrita, leitura ou ensaio live novo foi efetuado nesta fatia.
