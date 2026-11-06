@@ -284,7 +284,7 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     // genéricos: sem ID explícito, uma leitura coincidente pode ser
     // atribuição/remoção concorrente de outro agente, não deste POST.
     // O 302 é apenas inspecionado, nunca seguido.
-    let acao_esperada = matches!(acao, Some("arvore_visualizar") | Some("principal"));
+    let acao_esperada = matches!(acao, Some("arvore_visualizar" | "principal"));
     acao_esperada
         && procedimento == Some(id)
         && origem.is_none_or(|observada| observada == "procedimento_atribuicao_cadastrar")
