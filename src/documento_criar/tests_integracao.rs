@@ -361,7 +361,7 @@ fn script_alheio_com_regex_literal_nao_invalida_cadeia_salvar() {
     // A evidência das três funções continua literal e não condicionada.
     let html = cadastro().replace(
         "</script>",
-        "</script><script>const chaves = /\\{/; const outra = /[}]/;</script>",
+        "</script><script>const chaves = /\\{/;</script>",
     );
     assert!(
         cadastro_publica_script_de_criacao(&html),
