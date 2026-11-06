@@ -69,3 +69,20 @@ na escrita seguida de verificação no caso sintético). A CLI de
 live ainda não foram entregues.
 [Contrato](../contracts/cli/processo-ciente.md) ·
 [decisão](decisoes/processo-ciente.md).
+
+## Handoff #254 — acompanhamento especial (PR Draft #293)
+
+`ies processo acompanhar NUP [--grupo G] [--observacao T]
+[--deixar] [--confirmar]`: na `main`, a inclusão usa um POST da
+interface Web e uma releitura; retirada tem prévia de oferta da linha.
+A PR Draft #293 prepara o backend da retirada: `acaoExcluir` apenas
+analisado, action original e URL assinada conferidas, um POST e nova
+leitura para provar desaparecimento da linha, preservando as demais.
+Orçamento sintético proposto: 6 requests (4 GET + POST + GET), ou 7
+quando o último item exige GET do cadastro. **CI do novo head NOT_RUN,
+RED novos NOT_RUN, replay NOT_RUN, live NOT_RUN (0 requests/0 escritos,
+sem resíduo).** Por segurança, a CLI mantém `--deixar --confirmar`
+bloqueado antes de sessão/rede até os gates e a prévia autenticada.
+[Contrato](../contracts/cli/processo-acompanhar.md) ·
+[decisão](decisoes/processo-acompanhar.md) ·
+[relatório](validacao-live/2026-11-05-processo-acompanhar.md).
