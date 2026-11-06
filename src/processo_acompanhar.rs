@@ -42,7 +42,10 @@ pub(super) fn controle_inerte(
     for ancestral in dom.nodes().iter().filter_map(tl::Node::as_tag) {
         let bloqueado = presente(ancestral, "hidden")?
             || presente(ancestral, "inert")?
-            || ancestral.name().as_utf8_str().eq_ignore_ascii_case("template")
+            || ancestral
+                .name()
+                .as_utf8_str()
+                .eq_ignore_ascii_case("template")
             || (campo_form
                 && ancestral
                     .name()

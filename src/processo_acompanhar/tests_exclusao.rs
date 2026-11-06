@@ -454,4 +454,3 @@ fn previa_deixar_recusa_script_em_template_sem_post() {
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
-
