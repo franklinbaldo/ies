@@ -60,6 +60,27 @@ fn conferir_passos(
     Some(())
 }
 
+fn avancar_regex<I: Iterator<Item = char>>(
+    caractere: char,
+    restantes: &mut I,
+    dentro_de_classe: bool,
+) -> Estado {
+    match caractere {
+        '\\' => {
+            restantes.next();
+            Estado::ExpressaoRegular { dentro_de_classe }
+        }
+        '[' if !dentro_de_classe => Estado::ExpressaoRegular {
+            dentro_de_classe: true,
+        },
+        ']' if dentro_de_classe => Estado::ExpressaoRegular {
+            dentro_de_classe: false,
+        },
+        '/' if !dentro_de_classe => Estado::Codigo,
+        _ => Estado::ExpressaoRegular { dentro_de_classe },
+    }
+}
+
 /// Ler as linhas como texto, excluindo comentários, strings e blocos
 /// aninhados. Dentro de `submeter()` só vale a sequência da captura
 /// Todos `tests/paginas_reais/documento_gerar.html` @323eb01.
@@ -157,23 +178,9 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
                         estado = Estado::Codigo;
                     }
                 }
-                Estado::ExpressaoRegular { dentro_de_classe } => match c {
-                    '\\' => {
-                        caracteres.next();
-                    }
-                    '[' if !dentro_de_classe => {
-                        estado = Estado::ExpressaoRegular {
-                            dentro_de_classe: true,
-                        };
-                    }
-                    ']' if dentro_de_classe => {
-                        estado = Estado::ExpressaoRegular {
-                            dentro_de_classe: false,
-                        };
-                    }
-                    '/' if !dentro_de_classe => estado = Estado::Codigo,
-                    _ => {}
-                },
+                Estado::ExpressaoRegular { dentro_de_classe } => {
+                    estado = avancar_regex(c, &mut caracteres, dentro_de_classe);
+                }
             }
         }
         if ocorrencias > 1 {
