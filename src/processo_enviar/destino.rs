@@ -26,6 +26,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
         .split(';')
         .next()
         .unwrap_or_default()
+        .trim()
         .to_ascii_lowercase();
     if !matches!(principal.as_str(), "application/xml" | "text/xml") {
         return Err(F::RespostaDoAutocompletarNaoXml);
@@ -64,7 +65,7 @@ pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>,
                 .ok()
                 .flatten()
                 .and_then(|bruto| decodificar_atributo(&bruto))
-                .filter(|valor| !valor.is_empty())
+                .filter(|valor| !valor.trim().is_empty())
                 .ok_or(F::Html(ErroHtml::valor(
                     "resposta_do_autocompletar_fora_da_forma_observada",
                 )))
@@ -84,12 +85,12 @@ pub(crate) fn escolher_destino(
     para: &str,
     itens: &[(String, String)],
 ) -> Result<Destino, ErroEnviar> {
-    
+    let para = para.trim();
     let achados: Vec<(&String, &String, &str)> = itens
         .iter()
         .filter_map(|(id, descricao)| {
             let (sigla, _) = descricao.split_once(" - ")?;
-            
+            let sigla = sigla.trim();
             sigla
                 .eq_ignore_ascii_case(para)
                 .then_some((id, descricao, sigla))
@@ -143,7 +144,7 @@ fn chave(texto: &str) -> String {
 /// `-<dígitos>` (`GECONT` de `ABC/GECONT-18141`); nenhum se vazio ou igual
 /// à sigla.
 pub(crate) fn termo_alargado(para: &str) -> Option<String> {
-    
+    let para = para.trim();
     let (_, ultimo) = para.rsplit_once('/')?;
     let sem_numero = match ultimo.rsplit_once('-') {
         Some((antes, numero))
@@ -153,7 +154,7 @@ pub(crate) fn termo_alargado(para: &str) -> Option<String> {
         }
         _ => ultimo,
     };
-    let termo = sem_numero;
+    let termo = sem_numero.trim();
     (!termo.is_empty() && termo != para).then(|| termo.to_owned())
 }
 
@@ -174,7 +175,7 @@ pub(crate) fn resolver_destino<F>(
 where
     F: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
 {
-    
+    let para = para.trim();
     let alargado = termo_alargado(para);
     let filtro = orgao_da_sigla(para, orgaos).filter(|f| *f != orgao_da_tela);
     let mut passos: Vec<(&str, &str)> = Vec::with_capacity(4);

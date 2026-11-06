@@ -314,7 +314,7 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     // Aceitar duplicidade de id apenas se CADA botão publicar sozinho
     // exatamente a mesma URL autorizada. Botão sem alvo ou alvos distintos
     // continuam ambíguos, antes de qualquer outro GET.
-    let duplicados = false;
+    let duplicados = achados.len() > 1;
     let mut destino_unico: Option<String> = None;
     for no in achados {
         let tag = no

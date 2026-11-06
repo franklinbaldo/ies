@@ -34,8 +34,10 @@ impl TermoDeDocumentoInvalido {
 
 /// Controles recusados antes de aparar (trim os apagaria); sem normalizar.
 pub(crate) fn validar_termo(termo: &str) -> Result<&str, TermoDeDocumentoInvalido> {
-    
-    
+    if termo.chars().any(char::is_control) {
+        return Err(TermoDeDocumentoInvalido::Controle);
+    }
+    let termo = termo.trim();
     if termo.is_empty() {
         return Err(TermoDeDocumentoInvalido::Vazio);
     }

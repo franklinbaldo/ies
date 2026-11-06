@@ -47,8 +47,8 @@ pub(crate) fn sigla_de_destino(para: &[String]) -> Result<&str, &'static str> {
     let [sigla] = para else {
         return Err("mais_de_um_destino_nao_suportado");
     };
-    
-    if sigla.is_empty() {
+    let sigla = sigla.trim();
+    if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
         return Err("sigla_de_destino_invalida");
     }
     Ok(sigla)

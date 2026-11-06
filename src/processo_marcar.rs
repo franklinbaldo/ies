@@ -66,13 +66,15 @@ pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
     let (id, nome) = texto
         .split_once('#')
         .ok_or(ErroMarcar::RotuloSemSeparador)?;
-    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+    if id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroMarcar::IdDoMarcadorNaoDecimal);
     }
-    if nome.is_empty() {
+    if nome.trim().is_empty() {
         return Err(ErroMarcar::NomeDoMarcadorVazio);
     }
-    
+    if nome.chars().any(char::is_control) {
+        return Err(ErroMarcar::NomeDoMarcadorComControle);
+    }
     Ok(Rotulo {
         id: id.to_owned(),
         nome: nome.to_owned(),
@@ -82,7 +84,9 @@ pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
 /// O textarea observado limita o texto a 250 caracteres.
 /// A representabilidade depende do charset do formulário servido.
 pub(crate) fn validar_texto(texto: &str) -> Result<(), ErroMarcar> {
-    
+    if texto.chars().count() > 250 {
+        return Err(ErroMarcar::TextoDoMarcadorLongo);
+    }
     Ok(())
 }
 
