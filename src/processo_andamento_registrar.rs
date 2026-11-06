@@ -119,7 +119,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 }
 
 pub(crate) fn texto_valido(texto: &str) -> bool {
-    !texto.trim().is_empty() && texto.trim().chars().count() <= 500
+    !texto.trim().is_empty() && texto.chars().count() <= 500
 }
 fn normalizar(texto: &str) -> String {
     texto.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -261,12 +261,12 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         &instalacao,
         &tela,
         &unidade,
-        &[(TEXTO, texto.trim())],
+        &[(TEXTO, texto)],
     )
     .map_err(Erro::Formulario)?;
     let mut resultado = Resultado {
         numero: numero.as_str().to_owned(),
-        texto: texto.trim().to_owned(),
+        texto: texto.to_owned(),
         confirmado: confirmar,
         requisicoes: rede.feitas(),
         total_antes: antes.total_declarado,

@@ -4,6 +4,11 @@
 Use the pinned Tree-sitter dependencies from dry_ast.py. Findings are review
 candidates, not proof of defects. Macros are not expanded. Files with partial
 ASTs are reported and never rewritten. No guard is removed automatically.
+
+Run with uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2
+python scripts/texto_opaco_ast.py --audit. After reviewing one function, use
+--apply --escopo src/arquivo.rs::funcao::parametro. Repeat that scope with
+--check to verify idempotence. The default mode never writes files.
 """
 
 from __future__ import annotations
@@ -151,6 +156,8 @@ class Fonte:
 
     def padrao(self, no: Node) -> Padrao | None:
         """Recognize audit candidates without deciding whether they are defects."""
+        if no.type == "scoped_identifier" and self.trecho(no) == b"str::trim":
+            return Padrao.TRIM
         chamada = self.chamada(no)
         if chamada is not None:
             if chamada.nome == b"trim" and not chamada.argumentos.named_children:

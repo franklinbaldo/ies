@@ -125,6 +125,14 @@ fn regra(texto: &str) -> bool { texto.trim().is_empty() }
         self.assertEqual(plano.quantidade, 0)
         self.assertEqual(plano.conteudo, fonte.conteudo)
 
+    def test_trim_por_referencia_de_funcao_so_e_auditado(self) -> None:
+        """Report map(str::trim) without rewriting an optional receiver."""
+        original = b"fn salvar(texto: Option<&str>) { texto.map(str::trim); }"
+        fonte = Fonte.de_bytes("src/exemplo.rs", original)
+        self.assertEqual([item.padrao for item in fonte.auditar()], [Padrao.TRIM])
+        plano = fonte.reescrever((Escopo("src/exemplo.rs", "salvar", "texto"),))
+        self.assertEqual(plano.quantidade, 0)
+
     def test_tipo_customizado_e_sombreamento_impedem_reescrita(self) -> None:
         """Reject methods whose receiver is not the original str parameter."""
         for codigo in (

@@ -13,7 +13,7 @@ O comando segue somente o link Web de Atualizar Andamento na barra do nó PROCES
 
 ## Prévia e recusas
 
-NUP e texto são validados antes de consultar a sessão. Texto vazio ou acima de 500 caracteres é recusado (saída 2, sem rede). A leitura do processo obtém o histórico anterior e a barra, que deve oferecer a ação procedimento_atualizar_andamento. A tela deve publicar exatamente um formulário frmAtividadeListar com controles hdnIdAtividade, hdnIdProtocolo igual ao processo, txaDescricao e sbmSalvar. Campos de usuário imprevistos são recusados. Sem --confirmar, deriva o formulário mas não faz POST.
+NUP e texto são validados antes de consultar a sessão. Texto sem conteúdo ou acima de 500 caracteres é recusado (saída 2, sem rede). O limite conta o texto integral, incluindo espaços e quebras de linha; o formulário e o resultado preservam o texto recebido. A leitura do processo obtém o histórico anterior e a barra, que deve oferecer a ação procedimento_atualizar_andamento. A tela deve publicar exatamente um formulário frmAtividadeListar com controles hdnIdAtividade, hdnIdProtocolo igual ao processo, txaDescricao e sbmSalvar. Campos de usuário imprevistos são recusados. Sem --confirmar, deriva o formulário mas não faz POST.
 
 ## Escrita e verificação
 
