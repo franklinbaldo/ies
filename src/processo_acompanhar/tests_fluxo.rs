@@ -163,16 +163,16 @@ fn previa_deixar_sem_link_de_exclusao_recusa_sem_post() {
 }
 
 #[test]
-fn deixar_confirmado_ainda_recusa_antes_de_qualquer_requisicao() {
-    // A implementação da retirada permanece fechada até prova do POST e
-    // de sua releitura. Nem a abertura do processo é autorizada aqui.
+fn deixar_confirmado_com_observacao_invalida_recusa_antes_da_rede() {
+    // Mesmo com --confirmar, opções que não pertencem à remoção
+    // falham antes de abrir processo ou ler cookie.
     let amb = ambiente();
     let (resultado, pedidos) = rodar_com(&amb, vec![], |sessao, nup, indice, roteiro| {
         let pedido = Pedido {
             nup,
             unidade: None,
             grupo: Some("G"),
-            observacao: None,
+            observacao: Some("não combina"),
             deixar: true,
             confirmar: true,
         };
@@ -180,7 +180,7 @@ fn deixar_confirmado_ainda_recusa_antes_de_qualquer_requisicao() {
     });
     assert!(matches!(
         resultado,
-        Err(ErroPrevia::ConfirmacaoNaoImplementada)
+        Err(ErroPrevia::PedidoInvalido)
     ));
     assert!(pedidos.is_empty());
 }
