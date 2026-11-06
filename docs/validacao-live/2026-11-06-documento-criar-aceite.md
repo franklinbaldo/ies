@@ -36,3 +36,19 @@ não repetir `--confirmar`.
 **Falta:** CI do head definitivo; revisão 🦅; reconciliação do branch
 com a main; ensaio live em TREINAMENTO com prévia segura → um único
 `--confirmar` → leitura independente e registro do número SEI/resíduo.
+
+## Guarda de navegação inerte — nova fatia da #246
+
+Testes registrados no branch da PR #248 **antes da correção**:
+`1c69ed4`, com dois testes que verificam que script em `template`,
+tipo JSON ou comentário HTML não autoriza POST de navegação
+(`escolher`/`exibirSeries`). A correção retém código real em
+`script` ativo e os testes positivos, sem executar JavaScript.
+O RED será computado apenas se houver execução do gate do commit de
+testes; publicação prévia não equivale a RED observado. A compilação e
+os resultados GREEN dependem do CI do SHA final.
+
+**Live desta fatia:** NOT_RUN; 0 novas requisições ao SEI, 0 POSTs de
+gravação, 0 novos resíduos. O ensaio de 06/11 anterior com efeito
+incerto no processo `23106.001868/2026-91` continua inconclusivo:
+não repetir a confirmação ali.
