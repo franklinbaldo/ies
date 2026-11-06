@@ -80,6 +80,8 @@ mod processo_criar_cli;
 #[allow(dead_code)] // fluxo Web a integrar pela CLI
 #[path = "processo_criar/fluxo.rs"]
 mod processo_criar_fluxo;
+#[path = "processo_criar/hipotese.rs"]
+mod processo_criar_hipotese;
 #[allow(dead_code)]
 #[path = "processo_criar/interessados.rs"]
 mod processo_criar_interessados;

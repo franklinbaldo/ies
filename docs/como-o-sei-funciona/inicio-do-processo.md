@@ -84,7 +84,49 @@ e a prévia não podem enviar o POST criador.
 
 ## Lacunas
 
-Faltam captura e replay IES por versão, orçamento preciso medido
-por cenário, validação de campos obrigatórios em cada instalação
-e prévia live autenticada. Nenhuma escrita em treinamento está
-autorizada nesta issue até o texto literal “escrita autorizada”.
+A observação por versão foi complementada por testes de transporte sintético
+e replay de 15 cassettes originais, com 83 respostas classificadas
+([relatório](../validacao-replay/2026-11-05-processo-criar-acervo.md)).
+A validação dos campos em cada instalação e a prévia live autenticada ainda faltam. Em 05/11/2026, o proprietário
+autorizou escrita **somente em instalações de treinamento** na issue #245.
+A autorização não comprova execução: a validação live segue NOT_RUN.
+Antes de criar, é obrigatório observar a prévia, enviar um único
+`--confirmar` e verificar o novo processo por leitura; documentar
+qualquer resíduo no ambiente de treinamento.
+
+## Hipótese legal no cadastro restrito — observação indireta 05/11/2026
+
+A captura do Todos em `tests/paginas_reais/procedimento_gerar.html`
+(SEI 4.0.9, commit `323eb01`) publica no JavaScript servido o
+construtor literal `infraAjaxMontarSelect('selHipoteseLegal', URL)`,
+com a ação AJAX `hipotese_legal_select_nome_base_legal`. O `select`
+inicial pode conter apenas o placeholder `null`; isso **não**
+prova ausência de hipóteses. O navegador solicita opções ao selecionar
+o nível restrito. O oráculo `todos.documentos.hipoteses_do_cadastro`
+faz a consulta diretamente, por POST de leitura, com os campos
+`primeiroItemValor=null`, `primeiroItemDescricao= `,
+`valorItemSelecionado=` e `staNivelAcesso=1`. A resposta
+é XML com `<select><option value="...">...</option></select>`.
+Não executar o JavaScript: reconhecer a declaração literal de URL,
+derivar a consulta com `formulario_web` e interpretar a resposta.
+
+A CLI admite `--hipotese-legal ID#NOME` somente para nível restrito:
+o ID e o nome devem corresponder exatamente à opção habilitada oferecida
+no XML observado da sessão. Sem escolha explícita, **somente uma**
+opção efetiva é selecionável; zero ou várias opções geram recusa
+antes do POST criador. Um placeholder `null` não é opção efetiva.
+A lista é evidência indireta; o replay do acervo original foi executado,
+mas o ensaio autenticado de prévia → confirmação única → leitura
+permanece NOT_RUN. URLs assinadas e credenciais não são publicadas.
+
+## Diagnóstico seguro quando há opções AJAX múltiplas
+
+O XML de treinamento no acervo da UnB contém múltiplas hipóteses
+habilitadas. A leitura do IES pode informar os pares `ID#NOME`
+que o próprio XML ofereceu, sem seguir URLs adicionais. A falta de
+escolha continua impedindo o POST criador: essa informação ajuda a
+formular uma **nova prévia** explícita, não autoriza confirmação.
+Somente opções habilitadas, com IDs distintos e texto sem controles,
+podem aparecer na saída. O IES não publica URL AJAX assinada,
+`infra_hash` nem cookie. Essa evidência de cassettes não substitui
+um ensaio autenticado em treinamento, ainda NOT_RUN.

@@ -45,6 +45,9 @@ pub(crate) enum ProcessoAcao {
         interessado: Vec<String>,
         #[arg(long, default_value = "publico", value_parser = ["publico", "restrito"])]
         nivel: String,
+        /// ID#NOME exatos da hipótese observada no AJAX de acesso restrito.
+        #[arg(long, value_name = "ID#NOME")]
+        hipotese_legal: Option<String>,
         #[arg(long)]
         confirmar: bool,
     },

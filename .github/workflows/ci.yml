@@ -153,3 +153,47 @@ jobs:
 
       - name: Replay with real readers and verified cassette members
         run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
+
+  replay-processo-criar:
+    # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
+    # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
+    # Nenhum endpoint SEI é acessado aqui.
+    name: replay processo criar (acervo público)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Cache dos ZIPs públicos conferidos
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/ies-acervo-processo-criar
+          key: ies-acervo-processo-criar-${{ hashFiles('cassettes/**/processo-criar-*.md') }}
+
+      - name: Testar a obtenção dos ZIPs sem rede real
+        run: python3 -m unittest discover -s scripts/tests -p 'test_baixar_acervo_processo_criar.py' -v
+
+      - name: Testar ensaio manual de escrita única (sem rede ou SEI)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_ensaio_processo_criar.py' -v
+
+      - name: Testar conciliação somente leitura de efeito incerto (sem SEI)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_reconciliar_processo_criar.py' -v
+
+      - name: Obter ZIPs originais com hashes verificados
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
+        run: python3 scripts/baixar_acervo_processo_criar.py
+
+      - name: Executar obrigatoriamente o replay dos leitores Rust
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
+        run: scripts/replay processo_criar_fluxo::acervo::replay_de_processo_criar_no_acervo

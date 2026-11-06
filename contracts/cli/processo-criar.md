@@ -13,7 +13,7 @@ implementation: partial
 ```text
 ies processo criar --tipo TIPO --especificacao TEXTO
   [--interessado TEXTO ...] [--nivel publico|restrito]
-  [--confirmar]
+  [--hipotese-legal ID#NOME] [--confirmar]
 ```
 
 A unidade é a unidade ativa da sessão, sujeita a `--unidade`
@@ -35,11 +35,17 @@ valor construído por script executado. Exibir o que será
 enviado e a contagem de requisições reais.
 
 `--nivel restrito` sem hipótese legal selecionável **não**
-autoriza fallback silencioso para público. A sintaxe inicial
-não expõe seleção de hipótese: quando a tela não tiver uma
-escolha determinística segura, recusar antes da escrita.
-Se o SEI oferecer mais de uma hipótese possível, é necessário
-ampliar o contrato explicitamente antes de permitir a escrita.
+autoriza fallback silencioso para público. Na consulta AJAX publicada pelo cadastro restrito, quando houver
+mais de uma hipótese, o usuário pode informar
+`--hipotese-legal ID#NOME` com os dois valores literais
+observados. O IES exige correspondência exata e única na resposta
+daquela mesma sessão, sem selecionar o primeiro item. Se não houver
+escolha e a lista for múltipla, recusa antes da escrita. Não se pode
+informar a opção com `--nivel publico`; o ID é opaco.
+O seletor explícito ainda não se aplica a uma opção fornecida
+diretamente no HTML sem AJAX: nessa situação, omita a flag ou
+aguarde validação específica. Não extrapolar para instalações
+que não publicaram essa consulta.
 
 ## Confirmação
 
@@ -47,7 +53,13 @@ Uma única submissão do cadastro publicado; sem retry nem
 redirect automático. A resposta esperada é um 302 para
 a árvore com `id_procedimento`, cuja identidade deve ser
 confirmada em leitura nova e associada a um NUP não vazio.
-A resposta sozinha nunca prova a criação.
+A resposta sozinha nunca prova a criação. No `Location`, aceitar
+**uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
+`id_procedimento` numérico; quaisquer repetições, mesmo com um
+parâmetro inválido, são ambiguidade e resultam em
+`efeito_incerto_na_criacao` (saída 3), sem seguir a URL assinada.
+Na escolha de tipo por link, aplicar a mesma regra a `acao` e
+`id_tipo_procedimento` antes de qualquer GET.
 
 Falha definitivamente anterior ao envio: saída 1 (ou 2
 para argumentos inválidos). Depois de iniciar a escrita,
@@ -133,6 +145,32 @@ Esses subcódigos precisam de tipos reais e integração a
 | `interessado_de_processo_nao_oferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `interessado_de_processo_ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 
+## Subcódigos da hipótese legal carregada por AJAX
+
+| Subcódigo | Fato observado |
+| --- | --- |
+| `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
+| `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
+| `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida; também recusa uma opção única ou escolha explícita com ID/nome não publicável (URL ou caracteres de controle) |
+| `hipotese_legal_ajax_nao_unica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
+
+Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
+se faz AJAX. Se o select só traz `null`, consulta-se a URL assinada
+publicada na tela, uma vez, por POST **sem efeito de escrita**.
+A resposta com múltiplas opções não permite escolher por posição:
+sem `--hipotese-legal`, recusar antes do POST criador. Quando as
+opções efetivas forem distintas, habilitadas e imprimíveis, a recusa
+`hipotese_legal_ajax_nao_unica` apresenta os pares realmente lidos:
+no JSON, `hipoteses_legais_oferecidas` contém objetos
+`{id, nome, argumento}`, sendo `argumento` o literal `ID#NOME`;
+na saída humana, mostra cada `ID#NOME`. Não publica URL assinada,
+cookie nem hipótese não habilitada. IDs duplicados, nomes com controles
+ou opções ausentes não geram lista de sugestões. O resultado continua
+sendo **saída 1, sem escrita**: uma nova prévia explícita é necessária
+antes de qualquer confirmação. A consulta AJAX
+usa os quatro campos documentados pela observação da interface
+e soma **uma** requisição à prévia e à confirmação restritas.
+
 ## Orçamento e evidência
 
 Argumento rejeitado sem rede: 0. Prévia: consultas necessárias
@@ -142,7 +180,35 @@ incluindo AJAX somente quando o pedido o exigir; zero POST de
 e leitura nova de verificação. O número exato de requisições
 por versão ainda precisa de teste replay e medição, não de
 estimativa. O POST que apenas escolhe o tipo em SEI 4.1+
-não é a escrita criadora.
+não é a escrita criadora. Nos testes com transporte injetado,
+a prévia 4.0 tem **3 GET**; a confirmação 4.0 tem **6 pedidos**
+(5 GET e 1 POST criador);
+a confirmação 4.1 tem **7 pedidos** (5 GET, 1 POST de seleção
+e 1 POST criador). Não extrapolar esses totais a instalações reais
+sem observação e replay. Em URLs ambíguas recusar antes da próxima
+requisição; depois de iniciar a escrita, saída 3 sem retry.
 
 [Observação](../../docs/como-o-sei-funciona/inicio-do-processo.md)
 e [decisão](../../docs/decisoes/processo-criar.md).
+
+## Seleção explícita da hipótese na resposta AJAX (#245)
+
+A execução da [cassette pública da UnB](../../docs/validacao-replay/2026-11-05-processo-criar-acervo.md)
+encontrou duas respostas com opções múltiplas. O parâmetro
+`--hipotese-legal ID#NOME` só é aceito para acesso **restrito**
+e usa ID e nome **exatamente** observados no XML da consulta
+`hipotese_legal_select_nome_base_legal`, executada uma vez.
+Opções desabilitadas, ausentes, com ID duplicado ou nome divergente
+não legitimam a escrita. Nunca executar JavaScript.
+A prévia publica o ID escolhido, e o POST criador só pode utilizar
+o ID já conferido. Prévia com AJAX: **4 requisições** sintéticas
+(3 GET + 1 POST de consulta, nenhum POST criador).
+Confirmação com AJAX: **7 requisições** (5 GET + 1 POST de consulta
++ 1 POST criador, seguidos de duas leituras verificadoras).
+As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
+
+| Subcódigo | Fato observável |
+| --- | --- |
+| `hipotese_legal_informada_invalida` | ID#NOME ausente/inválido ou escolha em nível público |
+| `hipotese_legal_escolha_nao_oferecida` | Par exato ID#NOME não consta do AJAX observado |
+| `hipotese_legal_escolha_inline_nao_verificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
