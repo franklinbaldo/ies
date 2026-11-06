@@ -54,6 +54,12 @@ impl FotografiaDosGerados {
         Ok(Self { por_id })
     }
 
+    /// A fotografia anterior ao POST pode vetar um Location que aponta
+    /// para identidade já existente. Não prova causalidade por si só.
+    pub(crate) fn contem_id(&self, id: &str) -> bool {
+        self.por_id.contains_key(id)
+    }
+
     /// Identifica *candidatos* novos, não afirma que o POST os criou.
     /// Mudança/desaparecimento de item anterior torna a comparação
     /// inconclusiva (não é prova de que repetir a escrita é seguro).
