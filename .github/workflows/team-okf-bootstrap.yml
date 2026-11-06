@@ -20,7 +20,10 @@ jobs:
       - name: Inicializar tipos a partir das fichas via uvx
         run: |
           set -euo pipefail
-          uvx --from okf-parser==0.48.2 okf-parser init . --spec-template '.okf/specs/{slug}.md' --write --infer-schema
+          uvx --from okf-parser==0.48.2 okf-parser init team --spec-template '.okf/specs/{slug}.md' --write --infer-schema
+          find team/.okf/specs -maxdepth 1 -type f -print
+          mv team/.okf/specs/agent* .okf/specs/
+          rmdir team/.okf/specs team/.okf
           test "$(find .okf/specs -maxdepth 1 -name 'agent*.md' | wc -l)" -eq 7
           test "$(find .okf/specs -maxdepth 1 -name 'agent*.schema.sql' | wc -l)" -eq 7
       - name: Registrar os arquivos gerados em branch de documentacao
