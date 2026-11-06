@@ -20,4 +20,4 @@ jobs:
       - name: Run global dry audit
         run: |
           set -o pipefail
-          uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.3 python scripts/dry_ast.py --audit | tee dry-audit.json
+          uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --audit | tee dry-audit.json
