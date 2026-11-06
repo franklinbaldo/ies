@@ -92,7 +92,13 @@ fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
     };
+    // A captura SEI 4.0.9 publica a atribuição dentro de
+    // function submeter(), na sequência desabilitar → atribuir → enviar.
+    // Formas aninhadas e código fora dessa forma observada falham fechadas.
+    const DESABILITAR: &str = "desabilitarBotaoSalvar(true);";
+    const ENVIAR: &str = "document.getElementById('frmDocumentoCadastro').submit();";
     let mut ocorrencias = 0;
+    let mut funcoes_submeter = 0;
     for no in dom.query_selector("script").into_iter().flatten() {
         let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             return false;
@@ -116,14 +122,29 @@ fn cadastro_publica_script_de_criacao(html: &str) -> bool {
 
         let texto = script.inner_text(dom.parser());
         let mut estado = Estado::Codigo;
+        let mut blocos: Vec<bool> = Vec::new();
+        let mut passo_submeter = 0_u8;
         for linha in texto.lines() {
             let linha = linha.trim();
-            if estado == Estado::Codigo && linha == INSTRUCAO {
-                ocorrencias += 1;
-                if ocorrencias > 1 {
-                    return false;
+            if estado == Estado::Codigo {
+                if blocos.len() == 1 && blocos[0] && linha != "}" {
+                    passo_submeter = match (passo_submeter, linha) {
+                        (0, DESABILITAR) => 1,
+                        (1, INSTRUCAO) => 2,
+                        (2, ENVIAR) => 3,
+                        _ => return false,
+                    };
+                } else if linha == INSTRUCAO {
+                    // O exemplo sintético mínimo é uma peça única.
+                    // Em if(false), função não observada ou script maior
+                    // esta linha NÃO demonstra submissão criadora.
+                    if !blocos.is_empty() || texto.trim() != INSTRUCAO {
+                        return false;
+                    }
+                    ocorrencias += 1;
                 }
             }
+            let mut prefixo = String::new();
             let mut caracteres = linha.chars().peekable();
             while let Some(c) = caracteres.next() {
                 match estado {
@@ -134,7 +155,30 @@ fn cadastro_publica_script_de_criacao(html: &str) -> bool {
                             estado = Estado::ComentarioDeBloco;
                         }
                         '\'' | '"' | '`' => estado = Estado::Cadeia(c),
-                        _ => {}
+                        '{' => {
+                            let submeter = blocos.is_empty()
+                                && prefixo.trim() == "function submeter()";
+                            if submeter {
+                                funcoes_submeter += 1;
+                                if funcoes_submeter > 1 {
+                                    return false;
+                                }
+                            }
+                            blocos.push(submeter);
+                        }
+                        '}' => {
+                            let Some(submeter) = blocos.pop() else {
+                                return false;
+                            };
+                            if submeter {
+                                if passo_submeter != 3 {
+                                    return false;
+                                }
+                                ocorrencias += 1;
+                                passo_submeter = 0;
+                            }
+                        }
+                        _ => prefixo.push(c),
                     },
                     Estado::ComentarioDeBloco => {
                         if c == '*' && caracteres.peek().copied() == Some('/') {
@@ -151,9 +195,12 @@ fn cadastro_publica_script_de_criacao(html: &str) -> bool {
                     }
                 }
             }
+            if ocorrencias > 1 {
+                return false;
+            }
         }
-        // Script truncado ou literal aberto é forma desconhecida.
-        if estado != Estado::Codigo {
+        // Script truncado, bloco aberto ou literal incompleto é desconhecido.
+        if estado != Estado::Codigo || !blocos.is_empty() {
             return false;
         }
     }
