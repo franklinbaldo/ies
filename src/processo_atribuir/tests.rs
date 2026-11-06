@@ -263,3 +263,37 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
         ))
     ));
 }
+
+
+/// Regressão #264: uma ação de escrita não é oferecida quando o próprio
+/// formulário, a escolha ou o botão são inertes no DOM. O campo pode
+/// continuar visível no HTML sem ser acionável na interface Web.
+#[test]
+fn formulario_com_controles_inertes_nao_e_oferta_de_atribuicao() {
+    let casos = [
+        HTML.replace("<form id=", "<form hidden id="),
+        HTML.replace(
+            "<button type=\"submit\" name=\"sbmSalvar\"",
+            "<button hidden type=\"submit\" name=\"sbmSalvar\"",
+        ),
+        HTML.replace(
+            "<select id=\"selAtribuicao\"",
+            "<select hidden id=\"selAtribuicao\"",
+        ),
+        HTML.replace(
+            "<button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button>",
+            "<fieldset disabled><button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button></fieldset>",
+        ),
+        HTML.replace(
+            "<select id=\"selAtribuicao\"",
+            "<fieldset disabled><select id=\"selAtribuicao\"",
+        ).replace("</select>", "</select></fieldset>"),
+    ];
+    for (indice, html) in casos.iter().enumerate() {
+        assert_eq!(
+            ler_tela(html, ID),
+            Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))),
+            "controle inerte no cenário {indice} deve recusar a escrita",
+        );
+    }
+}
