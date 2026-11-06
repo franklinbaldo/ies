@@ -129,7 +129,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
             "retentavel": false
         });
-        if let Some((causa_post, falha_leitura, candidatos)) = erro.diagnostico_apos_post() {
+        if let Some(diagnostico) = erro.diagnostico_apos_post() {
+            let causa_post = diagnostico.causa_post;
+            let falha_leitura = diagnostico.causa_releitura;
+            let candidatos = diagnostico.candidatos_observados;
             valor["causa_post"] = json!(causa_post);
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
@@ -141,7 +144,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         println!("{valor}");
     } else {
         eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
-        if let Some((causa_post, falha_leitura, candidatos)) = erro.diagnostico_apos_post() {
+        if let Some(diagnostico) = erro.diagnostico_apos_post() {
+            let causa_post = diagnostico.causa_post;
+            let falha_leitura = diagnostico.causa_releitura;
+            let candidatos = diagnostico.candidatos_observados;
             eprintln!("IES: causa do POST: {causa_post}");
             if let Some(causa) = falha_leitura {
                 eprintln!("IES: causa da releitura: {causa}");
