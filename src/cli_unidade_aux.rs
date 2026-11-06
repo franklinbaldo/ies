@@ -1,6 +1,6 @@
-//! Adaptadores da CLI para listas de unidades e colunas.
+//! Adaptadores da CLI para listas de unidades.
 //! Extraídos de main.rs para manter o limite de 20 KB após integrações
-//! concorrentes; cada capacidade mantém seu próprio fluxo de domínio.
+//! concorrentes; a capacidade mantém seu próprio fluxo de domínio.
 use crate::{Cli, ListaDaUnidade};
 use std::process::ExitCode;
 
@@ -19,15 +19,3 @@ pub(crate) fn listar(
     )
 }
 
-/// `ies unidade colunas`: leitura e, com `--definir`, escrita explícita.
-pub(crate) fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
-    match definir {
-        None => crate::unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
-        Some(definir) => crate::unidade_colunas_definir_cli::definir_colunas(
-            cli.unidade.as_deref(),
-            cli.json,
-            definir,
-            confirmar,
-        ),
-    }
-}
