@@ -88,7 +88,7 @@ fn enviar(
         match enviar_processo(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(feito) => {
                 if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                    if let Err(erro) = crate::saida::imprimir_json(&resultado_envio(&feito)) {
                         eprintln!("IES: falha ao emitir JSON: {erro}");
                         return std::process::ExitCode::from(1);
                     }
@@ -157,30 +157,62 @@ fn texto_das_sugestoes(valor: &Value) -> Option<String> {
 }
 
 /// JSON do sucesso (prévia, ou enviado e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "manter_aberto": feito.manter_aberto,
-        "destino": {
-            "sigla": feito.destino.sigla,
-            "descricao": feito.destino.descricao,
-            "id_unidade": feito.destino.id_unidade,
+/// O contrato externo de destino continua isolado do tipo de domínio.
+#[derive(serde::Serialize)]
+struct DestinoPublico<'a> {
+    sigla: &'a str,
+    descricao: &'a str,
+    id_unidade: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct ResultadoEnvio<'a> {
+    nup: &'a str,
+    id_procedimento: &'a str,
+    unidade: &'a str,
+    origem: &'static str,
+    confirmado: bool,
+    alterado: bool,
+    manter_aberto: bool,
+    destino: DestinoPublico<'a>,
+    aberto_em: &'a [String],
+    depois_esperado: Vec<String>,
+    depois: Option<&'a [String]>,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<crate::processo_concluir_cli::FalhaEnvioPublica>,
+}
+
+fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
+    ResultadoEnvio {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado,
+        alterado: feito.alterado,
+        manter_aberto: feito.manter_aberto,
+        destino: DestinoPublico {
+            sigla: &feito.destino.sigla,
+            descricao: &feito.destino.descricao,
+            id_unidade: &feito.destino.id_unidade,
         },
-        "aberto_em": feito.aberto_em,
-        "depois_esperado": feito.depois_esperado(),
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+        aberto_em: &feito.aberto_em,
+        depois_esperado: feito.depois_esperado(),
+        depois: feito.depois.as_deref(),
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito.reconciliado_por.as_ref()
+            .map(crate::processo_concluir_cli::FalhaEnvioPublica::de),
     }
-    valor
+}
+
+/// Compatibilidade com testes do contrato, sem Value no fluxo de produção.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
+    serde_json::to_value(resultado_envio(feito))
+        .expect("a projeção tipada do envio só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
