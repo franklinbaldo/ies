@@ -210,6 +210,15 @@ fn html_da_tela<V: EnvioDoProcesso>(
     Ok((html, mime))
 }
 
+/// Presença observada da linha exata na tabela completa. Sem `--grupo`,
+/// apenas a lista totalmente vazia comprova ausência de alvo.
+fn alvo_pedido_presente(antes: &[Acompanhamento], grupo: Option<&str>) -> bool {
+    match grupo {
+        Some(nome) => antes.iter().any(|a| a.grupo == nome),
+        None => !antes.is_empty(),
+    }
+}
+
 fn selecionar_previa(
     numero: &str,
     unidade: &str,
@@ -222,7 +231,7 @@ fn selecionar_previa(
         if pedido.observacao.is_some() {
             return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
         }
-        let alvo = if antes.is_empty() {
+        let alvo = if !alvo_pedido_presente(antes, pedido.grupo) {
             None
         } else {
             Some(alvo_para_deixar(antes, pedido.grupo)?)
@@ -231,7 +240,7 @@ fn selecionar_previa(
             numero: numero.to_owned(),
             unidade: unidade.to_owned(),
             operacao: "deixar",
-            grupo: alvo.map_or("", |a| a.grupo.as_str()).to_owned(),
+            grupo: alvo.map_or(pedido.grupo.unwrap_or(""), |a| a.grupo.as_str()).to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
             ja_estava: alvo.is_none(),
@@ -306,7 +315,7 @@ fn ler_gerenciador<V: EnvioDoProcesso>(
         let mime = res.resposta.mime.clone();
         let html = decodificar_resposta(res.resposta)?;
         let antes = acompanhamentos_da_lista(&html)?;
-        if pedido.deixar && !antes.is_empty() {
+        if pedido.deixar && alvo_pedido_presente(&antes, pedido.grupo) {
             let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
             let destino =
                 super::exclusao::conferir_oferta_exclusao(instalacao, &html, id, &alvo.id)?;
