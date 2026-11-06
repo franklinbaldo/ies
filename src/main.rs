@@ -14,6 +14,7 @@ mod caixa_detalhada;
 mod cassette;
 mod ciencia;
 mod ciencia_cli;
+mod ciencia_documento_cli;
 mod classe_link_processo;
 mod cli_processo;
 mod colheita_do_controle;
@@ -210,6 +211,12 @@ struct Documento {
 
 #[derive(Debug, Subcommand)]
 enum DocumentoAcao {
+    /// Prévia e ciência do usuário da sessão no documento (GET único, releitura).
+    Ciente {
+        numero: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Prévia de cópia local; confirmação remota ainda bloqueada
     Salvar {
         numero: String,
@@ -428,6 +435,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
         .or_else(|| processo_prazo_cli::tentar_prazo(cli))
         .or_else(|| ciencia_cli::tentar_ciente(cli))
+        .or_else(|| ciencia_documento_cli::tentar_ciente_documento(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
