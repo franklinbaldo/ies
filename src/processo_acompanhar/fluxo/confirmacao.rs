@@ -2,7 +2,27 @@
 //! Um POST no máximo, sem retry; falha incerta exige leitura independente.
 use super::super::conferir_inclusao;
 use super::*;
-use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
+use crate::formulario_web::{
+    ErroSubmissaoFormulario, RespostaDoEnvio, enviar_submissao_via,
+};
+
+/// Observação finita para diagnosticar o aceite sem revelar o POST ou Location.
+fn classificar_resposta_post(
+    resposta: &Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
+) -> RespostaPost {
+    match resposta {
+        Ok(RespostaDoEnvio::Html(_)) => RespostaPost::HtmlSemRedirecionamento,
+        Ok(RespostaDoEnvio::Redirecionamento(_)) => RespostaPost::RedirecionamentoObservado,
+        Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)) => {
+            RespostaPost::ValidacaoInfraRecusada
+        }
+        Err(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)) => {
+            RespostaPost::RedeSemResposta
+        }
+        Err(erro) if erro.status_http().is_some() => RespostaPost::StatusHttpRecusado,
+        Err(_) => RespostaPost::FalhaDaSubmissao,
+    }
+}
 
 /// Consome uma única submissão e verifica o resultado por leitura nova.
 /// Mesmo um erro de transporte no POST pode ter produzido efeito.
@@ -57,6 +77,7 @@ pub(super) fn confirmar_inclusao<V: EnvioDoProcesso>(
         return Err(ErroPrevia::EfeitoIncerto {
             requisicoes: rede.feitas(),
             motivo,
+            resposta_post: classificar_resposta_post(&resposta),
         });
     }
     // Somente depois da prova exata podemos publicar o ID observado.
@@ -75,6 +96,7 @@ pub(super) fn confirmar_inclusao<V: EnvioDoProcesso>(
         .ok_or(ErroPrevia::EfeitoIncerto {
             requisicoes: rede.feitas(),
             motivo: MotivoEfeitoIncerto::EstadoDivergente,
+            resposta_post: classificar_resposta_post(&resposta),
         })?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.alterado = true;
@@ -187,6 +209,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
         return Err(ErroPrevia::EfeitoIncerto {
             requisicoes: rede.feitas(),
             motivo,
+            resposta_post: classificar_resposta_post(&resposta),
         });
     }
     plano.alterado = true;
