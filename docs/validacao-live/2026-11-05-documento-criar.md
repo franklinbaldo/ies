@@ -18,6 +18,23 @@ Operação: `documento.criar`, issue
 | Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
 | Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
 
+## Continuidade 🐙 — scripts inertes e integração com a main (05/11/2026)
+
+- **Observação pré-RED:** `script[src]` ignora o conteúdo inline; um
+  template literal JS multilinha contém texto, não prova execução da linha.
+- **RED:** [CI 42146255058](https://github.com/franklinbaldo/ies/actions/runs/42146255058), head `d2567d1`:
+  **1 teste novo FAIL**, 1.584 PASS, 16 ignorados. Testes com transporte
+  sintético, **5 GET e 0 POST** na recusa; nenhuma escrita real.
+- **GREEN antes da reconciliação:** [CI 42146635812](https://github.com/franklinbaldo/ies/actions/runs/42146635812),
+  head `29157e3`, 3/3 jobs PASS. A guarda rejeita `script[src]`
+  e literais JS inertes sem executar JS; nenhuma mudança na CLI pública.
+- **Merge no branch da PR:** `e06878e` incorpora a main `2d05da9`
+  sem rebase nem force-push, conciliando `ErroHtml` e preservando
+  as alterações de outras frentes. Rustfmt do merge será corrigido.
+- **LIVE:** login, prévia, `--confirmar` e releitura **NOT_RUN**;
+  **0 requisições reais, 0 escritas, nenhum resíduo**. Treinamento
+  continua pendente; jamais tentar confirmar sem prévia e gates verdes.
+
 ## Retomada 🐙 — script ativo e causas tipadas (05/11/2026)
 
 - **Observação antes dos testes:** a guarda de confirmação anterior

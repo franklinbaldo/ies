@@ -87,3 +87,9 @@ com `#[derive(Causa)]` e preservar nomes legados e HTTP, inclusive
 recusa da Infra. Nenhum destes testes prova a escrita ao vivo:
 ela continua pendente exclusivamente em treinamento.
 
+
+Na revisão da guarda, `script[src]` e strings/template literals JavaScript
+foram reconhecidos como evidência textual inerte. O leitor ignora o corpo
+inline de script externo e só aceita instrução literal em contexto de
+código do script inline servido; não interpreta nem executa JS.
+Os testes negativos impedem POST criador com orçamento **5 GET/0 POST**.

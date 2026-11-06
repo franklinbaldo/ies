@@ -125,3 +125,8 @@ legada mantém as folhas de erro publicadas, com caminho tipado
 interno e preservação da mensagem/status HTTP quando observados.
 A escrita incerta continua saída 3.
 
+
+A guarda de confirmação também recusa `script[src]`, cujo corpo inline
+não é executado pelo navegador, e atribuições presentes apenas em
+literais JavaScript multilinha. Esses casos têm testes sintéticos com
+**5 GET, 0 POST criador**: formas inertes não autorizam escrita.
