@@ -348,11 +348,10 @@ fn falha_no_segundo_candidato_preserva_primeira_coincidencia_sem_declarar_aplica
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
     );
-    assert_eq!(diagnostico.candidatos_compativeis, None); // não houve conferência completa
     assert_eq!(
-        diagnostico.coincidentes_parciais,
+        diagnostico.candidatos_compativeis,
         Some(vec![NUP.to_owned()])
-    ); // prova de propriedades, nunca de autoria
+    ); // prova individual já observada, sem classificar autoria nem unicidade
     assert_eq!(requests.len(), 9); // 3 GET + 1 POST + 1 Controle + 3 GET + 1 GET falho
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
