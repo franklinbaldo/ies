@@ -443,21 +443,6 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }
 
-/// `ies unidade recebidos|gerados`: uma lista independente da caixa.
-fn listar(
-    cli: &Cli,
-    lista: &ListaDaUnidade,
-    categoria: unidade_categoria::CategoriaLista,
-) -> ExitCode {
-    unidade_categoria::listar_categoria(
-        cli.unidade.as_deref(),
-        cli.json,
-        lista.saida.as_deref(),
-        categoria,
-        lista.pagina.map(|n| n as usize),
-    )
-}
-
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
 fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
     match definir {
@@ -493,10 +478,10 @@ fn run(cli: &Cli) -> ExitCode {
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
+        }) => return unidade_categoria::listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
+        }) => return unidade_categoria::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
