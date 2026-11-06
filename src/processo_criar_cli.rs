@@ -136,6 +136,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_post"] = json!(causa_post);
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
+            if let Some(nups) = diagnostico.candidatos_compativeis {
+                valor["desfecho"] = json!("candidatos_ambiguos");
+                valor["candidatos_compativeis"] = json!(nups);
+            }
         }
         if let Some(http) = erro.status_http() {
             valor["status_http"] = json!(http.status);
@@ -154,7 +158,16 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             }
             if let Some(nups) = candidatos {
                 eprintln!(
-                    "IES: candidatos observados (sem comprovação de criação): {}",
+                    "IES: candidatos observados na caixa Gerados: {}",
+                    nups.len()
+                );
+                for nup in nups {
+                    eprintln!("  {nup}");
+                }
+            }
+            if let Some(nups) = diagnostico.candidatos_compativeis {
+                eprintln!(
+                    "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
                     nups.len()
                 );
                 for nup in nups {
