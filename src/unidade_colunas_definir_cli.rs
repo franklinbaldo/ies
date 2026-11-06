@@ -168,11 +168,14 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
         confirmado: feito.confirmado,
         depois: feito.depois.as_deref().map(chaves_tipadas),
         desmarcar: chaves_tipadas(&plano.desmarcar()),
-        envio: feito.campos_do_envio.as_deref().map(|campos| EnvioColunasPublico {
-            acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
-            campos,
-            metodo: "POST",
-        }),
+        envio: feito
+            .campos_do_envio
+            .as_deref()
+            .map(|campos| EnvioColunasPublico {
+                acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+                campos,
+                metodo: "POST",
+            }),
         falha_do_salvar: feito.reconciliado_por.as_ref().map(|falha| {
             crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
         }),
