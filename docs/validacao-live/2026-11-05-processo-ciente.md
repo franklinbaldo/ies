@@ -36,6 +36,6 @@ comportamento sintético, não a compatibilidade ao vivo.
 
 - **RED antes do código:** [CI 42223177117](https://github.com/franklinbaldo/ies/actions/runs/42223177117) — **3 FAIL novos / 1.717 PASS / 22 ignored preexistentes**. Os testes provaram que `if(false)` e função arbitrária não invocada eram aceitos como atividade; o fluxo podia retornar sucesso se a lista relida já trouxesse o ID.
 - **Correção:** só instrução independente no topo do script ou diretamente na função SEI `inicializar()` conta como aceite. Condições sem prova são recusadas. Não há execução de JS, regex, retry ou requisição adicional.
-- **GREEN:** CI do head corrigido a verificar; não atribuir PASS por transferência de outro SHA.
+- **GREEN:** [CI 42224041949](https://github.com/franklinbaldo/ies/actions/runs/42224041949), head `e646671`, **5/5 PASS**: prek (Rustfmt, Clippy, suíte Rust, OKF, 20 KB, subcódigos), release e três replays gerais. O replay específico de ciência permanece NOT_RUN.
 - **Orçamento sintético do caso adversarial:** 3 GET de abertura + 1 GET de tela + 1 GET potencialmente mutador + 1 GET de releitura = **6 GET, exatamente 1 mutador e zero retries**; não consultar lista sem atividade publicada por aceite válido.
 - **Live:** UnB NOT_RUN (0 requisições); segunda instalação NOT_RUN (0); confirmação única NOT_RUN (0); verificação por leitura NOT_RUN (0). Replay específico de ciência NOT_RUN. **Nenhum acesso SEI, 0 escritas e 0 resíduos.**
