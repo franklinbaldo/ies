@@ -1,0 +1,244 @@
+name: TEMP #246 diagnostico lexico privado do cadastro UnB
+on:
+  push:
+    branches: [codex/246-documento-criar]
+permissions:
+  contents: read
+jobs:
+  observar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Compilar binario de release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Somente leitura; extrair tokens estruturais, nunca HTML nem credenciais
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+          import time
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          ORIGEM = "https://sei.treinamento.unb.br/sei"
+          NUP = "23106.001868/2026-91"
+          EXE = "./target/release/ies"
+
+          def run(label, argv, env):
+              try:
+                  p = subprocess.run([EXE, *argv, "--json"], env=env,
+                                     capture_output=True, text=True, timeout=240, check=False)
+                  try:
+                      data = json.loads(p.stdout)
+                  except (TypeError, ValueError):
+                      data = {}
+                  if not isinstance(data, dict):
+                      data = {}
+                  sub = data.get("subcodigo")
+                  if not isinstance(sub, str) or not sub.replace("_", "").isalnum():
+                      sub = None
+                  count = data.get("requisicoes") if type(data.get("requisicoes")) is int else None
+                  print(json.dumps({"etapa": label, "exit": p.returncode, "requisicoes": count,
+                                    "subcodigo": sub}, ensure_ascii=False), flush=True)
+                  return p.returncode, data
+              except subprocess.TimeoutExpired:
+                  print(json.dumps({"etapa": label, "resultado": "timeout_sem_retry"}), flush=True)
+                  return 99, {}
+
+          class Resumo(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.botoes = []
+                  self.scripts = []
+                  self.script = None
+                  self.template = 0
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == "template":
+                      self.template += 1
+                  if tag == "button" and attrs.get("id") == "btnSalvar":
+                      self.botoes.append({
+                          "type_button": attrs.get("type") == "button",
+                          "name_ok": attrs.get("name") == "btnSalvar",
+                          "disabled": "disabled" in attrs,
+                          "onclick": tokens(attrs.get("onclick") or "", 40),
+                          "inerte_template": bool(self.template)
+                      })
+                  if tag == "script":
+                      self.script = {"src": "src" in attrs, "type_classico": (attrs.get("type") in (None, "text/javascript")),
+                                     "inerte_template": bool(self.template), "texto": []}
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.script is not None:
+                      self.scripts.append(self.script)
+                      self.script = None
+                  if tag == "template":
+                      self.template = max(0, self.template - 1)
+              def handle_data(self, data):
+                  if self.script is not None:
+                      self.script["texto"].append(data)
+
+          ALLOW = set(("function submeter confirmarDados OnSubmitForm frmDocumentoCadastro "
+                       "hdnFlagDocumentoCadastro desabilitarBotaoSalvar document getElementById "
+                       "submit value if else return true false btnSalvar onclick window top "
+                       "parent form forms javascript save enable disable click").split())
+          def tokens(src, limit):
+              # Analisador de caracteres, sem regex; nenhuma string literal
+              # nem identificador desconhecido vai ao log.
+              out = []
+              i = 0
+              while i < len(src) and len(out) < limit:
+                  c = src[i]
+                  if c in ("'", '"', "`"):
+                      quote = c
+                      i += 1
+                      while i < len(src):
+                          if src[i] == "\\":
+                              i += 2
+                              continue
+                          if src[i] == quote:
+                              i += 1
+                              break
+                          i += 1
+                      out.append("STRING")
+                  elif c.isascii() and (c.isalpha() or c in "_$"):
+                      j = i + 1
+                      while j < len(src) and src[j].isascii() and (src[j].isalnum() or src[j] in "_$"):
+                          j += 1
+                      word = src[i:j]
+                      out.append(word if word in ALLOW else "IDENT")
+                      i = j
+                  elif c.isdigit():
+                      while i < len(src) and src[i].isdigit():
+                          i += 1
+                      out.append("NUM")
+                  else:
+                      if c in "(){};,.=!&|[]+-":
+                          out.append(c)
+                      i += 1
+              return " ".join(out)
+
+          def diagnosticar(src):
+              steps = ["desabilitarBotaoSalvar(true);", "document.getElementById('hdnFlagDocumentoCadastro').value = '2';", "document.getElementById('frmDocumentoCadastro').submit();"]
+              st = []; mode = "code"; quoted = ""; regex_class = False
+              ps = pc = ns = nc = os = oc = 0
+              for n, raw in enumerate(src.splitlines(), 1):
+                  row = raw.strip()
+                  if mode == "code":
+                      if st == ["S"] and row != "}":
+                          if ps >= 3 or row != steps[ps]: return {"reason":"submeter_step","line":n,"step":ps}
+                          ps += 1
+                      elif st == ["C"] and row != "}":
+                          if pc != 0 or row not in ("if (OnSubmitForm()) {","if (OnSubmitForm()){"):
+                              return {"reason":"confirmar_step","line":n,"step":pc}
+                          pc = 1
+                      elif st == ["C","F"] and row != "}":
+                          if pc != 1 or row != "submeter();": return {"reason":"if_step","line":n,"step":pc}
+                          pc = 2
+                      elif row == steps[1]: return {"reason":"flag_outside","line":n}
+                  prefix = ""; k = 0
+                  while k < len(row):
+                      c = row[k]; nx = row[k+1] if k+1 < len(row) else ""
+                      if mode == "code":
+                          if c == "/" and nx == "/": break
+                          if c == "/" and nx == "*": mode = "comment"; k += 2; continue
+                          if c in ("'",'"',chr(96)): mode = "string"; quoted = c
+                          elif c == "/" and prefix.rstrip().endswith("="): mode = "regex"; regex_class = False
+                          elif c == "{":
+                              p = prefix.strip()
+                              if not st and p == "function submeter()": name = "S"; ns += 1
+                              elif not st and p == "function confirmarDados()": name = "C"; nc += 1
+                              elif st == ["C"] and p == "if (OnSubmitForm())": name = "F"
+                              else: name = "O"
+                              st.append(name)
+                              if ns > 1 or nc > 1: return {"reason":"duplicate","line":n}
+                          elif c == "}":
+                              if not st: return {"reason":"unbalanced_close","line":n}
+                              name = st.pop()
+                              if name == "S":
+                                  if ps != 3: return {"reason":"submeter_end","line":n,"step":ps}
+                                  os += 1; ps = 0
+                              elif name == "F":
+                                  if pc != 2: return {"reason":"if_end","line":n,"step":pc}
+                                  pc = 3
+                              elif name == "C":
+                                  if pc != 3: return {"reason":"confirm_end","line":n,"step":pc}
+                                  oc += 1; pc = 0
+                          else: prefix += c
+                      elif mode == "comment":
+                          if c == "*" and nx == "/": mode = "code"; k += 2; continue
+                      elif mode == "string":
+                          if c == "\\": k += 2; continue
+                          if c == quoted: mode = "code"
+                      elif mode == "regex":
+                          if c == "\\": k += 2; continue
+                          if c == "[": regex_class = True
+                          elif c == "]" and regex_class: regex_class = False
+                          elif c == "/" and not regex_class: mode = "code"
+                      k += 1
+              if mode != "code" or st: return {"reason":"unclosed","mode":mode,"depth":len(st),"line":len(src.splitlines())}
+              return {"reason":"parsed","submeter":ns,"confirmar":nc,"body":os,"chain":oc}
+
+          doc = Path("docs/interfaces/credenciais-de-treinamento.md").read_text(encoding="utf-8")
+          tick = chr(96)
+          marker = tick + "unb" + tick + ":\n\n" + tick * 3 + "text\n"
+          if marker not in doc:
+              print('{"setup":"sem_credenciais_publicas"}')
+              raise SystemExit(0)
+          credentials = doc.split(marker, 1)[1].split(tick * 3, 1)[0]
+          with tempfile.TemporaryDirectory(prefix="ies246-") as td:
+              root = Path(td)
+              root.chmod(0o700)
+              for name, contents in (("origem", ORIGEM + "\n"), ("credenciais", credentials),
+                                     ("cookie", ""), ("controle", "")):
+                  path = root / name
+                  path.write_text(contents, encoding="utf-8")
+                  path.chmod(0o600)
+              capture = root / "cadastro-privado.html"
+              env = os.environ.copy()
+              env.pop("IES_CONFIG_FILE", None)
+              env.pop("IES_SEM_INDICE", None)
+              for variable, filename in (
+                  ("IES_ORIGEM_FILE", "origem"), ("IES_CREDENCIAIS_FILE", "credenciais"),
+                  ("IES_COOKIE_FILE", "cookie"), ("IES_URL_CONTROLE_FILE", "controle"),
+              ):
+                  env[variable] = str(root / filename)
+              env["IES_INDICE_FILE"] = str(root / "ies.sqlite3")
+              env["RUST_LOG"] = "off"
+              if run("login", ["login"], env)[0] != 0:
+                  raise SystemExit(0)
+              time.sleep(30)
+              args = ["documento", "criar", "--processo", NUP, "--tipo", "Despacho",
+                      "--descricao", "Ensaio estrutural #246", "--nivel", "publico"]
+              ok, preview = run("previa_somente_leitura", args, env)
+              if ok != 0 or preview.get("confirmado") is not False or preview.get("alterado") is not False:
+                  raise SystemExit(0)
+              time.sleep(30)
+              # A instrumentacao no Rust SEMPRE retorna antes de qualquer POST.
+              env["IES246_CAPTURA_PRIVADA"] = str(capture)
+              run("diagnostico_fechado_sem_post", [*args, "--confirmar"], env)
+              if not capture.is_file() or (capture.stat().st_mode & 0o077):
+                  print('{"captura":"indisponivel_ou_permissoes_invalidas"}')
+                  raise SystemExit(0)
+              # O HTML integral permanece no diretorio 0700, nunca em log ou artifact.
+              html = capture.read_text(encoding="utf-8")
+              resumo = Resumo()
+              resumo.feed(html)
+              print(json.dumps({"botoes_salvar": resumo.botoes, "total_scripts": len(resumo.scripts)},
+                               ensure_ascii=False), flush=True)
+              for i, script in enumerate(resumo.scripts):
+                  if not script["src"] and script["type_classico"] and not script["inerte_template"]:
+                      resultado = diagnosticar("\n".join(script["texto"]))
+                      print(json.dumps({"script_index": i, "lexico": resultado}, ensure_ascii=False), flush=True)
+              capture.unlink()
+          PY
