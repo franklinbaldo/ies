@@ -70,15 +70,17 @@ fn submissao_sintetica() -> crate::formulario_web::SubmissaoDerivada {
     .unwrap()
 }
 fn resposta_ok() -> RespostaDoPost<Cursor<Vec<u8>>> {
+    // Destino sintético com ID conferível na fotografia posterior.
+    let destino = "controlador.php?acao=documento_visualizar&id_documento=102".to_owned();
     RespostaDoPost {
         resposta: RespostaWeb {
-            status_code: 200,
+            status_code: 302,
             mime: "text/html; charset=UTF-8".to_owned(),
             content_length: None,
-            localizacao: None,
-            corpo: Cursor::new(b"<html><body>documento salvo</body></html>".to_vec()),
+            localizacao: Some(destino.clone()),
+            corpo: Cursor::new(Vec::new()),
         },
-        localizacao: None,
+        localizacao: Some(destino),
     }
 }
 fn escrever_ok(
@@ -169,7 +171,10 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(_))
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -424,7 +429,10 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
     assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
     let http = erro.status_http().expect("preservar status HTTP do POST");
     assert_eq!(http.status, 403);
-    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("acesso negado sintético"));
+    assert_eq!(
+        http.mensagem_do_servidor.as_deref(),
+        Some("acesso negado sintético")
+    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
 }
