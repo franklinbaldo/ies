@@ -159,22 +159,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .as_deref()
         .ok_or(E::UnidadeDaSessaoNaoPublicada)?;
     let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade).ok_or_else(|| {
-        // Diagnóstico conservador: a unidade da tela não é necessariamente
-        // a unidade da árvore. Sem identidade comum, NÃO escolher outra.
-        let (aberto_em, motivo) = match &aberto.arvore.aberto_em {
-            AbertoEm::Unidades(unidades) => (
-                Some(unidades.iter().map(|u| u.sigla.clone()).collect()),
-                None,
-            ),
-            AbertoEm::Sobrestado(_) => (None, Some("raiz_publica_o_sobrestamento")),
-            AbertoEm::NaoLido(motivo) => (None, Some(motivo.como_texto())),
-        };
-        E::SituacaoDaAtribuicaoNaoObservada {
-            unidade: unidade.to_owned(),
-            aberto_em,
-            motivo,
-            requisicoes: rede.feitas(),
-        }
+        diagnostico_unidade_nao_observada(&aberto.arvore.aberto_em, unidade, rede.feitas())
     })?;
     let link = acoes
         .atribuir
@@ -275,6 +260,30 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     feito.alterado = true;
     feito.reconciliado_por = falha_do_envio;
     Ok(feito)
+}
+
+
+/// Falhar fechado: a unidade da tela não pode ser substituída por uma
+/// unidade da árvore. O diagnóstico só informa os fatos que foram lidos.
+fn diagnostico_unidade_nao_observada(
+    aberto_em: &AbertoEm,
+    unidade: &str,
+    requisicoes: u8,
+) -> ErroProcessoAtribuir {
+    let (siglas, motivo) = match aberto_em {
+        AbertoEm::Unidades(unidades) => (
+            Some(unidades.iter().map(|u| u.sigla.clone()).collect()),
+            None,
+        ),
+        AbertoEm::Sobrestado(_) => (None, Some("raiz_publica_o_sobrestamento")),
+        AbertoEm::NaoLido(motivo) => (None, Some(motivo.como_texto())),
+    };
+    ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
+        unidade: unidade.to_owned(),
+        aberto_em: siglas,
+        motivo,
+        requisicoes,
+    }
 }
 
 /// None significa que a árvore não publicou a situação da unidade.
