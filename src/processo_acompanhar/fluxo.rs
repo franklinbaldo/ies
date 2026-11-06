@@ -175,6 +175,25 @@ fn selecionar_previa(
             requisicoes,
         });
     }
+    // Uma linha do gerenciador prova o grupo ja acompanhado, mesmo se
+    // o cadastro nao oferece mais Adicionar. Nao precisamos de outro GET.
+    if let Some(grupo) = pedido
+        .grupo
+        .filter(|grupo| antes.iter().any(|a| a.grupo == *grupo))
+    {
+        return Ok(Previa {
+            numero: numero.to_owned(),
+            unidade: unidade.to_owned(),
+            operacao: "acompanhar",
+            grupo: grupo.to_owned(),
+            observacao: pedido.observacao.unwrap_or("").to_owned(),
+            id_de_remocao: None,
+            ja_estava: true,
+            confirmado: false,
+            alterado: false,
+            requisicoes,
+        });
+    }
     let grupos = grupos.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
     let selecionado = escolher_grupo(grupos, pedido.grupo)?;
     Ok(Previa {
@@ -241,7 +260,12 @@ fn ler_gerenciador<V: EnvioDoProcesso>(
                 )?);
             }
         }
-        let url = if pedido.deixar {
+        // O grupo pedido ja aparece na lista: nao abrir outro cadastro
+        // nem derivar submissao para um POST que nao sera enviado.
+        let ja_acompanhado = pedido
+            .grupo
+            .is_some_and(|grupo| antes.iter().any(|a| a.grupo == grupo));
+        let url = if pedido.deixar || ja_acompanhado {
             None
         } else {
             Some(adicionar_da_lista(instalacao, &html, id)?)
