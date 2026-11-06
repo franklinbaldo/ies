@@ -51,6 +51,10 @@ jobs:
                   count = data.get("requisicoes") if type(data.get("requisicoes")) is int else None
                   print(json.dumps({"etapa": label, "exit": p.returncode, "requisicoes": count,
                                     "subcodigo": sub}, ensure_ascii=False), flush=True)
+                  if label == "diagnostico_fechado_sem_post":
+                      marker = "IES246: prova_guardada="
+                      guard = next((t.split(marker, 1)[1].split()[0] for t in p.stderr.splitlines() if marker in t), None)
+                      print(json.dumps({"guarda_rust": guard if guard in ("true", "false") else "NOT_OBSERVED"}), flush=True)
                   return p.returncode, data
               except subprocess.TimeoutExpired:
                   print(json.dumps({"etapa": label, "resultado": "timeout_sem_retry"}), flush=True)
