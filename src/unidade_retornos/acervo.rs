@@ -80,6 +80,27 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     );
 }
 
+
+/// Exercita o parser da CLI nas respostas originais, sem rede ou logs de URLs.
+fn conferir_calendario_real(
+    html: &str,
+    resposta: &gravacao::Resposta<'_>,
+    origem: &crate::instalacao::Instalacao,
+    nome: &str,
+) -> (bool, bool) {
+    let url_servida = resposta.item["response"]["url"]
+        .as_str()
+        .expect("URL original da resposta gravada");
+    crate::unidade_retornos_web::conferir_calendario_gravado(html, url_servida, origem)
+        .unwrap_or_else(|erro| {
+            panic!(
+                "{nome}: calendario passo {} recusado: {}",
+                resposta.passo,
+                crate::erro_publico::folha(&erro)
+            )
+        })
+}
+
 /// Sem acesso ao SEI; usa exclusivamente o acervo original em cache.
 #[test]
 #[ignore = "replay manual #253: requer ZIPs do acervo verificados em IES_ACERVO_CACHE"]
@@ -106,7 +127,8 @@ fn replay_retornos_no_acervo() {
         let mut calendarios = 0usize;
         let mut calendarios_com_hoje = 0usize;
         let mut calendarios_com_vizinho = 0usize;
-        let origem = gravacao::instalacao(&conferida.json).expect("instalacao verificada no acervo");
+        let origem =
+            gravacao::instalacao(&conferida.json).expect("instalacao verificada no acervo");
         for resposta in gravacao::respostas(&conferida.json) {
             if resposta.operacao == "retorno_programado_listar"
                 && resposta.metodo == "GET"
@@ -115,21 +137,8 @@ fn replay_retornos_no_acervo() {
             {
                 if let Ok(html) = html_da_resposta(resposta.item) {
                     diagnosticar_calendario(&html, instalacao, resposta.passo);
-                    let url_servida = resposta.item["response"]["url"]
-                        .as_str()
-                        .expect("URL original da resposta gravada");
-                    // Replay real do MESMO leitor de calendario usado pela CLI.
-                    // Nenhuma URL assinada ou cookie e impresso no diagnostico.
-                    let (hoje, vizinho) = crate::unidade_retornos_web::conferir_calendario_gravado(
-                        &html, url_servida, &origem,
-                    )
-                    .unwrap_or_else(|erro| {
-                        panic!(
-                            "{instalacao}: calendario passo {} recusado: {}",
-                            resposta.passo,
-                            crate::erro_publico::folha(&erro)
-                        )
-                    });
+                    let (hoje, vizinho) =
+                        conferir_calendario_real(&html, &resposta, &origem, instalacao);
                     calendarios += 1;
                     calendarios_com_hoje += usize::from(hoje);
                     calendarios_com_vizinho += usize::from(vizinho);
@@ -167,10 +176,21 @@ fn replay_retornos_no_acervo() {
                 }
             }
         }
-        println!("{instalacao}: mensais={meses} lidos={lidos} recusados={recusados} calendarios={calendarios} hoje={calendarios_com_hoje} vizinho={calendarios_com_vizinho}");
-        assert!(calendarios >= 3, "{instalacao}: falta replay das telas do calendario");
-        assert!(calendarios_com_hoje >= 1, "{instalacao}: diaHoje real nao foi reconhecido");
-        assert!(calendarios_com_vizinho >= 1, "{instalacao}: nenhuma navegacao vizinha observada");
+        println!(
+            "{instalacao}: mensais={meses} lidos={lidos} recusados={recusados} calendarios={calendarios} hoje={calendarios_com_hoje} vizinho={calendarios_com_vizinho}"
+        );
+        assert!(
+            calendarios >= 3,
+            "{instalacao}: falta replay das telas do calendario"
+        );
+        assert!(
+            calendarios_com_hoje >= 1,
+            "{instalacao}: diaHoje real nao foi reconhecido"
+        );
+        assert!(
+            calendarios_com_vizinho >= 1,
+            "{instalacao}: nenhuma navegacao vizinha observada"
+        );
         total_calendarios += calendarios;
         // As sete capturas imutaveis continham exatamente dois GETs
         // mensais cada: uma regressao nao pode passar lendo so uma pagina.
@@ -181,8 +201,13 @@ fn replay_retornos_no_acervo() {
         total_lidos += lidos;
         total_recusados += recusados;
     }
-    println!("TOTAL: mensais={total_meses} lidos={total_lidos} recusados={total_recusados} calendarios={total_calendarios}");
-    assert!(total_calendarios >= 21, "replay nao cobriu os calendarios reais das sete instalacoes");
+    println!(
+        "TOTAL: mensais={total_meses} lidos={total_lidos} recusados={total_recusados} calendarios={total_calendarios}"
+    );
+    assert!(
+        total_calendarios >= 21,
+        "replay nao cobriu os calendarios reais das sete instalacoes"
+    );
     assert_eq!(total_meses, 14, "acervo nao cobriu os 14 meses");
     assert_eq!(total_lidos, 14, "acervo nao leu os 14 meses");
     assert_eq!(
