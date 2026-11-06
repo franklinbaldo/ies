@@ -380,8 +380,12 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     // A releitura prova o efeito, mas não legitima um 302 para outra
     // operação ou outro processo. Sem resposta de rede, o POST ainda
     // pode ter sido consumido: apenas uma leitura exata pode conciliá-lo.
-    let aceite =
-        resposta.is_err() || aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
+    let aceite = matches!(
+        &resposta,
+        Err(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::Rede
+        ))
+    ) || aceite_do_gerenciador(&resposta, contexto.instalacao, contexto.id);
     let depois = rede.get_sem_seguir(contexto.link, contexto.cookie);
     let depois = match depois {
         Ok(resposta) if resposta.resposta.status_code != 302 => {
