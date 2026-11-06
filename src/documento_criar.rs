@@ -21,7 +21,10 @@ pub(crate) enum ErroCriar {
     TipoAmbiguo,
     #[causa(nome = "documento_criado_nao_comprovado")]
     NaoAplicado,
-    #[causa(nome = "efeito_incerto_na_criacao_de_documento", acao = "conferir_escrita")]
+    #[causa(
+        nome = "efeito_incerto_na_criacao_de_documento",
+        acao = "conferir_escrita"
+    )]
     EfeitoIncerto,
     #[causa(nome = "link_do_tipo_de_documento_nao_navegavel")]
     LinkDoTipoNaoNavegavel,
@@ -37,11 +40,6 @@ pub(crate) enum ErroCriar {
     NivelNaoOferecido,
     #[causa(nome = "campo_obrigatorio_do_cadastro_nao_atendido")]
     CampoObrigatorioNaoAtendido,
-}
-impl ErroCriar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
 }
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.
 pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
