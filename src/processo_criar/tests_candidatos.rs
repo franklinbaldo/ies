@@ -497,4 +497,3 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
     assert_eq!(requests.len(), 5); // 3 GET + POST único + GET posterior
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
-
