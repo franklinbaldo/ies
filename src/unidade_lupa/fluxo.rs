@@ -381,21 +381,6 @@ fn consulta(
     .map_err(|_| FalhaDaLupa::FormularioInesperado)
 }
 
-/// Contador observavel nas falhas; a implementacao definitiva precisa contar
-/// cada tentativa mesmo quando a coleta e recusada (issue #244).
-/// Shim intencional para observar o RED dos testes antes da correção.
-pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
-    transporte: &mut T,
-    url_controle: &str,
-    origem: &str,
-    cookie: &str,
-    requisicoes: &mut usize,
-) -> Result<ListaWeb, FalhaDaLupa> {
-    let resposta = ler_integral(transporte, url_controle, origem, cookie);
-    *requisicoes = resposta.as_ref().map_or(0, |r| r.requisicoes);
-    resposta
-}
-
 /// Consulta integral: quatro GETs de navegação + um POST por página;
 /// a própria lupa custa 1 GET + N POSTs, sem pagina repetida.
 pub(crate) fn ler_integral<T: TransporteLupa>(
@@ -404,20 +389,32 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
     origem: &str,
     cookie: &str,
 ) -> Result<ListaWeb, FalhaDaLupa> {
-    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
     let mut requisicoes = 0;
-    let (controle, _) = obter(transporte, url_controle, cookie, origem, &mut requisicoes)?;
+    ler_integral_com_contador(transporte, url_controle, origem, cookie, &mut requisicoes)
+}
+
+/// Conserva a contagem das tentativas mesmo quando uma resposta e recusada.
+/// O contador e de metadados: nunca inclui URLs assinadas ou cookies.
+pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
+    transporte: &mut T,
+    url_controle: &str,
+    origem: &str,
+    cookie: &str,
+    requisicoes: &mut usize,
+) -> Result<ListaWeb, FalhaDaLupa> {
+    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
+    let (controle, _) = obter(transporte, url_controle, cookie, origem, requisicoes)?;
     let lista = destino(&controle, url_controle, origem, "grupo_unidade_listar")?;
-    let (lista_html, _) = obter(transporte, &lista, cookie, origem, &mut requisicoes)?;
+    let (lista_html, _) = obter(transporte, &lista, cookie, origem, requisicoes)?;
     let novo = botao_novo(&lista_html, &lista, origem)?;
-    let (cadastro, _) = obter(transporte, &novo, cookie, origem, &mut requisicoes)?;
+    let (cadastro, _) = obter(transporte, &novo, cookie, origem, requisicoes)?;
     let url_lupa = destino(
         &cadastro,
         &novo,
         origem,
         "unidade_selecionar_envio_processo",
     )?;
-    let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, &mut requisicoes)?;
+    let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, requisicoes)?;
     let mut url = url_lupa;
     let mut lidas: Vec<PaginaDaLupa> = Vec::new();
     let mut total_paginas = 1;
@@ -427,7 +424,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
         }
         let post = consulta(&instalacao, &url, &html, &mime, pagina)?;
         post.url().clone_into(&mut url);
-        requisicoes += 1;
+        *requisicoes += 1;
         let resposta = transporte
             .post(post, cookie)
             .map_err(FalhaDaLupa::Transporte)?;
@@ -449,7 +446,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
     Ok(ListaWeb {
         total: unidades.len(),
         unidades,
-        requisicoes,
+        requisicoes: *requisicoes,
     })
 }
 
