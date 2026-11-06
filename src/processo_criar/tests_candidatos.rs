@@ -128,3 +128,72 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
     assert_eq!(requests.len(), 8);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+
+#[test]
+fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
+    let amb = ambiente();
+    let recusa = "<html><body><textarea id=\"txaInfraValidacao\" name=\"txaInfraValidacao\">Criacao recusada.</textarea></body></html>";
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        ok(recusa.to_owned()),
+        // Outro agente pode criar um processo equivalente na conta compartilhada.
+        // O POST foi recusado: nunca atribuir o candidato concorrente a esta escrita.
+        ok(gerados_com_candidato()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("recusa explicita nao confirma escrita");
+    assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei");
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(erro.status_http().map(|status| status.status), Some(200));
+    assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::AcessoNegado(
+            crate::transporte::StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("Acesso negado.".to_owned()),
+            },
+        )),
+        ok(gerados_com_candidato()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("recusa HTTP 403 nao confirma escrita");
+    assert_eq!(erro.subcodigo(), "sessao_nao_autorizada");
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(erro.status_http().map(|status| status.status), Some(403));
+    assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
