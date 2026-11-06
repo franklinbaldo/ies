@@ -70,17 +70,34 @@ fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
+/// Fatos de diagnóstico da prévia são publicados sem extrapolar uma unidade
+/// da árvore para outra: lista vazia = observada sem abertos; null = não lida.
+pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
+    let mut valor = json_base_da_falha(
+        "atribuicao_recusada",
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http().cloned(),
+    );
+    if let ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
+        unidade,
+        aberto_em,
+        motivo,
+        requisicoes,
+    } = erro
+    {
+        let objeto = valor.as_object_mut().expect("a falha pública é objeto JSON");
+        objeto.insert("unidade".to_owned(), json!(unidade));
+        objeto.insert("aberto_em".to_owned(), json!(aberto_em));
+        objeto.insert("motivo".to_owned(), json!(motivo));
+        objeto.insert("requisicoes".to_owned(), json!(requisicoes));
+    }
+    valor
+}
+
 fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
     if json_mode {
-        println!(
-            "{}",
-            json_base_da_falha(
-                "atribuicao_recusada",
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http().cloned()
-            )
-        );
+        println!("{}", json_de_falha(erro));
     } else {
         eprintln!(
             "{}",
