@@ -1,5 +1,5 @@
 //! RED #271: superfície CLI de ciência de documento, caso Todos
-//! tests/test_documento_ciente_010.py @323eb01. Sem sessão nem rede.
+//! `tests/test_documento_ciente_010.py` @323eb01. Sem sessão nem rede.
 use std::process::{Command, Output};
 
 fn sem_sessao(args: &[&str]) -> Output {
