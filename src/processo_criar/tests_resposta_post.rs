@@ -69,3 +69,68 @@ fn retorno_inesperado_e_releitura_falha_preservam_as_duas_causas() {
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+// Casos 4.0 antigos preservados ao extrair as regressões do arquivo grande.
+#[test]
+fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&acao=procedimento_excluir&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(tela_controle()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(
+        resultado.unwrap_err().diagnostico_apos_post().unwrap().causa_post,
+        "localizacao_invalida_apos_post_criador"
+    );
+    assert_eq!(requests.len(), 5);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
+}
+
+#[test]
+fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_procedimento=invalido&infra_hash={HASH}"
+        )),
+        ok(tela_controle()),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    assert_eq!(
+        resultado.unwrap_err().diagnostico_apos_post().unwrap().causa_post,
+        "localizacao_invalida_apos_post_criador"
+    );
+    assert_eq!(requests.len(), 5);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
+}
