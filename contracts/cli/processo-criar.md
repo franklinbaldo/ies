@@ -286,3 +286,16 @@ transporte. Os quatro desfechos automáticos e o ensaio live faltam.
 | `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
 | `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
 | `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
+
+## Resposta inesperada após POST criador (#245, fatia 2026-11-06)
+
+Se o POST criador devolver HTML em vez de 302, ou `Location` ausente,
+repetida ou inválida, o IES **não segue** esse endereço nem repete o POST.
+Reconsulta **uma única vez** o Controle conhecido da sessão e compara a
+fotografia completa de Gerados obtida antes do envio. Reporta a causa
+nomeada `resposta_inesperada_apos_post_criador` ou
+`localizacao_invalida_apos_post_criador`, os candidatos apenas observados
+e a causa independente da releitura, quando esta falhar. A resposta continua
+`efeito_incerto_na_criacao`/saída 3 porque diferença de Gerados, inclusive
+vazia, não prova por si só criação nem não aplicação. Conferência de cada
+candidato por `processo NUP` e classificação final são trabalho pendente.
