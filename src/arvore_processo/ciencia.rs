@@ -185,6 +185,18 @@ pub(crate) fn url_da_ciencia_do_documento(
     // Só o conteúdo de scripts inline ativos comprova o link do GET
     // mutador. Texto em templates, campos e scripts de dados não é ação
     // publicada pelo SEI; nunca se interpreta nem executa JavaScript.
+    // Conservador: uma declaração em <script> dentro de <template> nunca
+    // autoriza o GET de escrita, mesmo se o seletor DOM listar o nó inerte.
+    // Rejeita a tela inteira quando a região inerte contém script: não
+    // precisa inferir qual ramo o navegador ativaria nem executar JS.
+    let minusculas = html.to_ascii_lowercase();
+    if minusculas
+        .split("<template")
+        .skip(1)
+        .any(|resto| resto.split("</template").next().is_some_and(|parte| parte.contains("<script")))
+    {
+        return Err(E::valor("script_da_ciencia_do_documento_fora_da_forma"));
+    }
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
     let mut urls = Vec::<String>::new();
