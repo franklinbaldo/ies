@@ -93,7 +93,10 @@ Prévia: `{"nup":"…","tipo":"Despacho","confirmado":false,
 "alterado":false,"requisicoes":N}`.
 Após escrita comprovada: `{"nup":"…","tipo":"Despacho",
 "confirmado":true,"alterado":true,"numero_sei":"…",
-"requisicoes":N}`. Nenhum segredo ou URL assinada na saída.
+"requisicoes":N}`. Na saída 3 de efeito incerto, `requisicoes`
+informa as tentativas realmente contadas (inclusive POST e releitura);
+não se interpreta a contagem como prova de aceite. Nenhum segredo ou
+URL assinada na saída.
 
 ## Evidências e validação
 
