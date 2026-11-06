@@ -11,9 +11,7 @@ use crate::processo_criar_cadastro::{
     ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
 };
 use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
-use crate::processo_criar_interessados::{
-    resolver as resolver_interessados, valor_da_lupa,
-};
+use crate::processo_criar_interessados::{resolver as resolver_interessados, valor_da_lupa};
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::link_de_iniciar;
 
