@@ -56,9 +56,9 @@ fn lista(linhas: &str) -> String {
     )
 }
 fn linha(id: &str, grupo: &str) -> String {
-    format!(r#"<tr><td><input type="checkbox" value="{id}"></td>
+    format!(r##"<tr><td><input type="checkbox" value="{id}"></td>
         <td>{grupo}</td><td>Obs.</td><td>Aluna</td><td>05/11</td>
-        <td><a href="#ID-{id}" onclick="acaoExcluir('{id}','Obs.');">Excluir</a></td></tr>"#)
+        <td><a href="#ID-{id}" onclick="acaoExcluir('{id}','Obs.');">Excluir</a></td></tr>"##)
 }
 fn preparar() -> Vec<Resposta> {
     let arvore = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
