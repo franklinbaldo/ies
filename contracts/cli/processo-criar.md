@@ -34,6 +34,19 @@ ambiguidade. A especificação é o texto fornecido, nunca um
 valor construído por script executado. Exibir o que será
 enviado e a contagem de requisições reais.
 
+A prévia e o `--confirmar` verificam o atributo `maxlength` do
+`input txtDescricao` **na tela servida**. Se o comprimento em unidades
+UTF-16 exceder o máximo publicado, recusam antes do POST criador:
+`especificacao_acima_do_limite_do_cadastro`, saída 1, sem escrita.
+JSON publica `limite_da_especificacao` e
+`comprimento_da_especificacao_utf16`, não o texto do usuário;
+a saída humana indica ambos os números. Se o atributo não existir,
+não se supõe limite global. Um `maxlength` presente mas ilegível
+recusa como HTML não comprovado, sem POST. Nas capturas
+`procedimento_gerar.html` (SEI 4.0.9) e
+`procedimento_gerar_go_5_0_3.html` do Todos, o máximo observado é
+100, mas não é constante gravada no IES.
+
 `--nivel restrito` sem hipótese legal selecionável **não**
 autoriza fallback silencioso para público. Na consulta AJAX publicada pelo cadastro restrito, quando houver
 mais de uma hipótese, o usuário pode informar
@@ -81,6 +94,8 @@ O usuário deve conferir a unidade antes de nova tentativa.
 | `cadastro_de_processo_ausente_ou_repetido` | Formulário de cadastro ausente ou repetido |
 | `tipo_do_cadastro_divergente` | ID do tipo no cadastro diferente do escolhido |
 | `especificacao_nao_publicada_no_cadastro` | Campo de especificação ausente ou desabilitado |
+| `especificacao_acima_do_limite_do_cadastro` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
+| `limite_da_especificacao_invalido_no_cadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
 | `assunto_sugerido_nao_unico` | Nenhum ou vários assuntos selecionáveis no cadastro |
 | `nivel_de_acesso_nao_oferecido` | Rádio de acesso solicitado não está publicado |
 | `nivel_de_acesso_desabilitado` | Rádio publicado mas desabilitado |
