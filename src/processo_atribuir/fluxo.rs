@@ -262,7 +262,6 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     Ok(feito)
 }
 
-
 /// Falhar fechado: a unidade da tela não pode ser substituída por uma
 /// unidade da árvore. O diagnóstico só informa os fatos que foram lidos.
 fn diagnostico_unidade_nao_observada(
