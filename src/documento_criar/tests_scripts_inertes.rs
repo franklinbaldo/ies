@@ -181,3 +181,42 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
     esperados.push(apoio::get(&format!("{}/{}", apoio::ORIGEM, link)));
     assert_eq!(pedidos, esperados, "quatro GETs e zero POSTs");
 }
+
+#[test]
+fn controles_de_tipo_dentro_de_template_nao_sao_oferta() {
+    // Cenário HTML adversarial sintético, não atribuído ao SEI real:
+    // um link em template não está disponível para clicar ou selecionar.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
+        "a".repeat(64)
+    );
+    let visivel = format!(r#"<a href="{href}">Despacho</a>"#);
+    let lista = format!(
+        r#"<table id="tblSeries"><tr><td>{visivel}<template>{visivel}</template></td></tr></table>"#
+    );
+    assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
+        Ok(EscolhaDoDocumento::Link(format!("https://sei.exemplo.gov.br/sei/{href}")))
+    );
+    let apenas_inerte = format!(
+        r#"<table id="tblSeries"><tr><td><template>{visivel}</template></td></tr></table>"#
+    );
+    assert_eq!(tipos_oferecidos(&apenas_inerte).unwrap(), Vec::<String>::new());
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &apenas_inerte, "4864", "Despacho"),
+        Err(ErroCriar::TipoAusente)
+    );
+}
+
+#[test]
+fn botao_exibir_todos_em_template_nao_autoriza_filtro() {
+    // O script é ativo, mas o único acionador está num fragmento inerte.
+    // Nenhum POST de filtro deve ser derivado desse HTML.
+    let botao = r#"<a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
+    let html = format!(
+        "<script>{EXIBIR}</script><template>{botao}</template><table id=\"tblSeries\"></table>"
+    );
+    assert_eq!(filtro_de_todos(&html), Ok(false));
+}
