@@ -45,7 +45,7 @@ pub(crate) struct TelaDaAtribuicao {
     pub(crate) usuarios: Vec<UsuarioDaAtribuicao>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuir {
     UsuarioNaoAtribuivel,
     #[causa(nome = "usuario_ambiguo_na_atribuicao")]
