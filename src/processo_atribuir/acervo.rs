@@ -25,7 +25,7 @@ fn id_da_tela(html: &str) -> Option<String> {
     let parser = dom.parser();
     let form = form.get(parser)?.as_tag()?;
     let mut ids = Vec::new();
-    for node in form.query_selector(parser, "input")? {
+    for node in form.query_selector(parser, "input").into_iter().flatten() {
         let input = node.get(parser)?.as_tag()?;
         if valor_do_atributo(input, "name").ok()?.as_deref() == Some("hdnIdProtocolo") {
             ids.push(valor_do_atributo(input, "value").ok()?);
