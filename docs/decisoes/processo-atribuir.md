@@ -69,8 +69,23 @@ conservando a causa; não há nova escrita nem navegação pelo Location.
 Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
 em atribuição quanto em remoção, e as regressões de concorrência exigem
 a mesma contagem exata. A CLI pública `--confirmar` continua recusada antes da sessão
-porque **replay específico e validação ao vivo não foram executados**.
+porque **o ensaio da escrita ao vivo ainda não foi executado**; o replay
+específico offline já é obrigatório no CI.
 Não confundir a cobertura sintética com autorização para enviar.
+
+
+A reconciliação também precisa controlar a **falha da própria leitura**
+após o POST. O RED [42222330393](https://github.com/franklinbaldo/ies/actions/runs/42222330393)
+(2 FAIL novos, 1.718 PASS, 23 ignored) demonstrou que HTTP 503 na
+árvore guardada levava o leitor a tentar outra rota em vez de terminar
+a única releitura de prova. Optou-se pela correção mínima da leitura Web:
+5xx é falha efetiva do servidor, não indício de link expirado; propagar
+o erro tipado imediatamente, preservando 403 como possível link
+envelhecido. Na atribuição, a projeção de erro usa status e mensagem
+saneada da releitura quando a tentativa de POST não publicou HTTP.
+Alternativa rejeitada: repetir a abertura por outra rota após 503,
+porque violaria o orçamento de uma verificação e obscureceria o diagnóstico.
+A escrita pública permanece fechada; o ensaio ao vivo continua NOT_RUN.
 
 ## Evidências verificáveis
 
