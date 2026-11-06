@@ -6,6 +6,9 @@ use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
+#[path = "processo_criar_cli/coincidencias.rs"]
+mod coincidencias;
+use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -121,48 +124,6 @@ fn anexar_http_releitura_json(
 
 /// Só a conferência integral permite o desfecho de candidatos ambíguos.
 /// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
-fn anexar_coincidencias_json(
-    valor: &mut serde_json::Value,
-    evidencia: EvidenciaDeCoincidencia,
-    nups: &[String],
-) {
-    match evidencia {
-        EvidenciaDeCoincidencia::UnicaSemProvaCausal => {
-            valor["desfecho"] = json!("possivel_residuo");
-            valor["candidatos_compativeis"] = json!(nups);
-        }
-        EvidenciaDeCoincidencia::Multiplas => {
-            valor["desfecho"] = json!("candidatos_ambiguos");
-            valor["candidatos_compativeis"] = json!(nups);
-        }
-        EvidenciaDeCoincidencia::Parcial => {
-            valor["coincidencias_parciais_conferidas"] = json!(nups);
-        }
-    }
-}
-
-fn informar_coincidencias_humanas(nups: &[String], evidencia: EvidenciaDeCoincidencia) {
-    match evidencia {
-        EvidenciaDeCoincidencia::UnicaSemProvaCausal => {
-            eprintln!("IES: um candidato confere, mas a leitura não demonstra que este POST o criou.");
-        }
-        EvidenciaDeCoincidencia::Multiplas => {
-            eprintln!(
-                "IES: {} candidatos coincidentes; autoria da criação ambígua.",
-                nups.len()
-            );
-        }
-        EvidenciaDeCoincidencia::Parcial => {
-            eprintln!(
-                "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
-                nups.len()
-            );
-        }
-    }
-    for nup in nups {
-        eprintln!("  {nup}");
-    }
-}
 
 fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
     if let Some(http) = http {
