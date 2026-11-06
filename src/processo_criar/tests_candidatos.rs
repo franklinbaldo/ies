@@ -263,6 +263,10 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
     );
+    assert_eq!(
+        diagnostico.candidatos_compativeis,
+        Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
+    );
     assert_eq!(requests.len(), 11); // 3 GET + 1 POST + 1 Controle + 3 GET por candidato
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert!(requests[4..].iter().all(|r| r.metodo == "GET"));
