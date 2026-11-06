@@ -1,13 +1,21 @@
 //! A entrada válida de cancelamento: aparada, não vazia e compatível com Latin-1.
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "tipo")]
 pub(crate) enum ErroMotivoDoCancelamento {
-    #[causa(nome = "motivo_com_controle")]
-    ComControle,
-    #[causa(nome = "motivo_vazio")]
-    Vazio,
-    #[causa(nome = "motivo_fora_da_codificacao")]
-    ForaDaCodificacao,
+    CaractereDeControleNoMotivo,
+    MotivoVazio,
+    MotivoNaoRepresentavelEmLatin1,
+}
+
+impl ErroMotivoDoCancelamento {
+    pub(crate) fn mensagem(self) -> &'static str {
+        match self {
+            Self::CaractereDeControleNoMotivo => "o motivo contém caractere de controle",
+            Self::MotivoVazio => "o motivo está vazio",
+            Self::MotivoNaoRepresentavelEmLatin1 => "o motivo não é representável em ISO-8859-1",
+        }
+    }
 }
 
 /// Só a validação deste módulo pode construir um motivo para o pedido.
@@ -24,14 +32,14 @@ pub(crate) fn conferir_motivo(
     motivo: &str,
 ) -> Result<MotivoDoCancelamento<'_>, ErroMotivoDoCancelamento> {
     if motivo.chars().any(char::is_control) {
-        return Err(ErroMotivoDoCancelamento::ComControle);
+        return Err(ErroMotivoDoCancelamento::CaractereDeControleNoMotivo);
     }
     let limpo = motivo.trim();
     if limpo.is_empty() {
-        return Err(ErroMotivoDoCancelamento::Vazio);
+        return Err(ErroMotivoDoCancelamento::MotivoVazio);
     }
     if !limpo.chars().all(|c| u32::from(c) <= 255) {
-        return Err(ErroMotivoDoCancelamento::ForaDaCodificacao);
+        return Err(ErroMotivoDoCancelamento::MotivoNaoRepresentavelEmLatin1);
     }
     Ok(MotivoDoCancelamento(limpo))
 }

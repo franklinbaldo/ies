@@ -26,7 +26,14 @@ fn motivo_obrigatorio_e_exigido_pelo_clap_antes_da_sessao() {
 
 #[test]
 fn recusa_numero_invalido_sem_tocar_na_sessao() {
-    let r = sem_sessao(&["documento", "cancelar", "abc", "--motivo", "Teste", "--json"]);
+    let r = sem_sessao(&[
+        "documento",
+        "cancelar",
+        "abc",
+        "--motivo",
+        "Teste",
+        "--json",
+    ]);
     assert_eq!(r.status.code(), Some(2));
     let valor = json(&r);
     assert_eq!(valor["codigo"], "entrada_invalida");
@@ -61,16 +68,21 @@ fn recusa_motivo_tipado_sem_subcodigo_antes_da_sessao() {
             let humano = sem_sessao(&args);
             assert_eq!(humano.status.code(), Some(2));
             assert!(humano.stdout.is_empty());
-            assert_eq!(String::from_utf8(humano.stderr).unwrap(), format!("IES: {mensagem}\n"));
+            assert_eq!(
+                String::from_utf8(humano.stderr).unwrap(),
+                format!("IES: {mensagem}\n")
+            );
             args.push("--json");
             let resultado = sem_sessao(&args);
             assert_eq!(resultado.status.code(), Some(2));
             assert!(resultado.stderr.is_empty());
-            assert_eq!(String::from_utf8(resultado.stdout).unwrap(), format!("{esperado}\n"));
+            assert_eq!(
+                String::from_utf8(resultado.stdout).unwrap(),
+                format!("{esperado}\n")
+            );
         }
     }
 }
-
 
 #[test]
 fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {

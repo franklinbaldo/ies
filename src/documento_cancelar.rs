@@ -14,7 +14,7 @@ mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
-pub(crate) use motivo::{MotivoDoCancelamento, conferir_motivo};
+pub(crate) use motivo::{ErroMotivoDoCancelamento, MotivoDoCancelamento, conferir_motivo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkCancelar {
@@ -181,14 +181,13 @@ mod tests {
     fn recusa_do_motivo_preserva_identidade_tipada() {
         use super::motivo::ErroMotivoDoCancelamento as E;
 
-        for (entrada, esperada, subcodigo) in [
-            ("", E::Vazio, "motivo_vazio"),
-            (" \t ", E::ComControle, "motivo_com_controle"),
-            ("Motivo 🚫", E::ForaDaCodificacao, "motivo_fora_da_codificacao"),
+        for (entrada, esperada) in [
+            ("", E::MotivoVazio),
+            (" \t ", E::CaractereDeControleNoMotivo),
+            ("Motivo 🚫", E::MotivoNaoRepresentavelEmLatin1),
         ] {
             let erro = conferir_motivo(entrada).unwrap_err();
             assert_eq!(erro, esperada);
-            assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
             assert_ne!(
                 std::any::type_name_of_val(&erro),
                 std::any::type_name::<&str>()
