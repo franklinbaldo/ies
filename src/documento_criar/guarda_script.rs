@@ -268,7 +268,10 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
 /// uma string JS, a página Web encerra ali o elemento.
 fn fonte_do_script(html: &str, inicio: usize) -> Option<&str> {
     let bytes = html.as_bytes();
-    if !bytes.get(inicio..inicio + 7)?.eq_ignore_ascii_case(b"<script") {
+    if !bytes
+        .get(inicio..inicio + 7)?
+        .eq_ignore_ascii_case(b"<script")
+    {
         return None;
     }
     let mut i = inicio + 7;
