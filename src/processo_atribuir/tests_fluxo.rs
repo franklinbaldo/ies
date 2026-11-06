@@ -237,7 +237,7 @@ fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
     respostas.push(ok(arvore_atual("aluno20")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
