@@ -137,6 +137,7 @@ fn falha_na_resposta_do_post_ainda_rele_com_efeito_incerto() {
     let mut respostas = preparar();
     respostas.extend([Err(FalhaTransporte::Rede), ok(lista(""))]);
     let (resultado, pedidos) = executar(respostas);
+    assert_eq!(resultado.as_ref().unwrap_err().resposta_post_observada(), Some("rede_sem_resposta"));
     assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto { .. })));
     assert_eq!(pedidos, pedidos_confirmados());
 }
