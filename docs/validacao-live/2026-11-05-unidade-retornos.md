@@ -159,3 +159,40 @@ ativas com orçamento de 5 GET. A leitura deslocada em GO permanece
 NOT_RUN, mas o comando sem `--mes` com calendário não deslocado
 já passou em GO no run 42141337897. Nenhuma instalação de produção
 foi acessada. O workflow temporário foi removido após esta rodada.
+
+
+## Ensaio real de dois saltos — GO (05–06/11/2026)
+
+[Run 42159664030](https://github.com/franklinbaldo/ies/actions/runs/42159664030),
+head temporário `6071551`: **PASS**, exclusivamente na instalação
+**Goiás de treinamento**. Foi reutilizado o binário Release do CI
+[42154933298](https://github.com/franklinbaldo/ies/actions/runs/42154933298)
+(head de código `0449685`), com SHA-256 conferido antes da execução;
+os commits intermediários só modificaram o workflow de ensaio.
+Credenciais públicas foram escritas apenas em arquivos privados `0600`,
+com remoção ao terminar. Houve um único comando por etapa e espera
+de pelo menos 65 segundos entre comandos, sem retry.
+
+| Etapa | Resultado | Requisições observadas |
+| --- | --- | ---: |
+| Login GO | **PASS**, saída 0 | **6** |
+| `ies --json unidade retornos --mes 2027-01` | **PASS**, janeiro/2027, zero retornos, faixa `null` | **5 GET** |
+| `ies --json unidade retornos`, após janeiro | **PASS**, mês `2026-11` observado pelo SEI, 6 retornos, faixa 1–6 | **5 GET** |
+
+O segundo comando de leitura partiu da tela deixada em **janeiro/2027**
+e chegou ao mês marcado como atual pelo SEI, **novembro/2026**,
+percorrendo dois links mensais de navegação publicados. Os **5 GET**
+contados correspondem ao Controle, menu, dois saltos e lista mensal.
+O primeiro pedido de janeiro também custou 5 GET. **Total da rodada:
+16 requisições HTTP** (6 do login, 10 GET de leitura), **zero retry,
+zero POST criador, zero escrita e zero resíduo**. Nenhuma tela foi
+restaurada, nenhum segredo ou URL assinada foi publicado.
+
+O primeiro [run 42159610174](https://github.com/franklinbaldo/ies/actions/runs/42159610174)
+falhou na conferência local de caminho do `ies.sha256`, **antes do
+login e de qualquer acesso ao SEI** (0 requisições). A correção
+conferiu o mesmo digest SHA-256 sem modificar o binário e realizou o
+ensaio uma única vez. O workflow temporário foi removido da PR após
+o ensaio. A validação de dois saltos reais fica **PASS em Goiás**;
+em PEN3 há PASS de um salto no run 42154090686. Nenhuma instalação
+de produção foi acessada.
