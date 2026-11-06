@@ -1,5 +1,5 @@
 //! Regressões sintéticas: função de navegação inerte não autoriza POST (#246).
-//! Oráculo positivo: Todos tests/test_escolha_na_lista_010.py @323eb01.
+//! Oráculo positivo: Todos `tests/test_escolha_na_lista_010.py` @323eb01.
 //! Os casos negativos são adversariais HTML, não capturas de treinamento.
 use super::*;
 
@@ -45,9 +45,9 @@ fn escolher_ignora_codigo_em_template_json_ou_comentario_html() {
 
 #[test]
 fn filtro_exibir_todos_ignora_script_inerte() {
-    let botoes = r##"<a id="ancExibirSeries" href="javascript:void(0);"
+    let botoes = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
-        <table id="tblSeries"></table>"##;
+        <table id="tblSeries"></table>"#;
     for variante in 0..3 {
         let tela = format!("{}{}", script_inerte(EXIBIR, variante), botoes);
         assert_eq!(
