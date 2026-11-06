@@ -184,3 +184,39 @@ O registro cronológico integral (incluindo WIP, limites e contagens) foi preser
   `--confirmar` **NOT_RUN**, releitura **NOT_RUN**; **0 requisições
   reais, 0 escritas e nenhum resíduo**. Sem ambiente seguro para a
   sequência completa; nunca executar em produção.
+
+
+## Ensaio de prévia em UnB de treinamento — 06/11/2026
+
+Dois ensaios independentes executaram o binário Release do branch da
+[PR #248](https://github.com/franklinbaldo/ies/pull/248), com arquivos
+privados `0600`, credenciais públicas e **sem `--confirmar`**.
+Cada login foi **PASS com 5 requisições reais**. Entre login e prévia,
+houve pausa de 30 segundos. Não se repetiu uma requisição falhada.
+
+| Ensaio | Login | Prévia | Requisições da prévia | POST criador | Resíduo |
+| --- | --- | --- | --- | --- | --- |
+| [42183949372](https://github.com/franklinbaldo/ies/actions/runs/42183949372), processo 23106.001875/2026-93 | PASS (5) | FAIL: `processo_nao_aberto_na_unidade_da_sessao` (saída 1) | **não observadas** (`null`) | 0 | nenhum |
+| [42184286157](https://github.com/franklinbaldo/ies/actions/runs/42184286157), processo 23106.001868/2026-91 | PASS (5) | FAIL: `endereco_do_tipo_de_documento_nao_reconhecido` (saída 1) | **não observadas** (`null`) | 0 | nenhum |
+
+O job do GitHub terminou com sucesso operacional porque o script
+encerrou corretamente ao encontrar a recusa; **não é PASS funcional da
+prévia**. Confirmar **NOT_RUN**, releitura **NOT_RUN**, escritas
+**0**, documentos criados ou alterados **0**, resíduo **nenhum**.
+O comando de erro não publicou `requisicoes`; não atribuir zero às
+requisições de prévia.
+
+A captura Todos `documento_escolher_tipo.html @323eb01` contém um
+link de Despacho com dois `id_procedimento` idênticos. O leitor atual
+recusa essa forma; isso é uma **hipótese sobre a segunda falha live**,
+não uma prova da URL efetivamente servida na execução. O teste RED
+[42184932636](https://github.com/franklinbaldo/ies/actions/runs/42184932636)
+detectou a divergência, com **1 falha nova, 1.722 PASS, 19 ignorados**.
+Não há autorização técnica para escrever antes de uma prévia completa
+que comprove unidade, tipo e cadastro. O workflow temporário usado
+nesses ensaios foi removido do branch.
+
+Próximo ensaio: obter nova prévia de treinamento em processo aberto na
+unidade da sessão, observar o link real de escolha sem expor assinatura,
+e só então decidir sobre confirmação única segura. Nunca repetir uma
+escrita incerta ou publicar URL assinada.
