@@ -496,6 +496,28 @@ where
     })
 }
 
+/// Confere, no replay offline, as telas reais do calendario com o mesmo
+/// parser, origem e URL servida usados na CLI. Nao publica URLs assinadas.
+#[cfg(test)]
+pub(crate) fn conferir_calendario_gravado(
+    html: &str,
+    url_servida: &str,
+    instalacao: &Instalacao,
+) -> Result<(bool, bool), ErroLeituraRetornos> {
+    let candidatos = links(html, url_servida, instalacao)?;
+    let (mes, _) = mes_inteiro(&candidatos)?;
+    let marcado = hoje_na_tela(html, url_servida, instalacao)?.is_some();
+    let anterior = mes_vizinho(mes, -1);
+    let proximo = mes_vizinho(mes, 1);
+    let vizinho = candidatos.iter().any(|link| {
+        let data = link.valor("data_atual").and_then(data_da_consulta);
+        data.is_some_and(|(ano, mes, dia)| {
+            dia == 1 && (Some((ano, mes)) == anterior || Some((ano, mes)) == proximo)
+        })
+    });
+    Ok((marcado, vizinho))
+}
+
 #[cfg(test)]
 #[path = "unidade_retornos_web/tests.rs"]
 mod tests;
