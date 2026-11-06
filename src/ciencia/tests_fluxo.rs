@@ -1,7 +1,7 @@
 //! Orçamento exato de requisições de `processo ciente` com transporte
 //! sintético; cenários do Todos 323eb01 (ciência do processo).
 use super::{ErroCienciaProcesso as E, PedidoDaCiencia, ciencia_no_processo};
-use super::FalhaDoAceiteProcesso;
+use super::fluxo::FalhaDoAceiteProcesso;
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
