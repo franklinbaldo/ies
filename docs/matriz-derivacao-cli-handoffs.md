@@ -63,9 +63,13 @@ NOT_RUN. Sem residuo no SEI.
 prévia apenas pela abertura do processo; confirmação com um único GET
 mutador de `procedimento_ciencia` derivado da tela servida; nova leitura da
 árvore e conferência da `id_atividade` no checkbox da Lista de Ciências.
-Testes do fluxo contam o orçamento exato (3 GET na prévia a frio e 7 GET
-na escrita seguida de verificação no caso sintético). A CLI de
-`documento ciente`, a conferência do usuário na lista, o replay e o ensaio
-live ainda não foram entregues.
+Testes do fluxo de processo contam 3 GET na prévia a frio e 7 GET
+na escrita seguida de verificação no caso sintético. Na PR Draft #317,
+`documento ciente` acrescenta a prévia documental, GET mutador único e
+conferência da lista `CD<id>` relida; testes sintéticos afirmam 3/6/7 GET.
+A ciência é sempre do usuário da sessão (decisão do proprietário).
+Replay e ensaios live ainda não foram entregues.
 [Contrato](../contracts/cli/processo-ciente.md) ·
 [decisão](decisoes/processo-ciente.md).
+
+[Contrato de ciência documental](../contracts/cli/documento-ciente.md) · [decisão](decisoes/documento-ciente.md).
