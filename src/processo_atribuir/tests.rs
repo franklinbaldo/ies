@@ -146,7 +146,6 @@ fn subcodigos_publicos_do_leitor_sao_estaveis() {
     );
 }
 
-
 /// Um valor numérico precisa identificar um único usuário; caso contrário,
 /// escolher pelo login poderia atribuir a outra pessoa.
 #[test]
@@ -159,4 +158,100 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
         ler_tela(&html, ID),
         Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
     );
+}
+
+
+/// O payload é derivado da tela sintética observada, sem requisição.
+fn preparar(
+    login: Option<&str>,
+    atual: Option<&str>,
+) -> Result<(String, crate::formulario_web::SubmissaoDerivada), E> {
+    let instalacao = crate::instalacao::Instalacao::interpretar(
+        "https://sei.exemplo.gov.br/sei",
+    )
+    .unwrap();
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    );
+    super::preparar_submissao(
+        &instalacao,
+        &url,
+        HTML,
+        "text/html; charset=iso-8859-1",
+        ID,
+        "UNIDADE TESTE",
+        login,
+        atual,
+    )
+}
+
+// Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01 (payload do navegador).
+#[test]
+fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
+    let (valor, post) = preparar(Some("aluno2"), Some("aluno20")).unwrap();
+    assert_eq!(valor, "100000035");
+    assert_eq!(
+        post.nomes_dos_campos(),
+        ["hdnInfraTipoPagina", "sbmSalvar", "selAtribuicao", "hdnIdProtocolo"]
+    );
+    assert_eq!(
+        post.corpo(),
+        b"hdnInfraTipoPagina=2&sbmSalvar=Salvar&selAtribuicao=100000035&hdnIdProtocolo=50693"
+    );
+    assert_eq!(post.efeito(), super::ATRIBUIR_PROCESSO.efeito);
+    assert_eq!(crate::formulario_web::SubmissaoDerivada::METODO, "POST");
+    assert!(!post.nomes_dos_campos().iter().any(|campo| campo == "btnCancelar"));
+}
+
+#[test]
+fn post_de_remocao_usa_opcao_null_e_mesma_forma() {
+    let (valor, post) = preparar(None, Some("aluno2")).unwrap();
+    assert_eq!(valor, "null");
+    assert_eq!(
+        post.corpo(),
+        b"hdnInfraTipoPagina=2&sbmSalvar=Salvar&selAtribuicao=null&hdnIdProtocolo=50693"
+    );
+    assert_eq!(preparar(None, Some("")).unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
+}
+
+#[test]
+fn preparacao_nao_fabrica_selecao_para_login_inexistente() {
+    assert_eq!(
+        preparar(Some("nao-existe"), Some("aluno2"))
+            .unwrap_err()
+            .subcodigo(),
+        "usuario_nao_atribuivel"
+    );
+}
+
+#[test]
+fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
+    let instalacao = crate::instalacao::Instalacao::interpretar(
+        "https://sei.exemplo.gov.br/sei",
+    )
+    .unwrap();
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&infra_hash={}",
+        "b".repeat(64)
+    );
+    let html = HTML.replace(
+        "method=\"post\"",
+        "method=\"post\" enctype=\"multipart/form-data\"",
+    );
+    assert!(matches!(
+        super::preparar_submissao(
+            &instalacao,
+            &url,
+            &html,
+            "text/html; charset=iso-8859-1",
+            ID,
+            "UNIDADE TESTE",
+            Some("aluno2"),
+            Some("aluno20"),
+        ),
+        Err(E::Formulario(
+            crate::formulario_web::ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+        ))
+    ));
 }
