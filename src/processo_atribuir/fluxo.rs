@@ -207,12 +207,10 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         enviado = true;
         rede.post(s, cookie)
     });
-    // Releitura coincidente não transforma uma recusa explícita do SEI
-    // em sucesso: outro agente pode ter atribuído o mesmo usuário.
-    // Só 302 com destino e identidade esperados ou falha de rede sem
-    // resposta admitem conciliação. HTML 200 genérico, HTTP 4xx,
-    // validação da Infra e destinos inesperados continuam incertos
-    // mesmo se a releitura mostrar o estado solicitado.
+    // A releitura mede estado, mas não a autoria da mudança. Mesmo
+    // quando o POST cai sem resposta, outro agente pode produzir o mesmo
+    // resultado: só um 302 positivamente vinculado a esta escrita permite
+    // confirmar depois da releitura. O resto é efeito incerto (saída 3).
     let (falha_do_envio, resposta_permite_confirmar) = match resposta {
         // A observação do SEI/UnB (Todos @323eb01) mostra 302 com
         // identidade explícita como aceite. HTML 200 genérico não vincula
@@ -223,13 +221,11 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
             None,
             redirecionamento_esperado(&redir, &feito.id_procedimento),
         ),
-        Err(erro) if enviado => {
-            let reconciliavel = matches!(
-                erro,
-                ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
-            );
-            (Some(erro), reconciliavel)
-        }
+        // Uma falha de transporte após enviar o POST não comprova que
+        // ele foi aplicado; guardar a causa e reler somente para
+        // registrar o estado possivelmente residual, nunca para afirmar
+        // autoria por coincidência.
+        Err(erro) if enviado => (Some(erro), false),
         Err(erro) => return Err(E::Formulario(erro)),
     };
 
