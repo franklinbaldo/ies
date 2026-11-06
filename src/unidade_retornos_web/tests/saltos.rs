@@ -137,3 +137,38 @@ fn virada_de_ano_sem_link_de_janeiro_recusa_sem_consulta_mensal() {
     assert_eq!(pedidos.len(), 1);
     assert!(!pedidos.iter().any(|url| url.contains("data_inicial=")));
 }
+
+#[test]
+fn link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario() {
+    // Replay UnB #253: link de outra acao contem o nome do retorno apenas
+    // no parametro acao_origem, alem dos links reais da operacao.
+    let outra_acao = format!(
+        "controlador.php?acao=procedimento_visualizar&acao_origem=retorno_programado_listar&infra_hash={}",
+        "a".repeat(64)
+    );
+    let pagina = calendario(2026, 10, true).replace(
+        "</html>",
+        &format!("<a href='{outra_acao}'>outra acao</a></html>"),
+    );
+    let mut requisicoes = 0;
+    let lido = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 10)),
+        (2026, 10, 15),
+        |url| {
+            requisicoes += 1;
+            if url.contains("data_inicial=") {
+                Ok(linha().to_owned())
+            } else {
+                Ok(pagina.clone())
+            }
+        },
+    )
+    .expect("outra acao nao e link de retorno programado");
+    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.itens.len(), 1);
+    assert_eq!(lido.requisicoes, 3);
+    assert_eq!(requisicoes, 2);
+}
