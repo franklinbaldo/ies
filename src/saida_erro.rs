@@ -31,6 +31,16 @@ impl FalhaPublica {
     }
 }
 
+// Shim RED: os testes exigem uma projeção tipada, não Value intermediário.
+#[cfg(test)]
+fn falha_fonte_publica(
+    _subcodigo: &str,
+    _mensagem: &str,
+    _http: Option<&StatusHttpRecusado>,
+) -> Value {
+    Value::Null
+}
+
 /// O objeto JSON da falha; os campos HTTP só existem numa recusa HTTP.
 pub(crate) fn json_de_erro_fonte(
     subcodigo: &str,
