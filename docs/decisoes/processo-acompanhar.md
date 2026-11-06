@@ -256,6 +256,8 @@ aprovados, 23 ignorados ja existentes. Rustfmt tambem apontou somente
 uma linha vazia excedente, corrigida separadamente antes do GREEN.
 Orcamento novo: **4 GETs / 0 POSTs**, sem acesso real ao SEI.
 
+**Diagnóstico da saída 3:** manter o subcódigo e publicar apenas contagem e motivo tipados; sem URL, cookie ou retry.
+
 ## Décima quarta fatia — esquema da lista e observação comprovada (06/11/2026, 🐢)
 
 **Problema verificado no parser:** `acompanhamentos_da_lista` reconhecia
