@@ -143,3 +143,28 @@ Como o head ainda não tem compilação/CI comprovados, mantive
 implementação da confirmação existe no backend para testes sintéticos
 injetados, não para execução real. Nenhum POST real foi disparado, nenhum
 resíduo foi deixado no SEI.
+
+## Quinta fatia — scripts inertes não comprovam `acaoExcluir` (🐢)
+
+- **Evidência estrutural:** o formulário servido na UnB usa função
+  global declarada em `script` clássico para o `onclick` da linha.
+  `script` de dados, `type=module` e `src` são variantes sintéticas que
+  não publicam a mesma função global inline. A regra falha fechada sem
+  executar JavaScript.
+- **Testes publicados antes do código:** 3 recusas (script JSON, módulo,
+  `src`) e 1 controle positivo (`text/javascript`), commit `77c67fd`;
+  correção candidata em `89673b2`. Os testes novos não foram executados
+  antes da implementação.
+- **RED:** NOT_RUN, 0 testes executados no sandbox; 0 falhas aferidas.
+  Consulta do run do commit de testes retornou lista vazia.
+- **GREEN e gates do head:** NOT_RUN. `rustc`, `cargo` e `prek`
+  não estão disponíveis; o sandbox não resolve `github.com` para
+  instalar o toolchain. Nenhum CI deste head foi localizado.
+- **Replay integral:** NOT_RUN; 0 requests ao SEI.
+- **Prévia live:** NOT_RUN, 0 GETs. **Confirmar live:** NOT_RUN,
+  0 POSTs. **Releitura live:** NOT_RUN, 0 GETs.
+  **Resíduo no SEI:** nenhum; nenhuma instalação acessada.
+- **Mitigação:** `--deixar --confirmar` segue bloqueado na CLI antes
+  de sessão/rede. Validar compilação, testes, replay e prévia autenticada
+  em treinamento antes de considerar a remoção disponível; a escrita
+  autorizada exige confirmação única e verificação independente.
