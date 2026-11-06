@@ -193,11 +193,11 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
-const SEGUNDO_NUP: &str = "00000.000011/2026-11";
+pub(super) const SEGUNDO_NUP: &str = "00000.000011/2026-11";
 
 /// Dois processos de ensaio distintos apareceram entre as fotografias.
 /// Ambos podem ter sido criados por outros agentes na mesma unidade.
-fn gerados_com_dois_candidatos() -> String {
+pub(super) fn gerados_com_dois_candidatos() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
