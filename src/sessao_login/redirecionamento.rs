@@ -3,7 +3,6 @@
 //! (UFRJ e GO, 02/11/2026): `http://` no mesmo host é promovido a
 //! `https://`; a URL HTTP nunca é pedida.
 use super::ErroLogin;
-use crate::erro_html::ErroHtml;
 use crate::instalacao::host_valido;
 pub(crate) use crate::url_observada::caminho_absoluto as caminho_da_url;
 use crate::url_observada::{esquema_e_resto, pasta, resto_http_ou_https, tem_prefixo_de_esquema};
@@ -31,10 +30,7 @@ pub(crate) fn resolver_no_host(
         let depois = sufixo_da_mesma_origem(resto, host, esquema_http(referencia)).map_err(
             |erro| match erro {
                 ErroDeOrigem::AutoridadeInvalida => Ilegivel,
-                ErroDeOrigem::OutroHost => ErroLogin::Html(
-                    ErroHtml::valor("redirecionamento_para_fora_da_instalacao")
-                        .com_mensagem("redirecionamento para fora do host da instalação recusado"),
-                ),
+                ErroDeOrigem::OutroHost => ErroLogin::RedirecionamentoParaForaDaInstalacao,
             },
         )?;
         match depois {

@@ -106,9 +106,7 @@ fn location_e_resolvido_no_host_com_https() {
     }
     assert_eq!(
         resolver_no_host(atual, "https://sei.exemplo.gov.br.outro.br/", HOST),
-        Err(ErroLogin::Html(ErroHtml::valor(
-            "redirecionamento_para_fora_da_instalacao"
-        )))
+        Err(ErroLogin::RedirecionamentoParaForaDaInstalacao)
     );
     assert_eq!(
         resolver_no_host(atual, "./controlador.php", HOST),

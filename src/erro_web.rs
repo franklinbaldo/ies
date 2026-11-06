@@ -21,6 +21,7 @@ pub enum ErroCaixa {
     LegendasDaTabelaRepetidas {
         categoria: Categoria,
     },
+    IdInvalido,
     IdRepetido {
         categoria: Categoria,
         id: String,

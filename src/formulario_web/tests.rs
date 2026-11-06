@@ -251,7 +251,7 @@ fn action_relativo_resolve_contra_a_url_servida_nao_contra_a_raiz() {
     let raiz = action_padrao().replacen("controlador.php", "/controlador.php", 1);
     assert_eq!(
         erro(&com_action(&raiz), &[]),
-        E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))
+        E::AcaoDoFormularioForaDaInstalacao
     );
 }
 
@@ -267,7 +267,7 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
     ] {
         assert_eq!(
             erro(&com_action(&action), &[]),
-            E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
+            E::AcaoDoFormularioForaDaInstalacao,
             "{action}"
         );
     }
@@ -489,10 +489,7 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         "UNIDADE TESTE",
         &[],
     );
-    assert_eq!(
-        r.unwrap_err(),
-        E::Transporte(FalhaTransporte::Html(ErroHtml::valor("url_invalida")))
-    );
+    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::UrlInvalida));
 }
 
 #[test]
@@ -540,7 +537,7 @@ fn subcodigos_sao_estaveis_unicos_e_snake_case() {
         E::AcceptCharsetPublicadoNoFormulario,
         E::Html(ErroHtml::ausente("acao_do_formulario_ausente")),
         E::AcaoDoFormularioNaoEhUrlHttps,
-        E::Html(ErroHtml::valor("acao_do_formulario_fora_da_instalacao")),
+        E::AcaoDoFormularioForaDaInstalacao,
         E::AcaoDoFormularioDiferenteDaOperacao,
         E::AcaoDoFormularioSemInfraHashUnico,
         E::EntidadeHtmlDesconhecidaNoAtributo { campo: c() },

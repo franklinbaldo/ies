@@ -42,6 +42,28 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
   código compara o texto de um erro: classifica-se por `match`, e os
   testes casam o tipo.
 
+## Propagação e origem única
+
+- **Propagar antes de converter.** Se o erro já é o tipo aceito pelo
+  consumidor, devolver `Err` com `?` diretamente. Não criar uma variante
+  de passagem só para registrar o módulo ou a função intermediária.
+- **Erro específico perto de quem decide.** Uma nova variante é justificada
+  por um fato distinto e observável ou por uma decisão diferente; não por
+  mera mudança de camada. Rust não tem subclasses de erros: preferir
+  composição explícita apenas quando necessária, sem perda da causa.
+- **Um lugar para levantar cada falha, quando viável.** Centralizar a
+  validação que origina o fato e deixar as chamadas propagarem seu
+  `Result`, em vez de construir a mesma variante em vários consumidores.
+  Não remover validações nas fronteiras de segurança para obter esse
+  objetivo artificialmente.
+- **Falha da resposta não é falha do DOM.** URL assinada inválida, cookie
+  inválido e MIME não HTML pertencem ao transporte; recusa de HTML não
+  observado só aparece depois de uma resposta HTML válida.
+- **Decisões são locais ao consumidor.** O tipo da falha não deve
+  determinar ações automáticas por padrão; `Acao` pública é uma
+  apresentação explícita, não motivo para embrulhar ou reclassificar
+  erros dentro do domínio.
+
 ## Migração
 
 `scripts/migrar_causas.py` (tree-sitter, fora do gate) converteu 83 tipos
@@ -87,12 +109,24 @@ Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
 - A variante de forma que algum código casa fora de teste (`match` em
   fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
   continua sendo variante.
+- **Só nasce de DOM; URL, cabeçalho, arquivo, configuração, entrada e
+  domínio têm variante própria.** `ErroHtml` é só o que nasce lendo a
+  tela servida (`tl::`, `html_atributos`, leitores de tela, árvore e
+  barra). URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
+  validação de entrada e fato do domínio ficam no `enum` do módulo onde
+  nascem, ainda que o nome diga `Ausente` ou `Invalido`. Redirecionamento
+  ou `action` fora da instalação é recusa de segurança, não forma.
 - **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
 
 `scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
 oráculo) migrou 350 variantes de 68 tipos e eliminou 4 tipos inteiros. Os
 77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
-carregar a causa. As 21 variantes casadas fora de teste ficaram.
+carregar a causa. As 21 variantes casadas fora de teste ficaram. A
+migração escolheu pelo nome, não pela origem; as variantes de proxy,
+`Location`, cabeçalho do anexo, diretório local, id de entrada e fato do
+domínio voltaram à forma de antes. O script agora só toma a variante cujo
+todo ponto de construção fora de teste está numa `fn` que lê DOM ou num
+módulo de leitura de tela (`MODULOS_DE_TELA`).
 
 ## Consequências
 

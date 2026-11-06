@@ -7,7 +7,6 @@ use super::{
     ErroTroca as E, EtapaDaTroca as Etapa, FalhaDepoisDoEnvio as F, PedidoDeTroca, SessaoDaTroca,
     Troca, trocar_unidade,
 };
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
@@ -244,7 +243,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 localizacao_com_aviso("https", ID_B).replace(HOST, "outro.gov.br"),
             )],
             Etapa::Envio,
-            F::Html(ErroHtml::valor("localizacao_fora_da_forma_observada")),
+            F::LocalizacaoForaDaFormaObservada,
             3,
         ),
         (

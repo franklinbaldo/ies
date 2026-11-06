@@ -203,9 +203,7 @@ mod tests {
         assert_eq!(
             exportar(&inexistente, &identidade, &texto),
             Err(ErroHtmlPrivado::Exportacao(
-                arquivo_texto_documento::ErroArquivoTexto::Html(
-                    crate::erro_html::ErroHtml::ausente("diretorio_texto_documento_ausente")
-                )
+                arquivo_texto_documento::ErroArquivoTexto::DiretorioAusente
             ))
         );
     }

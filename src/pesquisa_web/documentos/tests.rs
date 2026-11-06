@@ -239,9 +239,9 @@ fn redirecionamento_sem_id_documento_e_recusado() {
     let erro = interpretar(&localizacao_de_documento("4321", "")).unwrap_err();
     assert_eq!(
         erro,
-        ErroPesquisaProtocolo::Redirecionamento(ErroRedirecionamentoDaPesquisa::Html(
-            ErroHtml::ausente("id_documento_ausente_no_redirecionamento")
-        ))
+        ErroPesquisaProtocolo::Redirecionamento(
+            ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento
+        )
     );
     let erro = interpretar(&localizacao_de_documento("4321", "x1")).unwrap_err();
     assert_eq!(
