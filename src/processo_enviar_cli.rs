@@ -117,15 +117,29 @@ fn enviar(
     })
 }
 
-/// Shim contratual para testar a composição erro SEI + snapshot antes do
-/// GREEN. A coleta local será ligada depois do RED observado.
+/// Compõe a falha observada na Web com sugestões exclusivamente locais.
+/// A lista guardada não autoriza envio e nunca faz outra requisição ao SEI.
 fn json_de_falha_com_sugestoes(
     erro: &ErroEnviar,
-    _sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
-    _indice: &crate::indice_local::IndiceLocal,
-    _para: &str,
+    sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    para: &str,
 ) -> Value {
-    json_de_falha(erro)
+    let mut valor = json_de_falha(erro);
+    // Apenas quando o SEI não ofereceu a sigla pedida:
+    // sugestões locais não alteram a decisão do autocomplete.
+    if matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
+        let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
+        let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+        if let (Some(instalacao), Some(ativa)) = (instalacao, ativa) {
+            let sugestoes =
+                indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para);
+            if !sugestoes.is_empty() {
+                valor["sugestoes_guardadas"] = json!(sugestoes);
+            }
+        }
+    }
+    valor
 }
 
 /// Complemento apenas da apresentação humana de processo enviar. A lista
