@@ -142,3 +142,47 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         Ok(EscolhaDoDocumento::Formulario("291".to_owned()))
     );
 }
+
+
+#[test]
+fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
+    // Regressão end-to-end para a guarda do POST de navegação: sem função
+    // global publicada, quatro GETs de prévia; nenhum POST de filtro/escolha.
+    use crate::processo_concluir::tests_apoio as apoio;
+    use crate::propriedades_processo::tests_apoio::acao_da_barra;
+    use super::fluxo::{ErroPreviaCriacao, PedidoCriacao, executar_criacao};
+    let link = format!(
+        "controlador.php?acao=documento_escolher_tipo&id_procedimento=10&infra_hash={}",
+        "e".repeat(64),
+    );
+    let arvore = apoio::arvore(&[apoio::UNIDADE], &[acao_da_barra(&link)]);
+    let lista = format!(
+        r##"<script>const interna = {ESCOLHER};</script><table id="tblSeries">
+        <tr><td><a href="#" onclick="escolher(291)">Despacho</a></td></tr>
+        </table>"##,
+    );
+    let mut respostas = apoio::abertura(arvore);
+    respostas.push(apoio::ok(lista));
+    let ambiente = apoio::ambiente();
+    let (resultado, pedidos) = apoio::rodar_com(
+        &ambiente,
+        respostas,
+        |sessao, nup, indice, rede| {
+            let pedido = PedidoCriacao {
+                nup,
+                unidade: None,
+                tipo: "Despacho",
+                descricao: Some("Ensaio"),
+                nivel: Some("publico"),
+            };
+            executar_criacao(sessao, &pedido, indice, rede, true)
+        },
+    );
+    assert!(matches!(
+        resultado,
+        Err(ErroPreviaCriacao::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
+    ));
+    let mut esperados = apoio::pedidos_da_abertura();
+    esperados.push(apoio::get(&format!("{}/{}", apoio::ORIGEM, link)));
+    assert_eq!(pedidos, esperados, "quatro GETs e zero POSTs");
+}
