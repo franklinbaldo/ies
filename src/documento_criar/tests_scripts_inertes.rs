@@ -59,3 +59,40 @@ fn filtro_exibir_todos_ignora_script_inerte() {
     let ativa = format!("<script>{EXIBIR}</script>{botoes}");
     assert_eq!(filtro_de_todos(&ativa), Ok(true));
 }
+
+#[test]
+fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
+    // Caso negativo sintético derivado das funções reais do Todos @323eb01:
+    // texto dentro de JS ativo não implica que a função seja alcançável.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let tabela = r##"<table id="tblSeries"><tr><td>
+        <a href="#" onclick="escolher(291)">Despacho</a>
+        </td></tr></table>"##;
+    let filtro = r#"<a id="ancExibirSeries" href="javascript:void(0);"
+        onclick="exibirSeries('T');">Todos</a>
+        <table id="tblSeries"></table>"#;
+    for (variante, montar) in [
+        (0, format!("/* {ESCOLHER} */")),
+        (1, format!("const exemplo = `{ESCOLHER}`;")),
+        (2, format!("if (false) {{ {ESCOLHER} }}")),
+    ] {
+        let tela = format!("<script>{montar}</script>{tabela}");
+        assert_eq!(
+            escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
+            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            "função escolher inerte em JS ativo variante {variante}"
+        );
+    }
+    for (variante, montar) in [
+        (0, format!("// {EXIBIR}")),
+        (1, format!("const exemplo = `{EXIBIR}`;")),
+        (2, format!("if (false) {{ {EXIBIR} }}")),
+    ] {
+        let tela = format!("<script>{montar}</script>{filtro}");
+        assert_eq!(
+            filtro_de_todos(&tela),
+            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            "função exibirSeries inerte em JS ativo variante {variante}"
+        );
+    }
+}
