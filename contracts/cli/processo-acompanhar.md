@@ -28,7 +28,7 @@ branco servida; não se inventa seu valor.
 `--grupo`, exige no máximo uma. A prévia exige ainda o link `acaoExcluir`
 da própria linha, o formulário `frmGerenciarAcompanhamento` com
 `hdnInfraItemId` único por `name` e `id` no DOM, oculto habilitado, e o destino `acompanhamento_excluir` publicado
-pela função servida para o mesmo processo. O JavaScript não é executado; a função `acaoExcluir` só serve de prova quando está em um script clássico executável, sem `src` e sem `type=module` ou MIME inerte. Código presente apenas como texto em script de dados não autoriza a operação. Sem qualquer prova, a operação recusa antes de escrever. Se nenhum
+pela função servida para o mesmo processo. O JavaScript não é executado; a função `acaoExcluir` só serve de prova quando está em um script clássico executável, sem `src` e sem `type=module` ou MIME inerte. Código presente apenas como texto em script de dados, comentário ou string não autoriza a operação. A assinatura precisa ser uma declaração global fora de bloco ou expressão de função; templates e prefixos não reconhecidos falham fechados. Sem qualquer prova, a operação recusa antes de escrever. Se nenhum
 acompanhamento existe, a prévia informa ausência de efeito. `--observacao` não combina com
 `--deixar`. Uma inclusão de grupo já presente informa que nada deve
 ser enviado, independentemente da observação.
