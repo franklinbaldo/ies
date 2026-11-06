@@ -376,7 +376,6 @@ fn redirecionamento_302_local_com_arvore_comprovada() {
     }
 }
 
-
 #[test]
 fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
     // Resposta HTML genérica pode ser o cadastro reapresentado; a alteração
@@ -389,7 +388,20 @@ fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
         &cookie,
         &foto(0),
         "Despacho",
-        escrever_ok,
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code: 200,
+                    mime: "text/html; charset=UTF-8".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(b"<html><form>cadastro</form></html>".to_vec()),
+                },
+                localizacao: None,
+            })
+        },
         |rede| {
             rede.chamadas.push("GET arvore");
             Ok(foto(1))
@@ -465,7 +477,10 @@ fn falha_de_validacao_infra_do_post_preserva_mensagem_saneada() {
     let erro = resultado.expect_err("HTTP 503 não confirma efeito");
     let http = erro.status_http().expect("preservar causa HTTP 503");
     assert_eq!(http.status, 503);
-    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("indisponibilidade sintética"));
+    assert_eq!(
+        http.mensagem_do_servidor.as_deref(),
+        Some("indisponibilidade sintética")
+    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
