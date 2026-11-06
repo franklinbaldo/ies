@@ -3,8 +3,8 @@
 //! A lista CD<id> do documento é a única prova, nunca a C do processo.
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
 use crate::arvore_processo::{
-    ErroBarraDoDocumento, ciencia_do_documento_na_barra, lista_do_documento,
-    tela_do_documento, url_da_ciencia_do_documento,
+    ErroBarraDoDocumento, ciencia_do_documento_na_barra, lista_do_documento, tela_do_documento,
+    url_da_ciencia_do_documento,
 };
 use crate::documento::NumeroDocumento;
 use crate::erro_html::ErroHtml;
@@ -13,11 +13,11 @@ use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
-    EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento,
-    SessaoDoProcesso, abrir_documento_na_arvore,
+    EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
+    abrir_documento_na_arvore,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CienciaDoDocumento {
@@ -69,19 +69,26 @@ impl ErroCienciaDocumento {
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Abertura(e) => e.mensagem(),
-            Self::Barra(_) | Self::Html(_) => "a ação de ciência do documento está fora da forma observada",
+            Self::Barra(_) | Self::Html(_) => {
+                "a ação de ciência do documento está fora da forma observada"
+            }
             Self::CienciaNaoOferecida => "a barra do documento não oferece ciência",
             Self::TelaNaoPublicada => "a árvore não publicou a tela assinada do documento",
             Self::OrigemNaoAutorizada => "a origem da instalação não é autorizada",
             Self::Cookie(_) => "a sessão privada não pôde ser lida",
             Self::Tela(_) | Self::TelaRedirecionada => "a tela do documento não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
-            Self::EfeitoIncerto { .. } =>
-                "a ciência pode ter sido registrada; confira no SEI antes de repetir",
+            Self::EfeitoIncerto { .. } => {
+                "a ciência pode ter sido registrada; confira no SEI antes de repetir"
+            }
         }
     }
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto { .. }) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto { .. }) {
+            3
+        } else {
+            1
+        }
     }
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
@@ -114,11 +121,9 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         unidade: pedido.unidade,
         anexo: PedidoDoAnexo::default(),
     };
-    let aberto = abrir_documento_na_arvore(sessao, &abertura, indice, &mut rede)
-        .map_err(E::Abertura)?;
-    if !ciencia_do_documento_na_barra(&aberto.html, &aberto.id_documento)
-        .map_err(E::Barra)?
-    {
+    let aberto =
+        abrir_documento_na_arvore(sessao, &abertura, indice, &mut rede).map_err(E::Abertura)?;
+    if !ciencia_do_documento_na_barra(&aberto.html, &aberto.id_documento).map_err(E::Barra)? {
         return Err(E::CienciaNaoOferecida);
     }
     let mut feito = CienciaDoDocumento {
@@ -137,8 +142,12 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         return Ok(feito);
     }
     let tela = tela_do_documento(
-        &instalacao, &aberto.html, &feito.id_documento, &feito.id_procedimento,
-    ).ok_or(E::TelaNaoPublicada)?;
+        &instalacao,
+        &aberto.html,
+        &feito.id_documento,
+        &feito.id_procedimento,
+    )
+    .ok_or(E::TelaNaoPublicada)?;
     let cookie = ler_cookie(sessao).map_err(E::Cookie)?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
@@ -146,13 +155,19 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
     })?;
     let url = url_da_ciencia_do_documento(
-        &instalacao, &html, &feito.id_documento, &feito.id_procedimento,
-    ).map_err(E::Html)?;
+        &instalacao,
+        &html,
+        &feito.id_documento,
+        &feito.id_procedimento,
+    )
+    .map_err(E::Html)?;
     // Este GET pode gravar a ciência. Após qualquer resposta ou timeout,
     // apenas releitura, nunca segundo GET mutador.
     let resposta = rede.get_sem_seguir(url.as_str(), &cookie);
     let atividade = resposta.ok().and_then(|r| {
-        if r.resposta.status_code != 200 { return None; }
+        if r.resposta.status_code != 200 {
+            return None;
+        }
         let html = decodificar_resposta(r.resposta).ok()?;
         if mensagem_de_validacao_da_infra(&html).is_some() {
             return None;
@@ -163,11 +178,19 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
                 id_procedimento: &feito.id_procedimento,
                 id_documento: &feito.id_documento,
             },
-        ).ok()
+        )
+        .ok()
     });
     let prova = verificar(
-        sessao, pedido, indice, &instalacao, &cookie, &mut rede,
-        &feito.id_procedimento, &feito.id_documento, atividade.as_deref(),
+        sessao,
+        pedido,
+        indice,
+        &instalacao,
+        &cookie,
+        &mut rede,
+        &feito.id_procedimento,
+        &feito.id_documento,
+        atividade.as_deref(),
     );
     feito.requisicoes = rede.feitas();
     match prova {
@@ -181,7 +204,8 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             requisicoes: rede.feitas(),
         }),
         Err(motivo) => Err(E::EfeitoIncerto {
-            motivo, requisicoes: rede.feitas(),
+            motivo,
+            requisicoes: rede.feitas(),
         }),
     }
 }
@@ -215,7 +239,8 @@ fn verificar<V: EnvioDoProcesso>(
     let lista = lista_do_documento(instalacao, &novo.html, id_procedimento, id_documento)
         .map_err(|_| "lista_de_ciencias_do_documento_fora_da_forma")?
         .ok_or("lista_de_ciencias_do_documento_ausente")?;
-    let resposta = rede.get_sem_seguir(lista.as_str(), cookie)
+    let resposta = rede
+        .get_sem_seguir(lista.as_str(), cookie)
         .map_err(|_| "releitura_da_lista_de_ciencias_do_documento_falhou")?;
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|_| "resposta_da_lista_de_ciencias_do_documento_nao_lida")?;
