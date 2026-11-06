@@ -48,10 +48,6 @@ fn post_falha_mas_propriedades_conferidas_provam_criacao_unica() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
-        ok(gerados_com_candidato()),
-        ok(trabalhar()),
-        ok(arvore_com_propriedades()),
-        ok(propriedades_correspondentes()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -129,7 +125,6 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
-
 #[test]
 fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
     let amb = ambiente();
@@ -140,11 +135,7 @@ fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
         ok(cadastro()),
         ok(recusa.to_owned()),
         // Outro agente pode criar um processo equivalente na conta compartilhada.
-        // O POST foi recusado: nunca atribuir o candidato concorrente a esta escrita.
-        ok(gerados_com_candidato()),
-        ok(trabalhar()),
-        ok(arvore_com_propriedades()),
-        ok(propriedades_correspondentes()),
+        // A recusa encerra a execução sem GET para atribuir tal candidato.
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
