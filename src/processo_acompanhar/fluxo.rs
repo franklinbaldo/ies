@@ -177,6 +177,13 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
+        // O atributo disabled torna a ação indisponível no navegador.
+        // Não transformar um botão inerte em URL de cadastro autorizada.
+        if crate::html_atributos::atributo_presente(tag, "disabled")
+            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
+        {
+            return Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into());
+        }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
             .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
             .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
