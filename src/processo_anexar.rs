@@ -132,15 +132,15 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
     if ids.len() != 1 || nups.len() != 1 || false {
         return Err("identidade_de_anexado_ambigua");
     }
-    let id = ids[0].1;
-    let nup = nups[0].1;
+    let id = ids[0].1.as_str();
+    let nup = nups[0].1.as_str();
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || nup.is_empty() {
         return Err("processo_a_anexar_nao_identificado");
     }
     Ok(Destino {
         id: id.to_owned(),
         nup: nup.to_owned(),
-        tipo: tipos.first().map_or("", |v| v.1).to_owned(),
+        tipo: tipos.first().map_or("", |v| v.1.as_str()).to_owned(),
     })
 }
 /// Consulta `procedimento_anexacao_verificar`: S=tudo assinado, N=há pendência.

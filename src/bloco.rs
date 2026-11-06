@@ -236,7 +236,7 @@ fn ler_linhas(
         if td.len() != nomes.len() {
             return Err(ErroHtml::valor("linha_de_bloco_fora_da_forma").into());
         }
-        let numero = td[indice_numero].inner_text(parser).to_owned();
+        let numero = td[indice_numero].inner_text(parser).into_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroHtml::valor("numero_do_bloco_invalido").into());
         }

@@ -114,7 +114,7 @@ pub(crate) fn pagina_selecionada(
 ) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
     let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")?;
     Ok(match marcadas.as_slice() {
-        [uma] => ler_contagem(texto_visivel(*uma, dom.parser())),
+        [uma] => ler_contagem(&texto_visivel(*uma, dom.parser())),
         _ => None,
     })
 }

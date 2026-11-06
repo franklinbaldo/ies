@@ -132,7 +132,7 @@ fn ler_linhas(
                 }
             })?;
             if let Some(estado) = estado {
-                let numero = a.inner_text(parser).to_owned();
+                let numero = a.inner_text(parser).into_owned();
                 if numero.is_empty() || false {
                     return Err(ErroCaixa::NumeroInvalido {
                         categoria,

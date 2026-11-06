@@ -106,7 +106,7 @@ pub(crate) fn proxy_para(
         return Ok(None);
     }
     primeira(&ambiente, &VARIAVEIS_DO_PROXY)
-        .map(|endereco| interpretar(endereco))
+        .map(|endereco| interpretar(&endereco))
         .transpose()
 }
 

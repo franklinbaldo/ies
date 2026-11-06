@@ -183,7 +183,7 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         .into_iter()
         .flatten()
         .filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).to_owned())
+        .map(|no| no.inner_text(parser).into_owned())
         .collect();
     if legendas.as_slice() != ["Lista de Ciências:"] {
         return Err(fora);

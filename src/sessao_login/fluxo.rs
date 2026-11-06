@@ -352,7 +352,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
-    let origem = origem;
+    let origem = origem.as_str();
     let instalacao = Instalacao::interpretar(origem)
         .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
@@ -437,7 +437,7 @@ pub(super) fn relogar<T: TransporteDeLogin>(
 ) -> Result<Relogado, ErroLogin> {
     let origem =
         transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
-    let origem = origem;
+    let origem = origem.as_str();
     let instalacao = Instalacao::interpretar(origem)
         .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
