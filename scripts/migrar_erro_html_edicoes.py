@@ -6,28 +6,8 @@ import re
 
 from migrar_erro_html_curta import forma_curta, nome_curto
 from migrar_erro_html_plano import (
-    TIPO, TIPOS_DE_PADRAO, atributos_antes, em_teste, linha_inteira, mesmo, nos, texto,
+    TIPO, atributos_antes, contexto_de_padrao, em_teste, linha_inteira, mesmo, nos, texto,
 )
-
-
-def contexto_de_padrao(no):
-    cur = no
-    while cur.parent is not None:
-        p = cur.parent
-        if p.type in TIPOS_DE_PADRAO:
-            if p.type == 'tuple_struct_pattern' and mesmo(p.child_by_field_name('type'), cur):
-                return False
-            cur = p
-            continue
-        if p.type == 'match_pattern':
-            return True
-        if p.type in ('let_declaration', 'let_condition', 'for_expression', 'parameter') \
-                and mesmo(p.child_by_field_name('pattern'), cur):
-            return True
-        if p.type == 'closure_parameters':
-            return True
-        return False
-    return False
 
 
 def em_igualdade(no):

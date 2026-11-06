@@ -109,12 +109,24 @@ Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
 - A variante de forma que algum código casa fora de teste (`match` em
   fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
   continua sendo variante.
+- **Só nasce de DOM; URL, cabeçalho, arquivo, configuração, entrada e
+  domínio têm variante própria.** `ErroHtml` é só o que nasce lendo a
+  tela servida (`tl::`, `html_atributos`, leitores de tela, árvore e
+  barra). URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
+  validação de entrada e fato do domínio ficam no `enum` do módulo onde
+  nascem, ainda que o nome diga `Ausente` ou `Invalido`. Redirecionamento
+  ou `action` fora da instalação é recusa de segurança, não forma.
 - **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
 
 `scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
 oráculo) migrou 350 variantes de 68 tipos e eliminou 4 tipos inteiros. Os
 77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
-carregar a causa. As 21 variantes casadas fora de teste ficaram.
+carregar a causa. As 21 variantes casadas fora de teste ficaram. A
+migração escolheu pelo nome, não pela origem; as variantes de proxy,
+`Location`, cabeçalho do anexo, diretório local, id de entrada e fato do
+domínio voltaram à forma de antes. O script agora só toma a variante cujo
+todo ponto de construção fora de teste está numa `fn` que lê DOM ou num
+módulo de leitura de tela (`MODULOS_DE_TELA`).
 
 ## Consequências
 

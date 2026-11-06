@@ -3,6 +3,11 @@
 Lê os fontes com tree-sitter, acha as variantes de forma dos `enum` que
 derivam `Causa`, resolve os nomes (`use`, `type`, `Self`) e monta o
 `onde` e a mensagem de cada uma.
+
+Origem, não nome: a variante só é candidata se todo ponto de construção
+dela fora de teste lê DOM (ver `le_dom`) ou está num módulo de leitura de
+tela (`MODULOS_DE_TELA`). URL e `Location`, cabeçalho HTTP, arquivo local,
+configuração, entrada e fato do domínio ficam na variante própria.
 """
 
 import re
@@ -29,6 +34,11 @@ GENERICA = {
 }
 # Não são leitores de tela: o próprio tipo de destino e a causa que ele carrega.
 FORA = {'Problema', 'ErroAtributoHtml'}
+# Só nasce de DOM: a função que constrói a variante lê a tela servida.
+MARCAS_DE_DOM = ('tl::', 'html_atributos', 'query_selector', 'VDom', 'HTMLTag')
+# Módulos (relativos a `src/`) que só leem a tela servida: árvore, barra,
+# tela de login e do Controle, endereço da tela do documento.
+MODULOS_DE_TELA = ('arvore_processo/', 'sessao_login/fluxo.rs', 'documento_assinar/fluxo.rs')
 TIPOS_DE_PADRAO = {'or_pattern', 'tuple_struct_pattern', 'tuple_pattern', 'slice_pattern', 'reference_pattern',
                    'ref_pattern', 'captured_pattern', 'field_pattern', 'mut_pattern', 'struct_pattern'}
 
@@ -307,6 +317,70 @@ def mensagem_de(variante, prob, bracos, f):
     return GENERICA[prob]
 
 
+# --- origem ---------------------------------------------------------------
+
+def contexto_de_padrao(no):
+    cur = no
+    while cur.parent is not None:
+        p = cur.parent
+        if p.type in TIPOS_DE_PADRAO:
+            if p.type == 'tuple_struct_pattern' and mesmo(p.child_by_field_name('type'), cur):
+                return False
+            cur = p
+            continue
+        if p.type == 'match_pattern':
+            return True
+        if p.type in ('let_declaration', 'let_condition', 'for_expression', 'parameter') \
+                and mesmo(p.child_by_field_name('pattern'), cur):
+            return True
+        if p.type == 'closure_parameters':
+            return True
+        return False
+    return False
+
+
+def le_dom(arquivo, no, fonte):
+    """O ponto `no` nasce lendo DOM: módulo de tela, ou `fn` com marca de DOM."""
+    relativo = arquivo.relative_to(RAIZ / 'src').as_posix()
+    if relativo.startswith(MODULOS_DE_TELA):
+        return True
+    p = no.parent
+    while p is not None and p.type != 'function_item':
+        p = p.parent
+    return p is not None and any(m in texto(p, fonte) for m in MARCAS_DE_DOM)
+
+
+def nascem_de_dom(fontes, enums, res):
+    """{(enum, variante): todo ponto de construção fora de teste lê DOM}.
+
+    Sem ponto de construção a variante não entra: sem origem, não há prova.
+    """
+    saida = {}
+    for a, (f, arv) in fontes.items():
+        for s in nos(arv.root_node, 'scoped_identifier'):
+            p = s.parent
+            if p is not None and p.type == 'scoped_identifier' and mesmo(p.child_by_field_name('path'), s):
+                continue
+            cam = s.child_by_field_name('path')
+            if cam is None or contexto_de_padrao(s) or em_teste(s, f, a):
+                continue
+            q = p
+            while q is not None and q.type != 'use_declaration':
+                q = q.parent
+            v = texto(s.child_by_field_name('name'), f)
+            if q is not None:
+                # `use E::V`: o ponto de construção fica fora da vista; não entra.
+                dono = texto(cam, f).split('::')[-1]
+                if dono in enums and v in enums[dono].variantes:
+                    saida[(dono, v)] = False
+                continue
+            nome = res.nome(a, s, texto(cam, f))
+            if nome is None:
+                continue
+            saida[(nome, v)] = saida.get((nome, v), True) and le_dom(a, s, f)
+    return saida
+
+
 # --- plano ----------------------------------------------------------------
 
 class Plano:
@@ -317,6 +391,8 @@ class Plano:
         self.mensagens = bracos_de_mensagem(fontes, self.enums, self.res)
         self.migra = {}  # enum -> {variante: (problema, onde, mensagem)}
         self.encontradas = 0
+        dom = nascem_de_dom(fontes, self.enums, self.res)
+        self.fora_do_dom = set()
         for nome, e in self.enums.items():
             f = self.fontes[e.arquivo][0]
             bracos = self.mensagens.get(nome, (None, None, None, None))[3]
@@ -326,6 +402,9 @@ class Plano:
                     continue
                 self.encontradas += 1
                 if (nome, v) in excluidos:
+                    continue
+                if not dom.get((nome, v), False):
+                    self.fora_do_dom.add((nome, v))
                     continue
                 fm = self.fontes[self.mensagens[nome][0]][0] if nome in self.mensagens else f
                 self.migra.setdefault(nome, {})[v] = (p, publico, mensagem_de(v, p, bracos, fm))

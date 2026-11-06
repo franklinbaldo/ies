@@ -6,7 +6,15 @@ Uso (ferramenta de desenvolvimento, fora do gate; precisa de cargo):
         python scripts/migrar_erro_html.py [--aplicar]
 
 Candidata: variante unitária de um `enum` que deriva `Causa`, cujo nome
-diz a forma (`...Ausente`, `...Repetida`, `HtmlIlegivel`, `...Invalido`).
+diz a forma (`...Ausente`, `...Repetida`, `HtmlIlegivel`, `...Invalido`),
+e que só nasce de DOM. O nome não basta: a #296 classificou pelo nome e
+levou para `ErroHtml` endereço de proxy, `Location`, cabeçalho do anexo,
+diretório local, id de entrada e fato do domínio (desfeito depois). Por
+isso todo ponto de construção da variante fora de teste precisa estar
+numa `fn` que lê DOM (usa `tl::`, `html_atributos`, `query_selector`, ou
+recebe `&tl::VDom`/`HTMLTag`) ou num módulo de `MODULOS_DE_TELA`; senão
+ela fica e sai listada como "fora do DOM". URL, cabeçalho, arquivo,
+configuração, entrada e domínio têm variante própria.
 `onde` é o nome público atual (`#[causa(nome)]` ou o `snake_case`); a
 mensagem é o literal do braço da `fn mensagem()` do `enum`, ou uma
 genérica pelo problema.
@@ -221,6 +229,8 @@ def main():
     plano = Plano(ler_fontes(), excluidos, origens)
     print(f'{plano.encontradas} variantes de forma; {sum(map(len, plano.migra.values()))} candidatas; '
           f'{len(plano.some)} enum somem', flush=True)
+    for n, v in sorted(plano.fora_do_dom):
+        print(f'  fora do DOM (fica): {n}::{v}')
     if not aplicar:
         for n in sorted(plano.migra):
             print(f'  {n}: {", ".join(sorted(plano.migra[n]))}{" (some)" if n in plano.some else ""}')
