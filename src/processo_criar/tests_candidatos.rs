@@ -497,3 +497,34 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
     assert_eq!(requests.len(), 5); // 3 GET + POST único + GET posterior
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+#[test]
+fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
+    // #245: a conta compartilhada pode ganhar processo com mesmo tipo e
+    // especificação, mas nível de acesso diferente do POST.
+    let amb = ambiente();
+    let propriedades = propriedades_correspondentes()
+        .replace("value=\"0\" checked=\"checked\" class", "value=\"0\" class")
+        .replace(
+            "value=\"1\"  class=\"infraRadio\"",
+            "value=\"1\" checked=\"checked\" class=\"infraRadio\"",
+        );
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_candidato()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
+    });
+    let erro = resultado.expect_err("nível divergente não comprova a criação");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.diagnostico_apos_post().unwrap().candidatos_observados, Some(vec![NUP.to_owned()]));
+    assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
