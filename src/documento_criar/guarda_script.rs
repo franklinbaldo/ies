@@ -219,10 +219,35 @@ fn dentro_de_template(inicio: usize, faixas: &[(usize, usize)]) -> bool {
         .any(|(primeiro, ultimo)| inicio > *primeiro && inicio <= *ultimo)
 }
 
+/// Elementos HTML com `hidden` e filhos de `fieldset disabled` não
+/// oferecem o acionador Salvar. Atributos são lidos pela peça única;
+/// a posição no DOM evita confundir um irmão com um ancestral.
+fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
+    let mut faixas = Vec::new();
+    for no in dom.nodes() {
+        let Some(tag) = no.as_tag() else {
+            continue;
+        };
+        if crate::html_atributos::atributo_presente(tag, "hidden").ok()? {
+            faixas.push(tag.boundaries(dom.parser()));
+        }
+    }
+    for no in dom.query_selector("fieldset").into_iter().flatten() {
+        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)?;
+        if crate::html_atributos::atributo_presente(tag, "disabled").ok()? {
+            faixas.push(tag.boundaries(dom.parser()));
+        }
+    }
+    Some(faixas)
+}
+
 /// A captura 4.0.9 publica btnSalvar como button habilitado com
 /// `onclick=confirmarDados()`; a mera funcao `submeter()` morta nao prova
 /// que a tela oferece a escrita. Topo e rodape podem repetir o botao.
 fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) -> bool {
+    let Some(faixas_inativas) = faixas_de_controles_inativos(dom) else {
+        return false;
+    };
     let mut encontrados = 0_usize;
     for no in dom.query_selector("button").into_iter().flatten() {
         let Some(botao) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -236,6 +261,9 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
         };
         if id.as_deref() != Some("btnSalvar") {
             continue;
+        }
+        if dentro_de_template(botao.boundaries(dom.parser()).0, &faixas_inativas) {
+            return false;
         }
         encontrados += 1;
         let Ok(tipo) = crate::html_atributos::valor_do_atributo(botao, "type") else {
