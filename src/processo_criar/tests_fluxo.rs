@@ -2,15 +2,19 @@
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
 use crate::erro_html::ErroHtml;
+use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
+};
+use crate::propriedades_processo::tests_apoio::{
+    acao_da_barra, link_das_propriedades, tela_das_propriedades,
 };
 use crate::transporte::FalhaTransporte;
 
 const TIPO: &str = "Administração Geral: Ensaio";
-const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub(super) const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-fn tela_controle() -> String {
+pub(super) fn tela_controle() -> String {
     controle().replace(
         "</body>",
         &format!(
@@ -19,7 +23,7 @@ fn tela_controle() -> String {
     )
 }
 
-fn lista(versao_41: bool) -> String {
+pub(super) fn lista(versao_41: bool) -> String {
     let escolha = if versao_41 {
         "<a class='ancoraOpcao' href='#' onclick='escolher(12)'>Administração Geral: Ensaio</a>"
             .to_owned()
@@ -33,13 +37,13 @@ fn lista(versao_41: bool) -> String {
     )
 }
 
-fn cadastro() -> String {
+pub(super) fn cadastro() -> String {
     format!(
         "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
     )
 }
 
-fn pedido(confirmar: bool) -> PedidoCriar<'static> {
+pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
     PedidoCriar {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
@@ -49,6 +53,25 @@ fn pedido(confirmar: bool) -> PedidoCriar<'static> {
         hipotese_legal: None,
         confirmar,
     }
+}
+
+fn arvore_verificadora() -> String {
+    arvore(
+        &[UNIDADE],
+        &[acao_da_barra(&link_das_propriedades(
+            "procedimento_alterar",
+            "10",
+        ))],
+    )
+}
+
+fn propriedades_verificadoras() -> String {
+    tela_das_propriedades(NUP, "10")
+        .replace("Tipo Sintetico: Teste", TIPO)
+        .replace(
+            "Especificação sintética &amp; teste",
+            "Ensaio automatizado issue 245",
+        )
 }
 
 /// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py`: prévia 4.0
@@ -117,7 +140,8 @@ fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -131,8 +155,8 @@ fn confirma_40_com_uma_escrita_e_duas_leituras_de_verificacao() {
     let feito = resultado.unwrap();
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
-    assert_eq!(feito.requisicoes, 6);
-    assert_eq!(requests.len(), 6);
+    assert_eq!(feito.requisicoes, 7);
+    assert_eq!(requests.len(), 7);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
@@ -306,7 +330,8 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -320,8 +345,8 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
     let feito = resultado.unwrap();
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
-    assert_eq!(feito.requisicoes, 7);
-    assert_eq!(requests.len(), 7);
+    assert_eq!(feito.requisicoes, 8);
+    assert_eq!(requests.len(), 8);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         2
@@ -329,68 +354,6 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
     assert!(requests[2].url.contains("acao=procedimento_escolher_tipo"));
     assert!(requests[4].url.contains("acao=procedimento_gerar"));
     assert!(requests[5..].iter().all(|req| req.metodo == "GET"));
-}
-
-/// Segurança da confirmação: após POST, a Location não pode trazer duas
-/// ações, mesmo que só uma delas coincida com a ação esperada.
-/// Nenhum GET pode seguir uma Location ambígua: efeito incerto, saída 3.
-#[test]
-fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
-    let amb = ambiente();
-    let respostas = vec![
-        ok(tela_controle()),
-        ok(lista(false)),
-        ok(cadastro()),
-        r302(&format!(
-            "controlador.php?acao=procedimento_trabalhar&acao=procedimento_excluir&id_procedimento=10&infra_hash={HASH}"
-        )),
-    ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(
-            sessao.origem,
-            sessao.url_do_controle,
-            sessao.cookie,
-            &pedido(true),
-            rede,
-        )
-    });
-    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
-    assert_eq!(requests.len(), 4);
-    assert_eq!(
-        requests.iter().filter(|req| req.metodo == "POST").count(),
-        1
-    );
-}
-
-/// Segurança da confirmação: um `id_procedimento` inválido não é ignorado
-/// quando outro identificador numérico também aparece. Uma Location com
-/// dois valores do mesmo campo é ambígua e não autoriza GET.
-#[test]
-fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
-    let amb = ambiente();
-    let respostas = vec![
-        ok(tela_controle()),
-        ok(lista(false)),
-        ok(cadastro()),
-        r302(&format!(
-            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_procedimento=invalido&infra_hash={HASH}"
-        )),
-    ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
-        criar(
-            sessao.origem,
-            sessao.url_do_controle,
-            sessao.cookie,
-            &pedido(true),
-            rede,
-        )
-    });
-    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
-    assert_eq!(requests.len(), 4);
-    assert_eq!(
-        requests.iter().filter(|req| req.metodo == "POST").count(),
-        1
-    );
 }
 
 /// Link servido na lista 4.0 com duas identidades não permite abrir

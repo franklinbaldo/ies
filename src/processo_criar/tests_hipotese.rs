@@ -5,6 +5,27 @@ use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
 
+use crate::processo_concluir::tests_apoio::NUP;
+use crate::propriedades_processo::tests_apoio::{
+    acao_da_barra, link_das_propriedades, tela_restrita,
+};
+
+fn arvore_verificadora() -> String {
+    arvore(
+        &[UNIDADE],
+        &[acao_da_barra(&link_das_propriedades(
+            "procedimento_alterar",
+            "10",
+        ))],
+    )
+}
+
+fn propriedades_verificadoras() -> String {
+    tela_restrita(NUP, "10")
+        .replace("Tipo Sintetico: Teste", TIPO)
+        .replace("Especificação sintética &amp; teste", "Ensaio restrito")
+}
+
 const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TIPO: &str = "Administracao: Ensaio";
 const XML_UNICO: &str = "<?xml version='1.0'?><select><option value='null'> </option><option value='31'>Base Legal de Teste</option></select>";
@@ -116,7 +137,8 @@ fn confirmacao_restrita_tem_ajax_uma_escrita_e_duas_releituras() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -130,8 +152,8 @@ fn confirmacao_restrita_tem_ajax_uma_escrita_e_duas_releituras() {
     let feito = resultado.expect("confirmacao verificada");
     assert!(feito.confirmado);
     assert!(feito.nup.is_some());
-    assert_eq!(feito.requisicoes, 7);
-    assert_eq!(pedidos.len(), 7);
+    assert_eq!(feito.requisicoes, 8);
+    assert_eq!(pedidos.len(), 8);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 2);
     assert!(
         pedidos[3]
@@ -327,7 +349,8 @@ fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
         ok(trabalhar()),
-        ok(arvore(&[UNIDADE], &[])),
+        ok(arvore_verificadora()),
+        ok(propriedades_verificadoras()),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -341,8 +364,8 @@ fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
     let feito = resultado.expect("escolha explícita verificada");
     assert!(feito.confirmado);
     assert_eq!(feito.hipotese_legal.as_deref(), Some("32"));
-    assert_eq!(feito.requisicoes, 7);
-    assert_eq!(pedidos.len(), 7);
+    assert_eq!(feito.requisicoes, 8);
+    assert_eq!(pedidos.len(), 8);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 2);
     assert!(
         pedidos[4]
