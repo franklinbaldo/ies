@@ -27,15 +27,52 @@ pub(crate) enum ErroFotografia {
 }
 
 impl FotografiaDosGerados {
-    pub(crate) fn da_tela(_html: &str, _unidade: &str) -> Result<Self, ErroFotografia> {
-        Err(ErroFotografia::CoberturaIncompleta)
+    /// Exige unidade e cobertura integral dos Gerados no Controle R.
+    /// Uma página parcial, ainda que apresente o primeiro candidato,
+    /// não comprova ausência nem unicidade depois da escrita.
+    pub(crate) fn da_tela(html: &str, unidade: &str) -> Result<Self, ErroFotografia> {
+        let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))
+            .map_err(ErroFotografia::Caixa)?;
+        let tabela = &leitura.caixa.gerados;
+        let total = tabela
+            .total_declarado
+            .ok_or(ErroFotografia::CoberturaIncompleta)?;
+        if tabela.processos.len() != total
+            || (total != 0 && leitura.gerados.faixa_observada() != Some((1, total)))
+        {
+            return Err(ErroFotografia::CoberturaIncompleta);
+        }
+        let por_id = tabela
+            .processos
+            .iter()
+            .map(|p| (p.id.as_str().to_owned(), p.numero.clone()))
+            .collect();
+        Ok(Self { por_id })
     }
 
+    /// Identifica *candidatos* novos, não afirma que o POST os criou.
+    /// Mudança/desaparecimento de item anterior torna a comparação
+    /// inconclusiva (não é prova de que repetir a escrita é seguro).
     pub(crate) fn novos(
         &self,
-        _depois: &Self,
+        depois: &Self,
     ) -> Result<Vec<CandidatoGerado>, ErroFotografia> {
-        Err(ErroFotografia::CoberturaIncompleta)
+        for (id, numero) in &self.por_id {
+            match depois.por_id.get(id) {
+                Some(atual) if atual == numero => {}
+                Some(_) => return Err(ErroFotografia::IdentidadeAlterada),
+                None => return Err(ErroFotografia::IdentidadeAnteriorAusente),
+            }
+        }
+        Ok(depois
+            .por_id
+            .iter()
+            .filter(|(id, _)| !self.por_id.contains_key(*id))
+            .map(|(id, nup)| CandidatoGerado {
+                id: id.clone(),
+                nup: nup.clone(),
+            })
+            .collect())
     }
 }
 
