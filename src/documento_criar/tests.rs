@@ -441,7 +441,6 @@ fn cadastro_recusa_descricao_com_disabled_booleano() {
     );
 }
 
-
 #[test]
 fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura() {
     // Caso Todos tests/paginas_reais/documento_escolher_tipo.html @323eb01:
@@ -472,10 +471,7 @@ fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura(
         escolha_do_tipo(&instalacao, &html_divergente, "50693", "Despacho"),
         Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
     );
-    let triplo = href.replace(
-        "&infra_hash=",
-        "&id_procedimento=50693&infra_hash=",
-    );
+    let triplo = href.replace("&infra_hash=", "&id_procedimento=50693&infra_hash=");
     let html_triplo = format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{triplo}\">Despacho</a></td></tr></table>"
     );
