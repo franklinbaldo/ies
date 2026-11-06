@@ -84,6 +84,9 @@ pub(super) fn conferir_oferta_exclusao(
             {
                 return Err(sem_oferta);
             }
+            if super::controle_inerte(&dom, tag, true, "html_de_acompanhamento_invalido")? {
+                return Err(sem_oferta);
+            }
             ocultos += 1;
         }
         if tag.name() == "table" && campo(tag, "summary")?.as_deref() == Some(TABELA) {
@@ -93,16 +96,17 @@ pub(super) fn conferir_oferta_exclusao(
     if ocultos != 1 || tabelas.len() != 1 {
         return Err(sem_oferta);
     }
-    conferir_linha(tabelas[0], parser, id_alvo)?;
+    conferir_linha(tabelas[0], &dom, id_alvo)?;
     conferir_script(instalacao, &dom, id_procedimento)
 }
 
 fn conferir_linha(
     tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    dom: &tl::VDom<'_>,
     id_alvo: &str,
 ) -> Result<(), ErroAcompanhar> {
     let sem_oferta = ErroAcompanhar::ExclusaoNaoOferecida;
+    let parser = dom.parser();
     let prefixo = format!("acaoExcluir('{id_alvo}',");
     let mut linhas_do_alvo = 0;
     for no in tabela.children().all(parser) {
@@ -131,6 +135,9 @@ fn conferir_linha(
                     crate::formulario_web::decodificar_atributo(&onclick).ok_or(sem_oferta)?;
                 let onclick = onclick.trim();
                 if onclick.starts_with(&prefixo) && onclick.ends_with(");") {
+                    if super::controle_inerte(dom, tag, false, "html_de_acompanhamento_invalido")? {
+                        return Err(sem_oferta);
+                    }
                     links += 1;
                 }
             }
