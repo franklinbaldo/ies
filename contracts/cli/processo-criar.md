@@ -212,3 +212,36 @@ As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 | `hipotese_legal_informada_invalida` | ID#NOME ausente/inválido ou escolha em nível público |
 | `hipotese_legal_escolha_nao_oferecida` | Par exato ID#NOME não consta do AJAX observado |
 | `hipotese_legal_escolha_inline_nao_verificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
+
+## Reconciliação automática após resposta incerta (#245 — fatia em andamento)
+
+A confirmação atual ainda pode devolver `efeito_incerto_na_criacao`/saída 3
+quando o POST criador falha ou não apresenta resultado verificável.
+A reconciliação **ainda não está ligada à CLI** e não há autorização
+para repetir o POST de criação da UnB que já produziu
+`23106.001875/2026-93` (id 51731).
+
+A primeira peça implementada, `src/processo_criar/reconciliacao.rs`,
+é pura, sem requisições. Ela lê dois retratos da lista **Gerados** pela
+infraestrutura de `paginas`, exige unidade conferida, total publicado,
+intervalo integral de 1 até o total e todas as linhas; recusa cobertura
+incompleta, identidade anterior alterada e desaparecimento de ID.
+Compara `id_procedimento` e NUP como valores opacos e devolve **candidatos**,
+sem atribuir causalidade ao POST. Lista vazia de candidatos **não**
+significa que a criação certamente não ocorreu: a caixa pode variar
+entre requisições e ainda falta verificar tipo/especificação em `processo NUP`.
+Não expõe links assinados, cookie ou `infra_hash`.
+
+Os oito testes sintéticos da fatia usam só HTML local, com
+**zero requisições e zero POST**. Ainda faltam a captura prévia de Gerados
+antes da escrita, sua leitura posterior sem repetir requests,
+a verificação dos NUPs, os quatro resultados de transporte injetado
+(aplicada, não aplicada, candidatos ambíguos e erro de reconciliação),
+as duas causas no erro final e a prova live. Não interpretar a peça
+offline como reconciliação completa.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
+| `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
