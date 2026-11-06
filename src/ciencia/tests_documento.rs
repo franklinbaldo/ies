@@ -180,6 +180,44 @@ fn falha_da_escrita_nao_repetida_seguida_de_leitura() {
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
 
+// RED #271: recusa HTTP no GET mutador não pode perder status e motivo.
+#[test]
+fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        Ok((403, "<html><body>Solicitacao recusada</body></html>".to_owned(), None)),
+        ok(arvore_com_lista()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|s| s.status), Some(403));
+    assert!(erro.status_http().and_then(|s| s.mensagem_do_servidor.as_ref()).is_some());
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+// RED #271: validação Infra em resposta 200 é recusa, não aceite.
+#[test]
+fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
+        ok(arvore_com_lista()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    assert_eq!(erro.status_http().and_then(|s| s.mensagem_do_servidor.as_deref()), Some("Solicitacao recusada"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1);
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
 #[test]
 fn lista_com_atividade_divergente_nao_prova() {
     let mut respostas = abertura(arvore_com_botao());
@@ -251,6 +289,16 @@ fn rejeitar_tela_sem_get_mutador(tela: String) {
         0,
         "nunca enviar GET mutador a partir de JS inerte"
     );
+}
+
+// RED #271: script aninhado em contêiner inerte não é ação ofertada.
+#[test]
+fn script_dentro_de_template_nao_autoriza_get_mutador() {
+    let tela = format!(
+        "<html><template><script>var linkCienciaDocumento = '{}';</script></template></html>",
+        link_da_escrita()
+    );
+    rejeitar_tela_sem_get_mutador(tela);
 }
 
 #[test]
