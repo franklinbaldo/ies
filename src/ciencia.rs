@@ -115,8 +115,7 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // return, throw, condicionais ou qualquer outra instrução anterior
     // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
     assinatura == b"functioninicializar()"
-        && (abertura + 1..posicao)
-            .all(|i| niveis[i] != Some(1) || bytes[i].is_ascii_whitespace())
+        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || bytes[i].is_ascii_whitespace())
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
