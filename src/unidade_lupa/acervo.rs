@@ -312,6 +312,7 @@ fn replay_do_fluxo_completo_unb() {
         .expect("cassette UnB não confere hashes ou origem");
     assert_eq!(conferida.instalacao, "unb");
     let passos: Vec<_> = gravacao::respostas(&conferida.json)
+        .into_iter()
         .map(|r| {
             assert_eq!(r.status, 200);
             (
