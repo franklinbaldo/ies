@@ -18,23 +18,23 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
 #[test]
 fn subcodigos_sao_estaveis() {
     assert_eq!(
-        ErroCriar::ListaForaDaForma.subcodigo(),
+        crate::erro_publico::folha(&ErroCriar::ListaForaDaForma),
         "lista_de_tipos_fora_da_forma_observada"
     );
     assert_eq!(
-        ErroCriar::TipoAusente.subcodigo(),
+        crate::erro_publico::folha(&ErroCriar::TipoAusente),
         "tipo_de_documento_nao_oferecido"
     );
     assert_eq!(
-        ErroCriar::TipoAmbiguo.subcodigo(),
+        crate::erro_publico::folha(&ErroCriar::TipoAmbiguo),
         "tipo_de_documento_ambiguo"
     );
     assert_eq!(
-        ErroCriar::NaoAplicado.subcodigo(),
+        crate::erro_publico::folha(&ErroCriar::NaoAplicado),
         "documento_criado_nao_comprovado"
     );
     assert_eq!(
-        ErroCriar::EfeitoIncerto.subcodigo(),
+        crate::erro_publico::folha(&ErroCriar::EfeitoIncerto),
         "efeito_incerto_na_criacao_de_documento"
     );
 }
