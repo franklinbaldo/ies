@@ -1,5 +1,6 @@
 //! RED/GREEN da derivação: HTML sintético modelado no formulário servido.
 use super::*;
+use crate::erro_html::ErroHtml;
 use ErroSubmissaoFormulario as E;
 
 pub(crate) const HASH_TELA: &str =
@@ -227,11 +228,18 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
     );
     assert_eq!(r.unwrap_err(), E::UnidadeDaTelaDiferenteDaSolicitada);
     let sem = html.replace("lnkInfraUnidade", "lnkOutro");
-    assert_eq!(erro(&sem, &[]), E::IdentificacaoDaUnidadeAusenteNaTela);
+    assert_eq!(
+        erro(&sem, &[]),
+        E::Html(ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela"
+        ))
+    );
     let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
     assert_eq!(
         erro(&repetida, &[]),
-        E::IdentificacoesDaUnidadeRepetidasNaTela
+        E::Html(ErroHtml::repetido(
+            "identificacoes_da_unidade_repetidas_na_tela"
+        ))
     );
 }
 
@@ -274,10 +282,13 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
 
 #[test]
 fn action_ausente_sem_hash_ou_de_outra_operacao_e_recusado() {
-    assert_eq!(erro(&pagina("", INTERIOR), &[]), E::AcaoDoFormularioAusente);
+    assert_eq!(
+        erro(&pagina("", INTERIOR), &[]),
+        E::Html(ErroHtml::ausente("acao_do_formulario_ausente"))
+    );
     assert_eq!(
         erro(&com_action("#ancora"), &[]),
-        E::AcaoDoFormularioAusente
+        E::Html(ErroHtml::ausente("acao_do_formulario_ausente"))
     );
     let sem_hash = "controlador.php?acao=protocolo_pesquisar";
     assert_eq!(
@@ -308,18 +319,29 @@ fn botao_de_envio_ausente_ou_repetido_e_recusado() {
         "type='submit' id='sbmPesquisar'",
         "type='button' id='sbmPesquisar'",
     );
-    assert_eq!(erro(&sem, &[]), E::BotaoDeEnvioAusenteNoFormulario);
+    assert_eq!(
+        erro(&sem, &[]),
+        E::Html(ErroHtml::ausente("botao_de_envio_ausente_no_formulario"))
+    );
     let dois = padrao().replace(
         "</form>",
         "<input type='submit' name='sbmPesquisar' value='Pesquisar'></form>",
     );
-    assert_eq!(erro(&dois, &[]), E::BotoesDeEnvioRepetidosNoFormulario);
+    assert_eq!(
+        erro(&dois, &[]),
+        E::Html(ErroHtml::repetido(
+            "botoes_de_envio_repetidos_no_formulario"
+        ))
+    );
 }
 
 #[test]
 fn formulario_ausente_ou_com_identificador_repetido_e_recusado() {
     let ausente = padrao().replace("frmPesquisaProtocolo", "frmOutro");
-    assert_eq!(erro(&ausente, &[]), E::FormularioAusenteNaTela);
+    assert_eq!(
+        erro(&ausente, &[]),
+        E::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
+    );
     let duplicado = padrao().replace(
         "</html>",
         "<form name='frmPesquisaProtocolo' method='post'></form></html>",
@@ -501,15 +523,19 @@ fn subcodigos_sao_estaveis_unicos_e_snake_case() {
     let c = String::new;
     let todos = [
         E::EfeitoDaOperacaoNaoAvaliado,
-        E::IdentificacaoDaUnidadeAusenteNaTela,
-        E::IdentificacoesDaUnidadeRepetidasNaTela,
+        E::Html(ErroHtml::ausente(
+            "identificacao_da_unidade_ausente_na_tela",
+        )),
+        E::Html(ErroHtml::repetido(
+            "identificacoes_da_unidade_repetidas_na_tela",
+        )),
         E::UnidadeDaTelaDiferenteDaSolicitada,
-        E::FormularioAusenteNaTela,
+        E::Html(ErroHtml::ausente("formulario_ausente_na_tela")),
         E::FormulariosComMesmoIdentificadorNaTela,
         E::MetodoDoFormularioDiferenteDePost,
         E::EnctypeDoFormularioNaoUrlencoded,
         E::AcceptCharsetPublicadoNoFormulario,
-        E::AcaoDoFormularioAusente,
+        E::Html(ErroHtml::ausente("acao_do_formulario_ausente")),
         E::AcaoDoFormularioNaoEhUrlHttps,
         E::AcaoDoFormularioForaDaInstalacao,
         E::AcaoDoFormularioDiferenteDaOperacao,
@@ -522,8 +548,10 @@ fn subcodigos_sao_estaveis_unicos_e_snake_case() {
         E::CampoNaoPublicadoPeloFormulario { campo: c() },
         E::CampoInformadoMaisDeUmaVez { campo: c() },
         E::ValorNaoRepresentavelNaCodificacao { campo: c() },
-        E::BotaoDeEnvioAusenteNoFormulario,
-        E::BotoesDeEnvioRepetidosNoFormulario,
+        E::Html(ErroHtml::ausente("botao_de_envio_ausente_no_formulario")),
+        E::Html(ErroHtml::repetido(
+            "botoes_de_envio_repetidos_no_formulario",
+        )),
         E::TelaDeLoginRecebidaAposEnvio,
         E::MarcadorDeResultadoAusenteNaResposta,
     ];

@@ -8,6 +8,7 @@ use super::tela::{
 use super::tests_apoio::*;
 use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::tests_tela::instalacao;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::processo_concluir::tests_apoio::{ID, NUP};
 
@@ -88,7 +89,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
     let casos = [
         (
             trocar("frmAtividadeListar", "frmOutro"),
-            E::FormularioDeEnvioAusente,
+            E::Html(ErroHtml::ausente("formulario_de_envio_ausente")),
         ),
         (
             trocar(
@@ -102,7 +103,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
                 "<input type=\"hidden\" id=\"hdnUnidades\"",
                 "<input type=\"text\" name=\"txtNovo\" value=\"\" /><input type=\"hidden\" id=\"hdnUnidades\"",
             ),
-            E::CampoNaoPrevistoNaTelaDeEnvio,
+            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio")),
         ),
         (
             trocar(
@@ -169,7 +170,9 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         ),
         (
             trocar("+'&unidade_atual=0';", "+'&unidade_atual=1';"),
-            E::ConsultaDoAutocompletarForaDaFormaObservada,
+            E::Html(ErroHtml::valor(
+                "consulta_do_autocompletar_fora_da_forma_observada",
+            )),
         ),
     ];
     for (html, erro) in casos {

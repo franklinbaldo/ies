@@ -1,0 +1,447 @@
+//! Recolhe toda a lupa por transporte Web injetável, sem escrita no SEI.
+//! Navegação: Controle → `grupo_unidade_listar` → Novo → cadastro
+//! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
+use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
+use crate::formulario_web::RespostaDoPost;
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
+    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
+};
+use crate::indice_local::UnidadeGuardada;
+use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
+use crate::transporte::{FalhaTransporte, decodificar_resposta, validar_origem};
+use std::io::Read;
+
+const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "unidade_selecionar_envio_processo",
+    formulario: "frmUnidadeLista",
+    envio: EnvioDoFormulario::BotaoDeEnvio("btnPesquisar"),
+    campos_ocultos_exigidos: &["hdnInfraPaginaAtual"],
+    campos_ocultos_reescritos: &["hdnInfraPaginaAtual"],
+    campos_usuario: &[
+        "selOrgaoUnidade",
+        "txtSiglaUnidade",
+        "txtDescricaoUnidade",
+        "selInfraPaginacaoSuperior",
+        "selInfraPaginacaoInferior",
+    ],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
+        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
+    },
+};
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FalhaDaLupa {
+    Transporte(FalhaTransporte),
+    Tela(ErroLupa),
+    LinkAusente,
+    LinkAmbiguo,
+    LinkForaDaInstalacao,
+    CharsetInesperado,
+    FormularioInesperado,
+    ExcessoDePaginas,
+}
+
+impl FalhaDaLupa {
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        match self {
+            Self::Transporte(falha) => falha.subcodigo(),
+            Self::Tela(ErroLupa::PaginasDivergentes) => "lista_unidades_incompleta",
+            Self::Tela(_) => "pagina_da_lupa_fora_da_forma",
+            Self::LinkAusente => "link_da_lupa_ausente",
+            Self::LinkAmbiguo => "link_da_lupa_ambiguo",
+            Self::LinkForaDaInstalacao => "link_da_lupa_fora_da_instalacao",
+            Self::CharsetInesperado => "charset_da_lupa_nao_suportado",
+            Self::FormularioInesperado => "formulario_da_lupa_inesperado",
+            Self::ExcessoDePaginas => "lupa_excedeu_orcamento_de_paginas",
+        }
+    }
+    /// Preserva status e mensagem já saneada da recusa HTTP, sem URL/cookie.
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            _ => None,
+        }
+    }
+}
+
+/// GET / POST sempre uma tentativa, sem redirect automático.
+pub(crate) trait TransporteLupa {
+    type Corpo: Read;
+    fn get(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
+    fn post(
+        &mut self,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte>;
+}
+pub(crate) struct HttpsLupa;
+impl TransporteLupa for HttpsLupa {
+    type Corpo = crate::transporte::cliente_https::CorpoHttps;
+    fn get(
+        &mut self,
+        url: &str,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        crate::transporte::envio_post::get_com_localizacao(url, cookie)
+    }
+    fn post(
+        &mut self,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        crate::transporte::envio_post::enviar_post(submissao, cookie)
+    }
+}
+
+/// A contagem inclui tentativas que falharam. Nunca contém URL/cookie.
+pub(crate) struct ListaWeb {
+    pub(crate) unidades: Vec<UnidadeGuardada>,
+    pub(crate) total: usize,
+    pub(crate) requisicoes: usize,
+}
+
+fn obter<T: TransporteLupa>(
+    t: &mut T,
+    url: &str,
+    cookie: &str,
+    origem: &str,
+    requisicoes: &mut usize,
+) -> Result<(String, String), FalhaDaLupa> {
+    validar_url_de_leitura(url, origem)?;
+    *requisicoes += 1;
+    let resposta = t.get(url, cookie).map_err(FalhaDaLupa::Transporte)?;
+    let mime = resposta.resposta.mime.clone();
+    let html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
+    Ok((html, mime))
+}
+
+/// Confere parâmetros da URL servida sem aceitar aliases ou duplicatas.
+/// A validação estrita do Controle não serve para as outras ações da lupa.
+fn url_publicada_autorizada(url: &str, origem: &str, acao: &str) -> bool {
+    let Some(partes) = crate::url_observada::UrlHttps::interpretar(url) else {
+        return false;
+    };
+    let Some(instalacao) = Instalacao::interpretar(origem) else {
+        return false;
+    };
+    if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
+        return false;
+    }
+    let Some(query) = partes.consulta else {
+        return false;
+    };
+    let (mut acao_encontrada, mut hash_encontrado) = (false, false);
+    for item in query.split('&') {
+        let Some((chave, valor)) = item.split_once('=') else {
+            return false;
+        };
+        if crate::transporte::conferir_chave_de_consulta(chave).is_err()
+            || crate::transporte::conferir_valor_de_consulta(valor).is_err()
+        {
+            return false;
+        }
+        match chave {
+            "acao" if !acao_encontrada && valor == acao => acao_encontrada = true,
+            "infra_hash"
+                if !hash_encontrado
+                    && valor.len() == 64
+                    && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
+            {
+                hash_encontrado = true;
+            }
+            "acao" | "infra_hash" | "acao_ajax" => return false,
+            _ => {}
+        }
+    }
+    acao_encontrada && hash_encontrado
+}
+
+fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {
+    if validar_origem(url, origem).is_ok()
+        || [
+            "grupo_unidade_listar",
+            "grupo_unidade_cadastrar",
+            "unidade_selecionar_envio_processo",
+        ]
+        .iter()
+        .any(|acao| url_publicada_autorizada(url, origem, acao))
+    {
+        Ok(())
+    } else {
+        Err(FalhaDaLupa::LinkForaDaInstalacao)
+    }
+}
+
+/// Extrai apenas URLs literais publicadas pelo controle fornecido.
+/// Não interpreta nem executa código JavaScript.
+fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaLupa> {
+    let mut urls = Vec::new();
+    for atributo in ["href", "onclick"] {
+        let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
+            .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+        let Some(bruto) = bruto else { continue };
+        let decodificado =
+            crate::formulario_web::decodificar_atributo(&bruto).ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let literal = if atributo == "href" {
+            Some(decodificado.as_str())
+        } else {
+            // Apenas literal entre aspas atribuído a location, sem JS.
+            let local = decodificado.split("location").nth(1);
+            local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
+                let v = v.trim();
+                let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
+                let fim = if decodificado.contains("='") {
+                    '\''
+                } else {
+                    '"'
+                };
+                v.split(fim).next()
+            })
+        };
+        if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
+            urls.push(literal.to_owned());
+        }
+    }
+    Ok(urls)
+}
+
+/// Extrai somente o conteúdo integral de literais simples entre aspas do
+/// script servido. Não interpreta escapes, variáveis nem executa JavaScript.
+/// A URL ainda precisa passar por validação de origem, ação e `infra_hash`.
+fn literais_do_script(script: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    let mut caracteres = script.char_indices().peekable();
+    while let Some((_, aspas)) = caracteres.next() {
+        if aspas != '\'' && aspas != '"' {
+            continue;
+        }
+        let inicio = caracteres.peek().map_or(script.len(), |(i, _)| *i);
+        let mut escapado = false;
+        let mut fim = None;
+        for (posicao, c) in caracteres.by_ref() {
+            if escapado {
+                escapado = false;
+            } else if c == '\\' {
+                escapado = true;
+            } else if c == aspas {
+                fim = Some(posicao);
+                break;
+            }
+        }
+        if let Some(fim) = fim {
+            let literal = &script[inicio..fim];
+            if literal.len() <= 2048
+                && !literal.contains('\\')
+                && literal.contains("controlador.php?")
+            {
+                urls.push(literal.to_owned());
+            }
+        }
+    }
+    urls
+}
+
+/// URL publicada em controle da tela; na lupa GO, também em literal
+/// estático de script da tela de cadastro, sem executar JavaScript.
+pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaLupa> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
+    let parser = dom.parser();
+    let mut urls = Vec::new();
+    for seletor in ["a", "button", "input"] {
+        for no in dom.query_selector(seletor).into_iter().flatten() {
+            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            urls.extend(candidatos_do_controle(tag)?);
+        }
+    }
+    if acao == "unidade_selecionar_envio_processo" {
+        for no in dom.query_selector("script").into_iter().flatten() {
+            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            let chave_da_acao = format!("acao={acao}");
+            urls.extend(
+                literais_do_script(tag.raw().as_utf8_str().as_ref())
+                    .into_iter()
+                    .filter(|url| url.contains(&chave_da_acao)),
+            );
+        }
+    }
+    Ok(urls)
+}
+
+/// Resolve URL publicada, com ação única e hash hexadecimal; nunca gera hash.
+fn destino_de_candidatos(
+    candidatos: Vec<String>,
+    url_da_tela: &str,
+    origem: &str,
+    acao: &str,
+) -> Result<String, FalhaDaLupa> {
+    let mut aceitos = std::collections::HashSet::new();
+    for relativo in candidatos {
+        if relativo.contains(['#', '\\']) || relativo.contains("..") {
+            continue;
+        }
+        let url = if relativo.starts_with("https://") {
+            relativo
+        } else if relativo.starts_with("controlador.php?") {
+            let base = url_da_tela.split('?').next().unwrap_or_default();
+            let pasta = base
+                .rsplit_once('/')
+                .map(|(p, _)| p)
+                .ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
+            format!("{pasta}/{relativo}")
+        } else {
+            continue;
+        };
+        if url_publicada_autorizada(&url, origem, acao) {
+            aceitos.insert(url);
+        }
+    }
+    match aceitos.len() {
+        0 => Err(FalhaDaLupa::LinkAusente),
+        1 => Ok(aceitos.into_iter().next().unwrap_or_default()),
+        _ => Err(FalhaDaLupa::LinkAmbiguo),
+    }
+}
+
+pub(super) fn destino(
+    html: &str,
+    url_da_tela: &str,
+    origem: &str,
+    acao: &str,
+) -> Result<String, FalhaDaLupa> {
+    destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
+}
+
+fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa> {
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaDaLupa::LinkAusente)?;
+    let parser = dom.parser();
+    let achados =
+        crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+    let tag = match achados.as_slice() {
+        [] => return Err(FalhaDaLupa::LinkAusente),
+        [unico] => unico
+            .get(parser)
+            .and_then(tl::Node::as_tag)
+            .ok_or(FalhaDaLupa::LinkAusente)?,
+        _ => return Err(FalhaDaLupa::LinkAmbiguo),
+    };
+    // Não emprestar URL de outro botão ou link da tela. Uma URL assinada
+    // de cadastro só autoriza o GET se publicada no próprio btnNovo.
+    destino_de_candidatos(
+        candidatos_do_controle(tag)?,
+        url,
+        origem,
+        "grupo_unidade_cadastrar",
+    )
+}
+
+fn consulta(
+    instalacao: &Instalacao,
+    url: &str,
+    html: &str,
+    mime: &str,
+    pagina: usize,
+) -> Result<SubmissaoDerivada, FalhaDaLupa> {
+    let codificacao = codificacao_da_tela(mime).ok_or(FalhaDaLupa::CharsetInesperado)?;
+    let indice = pagina.to_string();
+    let tela = TelaServida {
+        url,
+        html,
+        codificacao,
+    };
+    // Controles de paginação devem existir como o SEI os publica.
+    // A biblioteca de formulário insere os ocultos fixos na ordem correta.
+    derivar_submissao(
+        &CONSULTAR,
+        instalacao,
+        &tela,
+        "",
+        &[
+            ("selOrgaoUnidade", ""),
+            ("txtSiglaUnidade", ""),
+            ("txtDescricaoUnidade", ""),
+            ("hdnInfraPaginaAtual", &indice),
+            ("selInfraPaginacaoSuperior", &indice),
+            ("selInfraPaginacaoInferior", &indice),
+        ],
+    )
+    .map_err(|_| FalhaDaLupa::FormularioInesperado)
+}
+
+/// Consulta integral: quatro GETs de navegação + um POST por página;
+/// a própria lupa custa 1 GET + N POSTs, sem pagina repetida.
+pub(crate) fn ler_integral<T: TransporteLupa>(
+    transporte: &mut T,
+    url_controle: &str,
+    origem: &str,
+    cookie: &str,
+) -> Result<ListaWeb, FalhaDaLupa> {
+    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
+    let mut requisicoes = 0;
+    let (controle, _) = obter(transporte, url_controle, cookie, origem, &mut requisicoes)?;
+    let lista = destino(&controle, url_controle, origem, "grupo_unidade_listar")?;
+    let (lista_html, _) = obter(transporte, &lista, cookie, origem, &mut requisicoes)?;
+    let novo = botao_novo(&lista_html, &lista, origem)?;
+    let (cadastro, _) = obter(transporte, &novo, cookie, origem, &mut requisicoes)?;
+    let url_lupa = destino(
+        &cadastro,
+        &novo,
+        origem,
+        "unidade_selecionar_envio_processo",
+    )?;
+    let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, &mut requisicoes)?;
+    let mut url = url_lupa;
+    let mut lidas: Vec<PaginaDaLupa> = Vec::new();
+    let mut total_paginas = 1;
+    for pagina in 0.. {
+        if pagina >= total_paginas || pagina >= 10000 {
+            break;
+        }
+        let post = consulta(&instalacao, &url, &html, &mime, pagina)?;
+        post.url().clone_into(&mut url);
+        requisicoes += 1;
+        let resposta = transporte
+            .post(post, cookie)
+            .map_err(FalhaDaLupa::Transporte)?;
+        mime.clone_from(&resposta.resposta.mime);
+        html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
+        super::conferir_filtros_de_lista_integral(&html)
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
+        if lida.pagina != pagina || (!lidas.is_empty() && lida.paginas != total_paginas) {
+            return Err(FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));
+        }
+        total_paginas = lida.paginas;
+        lidas.push(lida);
+    }
+    if lidas.len() != total_paginas {
+        return Err(FalhaDaLupa::ExcessoDePaginas);
+    }
+    let unidades = reunir_paginas(lidas).map_err(FalhaDaLupa::Tela)?;
+    Ok(ListaWeb {
+        total: unidades.len(),
+        unidades,
+        requisicoes,
+    })
+}
+
+#[cfg(test)]
+#[path = "fluxo_regressoes.rs"]
+mod regressoes;
+
+#[cfg(test)]
+#[path = "fluxo_testes.rs"]
+mod tests;

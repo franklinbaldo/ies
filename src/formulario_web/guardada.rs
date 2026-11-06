@@ -9,6 +9,7 @@ use super::{
     CodificacaoDaTela, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     OperacaoDeFormulario, SubmissaoDerivada, codificar_corpo,
 };
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 
@@ -30,7 +31,7 @@ pub(crate) fn derivar_submissao_guardada(
         || !operacao.campos_ocultos_exigidos.is_empty()
         || !operacao.campos_ocultos_reescritos.is_empty()
     {
-        return Err(E::FormularioAusenteNaTela);
+        return Err(ErroHtml::ausente("formulario_ausente_na_tela").into());
     }
     let alvo = UrlHttps::interpretar(url_guardada).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {

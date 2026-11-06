@@ -1,6 +1,7 @@
 //! Leitor da tela de atribuição por HTML servido, sem executar JS.
 // Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
 //! O select não informa a atribuição atual: a árvore do processo é a fonte.
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::transporte::texto_de_recusa::decodificar_entidades;
@@ -24,14 +25,14 @@ pub(crate) struct TelaDaAtribuicao {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuir {
-    #[causa(nome = "tela_da_atribuicao_fora_da_forma")]
-    TelaForaDaForma,
     UsuarioNaoAtribuivel,
     #[causa(nome = "usuario_ambiguo_na_atribuicao")]
     UsuarioAmbiguo,
     #[causa(nome = "situacao_da_atribuicao_nao_observada")]
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
+    #[causa(transparente)]
+    Html(ErroHtml),
 }
 impl ErroAtribuir {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -42,12 +43,16 @@ impl ErroAtribuir {
 type E = ErroAtribuir;
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome)
-        .map_err(|_| E::TelaForaDaForma)?
-        .map(|bruto| decodificar_atributo(&bruto).ok_or(E::TelaForaDaForma))
+        .map_err(|e| ErroHtml::atributo("tela_da_atribuicao_fora_da_forma", e))?
+        .map(|bruto| {
+            decodificar_atributo(&bruto)
+                .ok_or(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        })
         .transpose()
 }
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(|_| E::TelaForaDaForma)
+    atributo_presente(tag, nome)
+        .map_err(|e| E::Html(ErroHtml::atributo("tela_da_atribuicao_fora_da_forma", e)))
 }
 
 /// Confere a URL assinada servida sem a publicar nem fabricar outra.
@@ -91,15 +96,16 @@ fn ler_opcoes(
             continue;
         };
         if opcao.name().as_utf8_str().as_ref() != "option" {
-            return Err(E::TelaForaDaForma);
+            return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
         if presente(opcao, "disabled")? {
-            return Err(E::TelaForaDaForma);
+            return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
-        let id_usuario = valor(opcao, "value")?.ok_or(E::TelaForaDaForma)?;
+        let id_usuario =
+            valor(opcao, "value")?.ok_or(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
         if id_usuario == SEM_ATRIBUICAO {
             if !presente(opcao, "selected")? {
-                return Err(E::TelaForaDaForma);
+                return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
             }
             item_nulo += 1;
             continue;
@@ -108,15 +114,17 @@ fn ler_opcoes(
             || id_usuario.is_empty()
             || !id_usuario.bytes().all(|b| b.is_ascii_digit())
         {
-            return Err(E::TelaForaDaForma);
+            return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
         let rotulo = decodificar_entidades(&opcao.inner_text(parser))
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let (login, nome) = rotulo.split_once(" - ").ok_or(E::TelaForaDaForma)?;
+        let (login, nome) = rotulo
+            .split_once(" - ")
+            .ok_or(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
         if login.is_empty() || nome.is_empty() || login.trim() != login {
-            return Err(E::TelaForaDaForma);
+            return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
         usuarios.push(UsuarioDaAtribuicao {
             id: id_usuario,
@@ -129,16 +137,18 @@ fn ler_opcoes(
 
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
 pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaForaDaForma)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, FORMULARIO).map_err(|_| E::TelaForaDaForma)?;
+    let form = localizar_formulario(&dom, FORMULARIO)
+        .map_err(|_| ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
     if valor(form, "method")?.as_deref() != Some("post")
         || presente(form, "disabled")?
         || !valor(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
     {
-        return Err(E::TelaForaDaForma);
+        return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
     }
 
     let (mut pagina, mut protocolo, mut botao, mut selecao) = (0, 0, 0, 0);
@@ -154,7 +164,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
         match elemento.as_str() {
             "input" => {
                 if presente(tag, "disabled")? || valor(tag, "type")?.as_deref() != Some("hidden") {
-                    return Err(E::TelaForaDaForma);
+                    return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
                 }
                 match valor(tag, "name")?.as_deref() {
                     Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => {
@@ -163,7 +173,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     Some("hdnIdProtocolo") if valor(tag, "value")?.as_deref() == Some(id) => {
                         protocolo += 1;
                     }
-                    _ => return Err(E::TelaForaDaForma),
+                    _ => return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into()),
                 }
             }
             "button" => {
@@ -172,7 +182,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || presente(tag, "formmethod")?
                     || presente(tag, "formenctype")?
                 {
-                    return Err(E::TelaForaDaForma);
+                    return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
                 }
                 match (
                     valor(tag, "type")?.as_deref(),
@@ -184,7 +194,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                         botao += 1;
                     }
                     (Some("button"), Some("btnCancelar")) => {}
-                    _ => return Err(E::TelaForaDaForma),
+                    _ => return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into()),
                 }
             }
             "select" => {
@@ -193,19 +203,21 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || presente(tag, "multiple")?
                     || presente(tag, "disabled")?
                 {
-                    return Err(E::TelaForaDaForma);
+                    return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
                 }
                 selecao += 1;
                 let (lidos, nulos) = ler_opcoes(tag, parser)?;
                 usuarios.extend(lidos);
                 item_nulo += nulos;
             }
-            "optgroup" | "textarea" => return Err(E::TelaForaDaForma),
+            "optgroup" | "textarea" => {
+                return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
+            }
             _ => {}
         }
     }
     if pagina != 1 || protocolo != 1 || botao != 1 || selecao != 1 || item_nulo != 1 {
-        return Err(E::TelaForaDaForma);
+        return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
     }
     Ok(TelaDaAtribuicao { usuarios })
 }

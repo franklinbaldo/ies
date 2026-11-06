@@ -6,6 +6,7 @@ use super::FalhaDepoisDoEnvio as F;
 use super::retorno::{hash_do_salto, url_do_salto};
 use super::tela::{TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca, link_da_troca};
 use super::tests_apoio::*;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
 
@@ -27,10 +28,17 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
     let sei = instalacao();
     let url = url_controle(ID_A);
     let sem = "<a id=\"lnkInfraUnidade\" href=\"#\">PR-A</a>";
-    assert_eq!(link_da_troca(&sei, &url, sem), Err(E::LinkDeTrocaAusente));
+    assert_eq!(
+        link_da_troca(&sei, &url, sem),
+        Err(E::Html(ErroHtml::ausente(
+            "link_de_troca_de_unidade_ausente"
+        )))
+    );
     assert_eq!(
         link_da_troca(&sei, &url, "<p>x</p>"),
-        Err(E::LinkDeTrocaAusente)
+        Err(E::Html(ErroHtml::ausente(
+            "link_de_troca_de_unidade_ausente"
+        )))
     );
     let divergente = barra("PR-A", ID_A).replacen(ID_A, ID_B, 1);
     assert_eq!(
@@ -57,7 +65,9 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
         let html = barra("PR-A", ID_A).replace(de, para);
         assert_eq!(
             link_da_troca(&sei, &url, &html),
-            Err(E::LinkDeTrocaForaDaFormaObservada),
+            Err(E::Html(ErroHtml::valor(
+                "link_de_troca_de_unidade_fora_da_forma_observada"
+            ))),
             "{para}"
         );
     }
@@ -106,7 +116,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 &duas.replace("selecionarUnidade(110000002)", "selecionarUnidade(9)"),
                 SCRIPT,
             ),
-            E::LinhaDeUnidadeForaDaFormaObservada,
+            E::Html(ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")),
         ),
         (
             tela_com(
@@ -115,7 +125,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 &duas.replace("title=\"PR-B\"", "title=\"PR-C\""),
                 SCRIPT,
             ),
-            E::LinhaDeUnidadeForaDaFormaObservada,
+            E::Html(ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")),
         ),
         (
             tela_com(
@@ -128,7 +138,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
                 ),
                 SCRIPT,
             ),
-            E::LinhaDeUnidadeForaDaFormaObservada,
+            E::Html(ErroHtml::valor("linha_de_unidade_fora_da_forma_observada")),
         ),
         (
             tela_com(ativa, 2, &duas.replace("checked=\"checked\" ", ""), SCRIPT),
@@ -143,7 +153,10 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
             ),
             E::UnidadeMarcadaDiferenteDaAtiva,
         ),
-        (controle("PR-A", ID_A), E::TelaDeTrocaNaoReconhecida),
+        (
+            controle("PR-A", ID_A),
+            E::Html(ErroHtml::valor("tela_de_troca_de_unidade_nao_reconhecida")),
+        ),
     ];
     for (html, esperado) in casos {
         assert_eq!(

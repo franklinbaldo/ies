@@ -38,6 +38,7 @@ mod documento_versoes;
 mod documento_web;
 mod dominio;
 mod entidades_html;
+mod erro_html;
 mod erro_publico;
 mod erro_web;
 mod esquema_cli;
@@ -47,6 +48,7 @@ mod hex;
 mod historico;
 mod historico_processo;
 mod html_atributos;
+mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
 mod marcadores_processo;
@@ -117,7 +119,10 @@ mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
+mod unidade_indice_cli;
 mod unidade_lista_cli;
+mod unidade_lupa;
+mod unidade_pesquisar_cli;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
@@ -151,6 +156,8 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
+    /// Inspeciona a localização do índice SQLite local, sem rede
+    Indice(Indice),
     /// Leitura de blocos de assinatura, internos e de reunião
     Bloco(Bloco),
     /// Diagnóstico da conexão (ainda não implementado)
@@ -289,6 +296,18 @@ enum BlocoAcao {
 }
 
 #[derive(Debug, Args)]
+struct Indice {
+    #[command(subcommand)]
+    acao: Option<IndiceAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum IndiceAcao {
+    /// Mostra o caminho configurado do SQLite; não abre o banco
+    Caminho,
+}
+
+#[derive(Debug, Args)]
 struct Unidade {
     #[command(subcommand)]
     acao: Option<UnidadeAcao>,
@@ -296,6 +315,14 @@ struct Unidade {
 
 #[derive(Debug, Subcommand)]
 enum UnidadeAcao {
+    /// Lista as unidades já guardadas no índice local, sem rede
+    Listar {
+        /// Recolhe uma lista nova pela lupa (ainda não disponível nesta fatia)
+        #[arg(long)]
+        atualizar: bool,
+    },
+    /// Pesquisa no índice local por sigla ou descrição, sem rede
+    Pesquisar { termo: String },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -443,6 +470,9 @@ fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
 }
 
 fn run(cli: &Cli) -> ExitCode {
+    if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
+        return status;
+    }
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
         return status;
     }
@@ -512,6 +542,10 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) if numeros.is_empty() => {
             esquema_cli::show_noun_help("documento");
+            return ExitCode::SUCCESS;
+        }
+        Domain::Indice(Indice { acao: None }) => {
+            println!("ies indice caminho");
             return ExitCode::SUCCESS;
         }
         Domain::Unidade(Unidade { acao: None }) => {

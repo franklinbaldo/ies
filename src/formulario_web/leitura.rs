@@ -1,6 +1,7 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario as E, OperacaoDeFormulario};
+use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
@@ -34,7 +35,7 @@ pub(crate) fn localizar_formulario<'d>(
         }
     }
     match achados.as_slice() {
-        [] => Err(E::FormularioAusenteNaTela),
+        [] => Err(ErroHtml::ausente("formulario_ausente_na_tela").into()),
         [form] => Ok(form),
         _ => Err(E::FormulariosComMesmoIdentificadorNaTela),
     }
@@ -108,7 +109,7 @@ pub(super) fn resolver_action_no_host(
 /// `action` absoluto em HTTPS, resolvido contra a URL servida, sem o
 /// fragmento. Não normaliza `..`.
 fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result<String, E> {
-    let bruto = atributo(form, "action")?.ok_or(E::AcaoDoFormularioAusente)?;
+    let bruto = atributo(form, "action")?.ok_or(ErroHtml::ausente("acao_do_formulario_ausente"))?;
     let decodificado =
         decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
@@ -116,7 +117,7 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     // O navegador não envia o fragmento (`#ancoraBarraPesquisa` observado).
     let referencia = decodificado.split('#').next().unwrap_or_default();
     if referencia.is_empty() {
-        return Err(E::AcaoDoFormularioAusente);
+        return Err(ErroHtml::ausente("acao_do_formulario_ausente").into());
     }
     let absoluta = if referencia.starts_with("https://") {
         referencia.to_owned()
@@ -302,13 +303,13 @@ pub(super) fn ler_controles(
             EnvioDoFormulario::BotaoDeEnvio(_)
             | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
             0,
-        ) => return Err(E::BotaoDeEnvioAusenteNoFormulario),
+        ) => return Err(ErroHtml::ausente("botao_de_envio_ausente_no_formulario").into()),
         (
             EnvioDoFormulario::BotaoDeEnvio(_)
             | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_),
             _,
         ) => {
-            return Err(E::BotoesDeEnvioRepetidosNoFormulario);
+            return Err(ErroHtml::repetido("botoes_de_envio_repetidos_no_formulario").into());
         }
     }
     if let Some(ausente) = operacao

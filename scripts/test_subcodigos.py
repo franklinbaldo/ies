@@ -32,6 +32,15 @@ class ExtracaoTests(unittest.TestCase):
                 json!({"subcodigo": "somente_teste"}); } }
         '''), {'direto'})
 
+    def test_onde_de_erro_html_e_subcodigo(self):
+        self.assertEqual(extrair_rust('''fn ler() {
+            E::Html(crate::erro_html::ErroHtml::ausente("tabela_ausente", "msg"));
+            ErroHtml::atributo(
+                "tag_ilegivel", "msg", e);
+            ErroHtml::novo(onde, p, "não é código");
+            #[cfg(test)] mod tests { fn t() { ErroHtml::valor("so_teste", "m"); } }
+        }'''), {'tabela_ausente', 'tag_ilegivel'})
+
     def test_rust_incompleto_falha(self):
         for fonte in ['fn subcodigo() { "x"', '/* aberto', '"aberta', 'r#"aberta',
                       'fn subcodigo() { (] }']:

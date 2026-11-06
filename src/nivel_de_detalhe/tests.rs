@@ -1,6 +1,7 @@
 //! RED/GREEN do Nível de detalhe: tela sintética modelada na estrutura da
 //! tela `procedimento_configurar_detalhe` de PEN1 e GO (02/11/2026).
 use super::*;
+use crate::erro_html::ErroHtml;
 
 /// Tela com as 12 opções; `marcadas` são os campos com `checked`.
 pub(crate) fn tela(marcadas: &[&str]) -> String {
@@ -122,7 +123,9 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&extra),
-        Err(E::OpcaoDoDetalheNaoPrevista)
+        Err(E::Html(ErroHtml::valor(
+            "opcao_do_nivel_de_detalhe_nao_prevista"
+        )))
     );
     let rotulo = base.replacen(">Prioridade</label>", ">Urgência</label>", 1);
     assert_eq!(
@@ -142,12 +145,16 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe("<html><form id='x'></form></html>"),
-        Err(E::FormularioDoNivelDeDetalheAusente)
+        Err(E::Html(ErroHtml::ausente(
+            "formulario_do_nivel_de_detalhe_ausente"
+        )))
     );
     let dois = format!("{base}{base}");
     assert_eq!(
         ler_nivel_de_detalhe(&dois),
-        Err(E::FormulariosDoNivelDeDetalheRepetidos)
+        Err(E::Html(ErroHtml::repetido(
+            "formularios_do_nivel_de_detalhe_repetidos"
+        )))
     );
 }
 
@@ -189,7 +196,9 @@ fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&desconhecida),
-        Err(E::OpcaoDoDetalheNaoPrevista)
+        Err(E::Html(ErroHtml::valor(
+            "opcao_do_nivel_de_detalhe_nao_prevista"
+        )))
     );
     let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinMarcadores\"", 1);
     assert_eq!(

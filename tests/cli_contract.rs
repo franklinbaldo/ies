@@ -473,3 +473,36 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
     assert_eq!(value["subcodigo"], "base_versao_ausente");
     std::fs::remove_dir_all(pasta).unwrap();
 }
+
+#[test]
+fn indice_caminho_e_local_e_respeita_desativacao() {
+    // Nenhum dos caminhos precisa existir; este comando não abre sessão ou banco.
+    let executar = |sem_indice: bool| {
+        let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+        comando
+            .args(["indice", "caminho", "--json"])
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_INDICE_FILE")
+            .env("IES_URL_CONTROLE_FILE", "/privado/ies/url-controle")
+            .env("IES_COOKIE_FILE", "/privado/ies/cookie")
+            .env("IES_ORIGEM_FILE", "/privado/ies/origem");
+        if sem_indice {
+            comando.env("IES_SEM_INDICE", "1");
+        } else {
+            comando.env_remove("IES_SEM_INDICE");
+        }
+        comando.output().unwrap()
+    };
+    let ativo = executar(false);
+    assert!(ativo.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&ativo.stdout).unwrap();
+    assert_eq!(json["caminho"], "/privado/ies/ies.sqlite3");
+    assert_eq!(json["indice"], "configurado");
+    assert_eq!(json["acesso_remoto"], false);
+    assert_eq!(json["banco_aberto"], false);
+    let desligado = executar(true);
+    assert!(desligado.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&desligado.stdout).unwrap();
+    assert_eq!(json["indice"], "desligado");
+    assert!(json["caminho"].is_null());
+}

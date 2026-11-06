@@ -2,6 +2,7 @@
 //! da `UnB` 4.0.9). Lista sempre; nomes nunca concatenados. Leitura pela
 //! árvore do `tl` e pelo tokenizador de atributos, sem regex nem JavaScript.
 use super::ErroDetalhada;
+use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::marcadores_processo::rotulo_do_marcador;
@@ -21,7 +22,9 @@ pub(crate) struct MarcadorDaCelula {
     pub(crate) rotulo: Option<String>,
 }
 
-const FORA: ErroDetalhada = ErroDetalhada::MarcadorDaCelulaForaDaFormaObservada;
+const FORA: ErroDetalhada = ErroDetalhada::Html(ErroHtml::valor(
+    "marcador_da_celula_detalhada_fora_da_forma_observada",
+));
 const SOLTO: ErroDetalhada = ErroDetalhada::TextoForaDosMarcadoresNaCelula;
 
 /// Filhos diretos de `tag` que são elementos; texto só de espaços (inclusive
@@ -48,9 +51,9 @@ fn filhos<'d>(
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
     let bruto = atributos(tag)
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?
         .valor(nome)
-        .map_err(|_| ErroDetalhada::HtmlNaoInterpretado)?
+        .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?
         .map(str::to_owned);
     bruto
         .map(|v| decodificar_atributo(&v).ok_or(FORA))

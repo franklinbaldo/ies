@@ -3,6 +3,7 @@
 use super::{ErroPaginaDoControle as E, PlanoDaPagina};
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
+use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::CodificacaoDaTela;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -35,7 +36,7 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
 }
 
 fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::HtmlInvalido)
+    E::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.

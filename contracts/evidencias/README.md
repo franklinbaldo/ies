@@ -90,6 +90,8 @@ Passos sem cassette indexada: 0.
 - [grupo_envio.criar](grupo_envio-criar.md)
 - [grupo_envio.excluir](grupo_envio-excluir.md)
 - [grupo_envio.obter](grupo_envio-obter.md)
+- [unidade.listar](unidade-listar.md)
+- [unidade.pesquisar](unidade-pesquisar.md)
 - [indice.consultar](indice-consultar.md)
 - [indice.resumo](indice-resumo.md)
 - [marcador.alterar](marcador-alterar.md)
@@ -172,3 +174,7 @@ Passos sem cassette indexada: 0.
 - [sessao.login](sessao-login.md) — login Web derivado do comportamento do Todos e de telas públicas de login, não operação original da matriz.
 
 - [bloco.listar](bloco-listar.md) — leitor Web parcial a partir de cenários do Todos @323eb01 (#256), ainda sem validação live.
+
+## Evidência local própria do IES (fora das 129 operações do Todos)
+
+- [indice.caminho](indice-caminho.md) — descoberta da configuração local, sem operação Web.

@@ -2,9 +2,10 @@
 use crate::arvore_processo::{
     ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento, ErroAcaoSobrestar,
     ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroAtribuirNaBarra,
-    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroReabrirNaBarra,
-    ErroRelacionarNaBarra, ReabrirNaBarra,
+    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroRelacionarNaBarra,
+    ReabrirNaBarra,
 };
+use crate::erro_html::ErroHtml;
 
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
 /// só pesa no comando que a usa.
@@ -16,7 +17,7 @@ pub(crate) struct AcoesDeEstado {
     /// contracts/cli/processo-concluir.md
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
-    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroHtml>,
     pub(crate) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
