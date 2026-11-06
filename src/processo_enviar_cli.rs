@@ -160,28 +160,28 @@ fn texto_das_sugestoes(valor: &Value) -> Option<String> {
 /// O contrato externo de destino continua isolado do tipo de domínio.
 #[derive(serde::Serialize)]
 struct DestinoPublico<'a> {
-    sigla: &'a str,
     descricao: &'a str,
     id_unidade: &'a str,
+    sigla: &'a str,
 }
 
 #[derive(serde::Serialize)]
 struct ResultadoEnvio<'a> {
-    nup: &'a str,
-    id_procedimento: &'a str,
-    unidade: &'a str,
-    origem: &'static str,
-    confirmado: bool,
-    alterado: bool,
-    manter_aberto: bool,
-    destino: DestinoPublico<'a>,
     aberto_em: &'a [String],
-    depois_esperado: Vec<String>,
+    alterado: bool,
+    confirmado: bool,
     depois: Option<&'a [String]>,
-    reconciliado_por_leitura: bool,
-    requisicoes: u8,
+    depois_esperado: Vec<String>,
+    destino: DestinoPublico<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_envio: Option<crate::processo_concluir_cli::FalhaEnvioPublica>,
+    id_procedimento: &'a str,
+    manter_aberto: bool,
+    nup: &'a str,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
 }
 
 fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
