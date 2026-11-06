@@ -20,6 +20,8 @@ pub(crate) enum CausaRespostaCriadora {
 pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) causa_post: &'static str,
     pub(crate) causa_releitura: Option<&'static str>,
+    /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
+    pub(crate) http_releitura: Option<StatusHttpRecusado>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
     /// NUPs cuja identidade, tipo e especificação foram todos conferidos.
     pub(crate) candidatos_compativeis: Option<Vec<String>>,
@@ -123,7 +125,16 @@ impl ErroCriar {
             Self::Transporte { http, .. } => http.as_ref(),
             Self::VerificacaoAposPost(erro) => erro.status_http(),
             Self::Hipotese(erro) => erro.status_http(),
-            Self::PosEscrita { causa_post, .. } => causa_post.status_http(),
+            Self::PosEscrita {
+                causa_post,
+                posterior,
+                ..
+            } => causa_post.status_http().or_else(|| {
+                posterior.as_ref().err().and_then(|erro| erro.status_http())
+            }),
+            Self::PosRespostaInesperada { posterior, .. } => {
+                posterior.as_ref().err().and_then(|erro| erro.status_http())
+            }
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.status_http(),
             _ => None,
         }
@@ -199,6 +210,11 @@ impl ErroCriar {
         Some(DiagnosticoPosEscrita {
             causa_post,
             causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
+            http_releitura: posterior
+                .as_ref()
+                .err()
+                .and_then(|erro| erro.status_http())
+                .cloned(),
             candidatos_observados: posterior
                 .as_ref()
                 .ok()
