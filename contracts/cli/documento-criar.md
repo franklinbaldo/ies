@@ -130,3 +130,13 @@ A guarda de confirmação também recusa `script[src]`, cujo corpo inline
 não é executado pelo navegador, e atribuições presentes apenas em
 literais JavaScript multilinha. Esses casos têm testes sintéticos com
 **5 GET, 0 POST criador**: formas inertes não autorizam escrita.
+
+## Fronteira de Location da confirmação
+
+O retorno 302 somente pode contribuir para uma confirmação se a
+`Location` publicada permanecer no controlador HTTPS da mesma instalação,
+com uma ação explícita e única. Um 302 sem Location, com host externo,
+com caminho alheio ou sem ação não comprova atribuição causal da mudança
+na árvore: efeito incerto (saída 3), mesmo quando se observa um novo
+documento. A leitura de reconciliação ocorre uma vez após o POST;
+não seguir Location e não repetir a escrita.
