@@ -98,12 +98,54 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize)> {
     Some((ocorrencias, funcoes_submeter))
 }
 
+/// A captura 4.0.9 publica btnSalvar como button habilitado com
+/// onclick=confirmarDados(); a mera funcao submeter() morta nao prova
+/// que a tela oferece a escrita. Topo e rodape podem repetir o botao.
+fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>) -> bool {
+    let mut encontrados = 0_usize;
+    for no in dom.query_selector("button").into_iter().flatten() {
+        let Some(botao) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            return false;
+        };
+        let Ok(id) = crate::html_atributos::valor_do_atributo(botao, "id") else {
+            return false;
+        };
+        if id.as_deref() != Some("btnSalvar") {
+            continue;
+        }
+        encontrados += 1;
+        let Ok(tipo) = crate::html_atributos::valor_do_atributo(botao, "type") else {
+            return false;
+        };
+        let Ok(nome) = crate::html_atributos::valor_do_atributo(botao, "name") else {
+            return false;
+        };
+        let Ok(acionador) = crate::html_atributos::valor_do_atributo(botao, "onclick") else {
+            return false;
+        };
+        let Ok(desabilitado) = crate::html_atributos::atributo_presente(botao, "disabled") else {
+            return false;
+        };
+        if desabilitado
+            || tipo.as_deref() != Some("button")
+            || nome.as_deref() != Some("btnSalvar")
+            || acionador.as_deref().map(str::trim) != Some("confirmarDados()")
+        {
+            return false;
+        }
+    }
+    encontrados > 0
+}
+
 /// Somente script inline clássico, sem src. Um segundo corpo que
 /// redefina `submeter()` torna a prova ambígua. Falha fechada antes do POST.
 pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
     };
+    if !botoes_salvar_publicam_acao(&dom) {
+        return false;
+    }
     let mut ocorrencias = 0;
     let mut funcoes_submeter = 0;
     for no in dom.query_selector("script").into_iter().flatten() {
