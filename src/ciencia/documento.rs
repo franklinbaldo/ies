@@ -250,7 +250,9 @@ fn ler_aceite<V: EnvioDoProcesso>(
     id_procedimento: &str,
     id_documento: &str,
 ) -> Result<String, FalhaDoAceite> {
-    let resposta = rede.get_sem_seguir(url, cookie).map_err(FalhaDoAceite::Transporte)?;
+    let resposta = rede
+        .get_sem_seguir(url, cookie)
+        .map_err(FalhaDoAceite::Transporte)?;
     let html = decodificar_resposta(resposta.resposta).map_err(FalhaDoAceite::Transporte)?;
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
         return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
