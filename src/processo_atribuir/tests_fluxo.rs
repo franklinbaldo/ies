@@ -277,7 +277,6 @@ fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
 }
 
-
 /// O fieldset desabilita o botão mesmo sem atributo disabled no botão.
 /// Não se tenta o POST: a leitura de prévia custa exatamente quatro GETs.
 #[test]
