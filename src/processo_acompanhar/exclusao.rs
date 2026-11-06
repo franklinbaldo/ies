@@ -214,8 +214,10 @@ fn inicio_declaracao_global(codigo: &str) -> Option<usize> {
         if nivel == 0 && bytes[i..].starts_with(assinatura) {
             // Declaração em posição de comando global, e não expressão
             // "const x = function acaoExcluir(...)" ou trecho em string.
-            return matches!(anterior, None | Some(b';' | b'}'))
-                .then_some(i + assinatura.len());
+            if matches!(anterior, None | Some(b';' | b'}')) {
+                return Some(i + assinatura.len());
+            }
+            return None;
         }
         match c {
             b'{' => nivel += 1,
