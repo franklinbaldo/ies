@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Limpeza conservadora das branches remotas já alcançáveis pela main.
 
-Exige gh auth login. Padrão: apenas simula. --apply apaga branches
-integradas, sem PR aberta, não protegidas e com SHA estável na releitura.
+Exige gh auth login e git push autenticado para origin. Padrão: dry-run.
+--apply apaga somente refs integradas, não protegidas e sem PR aberta,
+com lease atômico do SHA exato (não apaga push concorrente).
 """
 
 from __future__ import annotations
@@ -21,6 +22,16 @@ def api(path: str, *, delete: bool = False):
     output = subprocess.check_output(cmd, text=True)
     return json.loads(output) if output.strip() else None
 
+
+
+def delete_with_lease(name: str, expected_sha: str, *, cwd=None) -> None:
+    """Remove apenas o SHA conferido; recusa push concorrente na mesma ref."""
+    ref = f"refs/heads/{name}"
+    subprocess.run(
+        ["git", "push", "--porcelain",
+         f"--force-with-lease={ref}:{expected_sha}", "origin", f":{ref}"],
+        check=True, text=True, capture_output=True, cwd=cwd,
+    )
 
 def paginar(path: str):
     page = 1
@@ -72,7 +83,17 @@ def main() -> int:
             print(f"SKIP (alterada durante conferência): {name}")
             continue
         if args.apply:
-            api(f"{root}/git/refs/heads/{quoted}", delete=True)
+            # Uma PR pode abrir durante a varredura; releia imediatamente.
+            open_heads = {
+                p["head"]["ref"] for p in paginar(f"{root}/pulls?state=open")
+                if p["head"]["repo"] and p["head"]["repo"]["full_name"] == args.repo
+            }
+            if name in open_heads:
+                print(f"SKIP (PR aberta recentemente): {name}")
+                continue
+            # A exclusão usa lease atômico no servidor. Se houve novo push,
+            # a ref permanece intacta, mesmo depois da última consulta API.
+            delete_with_lease(name, current["commit"]["sha"])
             print(f"REMOVIDA: {name}")
         else:
             print(f"CANDIDATA (dry-run): {name}")
