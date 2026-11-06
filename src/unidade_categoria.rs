@@ -162,6 +162,21 @@ pub(crate) fn listar_categoria(
     }
 }
 
+/// Despacho da categoria a partir das opções da CLI, sem um segundo fluxo.
+pub(crate) fn listar(
+    cli: &crate::Cli,
+    lista: &crate::ListaDaUnidade,
+    categoria: CategoriaLista,
+) -> ExitCode {
+    listar_categoria(
+        cli.unidade.as_deref(),
+        cli.json,
+        lista.saida.as_deref(),
+        categoria,
+        lista.pagina.map(|n| n as usize),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
