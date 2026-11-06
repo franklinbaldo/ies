@@ -227,3 +227,36 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+
+// Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01:
+// o aceite observado é 302 para arvore_visualizar. Um HTML 200 genérico,
+// sem marcador positivo do POST, NÃO prova quem mudou a atribuição.
+#[test]
+fn html_200_generico_e_atribuicao_concorrente_nao_comprovam_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(ok("<html><body>Operação recebida.</body></html>".to_owned()));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+// O mesmo vale para remover: ausência relida pode ter sido provocada
+// por outro agente, não pelo POST que recebeu HTML 200 genérico.
+#[test]
+fn html_200_generico_e_remocao_concorrente_nao_comprovam_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(ok("<html><body>Operação recebida.</body></html>".to_owned()));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
