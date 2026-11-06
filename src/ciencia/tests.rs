@@ -248,7 +248,6 @@ fn retorno_ou_interrupcao_antes_da_recarga_nao_comprova_aceite() {
     }
 }
 
-
 // RED #271: a Lista de Ciências pode conter HTML inerte em <template>.
 #[test]
 fn lista_com_checkbox_no_template_nao_confirma_ciencia() {
