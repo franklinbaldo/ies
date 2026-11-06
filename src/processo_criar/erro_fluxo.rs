@@ -23,7 +23,8 @@ pub(crate) struct DiagnosticoPosEscrita {
     /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
     pub(crate) http_releitura: Option<StatusHttpRecusado>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
-    /// NUPs cuja identidade, tipo e especificação foram todos conferidos.
+    /// NUPs com identidade, tipo e especificação lidos e coincidentes.
+    /// Quando a releitura falhou, são provas parciais, não resultado final.
     pub(crate) candidatos_compativeis: Option<Vec<String>>,
 }
 
@@ -101,10 +102,12 @@ impl ErroCriar {
             Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
             Self::PosEscrita {
                 correspondentes: Some(_),
+                posterior: Ok(_),
                 ..
             }
             | Self::PosRespostaInesperada {
                 correspondentes: Some(_),
+                posterior: Ok(_),
                 ..
             } => "candidatos_ambiguos_na_criacao",
             Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
