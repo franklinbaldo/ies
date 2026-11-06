@@ -126,7 +126,6 @@ fn grupo_ja_acompanhado_nao_exige_novo_cadastro_nem_post() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
 
-
 #[test]
 fn grupo_padrao_ja_acompanhado_nao_exige_cadastro_nem_post() {
     // Observacao live UnB #254: a lista ja publica o grupo vazio.
