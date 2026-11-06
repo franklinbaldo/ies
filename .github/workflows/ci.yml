@@ -81,7 +81,7 @@ jobs:
 
   replay_unidade_retornos:
     # Gate obrigatório: o replay externo não participa da suíte Rust normal.
-    # As seis capturas públicas cobrem os sete cards da issue #253.
+    # Sete ZIPs públicos cobrem os sete cards da issue #253 e a atribuição #264.
     name: replay unidade.retornos (7 instalações, offline)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -97,7 +97,7 @@ jobs:
       - name: Cache Rust compilation
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
-      - name: Download and verify six public cassette ZIPs
+      - name: Download and verify seven public cassette ZIPs
         shell: bash
         run: |
           set -euo pipefail
