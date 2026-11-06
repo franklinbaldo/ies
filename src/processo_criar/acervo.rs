@@ -5,9 +5,7 @@
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
-use crate::processo_criar_cadastro::{
-    conferir_cadastro, conferir_cadastro_com_ajax_pendente,
-};
+use crate::processo_criar_cadastro::{conferir_cadastro, conferir_cadastro_com_ajax_pendente};
 use crate::processo_criar_hipotese::opcao_unica;
 use crate::processo_criar_lista::tipo_na_lista;
 use serde_json::Value;
