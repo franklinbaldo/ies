@@ -352,6 +352,38 @@ fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
     }
 }
 
+
+#[test]
+fn script_alheio_com_regex_literal_nao_invalida_cadeia_salvar() {
+    // Observação UnB 42209629903: o script ativo que contém a cadeia
+    // de Salvar possui centenas de linhas e muitas funções alheias.
+    // A regex abaixo é sintética, NÃO atribuída à captura real.
+    // A evidência das três funções continua literal e não condicionada.
+    let html = cadastro().replace(
+        "</script>",
+        "</script><script>const chaves = /\\{/; const outra = /[}]/;</script>",
+    );
+    assert!(
+        cadastro_publica_script_de_criacao(&html),
+        "script de apoio sem função de criação não deve invalidar a cadeia ativa"
+    );
+}
+
+#[test]
+fn regex_com_falsa_definicao_nao_comprova_criacao() {
+    // Texto de regex não pode substituir as funções de Salvar.
+    let html = cadastro_com_script(
+        r"const falso = /function submeter\(\) \{/;
+const igualmenteFalso = /function confirmarDados\(\) \{/;",
+    );
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    assert_eq!(
+        resultado.err().map(|erro| erro.subcodigo()),
+        Some("submissao_do_documento_nao_observada")
+    );
+    assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET; 0 POST criador");
+}
+
 #[test]
 fn template_inerte_nao_autoriza_post_criador_ao_conter_script_ou_botao() {
     // Semantica de HTMLTemplateElement: o conteudo nao integra a arvore
