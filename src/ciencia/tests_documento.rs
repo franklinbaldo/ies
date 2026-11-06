@@ -236,3 +236,64 @@ fn template_inerte_nao_autoriza_get_mutador() {
         0
     );
 }
+
+fn rejeitar_tela_sem_get_mutador(tela: String) {
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.push(ok(tela));
+    let (resultado, pedidos) = rodar(true, respostas);
+    assert!(matches!(resultado, Err(E::Html(_))), "{resultado:?}");
+    assert_eq!(pedidos.len(), 4, "a prévia e a tela são somente leitura");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        0,
+        "nunca enviar GET mutador a partir de JS inerte"
+    );
+}
+
+#[test]
+fn comentario_de_bloco_nao_autoriza_get_mutador() {
+    let tela = format!(
+        "<html><script>/*\\nvar linkCienciaDocumento = '{}';\\n*/</script></html>",
+        link_da_escrita()
+    );
+    rejeitar_tela_sem_get_mutador(tela);
+}
+
+#[test]
+fn ramo_if_false_nao_autoriza_get_mutador() {
+    let tela = format!(
+        "<html><script>if (false) {{\\nvar linkCienciaDocumento = '{}';\\n}}</script></html>",
+        link_da_escrita()
+    );
+    rejeitar_tela_sem_get_mutador(tela);
+}
+
+#[test]
+fn if_false_sem_chaves_nao_autoriza_get_mutador() {
+    let tela = format!(
+        "<html><script>if (false)\\nvar linkCienciaDocumento = '{}';</script></html>",
+        link_da_escrita()
+    );
+    rejeitar_tela_sem_get_mutador(tela);
+}
+
+#[test]
+fn funcao_somente_comentada_nao_autoriza_get_mutador() {
+    let funcao = tela_do_documento_40(ID, ID_DOC);
+    let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
+        .split("</script>").next().unwrap();
+    let tela = format!("<html><script>/*\\n{trecho}\\n*/</script></html>");
+    rejeitar_tela_sem_get_mutador(tela);
+}
+
+#[test]
+fn funcao_em_ramo_inativo_nao_autoriza_get_mutador() {
+    let funcao = tela_do_documento_40(ID, ID_DOC);
+    let trecho = funcao.split("<script type=\"text/javascript\">").nth(1).unwrap()
+        .split("</script>").next().unwrap();
+    let tela = format!("<html><script>if (false) {{\\n{trecho}\\n}}</script></html>");
+    rejeitar_tela_sem_get_mutador(tela);
+}
