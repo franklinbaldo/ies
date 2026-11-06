@@ -78,8 +78,7 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// demonstram comportamento do formulário; não se executa JavaScript.
 /// A forma não observada é recusada ANTES de iniciar o POST criador.
 fn cadastro_publica_script_de_criacao(html: &str) -> bool {
-    const INSTRUCAO: &str =
-        "document.getElementById('hdnFlagDocumentoCadastro').value = '2';";
+    const INSTRUCAO: &str = "document.getElementById('hdnFlagDocumentoCadastro').value = '2';";
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
     };
@@ -178,7 +177,10 @@ pub(crate) enum ErroPreviaCriacao {
     ArvoreIncompleta,
     #[causa(nome = "foto_inicial_de_documentos_inconsistente")]
     FotoInicialInconsistente,
-    #[causa(nome = "efeito_incerto_na_criacao_de_documento", acao = "conferir_escrita")]
+    #[causa(
+        nome = "efeito_incerto_na_criacao_de_documento",
+        acao = "conferir_escrita"
+    )]
     EfeitoIncerto,
 }
 impl ErroPreviaCriacao {
