@@ -57,7 +57,13 @@ identificou um risco adicional: **releitura coincidente depois de HTTP 403
 ou validação da Infra não prova que o nosso POST escreveu**; outro agente
 pode ter modificado o processo no intervalo. A resposta recusada não
 pode ser reconciliada como sucesso, mesmo com o estado esperado. O mesmo
-vale para 302 sem ação e identidade compatíveis. Apenas uma resposta
+vale para 302 sem ação e identidade compatíveis. O 302 para
+`arvore_visualizar` **também** precisa do `id_procedimento` explícito;
+não basta indicar a ação. Essa exigência protege atribuir e remover de
+falso sucesso por ação concorrente, conforme RED de duas regressões
+adversariais no [CI 42214490209](https://github.com/franklinbaldo/ies/actions/runs/42214490209)
+(**2 FAIL novos, 1.716 PASS, 23 ignored existentes**) e observação
+do destino `ACEITE` com ID nos testes do Todos @323eb01. Apenas uma resposta
 aceita ou uma falha sem resposta de rede pode ser conciliada pela leitura,
 conservando a causa; não há nova escrita nem navegação pelo Location.
 Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
