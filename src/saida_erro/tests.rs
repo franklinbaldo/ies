@@ -136,8 +136,7 @@ fn fonte_publica_serde_direto_preserva_bytes_compactos_do_contrato() {
         let contrato = json_de_erro_fonte(subcodigo, mensagem, http).to_string();
         assert_eq!(contrato, esperado, "{subcodigo}");
         let mut bytes = Vec::new();
-        serde_json::to_writer(&mut bytes, &falha_fonte_publica(subcodigo, mensagem, http))
-            .unwrap();
+        serde_json::to_writer(&mut bytes, &falha_fonte_publica(subcodigo, mensagem, http)).unwrap();
         let emitido = String::from_utf8(bytes).unwrap();
         assert_eq!(emitido, esperado, "{subcodigo}");
         assert!(!emitido.contains("infra_hash"));
