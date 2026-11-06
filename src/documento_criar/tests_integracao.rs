@@ -194,10 +194,10 @@ fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
         // multilinha, sem instrução executada pelo navegador.
         cadastro().replace(
             "<script>",
-            "<script>const amostra = `\\n",
+            "<script>const amostra = `\n",
         ).replace(
             "</script>",
-            "\\n`;\\n</script>",
+            "\n`;\n</script>",
         ),
     ];
     for html in casos {
