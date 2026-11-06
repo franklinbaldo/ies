@@ -35,6 +35,30 @@ impl MotivoEfeitoIncerto {
     }
 }
 
+/// Categoria observada da resposta do POST, sem URL, corpo, cookie ou mensagem.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RespostaPost {
+    HtmlSemRedirecionamento,
+    RedirecionamentoObservado,
+    ValidacaoInfraRecusada,
+    StatusHttpRecusado,
+    RedeSemResposta,
+    FalhaDaSubmissao,
+}
+
+impl RespostaPost {
+    pub(crate) fn texto(self) -> &'static str {
+        match self {
+            Self::HtmlSemRedirecionamento => "html_sem_redirecionamento",
+            Self::RedirecionamentoObservado => "redirecionamento_observado",
+            Self::ValidacaoInfraRecusada => "validacao_infra_recusada",
+            Self::StatusHttpRecusado => "status_http_recusado",
+            Self::RedeSemResposta => "rede_sem_resposta",
+            Self::FalhaDaSubmissao => "falha_da_submissao",
+        }
+    }
+}
+
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroPrevia {
     #[causa(interna)]
@@ -57,6 +81,7 @@ pub(crate) enum ErroPrevia {
     EfeitoIncerto {
         requisicoes: u8,
         motivo: MotivoEfeitoIncerto,
+        resposta_post: RespostaPost,
     },
     #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
     ConfirmacaoNaoImplementada,
@@ -76,7 +101,16 @@ impl ErroPrevia {
             Self::EfeitoIncerto {
                 requisicoes,
                 motivo,
+                ..
             } => Some((*requisicoes, motivo.texto())),
+            _ => None,
+        }
+    }
+
+    /// Somente classes finitas, nunca a Location assinada nem HTML do SEI.
+    pub(crate) fn resposta_post_observada(&self) -> Option<&'static str> {
+        match self {
+            Self::EfeitoIncerto { resposta_post, .. } => Some(resposta_post.texto()),
             _ => None,
         }
     }
