@@ -370,3 +370,94 @@ fn redirecionamento_302_local_com_arvore_comprovada() {
         assert_eq!(rede.submissoes.len(), 1);
     }
 }
+
+
+#[test]
+fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
+    // Resposta HTML genérica pode ser o cadastro reapresentado; a alteração
+    // posterior da árvore pode ter sido causada por outra sessão compartilhada.
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        escrever_ok,
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
+}
+
+#[test]
+fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::AcessoNegado(
+                crate::transporte::StatusHttpRecusado {
+                    status: 403,
+                    mensagem_do_servidor: Some("acesso negado sintético".to_owned()),
+                },
+            ))
+        },
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+    let http = erro.status_http().expect("preservar status HTTP do POST");
+    assert_eq!(http.status, 403);
+    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("acesso negado sintético"));
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
+}
+
+#[test]
+fn falha_de_validacao_infra_do_post_preserva_mensagem_saneada() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::StatusHttpDeErroDoServidor(
+                crate::transporte::StatusHttpRecusado {
+                    status: 503,
+                    mensagem_do_servidor: Some("indisponibilidade sintética".to_owned()),
+                },
+            ))
+        },
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    let erro = resultado.expect_err("HTTP 503 não confirma efeito");
+    let http = erro.status_http().expect("preservar causa HTTP 503");
+    assert_eq!(http.status, 503);
+    assert_eq!(http.mensagem_do_servidor.as_deref(), Some("indisponibilidade sintética"));
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
+}
