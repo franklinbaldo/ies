@@ -422,3 +422,30 @@ fn html_literal_dentro_de_script_nao_oculta_a_cadeia_de_salvar() {
         "script ativo preserva a cadeia literal mesmo com HTML em strings JS"
     );
 }
+
+#[test]
+fn atributo_com_maior_que_na_abertura_do_script_preserva_a_fonte() {
+    // HTML validado pelo DOM: '>' dentro de atributo nao fecha <script>.
+    let html = cadastro().replace(
+        "<script>",
+        "<script type=\"text/javascript\" data-exemplo=\"um > dois\">",
+    );
+    assert!(cadastro_publica_script_de_criacao(&html));
+}
+
+#[test]
+fn fechamento_de_script_dentro_de_literal_interrompe_cadeia() {
+    // Pela tokenizacao HTML, </script> encerra o elemento mesmo se os
+    // caracteres estiverem escritos numa string JavaScript.
+    // As funcoes seguintes NAO sao codigo daquele script.
+    let html = cadastro().replace(
+        "<script>",
+        "<script>\nconst fragmento = '</script>';\n",
+    );
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    assert_eq!(
+        resultado.err().map(|erro| erro.subcodigo()),
+        Some("submissao_do_documento_nao_observada")
+    );
+    assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
+}
