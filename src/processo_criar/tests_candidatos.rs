@@ -41,7 +41,7 @@ pub(super) fn propriedades_correspondentes() -> String {
 }
 
 #[test]
-fn post_falha_mas_propriedades_conferidas_provam_criacao_unica() {
+fn post_falha_e_propriedades_iguais_identificam_residuo_nao_autoria() {
     let amb = ambiente();
     let respostas = vec![
         ok(tela_controle()),
@@ -62,10 +62,11 @@ fn post_falha_mas_propriedades_conferidas_provam_criacao_unica() {
             rede,
         )
     });
-    let feito = resultado.expect("um candidato comprovado nao permanece incerto");
-    assert!(feito.confirmado);
-    assert_eq!(feito.nup.as_deref(), Some(NUP));
-    assert_eq!(feito.requisicoes, 8);
+    let erro = resultado.expect_err("um candidato nao comprova autoria de POST sem resposta");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
+    let diagnostico = erro.diagnostico_apos_post().unwrap();
+    assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 8); // 3 GET + 1 POST + 1 Controle + 3 GET de processo
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert!(requests[5..].iter().all(|r| r.metodo == "GET"));
@@ -305,10 +306,11 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
             rede,
         )
     });
-    let feito = resultado.expect("uma unica prova, depois de ler os dois candidatos");
-    assert!(feito.confirmado);
-    assert_eq!(feito.nup.as_deref(), Some(NUP));
-    assert_eq!(feito.requisicoes, 11);
+    let erro = resultado.expect_err("uma coincidencia e insuficiente para demonstrar autoria");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
+    let diagnostico = erro.diagnostico_apos_post().unwrap();
+    assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 11);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
