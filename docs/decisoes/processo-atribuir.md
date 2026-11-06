@@ -4,7 +4,7 @@ title: Leitura estrita da tela de atribuição de processo
 operation: processo.atribuir
 implementation: partial
 status: adopted-for-scope
-scope: prévia Web de ies processo atribuir (leitor estrito de selAtribuicao, login exato, sem POST); --confirmar recusa antes da sessão nesta fatia
+scope: prévia Web de ies processo atribuir (seleção estrita e corpo POST derivado sem envio); --confirmar recusa antes da sessão nesta fatia
 selected_strategy: usuario-exato-da-lista-e-arvore-como-fonte
 alternatives: usuario-exato-da-lista-e-arvore-como-fonte,substring,html-sem-conferencia,rest-wssei
 evidence_level: pagina-real-todos-323eb01-testes-sinteticos
@@ -42,16 +42,21 @@ Conferir um único formulário POST, `action` assinado do processo aberto,
 sem buscar por substring ou nome, e recusar estado não observado ou
 atribuição já aplicada. A função de planejamento é pura e não envia POST.
 
-O fluxo de rede da CLI, a verificação por releitura e o ensaio em
-instalações de treinamento **ainda não estão implementados nesta fatia**.
-Nenhuma operação remota ocorreu. Não confundir o leitor verde com
-autorização para execução sem verificação.
+A prévia Web já usa esse leitor. Nesta fatia, ela também deriva a submissão
+com o primitivo único `formulario_web`, exigindo que os ocultos servidos,
+o botão Salvar e a opção `selAtribuicao` produzam exatamente o corpo do
+navegador. Rejeita um mesmo ID de usuário associado a dois logins. Os
+testes sintéticos conferem o payload de atribuição e o `null` de remoção,
+sem requisições. O POST real, a releitura do efeito e o ensaio ao vivo
+**ainda não foram implementados**. `--confirmar` permanece fechado antes
+da sessão. Não confundir a preparação verde com autorização para enviar.
 
 ## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/processo-atribuir.md)
 - [Evidências da matriz](../../contracts/evidencias/processo-atribuir.md)
 - [Teste da trava de escrita](../../tests/cli_processo_atribuir.rs)
+- [Testes de forma e payload](../../src/processo_atribuir/tests.rs)
 
 
 [Formulário real no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/paginas_reais/processo_procedimento_atribuicao_cadastrar.html),
