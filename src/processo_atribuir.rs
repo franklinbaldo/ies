@@ -310,6 +310,9 @@ pub(crate) fn preparar_submissao(
     Ok((valor, submissao))
 }
 
+mod fluxo;
+pub(crate) use fluxo::{executar_previa, ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido};
+
 #[cfg(test)]
 #[path = "processo_atribuir/tests.rs"]
 mod tests;
