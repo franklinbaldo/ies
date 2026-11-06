@@ -450,7 +450,7 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
 }
 
 #[test]
-fn falha_de_validacao_infra_do_post_preserva_mensagem_saneada() {
+fn falha_http_503_do_post_preserva_mensagem_saneada() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
@@ -481,6 +481,89 @@ fn falha_de_validacao_infra_do_post_preserva_mensagem_saneada() {
         http.mensagem_do_servidor.as_deref(),
         Some("indisponibilidade sintética")
     );
+    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+    assert_eq!(rede.submissoes.len(), 1);
+}
+
+#[test]
+fn redirecionamento_local_com_id_alheio_nao_confirma() {
+    for destino in [
+        "controlador.php?acao=documento_visualizar&id_documento=999",
+        "controlador.php?acao=arvore_visualizar&id_documento=102",
+    ] {
+        let mut rede = RedeSintetica::default();
+        let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+        let resultado = postar_e_verificar(
+            &mut rede,
+            submissao_sintetica(),
+            &cookie,
+            &foto(0),
+            "Despacho",
+            |rede, submissao, _| {
+                rede.chamadas.push("POST criador");
+                rede.submissoes.push(submissao);
+                Ok(RespostaDoPost {
+                    resposta: RespostaWeb {
+                        status_code: 302,
+                        mime: "text/html".to_owned(),
+                        content_length: None,
+                        localizacao: Some(destino.to_owned()),
+                        corpo: Cursor::new(Vec::new()),
+                    },
+                    localizacao: Some(destino.to_owned()),
+                })
+            },
+            |rede| {
+                rede.chamadas.push("GET arvore");
+                Ok(foto(1))
+            },
+        );
+        assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+        assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
+        assert_eq!(rede.submissoes.len(), 1);
+    }
+}
+
+#[test]
+fn validacao_infra_200_preserva_a_causa_apos_post() {
+    let mut rede = RedeSintetica::default();
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let resultado = postar_e_verificar(
+        &mut rede,
+        submissao_sintetica(),
+        &cookie,
+        &foto(0),
+        "Despacho",
+        |rede, submissao, _| {
+            rede.chamadas.push("POST criador");
+            rede.submissoes.push(submissao);
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code: 200,
+                    mime: "text/html; charset=UTF-8".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(
+                        b"<html><textarea id=\"txaInfraValidacao\">Recusa sintética</textarea></html>".to_vec(),
+                    ),
+                },
+                localizacao: None,
+            })
+        },
+        |rede| {
+            rede.chamadas.push("GET arvore");
+            Ok(foto(1))
+        },
+    );
+    let erro = resultado.expect_err("validacao Infra 200 e escrita incerta");
+    assert!(matches!(
+        erro.causa_envio(),
+        Some(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
+    ));
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+    let status = erro.status_http().expect("causa de validacao preservada");
+    assert_eq!(status.status, 200);
+    assert_eq!(status.mensagem_do_servidor.as_deref(), Some("Recusa sintética"));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
