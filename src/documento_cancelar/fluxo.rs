@@ -1,7 +1,7 @@
 //! Fluxo do cancelamento: abre o documento, confere o formulário observado,
 //! prévia sem POST, uma escrita e uma nova leitura (sem retries/redirects).
 use super::erro::{ErroCancelar as E, FalhaDoCancelamento as F, VerificacaoDoCancelamento as Ver};
-use super::{MotivoDoCancelamento, ler_link_cancelar};
+use super::ler_link_cancelar;
 use crate::arvore_processo::ProcessoNaArvore;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
@@ -42,7 +42,7 @@ pub(crate) struct PedidoDoCancelamento<'a> {
     pub(crate) numero: &'a NumeroDocumento,
     pub(crate) processo: Option<&'a NumeroProcesso>,
     pub(crate) unidade: Option<&'a str>,
-    pub(crate) motivo: MotivoDoCancelamento<'a>,
+    pub(crate) motivo: &'a str,
     pub(crate) confirmar: bool,
 }
 
@@ -69,7 +69,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(ErroDocumentoObter::Processo(
             ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
         )))?;
-    let motivo = pedido.motivo.as_str();
+    let motivo = pedido.motivo;
     let mut rede = Contador::novo(envio);
     let leitura = PedidoDoDocumento {
         numero: pedido.numero,

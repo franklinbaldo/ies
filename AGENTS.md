@@ -54,8 +54,11 @@ O que falta implementar e em que ordem está na
   deve ter, em regra, um único ponto de construção em produção:
   centralize a validação e propague o `Result`, sem eliminar verificações
   necessárias nas fronteiras de segurança. Defina erros específicos perto
-  da camada que efetivamente os consome. Valide uma vez num tipo e não
-  devolva `Result` onde o tipo já garante a pré-condição.
+  da camada que efetivamente os consome. Crie tipos validados apenas para
+  invariantes necessárias e demonstradas; texto livre pode ser `str`.
+  Não invente limites, normalização ou charset fixo para justificar um
+  tipo. A codificação usa o charset da tela na fronteira do formulário.
+  Não devolva `Result` onde o tipo já garante a pré-condição.
   Forma não observada (ausente, repetido, valor, HTML ilegível) não vira
   variante: devolva `ErroHtml` (`src/erro_html.rs`), com `onde` como nome.
 - **Falhar fechado e dizer por quê.** Cada falha observável é uma

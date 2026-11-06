@@ -8,13 +8,11 @@ use crate::instalacao::Instalacao;
 
 mod erro;
 mod fluxo;
-mod motivo;
 #[cfg(test)]
 mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
-pub(crate) use motivo::{ErroMotivoDoCancelamento, MotivoDoCancelamento, conferir_motivo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkCancelar {
@@ -154,45 +152,6 @@ mod tests {
             ),
             Err(ErroLinkCancelar::LinksRepetidos)
         );
-    }
-
-    // Caso de todos tests/test_documento_mover_cancelar_010.py @323eb01.
-    #[test]
-    fn motivo_com_espacos_e_recusado_e_acentuado_e_preservado() {
-        assert!(conferir_motivo("   ").is_err());
-        assert_eq!(
-            conferir_motivo("  Revisão necessária  ").unwrap().as_str(),
-            "Revisão necessária"
-        );
-        assert!(conferir_motivo("Linha\nquebrada").is_err());
-    }
-
-    #[test]
-    fn motivo_validado_carrega_a_garantia_no_tipo() {
-        let motivo = conferir_motivo("  Revisão necessária  ").unwrap();
-        assert_eq!(motivo.as_str(), "Revisão necessária");
-        assert_ne!(
-            std::any::type_name_of_val(&motivo),
-            std::any::type_name::<String>()
-        );
-    }
-
-    #[test]
-    fn recusa_do_motivo_preserva_identidade_tipada() {
-        use super::motivo::ErroMotivoDoCancelamento as E;
-
-        for (entrada, esperada) in [
-            ("", E::MotivoVazio),
-            (" \t ", E::CaractereDeControleNoMotivo),
-            ("Motivo 🚫", E::MotivoNaoRepresentavelEmLatin1),
-        ] {
-            let erro = conferir_motivo(entrada).unwrap_err();
-            assert_eq!(erro, esperada);
-            assert_ne!(
-                std::any::type_name_of_val(&erro),
-                std::any::type_name::<&str>()
-            );
-        }
     }
 
     #[test]
