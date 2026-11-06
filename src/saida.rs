@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 /// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.
-pub(crate) fn imprimir_json(valor: &Value) -> serde_json::Result<()> {
+pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> serde_json::Result<()> {
     use std::io::Write as _;
     let saida = std::io::stdout();
     let mut bloqueada = saida.lock();
