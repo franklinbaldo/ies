@@ -51,9 +51,7 @@ fn redirecionamento_do_mesmo_controlador(localizacao: &str, url_do_envio: &str) 
         localizacao
             .strip_prefix("controlador.php?")
             .or_else(|| localizacao.strip_prefix('?'))
-            .or_else(|| {
-                localizacao.strip_prefix(&format!("/{}?", origem.caminho))
-            })
+            .or_else(|| localizacao.strip_prefix(&format!("/{}?", origem.caminho)))
     };
     consulta.is_some_and(|consulta| {
         consulta
@@ -107,11 +105,11 @@ where
     // não atribuir essa alteração a um POST de resultado inconclusivo.
     let resposta_conferivel = match &resposta {
         Ok(RespostaDoEnvio::Html(_)) => true,
-        Ok(RespostaDoEnvio::Redirecionamento(redirect)) => redirect
-            .localizacao()
-            .is_some_and(|destino| {
+        Ok(RespostaDoEnvio::Redirecionamento(redirect)) => {
+            redirect.localizacao().is_some_and(|destino| {
                 redirecionamento_do_mesmo_controlador(destino, redirect.url_do_envio())
-            }),
+            })
+        }
         Err(_) => false,
     };
     if !resposta_conferivel {
