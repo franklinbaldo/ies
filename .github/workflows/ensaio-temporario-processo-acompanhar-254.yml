@@ -108,7 +108,7 @@ jobs:
               seguro = (
                   previa_rc == 0
                   and antes.get("numero") == NUP
-                  and antes.get("operacao") == "incluir"
+                  and antes.get("operacao") == "acompanhar"
                   and antes.get("grupo") == ""
                   and antes.get("ja_estava") is False
                   and antes.get("alterado") is False
