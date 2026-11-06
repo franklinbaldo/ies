@@ -50,8 +50,14 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
                         .take(assinatura.len())
                         .collect();
                     if inicio == assinatura {
+                        // Uma expressão nomeada não publica uma função global
+                        // para o onclick. Aceitar só o início do script ou
+                        // uma declaração após instrução/bloco terminado.
+                        if profundidade != 0 || !matches!(ultimo, ' ' | ';' | '}') {
+                            return None;
+                        }
                         encontradas += 1;
-                        if encontradas > 1 || profundidade != 0 {
+                        if encontradas > 1 {
                             return None;
                         }
                         let literal: String = texto[indice..]
