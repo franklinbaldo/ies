@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recusa artefatos binários rastreados pelo Git (não afeta artifacts do CI)."""
+"""Recusa artefatos binários no índice Git, inclusive se o worktree divergir."""
 
 from __future__ import annotations
 
@@ -38,26 +38,40 @@ def is_binary_artifact(path: pathlib.PurePath, content: bytes) -> bool:
     return False
 
 
-def tracked_paths() -> list[pathlib.Path]:
-    output = subprocess.check_output(["git", "ls-files", "--cached", "-z"])
-    return [pathlib.Path(name.decode("utf-8", "surrogateescape"))
-            for name in output.split(b"\x00") if name]
+def index_violations(cwd: pathlib.Path | None = None) -> list[str]:
+    # Inspeciona blobs efetivamente preparados para commit, não o worktree.
+    output = subprocess.check_output(
+        ["git", "ls-files", "--stage", "-z"], cwd=cwd
+    )
+    violations = []
+    for record in output.split(b"\x00"):
+        if not record:
+            continue
+        metadata, raw_path = record.split(b"\t", 1)
+        mode, sha, stage = metadata.split()
+        path = raw_path.decode("utf-8", "surrogateescape")
+        if stage != b"0":
+            violations.append(path)  # índice em conflito não pode passar
+            continue
+        if mode == b"160000":  # gitlink, não é blob
+            continue
+        content = subprocess.check_output(
+            ["git", "cat-file", "blob", sha.decode("ascii")], cwd=cwd
+        )
+        if is_binary_artifact(pathlib.PurePosixPath(path), content):
+            violations.append(path)
+    return violations
 
 
 def main() -> int:
-    violations = []
-    for path in tracked_paths():
-        if not path.is_file():  # arquivo removido no working tree
-            continue
-        if is_binary_artifact(path, path.read_bytes()):
-            violations.append(str(path))
+    violations = index_violations()
     if violations:
-        print("ERRO: binários/artefatos compilados rastreados pelo Git:", file=sys.stderr)
+        print("ERRO: binários/artefatos compilados no índice Git:", file=sys.stderr)
         for path in violations:
             print(f"  - {path}", file=sys.stderr)
-        print("Remova do índice com git rm --cached <arquivo>; preserve artifacts no CI.", file=sys.stderr)
+        print("Remova do índice com git rm --cached <arquivo>; artifacts ficam no CI.", file=sys.stderr)
         return 1
-    print("OK: nenhum binário/artefato compilado rastreado pelo Git")
+    print("OK: nenhum binário/artefato compilado no índice Git")
     return 0
 
 
