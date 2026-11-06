@@ -304,12 +304,9 @@ fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
     let html = format!(
         "<html><script>function inicializar(){{ return; atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento={ID}&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457'); }}</script></html>"
     );
-    respostas.extend([
-        ok(tela()),
-        ok(html),
-        ok(arvore_com_ciencias()),
-        ok(lista("42457")),
-    ]);
+    // O roteiro não oferece resposta da lista: consultá-la aqui seria
+    // reutilizar prova de outra tentativa e exceder as 6 requisições.
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("atividade antiga não prova novo aceite");
     assert_eq!(erro.saida(), 3);
