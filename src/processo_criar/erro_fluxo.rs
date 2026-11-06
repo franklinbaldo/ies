@@ -21,6 +21,8 @@ pub(crate) enum CausaRespostaCriadora {
 pub(crate) enum ProvaDaCriacao {
     #[causa(nome = "propriedades_divergentes_apos_post_criador")]
     PropriedadesDivergentes,
+    #[causa(nome = "id_preexistente_no_retorno_criador")]
+    IdentidadePreexistente,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
