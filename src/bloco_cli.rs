@@ -163,10 +163,10 @@ fn executar_leitura(
     ) {
         Ok(valor) => {
             if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&valor).unwrap_or_else(|_| "{}".to_owned())
-                );
+                if let Err(erro) = crate::saida::imprimir_json(&valor) {
+                    eprintln!("IES: falha ao emitir JSON: {erro}");
+                    return std::process::ExitCode::from(1);
+                };
             } else if let Some(bloco) = valor.get("bloco") {
                 println!(
                     "IES: bloco {} ({}) — {} item(ns) observados; {} GET(s).",
