@@ -148,6 +148,7 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
+        ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -158,8 +159,13 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
             rede,
         )
     });
-    assert!(matches!(resultado, Err(ErroCriar::EfeitoIncerto)));
-    assert_eq!(requests.len(), 4);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(
+        erro.diagnostico_apos_post(),
+        Some(("falha_de_rede", None, Some(Vec::new())))
+    );
+    assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
@@ -526,7 +532,9 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(sessao.origem, sessao.url_do_controle, sessao.cookie, &pedido(true), rede)
     });
-    assert_eq!(resultado.unwrap_err().saida(), 3);
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.diagnostico_apos_post(), Some(("falha_de_rede", Some("status_http_de_erro_do_servidor"), None)));
 }
