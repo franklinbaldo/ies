@@ -146,3 +146,20 @@ requisições** sintéticas, sem retry. Uma única correspondência, após
 verificar todos, continua permitindo saída 0; zero correspondências
 **não** prova não aplicação e mantém saída 3. O desfecho de não
 aplicação com prova própria continua pendente.
+
+
+## Verificação após `Location` válido (#245)
+
+Um redirecionamento esperado do POST criador não basta para afirmar
+aplicação: a tela do processo e sua árvore ainda devem ser lidas.
+Se um GET verificador falhar por transporte ou HTTP, a CLI conserva
+**saída 3** (efeito incerto), o subcódigo original do GET, eventual
+`status_http` e mensagem saneada do servidor. Uma falha estrutural
+da tela ou da árvore também mantém sua causa específica; nunca se
+atribui sucesso com base somente no `Location`. Não há retry nem
+GET adicional de reconciliação nesta fatia.
+
+Cenários sintéticos do primeiro GET verificador: **3 GET iniciais +
+1 POST criador + 1 GET verificador falho = 5 pedidos**, exatamente
+um POST. HTTP 503 permanece 503; falha de rede mantém
+`falha_de_rede`. Live em outra instalação: NOT_RUN.
