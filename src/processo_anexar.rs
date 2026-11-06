@@ -129,7 +129,7 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
     if ids.is_empty() || nups.is_empty() {
         return Err("processo_a_anexar_nao_identificado");
     }
-    if ids.len() != 1 || nups.len() != 1 {
+    if ids.len() != 1 || nups.len() != 1 || tipos.len() > 1 {
         return Err("identidade_de_anexado_ambigua");
     }
     let id = ids[0].1.as_str();
