@@ -1,11 +1,67 @@
-//! Replay da cassette pública UnB da lista de destinos (#244).
+//! Replay da cassette pública `UnB` da lista de destinos (#244).
 //! Somente leitura de ZIP verificado, nunca rede nem segredos.
-use super::{ler_pagina, gravacao, ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use super::super::fluxo;
+use super::{ZipDoAcervo, conferir_cassette_ate, gravacao, html_da_resposta, ler_pagina};
 use std::path::Path;
+use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::transporte::{FalhaTransporte, RespostaWeb};
+use std::io::Cursor;
+
+struct TransporteGravado {
+    passos: Vec<(bool, String)>,
+    proximo: usize,
+    gets: usize,
+    posts: usize,
+}
+impl TransporteGravado {
+    fn resposta(&mut self, post: bool) -> RespostaDoPost<Cursor<Vec<u8>>> {
+        let (metodo_post, html) = self
+            .passos
+            .get(self.proximo)
+            .expect("o IES não pode exceder as cinco interações gravadas");
+        assert_eq!(
+            *metodo_post, post,
+            "método do passo {} da cassette",
+            self.proximo
+        );
+        self.proximo += 1;
+        if post {
+            self.posts += 1;
+        } else {
+            self.gets += 1;
+        }
+        RespostaDoPost {
+            resposta: RespostaWeb {
+                status_code: 200,
+                mime: "text/html; charset=utf-8".to_owned(),
+                content_length: None,
+                localizacao: None,
+                corpo: Cursor::new(html.as_bytes().to_vec()),
+            },
+            localizacao: None,
+        }
+    }
+}
+impl fluxo::TransporteLupa for TransporteGravado {
+    type Corpo = Cursor<Vec<u8>>;
+    fn get(
+        &mut self,
+        _url: &str,
+        _cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        Ok(self.resposta(false))
+    }
+    fn post(
+        &mut self,
+        _submissao: SubmissaoDerivada,
+        _cookie: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        Ok(self.resposta(true))
+    }
+}
 
 fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
-    let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lupa UnB HTML");
+    let dom = tl::parse(html, tl::ParserOptions::default()).expect("lupa UnB HTML");
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .expect("formulario da lupa UnB");
     let mut submits_nomeados = 0;
@@ -27,19 +83,16 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
             .as_deref()
             .is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit"))
         {
-            let nome =
-                crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
+            let nome = crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
             let id = crate::html_atributos::valor_do_atributo(tag, "id").expect("id UnB");
             let id_publico = id.as_deref().filter(|x| {
                 x.len() <= 32 && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             });
             println!(
-                "observacao UnB submit passo {}: id={:?}, name_btnPesquisar={}, desabilitado={}",
-                passo,
+                "observacao UnB submit passo {passo}: id={:?}, name_btnPesquisar={}, desabilitado={}",
                 id_publico.unwrap_or("<sem-id-ou-opaco>"),
                 nome.as_deref() == Some("btnPesquisar"),
-                crate::html_atributos::atributo_presente(tag, "disabled")
-                    .expect("disabled UnB")
+                crate::html_atributos::atributo_presente(tag, "disabled").expect("disabled UnB")
             );
             if nome.as_deref() == Some("btnPesquisar") {
                 submits_nomeados += 1;
@@ -49,21 +102,17 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
         }
     }
     println!(
-        "observacao UnB formulario passo {}: controles={}, submits_nomeados={}, submits_sem_nome={}",
-        passo, controles, submits_nomeados, submits_sem_nome
+        "observacao UnB formulario passo {passo}: controles={controles}, submits_nomeados={submits_nomeados}, submits_sem_nome={submits_sem_nome}"
     );
-    let lida = ler_pagina(&html)
-        .unwrap_or_else(|e| panic!("lupa UnB passo {}: {e:?}", passo));
+    let lida = ler_pagina(html).unwrap_or_else(|e| panic!("lupa UnB passo {passo}: {e:?}"));
     assert!(lida.paginas >= 1);
     assert!(lida.pagina < lida.paginas);
     assert!(lida.unidades.len() <= lida.total);
     println!(
-        "observacao UnB lupa passo {}: paginas={}, linhas={}",
-        passo,
+        "observacao UnB lupa passo {passo}: paginas={}, linhas={}",
         lida.paginas,
         lida.unidades.len()
     );
-
 }
 
 #[test]
@@ -178,63 +227,6 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
 fn replay_do_fluxo_completo_unb() {
     // Cinco respostas reais gravadas (4 GET + 1 POST), sem rede.
     // Reproduz os HTMLs na ordem da cassette, com cookie apenas sintético.
-    use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
-    use crate::transporte::{FalhaTransporte, RespostaWeb};
-    use std::io::Cursor;
-
-    struct TransporteGravado {
-        passos: Vec<(bool, String)>,
-        proximo: usize,
-        gets: usize,
-        posts: usize,
-    }
-    impl TransporteGravado {
-        fn resposta(&mut self, post: bool) -> RespostaDoPost<Cursor<Vec<u8>>> {
-            let (metodo_post, html) = self
-                .passos
-                .get(self.proximo)
-                .expect("o IES não pode exceder as cinco interações gravadas");
-            assert_eq!(
-                *metodo_post, post,
-                "método do passo {} da cassette",
-                self.proximo
-            );
-            self.proximo += 1;
-            if post {
-                self.posts += 1;
-            } else {
-                self.gets += 1;
-            }
-            RespostaDoPost {
-                resposta: RespostaWeb {
-                    status_code: 200,
-                    mime: "text/html; charset=utf-8".to_owned(),
-                    content_length: None,
-                    localizacao: None,
-                    corpo: Cursor::new(html.as_bytes().to_vec()),
-                },
-                localizacao: None,
-            }
-        }
-    }
-    impl fluxo::TransporteLupa for TransporteGravado {
-        type Corpo = Cursor<Vec<u8>>;
-        fn get(
-            &mut self,
-            _url: &str,
-            _cookie: &str,
-        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-            Ok(self.resposta(false))
-        }
-        fn post(
-            &mut self,
-            _submissao: SubmissaoDerivada,
-            _cookie: &str,
-        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-            Ok(self.resposta(true))
-        }
-    }
-
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join("cassettes/unb/unidade-destinos-no-indice-unb--57497bc11c4f.md");
     let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
