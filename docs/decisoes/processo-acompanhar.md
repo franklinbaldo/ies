@@ -177,3 +177,25 @@ NOT_RUN**, pois o sandbox não possui Rust nem rede para instalá-lo e
 nenhuma execução GitHub Actions foi encontrada. Não inferir sucesso
 do CI antigo. A CLI de retirada confirmada permanece bloqueada antes
 da sessão e rede; replay e live ainda faltam.
+
+## Sétima fatia — redirect da inclusão não é prova isolada (🐢)
+
+O POST de inclusão já exigia releitura com exatamente uma linha nova,
+mas **ignorava o destino do redirect**: um 302 ao cadastro ou para outro
+`id_procedimento`, seguido de lista com linha coincidente, podia ser
+classificado como sucesso. Dois testes de transporte sintético,
+publicados antes da implementação em `4bb0843`, reproduziram o
+problema: [RED 42163834327](https://github.com/franklinbaldo/ies/actions/runs/42163834327)
+com **2 testes falhando, 1.654 passando e 17 ignorados preexistentes**.
+
+O fluxo agora reutiliza a conferência do 302 ao gerenciador de
+acompanhamento do processo correto, já usada na retirada. A releitura
+independente permanece obrigatória. Uma falha de transporte depois
+do envio continua passível de conciliação somente por leitura; uma
+resposta explícita de redirect para outro processo ou operação
+termina com efeito incerto, nunca com sucesso. Não executa JavaScript,
+não usa regex ou retry e não acrescenta requisição.
+
+Replay específico das cassettes originais e ensaio ao vivo estão
+pendentes. `--deixar --confirmar` continua fechado na CLI antes
+da rede até homologação segura em treinamento.
