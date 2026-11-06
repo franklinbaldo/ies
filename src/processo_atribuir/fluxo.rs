@@ -1,16 +1,18 @@
 //! Prévia Web injetável da atribuição de processo: abertura, unidade,
 //! atribuição publicada na árvore, formulário da barra e payload local.
-//! `--confirmar` permanece fechado até haver prova de escrita por releitura.
+//! A CLI mantém --confirmar fechado até haver validação live em treinamento.
 use crate::arvore_processo::{AbertoEm, ErroAtribuirNaBarra};
+use crate::formulario_web::{ErroSubmissaoFormulario, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{ErroAtribuir, preparar_submissao};
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
-    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::visao_do_controle::EnvioDoControle as _;
 
 pub(crate) struct PedidoDaAtribuicao<'a> {
     pub(crate) nup: &'a NumeroProcesso,
@@ -29,6 +31,7 @@ pub(crate) struct ProcessoAtribuido {
     pub(crate) valor_da_opcao: String,
     pub(crate) confirmado: bool,
     pub(crate) alterado: bool,
+    pub(crate) reconciliado_por: Option<ErroSubmissaoFormulario>,
     pub(crate) requisicoes: u8,
 }
 
@@ -52,6 +55,14 @@ pub(crate) enum ErroProcessoAtribuir {
     EscritaAindaNaoVerificada,
     #[causa(interna)]
     Preparacao(ErroAtribuir),
+    #[causa(interna)]
+    Formulario(ErroSubmissaoFormulario),
+    #[causa(nome = "efeito_incerto_na_atribuicao")]
+    EfeitoIncertoNaAtribuicao {
+        falha_do_envio: Option<ErroSubmissaoFormulario>,
+        leitura: Option<ErroProcessoObter>,
+        atribuicao_relida: Option<String>,
+    },
 }
 
 impl ErroProcessoAtribuir {
@@ -64,7 +75,17 @@ impl ErroProcessoAtribuir {
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        match self {
+            Self::Formulario(erro) => erro.status_http(),
+            Self::EfeitoIncertoNaAtribuicao { falha_do_envio, .. } => {
+                falha_do_envio.as_ref().and_then(ErroSubmissaoFormulario::status_http)
+            }
+            _ => crate::erro_publico::Causa::status_http(self),
+        }
+    }
+
+    pub(crate) fn saida(&self) -> u8 {
+        if matches!(self, Self::EfeitoIncertoNaAtribuicao { .. }) { 3 } else { 1 }
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -91,6 +112,10 @@ impl ErroProcessoAtribuir {
                 "a atribuição confirmada ainda não tem releitura de prova"
             }
             Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
+            Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
+            Self::EfeitoIncertoNaAtribuicao { .. } => {
+                "a releitura independente não comprovou a atribuição; confira antes de repetir"
+            },
         }
     }
 }
@@ -103,9 +128,6 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<ProcessoAtribuido, ErroProcessoAtribuir> {
     use ErroProcessoAtribuir as E;
-    if pedido.confirmar {
-        return Err(E::EscritaAindaNaoVerificada);
-    }
     let mut rede = Contador::novo(envio);
     let abertura = leitura(pedido.nup, pedido.unidade, true);
     let (aberto, acoes) =
@@ -114,14 +136,8 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .unidade
         .as_deref()
         .ok_or(E::UnidadeDaSessaoNaoPublicada)?;
-    let atual = match &aberto.arvore.aberto_em {
-        AbertoEm::Unidades(unidades) => unidades
-            .iter()
-            .find(|u| u.sigla == unidade)
-            .map(|u| u.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str())),
-        AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => None,
-    }
-    .ok_or(E::SituacaoDaAtribuicaoNaoObservada)?;
+    let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade)
+        .ok_or(E::SituacaoDaAtribuicaoNaoObservada)?;
     let link = acoes
         .atribuir
         .map_err(E::Barra)?
@@ -134,7 +150,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
             FalhaDaTela::SessaoEncerrada => E::SessaoEncerradaNaAtribuicao,
         })?;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
-    let (valor, _submissao) = preparar_submissao(
+    let (valor, submissao) = preparar_submissao(
         &instalacao,
         link.as_str(),
         &html,
