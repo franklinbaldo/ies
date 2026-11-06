@@ -12,6 +12,7 @@ pub(crate) enum ErroSubmissaoFormulario {
     EnctypeDoFormularioNaoUrlencoded,
     AcceptCharsetPublicadoNoFormulario,
     AcaoDoFormularioNaoEhUrlHttps,
+    AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
     EntidadeHtmlDesconhecidaNoAtributo {

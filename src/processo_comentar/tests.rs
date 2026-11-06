@@ -1,5 +1,4 @@
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::processo_comentarios::{ComentarioLido, VisaoDosComentarios};
 
 fn lista(texto: &str) -> ComentariosLidos {
@@ -35,9 +34,7 @@ fn aceita_somente_id_do_aceite_e_texto_exato() {
 fn id_ausente_nao_prova_escrita() {
     assert_eq!(
         conferir_efeito(&lista("x"), "", "x"),
-        Err(FalhaDaConferencia::Html(ErroHtml::ausente(
-            "id_do_comentario_ausente_no_aceite"
-        )))
+        Err(FalhaDaConferencia::IdDoAceiteAusente)
     );
     assert_eq!(
         conferir_efeito(&lista("x"), "43", "x"),
@@ -52,8 +49,6 @@ fn duplicata_na_releitura_e_recusada() {
     lidos.total_declarado = 2;
     assert_eq!(
         conferir_efeito(&lidos, "42", "x"),
-        Err(FalhaDaConferencia::Html(ErroHtml::repetido(
-            "comentario_novo_repetido_na_releitura"
-        )))
+        Err(FalhaDaConferencia::ComentarioNovoRepetido)
     );
 }

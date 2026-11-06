@@ -65,10 +65,9 @@ pub(super) fn resolver_action(
     operacao: &OperacaoDeFormulario,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta)
-        .ok_or(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
@@ -83,15 +82,14 @@ pub(super) fn resolver_action_no_host(
     instalacao: &Instalacao,
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta)
-        .ok_or(ErroHtml::valor("acao_do_formulario_fora_da_instalacao"))?;
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
     if !alvo.host.eq_ignore_ascii_case(instalacao.host())
         || alvo
             .caminho
             .split('/')
             .any(|segmento| segmento == "." || segmento == "..")
     {
-        return Err(ErroHtml::valor("acao_do_formulario_fora_da_instalacao").into());
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     for item in alvo
         .consulta

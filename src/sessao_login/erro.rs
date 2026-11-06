@@ -51,6 +51,7 @@ pub(crate) enum ErroLogin {
     #[causa(nome = "redirecionamento_do_login_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     LocalizacaoDeRedirecionamentoNaoInterpretavel,
+    RedirecionamentoParaForaDaInstalacao,
     RedirecionamentosAcimaDoLimite,
     /// 307/308 depois do POST: seguir repetiria as credenciais.
     RedirecionamentoQueRepetiriaOEnvioDoLogin,
@@ -113,6 +114,9 @@ impl ErroLogin {
             Self::RedirecionamentoSemLocalizacao => "redirecionamento sem Location",
             Self::LocalizacaoDeRedirecionamentoNaoInterpretavel => {
                 "Location do redirecionamento não interpretável"
+            }
+            Self::RedirecionamentoParaForaDaInstalacao => {
+                "redirecionamento para fora do host da instalação recusado"
             }
             Self::RedirecionamentosAcimaDoLimite => "mais de 8 redirecionamentos seguidos",
             Self::RedirecionamentoQueRepetiriaOEnvioDoLogin => {
