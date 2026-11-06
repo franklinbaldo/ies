@@ -94,24 +94,3 @@ pub(super) fn retorno_da_criacao(
         .to_owned();
     Ok((url, id))
 }
-
-/// Compatibilidade dos cenários offline que só verificam o resultado.
-#[cfg(test)]
-pub(crate) fn criar<V: EnvioDoControle>(
-    origem: &str,
-    url_controle: &str,
-    cookie: &CookieDaSessao,
-    pedido: &PedidoCriar<'_>,
-    envio: &mut V,
-) -> Result<Criacao, ErroCriar> {
-    let mut requisicoes = 0;
-    criar_com_contagem(
-        origem,
-        url_controle,
-        cookie,
-        pedido,
-        envio,
-        &mut requisicoes,
-    )
-}
-

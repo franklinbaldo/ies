@@ -168,6 +168,26 @@ fn enviada<V: EnvioDoControle>(
     })
 }
 
+/// Compatibilidade dos cenários offline que só verificam o resultado.
+#[cfg(test)]
+pub(crate) fn criar<V: EnvioDoControle>(
+    origem: &str,
+    url_controle: &str,
+    cookie: &CookieDaSessao,
+    pedido: &PedidoCriar<'_>,
+    envio: &mut V,
+) -> Result<Criacao, ErroCriar> {
+    let mut requisicoes = 0;
+    criar_com_contagem(
+        origem,
+        url_controle,
+        cookie,
+        pedido,
+        envio,
+        &mut requisicoes,
+    )
+}
+
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
