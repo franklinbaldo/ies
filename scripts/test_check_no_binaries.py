@@ -24,6 +24,32 @@ class TestNoBinaries(unittest.TestCase):
         self.assertTrue(is_binary_artifact(pathlib.Path("saida"), b"abc\x00def"))
         self.assertTrue(is_binary_artifact(pathlib.Path("saida"), b"\xff\xfe"))
 
+    def test_indice_binario_e_worktree_texto_nao_passa(self):
+        import tempfile
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            file = root / "ies"
+            file.write_bytes(b"\x7fELF\x02\x01")
+            subprocess.run(["git", "-C", str(root), "add", "ies"], check=True)
+            file.write_text("texto legivel", encoding="utf-8")
+            from check_no_binaries import index_violations
+            self.assertEqual(index_violations(root), ["ies"])
+
+    def test_indice_texto_e_worktree_binario_nao_bloqueia(self):
+        import tempfile
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            file = root / "ies"
+            file.write_text("texto legivel", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "ies"], check=True)
+            file.write_bytes(b"\x7fELF\x02\x01")
+            from check_no_binaries import index_violations
+            self.assertEqual(index_violations(root), [])
+
 
 if __name__ == "__main__":
     unittest.main()
