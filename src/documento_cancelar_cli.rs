@@ -6,7 +6,7 @@ use crate::documento_cancelar::{
     cancelar_documento, conferir_motivo,
 };
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha, publicar_valor_da_falha};
+use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde_json::{Value, json};
@@ -81,7 +81,16 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(e) => publicar_valor_da_falha(cli.json, &json_da_falha(&e), e.saida()),
+            Err(erro) => {
+                if cli.json {
+                    println!("{}", json_da_falha(&erro));
+                } else {
+                    for linha in linhas_da_falha(&erro) {
+                        eprintln!("{linha}");
+                    }
+                }
+                ExitCode::from(erro.saida())
+            }
         }
     }))
 }
@@ -200,10 +209,24 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
     valor
 }
 
-// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
-#[cfg(test)]
-fn linhas_da_falha(_erro: &ErroCancelar) -> Vec<String> {
-    Vec::new()
+/// Mensagens humanas do cancelamento derivadas da falha tipada, sem
+/// construir JSON ou reclassificar sua causa.
+fn linhas_da_falha(erro: &ErroCancelar) -> Vec<String> {
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let falha_do_envio = match erro {
+        ErroCancelar::CancelamentoNaoAplicado { falha_do_envio }
+        | ErroCancelar::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let ErroCancelar::EfeitoIncerto { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 #[cfg(test)]
