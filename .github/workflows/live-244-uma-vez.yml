@@ -6,7 +6,6 @@ permissions:
   contents: read
 jobs:
   leitura:
-    if: ${{ github.event.head_commit.message == 'live(#244): ensaio unico de leitura' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
