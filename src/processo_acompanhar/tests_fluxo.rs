@@ -362,7 +362,7 @@ fn botao_adicionar_desabilitado_na_lista_nao_oferece_cadastro() {
             r#"<button id="btnAdicionar" disabled="disabled" onclick="location.href='{}';">Adicionar</button>"#,
             cadastrar().replace('&', "&amp;")
         );
-        respostas.extend([ok(format!("{}{}", lista("Outro"), botao)), ok(formulario())]);
+        respostas.push(ok(format!("{}{}", lista("Outro"), botao)));
         let (resultado, pedidos) = executar(respostas, confirmar);
 
         assert!(matches!(resultado, Err(ErroPrevia::Html(_))));
