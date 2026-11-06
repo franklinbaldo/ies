@@ -89,6 +89,11 @@ fn saida_tipificada_serializa_direto_sem_value_intermediario() {
     };
     let mut bytes = Vec::new();
     serde_json::to_writer_pretty(&mut bytes, &super::resultado_conclusao(&feito)).unwrap();
+    // O objeto JSON legado ordenava as chaves: manter também os bytes pretty.
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap()
+    );
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&feito));
     assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
