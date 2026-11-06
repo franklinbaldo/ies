@@ -257,3 +257,32 @@ POST criador** e **sem GET extra**. A prévia permanece disponível.
 Esse é um pré-requisito da reconciliação, **não** sua implementação:
 ainda não há comparação posterior nem classificação automática da falha
 do POST. Não interpretar a proteção como escrita homologada em live.
+
+### Releitura conservadora pós-POST e candidatos (issue #245)
+
+Depois de uma falha observada **após iniciar o POST criador**, o fluxo faz
+**uma única nova leitura do Controle** na mesma sessão e compara Gerados
+com o retrato integral anterior. Orçamento de teste: **3 GET de prévia,
+1 POST criador e 1 GET de reconciliação = 5 pedidos, sem retry**.
+Se até essa leitura falha, a saída é 3 e preserva as duas causas.
+Se dá certo, ainda é saída 3: a diferença são **candidatos observados**,
+não prova da aplicação ou de que repetir a escrita é seguro.
+O JSON publica `causa_post`, `causa_releitura` e
+`candidatos_observados_na_caixa` (null se releitura falhou), mas nunca
+cookie, assinatura, URL ou hash.
+
+O classificador offline `processo_criar/desfechos.rs` usa candidatos e
+provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
+e especificação exatos; falta de leitura, identidade divergente,
+prova duplicada e propriedades não observadas são recusadas.
+Uma correspondência: `Aplicada`; duas ou mais: `CandidatosAmbiguos`;
+zero: `SemCorrespondenciaObservada` — **não** prova de não aplicação.
+O classificador ainda NÃO está ligado à leitura de propriedades no
+transporte. Os quatro desfechos automáticos e o ensaio live faltam.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
+| `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
+| `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
+| `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
