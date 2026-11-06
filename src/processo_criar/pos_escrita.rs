@@ -199,12 +199,11 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
         Ok::<_, ErroCriar>((candidatos, desfecho))
     })();
     match posterior {
-        Ok((_, Desfecho::Aplicada { nup })) => {
-            feito.confirmado = true;
-            feito.nup = Some(nup);
-            feito.causa_post = Some(crate::erro_publico::folha(&causa));
-            feito.requisicoes = *requisicoes;
-            Ok(())
+        // A mesma conta pode ter recebido criacao identica de outro
+        // agente entre as duas fotografias. Propriedades iguais atestam
+        // apenas coincidencia, nunca autoria de um POST sem resposta.
+        Ok((candidatos, Desfecho::CoincidenciaUnica { nup })) => {
+            Err(causa.inconclusiva(Ok(candidatos), Some(vec![nup]), None))
         }
         Ok((candidatos, Desfecho::CandidatosAmbiguos { nups })) => {
             Err(causa.inconclusiva(Ok(candidatos), Some(nups), None))

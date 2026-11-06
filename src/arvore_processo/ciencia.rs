@@ -1,6 +1,9 @@
 //! Links de ciência no processo publicados pela árvore. A leitura da barra
 //! usa o leitor compartilhado de atributos, e a URL da Lista de Ciências
 //! vem exclusivamente da ação CIENCIAS da raiz. Nada executa JavaScript.
+mod javascript;
+pub(crate) use javascript::niveis_js;
+
 use super::barra_do_processo::{FalhaDaBarra, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
@@ -121,4 +124,181 @@ pub(crate) fn url_da_ciencia(
     conferir_endereco_relativo(instalacao, url, "procedimento_ciencia", id)
         .map(EnderecoDeEscrita::novo)
         .map_err(|_: EnderecoRecusado| E::EnderecoDaCienciaNaoReconhecido)
+}
+
+/// A ciência do documento é oferecida somente pela barra do próprio nó.
+/// O documento sem assinatura pode não publicar o botão (`UnB` 4.0.9).
+pub(crate) fn ciencia_do_documento_na_barra(
+    html: &str,
+    id_documento: &str,
+) -> Result<bool, super::ErroBarraDoDocumento> {
+    use super::ErroBarraDoDocumento as E;
+    use crate::html_atributos::atributos;
+    let Some(barra) = super::barra_do_documento::barra_do_no(html, id_documento)? else {
+        return Ok(false);
+    };
+    let fora = || crate::erro_html::ErroHtml::valor("barra_da_ciencia_do_documento_fora_da_forma");
+    let dom = tl::parse(&barra, tl::ParserOptions::default()).map_err(|_| E::Html(fora()))?;
+    let mut total = 0;
+    for no in dom.query_selector("a").into_iter().flatten() {
+        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let lidos = atributos(tag).map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "barra_da_ciencia_do_documento_fora_da_forma",
+                e,
+            ))
+        })?;
+        if let Some(onclick) = lidos.valor("onclick").map_err(|e| {
+            E::Html(crate::erro_html::ErroHtml::atributo(
+                "barra_da_ciencia_do_documento_fora_da_forma",
+                e,
+            ))
+        })? {
+            let onclick = crate::formulario_web::decodificar_atributo(onclick)
+                .ok_or_else(|| E::Html(fora()))?;
+            if onclick == "cienciaDocumento();" {
+                total += 1;
+            }
+        }
+    }
+    match total {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
+            "botoes_de_ciencia_do_documento_repetidos",
+        ))),
+    }
+}
+
+/// O GET mutador vem da tela assinada do nó. Observados na `UnB`: função
+/// ciênciaDocumento (4.0) e linkCienciaDocumento (4.1/5.0). Lê a fonte,
+/// nunca executa JS. A URL às vezes não traz `id_procedimento`, mas a tela
+/// do nó já foi vinculada ao processo na árvore.
+pub(crate) fn url_da_ciencia_do_documento(
+    instalacao: &Instalacao,
+    html: &str,
+    id_documento: &str,
+    id_procedimento: &str,
+) -> Result<EnderecoDeEscrita, crate::erro_html::ErroHtml> {
+    use crate::erro_html::ErroHtml as E;
+    // Só o conteúdo de scripts inline ativos comprova o link do GET
+    // mutador. Texto em templates, campos e scripts de dados não é ação
+    // publicada pelo SEI; nunca se interpreta nem executa JavaScript.
+    // Conservador: uma declaração em <script> dentro de <template> nunca
+    // autoriza o GET de escrita, mesmo se o seletor DOM listar o nó inerte.
+    // Rejeita a tela inteira quando a região inerte contém script: não
+    // precisa inferir qual ramo o navegador ativaria nem executar JS.
+    let minusculas = html.to_ascii_lowercase();
+    if minusculas.split("<template").skip(1).any(|resto| {
+        resto
+            .split("</template")
+            .next()
+            .is_some_and(|parte| parte.contains("<script"))
+    }) {
+        return Err(E::valor("script_da_ciencia_do_documento_fora_da_forma"));
+    }
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
+    let mut urls = Vec::<String>::new();
+    for no in dom.query_selector("script").into_iter().flatten() {
+        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let fora = || E::valor("script_da_ciencia_do_documento_fora_da_forma");
+        let lidos = crate::html_atributos::atributos(tag).map_err(|_| fora())?;
+        if lidos.valor("src").map_err(|_| fora())?.is_some() {
+            continue;
+        }
+        let tipo = lidos.valor("type").map_err(|_| fora())?;
+        if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
+            continue;
+        }
+        let script = tag.inner_text(dom.parser());
+        urls.extend(javascript::urls_ativas_da_ciencia_do_documento(
+            script.as_ref(),
+        )?);
+    }
+    let url = match urls.as_slice() {
+        [] => return Err(E::ausente("link_de_ciencia_do_documento_ausente")),
+        [url] => url.as_str(),
+        _ => return Err(E::repetido("links_de_ciencia_do_documento_repetidos")),
+    };
+    let absoluta = super::endereco::conferir_endereco_relativo_por(
+        instalacao,
+        url,
+        "documento_ciencia",
+        "id_documento",
+        id_documento,
+    )
+    .map_err(|_| E::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
+    // Se a instalação também publicou id_procedimento, ele tem de ser único
+    // e corresponder ao processo; a ausência é a forma observada na UnB.
+    let consulta = url.split_once('?').map_or("", |(_, q)| q);
+    let ids: Vec<&str> = consulta
+        .split('&')
+        .filter_map(|p| p.strip_prefix("id_procedimento="))
+        .collect();
+    if !ids.is_empty() && ids.as_slice() != [id_procedimento] {
+        return Err(E::valor("endereco_da_ciencia_de_outro_processo"));
+    }
+    Ok(EnderecoDeEscrita::novo(absoluta))
+}
+
+/// Na árvore relida, só CD<id> é a Lista de Ciências do documento
+/// procurado. A lista C da raiz e a de outro documento nunca provam.
+pub(crate) fn lista_do_documento(
+    instalacao: &Instalacao,
+    html: &str,
+    id_procedimento: &str,
+    id_documento: &str,
+) -> Result<Option<EnderecoDeEscrita>, crate::erro_html::ErroHtml> {
+    use crate::erro_html::ErroHtml as E;
+    let chave = format!("CD{id_documento}");
+    let mut urls = Vec::new();
+    for linha in html.lines() {
+        if !linha.contains("new infraArvoreAcao(") || !linha.contains("CIENCIAS") {
+            continue;
+        }
+        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
+            .ok_or(E::valor("lista_de_ciencias_do_documento_fora_da_forma"))?;
+        match argumentos.as_slice() {
+            [
+                Literal::Texto(tipo),
+                Literal::Texto(codigo),
+                Literal::Texto(alvo),
+                Literal::Texto(url),
+                ..,
+            ] if tipo == "CIENCIAS" && codigo == &chave && alvo == id_documento => {
+                urls.push(url.clone());
+            }
+            [Literal::Texto(tipo), Literal::Texto(codigo), ..]
+                if tipo == "CIENCIAS" && codigo == &chave =>
+            {
+                return Err(E::valor(
+                    "lista_de_ciencias_do_documento_com_alvo_divergente",
+                ));
+            }
+            [Literal::Texto(tipo), ..] if tipo == "CIENCIAS" => {}
+            _ => return Err(E::valor("lista_de_ciencias_do_documento_fora_da_forma")),
+        }
+    }
+    let url = match urls.as_slice() {
+        [] => return Ok(None),
+        [url] => url,
+        _ => return Err(E::repetido("listas_de_ciencias_do_documento_repetidas")),
+    };
+    let por = |chave, id| {
+        super::endereco::conferir_endereco_relativo_por(
+            instalacao,
+            url,
+            "protocolo_ciencia_listar",
+            chave,
+            id,
+        )
+        .map_err(|_| E::valor("endereco_da_lista_de_ciencias_do_documento_nao_reconhecido"))
+    };
+    por("id_procedimento", id_procedimento)?;
+    por("id_documento", id_documento).map(|u| Some(EnderecoDeEscrita::novo(u)))
 }

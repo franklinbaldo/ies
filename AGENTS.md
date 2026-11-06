@@ -11,6 +11,182 @@ pública é o [contrato da CLI](contracts/cli.md). O
 [Todos](https://github.com/franklinbaldo/todos) é **oráculo de
 comportamento**, não arquitetura a portar.
 
+## Equipe de agentes e avatares
+
+O emoji é o **avatar** e o identificador de reserva da rotina. Cada membro
+possui ficha própria em `team/`, com o tipo OKF compartilhado `TeamMember` e especificação em
+`.okf/specs/`. Leia **este AGENTS.md e a ficha** antes de trabalhar: os
+prompts de agendamento só identificam quem executa.
+
+| Avatar | Membro e especialidade | Ficha | Agenda |
+| --- | --- | --- | --- |
+| 🦊 | Raposa — UX da CLI, Rich, mensagens e prévias | [team/raposa.md](team/raposa.md) | :10 |
+| 🦉 | Coruja — processos e reconciliação | [team/coruja.md](team/coruja.md) | :22 |
+| 🐢 | Tartaruga — segurança, fronteiras Web e privacidade | [team/tartaruga.md](team/tartaruga.md) | :34 |
+| 🦅 | Gavião — revisão independente | [team/gaviao.md](team/gaviao.md) | :40 |
+| 🐙 | Polvo — documentos e editor | [team/polvo.md](team/polvo.md) | :46 |
+| 🦫 | Castor — qualidade Rust, DRY e tipagem de erros | [team/castor.md](team/castor.md) | :58 |
+| 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
+
+A especialização é **preferencial**, não exclusiva. Preserve a issue já
+assumida mesmo quando for de outro domínio. Não edite branches de outros
+donos; relate problemas verificados na issue e ao 🦅. Revisora e
+integradora não assumem issues de implementação.
+
+## Coordenação entre rotinas: reserva, prioridade e continuidade
+
+Estas regras são a **fonte única** dos prompts curtos das automações.
+
+1. A fila usa etiqueta `handoff-chatgpt` e título
+   `<prioridade 0–100> <emoji de dono, se houver> <título>`.
+   Maior valor = maior prioridade, definida **somente pelo 🐘**.
+   `em-andamento` não determina reserva.
+2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
+   Procure primeiro issue com **seu** emoji imediatamente após o número,
+   mesmo com prioridade reduzida. Com duas, continue apenas a de menor
+   número e sinalize duplicidade; não assuma outra antes de concluir.
+3. Leia issue, comentários (especialmente `Como trabalhar`), histórico da
+   PR, `AGENTS.md` e ficha. Retome **o mesmo branch e a mesma PR** se
+   ainda abertos. Quando o 🐘 registrar `fatia integrada na main`,
+   continue **a mesma issue** em **PR nova a partir da main**, começando
+   por testes `wip #N`.
+4. Só sem issue própria, escolha issue livre (sem emoji de dono) da
+   especialidade, de maior prioridade e, em empate, de **menor número**.
+   Se não houver issue livre especializada, escolha a maior prioridade
+   geral; nunca a mais antiga como desempate. Examine PRs relacionadas.
+5. Reserve inserindo **só o seu emoji** após o número, sem mudar a
+   prioridade nem o resto do título. **Releia imediatamente** para
+   detectar disputa; se outra rotina venceu, retire apenas sua inserção
+   quando isso for seguro, sem apagar o emoji alheio, e escolha outra.
+   Desistência insuperável: remova só seu emoji e registre tentativas e
+   bloqueio na issue. Não substitua dono porque a prioridade mudou.
+6. Em cada execução, entregue **fatia significativa**, RED antes da
+   implementação, commits e push, e comentário na issue contendo:
+   realizado, restante, CI/SHA, RED e contagens, live
+   PASS/FAIL/NOT_RUN, requisições, resíduos, travas e próximos passos.
+   Mantenha WIP e reserva até completar os critérios integrais; não
+   alegue PASS de execução não realizada.
+7. **Implementadores não fazem merge ou fechamento de issues.**
+   Nenhum teste existente pode ser desligado, enfraquecido ou ignorado.
+   Teste **novo** ainda pendente pode ter
+   `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
+   Escrita incompleta deve manter `--confirmar` fechado **antes de
+   abrir sessão ou rede**.
+
+### Sincronização obrigatória no começo de **cada rodada**
+
+Antes de modificar código, executar testes RED ou iniciar ensaios, **toda
+rotina implementadora** deve sincronizar **sua branch de trabalho** com
+a `main` mais recente. Faça isso a cada execução, mesmo que a branch tenha
+sido atualizada na sessão anterior:
+
+1. Leia `AGENTS.md` e sua ficha, identifique a issue e a PR próprias e
+   consulte os SHAs atuais de `main` e do head da PR.
+2. **Sem PR/branch ainda:** crie uma branch nova **a partir da `main`
+   atual**, não de uma base salva em sessão anterior.
+3. **Com PR aberta:** compare o head com `main`; se estiver atrás,
+   incorpore **`main` → sua branch** pelo botão/API de atualizar a PR
+   (merge) ou por `git fetch origin && git merge --no-ff origin/main`.
+   Resolva conflitos preservando o trabalho já integrado e o de sua
+   issue. **Nunca use rebase, reset destrutivo ou force-push.**
+4. Confira novamente os SHAs e registre o merge na PR/issue. Rode os
+   gates e testes no novo head; CI verde **do SHA antigo** não valida
+   o SHA pós-merge. Se o CI falhar, trate a causa antes de solicitar
+   integração. A revisão do 🦅 também deve corresponder ao head atual.
+5. Se não houver acesso à atualização segura, ou se um conflito não
+   puder ser resolvido com evidência suficiente, **não sobrescreva
+   alterações de outra rotina**. Registre o impedimento e faça apenas
+   investigação independente até conseguir sincronizar.
+
+Esta regra é pré-condição de **toda fatia de implementação**, inclusive
+retomadas de WIP. 🦅 Gavião não possui branch própria e só verifica a
+atualização da PR ao revisar; 🐘 Elefante segue a regra de integração e
+atualiza branches de PRs conforme seu protocolo abaixo.
+
+### Segurança do ensaio e do contrato
+
+- **Sem produção, sem retry contra SEI, sem execução de JavaScript,
+  sem regex para HTML.** Atributos HTML passam por `html_atributos`,
+  nunca por extração paralela. Respeite origem de sessão, redirects,
+  `arquivo_privado`, `diretorio_do_ies` e `diretorio_do_usuario`.
+- Escrita autorizada **somente em TREINAMENTO**, nesta ordem:
+  **prévia ao vivo → exatamente um `--confirmar` → verificação
+  independente por leitura**. Registre na evidência live o resíduo SEI
+  criado/alterado. Sem segurança para completar, falhe fechado sem
+  escrever; efeito incerto sai 3, jamais seguido de retry.
+- A ciência pertence ao **usuário da sessão**; não exija confirmação
+  manual desse fato. HTTP 200 ou item concorrente não é prova suficiente
+  de escrita. Relatório live inclui o número **real** de requisições
+  observadas; orçamento sintético não substitui observação.
+- Não contorne os limites, gates ou escopos quando houver bloqueio:
+  tente alternativa segura, registre o impedimento e continue WIP.
+
+## Protocolo de revisão — 🦅 Gavião
+
+- Liste PRs abertas da fila `handoff-chatgpt` e de integração;
+  ordene por prioridade decrescente e número da issue crescente,
+  deixando as sem prioridade identificável por último. Ignore PRs cujo
+  head SHA7 já recebeu `REVISÃO-CHATGPT (head <sha7>)`.
+- Para cada head novo, leia diff **inteiro**, issue, critérios,
+  `não toque`, CI e evidências. Examine: correção/bordas/races,
+  escopo/churn, política Web, mínimo de requests/nenhum retry,
+  erros tipados e `null` observado, escrita com prévia e releitura,
+  segurança de cookies, origem, `infra_hash`, URLs e arquivos privados,
+  RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
+  decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
+  Bloqueantes: segredos, escrita insegura ou fora de treinamento,
+  retry, JS, teste antigo pulado/enfraquecido. Aponte `arquivo:linha`
+  e fatos verificáveis; incerteza deve constar como `a verificar`.
+- Publique **um comentário por head**:
+  `REVISÃO-CHATGPT (head <sha7>)`;
+  `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
+  bloqueantes (arquivo:linha — problema — correção), importantes,
+  sugestões e critérios cumprido/parcial/falta. Omita campos vazios.
+  Em LGTM com CI verde e head ainda idêntico, passe Draft → Ready.
+  Caso contrário preserve Draft e comente na issue `REVISÃO: retomar`
+  com link do parecer. Nunca reserve, implemente, faça push, merge ou
+  feche issue; Ready **não** significa capacidade finalizada.
+
+## Protocolo de integração — 🐘 Elefante
+
+- **Todo comentário no GitHub começa por `🐘 Elefante:`.** Não acesse
+  SEI. CI oficial é `.github/workflows/ci.yml`: `prek` e todos
+  os outros jobs devem estar verdes para o **head exato**. Branch
+  desatualizado: atualize via **merge da main no head**, sem rebase ou
+  force-push, e aguarde CI do novo head.
+- Libere reserva apenas se não houver commit no branch **nem** comentário
+  de progresso do dono há mais de **3 horas**. Comentários 🐘/🦅 não
+  contam. Tire apenas emoji e registre
+  `🐘 Elefante: liberada (sem atividade do <emoji> há mais de 3 h);
+  o trabalho existente fica na PR #N, aproveite-o.`
+- **Não integre PR com commit do dono nos últimos 30 minutos.**
+  É autorizado integrar fatia WIP diretamente na main **por merge
+  commit** sem pedir, desde que: CI atual verde (incluindo prek), base
+  sincronizada, sem bloqueante de segurança ou teste antigo alterado
+  para passar, escrita incompleta recusando `--confirmar` antes da
+  rede (ou completa com releitura), apenas prefixo da issue e adições
+  mínimas compartilhadas, **sem workflow temporário novo**.
+- Confira revisão 🦅 e SHA aprovado; promova Ready se necessário,
+  faça merge e comente na issue:
+  `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão:
+  PR NOVA a partir da main, começando pelos wip #N` e pendências.
+  Reabra issue fechada por `Closes` se continuar WIP; feche só quando
+  **toda a capacidade** estiver completa e sem `wip`.
+- Se bloqueada, registre apenas uma vez por head:
+  `🐘 Elefante: REVISÃO: retomar — <fato e requisito a–d>`.
+  Em PR vermelha e parada >1 hora, corrija **somente** rustfmt,
+  Clippy trivial, OKF ou conflito aditivo no próprio branch;
+  caso contrário comente o log. Não implemente capacidade paralela.
+- Mantenha **pelo menos 5 issues livres sem PR**. Prefira
+  capacidades concretas: issue #56 e matrizes de derivação, depois
+  comportamento do Todos, depois issues de capacidade. Issues novas
+  seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
+  `Como trabalhar`) e incluem ensaio live para escrita.
+- Prioridades exclusivas do 🐘: **90–100** leituras/escritas de uso
+  diário e bugs de ensaio; **70–89** desbloqueadores; **40–69**
+  demais capacidades; **abaixo de 40** só sob pedido. Reavalie após
+  integração na main. Se nada mudou, **silêncio**.
+
 ## Método: observar → contratar → RED → GREEN → validar
 
 1. **Observar.** Toda capacidade parte de comportamento real: cassettes,

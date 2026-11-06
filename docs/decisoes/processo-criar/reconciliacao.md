@@ -104,9 +104,12 @@ Controle já conhecida, sem tentar inventar o endereço do processo novo.
 A próxima fatia usa links **servidos na linha Gerados**, nunca links
 inferidos de IDs, e os leitores já disponíveis de tela, árvore e
 propriedades. Para cada candidato é necessário comprovar unidade,
-ID/NUP, tipo e especificação. Retornar sucesso é permitido apenas para
-uma correspondência exata com todos os candidatos conferidos. Sem
-propriedades publicadas, falha fechado e preserva a causa do POST.
+ID/NUP, tipo e especificação. A correspondência exata com todos os
+candidatos conferidos é necessária, mas **não prova a autoria de um POST
+sem resposta** numa conta compartilhada. Mesmo se for única, o resultado
+permanece inconclusivo (saída 3), como detalha a
+[decisão causal](concorrencia-pos-post.md). Sem propriedades publicadas,
+falha fechado e preserva a causa do POST.
 O novo leitor consome 1 GET da caixa e 3 GET por candidato; não faz
 retry nem novo POST. A ausência de candidatos não prova não aplicação.
 O ensaio live nesta fatia não foi executado.
@@ -309,3 +312,22 @@ saída 3, sem abrir o processo antigo, sem retry. RED test-first no
 **1 FAIL novo, 1.733 PASS e 22 ignorados preexistentes**; o sistema
 publicava `confirmado: true` para o NUP preexistente. Budget após
 correção: 3 GET prévios + 1 POST, nenhum GET posterior.
+
+## NUP repetido sob IDs diferentes — 06/11/2026 (#245)
+
+A lista Gerados pode declarar cobertura completa das linhas e ainda oferecer
+identidade contraditória: dois IDs associados ao mesmo NUP. O parser genérico
+`Tabela::nova` já recusa ID repetido, mas permite números iguais sob IDs
+distintos, porque outras leituras não devem inventar exclusividade global.
+
+Para a **fotografia de reconciliação da criação**, dois IDs com o mesmo NUP
+não são candidatos independentes. Rejeitada a alternativa de sobrescrever
+silenciosamente a identidade no mapa ou de tratar o mesmo NUP como duas
+criações. A decisão acrescenta somente nessa fronteira a causa tipada
+`nup_repetido_na_fotografia_de_gerados`. Antes do POST criador, falha
+fechado após os **3 GET de preparação** do cenário sintético, sem escrita;
+a prévia sem confirmação não muda. A regressão foi observada com teste
+sintético RED no [CI 42286047215](https://github.com/franklinbaldo/ies/actions/runs/42286047215):
+**1 falha nova, 1.735 testes passando e 22 ignorados preexistentes**.
+A validação autenticada em uma segunda instalação de treinamento continua
+**NOT_RUN**; não repetir a escrita histórica inconclusiva da UnB.
