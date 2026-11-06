@@ -129,8 +129,7 @@ fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
     Value::Object(valor)
 }
 
-/// JSON do sucesso (prévia, inalterado ou salvo e conferido).
-pub(crate) /// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
+/// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
 #[derive(serde::Serialize)]
 struct EnvioColunasPublico<'a> {
     acao: &'static str,
