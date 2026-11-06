@@ -31,7 +31,13 @@ O nome vazio usa a opção em branco servida; não se inventa seu valor.
 da própria linha, o formulário `frmGerenciarAcompanhamento` com
 `hdnInfraItemId` único por `name` e `id` no DOM, oculto habilitado, e o destino `acompanhamento_excluir` publicado
 pela função servida para o mesmo processo. O JavaScript não é executado; a função `acaoExcluir` só serve de prova quando está em um script clássico executável, sem `src` e sem `type=module` ou MIME inerte. Código presente apenas como texto em script de dados, comentário ou string não autoriza a operação. A assinatura precisa ser uma declaração global fora de bloco ou expressão de função; templates e prefixos não reconhecidos falham fechados. Sem qualquer prova, a operação recusa antes de escrever. Se nenhum
-acompanhamento existe, a prévia informa ausência de efeito. `--observacao` não combina com
+acompanhamento existe, a prévia informa ausência de efeito. Também quando
+`--deixar --grupo G` aponta a um grupo ausente de uma **lista completa** que
+contém outros grupos, o backend trata a retirada como idempotente: informa
+`ja_estava=true`, `grupo=G`, `id_acompanhamento=null`, sem validar a oferta de
+exclusão dos outros grupos e sem POST (4 GETs no teste sintético). Sem
+`--grupo`, a escolha de uma única linha continua obrigatória. O caminho
+público `--deixar --confirmar` permanece bloqueado antes da rede até live seguro. `--observacao` não combina com
 `--deixar`. Uma inclusão de grupo já presente informa que nada deve
 ser enviado, independentemente da observação.
 
