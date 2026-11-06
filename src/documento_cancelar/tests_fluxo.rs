@@ -2,7 +2,7 @@
 //! de Todos `tests/test_documento_mover_cancelar_010.py` @323eb01.
 //! A bancada registra POST antes de devolver rede, sem retry.
 use super::{
-    DocumentoCancelado, ErroCancelar, PedidoDoCancelamento, cancelar_documento, conferir_motivo,
+    DocumentoCancelado, ErroCancelar, PedidoDoCancelamento, cancelar_documento,
 };
 use crate::arvore_processo::tests_assinatura::arvore_assinavel;
 use crate::documento::NumeroDocumento;
@@ -90,7 +90,7 @@ fn executar_com_motivo(
             numero: &numero,
             processo: Some(nup),
             unidade: None,
-            motivo: conferir_motivo(motivo).unwrap(),
+            motivo,
             confirmar,
         };
         cancelar_documento(sessao, &pedido, indice, envio)

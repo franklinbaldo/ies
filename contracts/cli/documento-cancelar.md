@@ -14,7 +14,7 @@ Cancela irreversivelmente um documento por sua ação **publicada na barra do n�
 ## Contrato de entrada
 
 - `DOC` é o número SEI validado como em `ies documento DOC`. `--processo NUP` opcional usa a mesma abertura até a árvore, sem GET do conteúdo.
-- `--motivo TEXTO` **obrigatório**, não vazio após `trim`, representável em ISO-8859-1 e sem controles. Uso inválido sai com 2 **antes de qualquer acesso à sessão**.
+- `--motivo TEXTO` é obrigatório e segue sem alteração para o formulário, incluindo espaços e quebras de linha. O charset da tela determina a codificação; um valor não representável é recusado pelo codificador antes do POST. A CLI não impõe `trim`, conteúdo mínimo ou Latin-1 fixo.
 - `--confirmar` opcional. Sem ele há apenas prévia; com ele executa **um POST** e jamais retry.
 - `--json` e `--unidade` seguem as opções globais.
 
@@ -57,17 +57,9 @@ Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`
 
 A tela de login, o transporte, o primitivo de formulário e a validação de DOC/NUP mantêm os subcódigos desse contrato.
 
-### Recusas tipadas do motivo
+### Motivo como texto opaco
 
-O pedido exige `MotivoDoCancelamento`, construído pela validação de entrada. A operação recebe esse tipo e não repete a validação. Cada variante de `ErroMotivoDoCancelamento` nasce em um único ponto dessa validação.
-
-As recusas de `--motivo` saem com 2 antes de ler a sessão, inclusive com `--confirmar`. O JSON contém `causa`, a serialização direta da variante Rust, e não contém `subcodigo`:
-
-```json
-{"causa":{"tipo":"MotivoVazio"},"codigo":"entrada_invalida","erro":"o motivo está vazio","retentavel":false}
-```
-
-`tipo` deriva do nome da variante, sem tabela de nomes públicos. A saída humana contém a mensagem da mesma variante, sem identificador entre colchetes. Essa representação substitui os três subcódigos de motivo; consumidores devem ler `causa` para essas recusas.
+O pedido recebe `&str`. A ausência do argumento é erro de uso; o conteúdo fornecido não cria um erro local de motivo. A representabilidade usa a falha tipada do formulário para o campo `txaMotivo`, conforme a codificação da tela. Prévia e resultado preservam o texto solicitado; a reconciliação continua exigindo o motivo publicado pela árvore.
 
 ## Evidências e lacunas
 
