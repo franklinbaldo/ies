@@ -18,6 +18,53 @@ const GRUPO: &str = "selGrupoAcompanhamento";
 const PROTOCOLO: &str = "hdnIdProtocolo";
 const TABELA: &str = "Tabela de Acompanhamentos.";
 
+/// Confere se um controle da tela é operável no DOM servido, não apenas
+/// se seu onclick/action contém uma URL plausível. Contêineres hidden/inert
+/// afetam qualquer ação; fieldset disabled desativa apenas controles de
+/// formulário (não âncoras), inclusive descendentes intermediários.
+/// Na exceção HTML de primeiro legend não observada, falha fechado.
+pub(super) fn controle_inerte(
+    dom: &tl::VDom<'_>,
+    controle: &tl::HTMLTag<'_>,
+    campo_form: bool,
+    onde: &'static str,
+) -> Result<bool, ErroHtml> {
+    let presente = |tag: &tl::HTMLTag<'_>, nome: &str| {
+        atributo_presente(tag, nome).map_err(|erro| ErroHtml::atributo(onde, erro))
+    };
+    if presente(controle, "hidden")?
+        || presente(controle, "inert")?
+        || (campo_form && presente(controle, "disabled")?)
+    {
+        return Ok(true);
+    }
+    for ancestral in dom.nodes().iter().filter_map(tl::Node::as_tag) {
+        let bloqueado = presente(ancestral, "hidden")?
+            || presente(ancestral, "inert")?
+            || (campo_form
+                && ancestral
+                    .name()
+                    .as_utf8_str()
+                    .eq_ignore_ascii_case("fieldset")
+                && presente(ancestral, "disabled")?);
+        if !bloqueado {
+            continue;
+        }
+        if let Some((inicio, fim)) = ancestral.children().boundaries(dom.parser()) {
+            for indice in inicio..=fim {
+                if tl::NodeHandle::new(indice)
+                    .get(dom.parser())
+                    .and_then(tl::Node::as_tag)
+                    .is_some_and(|tag| std::ptr::eq(tag, controle))
+                {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcompanhar {
     #[causa(nome = "cadastro_de_acompanhamento_nao_publicado")]
