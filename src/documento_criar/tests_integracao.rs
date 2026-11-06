@@ -134,7 +134,7 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     let (resultado, pedidos) = executar(
         true,
         vec![
-            a::ok("<html>salvo</html>".to_owned()),
+            a::r302("controlador.php?acao=documento_visualizar&id_documento=22"),
             a::ok(arvore_verificadora(1)),
         ],
     );
@@ -156,7 +156,7 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
     let (resultado, pedidos) = executar(
         true,
         vec![
-            a::ok("<html>salvo</html>".to_owned()),
+            a::r302("controlador.php?acao=documento_visualizar&id_documento=22"),
             a::ok(arvore_verificadora(2)),
         ],
     );
