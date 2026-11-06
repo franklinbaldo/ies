@@ -59,8 +59,8 @@ pub(crate) enum ErroProcessoAtribuir {
     Formulario(ErroSubmissaoFormulario),
     #[causa(nome = "efeito_incerto_na_atribuicao")]
     EfeitoIncertoNaAtribuicao {
-        falha_do_envio: Option<ErroSubmissaoFormulario>,
-        leitura: Option<ErroProcessoObter>,
+        falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
+        leitura: Option<Box<ErroProcessoObter>>,
         atribuicao_relida: Option<String>,
     },
 }
@@ -78,14 +78,20 @@ impl ErroProcessoAtribuir {
         match self {
             Self::Formulario(erro) => erro.status_http(),
             Self::EfeitoIncertoNaAtribuicao { falha_do_envio, .. } => {
-                falha_do_envio.as_ref().and_then(ErroSubmissaoFormulario::status_http)
+                falha_do_envio
+                    .as_deref()
+                    .and_then(ErroSubmissaoFormulario::status_http)
             }
             _ => crate::erro_publico::Causa::status_http(self),
         }
     }
 
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncertoNaAtribuicao { .. }) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncertoNaAtribuicao { .. }) {
+            3
+        } else {
+            1
+        }
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {
@@ -115,7 +121,7 @@ impl ErroProcessoAtribuir {
             Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
             Self::EfeitoIncertoNaAtribuicao { .. } => {
                 "a releitura independente não comprovou a atribuição; confira antes de repetir"
-            },
+            }
         }
     }
 }
@@ -210,8 +216,8 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     // remoção da atribuição. Divergência após POST é efeito incerto (3).
     if atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or("")) {
         return Err(E::EfeitoIncertoNaAtribuicao {
-            falha_do_envio,
-            leitura,
+            falha_do_envio: falha_do_envio.map(Box::new),
+            leitura: leitura.map(Box::new),
             atribuicao_relida,
         });
     }
