@@ -29,7 +29,10 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         Ok(nup) => {
             if *confirmar {
                 // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
-                falhar(cli.json, "escrita_de_atribuicao_ainda_nao_verificada")
+                falhar(
+                    cli.json,
+                    ErroProcessoAtribuir::EscritaAindaNaoVerificada.subcodigo(),
+                )
             } else {
                 com_sessao(cli, |sessao, indice| {
                     let pedido = PedidoDaAtribuicao {
@@ -84,7 +87,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
             saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
         );
     }
-    ExitCode::from(1)
+    ExitCode::from(erro.saida())
 }
 
 fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
