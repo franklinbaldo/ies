@@ -323,3 +323,6 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
 }
+#[cfg(test)]
+#[path = "documento_assinar_cli/tests.rs"]
+mod tests;
