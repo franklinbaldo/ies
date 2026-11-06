@@ -192,11 +192,19 @@ fn pedidos_confirmacao(valor: &str) -> Vec<Pedido> {
     esperados
 }
 
+// O 302 aceito contém id_procedimento na observação da UnB registrada
+// no oráculo Todos @323eb01 (ACEITE), não apenas a ação genérica.
+fn retorno_arvore_com_identidade_observado() -> Resposta {
+    r302(&format!(
+        "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={ID}&atualizar_arvore=1"
+    ))
+}
+
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: escrita única.
 #[test]
 fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
     let mut respostas = respostas_previa("aluno20");
-    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(retorno_arvore_com_identidade_observado());
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let feito = resultado.unwrap();
@@ -210,7 +218,7 @@ fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
 #[test]
 fn confirmar_remocao_posta_null_e_verifica_ausencia_de_atribuicao() {
     let mut respostas = respostas_previa("aluno20");
-    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(retorno_arvore_com_identidade_observado());
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let feito = resultado.unwrap();
