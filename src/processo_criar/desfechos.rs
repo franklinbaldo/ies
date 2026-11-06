@@ -37,7 +37,7 @@ pub(crate) enum ErroConferencia {
 /// Quando há interessados explícitos, exigimos o mesmo multiconjunto
 /// publicado no formulário de propriedades. Ordem de apresentação não é
 /// identidade; multiplicidade e texto observado são.
-pub(super) fn interessados_conferem(solicitados: &[String], observados: &[String]) -> bool {
+pub(crate) fn interessados_conferem(solicitados: &[String], observados: &[String]) -> bool {
     if solicitados.is_empty() {
         return true; // nenhum interessado imposto pelo usuário
     }
