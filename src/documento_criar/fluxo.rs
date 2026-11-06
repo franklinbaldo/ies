@@ -313,6 +313,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         if resultado.is_err() {
             eprintln!("IES246: diagnostico privado indisponivel");
         }
+        eprintln!("IES246: prova_guardada={}", cadastro_publica_script_de_criacao(&html_cadastro));
         return Err(E::SubmissaoNaoComprovada);
     }
     if !cadastro_publica_script_de_criacao(&html_cadastro) {
