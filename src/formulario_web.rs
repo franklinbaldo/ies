@@ -344,6 +344,39 @@ pub(crate) fn derivar_submissao(
     unidade_solicitada: &str,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    derivar_submissao_interna(operacao, instalacao, tela, unidade_solicitada, campos, None)
+}
+
+/// A operação provou, pelo JS servido e NÃO executado, que o navegador
+/// reescreve a action do form. Confere TAMBÉM a action original, o destino
+/// HTTPS observado e sua origem, antes de derivar os controles do form real.
+pub(crate) fn derivar_submissao_com_action_do_script(
+    operacao: &OperacaoDeFormulario,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade_solicitada: &str,
+    acao_original: &str,
+    destino_do_script: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    derivar_submissao_interna(
+        operacao,
+        instalacao,
+        tela,
+        unidade_solicitada,
+        campos,
+        Some((acao_original, destino_do_script)),
+    )
+}
+
+fn derivar_submissao_interna(
+    operacao: &OperacaoDeFormulario,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade_solicitada: &str,
+    campos: &[(&str, &str)],
+    action_do_script: Option<(&str, &str)>,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     use ErroSubmissaoFormulario as E;
     if operacao.efeito == EfeitoAvaliado::Desconhecido {
         return Err(E::EfeitoDaOperacaoNaoAvaliado);
@@ -369,7 +402,25 @@ pub(crate) fn derivar_submissao(
     }
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
-    let url = resolver_action(form, &servida, instalacao, operacao)?;
+    let url = if let Some((acao_original, destino)) = action_do_script {
+        let original = leitura::resolver_action_para_acao(
+            form, &servida, instalacao, acao_original,
+        )?;
+        let original = UrlHttps::interpretar(&original)
+            .ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+        let alvo = UrlHttps::interpretar(destino)
+            .ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
+        if !instalacao.autoriza_controlador(alvo.host, alvo.caminho)
+            || !alvo.host.eq_ignore_ascii_case(servida.host)
+            || alvo.caminho != original.caminho
+        {
+            return Err(E::AcaoDoFormularioForaDaInstalacao);
+        }
+        leitura::conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
+        destino.to_owned()
+    } else {
+        resolver_action(form, &servida, instalacao, operacao)?
+    };
     let controles = ler_controles(form, dom.parser(), operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
