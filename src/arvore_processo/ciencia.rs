@@ -169,6 +169,76 @@ pub(crate) fn ciencia_do_documento_na_barra(
     }
 }
 
+/// Identifica somente código ativo; comentários, literais e templates
+/// não podem autorizar um GET mutador. Retorna a profundidade dos blocos.
+fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
+    let bytes = script.as_bytes();
+    let mut niveis = vec![None; bytes.len()];
+    let (mut i, mut profundidade) = (0, 0usize);
+    while i < bytes.len() {
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            i += 2;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            i += 2;
+            let mut fechado = false;
+            while i + 1 < bytes.len() {
+                if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                    i += 2;
+                    fechado = true;
+                    break;
+                }
+                i += 1;
+            }
+            if !fechado {
+                return None;
+            }
+            continue;
+        }
+        if matches!(bytes[i], b'\'' | b'"' | b'\x60') {
+            let aspas = bytes[i];
+            i += 1;
+            let mut fechado = false;
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == aspas {
+                    i += 1;
+                    fechado = true;
+                    break;
+                }
+                if bytes[i] == b'\n' && aspas != b'\x60' {
+                    return None;
+                }
+                i += 1;
+            }
+            if !fechado {
+                return None;
+            }
+            continue;
+        }
+        match bytes[i] {
+            b'{' => {
+                niveis[i] = Some(profundidade);
+                profundidade += 1;
+            }
+            b'}' => {
+                profundidade = profundidade.checked_sub(1)?;
+                niveis[i] = Some(profundidade);
+            }
+            _ => niveis[i] = Some(profundidade),
+        }
+        i += 1;
+    }
+    (profundidade == 0).then_some(niveis)
+}
+
 /// O GET mutador vem da tela assinada do nó. Observados na `UnB`: função
 /// ciênciaDocumento (4.0) e linkCienciaDocumento (4.1/5.0). Lê a fonte,
 /// nunca executa JS. A URL às vezes não traz `id_procedimento`, mas a tela
