@@ -165,7 +165,10 @@ struct DestinoPublico<'a> {
     sigla: &'a str,
 }
 
-#[expect(clippy::struct_excessive_bools, reason = "quatro campos independentes exigidos pelo contrato JSON")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "quatro campos independentes exigidos pelo contrato JSON"
+)]
 #[derive(serde::Serialize)]
 struct ResultadoEnvio<'a> {
     aberto_em: &'a [String],
