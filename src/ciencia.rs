@@ -8,9 +8,11 @@
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
-mod fluxo;
 mod documento;
-pub(crate) use documento::{CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
+mod fluxo;
+pub(crate) use documento::{
+    CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
+};
 pub(crate) use fluxo::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
@@ -222,6 +224,6 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod tests_fluxo;
-#[cfg(test)]
 mod tests_documento;
+#[cfg(test)]
+mod tests_fluxo;
