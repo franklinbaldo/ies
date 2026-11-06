@@ -257,23 +257,8 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
-/// Instrumentação inicial RED: testes exigem contagem inclusive na falha.
-/// A implementação correta substitui este shim, que ainda perde o contador.
-pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
-    origem: &str,
-    url_controle: &str,
-    cookie: &CookieDaSessao,
-    pedido: &PedidoCriar<'_>,
-    envio: &mut V,
-    requisicoes_observadas: &mut u32,
-) -> Result<Criacao, ErroCriar> {
-    *requisicoes_observadas = 0;
-    criar(origem, url_controle, cookie, pedido, envio)
-}
-
-/// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
-/// acontece após conferência da lista, do formulário e de todos os campos.
-#[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
+/// Compatibilidade dos cenários offline que só verificam o resultado.
+#[cfg(test)]
 pub(crate) fn criar<V: EnvioDoControle>(
     origem: &str,
     url_controle: &str,
@@ -281,18 +266,40 @@ pub(crate) fn criar<V: EnvioDoControle>(
     pedido: &PedidoCriar<'_>,
     envio: &mut V,
 ) -> Result<Criacao, ErroCriar> {
+    let mut requisicoes = 0;
+    criar_com_contagem(
+        origem,
+        url_controle,
+        cookie,
+        pedido,
+        envio,
+        &mut requisicoes,
+    )
+}
+
+/// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
+/// acontece após conferência da lista, do formulário e de todos os campos.
+#[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
+pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
+    origem: &str,
+    url_controle: &str,
+    cookie: &CookieDaSessao,
+    pedido: &PedidoCriar<'_>,
+    envio: &mut V,
+    requisicoes: &mut u32,
+) -> Result<Criacao, ErroCriar> {
     use ErroCriar as E;
     let instalacao = Instalacao::interpretar(origem).ok_or_else(E::local)?;
     let cookie_valor = cookie.valor().map_err(|_| E::local())?;
-    let mut requisicoes = 0;
-    let controle = get(envio, url_controle, cookie_valor, &mut requisicoes)?;
+    *requisicoes = 0;
+    let controle = get(envio, url_controle, cookie_valor, requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
         .map_err(|_| E::UnidadeDiferente)?;
     if pedido.unidade.is_some_and(|exigida| exigida != unidade) {
         return Err(E::UnidadeDiferente);
     }
     let link = link_de_iniciar(&instalacao, &controle.url, &controle.html).map_err(E::Menu)?;
-    let mut lista = get(envio, &link, cookie_valor, &mut requisicoes)?;
+    let mut lista = get(envio, &link, cookie_valor, requisicoes)?;
     let escolhido = match tipo_na_lista(&lista.html, pedido.tipo) {
         Err(ErroListaDeTipos::ListaIncompleta) => {
             let resposta = enviada(
@@ -303,7 +310,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 &lista,
                 &unidade,
                 &[("hdnFiltroTipoProcedimento", "T")],
-                &mut requisicoes,
+                requisicoes,
                 false,
             )?;
             let RespostaDoEnvio::Html(html) = resposta else {
@@ -318,7 +325,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         EscolhaDoTipo::Link(link) => {
             let id_tipo = id_do_link(&link).ok_or(E::TipoSemIdentificador)?.to_owned();
             let url = resolver_link(&instalacao, &lista.url, &link, "procedimento_gerar")?;
-            (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
+            (id_tipo, get(envio, &url, cookie_valor, requisicoes)?)
         }
         EscolhaDoTipo::Formulario(id_tipo) => {
             let resposta = enviada(
@@ -329,7 +336,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 &lista,
                 &unidade,
                 &[("hdnIdTipoProcedimento", &id_tipo)],
-                &mut requisicoes,
+                requisicoes,
                 false,
             )?;
             let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
@@ -342,7 +349,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 "procedimento_gerar",
             )
             .map_err(|_| E::EscolhaInesperada)?;
-            (id_tipo, get(envio, &url, cookie_valor, &mut requisicoes)?)
+            (id_tipo, get(envio, &url, cookie_valor, requisicoes)?)
         }
     };
     let mut observado = match conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel) {
@@ -371,7 +378,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 &instalacao,
                 &servida,
                 cookie_valor,
-                &mut requisicoes,
+                requisicoes,
                 pedido.hipotese_legal,
             )
             .map_err(E::Hipotese)?,
@@ -383,7 +390,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         &servida,
         cookie_valor,
         pedido.interessados,
-        &mut requisicoes,
+        requisicoes,
     )
     .map_err(E::Interessado)?;
     let mut feito = Criacao {
@@ -396,7 +403,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
         nup: None,
         causa_post: None,
-        requisicoes,
+        requisicoes: *requisicoes,
     };
     let lupa = format!("{}±{}", observado.id_assunto, observado.assunto);
     let nivel = if pedido.nivel == "publico" { "0" } else { "1" };
@@ -430,7 +437,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
     let mut tentou = false;
     let resposta = match enviar_submissao_via(submissao, cookie, |s, c| {
         tentou = true;
-        requisicoes += 1;
+        *requisicoes += 1;
         envio.post(s, c)
     }) {
         Ok(resposta) => resposta,
@@ -464,7 +471,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
                 &mut feito,
                 &gerados_antes,
                 pedido.especificacao,
-                &mut requisicoes,
+                requisicoes,
                 pos_escrita::CausaPosEscrita::Transporte(causa_post),
             )?;
             return Ok(feito);
@@ -480,7 +487,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
             &mut feito,
             &gerados_antes,
             pedido.especificacao,
-            &mut requisicoes,
+            requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
                 erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
             ),
@@ -502,7 +509,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
             &mut feito,
             &gerados_antes,
             pedido.especificacao,
-            &mut requisicoes,
+            requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
                 erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
             ),
@@ -527,12 +534,12 @@ pub(crate) fn criar<V: EnvioDoControle>(
         cookie_valor,
         &feito,
         pedido,
-        &mut requisicoes,
+        requisicoes,
     )
     .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
     feito.confirmado = true;
     feito.nup = Some(nup);
-    feito.requisicoes = requisicoes;
+    feito.requisicoes = *requisicoes;
     Ok(feito)
 }
 
