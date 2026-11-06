@@ -326,9 +326,12 @@ Na validação expressa da Infra (HTML 200 com recusa publicada pelo SEI),
 a saída é 1, com causa original e `desfecho: "nao_aplicada"` no JSON:
 `repeticao_segura_com_nova_previa: true` só permite uma nova decisão
 explícita após prévia; `retentavel: false` veda retry automático.
-HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito** e não
-publica esse desfecho. Ambos encerram após **3 GET + 1 POST**, sem
-reler Gerados nem atribuir criação concorrente à operação recusada.
+HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito**,
+retorna **saída 3** (`efeito_incerto`), com subcódigo, status HTTP e
+mensagem saneada, sem publicar `nao_aplicada` nem habilitar repetição.
+Somente a recusa expressa da Infra retorna **saída 1**. Ambos encerram
+após **3 GET + 1 POST**, sem reler Gerados nem atribuir criação
+concorrente à operação recusada.
 Falha de rede sem resposta e 5xx seguem reconciliação sem retry.
 
 
