@@ -38,8 +38,44 @@ pub(crate) fn classificar(
     tipo: &str,
     especificacao: &str,
 ) -> Result<Desfecho, ErroConferencia> {
-    let _ = (candidatos, conferidos, tipo, especificacao);
-    Ok(Desfecho::SemCorrespondenciaObservada)
+    use std::collections::BTreeMap;
+
+    // Uma prova deve vir de uma leitura distinta, para um dos pares
+    // (id, NUP) da fotografia; jamais se aceita uma prova solta ou
+    // repetida, nem uma leitura incompleta como divergência de conteúdo.
+    let mut por_id = BTreeMap::new();
+    for conferido in conferidos {
+        if por_id.insert(conferido.id.as_str(), conferido).is_some() {
+            return Err(ErroConferencia::LeituraRepetida);
+        }
+        if !candidatos
+            .iter()
+            .any(|c| c.id == conferido.id && c.nup == conferido.nup)
+        {
+            return Err(ErroConferencia::IdentidadeDivergente);
+        }
+    }
+    let mut correspondentes = Vec::new();
+    for candidato in candidatos {
+        let lido = por_id
+            .get(candidato.id.as_str())
+            .ok_or(ErroConferencia::LeituraAusente)?;
+        let (Some(tipo_lido), Some(especificacao_lida)) =
+            (&lido.tipo, &lido.especificacao)
+        else {
+            return Err(ErroConferencia::PropriedadesNaoObservadas);
+        };
+        if tipo_lido == tipo && especificacao_lida == especificacao {
+            correspondentes.push(candidato.nup.clone());
+        }
+    }
+    Ok(match correspondentes.as_slice() {
+        [nup] => Desfecho::Aplicada { nup: nup.clone() },
+        [] => Desfecho::SemCorrespondenciaObservada,
+        _ => Desfecho::CandidatosAmbiguos {
+            nups: correspondentes,
+        },
+    })
 }
 
 #[cfg(test)]
