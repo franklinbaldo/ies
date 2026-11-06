@@ -212,3 +212,30 @@ de ambiguidade completa. Nenhuma requisição é repetida.
 O NUP histórico da UnB treinamento não recebeu novo POST.
 Falta ensaio prévia → confirmação única → leitura, com registro
 de resíduo, numa segunda instalação de treinamento. Issue #245 WIP.
+
+
+## Continuação 🦉 — Location válido sem propriedades conferidas (06/11/2026)
+
+**Observação pré-RED:** o fluxo Web publica a árvore e nela o link
+de propriedades. Os leitores já existentes provam ID/NUP, tipo,
+especificação e nível numa tela independente. A árvore sozinha só
+prova identidade, não o conteúdo efetivo da criação.
+
+**RED de transporte sintético:** [CI 42234422953](https://github.com/franklinbaldo/ies/actions/runs/42234422953),
+**1 FAIL, 1.718 PASS, 22 ignorados preexistentes**, porque o fluxo
+não consumiu a resposta sintética das propriedades. O novo teste
+exige recusa de confirmação com saída 3 quando tipo/especificação
+lidos não correspondem ao pedido. O caso de sucesso usa um GET
+adicional de propriedades, sempre sem segundo POST.
+
+**Orçamento exato da regressão:** 3 GET antes + **1 POST** criador
++ 3 GET verificadores = **7 pedidos** (6 GET e 1 POST).
+O link de propriedades é observado na própria árvore; nenhum
+redirecionamento seguido, nenhum retry, nenhum JS executado.
+
+**LIVE nesta fatia:** prévia **NOT_RUN (0 req.)**; `--confirmar`
+**NOT_RUN (0 req.)**; verificação **NOT_RUN (0 req.)**.
+Total **0 requisições reais**, **0 escritas**, **0 resíduos novos**.
+Não repetir a criação histórica UnB `23106.001875/2026-93`.
+Permanece pendente uma nova sequência segura noutra instalação de
+treinamento, com resíduo documentado; issue #245 continua WIP.
