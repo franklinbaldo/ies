@@ -173,7 +173,20 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         }
         println!("{valor}");
     } else {
-        eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
+        // O 4xx isolado não prova ausência de efeito, mas seu status e
+        // mensagem saneada continuam disponíveis para diagnóstico.
+        if erro.status_http().is_some() {
+            eprintln!(
+                "{}",
+                linha_humana(
+                    erro.subcodigo(),
+                    "criação não confirmada; não repita o POST",
+                    erro.status_http(),
+                )
+            );
+        } else {
+            eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
+        }
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
@@ -372,6 +385,7 @@ mod tests {
                 mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
             },
         ));
+        assert_eq!(recusada.saida(), 1);
         let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida");
         assert_eq!(json["desfecho"], "nao_aplicada");
         assert_eq!(json["repeticao_segura_com_nova_previa"], true);
@@ -380,12 +394,13 @@ mod tests {
         assert!(json.get("status_http").is_none()); // validacao da Infra foi HTTP 200
 
         // Um 403 pode vir de intermediário: não confundir com prova do SEI.
-        let http = ErroCriar::RecusaDoPost(ErroSubmissaoFormulario::Transporte(
+        let http = ErroCriar::RespostaHttpSemProva(ErroSubmissaoFormulario::Transporte(
             crate::transporte::FalhaTransporte::AcessoNegado(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Proibido".to_owned()),
             }),
         ));
+        assert_eq!(http.saida(), 3); // não autorizar repetição após 403
         let json_http = json_da_recusa_criadora(&http, "Recusa HTTP");
         assert!(json_http.get("desfecho").is_none());
         assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
