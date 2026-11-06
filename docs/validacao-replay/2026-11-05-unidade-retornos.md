@@ -65,6 +65,33 @@ afirmado e de **5 GETs** (Controle + calendario inicial + 2 transicoes
 + consulta mensal), **zero POST**, sem restaurar a tela. Esses dois
 testes exercitam o codigo de navegacao com respostas sinteticas;
 **nao sao replay de uma sequencia real de calendario**. O replay
-obrigatorio do CI continua sendo o dos 14 HTMLs mensais do acervo.
+obrigatorio do CI agora confere 14 HTMLs mensais **e 49 respostas
+de calendario** nas sete instalacoes, pelo extrator de producao.
 A leitura ao vivo **sem `--mes`** em GO e PEN3 esta registrada no
 [relatorio live](../validacao-live/2026-11-05-unidade-retornos.md).
+
+## Filtro de acao do calendario — regressao resolvida
+
+No [CI 42150016425](https://github.com/franklinbaldo/ies/actions/runs/42150016425),
+o replay ampliado recusou o calendario UnB no passo 17 como
+`link_de_retornos_fora_da_instalacao`. O diagnostico **agregado,
+sem URLs nem hashes**, identificou um link de outra acao entre
+39 ancoras que mencionavam `retorno_programado_listar`.
+A mera ocorrencia dessa palavra num `href` nao identifica a acao
+da ancora. A selecao passou a exigir
+`acao=retorno_programado_listar`; depois disso, a validacao
+estrita de origem, parametros e assinatura continua obrigatoria.
+
+O teste sintetico `link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario`
+foi publicado antes da correcao: **RED comprovado**, com
+**1 teste falhando, 1.648 passando e 18 ignorados** no
+[CI 42151963795](https://github.com/franklinbaldo/ies/actions/runs/42151963795).
+Ele exige leitura completa em **3 GET contando Controle**, ignorando
+o link alheio sem executar JavaScript, POST ou retry.
+
+**GREEN da correcao:** [CI 42152204051](https://github.com/franklinbaldo/ies/actions/runs/42152204051),
+5/5 jobs PASS. Replay obrigatorio: **49 calendarios** e **14
+paginas mensais lidas, zero recusas**, com ZIPs e membros conferidos.
+Este ensaio foi inteiramente offline: **zero requisicoes reais ao SEI
+e zero escrita ou residuo**. Nao comprova, por si, o caso live de
+calendario inicialmente deslocado, que continua NOT_RUN.
