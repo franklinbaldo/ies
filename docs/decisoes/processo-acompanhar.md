@@ -50,6 +50,10 @@ uma URL se tiver exatamente um link válido, conferido pelo leitor
 `arvore_processo::acompanhar`. O gerenciador fornece a tabela ou o
 302 para cadastro. A prévia valida a identidade do formulário, escolhe
 nome exato ou branco observado, e exige identidade única na remoção.
+A tabela de gerência recusa ainda grupo duplicado entre IDs diferentes:
+antes de concluir `ja_estava`, é indispensável uma identidade não ambígua.
+Usa o erro já contratado `grupo_de_acompanhamento_ambiguo`, sem nova
+requisição ou inferência de preferência pela primeira linha.
 A contagem inclui todos os GETs. Para incluir, a prévia também
 confere se o primitivo `formulario_web` pode derivar o POST exato da
 tela; somente `--confirmar` consome a submissão uma vez. O formulário
