@@ -327,3 +327,20 @@ sem consultar Gerados depois da recusa. Um processo equivalente surgido
 na conta compartilhada pode ter sido criado por outro agente: nunca
 transformar uma recusa explícita em sucesso. Falha de rede sem resposta e
 5xx continuam elegíveis para reconciliação conservadora, sem retry.
+
+
+## Desfecho verificável de ambiguidade após POST (#245)
+
+Se a leitura independente de **todos** os novos processos encontrar **dois
+ou mais** com ID/NUP, tipo e especificação comprovados e coincidentes,
+a CLI responde saída **3** com subcódigo
+`candidatos_ambiguos_na_criacao`. No JSON, publica
+`desfecho: "candidatos_ambiguos"` e `candidatos_compativeis` com os
+NUPs observados, além de `causa_post` e da fotografia posterior.
+No humano, identifica a ambiguidade e os NUPs, sem inferir o autor da
+escrita nem recomendar repetição. Com dois candidatos, a prova usa
+**3 GET antes + 1 POST criador + 1 GET Controle + 6 GET de processos = 11
+requisições** sintéticas, sem retry. Uma única correspondência, após
+verificar todos, continua permitindo saída 0; zero correspondências
+**não** prova não aplicação e mantém saída 3. O desfecho de não
+aplicação com prova própria continua pendente.
