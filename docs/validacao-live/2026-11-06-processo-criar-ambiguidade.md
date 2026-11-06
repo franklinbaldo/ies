@@ -239,3 +239,29 @@ Total **0 requisições reais**, **0 escritas**, **0 resíduos novos**.
 Não repetir a criação histórica UnB `23106.001875/2026-93`.
 Permanece pendente uma nova sequência segura noutra instalação de
 treinamento, com resíduo documentado; issue #245 continua WIP.
+
+## 🦉 RED do nível de acesso na reconciliação (06/11/2026)
+
+**Observação anterior:** leitor de propriedades Web e fixtures sintéticas
+`tela_das_propriedades`/`tela_restrita`, derivadas da estrutura
+observada na UnB 4.0.9; propriedade `rdoNivelAcesso` já publicada.
+A verificação independente após `Location` legítimo conferia o nível,
+mas a reconciliação do POST sem resposta não o comparava.
+
+**RED test-first:** [CI 42243502996](https://github.com/franklinbaldo/ies/actions/runs/42243502996),
+**1 FAIL novo, 1.724 PASS, 22 ignored preexistentes**. Com 3 GET
+pré-POST + 1 POST sem resposta + 1 GET Controle + 3 GET do candidato,
+o IES anunciava `confirmado: true` e NUP de um candidato restrito,
+apesar de o pedido ser público. A falha do teste ocorreu após os
+8 pedidos sintéticos previstos; não houve SEI real.
+
+**Correção:** a leitura de propriedades agora alimenta o classificador
+com o nível observado. Uma correspondência completa exige nível exato,
+e as coincidências parciais preservadas após falha de outro candidato
+seguem a mesma exigência. Sem novos pedidos; zero retry. Nível
+divergente não prova não aplicação.
+
+**Live desta fatia:** NOT_RUN, **0 requisições reais, 0 POST, 0 escrita e
+0 resíduos**. A criação histórica da UnB não deve ser repetida.
+O ensaio autorizado numa segunda instalação de treinamento continua
+pendente (prévia → um único `--confirmar` → releitura e registro do resíduo).
