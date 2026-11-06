@@ -344,6 +344,7 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&acao=procedimento_excluir&id_procedimento=10&infra_hash={HASH}"
         )),
+        ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -354,8 +355,11 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
-    assert_eq!(requests.len(), 4);
+    assert_eq!(
+        resultado.unwrap_err().diagnostico_apos_post().unwrap().causa_post,
+        "localizacao_invalida_apos_post_criador"
+    );
+    assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
@@ -375,6 +379,7 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_procedimento=invalido&infra_hash={HASH}"
         )),
+        ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -385,8 +390,11 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::EfeitoIncerto));
-    assert_eq!(requests.len(), 4);
+    assert_eq!(
+        resultado.unwrap_err().diagnostico_apos_post().unwrap().causa_post,
+        "localizacao_invalida_apos_post_criador"
+    );
+    assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
         1
