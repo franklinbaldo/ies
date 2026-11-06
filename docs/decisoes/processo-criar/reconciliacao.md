@@ -104,9 +104,12 @@ Controle já conhecida, sem tentar inventar o endereço do processo novo.
 A próxima fatia usa links **servidos na linha Gerados**, nunca links
 inferidos de IDs, e os leitores já disponíveis de tela, árvore e
 propriedades. Para cada candidato é necessário comprovar unidade,
-ID/NUP, tipo e especificação. Retornar sucesso é permitido apenas para
-uma correspondência exata com todos os candidatos conferidos. Sem
-propriedades publicadas, falha fechado e preserva a causa do POST.
+ID/NUP, tipo e especificação. A correspondência exata com todos os
+candidatos conferidos é necessária, mas **não prova a autoria de um POST
+sem resposta** numa conta compartilhada. Mesmo se for única, o resultado
+permanece inconclusivo (saída 3), como detalha a
+[decisão causal](concorrencia-pos-post.md). Sem propriedades publicadas,
+falha fechado e preserva a causa do POST.
 O novo leitor consome 1 GET da caixa e 3 GET por candidato; não faz
 retry nem novo POST. A ausência de candidatos não prova não aplicação.
 O ensaio live nesta fatia não foi executado.
