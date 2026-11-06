@@ -205,7 +205,6 @@ fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
-
 /// O diagnóstico público de uma escrita incerta deve contar também o
 /// POST tentado e o GET de prova, sem inventar sucesso por coincidência.
 #[test]
