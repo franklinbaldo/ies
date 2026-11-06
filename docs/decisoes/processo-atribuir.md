@@ -4,7 +4,7 @@ title: Leitura estrita da tela de atribuição de processo
 operation: processo.atribuir
 implementation: partial
 status: adopted-for-scope
-scope: prévia Web de ies processo atribuir (seleção estrita e corpo POST derivado sem envio); --confirmar recusa antes da sessão nesta fatia
+scope: prévia Web e transporte injetável (POST único e verificação por leitura); --confirmar público permanece bloqueado antes da sessão
 selected_strategy: usuario-exato-da-lista-e-arvore-como-fonte
 alternatives: usuario-exato-da-lista-e-arvore-como-fonte,substring,html-sem-conferencia,rest-wssei
 evidence_level: pagina-real-todos-323eb01-testes-sinteticos
@@ -49,9 +49,14 @@ navegador. Rejeita um mesmo ID de usuário associado a dois logins. Os
 testes sintéticos conferem o payload de atribuição e o `null` de remoção,
 sem requisições. A prévia foi extraída para um fluxo injetável com testes
  que afirmam 4 GET e 0 POST, e a CLI preserva status HTTP e mensagem saneada.
- O POST real, a releitura do efeito e o ensaio ao vivo
-**ainda não foram implementados**. `--confirmar` permanece fechado antes
-da sessão. Não confundir a preparação verde com autorização para enviar.
+O fluxo interno de transporte agora envia um POST no máximo uma vez,
+reabre a árvore e compara a atribuição na unidade e no processo originais.
+Falha do POST não gera retry. Se a releitura não comprovar exatamente o
+pedido, a operação devolve efeito incerto (saída 3). Os testes injetados
+afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto em atribuição quanto
+em remoção. A CLI pública `--confirmar` continua recusada antes da sessão
+porque **replay específico e validação ao vivo não foram executados**.
+Não confundir a cobertura sintética com autorização para enviar.
 
 ## Evidências verificáveis
 
@@ -70,7 +75,8 @@ derivado; não comprovam POST nem efeito no SEI.
 
 ## Limitações e revisão
 
-`--confirmar` recusa `escrita_de_atribuicao_ainda_nao_verificada` antes
-de abrir a sessão. A decisão será revista quando houver testes de
-transporte do POST único, releitura e saída 3, além de replay e live em
-treinamento.
+`--confirmar` ainda recusa `escrita_de_atribuicao_ainda_nao_verificada`
+antes de abrir sessão. O fluxo injetável possui testes de POST único,
+releitura e saída 3, mas a decisão será revista após replays e validações
+em duas instalações de treinamento. O RED observou 4 testes falhando,
+1.689 aprovados no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454).
