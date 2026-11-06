@@ -313,3 +313,7 @@ pub(crate) fn preparar_submissao(
 #[cfg(test)]
 #[path = "processo_atribuir/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "processo_atribuir/tests_fluxo.rs"]
+mod tests_fluxo;
