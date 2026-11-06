@@ -232,3 +232,28 @@ exigindo a cadeia inteira, sem executar JS, regex nem inserir requisições.
 O teste sintético de `54a7ac1` passou sem RED; **a correção real na UnB
 permanece a verificar** em nova prévia de treinamento antes de decidir
 sobre qualquer confirmação. O diagnóstico não produziu resíduo.
+
+## Revisão — distinguir aceite da coincidência temporal (06/11/2026)
+
+**Problema observado em revisão do head `76912e7`:** o HTML 200 era
+tratado automaticamente como aceite de inclusão. Numa conta compartilhada,
+um outro agente pode ter incluído documento do mesmo tipo entre as fotos,
+enquanto o POST do IES apenas reapresentou o cadastro. A diferença da
+árvore prova existência, **não causalidade**. Na mesma fronteira,
+o erro do envio era descartado, inclusive status HTTP e mensagem saneada.
+
+**Alternativa rejeitada:** concluir por qualquer HTML 200 ou 302 para
+uma ação arbitrária do controlador. **Decisão:** aceitar como indício
+positivo apenas 302 para `documento_visualizar` com `id_documento`
+único e correspondente ao nó novo da árvore. HTML 200 sem marcador de
+aceite observado é inconclusivo. Não executar scripts nem seguir o 302.
+Se o POST falhar, ainda reler a árvore, mas devolver saída 3 com causa
+tipada original do envio e diagnóstico HTTP, sem retry. Preservar o
+subcódigo público `efeito_incerto_na_criacao_de_documento`.
+A validação real de retorno da instalação continua pendente; não inventar
+marcador HTML de sucesso.
+
+**RED antes do miolo:** [run 42229169889](https://github.com/franklinbaldo/ies/actions/runs/42229169889),
+**3 FAIL novos, 1.753 PASS, 23 ignorados**: HTML 200 com criação
+concorrente, erro 403 e erro 503 descartados. Os testes são sintéticos,
+com uma chamada POST e uma GET de releitura, sem repetição.
