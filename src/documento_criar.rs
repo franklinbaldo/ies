@@ -184,13 +184,11 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
 fn script_prova_escolha(html: &str) -> bool {
-    let compacto: String = html.chars().filter(|c| !c.is_ascii_whitespace()).collect();
-    // Não aceitar outra definição com o mesmo nome: poderia sobrescrever a
-    // função observada no navegador, e nosso POST já não seria equivalente.
-    compacto.matches("functionescolher(").count() == 1
-        && compacto.contains(
-            "functionescolher(id){document.getElementById('hdnIdSerie').value=id;document.getElementById('frmDocumentoEscolherTipo').submit();}",
-        )
+    guarda_script::script_publica_funcao_de_navegacao(
+        html,
+        "functionescolher(",
+        "functionescolher(id){document.getElementById('hdnIdSerie').value=id;document.getElementById('frmDocumentoEscolherTipo').submit();}",
+    )
 }
 
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
@@ -228,12 +226,11 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     {
         return Err(E::LinkDoTipoNaoNavegavel);
     }
-    let compacto: String = html.chars().filter(|c| !c.is_ascii_whitespace()).collect();
-    if compacto.matches("functionexibirSeries(").count() != 1
-        || !compacto.contains(
-            "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
-        )
-    {
+    if !guarda_script::script_publica_funcao_de_navegacao(
+        html,
+        "functionexibirSeries(",
+        "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
+    ) {
         return Err(E::LinkDoTipoNaoNavegavel);
     }
     Ok(true)
