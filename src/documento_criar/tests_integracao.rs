@@ -172,6 +172,22 @@ fn executar_com_cadastro_sintetico(
 }
 
 #[test]
+fn funcao_submeter_observada_no_sei_409_publica_sinalizador() {
+    // Fonte: Todos tests/paginas_reais/documento_gerar.html @323eb01,
+    // linhas 627-632. Essa é uma estrutura de código lida, não JS executado.
+    let html = cadastro()
+        .replace(
+            "<script>",
+            "<script>function submeter(){\n  desabilitarBotaoSalvar(true);\n",
+        )
+        .replace(
+            "</script>",
+            "\n  document.getElementById('frmDocumentoCadastro').submit();\n}</script>",
+        );
+    assert!(cadastro_publica_script_de_criacao(&html));
+}
+
+#[test]
 fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
     // O HTML de treinamento não prova uma instrução executável quando a
     // sequência aparece em template, JSON, comentário ou script duplicado.
