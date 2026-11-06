@@ -132,3 +132,24 @@ Próxima fatia: confrontar offline os fatos da tela/árvore UFRJ,
 estabelecer um teste de regressão antes da correção e só voltar ao
 treinamento com o orçamento controlado. Enquanto isso,
 `--confirmar` fica recusado antes da sessão e da rede.
+
+## Diagnóstico offline da recusa UFRJ (fatia posterior)
+
+Os dois ensaios UFRJ acima **não** publicaram a sigla da unidade da
+tela de abertura, apenas a presença da unidade PR-P na leitura comum
+da árvore; portanto **a causa ainda não foi identificada**. A bancada
+reproduz a hipótese de divergência com uma tela sintética de unidade
+`TESTE` e árvore com `PR-P`. O teste verifica que não há inferência
+de atribuição nem POST: **3 GET e 0 POST** (a recusa ocorre antes do
+GET do formulário). Essa é uma hipótese diagnóstica, não uma afirmação
+sobre a unidade verdadeira da sessão UFRJ.
+
+A recusa tipada `situacao_da_atribuicao_nao_observada` preserva
+`unidade` (da tela), `aberto_em` (unidades da árvore ou `null` quando
+não lidas), `motivo` e `requisicoes` tentadas até a recusa. Isso
+permite observar a discrepância com a próxima prévia em processo
+**diferente** e com orçamento controlado, sem publicar cookies nem
+URLs assinadas, e sem relaxar a guarda. O teste foi enviado primeiro
+como RED no commit `9a3b964`; a execução RED e o CI do head novo
+precisam ser confirmados no GitHub. Não houve nova execução live,
+nem escrita, nem resíduo nesta fatia (**NOT_RUN, 0 GET/POST reais**).
