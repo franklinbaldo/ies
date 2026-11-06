@@ -185,3 +185,30 @@ releitura **NOT_RUN (0)**; total **0 requisições reais**, **0 escritas**
 e **0 resíduos novos**. O histórico UnB `23106.001875/2026-93`
 não será repetido. Segunda instalação de treinamento e sequência
 segura prévia → confirmação única → leitura seguem pendentes.
+
+
+## Continuação 🦉 — coincidência comprovada antes de falha posterior (06/11/2026)
+
+**Observação pré-RED:** o leitor de Gerados e das propriedades já
+observados para #245 permite obter prova completa de um candidato e
+falhar em outro. O caso foi reproduzido apenas por transporte e HTML
+**sintéticos**, sem nova observação live.
+
+**RED comportamental:** [CI 42226093955](https://github.com/franklinbaldo/ies/actions/runs/42226093955),
+**1 FAIL / 1.711 PASS / 22 ignored preexistentes**. A verificação do
+segundo candidato falhou; a primeira correspondência já comprovada
+não era publicada (`None` em vez do NUP).
+
+**Critério e orçamento de bancada:** 3 GET anteriores, **1 POST**
+sem resposta, 1 GET posterior do Controle, 3 GET de verificação do
+primeiro NUP e 1 GET falho do segundo = **9 pedidos**. A saída
+continua 3; não se afirma autoria, unicidade ou ausência de efeito.
+O JSON apresenta as coincidências parciais separadas do desfecho
+de ambiguidade completa. Nenhuma requisição é repetida.
+
+**LIVE nesta execução:** prévia **NOT_RUN (0)**; único
+`--confirmar` **NOT_RUN (0)**; releitura **NOT_RUN (0)**; total
+**0 requisições reais, 0 POSTs reais, 0 escritas e 0 resíduos novos**.
+O NUP histórico da UnB treinamento não recebeu novo POST.
+Falta ensaio prévia → confirmação única → leitura, com registro
+de resíduo, numa segunda instalação de treinamento. Issue #245 WIP.
