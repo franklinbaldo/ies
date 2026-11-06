@@ -195,10 +195,6 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
-    // A exclusão exige formulário próprio; só a inclusão pode confirmar.
-    if pedido.confirmar && pedido.deixar {
-        return Err(ErroPrevia::ConfirmacaoNaoImplementada);
-    }
     if pedido.deixar && pedido.observacao.is_some() {
         return Err(ErroPrevia::PedidoInvalido);
     }
@@ -216,6 +212,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let res = rede.get_sem_seguir(link.as_str(), &cookie)?;
+    let mut submissao: Option<SubmissaoDerivada> = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
         let url = redirecionamento_do_gerenciar(
             &instalacao,
@@ -223,13 +220,35 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             link.as_str(),
             &id,
         )?;
-        (Vec::new(), Some(url))
+        // O redirect, sozinho, não prova uma lista vazia. A tela de
+        // cadastro deve ser lida e identificada no processo correto.
+        if pedido.deixar {
+            let (html, _) = html_da_tela(&mut rede, &cookie, &url)?;
+            grupos_do_cadastro(&html, &id)?;
+            (Vec::new(), None)
+        } else {
+            (Vec::new(), Some(url))
+        }
     } else {
+        let mime = res.resposta.mime.clone();
         let html = decodificar_resposta(res.resposta)?;
         let antes = acompanhamentos_da_lista(&html)?;
         if pedido.deixar && !antes.is_empty() {
             let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
-            super::exclusao::conferir_oferta_exclusao(&instalacao, &html, &id, &alvo.id)?;
+            let destino =
+                super::exclusao::conferir_oferta_exclusao(&instalacao, &html, &id, &alvo.id)?;
+            if pedido.confirmar {
+                let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+                    .ok_or(ErroPrevia::TelaInesperada)?;
+                let tela = crate::formulario_web::TelaServida {
+                    url: link.as_str(),
+                    html: &html,
+                    codificacao,
+                };
+                submissao = Some(super::submissao::derivar_exclusao(
+                    &instalacao, &tela, &unidade, &alvo.id, &destino,
+                )?);
+            }
         }
         let url = if pedido.deixar {
             None
@@ -238,7 +257,6 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         };
         (antes, url)
     };
-    let mut submissao: Option<SubmissaoDerivada> = None;
     let grupos = if pedido.deixar {
         None
     } else {
@@ -282,6 +300,19 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Ok(plano);
     }
     let submissao = submissao.ok_or(ErroPrevia::TelaInesperada)?;
+    if pedido.deixar {
+        return confirmar_remocao(
+            &mut rede,
+            sessao,
+            &instalacao,
+            &id,
+            link.as_str(),
+            &cookie,
+            &antes,
+            plano,
+            submissao,
+        );
+    }
     confirmar_inclusao(
         &mut rede,
         sessao,
@@ -343,6 +374,102 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         })
         .ok_or(ErroPrevia::EfeitoIncerto)?;
     plano.id_de_remocao = Some(novo.id.clone());
+    plano.alterado = true;
+    plano.requisicoes = rede.feitas();
+    Ok(plano)
+}
+
+/// Depois do único POST da linha, exige redirect assinado ao gerenciador
+/// do MESMO processo. A releitura é independente, mas nunca é tomada como
+/// confirmação se a resposta do envio desviou para outra operação.
+fn aceite_da_remocao(
+    resposta: &Result<RespostaDoEnvio, crate::formulario_web::ErroSubmissaoFormulario>,
+    instalacao: &Instalacao,
+    id: &str,
+) -> bool {
+    let Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) = resposta else {
+        return false;
+    };
+    let Some(consulta) = redirecionamento
+        .localizacao()
+        .and_then(|loc| crate::formulario_web::consulta_do_controlador(
+            loc, redirecionamento.url_do_envio(),
+        ))
+    else {
+        return false;
+    };
+    crate::arvore_processo::conferir_endereco_relativo(
+        instalacao,
+        &format!("controlador.php?{consulta}"),
+        "acompanhamento_gerenciar",
+        id,
+    )
+    .is_ok()
+}
+
+/// A última retirada pode tornar o gerenciador um 302 para o cadastro.
+/// Só o cadastro válido do processo, lido por GET explícito, comprova
+/// a ausência de linhas; HTML truncado ou redirect estranho são incertos.
+fn releitura_da_remocao<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    instalacao: &Instalacao,
+    id: &str,
+    link: &str,
+    cookie: &str,
+) -> Option<Vec<Acompanhamento>> {
+    let res = rede.get_sem_seguir(link, cookie).ok()?;
+    if res.resposta.status_code == 302 {
+        let url = redirecionamento_do_gerenciar(
+            instalacao,
+            res.localizacao.as_deref(),
+            link,
+            id,
+        ).ok()?;
+        let (html, _) = html_da_tela(rede, cookie, &url).ok()?;
+        grupos_do_cadastro(&html, id).ok()?;
+        return Some(Vec::new());
+    }
+    let html = decodificar_resposta(res.resposta).ok()?;
+    acompanhamentos_da_lista(&html).ok()
+}
+
+/// A escrita nunca se repete, nem após erro de rede. O único critério de
+/// sucesso é o aceite observado E a leitura nova com desaparecimento
+/// exclusivo da linha alvo, preservando todas as demais identidades.
+fn confirmar_remocao<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    id: &str,
+    link: &str,
+    cookie: &str,
+    antes: &[Acompanhamento],
+    mut plano: Previa,
+    submissao: SubmissaoDerivada,
+) -> Result<Previa, ErroPrevia> {
+    let mut enviado = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
+        enviado = true;
+        rede.post(formulario, cookie)
+    });
+    if !enviado {
+        return Err(ErroPrevia::Formulario(
+            resposta.err().ok_or(ErroPrevia::TelaInesperada)?,
+        ));
+    }
+    let aceite = aceite_da_remocao(&resposta, instalacao, id);
+    let depois = releitura_da_remocao(rede, instalacao, id, link, cookie);
+    let verificado = depois.as_deref().is_some_and(|linhas| {
+        super::conferir_remocao(
+            antes,
+            linhas,
+            plano.id_de_remocao.as_deref().unwrap_or_default(),
+        )
+        .is_ok()
+    });
+    if !aceite || !verificado {
+        return Err(ErroPrevia::EfeitoIncerto);
+    }
     plano.alterado = true;
     plano.requisicoes = rede.feitas();
     Ok(plano)
