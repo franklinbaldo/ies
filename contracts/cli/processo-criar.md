@@ -219,3 +219,21 @@ As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 As regras de comparação da caixa Gerados, classificação de candidatos,
 recusa expressa da Infra, HTTP 4xx inconclusivo e orçamentos por cenário
 estão no [contrato de reconciliação](processo-criar/reconciliacao.md).
+
+## Catálogo de subcódigos da reconciliação
+
+O significado e as condições de emissão permanecem no
+[complemento de reconciliação](processo-criar/reconciliacao.md).
+
+| Subcódigo | Fato verificável |
+| --- | --- |
+| `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
+| `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
+| `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
+| `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
+| `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
+| `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
+| `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
+| `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
+| `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |
