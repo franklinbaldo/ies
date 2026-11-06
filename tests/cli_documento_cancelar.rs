@@ -67,7 +67,7 @@ fn recusa_motivo_tipado_sem_subcodigo_antes_da_sessao() {
             }
             let humano = sem_sessao(&args);
             assert_eq!(humano.status.code(), Some(2));
-            assert!(humano.stdout.is_empty());
+            assert_eq!(humano.stdout, b"");
             assert_eq!(
                 String::from_utf8(humano.stderr).unwrap(),
                 format!("IES: {mensagem}\n")
@@ -75,7 +75,7 @@ fn recusa_motivo_tipado_sem_subcodigo_antes_da_sessao() {
             args.push("--json");
             let resultado = sem_sessao(&args);
             assert_eq!(resultado.status.code(), Some(2));
-            assert!(resultado.stderr.is_empty());
+            assert_eq!(resultado.stderr, b"");
             assert_eq!(
                 String::from_utf8(resultado.stdout).unwrap(),
                 format!("{esperado}\n")
