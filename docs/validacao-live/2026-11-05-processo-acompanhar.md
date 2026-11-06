@@ -99,3 +99,39 @@ anterior foi ignorado ou enfraquecido.
   **Resíduo no SEI: nenhum.** Nenhuma instalação foi acessada.
 - **Segurança:** `--deixar --confirmar` permanece bloqueado antes de
   carregar a sessão; falta derivar o POST único e validar a conferência.
+
+## Quarta fatia — 🐢 Tartaruga: retirada com POST e releitura (WIP)
+
+- **Fonte observada antes do RED:** `franklinbaldo/todos`
+  `src/todos/acompanhamento.py` e
+  `tests/test_processo_acompanhar_010.py` @`323eb01`: o JS servido
+  escreve `hdnInfraItemId`, altera o action para a exclusão, envia
+  o form da tabela, recebe redirect ao gerenciador; após excluir o
+  último, a leitura pode levar ao cadastro.
+- **Testes novos antes da implementação:** seis cenários de transporte
+  sintético, commits `735b470` e `e276b71`, com orçamento esperado
+  de **4 GET + 1 POST + 1 GET = 6** requisições; no caso de redirect
+  do gerenciador ao cadastro, mais um GET, total **7**. Testam
+  sucesso, desvio para outro processo, falha do POST, manutenção
+  da linha e cadastro incompleto.
+- **RED desses seis testes:** NOT_RUN (falhas não observadas).
+  CI da PR não foi acionado pelos commits desta fatia. **GREEN:**
+  NOT_RUN (nenhum job de Rustfmt, Clippy, Rust e OKF do head novo
+  confirmado). O CI antigo do head `8724902` não prova os novos commits.
+- **Rust/prek no sandbox:** NOT_RUN (toolchain ausente; sem acesso
+  de rede para instalá-lo). Nenhum teste antigo foi enfraquecido.
+- **Replay original das cassettes:** NOT_RUN; 0 pedidos reais.
+- **Prévia live em treinamento:** NOT_RUN; 0 GETs.
+- **`--confirmar` live em treinamento:** NOT_RUN; 0 POSTs.
+- **Releitura live em treinamento:** NOT_RUN; 0 GETs.
+- **Resíduo criado/alterado no SEI:** nenhum; 0 instalações acessadas.
+- **Condição de segurança:** sem retry e sem execução de JS; qualquer
+  efeito não comprovado é tipado `EfeitoIncerto` (saída 3), incluindo
+  ausência de 302 válido ou falha na releitura. O caminho novo ainda
+  precisa passar no CI e em revisão antes de qualquer ensaio de
+  escrita autenticada, mesmo em treinamento.
+
+Próxima execução: obter compilação e testes no CI, corrigir eventuais
+falhas sem desligar gates; executar replay das cassettes e, depois,
+prévia autenticada em treinamento → único `--confirmar` →
+verificação independente por leitura, relatando o resíduo.
