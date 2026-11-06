@@ -193,6 +193,26 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         if resposta.operacao == "unidade_selecionar_envio_processo" {
             let html = html_da_resposta(resposta.item)
                 .unwrap_or_else(|_| panic!("lupa UnB ilegível no passo {}", resposta.passo));
+            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lupa UnB HTML");
+            let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+                .expect("formulario da lupa UnB");
+            let mut submits_nomeados = 0;
+            let mut submits_sem_nome = 0;
+            let mut controles = 0;
+            for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+                let elemento = tag.name().as_utf8_str();
+                if elemento != "input" && elemento != "button" { continue; }
+                controles += 1;
+                let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
+                    .expect("tipo UnB");
+                if tipo.as_deref().is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit")) {
+                    let nome = crate::html_atributos::valor_do_atributo(tag, "name")
+                        .expect("nome UnB");
+                    if nome.as_deref() == Some("btnPesquisar") { submits_nomeados += 1; }
+                    else if nome.is_none() { submits_sem_nome += 1; }
+                }
+            }
+            println!("observacao UnB formulario passo {}: controles={}, submits_nomeados={}, submits_sem_nome={}", resposta.passo, controles, submits_nomeados, submits_sem_nome);
             let lida = ler_pagina(&html)
                 .unwrap_or_else(|e| panic!("lupa UnB passo {}: {e:?}", resposta.passo));
             assert!(lida.paginas >= 1);
