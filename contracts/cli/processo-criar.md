@@ -212,3 +212,77 @@ As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 | `hipotese_legal_informada_invalida` | ID#NOME ausente/inválido ou escolha em nível público |
 | `hipotese_legal_escolha_nao_oferecida` | Par exato ID#NOME não consta do AJAX observado |
 | `hipotese_legal_escolha_inline_nao_verificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
+
+## Reconciliação automática após resposta incerta (#245 — fatia em andamento)
+
+A confirmação atual ainda pode devolver `efeito_incerto_na_criacao`/saída 3
+quando o POST criador falha ou não apresenta resultado verificável.
+A reconciliação **ainda não está ligada à CLI** e não há autorização
+para repetir o POST de criação da UnB que já produziu
+`23106.001875/2026-93` (id 51731).
+
+A primeira peça implementada, `src/processo_criar/reconciliacao.rs`,
+é pura, sem requisições. Ela lê dois retratos da lista **Gerados** pela
+infraestrutura de `paginas`, exige unidade conferida, total publicado,
+intervalo integral de 1 até o total e todas as linhas; recusa cobertura
+incompleta, identidade anterior alterada e desaparecimento de ID.
+Compara `id_procedimento` e NUP como valores opacos e devolve **candidatos**,
+sem atribuir causalidade ao POST. Lista vazia de candidatos **não**
+significa que a criação certamente não ocorreu: a caixa pode variar
+entre requisições e ainda falta verificar tipo/especificação em `processo NUP`.
+Não expõe links assinados, cookie ou `infra_hash`.
+
+Os oito testes sintéticos da fatia usam só HTML local, com
+**zero requisições e zero POST**. Ainda faltam a captura prévia de Gerados
+antes da escrita, sua leitura posterior sem repetir requests,
+a verificação dos NUPs, os quatro resultados de transporte injetado
+(aplicada, não aplicada, candidatos ambíguos e erro de reconciliação),
+as duas causas no erro final e a prova live. Não interpretar a peça
+offline como reconciliação completa.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
+| `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
+
+### Guarda de segurança antes do POST (#245 — continuação)
+
+Na confirmação, depois de validar o cadastro e **antes do primeiro POST
+criador**, o fluxo monta uma fotografia de **Gerados** com a leitura do
+Controle já efetuada. Exige mesma unidade, total declarado e cobertura
+integral; legenda paginada/indeterminada recusa com causa tipada
+`gerados_sem_cobertura_completa_para_reconciliacao`, saída 1, **sem
+POST criador** e **sem GET extra**. A prévia permanece disponível.
+Esse é um pré-requisito da reconciliação, **não** sua implementação:
+ainda não há comparação posterior nem classificação automática da falha
+do POST. Não interpretar a proteção como escrita homologada em live.
+
+### Releitura conservadora pós-POST e candidatos (issue #245)
+
+Depois de uma falha observada **após iniciar o POST criador**, o fluxo faz
+**uma única nova leitura do Controle** na mesma sessão e compara Gerados
+com o retrato integral anterior. Orçamento de teste: **3 GET de prévia,
+1 POST criador e 1 GET de reconciliação = 5 pedidos, sem retry**.
+Se até essa leitura falha, a saída é 3 e preserva as duas causas.
+Se dá certo, ainda é saída 3: a diferença são **candidatos observados**,
+não prova da aplicação ou de que repetir a escrita é seguro.
+O JSON publica `causa_post`, `causa_releitura` e
+`candidatos_observados_na_caixa` (null se releitura falhou), mas nunca
+cookie, assinatura, URL ou hash.
+
+O classificador offline `processo_criar/desfechos.rs` usa candidatos e
+provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
+e especificação exatos; falta de leitura, identidade divergente,
+prova duplicada e propriedades não observadas são recusadas.
+Uma correspondência: `Aplicada`; duas ou mais: `CandidatosAmbiguos`;
+zero: `SemCorrespondenciaObservada` — **não** prova de não aplicação.
+O classificador ainda NÃO está ligado à leitura de propriedades no
+transporte. Os quatro desfechos automáticos e o ensaio live faltam.
+
+| Subcódigo | Fato |
+| --- | --- |
+| `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
+| `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
+| `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
+| `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |

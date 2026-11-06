@@ -2,36 +2,14 @@
 //! Navegação: Controle → `grupo_unidade_listar` → Novo → cadastro
 //! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
 use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
-use crate::formulario_web::RespostaDoPost;
-use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-};
+use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::UnidadeGuardada;
 use crate::instalacao::Instalacao;
-use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::{FalhaTransporte, decodificar_resposta, validar_origem};
 use std::io::Read;
 
-const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "unidade_selecionar_envio_processo",
-    formulario: "frmUnidadeLista",
-    envio: EnvioDoFormulario::BotaoDeEnvio("btnPesquisar"),
-    campos_ocultos_exigidos: &["hdnInfraPaginaAtual"],
-    campos_ocultos_reescritos: &["hdnInfraPaginaAtual"],
-    campos_usuario: &[
-        "selOrgaoUnidade",
-        "txtSiglaUnidade",
-        "txtDescricaoUnidade",
-        "selInfraPaginacaoSuperior",
-        "selInfraPaginacaoInferior",
-    ],
-    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
-        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
-    },
-};
+mod consulta;
+use consulta::consulta;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum FalhaDaLupa {
@@ -330,79 +308,76 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     let parser = dom.parser();
     let achados =
         crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
-    let tag = match achados.as_slice() {
-        [] => return Err(FalhaDaLupa::LinkAusente),
-        [unico] => unico
+    if achados.is_empty() {
+        return Err(FalhaDaLupa::LinkAusente);
+    }
+    // Na UnB a cassette publica dois btnNovo com o MESMO destino assinado.
+    // Aceitar duplicidade de id apenas se CADA botão publicar sozinho
+    // exatamente a mesma URL autorizada. Botão sem alvo ou alvos distintos
+    // continuam ambíguos, antes de qualquer outro GET.
+    let duplicados = achados.len() > 1;
+    let mut destino_unico: Option<String> = None;
+    for no in achados {
+        let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaLupa::LinkAusente)?,
-        _ => return Err(FalhaDaLupa::LinkAmbiguo),
-    };
-    // Não emprestar URL de outro botão ou link da tela. Uma URL assinada
-    // de cadastro só autoriza o GET se publicada no próprio btnNovo.
-    destino_de_candidatos(
-        candidatos_do_controle(tag)?,
-        url,
-        origem,
-        "grupo_unidade_cadastrar",
-    )
-}
-
-fn consulta(
-    instalacao: &Instalacao,
-    url: &str,
-    html: &str,
-    mime: &str,
-    pagina: usize,
-) -> Result<SubmissaoDerivada, FalhaDaLupa> {
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaDaLupa::CharsetInesperado)?;
-    let indice = pagina.to_string();
-    let tela = TelaServida {
-        url,
-        html,
-        codificacao,
-    };
-    // Controles de paginação devem existir como o SEI os publica.
-    // A biblioteca de formulário insere os ocultos fixos na ordem correta.
-    derivar_submissao(
-        &CONSULTAR,
-        instalacao,
-        &tela,
-        "",
-        &[
-            ("selOrgaoUnidade", ""),
-            ("txtSiglaUnidade", ""),
-            ("txtDescricaoUnidade", ""),
-            ("hdnInfraPaginaAtual", &indice),
-            ("selInfraPaginacaoSuperior", &indice),
-            ("selInfraPaginacaoInferior", &indice),
-        ],
-    )
-    .map_err(|_| FalhaDaLupa::FormularioInesperado)
+            .ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let candidato = match destino_de_candidatos(
+            candidatos_do_controle(tag)?,
+            url,
+            origem,
+            "grupo_unidade_cadastrar",
+        ) {
+            Ok(candidato) => candidato,
+            Err(_) if duplicados => return Err(FalhaDaLupa::LinkAmbiguo),
+            Err(falha) => return Err(falha),
+        };
+        if let Some(ref anterior) = destino_unico {
+            if anterior != &candidato {
+                return Err(FalhaDaLupa::LinkAmbiguo);
+            }
+        } else {
+            destino_unico = Some(candidato);
+        }
+    }
+    destino_unico.ok_or(FalhaDaLupa::LinkAusente)
 }
 
 /// Consulta integral: quatro GETs de navegação + um POST por página;
 /// a própria lupa custa 1 GET + N POSTs, sem pagina repetida.
+#[cfg(test)]
 pub(crate) fn ler_integral<T: TransporteLupa>(
     transporte: &mut T,
     url_controle: &str,
     origem: &str,
     cookie: &str,
 ) -> Result<ListaWeb, FalhaDaLupa> {
-    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
     let mut requisicoes = 0;
-    let (controle, _) = obter(transporte, url_controle, cookie, origem, &mut requisicoes)?;
+    ler_integral_com_contador(transporte, url_controle, origem, cookie, &mut requisicoes)
+}
+
+/// Conserva a contagem das tentativas mesmo quando uma resposta e recusada.
+/// O contador e de metadados: nunca inclui URLs assinadas ou cookies.
+pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
+    transporte: &mut T,
+    url_controle: &str,
+    origem: &str,
+    cookie: &str,
+    requisicoes: &mut usize,
+) -> Result<ListaWeb, FalhaDaLupa> {
+    let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
+    let (controle, _) = obter(transporte, url_controle, cookie, origem, requisicoes)?;
     let lista = destino(&controle, url_controle, origem, "grupo_unidade_listar")?;
-    let (lista_html, _) = obter(transporte, &lista, cookie, origem, &mut requisicoes)?;
+    let (lista_html, _) = obter(transporte, &lista, cookie, origem, requisicoes)?;
     let novo = botao_novo(&lista_html, &lista, origem)?;
-    let (cadastro, _) = obter(transporte, &novo, cookie, origem, &mut requisicoes)?;
+    let (cadastro, _) = obter(transporte, &novo, cookie, origem, requisicoes)?;
     let url_lupa = destino(
         &cadastro,
         &novo,
         origem,
         "unidade_selecionar_envio_processo",
     )?;
-    let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, &mut requisicoes)?;
+    let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, requisicoes)?;
     let mut url = url_lupa;
     let mut lidas: Vec<PaginaDaLupa> = Vec::new();
     let mut total_paginas = 1;
@@ -412,7 +387,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
         }
         let post = consulta(&instalacao, &url, &html, &mime, pagina)?;
         post.url().clone_into(&mut url);
-        requisicoes += 1;
+        *requisicoes += 1;
         let resposta = transporte
             .post(post, cookie)
             .map_err(FalhaDaLupa::Transporte)?;
@@ -434,7 +409,7 @@ pub(crate) fn ler_integral<T: TransporteLupa>(
     Ok(ListaWeb {
         total: unidades.len(),
         unidades,
-        requisicoes,
+        requisicoes: *requisicoes,
     })
 }
 
