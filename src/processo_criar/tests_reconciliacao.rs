@@ -6,12 +6,9 @@ fn tela(registros: &[(&str, &str)], total: usize, inicio: usize) -> String {
     let linhas = registros
         .iter()
         .map(|(id, numero)| {
-            format!(
-                "<tr id='P{id}'><td><a class='processoVisualizado'>{numero}</a></td></tr>"
-            )
+            format!("<tr id='P{id}'><td><a class='processoVisualizado'>{numero}</a></td></tr>")
         })
-        .collect::<Vec<_>>()
-        .join("");
+        .collect::<String>();
     let legenda = if total == 0 {
         "0 registros:".to_owned()
     } else {
@@ -34,11 +31,9 @@ const NUP_B: &str = "00000.000002/2026-02";
 #[test]
 fn novo_id_com_nup_observado_e_somente_um_candidato() {
     let antes = FotografiaDosGerados::da_tela(&tela(&[("10", NUP_A)], 1, 1), "TESTE").unwrap();
-    let depois = FotografiaDosGerados::da_tela(
-        &tela(&[("10", NUP_A), ("11", NUP_B)], 2, 1),
-        "TESTE",
-    )
-    .unwrap();
+    let depois =
+        FotografiaDosGerados::da_tela(&tela(&[("10", NUP_A), ("11", NUP_B)], 2, 1), "TESTE")
+            .unwrap();
     assert_eq!(
         antes.novos(&depois).unwrap(),
         vec![CandidatoGerado {
@@ -66,7 +61,7 @@ fn nenhuma_entrada_nova_e_apenas_ausencia_observada() {
     let html = tela(&[("10", NUP_A)], 1, 1);
     let antes = FotografiaDosGerados::da_tela(&html, "TESTE").unwrap();
     let depois = FotografiaDosGerados::da_tela(&html, "TESTE").unwrap();
-    assert!(antes.novos(&depois).unwrap().is_empty());
+    assert_eq!(antes.novos(&depois).unwrap(), Vec::<CandidatoGerado>::new());
 }
 
 #[test]
