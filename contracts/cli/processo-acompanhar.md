@@ -129,12 +129,24 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 
 ## Bloqueio de segurança desta PR Draft
 
-Os testes novos do backend foram publicados antes da implementação, mas
-não há job de compilação e suíte Rust associado ao head atual; o sandbox
-não dispõe de Rust e não pôde baixá-lo. Por isso o caminho público
+O backend de retirada já passou no
+[CI 42159033526](https://github.com/franklinbaldo/ies/actions/runs/42159033526)
+(head `297bab7`), mas **não houve replay específico do acompanhamento nem
+prévia autenticada em treinamento**. O caminho público
 `ies processo acompanhar --deixar --confirmar` permanece bloqueado
-**antes da sessão e de qualquer requisição**. O backend não deve ser
-considerado homologado ou usado manualmente para escrita. Retirar o
-bloqueio somente após CI verde, replay aplicável e validação de prévia
-em treinamento com orçamento registrado. A confirmação live autorizada
-segue prévia → um POST → releitura, com o resíduo documentado.
+**antes da sessão e de qualquer requisição**. O backend de retirada não
+deve ser invocado manualmente para escrever. Retirar o bloqueio somente
+após replay aplicável e validação segura em treinamento.
+
+Na inclusão, além da releitura exata da linha criada, o retorno 302
+do POST precisa apontar ao gerenciador do **mesmo processo**. Um redirect
+a outra ação ou processo gera efeito incerto (saída 3) sem retry,
+mesmo quando uma leitura isolada mostra linha coincidente. Se houver
+falha de transporte após POST possivelmente consumido, a releitura
+independente ainda pode conciliar o efeito sem repetir a escrita.
+Dois testes sintéticos publicados antes do código obtiveram RED:
+[CI 42163834327](https://github.com/franklinbaldo/ies/actions/runs/42163834327)
+registrou **2 falhas e 1.654 testes aprovados**. O GREEN da correção
+é aferido separadamente no head final. A confirmação live autorizada
+segue prévia → um único POST → releitura, com resíduo registrado;
+se a sequência não puder ser completada com segurança, não escrever.
