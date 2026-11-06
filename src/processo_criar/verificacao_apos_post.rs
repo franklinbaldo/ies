@@ -39,6 +39,10 @@ pub(super) fn verificar<V: EnvioDoControle>(
     if propriedades.tipo.as_deref() != Some(feito.tipo.as_str())
         || propriedades.especificacao != pedido.especificacao
         || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
+        || !super::reconciliacao::desfechos::interessados_conferem(
+            &feito.interessados,
+            &propriedades.interessados,
+        )
     {
         return Err(E::ProvaDaCriacao(ProvaDaCriacao::PropriedadesDivergentes));
     }
