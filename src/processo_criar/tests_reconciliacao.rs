@@ -67,11 +67,9 @@ fn nenhuma_entrada_nova_e_apenas_ausencia_observada() {
 #[test]
 fn dois_ids_novos_sao_preservados_sem_escolher_um_arbitrariamente() {
     let antes = FotografiaDosGerados::da_tela(&tela(&[], 0, 1), "TESTE").unwrap();
-    let depois = FotografiaDosGerados::da_tela(
-        &tela(&[("10", NUP_A), ("11", NUP_B)], 2, 1),
-        "TESTE",
-    )
-    .unwrap();
+    let depois =
+        FotografiaDosGerados::da_tela(&tela(&[("10", NUP_A), ("11", NUP_B)], 2, 1), "TESTE")
+            .unwrap();
     let encontrados = antes.novos(&depois).unwrap();
     assert_eq!(encontrados.len(), 2);
     assert_eq!(encontrados[0].nup, NUP_A);
