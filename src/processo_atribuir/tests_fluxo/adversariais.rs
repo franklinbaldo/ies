@@ -116,6 +116,41 @@ fn arvore_sem_id_e_remocao_concorrente_nao_comprovam_nosso_post() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
+// Observação pré-RED: o 302 de aceite do Todos @323eb01 publica
+// acao_origem=procedimento_atribuicao_cadastrar. Sem essa vinculação,
+// a árvore coincidente pode refletir escrita concorrente de outro agente.
+#[test]
+fn arvore_com_id_mas_sem_origem_nao_comprova_atribuicao_concorrente() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={ID}"
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET de prévia + POST + GET de prova
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn arvore_com_id_mas_sem_origem_nao_comprova_remocao_concorrente() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={ID}"
+    )));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
 /// Regressão de segurança: voltar à tela principal não identifica o processo
 /// modificado. Uma atribuição concorrente pode fazer a releitura coincidir.
 /// Caso seguro derivado da política de falhar fechado para Location genérica.
