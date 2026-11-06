@@ -18,9 +18,16 @@ pub(crate) struct FalhaPublica {
 
 impl FalhaPublica {
     pub(crate) fn nova(subcodigo: &'static str, http: Option<StatusHttpRecusado>) -> Self {
-        let status_http = http.as_ref().map(|h| h.status).filter(|status| *status != 200);
+        let status_http = http
+            .as_ref()
+            .map(|h| h.status)
+            .filter(|status| *status != 200);
         let mensagem_do_servidor = http.and_then(|h| h.mensagem_do_servidor);
-        Self { mensagem_do_servidor, status_http, subcodigo }
+        Self {
+            mensagem_do_servidor,
+            status_http,
+            subcodigo,
+        }
     }
 }
 
