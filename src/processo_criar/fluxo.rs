@@ -73,6 +73,8 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 mod erro_fluxo;
 #[path = "pos_escrita.rs"]
 mod pos_escrita;
+#[path = "verificacao_apos_post.rs"]
+mod verificacao_apos_post;
 pub(crate) use erro_fluxo::ErroCriar;
 
 pub(crate) struct PedidoCriar<'a> {
@@ -495,44 +497,9 @@ pub(crate) fn criar<V: EnvioDoControle>(
     };
     // O Location legítimo não prova o efeito da criação. Preservar a
     // causa da verificação, inclusive status HTTP, sem fazer novo POST.
-    let nup = (|| {
-        let tela_do_processo = get(envio, &url, cookie_valor, &mut requisicoes)?;
-        let tela_lida = crate::arvore_processo::ler_tela_do_processo(
-            &instalacao,
-            &tela_do_processo.html,
-            &id,
-            Some(&feito.unidade),
-        )
-        .map_err(E::Tela)?;
-        let arvore = get(
-            envio,
-            tela_lida.arvore.as_str(),
-            cookie_valor,
-            &mut requisicoes,
-        )?;
-        let nup = crate::arvore_processo::nup_declarado_na_arvore(&arvore.html)
-            .ok_or(E::EfeitoIncerto)?;
-        crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(E::Arvore)?;
-        // O redirecionamento e a árvore provam apenas ID/NUP. A resposta
-        // de sucesso deve comprovar também os dados cadastrados pelo POST.
-        let endereco = crate::arvore_processo::ler_link_das_propriedades(
-            &instalacao, &arvore.html, &id,
-        )
-        .map_err(E::Propriedades)?
-        .ok_or(E::PropriedadesNaoOferecidas)?;
-        let pagina = get(envio, endereco.as_str(), cookie_valor, &mut requisicoes)?;
-        let propriedades = crate::propriedades_processo::ler_propriedades(
-            &pagina.html, &nup, &id, endereco.fonte,
-        )
-        .map_err(E::Propriedades)?;
-        if propriedades.tipo.as_deref() != Some(feito.tipo.as_str())
-            || propriedades.especificacao != pedido.especificacao
-            || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
-        {
-            return Err(E::ProvaDaCriacao(erro_fluxo::ProvaDaCriacao::PropriedadesDivergentes));
-        }
-        Ok::<_, E>(nup)
-    })()
+    let nup = verificacao_apos_post::verificar(
+        envio, &instalacao, &url, &id, cookie_valor, &feito, pedido, &mut requisicoes,
+    )
     .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
     feito.confirmado = true;
     feito.nup = Some(nup);
