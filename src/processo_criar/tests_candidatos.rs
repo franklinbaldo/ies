@@ -129,13 +129,13 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
 fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
     let amb = ambiente();
     let recusa = "<html><body><textarea id=\"txaInfraValidacao\" name=\"txaInfraValidacao\">Criacao recusada.</textarea></body></html>";
+    // A conta compartilhada pode receber candidato de outro agente;
+    // depois da recusa nenhuma releitura deve tentar atribuí-lo a este POST.
     let respostas = vec![
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
         ok(recusa.to_owned()),
-        // Outro agente pode criar um processo equivalente na conta compartilhada.
-        // A recusa encerra a execução sem GET para atribuir tal candidato.
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -167,10 +167,6 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
                 mensagem_do_servidor: Some("Acesso negado.".to_owned()),
             },
         )),
-        ok(gerados_com_candidato()),
-        ok(trabalhar()),
-        ok(arvore_com_propriedades()),
-        ok(propriedades_correspondentes()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
