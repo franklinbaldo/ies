@@ -1,7 +1,9 @@
 //! Prévia Web de atribuição por login exato; escrita bloqueada até a
 //! sequência POST único e releitura estar coberta por teste de transporte.
 use crate::processo::NumeroProcesso;
-use crate::processo_atribuir::{ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa};
+use crate::processo_atribuir::{
+    ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
+};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso, json_base_da_falha};
 use crate::saida_erro;
 use crate::visao_do_controle::EnvioHttps;

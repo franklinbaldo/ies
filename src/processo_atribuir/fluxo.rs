@@ -58,6 +58,7 @@ impl ErroProcessoAtribuir {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
             Self::Preparacao(erro) => erro.clone().subcodigo(),
+            Self::Barra(erro) => (*erro).subcodigo(),
             _ => crate::erro_publico::folha(self),
         }
     }
@@ -126,11 +127,12 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .map_err(E::Barra)?
         .ok_or(E::AtribuicaoNaoOferecidaNaBarra)?;
     let cookie = ler_cookie(sessao).map_err(E::Cookie)?;
-    let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
-        FalhaDaTela::Transporte(falha) => E::Tela(falha),
-        FalhaDaTela::Redirecionada => E::TelaDaAtribuicaoRedirecionada,
-        FalhaDaTela::SessaoEncerrada => E::SessaoEncerradaNaAtribuicao,
-    })?;
+    let (html, mime) =
+        obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
+            FalhaDaTela::Transporte(falha) => E::Tela(falha),
+            FalhaDaTela::Redirecionada => E::TelaDaAtribuicaoRedirecionada,
+            FalhaDaTela::SessaoEncerrada => E::SessaoEncerradaNaAtribuicao,
+        })?;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
     let (valor, _submissao) = preparar_submissao(
         &instalacao,
