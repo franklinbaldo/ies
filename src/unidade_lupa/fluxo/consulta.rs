@@ -123,7 +123,16 @@ pub(super) fn consulta(
     .map_err(|e| {
         #[cfg(test)]
         if instalacao.host() == "sei.treinamento.unb.br" {
-            println!("diagnostico derivacao da lupa UnB: {}", e.subcodigo());
+            let campo = match &e {
+                crate::formulario_web::ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { campo }
+                    if CONSULTAR.campos_usuario.contains(&campo.as_str())
+                        || CONSULTAR.campos_ocultos_reescritos.contains(&campo.as_str()) =>
+                {
+                    campo.as_str()
+                }
+                _ => "<fora-dos-campos-esperados>",
+            };
+            println!("diagnostico derivacao da lupa UnB: {}, campo={campo}", e.subcodigo());
         }
         FalhaDaLupa::FormularioInesperado
     })
