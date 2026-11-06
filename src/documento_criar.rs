@@ -3,6 +3,7 @@
 mod acervo;
 mod confirmacao;
 mod fluxo;
+mod guarda_script;
 pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
 
 use crate::arvore_processo::DocumentoNaArvore;
