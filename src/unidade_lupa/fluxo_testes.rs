@@ -189,7 +189,6 @@ fn pagina_repetida_recusa_antes_de_persistir() {
     assert_eq!(rede.posts, 2);
 }
 
-
 // O primeiro GET real da cassette GO anuncia 13.671 unidades em 274
 // paginas. O acervo contem somente seis respostas; a regressao abaixo
 // gera paginas SINTETICAS para exercitar todo o ciclo, sem SEI nem
@@ -203,9 +202,12 @@ fn pagina_integral_sintetica(indice: usize, adulterar_filtro: bool) -> String {
     let fim = ((indice + 1) * TAMANHO_PAGINA).min(TOTAL_GO_SINTETICO);
     let ids: Vec<String> = (inicio..fim).map(|id| id.to_string()).collect();
     let referencias: Vec<&str> = ids.iter().map(String::as_str).collect();
-    let opcoes: String = (0..PAGINAS_GO_SINTETICAS)
-        .map(|i| format!("<option value='{i}'>{}</option>", i + 1))
-        .collect();
+    use std::fmt::Write as _;
+    let mut opcoes = String::new();
+    for i in 0..PAGINAS_GO_SINTETICAS {
+        write!(&mut opcoes, "<option value='{i}'>{}</option>", i + 1)
+            .expect("gravar string sintetica");
+    }
     let html = pagina(indice, &referencias)
         .replace(
             "<option value='0'>1</option><option value='1'>2</option>",
