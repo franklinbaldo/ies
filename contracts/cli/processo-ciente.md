@@ -144,3 +144,14 @@ releitura independente, mas não consulta a lista sem `id_atividade`
 comprovada e retorna efeito incerto (saída 3), sem segundo GET mutador.
 Scripts inline sem `type` ou com `type="text/javascript"` continuam
 reconhecidos quando satisfazem a forma observada.
+
+
+### Aceite com argumento adicional (#271)
+
+A forma observada do SEI é atualizarArvore('url'), com um
+único argumento literal. Não aceitar uma chamada com segundo argumento
+como prova da atividade: JavaScript avalia esse argumento antes
+de chamar a função, e uma exceção pode impedir a recarga.
+Após o único GET potencialmente mutador, essa resposta leva à
+releitura independente e **efeito incerto (saída 3)**, sem consultar
+a Lista de Ciências antiga nem repetir a escrita.
