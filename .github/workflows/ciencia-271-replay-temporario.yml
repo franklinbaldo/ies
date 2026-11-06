@@ -1,0 +1,56 @@
+name: Replay da ciencia #271 (temporario)
+on:
+  push:
+    branches:
+      - codex/271-raposa-noscript-repetida
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      IES_ACERVO_CACHE: ${{ runner.temp }}/ies-ciencia
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust 1.99.1
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Download immutable public archives and verify SHA-1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$IES_ACERVO_CACHE"
+          python3 - <<'PY' > "$RUNNER_TEMP/ciencia-manifest.tsv"
+          from pathlib import Path
+          cards = sorted(x for x in Path("cassettes").glob("*/*-ciente-*.md")
+                         if x.name.startswith(("processo-ciente-", "documento-ciente-")))
+          assert len(cards) == 14, len(cards)
+          archives = {}
+          for card in cards:
+              front = card.read_text().split("---", 2)[1]
+              fields = dict(line.split(": ", 1) for line in front.splitlines() if ": " in line)
+              url, sha1 = fields["source_zip"], fields["archive_sha1"]
+              assert url.startswith("https://archive.org/download/todos-sei-cassettes-2026/")
+              assert len(sha1) == 40 and all(c in "0123456789abcdef" for c in sha1)
+              name = url.rsplit("/", 1)[-1]
+              assert name.endswith(".zip") and ".." not in name
+              if url in archives:
+                  assert archives[url] == sha1
+              archives[url] = sha1
+          for url, sha1 in sorted(archives.items()):
+              print(sha1, url, url.rsplit("/", 1)[-1], sep="\t")
+          PY
+          while IFS=$'\t' read -r sha1 url name; do
+            curl --fail --silent --show-error --location --retry 0 --max-time 240 \
+              --output "$IES_ACERVO_CACHE/$name" "$url"
+            printf '%s  %s\n' "$sha1" "$IES_ACERVO_CACHE/$name" | sha1sum --check
+          done < "$RUNNER_TEMP/ciencia-manifest.tsv"
+      - name: Replay exact 14 cassettes with production readers
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'ciencia::acervo::replay_da_ciencia_no_acervo: test'
+          cargo +1.99.1 test --locked --bin ies ciencia::acervo::replay_da_ciencia_no_acervo -- --ignored --exact --nocapture --test-threads=1
