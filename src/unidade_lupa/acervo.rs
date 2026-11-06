@@ -208,6 +208,18 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
                 if tipo.as_deref().is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit")) {
                     let nome = crate::html_atributos::valor_do_atributo(tag, "name")
                         .expect("nome UnB");
+                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
+                        .expect("id UnB");
+                    let id_publico = id.as_deref().filter(|x| x.len() <= 32
+                        && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'));
+                    println!(
+                        "observacao UnB submit passo {}: id={:?}, name_btnPesquisar={}, desabilitado={}",
+                        resposta.passo,
+                        id_publico.unwrap_or("<sem-id-ou-opaco>"),
+                        nome.as_deref() == Some("btnPesquisar"),
+                        crate::html_atributos::atributo_presente(tag, "disabled")
+                            .expect("disabled UnB")
+                    );
                     if nome.as_deref() == Some("btnPesquisar") { submits_nomeados += 1; }
                     else if nome.is_none() { submits_sem_nome += 1; }
                 }
