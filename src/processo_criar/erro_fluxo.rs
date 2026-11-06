@@ -156,7 +156,11 @@ impl ErroCriar {
                 causa,
                 posterior,
                 correspondentes,
-            } => (crate::erro_publico::folha(causa), posterior, correspondentes),
+            } => (
+                crate::erro_publico::folha(causa),
+                posterior,
+                correspondentes,
+            ),
             _ => return None,
         };
         Some(DiagnosticoPosEscrita {
