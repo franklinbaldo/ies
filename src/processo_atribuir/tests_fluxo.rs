@@ -167,3 +167,89 @@ fn confirmar_direto_no_fluxo_falha_antes_da_sessao_e_da_rede() {
     assert_eq!(resultado, Err(E::EscritaAindaNaoVerificada));
     assert_eq!(pedidos, Vec::<Pedido>::new());
 }
+
+fn rodar_confirmacao(
+    usuario: Option<&str>,
+    respostas: Vec<Resposta>,
+) -> (Result<super::fluxo::ProcessoAtribuido, E>, Vec<Pedido>) {
+    let amb = ambiente();
+    rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
+        executar_previa(
+            sessao,
+            &PedidoDaAtribuicao {
+                nup,
+                unidade: None,
+                usuario,
+                confirmar: true,
+            },
+            indice,
+            envio,
+        )
+    })
+}
+
+fn pedidos_confirmacao(valor: &str) -> Vec<Pedido> {
+    let mut esperados = pedidos_previa();
+    esperados.push(post(
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={ID}&infra_hash={}",
+            "f".repeat(64)
+        ),
+        &format!(
+            "hdnInfraTipoPagina=2&sbmSalvar=Salvar&selAtribuicao={valor}&hdnIdProtocolo={ID}"
+        ),
+    ));
+    esperados.push(get(&url_arvore()));
+    esperados
+}
+
+// Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: escrita única.
+#[test]
+fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.requisicoes, 6);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+// Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: remover = null.
+#[test]
+fn confirmar_remocao_posta_null_e_verifica_ausencia_de_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=arvore_visualizar"));
+    respostas.push(ok(arvore_atual("")));
+    let (resultado, pedidos) = rodar_confirmacao(None, respostas);
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.requisicoes, 6);
+    assert_eq!(pedidos, pedidos_confirmacao("null"));
+}
+
+#[test]
+fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(ok(arvore_atual("aluno20")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let feito = resultado.unwrap();
+    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.requisicoes, 6);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+}
