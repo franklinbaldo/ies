@@ -206,8 +206,7 @@ fn links(
         // O nome da acao precisa ser uma chave exata, nunca sufixo de
         // outra_acao nem acao_origem. Decodificar &amp; antes de separar.
         if bruto.contains("acao=retorno_programado_listar") {
-            let href = decodificar_atributo(&bruto)
-                .ok_or(E::LinkDeRetornosForaDaInstalacao)?;
+            let href = decodificar_atributo(&bruto).ok_or(E::LinkDeRetornosForaDaInstalacao)?;
             let eh_retorno = href.split_once('?').is_some_and(|(_, consulta)| {
                 consulta.split('&').any(|par| {
                     matches!(par.split_once('='), Some(("acao", valor))
