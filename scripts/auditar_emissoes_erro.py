@@ -18,9 +18,8 @@ import argparse
 from collections import defaultdict
 import json
 
-from migrar_erro_html_edicoes import contexto_de_padrao
 from migrar_erro_html_plano import (
-    Resolvedor, em_teste, enums_com_causa, ler_fontes, mesmo, nos, texto,
+    RAIZ, Resolvedor, em_teste, enums_com_causa, ler_fontes, mesmo, nos, texto,
 )
 
 FORMAS_HTML = {"ausente", "repetido", "valor", "html", "atributo"}
@@ -37,6 +36,27 @@ def em_use(no):
     return False
 
 
+
+def em_posicao_de_padrao(no):
+    """Não confundir Self::V(campo) no match com emissão de Self::V."""
+    atual = no
+    while atual.parent is not None:
+        pai = atual.parent
+        if pai.type in (
+            "tuple_struct_pattern", "struct_pattern", "match_pattern",
+            "field_pattern", "or_pattern", "reference_pattern", "ref_pattern",
+            "slice_pattern", "tuple_pattern", "captured_pattern", "mut_pattern",
+        ):
+            return True
+        if pai.type in ("let_declaration", "let_condition", "parameter", "for_expression"):
+            padrao = pai.child_by_field_name("pattern")
+            if (padrao is not None and padrao.start_byte <= no.start_byte
+                    and no.end_byte <= padrao.end_byte):
+                return True
+        atual = pai
+    return False
+
+
 def construcoes():
     fontes = ler_fontes()
     enums = enums_com_causa(fontes)
@@ -45,14 +65,14 @@ def construcoes():
     html = defaultdict(list)
 
     for arquivo, (fonte, arvore) in fontes.items():
-        nome_arquivo = str(arquivo.relative_to(arquivo.parents[1]))
+        nome_arquivo = str(arquivo.relative_to(RAIZ))
         # Os pontos criados em código de teste não são novas origens em produção.
         for no in nos(arvore.root_node, "scoped_identifier"):
             pai = no.parent
             if (pai is not None and pai.type == "scoped_identifier"
                     and mesmo(pai.child_by_field_name("path"), no)):
                 continue
-            if em_teste(no, fonte, arquivo) or em_use(no) or contexto_de_padrao(no):
+            if em_teste(no, fonte, arquivo) or em_use(no) or em_posicao_de_padrao(no):
                 continue
             caminho = no.child_by_field_name("path")
             nome = no.child_by_field_name("name")
