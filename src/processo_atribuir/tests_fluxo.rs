@@ -243,3 +243,60 @@ fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
 }
+
+
+/// Caso de concorrência: outro agente publicou o resultado desejado durante
+/// o POST recusado. A leitura coincidente NÃO prova que nosso POST escreveu.
+#[test]
+fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Ok((403, "<html><body>Acesso negado.</body></html>".to_owned(), None)));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET prévia + POST único + GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Uma validação da Infra é recusa expressa, mesmo que outra sessão tenha
+/// produzido a atribuição desejada antes da releitura da árvore.
+#[test]
+fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(ok(
+        "<html><body><textarea id=\"txaInfraValidacao\">Atribuição recusada.</textarea></body></html>".to_owned(),
+    ));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(200));
+    assert_eq!(
+        erro.status_http().and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Atribuição recusada.")
+    );
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// 302 é dado, nunca navegação automática; destino de ação diferente não
+/// pode ser aceito como resposta comprovadora, ainda que a árvore coincida.
+#[test]
+fn redirecionamento_para_acao_estranha_nao_comprova_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=procedimento_excluir&id_procedimento=999"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
