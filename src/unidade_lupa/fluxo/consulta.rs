@@ -108,8 +108,40 @@ mod replay_integral_go {
                 .unwrap_or_else(|_| panic!("HTML ilegiveI no passo {}", resposta.passo));
             let url = gravacao::url_sem_consulta(&conferida.json, resposta.item);
             let mime = gravacao::mime(resposta.item);
-            consulta(&instalacao, &url, &html, &mime, pagina)
-                .unwrap_or_else(|e| panic!("formulario no passo {}: {e:?}", resposta.passo));
+            let resultado = consulta(&instalacao, &url, &html, &mime, pagina);
+            if resultado.is_err() {
+                // Diagnostico apenas no replay: subcodigo estatico, sem
+                // expor action, cookie, corpo ou URL assinada.
+                let codificacao = codificacao_da_tela(&mime).expect("charset publicado");
+                let indice = pagina.to_string();
+                let tela = TelaServida {
+                    url: &url,
+                    html: &html,
+                    codificacao,
+                };
+                let causa = derivar_submissao(
+                    &CONSULTAR,
+                    &instalacao,
+                    &tela,
+                    "",
+                    &[
+                        ("selOrgaoUnidade", ""),
+                        ("txtSiglaUnidade", ""),
+                        ("txtDescricaoUnidade", ""),
+                        ("hdnInfraPaginaAtual", &indice),
+                        ("selInfraPaginacaoSuperior", &indice),
+                        ("selInfraPaginacaoInferior", &indice),
+                    ],
+                )
+                .err()
+                .expect("derivacao recusada");
+                panic!(
+                    "formulario passo {}: {}",
+                    resposta.passo,
+                    causa.subcodigo()
+                );
+            }
+            resultado.expect("submissao sem recusa");
         }
         assert_eq!((get, post), (1, 274), "lupa integral com 275 respostas");
     }
