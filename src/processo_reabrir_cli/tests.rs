@@ -115,6 +115,11 @@ fn saida_tipificada_serializa_direto_e_preserva_campos_opcionais() {
     let previa = previa();
     let mut bytes = Vec::new();
     serde_json::to_writer_pretty(&mut bytes, &super::resultado_reabertura(&previa)).unwrap();
+    // O objeto JSON legado ordenava as chaves: manter também os bytes pretty.
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&json_de_sucesso(&previa)).unwrap()
+    );
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&previa));
     assert!(recebido.get("falha_do_envio").is_none());
