@@ -295,3 +295,34 @@ fn aceite_condicional_inativo_mantem_efeito_incerto_sem_retry() {
     );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
+
+
+/// RED #271: uma atividade que já estava na lista não prova esta tentativa
+/// se a única chamada do aceite seria inalcançável após "return".
+#[test]
+fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = format!(
+        "<html><script>function inicializar(){{ return; atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento={ID}&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457'); }}</script></html>"
+    );
+    respostas.extend([
+        ok(tela()),
+        ok(html),
+        ok(arvore_com_ciencias()),
+        ok(lista("42457")),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("atividade antiga não prova novo aceite");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "não consultar lista sem aceite comprovado");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1,
+        "GET mutador único, sem retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
