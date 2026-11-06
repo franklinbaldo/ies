@@ -20,14 +20,20 @@ impl CausaPosEscrita {
     fn inconclusiva(
         self,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar>,
+        correspondentes: Option<Vec<String>>,
     ) -> ErroCriar {
         let posterior = posterior.map_err(Box::new);
         match self {
             Self::Transporte(causa_post) => ErroCriar::PosEscrita {
                 causa_post,
                 posterior,
+                correspondentes,
             },
-            Self::Resposta(causa) => ErroCriar::PosRespostaInesperada { causa, posterior },
+            Self::Resposta(causa) => ErroCriar::PosRespostaInesperada {
+                causa,
+                posterior,
+                correspondentes,
+            },
         }
     }
 }
@@ -170,7 +176,10 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             feito.requisicoes = *requisicoes;
             Ok(())
         }
-        Ok((candidatos, _)) => Err(causa.inconclusiva(Ok(candidatos))),
-        Err(erro) => Err(causa.inconclusiva(Err(erro))),
+        Ok((candidatos, Desfecho::CandidatosAmbiguos { nups })) => {
+            Err(causa.inconclusiva(Ok(candidatos), Some(nups)))
+        }
+        Ok((candidatos, _)) => Err(causa.inconclusiva(Ok(candidatos), None)),
+        Err(erro) => Err(causa.inconclusiva(Err(erro), None)),
     }
 }
