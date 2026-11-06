@@ -2,14 +2,12 @@
 //! GET da barra e cadastro, POST único somente com --confirmar,
 //! seguido por GET explícito de verificação; nenhum redirect seguido.
 use super::{
-    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar,
-    escolher_grupo, grupos_do_cadastro,
+    Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, escolher_grupo,
+    grupos_do_cadastro,
 };
 use crate::arvore_processo::ErroAcompanharNaBarra;
 use crate::erro_html::ErroHtml;
-use crate::formulario_web::{
-    SubmissaoDerivada, decodificar_atributo,
-};
+use crate::formulario_web::{SubmissaoDerivada, decodificar_atributo};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;

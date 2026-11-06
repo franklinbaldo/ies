@@ -1,7 +1,7 @@
 //! Conferência independente das escritas de Acompanhamento Especial (#254).
 //! Um POST no máximo, sem retry; falha incerta exige leitura independente.
-use super::*;
 use super::super::conferir_inclusao;
+use super::*;
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 
 /// Consome uma única submissão e verifica o resultado por leitura nova.
@@ -170,4 +170,3 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
     plano.requisicoes = rede.feitas();
     Ok(plano)
 }
-
