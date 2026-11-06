@@ -249,6 +249,56 @@ fn informar_causa_post(causa: Option<&str>) {
     }
 }
 
+fn informar_sucesso(json_mode: bool, feito: crate::processo_criar_fluxo::Criacao, especificacao: &str) -> ExitCode {
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "tipo": feito.tipo,
+                        "especificacao": especificacao,
+                        "assunto": feito.assunto,
+                    "interessados": feito.interessados,
+                        "nivel": feito.nivel,
+                        "hipotese_legal": feito.hipotese_legal,
+                        "unidade": feito.unidade,
+                        "confirmado": feito.confirmado,
+                        "nup": feito.nup,
+                        "causa_post": feito.causa_post,
+                        "origem": "web",
+                        "requisicoes": feito.requisicoes,
+                    })
+                );
+            } else {
+                println!(
+                    "IES: {} processo «{}» na unidade {} ({} requisições).",
+                    if feito.confirmado {
+                        "criado"
+                    } else {
+                        "prévia de criação de"
+                    },
+                    feito.tipo,
+                    feito.unidade,
+                    feito.requisicoes
+                );
+                println!("Especificação: {especificacao}");
+                println!("Assunto sugerido: {}", feito.assunto);
+                if !feito.interessados.is_empty() {
+                    println!("Interessados: {}", feito.interessados.join("; "));
+                }
+                println!("Acesso: {}", feito.nivel);
+                if let Some(hipotese) = feito.hipotese_legal {
+                    println!("Hipótese legal observada (ID): {hipotese}");
+                }
+                informar_causa_post(feito.causa_post);
+                if let Some(nup) = feito.nup {
+                    println!("NUP criado e verificado: {nup}");
+                } else {
+                    println!("Para criar, repita com --confirmar.");
+                }
+            }
+            ExitCode::SUCCESS
+}
+
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
 /// Nenhum retry: o fluxo remoto consome cada resposta exatamente uma vez.
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
@@ -303,55 +353,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         &mut requisicoes,
     );
     Some(match resultado {
-        Ok(feito) => {
-            if cli.json {
-                println!(
-                    "{}",
-                    json!({
-                        "tipo": feito.tipo,
-                        "especificacao": especificacao,
-                        "assunto": feito.assunto,
-                    "interessados": feito.interessados,
-                        "nivel": feito.nivel,
-                        "hipotese_legal": feito.hipotese_legal,
-                        "unidade": feito.unidade,
-                        "confirmado": feito.confirmado,
-                        "nup": feito.nup,
-                        "causa_post": feito.causa_post,
-                        "origem": "web",
-                        "requisicoes": feito.requisicoes,
-                    })
-                );
-            } else {
-                println!(
-                    "IES: {} processo «{}» na unidade {} ({} requisições).",
-                    if feito.confirmado {
-                        "criado"
-                    } else {
-                        "prévia de criação de"
-                    },
-                    feito.tipo,
-                    feito.unidade,
-                    feito.requisicoes
-                );
-                println!("Especificação: {especificacao}");
-                println!("Assunto sugerido: {}", feito.assunto);
-                if !feito.interessados.is_empty() {
-                    println!("Interessados: {}", feito.interessados.join("; "));
-                }
-                println!("Acesso: {}", feito.nivel);
-                if let Some(hipotese) = feito.hipotese_legal {
-                    println!("Hipótese legal observada (ID): {hipotese}");
-                }
-                informar_causa_post(feito.causa_post);
-                if let Some(nup) = feito.nup {
-                    println!("NUP criado e verificado: {nup}");
-                } else {
-                    println!("Para criar, repita com --confirmar.");
-                }
-            }
-            ExitCode::SUCCESS
-        }
+        Ok(feito) => informar_sucesso(cli.json, feito, especificacao),
         Err(erro) => erro_do_fluxo(cli.json, &erro, requisicoes),
     })
 }
