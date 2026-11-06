@@ -1,0 +1,154 @@
+name: TEMP #246 treino UnB — tentativa única condicional
+on:
+  push:
+    branches: [codex/246-documento-criar]
+    paths: [.github/workflows/ies-246-live-temp.yml]
+permissions:
+  contents: read
+jobs:
+  treinamento:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Compilar binario de release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: UnB treinamento — prévia, um confirmar se seguro, releitura
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          import tempfile
+          import time
+          from pathlib import Path
+
+          ORIGEM = "https://sei.treinamento.unb.br/sei"
+          NUP = "23106.001868/2026-91"
+          TIPO = "Despacho"
+          DESCRICAO = "Teste IES issue 246 - 2026-11-06 - 7d0ba8f"
+          EXE = "./target/release/ies"
+
+          def report(stage, status, **details):
+              safe = {"stage": stage, "status": status}
+              for k, v in details.items():
+                  if k in ("requests", "exit_code", "confirmed", "seen_in_readback") and (type(v) is int or type(v) is bool):
+                      safe[k] = v
+                  elif k == "subcodigo" and isinstance(v, str) and len(v) <= 90 and all(c.isalnum() or c == "_" for c in v):
+                      safe[k] = v
+                  elif k == "numero_sei" and isinstance(v, str) and 0 < len(v) <= 30 and v.isdecimal():
+                      safe[k] = v
+                  elif k == "reason" and v in ("timeout_no_retry", "unexpected_output", "preflight_incomplete", "missing_public_credentials", "missing_sei_number", "unexpected_result", "readback_unproven"):
+                      safe[k] = v
+              print(json.dumps(safe, ensure_ascii=False), flush=True)
+
+          doc = Path("docs/interfaces/credenciais-de-treinamento.md").read_text(encoding="utf-8")
+          ticks = chr(96)
+          section = ticks + "unb" + ticks + ":\n\n" + (ticks * 3) + "text\n"
+          if section not in doc:
+              report("setup", "FAIL", reason="missing_public_credentials")
+              sys.exit(0)
+          credentials = doc.split(section, 1)[1].split(ticks * 3, 1)[0]
+          if "usuario=aluno1" not in credentials or "orgao=UnB" not in credentials:
+              report("setup", "FAIL", reason="missing_public_credentials")
+              sys.exit(0)
+
+          with tempfile.TemporaryDirectory(prefix="ies246-live-") as raw:
+              base = Path(raw)
+              base.chmod(0o700)
+              for name, contents in (("origem", ORIGEM + "\n"), ("credenciais", credentials), ("cookie", ""), ("controle", "")):
+                  path = base / name
+                  path.write_text(contents, encoding="utf-8")
+                  path.chmod(0o600)
+              env = os.environ.copy()
+              env.pop("IES_CONFIG_FILE", None)
+              env.pop("IES_SEM_INDICE", None)
+              for variable, file in (
+                  ("IES_ORIGEM_FILE", "origem"),
+                  ("IES_CREDENCIAIS_FILE", "credenciais"),
+                  ("IES_COOKIE_FILE", "cookie"),
+                  ("IES_URL_CONTROLE_FILE", "controle"),
+              ):
+                  env[variable] = str(base / file)
+              env["IES_INDICE_FILE"] = str(base / "ies.sqlite3")
+              env["RUST_LOG"] = "off"
+
+              def execute(stage, arguments, timeout=240):
+                  try:
+                      result = subprocess.run([EXE, *arguments, "--json"], env=env, capture_output=True, text=True, check=False, timeout=timeout)
+                  except subprocess.TimeoutExpired:
+                      report(stage, "FAIL", reason="timeout_no_retry")
+                      return None
+                  except Exception:
+                      report(stage, "FAIL", reason="unexpected_output")
+                      return None
+                  try:
+                      data = json.loads(result.stdout)
+                      if not isinstance(data, dict):
+                          data = {}
+                  except (ValueError, TypeError):
+                      data = {}
+                  report(stage, "PASS" if result.returncode == 0 else "FAIL",
+                         exit_code=result.returncode, requests=data.get("requisicoes"),
+                         subcodigo=data.get("subcodigo"))
+                  return result.returncode, data
+
+              login = execute("login", ["login"])
+              if login is None or login[0] != 0:
+                  sys.exit(0)
+              time.sleep(30)
+              args = ["documento", "criar", "--processo", NUP, "--tipo", TIPO, "--descricao", DESCRICAO, "--nivel", "publico"]
+              previa = execute("previa", args)
+              if previa is None or previa[0] != 0:
+                  sys.exit(0)
+              status = previa[1]
+              if not (status.get("nup") == NUP and status.get("tipo") == TIPO
+                      and isinstance(status.get("unidade"), str) and len(status["unidade"]) > 0
+                      and status.get("confirmado") is False
+                      and status.get("alterado") is False
+                      and isinstance(status.get("requisicoes"), int)
+                      and status["requisicoes"] > 0):
+                  report("gate_antes_da_escrita", "FAIL", reason="preflight_incomplete")
+                  sys.exit(0)
+              report("gate_antes_da_escrita", "PASS")
+              time.sleep(30)
+              # Exatamente uma tentativa. Saída incerta NUNCA gera repetição.
+              confirmacao = execute("confirmacao_unica", [*args, "--confirmar"])
+              if confirmacao is None or confirmacao[0] != 0:
+                  report("residuo", "NOT_RUN", reason="unexpected_result")
+                  sys.exit(0)
+              saida = confirmacao[1]
+              numero = saida.get("numero_sei")
+              if not (saida.get("nup") == NUP and saida.get("tipo") == TIPO
+                      and saida.get("confirmado") is True
+                      and saida.get("alterado") is True
+                      and isinstance(numero, str) and numero.isdecimal()):
+                  report("confirmacao_identidade", "FAIL", reason="missing_sei_number")
+                  sys.exit(0)
+              report("confirmacao_identidade", "PASS", confirmed=True, numero_sei=numero)
+              time.sleep(30)
+              leitura = execute("releitura_independente",
+                  ["processo", NUP, "--sem-andamentos", "--sem-marcadores", "--sem-propriedades"])
+              if leitura is None or leitura[0] != 0:
+                  report("residuo", "FAIL", reason="readback_unproven", numero_sei=numero)
+                  sys.exit(0)
+              def has_exact(value, sought):
+                  if isinstance(value, dict):
+                      return any(has_exact(v, sought) for v in value.values())
+                  if isinstance(value, list):
+                      return any(has_exact(v, sought) for v in value)
+                  return isinstance(value, str) and value == sought
+              seen = has_exact(leitura[1].get("documentos", []), numero)
+              report("residuo", "PASS" if seen else "FAIL",
+                     seen_in_readback=seen, numero_sei=numero,
+                     reason=None if seen else "readback_unproven")
+          PY
