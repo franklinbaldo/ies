@@ -208,3 +208,38 @@ e resíduo **DESCONHECIDO**. Não repetir o POST; antes de nova
 escrita, reconciliar somente por leitura, sem repetir GET falhado
 e sem inferir ausência de criação de varredura inconclusiva.
 Nenhuma produção foi acessada. A issue permanece aberta.
+
+
+## Retomada da Coruja — causa AJAX tipada e reconciliação da main
+
+Esta fatia foi dedicada a erros tipados e regressão **offline**, sem
+abrir SEI. A variante `ErroHipotese` passou a derivar `Causa`, a
+propagar a causa concreta de transporte e a representar forma de
+tela não reconhecida por `ErroHtml`. Foram acrescentados dois
+testes sintéticos de folha/caminho e de HTTP 503. Os testes foram
+publicados antes da implementação no commit `95bc21e`; o CI
+foi interrompido por pushes posteriores e pela incompatibilidade
+simultânea no replay do cadastro, portanto **RED isolado: NÃO AFERIDO**
+(sem atribuir número de testes que não rodaram).
+A importação da `main` foi feita por merge, preservando as
+alterações concorrentes e a PR Draft #283.
+
+| Etapa | Resultado nesta retomada | Requisições reais SEI | Resíduo |
+| --- | --- | ---: | --- |
+| Testes novos e correção tipada em Rust | Alterações enviadas; CI do head final a verificar | 0 | Nenhum novo |
+| Replay do acervo | A verificar no CI do head final; sem contato com SEI | 0 | Nenhum novo |
+| Prévia autenticada UnB / segunda instalação | NOT_RUN | 0 | Histórico inalterado |
+| Reconciliação da caixa Gerados da UnB | NOT_RUN — verificar histórico antes de qualquer GET | 0 | **DESCONHECIDO** |
+| Novo `--confirmar` na UnB | BLOQUEADO — confirmação real anterior teve saída 3 | 0 | **DESCONHECIDO** |
+| Releitura independente de NUP | NOT_RUN | 0 | **DESCONHECIDO** |
+
+**Total de requisições reais nesta retomada: 0**; **POSTs de
+escrita: 0**; **nenhum resíduo novo criado pela retomada**.
+O ensaio histórico na UnB permanece com login PASS (6 pedidos),
+prévia PASS (3 GET), confirmação única com código 3 e quantidade
+interna de pedidos não observada. Seu resíduo é **DESCONHECIDO**.
+A reconciliação é exclusivamente por leitura, ainda não executada.
+Não repetir POST de criação, não interpretar ausência de NUP como
+ausência de efeito e não declarar PASS live a partir do CI.
+O workflow temporário de reconciliação manual permanece em Draft
+para investigação segura; deve ser removido antes de integração.
