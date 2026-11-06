@@ -231,16 +231,18 @@ fn selecionar_previa(
         if pedido.observacao.is_some() {
             return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
         }
-        let alvo = if !alvo_pedido_presente(antes, pedido.grupo) {
-            None
-        } else {
+        let alvo = if alvo_pedido_presente(antes, pedido.grupo) {
             Some(alvo_para_deixar(antes, pedido.grupo)?)
+        } else {
+            None
         };
         return Ok(Previa {
             numero: numero.to_owned(),
             unidade: unidade.to_owned(),
             operacao: "deixar",
-            grupo: alvo.map_or(pedido.grupo.unwrap_or(""), |a| a.grupo.as_str()).to_owned(),
+            grupo: alvo
+                .map_or(pedido.grupo.unwrap_or(""), |a| a.grupo.as_str())
+                .to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
             ja_estava: alvo.is_none(),
