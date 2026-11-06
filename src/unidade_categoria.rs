@@ -123,7 +123,7 @@ pub(crate) fn publicar_lista(
         if let Err(erro) = crate::saida::imprimir_json(&modelo) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
-        };
+        }
     } else {
         relogin_cli::avisar(json_mode, nota);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
