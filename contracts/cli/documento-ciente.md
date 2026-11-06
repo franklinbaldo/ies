@@ -101,3 +101,19 @@ não comprova ciência, ainda que seu checkbox contenha o `id_atividade`
 do aceite. A releitura a recusa como forma não observada, retorna
 **efeito incerto (3)** e não repete o GET de escrita. Também se recusa
 `<template>` descendente da tabela, sem aceitar IDs antigos ou ocultos.
+
+## Segunda ciência e HTML inerte (#271, 06/11/2026)
+
+O Todos `tests/test_documento_ciente_010.py` @323eb01 registrou que a
+**segunda ciência no mesmo documento**, sem limite de dia, é recusada com
+`txaInfraValidacao`: «Usuário já deu ciência neste documento.».
+A recusa HTTP 200 preserva a causa tipada `ValidacaoDaInfra`, não comprova
+nova escrita e não autoriza repetição. Teste sintético: 6 GET totais,
+um GET potencialmente mutador, uma releitura e saída 3.
+
+O HTML da Lista de Ciências sob `<noscript>`, ou contendo checkbox dentro
+dele, não comprova ciência em contexto com JavaScript habilitado. O
+reconhecedor rejeita `<noscript>` ou `<template>` ancestral/descendente
+da tabela de prova; a confirmação sem prova fica em **efeito incerto (3)**.
+Teste documental: 7 GET, exatamente 1 mutador, sem retry. Nenhum efeito
+adicional da prévia. Falta validar as formas nas instalações de treinamento.
