@@ -462,7 +462,7 @@ fn publicar(
         if let Err(erro) = crate::saida::imprimir_json(&valor) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
-        };
+        }
     } else {
         relogin_cli::avisar(json_mode, nota);
         for (i, d) in obtidos.iter().enumerate() {
