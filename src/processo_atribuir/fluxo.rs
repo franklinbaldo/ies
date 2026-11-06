@@ -2,7 +2,10 @@
 //! atribuição publicada na árvore, formulário da barra e payload local.
 //! A CLI mantém --confirmar fechado até haver validação live em treinamento.
 use crate::arvore_processo::{AbertoEm, ErroAtribuirNaBarra};
-use crate::formulario_web::{ErroSubmissaoFormulario, enviar_submissao_via};
+use crate::formulario_web::{
+    ErroSubmissaoFormulario, Redirecionamento302, RespostaDoEnvio, consulta_do_controlador,
+    enviar_submissao_via,
+};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -188,9 +191,24 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         enviado = true;
         rede.post(s, cookie)
     });
-    let falha_do_envio = match resposta {
-        Ok(_) => None,
-        Err(erro) if enviado => Some(erro),
+    // Releitura coincidente não transforma uma recusa explícita do SEI
+    // em sucesso: outro agente pode ter atribuído o mesmo usuário.
+    // Só resposta aceita (200/302 esperado) ou falha sem resposta de
+    // rede admite conciliação. HTTP 4xx, validação da Infra e destinos
+    // inesperados permanecem incertos mesmo com o estado desejado.
+    let (falha_do_envio, resposta_permite_confirmar) = match resposta {
+        Ok(RespostaDoEnvio::Html(_)) => (None, true),
+        Ok(RespostaDoEnvio::Redirecionamento(redir)) => (
+            None,
+            redirecionamento_esperado(&redir, &feito.id_procedimento),
+        ),
+        Err(erro) if enviado => {
+            let reconciliavel = matches!(
+                erro,
+                ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            );
+            (Some(erro), reconciliavel)
+        }
         Err(erro) => return Err(E::Formulario(erro)),
     };
 
@@ -212,7 +230,9 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     };
     // A unidade precisa estar publicada: ausência da unidade NÃO significa
     // remoção da atribuição. Divergência após POST é efeito incerto (3).
-    if atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or("")) {
+    if !resposta_permite_confirmar
+        || atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or(""))
+    {
         return Err(E::EfeitoIncertoNaAtribuicao {
             falha_do_envio: falha_do_envio.map(Box::new),
             leitura: leitura.map(Box::new),
@@ -234,4 +254,33 @@ fn atribuicao_observada<'a>(aberto_em: &'a AbertoEm, unidade: &str) -> Option<&'
             .map(|u| u.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str())),
         AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => None,
     }
+}
+
+/// O 302 é apenas um dado, nunca seguido. Conferimos a ação do destino
+/// e, quando publicada, a identidade do mesmo processo antes da releitura.
+fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
+    let Some(consulta) = resposta
+        .localizacao()
+        .and_then(|url| consulta_do_controlador(url, resposta.url_do_envio()))
+    else {
+        return false;
+    };
+    let (mut acao, mut procedimento, mut origem) = (None, None, None);
+    for item in consulta.split('&') {
+        let Some((nome, valor)) = item.split_once('=') else {
+            return false;
+        };
+        let destino = match nome {
+            "acao" => &mut acao,
+            "id_procedimento" => &mut procedimento,
+            "acao_origem" => &mut origem,
+            _ => continue,
+        };
+        if destino.replace(valor).is_some() {
+            return false;
+        }
+    }
+    matches!(acao, Some("arvore_visualizar" | "principal"))
+        && procedimento.is_none_or(|observado| observado == id)
+        && origem.is_none_or(|observada| observada == "procedimento_atribuicao_cadastrar")
 }
