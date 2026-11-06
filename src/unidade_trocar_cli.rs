@@ -202,7 +202,7 @@ fn concluir(
         if let Err(erro) = crate::saida::imprimir_json(&valor) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
             return std::process::ExitCode::from(1);
-        };
+        }
     } else {
         println!("{}", humano(troca, pedidos));
     }
