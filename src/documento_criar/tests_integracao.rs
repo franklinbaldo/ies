@@ -312,3 +312,38 @@ fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
         &original.replace("</body>", &format!("{botao}</body>"))
     ));
 }
+
+#[test]
+fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
+    // Todos tests/paginas_reais/documento_gerar.html @323eb01,
+    // linhas 615-633: btnSalvar -> confirmarDados() ->
+    // if (OnSubmitForm()) -> submeter() -> frmDocumentoCadastro.submit().
+    // Ter o botao e a funcao submeter separados nao prova essa cadeia.
+    let original = cadastro();
+    let confirmacao = "function confirmarDados() {\n  if (OnSubmitForm()) {\n    submeter();\n  }\n}\n";
+    assert!(original.contains(confirmacao));
+    let casos = [
+        original.replace(confirmacao, ""),
+        original.replace("function confirmarDados()", "function naoChamado()"),
+        original.replace("if (OnSubmitForm()) {", "if (false) {"),
+        original.replace("    submeter();", "    outraAcao();"),
+        original.replace("  if (OnSubmitForm()) {\n    submeter();\n  }", "  submeter();"),
+        original.replace(
+            "</script>",
+            "</script><script>function confirmarDados() {}</script>",
+        ),
+    ];
+    for html in casos {
+        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some("submissao_do_documento_nao_observada"),
+            "sem cadeia ativa comprovada, a confirmação deve falhar fechada"
+        );
+        assert_eq!(
+            pedidos,
+            pedidos_antes_da_escrita(),
+            "orçamento exato: 5 GET de prévia e 0 POST criador"
+        );
+    }
+}
