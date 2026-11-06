@@ -1,0 +1,101 @@
+name: Ensaio #254 leitura independente sem escrita (remover apos uso)
+on:
+  push:
+    branches: [codex/254-tartaruga-exclusao]
+    paths: [.github/workflows/ensaio254-readonly.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  somente-leitura:
+    if: >-
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci(#254): investigar somente leitura (sem POST)'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Investigar residuo incerto por leitura exclusiva na UnB TREINAMENTO
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, tempfile, time
+          origem = 'https://sei.treinamento.unb.br/sei'
+          nup = '23106.001875/2026-93'
+          marca = 'IES254 Tartaruga 2026-11-06 teste unico'
+          guia = pathlib.Path('docs/interfaces/credenciais-de-treinamento.md').read_text()
+          prefixo = '| ' + chr(96) + 'unb' + chr(96) + ' |'
+          linhas = [l for l in guia.splitlines() if l.startswith(prefixo)]
+          if len(linhas) != 1:
+              raise SystemExit('NOT_RUN: entrada unb nao unica; nenhuma requisicao')
+          celulas = [x.strip().strip(chr(96)) for x in linhas[0].split('|')]
+          if len(celulas) != 9 or celulas[3] != origem or not all(celulas[j] for j in (4, 5, 6)):
+              raise SystemExit('NOT_RUN: origem ou credenciais de treinamento nao verificadas')
+          pasta = pathlib.Path(tempfile.mkdtemp(prefix='ies254-readonly-'))
+          pasta.chmod(0o700)
+          def privado(nome, valor):
+              caminho = pasta / nome
+              fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                  f.write(valor)
+              return str(caminho)
+          ambiente = os.environ.copy()
+          ambiente.pop('IES_CONFIG_FILE', None)
+          ambiente.update({
+              'IES_ORIGEM_FILE': privado('origem', origem + '\n'),
+              'IES_CREDENCIAIS_FILE': privado('credenciais',
+                  'usuario='+celulas[4]+'\nsenha='+celulas[5]+'\norgao='+celulas[6]+'\n'),
+              'IES_COOKIE_FILE': privado('cookie', ''),
+              'IES_URL_CONTROLE_FILE': privado('controle', ''),
+              'IES_INDICE_FILE': str(pasta / 'indice.sqlite3'),
+              'XDG_CACHE_HOME': str(pasta / 'cache'),
+          })
+          binario = str(pathlib.Path('target/release/ies').resolve())
+          def chamada(rotulo, args):
+              # Lista positiva: este roteiro nao aceita argumentos de escrita.
+              if args != ['login'] and args != ['processo', 'acompanhar', nup, '--grupo', '']:
+                  raise SystemExit('NOT_RUN: comando nao permitido no ensaio de leitura')
+              try:
+                  saida = subprocess.run([binario, *args, '--json'], env=ambiente,
+                      capture_output=True, text=True, timeout=150, check=False)
+              except subprocess.TimeoutExpired:
+                  print(rotulo+': TIMEOUT, sem repeticao')
+                  return 124, {}
+              try:
+                  resposta = json.loads(saida.stdout)
+                  if not isinstance(resposta, dict):
+                      resposta = {}
+              except (TypeError, ValueError):
+                  resposta = {}
+              campos = ('numero', 'operacao', 'grupo', 'observacao',
+                  'id_acompanhamento', 'ja_estava', 'confirmado', 'alterado',
+                  'requisicoes', 'codigo', 'subcodigo')
+              saida_publica = {k: resposta[k] for k in campos if k in resposta}
+              print(rotulo+': rc='+str(saida.returncode)+' '+
+                  json.dumps(saida_publica, ensure_ascii=False))
+              return saida.returncode, resposta
+          print('LEITURA SOMENTE: UnB TREINAMENTO, alvo historico com efeito incerto, ZERO POST')
+          rc, login = chamada('LOGIN', ['login'])
+          if rc != 0 or not isinstance(login.get('requisicoes'), int):
+              raise SystemExit('NOT_RUN: login nao comprovado')
+          time.sleep(35)
+          rc, leitura = chamada('LEITURA', ['processo','acompanhar',nup,'--grupo',''])
+          valido = (rc == 0 and leitura.get('numero') == nup
+              and leitura.get('operacao') == 'acompanhar'
+              and leitura.get('grupo') == ''
+              and leitura.get('ja_estava') is True
+              and leitura.get('confirmado') is False
+              and leitura.get('alterado') is False
+              and isinstance(leitura.get('id_acompanhamento'), str)
+              and bool(leitura['id_acompanhamento']))
+          if not valido:
+              raise SystemExit('FAIL: identidade ou estado nao comprovados, ZERO POST')
+          print('OBSERVACAO_EXATA_MARCA='+str(leitura.get('observacao') == marca))
+          print('PASS SOMENTE LEITURA: ID observado e nao nulo; ZERO POST; autoria do registro continua nao demonstrada')
+          PY
