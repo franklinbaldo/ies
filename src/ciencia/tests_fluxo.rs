@@ -372,7 +372,10 @@ fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
     assert!(matches!(erro, E::EfeitoIncerto { .. }));
     assert_eq!(pedidos.len(), 6, "não consultar lista de ciência antiga");
     assert_eq!(
-        pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(),
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
         1,
         "GET potencialmente mutador único, sem retry"
     );
