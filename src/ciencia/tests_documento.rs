@@ -480,3 +480,45 @@ fn lista_em_noscript_nao_prova_ciencia_documental() {
     );
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
 }
+
+/// Caso do Todos tests/test_documento_ciente_010.py @323eb01:
+/// no documento a segunda ciência é recusada SEM limite diário. A
+/// validação de Infra 200 é preservada, mas não comprova escrita nova.
+/// Não se repete o GET potencialmente mutador.
+#[test]
+fn segunda_ciencia_documental_e_validacao_sem_retry() {
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        ok(
+            "<html><body><textarea id='txaInfraValidacao'>Usuário já deu ciência neste documento.</textarea></body></html>"
+                .to_owned(),
+        ),
+        ok(arvore_com_lista()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        Some("Usuário já deu ciência neste documento.")
+    );
+    assert!(matches!(
+        erro,
+        E::EfeitoIncerto {
+            falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
+            requisicoes: 6,
+            ..
+        }
+    ));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(
+        pedidos.iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
