@@ -209,9 +209,10 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     });
     // Releitura coincidente não transforma uma recusa explícita do SEI
     // em sucesso: outro agente pode ter atribuído o mesmo usuário.
-    // Só resposta aceita (200/302 esperado) ou falha sem resposta de
-    // rede admite conciliação. HTTP 4xx, validação da Infra e destinos
-    // inesperados permanecem incertos mesmo com o estado desejado.
+    // Só 302 com destino e identidade esperados ou falha de rede sem
+    // resposta admitem conciliação. HTML 200 genérico, HTTP 4xx,
+    // validação da Infra e destinos inesperados continuam incertos
+    // mesmo se a releitura mostrar o estado solicitado.
     let (falha_do_envio, resposta_permite_confirmar) = match resposta {
         // A observação do SEI/UnB (Todos @323eb01) mostra 302 com
         // identidade explícita como aceite. HTML 200 genérico não vincula
