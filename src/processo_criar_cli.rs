@@ -6,6 +6,9 @@ use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
 use serde_json::json;
+#[path = "processo_criar_cli/coincidencias.rs"]
+mod coincidencias;
+use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -119,34 +122,6 @@ fn anexar_http_releitura_json(
     }
 }
 
-/// Só a conferência integral permite o desfecho de candidatos ambíguos.
-/// Provas obtidas antes de uma falha posterior são apenas fatos parciais.
-fn anexar_coincidencias_json(valor: &mut serde_json::Value, subcodigo: &str, nups: &[String]) {
-    if subcodigo == "candidatos_ambiguos_na_criacao" {
-        valor["desfecho"] = json!("candidatos_ambiguos");
-        valor["candidatos_compativeis"] = json!(nups);
-    } else {
-        valor["coincidencias_parciais_conferidas"] = json!(nups);
-    }
-}
-
-fn informar_coincidencias_humanas(nups: &[String], subcodigo: &str) {
-    if subcodigo == "candidatos_ambiguos_na_criacao" {
-        eprintln!(
-            "IES: {} candidatos com identidade, tipo e especificação coincidentes; autoria da criação ambígua.",
-            nups.len()
-        );
-    } else {
-        eprintln!(
-            "IES: {} coincidências já conferidas; outras leituras falharam, sem prova de aplicação ou unicidade.",
-            nups.len()
-        );
-    }
-    for nup in nups {
-        eprintln!("  {nup}");
-    }
-}
-
 fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
     if let Some(http) = http {
         eprintln!("IES: releitura HTTP {}.", http.status);
@@ -211,8 +186,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
             anexar_http_releitura_json(&mut valor, diagnostico.http_releitura);
-            if let Some(nups) = diagnostico.candidatos_compativeis {
-                anexar_coincidencias_json(&mut valor, erro.subcodigo(), &nups);
+            if let Some(nups) = diagnostico.candidatos_compativeis
+                && let Some(evidencia) = diagnostico.evidencia
+            {
+                anexar_coincidencias_json(&mut valor, evidencia, &nups);
             }
         }
         if let Some(http) = erro.status_http() {
@@ -245,8 +222,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                     eprintln!("  {nup}");
                 }
             }
-            if let Some(nups) = diagnostico.candidatos_compativeis {
-                informar_coincidencias_humanas(&nups, erro.subcodigo());
+            if let Some(nups) = diagnostico.candidatos_compativeis
+                && let Some(evidencia) = diagnostico.evidencia
+            {
+                informar_coincidencias_humanas(&nups, evidencia);
             }
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
@@ -368,6 +347,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::processo_criar_fluxo::EvidenciaDeCoincidencia;
 
     #[test]
     fn entrada_invalida_eh_recusada_sem_sessao() {
@@ -471,7 +451,7 @@ mod tests {
         let mut parcial = json!({"codigo": "efeito_incerto"});
         anexar_coincidencias_json(
             &mut parcial,
-            "efeito_incerto_na_criacao",
+            EvidenciaDeCoincidencia::Parcial,
             &["NUP-sintetico-10".into()],
         );
         assert_eq!(
@@ -484,7 +464,7 @@ mod tests {
         let mut completa = json!({"codigo": "efeito_incerto"});
         anexar_coincidencias_json(
             &mut completa,
-            "candidatos_ambiguos_na_criacao",
+            EvidenciaDeCoincidencia::Multiplas,
             &["NUP-sintetico-10".into(), "NUP-sintetico-11".into()],
         );
         assert_eq!(completa["desfecho"], "candidatos_ambiguos");
@@ -493,6 +473,15 @@ mod tests {
             json!(["NUP-sintetico-10", "NUP-sintetico-11"])
         );
         assert!(completa.get("coincidencias_parciais_conferidas").is_none());
+        let mut unica = json!({"codigo": "efeito_incerto"});
+        anexar_coincidencias_json(
+            &mut unica,
+            EvidenciaDeCoincidencia::UnicaSemProvaCausal,
+            &["NUP-sintetico-10".into()],
+        );
+        assert_eq!(unica["desfecho"], "possivel_residuo");
+        assert_eq!(unica["candidatos_compativeis"], json!(["NUP-sintetico-10"]));
+        assert!(unica.get("coincidencias_parciais_conferidas").is_none());
     }
 
     #[test]
