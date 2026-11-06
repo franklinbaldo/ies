@@ -164,7 +164,10 @@ mod tests {
     fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
         let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
         assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(saida["requisicoes"], 7, "null não informa a contagem já observada");
+        assert_eq!(
+            saida["requisicoes"], 7,
+            "null não informa a contagem já observada"
+        );
         assert_eq!(saida["retentavel"], false);
     }
 }
