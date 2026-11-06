@@ -24,6 +24,14 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
+            // A retirada em desenvolvimento ainda não passou no CI deste
+            // head nem no replay/live. Falhar fechado antes de sessão/rede.
+            if *confirmar && *deixar {
+                return Some(publicar_erro(
+                    cli.json,
+                    &ErroPrevia::ConfirmacaoNaoImplementada,
+                ));
+            }
             let pedido = Pedido {
                 nup: &nup,
                 unidade: cli.unidade.as_deref(),
