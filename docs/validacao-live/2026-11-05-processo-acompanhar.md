@@ -196,3 +196,33 @@ resíduo foi deixado no SEI.
   acessar sessão/rede. Conciliação da main, compilação e replay,
   prévia autenticada e eventual confirmação única verificada ainda
   pendentes.
+
+## Sétima fatia — regressão do aceite na inclusão (06/11/2026, 🐢)
+
+- **Observação pré-RED:** a fonte da UnB no Todos apresenta o
+  formulário que redireciona ao gerenciador; o fluxo da retirada
+  já validava esse destino, ao contrário da inclusão.
+- **RED observado:** [CI 42163834327](https://github.com/franklinbaldo/ies/actions/runs/42163834327)
+  no head `4bb0843`: **2 testes novos falharam**, 1.654
+  passaram, 17 ignorados preexistentes. Rustfmt, Clippy, OKF e
+  demais hooks passaram; só os testes de desvio da inclusão falharam.
+- **Correção:** o POST de inclusão requer 302 ao gerenciador do
+  mesmo processo além da releitura verificadora. Redirect a outra
+  ação/processo produz `EfeitoIncerto`, saída 3, sem retry.
+- **Orçamento sintético:** mesma sequência de **7 requisições**
+  (5 GET de abertura/cadastro, 1 POST, 1 GET verificador);
+  nenhum pedido novo introduzido. O CI do head corrigido precisa
+  comprovar GREEN sem enfraquecer testes.
+- **Binário anterior:** artifact do head `297bab7` obtido de
+  [42159033526](https://github.com/franklinbaldo/ies/actions/runs/42159033526),
+  SHA-256 conferido; `ies --version` PASS e
+  `processo acompanhar --deixar --confirmar --json` recusou
+  com `confirmacao_de_acompanhamento_ainda_bloqueada` antes
+  de sessão/rede. O artifact anterior não prova esta correção.
+- **Replay das cassettes específicas:** NOT_RUN; 0 pedidos reais.
+- **Live treinamento:** prévia NOT_RUN (**0 GET**),
+  confirmação NOT_RUN (**0 POST**), releitura NOT_RUN (**0 GET**).
+  **Total 0 requisições reais; 0 escritas; nenhum resíduo no SEI**.
+- **Pendente:** GREEN do novo head, replay específico, prévia
+  autenticada e somente então confirmação única em treinamento
+  com releitura segura. A retirada continua bloqueada.
