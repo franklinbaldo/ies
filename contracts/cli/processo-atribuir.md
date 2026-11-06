@@ -67,9 +67,14 @@ positivo de aceite** continuam como efeito incerto (saída 3), mesmo
 quando outro agente deixou a árvore no estado solicitado. A causa,
 o status e a mensagem saneada da recusa expressa são preservados.
 A observação UnB registrada no Todos @323eb01 mostra aceite por 302;
-um HTML 200 genérico não identifica quem alterou a árvore. Somente o
-302 reconhecido ou uma falha de rede sem resposta admitem conciliação
-por releitura; nenhuma dessas vias repete o POST. O 302
+um HTML 200 genérico não identifica quem alterou a árvore. **Somente um 302 positivamente identificado** (ação, processo e origem)
+permite confirmar o efeito depois da leitura. Um POST sem resposta é
+**sempre efeito incerto (saída 3)**, mesmo que a árvore passe a mostrar
+o usuário pedido ou a remoção: outro agente pode ter realizado a
+mudança no intervalo. A leitura nova ainda registra
+`atribuicao_relida` no JSON (`null` = não observada, texto vazio =
+remoção observada), como **possível resíduo e não prova de autoria**.
+O erro original do envio fica preservado no erro tipado, sem retry. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
 solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 3 após a leitura única. As duas ações são
