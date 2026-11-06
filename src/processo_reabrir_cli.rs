@@ -6,7 +6,6 @@ use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
     com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
-    publicar_valor_da_falha,
 };
 use crate::processo_reabrir::{
     ErroReabrir, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
@@ -56,7 +55,16 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
                 erro.mensagem(),
                 erro.status_http(),
             ),
-            Err(erro) => publicar_valor_da_falha(cli.json, &json_de_falha(&erro), erro.saida()),
+            Err(erro) => {
+                if cli.json {
+                    println!("{}", json_de_falha(&erro));
+                } else {
+                    for linha in linhas_da_falha(&erro) {
+                        eprintln!("{linha}");
+                    }
+                }
+                ExitCode::from(erro.saida())
+            }
         }
     })
 }
@@ -193,10 +201,43 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
     linhas.join("\n")
 }
 
-// Shim RED: a projeção humana será derivada do erro tipado, não do JSON.
-#[cfg(test)]
-fn linhas_da_falha(_erro: &ErroReabrir) -> Vec<String> {
-    Vec::new()
+/// Mensagens humanas a partir do erro de reabertura; não dependem
+/// da montagem JSON nem reinterpretam subcódigos como variantes.
+fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
+    use ErroReabrir as E;
+
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let aberto_em = match erro {
+        E::UnidadeDaSessaoJaNaSituacao { aberto_em }
+        | E::ReaberturaNaoPublicadaNaBarra { aberto_em }
+        | E::ReaberturaNaoAplicada { aberto_em, .. }
+        | E::EfeitoIncertoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
+        _ => None,
+    };
+    let depois = match erro {
+        E::ReaberturaNaoAplicada { depois, .. } => Some(depois.as_slice()),
+        _ => None,
+    };
+    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
+        if let Some(unidades) = unidades {
+            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
+            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
+        }
+    }
+    let falha_do_envio = match erro {
+        E::ReaberturaNaoAplicada { falha_do_envio, .. }
+        | E::EfeitoIncertoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let E::EfeitoIncertoNaReabertura { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 #[cfg(test)]
