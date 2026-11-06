@@ -158,3 +158,22 @@ sintéticos foram publicados antes da correção. RED e GREEN novos são
 **NOT_RUN**: o sandbox está sem Rust e os commits do conector não
 acionaram um run no head. A CLI continua a recusar `--deixar --confirmar`
 antes da sessão e rede; nenhuma escrita é permitida por esta fatia.
+
+## Sexta fatia — declaração global de exclusão, não texto inerte (🐢)
+
+A revisão no head `943add8` identificou que a assinatura completa de
+`acaoExcluir` dentro de `/* ... */` ainda poderia ser aceita como
+função. A busca foi endurecida sem executar JS e sem regex: uma varredura
+restrita encontra a assinatura somente fora de comentários e strings,
+em posição de declaração global, recusando blocos aninhados, atribuição
+de função e sintaxe de prefixo não reconhecida. A extração do corpo e
+sua conferência estrita continuam independentes.
+
+Cinco testes de fronteira foram publicados antes da correção
+(`abd561a`), e um teste integrado adicional exige falha tipada com
+**4 GETs exatos, 0 POST** para função inteiramente comentada.
+Correção publicada em `ebb9858`. **RED isolado e GREEN deste head:
+NOT_RUN**, pois o sandbox não possui Rust nem rede para instalá-lo e
+nenhuma execução GitHub Actions foi encontrada. Não inferir sucesso
+do CI antigo. A CLI de retirada confirmada permanece bloqueada antes
+da sessão e rede; replay e live ainda faltam.
