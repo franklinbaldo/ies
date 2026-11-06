@@ -280,15 +280,12 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
             return false;
         }
     }
-    // `principal` é uma navegação genérica e só é prova admissível
-    // quando também identifica expressamente este processo. Sem ID, a
-    // releitura coincidente pode refletir escrita de outro agente.
-    let acao_esperada = match acao {
-        Some("arvore_visualizar") => true,
-        Some("principal") => procedimento == Some(id),
-        _ => false,
-    };
+    // Tanto `arvore_visualizar` quanto `principal` são destinos
+    // genéricos: sem ID explícito, uma leitura coincidente pode ser
+    // atribuição/remoção concorrente de outro agente, não deste POST.
+    // O 302 é apenas inspecionado, nunca seguido.
+    let acao_esperada = matches!(acao, Some("arvore_visualizar") | Some("principal"));
     acao_esperada
-        && procedimento.is_none_or(|observado| observado == id)
+        && procedimento == Some(id)
         && origem.is_none_or(|observada| observada == "procedimento_atribuicao_cadastrar")
 }
