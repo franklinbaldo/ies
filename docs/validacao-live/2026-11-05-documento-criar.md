@@ -162,6 +162,7 @@ O registro cronológico integral (incluindo WIP, limites e contagens) foi preser
   ou duplicação contraditória. Dois controles iguais do topo/rodapé são
   legítimos. Testes de fronteira exigem **5 GET / 0 POST**, e os casos
   positivos mantêm **6 GET / 1 POST / 1 releitura**.
+- **GREEN do código no head `4483953`:** [CI 42170922268](https://github.com/franklinbaldo/ies/actions/runs/42170922268), **5/5 jobs PASS**: prek (Rustfmt, Clippy, testes Rust, OKF, subcódigos, 20 KB, WIP), binário Release e replays GO de documento.criar, lupa e processo.criar. O CI imediatamente anterior [42170712812](https://github.com/franklinbaldo/ies/actions/runs/42170712812) teve **Clippy FAIL** apenas por dois identificadores sem crases no comentário novo; corrigido sem enfraquecer lint.
 - **LIVE (esta sessão):** login **NOT_RUN**, prévia **NOT_RUN**,
   `--confirmar` **NOT_RUN**, leitura independente **NOT_RUN**;
   **0 requisições reais**, **0 POST criador**, **0 documentos criados ou
