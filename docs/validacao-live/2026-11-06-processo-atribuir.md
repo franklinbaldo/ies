@@ -15,6 +15,18 @@ A CLI pública preserva a trava de segurança de `--confirmar` **antes de
 abrir sessão**. RED no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454):
 **4 testes novos FAIL, 1.689 PASS e 22 ignored preexistentes**.
 
+## Replay específico do acervo (offline)
+
+O teste `processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo`
+usa o **leitor real** `ler_tela` com as respostas históricas de sete
+instalações, depois de conferir SHA-1 dos sete ZIPs, SHA-256 de cada
+cassette, `schema_version`, completude e origem autorizada. O CI
+[42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542)
+classificou **42 respostas**: **28 formulários GET aceitos** (quatro em
+cada instalação), **zero recusas**, e **14 respostas POST marcadas como
+não aplicáveis à prova de escrita**. Não se inferiu atribuição aplicada
+do retorno histórico do POST. O replay utilizou **zero requisições reais**.
+
 | Ensaio | Instalação | Estado | GET | POST | Resíduo |
 | --- | --- | --- | ---: | ---: | --- |
 | Prévia Web | UnB treinamento | **NOT_RUN** | 0 | 0 | nenhum |
