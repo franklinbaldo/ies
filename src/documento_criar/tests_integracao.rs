@@ -188,6 +188,17 @@ fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
             "</script>",
             "</script><script>document.getElementById('hdnFlagDocumentoCadastro').value = '2';</script>",
         ),
+        // Script remoto ignora o corpo inline: não é prova de envio.
+        cadastro().replace("<script>", "<script src=\"/static/externo.js\">"),
+        // A linha aparece apenas como texto de um template literal JS
+        // multilinha, sem instrução executada pelo navegador.
+        cadastro().replace(
+            "<script>",
+            "<script>const amostra = `\\n",
+        ).replace(
+            "</script>",
+            "\\n`;\\n</script>",
+        ),
     ];
     for html in casos {
         let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
