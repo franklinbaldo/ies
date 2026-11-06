@@ -482,3 +482,26 @@ fn incerteza_conserva_contagem_da_rede_externa() {
     esperados.push(a::get(&a::url_arvore()));
     assert_eq!(pedidos, esperados);
 }
+
+#[test]
+fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
+    // Um onclick não torna acionável um botão oculto ou desabilitado
+    // por um ancestral. Cenários sintéticos; cinco GET, nenhum POST.
+    let original = cadastro();
+    let casos = [
+        original.replace("onclick=\"confirmarDados()\"", "hidden onclick=\"confirmarDados()\""),
+        original.replace("<button", "<div hidden><button").replace("</button>", "</button></div>"),
+        original.replace("<button", "<fieldset disabled><button").replace("</button>", "</button></fieldset>"),
+    ];
+    for html in casos {
+        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+        assert_eq!(
+            resultado.err().map(|erro| erro.subcodigo()),
+            Some("submissao_do_documento_nao_observada")
+        );
+        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
+    }
+    assert!(cadastro_publica_script_de_criacao(
+        &original.replace("<button", "<fieldset><button").replace("</button>", "</button></fieldset>")
+    ));
+}
