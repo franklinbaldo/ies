@@ -133,3 +133,14 @@ invocada, ou instrução inalcançável após `return`/`throw` não é prova;
 essas formas geram aceite não reconhecido
 e a verificação posterior não presume sucesso. Regressões sintéticas
 RED/GREEN documentadas na [decisão](../../docs/decisoes/processo-ciente.md).
+
+
+### Garantia adicional sobre scripts inertes (#271)
+
+A atividade do aceite não é reconhecida em `<script type="application/json">`,
+`<script type="text/plain">` ou conteúdo inline de `<script src="...">`:
+esses textos não são executados pelo navegador. O fluxo conserva a
+releitura independente, mas não consulta a lista sem `id_atividade`
+comprovada e retorna efeito incerto (saída 3), sem segundo GET mutador.
+Scripts inline sem `type` ou com `type="text/javascript"` continuam
+reconhecidos quando satisfazem a forma observada.
