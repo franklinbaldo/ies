@@ -280,8 +280,8 @@ fn reconciliar_resposta_inesperada<V: EnvioDoControle>(
     requisicoes: &mut u32,
     causa: erro_fluxo::CausaRespostaCriadora,
 ) -> ErroCriar {
-    let posterior = reler_gerados(envio, url_controle, cookie, unidade, antes, requisicoes)
-        .map_err(Box::new);
+    let posterior =
+        reler_gerados(envio, url_controle, cookie, unidade, antes, requisicoes).map_err(Box::new);
     ErroCriar::PosRespostaInesperada { causa, posterior }
 }
 
@@ -464,19 +464,16 @@ pub(crate) fn criar<V: EnvioDoControle>(
         }
         Err(_) => return Err(E::Formulario),
     };
-    let redirecionamento = match resposta {
-        RespostaDoEnvio::Redirecionamento(redirecionamento) => redirecionamento,
-        _ => {
-            return Err(reconciliar_resposta_inesperada(
-                envio,
-                url_controle,
-                cookie_valor,
-                &feito.unidade,
-                &gerados_antes,
-                &mut requisicoes,
-                erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
-            ));
-        }
+    let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
+        return Err(reconciliar_resposta_inesperada(
+            envio,
+            url_controle,
+            cookie_valor,
+            &feito.unidade,
+            &gerados_antes,
+            &mut requisicoes,
+            erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
+        ));
     };
     let retorno = redirecionamento
         .localizacao()
@@ -484,19 +481,16 @@ pub(crate) fn criar<V: EnvioDoControle>(
         .and_then(|localizacao| {
             retorno_da_criacao(&instalacao, localizacao, redirecionamento.url_do_envio())
         });
-    let (url, id) = match retorno {
-        Ok(retorno) => retorno,
-        Err(_) => {
-            return Err(reconciliar_resposta_inesperada(
-                envio,
-                url_controle,
-                cookie_valor,
-                &feito.unidade,
-                &gerados_antes,
-                &mut requisicoes,
-                erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
-            ));
-        }
+    let Ok((url, id)) = retorno else {
+        return Err(reconciliar_resposta_inesperada(
+            envio,
+            url_controle,
+            cookie_valor,
+            &feito.unidade,
+            &gerados_antes,
+            &mut requisicoes,
+            erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
+        ));
     };
     // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
     let tela_do_processo =
