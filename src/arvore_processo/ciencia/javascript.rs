@@ -134,4 +134,3 @@ pub(super) fn urls_ativas_da_ciencia_do_documento(
     }
     Ok(urls)
 }
-
