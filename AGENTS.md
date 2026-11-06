@@ -73,6 +73,36 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Escrita incompleta deve manter `--confirmar` fechado **antes de
    abrir sessão ou rede**.
 
+### Sincronização obrigatória no começo de **cada rodada**
+
+Antes de modificar código, executar testes RED ou iniciar ensaios, **toda
+rotina implementadora** deve sincronizar **sua branch de trabalho** com
+a `main` mais recente. Faça isso a cada execução, mesmo que a branch tenha
+sido atualizada na sessão anterior:
+
+1. Leia `AGENTS.md` e sua ficha, identifique a issue e a PR próprias e
+   consulte os SHAs atuais de `main` e do head da PR.
+2. **Sem PR/branch ainda:** crie uma branch nova **a partir da `main`
+   atual**, não de uma base salva em sessão anterior.
+3. **Com PR aberta:** compare o head com `main`; se estiver atrás,
+   incorpore **`main` → sua branch** pelo botão/API de atualizar a PR
+   (merge) ou por `git fetch origin && git merge --no-ff origin/main`.
+   Resolva conflitos preservando o trabalho já integrado e o de sua
+   issue. **Nunca use rebase, reset destrutivo ou force-push.**
+4. Confira novamente os SHAs e registre o merge na PR/issue. Rode os
+   gates e testes no novo head; CI verde **do SHA antigo** não valida
+   o SHA pós-merge. Se o CI falhar, trate a causa antes de solicitar
+   integração. A revisão do 🦅 também deve corresponder ao head atual.
+5. Se não houver acesso à atualização segura, ou se um conflito não
+   puder ser resolvido com evidência suficiente, **não sobrescreva
+   alterações de outra rotina**. Registre o impedimento e faça apenas
+   investigação independente até conseguir sincronizar.
+
+Esta regra é pré-condição de **toda fatia de implementação**, inclusive
+retomadas de WIP. 🦅 Gavião não possui branch própria e só verifica a
+atualização da PR ao revisar; 🐘 Elefante segue a regra de integração e
+atualiza branches de PRs conforme seu protocolo abaixo.
+
 ### Segurança do ensaio e do contrato
 
 - **Sem produção, sem retry contra SEI, sem execução de JavaScript,
