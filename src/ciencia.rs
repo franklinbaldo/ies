@@ -71,11 +71,21 @@ fn identificador(valor: &str) -> bool {
 /// variável (PEN3) são ignoradas: não identificam uma atividade. Nenhum JS
 /// é interpretado; a forma literal não comporta escapes.
 fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
+    // O mesmo lexer estático usado para autorizar o link de documento:
+    // nenhuma chamada dentro de comentário, string ou template é ativa.
+    let Some(niveis) = crate::arvore_processo::niveis_js(script) else {
+        return Vec::new();
+    };
     let mut achados = Vec::new();
-    let mut restante = script;
-    while let Some((_, depois)) = restante.split_once("atualizarArvore(") {
-        restante = depois;
-        let argumento = depois.trim_start();
+    let mut cursor = 0;
+    const CHAMADA: &str = "atualizarArvore(";
+    while let Some(indice) = script[cursor..].find(CHAMADA) {
+        let posicao = cursor + indice;
+        cursor = posicao + CHAMADA.len();
+        if niveis.get(posicao).copied().flatten().is_none() {
+            continue;
+        }
+        let argumento = script[cursor..].trim_start();
         let aspas = match argumento.as_bytes().first() {
             Some(b'\'') => '\'',
             Some(b'"') => '"',
@@ -87,7 +97,7 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         };
         let literal = &resto[..fim];
         let depois_do_literal = resto[fim + 1..].trim_start();
-        if !literal.contains('\\')
+        if !literal.contains('\\\\')
             && (depois_do_literal.starts_with(')') || depois_do_literal.starts_with(','))
         {
             achados.push(literal);
@@ -137,6 +147,17 @@ pub(crate) fn atividade_do_aceite(
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
     use ErroCiencia as E;
+    // Script de template é inerte mesmo se o seletor DOM o percorrer.
+    // Não inferir atividade a partir de trecho que o navegador não executaria.
+    let minusculas = html.to_ascii_lowercase();
+    if minusculas.split("<template").skip(1).any(|parte| {
+        parte
+            .split("</template")
+            .next()
+            .is_some_and(|fragmento| fragmento.contains("<script"))
+    }) {
+        return Err(E::AceiteSemAtividade);
+    }
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
     let parser = dom.parser();
     let mut atividades = Vec::new();
