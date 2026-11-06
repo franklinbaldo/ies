@@ -43,7 +43,13 @@ pub(crate) enum ErroProcessoAtribuir {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,
-    SituacaoDaAtribuicaoNaoObservada,
+    #[causa(nome = "situacao_da_atribuicao_nao_observada")]
+    SituacaoDaAtribuicaoNaoObservada {
+        unidade: String,
+        aberto_em: Option<Vec<String>>,
+        motivo: Option<&'static str>,
+        requisicoes: u8,
+    },
     AtribuicaoNaoOferecidaNaBarra,
     #[causa(interna)]
     Barra(ErroAtribuirNaBarra),
@@ -107,7 +113,7 @@ impl ErroProcessoAtribuir {
         match self {
             Self::Abertura(erro) => erro.mensagem(),
             Self::UnidadeDaSessaoNaoPublicada => "a abertura não publicou a unidade da sessão",
-            Self::SituacaoDaAtribuicaoNaoObservada => {
+            Self::SituacaoDaAtribuicaoNaoObservada { .. } => {
                 "a árvore não publicou a atribuição na unidade da sessão"
             }
             Self::AtribuicaoNaoOferecidaNaBarra => {
@@ -151,8 +157,24 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .unidade
         .as_deref()
         .ok_or(E::UnidadeDaSessaoNaoPublicada)?;
-    let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade)
-        .ok_or(E::SituacaoDaAtribuicaoNaoObservada)?;
+    let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade).ok_or_else(|| {
+        // Diagnóstico conservador: a unidade da tela não é necessariamente
+        // a unidade da árvore. Sem identidade comum, NÃO escolher outra.
+        let (aberto_em, motivo) = match &aberto.arvore.aberto_em {
+            AbertoEm::Unidades(unidades) => (
+                Some(unidades.iter().map(|u| u.sigla.clone()).collect()),
+                None,
+            ),
+            AbertoEm::Sobrestado(_) => (None, Some("raiz_publica_o_sobrestamento")),
+            AbertoEm::NaoLido(motivo) => (None, Some(motivo.como_texto())),
+        };
+        E::SituacaoDaAtribuicaoNaoObservada {
+            unidade: unidade.to_owned(),
+            aberto_em,
+            motivo,
+            requisicoes: rede.feitas(),
+        }
+    })?;
     let link = acoes
         .atribuir
         .map_err(E::Barra)?
