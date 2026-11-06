@@ -312,3 +312,22 @@ saída 3, sem abrir o processo antigo, sem retry. RED test-first no
 **1 FAIL novo, 1.733 PASS e 22 ignorados preexistentes**; o sistema
 publicava `confirmado: true` para o NUP preexistente. Budget após
 correção: 3 GET prévios + 1 POST, nenhum GET posterior.
+
+## NUP repetido sob IDs diferentes — 06/11/2026 (#245)
+
+A lista Gerados pode declarar cobertura completa das linhas e ainda oferecer
+identidade contraditória: dois IDs associados ao mesmo NUP. O parser genérico
+`Tabela::nova` já recusa ID repetido, mas permite números iguais sob IDs
+distintos, porque outras leituras não devem inventar exclusividade global.
+
+Para a **fotografia de reconciliação da criação**, dois IDs com o mesmo NUP
+não são candidatos independentes. Rejeitada a alternativa de sobrescrever
+silenciosamente a identidade no mapa ou de tratar o mesmo NUP como duas
+criações. A decisão acrescenta somente nessa fronteira a causa tipada
+`nup_repetido_na_fotografia_de_gerados`. Antes do POST criador, falha
+fechado após os **3 GET de preparação** do cenário sintético, sem escrita;
+a prévia sem confirmação não muda. A regressão foi observada com teste
+sintético RED no [CI 42286047215](https://github.com/franklinbaldo/ies/actions/runs/42286047215):
+**1 falha nova, 1.735 testes passando e 22 ignorados preexistentes**.
+A validação autenticada em uma segunda instalação de treinamento continua
+**NOT_RUN**; não repetir a escrita histórica inconclusiva da UnB.
