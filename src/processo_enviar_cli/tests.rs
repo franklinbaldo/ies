@@ -191,9 +191,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
-                let projecao = super::json_de_falha_com_sugestoes(
-                    &erro, sessao, indice, DESTINO,
-                );
+                let projecao = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
                 assert_ne!(
                     std::any::type_name_of_val(&projecao),
                     std::any::type_name::<serde_json::Value>()
