@@ -261,6 +261,61 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
     encontrados > 0
 }
 
+/// Extrai a fonte literal do elemento `script` no HTML recebido.
+/// O DOM identifica o elemento ativo e valida seus atributos; `inner_text`
+/// perde nós que o parser tl tratou como markup dentro de strings JS.
+/// Encerrar no primeiro `</script>` é a fronteira HTML: mesmo dentro de
+/// uma string JS, a página Web encerra ali o elemento.
+fn fonte_do_script(html: &str, inicio: usize) -> Option<&str> {
+    let bytes = html.as_bytes();
+    if !bytes.get(inicio..inicio + 7)?.eq_ignore_ascii_case(b"<script") {
+        return None;
+    }
+    let mut i = inicio + 7;
+    if !matches!(
+        bytes.get(i).copied(),
+        Some(b'>' | b' ' | b'\t' | b'\r' | b'\n')
+    ) {
+        return None;
+    }
+    let mut aspas = None;
+    loop {
+        let atual = *bytes.get(i)?;
+        match (aspas, atual) {
+            (None, b'\'' | b'"') => aspas = Some(atual),
+            (Some(aberta), c) if c == aberta => aspas = None,
+            (None, b'>') => {
+                i += 1;
+                break;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let inicio_corpo = i;
+    while i < bytes.len() {
+        if bytes
+            .get(i..i + 8)
+            .is_some_and(|trecho| trecho.eq_ignore_ascii_case(b"</script"))
+        {
+            let mut fim = i + 8;
+            let proximo = *bytes.get(fim)?;
+            if proximo == b'>' || proximo.is_ascii_whitespace() {
+                while bytes.get(fim).is_some_and(u8::is_ascii_whitespace) {
+                    fim += 1;
+                }
+                // Fechamento malformado e ambiguo nao autoriza escrita.
+                if bytes.get(fim).copied() != Some(b'>') {
+                    return None;
+                }
+                return html.get(inicio_corpo..i);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Somente script inline clássico, sem src. Um segundo corpo que
 /// redefina `submeter()` torna a prova ambígua. Falha fechada antes do POST.
 pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
@@ -297,12 +352,13 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
             Ok(false) => {}
             Err(_) => return false,
         }
-        // inner_text e uma projecao de texto visivel: pode descartar markup
-        // que aparece dentro de literais JS. A guarda precisa examinar o
-        // corpo integral do script servido, sem executar nem interpretar HTML
-        // auxiliar como instrucao (contar_instrucoes descarta strings).
-        let texto = script.inner_html(dom.parser());
-        let Some((instrucoes, funcoes, chamadas)) = contar_instrucoes(&texto) else {
+        // Usar a fonte original em vez de inner_text/inner_html do DOM:
+        // a serializacao pode perder markup de literais JS. O inicio e
+        // vinculado ao script ja validado (tipo/src/template conferidos).
+        let Some(texto) = fonte_do_script(html, script.boundaries(dom.parser()).0) else {
+            return false;
+        };
+        let Some((instrucoes, funcoes, chamadas)) = contar_instrucoes(texto) else {
             return false;
         };
         ocorrencias += instrucoes;
