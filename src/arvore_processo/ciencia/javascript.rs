@@ -3,7 +3,7 @@
 
 /// Identifica somente código ativo; comentários, literais e templates
 /// não podem autorizar um GET mutador. Retorna a profundidade dos blocos.
-fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
+pub(crate) fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
     let bytes = script.as_bytes();
     let mut niveis = vec![None; bytes.len()];
     let (mut i, mut profundidade) = (0, 0usize);
