@@ -28,6 +28,56 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
+/// O GO serve dois submits com id btnPesquisar, ambos sem name.
+/// O navegador nao transmite botao sem name. A forma sintética mais antiga
+ /// serve um submit nomeado: nesse caso, seu par entra no corpo.
+fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let mut nomeados = 0;
+    let mut sem_nome = 0;
+    for tag in form
+        .children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        let elemento = tag.name().as_utf8_str();
+        if elemento != "input" && elemento != "button" {
+            continue;
+        }
+        let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let padrao = if elemento == "button" { "submit" } else { "text" };
+        if !tipo.as_deref().unwrap_or(padrao).eq_ignore_ascii_case("submit") {
+            continue;
+        }
+        if crate::html_atributos::atributo_presente(tag, "disabled")
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?
+        {
+            continue;
+        }
+        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let id = crate::html_atributos::valor_do_atributo(tag, "id")
+            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        if nome.as_deref() == Some("btnPesquisar") {
+            nomeados += 1;
+        } else if nome.is_none() && id.as_deref() == Some("btnPesquisar") {
+            sem_nome += 1;
+        }
+    }
+    match (nomeados, sem_nome) {
+        (1, 0) => Ok(EnvioDoFormulario::BotaoDeEnvio("btnPesquisar")),
+        // Usar a derivacao que nao inclui botao no corpo: a presenca
+        // dos submits sem nome ja foi conferida na propria operacao.
+        (0, 1..=2) => Ok(EnvioDoFormulario::SubmitPorScript),
+        _ => Err(FalhaDaLupa::FormularioInesperado),
+    }
+}
+
 pub(super) fn consulta(
     instalacao: &Instalacao,
     url: &str,
@@ -42,10 +92,14 @@ pub(super) fn consulta(
         html,
         codificacao,
     };
+    let operacao = OperacaoDeFormulario {
+        envio: envio_da_lupa(html)?,
+        ..CONSULTAR
+    };
     // Controles de paginação devem existir como o SEI os publica.
     // A biblioteca de formulário insere os ocultos fixos na ordem correta.
     derivar_submissao(
-        &CONSULTAR,
+        &operacao,
         instalacao,
         &tela,
         "",
@@ -108,77 +162,8 @@ mod replay_integral_go {
                 .unwrap_or_else(|_| panic!("HTML ilegiveI no passo {}", resposta.passo));
             let url = gravacao::url_sem_consulta(&conferida.json, resposta.item);
             let mime = gravacao::mime(resposta.item);
-            let resultado = consulta(&instalacao, &url, &html, &mime, pagina);
-            if resultado.is_err() {
-                // Diagnostico apenas no replay: subcodigo estatico, sem
-                // expor action, cookie, corpo ou URL assinada.
-                let codificacao = codificacao_da_tela(&mime).expect("charset publicado");
-                let indice = pagina.to_string();
-                let tela = TelaServida {
-                    url: &url,
-                    html: &html,
-                    codificacao,
-                };
-                let causa = derivar_submissao(
-                    &CONSULTAR,
-                    &instalacao,
-                    &tela,
-                    "",
-                    &[
-                        ("selOrgaoUnidade", ""),
-                        ("txtSiglaUnidade", ""),
-                        ("txtDescricaoUnidade", ""),
-                        ("hdnInfraPaginaAtual", &indice),
-                        ("selInfraPaginacaoSuperior", &indice),
-                        ("selInfraPaginacaoInferior", &indice),
-                    ],
-                )
-                .err()
-                .expect("derivacao recusada");
-                let dom = tl::parse(&html, tl::ParserOptions::default()).expect("dom");
-                let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-                    .expect("formulario publicado");
-                let mut botoes = Vec::new();
-                for tag in form
-                    .children()
-                    .all(dom.parser())
-                    .iter()
-                    .filter_map(tl::Node::as_tag)
-                {
-                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
-                        .ok()
-                        .flatten();
-                    let name = crate::html_atributos::valor_do_atributo(tag, "name")
-                        .ok()
-                        .flatten();
-                    if id.as_deref() == Some("btnPesquisar")
-                        || name.as_deref() == Some("btnPesquisar")
-                    {
-                        botoes.push((
-                            tag.name().as_utf8_str().to_string(),
-                            crate::html_atributos::valor_do_atributo(tag, "type")
-                                .ok()
-                                .flatten(),
-                            name.is_some(),
-                            crate::html_atributos::valor_do_atributo(tag, "onclick")
-                                .ok()
-                                .flatten()
-                                .is_some(),
-                        ));
-                    }
-                }
-                panic!(
-                    "formulario passo {}: {}; botoes={:?}; onsubmit={}",
-                    resposta.passo,
-                    causa.subcodigo(),
-                    botoes,
-                    crate::html_atributos::valor_do_atributo(form, "onsubmit")
-                        .ok()
-                        .flatten()
-                        .is_some()
-                );
-            }
-            resultado.expect("submissao sem recusa");
+            consulta(&instalacao, &url, &html, &mime, pagina)
+                .unwrap_or_else(|e| panic!("formulario no passo {}: {e:?}", resposta.passo));
         }
         assert_eq!((get, post), (1, 274), "lupa integral com 275 respostas");
     }
