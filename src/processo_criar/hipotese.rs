@@ -430,7 +430,8 @@ mod tests {
         assert_eq!(caminho_de(&ausente), ["html", "ausente"]);
         let transporte = ErroHipotese::de_transporte(&FalhaTransporte::Rede);
         assert_eq!(folha(&transporte), "falha_de_rede");
-        assert_eq!(caminho_de(&transporte), ["transporte", "rede"]);
+        assert!(matches!(&transporte, ErroHipotese::Transporte(FalhaTransporte::Rede)));
+        assert_eq!(caminho_de(&transporte), ["transporte", "falha_de_rede"]);
     }
 
     #[test]
