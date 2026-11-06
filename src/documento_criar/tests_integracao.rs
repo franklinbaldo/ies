@@ -455,7 +455,9 @@ fn incerteza_conserva_contagem_da_rede_externa() {
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
     respostas.push(a::ok(cadastro()));
-    respostas.push(a::ok("<html>resposta genérica sem aceite</html>".to_owned()));
+    respostas.push(a::ok(
+        "<html>resposta genérica sem aceite</html>".to_owned(),
+    ));
     respostas.push(a::ok(arvore_verificadora(1)));
     let ((resultado, requisicoes), pedidos) =
         a::rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
@@ -471,7 +473,10 @@ fn incerteza_conserva_contagem_da_rede_externa() {
             (resultado, contagem.feitas())
         });
     assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
-    assert_eq!(requisicoes, 7, "inclui releitura mesmo após resposta inconclusiva");
+    assert_eq!(
+        requisicoes, 7,
+        "inclui releitura mesmo após resposta inconclusiva"
+    );
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
     esperados.push(a::get(&a::url_arvore()));
