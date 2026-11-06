@@ -57,3 +57,25 @@ relatório original; **não repetir sua criação**.
 A issue #245 continua WIP. Falta provar não aplicação com evidência
 independente, completar as saídas públicas previstas na issue e validar
 ao vivo em uma segunda instalação. Não declarar a capacidade completa.
+
+## Continuação 🦉 — recusa expressa de criação (06/11/2026)
+
+Observação anterior: `txaInfraValidacao` publica a recusa do próprio SEI;
+HTTP 403 isolado não comprova por si só que o cadastro não foi aplicado.
+RED test-first [CI 42187792547](https://github.com/franklinbaldo/ies/actions/runs/42187792547):
+**2 FAIL, 1.679 PASS, 18 ignorados preexistentes**, com dois testes novos
+ativos (diagnóstico público e transporte da recusa).
+O desfecho `nao_aplicada` é publicado somente para recusa expressa da
+Infra, com saída 1, causa do POST e nova prévia exigida antes de qualquer
+nova confirmação. O erro HTTP 403 mantém a causa e não prova ausência.
+
+**Orçamento sintético exato:** recusa Infra: 3 GET + 1 POST = 4 pedidos;
+HTTP 403: 3 GET + 1 POST = 4 pedidos. **Sem GET posterior nem retry**.
+Não foi introduzido novo POST ao vivo.
+
+**LIVE nesta execução:** prévia NOT_RUN (0), confirmação NOT_RUN (0),
+releitura NOT_RUN (0), zero requisições reais, zero escritas e zero
+resíduos novos. A escrita UnB histórica permanece registrada sem repetição.
+**Issue WIP:** faltam prova não aplicada para outros cenários com evidência
+independente, homologação segura em segunda instalação de treinamento e
+revisão/integração da fatia.
