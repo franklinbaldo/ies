@@ -138,3 +138,39 @@ fn erro_tipado_da_conclusao_conserva_verificacao_sem_situacao_vazia() {
         ]
     );
 }
+
+#[test]
+fn falha_serializavel_preserva_goldens_compactos_sem_value() {
+    let casos = [
+        (
+            ErroConcluir::UnidadeDaSessaoNaoPublicada,
+            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi concluído","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada_na_abertura"}"#,
+        ),
+        (
+            ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo: MotivoAbertoEm::HtmlDaRaizNaoPublicado },
+            r#"{"codigo":"fonte_invalida","erro":"a árvore não publica onde o processo está aberto, e a conclusão não poderia ser conferida; nada foi concluído","motivo":"html_da_raiz_nao_publicado","retentavel":false,"subcodigo":"situacao_do_processo_nao_lida_antes_de_concluir"}"#,
+        ),
+        (
+            ErroConcluir::ConclusaoNaoAplicada { aberto_em: vec![], depois: vec![], falha_do_envio: None },
+            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de concluir ainda lista a unidade da sessão: o processo não foi concluído","retentavel":false,"subcodigo":"conclusao_nao_aplicada"}"#,
+        ),
+        (
+            ErroConcluir::EfeitoIncertoNaConclusao { aberto_em: vec!["TESTE".into()], falha_do_envio: None, verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","retentavel":false,"subcodigo":"efeito_incerto_na_conclusao","verificacao":null}"#,
+        ),
+        (
+            ErroConcluir::EfeitoIncertoNaConclusao { aberto_em: vec!["TESTE".into()], falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido), verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido_apos_concluir"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_conclusao","verificacao":null}"#,
+        ),
+    ];
+    for (erro, esperado) in casos {
+        let projecao = json_de_falha(&erro);
+        assert_eq!(serde_json::to_string(&projecao).unwrap(), esperado);
+        // RED: o contrato deve ser uma projeção Serialize, não um Value.
+        assert_ne!(
+            std::any::type_name_of_val(&projecao),
+            std::any::type_name::<serde_json::Value>()
+        );
+        assert!(!esperado.contains('\u{1b}'));
+    }
+}

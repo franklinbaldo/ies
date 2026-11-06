@@ -163,3 +163,39 @@ fn erro_tipado_da_reabertura_preserva_depois_sem_json() {
         ]
     );
 }
+
+#[test]
+fn falha_serializavel_preserva_goldens_compactos_sem_value() {
+    let casos = [
+        (
+            ErroReabrir::UnidadeDaSessaoNaoPublicada,
+            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi reaberto","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada_na_abertura"}"#,
+        ),
+        (
+            ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo: MotivoAbertoEm::HtmlDaRaizNaoPublicado },
+            r#"{"codigo":"fonte_invalida","erro":"a árvore não publica onde o processo está aberto, e a reabertura não poderia ser conferida; nada foi reaberto","motivo":"html_da_raiz_nao_publicado","retentavel":false,"subcodigo":"situacao_do_processo_nao_lida_antes_de_reabrir"}"#,
+        ),
+        (
+            ErroReabrir::ReaberturaNaoAplicada { aberto_em: vec![], depois: vec![], falha_do_envio: None },
+            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de reabrir não lista a unidade da sessão: o processo não foi reaberto","retentavel":false,"subcodigo":"reabertura_nao_aplicada"}"#,
+        ),
+        (
+            ErroReabrir::EfeitoIncertoNaReabertura { aberto_em: vec!["TESTE".into()], falha_do_envio: None, verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","retentavel":false,"subcodigo":"efeito_incerto_na_reabertura","verificacao":null}"#,
+        ),
+        (
+            ErroReabrir::EfeitoIncertoNaReabertura { aberto_em: vec!["TESTE".into()], falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura), verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])) },
+            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_na_reabertura"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_reabertura","verificacao":null}"#,
+        ),
+    ];
+    for (erro, esperado) in casos {
+        let projecao = json_de_falha(&erro);
+        assert_eq!(serde_json::to_string(&projecao).unwrap(), esperado);
+        // RED: o contrato deve ser uma projeção Serialize, não um Value.
+        assert_ne!(
+            std::any::type_name_of_val(&projecao),
+            std::any::type_name::<serde_json::Value>()
+        );
+        assert!(!esperado.contains('\u{1b}'));
+    }
+}
