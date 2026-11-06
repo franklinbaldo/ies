@@ -32,7 +32,7 @@ de ler arquivos privados, usa a sessão Web atual e não segue 302.
    `NosAcoes` do próprio processo, com `acao=protocolo_ciencia_listar`.
    Um GET da lista, conferir a atividade no checkbox
    `chkInfraItem` (ou `chkInfraItem1` no SEI 5.0).
-   Duplicidade de atividades ou lista ilegível não é sucesso.
+   Duplicidade de atividades ou lista ilegível não é sucesso. Um checkbox\nque apareça dentro de `<template>` é inerte: a tabela inteira é recusada,\nsem declarar ciência a partir de conteúdo não executado ou não exibido.
 
 Acesso sem botão, tela inválida e cookie recusado falham com saída 1
 **antes** de enviar a escrita. Depois do GET mutador, nenhuma falha
