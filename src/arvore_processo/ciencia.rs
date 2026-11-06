@@ -241,10 +241,12 @@ fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
 
 /// Aceita só as duas formas estáticas observadas, fora de comentários,
 /// templates e condicionais: variável no topo ou função SEI 4.0.
-fn urls_ativas_da_ciencia_do_documento(script: &str) -> Result<Vec<String>, crate::erro_html::ErroHtml> {
+fn urls_ativas_da_ciencia_do_documento(
+    script: &str,
+) -> Result<Vec<String>, crate::erro_html::ErroHtml> {
     use crate::erro_html::ErroHtml as E;
-    let niveis = niveis_js(script)
-        .ok_or(E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
+    let niveis =
+        niveis_js(script).ok_or(E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
     let mut linhas = Vec::new();
     let mut inicio = 0;
     for linha in script.split_inclusive('\n') {
@@ -262,9 +264,11 @@ fn urls_ativas_da_ciencia_do_documento(script: &str) -> Result<Vec<String>, crat
         }
         // Uma condicional no topo (mesmo sem chaves) impede concluir
         // estaticamente que uma declaração posterior esteja ativa.
-        if ["if(", "if ", "else", "switch", "for(", "for ", "while", "with", "try", "catch"]
-            .iter()
-            .any(|prefixo| linha.starts_with(prefixo))
+        if [
+            "if(", "if ", "else", "switch", "for(", "for ", "while", "with", "try", "catch",
+        ]
+        .iter()
+        .any(|prefixo| linha.starts_with(prefixo))
         {
             condicionada = true;
             continue;
@@ -281,8 +285,7 @@ fn urls_ativas_da_ciencia_do_documento(script: &str) -> Result<Vec<String>, crat
         }
         if linha == "function cienciaDocumento(){" {
             let confirmacao = linhas.get(i + 1).map_or("", |l| l.0);
-            let (destino, nivel_destino) =
-                linhas.get(i + 2).copied().unwrap_or(("", None));
+            let (destino, nivel_destino) = linhas.get(i + 2).copied().unwrap_or(("", None));
             if !confirmacao.starts_with("//if (confirm(")
                 || !confirmacao.ends_with("){")
                 || nivel_destino != Some(1)
