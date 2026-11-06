@@ -254,12 +254,12 @@ fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
 
 #[test]
 fn causa_de_validacao_do_sei_preserva_status_e_mensagem_http() {
-    let falha = ErroPreviaCriacao::Formulario(
-        ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
+    let falha = ErroPreviaCriacao::Formulario(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+        StatusHttpRecusado {
             status: 200,
             mensagem_do_servidor: Some("recusa sintética".to_owned()),
-        }),
-    );
+        },
+    ));
     let http = falha.status_http().expect("status publicado pelo SEI");
     assert_eq!(http.status, 200);
     assert_eq!(
