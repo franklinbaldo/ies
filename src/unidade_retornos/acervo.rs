@@ -145,12 +145,18 @@ fn replay_retornos_no_acervo() {
             }
         }
         println!("{instalacao}: mensais={meses} lidos={lidos} recusados={recusados}");
-        assert!(meses > 0, "{instalacao}: cassette sem listagem mensal GET");
+        // As sete capturas imutaveis continham exatamente dois GETs
+        // mensais cada: uma regressao nao pode passar lendo so uma pagina.
+        assert_eq!(meses, 2, "{instalacao}: mudou a cobertura mensal");
+        assert_eq!(lidos, 2, "{instalacao}: perdeu uma listagem mensal");
+        assert_eq!(recusados, 0, "{instalacao}: listagem mensal recusada");
         total_meses += meses;
         total_lidos += lidos;
         total_recusados += recusados;
     }
     println!("TOTAL: mensais={total_meses} lidos={total_lidos} recusados={total_recusados}");
+    assert_eq!(total_meses, 14, "acervo nao cobriu os 14 meses");
+    assert_eq!(total_lidos, 14, "acervo nao leu os 14 meses");
     assert_eq!(
         total_recusados, 0,
         "replay mensal nao demonstrou paridade em todas as instalacoes"
