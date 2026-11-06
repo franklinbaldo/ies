@@ -308,22 +308,39 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     let parser = dom.parser();
     let achados =
         crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
-    let tag = match achados.as_slice() {
-        [] => return Err(FalhaDaLupa::LinkAusente),
-        [unico] => unico
+    if achados.is_empty() {
+        return Err(FalhaDaLupa::LinkAusente);
+    }
+    // Na UnB a cassette publica dois btnNovo com o MESMO destino assinado.
+    // Aceitar duplicidade de id apenas se CADA botão publicar sozinho
+    // exatamente a mesma URL autorizada. Botão sem alvo ou alvos distintos
+    // continuam ambíguos, antes de qualquer outro GET.
+    let duplicados = achados.len() > 1;
+    let mut destino_unico: Option<String> = None;
+    for no in achados {
+        let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaLupa::LinkAusente)?,
-        _ => return Err(FalhaDaLupa::LinkAmbiguo),
-    };
-    // Não emprestar URL de outro botão ou link da tela. Uma URL assinada
-    // de cadastro só autoriza o GET se publicada no próprio btnNovo.
-    destino_de_candidatos(
-        candidatos_do_controle(tag)?,
-        url,
-        origem,
-        "grupo_unidade_cadastrar",
-    )
+            .ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let candidato = match destino_de_candidatos(
+            candidatos_do_controle(tag)?,
+            url,
+            origem,
+            "grupo_unidade_cadastrar",
+        ) {
+            Ok(candidato) => candidato,
+            Err(_) if duplicados => return Err(FalhaDaLupa::LinkAmbiguo),
+            Err(falha) => return Err(falha),
+        };
+        if let Some(ref anterior) = destino_unico {
+            if anterior != &candidato {
+                return Err(FalhaDaLupa::LinkAmbiguo);
+            }
+        } else {
+            destino_unico = Some(candidato);
+        }
+    }
+    destino_unico.ok_or(FalhaDaLupa::LinkAusente)
 }
 
 /// Consulta integral: quatro GETs de navegação + um POST por página;
