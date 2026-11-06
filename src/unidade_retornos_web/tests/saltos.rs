@@ -172,3 +172,38 @@ fn link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario() {
     assert_eq!(lido.requisicoes, 3);
     assert_eq!(requisicoes, 2);
 }
+
+
+#[test]
+fn nome_de_parametro_com_sufixo_acao_nao_simula_acao_de_retornos() {
+    // A substring "acao=retorno_programado_listar" em "outra_acao="
+    // nao e a chave exata "acao"; nao deve invalidar um calendario real.
+    let outra = format!(
+        "controlador.php?acao=procedimento_visualizar&outra_acao=retorno_programado_listar&infra_hash={}",
+        "a".repeat(64)
+    );
+    let pagina = calendario(2026, 11, true).replace(
+        "</html>",
+        &format!("<a href='{outra}'>outra operacao</a></html>"),
+    );
+    let mut requisicoes = 0;
+    let lido = ler_com_data_utc(
+        CONTROLE,
+        &controle(),
+        &instalacao(),
+        Some((2026, 11)),
+        (2026, 11, 5),
+        |url| {
+            requisicoes += 1;
+            if url.contains("data_inicial=") {
+                Ok(linha().to_owned())
+            } else {
+                Ok(pagina.clone())
+            }
+        },
+    )
+    .expect("link de outra operacao nao deve contaminar o calendario");
+    assert_eq!(lido.mes, "2026-11");
+    assert_eq!(lido.requisicoes, 3);
+    assert_eq!(requisicoes, 2); // Controle ja esta injetado.
+}
