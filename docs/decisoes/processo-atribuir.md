@@ -47,7 +47,9 @@ com o primitivo único `formulario_web`, exigindo que os ocultos servidos,
 o botão Salvar e a opção `selAtribuicao` produzam exatamente o corpo do
 navegador. Rejeita um mesmo ID de usuário associado a dois logins. Os
 testes sintéticos conferem o payload de atribuição e o `null` de remoção,
-sem requisições. O POST real, a releitura do efeito e o ensaio ao vivo
+sem requisições. A prévia foi extraída para um fluxo injetável com testes
+ que afirmam 4 GET e 0 POST, e a CLI preserva status HTTP e mensagem saneada.
+ O POST real, a releitura do efeito e o ensaio ao vivo
 **ainda não foram implementados**. `--confirmar` permanece fechado antes
 da sessão. Não confundir a preparação verde com autorização para enviar.
 
@@ -57,6 +59,7 @@ da sessão. Não confundir a preparação verde com autorização para enviar.
 - [Evidências da matriz](../../contracts/evidencias/processo-atribuir.md)
 - [Teste da trava de escrita](../../tests/cli_processo_atribuir.rs)
 - [Testes de forma e payload](../../src/processo_atribuir/tests.rs)
+- [Testes de transporte da prévia](../../src/processo_atribuir/tests_fluxo.rs)
 
 
 [Formulário real no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/paginas_reais/processo_procedimento_atribuicao_cadastrar.html),

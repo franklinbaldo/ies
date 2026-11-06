@@ -52,7 +52,7 @@ de treinamento; ordem prévia → confirmar uma vez → leitura de prova.
 Prévia: abertura do processo pelo índice/Controle, mais 1 GET da tela.
 A escrita futura acrescentará 1 POST e 1 leitura da árvore; os testes
 integrados ainda precisam afirmar os totais por caminho de abertura.
-Testes sintéticos do corpo do POST e da remoção usam 0 requisições:
+Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a frio (3 da abertura e 1 da tela); barra ausente custa 3 GET e 0 POST. As recusas HTTP da prévia preservam status e mensagem saneada. Testes sintéticos do corpo do POST e da remoção usam 0 requisições:
 `hdnInfraTipoPagina`, `sbmSalvar`, `selAtribuicao`, `hdnIdProtocolo`
 nessa ordem. `--confirmar` continua fechado antes da sessão. Replay do
 acervo e live: NOT_RUN nesta fatia, sem escrita.

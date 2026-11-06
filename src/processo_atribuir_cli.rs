@@ -1,13 +1,9 @@
 //! Prévia Web de atribuição por login exato; escrita bloqueada até a
 //! sequência POST único e releitura estar coberta por teste de transporte.
-use crate::arvore_processo::AbertoEm;
-use crate::indice_local::IndiceLocal;
-use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_atribuir::preparar_submissao;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
-use crate::processo_obter::{SessaoDoProcesso, abrir_para_escrever};
+use crate::processo_atribuir::{ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa};
+use crate::processo_concluir_cli::{com_sessao, erro_de_uso, json_base_da_falha};
+use crate::saida_erro;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
@@ -30,17 +26,20 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
             if *confirmar {
-                // Ainda falta provar POST e releitura; nunca testar escrita no escuro.
+                // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
                 falhar(cli.json, "escrita_de_atribuicao_ainda_nao_verificada")
             } else {
                 com_sessao(cli, |sessao, indice| {
-                    previa(
-                        cli,
-                        sessao,
-                        indice,
-                        &nup,
-                        if *remover { None } else { usuario.as_deref() },
-                    )
+                    let pedido = PedidoDaAtribuicao {
+                        nup: &nup,
+                        unidade: cli.unidade.as_deref(),
+                        usuario: if *remover { None } else { usuario.as_deref() },
+                        confirmar: false,
+                    };
+                    match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
+                        Ok(feito) => publicar_previa(cli.json, &feito),
+                        Err(erro) => publicar_falha(cli.json, &erro),
+                    }
                 })
             }
         }
@@ -48,6 +47,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     })
 }
 
+/// A trava de escrita ainda é recusada sem sessão, preservando o contrato.
 fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
     if json_mode {
         println!(
@@ -64,94 +64,53 @@ fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn previa(
-    cli: &Cli,
-    sessao: &SessaoDoProcesso<'_>,
-    indice: &IndiceLocal,
-    nup: &NumeroProcesso,
-    usuario: Option<&str>,
-) -> ExitCode {
-    let mut envio = EnvioHttps;
-    let mut rede = Contador::novo(&mut envio);
-    let pedido = leitura(nup, cli.unidade.as_deref(), true);
-    let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
-        Ok(v) => v,
-        Err(erro) => return falhar(cli.json, erro.subcodigo()),
-    };
-    let Some(unidade) = aberto.unidade.as_deref() else {
-        return falhar(cli.json, "unidade_da_sessao_nao_publicada_na_abertura");
-    };
-    let atual = match &aberto.arvore.aberto_em {
-        AbertoEm::Unidades(unidades) => unidades
-            .iter()
-            .find(|u| u.sigla == unidade)
-            .map(|u| u.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str())),
-        AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => None,
-    };
-    if atual.is_none() {
-        return falhar(cli.json, "situacao_da_atribuicao_nao_observada");
+/// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
+fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
+    if json_mode {
+        println!(
+            "{}",
+            json_base_da_falha(
+                "atribuicao_recusada",
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http().cloned()
+            )
+        );
+    } else {
+        eprintln!(
+            "{}",
+            saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
     }
-    let link = match acoes.atribuir {
-        Ok(Some(link)) => link,
-        Ok(None) => return falhar(cli.json, "atribuicao_nao_oferecida_na_barra"),
-        Err(erro) => return falhar(cli.json, erro.subcodigo()),
-    };
-    let cookie = match ler_cookie(sessao) {
-        Ok(v) => v,
-        Err(erro) => return falhar(cli.json, erro.subcodigo()),
-    };
-    let (html, mime) = match obter_tela(&mut rede, &cookie, link.as_str()) {
-        Ok(v) => v,
-        Err(FalhaDaTela::Redirecionada) => {
-            return falhar(cli.json, "tela_da_atribuicao_redirecionada");
-        }
-        Err(FalhaDaTela::SessaoEncerrada) => {
-            return falhar(cli.json, "sessao_encerrada_na_atribuicao");
-        }
-        Err(FalhaDaTela::Transporte(erro)) => return falhar(cli.json, erro.subcodigo()),
-    };
-    let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return falhar(cli.json, "origem_nao_autorizada");
-    };
-    // A prévia comprova também a forma exata do POST, sem enviá-lo.
-    let (valor, _submissao) = match preparar_submissao(
-        &instalacao,
-        link.as_str(),
-        &html,
-        &mime,
-        &aberto.arvore.processo.id,
-        unidade,
-        usuario,
-        atual,
-    ) {
-        Ok(v) => v,
-        Err(erro) => return falhar(cli.json, erro.subcodigo()),
-    };
-    if cli.json {
+    ExitCode::from(1)
+}
+
+fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
+    if json_mode {
         println!(
             "{}",
             json!({
-                "nup": nup.as_str(),
-                "id_procedimento": aberto.arvore.processo.id,
-                "unidade": unidade,
-                "usuario_atual": atual,
-                "usuario_pedido": usuario,
-                "remover": usuario.is_none(),
-                "valor_da_opcao": valor,
-                "confirmado": false,
-                "alterado": false,
+                "nup": feito.nup,
+                "id_procedimento": feito.id_procedimento,
+                "unidade": feito.unidade,
+                "usuario_atual": feito.usuario_atual,
+                "usuario_pedido": feito.usuario_pedido,
+                "remover": feito.usuario_pedido.is_none(),
+                "valor_da_opcao": feito.valor_da_opcao,
+                "confirmado": feito.confirmado,
+                "alterado": feito.alterado,
                 "origem": "web",
-                "requisicoes": rede.feitas()
+                "requisicoes": feito.requisicoes
             })
         );
     } else {
-        println!("Prévia: processo {}, unidade {unidade}.", nup.as_str());
-        if let Some(login) = usuario {
+        println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
+        if let Some(login) = &feito.usuario_pedido {
             println!("Atribuir a {login}; opção verificada na tela.");
         } else {
             println!("Remover a atribuição observada.");
         }
-        println!("Requisições: {}", rede.feitas());
+        println!("Requisições: {}", feito.requisicoes);
     }
     ExitCode::SUCCESS
 }

@@ -1,6 +1,6 @@
 //! RED/GREEN: prévia Web com orçamento exato, usando apenas respostas sintéticas.
-//! Caso derivado de Todos tests/test_ciclo_atribuir_010.py @323eb01.
-use super::fluxo::{executar_previa, ErroProcessoAtribuir as E, PedidoDaAtribuicao};
+//! Caso derivado de `Todos tests/test_ciclo_atribuir_010.py` @323eb01.
+use super::fluxo::{ErroProcessoAtribuir as E, PedidoDaAtribuicao, executar_previa};
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
@@ -36,7 +36,10 @@ fn formulario() -> String {
 fn arvore_atual(atual: &str) -> String {
     let mut html = arvore(&[UNIDADE], &acao());
     if !atual.is_empty() {
-        let antes = format!("Processo aberto somente na unidade {}.<br />", ancora(UNIDADE));
+        let antes = format!(
+            "Processo aberto somente na unidade {}.<br />",
+            ancora(UNIDADE)
+        );
         let depois = format!(
             "Processo aberto somente na unidade {} (atribuído para <a alt=\"{atual}\" title=\"{atual}\" class=\"ancoraSigla\">{atual}</a>).<br />",
             ancora(UNIDADE)
