@@ -183,7 +183,7 @@ fn selecionar_previa(
             operacao: "acompanhar",
             grupo: grupo.to_owned(),
             observacao: existente.observacao.clone(),
-            id_de_remocao: None,
+            id_de_remocao: Some(existente.id.clone()),
             ja_estava: true,
             confirmado: false,
             alterado: false,
