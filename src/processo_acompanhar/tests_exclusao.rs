@@ -79,6 +79,55 @@ fn exclusao_recusa_script_de_exclusao_ausente() {
 }
 
 #[test]
+fn exclusao_recusa_funcao_em_script_nao_executavel() {
+    // Em script de dados, acaoExcluir existe apenas como texto e o onclick não a invoca.
+    // Caso sintético derivado da semântica de <script type="application/json">.
+    let html = lista_observada("831").replacen(
+        "<script>",
+        "<script type=\"application/json\">",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_script_module_sem_funcao_global() {
+    // Função declarada no escopo de module não é global para o onclick inline.
+    let html = lista_observada("831").replacen("<script>", "<script type=\"module\">", 1);
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_recusa_script_com_src_que_ignora_corpo_inline() {
+    // O navegador ignora o código inline quando o script clássico possui src.
+    let html = lista_observada("831").replacen(
+        "<script>",
+        "<script src=\"/arquivo-exemplo.js\">",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn exclusao_aceita_script_classico_com_tipo_explicito() {
+    let html = lista_observada("831").replacen(
+        "<script>",
+        "<script type=\"text/javascript\">",
+        1,
+    );
+    assert!(conferir_oferta_exclusao(&instalacao(), &html, "10", "831").is_ok());
+}
+
+#[test]
 fn exclusao_recusa_comandos_em_outra_funcao_apos_acao_excluir_vazia() {
     // O código fora do corpo de acaoExcluir não prova uma ação oferecida.
     // RED: a antiga busca por substrings no script inteiro aceitava isso.
