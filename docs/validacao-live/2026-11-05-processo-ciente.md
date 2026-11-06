@@ -47,3 +47,11 @@ comportamento sintético, não a compatibilidade ao vivo.
 - **Correção:** aceitar `atualizarArvore` somente como primeira instrução executável no script ou diretamente no corpo de `inicializar()`, recusando código anterior cujo fluxo não foi comprovado. Não executar JS nem fazer retry.
 - **Orçamento sintético exigido:** **6 GET / 1 GET mutador / 0 retry**, incluindo releitura independente da árvore. Sem ID do aceite, não buscar a lista preexistente. CI GREEN do novo head deve ser conferido separadamente.
 - **Live:** UnB **NOT_RUN (0)**; segunda instalação **NOT_RUN (0)**; confirmação única **NOT_RUN (0)**; verificação de leitura **NOT_RUN (0)**; replay específico de ciência **NOT_RUN**. **0 requisições reais SEI, 0 escritas e 0 resíduos**.
+
+## Checkbox em template na lista — 🦊 Raposa (06/11/2026)
+
+- **RED antes da correção:** [CI 42240810943](https://github.com/franklinbaldo/ies/actions/runs/42240810943), **1 teste novo FAIL / 1.732 PASS / 22 ignored preexistentes**. A leitura real do DOM devolvia `Ok(true)` para atividade `42457` publicada somente dentro de `<template>` inerte, enquanto a linha efetiva trazia outra atividade. Rustfmt também apontou uma linha em branco excedente no teste novo, corrigida sem omitir o RED.
+- **Correção:** `atividade_na_lista` recusa uma tabela `tblAndamentos` com descendente `<template>`, antes de contar checkboxes. Falha fechada com a causa existente `lista_de_ciencias_fora_da_forma_observada`; sem novos GETs, JavaScript, regex ou alteração no fluxo de escrita.
+- **GREEN:** exigir CI verde no head final desta PR; nenhum PASS presumido.
+- **Live:** UnB **NOT_RUN (0 requisições)**, segunda instalação **NOT_RUN (0)**, confirmação **NOT_RUN (0)**, verificação **NOT_RUN (0)** e replay específico **NOT_RUN**. **0 requisições reais ao SEI, 0 escritas, 0 resíduos**.
+
