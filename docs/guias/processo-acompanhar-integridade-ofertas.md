@@ -89,3 +89,20 @@ nova capacidade de escrita. **RED** [42289429307](https://github.com/franklinbal
 2 testes funcionais novos falharam, 1.785 passaram, 23 ignorados
 preexistentes. **Live da fatia: NOT_RUN, 0 HTTP, 0 escrita**; resíduos
 históricos UnB 850/UFRJ 142 preservados. Retirada pública fechada.
+
+## Script de exclusão dentro de `template` (06/11/2026, 🐢)
+
+**Caso sintético adversarial:** a declaração `function acaoExcluir`
+fica dentro de `<template><script>…</script></template>`, enquanto o
+link da linha permanece ativo, fora do `template`. O parser `tl`
+retorna o nó `script` na busca estrutural, mas o navegador **não
+executa** scripts no conteúdo inerte de um `template`. A existência
+textual do código, portanto, não comprova oferta de exclusão.
+
+**Decisão:** a guarda única de controles passa a recusar descendentes de
+`template` e é reutilizada também no reconhecimento da declaração
+global do script. A recusa é `exclusao_de_acompanhamento_nao_oferecida`,
+sem nova rota ou flag. A regressão de função pura recusa a oferta e a
+prévia injetada exige **4 GET e 0 POST**. Nenhum JavaScript é executado
+nem se usa regex. O HTML normal com script clássico fora de template
+continua permitido; a retirada pública confirmada continua fechada.

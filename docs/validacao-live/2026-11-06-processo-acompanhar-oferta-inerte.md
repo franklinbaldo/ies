@@ -92,3 +92,30 @@ releitura 0 GET, 0 requisições SEI, 0 escritas e 0 novos resíduos.
 IDs anteriores UnB 850 / UFRJ 142 continuam inconclusivos e não
 foram alterados. `--deixar --confirmar` continua fechado antes de
 sessão/rede. Próxima etapa: ensaio seguro no treinamento em novo NUP.
+
+## Função `acaoExcluir` inerte sob `template` (06/11/2026, 🐢)
+
+O HTML observado da UnB contém a função global clássica e o acionador da
+linha. A variante `<template><script>…</script></template>` é
+**sintética**, derivada dessa tela, sem afirmar observação live.
+A revisão 🦅 do head `b837e4b` detectou que a busca por `script`
+aceitava uma declaração dentro de `template` como oferta executável.
+
+**RED antes do código:** os testes foram publicados em `7fd5169`.
+No [CI 42306561651](https://github.com/franklinbaldo/ies/actions/runs/42306561651),
+**2 testes novos FAIL, 1.826 PASS, 23 ignored preexistentes**:
+o reconhecedor puro aceitou o script inerte e a prévia deixou de recusar
+a oferta. A correção do código está em `fd746d4`, reutilizando
+`controle_inerte` para excluir scripts e controles dentro de
+`template`, sem executar JS/regex, retry nem criar nova rota.
+O teste de prévia exige **4 GET, 0 POST**; o teste de função pura não
+realiza rede. Conferir o GREEN no CI do head final.
+
+**Sincronização:** `main@04514cf` integrada em merge de dois pais
+`e73fb06` antes do RED, preservando as entradas documentais das
+issues #254 e #271. Não houve rebase nem force-push.
+
+**Live desta rodada:** **NOT_RUN**, 0 requisições reais (0 GET,
+0 POST), 0 escritas, 0 novos resíduos. A retirada confirmada segue
+bloqueada antes de sessão/rede. Os resíduos incertos anteriores
+UnB 850 e UFRJ 142 não foram repetidos nem alterados.
