@@ -155,3 +155,20 @@ de chamar a função, e uma exceção pode impedir a recarga.
 Após o único GET potencialmente mutador, essa resposta leva à
 releitura independente e **efeito incerto (saída 3)**, sem consultar
 a Lista de Ciências antiga nem repetir a escrita.
+
+## Segunda ciência e HTML inerte (#271, 06/11/2026)
+
+No oráculo Todos `tests/test_ciclo_ciencia_010.py` @323eb01, a segunda
+ciência **no mesmo dia** é recusada pelo SEI com validação Infra HTTP 200
+e mensagem «Usuário já deu ciência no processo hoje.». A resposta não publica
+`id_atividade` e não equivale a sucesso. O IES preserva a causa e a
+mensagem saneada, faz somente a releitura de reconciliação e devolve
+`efeito_incerto_na_ciencia` (saída 3): **6 GET sintéticos, exatamente
+um GET mutador, nenhum retry**. Não classificar a recusa pelo texto.
+
+Também é inerte a Lista de Ciências que o parser encontra inteiramente
+dentro de `<noscript>` (ou um checkbox nele), com scripts habilitados.
+A recusa conservadora é a mesma já aplicada a `<template>`: após o GET
+único, ausência de prova visível da atividade retorna saída 3, sem
+transformar uma ciência antiga em confirmação da tentativa. Esse controle
+não adiciona requisições. Live e replay específico ainda pendentes.
