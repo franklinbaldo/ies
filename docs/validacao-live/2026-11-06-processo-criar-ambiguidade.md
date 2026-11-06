@@ -63,8 +63,8 @@ ao vivo em uma segunda instalação. Não declarar a capacidade completa.
 Observação anterior: `txaInfraValidacao` publica a recusa do próprio SEI;
 HTTP 403 isolado não comprova por si só que o cadastro não foi aplicado.
 RED test-first [CI 42187792547](https://github.com/franklinbaldo/ies/actions/runs/42187792547):
-**2 FAIL, 1.679 PASS, 18 ignorados preexistentes**, com dois testes novos
-ativos (diagnóstico público e transporte da recusa).
+**2 FAIL, 1.679 PASS, 18 ignorados preexistentes**: um teste novo
+de diagnóstico público e uma nova asserção no teste de transporte da recusa.
 O desfecho `nao_aplicada` é publicado somente para recusa expressa da
 Infra, com saída 1, causa do POST e nova prévia exigida antes de qualquer
 nova confirmação. O erro HTTP 403 mantém a causa e não prova ausência.
