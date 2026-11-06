@@ -2,9 +2,7 @@
 //! Um POST no máximo, sem retry; falha incerta exige leitura independente.
 use super::super::conferir_inclusao;
 use super::*;
-use crate::formulario_web::{
-    ErroSubmissaoFormulario, RespostaDoEnvio, enviar_submissao_via,
-};
+use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoEnvio, enviar_submissao_via};
 
 /// Observação finita para diagnosticar o aceite sem revelar o POST ou Location.
 fn classificar_resposta_post(
