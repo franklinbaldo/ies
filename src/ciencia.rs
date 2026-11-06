@@ -71,6 +71,7 @@ fn identificador(valor: &str) -> bool {
 /// variável (PEN3) são ignoradas: não identificam uma atividade. Nenhum JS
 /// é interpretado; a forma literal não comporta escapes.
 fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
+    const CHAMADA: &str = "atualizarArvore(";
     // O mesmo lexer estático usado para autorizar o link de documento:
     // nenhuma chamada dentro de comentário, string ou template é ativa.
     let Some(niveis) = crate::arvore_processo::niveis_js(script) else {
@@ -78,7 +79,6 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
     };
     let mut achados = Vec::new();
     let mut cursor = 0;
-    const CHAMADA: &str = "atualizarArvore(";
     while let Some(indice) = script[cursor..].find(CHAMADA) {
         let posicao = cursor + indice;
         cursor = posicao + CHAMADA.len();
