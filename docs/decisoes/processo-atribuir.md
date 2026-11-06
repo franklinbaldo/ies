@@ -52,9 +52,17 @@ sem requisições. A prévia foi extraída para um fluxo injetável com testes
 O fluxo interno de transporte agora envia um POST no máximo uma vez,
 reabre a árvore e compara a atribuição na unidade e no processo originais.
 Falha do POST não gera retry. Se a releitura não comprovar exatamente o
-pedido, a operação devolve efeito incerto (saída 3). Os testes injetados
-afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto em atribuição quanto
-em remoção. A CLI pública `--confirmar` continua recusada antes da sessão
+pedido, a operação devolve efeito incerto (saída 3). A revisão da PR #316
+identificou um risco adicional: **releitura coincidente depois de HTTP 403
+ou validação da Infra não prova que o nosso POST escreveu**; outro agente
+pode ter modificado o processo no intervalo. A resposta recusada não
+pode ser reconciliada como sucesso, mesmo com o estado esperado. O mesmo
+vale para 302 sem ação e identidade compatíveis. Apenas uma resposta
+aceita ou uma falha sem resposta de rede pode ser conciliada pela leitura,
+conservando a causa; não há nova escrita nem navegação pelo Location.
+Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
+em atribuição quanto em remoção, e as regressões de concorrência exigem
+a mesma contagem exata. A CLI pública `--confirmar` continua recusada antes da sessão
 porque **replay específico e validação ao vivo não foram executados**.
 Não confundir a cobertura sintética com autorização para enviar.
 
