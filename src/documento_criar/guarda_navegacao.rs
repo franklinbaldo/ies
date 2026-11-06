@@ -57,4 +57,3 @@ pub(super) fn script_publica_funcao_de_navegacao(
     }
     encontradas == 1
 }
-
