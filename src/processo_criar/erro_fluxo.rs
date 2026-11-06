@@ -21,6 +21,8 @@ pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) causa_post: &'static str,
     pub(crate) causa_releitura: Option<&'static str>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
+    /// NUPs cuja identidade, tipo e especificação foram todos conferidos.
+    pub(crate) candidatos_compativeis: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,12 +55,14 @@ pub(crate) enum ErroCriar {
     PosEscrita {
         causa_post: ErroSubmissaoFormulario,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
+        correspondentes: Option<Vec<String>>,
     },
     /// O POST recebeu resposta sem prova de identidade; uma releitura
     /// única do Controle preserva o fato da resposta e a falha posterior.
     PosRespostaInesperada {
         causa: CausaRespostaCriadora,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
+        correspondentes: Option<Vec<String>>,
     },
     EfeitoIncerto,
 }
@@ -83,6 +87,14 @@ impl ErroCriar {
             Self::Propriedades(erro) => crate::erro_publico::folha(erro),
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
             Self::RecusaDoPost(erro) => erro.subcodigo(),
+            Self::PosEscrita {
+                correspondentes: Some(_),
+                ..
+            }
+            | Self::PosRespostaInesperada {
+                correspondentes: Some(_),
+                ..
+            } => "candidatos_ambiguos_na_criacao",
             Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
                 "efeito_incerto_na_criacao"
             }
@@ -134,14 +146,17 @@ impl ErroCriar {
     /// O retorno não infere ausência quando não houve candidato novo.
     /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
     pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
-        let (causa_post, posterior) = match self {
+        let (causa_post, posterior, correspondentes) = match self {
             Self::PosEscrita {
                 causa_post,
                 posterior,
-            } => (causa_post.subcodigo(), posterior),
-            Self::PosRespostaInesperada { causa, posterior } => {
-                (crate::erro_publico::folha(causa), posterior)
-            }
+                correspondentes,
+            } => (causa_post.subcodigo(), posterior, correspondentes),
+            Self::PosRespostaInesperada {
+                causa,
+                posterior,
+                correspondentes,
+            } => (crate::erro_publico::folha(causa), posterior, correspondentes),
             _ => return None,
         };
         Some(DiagnosticoPosEscrita {
@@ -151,6 +166,7 @@ impl ErroCriar {
                 .as_ref()
                 .ok()
                 .map(|candidatos| candidatos.iter().map(|c| c.nup.clone()).collect()),
+            candidatos_compativeis: correspondentes.clone(),
         })
     }
 }
