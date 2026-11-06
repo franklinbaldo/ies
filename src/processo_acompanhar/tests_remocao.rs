@@ -2,26 +2,37 @@
 //! Cenários de Todos tests/test_processo_acompanhar_010.py @323eb01.
 use super::*;
 use crate::processo_concluir::tests_apoio::{
-    ID, UNIDADE, Resposta, Pedido as PedidoHttp, abertura, absoluta, ambiente, arvore,
-    get, ok, pedidos_da_abertura, post, r302, rodar_com,
+    ID, Pedido as PedidoHttp, Resposta, UNIDADE, abertura, absoluta, ambiente, arvore, get, ok,
+    pedidos_da_abertura, post, r302, rodar_com,
 };
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
 
 fn gerenciar() -> String {
-    format!("controlador.php?acao=acompanhamento_gerenciar&id_procedimento={ID}&infra_hash={}", "a".repeat(64))
+    format!(
+        "controlador.php?acao=acompanhamento_gerenciar&id_procedimento={ID}&infra_hash={}",
+        "a".repeat(64)
+    )
 }
 fn excluir() -> String {
-    format!("controlador.php?acao=acompanhamento_excluir&acao_origem=acompanhamento_gerenciar&id_procedimento={ID}&infra_hash={}", "b".repeat(64))
+    format!(
+        "controlador.php?acao=acompanhamento_excluir&acao_origem=acompanhamento_gerenciar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    )
 }
 fn cadastrar() -> String {
-    format!("controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}", "c".repeat(64))
+    format!(
+        "controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "c".repeat(64)
+    )
 }
 fn cadastro() -> String {
     format!("<form id=\"frmAcompanhamentoCadastro\" method=\"post\" action=\"{}\">\
         <input type=\"hidden\" name=\"hdnIdProtocolo\" value=\"{ID}\">\
         <select name=\"selGrupoAcompanhamento\"><option value=\"null\">&nbsp;</option></select>\
-        </form>", cadastrar().replace('&', "&amp;"))
+        </form>",
+        cadastrar().replace('&', "&amp;")
+    )
 }
 fn lista(linhas: &str) -> String {
     format!(r##"<html><head><script>
@@ -39,7 +50,10 @@ fn lista(linhas: &str) -> String {
             <tr><th></th><th>Grupo</th><th>Observação</th><th>Usuário</th><th>Data</th><th>Ações</th></tr>
             {linhas}
           </table>
-        </form></body></html>"##, excluir(), gerenciar())
+        </form></body></html>"##,
+        excluir(),
+        gerenciar()
+    )
 }
 fn linha(id: &str, grupo: &str) -> String {
     format!(r#"<tr><td><input type="checkbox" value="{id}"></td>
@@ -55,10 +69,19 @@ fn preparar() -> Vec<Resposta> {
 fn executar(respostas: Vec<Resposta>) -> (Result<Previa, ErroPrevia>, Vec<PedidoHttp>) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
-        previa(sessao, &Pedido {
-            nup, unidade: None, grupo: Some("G"), observacao: None,
-            deixar: true, confirmar: true,
-        }, indice, roteiro)
+        previa(
+            sessao,
+            &Pedido {
+                nup,
+                unidade: None,
+                grupo: Some("G"),
+                observacao: None,
+                deixar: true,
+                confirmar: true,
+            },
+            indice,
+            roteiro,
+        )
     })
 }
 fn pedidos_confirmados() -> Vec<PedidoHttp> {
