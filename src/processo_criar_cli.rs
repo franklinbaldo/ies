@@ -1,7 +1,7 @@
 //! Superfície da criação de processos (#245).
 //! Nunca transforma um comando incompleto em escrita remota: a etapa Web
 //! só será habilitada depois de observar e testar o cadastro servido.
-use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar};
+use crate::processo_criar_fluxo::{ErroCriar, PedidoCriar, criar_com_contagem};
 use crate::saida_erro::{erro_fonte_http, json_de_erro_fonte, linha_humana};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, transporte};
@@ -101,8 +101,9 @@ fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
 
 /// Construção pura para testar que a recusa do próprio cadastro distingue
 /// não aplicação comprovada de erro HTTP sem garantia de não aplicação.
-fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str) -> serde_json::Value {
+fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str, requisicoes: u32) -> serde_json::Value {
     let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+    valor["requisicoes"] = json!(requisicoes);
     if erro.nao_aplicada_comprovada() {
         valor["desfecho"] = json!("nao_aplicada");
         valor["repeticao_segura_com_nova_previa"] = json!(true);
@@ -131,13 +132,17 @@ fn informar_http_releitura(http: Option<transporte::StatusHttpRecusado>) {
     }
 }
 
-fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
+fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
+    if !json_mode {
+        eprintln!("IES: {requisicoes} requisições efetivamente tentadas neste fluxo.");
+    }
     if erro.saida() != 3 {
         let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
         if let Some(opcoes) = erro.opcoes_para_escolha() {
             if json_mode {
                 let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
                 valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
+                valor["requisicoes"] = json!(requisicoes);
                 println!("{valor}");
             } else {
                 eprintln!(
@@ -154,7 +159,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         }
         // Status e mensagem saneada do SEI vão para a saída quando houve.
         if json_mode {
-            println!("{}", json_da_recusa_criadora(erro, mensagem));
+            println!("{}", json_da_recusa_criadora(erro, mensagem, requisicoes));
             return ExitCode::from(1);
         }
         if erro.nao_aplicada_comprovada() {
@@ -176,7 +181,8 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             "codigo": "efeito_incerto",
             "subcodigo": erro.subcodigo(),
             "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
-            "retentavel": false
+            "retentavel": false,
+            "requisicoes": requisicoes
         });
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
@@ -283,12 +289,14 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         hipotese_legal: hipotese_legal.as_deref(),
         confirmar: *confirmar,
     };
-    let resultado = criar(
+    let mut requisicoes = 0;
+    let resultado = criar_com_contagem(
         referencias.origem(),
         referencias.url_do_controle(),
         referencias.cookie(),
         &pedido,
         &mut EnvioHttps,
+        &mut requisicoes,
     );
     Some(match resultado {
         Ok(feito) => {
@@ -340,7 +348,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
             }
             ExitCode::SUCCESS
         }
-        Err(erro) => erro_do_fluxo(cli.json, &erro),
+        Err(erro) => erro_do_fluxo(cli.json, &erro, requisicoes),
     })
 }
 
@@ -401,8 +409,9 @@ mod tests {
             },
         ));
         assert_eq!(recusada.saida(), 1);
-        let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida");
+        let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida", 4);
         assert_eq!(json["desfecho"], "nao_aplicada");
+        assert_eq!(json["requisicoes"], 4);
         assert_eq!(json["repeticao_segura_com_nova_previa"], true);
         assert_eq!(json["retentavel"], false); // nunca retry automatico
         assert_eq!(json["mensagem_do_servidor"], "Cadastro recusado");
@@ -416,10 +425,11 @@ mod tests {
             }),
         ));
         assert_eq!(http.saida(), 3); // não autorizar repetição após 403
-        let json_http = json_da_recusa_criadora(&http, "Recusa HTTP");
+        let json_http = json_da_recusa_criadora(&http, "Recusa HTTP", 4);
         assert!(json_http.get("desfecho").is_none());
         assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
         assert_eq!(json_http["status_http"], 403);
+        assert_eq!(json_http["requisicoes"], 4);
     }
 
     #[test]
