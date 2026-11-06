@@ -26,7 +26,8 @@ o login **inteiro e exato** escolhe uma opção.
 
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
 situação não observada e atribuição já aplicada são recusas tipadas.
-Nenhum URL assinado, cookie ou senha é publicado.
+Nenhum URL assinado, cookie ou senha é publicado. O subcódigo
+`charset_da_tela_nao_suportado` indica MIME sem codificação suportada.
 
 ## Estados desta fatia
 
@@ -35,7 +36,8 @@ A **prévia sem --confirmar** é leitura Web com contagem de requisições
 da opção, sem POST. Também deriva o payload pelo formulário servido
 (botão Salvar, ocultos originais e `selAtribuicao` exato) e recusa método,
 charset ou codificação incompatíveis, sem escrever. ID numérico que aparece
-para dois logins diferentes é recusado: não há identidade unívoca. **--confirmar está temporariamente bloqueado** por
+para dois logins diferentes é recusado: não há identidade unívoca.
+**--confirmar está temporariamente bloqueado** por
 `escrita_de_atribuicao_ainda_nao_verificada`, sem acessar o SEI: a
 integração de escrita só será habilitada quando houver teste de
 POST único e releitura.
@@ -58,7 +60,3 @@ acervo e live: NOT_RUN nesta fatia, sem escrita.
 [Decisão](../../docs/decisoes/processo-atribuir.md),
 [casos no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/test_ciclo_atribuir_010.py),
 [cassette UnB](../../cassettes/unb/processo-atribuir-unb--bf0d4327d7d9.md).
-
-
-O subcódigo novo `charset_da_tela_nao_suportado` indica que a resposta
-não publicou uma codificação compatível com o formulário observado.
