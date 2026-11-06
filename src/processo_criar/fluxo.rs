@@ -495,6 +495,14 @@ pub(crate) fn criar<V: EnvioDoControle>(
         )?;
         return Ok(feito);
     };
+    // O Location legítimo também não comprova uma criação nova quando
+    // aponta a ID que já existia nos Gerados antes do único POST.
+    // Recusar sem abrir processo preexistente nem repetir a escrita.
+    if gerados_antes.contem_id(&id) {
+        return Err(E::VerificacaoAposPost(Box::new(E::ProvaDaCriacao(
+            erro_fluxo::ProvaDaCriacao::IdentidadePreexistente,
+        ))));
+    }
     // O Location legítimo não prova o efeito da criação. Preservar a
     // causa da verificação, inclusive status HTTP, sem fazer novo POST.
     let nup = verificacao_apos_post::verificar(
