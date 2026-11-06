@@ -1,0 +1,121 @@
+name: Live GO multissalto #253 (temporario, uma vez)
+on:
+  pull_request:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: live-253-go-multissalto-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+jobs:
+  leitura-go:
+    if: github.event.pull_request.head.ref == 'codex/253-unidade-retornos' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout da PR para validar origem e guard
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Guard estrito de execucao unica por commit
+        id: guard
+        shell: bash
+        run: |
+          if [ "$(git log -1 --format=%s)" = "live(#253): ensaio unico GO multissalto" ]; then
+            echo 'executar=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'executar=false' >> "$GITHUB_OUTPUT"
+            echo 'NOT_RUN: head alterado; zero acessos SEI'
+          fi
+      - name: Baixar binario Release aprovado pelo CI do head anterior
+        if: steps.guard.outputs.executar == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/binario"
+          gh run download 42154933298 --repo "$GITHUB_REPOSITORY" \
+            --name 'ies-linux-x86_64-04496853ebbcda5c82e994e8ee5807c8cfe44a7c' \
+            --dir "$RUNNER_TEMP/binario"
+          cd "$RUNNER_TEMP/binario"
+          sha256sum -c ies.sha256
+          chmod 700 ies
+      - name: GO treinamento — dois saltos publicados sem retry nem escrita
+        if: steps.guard.outputs.executar == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          D=$(mktemp -d)
+          trap 'rm -rf "$D"' EXIT
+          python3 -I - "$D" <<'PY'
+          import pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          linhas=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+          valores=[]
+          for linha in linhas:
+              if linha.startswith("| `go`"):
+                  valores.append([x.strip().strip("`") for x in linha.strip("|").split("|")])
+          if len(valores)!=1 or len(valores[0])<6:
+              raise SystemExit("NOT_RUN: conta de treinamento GO ausente ou ambigua")
+          _,_,origem,usuario,senha,orgao=valores[0][:6]
+          if origem!="https://seitreinamento.go.gov.br/sei":
+              raise SystemExit("NOT_RUN: origem nao e GO treinamento")
+          for nome,conteudo in [
+              ("origem",origem+"\n"),
+              ("credenciais",f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),
+          ]:
+              f=p/nome
+              f.write_text(conteudo)
+              f.chmod(0o600)
+          PY
+          export IES_ORIGEM_FILE="$D/origem" IES_COOKIE_FILE="$D/cookie"
+          export IES_URL_CONTROLE_FILE="$D/url-controle" IES_CREDENCIAIS_FILE="$D/credenciais"
+          ies="$RUNNER_TEMP/binario/ies"
+          informar() {
+            python3 -I - "$1" "$2" "$3" <<'PY'
+          import json,pathlib,sys
+          p,etapa,rc=sys.argv[1:]
+          try:
+              obj=json.loads(pathlib.Path(p).read_text())
+          except (ValueError,OSError):
+              obj={}
+          campos=("codigo","subcodigo","requisicoes","status_http","mes","total_declarado","faixa_observada")
+          print(etapa,"saida",rc,{k:obj[k] for k in campos if k in obj})
+          PY
+          }
+          echo "GO TREINAMENTO — login uma unica vez (sem repeticao apos falha)"
+          rc=0
+          "$ies" --json login > "$D/login.json" 2> "$D/login.err" || rc=$?
+          informar "$D/login.json" login "$rc"
+          if [ "$rc" -ne 0 ]; then echo 'NOT_RUN: login falhou; nenhum GET de retornos'; exit 0; fi
+          sleep 65
+          echo "GO TREINAMENTO — leitura inedita de 2027-01 (candidato a dois saltos de 2026-11)"
+          rc=0
+          "$ies" --json unidade retornos --mes 2027-01 > "$D/jan.json" 2> "$D/jan.err" || rc=$?
+          informar "$D/jan.json" janeiro "$rc"
+          if [ "$rc" -ne 0 ]; then echo 'FAIL: leitura janeiro; nao repetir, proxima etapa NOT_RUN'; exit 0; fi
+          sleep 65
+          echo "GO TREINAMENTO — leitura unica sem mes, para navegar ao diaHoje publicado"
+          rc=0
+          "$ies" --json unidade retornos > "$D/hoje.json" 2> "$D/hoje.err" || rc=$?
+          informar "$D/hoje.json" sem_mes "$rc"
+          if [ "$rc" -ne 0 ]; then echo 'FAIL: leitura sem mes; nao repetir'; exit 0; fi
+          python3 -I - "$D/jan.json" "$D/hoje.json" <<'PY'
+          import json,sys
+          with open(sys.argv[1]) as f:
+              jan=json.load(f)
+          with open(sys.argv[2]) as f:
+              hoje=json.load(f)
+          print("janeiro_confirmado",jan.get("mes")=="2027-01")
+          print("mes_do_sei_observado",hoje.get("mes"))
+          print("GET_do_primeiro_pedido",jan.get("requisicoes"))
+          print("GET_do_segundo_pedido",hoje.get("requisicoes"))
+          if jan.get("mes")=="2027-01" and hoje.get("mes")=="2026-11" and hoje.get("requisicoes")==5:
+              print("PASS: multissalto real janeiro -> novembro, 5 GET")
+          else:
+              print("PARCIAL/INCONCLUSIVO: nao declarar multissalto sem 5 GET e mes confirmado")
+          PY
+          echo 'Zero POST de escrita, zero retry, zero alteracao de processo/documento; sem restauracao.'
