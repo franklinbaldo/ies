@@ -322,12 +322,14 @@ conclusivo de não aplicação. Live: NOT_RUN nesta fatia.
 
 ## Recusa explícita e concorrência (#245)
 
-Quando o SEI devolve validação da Infra (HTML 200) ou HTTP 4xx ao
-POST criador, o IES conserva a causa tipada original e sai com código 1,
-sem consultar Gerados depois da recusa. Um processo equivalente surgido
-na conta compartilhada pode ter sido criado por outro agente: nunca
-transformar uma recusa explícita em sucesso. Falha de rede sem resposta e
-5xx continuam elegíveis para reconciliação conservadora, sem retry.
+Na validação expressa da Infra (HTML 200 com recusa publicada pelo SEI),
+a saída é 1, com causa original e `desfecho: "nao_aplicada"` no JSON:
+`repeticao_segura_com_nova_previa: true` só permite uma nova decisão
+explícita após prévia; `retentavel: false` veda retry automático.
+HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito** e não
+publica esse desfecho. Ambos encerram após **3 GET + 1 POST**, sem
+reler Gerados nem atribuir criação concorrente à operação recusada.
+Falha de rede sem resposta e 5xx seguem reconciliação sem retry.
 
 
 ## Desfecho verificável de ambiguidade após POST (#245)
