@@ -49,10 +49,12 @@ o status e a mensagem saneada da recusa são preservados. Só a resposta sem
 recusa (HTML 200 ou 302 reconhecido) ou falha de rede sem resposta admite
 conciliação por leitura; nenhuma dessas vias repete o POST. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
-controlador, sem publicar outro processo nem outra ação de origem. Como
-`principal` é navegação genérica, **exige `id_procedimento` explícito
-igual ao processo solicitado**; sem a identidade, releitura coincidente
-pode refletir escrita concorrente e é efeito incerto (saída 3).
+controlador, sempre com **`id_procedimento` explícito e igual ao processo
+solicitado**, sem publicar outra ação de origem. As duas ações são
+genéricas sem identidade: a releitura coincidente pode ser efeito de
+outro agente, inclusive na remoção. Sem ID, o resultado é efeito incerto
+(saída 3), sem novo POST. A forma de `arvore_visualizar` com ID foi
+observada no caso `ACEITE` do Todos @323eb01.
 **Na CLI pública, --confirmar continua temporariamente bloqueado** por
 `escrita_de_atribuicao_ainda_nao_verificada`, antes de abrir sessão ou
 rede. Os testes de POST único e releitura já passaram; a habilitação
