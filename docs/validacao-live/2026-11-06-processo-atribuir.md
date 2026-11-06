@@ -68,3 +68,25 @@ efeito incerto (saída 3), sem repetir POST ou seguir o 302.
 **Live desta fatia: NOT_RUN**, 0 requisições reais e 0 resíduos.
 A prévia autenticada da UnB registrada acima continua sendo a última
 evidência ao vivo; a confirmação pública segue travada.
+
+## Releitura com HTTP 503 após POST
+
+Observação de bancada, **sem acesso ao SEI**: quando a releitura da
+árvore após o POST recebe HTTP 503, o leitor do índice tratava a resposta
+como link envelhecido e tentava outra rota. A saída de erro da atribuição
+também não expunha o HTTP da leitura, porque consultava somente a falha
+do POST. Dois testes adversariais foram introduzidos **antes da correção**.
+
+O RED [CI 42222330393](https://github.com/franklinbaldo/ies/actions/runs/42222330393)
+registrou **2 FAIL novos, 1.718 PASS, 23 ignored preexistentes**:
+os dois falharam com `requisição além do roteiro` após a recusa 503 da
+única releitura prevista. A correção evita o caminho alternativo quando
+o servidor respondeu 5xx e conserva o status/mensagem da verificação
+quando a escrita já tiver sido tentada. Testes exigem **4 GET de prévia,
+1 POST e somente 1 GET de verificação**, saída 3, mensagem saneada e
+zero retry, tanto com 302 esperado quanto com falha de rede do POST.
+
+**Live nesta correção:** NOT_RUN; 0 GET reais, 0 POST reais, 0
+escritas e 0 resíduos. A prévia UnB histórica permanece a única
+evidência autenticada. Segunda instalação, confirmação e remoção:
+NOT_RUN.
