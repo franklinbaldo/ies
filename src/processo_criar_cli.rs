@@ -254,14 +254,14 @@ fn informar_sucesso(
     feito: crate::processo_criar_fluxo::Criacao,
     especificacao: &str,
 ) -> ExitCode {
-            if json_mode {
+    if json_mode {
         println!(
             "{}",
             json!({
                 "tipo": feito.tipo,
                 "especificacao": especificacao,
                 "assunto": feito.assunto,
-            "interessados": feito.interessados,
+                "interessados": feito.interessados,
                 "nivel": feito.nivel,
                 "hipotese_legal": feito.hipotese_legal,
                 "unidade": feito.unidade,
