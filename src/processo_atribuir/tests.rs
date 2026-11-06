@@ -160,16 +160,13 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
     );
 }
 
-
 /// O payload é derivado da tela sintética observada, sem requisição.
 fn preparar(
     login: Option<&str>,
     atual: Option<&str>,
 ) -> Result<(String, crate::formulario_web::SubmissaoDerivada), E> {
-    let instalacao = crate::instalacao::Instalacao::interpretar(
-        "https://sei.exemplo.gov.br/sei",
-    )
-    .unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let url = format!(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={ID}&infra_hash={}",
         "b".repeat(64)
@@ -193,7 +190,12 @@ fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
     assert_eq!(valor, "100000035");
     assert_eq!(
         post.nomes_dos_campos(),
-        ["hdnInfraTipoPagina", "sbmSalvar", "selAtribuicao", "hdnIdProtocolo"]
+        [
+            "hdnInfraTipoPagina",
+            "sbmSalvar",
+            "selAtribuicao",
+            "hdnIdProtocolo"
+        ]
     );
     assert_eq!(
         post.corpo(),
@@ -201,7 +203,12 @@ fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
     );
     assert_eq!(post.efeito(), super::ATRIBUIR_PROCESSO.efeito);
     assert_eq!(crate::formulario_web::SubmissaoDerivada::METODO, "POST");
-    assert!(!post.nomes_dos_campos().iter().any(|campo| campo == "btnCancelar"));
+    assert!(
+        !post
+            .nomes_dos_campos()
+            .iter()
+            .any(|campo| campo == "btnCancelar")
+    );
 }
 
 #[test]
@@ -212,7 +219,10 @@ fn post_de_remocao_usa_opcao_null_e_mesma_forma() {
         post.corpo(),
         b"hdnInfraTipoPagina=2&sbmSalvar=Salvar&selAtribuicao=null&hdnIdProtocolo=50693"
     );
-    assert_eq!(preparar(None, Some("")).unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
+    assert_eq!(
+        preparar(None, Some("")).unwrap_err().subcodigo(),
+        "atribuicao_ja_aplicada"
+    );
 }
 
 #[test]
@@ -227,10 +237,8 @@ fn preparacao_nao_fabrica_selecao_para_login_inexistente() {
 
 #[test]
 fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
-    let instalacao = crate::instalacao::Instalacao::interpretar(
-        "https://sei.exemplo.gov.br/sei",
-    )
-    .unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let url = format!(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&infra_hash={}",
         "b".repeat(64)
