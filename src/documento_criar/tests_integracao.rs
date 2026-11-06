@@ -188,6 +188,24 @@ fn funcao_submeter_observada_no_sei_409_publica_sinalizador() {
 }
 
 #[test]
+fn atribuicao_isolada_nao_comprova_caminho_de_submissao_e_recusa_post() {
+    // A forma observada em Todos documento_gerar.html @323eb01
+    // exige a funcao submeter(), a desabilitacao e o submit do formulario.
+    // Uma atribuicao isolada pode existir numa tela que nunca envia.
+    // Nao executar JS; recusar ANTES da escrita, com cinco GET exatos.
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(cadastro());
+    assert_eq!(
+        resultado.err().map(|erro| erro.subcodigo()),
+        Some("submissao_do_documento_nao_observada"),
+    );
+    assert_eq!(
+        pedidos,
+        pedidos_antes_da_escrita(),
+        "cinco GET de previa, nenhum POST criador",
+    );
+}
+
+#[test]
 fn script_inerte_ou_duplicado_nao_autoriza_post_criador() {
     // O HTML de treinamento não prova uma instrução executável quando a
     // sequência aparece em template, JSON, comentário ou script duplicado.
