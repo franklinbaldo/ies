@@ -1,7 +1,7 @@
 ---
 type: SEIObservation
 title: Validacao live de retornos programados GO e PEN3 em treinamento
-description: Dois logins observados e falhas de leitura em GO e PEN3 sem repeticao de pedidos
+description: Leituras live GO e PEN3 em treinamento, inclusive calendario deslocado em PEN3
 ---
 
 # Unidade retornos — verificacao live de 05/11/2026
@@ -126,3 +126,36 @@ por dois saltos. Esses percursos ganharam regressões **sintéticas** com
 orçamento exato de 5 GET (incluindo o Controle) quando ambas as URLs
 de mês vizinho foram publicadas pelo SEI. A validação desses percursos
 específicos ao vivo permanece **NOT_RUN, 0 requisições**.
+
+
+## Ensaio real com calendário deslocado — PEN3 (05/11/2026)
+
+[Run 42154090686](https://github.com/franklinbaldo/ies/actions/runs/42154090686),
+head `0db18e6`: **PASS** do caminho que estava NOT_RUN.
+Um workflow temporário, com guard de commit único, acessou somente
+**PEN3 de treinamento** usando a conta pública documentada, arquivos
+privados `0600` e intervalo de ao menos 65 segundos entre comandos.
+
+| Etapa | Resultado | Requisições observadas |
+| --- | --- | ---: |
+| `ies --json login` | PASS, `login_realizado` | 6 |
+| `ies --json unidade retornos --mes 2026-12` | PASS, dezembro 2026, zero retornos, faixa `null` | 4 GET |
+| `ies --json unidade retornos` | **PASS**, novembro 2026, dois retornos, faixa 1–2 | **4 GET** |
+
+**Total observado: 14 requisições** (6 login, 8 GET da leitura),
+**zero POST de escrita, zero retry, zero escrita e zero resíduo**.
+O pedido de dezembro foi novo; não repetiu a falha histórica de
+outubro. A segunda leitura partiu do calendário deslocado para dezembro,
+encontrou o `diaHoje` de novembro e percorreu **um link de mês
+anterior publicado pelo SEI** antes de consultar a lista mensal.
+As quatro requisições deste comando correspondem ao Controle,
+ao menu, a um salto entre calendários e à lista. O mês e os
+retornos publicados vieram da tela, não do relógio da máquina.
+Não foi restaurada a tela. Só campos saneados entraram nos logs.
+
+**Limite:** a navegação real de **dois saltos** permanece
+NOT_RUN (zero requisições específicas); há regressões sintéticas
+ativas com orçamento de 5 GET. A leitura deslocada em GO permanece
+NOT_RUN, mas o comando sem `--mes` com calendário não deslocado
+já passou em GO no run 42141337897. Nenhuma instalação de produção
+foi acessada. O workflow temporário foi removido após esta rodada.
