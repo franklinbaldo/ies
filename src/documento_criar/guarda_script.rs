@@ -297,7 +297,11 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
             Ok(false) => {}
             Err(_) => return false,
         }
-        let texto = script.inner_text(dom.parser());
+        // inner_text e uma projecao de texto visivel: pode descartar markup
+        // que aparece dentro de literais JS. A guarda precisa examinar o
+        // corpo integral do script servido, sem executar nem interpretar HTML
+        // auxiliar como instrucao (contar_instrucoes descarta strings).
+        let texto = script.inner_html(dom.parser());
         let Some((instrucoes, funcoes, chamadas)) = contar_instrucoes(&texto) else {
             return false;
         };
