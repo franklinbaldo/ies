@@ -272,4 +272,4 @@ remoção do workflow temporário ainda precisam de evidências próprias.
 ## Continuação: reconciliação da escrita
 
 Os critérios para comparar Gerados, verificar candidatos e diferenciar
-recusas explícitas estão na [decisão de reconciliação](processo-criar-reconciliacao.md).
+recusas explícitas estão na [decisão de reconciliação](processo-criar/reconciliacao.md).
