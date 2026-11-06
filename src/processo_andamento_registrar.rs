@@ -363,6 +363,12 @@ mod tests {
         assert!(texto_valido(&"á".repeat(500)));
         assert!(!texto_valido(&"á".repeat(501)));
     }
+
+    #[test]
+    fn limite_de_500_conta_o_texto_que_sera_enviado_sem_aparar() {
+        assert!(!texto_valido(&format!(" {}", "á".repeat(500))));
+        assert!(texto_valido(&format!(" {}", "á".repeat(499))));
+    }
     fn formulario(id: &str) -> String {
         format!(
             "<form id='frmAtividadeListar' method='post'>\
