@@ -97,7 +97,7 @@ def aplicar_fonte(caminho: str, fonte: bytes):
     # .into() aplicado ao mesmo tipo concreto não adiciona informação.
     if caminho in DIRETOS:
         fonte = re.sub(
-            rb"(FalhaTransporte::(?:UrlInvalida|CookieInvalido|TipoDeConteudoNaoHtml))\.into\(\)",
+            rb"(FalhaTransporte::(?:UrlInvalida|CookieInvalido|TipoDeConteudoNaoHtml))\s*\.into\(\)",
             rb"\1", fonte,
         )
     return fonte, len(selecionados)
