@@ -277,4 +277,5 @@ fn falha_do_post_com_prova_independente_confirma_sem_segundo_post() {
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
 }
 
+#[path = "tests_fluxo/adversariais.rs"]
 mod adversariais;
