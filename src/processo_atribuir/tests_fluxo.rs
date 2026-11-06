@@ -120,3 +120,50 @@ fn tela_recusada_preserva_o_status_http_e_nao_faz_post() {
     assert_eq!(erro, E::Tela(FalhaTransporte::Rede));
     assert_eq!(pedidos, pedidos_previa());
 }
+
+#[test]
+fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
+    let mut respostas = abertura(arvore_atual("aluno20"));
+    respostas.push(Ok((
+        403,
+        "<html><body><div id=\"divInfraExcecao\">Acesso negado.</div></body></html>".to_owned(),
+        None,
+    )));
+    let (resultado, pedidos) = rodar(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Acesso negado.")
+    );
+    let publico = crate::processo_concluir_cli::json_base_da_falha(
+        "atribuicao_recusada",
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http().cloned(),
+    );
+    assert_eq!(publico["status_http"], 403);
+    assert_eq!(publico["mensagem_do_servidor"], "Acesso negado.");
+    assert_eq!(pedidos, pedidos_previa());
+}
+
+#[test]
+fn confirmar_direto_no_fluxo_falha_antes_da_sessao_e_da_rede() {
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, vec![], |sessao, nup, indice, envio| {
+        executar_previa(
+            sessao,
+            &PedidoDaAtribuicao {
+                nup,
+                unidade: None,
+                usuario: Some("aluno2"),
+                confirmar: true,
+            },
+            indice,
+            envio,
+        )
+    });
+    assert_eq!(resultado, Err(E::EscritaAindaNaoVerificada));
+    assert!(pedidos.is_empty());
+}
