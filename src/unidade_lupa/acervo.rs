@@ -331,7 +331,7 @@ fn replay_do_fluxo_completo_unb() {
     let mut requisicoes = 0;
     let resultado = super::fluxo::ler_integral_com_contador(
         &mut transporte,
-        "https://sei.treinamento.unb.br/sei/controlador.php?acao=procedimento_controlar",
+        "https://sei.treinamento.unb.br/sei/controlador.php?acao=procedimento_controlar&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "https://sei.treinamento.unb.br/sei",
         "PHPSESSID=SINTETICO",
         &mut requisicoes,
