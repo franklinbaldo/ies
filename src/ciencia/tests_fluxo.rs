@@ -170,3 +170,46 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
         0
     );
 }
+
+
+/// RED #271: o erro tipado do único GET de escrita do processo não pode ser
+/// descartado enquanto a releitura independente tenta provar a atividade.
+fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: &str) {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    respostas.extend([ok(tela()), resposta, ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert!(
+        format!("{erro:?}").contains(causa),
+        "a causa tipada do GET mutador precisa sobreviver: {erro:?}"
+    );
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(),
+        1,
+        "o GET potencialmente mutador não pode ser repetido"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+#[test]
+fn get_de_ciencia_http_403_preserva_a_recusa_tipificada() {
+    conferir_falha_do_aceite_sem_retry(
+        Ok((403, "<html><body>Solicitação recusada</body></html>".to_owned(), None)),
+        "AcessoNegado",
+    );
+}
+
+#[test]
+fn get_de_ciencia_infra_200_preserva_a_recusa_tipificada() {
+    conferir_falha_do_aceite_sem_retry(
+        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
+        "ValidacaoDaInfra",
+    );
+}
+
+#[test]
+fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
+    conferir_falha_do_aceite_sem_retry(Err(FalhaTransporte::Rede), "Rede");
+}
