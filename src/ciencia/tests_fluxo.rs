@@ -382,7 +382,7 @@ fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
 
-/// Caso observado no Todos tests/test_ciclo_ciencia_010.py @323eb01:
+/// Caso observado no Todos `tests/test_ciclo_ciencia_010.py` @323eb01:
 /// a segunda ciência do mesmo dia é recusada pela Infra. A resposta
 /// HTTP 200 não autoriza reaplicar o GET nem considerar a escrita nova.
 /// A mensagem fica apresentação da validação, nunca classificação.
@@ -415,6 +415,12 @@ fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
         }
     ));
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
