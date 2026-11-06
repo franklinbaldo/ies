@@ -6,14 +6,29 @@ use crate::paginas::Leitura;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-/// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.
-pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> std::io::Result<()> {
+/// Emissão de JSON pela fronteira da CLI, sem String ou Value intermediário.
+/// O formato compacto mantém os bytes históricos das mensagens de falha.
+fn escrever_json<T: Serialize>(valor: &T, formatado: bool) -> std::io::Result<()> {
     use std::io::Write as _;
+
     let saida = std::io::stdout();
     let mut bloqueada = saida.lock();
-    serde_json::to_writer_pretty(&mut bloqueada, valor).map_err(std::io::Error::from)?;
-    bloqueada.write_all(b"\n")?;
-    Ok(())
+    if formatado {
+        serde_json::to_writer_pretty(&mut bloqueada, valor).map_err(std::io::Error::from)?;
+    } else {
+        serde_json::to_writer(&mut bloqueada, valor).map_err(std::io::Error::from)?;
+    }
+    bloqueada.write_all(b"\n")
+}
+
+/// Saída JSON formatada dos resultados de sucesso.
+pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> std::io::Result<()> {
+    escrever_json(valor, true)
+}
+
+/// Saída JSON compacta das falhas, sem representação intermediária.
+pub(crate) fn imprimir_json_compacto<T: Serialize>(valor: &T) -> std::io::Result<()> {
+    escrever_json(valor, false)
 }
 
 /// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
