@@ -1,11 +1,11 @@
 ---
 type: ImplementationDecision
 title: Acompanhamento Especial pela barra e cadastro da interface Web
-description: Estratégia Web de prévia, POST único e releitura da inclusão e retirada
+description: Inclusão por POST único, backend de retirada ainda sob teste e CLI bloqueada
 operation: processo.acompanhar
 implementation: partial
 status: adopted-for-scope
-scope: ies processo acompanhar NUP com inclusão e retirada por um POST cada e uma releitura; live pendente
+scope: ies processo acompanhar NUP com inclusão publicada e backend de retirada em WIP; bloqueio CLI até validação
 selected_strategy: web-barra-cadastro-tabela
 alternatives: web-barra-cadastro-tabela,rest-acompanhamento,simular-estado
 evidence_level: todos-unb-e-indices-de-cassettes
@@ -134,3 +134,14 @@ o redirect. A contagem RED nova e o GREEN são **NOT_RUN / não observados**,
 pois o CI canônico não foi disparado pelos commits desta fatia e o
 sandbox carece de Rust e rede. Não inferir gates verdes. Também não
 houve ensaio real: 0 requests e 0 resíduos no SEI.
+
+## Gate de habilitação da retirada
+
+A implementação de backend desta quarta fatia é experimental: mesmo com
+POST único, 302 validado e releitura independente, seus testes novos
+não tiveram GREEN comprovado no head. Para não liberar escrita ao vivo
+sem gate, a CLI mantém `--deixar --confirmar` recusado antes de abrir
+sessão ou rede (`confirmacao_de_acompanhamento_ainda_bloqueada`). Os
+testes injetados exercitam o backend diretamente, sem o SEI. A remoção
+externa só será liberada quando CI, replay e prévia autenticada em
+instalação de treinamento tiverem evidência concreta, não por inferência.
