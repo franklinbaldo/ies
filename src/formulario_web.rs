@@ -11,7 +11,6 @@ mod login;
 mod redirecionamento;
 
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
-use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
