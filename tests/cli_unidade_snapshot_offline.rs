@@ -1,6 +1,6 @@
 //! #244: contrato público SQLite e CLI real, com sessão sintética.
 //! O cookie deliberadamente não existe: uma consulta ao SEI falharia.
-//! Caso de Todos tests/test_destinos_indice_010.py @323eb01 (pesquisa local).
+//! Caso de Todos `tests/test_destinos_indice_010.py` @323eb01 (pesquisa local).
 use rusqlite::{Connection, OpenFlags};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -18,7 +18,10 @@ impl Ambiente {
         let pasta = std::env::temp_dir().join(format!(
             "ies-244-cli-offline-{}-{}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir(&pasta).unwrap();
         modo_privado(&pasta, 0o700);
@@ -38,8 +41,9 @@ impl Ambiente {
         let conexao = Connection::open(&banco).unwrap();
         // Esquema público v3: o agente pode consultar estas duas tabelas
         // diretamente, mas não pode alterar o banco durante a operação.
-        conexao.execute_batch(
-            "CREATE TABLE lista_unidade (
+        conexao
+            .execute_batch(
+                "CREATE TABLE lista_unidade (
                 instalacao TEXT NOT NULL, unidade_ativa TEXT NOT NULL,
                 lida_em REAL NOT NULL, total INTEGER NOT NULL,
                 PRIMARY KEY (instalacao, unidade_ativa)
@@ -57,8 +61,9 @@ impl Ambiente {
             INSERT INTO unidade VALUES
                 ('https://sei.exemplo/sei', '7', '1', 'CDE/SEAD', 'Administração', 'SEAD', 1234.0),
                 ('https://sei.exemplo/sei', '7', '2', 'SÃO/CDE', 'Unidade São', 'SEAD', 1234.0),
-                ('https://sei.exemplo/sei', '7', '3', 'OUTRA', 'Outro setor', 'SEAD', 1234.0);"
-        ).unwrap();
+                ('https://sei.exemplo/sei', '7', '3', 'OUTRA', 'Outro setor', 'SEAD', 1234.0);",
+            )
+            .unwrap();
         drop(conexao);
         modo_privado(&banco, 0o600);
         Self { pasta, banco }
@@ -124,11 +129,15 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
 
     // A tabela documentada é consultável por um agente externo em modo
     // somente leitura, e os comandos não mudam o snapshot nem o esquema.
-    let banco = Connection::open_with_flags(&ambiente.banco, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .unwrap();
+    let banco =
+        Connection::open_with_flags(&ambiente.banco, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     let (linhas, versao): (i64, i64) = (
-        banco.query_row("SELECT count(*) FROM unidade", [], |r| r.get(0)).unwrap(),
-        banco.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap(),
+        banco
+            .query_row("SELECT count(*) FROM unidade", [], |r| r.get(0))
+            .unwrap(),
+        banco
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap(),
     );
     assert_eq!((linhas, versao), (3, 3));
     for saida in [listar, pesquisar] {
