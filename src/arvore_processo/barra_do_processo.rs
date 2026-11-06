@@ -262,23 +262,22 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkIncluirDocumento {
+    #[causa(nome = "barra_do_incluir_documento_fora_da_forma")]
     BarraForaDaForma,
+    #[causa(nome = "barra_do_incluir_documento_repetida")]
     BarraRepetida,
+    #[causa(nome = "links_de_incluir_documento_repetidos")]
     LinkRepetido,
+    #[causa(nome = "endereco_de_incluir_documento_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_de_incluir_documento_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 impl ErroLinkIncluirDocumento {
     pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_do_incluir_documento_fora_da_forma",
-            Self::BarraRepetida => "barra_do_incluir_documento_repetida",
-            Self::LinkRepetido => "links_de_incluir_documento_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_incluir_documento_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_de_incluir_documento_de_outro_processo",
-        }
+        crate::erro_publico::folha(&self)
     }
 }
 
