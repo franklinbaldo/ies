@@ -27,7 +27,8 @@ pub(crate) fn derivar_submissao_de_login(
     if tela.html.len() > crate::MAX_HTML_BYTES {
         return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
     }
-    let servida = UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida =
+        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
     if !servida.host.eq_ignore_ascii_case(instalacao.host()) {
         return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
     }
