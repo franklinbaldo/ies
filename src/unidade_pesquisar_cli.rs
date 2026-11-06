@@ -98,28 +98,34 @@ fn json_da_lista(lista: &ListaGuardada, unidade: &str) -> Value {
 
 /// Consulta Web completa quando não há snapshot ou --atualizar foi pedido.
 /// A falha do índice não impede a leitura; somente impede persistir.
+type FalhaWebContada = (crate::unidade_lupa::FalhaDaLupa, usize);
+
+/// As falhas de preflight contam zero; as da rede preservam tentativas feitas.
 fn atualizar_por_web(
     arquivos: &ArquivosDeAcesso,
     indice: &IndiceLocal,
     instalacao: &str,
     unidade: &str,
-) -> Result<(ListaGuardada, usize, bool), crate::unidade_lupa::FalhaDaLupa> {
+) -> Result<(ListaGuardada, usize, bool), FalhaWebContada> {
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
+            .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
     referencias
         .conferir_controle()
-        .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
+        .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
     let cookie = referencias
         .cookie()
         .valor()
-        .map_err(crate::unidade_lupa::FalhaDaLupa::Transporte)?;
-    let lida = crate::unidade_lupa::ler_integral(
+        .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
+    let mut requisicoes = 0;
+    let lida = crate::unidade_lupa::ler_integral_com_contador(
         &mut crate::unidade_lupa::HttpsLupa,
         referencias.url_do_controle(),
         referencias.origem(),
         cookie,
-    )?;
+        &mut requisicoes,
+    )
+    .map_err(|e| (e, requisicoes))?;
     let total = lida.total;
     let persistida = indice.guardar_lista_de_unidades(instalacao, unidade, &lida.unidades, total);
     let lida_em = std::time::SystemTime::now()
@@ -130,7 +136,43 @@ fn atualizar_por_web(
         total,
         lida_em,
     };
-    Ok((lista, lida.requisicoes, persistida))
+    Ok((lista, requisicoes, persistida))
+}
+
+/// Nao perde a contagem quando a coleta e recusada. Somente numero
+/// de tentativas e subcodigo/status saneados aparecem na saida.
+fn json_da_falha_web(
+    falha: &crate::unidade_lupa::FalhaDaLupa,
+    requisicoes: usize,
+) -> Value {
+    let mut valor = crate::saida_erro::json_de_erro_fonte(
+        falha.subcodigo(),
+        "a lupa não devolveu uma lista integral verificável",
+        falha.status_http(),
+    );
+    valor["requisicoes"] = json!(requisicoes);
+    valor
+}
+
+fn publicar_falha_web(
+    json_mode: bool,
+    falha: &crate::unidade_lupa::FalhaDaLupa,
+    requisicoes: usize,
+) -> ExitCode {
+    if json_mode {
+        println!("{}", json_da_falha_web(falha, requisicoes));
+    } else {
+        eprintln!(
+            "{} ({} requisições)",
+            crate::saida_erro::linha_humana(
+                falha.subcodigo(),
+                "a lupa não devolveu uma lista integral verificável",
+                falha.status_http(),
+            ),
+            requisicoes
+        );
+    }
+    ExitCode::from(1)
 }
 
 fn executar(
@@ -162,13 +204,8 @@ fn executar(
         let (lista, requisicoes, persistida) =
             match atualizar_por_web(&arquivos, &indice, &instalacao, &unidade) {
                 Ok(resultado) => resultado,
-                Err(falha) => {
-                    return crate::saida_erro::erro_fonte_http(
-                        json_mode,
-                        falha.subcodigo(),
-                        "a lupa não devolveu uma lista integral verificável",
-                        falha.status_http(),
-                    );
+                Err((falha, requisicoes)) => {
+                    return publicar_falha_web(json_mode, &falha, requisicoes);
                 }
             };
         let lista = match termo {
@@ -240,6 +277,22 @@ mod tests {
         assert_eq!(saida["unidades"][0]["id"], "17");
         assert!(saida.get("cookie").is_none());
         assert!(saida.get("url").is_none());
+    }
+
+    #[test]
+    fn falha_web_publica_contador_sem_url_cookie_ou_hash() {
+        let falha = crate::unidade_lupa::FalhaDaLupa::FormularioInesperado;
+        let valor = json_da_falha_web(&falha, 5);
+        assert_eq!(valor["requisicoes"], 5);
+        assert_eq!(valor["subcodigo"], "formulario_da_lupa_inesperado");
+        assert!(valor.get("cookie").is_none());
+        assert!(valor.get("url").is_none());
+        assert!(valor.get("infra_hash").is_none());
+
+        let outra = crate::unidade_lupa::FalhaDaLupa::LinkAmbiguo;
+        let valor = json_da_falha_web(&outra, 1);
+        assert_eq!(valor["requisicoes"], 1);
+        assert_eq!(valor["subcodigo"], "link_da_lupa_ambiguo");
     }
 
     #[test]
