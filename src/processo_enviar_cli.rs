@@ -178,7 +178,7 @@ struct ResultadoEnvio<'a> {
     depois_esperado: Vec<String>,
     destino: DestinoPublico<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::processo_concluir_cli::FalhaEnvioPublica>,
+    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
     id_procedimento: &'a str,
     manter_aberto: bool,
     nup: &'a str,
@@ -210,7 +210,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         falha_do_envio: feito
             .reconciliado_por
             .as_ref()
-            .map(crate::processo_concluir_cli::FalhaEnvioPublica::de),
+            .map(crate::processo_concluir_cli::falha_do_envio_publica),
     }
 }
 
