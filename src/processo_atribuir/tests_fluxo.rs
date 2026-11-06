@@ -109,7 +109,7 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
             aberto_em: Some(siglas),
             motivo: None,
             requisicoes: 3,
-        } if unidade == "TESTE" && siglas.as_slice() == ["PR-P"]
+        } if unidade == "TESTE" && siglas.len() == 1 && siglas[0] == "PR-P"
     ));
     let publicado = crate::processo_atribuir_cli::json_de_falha(&erro);
     assert_eq!(publicado["unidade"], "TESTE");
