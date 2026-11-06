@@ -319,3 +319,49 @@ fn filtro_adulterado_na_ultima_das_274_paginas_aborta_sem_retry() {
     assert_eq!(roteiro.navegacao.gets, 4);
     assert_eq!(roteiro.posts, PAGINAS_GO_SINTETICAS);
 }
+
+#[test]
+fn falha_de_filtro_publica_cinco_tentativas_sem_post_repetido() {
+    // Cenario derivado da falha GO: quatro GET de navegacao e uma
+    // consulta rejeitada nao podem sumir da telemetria de falha.
+    let mut rede = Fake {
+        gets: 0,
+        posts: 0,
+        repetir: false,
+        filtro_sobreposto: true,
+    };
+    let mut requisicoes = 0;
+    assert_eq!(
+        ler_integral_com_contador(
+            &mut rede,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        )
+        .err(),
+        Some(FalhaDaLupa::FormularioInesperado),
+    );
+    assert_eq!(requisicoes, 5, "4 GET + 1 POST, mesmo na recusa");
+    assert_eq!((rede.gets, rede.posts), (4, 1));
+}
+
+#[test]
+fn falha_tardia_na_pagina_final_conta_todas_as_tentativas() {
+    // A pagina final rejeitada nao apaga as 278 tentativas da varredura.
+    let mut roteiro = RoteiroPaginacaoIntegral::novo(true);
+    let mut requisicoes = 0;
+    assert_eq!(
+        ler_integral_com_contador(
+            &mut roteiro,
+            &url("procedimento_controlar"),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        )
+        .err(),
+        Some(FalhaDaLupa::FormularioInesperado),
+    );
+    assert_eq!(requisicoes, 4 + PAGINAS_GO_SINTETICAS);
+    assert_eq!((roteiro.navegacao.gets, roteiro.posts), (4, 274));
+}
