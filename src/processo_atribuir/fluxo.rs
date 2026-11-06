@@ -71,6 +71,7 @@ pub(crate) enum ErroProcessoAtribuir {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,
         atribuicao_relida: Option<String>,
+        requisicoes: u8,
     },
 }
 
@@ -267,6 +268,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
             falha_do_envio: falha_do_envio.map(Box::new),
             leitura: leitura.map(Box::new),
             atribuicao_relida,
+            requisicoes: feito.requisicoes,
         });
     }
     feito.confirmado = true;
