@@ -231,3 +231,15 @@ Adicionar; âncoras não são desabilitadas apenas por `fieldset`.
 Oferta inerte recusa com `exclusao_de_acompanhamento_nao_oferecida`
 **antes de escrever**, sem novo POST nem novo subcódigo. O fluxo
 público `--deixar --confirmar` permanece bloqueado antes da sessão/rede.
+
+## Integridade temporal da função `acaoExcluir` (#254)
+
+Na oferta de retirada, um corpo válido da declaração global não basta
+se o mesmo script contém instruções **após a função**. Uma atribuição
+posterior pode substituir `acaoExcluir` antes do clique, tornando
+insegura a dedução do destino do POST a partir do corpo antigo.
+A forma não observada é recusada com
+`exclusao_de_acompanhamento_nao_oferecida` sem executar JavaScript,
+abrir novo recurso ou efetuar POST. O caso sintético de redefinição
+é verificado por RED antes do código. A confirmação pública de retirada
+continua fechada antes de sessão/rede até validação live de treinamento.
