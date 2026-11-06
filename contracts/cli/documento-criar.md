@@ -190,3 +190,16 @@ além de `submeter()` completo. Recusas por cadeia ausente, alterada
 ou duplicada geram `submissao_do_documento_nao_observada` antes do
 POST. Testes adversariais: 5 GET/0 POST; confirmação positiva: 6 GET,
 1 POST e verificação por leitura. Não se executa JS.
+
+## Aceite identificável após o POST (06/11/2026)
+
+Um HTML 200 genérico, inclusive cadastro reapresentado, **não** confirma
+aceite: a árvore pode ter mudado por outro agente da conta compartilhada.
+A confirmação sintética só aceita resposta 302 para o mesmo controlador
+com ação `documento_visualizar` e `id_documento` único e igual ao nó
+novo observado na releitura. O redirecionamento jamais é seguido.
+Mesmo após recusa HTTP 403/503 ou validação Infra, sempre se realiza
+a releitura independente uma vez; o efeito segue incerto (saída 3),
+com `causa_envio` tipada, `status_http` e mensagem saneada quando observados.
+Nenhum segundo POST é autorizado, inclusive quando a árvore mudou.
+A forma efetiva do retorno do SEI em treinamento permanece a validar.
