@@ -1,7 +1,9 @@
 //! Testes sintéticos integrados de cancelamento (#273): os cenários vêm
 //! de Todos `tests/test_documento_mover_cancelar_010.py` @323eb01.
 //! A bancada registra POST antes de devolver rede, sem retry.
-use super::{DocumentoCancelado, ErroCancelar, PedidoDoCancelamento, cancelar_documento};
+use super::{
+    DocumentoCancelado, ErroCancelar, PedidoDoCancelamento, cancelar_documento, conferir_motivo,
+};
 use crate::arvore_processo::tests_assinatura::arvore_assinavel;
 use crate::documento::NumeroDocumento;
 use crate::processo_concluir::tests_apoio::*;
@@ -80,7 +82,7 @@ fn executar(
             numero: &numero,
             processo: Some(nup),
             unidade: None,
-            motivo: MOTIVO,
+            motivo: conferir_motivo(MOTIVO).unwrap(),
             confirmar,
         };
         cancelar_documento(sessao, &pedido, indice, envio)

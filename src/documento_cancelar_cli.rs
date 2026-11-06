@@ -2,8 +2,8 @@
 //! Motivo e números são validados antes de abrir arquivo privado ou rede.
 use crate::documento::NumeroDocumento;
 use crate::documento_cancelar::{
-    DocumentoCancelado, ErroCancelar, FalhaDoCancelamento, PedidoDoCancelamento,
-    cancelar_documento, conferir_motivo,
+    DocumentoCancelado, ErroCancelar, ErroMotivoDoCancelamento, FalhaDoCancelamento,
+    PedidoDoCancelamento, cancelar_documento, conferir_motivo,
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
@@ -50,14 +50,14 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     };
     let motivo = match conferir_motivo(motivo) {
         Ok(m) => m,
-        Err(sub) => return Some(uso_invalido(cli.json, sub, "motivo inválido")),
+        Err(erro) => return Some(publicar_erro_de_motivo(cli.json, erro)),
     };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDoCancelamento {
             numero: &numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
-            motivo: &motivo,
+            motivo,
             confirmar: *confirmar,
         };
         match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
@@ -93,6 +93,31 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
             }
         }
     }))
+}
+
+#[derive(serde::Serialize)]
+struct FalhaMotivoPublica {
+    causa: ErroMotivoDoCancelamento,
+    codigo: &'static str,
+    erro: &'static str,
+    retentavel: bool,
+}
+
+fn publicar_erro_de_motivo(json_mode: bool, erro: ErroMotivoDoCancelamento) -> ExitCode {
+    if json_mode {
+        let publica = FalhaMotivoPublica {
+            causa: erro,
+            codigo: "entrada_invalida",
+            erro: erro.mensagem(),
+            retentavel: false,
+        };
+        if let Err(falha) = crate::saida::imprimir_json_compacto(&publica) {
+            eprintln!("IES: falha ao emitir JSON: {falha}");
+        }
+    } else {
+        eprintln!("IES: {}", erro.mensagem());
+    }
+    ExitCode::from(2)
 }
 
 fn uso_invalido(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
