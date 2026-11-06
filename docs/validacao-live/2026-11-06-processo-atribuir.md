@@ -213,9 +213,9 @@ HTML 200 genérico e mudança sintética concorrente. A correção exige
 aceite identificado antes de reconciliar. Cada cenário usa exatamente
 **4 GET de prévia + 1 POST único + 1 GET de prova = 6 requisições**,
 sem retry. O resultado esperado agora é `efeito_incerto_na_atribuicao`,
-**saída 3**, ainda que a árvore coincida. Não foi alterado o tratamento
-de 302 com identidade do mesmo processo nem da falha de rede sem
-resposta do POST. Nenhum teste antigo foi desligado ou enfraquecido.
+**saída 3**, ainda que a árvore coincida. O 302 identificado segue aceito. Revisão posterior exige saída 3
+para POST sem resposta, mesmo com releitura coincidente: a leitura
+não comprova autoria. Nenhum teste antigo foi desligado ou enfraquecido.
 
 **Live nesta fatia: NOT_RUN**, 0 GET reais, 0 POST reais,
 0 escritas e 0 resíduos. UnB: prévia histórica PASS (4 GET).
