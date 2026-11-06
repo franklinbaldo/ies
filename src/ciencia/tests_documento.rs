@@ -4,7 +4,15 @@ use super::documento::{
     ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento,
 };
 use crate::documento::NumeroDocumento;
-use crate::documento_assinar::tests_apoio::*;
+use crate::arvore_processo::tests_assinatura::{
+    arvore_assinavel, barra_assinavel, link_da_tela_do_documento,
+    tela_do_documento_40, tela_do_documento_50,
+};
+const DOC: &str = "0000101";
+const ID_DOC: &str = "21";
+fn url_da_tela_do_documento() -> String {
+    absoluta(&link_da_tela_do_documento(ID, ID_DOC))
+}
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
