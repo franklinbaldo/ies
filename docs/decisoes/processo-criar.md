@@ -299,3 +299,21 @@ especificação dos candidatos por leitura independente e preservar a
 causa original do POST sem expor URLs/cookies. Os quatro desfechos
 exigidos pela issue continuam pendentes; não liberar novos
 `--confirmar` para ensaios de efeito incerto.
+
+### Guarda anterior à escrita, continuação da #245
+
+A observação indireta do Controle mostrou que a tabela Gerados
+publica total/faixa, mas pode apresentar só uma página. Antes de enviar
+uma escrita cuja resposta talvez precise ser reconciliada, exigir
+fotografia íntegra da leitura inicial, reutilizando
+`FotografiaDosGerados::da_tela` (0 requisições adicionais).
+Alternativas: escrever mesmo com lista parcial (não garante candidatos
+posteriores), percorrer automaticamente páginas (mais requests e
+muda a tela da sessão), ou recusar de forma tipada. Foi escolhida a
+recusa segura; **`--confirmar` não envia POST** quando a cobertura
+é insuficiente, mas prévias só de leitura continuam disponíveis.
+Os testes novos verificam 3 GET / 0 POST na recusa e na prévia.
+A fotografia é preservada no escopo do fluxo, ainda não consumida
+após falha: falta a reconciliação Web completa e a verificação independente
+de tipo/especificação, sem repetir escritas. Esta guarda restringe
+a confirmação e não constitui validação autenticada ao vivo.
