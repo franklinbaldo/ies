@@ -422,6 +422,30 @@ mod tests {
     }
 
     #[test]
+    fn json_separa_os_status_http_do_post_e_da_releitura() {
+        let mut saida = json!({
+            "status_http": 503,
+            "mensagem_do_servidor": null
+        });
+        anexar_http_releitura_json(
+            &mut saida,
+            Some(transporte::StatusHttpRecusado {
+                status: 502,
+                mensagem_do_servidor: Some("Falha de leitura saneada".to_owned()),
+            }),
+        );
+        assert_eq!(saida["status_http"], 503); // status anterior, do POST
+        assert_eq!(saida["status_http_releitura"], 502); // status do GET
+        assert_eq!(
+            saida["mensagem_do_servidor_releitura"],
+            "Falha de leitura saneada"
+        );
+        let mut sem_http = json!({"causa_releitura": "falha_de_rede"});
+        anexar_http_releitura_json(&mut sem_http, None);
+        assert!(sem_http.get("status_http_releitura").is_none());
+    }
+
+    #[test]
     fn entrada_valida_nao_implica_autorizacao_de_escrita() {
         assert_eq!(
             validar("Início de Processo", "Ensaio controlado", &[]),
