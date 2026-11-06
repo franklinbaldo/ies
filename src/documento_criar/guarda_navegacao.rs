@@ -1,6 +1,112 @@
 //! Ações de filtro e seleção de tipo: prova de script inline ativo (#246).
-//! Reusa o leitor lexical de script da guarda de criação; nunca executa JS.
+//! O teste do corpo é literal; comentários, textos e blocos JS não provam ação.
 use super::guarda_script::{dentro_de_template, faixas_inertes, fonte_do_script};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Contexto {
+    Codigo,
+    ComentarioDeLinha,
+    ComentarioDeBloco,
+    Cadeia(char),
+    Regex { classe: bool },
+}
+
+/// Uma declaração só é prova quando começa em código JavaScript de
+/// nível superior. O conteúdo esperado é integral e literal; não é
+/// interpretado nem executado. Formas desconhecidas falham fechadas.
+fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Option<usize> {
+    let mut contexto = Contexto::Codigo;
+    let mut profundidade = 0_u32;
+    let mut ultimo = ' ';
+    let mut encontradas = 0;
+    let mut caracteres = texto.char_indices().peekable();
+    while let Some((indice, atual)) = caracteres.next() {
+        match contexto {
+            Contexto::Codigo => match atual {
+                '/' if caracteres.peek().is_some_and(|&(_, c)| c == '/') => {
+                    caracteres.next();
+                    contexto = Contexto::ComentarioDeLinha;
+                }
+                '/' if caracteres.peek().is_some_and(|&(_, c)| c == '*') => {
+                    caracteres.next();
+                    contexto = Contexto::ComentarioDeBloco;
+                }
+                '\'' | '"' | '\u{60}' => contexto = Contexto::Cadeia(atual),
+                '/' if matches!(ultimo, '=' | ':' | '(' | ',' | '[' | '!') => {
+                    contexto = Contexto::Regex { classe: false };
+                }
+                '{' => {
+                    profundidade = profundidade.checked_add(1)?;
+                    ultimo = atual;
+                }
+                '}' => {
+                    profundidade = profundidade.checked_sub(1)?;
+                    ultimo = atual;
+                }
+                'f' if texto[indice..].starts_with("function") => {
+                    let inicio: String = texto[indice..]
+                        .chars()
+                        .filter(|c| !c.is_ascii_whitespace())
+                        .take(assinatura.len())
+                        .collect();
+                    if inicio == assinatura {
+                        encontradas += 1;
+                        if encontradas > 1 || profundidade != 0 {
+                            return None;
+                        }
+                        let literal: String = texto[indice..]
+                            .chars()
+                            .filter(|c| !c.is_ascii_whitespace())
+                            .take(corpo_esperado.len())
+                            .collect();
+                        if literal != corpo_esperado {
+                            return None;
+                        }
+                    }
+                    ultimo = atual;
+                }
+                _ => {
+                    if !atual.is_ascii_whitespace() {
+                        ultimo = atual;
+                    }
+                }
+            },
+            Contexto::ComentarioDeLinha => {
+                if atual == '\n' {
+                    contexto = Contexto::Codigo;
+                }
+            }
+            Contexto::ComentarioDeBloco => {
+                if atual == '*' && caracteres.peek().is_some_and(|&(_, c)| c == '/') {
+                    caracteres.next();
+                    contexto = Contexto::Codigo;
+                }
+            }
+            Contexto::Cadeia(delimitador) => {
+                if atual == '\\' {
+                    caracteres.next()?;
+                } else if atual == delimitador {
+                    contexto = Contexto::Codigo;
+                }
+            }
+            Contexto::Regex { classe } => match atual {
+                '\\' => {
+                    caracteres.next()?;
+                }
+                '[' if !classe => contexto = Contexto::Regex { classe: true },
+                ']' if classe => contexto = Contexto::Regex { classe: false },
+                '/' if !classe => contexto = Contexto::Codigo,
+                _ => {}
+            },
+        }
+    }
+    if !matches!(contexto, Contexto::Codigo | Contexto::ComentarioDeLinha)
+        || profundidade != 0
+    {
+        return None;
+    }
+    Some(encontradas)
+}
 
 /// Comprova uma função de navegação apenas em script inline clássico ATIVO.
 /// A antiga busca em todo o HTML aceitava textos de `template`, JSON
@@ -42,15 +148,13 @@ pub(super) fn script_publica_funcao_de_navegacao(
         let Some(texto) = fonte_do_script(html, script.boundaries(dom.parser()).0) else {
             return false;
         };
-        let compacto: String = texto.chars().filter(|c| !c.is_ascii_whitespace()).collect();
-        let ocorrencias = compacto.matches(assinatura).count();
+        let Some(ocorrencias) = definicoes_ativas(texto, assinatura, corpo_esperado) else {
+            return false;
+        };
         if ocorrencias == 0 {
             continue;
         }
-        if ocorrencias != 1 || !compacto.contains(corpo_esperado) {
-            return false;
-        }
-        encontradas += 1;
+        encontradas += ocorrencias;
         if encontradas > 1 {
             return false;
         }
