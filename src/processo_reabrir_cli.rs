@@ -41,7 +41,7 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
         match reabrir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(feito) => {
                 if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                    if let Err(erro) = crate::saida::imprimir_json(&resultado_reabertura(&feito)) {
                         eprintln!("IES: falha ao emitir JSON: {erro}");
                         return std::process::ExitCode::from(1);
                     }
@@ -62,25 +62,48 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
 }
 
 /// JSON do sucesso (prévia, nada a fazer, ou reaberto e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "reabertura_oferecida": feito.oferecido,
-        "forma": feito.forma.map(FormaDaReabertura::como_texto),
-        "aberto_em": feito.aberto_em,
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+#[derive(serde::Serialize)]
+struct ResultadoReabertura<'a> {
+    nup: &'a str,
+    id_procedimento: &'a str,
+    unidade: &'a str,
+    origem: &'static str,
+    confirmado: bool,
+    alterado: bool,
+    reabertura_oferecida: bool,
+    forma: Option<&'static str>,
+    aberto_em: &'a [String],
+    depois: Option<&'a [String]>,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<crate::processo_concluir_cli::FalhaEnvioPublica>,
+}
+
+fn resultado_reabertura(feito: &ProcessoReaberto) -> ResultadoReabertura<'_> {
+    ResultadoReabertura {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado,
+        alterado: feito.alterado,
+        reabertura_oferecida: feito.oferecido,
+        forma: feito.forma.map(FormaDaReabertura::como_texto),
+        aberto_em: &feito.aberto_em,
+        depois: feito.depois.as_deref(),
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito.reconciliado_por.as_ref()
+            .map(crate::processo_concluir_cli::FalhaEnvioPublica::de),
     }
-    valor
+}
+
+/// Compatibilidade com os testes: o runtime usa serialização direta.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
+    serde_json::to_value(resultado_reabertura(feito))
+        .expect("a projeção de sucesso só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
