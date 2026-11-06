@@ -92,3 +92,31 @@ fn validacao_da_infra_com_200_publica_so_a_mensagem() {
         "IES: validação [validacao_recusada_pelo_sei] (SEI: Protocolo inválido.)"
     );
 }
+
+#[test]
+fn fonte_publica_serde_direto_preserva_bytes_compactos_do_contrato() {
+    let servidor_500 = StatusHttpRecusado {
+        status: 500,
+        mensagem_do_servidor: Some("Falha saneada do servidor.".to_owned()),
+    };
+    let infra_200 = StatusHttpRecusado {
+        status: 200,
+        mensagem_do_servidor: Some("Validação recusada.".to_owned()),
+    };
+    let redirect = StatusHttpRecusado::sem_mensagem(302);
+    for (subcodigo, mensagem, http) in [
+        ("cookie_invalido", "cookie inválido", None),
+        ("status_http_de_erro_do_servidor", "erro HTTP", Some(&servidor_500)),
+        ("validacao_recusada_pelo_sei", "validação", Some(&infra_200)),
+        ("redirecionamento_recusado", "recusa 302", Some(&redirect)),
+    ] {
+        let contrato = json_de_erro_fonte(subcodigo, mensagem, http).to_string();
+        let mut bytes = Vec::new();
+        serde_json::to_writer(&mut bytes, &falha_fonte_publica(subcodigo, mensagem, http))
+            .unwrap();
+        let emitido = String::from_utf8(bytes).unwrap();
+        assert_eq!(emitido, contrato, "{subcodigo}");
+        assert!(!emitido.contains("infra_hash"));
+        assert!(!emitido.contains('\u{1b}'));
+    }
+}
