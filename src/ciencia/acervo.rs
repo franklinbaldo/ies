@@ -26,15 +26,15 @@ fn id_documento_da_resposta(item: &Value) -> Option<String> {
 
 fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
     let mut registros = Vec::new();
-    let mut id_procedimento = None;
-    let mut id_documento = None;
-    let mut atividade = None;
+    // A prova pendente pertence ao ultimo aceite, nunca a aceites anteriores.
+    // A lista deve ainda pertencer ao mesmo processo do aceite.
+    let mut atividade: Option<(String, String)> = None;
     for resposta in gravacao::respostas(json) {
-        if let Some(id) = gravacao::id_procedimento(resposta.item) {
-            id_procedimento = Some(id);
-        }
-        if let Some(id) = id_documento_da_resposta(resposta.item) {
-            id_documento = Some(id);
+        if matches!(
+            resposta.operacao,
+            "procedimento_ciencia" | "documento_ciencia"
+        ) {
+            atividade = None;
         }
         let (leitor, resultado) = match (resposta.operacao, resposta.metodo, resposta.status) {
             ("procedimento_ciencia" | "documento_ciencia", "GET", 200) => {
@@ -47,6 +47,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                     });
                     continue;
                 };
+                let id_procedimento = gravacao::id_procedimento(resposta.item);
                 let Some(processo) = id_procedimento.as_deref() else {
                     registros.push(Registro {
                         leitor,
@@ -56,6 +57,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                     continue;
                 };
                 let alvo = if resposta.operacao == "documento_ciencia" {
+                    let id_documento = id_documento_da_resposta(resposta.item);
                     let Some(documento) = id_documento.as_deref() else {
                         registros.push(Registro {
                             leitor,
@@ -75,7 +77,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 };
                 let resultado = match atividade_do_aceite(&html, alvo) {
                     Ok(id) => {
-                        atividade = Some(id);
+                        atividade = Some((processo.to_owned(), id));
                         Resultado::Lido
                     }
                     Err(erro) => Resultado::Recusado(erro.subcodigo()),
@@ -87,21 +89,36 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 Resultado::NaoAplicavel("status_sem_prova_de_aceite"),
             ),
             ("protocolo_ciencia_listar", "GET", 200) => {
-                let resultado = match (html_da_resposta(resposta.item), atividade.as_deref()) {
-                    (Ok(html), Some(id)) => match atividade_na_lista(&html, id) {
-                        Ok(true) => Resultado::Lido,
-                        Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-                        Err(erro) => Resultado::Recusado(erro.subcodigo()),
-                    },
-                    (Err(_), _) => Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
-                    (_, None) => Resultado::NaoAplicavel("aceite_sem_atividade_observada"),
+                let resultado = match (
+                    html_da_resposta(resposta.item),
+                    atividade.take(),
+                    gravacao::id_procedimento(resposta.item),
+                ) {
+                    (Ok(html), Some((processo, id)), Some(processo_da_lista))
+                        if processo == processo_da_lista =>
+                    {
+                        match atividade_na_lista(&html, &id) {
+                            Ok(true) => Resultado::Lido,
+                            Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
+                            Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                        }
+                    }
+                    (Err(_), _, _) => Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
+                    (_, None, _) => Resultado::NaoAplicavel("aceite_sem_atividade_observada"),
+                    (_, Some(_), None) => {
+                        Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado")
+                    }
+                    (_, Some(_), Some(_)) => Resultado::NaoAplicavel("lista_de_outro_processo"),
                 };
                 ("lista de ciências", resultado)
             }
-            ("protocolo_ciencia_listar", "GET", _) => (
-                "lista de ciências",
-                Resultado::NaoAplicavel("status_sem_html_da_lista"),
-            ),
+            ("protocolo_ciencia_listar", "GET", _) => {
+                atividade = None;
+                (
+                    "lista de ciências",
+                    Resultado::NaoAplicavel("status_sem_html_da_lista"),
+                )
+            }
             _ => continue,
         };
         registros.push(Registro {
