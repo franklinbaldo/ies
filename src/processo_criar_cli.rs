@@ -120,18 +120,39 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
         // Status e mensagem saneada do SEI vão para a saída quando houve.
         return erro_fonte_http(json_mode, erro.subcodigo(), mensagem, erro.status_http());
     }
+    // O GET de reconciliação é só observação: sem conferir tipo e
+    // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "efeito_incerto",
-                "subcodigo": erro.subcodigo(),
-                "erro": "o envio pode ter criado o processo; confira os gerados antes de repetir",
-                "retentavel": false
-            })
-        );
+        let mut valor = json!({
+            "codigo": "efeito_incerto",
+            "subcodigo": erro.subcodigo(),
+            "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
+            "retentavel": false
+        });
+        if let Some((causa_post, falha_leitura, candidatos)) = erro.diagnostico_apos_post() {
+            valor["causa_post"] = json!(causa_post);
+            valor["causa_releitura"] = json!(falha_leitura);
+            valor["candidatos_observados_na_caixa"] = json!(candidatos);
+        }
+        if let Some(http) = erro.status_http() {
+            valor["status_http"] = json!(http.status);
+            valor["mensagem_do_servidor"] = json!(http.mensagem_do_servidor);
+        }
+        println!("{valor}");
     } else {
         eprintln!("IES: criação não confirmada [{}]", erro.subcodigo());
+        if let Some((causa_post, falha_leitura, candidatos)) = erro.diagnostico_apos_post() {
+            eprintln!("IES: causa do POST: {causa_post}");
+            if let Some(causa) = falha_leitura {
+                eprintln!("IES: causa da releitura: {causa}");
+            }
+            if let Some(nups) = candidatos {
+                eprintln!("IES: candidatos observados (sem comprovação de criação): {}", nups.len());
+                for nup in nups {
+                    eprintln!("  {nup}");
+                }
+            }
+        }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
     ExitCode::from(3)
