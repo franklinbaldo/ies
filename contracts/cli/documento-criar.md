@@ -160,3 +160,23 @@ RED observado no [CI 42158719053](https://github.com/franklinbaldo/ies/actions/r
 **5 GET, 0 POST**. Prova live de criação em treinamento continua
 pendente, sem qualquer permissão para repetir escrita incerta.
 
+
+## Vínculo do controle Salvar (06/11/2026)
+
+A função `submeter()` isolada no código servido não demonstra que o
+cadastro ofereceu uma ação de criação. A captura SEI 4.0.9 do Todos
+`documento_gerar.html @323eb01` publica dois controles `button#btnSalvar`
+(id repetido no topo e no rodapé), ambos `type=button`, habilitados,
+`name=btnSalvar` e `onclick=confirmarDados()`. Esta ligação é
+conferida **antes do POST** juntamente com a função `submeter()` completa.
+Sem botão, com tipo/callback divergente, desabilitado ou com outro botão
+`btnSalvar` contraditório, a confirmação recusa com
+`submissao_do_documento_nao_observada`, após os **5 GET de prévia e
+sem POST criador**, nos testes sintéticos. A função JS não é executada;
+atributos são lidos por `html_atributos`. Testes positivos aceitam dois
+botões iguais, como na captura. Isso ainda não comprova live em treinamento.
+
+**RED do novo teste antes da implementação:** [CI 42170278378](https://github.com/franklinbaldo/ies/actions/runs/42170278378),
+**1 falha nova, 1.683 testes aprovados, 18 ignorados**. O teste
+`salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post`
+excedeu o roteiro de cinco GET na guarda anterior; nenhuma requisição real.
