@@ -23,6 +23,10 @@ A primeira peça implementada, `src/processo_criar/reconciliacao.rs`,
 infraestrutura de `paginas`, exige unidade conferida, total publicado,
 intervalo integral de 1 até o total e todas as linhas; recusa cobertura
 incompleta, identidade anterior alterada e desaparecimento de ID.
+Recusa também NUP repetido sob IDs distintos, inclusive quando a legenda
+confirma todas as linhas: duplicidade de número invalida a identidade do
+retrato, não apenas sua paginação. A confirmação recusa **antes do POST
+criador**, com os três GETs de preparação já observados, zero escritas.
 Compara `id_procedimento` e NUP como valores opacos e devolve **candidatos**,
 sem atribuir causalidade ao POST. Lista vazia de candidatos **não**
 significa que a criação certamente não ocorreu: a caixa pode variar
@@ -40,6 +44,7 @@ offline como reconciliação completa.
 | Subcódigo | Fato |
 | --- | --- |
 | `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `nup_repetido_na_fotografia_de_gerados` | Dois IDs diferentes da mesma fotografia apontam para o mesmo NUP: a cobertura posicional não comprova identidades independentes |
 | `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
 | `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
 
