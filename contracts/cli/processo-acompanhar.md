@@ -1,14 +1,14 @@
 ---
 type: CommandContract
 title: Acompanhamento Especial por prévia e confirmação observada
-description: Prévia e POST único com releitura para inclusão e retirada; live pendente
+description: Inclusão confirmada; backend de retirada em WIP, CLI bloqueada até CI e live
 operation: processo.acompanhar
 command: ies processo acompanhar NUP [--grupo G] [--observacao T] [--deixar] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo acompanhar NUP` — inclusão e retirada verificadas (Refs #254)
+# `ies processo acompanhar NUP` — inclusão e retirada em validação (Refs #254)
 
 O comando abre a árvore do processo e confere a unidade da sessão.
 Lê o link assinado `acompanhamento_gerenciar` publicado na barra da raiz.
@@ -105,6 +105,7 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
 | `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
 | `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
+| `confirmacao_de_acompanhamento_ainda_bloqueada` | Retirada confirmada impedida pela CLI até gates e live desta fatia |
 | `exclusao_de_acompanhamento_nao_oferecida` | Link, função, oculto ou destino de exclusão da linha escolhida não comprovados |
 | `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
 | `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
@@ -126,3 +127,15 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `redirecionamento_de_acompanhamento_inesperado` | Redirect não comprovado para o cadastro da mesma origem |
 | `tela_de_acompanhamento_inesperada` | Formato ou controle da tela divergente |
 | `unidade_do_acompanhamento_nao_publicada` | Unidade da tela não está publicada |
+
+## Bloqueio de segurança desta PR Draft
+
+Os testes novos do backend foram publicados antes da implementação, mas
+não há job de compilação e suíte Rust associado ao head atual; o sandbox
+não dispõe de Rust e não pôde baixá-lo. Por isso o caminho público
+`ies processo acompanhar --deixar --confirmar` permanece bloqueado
+**antes da sessão e de qualquer requisição**. O backend não deve ser
+considerado homologado ou usado manualmente para escrita. Retirar o
+bloqueio somente após CI verde, replay aplicável e validação de prévia
+em treinamento com orçamento registrado. A confirmação live autorizada
+segue prévia → um POST → releitura, com o resíduo documentado.
