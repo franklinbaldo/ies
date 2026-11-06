@@ -162,6 +162,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             valor["causa_post"] = json!(causa_post);
             valor["causa_releitura"] = json!(falha_leitura);
             valor["candidatos_observados_na_caixa"] = json!(candidatos);
+            if let Some(http) = diagnostico.http_releitura {
+                valor["status_http_releitura"] = json!(http.status);
+                valor["mensagem_do_servidor_releitura"] = json!(http.mensagem_do_servidor);
+            }
             if let Some(nups) = diagnostico.candidatos_compativeis {
                 valor["desfecho"] = json!("candidatos_ambiguos");
                 valor["candidatos_compativeis"] = json!(nups);
@@ -186,6 +190,12 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             eprintln!("IES: causa do POST: {causa_post}");
             if let Some(causa) = falha_leitura {
                 eprintln!("IES: causa da releitura: {causa}");
+            }
+            if let Some(http) = diagnostico.http_releitura {
+                eprintln!("IES: releitura HTTP {}.", http.status);
+                if let Some(mensagem) = http.mensagem_do_servidor {
+                    eprintln!("IES: mensagem saneada da releitura: {mensagem}");
+                }
             }
             if let Some(nups) = candidatos {
                 eprintln!(
