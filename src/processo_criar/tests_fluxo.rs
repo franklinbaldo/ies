@@ -435,7 +435,6 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
 
-
 /// #245: a lista Gerados precisa ter cobertura provada ANTES de uma escrita.
 /// O controle inicial publica cinco registros e apenas a primeira linha;
 /// isso não permite reconciliar futuramente a criação.
