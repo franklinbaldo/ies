@@ -146,6 +146,17 @@ impl ErroCriar {
         }
     }
 
+    /// Somente valores numéricos do atributo maxlength observado na tela;
+    /// não publica a descrição nem pressupõe limite global.
+    pub(crate) fn limite_da_especificacao(&self) -> Option<(usize, usize)> {
+        match self {
+            Self::Cadastro(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho }) => {
+                Some((*limite, *tamanho))
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
         match self {
             Self::Hipotese(erro) => erro.opcoes_para_escolha(),
