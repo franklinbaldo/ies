@@ -62,7 +62,7 @@ pub(crate) fn definir_colunas(
     ) {
         Ok(feito) => {
             if json_mode {
-                if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                if let Err(erro) = crate::saida::imprimir_json(&resultado_colunas(&feito)) {
                     eprintln!("IES: falha ao emitir JSON: {erro}");
                     return std::process::ExitCode::from(1);
                 }
@@ -109,6 +109,7 @@ fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
     json!(colunas.iter().map(|c| c.chave()).collect::<Vec<_>>())
 }
 
+#[cfg(test)]
 fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
     colunas.map_or(Value::Null, chaves)
 }
@@ -128,8 +129,67 @@ fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
     Value::Object(valor)
 }
 
-/// JSON do sucesso (prévia, inalterado ou salvo e conferido).
-pub(crate) fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
+/// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
+#[derive(serde::Serialize)]
+struct EnvioColunasPublico<'a> {
+    acao: &'static str,
+    campos: &'a [String],
+    metodo: &'static str,
+}
+
+#[derive(serde::Serialize)]
+struct ResultadoColunas<'a> {
+    alterado: bool,
+    alvo: Vec<&'static str>,
+    antes: Vec<&'static str>,
+    confirmado: bool,
+    depois: Option<Vec<&'static str>>,
+    desmarcar: Vec<&'static str>,
+    envio: Option<EnvioColunasPublico<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_salvar: Option<crate::saida_erro::FalhaPublica>,
+    indisponiveis: Vec<&'static str>,
+    marcar: Vec<&'static str>,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    unidade: &'a str,
+}
+
+fn chaves_tipadas(colunas: &[ColunaDoDetalhe]) -> Vec<&'static str> {
+    colunas.iter().map(|coluna| coluna.chave()).collect()
+}
+
+fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
+    let plano = &feito.plano;
+    ResultadoColunas {
+        alterado: feito.alterado,
+        alvo: chaves_tipadas(&plano.alvo),
+        antes: chaves_tipadas(&plano.antes),
+        confirmado: feito.confirmado,
+        depois: feito.depois.as_deref().map(chaves_tipadas),
+        desmarcar: chaves_tipadas(&plano.desmarcar()),
+        envio: feito
+            .campos_do_envio
+            .as_deref()
+            .map(|campos| EnvioColunasPublico {
+                acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+                campos,
+                metodo: "POST",
+            }),
+        falha_do_salvar: feito.reconciliado_por.as_ref().map(|falha| {
+            crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
+        }),
+        indisponiveis: chaves_tipadas(&plano.indisponiveis),
+        marcar: chaves_tipadas(&plano.marcar()),
+        origem: "web",
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        unidade: &feito.unidade,
+    }
+}
+
+// A montagem antiga por Value permanece somente como oráculo de contrato.
+#[cfg(test)]
+fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     let plano = &feito.plano;
     let envio = feito
         .campos_do_envio

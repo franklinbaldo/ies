@@ -116,32 +116,16 @@ fn concluir_na_sessao(
     }
 }
 
-/// Projeção de falha de escrita, tipada até a fronteira de serialização.
-/// Não contém URLs assinadas nem cookies.
-#[derive(serde::Serialize)]
-pub(crate) struct FalhaEnvioPublica {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    mensagem_do_servidor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    status_http: Option<u16>,
-    subcodigo: &'static str,
+/// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
+/// seus dados observáveis na fronteira JSON.
+pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
+    crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
 }
 
-impl FalhaEnvioPublica {
-    pub(crate) fn de(falha: &FalhaDoEnvio) -> Self {
-        let http = falha.status_http();
-        Self {
-            subcodigo: falha.subcodigo(),
-            status_http: http.as_ref().map(|h| h.status).filter(|s| *s != 200),
-            mensagem_do_servidor: http.and_then(|h| h.mensagem_do_servidor),
-        }
-    }
-}
-
-/// Mantém o contrato JSON dos erros ainda publicados como Value.
+/// Contrato legado de teste dos metadados HTTP publicados.
 pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    serde_json::to_value(FalhaEnvioPublica::de(falha))
-        .expect("a projeção tipada de falha só possui valores JSON")
+    serde_json::to_value(falha_do_envio_publica(falha))
+        .expect("os metadados da falha são JSON válido")
 }
 
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
@@ -153,7 +137,7 @@ struct ResultadoConclusao<'a> {
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<FalhaEnvioPublica>,
+    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,
@@ -179,7 +163,7 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
         depois: feito.depois.as_deref(),
         reconciliado_por_leitura: feito.reconciliado_por.is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref().map(FalhaEnvioPublica::de),
+        falha_do_envio: feito.reconciliado_por.as_ref().map(falha_do_envio_publica),
     }
 }
 
