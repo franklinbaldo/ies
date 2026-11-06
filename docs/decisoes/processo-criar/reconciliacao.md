@@ -214,3 +214,26 @@ preexistentes**, falha `None != Some(503)` no teste de releitura
 posterior ao POST sem resposta. Cenário adicional cobre 503 do POST e
 502 do GET, com orçamento sintético de 5 pedidos, um único POST.
 GREEN e ensaio live dependem de confirmação posterior.
+
+
+### Não descartar provas parciais após falha de outro candidato (06/11, #245)
+
+Observação pré-RED: cada candidato da fotografia Gerados é verificado
+sequencialmente por tela de trabalho, árvore e propriedades. Uma falha
+de rede na leitura do **segundo** candidato apagava a correspondência
+que já fora comprovada para o primeiro. Alternativas: descartar todas
+as provas (perda de fatos), declarar aplicação com a primeira prova
+(falsa unicidade), ou conservar somente as coincidências verificadas
+sem decidir a aplicação. Escolhida a terceira, por `publicar só o
+observado`.
+
+A distinção entre resultado completo e parcial é estrutural: uma
+leitura que falhou permanece `Err`, mesmo com coincidências anteriores.
+A saída é 3 com subcódigo `efeito_incerto_na_criacao`; JSON usa
+`coincidencias_parciais_conferidas`, não
+`desfecho: candidatos_ambiguos`. O humano esclarece que não há prova
+de unicidade nem autoria. Nenhum GET/POST adicional, retry ou
+relaxamento de validação. RED sintético:
+[CI 42226093955](https://github.com/franklinbaldo/ies/actions/runs/42226093955),
+**1 FAIL / 1.711 PASS / 22 ignored preexistentes** na asserção
+que exigia o NUP comprovado. Budget: 9 pedidos, um POST.
