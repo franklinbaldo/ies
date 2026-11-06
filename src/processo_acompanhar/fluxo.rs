@@ -183,7 +183,6 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
         let onclick = decodificar_atributo(&onclick)
             .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
         let url = onclick
-            .trim()
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
             .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;

@@ -387,7 +387,7 @@ fn texto_ou_nulo(literal: &Literal) -> Result<Option<&str>, ErroArvore> {
 }
 
 fn decimal(valor: &str) -> bool {
-    !valor.is_empty() && valor.len() <= 20 && valor.bytes().all(|b| b.is_ascii_digit())
+    !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit())
 }
 
 fn id(literal: &Literal) -> Result<String, ErroArvore> {

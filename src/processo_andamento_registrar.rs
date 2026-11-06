@@ -119,7 +119,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 }
 
 pub(crate) fn texto_valido(texto: &str) -> bool {
-    !texto.trim().is_empty() && texto.trim().chars().count() <= 500
+    !texto.trim().is_empty() && texto.chars().count() <= 500
 }
 fn normalizar(texto: &str) -> String {
     texto.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -256,17 +256,11 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         html: &html,
         codificacao,
     };
-    let submissao = derivar_submissao(
-        &REGISTRAR,
-        &instalacao,
-        &tela,
-        &unidade,
-        &[(TEXTO, texto.trim())],
-    )
-    .map_err(Erro::Formulario)?;
+    let submissao = derivar_submissao(&REGISTRAR, &instalacao, &tela, &unidade, &[(TEXTO, texto)])
+        .map_err(Erro::Formulario)?;
     let mut resultado = Resultado {
         numero: numero.as_str().to_owned(),
-        texto: texto.trim().to_owned(),
+        texto: texto.to_owned(),
         confirmado: confirmar,
         requisicoes: rede.feitas(),
         total_antes: antes.total_declarado,
@@ -362,6 +356,12 @@ mod tests {
         assert!(!texto_valido(" \n\t "));
         assert!(texto_valido(&"á".repeat(500)));
         assert!(!texto_valido(&"á".repeat(501)));
+    }
+
+    #[test]
+    fn limite_de_500_conta_o_texto_que_sera_enviado_sem_aparar() {
+        assert!(!texto_valido(&format!(" {}", "á".repeat(500))));
+        assert!(texto_valido(&format!(" {}", "á".repeat(499))));
     }
     fn formulario(id: &str) -> String {
         format!(

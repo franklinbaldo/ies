@@ -68,7 +68,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
-    let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para.trim())?;
+    let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
     }

@@ -80,7 +80,7 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             "id_procedimento": previa.id_procedimento,
                             "unidade": previa.unidade,
                             "acao": previa.acao.como_texto(),
-                            "motivo": motivo.map(str::trim),
+                            "motivo": motivo,
                             "confirmado": previa.confirmado,
                             "alterado": previa.alterado,
                             "reconciliado_por_leitura": previa.reconciliado_por_leitura,
