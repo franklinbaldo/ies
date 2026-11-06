@@ -79,6 +79,16 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// A forma não observada é recusada ANTES de iniciar o POST criador.
 fn cadastro_publica_script_de_criacao(html: &str) -> bool {
     const INSTRUCAO: &str = "document.getElementById('hdnFlagDocumentoCadastro').value = '2';";
+
+    // Só uma instrução literal fora de comentários ou cadeias JS conta
+    // como evidência. Não interpretamos nem executamos JavaScript.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Estado {
+        Codigo,
+        ComentarioDeBloco,
+        Cadeia(char),
+    }
+
     let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
         return false;
     };
@@ -96,29 +106,55 @@ fn cadastro_publica_script_de_criacao(html: &str) -> bool {
         {
             continue;
         }
+        // Com src, o navegador IGNORA o conteúdo inline do elemento.
+        // Uma string que aparece ali nunca prova a submissão criadora.
+        match crate::html_atributos::atributo_presente(script, "src") {
+            Ok(true) => continue,
+            Ok(false) => {}
+            Err(_) => return false,
+        }
+
         let texto = script.inner_text(dom.parser());
-        let mut em_comentario_de_bloco = false;
+        let mut estado = Estado::Codigo;
         for linha in texto.lines() {
             let linha = linha.trim();
-            if em_comentario_de_bloco {
-                if linha.contains("*/") {
-                    em_comentario_de_bloco = false;
-                }
-                continue;
-            }
-            if linha.starts_with("/*") {
-                em_comentario_de_bloco = !linha.contains("*/");
-                continue;
-            }
-            if linha.starts_with("//") {
-                continue;
-            }
-            if linha == INSTRUCAO {
+            if estado == Estado::Codigo && linha == INSTRUCAO {
                 ocorrencias += 1;
                 if ocorrencias > 1 {
                     return false;
                 }
             }
+            let mut caracteres = linha.chars().peekable();
+            while let Some(c) = caracteres.next() {
+                match estado {
+                    Estado::Codigo => match c {
+                        '/' if caracteres.peek().copied() == Some('/') => break,
+                        '/' if caracteres.peek().copied() == Some('*') => {
+                            caracteres.next();
+                            estado = Estado::ComentarioDeBloco;
+                        }
+                        '\'' | '"' | '`' => estado = Estado::Cadeia(c),
+                        _ => {}
+                    },
+                    Estado::ComentarioDeBloco => {
+                        if c == '*' && caracteres.peek().copied() == Some('/') {
+                            caracteres.next();
+                            estado = Estado::Codigo;
+                        }
+                    }
+                    Estado::Cadeia(delimitador) => {
+                        if c == '\\' {
+                            caracteres.next();
+                        } else if c == delimitador {
+                            estado = Estado::Codigo;
+                        }
+                    }
+                }
+            }
+        }
+        // Script truncado ou literal aberto é forma desconhecida.
+        if estado != Estado::Codigo {
+            return false;
         }
     }
     ocorrencias == 1
