@@ -150,14 +150,9 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
 
 #[test]
 fn confirmar_login_inexistente_falha_antes_do_post() {
-    let (resultado, pedidos) = rodar_confirmacao(
-        Some("login_ausente"),
-        respostas_previa("aluno20"),
-    );
-    assert_eq!(
-        resultado.unwrap_err().subcodigo(),
-        "usuario_nao_atribuivel"
-    );
+    let (resultado, pedidos) =
+        rodar_confirmacao(Some("login_ausente"), respostas_previa("aluno20"));
+    assert_eq!(resultado.unwrap_err().subcodigo(), "usuario_nao_atribuivel");
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
