@@ -352,7 +352,6 @@ fn salvar_sem_cadeia_de_confirmacao_observada_recusa_antes_do_post() {
     }
 }
 
-
 #[test]
 fn template_inerte_nao_autoriza_post_criador_ao_conter_script_ou_botao() {
     // Semantica de HTMLTemplateElement: o conteudo nao integra a arvore
