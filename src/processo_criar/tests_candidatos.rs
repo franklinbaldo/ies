@@ -354,3 +354,46 @@ fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
         1
     );
 }
+
+#[test]
+fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
+    // O POST ficou sem resposta e o GET posterior recebeu HTTP 503.
+    // As duas causas e a mensagem saneada do GET são observações distintas.
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado {
+                status: 503,
+                mensagem_do_servidor: Some("Controle indisponível".to_owned()),
+            },
+        )),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("a escrita não foi comprovada");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
+    let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_releitura, Some("status_http_de_erro_do_servidor"));
+    assert_eq!(diagnostico.candidatos_observados, None);
+    // RED: status do GET era perdido porque só se consultava a causa do POST.
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(
+        erro.status_http().and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Controle indisponível")
+    );
+    assert_eq!(requests.len(), 5); // 3 GET prévios + 1 POST + 1 GET falho
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
