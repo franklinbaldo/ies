@@ -13,6 +13,9 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{
     Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, saida_erro, transporte,
 };
+#[path = "processo_concluir_cli/falha.rs"]
+pub(crate) mod falha;
+use falha::FalhaDaSituacao;
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
@@ -122,12 +125,6 @@ pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro:
     crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
 }
 
-/// Contrato legado de teste dos metadados HTTP publicados.
-pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    serde_json::to_value(falha_do_envio_publica(falha))
-        .expect("os metadados da falha são JSON válido")
-}
-
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
 #[derive(serde::Serialize)]
 struct ResultadoConclusao<'a> {
@@ -183,63 +180,43 @@ pub(crate) fn json_base_da_falha(
     mensagem: &str,
     status: Option<StatusHttpRecusado>,
 ) -> Value {
-    let mut valor = json!({
-        "codigo": codigo,
-        "subcodigo": subcodigo,
-        "erro": mensagem,
-        "retentavel": false,
-    });
-    if let (Some(http), Some(objeto)) = (status, valor.as_object_mut()) {
-        if http.status != 200 {
-            objeto.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    valor
+    serde_json::to_value(FalhaDaSituacao::nova(codigo, subcodigo, mensagem, status))
+        .expect("a projeção de falha só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
-    let mut valor = json_base_da_falha(
+pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
+    let mut valor = FalhaDaSituacao::nova(
         erro.codigo(),
         erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
     match erro {
         ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo } => {
-            objeto.insert("motivo".to_owned(), json!(motivo.como_texto()));
+            valor.motivo = Some(motivo.como_texto());
         }
         ErroConcluir::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
         | ErroConcluir::ConclusaoNaoPublicadaNaBarra { aberto_em } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
+            valor.aberto_em = Some(aberto_em);
         }
         ErroConcluir::ConclusaoNaoAplicada {
             aberto_em,
             depois,
             falha_do_envio,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("depois".to_owned(), json!(depois));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.depois = Some(depois);
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroConcluir::EfeitoIncertoNaConclusao {
             aberto_em,
             falha_do_envio,
             verificacao,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.verificacao = Some(verificacao.motivo());
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
     }
@@ -248,7 +225,9 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
 
 fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
     if json_mode {
-        println!("{}", json_de_falha(erro));
+        if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(erro)) {
+            eprintln!("IES: falha ao emitir JSON: {falha}");
+        }
     } else {
         for linha in linhas_da_falha(erro) {
             eprintln!("{linha}");

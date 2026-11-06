@@ -104,22 +104,6 @@ pub(crate) fn ler_link_cancelar(
     Ok(Some(LinkDeCancelamento(url)))
 }
 
-/// Trims without changing Latin-1 glyphs, and refuses controls/unsupported
-/// characters before opening a session.
-pub(crate) fn conferir_motivo(motivo: &str) -> Result<String, &'static str> {
-    if motivo.chars().any(char::is_control) {
-        return Err("motivo_com_controle");
-    }
-    let limpo = motivo.trim();
-    if limpo.is_empty() {
-        return Err("motivo_vazio");
-    }
-    if !limpo.chars().all(|c| u32::from(c) <= 255) {
-        return Err("motivo_fora_da_codificacao");
-    }
-    Ok(limpo.to_owned())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,17 +152,6 @@ mod tests {
             ),
             Err(ErroLinkCancelar::LinksRepetidos)
         );
-    }
-
-    // Caso de todos tests/test_documento_mover_cancelar_010.py @323eb01.
-    #[test]
-    fn motivo_com_espacos_e_recusado_e_acentuado_e_preservado() {
-        assert!(conferir_motivo("   ").is_err());
-        assert_eq!(
-            conferir_motivo("  Revisão necessária  "),
-            Ok("Revisão necessária".into())
-        );
-        assert!(conferir_motivo("Linha\nquebrada").is_err());
     }
 
     #[test]
