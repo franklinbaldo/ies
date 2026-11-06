@@ -17,7 +17,11 @@ fn sem_sessao(args: &[&str]) -> Output {
 #[test]
 fn documento_ciente_existe_no_contrato_cli() {
     let saida = sem_sessao(&["documento", "ciente", "--help"]);
-    assert!(saida.status.success(), "{:?}", String::from_utf8_lossy(&saida.stderr));
+    assert!(
+        saida.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let texto = String::from_utf8_lossy(&saida.stdout);
     assert!(texto.contains("--confirmar"), "{texto}");
 }
@@ -26,7 +30,9 @@ fn documento_ciente_existe_no_contrato_cli() {
 fn numero_documento_invalido_falha_antes_de_sessao() {
     for confirmar in [false, true] {
         let mut args = vec!["documento", "ciente", " ", "--json"];
-        if confirmar { args.push("--confirmar"); }
+        if confirmar {
+            args.push("--confirmar");
+        }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2));
         let json: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON");
