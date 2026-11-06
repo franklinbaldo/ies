@@ -142,8 +142,6 @@ fn confirmacao_recusa_especificacao_longa_antes_de_post() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro_com_maxlength("100")),
-        Err(FalhaTransporte::Rede), // sentinela: nunca deve ser consumida
-        ok(tela_controle()),
     ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar_com_contagem(
