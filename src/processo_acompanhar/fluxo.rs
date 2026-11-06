@@ -307,7 +307,10 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         &cookie,
         pedido,
     )?;
-    let grupos = if pedido.deixar {
+    let grupo_ja_existe = pedido
+        .grupo
+        .is_some_and(|grupo| antes.iter().any(|a| a.grupo == grupo));
+    let grupos = if pedido.deixar || grupo_ja_existe {
         None
     } else {
         let url = url_cadastro.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
