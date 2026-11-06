@@ -95,6 +95,38 @@ fn previa_deriva_formulario_sem_post_com_orcamento_exato() {
     assert_eq!(pedidos, &requests_post()[..5]);
 }
 
+
+#[test]
+fn grupo_ja_acompanhado_nao_exige_novo_cadastro_nem_post() {
+    // Caso de todos tests/test_processo_acompanhar_010.py @323eb01:
+    // a lista do gerenciador identifica o grupo ja acompanhado.
+    // A issue #254 exige sucesso sem escrita quando o grupo ja existe.
+    let html = arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]);
+    let mut respostas = abertura(html);
+    // A lista e valida, mas nao publica botao Adicionar nem novo cadastro.
+    respostas.push(ok(lista("G")));
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: false,
+            confirmar: true,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    let plano = resultado.unwrap();
+    assert!(plano.ja_estava && plano.confirmado && !plano.alterado);
+    assert_eq!(plano.grupo, "G");
+    assert_eq!(plano.requisicoes, 4);
+    let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
+    esperados.push(get(&absoluta(&gerenciar())));
+    assert_eq!(pedidos, esperados);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+}
+
 #[test]
 fn confirmar_post_unico_e_reler_lista_mesmo_processo() {
     let mut respostas = preparar();
