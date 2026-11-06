@@ -299,3 +299,27 @@ Não repetir POST de criação, não interpretar ausência de NUP como
 ausência de efeito e não declarar PASS live a partir do CI.
 O workflow temporário de reconciliação manual permanece em Draft
 para investigação segura; deve ser removido antes de integração.
+
+## Retomada 🦉 de 05/11 — PR #304 (após integração da #283)
+
+Esta fatia implementou somente o **comparador offline** de retratos
+completos de Gerados; **não** ativou reconciliação automática na CLI
+nem executou ensaio autenticado.
+
+| Etapa | Estado desta fatia | Requisições SEI | Escritas |
+| --- | --- | ---: | ---: |
+| Testes sintéticos Rust (8 cenários) | PASS no CI #42151869482 | 0 | 0 |
+| Replay do acervo (CI) | PASS, sem conexão SEI | 0 | 0 |
+| Prévia ao vivo em treinamento | NOT_RUN | 0 | 0 |
+| Reconciliação automática CLI após POST | NOT_RUN — implementação pendente | 0 | 0 |
+| Nova confirmação em treinamento | NOT_RUN — nenhuma escrita tentada | 0 | 0 |
+| Verificação live de resíduo novo | NOT_RUN — nenhum novo resíduo | 0 | 0 |
+
+**Total da sessão: 0 requisições ao SEI, 0 POST criador, 0 resíduo novo.**
+A confirmação histórica da UnB (única; saída 3) **foi aplicada**,
+com NUP `23106.001875/2026-93` e id `51731`, segundo a
+[reconciliação exclusiva por leitura do 🐘](https://github.com/franklinbaldo/ies/issues/245#issuecomment-6673196171).
+A confirmação antiga não pode ser repetida. Este relato atual
+substitui as afirmações históricas de resíduo “DESCONHECIDO” no
+fim das seções anteriores, sem apagar o estado que era conhecido
+àquela altura. Requisições não aferidas historicamente seguem `null`.
