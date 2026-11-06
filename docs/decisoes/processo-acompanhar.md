@@ -334,3 +334,22 @@ A oferta de cadastro é recusada quando o botão está dentro de
 aninhada; a decisão, os casos RED e o orçamento estão no
 [relatório de evidência da oferta inerte](../validacao-live/2026-11-06-processo-acompanhar-oferta-inerte.md).
 A CLI de retirada confirmada continua bloqueada.
+
+## Oferta inerte na exclusão — continuidade da #254 (06/11/2026, 🐢)
+
+**Evidência:** a forma de `frmGerenciarAcompanhamento`, `acaoExcluir`
+e `hdnInfraItemId` foi observada na UnB; as variantes `hidden`,
+`inert` e `fieldset disabled` são casos sintéticos da mesma forma.
+Pelo HTML, os controles dentro de `fieldset disabled` não participam
+da submissão (salvo exceção do primeiro legend, aqui recusada por
+conservadorismo). O link em região inerte tampouco oferece clique.
+
+**Escolha:** reutilizar uma única guarda de descendência por identidade
+DOM na inclusão e na exclusão, com distinção entre controle de formulário
+e âncora. Recusar quando o link da linha ou o oculto obrigatório não
+estiver disponível; nenhum GET/POST extra, nenhuma regex ou JS executado.
+O esquema de ações/IDs da UnB continua obrigatório; não se infere uma
+nova capacidade de escrita. **RED** [42289429307](https://github.com/franklinbaldo/ies/actions/runs/42289429307):
+2 testes funcionais novos falharam, 1.785 passaram, 23 ignorados
+preexistentes. **Live da fatia: NOT_RUN, 0 HTTP, 0 escrita**; resíduos
+históricos UnB 850/UFRJ 142 preservados. Retirada pública fechada.
