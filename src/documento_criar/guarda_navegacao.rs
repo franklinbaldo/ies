@@ -100,9 +100,7 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
             },
         }
     }
-    if !matches!(contexto, Contexto::Codigo | Contexto::ComentarioDeLinha)
-        || profundidade != 0
-    {
+    if !matches!(contexto, Contexto::Codigo | Contexto::ComentarioDeLinha) || profundidade != 0 {
         return None;
     }
     Some(encontradas)
