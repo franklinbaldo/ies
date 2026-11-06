@@ -64,7 +64,7 @@ fn segunda_ciencia_documental_e_validacao_sem_retry() {
     assert!(matches!(
         erro,
         E::EfeitoIncerto {
-            falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
+            falha_do_aceite: Some(super::super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
             requisicoes: 6,
             ..
         }
