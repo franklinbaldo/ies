@@ -136,15 +136,12 @@ fn atualizar_por_web(
         total,
         lida_em,
     };
-    Ok((lista, requisicoes, persistida))
+    Ok((lista, lida.requisicoes, persistida))
 }
 
 /// Nao perde a contagem quando a coleta e recusada. Somente numero
 /// de tentativas e subcodigo/status saneados aparecem na saida.
-fn json_da_falha_web(
-    falha: &crate::unidade_lupa::FalhaDaLupa,
-    requisicoes: usize,
-) -> Value {
+fn json_da_falha_web(falha: &crate::unidade_lupa::FalhaDaLupa, requisicoes: usize) -> Value {
     let mut valor = crate::saida_erro::json_de_erro_fonte(
         falha.subcodigo(),
         "a lupa não devolveu uma lista integral verificável",
