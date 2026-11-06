@@ -129,11 +129,19 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
     }
 
     let mut transporte = UnicaLeitura { gets: 0 };
+    let mut requisicoes = 0;
     assert!(matches!(
-        ler_integral(&mut transporte, &controle(), ORIGEM, "PHPSESSID=SINTETICO"),
+        ler_integral_com_contador(
+            &mut transporte,
+            &controle(),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        ),
         Err(FalhaDaLupa::LinkAusente),
     ));
     assert_eq!(transporte.gets, 1);
+    assert_eq!(requisicoes, 1, "um GET servido e nenhum POST");
 }
 
 #[test]
@@ -223,4 +231,56 @@ fn literal_sem_hash_assinado_nao_autoriza_get() {
         ),
         Err(FalhaDaLupa::LinkAusente),
     );
+}
+
+#[test]
+fn transporte_recusado_conta_tentativa_sem_retry() {
+    use crate::formulario_web::RespostaDoPost;
+    use std::io::Cursor;
+
+    struct Recusa {
+        gets: usize,
+    }
+
+    impl TransporteLupa for Recusa {
+        type Corpo = Cursor<Vec<u8>>;
+
+        fn get(
+            &mut self,
+            _url: &str,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            self.gets += 1;
+            Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+                crate::transporte::StatusHttpRecusado {
+                    status: 503,
+                    mensagem_do_servidor: Some("serviço indisponível".to_owned()),
+                },
+            ))
+        }
+
+        fn post(
+            &mut self,
+            _envio: SubmissaoDerivada,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            panic!("sem POST na falha do primeiro GET")
+        }
+    }
+
+    let mut rede = Recusa { gets: 0 };
+    let mut requisicoes = 0;
+    let falha = ler_integral_com_contador(
+        &mut rede,
+        &controle(),
+        ORIGEM,
+        "PHPSESSID=SINTETICO",
+        &mut requisicoes,
+    )
+    .err()
+    .expect("HTTP 503 deve falhar");
+    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
+    assert_eq!(falha.status_http().map(|s| s.status), Some(503));
+    assert_eq!(requisicoes, 1);
+    assert_eq!(rede.gets, 1, "sem retry da tentativa recusada");
 }
