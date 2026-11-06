@@ -98,3 +98,21 @@ sucesso; somente a lista relida pode provar a atividade. O RED
 mostrou três falhas antes da implementação, com 1.711 PASS. O GREEN
 depende do CI do novo head. Ensaio em treinamento e replay específico
 continuam NOT_RUN, com zero requisições SEI e zero resíduos.
+
+## Regressão: aceite JS inerte não comprova ciência (06/11/2026)
+
+A atividade do aceite é reconhecida somente numa chamada estática
+`atualizarArvore` em código de script, fora de comentários e literais.
+Um `<script>` aninhado em `<template>` não é prova de execução. A
+extração reaproveita o lexer conservador já usado para ciência de
+documento; sem `eval`, execução de JavaScript ou expressão regular.
+Se não há atividade comprovável, o GET mutador **não é repetido** e
+a releitura mantém o resultado como efeito incerto (saída 3).
+
+O RED anterior ao código foi comprovado no
+[CI 42218975613](https://github.com/franklinbaldo/ies/actions/runs/42218975613):
+**3 falhas novas, 1.714 testes aprovados e 22 ignorados preexistentes**.
+Comentários, literais de string e scripts de template foram os três
+contraexemplos que antes devolviam a atividade fictícia. O GREEN deve
+ser conferido no CI do head atualizado da PR #317. Replay específico
+e validação em treinamento permanecem NOT_RUN.
