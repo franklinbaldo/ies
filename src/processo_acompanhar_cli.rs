@@ -1,4 +1,4 @@
-//! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
+//! CLI de acompanhamento: prévia, inclusão e retirada com POST único e releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_acompanhar::{ErroPrevia, Pedido, Previa, previa};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso, publicar_valor_da_falha};
@@ -24,14 +24,6 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
-            // A exclusão ainda não possui formulário de envio validado.
-            // Bloqueá-la antes de ler credenciais ou abrir conexão.
-            if *confirmar && *deixar {
-                return Some(publicar_erro(
-                    cli.json,
-                    &ErroPrevia::ConfirmacaoNaoImplementada,
-                ));
-            }
             let pedido = Pedido {
                 nup: &nup,
                 unidade: cli.unidade.as_deref(),
@@ -82,6 +74,8 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         );
         if plano.ja_estava {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
+        } else if plano.operacao == "deixar" && plano.alterado {
+            println!("Retirado acompanhamento do grupo: {}", plano.grupo);
         } else if plano.operacao == "deixar" {
             println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
         } else if plano.alterado {
@@ -93,9 +87,17 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         }
         if plano.alterado {
             if let Some(id) = &plano.id_de_remocao {
-                println!("ID observado na releitura: {id}");
+                if plano.operacao == "deixar" {
+                    println!("ID retirado, ausente na releitura: {id}");
+                } else {
+                    println!("ID observado na releitura: {id}");
+                }
             }
-            println!("Acompanhamento incluído e confirmado por leitura.");
+            if plano.operacao == "deixar" {
+                println!("Acompanhamento retirado e confirmado por leitura.");
+            } else {
+                println!("Acompanhamento incluído e confirmado por leitura.");
+            }
         } else {
             println!("Nenhuma escrita executada.");
         }
@@ -110,7 +112,7 @@ fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
         "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
         "subcodigo": erro.subcodigo(),
         "erro": if incerto {
-            "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
+            "A alteração pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
         } else {
             "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
         },
