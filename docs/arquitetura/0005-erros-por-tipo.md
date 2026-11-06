@@ -1,12 +1,12 @@
 ---
 type: ArchitectureDecision
-title: Erros por tipo composto, com causa derivada e texto só na fronteira
-description: derive Causa local declara a identidade pública ao lado de onde o erro é levantado e substitui as fn subcodigo manuais
+title: Erros por tipo, origem única e propagação direta
+description: Tipos próximos à detecção preservam a identidade da falha; Serde apresenta o tipo sem subcódigos paralelos
 status: accepted
-decision: derive-causa compose-by-type text-at-boundary no-uncertain-effect
+decision: typed-errors single-origin direct-propagation serde-at-boundary
 ---
 
-# 0005 — Erros por tipo composto
+# 0005 — Erros por tipo
 
 ## Problema
 
@@ -19,28 +19,28 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 
 ## Decisão
 
-- **O tipo é a verdade.** O erro é declarado no módulo que o levanta e
-  deriva `Causa` (`crates/ies-derive`, sem dependências externas). O nome
-  público é o `snake_case` da variante; um nome histórico divergente fica
-  explícito em `#[causa(nome = "...")]`.
-- **Compor em vez de nomear o contexto.** `#[causa(interna)]` encadeia o
-  erro interno: a causa vira um caminho (`["abertura", "transporte",
-  "falha_de_rede"]`), e o contexto vem da estrutura, não do nome.
-- **Uma etapa, um tipo.** Um `enum` não tem duas variantes com o mesmo
-  tipo interno: isso é duas etapas achatadas num nível, e o nome da
-  variante passa a carregar a etapa. Cada etapa com mais de uma fonte de
-  falha ganha o próprio tipo, e a árvore de erros espelha a de chamadas.
-  Assim o derive gera um `From` por variante `interna` e o `?` compõe sem
-  `map_err`.
+- **O tipo é a verdade.** Declare o erro perto do ponto que detecta a
+  falha. Em regra, cada variante tem um único ponto de construção em
+  produção. Propagação, assinaturas, testes e padrões de `match` não são
+  novas emissões. Um validador compartilhado pode atender vários fluxos.
+- **Propagar sem embrulhar.** Use `?` ou retorne o `Result` original.
+  Não crie wrappers para registrar etapas da pilha. Uma conversão só se
+  justifica quando a assinatura exige ou quando acrescenta um fato ou
+  decisão observável, preservando a causa original.
+- **Eliminar subcódigos.** Nas fatias migradas, Serde apresenta o próprio
+  tipo na fronteira. Não mantenha outra identidade textual em métodos,
+  atributos de nomes legados ou tabelas. `Causa` e o contrato antigo
+  permanecem apenas nos consumidores ainda não migrados.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
   contrato de decisão; a causa é diagnóstico.
 - **Sem "efeito incerto".** Uma escrita é descrita por fatos (`enviada`,
   `aplicada`) e pela causa exata; depois de uma falha, a operação lê de
   novo para reconciliar, sem repetir a escrita.
-- **Texto só na fronteira.** `src/erro_publico.rs` serializa. Nenhum
-  código compara o texto de um erro: classifica-se por `match`, e os
-  testes casam o tipo.
+- **Apresentação na fronteira.** O domínio propaga tipos Rust. A CLI
+  serializa com Serde ou apresenta a mensagem do tipo. Classificação e
+  testes de identidade usam variantes. Strings fixas de JSON ficam nos
+  testes da fronteira, para conferir o formato emitido.
 
 ## Propagação e origem única
 
@@ -130,7 +130,8 @@ módulo de leitura de tela (`MODULOS_DE_TELA`).
 
 ## Consequências
 
-- Erro novo: `#[derive(Causa)]`; nunca `fn subcodigo()` manual.
+- Erro novo: tipo perto da detecção, uma origem em regra, propagação
+  direta e serialização na fronteira. Não introduzir subcódigos.
 - Tabelas `subcodigos-*.md` deixam de ser a fonte; caem quando os
   contratos migrarem.
 - `?` em vez de `map_err` para compor causas; um `From` manual só onde

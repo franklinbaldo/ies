@@ -85,6 +85,8 @@ jobs:
     name: replay unidade.retornos (7 instalações, offline)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    env:
+      IES_ACERVO_CACHE: .cache/ies-retornos
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,24 +99,35 @@ jobs:
       - name: Cache Rust compilation
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
-      - name: Download and verify six public cassette ZIPs
+      - name: Restore verified returns cassettes
+        id: retornos-cache
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ env.IES_ACERVO_CACHE }}
+          key: ies-retornos-v1-${{ hashFiles('cassettes/retornos-zips.txt') }}
+          restore-keys: ies-retornos-v1-
+
+      - name: Download missing cassettes and verify every ZIP
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.cache/ies"
+          mkdir -p "$IES_ACERVO_CACHE"
           base="https://archive.org/download/todos-sei-cassettes-2026"
           while read -r arquivo sha1 url; do
-            curl --fail --silent --show-error --location --retry 0 --max-time 300 \
-              --output "$HOME/.cache/ies/$arquivo" "$base/$url"
-            printf '%s  %s\n' "$sha1" "$HOME/.cache/ies/$arquivo" | sha1sum --check
-          done <<'CET'
-          todos-sei-cassettes-unb.zip 21e0559015c56c403daf8933e5040504a7b83837 todos-sei-cassettes-unb.zip
-          lote-c7a4af8d9d70ddc3.zip c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78 lotes/lote-c7a4af8d9d70ddc3.zip
-          lote-7e4954690958f7a7.zip 7e4954690958f7a73caf0534d0c05f32e891dde9 lotes/lote-7e4954690958f7a7.zip
-          lote-28a245e07bf7d358.zip 28a245e07bf7d358a322981744dc5e79a835ba94 lotes/lote-28a245e07bf7d358.zip
-          lote-15a748cdb7c0fdbd.zip 15a748cdb7c0fdbd907c8b3b922fa0194ae8887c lotes/lote-15a748cdb7c0fdbd.zip
-          lote-1e2f128fe845906a.zip 1e2f128fe845906a364058f0d5eb22a0308b4095 lotes/lote-1e2f128fe845906a.zip
-          CET
+            if ! printf '%s  %s\n' "$sha1" "$IES_ACERVO_CACHE/$arquivo" | sha1sum --check --status; then
+              echo "Downloading $arquivo"
+              curl --fail --silent --show-error --location --retry 0 --max-time 300 \
+                --output "$IES_ACERVO_CACHE/$arquivo" "$base/$url"
+            fi
+            printf '%s  %s\n' "$sha1" "$IES_ACERVO_CACHE/$arquivo" | sha1sum --check
+          done < cassettes/retornos-zips.txt
+
+      - name: Save verified returns cassettes before replay
+        if: steps.retornos-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ env.IES_ACERVO_CACHE }}
+          key: ${{ steps.retornos-cache.outputs.cache-primary-key }}
 
       - name: Replay verified monthly returns with production parser
         run: cargo test --locked --bin ies unidade_retornos::acervo::replay_retornos_no_acervo -- --ignored --exact --nocapture --test-threads=1
