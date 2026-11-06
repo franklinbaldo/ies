@@ -10,8 +10,64 @@ status: fail
 # Continuação e reconciliação da criação de processos — issue #245
 
 As seções anteriores ao ensaio estão em [relatório original](2026-11-05-processo-criar.md).
-O estado live mais recente é **efeito incerto, resíduo desconhecido**;
-proibido repetir a confirmação antes de conciliação por leitura.
+**Estado consolidado em 05/11/2026:** a confirmação havia retornado saída 3,
+mas uma reconciliação independente, exclusivamente por leitura, **comprovou que
+ela criou o processo 23106.001875/2026-93** (id 51731) na UnB de treinamento.
+**Não repetir o POST criador.** As tabelas históricas abaixo conservam a
+visibilidade que havia *na ocasião*; seus `DESCONHECIDO` e `NOT_RUN` não
+representam o estado consolidado desta issue.
+
+## Reconciliação independente comprovada — 🐘 Elefante (05/11/2026)
+
+A conferência real foi documentada pelo proprietário na
+[issue #245, comentário 6673196171](https://github.com/franklinbaldo/ies/issues/245#issuecomment-6673196171).
+A evidência substitui, para o estado atual, a classificação histórica
+`DESCONHECIDO` deste relatório; não substitui o fato de o POST original
+ter retornado erro nem demonstra que a CLI já realize a reconciliação
+automaticamente.
+
+| Observação | Resultado confirmado |
+| --- | --- |
+| Origem | UnB **treinamento** |
+| Reconciliação da escrita anterior | **PASS — criação aplicada**, somente leitura |
+| NUP residual | **23106.001875/2026-93** |
+| ID do processo | **51731** |
+| Tipo | `Teste: Nível de acesso só público` |
+| Especificação | `Ensaio IES 245 - escrita unica em treinamento` |
+| Nível / interessados | público / nenhum |
+| Registro de geração | 05/11/2026, 18h48 (-03), usuário `aluno1`, `Unidade1`; andamento `Processo público gerado` |
+| Duplicidade | **não observada** entre os Gerados conferidos; processo anterior `001874` (id 51727) de 11h19, outro tipo/especificação |
+| Novo POST de escrita nesta reconciliação | **0** |
+| Novo resíduo desta retomada | **0** (a reconciliação não cria processos) |
+
+**Requisições efetivamente relatadas pelo 🐘:** `ies login` = **6**;
+`ies unidade gerados` = **página 1, 66 processos**, contagem HTTP
+dessa operação **null** (não informada no comentário); `ies processo`
+para os dois NUPs de IDs maiores = **5 por processo** (10 consultas
+HTTP). A quantidade total da reconciliação = **null**, pois falta a
+contagem HTTP da operação Gerados. O total da tentativa original de
+confirmação = **null**, não observado no erro. Não inferir valor para
+nenhum desses totais. Todas as consultas da reconciliação foram de leitura;
+abrir processo pode registrar recebimento/visualização.
+
+A prévia histórica passou em 3 GET e a confirmação original ocorreu uma
+única vez, encerrando com `efeito_incerto_na_criacao`/saída 3.
+**O efeito está esclarecido pelo histórico da UnB: criação aplicada.**
+O binário da leitura independente foi o da `main` `d93c9b6`.
+Não houve retry de escrita. Não repetir o POST, mesmo após esta prova.
+
+**Pendente para concluir a issue:** implementar e testar reconciliação
+*automática na CLI* para falhas/respostas inesperadas após POST, com
+comparação Controle/Gerados e desfechos aplicada, não aplicada e ambígua,
+preservando causas e orçamento exato. O script manual de reconciliação
+não satisfaz esse critério. Não há nova escrita autorizável pelo fluxo
+histórico já executado. A outra instalação de treinamento continua
+`NOT_RUN` nesta fatia.
+
+**Workflow de investigação manual:** a reconciliação já está concluída.
+O arquivo temporário `temporary-245-readonly-reconcile.yml` foi
+retirado do branch na mesma fatia de atualização deste relatório. Não
+houve nova execução desse workflow.
 
 ## Retomada 🦉 Coruja — proteção de hipóteses AJAX (05/11/2026)
 
