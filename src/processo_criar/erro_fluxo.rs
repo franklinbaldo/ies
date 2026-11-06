@@ -70,7 +70,9 @@ impl ErroCriar {
             Self::Interessado(erro) => erro.subcodigo(),
             Self::Hipotese(erro) => erro.subcodigo(),
             Self::Fotografia(erro) => crate::erro_publico::folha(erro),
-            Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => "efeito_incerto_na_criacao",
+            Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
+                "efeito_incerto_na_criacao"
+            },
         }
     }
 
@@ -105,7 +107,10 @@ impl ErroCriar {
     }
 
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto | Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. }) {
+        if matches!(
+            self,
+            Self::EfeitoIncerto | Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. }
+        ) {
             3
         } else {
             1
