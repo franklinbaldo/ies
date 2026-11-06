@@ -2,36 +2,14 @@
 //! Navegação: Controle → `grupo_unidade_listar` → Novo → cadastro
 //! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
 use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
-use crate::formulario_web::RespostaDoPost;
-use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-};
+use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::UnidadeGuardada;
 use crate::instalacao::Instalacao;
-use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::{FalhaTransporte, decodificar_resposta, validar_origem};
 use std::io::Read;
 
-const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "unidade_selecionar_envio_processo",
-    formulario: "frmUnidadeLista",
-    envio: EnvioDoFormulario::BotaoDeEnvio("btnPesquisar"),
-    campos_ocultos_exigidos: &["hdnInfraPaginaAtual"],
-    campos_ocultos_reescritos: &["hdnInfraPaginaAtual"],
-    campos_usuario: &[
-        "selOrgaoUnidade",
-        "txtSiglaUnidade",
-        "txtDescricaoUnidade",
-        "selInfraPaginacaoSuperior",
-        "selInfraPaginacaoInferior",
-    ],
-    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
-        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
-    },
-};
+mod consulta;
+use consulta::consulta;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum FalhaDaLupa {
@@ -346,39 +324,6 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
         origem,
         "grupo_unidade_cadastrar",
     )
-}
-
-fn consulta(
-    instalacao: &Instalacao,
-    url: &str,
-    html: &str,
-    mime: &str,
-    pagina: usize,
-) -> Result<SubmissaoDerivada, FalhaDaLupa> {
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaDaLupa::CharsetInesperado)?;
-    let indice = pagina.to_string();
-    let tela = TelaServida {
-        url,
-        html,
-        codificacao,
-    };
-    // Controles de paginação devem existir como o SEI os publica.
-    // A biblioteca de formulário insere os ocultos fixos na ordem correta.
-    derivar_submissao(
-        &CONSULTAR,
-        instalacao,
-        &tela,
-        "",
-        &[
-            ("selOrgaoUnidade", ""),
-            ("txtSiglaUnidade", ""),
-            ("txtDescricaoUnidade", ""),
-            ("hdnInfraPaginaAtual", &indice),
-            ("selInfraPaginacaoSuperior", &indice),
-            ("selInfraPaginacaoInferior", &indice),
-        ],
-    )
-    .map_err(|_| FalhaDaLupa::FormularioInesperado)
 }
 
 /// Consulta integral: quatro GETs de navegação + um POST por página;
