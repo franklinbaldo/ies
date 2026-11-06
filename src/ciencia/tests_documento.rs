@@ -26,7 +26,7 @@ fn arvore_com_botao() -> String {
 fn arvore_com_lista() -> String {
     let mut html = arvore_com_botao();
     let acao = format!(
-        "NosAcoes[9] = new infraArvoreAcao(\"CIENCIAS\",\"CD{ID_DOC}\",\"{ID_DOC}\",         \"{link}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
+        "NosAcoes[9] = new infraArvoreAcao(\"CIENCIAS\",\"CD{ID_DOC}\",\"{ID_DOC}\",\"{link}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
         link = link_da_lista()
     );
     html = html.replacen(
