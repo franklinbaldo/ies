@@ -139,5 +139,7 @@ Regressões sintéticas em `src/ciencia/tests.rs` e
 `src/ciencia/tests_fluxo.rs` cobrem `if(false)` com e sem chaves,
 função não invocada e resposta com lista preexistente. O RED anterior
 à correção está no [CI 42223177117](https://github.com/franklinbaldo/ies/actions/runs/42223177117):
-**3 FAIL / 1.717 PASS / 22 ignored preexistentes**; a confirmação
-de GREEN depende dos gates do novo head.
+**3 FAIL / 1.717 PASS / 22 ignored preexistentes**. GREEN confirmado
+no [CI 42224041949](https://github.com/franklinbaldo/ies/actions/runs/42224041949)
+do head `e646671`, com **5/5 jobs PASS** (prek, release e três
+replays gerais). Replay específico de ciência continua NOT_RUN.
