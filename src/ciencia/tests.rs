@@ -228,7 +228,6 @@ fn chamada_em_funcao_nao_invocada_nao_comprova_aceite() {
     );
 }
 
-
 /// RED #271: um retorno antecipado ou outra interrupção antes da recarga
 /// não pode transformar uma atividade antiga em prova de ciência nova.
 #[test]
