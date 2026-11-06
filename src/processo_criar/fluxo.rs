@@ -271,6 +271,12 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
         }
         Err(erro) => return Err(E::Cadastro(erro)),
     };
+    // #1248 (Todos): a prévia e a confirmação devem respeitar o limite
+    // de txtDescricao que o cadastro desta instalação publicou.
+    // Recusar antes do POST criador (e antes de consultas AJAX adicionais).
+    observado
+        .validar_especificacao(pedido.especificacao)
+        .map_err(E::Cadastro)?;
     let codificacao = codificacao_da_tela(&cadastro.mime).ok_or(E::Formulario)?;
     let servida = TelaServida {
         url: &cadastro.url,
