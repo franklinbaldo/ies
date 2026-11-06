@@ -190,9 +190,9 @@ fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) ->
         );
         return ExitCode::from(1);
     }
-    return erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http());
+    erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http())
 }
-    
+
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
     if !json_mode {
         eprintln!("IES: {requisicoes} requisições efetivamente tentadas neste fluxo.");
