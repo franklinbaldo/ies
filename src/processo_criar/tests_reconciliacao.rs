@@ -128,8 +128,8 @@ fn nup_repetido_em_ids_distintos_nao_pode_virar_duas_identidades() {
     // Na reconciliação de Gerados não há como tratar dois IDs como dois
     // processos independentes, mesmo com cobertura posicional completa.
     let ambigua = tela(&[("10", NUP_A), ("11", NUP_A)], 2, 1);
-    assert!(
-        FotografiaDosGerados::da_tela(&ambigua, "TESTE").is_err(),
-        "a fotografia deve recusar NUP repetido sob dois IDs distintos"
+    assert_eq!(
+        FotografiaDosGerados::da_tela(&ambigua, "TESTE"),
+        Err(ErroFotografia::NupRepetido)
     );
 }
