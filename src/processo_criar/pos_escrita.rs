@@ -178,6 +178,10 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             if conferido.tipo.as_deref() == Some(feito.tipo.as_str())
                 && conferido.especificacao.as_deref() == Some(especificacao)
                 && conferido.nivel.as_deref() == Some(feito.nivel.as_str())
+                && reconciliacao::desfechos::interessados_conferem(
+                    &feito.interessados,
+                    &conferido.interessados,
+                )
             {
                 correspondentes_parciais.push(conferido.nup.clone());
             }
