@@ -474,4 +474,5 @@ fn falhas_mantem_o_subcodigo_do_fato_tipado() {
     assert_eq!(folha(&url), "link_de_retornos_fora_da_instalacao");
 }
 
+#[path = "tests/saltos.rs"]
 mod saltos;
