@@ -1,6 +1,6 @@
 //! Saída JSON e humana de `processo enviar`: campos do contrato, nada de
 //! URL, e as falhas com as listas que o SEI publicou.
-use super::{humano, json_de_falha, json_de_sucesso, sigla_de_destino};
+use super::{humano, json_de_sucesso, sigla_de_destino};
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_enviar::{Destino, ErroEnviar, ProcessoEnviado};
 use crate::transporte::FalhaTransporte;
@@ -191,7 +191,14 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
-                let valor = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
+                let projecao = super::json_de_falha_com_sugestoes(
+                    &erro, sessao, indice, DESTINO,
+                );
+                assert_ne!(
+                    std::any::type_name_of_val(&projecao),
+                    std::any::type_name::<serde_json::Value>()
+                );
+                let valor = serde_json::to_value(projecao).unwrap();
                 (
                     valor.clone(),
                     super::texto_das_sugestoes(&super::sugestoes_guardadas(
@@ -210,6 +217,12 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
         assert_eq!(pedidos.len(), 5);
         assert_eq!(subcodigo, "destino_nao_oferecido_pelo_sei");
         assert_eq!(saida, 1);
+        let esperado = if unidade_da_lista == Some(ativa.as_str()) {
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei","sugestoes_guardadas":["TESTE_1_1 - Unidade guardada"]}"#
+        } else {
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#
+        };
+        assert_eq!(valor.to_string(), esperado);
         assert_eq!(
             valor["oferecidos"],
             json!(["OUTRA - Destino publicado pelo SEI"]),
@@ -287,9 +300,7 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
 fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
     let casos = [
         (
-            ErroEnviar::DestinoNaoOferecidoPeloSei {
-                oferecidos: vec![],
-            },
+            ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos: vec![] },
             r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":[],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#,
         ),
         (
@@ -323,4 +334,8 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
             std::any::type_name::<serde_json::Value>()
         );
     }
+}
+
+fn json_de_falha(erro: &ErroEnviar) -> serde_json::Value {
+    serde_json::to_value(super::json_de_falha(erro)).unwrap()
 }

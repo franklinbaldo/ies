@@ -125,12 +125,6 @@ pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro:
     crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
 }
 
-/// Contrato legado de teste dos metadados HTTP publicados.
-pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    serde_json::to_value(falha_do_envio_publica(falha))
-        .expect("os metadados da falha são JSON válido")
-}
-
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
 #[derive(serde::Serialize)]
 struct ResultadoConclusao<'a> {

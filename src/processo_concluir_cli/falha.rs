@@ -6,6 +6,8 @@ use crate::transporte::StatusHttpRecusado;
 pub(crate) struct FalhaDaSituacao<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) aberto_em: Option<&'a [String]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) candidatos: Option<&'a [String]>,
     codigo: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) depois: Option<&'a [String]>,
@@ -16,10 +18,14 @@ pub(crate) struct FalhaDaSituacao<'a> {
     mensagem_do_servidor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) motivo: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) oferecidos: Option<&'a [String]>,
     retentavel: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     status_http: Option<u16>,
     subcodigo: &'a str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub(crate) sugestoes_guardadas: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[expect(
         clippy::option_option,
