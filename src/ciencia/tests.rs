@@ -247,3 +247,20 @@ fn retorno_ou_interrupcao_antes_da_recarga_nao_comprova_aceite() {
         );
     }
 }
+
+
+// RED #271: a Lista de Ciências pode conter HTML inerte em <template>.
+#[test]
+fn lista_com_checkbox_no_template_nao_confirma_ciencia() {
+    // O SEI precisa publicar a atividade em uma linha real da lista,
+    // não apenas num fragmento inerte que o parser DOM percorra.
+    let html = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption>
+        <tr><td><template><input type='checkbox' name='chkInfraItem' value='42457'></template></td></tr>
+        <tr><td><input type='checkbox' name='chkInfraItem2' value='42458'></td></tr>
+        </table></html>";
+    assert_eq!(
+        atividade_na_lista(html, "42457"),
+        Err(E::ListaDeCienciasForaDaFormaObservada),
+        "checkbox em template não pode provar efeito da escrita"
+    );
+}
