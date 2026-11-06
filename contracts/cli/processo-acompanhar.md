@@ -150,3 +150,15 @@ registrou **2 falhas e 1.654 testes aprovados**. O GREEN da correção
 é aferido separadamente no head final. A confirmação live autorizada
 segue prévia → um único POST → releitura, com resíduo registrado;
 se a sequência não puder ser completada com segurança, não escrever.
+
+
+## Idempotencia de grupo observado na lista (#254)
+
+Quando `--grupo G` nomeia exatamente um grupo ja presente na lista
+completa do gerenciador, a propria leitura prova que o acompanhamento
+existe na unidade. A CLI devolve `ja_estava=true`, `alterado=false`,
+e, com `--confirmar`, `confirmado=true`, **sem abrir cadastro e sem
+POST**, independentemente da observacao informada. Na bancada sintetica
+sem indice aquecido, o orcamento e de **4 GETs, 0 POSTs**. Se a lista nao
+comprova aquele grupo, a derivacao segura do cadastro segue obrigatoria:
+nao se infere ausencia nem se cria URL de formulario.
