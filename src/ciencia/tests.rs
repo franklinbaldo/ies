@@ -307,14 +307,17 @@ fn segundo_argumento_pode_impedir_recarga_e_nao_prova_ciencia() {
     );
 }
 
-
 /// RED #271: a tabela inteira pode estar dentro de um <template>.
 /// Verificar apenas templates descendentes da tabela não basta:
 /// a tabela ancestralmente inerte nunca prova uma ciência real.
 #[test]
 fn tabela_inteira_dentro_de_template_nao_confirma_ciencia() {
     let html = lista("42457", "chkInfraItem")
-        .replacen("<table id='tblAndamentos'", "<template><table id='tblAndamentos'", 1)
+        .replacen(
+            "<table id='tblAndamentos'",
+            "<template><table id='tblAndamentos'",
+            1,
+        )
         .replacen("</table>", "</table></template>", 1);
     assert_eq!(
         atividade_na_lista(&html, "42457"),

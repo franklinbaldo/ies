@@ -410,3 +410,37 @@ fn funcao_em_ramo_inativo_nao_autoriza_get_mutador() {
     let tela = format!("<html><script>if (false) {{\n{trecho}\n}}</script></html>");
     rejeitar_tela_sem_get_mutador(tela);
 }
+
+// RED/GREEN #271: uma atividade em tabela inteiramente inerte não é prova
+// de que o GET mutador registrou ciência, mesmo com id_atividade no aceite.
+#[test]
+fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
+    let html = lista(ATIVIDADE)
+        .replacen(
+            "<table id='tblAndamentos'",
+            "<template><table id='tblAndamentos'",
+            1,
+        )
+        .replacen("</table>", "</table></template>", 1);
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        ok(aceite(ATIVIDADE)),
+        ok(arvore_com_lista()),
+        ok(html),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3, "sem prova na lista, efeito é incerto");
+    assert!(matches!(erro, E::EfeitoIncerto { requisicoes: 7, .. }));
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1,
+        "não repetir o GET mutador"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
+}

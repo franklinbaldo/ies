@@ -91,3 +91,13 @@ literal. Um argumento adicional pode lançar uma exceção antes da
 recarga e não comprova uma ciência documental. O leitor compartilhado
 recusa a forma não observada; após o GET mutador, verifica por leitura
 e devolve efeito incerto, sem retry ou sucesso por ciência anterior.
+
+
+### Lista de Ciências em contêiner inerte (#271)
+
+O parser HTML pode encontrar `table#tblAndamentos` dentro de um
+`<template>` ancestral. Essa tabela não integra a interface exibida e
+não comprova ciência, ainda que seu checkbox contenha o `id_atividade`
+do aceite. A releitura a recusa como forma não observada, retorna
+**efeito incerto (3)** e não repete o GET de escrita. Também se recusa
+`<template>` descendente da tabela, sem aceitar IDs antigos ou ocultos.

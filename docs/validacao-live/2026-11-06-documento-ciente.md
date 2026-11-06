@@ -64,3 +64,22 @@ cancelado sem evidência de contagem; **RED desta rodada: NOT_RUN**.
 replay específico NOT_RUN. Nenhuma requisição ao SEI ou resíduo criado;
 a escrita ao vivo continua dependente de prévia autenticada e confirmação
 única em treinamento, seguida de prova por leitura.
+
+
+## Regressão da Lista de Ciências sob template ancestral (06/11/2026)
+
+Observação estrutural: `src/ciencia.rs::atividade_na_lista` já recusava
+checkbox sob `<template>` **dentro** da tabela, mas não o caso inverso:
+a tabela `tblAndamentos` inteira sob `<template>`. O navegador não
+exibe o fragmento inerte, embora o parser o encontre pelo ID.
+**RED comprovado** na suíte Rust do [run 42286359093](https://github.com/franklinbaldo/ies/actions/runs/42286359093):
+**1 teste falhou, 1.768 passaram, 22 ignorados preexistentes**.
+O hook Rustfmt também apontou apenas estilo no teste novo, corrigido no GREEN.
+A correção recusa ancestral `<template>` da tabela e o teste de fluxo
+exige saída 3 sem sucesso falso, com 7 GET totais, **1 GET mutador**
+e **0 retry** (orçamento sintético). Não há mudança na prévia nem no
+protocolo Web. GREEN: consultar o CI do head publicado desta PR.
+
+**Live:** UnB NOT_RUN (0 pedidos), segunda instalação NOT_RUN (0),
+`--confirmar` NOT_RUN (0 GET mutadores), releitura NOT_RUN (0);
+replay dedicado de ciência NOT_RUN. **0 escritas e 0 resíduos novos**.

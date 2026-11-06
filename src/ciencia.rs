@@ -266,6 +266,24 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     if tabela.name().as_utf8_str() != "table" {
         return Err(fora);
     }
+    // A tabela inteira também pode estar em um <template> ancestral. Nesse
+    // caso o parser a encontra pelo ID, mas o navegador não a exibe como
+    // Lista de Ciências: não serve como prova de escrita.
+    if dom
+        .query_selector("template")
+        .into_iter()
+        .flatten()
+        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+        .any(|template| {
+            template
+                .query_selector(parser, "table")
+                .into_iter()
+                .flatten()
+                .any(|no| no == *unica)
+        })
+    {
+        return Err(fora);
+    }
     // O parser DOM também percorre descendentes de <template>, mas um
     // checkbox inerte não prova a ciência. Recusar a tabela inteira é
     // mais seguro do que escolher uma atividade sem prova de visibilidade.

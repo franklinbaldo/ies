@@ -84,3 +84,14 @@ comprova todas as demais.
 [observação](../validacao-live/2026-11-06-documento-ciente.md).
 Revisão pendente: replay do acervo, comportamento da segunda ciência e
 prévia/confirmação/releitura em duas instalações de treinamento.
+
+
+## Verificação da tabela dentro de `<template>` (#271)
+
+Mesmo depois de conferir `CD<id>`, a prova precisa vir de uma tabela
+realmente publicada. Um `table#tblAndamentos` sob `<template>` é
+encontrável pelo parser, mas está inerte no DOM do navegador; não prova
+que a ciência foi gravada. Optou-se por **recusar apenas quando o template
+é ancestral ou descendente da tabela de prova**, sem invalidar templates
+sem relação com ela. Teste RED (antes do código) e fluxo de efeito incerto
+no relatório live; não há JavaScript executado, retry ou GET extra.
