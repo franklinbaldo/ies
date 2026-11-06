@@ -168,3 +168,31 @@ resíduo foi deixado no SEI.
   de sessão/rede. Validar compilação, testes, replay e prévia autenticada
   em treinamento antes de considerar a remoção disponível; a escrita
   autorizada exige confirmação única e verificação independente.
+
+## Sexta fatia — defesa contra declaração comentada (🐢)
+
+- **Observação antes do RED:** estrutura da UnB, `acaoExcluir` chamada
+  pelo `onclick` como função global clássica. A revisão do Gavião
+  evidenciou que o código de uma função inteira em comentário não
+  define a função.
+- **Testes novos antes da correção:** 5 cenários sintéticos no commit
+  `abd561a`: bloco comentado, assinatura comentada por linha,
+  declaração em bloco `if(false)`, expressão atribuída e controle
+  positivo com comentário antes da função global.
+- **Código:** `ebb9858` filtra a declaração pelo escopo sintático
+  externo a comentários/strings, sem executar JS. O teste integrado
+  adicional do commit `767c5a9` exige recusa tipada após **4 GETs
+  exatos, 0 POSTs**, sem retry.
+- **RED novo:** NOT_RUN; commit de testes publicado antes da correção,
+  mas sem run de Actions e sem `cargo` no sandbox. **Falhas aferidas:
+  nenhuma, por falta de execução; não confundir com testes aprovados.**
+- **GREEN / Rustfmt / Clippy / OKF / replay:** NOT_RUN no head desta
+  fatia. Nenhum CI foi localizado para o SHA atualizado. CI antigo
+  `42124756930` comprova somente o head `8724902`.
+- **Live em treinamento:** prévia NOT_RUN (0 GET), confirmação NOT_RUN
+  (0 POST), releitura NOT_RUN (0 GET); total de **0 requisições reais**,
+  **0 escritas e nenhum resíduo no SEI**. Produção não acessada.
+- **Mitigação:** `--deixar --confirmar` continua recusado antes de
+  acessar sessão/rede. Conciliação da main, compilação e replay,
+  prévia autenticada e eventual confirmação única verificada ainda
+  pendentes.
