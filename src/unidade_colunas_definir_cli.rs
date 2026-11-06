@@ -75,10 +75,7 @@ pub(crate) fn definir_colunas(
         Err(ErroDefinirColunas::Leitura(erro)) => {
             crate::unidade_lista_cli::erro_da_visao(json_mode, &erro)
         }
-        Err(erro) => {
-            let valor = json_de_falha(&erro);
-            publicar_falha(json_mode, &valor, erro.mensagem(), erro.saida())
-        }
+        Err(erro) => publicar_falha(json_mode, &erro),
     }
 }
 
@@ -292,23 +289,58 @@ fn inserir_falha(objeto: &mut Map<String, Value>, falha: Option<&FalhaDoSalvar>)
     objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
 }
 
-fn publicar_falha(json_mode: bool, valor: &Value, mensagem: &str, saida: u8) -> ExitCode {
-    if json_mode {
-        println!("{valor}");
-    } else {
-        let subcodigo = valor["subcodigo"].as_str().unwrap_or_default();
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-        for campo in ["antes", "alvo", "observadas", "depois"] {
-            if let Some(lista) = valor[campo].as_array() {
-                let nomes: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
-                eprintln!("IES: {campo}: {}", lista_humana(&nomes));
+/// A apresentação humana não depende da projeção JSON.
+fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
+    use ErroDefinirColunas as E;
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+
+    let plano = match erro {
+        E::ConfiguracaoDeColunasNaoAplicada { plano, .. }
+        | E::MarcasDiferentesDoAlvoAposSalvar { plano, .. }
+        | E::EfeitoIncertoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
+        _ => None,
+    };
+    if let Some(plano) = plano {
+        linhas.push(format!("IES: {}", linha("antes", &plano.antes)));
+        linhas.push(format!("IES: {}", linha("alvo", &plano.alvo)));
+    }
+
+    match erro {
+        E::MarcasDiferentesDoAlvoAposSalvar { observadas, .. } => {
+            linhas.push(format!("IES: {}", linha("observadas", observadas)));
+        }
+        E::EfeitoIncertoNaConfiguracaoDeColunas {
+            verificacao, ..
+        } => {
+            if let VerificacaoDasColunas::Marcadas(observadas) = verificacao.as_ref() {
+                linhas.push(format!("IES: {}", linha("observadas", observadas)));
             }
         }
-        if let Some(falha) = valor["falha_do_salvar"]["subcodigo"].as_str() {
-            eprintln!("IES: resposta do salvar: {falha}");
+        _ => {}
+    }
+
+    let falha = match erro {
+        E::ConfiguracaoDeColunasNaoAplicada { falha_do_salvar, .. }
+        | E::EfeitoIncertoNaConfiguracaoDeColunas { falha_do_salvar, .. } => {
+            falha_do_salvar.as_ref()
+        }
+        _ => None,
+    };
+    if let Some(falha) = falha {
+        linhas.push(format!("IES: resposta do salvar: {}", falha.subcodigo()));
+    }
+    linhas
+}
+
+fn publicar_falha(json_mode: bool, erro: &ErroDefinirColunas) -> ExitCode {
+    if json_mode {
+        println!("{}", json_de_falha(erro));
+    } else {
+        for linha in linhas_da_falha(erro) {
+            eprintln!("{linha}");
         }
     }
-    ExitCode::from(saida)
+    ExitCode::from(erro.saida())
 }
 
 fn lista_humana(nomes: &[&str]) -> String {
