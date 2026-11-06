@@ -324,3 +324,20 @@ fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+
+/// Regressão de segurança: voltar à tela principal não identifica o processo
+/// modificado. Uma atribuição concorrente pode fazer a releitura coincidir.
+/// Caso seguro derivado da política de falhar fechado para Location genérica.
+#[test]
+fn principal_sem_id_nao_comprova_atribuicao_concorrente() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302("controlador.php?acao=principal"));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET independente
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
