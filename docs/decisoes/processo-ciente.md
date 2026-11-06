@@ -183,3 +183,28 @@ registrou **1 FAIL / 1.739 PASS / 22 ignored preexistentes**:
 O teste de fluxo exige uma releitura sem consultar Lista de Ciências
 quando o aceite não publicou atividade válida (**6 GET, 1 mutador,
 0 retry, saída 3**). GREEN e live dependem de validação posterior.
+
+
+## Argumento avaliado antes da recarga — regressão #271 (06/11/2026)
+
+O aceite medido no oráculo Todos (test_ciclo_ciencia_010.py,
+test_documento_ciente_010.py @323eb01) chama atualizarArvore('url')
+com **um único argumento literal**. O leitor permitia também
+vírgula depois do literal. Em JavaScript, os argumentos são
+avaliados antes de a função ser chamada: um segundo argumento
+que lança exceção impede a recarga, embora o leitor retornasse
+falsamente a atividade.
+
+**RED pré-implementação:** [CI 42278019363](https://github.com/franklinbaldo/ies/actions/runs/42278019363),
+**2 FAIL / 1.766 PASS / 22 ignored preexistentes**. O teste unitário
+observou Ok("42457") em vez de AceiteSemAtividade; o teste de
+fluxo tentou consultar a Lista de Ciências antiga além das seis
+requisições do roteiro.
+
+A correção restringe o literal à forma de um único argumento
+seguido de parêntese de fechamento; sem executar JavaScript.
+Na resposta de argumento adicional, há releitura independente
+da árvore, sem consulta de lista por id não comprovado, sem repetir
+o GET mutador; o fluxo responde efeito incerto (saída 3).
+O GREEN precisa ser comprovado no CI do novo head; replay específico
+e live em treinamento continuam NOT_RUN.
