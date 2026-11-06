@@ -17,7 +17,16 @@ jobs:
         with:
           version: "0.13.5"
           enable-cache: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
       - name: Run global dry audit
         run: |
           set -o pipefail
-          uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --audit | tee dry-audit.json
+          uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --apply | tee dry-audit.json
+          uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --check
+          echo "## Arquivos modificados pelo codemod"
+          git diff --stat
+          echo "## Exemplo de diff Rust"
+          git diff -- src/processo_concluir_cli.rs src/saida.rs
+          echo "## Verificação sintática"
+          cargo fmt --all --check
