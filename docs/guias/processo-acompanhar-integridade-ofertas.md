@@ -106,3 +106,22 @@ sem nova rota ou flag. A regressão de função pura recusa a oferta e a
 prévia injetada exige **4 GET e 0 POST**. Nenhum JavaScript é executado
 nem se usa regex. O HTML normal com script clássico fora de template
 continua permitido; a retirada pública confirmada continua fechada.
+
+## Sobrescrita da função de exclusão após a declaração (#254)
+
+**Variação sintética adversarial:** o script contém a declaração clássica
+`function acaoExcluir` com corpo idêntico ao observado na UnB, mas
+há código após o fechamento da função que redefine
+`window.acaoExcluir` ou atribui `null` à função. A busca anterior
+validava o primeiro corpo e ignorava o restante. Um `onclick` posterior
+não necessariamente invocaria a operação inspecionada.
+
+**Decisão:** para a forma estrita observada, a extração do corpo exige
+que não exista nenhum comando adicional após a chave final no mesmo
+script. Se há código não observado, recusa a oferta com
+`exclusao_de_acompanhamento_nao_oferecida`; não tenta interpretar nem
+executar JavaScript. Testes adversariais foram publicados antes da
+correção e produziram [RED 42312529474](https://github.com/franklinbaldo/ies/actions/runs/42312529474):
+**2 falhas funcionais novas, 1.828 testes aprovados, 23 ignorados anteriores**.
+O controle com script clássico e corpo exato continua válido; a
+retirada pública confirmada permanece bloqueada antes da rede.
