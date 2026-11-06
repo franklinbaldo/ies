@@ -487,6 +487,10 @@ pub(crate) fn criar<V: EnvioDoControle>(
 mod tests;
 
 #[cfg(test)]
+#[path = "tests_resposta_post.rs"]
+mod tests_resposta_post;
+
+#[cfg(test)]
 #[path = "tests_hipotese.rs"]
 mod tests_hipotese;
 
