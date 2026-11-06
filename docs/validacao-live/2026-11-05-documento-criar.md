@@ -18,6 +18,39 @@ Operação: `documento.criar`, issue
 | Prévia Web em treinamento | NOT_RUN | 0 ao SEI |
 | Criação ao vivo, releitura e resíduo no SEI | NOT_RUN — autorizada somente em treinamento | 0 ao SEI |
 
+## Ensaio autenticado UnB após correção da escolha (06/11/2026)
+
+- Execução **somente em treinamento**, via [workflow temporário
+  42198707929](https://github.com/franklinbaldo/ies/actions/runs/42198707929)
+  (commit de execução `d3d6127`). O workflow foi **removido** do branch no
+  commit `3bd0f1d`; nenhuma automação de escrita ficou habilitada.
+- **Login PASS**, 5 requisições reais. **Prévia PASS**, 4 requisições reais,
+  com o NUP `23106.001868/2026-91`, tipo exato `Despacho`, unidade
+  publicada, e `confirmado=false`, `alterado=false`. A correção da URL
+  do tipo duplicada superou a recusa anterior na prévia.
+- Após a prévia, houve **uma única invocação** de `--confirmar`, que
+  retornou **FAIL (saída 1)** com
+  `submissao_do_documento_nao_observada`. A guarda de
+  `src/documento_criar/fluxo.rs` devolve esse erro **antes** da função
+  `postar_e_verificar`: **0 POSTs criadores**, nenhuma escrita por este
+  comando. A contagem HTTP da invocação recusada **não foi publicada**
+  (`null`); não deduzir zero requisições de leitura/navegação.
+- A releitura adicional independente executou **PASS (1 requisição)**,
+  mas não comprovou documento novo. O roteiro classificou o resíduo como
+  **FAIL/readback_unproven** por não existir confirmação, não como prova
+  de escrita. **Nenhum número SEI ou resíduo novo comprovado**.
+- Orçamento real observado: login **5**, prévia **4**, confirmação
+  **não observada (null)**, releitura **1**; total real completo
+  **não observado**. Nenhum retry de escrita; a confirmação não chegou ao
+  POST criador. A nova barreira funcional é a **forma do script de Salvar
+  servido pela UnB**, não a seleção do tipo.
+- **Próximo passo:** observar com segurança a estrutura de funções e botões
+  do cadastro *real* (sem divulgar cookie/URL assinada/infra_hash), testar
+  primeiro um adversarial RED, adaptar a guarda apenas à forma comprovada,
+  revalidar CI e repetir **somente a prévia**, antes de decidir por outra
+  confirmação. Não presumir que o JavaScript do acervo seja igual ao
+  cadastro atual e nunca enfraquecer a recusa pré-POST.
+
 ## Continuidade 🐙 — scripts inertes e integração com a main (05/11/2026)
 
 - **Observação pré-RED:** `script[src]` ignora o conteúdo inline; um
