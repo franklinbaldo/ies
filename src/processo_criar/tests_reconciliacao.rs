@@ -1,14 +1,17 @@
 //! RED sintético #245: dois retratos completos do Controle, sem enviar HTTP.
 //! Os números são artificiais; IDs e NUPs nunca são derivados um do outro.
 use super::*;
+use std::fmt::Write as _;
 
 fn tela(registros: &[(&str, &str)], total: usize, inicio: usize) -> String {
-    let linhas = registros
-        .iter()
-        .map(|(id, numero)| {
-            format!("<tr id='P{id}'><td><a class='processoVisualizado'>{numero}</a></td></tr>")
-        })
-        .collect::<String>();
+    let mut linhas = String::new();
+    for (id, numero) in registros {
+        write!(
+            &mut linhas,
+            "<tr id='P{id}'><td><a class='processoVisualizado'>{numero}</a></td></tr>"
+        )
+        .expect("escrita em String nao falha");
+    }
     let legenda = if total == 0 {
         "0 registros:".to_owned()
     } else {
