@@ -158,7 +158,6 @@ fn replay_274_paginas_go_no_acervo() {
     println!("replay integral GO: 274 paginas e 13.671 ids, 0 HTTP real");
 }
 
-
 #[test]
 #[ignore = "exige ZIP público UnB em IES_ACERVO_CACHE; executado no CI"]
 fn observacao_dos_links_da_lupa_unb_no_acervo() {
@@ -199,19 +198,28 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             let mut submits_nomeados = 0;
             let mut submits_sem_nome = 0;
             let mut controles = 0;
-            for tag in form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+            for tag in form
+                .children()
+                .all(dom.parser())
+                .iter()
+                .filter_map(tl::Node::as_tag)
+            {
                 let elemento = tag.name().as_utf8_str();
-                if elemento != "input" && elemento != "button" { continue; }
+                if elemento != "input" && elemento != "button" {
+                    continue;
+                }
                 controles += 1;
-                let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
-                    .expect("tipo UnB");
-                if tipo.as_deref().is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit")) {
-                    let nome = crate::html_atributos::valor_do_atributo(tag, "name")
-                        .expect("nome UnB");
-                    let id = crate::html_atributos::valor_do_atributo(tag, "id")
-                        .expect("id UnB");
-                    let id_publico = id.as_deref().filter(|x| x.len() <= 32
-                        && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'));
+                let tipo = crate::html_atributos::valor_do_atributo(tag, "type").expect("tipo UnB");
+                if tipo
+                    .as_deref()
+                    .is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit"))
+                {
+                    let nome =
+                        crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
+                    let id = crate::html_atributos::valor_do_atributo(tag, "id").expect("id UnB");
+                    let id_publico = id.as_deref().filter(|x| {
+                        x.len() <= 32 && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                    });
                     println!(
                         "observacao UnB submit passo {}: id={:?}, name_btnPesquisar={}, desabilitado={}",
                         resposta.passo,
@@ -220,11 +228,17 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
                         crate::html_atributos::atributo_presente(tag, "disabled")
                             .expect("disabled UnB")
                     );
-                    if nome.as_deref() == Some("btnPesquisar") { submits_nomeados += 1; }
-                    else if nome.is_none() { submits_sem_nome += 1; }
+                    if nome.as_deref() == Some("btnPesquisar") {
+                        submits_nomeados += 1;
+                    } else if nome.is_none() {
+                        submits_sem_nome += 1;
+                    }
                 }
             }
-            println!("observacao UnB formulario passo {}: controles={}, submits_nomeados={}, submits_sem_nome={}", resposta.passo, controles, submits_nomeados, submits_sem_nome);
+            println!(
+                "observacao UnB formulario passo {}: controles={}, submits_nomeados={}, submits_sem_nome={}",
+                resposta.passo, controles, submits_nomeados, submits_sem_nome
+            );
             let lida = ler_pagina(&html)
                 .unwrap_or_else(|e| panic!("lupa UnB passo {}: {e:?}", resposta.passo));
             assert!(lida.paginas >= 1);
@@ -232,7 +246,9 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             assert!(lida.unidades.len() <= lida.total);
             println!(
                 "observacao UnB lupa passo {}: paginas={}, linhas={}",
-                resposta.passo, lida.paginas, lida.unidades.len()
+                resposta.passo,
+                lida.paginas,
+                lida.unidades.len()
             );
             continue;
         }
@@ -249,30 +265,38 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         let html = html_da_resposta(resposta.item)
             .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
         if resposta.operacao == "grupo_unidade_listar" {
-            let dom = tl::parse(&html, tl::ParserOptions::default())
-                .expect("lista UnB analisável");
+            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lista UnB analisável");
             for no in crate::html_atributos::nos_com_id(&dom, "btnNovo")
                 .expect("id do btnNovo sem ambiguidade")
             {
-                let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)
+                let tag = no
+                    .get(dom.parser())
+                    .and_then(tl::Node::as_tag)
                     .expect("btnNovo é elemento HTML");
-                let href = crate::html_atributos::valor_do_atributo(tag, "href")
-                    .expect("href válido");
+                let href =
+                    crate::html_atributos::valor_do_atributo(tag, "href").expect("href válido");
                 let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
                     .expect("onclick válido");
                 println!(
                     "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
                     tag.name().as_utf8_str(),
-                    href.as_deref().is_some_and(|x| x.contains("controlador.php?")),
-                    onclick.as_deref().is_some_and(|x| x.contains("controlador.php?")),
+                    href.as_deref()
+                        .is_some_and(|x| x.contains("controlador.php?")),
+                    onclick
+                        .as_deref()
+                        .is_some_and(|x| x.contains("controlador.php?")),
                     onclick.as_deref().is_some_and(|x| x.contains("location")),
-                    onclick.as_deref().map_or(0, |x| x.matches("controlador.php?").count()),
-                    onclick.as_deref().is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
+                    onclick
+                        .as_deref()
+                        .map_or(0, |x| x.matches("controlador.php?").count()),
+                    onclick
+                        .as_deref()
+                        .is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
                 );
             }
         }
-        let candidatos = super::fluxo::candidatos(&html, proxima)
-            .expect("controle UnB precisa ser analisável");
+        let candidatos =
+            super::fluxo::candidatos(&html, proxima).expect("controle UnB precisa ser analisável");
         let distintos: std::collections::HashSet<_> = candidatos
             .iter()
             .filter(|u| u.contains(&format!("acao={proxima}")))
@@ -286,13 +310,17 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         };
         println!(
             "observacao UnB passo {}: proxima={proxima}, candidatos={}, distintos={}, estado={estado}",
-            resposta.passo, candidatos.len(), distintos.len()
+            resposta.passo,
+            candidatos.len(),
+            distintos.len()
         );
-        assert_eq!(estado, "unico", "cassette UnB deve publicar um destino autorizado");
+        assert_eq!(
+            estado, "unico",
+            "cassette UnB deve publicar um destino autorizado"
+        );
     }
     assert_eq!((get, post), (4, 1), "apenas 5 respostas gravadas, sem rede");
 }
-
 
 #[test]
 #[ignore = "exige ZIP público UnB em IES_ACERVO_CACHE; executado no CI"]
@@ -315,7 +343,11 @@ fn replay_do_fluxo_completo_unb() {
                 .passos
                 .get(self.proximo)
                 .expect("o IES não pode exceder as cinco interações gravadas");
-            assert_eq!(*metodo_post, post, "método do passo {} da cassette", self.proximo);
+            assert_eq!(
+                *metodo_post, post,
+                "método do passo {} da cassette",
+                self.proximo
+            );
             self.proximo += 1;
             if post {
                 self.posts += 1;
@@ -394,8 +426,14 @@ fn replay_do_fluxo_completo_unb() {
     println!(
         "fluxo UnB: resultado={}, GET={}, POST={}, tentativas={}",
         if resultado.is_ok() { "ok" } else { "recusado" },
-        transporte.gets, transporte.posts, requisicoes
+        transporte.gets,
+        transporte.posts,
+        requisicoes
     );
-    assert!(resultado.is_ok(), "o replay UnB completo deve ser aceito: {:?}", resultado.err());
+    assert!(
+        resultado.is_ok(),
+        "o replay UnB completo deve ser aceito: {:?}",
+        resultado.err()
+    );
     assert_eq!((transporte.gets, transporte.posts, requisicoes), (4, 1, 5));
 }
