@@ -92,8 +92,14 @@ pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
                 objeto.insert("motivo".to_owned(), json!(motivo));
                 objeto.insert("requisicoes".to_owned(), json!(requisicoes));
             }
-            ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao { requisicoes, .. } => {
+            ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao {
+                requisicoes,
+                atribuicao_relida,
+                ..
+            } => {
                 objeto.insert("requisicoes".to_owned(), json!(requisicoes));
+                // Estado observado após o POST, não evidência de autoria.
+                objeto.insert("atribuicao_relida".to_owned(), json!(atribuicao_relida));
             }
             _ => {}
         }
