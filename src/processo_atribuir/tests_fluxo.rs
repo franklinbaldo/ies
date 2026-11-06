@@ -397,3 +397,58 @@ fn principal_com_id_explicito_confirma_apos_releitura() {
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
+/// Regressão da fronteira entre POST e releitura: se a escrita já foi
+/// tentada, o erro HTTP da leitura de prova não pode desaparecer do
+/// diagnóstico público de efeito incerto.
+#[test]
+fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(retorno_arvore_com_identidade_observado());
+    respostas.push(Ok((
+        503,
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>".to_owned(),
+        None,
+    )));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|h| h.mensagem_do_servidor.as_deref()),
+        Some("Serviço indisponível.")
+    );
+    let publico = crate::processo_concluir_cli::json_base_da_falha(
+        "atribuicao_recusada",
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http().cloned(),
+    );
+    assert_eq!(publico["status_http"], 503);
+    assert_eq!(publico["mensagem_do_servidor"], "Serviço indisponível.");
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// Falha de rede do POST não encobre a recusa HTTP da nova leitura:
+/// mesmo sem resposta do envio, nunca repetir o POST.
+#[test]
+fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(Err(FalhaTransporte::Rede));
+    respostas.push(Ok((
+        503,
+        "<html><body><div id=\"divInfraExcecao\">Serviço indisponível.</div></body></html>".to_owned(),
+        None,
+    )));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(pedidos, pedidos_confirmacao("100000035"));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
