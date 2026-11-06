@@ -256,20 +256,27 @@ fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> R
         antes: &troca.antes,
         confirmado: troca.confirmado,
         depois: (alterado || ja_na_unidade).then_some(troca.pedida.as_str()),
-        envio: troca.campos_do_envio.as_deref().map(|campos| EnvioTrocaPublico {
-            acao: ACAO_DE_TROCAR,
-            campos,
-            metodo: "POST",
-        }),
+        envio: troca
+            .campos_do_envio
+            .as_deref()
+            .map(|campos| EnvioTrocaPublico {
+                acao: ACAO_DE_TROCAR,
+                campos,
+                metodo: "POST",
+            }),
         escopo: "sessao_da_conta",
         id_unidade: troca.escolhida.as_ref().map(|u| u.id_unidade.as_str()),
         links_descartados: descartados,
         oferecidas: (!ja_na_unidade).then(|| {
-            troca.oferecidas.iter().map(|u| UnidadePublica {
-                descricao: &u.descricao,
-                id_unidade: &u.id_unidade,
-                sigla: &u.sigla,
-            }).collect()
+            troca
+                .oferecidas
+                .iter()
+                .map(|u| UnidadePublica {
+                    descricao: &u.descricao,
+                    id_unidade: &u.id_unidade,
+                    sigla: &u.sigla,
+                })
+                .collect()
         }),
         pedida: &troca.pedida,
         requisicoes: pedidos,
