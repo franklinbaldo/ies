@@ -101,7 +101,11 @@ fn json_de_opcoes(opcoes: &[(String, String)]) -> serde_json::Value {
 
 /// Construção pura para testar que a recusa do próprio cadastro distingue
 /// não aplicação comprovada de erro HTTP sem garantia de não aplicação.
-fn json_da_recusa_criadora(erro: &ErroCriar, mensagem: &str, requisicoes: u32) -> serde_json::Value {
+fn json_da_recusa_criadora(
+    erro: &ErroCriar,
+    mensagem: &str,
+    requisicoes: u32,
+) -> serde_json::Value {
     let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
     valor["requisicoes"] = json!(requisicoes);
     if erro.nao_aplicada_comprovada() {

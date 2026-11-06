@@ -71,14 +71,14 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[path = "erro_fluxo.rs"]
 mod erro_fluxo;
+#[path = "links.rs"]
+mod links;
 #[path = "pos_escrita.rs"]
 mod pos_escrita;
 #[path = "verificacao_apos_post.rs"]
 mod verificacao_apos_post;
-#[path = "links.rs"]
-mod links;
-use links::{id_do_link, resolver_link, retorno_da_criacao, url_do_redirecionamento};
 pub(crate) use erro_fluxo::{ErroCriar, EvidenciaDeCoincidencia};
+use links::{id_do_link, resolver_link, retorno_da_criacao, url_do_redirecionamento};
 
 pub(crate) struct PedidoCriar<'a> {
     pub(crate) tipo: &'a str,

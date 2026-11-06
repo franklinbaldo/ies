@@ -33,7 +33,10 @@ fn falha_do_post_com_candidato_observado_preserva_orcamento_real() {
     });
     assert_eq!(resultado.unwrap_err().saida(), 3);
     assert_eq!(requests.len(), 8);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 1);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        1
+    );
     assert_eq!(contador, 8); // RED: antes, o erro descartava a contagem.
 }
 
@@ -55,7 +58,10 @@ fn recusa_antes_do_post_preserva_get_real() {
     });
     assert!(resultado.is_err());
     assert_eq!(requests.len(), 1);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 0);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        0
+    );
     assert_eq!(contador, 1);
 }
 
@@ -76,6 +82,9 @@ fn previa_sem_confirmar_expoe_a_mesma_contagem_que_o_transporte() {
     });
     assert!(!resultado.unwrap().confirmado);
     assert_eq!(requests.len(), 3);
-    assert_eq!(requests.iter().filter(|req| req.metodo == "POST").count(), 0);
+    assert_eq!(
+        requests.iter().filter(|req| req.metodo == "POST").count(),
+        0
+    );
     assert_eq!(contador, 3);
 }
