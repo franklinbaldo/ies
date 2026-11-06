@@ -263,3 +263,34 @@ fn lista_com_checkbox_no_template_nao_confirma_ciencia() {
         "checkbox em template não pode provar efeito da escrita"
     );
 }
+
+
+// RED #271: `script` com tipo de dados não executa JavaScript; o texto
+// também é inerte quando `src` aponta para um script externo. Esses nós
+// não podem provar a atividade publicada pelo aceite de ciência.
+#[test]
+fn script_de_dados_ou_externo_nao_prova_aceite() {
+    let html = aceite_processo("42457");
+    for abertura in [
+        "<script type='application/json'>",
+        "<script type='text/plain'>",
+        "<script src='arquivo.js'>",
+    ] {
+        let alterado = html.replacen("<script>", abertura, 1);
+        assert_eq!(
+            atividade_do_aceite(&alterado, processo()),
+            Err(E::AceiteSemAtividade),
+            "script inerte não pode comprovar ciência: {abertura}"
+        );
+    }
+}
+
+#[test]
+fn script_javascript_explicito_preserva_o_aceite_observado() {
+    let html = aceite_processo("42457").replacen(
+        "<script>",
+        "<script type='text/javascript'>",
+        1,
+    );
+    assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
+}
