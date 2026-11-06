@@ -117,3 +117,29 @@ reescreve a flag e envia `frmDocumentoCadastro`. O botão com
 `submeter()` morta não comprova a oferta de criação. A guarda exige
 a cadeia literal completa, sem executar JavaScript, e recusa caminhos
 ausentes, desviados ou duplicados antes do POST.
+
+
+## Link de tipo com ID repetido no oráculo (06/11/2026)
+
+No oráculo Todos `tests/paginas_reais/documento_escolher_tipo.html`
+@323eb01, o `href` de **Despacho** contém **duas ocorrências
+idênticas** de `id_procedimento=50693`, antes e depois de
+`id_serie=291`. A URL é publicada como link de navegação do tipo;
+não é inventada pelo cliente. Uma segunda ocorrência divergente NÃO
+comprova identidade e deve ser recusada. Não registrar a URL assinada
+nem seu valor `infra_hash` em fixtures ou logs.
+
+Dois ensaios de treinamento UnB, usando o binário do head da PR #248,
+confirmaram login em **5 requisições** cada e falharam fechados:
+- Processo `23106.001875/2026-93`: prévia `FAIL`,
+  `processo_nao_aberto_na_unidade_da_sessao`, sem POST criador.
+- Processo distinto `23106.001868/2026-91`: prévia `FAIL`,
+  `endereco_do_tipo_de_documento_nao_reconhecido`, sem POST criador.
+
+Execuções: [primeira](https://github.com/franklinbaldo/ies/actions/runs/42183949372)
+e [segunda](https://github.com/franklinbaldo/ies/actions/runs/42184286157).
+O link efetivo da segunda tela não foi capturado; a duplicação do
+oráculo é uma **hipótese verificável** para a segunda recusa, não uma
+causa já comprovada ao vivo. Nenhum `--confirmar` foi executado,
+nenhum documento foi criado. Testar a aceitação restrita de IDs
+idênticos **sem alterar nem reconstruir** a URL publicada.
