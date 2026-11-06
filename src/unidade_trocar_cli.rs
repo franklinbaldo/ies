@@ -198,11 +198,12 @@ fn concluir(
             .colher(&inicial.html, Some(&inicial.mime));
     }
     if json_mode {
-        let valor = json_de_sucesso(troca, descartados, pedidos);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).unwrap_or_default()
-        );
+        if let Err(erro) =
+            crate::saida::imprimir_json(&resultado_troca(troca, descartados, pedidos))
+        {
+            eprintln!("IES: falha ao emitir JSON: {erro}");
+            return std::process::ExitCode::from(1);
+        }
     } else {
         println!("{}", humano(troca, pedidos));
     }
@@ -217,6 +218,73 @@ fn json_das_unidades(lista: &[UnidadeOferecida]) -> Value {
     Value::Array(lista.iter().map(json_da_unidade).collect())
 }
 
+/// A representação externa expõe somente os campos observados da unidade.
+#[derive(serde::Serialize)]
+struct UnidadePublica<'a> {
+    descricao: &'a str,
+    id_unidade: &'a str,
+    sigla: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct EnvioTrocaPublico<'a> {
+    acao: &'static str,
+    campos: &'a [String],
+    metodo: &'static str,
+}
+
+#[derive(serde::Serialize)]
+struct ResultadoTroca<'a> {
+    alterado: bool,
+    antes: &'a str,
+    confirmado: bool,
+    depois: Option<&'a str>,
+    envio: Option<EnvioTrocaPublico<'a>>,
+    escopo: &'static str,
+    id_unidade: Option<&'a str>,
+    links_descartados: Option<usize>,
+    oferecidas: Option<Vec<UnidadePublica<'a>>>,
+    pedida: &'a str,
+    requisicoes: u32,
+}
+
+fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> ResultadoTroca<'_> {
+    let alterado = troca.controle_novo.is_some();
+    let ja_na_unidade = troca.escolhida.is_none();
+    ResultadoTroca {
+        alterado,
+        antes: &troca.antes,
+        confirmado: troca.confirmado,
+        depois: (alterado || ja_na_unidade).then_some(troca.pedida.as_str()),
+        envio: troca
+            .campos_do_envio
+            .as_deref()
+            .map(|campos| EnvioTrocaPublico {
+                acao: ACAO_DE_TROCAR,
+                campos,
+                metodo: "POST",
+            }),
+        escopo: "sessao_da_conta",
+        id_unidade: troca.escolhida.as_ref().map(|u| u.id_unidade.as_str()),
+        links_descartados: descartados,
+        oferecidas: (!ja_na_unidade).then(|| {
+            troca
+                .oferecidas
+                .iter()
+                .map(|u| UnidadePublica {
+                    descricao: &u.descricao,
+                    id_unidade: &u.id_unidade,
+                    sigla: &u.sigla,
+                })
+                .collect()
+        }),
+        pedida: &troca.pedida,
+        requisicoes: pedidos,
+    }
+}
+
+/// Contrato legado usado somente como oráculo dos testes de paridade.
+#[cfg(test)]
 pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> Value {
     let alterado = troca.controle_novo.is_some();
     let envio = troca.campos_do_envio.as_ref().map_or(
@@ -296,25 +364,42 @@ fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
     }
 }
 
+/// A saída humana parte exclusivamente da falha tipada, sem montar JSON.
+fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
+    let mut linhas = vec![saida_erro::linha_humana(
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    )];
+    match erro {
+        ErroTroca::UnidadeNaoOferecida { oferecidas } => {
+            let siglas: Vec<_> = oferecidas.iter().map(|u| u.sigla.as_str()).collect();
+            linhas.push(format!("IES: oferecidas: {}", siglas.join(", ")));
+        }
+        ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
+            let siglas: Vec<_> = candidatas.iter().map(|u| u.sigla.as_str()).collect();
+            linhas.push(format!("IES: candidatas: {}", siglas.join(", ")));
+        }
+        ErroTroca::EfeitoIncerto { etapa, falha } => {
+            linhas.push(format!(
+                "IES: etapa {}: {}; {AVISO_DE_ESCOPO}",
+                etapa.nome(),
+                falha.subcodigo()
+            ));
+        }
+        _ => {}
+    }
+    linhas.push(format!("IES: {pedidos} requisições."));
+    linhas
+}
+
 fn publicar_falha(json_mode: bool, erro: &ErroTroca, pedidos: u32) -> ExitCode {
-    let valor = json_de_falha(erro, pedidos);
     if json_mode {
-        println!("{valor}");
+        println!("{}", json_de_falha(erro, pedidos));
     } else {
-        eprintln!(
-            "{}",
-            saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-        for campo in ["oferecidas", "candidatas"] {
-            if let Some(lista) = valor[campo].as_array() {
-                let siglas: Vec<_> = lista.iter().filter_map(|u| u["sigla"].as_str()).collect();
-                eprintln!("IES: {campo}: {}", siglas.join(", "));
-            }
+        for linha in linhas_da_falha(erro, pedidos) {
+            eprintln!("{linha}");
         }
-        if let (Some(etapa), Some(falha)) = (valor["etapa"].as_str(), valor["falha"].as_str()) {
-            eprintln!("IES: etapa {etapa}: {falha}; {AVISO_DE_ESCOPO}");
-        }
-        eprintln!("IES: {pedidos} requisições.");
     }
     ExitCode::from(erro.saida())
 }

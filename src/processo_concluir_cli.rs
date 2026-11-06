@@ -13,7 +13,10 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{
     Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, saida_erro, transporte,
 };
-use serde_json::{Map, Value, json};
+#[path = "processo_concluir_cli/falha.rs"]
+pub(crate) mod falha;
+use falha::FalhaDaSituacao;
+use serde_json::{Value, json};
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo concluir`.
@@ -97,10 +100,10 @@ fn concluir_na_sessao(
     match concluir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap_or_default()
-                );
+                if let Err(erro) = crate::saida::imprimir_json(&resultado_conclusao(&feito)) {
+                    eprintln!("IES: falha ao emitir JSON: {erro}");
+                    return std::process::ExitCode::from(1);
+                }
             } else {
                 println!("{}", humano(&feito));
             }
@@ -116,40 +119,57 @@ fn concluir_na_sessao(
     }
 }
 
-pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    let mut valor = Map::new();
-    valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
-    if let Some(http) = falha.status_http() {
-        if http.status != 200 {
-            valor.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            valor.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    Value::Object(valor)
+/// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
+/// seus dados observáveis na fronteira JSON.
+pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
+    crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
 }
 
-/// JSON do sucesso (prévia, nada a fazer, ou concluído e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "forma": feito.forma.map(crate::processo_concluir::FormaDaConclusao::como_texto),
-        "aberto_em": feito.aberto_em,
-        "depois_esperado": feito.depois_esperado(),
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+/// Projeção do sucesso: a função de domínio nunca constrói um JSON.
+#[derive(serde::Serialize)]
+struct ResultadoConclusao<'a> {
+    aberto_em: &'a [String],
+    alterado: bool,
+    confirmado: bool,
+    depois: Option<&'a [String]>,
+    depois_esperado: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    forma: Option<&'static str>,
+    id_procedimento: &'a str,
+    nup: &'a str,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
+}
+
+fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
+    ResultadoConclusao {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado,
+        alterado: feito.alterado,
+        forma: feito
+            .forma
+            .map(crate::processo_concluir::FormaDaConclusao::como_texto),
+        aberto_em: &feito.aberto_em,
+        depois_esperado: feito.depois_esperado(),
+        depois: feito.depois.as_deref(),
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito.reconciliado_por.as_ref().map(falha_do_envio_publica),
     }
-    valor
+}
+
+/// Compatibilidade com os testes de contrato: o runtime serializa a struct
+/// diretamente, sem construir `serde_json::Value` no caminho de sucesso.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
+    serde_json::to_value(resultado_conclusao(feito))
+        .expect("a projeção tipada de sucesso só possui valores JSON")
 }
 
 /// O corpo comum das falhas depois da abertura (também as de `processo
@@ -160,63 +180,43 @@ pub(crate) fn json_base_da_falha(
     mensagem: &str,
     status: Option<StatusHttpRecusado>,
 ) -> Value {
-    let mut valor = json!({
-        "codigo": codigo,
-        "subcodigo": subcodigo,
-        "erro": mensagem,
-        "retentavel": false,
-    });
-    if let (Some(http), Some(objeto)) = (status, valor.as_object_mut()) {
-        if http.status != 200 {
-            objeto.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    valor
+    serde_json::to_value(FalhaDaSituacao::nova(codigo, subcodigo, mensagem, status))
+        .expect("a projeção de falha só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
-    let mut valor = json_base_da_falha(
+pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
+    let mut valor = FalhaDaSituacao::nova(
         erro.codigo(),
         erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
     match erro {
         ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo } => {
-            objeto.insert("motivo".to_owned(), json!(motivo.como_texto()));
+            valor.motivo = Some(motivo.como_texto());
         }
         ErroConcluir::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
         | ErroConcluir::ConclusaoNaoPublicadaNaBarra { aberto_em } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
+            valor.aberto_em = Some(aberto_em);
         }
         ErroConcluir::ConclusaoNaoAplicada {
             aberto_em,
             depois,
             falha_do_envio,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("depois".to_owned(), json!(depois));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.depois = Some(depois);
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroConcluir::EfeitoIncertoNaConclusao {
             aberto_em,
             falha_do_envio,
             verificacao,
         } => {
-            objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-            objeto.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.verificacao = Some(verificacao.motivo());
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
     }
@@ -224,7 +224,16 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> Value {
 }
 
 fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
-    publicar_valor_da_falha(json_mode, &json_de_falha(erro), erro.saida())
+    if json_mode {
+        if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(erro)) {
+            eprintln!("IES: falha ao emitir JSON: {falha}");
+        }
+    } else {
+        for linha in linhas_da_falha(erro) {
+            eprintln!("{linha}");
+        }
+    }
+    ExitCode::from(erro.saida())
 }
 
 /// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
@@ -292,6 +301,45 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
+}
+
+/// Mensagens humanas projetadas diretamente do erro de conclusão, sem
+/// montar nem interpretar a representação JSON destinada aos agentes.
+fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
+    use ErroConcluir as E;
+
+    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let aberto_em = match erro {
+        E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
+        | E::ConclusaoNaoPublicadaNaBarra { aberto_em }
+        | E::ConclusaoNaoAplicada { aberto_em, .. }
+        | E::EfeitoIncertoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
+        _ => None,
+    };
+    let depois = match erro {
+        E::ConclusaoNaoAplicada { depois, .. } => Some(depois.as_slice()),
+        _ => None,
+    };
+    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
+        if let Some(unidades) = unidades {
+            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
+            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
+        }
+    }
+    let falha_do_envio = match erro {
+        E::ConclusaoNaoAplicada { falha_do_envio, .. }
+        | E::EfeitoIncertoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        _ => None,
+    };
+    if let Some(falha) = falha_do_envio {
+        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+    }
+    if let E::EfeitoIncertoNaConclusao { verificacao, .. } = erro
+        && let Some(motivo) = verificacao.motivo()
+    {
+        linhas.push(format!("IES: verificação: {motivo}"));
+    }
+    linhas
 }
 
 #[cfg(test)]

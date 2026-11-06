@@ -137,3 +137,65 @@ fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
     assert_eq!(valor["verificacao"], "falha_de_rede");
     assert_eq!(valor.get("status_http"), None);
 }
+
+#[test]
+fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
+    let mut feito = previa();
+    for reconciliar in [false, true] {
+        if reconciliar {
+            feito.confirmado = true;
+            feito.alterado = true;
+            feito.depois = Some(feito.plano.alvo.clone());
+            feito.reconciliado_por = Some(erro_500());
+        }
+        let mut bytes = Vec::new();
+        serde_json::to_writer_pretty(&mut bytes, &resultado_colunas(&feito)).unwrap();
+        let legado = json_de_sucesso(&feito);
+        assert_eq!(
+            std::str::from_utf8(&bytes).unwrap(),
+            serde_json::to_string_pretty(&legado).unwrap()
+        );
+        let valor: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(valor["envio"]["metodo"], "POST");
+        if reconciliar {
+            assert_eq!(valor["falha_do_salvar"]["status_http"], 503);
+        } else {
+            assert!(valor.get("falha_do_salvar").is_none());
+            assert!(valor["depois"].is_null());
+        }
+        assert!(!std::str::from_utf8(&bytes).unwrap().contains("infra_hash"));
+    }
+}
+
+#[test]
+fn falhas_de_colunas_sao_apresentadas_sem_interpretar_json() {
+    let antes = plano();
+    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        plano: Box::new(antes.clone()),
+        falha_do_salvar: Some(erro_500()),
+        verificacao: Box::new(VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])),
+    };
+    let linhas = linhas_da_falha(&erro);
+    assert!(linhas[0].contains(erro.subcodigo()));
+    assert_eq!(linhas[1], "IES: antes: atribuicao, tipo");
+    assert_eq!(linhas[2], "IES: alvo: atribuicao, anotacao");
+    assert_eq!(linhas[3], "IES: observadas: atribuicao");
+    assert_eq!(
+        linhas[4],
+        "IES: resposta do salvar: status_http_de_erro_do_servidor"
+    );
+    assert_eq!(erro.saida(), 3);
+
+    let diferente = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
+        plano: Box::new(antes),
+        observadas: vec![],
+    };
+    let linhas = linhas_da_falha(&diferente);
+    assert_eq!(linhas[3], "IES: observadas: (nenhuma)");
+    assert_eq!(linhas.len(), 4);
+
+    let so_leitura = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
+        coluna: C::Prioridade,
+    };
+    assert_eq!(linhas_da_falha(&so_leitura).len(), 1);
+}

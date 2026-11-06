@@ -12,11 +12,14 @@ use crate::documento_assinar::{
 };
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
+use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::SessaoDoProcesso;
 use crate::sessao_login::{Credenciais, ErroLogin};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain, saida_erro};
+#[path = "documento_assinar_cli/falha.rs"]
+mod falha;
+use falha::{assinaturas_publicas, falha_do_envio_publica, json_de_falha, linhas_da_falha};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -129,10 +132,10 @@ fn assinar_na_sessao(
     match assinar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap_or_default()
-                );
+                if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
+                    eprintln!("IES: falha ao emitir JSON: {erro}");
+                    return std::process::ExitCode::from(1);
+                }
             } else {
                 println!("{}", humano(&feito));
             }
@@ -149,25 +152,13 @@ fn assinar_na_sessao(
 }
 
 fn json_das_assinaturas(lista: &[Assinante]) -> Value {
-    Value::Array(
-        lista
-            .iter()
-            .map(|a| json!({"nome": a.nome, "cargo": a.cargo, "unidade": a.unidade}))
-            .collect(),
-    )
+    serde_json::to_value(assinaturas_publicas(lista))
+        .expect("assinaturas públicas só possuem valores JSON")
 }
 
 pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    let mut valor = json!({"subcodigo": falha.subcodigo()});
-    if let (Some(http), Some(objeto)) = (falha.status_http(), valor.as_object_mut()) {
-        if http.status != 200 {
-            objeto.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    valor
+    serde_json::to_value(falha_do_envio_publica(falha))
+        .expect("metadados da falha só possuem valores JSON")
 }
 
 /// JSON do sucesso (prévia, já assinado, ou assinado e conferido).
@@ -199,76 +190,14 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
     valor
 }
 
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroAssinar) -> Value {
-    let mut valor = json_base_da_falha(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    match erro {
-        ErroAssinar::CargoNaoOferecidoPelaTela { cargos } => {
-            objeto.insert("cargos".to_owned(), json!(cargos));
-        }
-        ErroAssinar::DocumentoAssinadoPorOutroUsuario { antes } => {
-            objeto.insert("assinaturas".to_owned(), json_das_assinaturas(antes));
-        }
-        ErroAssinar::AssinaturaNaoAplicada {
-            antes,
-            falha_do_envio,
-        } => {
-            objeto.insert("assinaturas".to_owned(), json_das_assinaturas(antes));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
-        }
-        ErroAssinar::EfeitoIncertoNaAssinatura {
-            antes,
-            falha_do_envio,
-            verificacao,
-        } => {
-            objeto.insert("assinaturas".to_owned(), json_das_assinaturas(antes));
-            if let crate::documento_assinar::VerificacaoDaAssinatura::Lida(depois) =
-                verificacao.as_ref()
-            {
-                objeto.insert(
-                    "assinaturas_depois".to_owned(),
-                    json_das_assinaturas(depois),
-                );
-            }
-            objeto.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
-            }
-        }
-        _ => {}
-    }
-    valor
-}
-
 fn publicar_falha(json_mode: bool, erro: &ErroAssinar) -> ExitCode {
-    let valor = json_de_falha(erro);
     if json_mode {
-        println!("{valor}");
+        if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(erro)) {
+            eprintln!("IES: falha ao emitir JSON: {falha}");
+        }
     } else {
-        eprintln!(
-            "IES: {} [{}]",
-            valor["erro"].as_str().unwrap_or_default(),
-            valor["subcodigo"].as_str().unwrap_or_default()
-        );
-        if let Some(cargos) = valor["cargos"].as_array() {
-            let lista: Vec<_> = cargos.iter().filter_map(Value::as_str).collect();
-            eprintln!("IES: cargos da tela: {}", lista.join("; "));
-        }
-        if let Some(falha) = valor["falha_do_envio"]["subcodigo"].as_str() {
-            eprintln!("IES: resposta da escrita: {falha}");
-        }
-        if let Some(motivo) = valor["verificacao"].as_str() {
-            eprintln!("IES: verificação: {motivo}");
+        for linha in linhas_da_falha(erro) {
+            eprintln!("{linha}");
         }
     }
     ExitCode::from(erro.saida())
@@ -323,3 +252,7 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
 }
+
+#[cfg(test)]
+#[path = "documento_assinar_cli/tests.rs"]
+mod tests;
