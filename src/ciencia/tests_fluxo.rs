@@ -350,3 +350,31 @@ fn script_inerte_no_aceite_mantem_efeito_incerto_sem_consultar_lista_antiga() {
     );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
+
+/// RED #271: o segundo argumento é avaliado antes do GET conseguir
+/// publicar a atividade via atualizarArvore. Não usar ciência antiga
+/// da lista como prova; o GET mutador permanece único e a saída é 3.
+#[test]
+fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457").replacen(
+        "#ID-42457');",
+        "#ID-42457', (() => { throw new Error('abortar'); })());",
+        1,
+    );
+    assert!(html.contains("throw new Error"));
+    // Sem resposta para a lista: ela não pode ser consultada sem
+    // comprovação de atividade executada na resposta do GET mutador.
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("recarga não executada não comprova ciência");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "não consultar lista de ciência antiga");
+    assert_eq!(
+        pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(),
+        1,
+        "GET potencialmente mutador único, sem retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
