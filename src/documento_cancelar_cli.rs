@@ -63,7 +63,7 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
         match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(feito) => {
                 if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&json_do_sucesso(&feito)) {
+                    if let Err(erro) = crate::saida::imprimir_json(&resultado_cancelamento(&feito)) {
                         eprintln!("IES: falha ao emitir JSON: {erro}");
                         return std::process::ExitCode::from(1);
                     }
@@ -136,6 +136,52 @@ fn json_da_falha(e: &ErroCancelar) -> Value {
     valor
 }
 
+/// Exposição pública sem os demais campos internos de ProcessoNaArvore.
+#[derive(serde::Serialize)]
+struct ProcessoCanceladoPublico<'a> {
+    id: &'a str,
+    nup: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct ResultadoCancelamento<'a> {
+    alterado: bool,
+    confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    id_documento: &'a str,
+    motivo: &'a str,
+    numero: &'a str,
+    origem: &'static str,
+    processo: ProcessoCanceladoPublico<'a>,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: Option<&'a str>,
+}
+
+fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'_> {
+    ResultadoCancelamento {
+        alterado: feito.alterado,
+        confirmado: feito.confirmado,
+        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| {
+            crate::saida_erro::FalhaPublica::nova(f.subcodigo(), f.status_http())
+        }),
+        id_documento: &feito.id_documento,
+        motivo: &feito.motivo,
+        numero: &feito.numero,
+        origem: "web",
+        processo: ProcessoCanceladoPublico {
+            id: &feito.processo.id,
+            nup: &feito.processo.nup,
+        },
+        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        requisicoes: feito.requisicoes,
+        unidade: feito.unidade.as_deref(),
+    }
+}
+
+// Referência de contrato somente nos testes; produção emite Serialize diretamente.
+#[cfg(test)]
 fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
     let mut valor = json!({
         "numero": feito.numero, "id_documento":feito.id_documento,
