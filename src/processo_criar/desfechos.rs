@@ -34,6 +34,23 @@ pub(crate) enum ErroConferencia {
     PropriedadesNaoObservadas,
 }
 
+/// Quando há interessados explícitos, exigimos o mesmo multiconjunto
+/// publicado no formulário de propriedades. Ordem de apresentação não é
+/// identidade; multiplicidade e texto observado são.
+pub(super) fn interessados_conferem(solicitados: &[String], observados: &[String]) -> bool {
+    if solicitados.is_empty() {
+        return true; // nenhum interessado imposto pelo usuário
+    }
+    if solicitados.len() != observados.len() {
+        return false;
+    }
+    let mut solicitados = solicitados.to_vec();
+    let mut observados = observados.to_vec();
+    solicitados.sort_unstable();
+    observados.sort_unstable();
+    solicitados == observados
+}
+
 /// Somente leituras independentes das propriedades podem embasar o desfecho.
 /// O chamador deve verificar todos os candidatos; sem isso, falha fechado.
 pub(crate) fn classificar(
@@ -42,7 +59,7 @@ pub(crate) fn classificar(
     tipo: &str,
     especificacao: &str,
     nivel: &str,
-    _interessados_solicitados: &[String],
+    interessados_solicitados: &[String],
 ) -> Result<Desfecho, ErroConferencia> {
     use std::collections::BTreeMap;
 
@@ -71,7 +88,11 @@ pub(crate) fn classificar(
         else {
             return Err(ErroConferencia::PropriedadesNaoObservadas);
         };
-        if tipo_lido == tipo && especificacao_lida == especificacao && nivel_lido == nivel {
+        if tipo_lido == tipo
+            && especificacao_lida == especificacao
+            && nivel_lido == nivel
+            && interessados_conferem(interessados_solicitados, &lido.interessados)
+        {
             correspondentes.push(candidato.nup.clone());
         }
     }
@@ -132,6 +153,18 @@ mod tests {
             super::classificar(&candidatos, &[lido], TIPO, ESPECIFICACAO, "publico", &desejado),
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
+    }
+
+    #[test]
+    fn interessado_explicito_igual_em_outra_ordem_pode_ser_comprovado() {
+        let requeridos = vec!["Pessoa B".to_owned(), "Pessoa A".to_owned()];
+        let lidos = vec!["Pessoa A".to_owned(), "Pessoa B".to_owned()];
+        assert!(interessados_conferem(&requeridos, &lidos));
+        assert!(!interessados_conferem(
+            &["Pessoa A".to_owned(), "Pessoa A".to_owned()],
+            &lidos
+        ));
+        assert!(interessados_conferem(&[], &lidos));
     }
 
     #[test]
