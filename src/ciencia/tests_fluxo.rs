@@ -265,3 +265,32 @@ fn get_de_ciencia_infra_200_preserva_a_recusa_tipificada() {
 fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
     conferir_falha_do_aceite_sem_retry(Err(FalhaTransporte::Rede), FalhaEsperada::Rede);
 }
+
+
+/// RED #271: a Lista de Ciências preexistente não pode converter uma
+/// chamada dentro de if(false) em prova do aceite desta tentativa.
+#[test]
+fn aceite_condicional_inativo_mantem_efeito_incerto_sem_retry() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = format!(
+        "<html><script>function inicializar(){{ if(false) {{ {} }} }}</script></html>",
+        "atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42457#ID-42457');"
+    );
+    respostas.extend([
+        ok(tela()),
+        ok(html),
+        ok(arvore_com_ciencias()),
+        ok(lista("42457")),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "sem id comprovado, só releitura da árvore");
+    assert_eq!(
+        pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(),
+        1,
+        "jamais repetir o GET mutador"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
