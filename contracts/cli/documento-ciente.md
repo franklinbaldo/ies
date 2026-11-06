@@ -76,3 +76,9 @@ Oráculo: Todos `tests/test_documento_ciente_010.py` @323eb01
 [relatório live](../../docs/validacao-live/2026-11-06-documento-ciente.md).
 Replay integral e ensaio autenticado em UnB e segunda instalação
 estão pendentes; não declarar a capacidade concluída sem eles.
+
+Também no aceite documental, `atualizarArvore` precisa constar em
+código reconhecido da resposta: texto em comentário, literal ou
+`<template>` não comprova `id_atividade`. A ausência de prova
+depois do GET potencialmente mutador é efeito incerto, saída 3,
+sem repetição da escrita.
