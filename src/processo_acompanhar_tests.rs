@@ -101,6 +101,21 @@ fn lista_identidades_duplicadas_falha_fechado() {
         )))
     );
 }
+#[test]
+fn lista_com_grupo_repetido_em_ids_diferentes_nao_prova_idempotencia() {
+    // Cenário adversarial derivado da tabela observada na UnB (#254).
+    // Escolher a primeira linha para declarar ja_estava esconderia a ambiguidade.
+    let html = tabela(&format!(
+        "{}{}",
+        linha("831", "G", "Primeira"),
+        linha("832", "G", "Segunda")
+    ));
+    assert_eq!(
+        acompanhamentos_da_lista(&html),
+        Err(ErroAcompanhar::GrupoAmbiguo)
+    );
+}
+
 // A lista da UnB usa posicoes fixas: 1=Grupo, 2=Observacao.
 // Uma coluna deslocada nao comprova o grupo para incluir/remover com seguranca.
 #[test]
