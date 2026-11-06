@@ -135,7 +135,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
             return ExitCode::from(1);
         }
         if erro.nao_aplicada_comprovada() {
-            eprintln!("{}", linha_humana(erro.subcodigo(), mensagem, erro.status_http()));
+            eprintln!(
+                "{}",
+                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
+            );
             eprintln!(
                 "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
             );
@@ -363,12 +366,12 @@ mod tests {
     fn recusa_explicita_publica_nao_aplicada_sem_inferir_de_403() {
         use crate::formulario_web::ErroSubmissaoFormulario;
         use crate::transporte::StatusHttpRecusado;
-        let recusada = ErroCriar::RecusaDoPost(
-            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
+        let recusada = ErroCriar::RecusaDoPost(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+            StatusHttpRecusado {
                 status: 200,
                 mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
-            }),
-        );
+            },
+        ));
         let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida");
         assert_eq!(json["desfecho"], "nao_aplicada");
         assert_eq!(json["repeticao_segura_com_nova_previa"], true);
