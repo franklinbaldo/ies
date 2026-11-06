@@ -17,6 +17,24 @@ use crate::processo_obter::{
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle as _;
+/// Fato seguro observado após o envio; sem incluir URL nem conteúdo privado.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MotivoEfeitoIncerto {
+    RespostaSemAceite,
+    ReleituraIndisponivel,
+    EstadoDivergente,
+}
+
+impl MotivoEfeitoIncerto {
+    pub(crate) fn texto(self) -> &'static str {
+        match self {
+            Self::RespostaSemAceite => "resposta_sem_aceite",
+            Self::ReleituraIndisponivel => "releitura_indisponivel",
+            Self::EstadoDivergente => "estado_divergente",
+        }
+    }
+}
+
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroPrevia {
     #[causa(interna)]
@@ -36,7 +54,10 @@ pub(crate) enum ErroPrevia {
     #[causa(interna)]
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
     #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
-    EfeitoIncerto,
+    EfeitoIncerto {
+        requisicoes: u8,
+        motivo: MotivoEfeitoIncerto,
+    },
     #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
     ConfirmacaoNaoImplementada,
     #[causa(transparente)]
@@ -48,10 +69,16 @@ impl ErroPrevia {
         crate::erro_publico::folha(self)
     }
 
-    // Diagnóstico público limitado a fatos seguros, sem URLs/cookies.
-    // WIP #254: primeiro RED dos cenários, antes de preencher o valor.
+    /// Apenas a escrita tentada possui contador e motivo verificáveis.
+    /// Não extrapolar contagem em erros ocorridos antes da submissão.
     pub(crate) fn diagnostico_efeito_incerto(&self) -> Option<(u8, &'static str)> {
-        None
+        match self {
+            Self::EfeitoIncerto {
+                requisicoes,
+                motivo,
+            } => Some((*requisicoes, motivo.texto())),
+            _ => None,
+        }
     }
 }
 
