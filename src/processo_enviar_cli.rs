@@ -172,7 +172,7 @@ fn texto_das_sugestoes(sugestoes: &[String]) -> Option<String> {
 }
 
 /// Mantém a ordem histórica: mensagem, situação, falha de escrita,
-/// verificação. Não constrói nem interpreta serde_json::Value.
+/// verificação. Não constrói nem interpreta `serde_json::Value`.
 fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     use ErroEnviar as E;
     let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
