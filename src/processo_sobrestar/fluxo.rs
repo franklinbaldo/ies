@@ -32,7 +32,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         motivo,
         confirmar,
     } = *pedido;
-    if acao == Acao::Sobrestar && motivo.is_none_or(str::is_empty) {
+    if acao == Acao::Sobrestar && motivo.is_none_or(|m| m.trim().is_empty()) {
         return Err(E::MotivoVazio);
     }
     let mut rede = Contador::novo(envio);

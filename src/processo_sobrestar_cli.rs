@@ -55,7 +55,7 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
         Ok(nup) => nup,
         Err(erro) => return erro_de_uso(cli.json, erro.subcodigo(), "número de processo inválido"),
     };
-    if matches!(acao, Acao::Sobrestar) && motivo.is_none_or(str::is_empty) {
+    if matches!(acao, Acao::Sobrestar) && motivo.is_none_or(|t| t.trim().is_empty()) {
         return erro_de_uso(
             cli.json,
             "motivo_do_sobrestamento_vazio",
@@ -80,7 +80,7 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             "id_procedimento": previa.id_procedimento,
                             "unidade": previa.unidade,
                             "acao": previa.acao.como_texto(),
-                            "motivo": motivo.map(str::trim),
+                            "motivo": motivo,
                             "confirmado": previa.confirmado,
                             "alterado": previa.alterado,
                             "reconciliado_por_leitura": previa.reconciliado_por_leitura,

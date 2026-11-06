@@ -54,6 +54,7 @@ pub(crate) fn trocar(
     unidade: Option<&str>,
     json_mode: bool,
 ) -> ExitCode {
+    let sigla = sigla.trim();
     if sigla.is_empty() {
         return uso_invalido(json_mode);
     }
