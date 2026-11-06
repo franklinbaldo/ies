@@ -124,9 +124,11 @@ impl ErroCienciaDocumento {
         match self {
             Self::Abertura(e) => e.status_http(),
             Self::Cookie(e) | Self::Tela(e) => e.status_http(),
-            Self::EfeitoIncerto { falha_do_aceite, .. } => {
-                falha_do_aceite.as_ref().and_then(FalhaDoAceite::status_http)
-            }
+            Self::EfeitoIncerto {
+                falha_do_aceite, ..
+            } => falha_do_aceite
+                .as_ref()
+                .and_then(FalhaDoAceite::status_http),
             _ => None,
         }
     }
@@ -196,26 +198,13 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     .map_err(E::Html)?;
     // Este GET pode gravar a ciência. Após qualquer resposta ou timeout,
     // apenas releitura, nunca segundo GET mutador.
-    let aceite = rede
-        .get_sem_seguir(url.as_str(), &cookie)
-        .map_err(FalhaDoAceite::Transporte)
-        .and_then(|r| {
-            let html = decodificar_resposta(r.resposta).map_err(FalhaDoAceite::Transporte)?;
-            if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
-                return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
-                    status: 200,
-                    mensagem_do_servidor: Some(mensagem),
-                }));
-            }
-            atividade_do_aceite(
-                &html,
-                AlvoDaCiencia::Documento {
-                    id_procedimento: &feito.id_procedimento,
-                    id_documento: &feito.id_documento,
-                },
-            )
-            .map_err(FalhaDoAceite::Aceite)
-        });
+    let aceite = ler_aceite(
+        &mut rede,
+        &cookie,
+        url.as_str(),
+        &feito.id_procedimento,
+        &feito.id_documento,
+    );
     let atividade = aceite.as_ref().ok().map(String::as_str);
     let prova = verificar(
         sessao,
@@ -250,6 +239,33 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             falha_do_aceite,
         }),
     }
+}
+
+/// Lê uma vez o GET potencialmente mutador; a causa é mantida para o
+/// diagnóstico, mas somente a releitura independente decide o resultado.
+fn ler_aceite<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    url: &str,
+    id_procedimento: &str,
+    id_documento: &str,
+) -> Result<String, FalhaDoAceite> {
+    let resposta = rede.get_sem_seguir(url, cookie).map_err(FalhaDoAceite::Transporte)?;
+    let html = decodificar_resposta(resposta.resposta).map_err(FalhaDoAceite::Transporte)?;
+    if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
+        return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
+            status: 200,
+            mensagem_do_servidor: Some(mensagem),
+        }));
+    }
+    atividade_do_aceite(
+        &html,
+        AlvoDaCiencia::Documento {
+            id_procedimento,
+            id_documento,
+        },
+    )
+    .map_err(FalhaDoAceite::Aceite)
 }
 
 #[allow(clippy::too_many_arguments)]
