@@ -64,8 +64,16 @@ falso sucesso por ação concorrente, conforme RED de duas regressões
 adversariais no [CI 42214490209](https://github.com/franklinbaldo/ies/actions/runs/42214490209)
 (**2 FAIL novos, 1.716 PASS, 23 ignored existentes**) e observação
 do destino `ACEITE` com ID nos testes do Todos @323eb01. Apenas uma resposta
-aceita ou uma falha sem resposta de rede pode ser conciliada pela leitura,
-conservando a causa; não há nova escrita nem navegação pelo Location.
+aceita e **identificada** (302 para ação e processo esperados) ou uma
+falha sem resposta de rede pode ser conciliada pela leitura, conservando
+a causa; não há nova escrita nem navegação pelo Location. Uma resposta
+HTML 200 genérica também não é prova do POST, mesmo quando a árvore
+coincide: a escrita pode ter sido feita por outro agente. O teste-first
+[RED 42257965685](https://github.com/franklinbaldo/ies/actions/runs/42257965685)
+reproduziu o falso sucesso na atribuição e na remoção (**2 FAIL novos,
+1.737 PASS, 23 ignored preexistentes**), com 4 GET prévios, 1 POST e
+1 GET independente em cada caso. A correção conserva efeito incerto
+(saída 3), sem retry, até existir aceite observado para HTML 200.
 Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
 em atribuição quanto em remoção, e as regressões de concorrência exigem
 a mesma contagem exata. A CLI pública `--confirmar` continua recusada antes da sessão
