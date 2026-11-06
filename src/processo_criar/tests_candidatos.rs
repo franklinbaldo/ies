@@ -341,7 +341,9 @@ fn falha_no_segundo_candidato_preserva_primeira_coincidencia_sem_declarar_aplica
     let erro = resultado.expect_err("a segunda leitura falhou; efeito segue incerto");
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
-    let diagnostico = erro.diagnostico_apos_post().expect("duas causas e provas parciais");
+    let diagnostico = erro
+        .diagnostico_apos_post()
+        .expect("duas causas e provas parciais");
     assert_eq!(diagnostico.causa_post, "falha_de_rede");
     assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
     assert_eq!(
