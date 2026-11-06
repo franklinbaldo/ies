@@ -181,3 +181,65 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
         1
     );
 }
+
+#[test]
+fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
+    // O POST recebeu um Location esperado, mas o GET verificador foi
+    // recusado por HTTP 503. A criação pode ter acontecido: saída 3,
+    // preservando o status da leitura sem repetir a escrita.
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado::sem_mensagem(503),
+        )),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("sem GET verificador não se confirma a criação");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|status| status.status), Some(503));
+    assert_eq!(requests.len(), 5); // 3 GET + 1 POST criador + 1 GET verificador
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert_eq!(requests[4].metodo, "GET");
+}
+
+#[test]
+fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        Err(FalhaTransporte::Rede),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "falha_de_rede");
+    assert_eq!(requests.len(), 5);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
