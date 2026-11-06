@@ -120,7 +120,13 @@ pub(super) fn consulta(
             ("selInfraPaginacaoInferior", &indice),
         ],
     )
-    .map_err(|_| FalhaDaLupa::FormularioInesperado)
+    .map_err(|e| {
+        #[cfg(test)]
+        if instalacao.host() == "sei.treinamento.unb.br" {
+            println!("diagnostico derivacao da lupa UnB: {}", e.subcodigo());
+        }
+        FalhaDaLupa::FormularioInesperado
+    })
 }
 
 #[cfg(test)]
