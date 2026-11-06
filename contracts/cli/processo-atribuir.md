@@ -41,6 +41,15 @@ O fluxo interno injetável faz **um único POST** e lê novamente a árvore para
 conferir a atribuição do processo, inclusive se a resposta do POST falhar.
 Se a atribuição relida for diferente, faltar a unidade ou a leitura falhar,
 o desfecho é `efeito_incerto_na_atribuicao` com saída 3 e sem retry.
+**Releitura coincidente não converte recusa do POST em sucesso.** HTTP 403,
+validação expressa da Infra (ainda que HTTP 200), demais respostas recusadas
+ou um 302 com destino inesperado continuam como efeito incerto (saída 3),
+mesmo quando outro agente deixou a árvore no estado solicitado. A causa,
+o status e a mensagem saneada da recusa são preservados. Só a resposta sem
+recusa (HTML 200 ou 302 reconhecido) ou falha de rede sem resposta admite
+conciliação por leitura; nenhuma dessas vias repete o POST. O 302
+reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
+controlador e não pode publicar outro processo ou outra ação de origem.
 **Na CLI pública, --confirmar continua temporariamente bloqueado** por
 `escrita_de_atribuicao_ainda_nao_verificada`, sem acessar o SEI: a
 integração de escrita só será habilitada quando houver teste de
