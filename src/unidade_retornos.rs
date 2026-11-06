@@ -16,7 +16,7 @@ pub(crate) struct Retorno {
     pub(crate) prazo_restante: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRetornos {
     TelaDeRetornosDesconhecida,
     ListaDeRetornosIncompleta,
@@ -24,13 +24,6 @@ pub(crate) enum ErroRetornos {
 }
 
 impl ErroRetornos {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::TelaDeRetornosDesconhecida => "tela_de_retornos_desconhecida",
-            Self::ListaDeRetornosIncompleta => "lista_de_retornos_incompleta",
-            Self::PaginacaoDosRetornosNaoObservada => "paginacao_dos_retornos_nao_observada",
-        }
-    }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
             Self::TelaDeRetornosDesconhecida => "estrutura da lista de retornos nao reconhecida",

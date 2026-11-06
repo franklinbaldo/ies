@@ -139,7 +139,7 @@ fn replay_retornos_no_acervo() {
                     println!(
                         "{instalacao}: passo {} recusado ({})",
                         resposta.passo,
-                        erro.subcodigo()
+                        crate::erro_publico::folha(&erro)
                     );
                 }
             }

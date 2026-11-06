@@ -8,34 +8,24 @@ use crate::unidade_retornos::{self, ErroRetornos, Retorno};
 use crate::url_observada::{UrlHttps, pasta};
 use std::collections::HashSet;
 
-#[derive(Debug)]
+#[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroLeituraRetornos {
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(interna)]
     Controle(crate::erro_web::ErroCaixa),
+    #[causa(interna)]
     Tabela(ErroRetornos),
     LinkDeRetornosAusente,
     LinkDeRetornosAmbiguo,
     LinkDeRetornosForaDaInstalacao,
     CalendarioDosRetornosDesconhecido,
     MesDosRetornosInacessivel,
+    #[causa(nome = "mes_dos_retornos_invalido")]
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
 }
 impl ErroLeituraRetornos {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(e) => e.subcodigo(),
-            Self::Controle(e) => e.subcodigo(),
-            Self::Tabela(e) => e.subcodigo(),
-            Self::LinkDeRetornosAusente => "link_de_retornos_ausente",
-            Self::LinkDeRetornosAmbiguo => "link_de_retornos_ambiguo",
-            Self::LinkDeRetornosForaDaInstalacao => "link_de_retornos_fora_da_instalacao",
-            Self::CalendarioDosRetornosDesconhecido => "calendario_dos_retornos_desconhecido",
-            Self::MesDosRetornosInacessivel => "mes_dos_retornos_inacessivel",
-            Self::MesDaCliInvalido => "mes_dos_retornos_invalido",
-            Self::UnidadeDiferenteDaSolicitada => "unidade_diferente_da_solicitada",
-        }
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(e) => e.mensagem(),
@@ -57,16 +47,13 @@ impl ErroLeituraRetornos {
 }
 impl crate::relogin_cli::FalhaPublicavel for ErroLeituraRetornos {
     fn subcodigo(&self) -> &'static str {
-        self.subcodigo()
+        crate::erro_publico::folha(self)
     }
     fn mensagem(&self) -> &'static str {
         self.mensagem()
     }
     fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(e) => e.status_http(),
-            _ => None,
-        }
+        crate::erro_publico::Causa::status_http(self)
     }
 }
 
