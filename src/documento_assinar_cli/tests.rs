@@ -43,9 +43,9 @@ fn falhas_da_assinatura_serializam_direto_com_goldens_fixos() {
             ErroAssinar::EfeitoIncertoNaAssinatura {
                 antes: vec![],
                 falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
-                verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(
-                    ErroHtml::ausente("assinatura_da_arvore_ausente"),
-                )),
+                verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
+                    "assinatura_da_arvore_ausente",
+                ))),
             },
             r#"{"assinaturas":[],"codigo":"efeito_incerto","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_apos_assinar"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_assinatura","verificacao":"assinatura_da_arvore_ausente"}"#,
         ),
@@ -57,5 +57,65 @@ fn falhas_da_assinatura_serializam_direto_com_goldens_fixos() {
             std::any::type_name_of_val(&projecao),
             std::any::type_name::<serde_json::Value>()
         );
+    }
+}
+#[test]
+fn apresentacao_humana_parte_do_erro_tipado() {
+    let cargos = ErroAssinar::CargoNaoOferecidoPelaTela {
+        cargos: vec!["Cargo A".into(), "Cargo B".into()],
+    };
+    assert_eq!(
+        linhas_da_falha(&cargos),
+        vec![
+            "IES: o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado [cargo_nao_oferecido_pela_tela]",
+            "IES: cargos da tela: Cargo A; Cargo B",
+        ]
+    );
+    let incerto = ErroAssinar::EfeitoIncertoNaAssinatura {
+        antes: vec![],
+        falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
+        verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(
+            ErroHtml::ausente("assinatura_da_arvore_ausente"),
+        )),
+    };
+    assert_eq!(incerto.saida(), 3);
+    assert_eq!(
+        linhas_da_falha(&incerto),
+        vec![
+            "IES: não se sabe se o documento foi assinado; confira a árvore antes de repetir [efeito_incerto_na_assinatura]",
+            "IES: resposta da escrita: redirecionamento_apos_assinar",
+            "IES: verificação: assinatura_da_arvore_ausente",
+        ]
+    );
+}
+
+#[test]
+fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
+    use crate::formulario_web::ErroSubmissaoFormulario;
+    use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+
+    let casos = [
+        (
+            ErroAssinar::Formulario(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                StatusHttpRecusado {
+                    status: 200,
+                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
+                },
+            )),
+            r#"{"codigo":"fonte_invalida","erro":"o envio da assinatura não pôde ser montado; nada foi enviado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"subcodigo":"validacao_recusada_pelo_sei"}"#,
+        ),
+        (
+            ErroAssinar::TelaDaEscrita(FalhaTransporte::StatusHttpDeErroDoServidor(
+                StatusHttpRecusado {
+                    status: 500,
+                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
+                },
+            )),
+            r#"{"codigo":"fonte_invalida","erro":"a tela da assinatura não foi servida; nada foi assinado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500,"subcodigo":"status_http_de_erro_do_servidor"}"#,
+        ),
+    ];
+    for (erro, esperado) in casos {
+        assert_eq!(erro.saida(), 1);
+        assert_eq!(serde_json::to_string(&json_de_falha(&erro)).unwrap(), esperado);
     }
 }
