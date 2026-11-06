@@ -5,12 +5,14 @@
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
+    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
 };
 use crate::processo_enviar::{ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
-use serde_json::{Value, json};
+#[cfg(test)]
+use serde_json::Value;
+use serde_json::json;
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo enviar`.
@@ -104,10 +106,11 @@ fn enviar(
             ),
             Err(erro) => {
                 if cli.json {
-                    println!(
-                        "{}",
-                        json_de_falha_com_sugestoes(&erro, sessao, indice, para)
-                    );
+                    if let Err(falha) = crate::saida::imprimir_json_compacto(
+                        &json_de_falha_com_sugestoes(&erro, sessao, indice, para),
+                    ) {
+                        eprintln!("IES: falha ao emitir JSON: {falha}");
+                    }
                 } else {
                     for linha in linhas_da_falha(&erro) {
                         eprintln!("{linha}");
@@ -146,17 +149,14 @@ fn sugestoes_guardadas(
 
 /// Projeção de falha para agentes; não cria sugestões nem as converte
 /// de volta a valores Rust para a saída humana.
-fn json_de_falha_com_sugestoes(
-    erro: &ErroEnviar,
+fn json_de_falha_com_sugestoes<'a>(
+    erro: &'a ErroEnviar,
     sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
     indice: &crate::indice_local::IndiceLocal,
     para: &str,
-) -> Value {
+) -> FalhaDaSituacao<'a> {
     let mut valor = json_de_falha(erro);
-    let sugestoes = sugestoes_guardadas(erro, sessao, indice, para);
-    if !sugestoes.is_empty() {
-        valor["sugestoes_guardadas"] = json!(sugestoes);
-    }
+    valor.sugestoes_guardadas = sugestoes_guardadas(erro, sessao, indice, para);
     valor
 }
 
@@ -280,34 +280,28 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
 }
 
 /// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroEnviar) -> Value {
-    let mut valor = json_base_da_falha(
+pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
+    let mut valor = FalhaDaSituacao::nova(
         erro.codigo(),
         erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    let mut inserir = |campo: &str, dado: Value| {
-        objeto.insert(campo.to_owned(), dado);
-    };
     match erro {
         ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo } => {
-            inserir("motivo", json!(motivo.como_texto()));
+            valor.motivo = Some(motivo.como_texto());
         }
         ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
         | ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
         | ErroEnviar::EnvioNaoPublicadoNaBarra { aberto_em }
         | ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em } => {
-            inserir("aberto_em", json!(aberto_em));
+            valor.aberto_em = Some(aberto_em);
         }
         ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos } => {
-            inserir("oferecidos", json!(oferecidos));
+            valor.oferecidos = Some(oferecidos);
         }
         ErroEnviar::VariosDestinosComASigla { candidatos } => {
-            inserir("candidatos", json!(candidatos));
+            valor.candidatos = Some(candidatos);
         }
         ErroEnviar::EnvioNaoAplicado {
             aberto_em,
@@ -319,22 +313,18 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> Value {
             depois,
             falha_do_envio,
         } => {
-            inserir("aberto_em", json!(aberto_em));
-            inserir("depois", json!(depois));
-            if let Some(falha) = falha_do_envio {
-                inserir("falha_do_envio", json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.depois = Some(depois);
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroEnviar::EfeitoIncertoNoEnvio {
             aberto_em,
             falha_do_envio,
             verificacao,
         } => {
-            inserir("aberto_em", json!(aberto_em));
-            inserir("verificacao", json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                inserir("falha_do_envio", json_da_falha(falha));
-            }
+            valor.aberto_em = Some(aberto_em);
+            valor.verificacao = Some(verificacao.motivo());
+            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
     }
