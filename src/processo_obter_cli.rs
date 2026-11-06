@@ -441,7 +441,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
                 if let Err(erro) = crate::saida::imprimir_json(&valor) {
                     eprintln!("IES: falha ao emitir JSON: {erro}");
                     return std::process::ExitCode::from(1);
-                };
+                }
             } else {
                 relogin_cli::avisar(cli.json, nota.as_ref());
                 println!("{}", humano(nup, &aberto, comando.sem_documentos));
