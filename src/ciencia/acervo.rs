@@ -56,8 +56,8 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                     });
                     continue;
                 };
+                let id_documento = id_documento_da_resposta(resposta.item);
                 let alvo = if resposta.operacao == "documento_ciencia" {
-                    let id_documento = id_documento_da_resposta(resposta.item);
                     let Some(documento) = id_documento.as_deref() else {
                         registros.push(Registro {
                             leitor,
