@@ -188,3 +188,118 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+
+const SEGUNDO_NUP: &str = "00000.000011/2026-11";
+
+/// Dois processos de ensaio distintos apareceram entre as fotografias.
+/// Ambos podem ter sido criados por outros agentes na mesma unidade.
+fn gerados_com_dois_candidatos() -> String {
+    tela_controle().replace(
+        "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
+        &format!(
+            "<table id=\"tblProcessosGerados\"><caption>2 registros - 1 a 2):</caption>\
+             <tr id=\"P10\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr>\
+             <tr id=\"P11\"><td><a href=\"{}\" class=\"processoVisualizado\">{SEGUNDO_NUP}</a></td></tr></table>",
+            trabalhar_controle("10"),
+            trabalhar_controle("11")
+        ),
+    )
+}
+
+fn arvore_com_propriedades_de(id: &str, nup: &str) -> String {
+    crate::arvore_processo::tests_concluir::arvore_para_concluir(
+        id,
+        nup,
+        &crate::processo_concluir::tests_apoio::situacao(&[UNIDADE]),
+        &[acao_da_barra(&link_das_propriedades("procedimento_alterar", id))],
+    )
+}
+
+fn propriedades_correspondentes_de(id: &str, nup: &str) -> String {
+    tela_das_propriedades(nup, id)
+        .replace("Tipo Sintetico: Teste", "Administração Geral: Ensaio")
+        .replace(
+            "Especificação sintética &amp; teste",
+            "Ensaio automatizado issue 245",
+        )
+}
+
+#[test]
+fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_dois_candidatos()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+        ok(crate::arvore_processo::tests_tela::tela_do_processo(
+            UNIDADE,
+            &[crate::arvore_processo::tests_tela::src_da_arvore("11")],
+        )),
+        ok(arvore_com_propriedades_de("11", SEGUNDO_NUP)),
+        ok(propriedades_correspondentes_de("11", SEGUNDO_NUP)),
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("duas provas nao permitem atribuir o POST");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.subcodigo(), "candidatos_ambiguos_na_criacao");
+    let diagnostico = erro.diagnostico_apos_post().expect("diagnostico tipado");
+    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_releitura, None);
+    assert_eq!(
+        diagnostico.candidatos_compativeis,
+        Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
+    );
+    assert_eq!(requests.len(), 11); // 3 GET + 1 POST + 1 Controle + 3 GET por candidato
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert!(requests[4..].iter().all(|r| r.metodo == "GET"));
+}
+
+#[test]
+fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro()),
+        Err(FalhaTransporte::Rede),
+        ok(gerados_com_dois_candidatos()),
+        ok(trabalhar()),
+        ok(arvore_com_propriedades()),
+        ok(propriedades_correspondentes()),
+        ok(crate::arvore_processo::tests_tela::tela_do_processo(
+            UNIDADE,
+            &[crate::arvore_processo::tests_tela::src_da_arvore("11")],
+        )),
+        ok(arvore_com_propriedades_de("11", SEGUNDO_NUP)),
+        ok(tela_das_propriedades(SEGUNDO_NUP, "11")), // tipo diferente
+    ];
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &pedido(true),
+            rede,
+        )
+    });
+    let feito = resultado.expect("uma unica prova, depois de ler os dois candidatos");
+    assert!(feito.confirmado);
+    assert_eq!(feito.nup.as_deref(), Some(NUP));
+    assert_eq!(feito.requisicoes, 11);
+    assert_eq!(requests.len(), 11);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
