@@ -76,15 +76,15 @@ todas as instalações. Nenhuma escrita foi realizada.
 ## Forma literal da função de gravação (inspeção de 05/11/2026)
 
 No arquivo do oráculo
-\`Todos tests/paginas_reais/documento_gerar.html @323eb01\`,
+`Todos tests/paginas_reais/documento_gerar.html @323eb01`,
 linhas 622–633, a página SEI 4.0.9 publica
-\`confirmarDados()\` e \`function submeter(){…}\`.
-O corpo direto de \`submeter\` executaria, nesta ordem, a desabilitação do
+`confirmarDados()` e `function submeter(){…}`.
+O corpo direto de `submeter` executaria, nesta ordem, a desabilitação do
 botão Salvar, a atribuição literal
-\`document.getElementById('hdnFlagDocumentoCadastro').value = '2';\`
-e \`document.getElementById('frmDocumentoCadastro').submit();\`.
+`document.getElementById('hdnFlagDocumentoCadastro').value = '2';`
+e `document.getElementById('frmDocumentoCadastro').submit();`.
 Isso é **observação estática do HTML capturado**, não execução de JS nem
-prova de criação ao vivo. A instrução isolada sob \`if (false)\` ou em
+prova de criação ao vivo. A instrução isolada sob `if (false)` ou em
 função arbitrária não demonstra esse caminho. O IES exige a forma
 conservadora reconhecida ou falha antes do POST.
 
