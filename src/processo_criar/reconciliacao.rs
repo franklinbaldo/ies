@@ -1,7 +1,7 @@
 //! Reconciliação da criação pela caixa Gerados: retratos de cobertura
 //! comprovada, identidades opacas e diferenças conservadoras.
 //! Não efetua HTTP, não afirma que um processo foi criado pela nossa escrita.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CandidatoGerado {
@@ -20,6 +20,8 @@ pub(crate) enum ErroFotografia {
     Caixa(crate::erro_web::ErroCaixa),
     #[causa(nome = "gerados_sem_cobertura_completa_para_reconciliacao")]
     CoberturaIncompleta,
+    #[causa(nome = "nup_repetido_na_fotografia_de_gerados")]
+    NupRepetido,
     #[causa(nome = "identidade_ja_observada_alterada_na_reconciliacao")]
     IdentidadeAlterada,
     #[causa(nome = "identidade_anterior_ausente_na_reconciliacao")]
@@ -45,6 +47,15 @@ impl FotografiaDosGerados {
             || (total != 0 && leitura.gerados.faixa_observada() != Some((1, total)))
         {
             return Err(ErroFotografia::CoberturaIncompleta);
+        }
+        // A tabela já recusa ID duplicado. Também exigimos um NUP por ID:
+        // dois IDs apontando o mesmo processo não formam duas identidades
+        // independentes para reconciliar uma escrita numa conta compartilhada.
+        let mut nups = HashSet::new();
+        for processo in &tabela.processos {
+            if !nups.insert(processo.numero.as_str()) {
+                return Err(ErroFotografia::NupRepetido);
+            }
         }
         let por_id = tabela
             .processos
