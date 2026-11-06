@@ -271,3 +271,26 @@ resíduo foi deixado no SEI.
 - O filtro da credencial unb foi corrigido em relação à tentativa anterior. O workflow temporário foi removido. A CLI continua recusando --deixar --confirmar antes de sessão/rede.
 - **RED comportamental desta fatia:** NOT_RUN (nenhuma mudança de produção/testes). O replay é avaliado pelo CI do head final, não por este job de live.
 - **Próximo passo:** nova prévia autenticada segura, um único --confirmar em treinamento, leitura independente e registro do resíduo; nunca repetir escrita com efeito incerto.
+
+
+## Decima segunda fatia — idempotencia sem cadastro (06/11/2026, 🐢)
+
+- **Observacao antes do RED:** o oraculo Todos @323eb01 e a tela de gerenciar
+  da UnB mostram o grupo na lista, independentemente do botao Adicionar.
+  Uma inclusao ja existente nao precisa de uma segunda abertura de cadastro.
+- **RED:** [run 42204125145](https://github.com/franklinbaldo/ies/actions/runs/42204125145),
+  commit so de teste `d3a4e96`: **1 FAIL comportamental novo,
+  1.721 PASS e 23 testes ignorados preexistentes**; Rustfmt tambem
+  assinalou uma linha vazia, corrigida antes da implementacao.
+- **Implementacao:** grupo explicito ja acompanhado produz
+  `ja_estava=true`, sem pedir o cadastro nem emitir POST. Teste
+  sintetico exige **4 GETs, 0 POSTs**, sem relaxar testes antigos.
+- **Live UnB nesta fatia:** NOT_RUN; login 0, previa 0 GET,
+  confirmacao 0 POST, verificacao 0 GET. **0 requisicoes reais,
+  0 escritas, nenhum residuo**. Nao houve acesso a producao.
+- **Replay:** coberto pelo job obrigatorio de Acompanhamento Especial;
+  resultado do head final depende do respectivo CI.
+- **Pendencias:** ensaio em treinamento com nova previa →
+  um unico `--confirmar` → verificacao independente por leitura,
+  contagem das requisicoes e residuo; outra instalacao de treinamento.
+  `--deixar --confirmar` permanece bloqueado antes da sessao/rede.
