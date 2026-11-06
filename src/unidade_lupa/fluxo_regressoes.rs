@@ -129,11 +129,19 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
     }
 
     let mut transporte = UnicaLeitura { gets: 0 };
+    let mut requisicoes = 0;
     assert!(matches!(
-        ler_integral(&mut transporte, &controle(), ORIGEM, "PHPSESSID=SINTETICO"),
+        ler_integral_com_contador(
+            &mut transporte,
+            &controle(),
+            ORIGEM,
+            "PHPSESSID=SINTETICO",
+            &mut requisicoes,
+        ),
         Err(FalhaDaLupa::LinkAusente),
     ));
     assert_eq!(transporte.gets, 1);
+    assert_eq!(requisicoes, 1, "um GET servido e nenhum POST");
 }
 
 #[test]
@@ -172,6 +180,35 @@ fn botao_novo_repetido_eh_recusado_sem_get() {
     assert_eq!(
         botao_novo(&html, &controle(), ORIGEM),
         Err(FalhaDaLupa::LinkAmbiguo)
+    );
+}
+
+#[test]
+fn btn_novo_repetido_com_mesmo_alvo_observado_na_unb_eh_unico() {
+    // Caso do acervo UnB 57497bc11c4f: dois btnNovo idênticos.
+    let consulta = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let botao = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{consulta}';\">Novo</button>"
+    );
+    assert_eq!(
+        botao_novo(&format!("{botao}{botao}"), &controle(), ORIGEM),
+        Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
+    );
+}
+
+#[test]
+fn btn_novo_repetido_com_alvos_assinados_distintos_falha_fechado() {
+    let outro_hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let primeiro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+    let segundo = format!("acao=grupo_unidade_cadastrar&infra_hash={outro_hash}");
+    let html = format!(
+        "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{primeiro}';\">Novo</button>\
+         <button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{segundo}';\">Novo</button>"
+    );
+    assert_eq!(
+        botao_novo(&html, &controle(), ORIGEM),
+        Err(FalhaDaLupa::LinkAmbiguo),
+        "sem escolher hash arbitrário e sem requisitar a Web"
     );
 }
 
@@ -223,4 +260,56 @@ fn literal_sem_hash_assinado_nao_autoriza_get() {
         ),
         Err(FalhaDaLupa::LinkAusente),
     );
+}
+
+#[test]
+fn transporte_recusado_conta_tentativa_sem_retry() {
+    use crate::formulario_web::RespostaDoPost;
+    use std::io::Cursor;
+
+    struct Recusa {
+        gets: usize,
+    }
+
+    impl TransporteLupa for Recusa {
+        type Corpo = Cursor<Vec<u8>>;
+
+        fn get(
+            &mut self,
+            _url: &str,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            self.gets += 1;
+            Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+                crate::transporte::StatusHttpRecusado {
+                    status: 503,
+                    mensagem_do_servidor: Some("serviço indisponível".to_owned()),
+                },
+            ))
+        }
+
+        fn post(
+            &mut self,
+            _envio: SubmissaoDerivada,
+            _cookie: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            panic!("sem POST na falha do primeiro GET")
+        }
+    }
+
+    let mut rede = Recusa { gets: 0 };
+    let mut requisicoes = 0;
+    let falha = ler_integral_com_contador(
+        &mut rede,
+        &controle(),
+        ORIGEM,
+        "PHPSESSID=SINTETICO",
+        &mut requisicoes,
+    )
+    .err()
+    .expect("HTTP 503 deve falhar");
+    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
+    assert_eq!(falha.status_http().map(|s| s.status), Some(503));
+    assert_eq!(requisicoes, 1);
+    assert_eq!(rede.gets, 1, "sem retry da tentativa recusada");
 }

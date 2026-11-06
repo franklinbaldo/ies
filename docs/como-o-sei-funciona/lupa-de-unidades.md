@@ -76,3 +76,58 @@ live UnB/GO NOT_RUN. Nenhuma requisição real foi feita nesta fatia.
 ## Replay público GO (05/11/2026)
 
 No [run 42112345185](https://github.com/franklinbaldo/ies/actions/runs/42112345185), o ZIP do acervo foi conferido e o leitor Rust interpretou as seis telas da ação `unidade_selecionar_envio_processo` (três GET e três POST) sem pedidos ao SEI. No POST do passo 12, o formulário `frmUnidadeLista` aparece sem tabela `infraTable`, encerrado por `Nenhum registro encontrado.`. A estrutura agora é reconhecida como lista vazia somente para página zero e paginador de uma página; ausência de tabela sem aviso é recusada. O replay não demonstra a coleta integral de 274 páginas nem substitui as leituras live em UnB e GO.
+
+## Replay da coleta integral GO (06/11/2026)
+
+Identificamos no acervo um cenário mais forte que a cassette curta:
+`cassettes/go/unidade-destinos-no-indice-go--85f61d670bfc.md`,
+com **4 GET e 274 POST** em 278 interações reais gravadas,
+**13.671 unidades**. O ZIP e a cassette são verificados pelos
+hashes do card; o CI executa obrigatoriamente o leitor de 274
+páginas, os filtros e a derivação de cada formulário, sem rede SEI.
+
+A resposta do primeiro GET da lupa (passo 3) mostrou
+**dois elementos `input type=submit` com `id=btnPesquisar`
+e sem `name`**. Ambos são controles de submissão do formulário
+`frmUnidadeLista`; como não têm nome, o navegador não transmite
+um par `btnPesquisar=...`. O botão previamente exigido por
+`name` era hipótese das fixtures sintéticas e causava
+`formulario_da_lupa_inesperado`. A regra revisada confere o
+submit servido e omite somente o parâmetro não publicado,
+sem executar JavaScript ou alterar o orçamento de requests.
+
+No [RED 42161586924](https://github.com/franklinbaldo/ies/actions/runs/42161586924)
+o teste novo da derivação integral falhou na primeira página;
+após a correção, [GREEN do replay integral 42162187792](https://github.com/franklinbaldo/ies/actions/runs/42162187792)
+aprovou todas as 275 respostas e a união de 274 páginas.
+Isso comprova a **compatibilidade offline com a cassette GO**,
+não o êxito de coleta autenticada. Os ensaios live de UnB/GO
+continuam com os resultados antigos e não foram repetidos.
+
+## Replay UnB da lista de destinos (06/11/2026)
+
+A cassette pública [UnB 57497bc1](../../cassettes/unb/unidade-destinos-no-indice-unb--57497bc11c4f.md)
+registra **4 GET e 1 POST**, com **uma página e 14 unidades**.
+A inspeção offline dos HTMLs revelou duas instâncias de `btnNovo`
+com o **mesmo** link autorizado de cadastro (antes recusadas apenas
+pela duplicação do id). Para aceitar ambas, o IES exige que cada botão,
+isoladamente, publique a mesma URL de mesma origem e ação; destinos
+distintos ou botão sem destino continuam recusados antes do GET.
+
+Na lupa UnB, o botão `btnPesquisar` tem `id` mas **não tem `name`**,
+e a página única omite os seletores de paginação. Enviar
+`selInfraPaginacaoSuperior=0` sem que a tela o publique era uma
+hipótese indevida. A derivação passa a incluir apenas os seletores
+efetivamente presentes no formulário; para mais de uma página, o
+seletor superior é obrigatório. A estrutura da página continua
+validada antes do POST, e o total é reconciliado antes de persistir.
+
+A sequência foi testada primeiro no [RED offline 42169131437](https://github.com/franklinbaldo/ies/actions/runs/42169131437):
+quatro GET simulados, zero POST, recusa por
+`campo_nao_publicado_pelo_formulario` para
+`selInfraPaginacaoSuperior`. Os replays usam HTML gravado e
+URL/cookie **sintéticos**, sem nova requisição ao SEI.
+
+**Live:** UnB NOT_RUN (0 pedidos reais), GO NOT_RUN (0),
+pesquisa posterior NOT_RUN (0), escritas 0, resíduos novos 0.
+O replay não substitui a comprovação autenticada em treinamento.

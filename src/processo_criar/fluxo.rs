@@ -1,6 +1,5 @@
 //! Fluxo Web de criação de processo: prévia sem POST criador; escrita única
 //! com 302 e verificação da identidade na árvore. Nunca há retry.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
@@ -12,13 +11,12 @@ use crate::processo_criar_cadastro::{
     ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
 };
 use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
-use crate::processo_criar_interessados::{
-    ErroInteressado, resolver as resolver_interessados, valor_da_lupa,
-};
+use crate::processo_criar_interessados::{resolver as resolver_interessados, valor_da_lupa};
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::link_de_iniciar;
+
+use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
 
 const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -71,76 +69,9 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ErroCriar {
-    /// Falha antes da escrita; guarda o subcódigo do transporte e, quando
-    /// houve, o status e a mensagem saneada do SEI.
-    Transporte {
-        subcodigo: &'static str,
-        http: Option<StatusHttpRecusado>,
-    },
-    UnidadeDiferente,
-    Menu(ErroHtml),
-    Lista(ErroListaDeTipos),
-    Cadastro(ErroCadastro),
-    Formulario,
-    TipoSemIdentificador,
-    EscolhaInesperada,
-    Interessado(ErroInteressado),
-    Hipotese(ErroHipotese),
-    EfeitoIncerto,
-}
-
-impl ErroCriar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte { subcodigo, .. } => subcodigo,
-            Self::UnidadeDiferente => "unidade_da_criacao_divergente",
-            Self::Menu(erro) => erro.onde,
-            Self::Lista(erro) => erro.subcodigo(),
-            Self::Cadastro(erro) => erro.subcodigo(),
-            Self::Formulario => "formulario_de_criacao_nao_reconhecido",
-            Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
-            Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
-            Self::Interessado(erro) => erro.subcodigo(),
-            Self::Hipotese(erro) => erro.subcodigo(),
-            Self::EfeitoIncerto => "efeito_incerto_na_criacao",
-        }
-    }
-
-    pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
-        match self {
-            Self::Hipotese(erro) => erro.opcoes_para_escolha(),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte { http, .. } => http.as_ref(),
-            Self::Hipotese(erro) => erro.status_http(),
-            _ => None,
-        }
-    }
-
-    fn de_transporte(falha: &FalhaTransporte) -> Self {
-        Self::Transporte {
-            subcodigo: falha.subcodigo(),
-            http: falha.status_http().cloned(),
-        }
-    }
-
-    fn local() -> Self {
-        Self::Transporte {
-            subcodigo: "falha_de_transporte_na_criacao",
-            http: None,
-        }
-    }
-
-    pub(crate) fn saida(&self) -> u8 {
-        if *self == Self::EfeitoIncerto { 3 } else { 1 }
-    }
-}
+#[path = "erro_fluxo.rs"]
+mod erro_fluxo;
+pub(crate) use erro_fluxo::ErroCriar;
 
 pub(crate) struct PedidoCriar<'a> {
     pub(crate) tipo: &'a str,
@@ -321,6 +252,23 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
+/// Releitura única do Controle após erro da escrita. A diferença na caixa
+/// é apenas evidência de candidatos; sem verificar propriedades não há
+/// prova de aplicação ou de que uma repetição é segura.
+fn reler_gerados<V: EnvioDoControle>(
+    envio: &mut V,
+    url_controle: &str,
+    cookie: &str,
+    unidade: &str,
+    antes: &reconciliacao::FotografiaDosGerados,
+    requisicoes: &mut u32,
+) -> Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar> {
+    let controle = get(envio, url_controle, cookie, requisicoes)?;
+    let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, unidade)
+        .map_err(ErroCriar::Fotografia)?;
+    antes.novos(&depois).map_err(ErroCriar::Fotografia)
+}
+
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -468,20 +416,38 @@ pub(crate) fn criar<V: EnvioDoControle>(
     if !pedido.confirmar {
         return Ok(feito);
     }
+    // Sem prova de cobertura dos Gerados *antes* do POST, não existe
+    // base segura para comparar o efeito de uma resposta incerta.
+    // Esta leitura usa o Controle que já foi obtido: zero novos requests.
+    // A fotografia será reutilizada na ligação do fluxo de reconciliação.
+    let gerados_antes =
+        reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
+            .map_err(E::Fotografia)?;
     // Não há retry após a submissão.
     let mut tentou = false;
-    let resposta = enviar_submissao_via(submissao, cookie, |s, c| {
+    let resposta = match enviar_submissao_via(submissao, cookie, |s, c| {
         tentou = true;
         requisicoes += 1;
         envio.post(s, c)
-    })
-    .map_err(|_| {
-        if tentou {
-            E::EfeitoIncerto
-        } else {
-            E::Formulario
+    }) {
+        Ok(resposta) => resposta,
+        Err(causa_post) if tentou => {
+            let posterior = reler_gerados(
+                envio,
+                url_controle,
+                cookie_valor,
+                &feito.unidade,
+                &gerados_antes,
+                &mut requisicoes,
+            )
+            .map_err(Box::new);
+            return Err(E::PosEscrita {
+                causa_post,
+                posterior,
+            });
         }
-    })?;
+        Err(_) => return Err(E::Formulario),
+    };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
         return Err(E::EfeitoIncerto);
     };
@@ -527,3 +493,7 @@ mod tests_hipotese;
 #[cfg(test)]
 #[path = "acervo.rs"]
 mod acervo;
+
+#[allow(dead_code)] // etapa offline da #245; ligação ao transporte em próxima fatia.
+#[path = "reconciliacao.rs"]
+mod reconciliacao;
