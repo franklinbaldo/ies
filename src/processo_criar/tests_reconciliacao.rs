@@ -121,3 +121,15 @@ fn desaparecimento_de_id_preexistente_nao_prova_que_post_nao_aplicou() {
         Err(ErroFotografia::IdentidadeAnteriorAusente)
     );
 }
+
+#[test]
+fn nup_repetido_em_ids_distintos_nao_pode_virar_duas_identidades() {
+    // A legenda declara duas linhas, mas ambas apontam para o mesmo NUP.
+    // Na reconciliação de Gerados não há como tratar dois IDs como dois
+    // processos independentes, mesmo com cobertura posicional completa.
+    let ambigua = tela(&[("10", NUP_A), ("11", NUP_A)], 2, 1);
+    assert_eq!(
+        FotografiaDosGerados::da_tela(&ambigua, "TESTE"),
+        Err(ErroFotografia::NupRepetido)
+    );
+}

@@ -58,7 +58,7 @@ fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
     let valor = valor_do_atributo(tag, "value")
         .map_err(html_invalido)?
         .unwrap_or_default();
-    if valor.is_empty() || valor.len() > 9 || !valor.bytes().all(|b| b.is_ascii_digit()) {
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }
     valor.parse().map_err(|_| ilegivel())

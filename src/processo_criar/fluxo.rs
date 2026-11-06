@@ -71,7 +71,11 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[path = "erro_fluxo.rs"]
 mod erro_fluxo;
-pub(crate) use erro_fluxo::ErroCriar;
+#[path = "pos_escrita.rs"]
+mod pos_escrita;
+#[path = "verificacao_apos_post.rs"]
+mod verificacao_apos_post;
+pub(crate) use erro_fluxo::{ErroCriar, EvidenciaDeCoincidencia};
 
 pub(crate) struct PedidoCriar<'a> {
     pub(crate) tipo: &'a str,
@@ -93,6 +97,7 @@ pub(crate) struct Criacao {
     pub(crate) confirmado: bool,
     pub(crate) interessados: Vec<String>,
     pub(crate) nup: Option<String>,
+    pub(crate) causa_post: Option<&'static str>,
     pub(crate) requisicoes: u32,
 }
 
@@ -252,23 +257,6 @@ fn retorno_da_criacao(
     Ok((url, id))
 }
 
-/// Releitura única do Controle após erro da escrita. A diferença na caixa
-/// é apenas evidência de candidatos; sem verificar propriedades não há
-/// prova de aplicação ou de que uma repetição é segura.
-fn reler_gerados<V: EnvioDoControle>(
-    envio: &mut V,
-    url_controle: &str,
-    cookie: &str,
-    unidade: &str,
-    antes: &reconciliacao::FotografiaDosGerados,
-    requisicoes: &mut u32,
-) -> Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar> {
-    let controle = get(envio, url_controle, cookie, requisicoes)?;
-    let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, unidade)
-        .map_err(ErroCriar::Fotografia)?;
-    antes.novos(&depois).map_err(ErroCriar::Fotografia)
-}
-
 /// Um POST de escolha é leitura do cadastro. O POST com CADASTRAR só
 /// acontece após conferência da lista, do formulário e de todos os campos.
 #[allow(clippy::too_many_lines)] // fluxo sequencial até a verificação, sem retries.
@@ -393,6 +381,7 @@ pub(crate) fn criar<V: EnvioDoControle>(
         confirmado: false,
         interessados: interessados.iter().map(|(_, nome)| nome.clone()).collect(),
         nup: None,
+        causa_post: None,
         requisicoes,
     };
     let lupa = format!("{}±{}", observado.id_assunto, observado.assunto);
@@ -431,51 +420,102 @@ pub(crate) fn criar<V: EnvioDoControle>(
         envio.post(s, c)
     }) {
         Ok(resposta) => resposta,
+        // Recusa explícita não pode virar sucesso por candidato idêntico de
+        // outro agente na conta compartilhada. Não consultar Gerados depois.
+        Err(causa_post)
+            if tentou
+                && matches!(
+                    &causa_post,
+                    crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+                ) =>
+        {
+            return Err(E::RecusaDoPost(causa_post));
+        }
+        // HTTP 4xx isolado pode vir de intermediário: nem prova de recusa
+        // do SEI nem permissão para atribuir um candidato concorrente.
+        Err(causa_post)
+            if tentou
+                && causa_post
+                    .status_http()
+                    .is_some_and(|status| (400..500).contains(&status.status)) =>
+        {
+            return Err(E::RespostaHttpSemProva(causa_post));
+        }
         Err(causa_post) if tentou => {
-            let posterior = reler_gerados(
+            pos_escrita::reconciliar(
                 envio,
+                &instalacao,
                 url_controle,
                 cookie_valor,
-                &feito.unidade,
+                &mut feito,
                 &gerados_antes,
+                pedido.especificacao,
                 &mut requisicoes,
-            )
-            .map_err(Box::new);
-            return Err(E::PosEscrita {
-                causa_post,
-                posterior,
-            });
+                pos_escrita::CausaPosEscrita::Transporte(causa_post),
+            )?;
+            return Ok(feito);
         }
         Err(_) => return Err(E::Formulario),
     };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
-        return Err(E::EfeitoIncerto);
+        pos_escrita::reconciliar(
+            envio,
+            &instalacao,
+            url_controle,
+            cookie_valor,
+            &mut feito,
+            &gerados_antes,
+            pedido.especificacao,
+            &mut requisicoes,
+            pos_escrita::CausaPosEscrita::Resposta(
+                erro_fluxo::CausaRespostaCriadora::RespostaInesperada,
+            ),
+        )?;
+        return Ok(feito);
     };
-    let (url, id) = retorno_da_criacao(
-        &instalacao,
-        redirecionamento.localizacao().ok_or(E::EfeitoIncerto)?,
-        redirecionamento.url_do_envio(),
-    )?;
-    // Uma leitura fresca para obter NUP e verificar id; não repetir o POST.
-    let tela_do_processo =
-        get(envio, &url, cookie_valor, &mut requisicoes).map_err(|_| E::EfeitoIncerto)?;
-    let tela_lida = crate::arvore_processo::ler_tela_do_processo(
-        &instalacao,
-        &tela_do_processo.html,
-        &id,
-        Some(&feito.unidade),
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
-    let arvore = get(
+    let retorno = redirecionamento
+        .localizacao()
+        .ok_or(E::EfeitoIncerto)
+        .and_then(|localizacao| {
+            retorno_da_criacao(&instalacao, localizacao, redirecionamento.url_do_envio())
+        });
+    let Ok((url, id)) = retorno else {
+        pos_escrita::reconciliar(
+            envio,
+            &instalacao,
+            url_controle,
+            cookie_valor,
+            &mut feito,
+            &gerados_antes,
+            pedido.especificacao,
+            &mut requisicoes,
+            pos_escrita::CausaPosEscrita::Resposta(
+                erro_fluxo::CausaRespostaCriadora::LocalizacaoInvalida,
+            ),
+        )?;
+        return Ok(feito);
+    };
+    // O Location legítimo também não comprova uma criação nova quando
+    // aponta a ID que já existia nos Gerados antes do único POST.
+    // Recusar sem abrir processo preexistente nem repetir a escrita.
+    if gerados_antes.contem_id(&id) {
+        return Err(E::VerificacaoAposPost(Box::new(E::ProvaDaCriacao(
+            erro_fluxo::ProvaDaCriacao::IdentidadePreexistente,
+        ))));
+    }
+    // O Location legítimo não prova o efeito da criação. Preservar a
+    // causa da verificação, inclusive status HTTP, sem fazer novo POST.
+    let nup = verificacao_apos_post::verificar(
         envio,
-        tela_lida.arvore.as_str(),
+        &instalacao,
+        &url,
+        &id,
         cookie_valor,
+        &feito,
+        pedido,
         &mut requisicoes,
     )
-    .map_err(|_| E::EfeitoIncerto)?;
-    let nup =
-        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
-    crate::arvore_processo::ler_arvore(&arvore.html, &nup, &id).map_err(|_| E::EfeitoIncerto)?;
+    .map_err(|erro| E::VerificacaoAposPost(Box::new(erro)))?;
     feito.confirmado = true;
     feito.nup = Some(nup);
     feito.requisicoes = requisicoes;
@@ -485,6 +525,10 @@ pub(crate) fn criar<V: EnvioDoControle>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_resposta_post.rs"]
+mod tests_resposta_post;
 
 #[cfg(test)]
 #[path = "tests_hipotese.rs"]
@@ -497,3 +541,11 @@ mod acervo;
 #[allow(dead_code)] // etapa offline da #245; ligação ao transporte em próxima fatia.
 #[path = "reconciliacao.rs"]
 mod reconciliacao;
+
+#[cfg(test)]
+#[path = "tests_candidatos.rs"]
+mod tests_candidatos;
+
+#[cfg(test)]
+#[path = "tests_concorrencia.rs"]
+mod tests_concorrencia;

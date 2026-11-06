@@ -179,7 +179,7 @@ fn conferir_campo(
             valido
         }
         ("textarea", _, "txaMotivo") => {
-            !presente("readonly")? && tag.inner_text(dom.parser()).trim().is_empty()
+            !presente("readonly")? && tag.inner_text(dom.parser()).is_empty()
         }
         ("input" | "button", "submit", "sbmSalvar") => {
             valor == "Salvar"

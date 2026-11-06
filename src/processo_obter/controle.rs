@@ -61,7 +61,7 @@ pub(super) fn link_do_processo_no_controle(
             let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            if link.inner_text(parser).trim() != nup {
+            if link.inner_text(parser) != nup {
                 continue;
             }
             let Some(href) = valor_do_atributo(link, "href").map_err(ilegivel)? else {

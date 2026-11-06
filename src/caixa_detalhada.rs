@@ -126,7 +126,7 @@ fn indice_oculto_alem_da_primeira(
         };
         let valor = valor_do_atributo(tag, "value")
             .map_err(|e| ErroHtml::atributo("html_detalhado_nao_interpretado", e))?;
-        if valor.as_deref().map(str::trim) != Some("0") {
+        if valor.as_deref() != Some("0") {
             return Ok(true);
         }
     }
@@ -161,11 +161,9 @@ fn faixa(
         .split_once(" a ")
         .ok_or(ErroHtml::valor("faixa_detalhada_invalida"))?;
     let inicio = inicio
-        .trim()
         .parse::<usize>()
         .map_err(|_| ErroHtml::valor("faixa_detalhada_invalida"))?;
     let fim = fim
-        .trim()
         .chars()
         .take_while(char::is_ascii_digit)
         .collect::<String>()
@@ -393,7 +391,7 @@ pub(crate) fn ler_paginas(
     if paginas.is_empty() {
         return Err(ErroHtml::ausente("tabela_detalhada_ausente").into());
     }
-    if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroDetalhada::LimitePaginas);
     }
     let mut contexto = None;
@@ -411,9 +409,7 @@ pub(crate) fn ler_paginas(
                 return Err(ErroDetalhada::ContextoDiferente);
             }
         } else {
-            if unidade_esperada
-                .is_some_and(|v| pagina.contexto.unidade.as_deref() != Some(v.trim()))
-            {
+            if unidade_esperada.is_some_and(|v| pagina.contexto.unidade.as_deref() != Some(v)) {
                 return Err(ErroDetalhada::UnidadeDiferente);
             }
             contexto = Some(pagina.contexto.clone());

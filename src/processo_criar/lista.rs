@@ -48,8 +48,8 @@ fn lista_completa(html: &str) -> bool {
 }
 
 fn escolher_literal(js: &str) -> Option<String> {
-    let js = js.trim().trim_end_matches(';').trim();
-    let id = js.strip_prefix("escolher(")?.strip_suffix(')')?.trim();
+    let js = js.trim_end_matches(';');
+    let id = js.strip_prefix("escolher(")?.strip_suffix(')')?;
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 

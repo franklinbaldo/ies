@@ -52,7 +52,7 @@ que não publicaram essa consulta.
 Uma única submissão do cadastro publicado; sem retry nem
 redirect automático. A resposta esperada é um 302 para
 a árvore com `id_procedimento`, cuja identidade deve ser
-confirmada em leitura nova e associada a um NUP não vazio.
+confirmada em leituras novas de tela e árvore, associada a um NUP não vazio. Uma terceira leitura, das propriedades oferecidas pela barra do processo, deve demonstrar tipo, especificação e nível de acesso iguais aos solicitados. Resposta 302 e NUP sem essas propriedades não permitem publicar `confirmado: true` (saída 3; sem retry).
 A resposta sozinha nunca prova a criação. No `Location`, aceitar
 **uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
 `id_procedimento` numérico; quaisquer repetições, mesmo com um
@@ -122,6 +122,9 @@ Esses subcódigos precisam de tipos reais e integração a
 | `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; efeito incerto, saída 3 |
+| `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
+| `candidato_unico_sem_prova_causal` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 3, possível resíduo, sem retry |
 | `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
@@ -213,76 +216,26 @@ As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 | `hipotese_legal_escolha_nao_oferecida` | Par exato ID#NOME não consta do AJAX observado |
 | `hipotese_legal_escolha_inline_nao_verificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
 
-## Reconciliação automática após resposta incerta (#245 — fatia em andamento)
+## Reconciliação depois do POST
 
-A confirmação atual ainda pode devolver `efeito_incerto_na_criacao`/saída 3
-quando o POST criador falha ou não apresenta resultado verificável.
-A reconciliação **ainda não está ligada à CLI** e não há autorização
-para repetir o POST de criação da UnB que já produziu
-`23106.001875/2026-93` (id 51731).
+As regras de comparação da caixa Gerados, classificação de candidatos,
+recusa expressa da Infra, HTTP 4xx inconclusivo e orçamentos por cenário
+estão no [contrato de reconciliação](processo-criar/reconciliacao.md).
 
-A primeira peça implementada, `src/processo_criar/reconciliacao.rs`,
-é pura, sem requisições. Ela lê dois retratos da lista **Gerados** pela
-infraestrutura de `paginas`, exige unidade conferida, total publicado,
-intervalo integral de 1 até o total e todas as linhas; recusa cobertura
-incompleta, identidade anterior alterada e desaparecimento de ID.
-Compara `id_procedimento` e NUP como valores opacos e devolve **candidatos**,
-sem atribuir causalidade ao POST. Lista vazia de candidatos **não**
-significa que a criação certamente não ocorreu: a caixa pode variar
-entre requisições e ainda falta verificar tipo/especificação em `processo NUP`.
-Não expõe links assinados, cookie ou `infra_hash`.
+## Catálogo de subcódigos da reconciliação
 
-Os oito testes sintéticos da fatia usam só HTML local, com
-**zero requisições e zero POST**. Ainda faltam a captura prévia de Gerados
-antes da escrita, sua leitura posterior sem repetir requests,
-a verificação dos NUPs, os quatro resultados de transporte injetado
-(aplicada, não aplicada, candidatos ambíguos e erro de reconciliação),
-as duas causas no erro final e a prova live. Não interpretar a peça
-offline como reconciliação completa.
+O significado e as condições de emissão permanecem no
+[complemento de reconciliação](processo-criar/reconciliacao.md).
 
-| Subcódigo | Fato |
+| Subcódigo | Fato verificável |
 | --- | --- |
 | `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
 | `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
 | `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
-
-### Guarda de segurança antes do POST (#245 — continuação)
-
-Na confirmação, depois de validar o cadastro e **antes do primeiro POST
-criador**, o fluxo monta uma fotografia de **Gerados** com a leitura do
-Controle já efetuada. Exige mesma unidade, total declarado e cobertura
-integral; legenda paginada/indeterminada recusa com causa tipada
-`gerados_sem_cobertura_completa_para_reconciliacao`, saída 1, **sem
-POST criador** e **sem GET extra**. A prévia permanece disponível.
-Esse é um pré-requisito da reconciliação, **não** sua implementação:
-ainda não há comparação posterior nem classificação automática da falha
-do POST. Não interpretar a proteção como escrita homologada em live.
-
-### Releitura conservadora pós-POST e candidatos (issue #245)
-
-Depois de uma falha observada **após iniciar o POST criador**, o fluxo faz
-**uma única nova leitura do Controle** na mesma sessão e compara Gerados
-com o retrato integral anterior. Orçamento de teste: **3 GET de prévia,
-1 POST criador e 1 GET de reconciliação = 5 pedidos, sem retry**.
-Se até essa leitura falha, a saída é 3 e preserva as duas causas.
-Se dá certo, ainda é saída 3: a diferença são **candidatos observados**,
-não prova da aplicação ou de que repetir a escrita é seguro.
-O JSON publica `causa_post`, `causa_releitura` e
-`candidatos_observados_na_caixa` (null se releitura falhou), mas nunca
-cookie, assinatura, URL ou hash.
-
-O classificador offline `processo_criar/desfechos.rs` usa candidatos e
-provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
-e especificação exatos; falta de leitura, identidade divergente,
-prova duplicada e propriedades não observadas são recusadas.
-Uma correspondência: `Aplicada`; duas ou mais: `CandidatosAmbiguos`;
-zero: `SemCorrespondenciaObservada` — **não** prova de não aplicação.
-O classificador ainda NÃO está ligado à leitura de propriedades no
-transporte. Os quatro desfechos automáticos e o ensaio live faltam.
-
-| Subcódigo | Fato |
-| --- | --- |
 | `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
 | `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
 | `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
 | `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
+| `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
+| `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
+| `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |

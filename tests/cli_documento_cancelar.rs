@@ -41,50 +41,6 @@ fn recusa_numero_invalido_sem_tocar_na_sessao() {
 }
 
 #[test]
-fn recusa_motivo_tipado_sem_subcodigo_antes_da_sessao() {
-    let casos = [
-        (
-            "   ",
-            "o motivo está vazio",
-            r#"{"causa":{"tipo":"MotivoVazio"},"codigo":"entrada_invalida","erro":"o motivo está vazio","retentavel":false}"#,
-        ),
-        (
-            "Motivo\ncom controle",
-            "o motivo contém caractere de controle",
-            r#"{"causa":{"tipo":"CaractereDeControleNoMotivo"},"codigo":"entrada_invalida","erro":"o motivo contém caractere de controle","retentavel":false}"#,
-        ),
-        (
-            "Cópia 🚀",
-            "o motivo não é representável em ISO-8859-1",
-            r#"{"causa":{"tipo":"MotivoNaoRepresentavelEmLatin1"},"codigo":"entrada_invalida","erro":"o motivo não é representável em ISO-8859-1","retentavel":false}"#,
-        ),
-    ];
-    for (motivo, mensagem, esperado) in casos {
-        for confirmar in [false, true] {
-            let mut args = vec!["documento", "cancelar", "0000101", "--motivo", motivo];
-            if confirmar {
-                args.push("--confirmar");
-            }
-            let humano = sem_sessao(&args);
-            assert_eq!(humano.status.code(), Some(2));
-            assert_eq!(humano.stdout, b"");
-            assert_eq!(
-                String::from_utf8(humano.stderr).unwrap(),
-                format!("IES: {mensagem}\n")
-            );
-            args.push("--json");
-            let resultado = sem_sessao(&args);
-            assert_eq!(resultado.status.code(), Some(2));
-            assert_eq!(resultado.stderr, b"");
-            assert_eq!(
-                String::from_utf8(resultado.stdout).unwrap(),
-                format!("{esperado}\n")
-            );
-        }
-    }
-}
-
-#[test]
 fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
     for confirmar in [false, true] {
         let mut args = vec![
@@ -101,5 +57,27 @@ fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
         let r = sem_sessao(&args);
         assert_eq!(r.status.code(), Some(1));
         assert_eq!(json(&r)["codigo"], "fonte_invalida");
+    }
+}
+
+#[test]
+fn motivo_e_texto_opaco_que_segue_ate_a_sessao() {
+    for motivo in ["", "   ", "  Revisão\nnecessária  ", "Cópia 🚀"] {
+        for confirmar in [false, true] {
+            let mut args = vec![
+                "documento",
+                "cancelar",
+                "0000101",
+                "--motivo",
+                motivo,
+                "--json",
+            ];
+            if confirmar {
+                args.push("--confirmar");
+            }
+            let saida = sem_sessao(&args);
+            assert_eq!(saida.status.code(), Some(1), "{motivo:?}");
+            assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+        }
     }
 }
