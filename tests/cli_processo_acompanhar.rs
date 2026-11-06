@@ -29,7 +29,10 @@ fn remocao_confirmada_permanece_bloqueada_antes_da_rede_ate_validacao() {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
-        assert_eq!(valor["subcodigo"], "confirmacao_de_acompanhamento_ainda_bloqueada");
+        assert_eq!(
+            valor["subcodigo"],
+            "confirmacao_de_acompanhamento_ainda_bloqueada"
+        );
         assert_eq!(valor["retentavel"], false);
     }
 }

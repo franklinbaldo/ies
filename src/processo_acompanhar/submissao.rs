@@ -52,8 +52,8 @@ pub(crate) fn derivar_inclusao(
     .map_err(ErroPrevia::Formulario)
 }
 
-/// Forma observada na UnB: o script da linha reescreve o `action`
-/// do formulário da lista e o oculto `hdnInfraItemId`, e chama submit().
+/// Forma observada na `UnB`: o script da linha reescreve o `action`
+/// do formulário da lista e o oculto `hdnInfraItemId`, e chama `submit()`.
 /// Não há botão de envio nesse caminho.
 const EXCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "acompanhamento_excluir",

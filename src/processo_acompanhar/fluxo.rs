@@ -191,6 +191,60 @@ fn selecionar_previa(
     })
 }
 
+/// Lê o gerenciador e a oferta de exclusão, sem enviar escrita.
+fn ler_gerenciador<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    instalacao: &Instalacao,
+    id: &str,
+    unidade: &str,
+    link: &str,
+    cookie: &str,
+    pedido: &Pedido<'_>,
+) -> Result<(Vec<Acompanhamento>, Option<String>, Option<SubmissaoDerivada>), ErroPrevia> {
+    let res = rede.get_sem_seguir(link, cookie)?;
+    let mut submissao: Option<SubmissaoDerivada> = None;
+    let (antes, url_cadastro) = if res.resposta.status_code == 302 {
+        let url = redirecionamento_do_gerenciar(instalacao, res.localizacao.as_deref(), link, id)?;
+        // O redirect, sozinho, não prova uma lista vazia. A tela de
+        // cadastro deve ser lida e identificada no processo correto.
+        if pedido.deixar {
+            let (html, _) = html_da_tela(rede, cookie, &url)?;
+            grupos_do_cadastro(&html, id)?;
+            (Vec::new(), None)
+        } else {
+            (Vec::new(), Some(url))
+        }
+    } else {
+        let mime = res.resposta.mime.clone();
+        let html = decodificar_resposta(res.resposta)?;
+        let antes = acompanhamentos_da_lista(&html)?;
+        if pedido.deixar && !antes.is_empty() {
+            let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
+            let destino =
+                super::exclusao::conferir_oferta_exclusao(instalacao, &html, id, &alvo.id)?;
+            if pedido.confirmar {
+                let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+                    .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+                let tela = crate::formulario_web::TelaServida {
+                    url: link,
+                    html: &html,
+                    codificacao,
+                };
+                submissao = Some(super::submissao::derivar_exclusao(
+                    instalacao, &tela, unidade, &alvo.id, &destino,
+                )?);
+            }
+        }
+        let url = if pedido.deixar {
+            None
+        } else {
+            Some(adicionar_da_lista(instalacao, &html, id)?)
+        };
+        (antes, url)
+    };
+    Ok((antes, url_cadastro, submissao))
+}
+
 /// Prévia completa sem escrita, no máximo um GET da lista, mais um do cadastro.
 pub(crate) fn previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -214,52 +268,15 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let id = aberto.arvore.processo.id;
     let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
-    let res = rede.get_sem_seguir(link.as_str(), &cookie)?;
-    let mut submissao: Option<SubmissaoDerivada> = None;
-    let (antes, url_cadastro) = if res.resposta.status_code == 302 {
-        let url = redirecionamento_do_gerenciar(
-            &instalacao,
-            res.localizacao.as_deref(),
-            link.as_str(),
-            &id,
-        )?;
-        // O redirect, sozinho, não prova uma lista vazia. A tela de
-        // cadastro deve ser lida e identificada no processo correto.
-        if pedido.deixar {
-            let (html, _) = html_da_tela(&mut rede, &cookie, &url)?;
-            grupos_do_cadastro(&html, &id)?;
-            (Vec::new(), None)
-        } else {
-            (Vec::new(), Some(url))
-        }
-    } else {
-        let mime = res.resposta.mime.clone();
-        let html = decodificar_resposta(res.resposta)?;
-        let antes = acompanhamentos_da_lista(&html)?;
-        if pedido.deixar && !antes.is_empty() {
-            let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
-            let destino =
-                super::exclusao::conferir_oferta_exclusao(&instalacao, &html, &id, &alvo.id)?;
-            if pedido.confirmar {
-                let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-                    .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
-                let tela = crate::formulario_web::TelaServida {
-                    url: link.as_str(),
-                    html: &html,
-                    codificacao,
-                };
-                submissao = Some(super::submissao::derivar_exclusao(
-                    &instalacao, &tela, &unidade, &alvo.id, &destino,
-                )?);
-            }
-        }
-        let url = if pedido.deixar {
-            None
-        } else {
-            Some(adicionar_da_lista(&instalacao, &html, &id)?)
-        };
-        (antes, url)
-    };
+    let (antes, url_cadastro, mut submissao) = ler_gerenciador(
+        &mut rede,
+        &instalacao,
+        &id,
+        &unidade,
+        link.as_str(),
+        &cookie,
+        pedido,
+    )?;
     let grupos = if pedido.deixar {
         None
     } else {
@@ -307,7 +324,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return confirmar_remocao(
             &mut rede,
             sessao,
-            ContextoRemocao {
+            &ContextoRemocao {
                 instalacao: &instalacao,
                 id: &id,
                 link: link.as_str(),
@@ -456,7 +473,7 @@ struct ContextoRemocao<'a> {
 fn confirmar_remocao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     sessao: &SessaoDoProcesso<'_>,
-    contexto: ContextoRemocao<'_>,
+    contexto: &ContextoRemocao<'_>,
     mut plano: Previa,
     submissao: SubmissaoDerivada,
 ) -> Result<Previa, ErroPrevia> {
