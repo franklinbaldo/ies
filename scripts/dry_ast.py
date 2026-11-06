@@ -5,7 +5,7 @@ Uso:
   uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --apply
   uvx --with tree-sitter==0.24.0 --with tree-sitter-rust==0.23.2 python scripts/dry_ast.py --check
 
-Percorre todos os arquivos Rust em src/. Somente a formatação JSON repetida,
+Percorre todos os arquivos Rust em src/. Somente a emissão JSON repetida,
 com sintaxe reconhecida, é reescrita. Clones de fluxos com efeitos remotos
 NUNCA são fundidos sem comprovação específica de equivalência semântica.
 """
@@ -102,25 +102,37 @@ def find_pretty(source, start, end):
 
 
 def transformations(path, source, root):
-    found = []
-    for n in nodes(root):
-        if in_test(path, n, source):
-            continue
-        if n.type == "token_tree" and n.parent is not None and n.parent.type == "macro_invocation":
-            found.extend(find_pretty(source, n.start_byte, n.end_byte))
-        if n.type == "call_expression":
-            fn = n.child_by_field_name("function")
-            if fn is None or fn.type != "field_expression":
-                continue
-            field = fn.child_by_field_name("field")
-            if field is None or code(field, source) not in (b"unwrap", b"unwrap_or_default", b"unwrap_or_else"):
-                continue
-            found.extend((a, b, x) for a, b, x in find_pretty(source, n.start_byte, n.end_byte)
-                         if a == n.start_byte and b == n.end_byte)
+    """Macro println!("{}", to_string_pretty(...).unwrap*) -> writer direto.
+
+    Conserva apenas chamadas totalmente reconhecidas por AST, nunca
+    reescreve prints parciais, formatos diferentes ou blocos de teste.
+    """
     selected = []
-    for a, b, x in sorted(set(found), key=lambda v: (v[0], -v[1])):
-        if not selected or a >= selected[-1][1]:
-            selected.append((a, b, x))
+    for n in nodes(root):
+        if n.type != "macro_invocation" or in_test(path, n, source):
+            continue
+        macro = n.child_by_field_name("macro")
+        if macro is None or code(macro, source) != b"println":
+            continue
+        tree = next((c for c in n.children if c.type == "token_tree"), None)
+        if tree is None:
+            continue
+        candidates = find_pretty(source, tree.start_byte, tree.end_byte)
+        if len(candidates) != 1:
+            continue
+        a, b, replacement = candidates[0]
+        prefix = source[tree.start_byte + 1:a].strip()
+        suffix = source[b:tree.end_byte - 1].strip()
+        if prefix != b'"{}",' or suffix not in (b"", b","):
+            continue
+        replacement = replacement.replace(b"json_pretty", b"imprimir_json", 1)
+        statement = (
+            b"if let Err(erro) = " + replacement + b" {\n"
+            b'    eprintln!("IES: falha ao emitir JSON: {erro}");\n'
+            b"    return std::process::ExitCode::from(1);\n"
+            b"}"
+        )
+        selected.append((n.start_byte, n.end_byte, statement))
     return selected
 
 
@@ -186,16 +198,20 @@ def audit():
 
 
 def helper(source):
-    if b"pub(crate) fn json_pretty(" in source:
+    if b"pub(crate) fn imprimir_json(" in source:
         return source
     anchor = b"use serde_json::{Value, json};\n"
     if source.count(anchor) != 1:
         raise ValueError("src/saida.rs: ancora de import nao encontrada")
     implementation = (
-        b"\n/// Formatacao unica da CLI: Value ja e uma arvore JSON valida.\n"
-        b"pub(crate) fn json_pretty(valor: &Value) -> String {\n"
-        b"    serde_json::to_string_pretty(valor)\n"
-        b'        .expect("serde_json::Value sempre pode ser serializado em String")\n'
+        b"\n/// Saida JSON da CLI, sem Value->String intermedio; o dominio continua tipado.\n"
+        b"pub(crate) fn imprimir_json(valor: &Value) -> serde_json::Result<()> {\n"
+        b"    use std::io::Write as _;\n"
+        b"    let saida = std::io::stdout();\n"
+        b"    let mut bloqueada = saida.lock();\n"
+        b"    serde_json::to_writer_pretty(&mut bloqueada, valor)?;\n"
+        b'    bloqueada.write_all(b"\\n")?;\n'
+        b"    Ok(())\n"
         b"}\n"
     )
     return source.replace(anchor, anchor + implementation)
@@ -207,8 +223,8 @@ def report(metrics, exact, shape, changed):
         "title: Auditoria DRY da codebase por AST",
         "description: Inventario de duplicacoes e normalizacao segura da apresentacao JSON",
         "---", "", "# Auditoria DRY da codebase Rust", "",
-        "Tree-sitter percorreu todos os fontes Rust em src/. Apenas a apresentacao JSON",
-        "foi unificada automaticamente; equivalencia textual nao prova equivalencia de",
+        "Tree-sitter percorreu todos os fontes Rust em src/. Apenas a emissao JSON",
+        "foi unificada por escrita direta no stdout; equivalencia textual nao prova equivalencia de",
         "dominios, e as regras de escrita no SEI permanecem separadas.", "",
         "## Metricas (antes do codemod)", "",
     ]
@@ -231,7 +247,7 @@ def report(metrics, exact, shape, changed):
         "- Clones analisados: corpos AST de funcoes com pelo menos 45 tokens.",
         "- Analise lexical de macros nao identifica todos os casos possiveis.",
         "- A mudanca exige cargo fmt, Clippy, testes Rust e contratos no CI.",
-        "- O codemod transforma apenas a serializacao JSON seguida de unwrap*.",
+        "- O codemod transforma apenas a serializacao JSON seguida de unwrap* em chamada de escrita direta.",
         "",
     ])
     return "\n".join(lines)
