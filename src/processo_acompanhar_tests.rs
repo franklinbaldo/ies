@@ -101,6 +101,49 @@ fn lista_identidades_duplicadas_falha_fechado() {
         )))
     );
 }
+// A lista da UnB usa posicoes fixas: 1=Grupo, 2=Observacao.
+// Uma coluna deslocada nao comprova o grupo para incluir/remover com seguranca.
+#[test]
+fn lista_recusa_cabecalho_com_colunas_invertidas() {
+    let html = tabela(&linha("831", "G", "Obs.")).replace(
+        "<th>Grupo</th><th>Observação</th>",
+        "<th>Observação</th><th>Grupo</th>",
+    );
+    assert_eq!(
+        acompanhamentos_da_lista(&html),
+        Err(ErroAcompanhar::Html(ErroHtml::valor(
+            "colunas_de_acompanhamentos_invalidas"
+        )))
+    );
+}
+
+#[test]
+fn lista_recusa_coluna_de_grupo_duplicada() {
+    let html = tabela(&linha("831", "G", "Obs."))
+        .replace("<th>Usuário</th>", "<th>Grupo</th>");
+    assert_eq!(
+        acompanhamentos_da_lista(&html),
+        Err(ErroAcompanhar::Html(ErroHtml::valor(
+            "colunas_de_acompanhamentos_invalidas"
+        )))
+    );
+}
+
+#[test]
+fn lista_recusa_linhas_antes_do_cabecalho() {
+    let cabecalho = "<tr><th></th><th>Grupo</th><th>Observação</th><th>Usuário</th><th>Data</th><th>Ações</th></tr>";
+    let html = format!(
+        "<table summary=\"Tabela de Acompanhamentos.\">{}{cabecalho}</table>",
+        linha("831", "G", "Obs.")
+    );
+    assert_eq!(
+        acompanhamentos_da_lista(&html),
+        Err(ErroAcompanhar::Html(ErroHtml::valor(
+            "colunas_de_acompanhamentos_invalidas"
+        )))
+    );
+}
+
 #[test]
 fn evita_duplicata_antes_de_enviar() {
     assert_eq!(
