@@ -30,3 +30,12 @@ comportamento sintético, não a compatibilidade ao vivo.
 - **RED:** [run 42218975613](https://github.com/franklinbaldo/ies/actions/runs/42218975613), 3 FAIL novos, 1.714 PASS, 22 ignored preexistentes. Um comentário de bloco, um literal de string e um script em template eram interpretados incorretamente como atividade confirmada.
 - **GREEN:** CI do head atualizado da PR #317 a conferir. A correção reaproveita o lexer estático do leitor documental para descartar chamadas dentro de comentário/literal e recusa scripts em template, sem executar JS.
 - **Requisições SEI nesta rodada:** 0. Prévia UnB NOT_RUN (0); segunda instalação NOT_RUN (0); confirmação NOT_RUN (0); releitura live NOT_RUN (0); replay específico NOT_RUN. **Zero escritas e zero resíduos.**
+
+
+## Regressão de controle de fluxo JS — 🦊 Raposa (06/11/2026)
+
+- **RED antes do código:** [CI 42223177117](https://github.com/franklinbaldo/ies/actions/runs/42223177117) — **3 FAIL novos / 1.717 PASS / 22 ignored preexistentes**. Os testes provaram que `if(false)` e função arbitrária não invocada eram aceitos como atividade; o fluxo podia retornar sucesso se a lista relida já trouxesse o ID.
+- **Correção:** só instrução independente no topo do script ou diretamente na função SEI `inicializar()` conta como aceite. Condições sem prova são recusadas. Não há execução de JS, regex, retry ou requisição adicional.
+- **GREEN:** CI do head corrigido a verificar; não atribuir PASS por transferência de outro SHA.
+- **Orçamento sintético do caso adversarial:** 3 GET de abertura + 1 GET de tela + 1 GET potencialmente mutador + 1 GET de releitura = **6 GET, exatamente 1 mutador e zero retries**; não consultar lista sem atividade publicada por aceite válido.
+- **Live:** UnB NOT_RUN (0 requisições); segunda instalação NOT_RUN (0); confirmação única NOT_RUN (0); verificação por leitura NOT_RUN (0). Replay específico de ciência NOT_RUN. **Nenhum acesso SEI, 0 escritas e 0 resíduos.**
