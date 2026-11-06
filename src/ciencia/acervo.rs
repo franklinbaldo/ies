@@ -123,8 +123,7 @@ fn cards_da_ciencia(raiz: &Path) -> Vec<PathBuf> {
             .filter(|path| {
                 path.file_name().is_some_and(|nome| {
                     let nome = nome.to_string_lossy();
-                    (nome.starts_with("processo-ciente-")
-                        || nome.starts_with("documento-ciente-"))
+                    (nome.starts_with("processo-ciente-") || nome.starts_with("documento-ciente-"))
                         && nome.ends_with(".md")
                 })
             })
@@ -174,7 +173,7 @@ fn replay_da_ciencia_no_acervo() {
         &mut relatorio,
         registros.iter().map(|r| {
             (
-                if r.leitor == "aceite da ciência" { 0 } else { 1 },
+                usize::from(r.leitor != "aceite da ciência"),
                 r.leitor,
                 r.instalacao.as_str(),
                 &r.resultado,

@@ -202,10 +202,7 @@ pub(crate) fn atividade_do_aceite(
     // ainda que o parser HTML exponha esses nós a query_selector("script").
     // Não inferir atividade de recarga inerte: poderia ser ciência antiga.
     let minusculas = html.to_ascii_lowercase();
-    for (abertura, fechamento) in [
-        ("<template", "</template"),
-        ("<noscript", "</noscript"),
-    ] {
+    for (abertura, fechamento) in [("<template", "</template"), ("<noscript", "</noscript")] {
         if minusculas.split(abertura).skip(1).any(|parte| {
             parte
                 .split(fechamento)
