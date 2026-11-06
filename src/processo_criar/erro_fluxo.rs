@@ -59,6 +59,8 @@ pub(crate) enum ErroCriar {
         causa_post: ErroSubmissaoFormulario,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
         correspondentes: Option<Vec<String>>,
+        /// Fotografia posterior já lida quando uma prova individual falha.
+        observados_antes_da_falha: Option<Vec<reconciliacao::CandidatoGerado>>,
     },
     /// O POST recebeu resposta sem prova de identidade; uma releitura
     /// única do Controle preserva o fato da resposta e a falha posterior.
@@ -66,6 +68,7 @@ pub(crate) enum ErroCriar {
         causa: CausaRespostaCriadora,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, Box<ErroCriar>>,
         correspondentes: Option<Vec<String>>,
+        observados_antes_da_falha: Option<Vec<reconciliacao::CandidatoGerado>>,
     },
     EfeitoIncerto,
 }
@@ -162,20 +165,28 @@ impl ErroCriar {
     /// O retorno não infere ausência quando não houve candidato novo.
     /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
     pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
-        let (causa_post, posterior, correspondentes) = match self {
+        let (causa_post, posterior, correspondentes, observados) = match self {
             Self::PosEscrita {
                 causa_post,
                 posterior,
                 correspondentes,
-            } => (causa_post.subcodigo(), posterior, correspondentes),
+                observados_antes_da_falha,
+            } => (
+                causa_post.subcodigo(),
+                posterior,
+                correspondentes,
+                observados_antes_da_falha,
+            ),
             Self::PosRespostaInesperada {
                 causa,
                 posterior,
                 correspondentes,
+                observados_antes_da_falha,
             } => (
                 crate::erro_publico::folha(causa),
                 posterior,
                 correspondentes,
+                observados_antes_da_falha,
             ),
             _ => return None,
         };
@@ -185,6 +196,7 @@ impl ErroCriar {
             candidatos_observados: posterior
                 .as_ref()
                 .ok()
+                .or(observados.as_ref())
                 .map(|candidatos| candidatos.iter().map(|c| c.nup.clone()).collect()),
             candidatos_compativeis: correspondentes.clone(),
         })

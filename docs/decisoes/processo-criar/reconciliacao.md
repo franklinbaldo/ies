@@ -157,3 +157,15 @@ O RED que precedeu esta distinção registrou 2 FAIL, 1.679 PASS e
 18 testes ignorados preexistentes no
 [CI 42187792547](https://github.com/franklinbaldo/ies/actions/runs/42187792547).
 A escrita live em outra instalação de treinamento ainda está NOT_RUN.
+
+### Observações preservadas mesmo se a conferência falhar (06/11, #245)
+
+A fotografia posterior completa prova quais NUPs foram observados na
+caixa Gerados, não sua autoria. Se a conferência de um candidato falhar
+por transporte, HTML ou propriedades, a saída 3 preserva a causa da
+falha **e** os candidatos já identificados. Antes, esse erro descartava
+o retrato e publicava `null` como se o Controle não tivesse sido lido.
+A alternativa de tratar o candidato como criação foi rejeitada: não há
+prova independente de tipo, especificação nem causalidade. O orçamento
+de regressão é 6 requisições (3 GET + 1 POST + 1 GET Controle + 1 GET
+verificador que falha), com um POST único e sem retry.

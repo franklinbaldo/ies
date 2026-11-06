@@ -116,3 +116,24 @@ Pendente: prova adicional de não aplicação onde houver, teste
 autenticado em outra instalação **de treinamento** com prévia →
 confirmação única → verificação por leitura e registro do resíduo.
 A issue continua WIP.
+
+## Continuação 🦉 — preservar observações após falha verificadora (06/11/2026)
+
+Uma leitura posterior do Controle pode identificar candidatos novos, mesmo
+que o GET seguinte da tela, árvore ou propriedades falhe. Antes, o
+relatório apresentava `candidatos_observados_na_caixa: null`, perdendo
+NUPs efetivamente vistos. A observação pré-RED veio da estrutura das
+fotografias de Gerados e do teste sintético de leitura já existente.
+
+O teste novo injeta falha de rede somente na leitura independente do
+candidato, depois de observar uma linha Gerados. Orçamento exato:
+**3 GET iniciais + 1 POST criador + 1 GET Controle + 1 GET falho = 6**.
+Mantém saída 3, causa do POST, causa da verificação e o NUP observado;
+não confirma aplicação, não repete a escrita e não divulga URL assinada.
+
+**RED:** [CI 42202730391](https://github.com/franklinbaldo/ies/actions/runs/42202730391),
+**1 FAIL, 1.695 PASS, 22 ignorados preexistentes**, falha na comparação
+`None` versus NUP observado. **GREEN:** conferir no CI do head final.
+**LIVE:** prévia NOT_RUN (0), confirmar NOT_RUN (0), releitura NOT_RUN (0);
+**0 requisições reais, 0 escritas, nenhum resíduo novo**. Não repetir
+`23106.001875/2026-93` (UnB de treinamento). A issue segue WIP.

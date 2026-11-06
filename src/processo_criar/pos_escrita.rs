@@ -21,6 +21,7 @@ impl CausaPosEscrita {
         self,
         posterior: Result<Vec<reconciliacao::CandidatoGerado>, ErroCriar>,
         correspondentes: Option<Vec<String>>,
+        observados_antes_da_falha: Option<Vec<reconciliacao::CandidatoGerado>>,
     ) -> ErroCriar {
         let posterior = posterior.map_err(Box::new);
         match self {
@@ -28,11 +29,13 @@ impl CausaPosEscrita {
                 causa_post,
                 posterior,
                 correspondentes,
+                observados_antes_da_falha,
             },
             Self::Resposta(causa) => ErroCriar::PosRespostaInesperada {
                 causa,
                 posterior,
                 correspondentes,
+                observados_antes_da_falha,
             },
         }
     }
@@ -146,11 +149,15 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
     requisicoes: &mut u32,
     causa: CausaPosEscrita,
 ) -> Result<(), ErroCriar> {
+    let mut observados_antes_da_falha = None;
     let posterior = (|| {
         let controle = get(envio, url_controle, cookie, requisicoes)?;
         let depois = reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
             .map_err(ErroCriar::Fotografia)?;
         let candidatos = antes.novos(&depois).map_err(ErroCriar::Fotografia)?;
+        // A fotografia já observou estes candidatos; uma falha posterior
+        // de conferência não torna os NUPs não observados no diagnóstico.
+        observados_antes_da_falha = Some(candidatos.clone());
         let mut provas = Vec::new();
         for candidato in &candidatos {
             provas.push(conferir_candidato(
@@ -177,9 +184,13 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             Ok(())
         }
         Ok((candidatos, Desfecho::CandidatosAmbiguos { nups })) => {
-            Err(causa.inconclusiva(Ok(candidatos), Some(nups)))
+            Err(causa.inconclusiva(Ok(candidatos), Some(nups), None))
         }
-        Ok((candidatos, _)) => Err(causa.inconclusiva(Ok(candidatos), None)),
-        Err(erro) => Err(causa.inconclusiva(Err(erro), None)),
+        Ok((candidatos, _)) => Err(causa.inconclusiva(Ok(candidatos), None, None)),
+        Err(erro) => Err(causa.inconclusiva(
+            Err(erro),
+            None,
+            observados_antes_da_falha,
+        )),
     }
 }
