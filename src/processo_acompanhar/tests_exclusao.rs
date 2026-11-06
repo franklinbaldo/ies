@@ -142,11 +142,7 @@ fn exclusao_recusa_funcao_global_sobrescrita_depois_da_declaracao() {
 fn exclusao_recusa_outra_instrucao_apos_funcao_observada() {
     // Sem interpretar JS, não provar que o código restante preserva
     // o significado da função. Falhar fechado evita falsa oferta.
-    let html = lista_observada("831").replacen(
-        "</script>",
-        "acaoExcluir = null;</script>",
-        1,
-    );
+    let html = lista_observada("831").replacen("</script>", "acaoExcluir = null;</script>", 1);
     assert_eq!(
         conferir_oferta_exclusao(&instalacao(), &html, "10", "831"),
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
