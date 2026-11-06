@@ -118,29 +118,29 @@ O registro cronológico integral (incluindo WIP, limites e contagens) foi preser
 ## Continuidade 🐙 — guarda de ramo inatingível (05/11/2026)
 
 - **Observação anterior ao RED:** no oráculo Todos
-  \`tests/paginas_reais/documento_gerar.html @323eb01\`,
-  a gravação é uma \`function submeter()\` com desabilitação,
-  atribuição da flag e \`frmDocumentoCadastro.submit()\` em sequência
-  direta. Uma instrução em \`if (false)\` não comprova escrita.
-- **Teste publicado antes da implementação:** commit \`58839c8\` adicionou
+  `tests/paginas_reais/documento_gerar.html @323eb01`,
+  a gravação é uma `function submeter()` com desabilitação,
+  atribuição da flag e `frmDocumentoCadastro.submit()` em sequência
+  direta. Uma instrução em `if (false)` não comprova escrita.
+- **Teste publicado antes da implementação:** commit `58839c8` adicionou
   casos integrados que devem recusar antes do POST quando a instrução
   está em ramo inatingível, função não relacionada ou aninhamento.
-  Commit \`569e8cd\` acrescentou caso positivo com o corpo do oráculo.
+  Commit `569e8cd` acrescentou caso positivo com o corpo do oráculo.
 - **RED observado:** [CI 42158719053](https://github.com/franklinbaldo/ies/actions/runs/42158719053),
   **1 teste FAIL, 1.659 PASS, 18 ignorados**; a falha
-  \`script_inerte_ou_duplicado_nao_autoriza_post_criador\` foi
-  \`requisição além do roteiro\`, evidência de POST indevido no cenário
+  `script_inerte_ou_duplicado_nao_autoriza_post_criador` foi
+  `requisição além do roteiro`, evidência de POST indevido no cenário
   roteirizado, sem qualquer contato real com o SEI.
 - **Correção:** a guarda passa a exigir script inteiro mínimo ou corpo
-  direto de \`function submeter()\` na ordem publicada; reconhecedor
-  separado em \`src/documento_criar/guarda_script.rs\`, sem regex ou
+  direto de `function submeter()` na ordem publicada; reconhecedor
+  separado em `src/documento_criar/guarda_script.rs`, sem regex ou
   execução de JS. Os adversariais afirmam **5 GET / 0 POST**.
 - **CI intermediário da implementação:** [run 42159144227](https://github.com/franklinbaldo/ies/actions/runs/42159144227)
   aprovou a suíte Rust, mas acusou Rustfmt e Clippy (função longa e
   constantes declaradas depois de instruções). O código foi modularizado
   sem desativar lint/teste, e novo CI é necessário no head final.
 - **Live da execução:** login **NOT_RUN**, prévia **NOT_RUN**,
-  \`--confirmar\` **NOT_RUN**, releitura independente **NOT_RUN**.
+  `--confirmar` **NOT_RUN**, releitura independente **NOT_RUN**.
   **0 requisições ao SEI, 0 POSTs reais, 0 documentos ou resíduos.**
   Não houve acesso a produção; só se escreverá em treinamento após
   prévia autenticada e gates verdes.
