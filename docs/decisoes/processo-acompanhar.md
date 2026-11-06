@@ -277,4 +277,4 @@ Orcamento novo: **4 GETs / 0 POSTs**, sem acesso real ao SEI.
 
 A validação posicional da tabela, a idempotência e as guardas de oferta
 inerte na inclusão e retirada estão detalhadas no
-[guia de integridade das ofertas](processo-acompanhar-integridade-ofertas.md).
+[guia de integridade das ofertas](../guias/processo-acompanhar-integridade-ofertas.md).
