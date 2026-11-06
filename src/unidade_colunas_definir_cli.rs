@@ -65,7 +65,7 @@ pub(crate) fn definir_colunas(
                 if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
                     eprintln!("IES: falha ao emitir JSON: {erro}");
                     return std::process::ExitCode::from(1);
-                };
+                }
             } else {
                 println!("{}", humano(&feito));
             }
