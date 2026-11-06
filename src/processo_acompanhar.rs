@@ -326,7 +326,6 @@ pub(crate) fn conferir_inclusao(
 }
 
 /// Só remova quando a identidade exata desaparecer e todo o resto for idêntico.
-#[cfg(test)]
 pub(crate) fn conferir_remocao(
     antes: &[Acompanhamento],
     depois: &[Acompanhamento],
