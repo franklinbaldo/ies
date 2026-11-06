@@ -22,32 +22,47 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroHipotese {
-    ConsultaNaoDeclarada,
-    ConsultaNaoDerivada,
-    RespostaNaoReconhecida,
+    // Formato de tela não é categoria de domínio: nome da fronteira HTML
+    // mantém o subcódigo público, enquanto a causa é tipada por Problema.
+    #[causa(transparente)]
+    Html(crate::erro_html::ErroHtml),
+    #[causa(nome = "hipotese_legal_ajax_nao_unica")]
     OpcaoNaoUnica,
+    #[causa(nome = "hipotese_legal_ajax_nao_unica")]
     OpcoesDisponiveis(Vec<(String, String)>),
+    #[causa(nome = "hipotese_legal_escolha_nao_oferecida")]
     EscolhaNaoOferecida,
+    #[causa(nome = "hipotese_legal_escolha_inline_nao_verificada")]
     EscolhaInlineNaoVerificada,
-    Transporte {
-        subcodigo: &'static str,
-        http: Option<StatusHttpRecusado>,
-    },
+    // A causa concreta sobe, em vez de extrair nome de texto e
+    // reconstruir um snapshot que perderia a variante original.
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
 }
 
 impl ErroHipotese {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::ConsultaNaoDeclarada => "hipotese_legal_ajax_nao_declarada",
-            Self::ConsultaNaoDerivada => "hipotese_legal_ajax_nao_derivada",
-            Self::RespostaNaoReconhecida => "hipotese_legal_ajax_resposta_nao_reconhecida",
-            Self::OpcaoNaoUnica | Self::OpcoesDisponiveis(_) => "hipotese_legal_ajax_nao_unica",
-            Self::EscolhaNaoOferecida => "hipotese_legal_escolha_nao_oferecida",
-            Self::EscolhaInlineNaoVerificada => "hipotese_legal_escolha_inline_nao_verificada",
-            Self::Transporte { subcodigo, .. } => subcodigo,
-        }
+        crate::erro_publico::folha(self)
+    }
+
+    fn consulta_nao_declarada() -> Self {
+        Self::Html(crate::erro_html::ErroHtml::ausente(
+            "hipotese_legal_ajax_nao_declarada",
+        ))
+    }
+
+    fn consulta_nao_derivada() -> Self {
+        Self::Html(crate::erro_html::ErroHtml::valor(
+            "hipotese_legal_ajax_nao_derivada",
+        ))
+    }
+
+    fn resposta_nao_reconhecida() -> Self {
+        Self::Html(crate::erro_html::ErroHtml::html(
+            "hipotese_legal_ajax_resposta_nao_reconhecida",
+        ))
     }
 
     /// Somente opções distintas, habilitadas e imprimíveis realmente vistas no
@@ -60,17 +75,11 @@ impl ErroHipotese {
     }
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte { http, .. } => http.as_ref(),
-            _ => None,
-        }
+        crate::erro_publico::Causa::status_http(self)
     }
 
     fn de_transporte(falha: &FalhaTransporte) -> Self {
-        Self::Transporte {
-            subcodigo: falha.subcodigo(),
-            http: falha.status_http().cloned(),
-        }
+        Self::Transporte(falha.clone())
     }
 }
 
@@ -85,7 +94,7 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
         .collect();
     match urls.as_slice() {
         [url] if url.starts_with("controlador_ajax.php?") => Ok((*url).to_owned()),
-        _ => Err(ErroHipotese::ConsultaNaoDeclarada),
+        _ => Err(ErroHipotese::consulta_nao_declarada()),
     }
 }
 
@@ -93,34 +102,34 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
 fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
     use ErroHipotese as E;
     let dom =
-        tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::RespostaNaoReconhecida)?;
+        tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::resposta_nao_reconhecida())?;
     let mut selects = dom.query_selector("select").into_iter().flatten();
-    let select = selects.next().ok_or(E::RespostaNaoReconhecida)?;
+    let select = selects.next().ok_or(E::resposta_nao_reconhecida())?;
     if selects.next().is_some() {
-        return Err(E::RespostaNaoReconhecida);
+        return Err(E::resposta_nao_reconhecida());
     }
     let parser = dom.parser();
     let tag = select
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(E::RespostaNaoReconhecida)?;
+        .ok_or(E::resposta_nao_reconhecida())?;
     let mut opcoes = Vec::new();
     for handle in tag.query_selector(parser, "option").into_iter().flatten() {
         let opcao = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::RespostaNaoReconhecida)?;
-        if atributo_presente(opcao, "disabled").map_err(|_| E::RespostaNaoReconhecida)? {
+            .ok_or(E::resposta_nao_reconhecida())?;
+        if atributo_presente(opcao, "disabled").map_err(|_| E::resposta_nao_reconhecida())? {
             continue;
         }
-        let valor = valor_do_atributo(opcao, "value").map_err(|_| E::RespostaNaoReconhecida)?;
+        let valor = valor_do_atributo(opcao, "value").map_err(|_| E::resposta_nao_reconhecida())?;
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };
         let texto =
             crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
         if texto.trim().is_empty() {
-            return Err(E::RespostaNaoReconhecida);
+            return Err(E::resposta_nao_reconhecida());
         }
         opcoes.push((id, texto.trim().to_owned()));
     }
@@ -155,7 +164,7 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
         // Mesmo uma opção única pode ter vindo contaminada do XML remoto.
         // Não publicar seu ID nem enviá-lo no formulário de criação.
         [(id, nome)] if id.contains('#') || !publicavel(id) || !publicavel(nome) => {
-            Err(ErroHipotese::RespostaNaoReconhecida)
+            Err(ErroHipotese::resposta_nao_reconhecida())
         }
         [(id, _)] => Ok(id.clone()),
         [] => Err(ErroHipotese::OpcaoNaoUnica),
@@ -194,7 +203,7 @@ pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<Stri
     if opcoes.iter().any(|(id_lido, nome_lido)| {
         id_lido.contains('#') || !publicavel(id_lido) || !publicavel(nome_lido)
     }) {
-        return Err(E::RespostaNaoReconhecida);
+        return Err(E::resposta_nao_reconhecida());
     }
     for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
         if opcoes[..indice].iter().any(|(outro, _)| outro == id_lido) {
@@ -235,7 +244,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             ("staNivelAcesso", "1"),
         ],
     )
-    .map_err(|_| E::ConsultaNaoDerivada)?;
+    .map_err(|_| E::consulta_nao_derivada())?;
     *requisicoes += 1;
     let resposta = envio
         .post(consulta, cookie)
@@ -254,12 +263,12 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             .trim(),
         "application/xml" | "text/xml"
     ) {
-        return Err(E::RespostaNaoReconhecida);
+        return Err(E::resposta_nao_reconhecida());
     }
     let mime = resposta.resposta.mime.clone();
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(|f| E::de_transporte(&f))?;
-    let xml = decode_http_body(&bytes, &mime).map_err(|_| E::RespostaNaoReconhecida)?;
+    let xml = decode_http_body(&bytes, &mime).map_err(|_| E::resposta_nao_reconhecida())?;
     opcao_selecionada(&xml, escolha)
 }
 
@@ -369,10 +378,10 @@ mod tests {
         // mesmo quando só existe uma hipótese habilitada.
         let xml =
             "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
-        assert_eq!(opcao_unica(xml), Err(ErroHipotese::RespostaNaoReconhecida));
+        assert_eq!(opcao_unica(xml), Err(ErroHipotese::resposta_nao_reconhecida()));
         assert_eq!(
             opcao_selecionada(xml, Some("https://example.invalid/marcador#Base A")),
-            Err(ErroHipotese::RespostaNaoReconhecida)
+            Err(ErroHipotese::resposta_nao_reconhecida())
         );
     }
 
@@ -383,9 +392,9 @@ mod tests {
         let xml = "<select><option value='31'>https://example.invalid/marcador</option></select>";
         assert_eq!(
             opcao_selecionada(xml, Some("31#https://example.invalid/marcador")),
-            Err(ErroHipotese::RespostaNaoReconhecida)
+            Err(ErroHipotese::resposta_nao_reconhecida())
         );
-        assert_eq!(opcao_unica(xml), Err(ErroHipotese::RespostaNaoReconhecida));
+        assert_eq!(opcao_unica(xml), Err(ErroHipotese::resposta_nao_reconhecida()));
     }
 
     #[test]
@@ -393,7 +402,7 @@ mod tests {
         let xml = "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/marcador</option></select>";
         assert_eq!(
             opcao_selecionada(xml, Some("31#Base A")),
-            Err(ErroHipotese::RespostaNaoReconhecida)
+            Err(ErroHipotese::resposta_nao_reconhecida())
         );
     }
 
@@ -404,7 +413,7 @@ mod tests {
         );
         assert_eq!(
             url_publicada(&format!("{linha}\n{linha}")),
-            Err(ErroHipotese::ConsultaNaoDeclarada)
+            Err(ErroHipotese::consulta_nao_declarada())
         );
     }
     #[test]
