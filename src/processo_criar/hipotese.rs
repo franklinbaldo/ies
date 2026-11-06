@@ -407,4 +407,26 @@ mod tests {
             Err(ErroHipotese::ConsultaNaoDeclarada)
         );
     }
+    #[test]
+    fn causa_ajax_preserva_folhas_e_tipo_estrutural() {
+        use crate::erro_publico::{caminho_de, folha};
+        let ausente = url_publicada("<html></html>").expect_err("URL não publicada");
+        assert_eq!(folha(&ausente), "hipotese_legal_ajax_nao_declarada");
+        assert_eq!(caminho_de(&ausente), ["html", "ausente"]);
+        let transporte = ErroHipotese::de_transporte(&FalhaTransporte::Rede);
+        assert_eq!(folha(&transporte), "falha_de_rede");
+        assert_eq!(caminho_de(&transporte), ["transporte", "rede"]);
+    }
+
+    #[test]
+    fn causa_ajax_propagada_mantem_http_saneado() {
+        use crate::erro_publico::folha;
+        let falha = FalhaTransporte::StatusHttpDeErroDoServidor(
+            StatusHttpRecusado::sem_mensagem(503),
+        );
+        let erro = ErroHipotese::de_transporte(&falha);
+        assert_eq!(folha(&erro), "status_http_de_erro_do_servidor");
+        assert_eq!(erro.status_http().map(|http| http.status), Some(503));
+    }
+
 }
