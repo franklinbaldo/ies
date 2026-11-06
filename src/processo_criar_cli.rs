@@ -147,7 +147,10 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar) -> ExitCode {
                 eprintln!("IES: causa da releitura: {causa}");
             }
             if let Some(nups) = candidatos {
-                eprintln!("IES: candidatos observados (sem comprovação de criação): {}", nups.len());
+                eprintln!(
+                    "IES: candidatos observados (sem comprovação de criação): {}",
+                    nups.len()
+                );
                 for nup in nups {
                     eprintln!("  {nup}");
                 }
