@@ -422,14 +422,22 @@ pub(crate) fn criar<V: EnvioDoControle>(
         // outro agente na conta compartilhada. Não consultar Gerados depois.
         Err(causa_post)
             if tentou
-                && (matches!(
+                && matches!(
                     &causa_post,
                     crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
-                ) || causa_post
-                    .status_http()
-                    .is_some_and(|status| (400..500).contains(&status.status))) =>
+                ) =>
         {
             return Err(E::RecusaDoPost(causa_post));
+        }
+        // HTTP 4xx isolado pode vir de intermediário: nem prova de recusa
+        // do SEI nem permissão para atribuir um candidato concorrente.
+        Err(causa_post)
+            if tentou
+                && causa_post
+                    .status_http()
+                    .is_some_and(|status| (400..500).contains(&status.status)) =>
+        {
+            return Err(E::RespostaHttpSemProva(causa_post));
         }
         Err(causa_post) if tentou => {
             pos_escrita::reconciliar(
