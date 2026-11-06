@@ -184,13 +184,17 @@ fn ancestral_inerte(dom: &tl::VDom<'_>, botao: &tl::HTMLTag<'_>) -> Result<bool,
         if !(oculto || inerte || campo_desabilitado) {
             continue;
         }
-        let mut descendentes = ancestral.children().all(dom.parser());
-        while let Some(filho) = descendentes.pop() {
-            if let Some(tag) = filho.as_tag() {
-                if std::ptr::eq(tag, botao) {
+        // tl devolve uma fatia imutável em children().all(); o intervalo
+        // de descendentes do parser permite incluir netos sem clones.
+        if let Some((inicio, fim)) = ancestral.children().boundaries(dom.parser()) {
+            for indice in inicio..=fim {
+                if tl::NodeHandle::new(indice)
+                    .get(dom.parser())
+                    .and_then(tl::Node::as_tag)
+                    .is_some_and(|tag| std::ptr::eq(tag, botao))
+                {
                     return Ok(true);
                 }
-                descendentes.extend(tag.children().all(dom.parser()));
             }
         }
     }
