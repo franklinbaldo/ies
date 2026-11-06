@@ -27,7 +27,11 @@ impl FotoDaCriacao {
 /// O 302 não é seguido, mas só serve de indício se seu destino
 /// continuar no controlador HTTPS da própria instalação. Um Location
 /// externo/inválido pode coincidir com criação concorrente na árvore.
-fn redirecionamento_do_mesmo_controlador(localizacao: &str, url_do_envio: &str) -> bool {
+fn redirecionamento_do_mesmo_controlador(
+    localizacao: &str,
+    url_do_envio: &str,
+    id_novo: &str,
+) -> bool {
     let Some(origem) = crate::url_observada::UrlHttps::interpretar(url_do_envio) else {
         return false;
     };
@@ -54,12 +58,16 @@ fn redirecionamento_do_mesmo_controlador(localizacao: &str, url_do_envio: &str) 
             .or_else(|| localizacao.strip_prefix(&format!("/{}?", origem.caminho)))
     };
     consulta.is_some_and(|consulta| {
-        consulta
+        // A resposta precisa identificar o próprio documento observado na
+        // árvore, não apenas navegar para qualquer ação do controlador.
+        let mut acoes = consulta.split('&').filter_map(|campo| campo.strip_prefix("acao="));
+        let mut ids = consulta
             .split('&')
-            .filter_map(|campo| campo.strip_prefix("acao="))
-            .filter(|acao| !acao.is_empty())
-            .count()
-            == 1
+            .filter_map(|campo| campo.strip_prefix("id_documento="));
+        acoes.next() == Some("documento_visualizar")
+            && acoes.next().is_none()
+            && ids.next() == Some(id_novo)
+            && ids.next().is_none()
     })
 }
 
@@ -94,23 +102,37 @@ where
     let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
         enviar(transporte, post, cookie)
     });
-    let depois = reler(transporte).map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
+    // Sempre fazer uma leitura independente mesmo após erro do POST.
+    // Não perder a causa de envio quando a árvore muda concorrentemente
+    // ou quando a releitura é inconclusiva.
+    let depois = reler(transporte);
+    let resposta = match resposta {
+        Ok(resposta) => resposta,
+        Err(causa) => return Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(causa)),
+    };
+    let depois = depois.map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
     if depois.pastas_nao_carregadas || antes.id != depois.id {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
         .map_err(|_| ErroPreviaCriacao::EfeitoIncerto)?;
-    // 302 sem Location não é uma resposta de navegação válida.
-    // Mesmo que a árvore tenha mudado, pode ser escrita concorrente;
-    // não atribuir essa alteração a um POST de resultado inconclusivo.
+    let id_novo = depois
+        .documentos
+        .iter()
+        .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
+        .map(|doc| doc.id.as_str())
+        .ok_or(ErroPreviaCriacao::EfeitoIncerto)?;
+    // HTML 200 genérico não confirma que o servidor aceitou a gravação.
+    // Em conta compartilhada, a mudança da árvore pode ser concorrente.
+    // Só o redirecionamento observado para o ID do documento novo serve
+    // de indício adicional, ainda condicionado à releitura independente.
     let resposta_conferivel = match &resposta {
-        Ok(RespostaDoEnvio::Html(_)) => true,
-        Ok(RespostaDoEnvio::Redirecionamento(redirect)) => {
+        RespostaDoEnvio::Html(_) => false,
+        RespostaDoEnvio::Redirecionamento(redirect) => {
             redirect.localizacao().is_some_and(|destino| {
-                redirecionamento_do_mesmo_controlador(destino, redirect.url_do_envio())
+                redirecionamento_do_mesmo_controlador(destino, redirect.url_do_envio(), id_novo)
             })
         }
-        Err(_) => false,
     };
     if !resposta_conferivel {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
