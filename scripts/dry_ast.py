@@ -133,7 +133,8 @@ def transformations(path, source, root):
             + recuo + b"    return std::process::ExitCode::from(1);\n"
             + recuo + b"}"
         )
-        selected.append((n.start_byte, n.end_byte, statement))
+        fim = n.end_byte + (source[n.end_byte:n.end_byte+1] == b";")
+        selected.append((n.start_byte, fim, statement))
     return selected
 
 
