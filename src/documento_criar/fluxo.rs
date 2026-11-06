@@ -73,6 +73,58 @@ const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
+/// Apenas uma instrução ativa no <script> servido autoriza reescrever
+/// o oculto de cadastro. HTML inerte, tipo JSON e comentários não
+/// demonstram comportamento do formulário; não se executa JavaScript.
+/// A forma não observada é recusada ANTES de iniciar o POST criador.
+fn cadastro_publica_script_de_criacao(html: &str) -> bool {
+    const INSTRUCAO: &str =
+        "document.getElementById('hdnFlagDocumentoCadastro').value = '2';";
+    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
+        return false;
+    };
+    let mut ocorrencias = 0;
+    for no in dom.query_selector("script").into_iter().flatten() {
+        let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
+            return false;
+        };
+        let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
+            return false;
+        };
+        if tipo
+            .as_deref()
+            .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
+        {
+            continue;
+        }
+        let texto = script.inner_text(dom.parser());
+        let mut em_comentario_de_bloco = false;
+        for linha in texto.lines() {
+            let linha = linha.trim();
+            if em_comentario_de_bloco {
+                if linha.contains("*/") {
+                    em_comentario_de_bloco = false;
+                }
+                continue;
+            }
+            if linha.starts_with("/*") {
+                em_comentario_de_bloco = !linha.contains("*/");
+                continue;
+            }
+            if linha.starts_with("//") {
+                continue;
+            }
+            if linha == INSTRUCAO {
+                ocorrencias += 1;
+                if ocorrencias > 1 {
+                    return false;
+                }
+            }
+        }
+    }
+    ocorrencias == 1
+}
+
 pub(crate) struct PedidoCriacao<'a> {
     pub(crate) nup: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
@@ -278,7 +330,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         Some("publico"),
     )
     .map_err(E::Tipo)?;
-    if !html_cadastro.contains("document.getElementById('hdnFlagDocumentoCadastro').value = '2'") {
+    if !cadastro_publica_script_de_criacao(&html_cadastro) {
         return Err(E::SubmissaoNaoComprovada);
     }
     // Pasta fechada oculta documentos: impossível provar uma criação única.
