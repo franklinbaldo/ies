@@ -309,9 +309,7 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
         E::MarcasDiferentesDoAlvoAposSalvar { observadas, .. } => {
             linhas.push(format!("IES: {}", linha("observadas", observadas)));
         }
-        E::EfeitoIncertoNaConfiguracaoDeColunas {
-            verificacao, ..
-        } => {
+        E::EfeitoIncertoNaConfiguracaoDeColunas { verificacao, .. } => {
             if let VerificacaoDasColunas::Marcadas(observadas) = verificacao.as_ref() {
                 linhas.push(format!("IES: {}", linha("observadas", observadas)));
             }
@@ -320,10 +318,12 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
     }
 
     let falha = match erro {
-        E::ConfiguracaoDeColunasNaoAplicada { falha_do_salvar, .. }
-        | E::EfeitoIncertoNaConfiguracaoDeColunas { falha_do_salvar, .. } => {
-            falha_do_salvar.as_ref()
+        E::ConfiguracaoDeColunasNaoAplicada {
+            falha_do_salvar, ..
         }
+        | E::EfeitoIncertoNaConfiguracaoDeColunas {
+            falha_do_salvar, ..
+        } => falha_do_salvar.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha {
