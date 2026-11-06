@@ -99,5 +99,5 @@ fn saida_tipificada_serializa_direto_sem_value_intermediario() {
     assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
     let texto = String::from_utf8(bytes).unwrap();
     assert!(!texto.contains("infra_hash") && !texto.contains("PHPSESSID"));
-    assert!(!texto.contains("\u{1b}"));
+    assert!(!texto.contains('\u{1b}'));
 }
