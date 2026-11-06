@@ -13,7 +13,10 @@ use crate::propriedades_processo::tests_apoio::{
 fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
-        &[acao_da_barra(&link_das_propriedades("procedimento_alterar", "10"))],
+        &[acao_da_barra(&link_das_propriedades(
+            "procedimento_alterar",
+            "10",
+        ))],
     )
 }
 
