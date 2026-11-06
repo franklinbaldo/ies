@@ -142,55 +142,62 @@ pub(crate) struct PreviaCriacao {
     pub(crate) numero_sei: Option<String>,
 }
 
+#[derive(crate::erro_publico::Causa)]
 pub(crate) enum ErroPreviaCriacao {
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
+    #[causa(interna)]
     Transporte(FalhaTransporte),
+    #[causa(nome = "unidade_da_sessao_nao_publicada")]
     UnidadeNaoPublicada,
+    #[causa(nome = "situacao_do_processo_nao_lida_antes_de_criar_documento")]
     SituacaoNaoLida,
+    #[causa(nome = "processo_nao_aberto_na_unidade_da_sessao")]
     ProcessoNaoAbertoNaUnidade,
+    #[causa(interna)]
     Link(ErroLinkIncluirDocumento),
+    #[causa(nome = "incluir_documento_nao_publicado_na_barra")]
     LinkNaoPublicado,
-    Tela(FalhaDaTela),
+    #[causa(interna)]
+    TelaTransporte(FalhaTransporte),
+    #[causa(nome = "tela_de_criacao_redirecionada")]
+    TelaRedirecionada,
+    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    SessaoEncerrada,
+    #[causa(interna)]
     Tipo(ErroCriar),
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
+    #[causa(nome = "nivel_de_documento_nao_informado_para_escrita")]
     NivelNaoInformado,
+    #[causa(nome = "nivel_de_documento_requer_hipotese_legal")]
     NivelRestritoSemHipotese,
+    #[causa(nome = "submissao_do_documento_nao_observada")]
     SubmissaoNaoComprovada,
+    #[causa(nome = "arvore_de_documentos_incompleta")]
     ArvoreIncompleta,
+    #[causa(nome = "foto_inicial_de_documentos_inconsistente")]
     FotoInicialInconsistente,
+    #[causa(nome = "efeito_incerto_na_criacao_de_documento", acao = "conferir_escrita")]
     EfeitoIncerto,
 }
 impl ErroPreviaCriacao {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Transporte(erro) | Self::Tela(FalhaDaTela::Transporte(erro)) => erro.subcodigo(),
-            Self::UnidadeNaoPublicada => "unidade_da_sessao_nao_publicada",
-            Self::SituacaoNaoLida => "situacao_do_processo_nao_lida_antes_de_criar_documento",
-            Self::ProcessoNaoAbertoNaUnidade => "processo_nao_aberto_na_unidade_da_sessao",
-            Self::Link(erro) => erro.subcodigo(),
-            Self::LinkNaoPublicado => "incluir_documento_nao_publicado_na_barra",
-            Self::Tela(FalhaDaTela::Redirecionada) => "tela_de_criacao_redirecionada",
-            Self::Tela(FalhaDaTela::SessaoEncerrada) => "sessao_encerrada_rode_ies_login",
-            Self::Tipo(erro) => erro.subcodigo(),
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::NivelNaoInformado => "nivel_de_documento_nao_informado_para_escrita",
-            Self::NivelRestritoSemHipotese => "nivel_de_documento_requer_hipotese_legal",
-            Self::SubmissaoNaoComprovada => "submissao_do_documento_nao_observada",
-            Self::ArvoreIncompleta => "arvore_de_documentos_incompleta",
-            Self::FotoInicialInconsistente => "foto_inicial_de_documentos_inconsistente",
-            Self::EfeitoIncerto => "efeito_incerto_na_criacao_de_documento",
-        }
+        crate::erro_publico::folha(self)
     }
+
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http(),
-            Self::Formulario(erro) => erro.status_http(),
-            Self::Transporte(erro) | Self::Tela(FalhaDaTela::Transporte(erro)) => {
-                erro.status_http()
-            }
-            _ => None,
-        }
+        crate::erro_publico::Causa::status_http(self)
+    }
+}
+
+/// A falha da tela é traduzida para uma causa específica desta operação.
+/// O transporte mantém a causa original; redirecionamento e login são fatos.
+fn erro_da_tela(falha: FalhaDaTela) -> ErroPreviaCriacao {
+    match falha {
+        FalhaDaTela::Transporte(falha) => ErroPreviaCriacao::TelaTransporte(falha),
+        FalhaDaTela::Redirecionada => ErroPreviaCriacao::TelaRedirecionada,
+        FalhaDaTela::SessaoEncerrada => ErroPreviaCriacao::SessaoEncerrada,
     }
 }
 
@@ -233,7 +240,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let link = acoes.incluir.map_err(E::Link)?.ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
     let (mut html_lista, mime_lista) =
-        obter_tela(&mut rede, &cookie, link.as_str()).map_err(E::Tela)?;
+        obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
     if !tipos.iter().any(|nome| nome == pedido.tipo)
         && filtro_de_todos(&html_lista).map_err(E::Tipo)?
@@ -307,7 +314,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         }
     };
     let (html_cadastro, mime_cadastro) =
-        obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(E::Tela)?;
+        obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(erro_da_tela)?;
     conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)
         .map_err(E::Tipo)?;
     let mut feito = PreviaCriacao {
