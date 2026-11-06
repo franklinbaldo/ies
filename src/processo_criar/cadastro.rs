@@ -12,6 +12,11 @@ pub(crate) enum ErroCadastro {
     #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
     HipoteseLegalNaoIdentificada,
+    #[causa(nome = "especificacao_acima_do_limite_do_cadastro")]
+    EspecificacaoAcimaDoLimite {
+        limite: usize,
+        tamanho: usize,
+    },
     #[causa(transparente)]
     Html(ErroHtml),
 }
@@ -29,7 +34,23 @@ pub(crate) struct CadastroObservado {
     pub(crate) id_assunto: String,
     pub(crate) nivel: String,
     pub(crate) hipotese_legal: Option<String>,
+    pub(crate) limite_especificacao: Option<usize>,
 }
+
+impl CadastroObservado {
+    /// O maxlength de input é contado em unidades UTF-16, como no navegador.
+    /// Sem atributo no formulário servido, não inferir limite universal.
+    pub(crate) fn validar_especificacao(&self, especificacao: &str) -> Result<(), ErroCadastro> {
+        if let Some(limite) = self.limite_especificacao {
+            let tamanho = especificacao.encode_utf16().count();
+            if tamanho > limite {
+                return Err(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho });
+            }
+        }
+        Ok(())
+    }
+}
+
 
 /// Valida que o cadastro efetivamente ofereceu tipo, descrição, um assunto
 /// sugerido e o nível pedido. Não autoriza uma submissão: a ação, todos
@@ -78,6 +99,7 @@ fn conferir_cadastro_interno(
 
     let mut ids = Vec::new();
     let mut descricoes = 0;
+    let mut limite_especificacao = None;
     let mut radios = Vec::new();
     for handle in form.query_selector(parser, "input").into_iter().flatten() {
         let tag = handle
@@ -99,6 +121,16 @@ fn conferir_cadastro_interno(
                 {
                     return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
                 }
+                // Usar apenas o limite publicado neste cadastro, nunca
+                // um valor fixo extrapolado de outras instalações.
+                limite_especificacao = valor_do_atributo(tag, "maxlength")
+                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                    .map(|literal| {
+                        literal.parse::<usize>().map_err(|_| {
+                            ErroHtml::valor("limite_da_especificacao_invalido_no_cadastro")
+                        })
+                    })
+                    .transpose()?;
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
@@ -140,6 +172,7 @@ fn conferir_cadastro_interno(
         id_assunto,
         nivel: nivel.to_owned(),
         hipotese_legal,
+        limite_especificacao,
     })
 }
 
