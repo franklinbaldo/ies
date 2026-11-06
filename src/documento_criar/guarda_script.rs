@@ -60,6 +60,31 @@ fn conferir_passos(
     Some(())
 }
 
+fn identificar_bloco(
+    prefixo: &str,
+    blocos: &[Bloco],
+    funcoes_submeter: &mut usize,
+    funcoes_confirmar: &mut usize,
+) -> Option<Bloco> {
+    if blocos.is_empty() && prefixo.trim() == "function submeter()" {
+        *funcoes_submeter += 1;
+        if *funcoes_submeter > 1 {
+            return None;
+        }
+        Some(Bloco::Submeter)
+    } else if blocos.is_empty() && prefixo.trim() == "function confirmarDados()" {
+        *funcoes_confirmar += 1;
+        if *funcoes_confirmar > 1 {
+            return None;
+        }
+        Some(Bloco::ConfirmarDados)
+    } else if blocos == [Bloco::ConfirmarDados] && prefixo.trim() == "if (OnSubmitForm())" {
+        Some(Bloco::ConferirFormulario)
+    } else {
+        Some(Bloco::Outro)
+    }
+}
+
 fn avancar_regex<I: Iterator<Item = char>>(
     caractere: char,
     restantes: &mut I,
@@ -116,30 +141,12 @@ fn contar_instrucoes(texto: &str) -> Option<(usize, usize, usize)> {
                             dentro_de_classe: false,
                         };
                     }
-                    '{' => {
-                        let bloco = if blocos.is_empty() && prefixo.trim() == "function submeter()"
-                        {
-                            funcoes_submeter += 1;
-                            if funcoes_submeter > 1 {
-                                return None;
-                            }
-                            Bloco::Submeter
-                        } else if blocos.is_empty() && prefixo.trim() == "function confirmarDados()"
-                        {
-                            funcoes_confirmar += 1;
-                            if funcoes_confirmar > 1 {
-                                return None;
-                            }
-                            Bloco::ConfirmarDados
-                        } else if blocos.as_slice() == [Bloco::ConfirmarDados]
-                            && prefixo.trim() == "if (OnSubmitForm())"
-                        {
-                            Bloco::ConferirFormulario
-                        } else {
-                            Bloco::Outro
-                        };
-                        blocos.push(bloco);
-                    }
+                    '{' => blocos.push(identificar_bloco(
+                        &prefixo,
+                        &blocos,
+                        &mut funcoes_submeter,
+                        &mut funcoes_confirmar,
+                    )?),
                     '}' => match blocos.pop()? {
                         Bloco::Submeter => {
                             if passo_submeter != 3 {
