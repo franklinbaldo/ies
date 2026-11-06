@@ -166,3 +166,20 @@ detectou falso `Ok("42457")` após `return;` e a de fluxo detectou
 O teste de fluxo exige **6 GET, exatamente 1 mutador e nenhuma consulta
 à lista sem atividade do aceite comprovada**. GREEN do head posterior
 é verificado separadamente no CI; replay específico e live NOT_RUN.
+
+
+## Script de dados ou externo não prova aceite (#271, 06/11/2026)
+
+O parser da resposta de ciência percorria todo `<script>`, inclusive
+nós com `type=application/json` e com `src` externo. Embora o navegador
+não execute o corpo inline desses scripts, a leitura estática extraía
+o `id_atividade` e poderia associar uma ciência antiga ao GET atual.
+A peça `html_atributos` passa a distinguir script inline executável de
+conteúdo inerte, antes de aceitar qualquer chamada `atualizarArvore`.
+A guarda segue conservadora, sem executar JS nem ampliar a rede.
+O teste RED no [CI 42268070022](https://github.com/franklinbaldo/ies/actions/runs/42268070022)
+registrou **1 FAIL / 1.739 PASS / 22 ignored preexistentes**:
+`application/json` retornava falsamente `Ok("42457")`.
+O teste de fluxo exige uma releitura sem consultar Lista de Ciências
+quando o aceite não publicou atividade válida (**6 GET, 1 mutador,
+0 retry, saída 3**). GREEN e live dependem de validação posterior.
