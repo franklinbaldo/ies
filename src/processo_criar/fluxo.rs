@@ -545,3 +545,7 @@ mod reconciliacao;
 #[cfg(test)]
 #[path = "tests_candidatos.rs"]
 mod tests_candidatos;
+
+#[cfg(test)]
+#[path = "tests_concorrencia.rs"]
+mod tests_concorrencia;
