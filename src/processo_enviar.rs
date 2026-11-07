@@ -4,6 +4,7 @@
 //! e a consulta do autocomplete que ela declara, e escolhe o destino que o
 //! SEI publica. Prévia sem POST de escrita; com `--confirmar`, um POST e
 //! uma leitura nova da árvore para verificar. Nunca repete a escrita.
+mod anotacoes;
 mod destino;
 mod erro;
 mod fluxo;
@@ -13,6 +14,8 @@ mod tela;
 mod acervo;
 #[cfg(test)]
 mod acervo_busca;
+#[cfg(test)]
+mod tests_anotacoes;
 #[cfg(test)]
 pub(crate) mod tests_apoio;
 #[cfg(test)]
@@ -39,6 +42,7 @@ pub(crate) struct PedidoDoEnvio<'a> {
     /// A sigla de `--para`, já conferida pela CLI.
     pub(crate) para: &'a str,
     pub(crate) manter_aberto: bool,
+    pub(crate) remover_anotacoes: bool,
     pub(crate) confirmar: bool,
 }
 
@@ -53,7 +57,21 @@ pub(crate) struct Destino {
     pub(crate) id_unidade: String,
 }
 
+/// Estratégia publicada pela instalação para remover a anotação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MetodoRemocao {
+    /// Checkbox da própria tela de envio.
+    CheckboxNoEnvio,
+    /// Salvar a tela de anotação com descrição vazia antes da tramitação.
+    LimparAnotacao,
+}
+
 /// Sucesso: prévia, ou enviado e conferido.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "estado do envio e duas opções independentes do formulário observado"
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoEnviado {
     pub(crate) nup: String,
@@ -64,6 +82,11 @@ pub(crate) struct ProcessoEnviado {
     /// O POST saiu e a leitura confirmou o destino (e a origem como pedido).
     pub(crate) alterado: bool,
     pub(crate) manter_aberto: bool,
+    pub(crate) remover_anotacoes: bool,
+    /// Presença da anotação da unidade de origem, quando a tela a publicou.
+    /// None significa não observada, nunca ausência.
+    pub(crate) anotacao_antes: Option<bool>,
+    pub(crate) metodo_remocao: Option<MetodoRemocao>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
