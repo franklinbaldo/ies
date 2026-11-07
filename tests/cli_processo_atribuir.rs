@@ -1,5 +1,5 @@
-//! Trava de escrita de `ies processo atribuir` (#264).
-//! Não abre login nem acessa o SEI: só confere a recusa antes da sessão.
+//! Fronteira da CLI de atribuição (#264), sem login ou rede reais.
+//! NUP inválido é recusado antes de ler a sessão; sessão ausente falha fechada.
 use std::process::{Command, Output};
 
 const NUP: &str = "00001.000001/2026-01";
@@ -17,19 +17,16 @@ fn sem_sessao(args: &[&str]) -> Output {
 }
 
 #[test]
-fn confirmar_recusa_antes_da_sessao() {
+fn confirmar_com_nup_invalido_recusa_antes_da_sessao() {
     for operacao in [&["--usuario", "fulano"][..], &["--remover"][..]] {
-        let mut args = vec!["processo", "atribuir", NUP];
+        let mut args = vec!["processo", "atribuir", "nup-invalido"];
         args.extend_from_slice(operacao);
         args.extend_from_slice(&["--confirmar", "--json"]);
         let saida = sem_sessao(&args);
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
+        assert_eq!(saida.status.code(), Some(2), "{args:?}");
         let valor: serde_json::Value =
             serde_json::from_slice(&saida.stdout).expect("JSON na saída");
-        assert_eq!(
-            valor["subcodigo"],
-            "escrita_de_atribuicao_ainda_nao_verificada"
-        );
+        assert_eq!(valor["codigo"], "entrada_invalida");
     }
 }
 
@@ -44,7 +41,13 @@ fn confirmar_valido_sem_sessao_retorna_fonte_invalida_sem_rede() {
     // A capacidade pública, quando habilitada, deve atravessar a validação
     // de NUP e falhar na leitura da sessão ausente, sem tocar na rede.
     let saida = sem_sessao(&[
-        "processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar", "--json"
+        "processo",
+        "atribuir",
+        NUP,
+        "--usuario",
+        "aluno2",
+        "--confirmar",
+        "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let valor: serde_json::Value =
