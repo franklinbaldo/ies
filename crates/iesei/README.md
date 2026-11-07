@@ -6,7 +6,7 @@ description: "Identidade de instalação e cobertura de observações para IES e
 
 # iesei
 
-A crate `iesei` reúne tipos sem rede, HTML, sessão nem banco de dados.
+A crate `iesei` reúne tipos sem rede, HTML ou sessão e uma projeção SQLite de observações.
 A extração da identidade antes em `ies-core` não muda o comportamento da
 CLI `ies`. `Instalacao` e `VersaoSei` continuam únicos.
 
