@@ -229,9 +229,16 @@ pub(crate) fn atividade_do_aceite(
         let Ok(tipo) = atributos.valor("type") else {
             continue;
         };
-        if atributos.presente("src")
-            || tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript")
-        {
+        // O tipo de script clássico segue a semântica HTML: ausente,
+        // vazio ou MIME JavaScript (sem parâmetros, independente de caixa).
+        // Um tipo de dados ou um script externo não prova a atividade.
+        let script_classico = tipo.is_none_or(|t| {
+            let t = t.trim_matches(|c: char| c.is_ascii_whitespace());
+            t.is_empty()
+                || t.eq_ignore_ascii_case("text/javascript")
+                || t.eq_ignore_ascii_case("application/javascript")
+        });
+        if atributos.presente("src") || !script_classico {
             continue;
         }
         for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {

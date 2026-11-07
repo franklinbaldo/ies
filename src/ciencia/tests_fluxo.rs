@@ -450,3 +450,41 @@ fn script_inerte_em_noscript_nao_confirma_ciencia_antiga() {
     );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
+
+
+/// Regressão #271: a caixa do MIME não pode tornar incerto um aceite
+/// clássico que publicou uma atividade; nenhuma requisição extra ocorre.
+#[test]
+fn mime_javascript_case_misto_mantem_prova_e_orcamento_do_processo() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457").replacen("<script>", "<script type='TeXt/JaVaScRiPt'>", 1);
+    respostas.extend([
+        ok(tela()),
+        ok(html),
+        ok(arvore_com_ciencias()),
+        ok(lista("42457")),
+    ]);
+    let (feito, pedidos) = rodar(true, respostas);
+    let feito = feito.expect("script JavaScript com caixa mista executa normalmente");
+    assert!(feito.verificado);
+    assert_eq!(feito.id_atividade.as_deref(), Some("42457"));
+    assert_eq!(feito.requisicoes, 7);
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+}
+
+/// Com parâmetro MIME, o conteúdo não é script clássico em HTML.
+/// Depois do único GET potencialmente mutador, falhar fechado: saída 3.
+#[test]
+fn mime_javascript_com_parametro_nao_libera_lista_antiga() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457")
+        .replacen("<script>", "<script type='text/javascript; charset=utf-8'>", 1);
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("tipo de script com parâmetro não prova atividade");
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}

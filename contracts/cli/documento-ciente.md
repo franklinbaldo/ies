@@ -149,3 +149,12 @@ invalida um **outro script ativo** que publique a atividade do documento.
 O leitor ignora por nó DOM somente o script inerte; não confunde texto
 `<template><script>` dentro de literal JavaScript com marcação HTML.
 Identidade documental, releitura e política de GET único não mudam.
+
+## Tipo MIME do script do aceite (#271)
+
+O leitor da resposta aceita a chamada literal apenas em script clássico:
+`type` ausente ou vazio, `text/javascript` ou `application/javascript`,
+com comparação MIME sem distinção de maiúsculas e minúsculas. O conteúdo
+continua inerte com `src`, tipo de dados ou parâmetro MIME no atributo
+(`text/javascript; charset=utf-8`); ele não pode provar a atividade.
+Identidade do alvo, GET mutador único e releitura não mudam.
