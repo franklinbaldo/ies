@@ -10,6 +10,10 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 ZIPs, hashes e proveniência conferidos. **Resultado esperado:** fatos
 extraídos da resposta original por verificação independente do renderizador.
 O anti-IES não deve simplesmente devolver o HTML gravado.
+O objetivo é um **sistema funcional, com estado coerente entre operações**.
+A reconstrução do comportamento Web e das transições segue o
+[guia de engenharia reversa com REA](rea-engenharia-reversa.md):
+captura comprovada ≠ hipótese; reproduzir estados e efeitos, não páginas isoladas.
 
 1. Carregar a cassette **conferida** (ZIP SHA-1, membro SHA-256 normalizado,
    instalação, schema e status), com o leitor de acervo existente.
