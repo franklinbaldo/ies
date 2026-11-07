@@ -17,6 +17,7 @@ mod documentos;
 mod entrada_por_id;
 mod identidade;
 mod links;
+mod observacoes;
 mod unidades;
 mod validacao;
 
