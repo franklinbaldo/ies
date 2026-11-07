@@ -14,7 +14,7 @@ A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo 
 ## Contrato atual do núcleo local
 
 - O NUP é validado pelo tipo `NumeroProcesso`. O tipo solicitado é texto opaco não vazio, sem caracteres de controle; não é declarado como existente no SEI.
-- O arquivo tem nome UTF-8 e extensão `.pdf` sem distinção de caixa, é arquivo regular, não é link simbólico (inclusive ancestrais na política desta operação), não é vazio e começa com assinatura `%PDF-`. **A assinatura não comprova que o documento é um PDF estruturalmente íntegro**; o SEI continua responsável por aceitar o conteúdo.
+- O arquivo tem nome UTF-8, sem `&#` (recusado pelo SEI observado) nem caracteres de controle, e extensão `.pdf` sem distinção de caixa, é arquivo regular, não é link simbólico (inclusive ancestrais na política desta operação), não é vazio e começa com assinatura `%PDF-`. **A assinatura não comprova que o documento é um PDF estruturalmente íntegro**; o SEI continua responsável por aceitar o conteúdo.
 - O SHA-256 e o tamanho são calculados lendo o arquivo em blocos, sem carregar inteiro em memória. O limite só é aplicado quando **observado no cadastro**; a inspeção da CLI ainda não inventa um teto de upload.
 - Saída `--json` de sucesso: `escopo:"inspecao_local"`, `processo`, `tipo_solicitado`, `arquivo:{nome,tamanho_bytes,sha256}`, `cadastro_sei_observado:false`, `previa_remota:false`, `confirmado:false`, `requisicoes:0`, `escrita_remota:false`. O conteúdo do arquivo e credenciais jamais são publicados.
 - Qualquer falha de entrada: saída 2, `codigo:"entrada_invalida"`, `retentavel:false` e nenhum acesso à sessão/rede.
@@ -28,6 +28,7 @@ A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo 
 | `arquivo_pdf_link_simbolico` | Destino ou ancestral do caminho é link simbólico |
 | `arquivo_pdf_vazio` | Arquivo sem bytes |
 | `extensao_pdf_invalida` | O nome não tem extensão PDF |
+| `nome_arquivo_pdf_invalido` | O nome contém `&#` recusado pelo SEI ou caractere de controle inseguro para exibição |
 | `conteudo_nao_eh_pdf` | Os bytes iniciais não têm assinatura PDF |
 | `arquivo_pdf_acima_do_limite` | O arquivo ultrapassa limite efetivamente informado pela tela |
 | `leitura_do_arquivo_pdf_falhou` | Erro de abertura/leitura ou mudança de tamanho durante a leitura |
