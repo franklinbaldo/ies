@@ -16,6 +16,7 @@ mod barra_do_documento;
 mod barra_do_processo;
 mod ciencia;
 mod concluir;
+mod conferencia_parcial;
 mod conteudo;
 pub(crate) mod endereco;
 mod enviar;
@@ -115,7 +116,7 @@ pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
 pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
-use pastas::{NoDePasta, Pai, conferir_pastas};
+use pastas::{NoDePasta, Pai};
 pub(crate) use reabrir::{
     ErroEnderecoDeReabrir, FormaDaReabertura, ReabrirNaBarra, ler_endereco_de_reabrir,
     ler_reabrir_da_barra,
@@ -214,7 +215,7 @@ pub(crate) struct ArvoreLida {
     /// Indica se a lista de documentos foi integralmente confirmada.
     pub(crate) documentos_incluidos: bool,
     /// Aviso emitido quando a leitura foi parcial por inconsistência de pastas.
-    pub(crate) aviso_leitura_parcial: Option<String>,
+    pub(crate) aviso_leitura_parcial: Option<ErroArvore>,
     /// Os `PROCESSO_ANEXADO` filhos do processo, na ordem da árvore. Os
     /// documentos deles não são servidos nesta árvore.
     pub(crate) anexados: Vec<ProcessoNaArvore>,
@@ -282,7 +283,7 @@ pub(crate) fn ler_arvore(
     ler_arvore_com_modo(html, nup_pedido, id_aberto, false)
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn ler_arvore_parcial(
     html: &str,
     nup_pedido: &str,
@@ -380,37 +381,20 @@ pub(crate) fn ler_arvore_com_modo(
     }
     let anexados = conferir_anexados(&processo, anexados, &documentos, &nos_de_pasta)?;
     let documentos_movidos = conferir_movidos(&processo, movidos, &documentos)?;
-    let (pastas, pastas_nao_carregadas, documentos, documentos_incluidos, aviso_leitura_parcial) =
-        match conferir_pastas(&processo.id, &nos_de_pasta, &protocolos, &documentos) {
-            Ok((pastas, pastas_nao_carregadas)) => (
-                pastas,
-                pastas_nao_carregadas,
-                documentos.into_iter().map(|d| d.documento).collect(),
-                true,
-                None,
-            ),
-            Err(erro) if permitir_parcial => {
-                use crate::erro_publico::Causa as _;
-                (
-                    Vec::new(),
-                    true,
-                    Vec::new(),
-                    false,
-                    Some(format!(
-                        "leitura parcial do processo: lista de documentos incompleta ({})",
-                        erro.folha()
-                    )),
-                )
-            }
-            Err(erro) => return Err(erro),
-        };
+    let conferencia = conferencia_parcial::conferir(
+        &processo.id,
+        &nos_de_pasta,
+        &protocolos,
+        documentos,
+        permitir_parcial,
+    )?;
     Ok(ArvoreLida {
         processo,
-        documentos,
-        pastas,
-        pastas_nao_carregadas,
-        documentos_incluidos,
-        aviso_leitura_parcial,
+        documentos: conferencia.documentos,
+        pastas: conferencia.pastas,
+        pastas_nao_carregadas: conferencia.pastas_nao_carregadas,
+        documentos_incluidos: conferencia.documentos_incluidos,
+        aviso_leitura_parcial: conferencia.aviso_leitura_parcial,
         anexados,
         documentos_movidos,
         anexado_a: None,

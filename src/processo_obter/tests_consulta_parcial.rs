@@ -1,5 +1,5 @@
 //! BDD da leitura parcial segura de metadados quando pasta está incompleta (Refs #342).
-//! BDD-342-01: metadados comprovados, documentos_incluidos: false, documentos: [] e aviso.
+//! BDD-342-01: metadados comprovados, lista omitida e aviso.
 //! BDD-342-02: falha fechada quando identidade do processo não puder ser comprovada.
 use super::consulta_parcial::obter_processo_informativo;
 use super::tests_apoio::{
@@ -94,13 +94,11 @@ fn bdd_342_01_leitura_parcial_segura_com_aviso_quando_pasta_incompleta() {
     assert_eq!(parcial.processo.nup, NUP);
     assert_eq!(parcial.processo.id, ID);
     assert!(!parcial.documentos_incluidos);
-    assert!(parcial.documentos.is_empty());
-    assert!(parcial.pastas.is_empty());
+    assert_eq!(parcial.documentos, Vec::new());
+    assert_eq!(parcial.pastas, Vec::new());
     assert_eq!(
-        parcial.aviso_leitura_parcial.as_deref(),
-        Some(
-            "leitura parcial do processo: lista de documentos incompleta (pasta_carregada_pela_metade)"
-        )
+        parcial.aviso_leitura_parcial,
+        Some(ErroArvore::PastaCarregadaPelaMetade)
     );
 
     // 3. Serialização JSON observável da CLI
@@ -155,7 +153,7 @@ fn bdd_342_integracao_informativa_vs_escrita() {
     let obtido = rodar_informativo(&amb, respostas_info)
         .expect("consulta informativa deve aceitar leitura parcial");
     assert!(!obtido.arvore.documentos_incluidos);
-    assert!(obtido.arvore.documentos.is_empty());
+    assert_eq!(obtido.arvore.documentos, Vec::new());
     assert!(obtido.arvore.aviso_leitura_parcial.is_some());
 
     // Cenário de Escrita/Mutação: obter_processo estrito recusa imediatamente com erro tipado

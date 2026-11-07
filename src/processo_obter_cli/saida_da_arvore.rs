@@ -1,7 +1,7 @@
 //! Saída do que vem só da árvore: documentos (com a natureza), movidos e
 //! `aberto_em` (contracts/cli/processo-obter-situacao.md).
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore, MotivoAbertoEm,
+    AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore, ErroArvore, MotivoAbertoEm,
 };
 use serde_json::{Map, Value, json};
 use std::fmt::Write as _;
@@ -93,14 +93,26 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
     })
 }
 
+/// Converte o motivo tipado em aviso legível somente na fronteira da CLI.
+fn texto_do_aviso(causa: ErroArvore) -> String {
+    use crate::erro_publico::Causa as _;
+    format!(
+        "leitura parcial do processo: lista de documentos incompleta ({})",
+        causa.folha()
+    )
+}
+
 /// `documentos` e `documentos_movidos`, na ordem dos nós.
 pub(super) fn inserir_documentos(objeto: &mut Map<String, Value>, arvore: &ArvoreLida) {
     if !arvore.documentos_incluidos {
         objeto.insert("documentos_incluidos".to_owned(), json!(false));
         objeto.insert("documentos".to_owned(), Value::Array(Vec::new()));
         objeto.insert("documentos_movidos".to_owned(), Value::Array(Vec::new()));
-        if let Some(aviso) = &arvore.aviso_leitura_parcial {
-            objeto.insert("aviso_leitura_parcial".to_owned(), json!(aviso));
+        if let Some(causa) = arvore.aviso_leitura_parcial {
+            objeto.insert(
+                "aviso_leitura_parcial".to_owned(),
+                json!(texto_do_aviso(causa)),
+            );
         }
         return;
     }
@@ -129,8 +141,8 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
     if !arvore.documentos_incluidos {
         let aviso = arvore
             .aviso_leitura_parcial
-            .as_deref()
-            .unwrap_or("leitura parcial do processo: lista de documentos incompleta");
+            .map(texto_do_aviso)
+            .unwrap_or_else(|| "leitura parcial do processo: lista de documentos incompleta".into());
         let _ = write!(texto, "\nAviso: {aviso}.");
         return;
     }
