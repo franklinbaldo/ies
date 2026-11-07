@@ -386,3 +386,76 @@ fn post_dispensado_pelo_no_proxy_conecta_direto() {
     assert_eq!(post.map(|_| ()).unwrap_err(), FalhaTransporte::Rede);
     assert!(aceitar(&ouvinte, Duration::from_millis(100)).is_none());
 }
+
+#[test]
+fn dado_pdf_quando_envio_multipart_em_fluxo_entao_ha_um_post_com_tamanho_exato() {
+    // Dado o corpo filArquivo observado no Todos #775 (UnB de treinamento);
+    // quando o HTTPS envia o multipart; então o proxy sintético vê bytes exatos
+    // e Content-Length, sem uma segunda tentativa ou acesso real ao SEI.
+    use super::cliente_https::{self, EnvioEmFluxo};
+    use crate::documento_externo_incluir::multipart::preparar_pdf;
+    use crate::formulario_web::CodificacaoDaTela;
+    let pdf: &[u8] = b"%PDF-1.4\n%%EOF\n";
+    let plano = preparar_pdf(
+        "prova.pdf",
+        pdf.len() as u64,
+        "----ies332",
+        CodificacaoDaTela::Iso88591,
+    )
+    .unwrap();
+    let mut esperado = Vec::new();
+    plano.corpo(pdf).read_to_end(&mut esperado).unwrap();
+    let referer = url();
+    let destino = format!(
+        "https://{SEI}/sei/controlador.php?acao=documento_upload_anexo&infra_hash={}",
+        "c".repeat(64)
+    );
+    let recibo_servido = format!(
+        "94e336aa#prova.pdf#application/pdf#{}#11/10/2026 11:07:50#",
+        pdf.len()
+    );
+    let resposta = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=iso-8859-1\r\nContent-Length: {}\r\n\r\n{recibo_servido}",
+        recibo_servido.len()
+    );
+    let (porta, tarefa) = proxy_falso(200, resposta.into_bytes());
+    let post = cliente_https::requisitar_em_fluxo_via(
+        &destino,
+        "PHPSESSID=SINTETICO",
+        EnvioEmFluxo {
+            tipo: plano.tipo_conteudo(),
+            origem: "https://sei.exemplo.invalid",
+            referer: &referer,
+            tamanho: plano.tamanho_total(),
+            corpo: plano.corpo(pdf),
+        },
+        ambiente(via_proxy(porta)),
+        sem_tls,
+    )
+    .unwrap();
+    let recibo = crate::documento_externo_incluir::recibo::interpretar_http(
+        cliente_https::resposta_web(post),
+        "prova.pdf",
+        pdf.len() as u64,
+    )
+    .unwrap();
+    assert_eq!(recibo.nome_upload, "94e336aa");
+    let (recebido, extras) = tarefa.join().unwrap();
+    assert_eq!(extras, 0, "o upload não pode ser repetido");
+    let recebido = recebido.unwrap();
+    assert!(
+        recebido
+            .pedido
+            .contains("Content-Type: multipart/form-data; boundary=----ies332\r\n")
+    );
+    assert!(
+        recebido
+            .pedido
+            .contains(&format!("Content-Length: {}\r\n", esperado.len()))
+    );
+    assert!(recebido.pedido.starts_with(&format!(
+        "POST /sei/controlador.php?acao=documento_upload_anexo&infra_hash={} HTTP/1.1\r\n",
+        "c".repeat(64)
+    )));
+    assert_eq!(recebido.corpo, esperado);
+}
