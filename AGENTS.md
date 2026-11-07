@@ -56,10 +56,12 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Ao iniciar a rodada, a rotina simplesmente pega a issue aberta de maior prioridade
    que estiver livre naquele instante ("a próxima é de quem vier e pegar").
 3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
-   por **cenários comportamentais observáveis** do comando (`Dado / Quando /
-   Então`). Alterações isoladas em scripts de ensaio ou fixtures sem mudança
-   no comportamento público da CLI em `src/` contam como infra/manutenção,
-   nunca como avanço da capacidade.
+   por **cenários comportamentais observáveis** do comando (`Dado / Quando
+   executo ies ... / Então`). O BDD vale **estritamente daqui para frente**
+   para fatias vivas e novas issues; é vedado refatorar retroativamente código
+   ou testes já verdes e integrados na `main`. Alterações isoladas em scripts
+   ou fixtures sem mudança no comando da CLI em `src/` contam como infra/manutenção,
+   nunca como avanço de capacidade.
 4. **Formulário de Handoff Anti-Burlagem:** Toda PR e comentário na issue
    devem preencher o formulário estruturado de fatos verificáveis:
    - **Tipo da fatia:** `[ ] Capacidade da CLI (src/)` | `[ ] Apenas infra/teste`
