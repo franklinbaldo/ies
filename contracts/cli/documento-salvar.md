@@ -48,8 +48,14 @@ em dois outros pontos:
 | `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
 | `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
 
-A prévia não expõe o corpo, URLs assinadas ou cookies e não abre o
-editor. O JSON traz `previa` com `documento`, `versao_base`,
+A prévia não abre o editor nem executa escrita. **Na saída humana**, mostra
+um recorte local com linhas da foto prefixadas por `-` e linhas da edição
+por `+`, limitado a 1.800 caracteres por lado. É o envelope contínuo
+entre prefixo e sufixo iguais, não um diff mínimo: linhas inalteradas
+internas podem aparecer nos dois lados. Linhas não UTF-8, muito longas
+ou com atributos/referências potencialmente sensíveis são omitidas.
+O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
+`previa` com `documento`, `versao_base`,
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
