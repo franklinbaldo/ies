@@ -220,6 +220,37 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
 }
 
 #[test]
+fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
+    // Cenários adversariais sintéticos: a presença de um id na página
+    // não prova que o formulário de cadastro oferece esse controle.
+    let abertura = r#"<form id="frmDocumentoCadastro" method="post">
+        <label id="lblSerieTitulo">Despacho</label>"#;
+    let publico = r#"<input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">"#;
+    let descricao = r#"<input id="txtDescricao" name="txtDescricao" type="text">"#;
+
+    let dentro_de_template =
+        format!("{abertura}{publico}<template>{descricao}</template></form>");
+    assert_eq!(
+        conferir_cadastro(&dentro_de_template, "Despacho", Some("Prova"), Some("publico")),
+        Err(ErroCriar::DescricaoNaoOferecida)
+    );
+
+    let fora_do_formulario = format!("{descricao}{abertura}{publico}</form>");
+    assert_eq!(
+        conferir_cadastro(&fora_do_formulario, "Despacho", Some("Prova"), Some("publico")),
+        Err(ErroCriar::DescricaoNaoOferecida)
+    );
+
+    let radio_desabilitado = format!(
+        "{abertura}<fieldset disabled>{publico}</fieldset>{descricao}</form>"
+    );
+    assert_eq!(
+        conferir_cadastro(&radio_desabilitado, "Despacho", Some("Prova"), Some("publico")),
+        Err(ErroCriar::NivelNaoOferecido)
+    );
+}
+
+#[test]
 fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
     // Caso de Todos tests/test_escolha_na_lista_010.py @323eb01 (UFRJ 4.1.5).
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
