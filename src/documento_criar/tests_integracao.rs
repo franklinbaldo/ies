@@ -129,6 +129,22 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
 }
 
 #[test]
+fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
+    // Dado um pedido com descricao e nivel explicitos;
+    // Quando executo a previa sem confirmar;
+    // Entao ambos os dados estao disponiveis para apresentacao na CLI.
+    let (resultado, pedidos) = executar(false, vec![]);
+    let previa = match resultado {
+        Ok(previa) => previa,
+        Err(erro) => panic!("previa falhou: {}", erro.subcodigo()),
+    };
+    assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
+    assert_eq!(previa.nivel.as_deref(), Some("publico"));
+    assert_eq!(previa.requisicoes, 5);
+    assert_eq!(pedidos, pedidos_antes_da_escrita());
+}
+
+#[test]
 fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     let (resultado, pedidos) = executar(
         true,
