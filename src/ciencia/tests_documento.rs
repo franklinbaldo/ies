@@ -447,3 +447,34 @@ fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
 
 #[path = "tests_documento/efeitos_incertos.rs"]
 mod efeitos_incertos;
+
+// RED #271: a recusa Infra do documento tem status real HTTP 200.
+// JSON deve preservá-lo para que o usuário entenda a causa do efeito incerto.
+#[test]
+fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
+    let mut respostas = abertura(arvore_com_botao());
+    respostas.extend([
+        ok(tela_do_documento_40(ID, ID_DOC)),
+        ok(
+            "<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>"
+                .to_owned(),
+        ),
+        ok(arvore_com_lista()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("validacao Infra nao e sucesso");
+    let saida = crate::ciencia_documento_cli::json_da_falha(&erro);
+    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["status_http"], serde_json::json!(200));
+    assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
+    assert_eq!(saida["requisicoes"], 6);
+    assert_eq!(saida["retentavel"], false);
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
+    );
+}
