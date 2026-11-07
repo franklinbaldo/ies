@@ -27,8 +27,10 @@ Não reserva issue, não implementa, não faz push/merge/fechamento. Só promove
 
 A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar**
 orientações e bloqueios deste parecer, inclusive aceitar menos segurança
-por praticidade. Não repetir exigência revogada sem fato novo: apresentar
-divergência técnica verificável, sem reclassificar opinião como bloqueante.
+por praticidade. O Texugo também pode **desbloquear a PR e fazer merge** no SHA validado,
+mesmo contra seu parecer, sem seu LGTM, conforme a ficha própria.
+Não restaurar veto revogado sem novo fato técnico; respeitar CI e limites
+expressos do proprietário.
 
 ## Continuidade atual
 
