@@ -151,6 +151,23 @@ fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::V
     saida
 }
 
+/// Mensagem orientada à causa observada, sem classificar por texto.
+fn mensagem_da_recusa(erro: &ErroPreviaCriacao) -> &'static str {
+    use crate::documento_criar::ErroCriar;
+    match erro {
+        ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente) => {
+            "tipo de documento não oferecido pelo SEI"
+        }
+        ErroPreviaCriacao::Tipo(ErroCriar::TipoAmbiguo) => {
+            "mais de um tipo de documento com o nome solicitado"
+        }
+        ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade => {
+            "processo não está aberto na unidade da sessão"
+        }
+        _ => "criação do documento não pôde ser conferida",
+    }
+}
+
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> ExitCode {
     if matches!(
         erro,
@@ -190,7 +207,7 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
     saida_erro::erro_fonte_http(
         json_mode,
         erro.subcodigo(),
-        "criação do documento não pôde ser conferida",
+        mensagem_da_recusa(erro),
         erro.status_http(),
     )
 }
