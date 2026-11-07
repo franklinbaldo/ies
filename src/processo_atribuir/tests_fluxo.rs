@@ -158,6 +158,57 @@ fn remocao_exige_atribuicao_observada_sem_enviar_post() {
     assert_eq!(pedidos, pedidos_previa());
 }
 
+// O estado já está publicado na árvore: não é necessário abrir o formulário.
+// A recusa evita um GET e não pode enviar POST, inclusive com --confirmar.
+#[test]
+fn atribuicao_ja_aplicada_recusa_antes_da_tela_sem_post() {
+    for confirmar in [false, true] {
+        let respostas = abertura(arvore_atual("aluno2"));
+        let (resultado, pedidos) = if confirmar {
+            rodar_confirmacao(Some("aluno2"), respostas)
+        } else {
+            rodar(Some("aluno2"), respostas)
+        };
+        assert_eq!(resultado.unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
+        assert_eq!(pedidos, pedidos_da_abertura());
+        assert_eq!(pedidos.len(), 3);
+        assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+    }
+}
+
+#[test]
+fn remocao_ja_aplicada_recusa_antes_da_tela_sem_post() {
+    for confirmar in [false, true] {
+        let respostas = abertura(arvore_atual(""));
+        let (resultado, pedidos) = if confirmar {
+            rodar_confirmacao(None, respostas)
+        } else {
+            rodar(None, respostas)
+        };
+        assert_eq!(resultado.unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
+        assert_eq!(pedidos, pedidos_da_abertura());
+        assert_eq!(pedidos.len(), 3);
+        assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+    }
+}
+
+// Login vazio é inválido, mesmo que a árvore informe ausência de atribuição.
+// Preservar a causa já publicada: não confundir pedido inválido com no-op.
+#[test]
+fn login_vazio_nao_se_torna_atribuicao_ja_aplicada() {
+    for confirmar in [false, true] {
+        let respostas = respostas_previa("");
+        let (resultado, pedidos) = if confirmar {
+            rodar_confirmacao(Some(""), respostas)
+        } else {
+            rodar(Some(""), respostas)
+        };
+        assert_eq!(resultado.unwrap_err().subcodigo(), "usuario_nao_atribuivel");
+        assert_eq!(pedidos, pedidos_previa());
+        assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+    }
+}
+
 #[test]
 fn barra_ausente_recusa_com_somente_tres_gets() {
     let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&[UNIDADE], &[])));
