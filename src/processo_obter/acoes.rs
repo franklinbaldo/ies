@@ -22,6 +22,8 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    /// Link das anotações da origem (só pesa no envio com remoção).
+    pub(crate) anotacoes: Result<Option<String>, ErroHtml>,
     /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
     pub(crate) ciencia:
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,

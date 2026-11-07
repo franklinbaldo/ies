@@ -1,0 +1,95 @@
+//! Leitura da anotação de origem, sem efetuar alterações.
+//! Forma observada no SEI 4.0.9 de treinamento (Todos,
+//! `tests/paginas_reais/processo_anotacao_registrar.html`).
+use crate::erro_html::ErroHtml;
+
+pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
+    use crate::formulario_web::{decodificar_atributo, localizar_formulario};
+    use crate::html_atributos::valor_do_atributo;
+
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("tela_de_anotacoes_nao_interpretada"))?;
+    let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
+        .map_err(|_| ErroHtml::ausente("formulario_de_anotacoes_ausente"))?;
+    let parser = dom.parser();
+    let valor = |tag: &tl::HTMLTag<'_>, nome: &'static str| -> Result<Option<String>, ErroHtml> {
+        valor_do_atributo(tag, nome)
+            .map_err(|e| ErroHtml::atributo("tela_de_anotacoes_nao_interpretada", e))?
+            .map(|bruto| {
+                decodificar_atributo(&bruto)
+                    .ok_or(ErroHtml::html("tela_de_anotacoes_nao_interpretada"))
+            })
+            .transpose()
+    };
+    let mut ids = Vec::new();
+    let mut descricoes = Vec::new();
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
+        match tag.name().as_utf8_str().as_ref() {
+            "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
+                ids.push(valor(tag, "value")?);
+            }
+            "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
+                descricoes.push(crate::transporte::texto_de_recusa::decodificar_entidades(
+                    &tag.inner_text(parser),
+                ));
+            }
+            _ => {}
+        }
+    }
+    match (ids.as_slice(), descricoes.as_slice()) {
+        ([Some(publicado)], [texto]) if publicado == id => Ok(!texto.trim().is_empty()),
+        ([Some(_)], [_]) => Err(ErroHtml::valor("anotacao_de_outro_processo")),
+        ([], _) | (_, []) => Err(ErroHtml::ausente("anotacao_nao_publicada")),
+        _ => Err(ErroHtml::repetido("campos_de_anotacao_repetidos")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::anotacao_presente;
+
+    fn formulario(id: &str, texto: &str) -> String {
+        format!(
+            r#"<html><form id="frmAnotacaoCadastro" method="post" action="controlador.php?acao=anotacao_registrar">
+            <input type="hidden" id="hdnIdProtocolo" name="hdnIdProtocolo" value="{id}">
+            <input type="text" id="txtSiglaUsuario" name="txtSiglaUsuario" readonly value="aluno4">
+            <textarea id="txaDescricao" name="txaDescricao">{texto}</textarea>
+            <input type="checkbox" id="chkSinPrioridade" name="chkSinPrioridade">
+            </form></html>"#
+        )
+    }
+
+    #[test]
+    fn bdd_anotacao_presente_na_tela_do_processo() {
+        // Dado formulário de anotação da UnB com texto publicado,
+        // quando leio o mesmo processo, então há anotação verificável.
+        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        assert_eq!(anotacao_presente(&html, "50693"), Ok(true));
+    }
+
+    #[test]
+    fn bdd_anotacao_vazia_e_estado_observado_sem_anotacao() {
+        // Dado formulário da UnB com textarea vazia,
+        // quando releio, então há ausência observada de anotação.
+        assert_eq!(
+            anotacao_presente(&formulario("50693", ""), "50693"),
+            Ok(false)
+        );
+        assert_eq!(
+            anotacao_presente(&formulario("50693", " \n  "), "50693"),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn bdd_tela_de_outro_processo_nao_comprova_anotacao() {
+        // Dado formulário servido para outro id,
+        // quando confiro, então não se infere existência nem ausência.
+        assert!(anotacao_presente(&formulario("99999", "Anotação"), "50693").is_err());
+    }
+}
