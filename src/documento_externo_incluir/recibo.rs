@@ -20,12 +20,54 @@ pub(crate) enum FalhaUpload {
 
 pub(crate) fn interpretar_resposta(
     status_http: u16,
-    _corpo: &str,
-    _nome_esperado: &str,
-    _tamanho_esperado: u64,
+    corpo: &str,
+    nome_esperado: &str,
+    tamanho_esperado: u64,
 ) -> Result<ReciboUpload, FalhaUpload> {
-    Err(FalhaUpload::EfeitoIncerto {
+    // Um POST de upload pode ter criado um temporário mesmo quando o resultado
+    // não é reconhecido. Nunca transformar ausência de prova em novo envio.
+    let incerto = || FalhaUpload::EfeitoIncerto {
         status_http: Some(status_http),
+    };
+    if status_http != 200 {
+        return Err(incerto());
+    }
+
+    let texto = corpo.trim();
+    if let Some(motivo) = texto.strip_prefix("ERRO#") {
+        let motivo = motivo.trim();
+        if motivo.is_empty() || motivo.contains('#') {
+            return Err(incerto());
+        }
+        return Err(FalhaUpload::Recusado {
+            motivo: motivo.to_owned(),
+        });
+    }
+
+    // UnB SEI 4: nome_upload#nome#tipo#tamanho#data_hora#
+    // Não inventar campos, id do documento nem esquema alternativo.
+    let partes: Vec<&str> = texto.split('#').collect();
+    let [nome_upload, nome, tipo, tamanho, data_hora, fim] = partes.as_slice() else {
+        return Err(incerto());
+    };
+    let tamanho_bytes = tamanho.parse::<u64>().map_err(|_| incerto())?;
+    if !fim.is_empty()
+        || nome_upload.is_empty()
+        || nome.is_empty()
+        || tipo.is_empty()
+        || data_hora.is_empty()
+        || tamanho_bytes == 0
+        || tamanho_bytes != tamanho_esperado
+        || *nome != nome_esperado
+    {
+        return Err(incerto());
+    }
+    Ok(ReciboUpload {
+        nome_upload: (*nome_upload).to_owned(),
+        nome: (*nome).to_owned(),
+        tipo: (*tipo).to_owned(),
+        tamanho_bytes,
+        data_hora: (*data_hora).to_owned(),
     })
 }
 
