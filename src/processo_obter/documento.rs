@@ -97,6 +97,7 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
 
 /// Como [`obter_documento`], com a versão N ou a cópia de trabalho
 /// (contracts/cli/documento-obter-versoes.md), por qualquer caminho.
+#[cfg(test)]
 pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoDocumento<'_>,
@@ -391,9 +392,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             });
         }
     };
-    let propriedades = if !pedido.propriedades {
-        PropriedadesDocumento::NaoPedidas
-    } else {
+    let propriedades = if pedido.propriedades {
         match propriedades_documento::ler_link(instalacao, lido.html, &no.id, &lido.processo.id)
             .map_err(E::Html)?
         {
@@ -415,6 +414,8 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
                 )
             }
         }
+    } else {
+        PropriedadesDocumento::NaoPedidas
     };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
