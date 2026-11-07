@@ -271,3 +271,30 @@ com uma chamada POST e uma GET de releitura, sem repetição.
 
 A prova de funções de navegação ativas para seleção de tipo e filtro
 está documentada em [scripts de navegação](../como-o-sei-funciona/documento-criar-scripts-ativos.md).
+
+## Revisão — ablação do pseudo-interpretador JS (07/11/2026)
+A [decisão do 🦡 Texugo na PR #248](https://github.com/franklinbaldo/ies/pull/248#issuecomment-6701907481)
+revogou a exigência de equivalência semântica com o navegador. A submissão
+é derivada do formulário real pelo primitivo compartilhado e exige um
+controle Salvar ativo e não contraditório na tela observada.
+O reconhecedor de funções globais, regex, MIME e passos de submeter()
+foi removido da guarda de escrita, sem executar JS nem inventar campos.
+
+**Cobertura dispensada de propósito:** oito testes semânticos de scripts
+em tests_integracao.rs e dois em tests_scripts_ativos.rs. O IES não promete
+detectar redefinições de callbacks JS. Mantidos os testes de controles
+ausentes/divergentes/ocultos, fieldset disabled, template inerte,
+identidade do processo, oferta do tipo, erros tipados e formulário servido.
+Permanece a verificação causal: um POST, 302 para documento_visualizar
+com id_documento correspondente, releitura independente do número SEI
+e saída 3 após efeito incerto, sem retry. O leitor de script usado para
+navegação entre tipos continua em guarda_navegacao.rs nesta fatia.
+
+**Risco conscientemente aceito:** a lógica do navegador pode divergir
+do envio HTTP construído pela CLI, que o próprio servidor pode recusar.
+Não se aceita falso sucesso, origem divergente ou perda de causalidade.
+**RED comprovado:** [CI 42340303462](https://github.com/franklinbaldo/ies/actions/runs/42340303462),
+um teste novo FAIL, 1.882 PASS e 24 ignored; o teste-only ultrapassou
+temporariamente 20 KB, também flagrado pelo gate. A ablação elimina
+essa ultrapassagem. Green e live devem ser medidos no novo head.
+
