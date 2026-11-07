@@ -83,6 +83,10 @@ pub(crate) enum ErroEnviar {
     RemocaoDeAnotacoesNaoOferecida,
     /// A escrita não tem releitura capaz de comprovar esse efeito extra.
     RemocaoDeAnotacoesSemVerificacao,
+    /// O envio foi confirmado pela árvore, mas a anotação ainda existe.
+    AnotacoesNaoRemovidasAposEnvio,
+    /// O envio foi confirmado; a releitura da anotação falhou.
+    EfeitoIncertoNaRemocaoDeAnotacoes,
     #[causa(interna)]
     LinkDasAnotacoes(ErroHtml),
     #[causa(interna)]
@@ -134,7 +138,10 @@ impl ErroEnviar {
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
                 "escrita_diferente_da_solicitada"
             }
-            Self::EfeitoIncertoNoEnvio { .. } => "efeito_incerto",
+            Self::EfeitoIncertoNoEnvio { .. } | Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
+                "efeito_incerto"
+            }
+            Self::AnotacoesNaoRemovidasAposEnvio => "escrita_diferente_da_solicitada",
             _ => "fonte_invalida",
         }
     }
@@ -142,7 +149,7 @@ impl ErroEnviar {
     /// 3 só para efeito incerto; as demais recusas saem com 1.
     pub(crate) fn saida(&self) -> u8 {
         match self {
-            Self::EfeitoIncertoNoEnvio { .. } => 3,
+            Self::EfeitoIncertoNoEnvio { .. } | Self::EfeitoIncertoNaRemocaoDeAnotacoes => 3,
             _ => 1,
         }
     }
@@ -204,6 +211,12 @@ impl ErroEnviar {
             }
             Self::RemocaoDeAnotacoesSemVerificacao => {
                 "não há releitura independente que comprove remoção de anotações; nada foi enviado"
+            }
+            Self::AnotacoesNaoRemovidasAposEnvio => {
+                "o processo foi enviado, mas a anotação continua presente na origem"
+            }
+            Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
+                "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
             }
             Self::LinkDasAnotacoes(_) => {
                 "o link das anotações da origem não está na forma observada; nada foi enviado"
