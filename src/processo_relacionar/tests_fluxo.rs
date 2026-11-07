@@ -272,3 +272,21 @@ fn dado_complemento_xml_formatado_quando_pedido_compacto_entao_equivale() {
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(pedidos.len(), 5);
 }
+
+
+/// Dado que o SEI devolve a descrição do tipo no complemento,
+/// quando executo ies processo relacionar NUP --com DESTINO sem confirmar,
+/// então a prévia publica o tipo observado sem fazer POST modificador.
+#[test]
+fn dado_tipo_servido_no_xml_quando_previa_entao_mostra_o_tipo_do_destino() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[])));
+    respostas.push(ok(format!(
+        "<complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento><complemento nome=\"NomeTipoProcedimento\">Processo Administrativo</complemento></complementos>"
+    )));
+    let (resultado, pedidos) = executar(respostas);
+    let previa = resultado.expect("a descrição do tipo é observada no XML");
+    assert_eq!(previa.tipo_destino.as_deref(), Some("Processo Administrativo"));
+    assert_eq!(pedidos.len(), 5);
+    assert_eq!(pedidos[4].metodo, "POST");
+}
