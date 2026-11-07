@@ -267,15 +267,22 @@ pub(crate) mod testes {
         let pasta = diretorio();
         let cache_raiz = pasta.join("cache");
         let cache = crate::cache_documento::gravar_em(
-            &cache_raiz, "sei.exemplo", "0011519", Some(1), "html", HTML.as_bytes(),
-        ).unwrap();
+            &cache_raiz,
+            "sei.exemplo",
+            "0011519",
+            Some(1),
+            "html",
+            HTML.as_bytes(),
+        )
+        .unwrap();
         let registro = crate::cache_documento::Registro {
             caminho: cache.clone(),
             versao: Some(1),
             sha256: foto_documento::sha256(HTML.as_bytes()),
         };
-        let foto = com_foto("0011519", 1, HTML);
-        let gravadas = gravar_fotos_com_cache(&pasta, &[foto.clone()], &[Some(registro)]).unwrap();
+        let gravadas =
+            gravar_fotos_com_cache(&pasta, &[com_foto("0011519", 1, HTML)], &[Some(registro)])
+                .unwrap();
         assert!(gravadas[0].as_ref().unwrap().gravado);
         let destino = pasta.join("0011519.v1.html");
         std::fs::write(&destino, b"edicao local ainda nao enviada").unwrap();
@@ -285,7 +292,7 @@ pub(crate) mod testes {
             "editar DOC.v1.html nao pode corromper o cache do HTML servido",
         );
         assert_eq!(
-            gravar_fotos(&pasta, &[foto]),
+            gravar_fotos(&pasta, &[com_foto("0011519", 1, HTML)]),
             Err(ErroCopia::FotoDivergente),
             "nova leitura recusa a foto divergente sem sobrescrever",
         );
