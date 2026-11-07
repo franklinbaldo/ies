@@ -247,6 +247,11 @@ O que falta implementar e em que ordem está na
   versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
   BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
   (autorização do proprietário); nos demais comandos, vale o 🐘.
+  **Engenharia reversa por evidências:** usar a skill oficial REA
+  quando houver captura HAR, artefato ou runtime autorizado; o
+  [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
+  observação, hipótese e mutação demonstrada. REA não substitui
+  leitura de código Rust nem é novo gate obrigatório do CI.
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
