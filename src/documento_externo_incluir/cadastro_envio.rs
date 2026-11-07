@@ -1,8 +1,26 @@
-//! BDD do POST definitivo de documento externo derivado da tela recarregada (#332).
-//! Só prepara SubmissaoDerivada; nunca transmite uma escrita.
+//! Preparação técnica do cadastro externo a partir do formulário recarregado (#332).
+//! Só prepara `SubmissaoDerivada`; nunca transmite uma escrita.
 use super::{anexo::FalhaAnexo, cadastro::CadastroExterno, recibo::ReciboUpload};
-use crate::formulario_web::{ErroSubmissaoFormulario, SubmissaoDerivada, TelaServida};
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada,
+    TelaServida, derivar_submissao,
+};
 use crate::instalacao::Instalacao;
+
+const CADASTRAR_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "documento_receber",
+    formulario: "frmDocumentoCadastro",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnIdSerie", "hdnAnexos", "hdnFlagDocumentoCadastro"],
+    campos_ocultos_reescritos: &["hdnAnexos", "hdnFlagDocumentoCadastro"],
+    campos_usuario: &["txtDataElaboracao", "rdoFormato", "rdoNivelAcesso"],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::DocumentoCriadoNoProcesso,
+    },
+};
 
 #[derive(Debug)]
 pub(crate) enum FalhaCadastroEnvio {
@@ -12,13 +30,49 @@ pub(crate) enum FalhaCadastroEnvio {
 }
 
 pub(crate) fn preparar_cadastro_definitivo(
-    _instalacao: &Instalacao,
-    _tela: &TelaServida<'_>,
-    _unidade: &str,
-    _cadastro: &CadastroExterno,
-    _recibo: &ReciboUpload,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    cadastro: &CadastroExterno,
+    recibo: &ReciboUpload,
 ) -> Result<SubmissaoDerivada, FalhaCadastroEnvio> {
-    Err(FalhaCadastroEnvio::ReciboSemData)
+    // Na UnB, o dia que o cadastro exige vem do recibo do servidor,
+    // não do relógio do cliente (que pode estar em outro fuso).
+    let (dia, hora) = recibo
+        .data_hora
+        .split_once(' ')
+        .ok_or(FalhaCadastroEnvio::ReciboSemData)?;
+    let bytes = dia.as_bytes();
+    if bytes.len() != 10
+        || hora.is_empty()
+        || !bytes.iter().enumerate().all(|(i, b)| {
+            if i == 2 || i == 5 {
+                *b == b'/'
+            } else {
+                b.is_ascii_digit()
+            }
+        })
+    {
+        return Err(FalhaCadastroEnvio::ReciboSemData);
+    }
+    let linha = cadastro
+        .plano
+        .linha_do_anexo(recibo)
+        .map_err(FalhaCadastroEnvio::Anexo)?;
+    derivar_submissao(
+        &CADASTRAR_EXTERNO,
+        instalacao,
+        tela,
+        unidade,
+        &[
+            ("hdnFlagDocumentoCadastro", "2"),
+            ("hdnAnexos", &linha),
+            ("txtDataElaboracao", dia),
+            ("rdoFormato", "N"),
+            ("rdoNivelAcesso", "0"),
+        ],
+    )
+    .map_err(FalhaCadastroEnvio::Formulario)
 }
 
 #[cfg(test)]
@@ -60,16 +114,27 @@ mod tests {
         )
     }
 
-    fn preparar(html: &str, recibo: &ReciboUpload) -> Result<SubmissaoDerivada, FalhaCadastroEnvio> {
+    fn preparar(
+        html: &str,
+        recibo: &ReciboUpload,
+    ) -> Result<SubmissaoDerivada, FalhaCadastroEnvio> {
         let instalacao = Instalacao::interpretar(a::ORIGEM).unwrap();
         let cadastro = observar_cadastro(html, "Anexo", 68).unwrap();
-        let url = format!("{}/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash={}", a::ORIGEM, "a".repeat(64));
-        let tela = TelaServida { url: &url, html, codificacao: CodificacaoDaTela::Iso88591 };
+        let url = format!(
+            "{}/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash={}",
+            a::ORIGEM,
+            "a".repeat(64)
+        );
+        let tela = TelaServida {
+            url: &url,
+            html,
+            codificacao: CodificacaoDaTela::Iso88591,
+        };
         preparar_cadastro_definitivo(&instalacao, &tela, a::UNIDADE, &cadastro, recibo)
     }
 
     #[test]
-    fn dado_recibo_temporario_quando_preparo_cadastro_entao_flag_2_anexo_e_dia_do_sei() {
+    fn recibo_temporario_gera_flag_2_anexo_e_dia_do_sei() {
         // Caso: Todos tests/test_documento_juntar_010.py, UnB SEI 4.
         let pagina = html();
         let envio = preparar(&pagina, &recibo()).unwrap();
@@ -84,10 +149,13 @@ mod tests {
     }
 
     #[test]
-    fn dado_recibo_sem_data_quando_preparo_cadastro_entao_recuso_antes_do_post() {
+    fn recibo_sem_dia_nao_gera_cadastro() {
         let mut r = recibo();
         r.data_hora = "sem-data".into();
         let pagina = html();
-        assert!(matches!(preparar(&pagina, &r), Err(FalhaCadastroEnvio::ReciboSemData)));
+        assert!(matches!(
+            preparar(&pagina, &r),
+            Err(FalhaCadastroEnvio::ReciboSemData)
+        ));
     }
 }
