@@ -77,6 +77,22 @@ fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
 }
 
 fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
+    let saida = json_da_falha(erro);
+    if json_mode {
+        println!("{saida}");
+    } else {
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
+        if erro.saida() == 3 {
+            eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
+        }
+    }
+    ExitCode::from(erro.saida())
+}
+
+fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
         "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
         "subcodigo": erro.subcodigo(),
@@ -107,16 +123,5 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
             saida["mensagem_do_servidor"] = json!(mensagem);
         }
     }
-    if json_mode {
-        println!("{saida}");
-    } else {
-        eprintln!(
-            "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-        if erro.saida() == 3 {
-            eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
-        }
-    }
-    ExitCode::from(erro.saida())
+    saida
 }
