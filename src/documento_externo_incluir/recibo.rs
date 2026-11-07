@@ -1,5 +1,5 @@
 //! #332 — interpretação do recibo do upload temporário, sem HTTP.
-//! Oráculo: Todos #775 (UnB SEI 4), cassette de escrita UnB; a etapa não cadastra documento.
+//! Oráculo: Todos #775 (`UnB` SEI 4), cassette de escrita `UnB`; a etapa não cadastra documento.
 //! Os testes exercitam respostas sintéticas; isto ainda não habilita `--confirmar`.
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -13,9 +13,13 @@ pub(crate) struct ReciboUpload {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(crate) enum FalhaUpload {
-    Recusado { motivo: String },
+    Recusado {
+        motivo: String,
+    },
     /// Depois de um POST, ausência de prova não significa ausência de temporário.
-    EfeitoIncerto { status_http: Option<u16> },
+    EfeitoIncerto {
+        status_http: Option<u16>,
+    },
 }
 
 pub(crate) fn interpretar_resposta(
