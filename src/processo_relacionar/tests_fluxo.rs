@@ -19,12 +19,14 @@ fn acao_da_arvore() -> String {
 
 fn formulario_com_relacionados(numeros: &[(&str, &str)]) -> String {
     let hash = "a".repeat(64);
-    let linhas = numeros
-        .iter()
-        .map(|(id, nup)| format!(
+    use std::fmt::Write as _;
+    let mut linhas = String::new();
+    for (id, nup) in numeros {
+        let _ = write!(
+            linhas,
             "<tr><td><a href=\"controlador.php?acao=procedimento_trabalhar&id_procedimento={id}&infra_hash={hash}\">{nup}</a></td><td><a href=\"#ID-{id}\" onclick=\"acaoRemover('{id}');\">Remover</a></td></tr>"
-        ))
-        .collect::<String>();
+        );
+    }
     format!(
         r#"<html><script>
 objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={hash}');
