@@ -1,6 +1,10 @@
 //! #332 — inspeção local do PDF, inteiramente anterior à sessão e à rede.
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
+// Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
+#[allow(dead_code)] // #332: será consumido pelo fluxo de upload após a prévia em treinamento.
+mod recibo;
+
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Read};
