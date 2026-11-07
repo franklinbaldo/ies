@@ -1,5 +1,6 @@
-//! Prévia Web de relacionamento de processos; não faz a escrita.
+//! Relações entre processos: prévia, escrita única e conferência independente.
 mod tela;
+mod escrita;
 #[cfg(test)]
 #[path = "processo_relacionar/tests.rs"]
 mod tests;
@@ -52,6 +53,8 @@ pub(crate) enum FalhaRelacionar {
     RemocaoNaoOferecida,
     DestinoDaConsultaDivergente,
     ConsultaNaoXml,
+    /// O POST pode ter sido enviado; causa preservada quando disponível.
+    EfeitoIncerto(Option<ErroSubmissaoFormulario>),
 }
 impl FalhaRelacionar {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -71,6 +74,18 @@ impl FalhaRelacionar {
             Self::RemocaoNaoOferecida => "remocao_de_relacionamento_nao_oferecida",
             Self::DestinoDaConsultaDivergente => "destino_da_consulta_diverge_do_pedido",
             Self::ConsultaNaoXml => "resposta_da_consulta_nao_xml",
+            Self::EfeitoIncerto(_) => "efeito_incerto",
+        }
+    }
+
+    pub(crate) const fn saida(&self) -> u8 {
+        if matches!(self, Self::EfeitoIncerto(_)) { 3 } else { 1 }
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::EfeitoIncerto(Some(causa)) => causa.status_http(),
+            _ => None,
         }
     }
 }
@@ -81,6 +96,13 @@ pub(crate) struct Pedido<'a> {
     pub(crate) remover: bool,
     pub(crate) confirmar: bool,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResultadoRelacionar {
+    Previa,
+    SemEfeito,
+    Confirmado,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Previa {
     pub(crate) nup: String,
@@ -89,8 +111,14 @@ pub(crate) struct Previa {
     pub(crate) id_destino: Option<String>,
     pub(crate) tipo_destino: Option<String>,
     pub(crate) remover: bool,
-    pub(crate) sem_efeito: bool,
+    pub(crate) resultado: ResultadoRelacionar,
     pub(crate) requisicoes: u8,
+}
+
+impl Previa {
+    pub(crate) fn sem_efeito(&self) -> bool {
+        self.resultado == ResultadoRelacionar::SemEfeito
+    }
 }
 
 /// Números de processo são opacos; para buscar vínculos, diferenças de
@@ -168,8 +196,8 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
         .map_err(|_| E::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))
 }
 
-/// A confirmação é recusada ANTES da sessão e da primeira requisição.
-/// Não supor que a prévia prova o efeito da escrita.
+/// A confirmação percorre a prévia antes de qualquer escrita.
+/// Adicionar ainda recusa a escrita; remover faz POST único e releitura.
 #[allow(clippy::too_many_lines)] // Fluxo de prévia por ação com contagem, sem mutação nem retry.
 pub(crate) fn prever<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -178,9 +206,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, FalhaRelacionar> {
     use FalhaRelacionar as E;
-    if pedido.confirmar {
-        return Err(E::ConfirmacaoAindaNaoValidada);
-    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
@@ -213,13 +238,13 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         id_destino: None,
         tipo_destino: None,
         remover: pedido.remover,
-        sem_efeito: false,
+        resultado: ResultadoRelacionar::Previa,
         requisicoes: rede.feitas(),
     };
     if pedido.remover {
         let achados = linhas_do_protocolo(&relacionados, pedido.com.as_str());
         match achados.as_slice() {
-            [] => previa.sem_efeito = true,
+            [] => previa.resultado = ResultadoRelacionar::SemEfeito,
             [linha] => {
                 if !linha.pode_remover {
                     return Err(E::RemocaoNaoOferecida);
@@ -229,13 +254,30 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             }
             _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
         }
+        if pedido.confirmar && !previa.sem_efeito() {
+            let id_destino = previa.id_destino.as_deref().ok_or(E::Estrutura(
+                "destino_a_remover_sem_identificador",
+            ))?;
+            escrita::remover(
+                sessao,
+                &instalacao,
+                &cookie,
+                link.as_str(),
+                &html,
+                &mime,
+                id_destino,
+                &mut rede,
+            )?;
+            previa.resultado = ResultadoRelacionar::Confirmado;
+        }
+        previa.requisicoes = rede.feitas();
         return Ok(previa);
     }
     // A tabela já relaciona NUP e id: nenhum POST AJAX é necessário.
     if let Some(linha) = relacionamento_existente(&relacionados, pedido.com.as_str(), &id)? {
         previa.id_destino = Some(linha.id.clone());
         previa.destino.clone_from(&linha.nup);
-        previa.sem_efeito = true;
+        previa.resultado = ResultadoRelacionar::SemEfeito;
         return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
@@ -274,10 +316,17 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if !mesmo_protocolo(pedido.com.as_str(), &nup) {
         return Err(E::DestinoDaConsultaDivergente);
     }
-    previa.sem_efeito = relacionados.iter().any(|linha| linha.id == destino_id);
+    previa.resultado = if relacionados.iter().any(|linha| linha.id == destino_id) {
+        ResultadoRelacionar::SemEfeito
+    } else {
+        ResultadoRelacionar::Previa
+    };
     previa.id_destino = Some(destino_id);
     previa.tipo_destino = tipo;
     previa.destino = nup;
     previa.requisicoes = rede.feitas();
+    if pedido.confirmar && !previa.sem_efeito() {
+        return Err(E::ConfirmacaoAindaNaoValidada);
+    }
     Ok(previa)
 }
