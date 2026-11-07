@@ -72,6 +72,7 @@ O [🦡 Texugo](texugo.md) pode revogar orientações do 🐘 e reclassificar ri
   Reabra issue fechada por `Closes` se continuar WIP; feche só quando toda a capacidade estiver completa e sem `wip`.
 - Em PR parada com falhas triviais (ex: rustfmt ou Clippy), faça o ajuste direto no branch para apoiar a equipe.
 - Mantenha a fila viva ordenada por prioridade (90–100 uso diário/bugs; 70–89 desbloqueadores; 40–69 demais). Qualquer membro da equipe pode abrir issues livremente; o Elefante e o Texugo são responsáveis por classificar e atribuir a prioridade numérica na fila. Sem mudança material, **silêncio**.
+- **Gestão diária do Cafezinho:** A issue do cafezinho é diária (uma por dia de calendário). A cada virada de dia de calendário, o Elefante fecha a issue de cafezinho do dia anterior e abre a nova issue do dia corrente (`☕ Cafezinho do Time IES — DD/MM/AAAA`) com as etiquetas `cafezinho` e `conversa`.
 
 ## Continuidade atual
 
