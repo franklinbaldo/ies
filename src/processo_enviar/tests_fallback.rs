@@ -213,3 +213,42 @@ fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
         );
     }
 }
+
+#[test]
+fn bdd_333_05_sem_checkbox_e_sem_editor_recusa_na_previa() {
+    // Dado que a instalação não oferece nem checkbox nem edição da anotação;
+    // Quando executo ies processo enviar NUP --para SIGLA --remover-anotacoes;
+    // Então a CLI recusa a remoção não oferecida, sem tramitar o processo.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let sem_checkbox =
+        tela_de_envio(Versao::V41, ID).replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+    let formulario_sem_edicao = form_anotacao("Antes").replace(
+        r#"<button type="submit" name="sbmRegistrarAnotacao" value="Salvar">Salvar</button>"#,
+        "<span>Somente leitura</span>",
+    );
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![ok(sem_checkbox), ok(formulario_sem_edicao)],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: false,
+            },
+            indice,
+            rede,
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(super::ErroEnviar::RemocaoDeAnotacoesNaoOferecida)
+    ));
+    assert!(pedidos.iter().all(|pedido| pedido.metodo != "POST"));
+}
