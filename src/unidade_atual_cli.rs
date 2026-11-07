@@ -2,6 +2,9 @@
 use crate::erro_web::ErroCaixa;
 use crate::{configuracao, erro_fonte, relogin_cli, transporte};
 use serde_json::json;
+
+#[path = "observacao_controle.rs"]
+mod observacao_controle;
 use std::process::ExitCode;
 
 fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
@@ -23,13 +26,13 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         )?;
         transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
     });
-    let (html, nota) = match lido {
+    let (sessao, html, nota, indice) = match lido {
         Ok(((sessao, tela), nota)) => {
             // A colheita usa a geração do cookie que obteve a tela.
             let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
             crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
                 .colher(&tela.html, Some(&tela.mime));
-            (tela.html, nota)
+            (sessao, tela.html, nota, indice)
         }
         Err(falha) => return relogin_cli::publicar_falha(json_mode, &falha),
     };
@@ -49,6 +52,15 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
             "unidade_exibida_diferente_da_solicitada",
             "a unidade mostrada pelo SEI não corresponde à solicitada",
         );
+    }
+    // Reaproveita o GET feito pelo comando. O contexto é a geração
+    // da sessão e nunca é enviado ao servidor, apenas ao SQLite privado.
+    if let Some(instalacao) = crate::instalacao::Instalacao::interpretar(sessao.origem())
+        && let Ok(cookie) = sessao.cookie().valor()
+        && let Some(observacao) = observacao_controle::da_tela(&html, instalacao)
+    {
+        let contexto = crate::sessao_login::geracao_da_sessao(cookie);
+        indice.registrar_observacao(&contexto, &observacao);
     }
     if json_mode {
         let mut valor = json!({"unidade_exibida": unidade, "origem": "controle_de_processos"});
