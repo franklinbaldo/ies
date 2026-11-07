@@ -2,6 +2,7 @@
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
+use iesei::retornos_cassettes::{Mes, Situacao, ler as ler_retornos};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -143,6 +144,91 @@ fn controle_html(controle: &ControleResumido) -> Option<String> {
     Some(html)
 }
 
+/// Renderiza dados já observados. Ausência de linhas só significa vazio
+/// quando a cassette declarou o mês e o leitor do IES o aceitou.
+fn html_de_retornos(mes: &Mes) -> String {
+    let mut html = String::from("<html><body>");
+    for (situacao, id, resumo) in [
+        (Situacao::Aguardando, "divAguardandoAreaTabela", "Aguardando Retorno de Outras Unidades"),
+        (Situacao::Devolver, "divDevolverAreaTabela", "Para Devolver"),
+    ] {
+        let itens: Vec<_> = mes.itens.iter().filter(|r| r.situacao == situacao).collect();
+        if itens.is_empty() {
+            write!(html, "<div id='{id}'>Nenhum registro encontrado.</div>")
+                .expect("formatação String");
+            continue;
+        }
+        write!(
+            html,
+            "<div id='{id}'><table summary='{resumo}'><caption>{} registros:</caption>\
+             <thead><tr><th>Processo</th><th>Unidade</th>\
+             <th>Data Programada</th><th>Data de Retorno Efetiva</th>\
+             <th>Prazo Restante</th></tr></thead><tbody>",
+            itens.len()
+        )
+        .expect("formatação String");
+        for item in itens {
+            write!(
+                html,
+                "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                escapar(&item.numero),
+                escapar(&item.unidade),
+                escapar(&item.data_programada),
+                escapar(item.retornado_em.as_deref().unwrap_or("")),
+                escapar(item.prazo_restante.as_deref().unwrap_or(""))
+            )
+            .expect("formatação String");
+        }
+        html.push_str("</tbody></table></div>");
+    }
+    html.push_str("</body></html>");
+    html
+}
+
+/// Valor único de parâmetro observado na URL; repetição não seleciona mês.
+fn parametro_unico<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
+    let (_, query) = alvo.split_once('?')?;
+    let mut valores = query.split('&').filter_map(|parte| parte.split_once('='))
+        .filter(|(chave, _)| *chave == nome).map(|(_, valor)| valor);
+    let valor = valores.next()?;
+    (valores.next().is_none() && !valor.is_empty()).then_some(valor)
+}
+
+/// Nova rota: lista mensal de retornos, sem comunicar com o SEI.
+///
+/// Um mês ausente do banco recebe 503, não uma página de zero retornos.
+#[must_use]
+pub fn retorno_programado(
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if !eh_controlador_sei(alvo)
+        || parametro_unico(alvo, "acao") != Some("retorno_programado_listar")
+    {
+        return despachar(metodo, alvo);
+    }
+    if metodo != "GET" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    let (Some(inicio), Some(fim)) = (
+        parametro_unico(alvo, "data_inicial"),
+        parametro_unico(alvo, "data_final")
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let Ok(Some(mes)) = ler_retornos(banco, instalacao, cenario, inicio, fim) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "text/html; charset=utf-8",
+        corpo: html_de_retornos(&mes),
+    }
+}
+
 /// Atende somente um GET de Controle R observado no banco efêmero.
 /// Não utiliza URLs assinadas, cookies nem dados da sessão operacional.
 #[must_use]
@@ -194,7 +280,11 @@ pub fn atender_http(
         match (partes.next(), partes.next(), partes.next(), partes.next()) {
             (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) => {
                 if let Some((banco, instalacao, cenario)) = fonte {
-                    controlar(metodo, alvo, banco, instalacao, cenario)
+                    if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
+                        retorno_programado(metodo, alvo, banco, instalacao, cenario)
+                    } else {
+                        controlar(metodo, alvo, banco, instalacao, cenario)
+                    }
                 } else {
                     despachar(metodo, alvo)
                 }
