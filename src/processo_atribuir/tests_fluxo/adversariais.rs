@@ -177,7 +177,7 @@ fn principal_com_id_explicito_confirma_apos_releitura() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.estado, EstadoDaAtribuicao::AlteracaoConfirmada);
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
