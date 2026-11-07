@@ -145,6 +145,25 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         }
         return Ok(previa);
     }
+    // A tabela já relaciona NUP e id do destino: consultar o complementar
+    // outra vez não acrescenta evidência e faz um POST de leitura dispensável.
+    let existentes: Vec<_> = relacionados
+        .iter()
+        .filter(|linha| linha.nup == pedido.com.as_str())
+        .collect();
+    match existentes.as_slice() {
+        [] => {}
+        [linha] => {
+            if linha.id == id {
+                return Err(E::RelacionamentoConsigoMesmo);
+            }
+            previa.id_destino = Some(linha.id.clone());
+            previa.destino.clone_from(&linha.nup);
+            previa.sem_efeito = true;
+            return Ok(previa);
+        }
+        _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
+    }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
     let codificacao = codificacao_da_tela(&mime).ok_or(E::Estrutura(
         "charset_da_tela_de_relacionamentos_nao_suportado",
