@@ -16,6 +16,7 @@ fn previa() -> ProcessoEnviado {
         manter_aberto: false,
         remover_anotacoes: false,
         anotacao_antes: None,
+        anotacao_depois: None,
         metodo_remocao: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
