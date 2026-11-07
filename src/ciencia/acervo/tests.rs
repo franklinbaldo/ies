@@ -290,10 +290,9 @@ fn lista_documental_sem_id_nao_prova_aceite_documental() {
     );
 }
 
-
 /// RED #271: o rótulo da cassette não pode transformar uma abertura
-/// procedimento_visualizar em GET de ciência. A prova depende da
-/// ação da URL realmente servida, não só do campo request.operation.
+/// `procedimento_visualizar` em GET de ciência. A prova depende da
+/// ação da URL realmente servida, não só do campo `request.operation`.
 #[test]
 fn rotulo_de_ciencia_com_url_de_visualizacao_nao_comprova_processo() {
     let base = "https://sei.treinamento.unb.br/sei/controlador.php";
@@ -324,7 +323,7 @@ fn rotulo_de_ciencia_com_url_de_visualizacao_nao_comprova_processo() {
 }
 
 /// RED #271: no documento também não se aceita operação rotulada como
-/// ciência quando acao da URL é outra ou aparece duplicada.
+/// ciência quando `acao` da URL é outra ou aparece duplicada.
 #[test]
 fn rotulo_documental_nao_substitui_acao_unica_da_url_servida() {
     let base = "https://sei.treinamento.unb.br/sei/controlador.php";
