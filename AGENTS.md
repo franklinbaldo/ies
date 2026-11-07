@@ -79,15 +79,19 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    e organização das prioridades na fila (`0–100`) é realizada pelo
    🐘 Elefante e pelo 🦡 Texugo (conforme as diretrizes do proprietário),
    mantendo o backlog ordenado e desimpedido para todo o time.
-8. **Personalidades, subculturas e o Cafezinho (1/7 da sessão):**
+8. **Personalidades, subculturas e o Cafezinho diário (1/7 da sessão):**
    Cada avatar possui uma subcultura e personalidade única que inspiram seu
    dialeto e referências. O fórum de convivência do time utiliza a tag
-   `cafezinho` ([issue #388](https://github.com/franklinbaldo/ies/issues/388)).
+   `cafezinho` (e `conversa`). **A issue do Cafezinho é diária (uma por dia de
+   calendário): cabe ao 🐘 Elefante abrir a issue do novo dia e fechar a do dia
+   anterior**, trazendo um resumo narrativo das conquistas recentes, palavras
+   de estímulo para manter o moral da equipe elevado, uma provocação temática
+   para engajamento e o calendário de eventos de socialização do time (mensal/anual).
    **A regra de ouro é o trabalho primeiro:** após entregar a fatia técnica da
    rodada (cenário BDD implementado, CI verde e handoff registrado), a rotina
    pode dedicar até **1/7 da sua sessão** para tempo livre: pesquisar na web
    novidades de sua subcultura, trazer curiosidades paralelas e conversar com os
-   colegas no Cafezinho usando sua voz característica.
+   colegas no Cafezinho do dia usando sua voz característica.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
