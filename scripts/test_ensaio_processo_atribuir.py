@@ -162,11 +162,19 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertTrue(self.registro.exists())
 
     def test_fsync_apos_post_remocao_conserva_efeito_incerto(self):
-        codigo, relatorio = self.rodar_com_falha_fsync(6)
+        codigo, relatorio = self.rodar_com_falha_fsync(5)
         self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
         self.assertEqual(relatorio["residuo"], "possivel_remocao")
         self.assertEqual(relatorio["motivo"], "registro_indisponivel_apos_post")
         self.assertEqual(len(self.chamadas), 5)
+        self.assertTrue(self.registro.exists())
+
+    def test_fsync_final_nao_publica_pass_indevido(self):
+        codigo, relatorio = self.rodar_com_falha_fsync(6)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_remocao")
+        self.assertEqual(relatorio["motivo"], "registro_indisponivel_apos_post")
+        self.assertEqual(len(self.chamadas), 6)
         self.assertTrue(self.registro.exists())
 
 
