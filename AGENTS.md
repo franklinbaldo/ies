@@ -46,18 +46,15 @@ risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
-1. **Fila com emoji da fatia ativa:** A fila usa etiqueta `handoff-chatgpt`
-   e título `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
-   justificativa. O emoji identifica quem está trabalhando na **fatia atual**
-   (na PR aberta da rodada).
-2. **Revezamento Rotativo de Eixos (Anti-Feudo):** O emoji **não é casamento
-   vitalício com a issue**. Ninguém fica preso indefinidamente na mesma issue.
-   Ao concluir uma fatia e ter a PR integrada na `main`, a issue pode e deve
-   receber o próximo cenário BDD por outro implementador (olhar fresco).
-   Se uma issue empacar em dependência externa, o implementador deve mover seu
-   emoji para a próxima issue prioritária livre da fila em vez de inventar
-   micro-tarefas internas.
+1. **Emoji identifica o trabalho atual:** A fila usa etiqueta `handoff-chatgpt`
+   e título `<prioridade 0–100> <emoji, se em trabalho> <título>`. O emoji serve
+   para identificar visualmente quem está com a mão na massa na rodada atual
+   (com PR aberta vinculada).
+2. **Sem reserva antecipada — a próxima é de quem vier e pegar:** É proibido
+   pré-reservar issues futuras ou manter feudo permanente. Nenhuma issue fica
+   guardada para ninguém. Você pega uma issue, implementa o cenário e entrega a PR.
+   Ao iniciar a rodada, a rotina simplesmente pega a issue aberta de maior prioridade
+   que estiver livre naquele instante ("a próxima é de quem vier e pegar").
 3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
    por **cenários comportamentais observáveis** do comando (`Dado / Quando /
    Então`). Alterações isoladas em scripts de ensaio ou fixtures sem mudança
