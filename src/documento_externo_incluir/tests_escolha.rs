@@ -24,7 +24,7 @@ fn dado_sei4_quando_escolho_externo_entao_obtenho_link_publicado() {
 }
 #[test]
 fn dado_sei5_quando_escolho_externo_entao_obtenho_formulario_sem_executar_script() {
-    let html = lista(r#"<a href="#" onclick="escolher(-1);">Externo</a>"#);
+    let html = lista(r##"<a href="#" onclick="escolher(-1);">Externo</a>"##);
     assert_eq!(escolher_externo(&html), Ok(EscolhaExterna::Formulario));
 }
 #[test]
