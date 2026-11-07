@@ -110,3 +110,34 @@ fn dado_cadastro_minimo_quando_consulto_sei_entao_projeto_campo_visivel_no_resul
     let previa = resultado.unwrap();
     assert_eq!(previa.campos_oferecidos, ["selSerie"]);
 }
+
+#[test]
+fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
+    // Cenário BDD-332-04 previamente especificado na issue: nunca repetir upload.
+    let amb = a::ambiente();
+    let mut respostas = a::abertura(arvore());
+    respostas.push(a::ok(lista()));
+    respostas.push(a::ok(cadastro("1", false)));
+    respostas.push(a::ok(cadastro("1", true)));
+    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        let pdf = PdfLocal {
+            nome: "prova.pdf".into(),
+            tamanho_bytes: 68,
+            sha256: "ficticio".into(),
+        };
+        super::super::fluxo_confirmar::executar_confirmacao_via(
+            sessao, nup, None, "Anexo", &pdf, indice, rede,
+            |_, _, _, _, _| Err(super::super::recibo::FalhaUpload::Recusado {
+                motivo: "recusa sintetica".into(),
+            }),
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
+            super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
+        ))
+    ));
+    assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+    assert!(pedidos.iter().all(|p| !p.url.contains("documento_upload_anexo")));
+}
