@@ -175,7 +175,43 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertEqual(relatorio["residuo"], "possivel_remocao")
         self.assertEqual(relatorio["motivo"], "registro_indisponivel_apos_post")
         self.assertEqual(len(self.chamadas), 6)
-        self.assertTrue(self.registro.exists())
+        # fsync com falha não pode deixar um PASS no registro persistido.
+        persistido = json.loads(self.registro.read_text())
+        self.assertNotEqual(persistido["estado"], "PASS")
+        self.assertNotEqual(persistido["residuo"], "sem_atribuicao")
+
+    def test_escrita_parcial_do_checkpoint_antes_do_post_eh_completa(self):
+        import os
+        from unittest.mock import patch
+
+        escrita_original = os.write
+        parcial_injetada = False
+        registro_antes_do_post = []
+        respostas = iter(roteiro())
+
+        def escrever_parcial(fd, dados):
+            nonlocal parcial_injetada
+            if not parcial_injetada:
+                parcial_injetada = True
+                return escrita_original(fd, dados[:1])
+            return escrita_original(fd, dados)
+
+        def executar(_ies, args):
+            if "--confirmar" in args and not registro_antes_do_post:
+                registro_antes_do_post.append(self.registro.read_text())
+            return next(respostas)
+
+        with patch("ensaio_processo_atribuir.os.write", side_effect=escrever_parcial):
+            codigo, relatorio = ensaiar(
+                ies="ies-falso", registro=self.registro, nup=NUP,
+                usuario=USUARIO, origem=ORIGEM, executar=executar,
+                pausa=lambda _: None,
+            )
+        self.assertTrue(parcial_injetada)
+        self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
+        self.assertEqual(json.loads(registro_antes_do_post[0])["estado"],
+                         "CONFIRMACAO_INICIADA")
+        self.assertEqual(json.loads(self.registro.read_text())["estado"], "PASS")
 
 
 class PrevooDaOrigem(unittest.TestCase):
