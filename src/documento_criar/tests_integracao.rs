@@ -485,6 +485,15 @@ fn incerteza_conserva_contagem_da_rede_externa() {
 }
 
 #[test]
+fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
+    // Ablação #246 (🦡): a autorização deriva de botão e formulário
+    // observados; a lógica interna do JS não é o contrato HTTP do IES.
+    // O servidor ainda decide se aceita o POST e a árvore comprova o efeito.
+    let html = cadastro_com_script("/* lógica do navegador não interpretada */");
+    assert!(cadastro_publica_script_de_criacao(&html));
+}
+
+#[test]
 fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
     // Um onclick não torna acionável um botão oculto ou desabilitado
     // por um ancestral. Cenários sintéticos; cinco GET, nenhum POST.
