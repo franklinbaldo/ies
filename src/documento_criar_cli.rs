@@ -1,7 +1,9 @@
 //! Entrada pública de documento criar (#246).
 //! A confirmação deriva um único POST do cadastro e só reconhece o efeito
 //! depois de releitura da árvore. Não há retry.
-use crate::documento_criar::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
+use crate::documento_criar::{
+    ErroPreviaCriacao, EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao,
+};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
@@ -44,7 +46,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);
         match executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar) {
-            Ok(previa) => publicar_previa(cli.json, &previa),
+            Ok(resultado) => publicar_resultado(cli.json, &resultado),
             Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas()),
         }
     }))
@@ -67,38 +69,39 @@ fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn publicar_previa(json_mode: bool, previa: &PreviaCriacao) -> ExitCode {
+fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode {
+    let numero_sei = match &resultado.estado {
+        EstadoCriacao::Previa => None,
+        EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
+    };
     if json_mode {
         println!(
             "{}",
             json!({
-                "nup": previa.nup,
-                "tipo": previa.tipo,
-                "unidade": previa.unidade,
+                "nup": resultado.nup,
+                "tipo": resultado.tipo,
+                "unidade": resultado.unidade,
                 "origem": "web",
-                "confirmado": previa.confirmado,
-                "alterado": previa.confirmado,
-                "numero_sei": previa.numero_sei,
-                "requisicoes": previa.requisicoes
+                "confirmado": numero_sei.is_some(),
+                "alterado": numero_sei.is_some(),
+                "numero_sei": numero_sei,
+                "requisicoes": resultado.requisicoes
             })
         );
     } else {
-        if previa.confirmado {
+        if let Some(numero_sei) = numero_sei {
             println!(
                 "Documento {} criado no processo {} (unidade {}), número SEI {}.",
-                previa.tipo,
-                previa.nup,
-                previa.unidade,
-                previa.numero_sei.as_deref().unwrap_or("não observado")
+                resultado.tipo, resultado.nup, resultado.unidade, numero_sei
             );
         } else {
             println!(
                 "Prévia: criar documento {} no processo {} (unidade {}).",
-                previa.tipo, previa.nup, previa.unidade
+                resultado.tipo, resultado.nup, resultado.unidade
             );
             println!("Nenhum documento foi criado.");
         }
-        println!("Requisições: {}", previa.requisicoes);
+        println!("Requisições: {}", resultado.requisicoes);
     }
     ExitCode::SUCCESS
 }

@@ -84,7 +84,7 @@ fn arvore_verificadora(novos: usize) -> String {
 fn executar(
     confirmar: bool,
     extra: Vec<a::Resposta>,
-) -> (Result<PreviaCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -123,8 +123,7 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
         Ok(previa) => previa,
         Err(erro) => panic!("prévia falhou: {}", erro.subcodigo()),
     };
-    assert!(!previa.confirmado);
-    assert_eq!(previa.numero_sei, None);
+    assert!(matches!(previa.estado, EstadoCriacao::Previa));
     assert_eq!(previa.requisicoes, 5);
     assert_eq!(pedidos, pedidos_antes_da_escrita());
 }
@@ -142,8 +141,10 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
         Ok(confirmacao) => confirmacao,
         Err(erro) => panic!("confirmação sintética recusada: {}", erro.subcodigo()),
     };
-    assert!(confirmacao.confirmado);
-    assert_eq!(confirmacao.numero_sei.as_deref(), Some("0000102"));
+    assert!(matches!(
+        &confirmacao.estado,
+        EstadoCriacao::Criado { numero_sei } if numero_sei == "0000102"
+    ));
     assert_eq!(confirmacao.requisicoes, 7);
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
@@ -172,7 +173,7 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
 
 fn executar_com_cadastro_sintetico(
     html_cadastro: String,
-) -> (Result<PreviaCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
     let ambiente = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));

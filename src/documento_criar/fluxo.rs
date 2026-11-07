@@ -82,13 +82,19 @@ pub(crate) struct PedidoCriacao<'a> {
     pub(crate) nivel: Option<&'a str>,
 }
 
-pub(crate) struct PreviaCriacao {
+/// O resultado não permite representar uma confirmação sem número SEI.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum EstadoCriacao {
+    Previa,
+    Criado { numero_sei: String },
+}
+
+pub(crate) struct ResultadoCriacao {
     pub(crate) nup: String,
     pub(crate) tipo: String,
     pub(crate) unidade: String,
     pub(crate) requisicoes: u8,
-    pub(crate) confirmado: bool,
-    pub(crate) numero_sei: Option<String>,
+    pub(crate) estado: EstadoCriacao,
 }
 
 #[derive(crate::erro_publico::Causa)]
@@ -184,7 +190,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
     confirmar: bool,
-) -> Result<PreviaCriacao, ErroPreviaCriacao> {
+) -> Result<ResultadoCriacao, ErroPreviaCriacao> {
     use ErroPreviaCriacao as E;
     // A operação já sabe que não pode criar sem nível explícito ou sem
     // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
@@ -291,16 +297,15 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(erro_da_tela)?;
     conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)
         .map_err(E::Tipo)?;
-    let mut feito = PreviaCriacao {
+    let previa = ResultadoCriacao {
         nup: pedido.nup.as_str().to_owned(),
         tipo: pedido.tipo.to_owned(),
         unidade,
         requisicoes: rede.feitas(),
-        confirmado: false,
-        numero_sei: None,
+        estado: EstadoCriacao::Previa,
     };
     if !confirmar {
-        return Ok(feito);
+        return Ok(previa);
     }
     // O cadastro restrito exige escolha de hipótese legal. Enquanto a
     // operação não resolver esse controle, apenas o nível público é seguro.
@@ -328,7 +333,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     if let Some(descricao) = pedido.descricao {
         campos.push(("txtDescricao", descricao));
     }
-    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &feito.unidade, &campos)
+    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &previa.unidade, &campos)
         .map_err(E::Formulario)?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
@@ -351,10 +356,11 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
             .map_err(|_| ())
         },
     )?;
-    feito.confirmado = true;
-    feito.numero_sei = Some(numero);
-    feito.requisicoes = rede.feitas();
-    Ok(feito)
+    Ok(ResultadoCriacao {
+        requisicoes: rede.feitas(),
+        estado: EstadoCriacao::Criado { numero_sei: numero },
+        ..previa
+    })
 }
 
 #[cfg(test)]

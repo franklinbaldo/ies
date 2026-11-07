@@ -8,7 +8,9 @@ mod guarda_navegacao;
 mod guarda_script;
 pub(crate) use cadastro::conferir_cadastro;
 mod link_do_tipo;
-pub(crate) use fluxo::{ErroPreviaCriacao, PedidoCriacao, PreviaCriacao, executar_criacao};
+pub(crate) use fluxo::{
+    ErroPreviaCriacao, EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao,
+};
 
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
