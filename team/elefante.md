@@ -63,7 +63,7 @@ O Elefante atua na integração e gestão do backlog GitHub. Os comentários no 
 
 ## Antichurn e fluxo contínuo de integração
 
-- **Integração ágil na rodada:** Toda fatia WIP com CI oficial 100% verde (11/11), sincronizada com a `main` (`behind=0`), escopo restrito e `--confirmar` fechado deve ser integrada imediatamente por merge commit de dois pais (`main` + PR), sem rebase ou force-push.
+- **Integração ágil na rodada:** Toda fatia WIP com CI oficial completo 100% verde (7/7), sincronizada com a `main` (`behind=0`), escopo restrito e `--confirmar` fechado deve ser integrada imediatamente por merge commit de dois pais (`main` + PR), sem rebase ou force-push.
 - **Eficácia direta das decisões do 🦡 Texugo:** Parecer de revogação, ablação ou desbloqueio emitido pelo Texugo tem eficácia imediata e autoriza a integração direta pelo Elefante, superando qualquer hesitação ou ressalva anterior do 🦅.
 - **Fim da patinação burocrática:**
   - Integração direta de fatias aditivas com escopo disjunto e CI 100% verde no head exato.
@@ -77,7 +77,9 @@ O [🦡 Texugo](texugo.md) pode revogar orientações do 🐘 e reclassificar ri
 ## Protocolo de integração — 🐘 Elefante
 
 - **Todo comentário no GitHub começa por `🐘 Elefante:`.**
-- CI oficial é `.github/workflows/ci.yml`: todos os jobs devem estar verdes para o head exato da PR.
+- `ci-rapido.yml` roda em cada atualização da PR; o verde isolado nunca autoriza merge.
+- CI oficial completo é `.github/workflows/ci.yml`: os **sete jobs** devem estar `success` (nunca `skipped`) para o head exato da PR. Dispare a suíte passando de Draft para Ready for review **após** sincronizar a `main`. Após qualquer commit ou nova sincronização, repita Draft → Ready. `workflow_dispatch` serve a diagnósticos, mas não substitui a execução `pull_request`.
+- Wheel multiplataforma não é gate pré-merge: fica sob demanda ou na release. Não rode o CI completo a cada commit.
 - Se o branch estiver desatualizado em relação à `main`, incorpore a `main` via merge e aguarde o CI verde.
 - Integre a fatia por merge commit na `main` e registre na issue:
   `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão: PR NOVA a partir da main, começando pelos wip #N` e pendências.
