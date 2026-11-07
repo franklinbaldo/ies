@@ -116,9 +116,7 @@ pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
         }
     }
     if let Some(http) = erro.status_http() {
-        if http.status != 200 {
-            saida["status_http"] = json!(http.status);
-        }
+        saida["status_http"] = json!(http.status);
         if let Some(mensagem) = &http.mensagem_do_servidor {
             saida["mensagem_do_servidor"] = json!(mensagem);
         }
