@@ -68,15 +68,43 @@ fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
             feito.requisicoes
         );
     } else {
-        println!(
-            "Prévia: ciência do usuário desta sessão no documento {} ({}) do processo {}.              O SEI permite uma por documento. Para executar: --confirmar. Requisições: {}.",
-            feito.numero, feito.rotulo, feito.processo_nup, feito.requisicoes
-        );
+        println!("{}", texto_da_previa(feito));
     }
     ExitCode::SUCCESS
 }
 
+/// Formata a prévia humana usando somente dados já observados na abertura.
+/// A unidade é opcional: não inventar localização quando ela não foi publicada.
+fn texto_da_previa(feito: &CienciaDoDocumento) -> String {
+    let unidade = feito
+        .unidade
+        .as_deref()
+        .filter(|nome| !nome.trim().is_empty())
+        .map(|nome| format!(", na unidade {nome}"))
+        .unwrap_or_default();
+    format!(
+        "Prévia: registrar ciência do usuário desta sessão no documento {} ({}) do processo {}{}. O SEI permite uma ciência por documento. Para executar: --confirmar. Requisições: {}.",
+        feito.numero, feito.rotulo, feito.processo_nup, unidade, feito.requisicoes
+    )
+}
+
 fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
+    let saida = json_da_falha(erro);
+    if json_mode {
+        println!("{saida}");
+    } else {
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
+        if erro.saida() == 3 {
+            eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
+        }
+    }
+    ExitCode::from(erro.saida())
+}
+
+pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
         "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
         "subcodigo": erro.subcodigo(),
@@ -100,23 +128,49 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
         }
     }
     if let Some(http) = erro.status_http() {
-        if http.status != 200 {
-            saida["status_http"] = json!(http.status);
-        }
+        saida["status_http"] = json!(http.status);
         if let Some(mensagem) = &http.mensagem_do_servidor {
             saida["mensagem_do_servidor"] = json!(mensagem);
         }
     }
-    if json_mode {
-        println!("{saida}");
-    } else {
-        eprintln!(
-            "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-        if erro.saida() == 3 {
-            eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
+    saida
+}
+
+#[cfg(test)]
+mod testes_previa {
+    use super::*;
+
+    fn feito(unidade: Option<&str>) -> CienciaDoDocumento {
+        CienciaDoDocumento {
+            numero: "0011607".into(),
+            id_documento: "21".into(),
+            rotulo: "Despacho".into(),
+            processo_nup: "0000001-22.2026.4.00.0000".into(),
+            id_procedimento: "10".into(),
+            unidade: unidade.map(str::to_owned),
+            confirmado: false,
+            verificado: false,
+            id_atividade: None,
+            requisicoes: 3,
         }
     }
-    ExitCode::from(erro.saida())
+
+    /// RED #271: documento ciente deve mostrar a unidade efetivamente observada,
+    /// como a prévia do Todos, e nunca deixar 14 espaços no meio da frase.
+    #[test]
+    fn previa_humana_publica_unidade_observada_sem_espacos_duplicados() {
+        let texto = texto_da_previa(&feito(Some("Unidade3")));
+        assert!(texto.contains("no documento 0011607 (Despacho)"));
+        assert!(texto.contains("do processo 0000001-22.2026.4.00.0000, na unidade Unidade3."));
+        assert!(texto.contains("Para executar: --confirmar."));
+        assert!(texto.contains("Requisições: 3."));
+        assert!(!texto.contains("  "), "espaçamento da prévia: {texto}");
+    }
+
+    #[test]
+    fn previa_humana_nao_inventa_unidade_nao_observada() {
+        let texto = texto_da_previa(&feito(None));
+        assert!(texto.contains("do processo 0000001-22.2026.4.00.0000."));
+        assert!(!texto.contains("na unidade"));
+    }
 }
