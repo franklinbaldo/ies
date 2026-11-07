@@ -178,9 +178,87 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
 }
 
 
-/// A URL mutadora ainda não é assumida apenas por estar no HTML.
-/// Próxima fatia: ler o acionador acaoRemover observado no script ativo.
-#[cfg(test)]
-pub(super) fn url_exclusao(_html: &str) -> Result<String, &'static str> {
-    Err("acao_excluir_relacionamento_nao_declarada")
+/// Deriva a action do handler literal acaoRemover, nunca de texto solto.
+/// Não interpreta JavaScript. A submissão ainda precisa ser validada
+/// pela fronteira de formulários e nenhuma escrita é habilitada aqui.
+pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
+    const ERRO: &str = "acao_excluir_relacionamento_nao_declarada";
+    const FUNCAO: &str = "function acaoRemover(id){";
+    const ID: &str = "document.getElementById('hdnInfraItemId').value=id;";
+    const ACTION: &str =
+        "document.getElementById('frmProcedimentoListarRelacionamentos').action='";
+    const ENVIAR: &str =
+        "document.getElementById('frmProcedimentoListarRelacionamentos').submit();";
+
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ERRO)?;
+    let parser = dom.parser();
+    // Um script dentro de template não oferece evento acionável.
+    let inertes: Vec<_> = dom
+        .query_selector("template")
+        .into_iter()
+        .flatten()
+        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
+        .flat_map(|t| t.children().all(parser))
+        .filter_map(tl::Node::as_tag)
+        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("script"))
+        .map(|t| t.inner_text(parser).to_string())
+        .collect();
+
+    let mut urls = Vec::new();
+    for no in dom.query_selector("script").into_iter().flatten() {
+        let Some(script) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        let texto = script.inner_text(parser).to_string();
+        if inertes.contains(&texto) {
+            continue;
+        }
+        let linhas: Vec<_> = texto.lines().map(str::trim).collect();
+        let candidatos: Vec<_> = linhas
+            .iter()
+            .enumerate()
+            .filter_map(|(i, linha)| (*linha == FUNCAO).then_some(i))
+            .collect();
+        let [inicio] = candidatos.as_slice() else {
+            if !candidatos.is_empty() {
+                return Err(ERRO);
+            }
+            continue;
+        };
+        // Uma declaração dentro de comentário de bloco não é executável.
+        let prefixo = linhas[..*inicio].join("\n");
+        let ultimo_abre = prefixo.rfind("/*");
+        let ultimo_fecha = prefixo.rfind("*/");
+        if ultimo_abre.is_some_and(|p| ultimo_fecha.is_none_or(|f| f < p)) {
+            continue;
+        }
+        // O primeiro fechamento pertence à guarda confirm da função observada.
+        let Some(fim) = linhas[*inicio + 1..]
+            .iter()
+            .position(|linha| *linha == "}")
+            .map(|i| i + *inicio + 1)
+        else {
+            continue;
+        };
+        let corpo = &linhas[*inicio + 1..fim];
+        let pos_id = corpo.iter().position(|l| *l == ID);
+        let pos_action = corpo.iter().position(|l| l.starts_with(ACTION));
+        let pos_enviar = corpo.iter().position(|l| *l == ENVIAR);
+        let (Some(i), Some(a), Some(s)) = (pos_id, pos_action, pos_enviar) else {
+            continue;
+        };
+        if !(i < a && a < s) {
+            continue;
+        }
+        let Some(url) = corpo[a].strip_prefix(ACTION).and_then(|l| l.strip_suffix("';")) else {
+            continue;
+        };
+        if url.starts_with("controlador.php?acao=procedimento_excluir_relacionamento&") {
+            urls.push(url.to_owned());
+        }
+    }
+    match urls.as_slice() {
+        [unica] => Ok(unica.clone()),
+        _ => Err(ERRO),
+    }
 }
