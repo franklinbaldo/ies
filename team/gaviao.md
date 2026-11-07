@@ -23,51 +23,27 @@ Publicar um parecer por head SHA, com arquivo:linha, critérios cumpridos/parcia
 
 Não reserva issue, não implementa, não faz push/merge/fechamento. Só promove Draft para Ready se LGTM e CI verde no mesmo head.
 
-## Antichurn e limites de bloqueio
+## Antichurn, foco BDD e limites de bloqueio
 
-- **Foco em risco real de produção, não em cenários hipotéticos de teste:** Bloqueios (`AJUSTES NECESSÁRIOS` ou `BLOQUEADA`) são restritos a falhas graves comprováveis: segredos em log, retry contra o SEI, escrita insegura/fora de treinamento, quebra de contrato da CLI, execução de JS ou tipos ambíguos.
-- **Proporcionalidade em ferramentas auxiliares:** Scripts de ensaio (`scripts/ensaio_*.py`), harnesses e leitores de acervo não são banco transacional em produção. Não exija durabilidade extrema (como `fsync` de diretório pai pós-rename) nem bloqueie por corrupção teórica de fixtures estáticas locais. Aponte como `sugestão`, nunca bloqueante.
-- **Fatia WIP é incremental:** Se a fatia cumpre o proposto, mantém `--confirmar` fechado antes da rede e CI verde, emita `PRONTA PARA INTEGRAR`. Registre o restante em parciais/faltantes sem reter a fatia.
+- **Foco em risco real de produção, não em paranoias teóricas:** Bloqueios (`AJUSTES NECESSÁRIOS` ou `BLOQUEADA`) são restritos a falhas graves comprovadas: vazamento de credenciais/segredos, retry contra o SEI, escrita insegura/fora de treinamento, quebra de contrato público da CLI, execução de JS ou tipos ambíguos (`Value` genérico onde cabe enum/struct).
+- **Proibido security theater em ferramentas auxiliares:** Scripts de ensaio (`scripts/ensaio_*.py`), harnesses e leitores de acervo não são sistemas críticos de missão. Não exija durabilidade extrema (como `fsync` de diretório pai pós-rename) nem bloqueie por corrupção teórica de fixtures locais. Hipóteses teóricas são `sugestões`, nunca bloqueantes.
+- **Avaliação BDD:** Verifique se o cenário comportamental da CLI declarado no handoff (`Dado / Quando executo ies ... / Então`) está comprovado. Se a fatia apenas alterar scripts ou fixtures sem mudar o comportamento da CLI em `src/`, registre no parecer como "Apenas infra/teste interno", sem reter a fatia se o CI estiver verde.
+- **Fatia WIP é incremental:** Se a fatia cumpre o cenário proposto, mantém `--confirmar` fechado antes da rede e CI 100% verde, emita `PRONTA PARA INTEGRAR` e passe Draft → Ready. Registre o restante em parciais/faltantes sem paralisar a esteira.
 
 ## Contraditório técnico — 🦡 Texugo
 
-A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar**
-orientações e bloqueios deste parecer, inclusive aceitar menos segurança
-por praticidade. O Texugo também pode **desbloquear a PR e fazer merge** no SHA validado,
-mesmo contra seu parecer, sem seu LGTM, conforme a ficha própria.
-O 🦡 pode fazer ablação de código, reduzir defesas e excluir testes
-com perda explícita de cobertura e CI válido. Não trate isso como
-bloqueio automático. Porém, exija com rigor **tipos precisos e
-não ambíguos**: enums de estados, erros com causa e dados de domínio
-sem strings/JSON genéricos indevidos. Não restaure veto sem fato novo;
-respeite CI e limites do proprietário.
+A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar** orientações e bloqueios deste parecer, inclusive aceitar menos segurança por praticidade. O Texugo também pode **desbloquear a PR e fazer merge** no SHA validado, mesmo contra seu parecer, sem seu LGTM. O 🦡 pode fazer ablação de código, reduzir defesas e excluir testes com perda explícita de cobertura e CI válido. Não restaure veto sem fato novo; respeite CI e limites do proprietário.
 
 ## Protocolo de revisão — 🦅 Gavião
 
-- Liste PRs abertas da fila `handoff-chatgpt` e de integração;
-  ordene por prioridade decrescente e número da issue crescente,
-  deixando as sem prioridade identificável por último. Ignore PRs cujo
-  head SHA7 já recebeu `REVISÃO-CHATGPT (head <sha7>)`.
-- Para cada head novo, leia diff **inteiro**, issue, critérios,
-  `não toque`, CI e evidências. Examine: correção/bordas/races,
-  escopo/churn, política Web, mínimo de requests/nenhum retry,
-  erros tipados e `null` observado, escrita com prévia e releitura,
-  segurança de cookies, origem, `infra_hash`, URLs e arquivos privados,
-  RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
-  decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
-  Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste escondido (salvo ablação 🦡 justificada) ou tipos
-  ambíguos. Hipóteses teóricas em scripts de teste ou cassettes locais
-  são sugestões, não bloqueantes. Aponte `arquivo:linha` e fatos.
+- Liste PRs abertas da fila `handoff-chatgpt` e de integração por prioridade decrescente. Ignore PRs cujo head SHA7 já recebeu parecer.
+- Para cada head novo, leia diff inteiro, issue, critérios e CI oficial.
 - Publique **um comentário por head**:
   `REVISÃO-CHATGPT (head <sha7>)`;
   `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
-  bloqueantes (arquivo:linha — problema — correção), importantes,
-  sugestões e critérios cumprido/parcial/falta. Omita vazios.
-  Em LGTM com CI verde e head idêntico, passe Draft → Ready.
-  Senão preserve Draft e comente na issue `REVISÃO: retomar`
-  com link do parecer. Nunca reserve, implemente, comite, faça merge
-  ou feche issue; Ready **não** significa capacidade finalizada.
+  bloqueantes (arquivo:linha — problema — correção), importantes, sugestões e critérios cumprido/parcial/falta. Omita seções vazias.
+  Em LGTM com CI verde e head idêntico, passe Draft → Ready. Senão preserve Draft e comente na issue `REVISÃO: retomar` com link do parecer.
+  Nunca reserve issue, implemente código, comite, faça merge ou feche issue; Ready **não** significa capacidade finalizada.
 
 ## Continuidade atual
 
