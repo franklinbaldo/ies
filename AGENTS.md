@@ -27,8 +27,7 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 | 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-A especialidade não altera a reserva atual. Não edite branches de
-outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues.
+Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
 **Commits por avatar:** toda mensagem de commit de uma rotina
 **começa no primeiro caractere** com o **emoji da própria rotina**
@@ -37,11 +36,12 @@ outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues
 (personalizar título). 🦅 não comita salvo autorização.
 Nunca use avatar alheio.
 
-**🦡 Texugo:** pode **revogar orientações técnicas** do 🦅 e 🐘 e
-**aceitar menos segurança por praticidade**, inclusive risco real,
-mediante decisão justificada de custo, benefício e risco conforme
-[sua ficha](team/texugo.md). 🦅 e 🐘 respeitam a decisão, sem dispensar
-CI verdadeiro, sigilo nem proibição de produção.
+**🦡 Texugo:** pode baixar prioridade, revogar veto 🦅/🐘,
+abrir PR de **ablação de código e testes**, exigir menos código
+defensivo, inclusive **excluir testes**, e promover/mesclar PR
+contra parecer técnico, com decisão justificada
+([regras](team/texugo.md)). Pode aceitar risco por praticidade,
+mas não falsificar CI, expor segredos nem acessar produção.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
@@ -49,8 +49,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 
 1. A fila usa etiqueta `handoff-chatgpt` e título
    `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade, definida **somente pelo 🐘**.
-   `em-andamento` não determina reserva.
+   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
+   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
 2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
    Procure primeiro issue com **seu** emoji imediatamente após o número,
    mesmo com prioridade reduzida. Com duas, continue apenas a de menor
@@ -77,8 +77,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Mantenha WIP e reserva até completar os critérios integrais; não
    alegue PASS de execução não realizada.
 7. **Implementadores não fazem merge ou fechamento de issues.**
-   Nenhum teste existente pode ser desligado, enfraquecido ou ignorado.
-   Teste **novo** ainda pendente pode ter
+   Não desligue testes para esconder regressões; **🦡 pode remover testes
+   em ablação explícita justificada**, com CI válido. Teste novo pendente pode ter
    `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
    Escrita incompleta deve manter `--confirmar` fechado **antes de
    abrir sessão ou rede**.
@@ -142,7 +142,7 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
   decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
   Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste antigo pulado/enfraquecido. Aponte `arquivo:linha`
+  retry, JS, teste escondido (exceto ablação 🦡 justificada). Aponte `arquivo:linha`
   e fatos verificáveis; incerteza deve constar como `a verificar`.
 - Publique **um comentário por head**:
   `REVISÃO-CHATGPT (head <sha7>)`;
@@ -189,10 +189,10 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   comportamento do Todos, depois issues de capacidade. Issues novas
   seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
   `Como trabalhar`) e incluem ensaio live para escrita.
-- Prioridades exclusivas do 🐘: **90–100** leituras/escritas de uso
-  diário e bugs de ensaio; **70–89** desbloqueadores; **40–69**
-  demais capacidades; **abaixo de 40** só sob pedido. Reavalie após
-  integração na main. Se nada mudou, **silêncio**.
+- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
+  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
+  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
+  prioridades expressas do proprietário. Sem mudança, **silêncio**.
 
 ## Método: observar → contratar → RED → GREEN → validar
 

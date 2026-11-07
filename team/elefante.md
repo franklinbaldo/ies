@@ -28,8 +28,11 @@ Sem acesso ao SEI; não contornar gates nem forçar push; comentários no GitHub
 O [🦡 Texugo](texugo.md) pode **revogar orientação técnica do 🐘**
 e reclassificar risco apontado pelo 🦅 como conscientemente aceito,
 inclusive quando isso reduz segurança em benefício de praticidade.
-Respeitar a decisão registrada ao avaliar integração, sem ignorar
-CI real nem restrições expressas do proprietário.
+Texugo pode **reduzir prioridade numérica** de issue preservando o emoji
+de dono, **desbloquear PR, promover Draft e fazer merge** mesmo após veto
+do Elefante/Gavião, sem precisar de concordância. Não reverter a decisão
+por mera preferência; exigir fatos novos ou ordem do proprietário.
+Respeitar CI real e restrições expressas do proprietário.
 
 ## Continuidade atual
 
