@@ -126,7 +126,10 @@ NOT_RUN nesta fatia (sem sessão autenticada de treinamento).
 ## Limitações e revisão
 
 - Externos (`documento_download_anexo`): [apêndice](documento-obter/documento-externo.md);
-  `--com-propriedades` só aceita documento_alterar observado; `--ocultar-inacessiveis` só omite sem .src.
+  `--com-propriedades` aceita os quatro links de cadastro observados
+(alterar/consultar para nativo ou externo), inclusive consulta de
+processo fechado na UFRJ 4.1, sempre pelo endereço publicado;
+`--ocultar-inacessiveis` só omite sem .src.
   `--versao N` e `versao_atual`:
   [apêndice de versões](documento-obter/versoes.md) (Refs #88); a foto
   `DOC.vN.html` de `--saida`, que substituiu `DOC.txt` e a cópia de
