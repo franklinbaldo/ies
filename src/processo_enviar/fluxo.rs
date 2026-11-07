@@ -61,16 +61,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         .ok_or(C::UnidadeDaSessaoNaoPublicada)?;
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
         .map_err(|motivo| C::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
-    let link = match (acoes.enviar, aberto_em.contains(&unidade)) {
-        // Fora da unidade, a barra (lida ou não) não muda a recusa.
-        (Ok(None) | Err(_), false) => {
-            return Err(C::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em });
-        }
-        (Ok(Some(_)), false) => return Err(C::UnidadeDaSessaoAusenteDaSituacao { aberto_em }),
-        (Ok(None), true) => return Err(C::EnvioNaoPublicadoNaBarra { aberto_em }),
-        (Err(erro), true) => return Err(C::Barra(erro)),
-        (Ok(Some(link)), true) => link,
-    };
+    let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
     let id = aberto.arvore.processo.id.clone();
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
@@ -160,6 +151,28 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     }
     feito.requisicoes = rede.feitas();
     Ok(feito)
+}
+
+/// A barra só autoriza a escrita quando a situação lista a unidade da sessão.
+fn conferir_link_do_envio(
+    enviar: Result<Option<crate::arvore_processo::EnderecoDeEscrita>, crate::arvore_processo::ErroEnviarNaBarra>,
+    aberto_em: &[String],
+    unidade: &str,
+) -> Result<crate::arvore_processo::EnderecoDeEscrita, C> {
+    let aberta = aberto_em.iter().any(|sigla| sigla == unidade);
+    match (enviar, aberta) {
+        (Ok(None) | Err(_), false) => Err(C::ProcessoNaoAbertoNaUnidadeDaSessao {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Ok(Some(_)), false) => Err(C::UnidadeDaSessaoAusenteDaSituacao {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Ok(None), true) => Err(C::EnvioNaoPublicadoNaBarra {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Err(erro), true) => Err(C::Barra(erro)),
+        (Ok(Some(link)), true) => Ok(link),
+    }
 }
 
 /// Decide a estratégia publicada na tela sem confundir leitura com gravação.
