@@ -189,8 +189,7 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
 
 /// Deriva a action do handler literal acaoRemover, nunca de texto solto.
 /// Não interpreta JavaScript. A submissão ainda precisa ser validada
-/// pela fronteira de formulários e nenhuma escrita é habilitada aqui.
-#[cfg(test)]
+/// pela fronteira de formulários antes de iniciar um único POST.
 pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
     const ERRO: &str = "acao_excluir_relacionamento_nao_declarada";
     const FUNCAO: &str = "function acaoRemover(id){";
