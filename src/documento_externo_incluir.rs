@@ -30,7 +30,7 @@ mod tests_upload;
 
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Seek};
 use std::path::Path;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -52,6 +52,7 @@ pub(crate) enum FalhaPdf {
     AcimaDoLimite,
     Leitura,
     AlteradoDuranteLeitura,
+    DivergenteDaPrevia,
 }
 
 /// Não permite que a apresentação do nome/tipo seja reordenada no terminal.
@@ -79,11 +80,33 @@ pub(crate) fn inspecionar_pdf(
     inspecionar_pdf_com_acao(caminho, limite_observado, || {})
 }
 
+/// Reabre o mesmo caminho após a prévia, confere o conteúdo novamente e
+/// mantém aberto o exato descritor validado para o envio multipart.
+pub(crate) fn abrir_pdf_para_envio(
+    caminho: &Path,
+    previa: &PdfLocal,
+) -> Result<fs::File, FalhaPdf> {
+    let (atual, arquivo) = inspecionar_pdf_com_arquivo(caminho, None, || {})?;
+    if &atual != previa {
+        return Err(FalhaPdf::DivergenteDaPrevia);
+    }
+    Ok(arquivo)
+}
+
 fn inspecionar_pdf_com_acao(
     caminho: &Path,
     limite_observado: Option<u64>,
     entre_metadata_e_leitura: impl FnOnce(),
 ) -> Result<PdfLocal, FalhaPdf> {
+    inspecionar_pdf_com_arquivo(caminho, limite_observado, entre_metadata_e_leitura)
+        .map(|(pdf, _)| pdf)
+}
+
+fn inspecionar_pdf_com_arquivo(
+    caminho: &Path,
+    limite_observado: Option<u64>,
+    entre_metadata_e_leitura: impl FnOnce(),
+) -> Result<(PdfLocal, fs::File), FalhaPdf> {
     // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
     for parte in caminho.ancestors().filter(|p| !p.as_os_str().is_empty()) {
         let info = fs::symlink_metadata(parte).map_err(|erro| {
@@ -172,11 +195,15 @@ fn inspecionar_pdf_com_acao(
     if alterado {
         return Err(FalhaPdf::AlteradoDuranteLeitura);
     }
-    Ok(PdfLocal {
-        nome: nome.to_owned(),
-        tamanho_bytes: total,
-        sha256: crate::hex::hex_minusculo(&digest.finalize()),
-    })
+    arquivo.rewind().map_err(|_| FalhaPdf::Leitura)?;
+    Ok((
+        PdfLocal {
+            nome: nome.to_owned(),
+            tamanho_bytes: total,
+            sha256: crate::hex::hex_minusculo(&digest.finalize()),
+        },
+        arquivo,
+    ))
 }
 
 #[cfg(test)]
@@ -299,6 +326,43 @@ mod tests {
             let path = pasta.arquivo(nome, PDF);
             assert_eq!(inspecionar_pdf(&path, None), Err(FalhaPdf::NomeInvalido));
         }
+    }
+
+    #[test]
+    fn pdf_do_upload_deve_ser_o_mesmo_inspecionado_na_previa() {
+        // BDD-332-03, pré-condição técnica: nada de enviar bytes diferentes.
+        use std::io::Read as _;
+        let pasta = Pasta::nova();
+        let caminho = pasta.arquivo("prova.pdf", PDF);
+        let previa = inspecionar_pdf(&caminho, None).unwrap();
+        let mut arquivo = abrir_pdf_para_envio(&caminho, &previa).unwrap();
+        let mut bytes = Vec::new();
+        arquivo.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, PDF);
+
+        let mut adulterado = PDF.to_vec();
+        adulterado[8] = b'X';
+        fs::write(&caminho, &adulterado).unwrap();
+        assert!(matches!(
+            abrir_pdf_para_envio(&caminho, &previa),
+            Err(FalhaPdf::DivergenteDaPrevia)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pdf_substituido_por_symlink_nao_autoriza_upload() {
+        use std::os::unix::fs::symlink;
+        let pasta = Pasta::nova();
+        let caminho = pasta.arquivo("prova.pdf", PDF);
+        let previa = inspecionar_pdf(&caminho, None).unwrap();
+        let outro = pasta.arquivo("outro.pdf", PDF);
+        fs::remove_file(&caminho).unwrap();
+        symlink(&outro, &caminho).unwrap();
+        assert!(matches!(
+            abrir_pdf_para_envio(&caminho, &previa),
+            Err(FalhaPdf::LinkSimbolico)
+        ));
     }
 
     #[cfg(unix)]
