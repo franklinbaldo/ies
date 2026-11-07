@@ -93,7 +93,9 @@ fn relacionamento_existente<'a>(
     let mut linhas = relacionados.iter().filter(|linha| linha.nup == nup);
     let primeira = linhas.next();
     if linhas.next().is_some() {
-        return Err(FalhaRelacionar::Estrutura("relacionamentos_repetidos_na_tela"));
+        return Err(FalhaRelacionar::Estrutura(
+            "relacionamentos_repetidos_na_tela",
+        ));
     }
     if primeira.is_some_and(|linha| linha.id == id_origem) {
         return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
