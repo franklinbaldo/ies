@@ -54,10 +54,13 @@ impl From<rusqlite::Error> for Falha {
 /// # Errors
 /// Preserva erro SQLite e rejeita campos obrigatórios ausentes.
 pub fn guardar(banco: &mut Connection, cenario: &str, mes: &Mes) -> Result<(), Falha> {
-    if cenario.is_empty() || mes.data_inicial.is_empty() || mes.data_final.is_empty()
-        || mes.itens.iter().any(|r| {
-            r.numero.is_empty() || r.unidade.is_empty() || r.data_programada.is_empty()
-        })
+    if cenario.is_empty()
+        || mes.data_inicial.is_empty()
+        || mes.data_final.is_empty()
+        || mes
+            .itens
+            .iter()
+            .any(|r| r.numero.is_empty() || r.unidade.is_empty() || r.data_programada.is_empty())
     {
         return Err(Falha::DadoInvalido);
     }
@@ -82,9 +85,17 @@ pub fn guardar(banco: &mut Connection, cenario: &str, mes: &Mes) -> Result<(), F
               situacao, numero, unidade, data_programada, retornado_em, prazo_restante)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
-                origem, cenario, mes.data_inicial, mes.data_final, posicao,
-                item.situacao.as_str(), item.numero, item.unidade,
-                item.data_programada, item.retornado_em, item.prazo_restante
+                origem,
+                cenario,
+                mes.data_inicial,
+                mes.data_final,
+                posicao,
+                item.situacao.as_str(),
+                item.numero,
+                item.unidade,
+                item.data_programada,
+                item.retornado_em,
+                item.prazo_restante
             ],
         )?;
     }
@@ -121,9 +132,8 @@ pub fn ler(
          FROM retorno_linha WHERE origem=?1 AND cenario=?2
            AND data_inicial=?3 AND data_final=?4 ORDER BY posicao",
     )?;
-    let resultados = consulta.query_map(
-        params![origem, cenario, data_inicial, data_final],
-        |r| {
+    let resultados =
+        consulta.query_map(params![origem, cenario, data_inicial, data_final], |r| {
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
@@ -132,8 +142,7 @@ pub fn ler(
                 r.get::<_, Option<String>>(4)?,
                 r.get::<_, Option<String>>(5)?,
             ))
-        },
-    )?;
+        })?;
     let mut itens = Vec::new();
     for item in resultados {
         let (situacao, numero, unidade, data_programada, retornado_em, prazo_restante) = item?;

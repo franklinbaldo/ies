@@ -63,7 +63,10 @@ fn cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor() {
             continue; // Calendário, não página mensal.
         };
         let finais = gravacao::parametro(resposta.item, "data_final");
-        let fim = finais.first().copied().expect("mês da cassette tem data final");
+        let fim = finais
+            .first()
+            .copied()
+            .expect("mês da cassette tem data final");
         let html = html_da_resposta(resposta.item).unwrap();
         let esperado = crate::unidade_retornos::extrair_retornos(&html).unwrap();
         assert_eq!(esperado.len(), 2, "não reduzir o conteúdo da cassette");

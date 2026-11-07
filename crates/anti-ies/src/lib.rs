@@ -149,10 +149,18 @@ fn controle_html(controle: &ControleResumido) -> Option<String> {
 fn html_de_retornos(mes: &Mes) -> String {
     let mut html = String::from("<html><body>");
     for (situacao, id, resumo) in [
-        (Situacao::Aguardando, "divAguardandoAreaTabela", "Aguardando Retorno de Outras Unidades"),
+        (
+            Situacao::Aguardando,
+            "divAguardandoAreaTabela",
+            "Aguardando Retorno de Outras Unidades",
+        ),
         (Situacao::Devolver, "divDevolverAreaTabela", "Para Devolver"),
     ] {
-        let itens: Vec<_> = mes.itens.iter().filter(|r| r.situacao == situacao).collect();
+        let itens: Vec<_> = mes
+            .itens
+            .iter()
+            .filter(|r| r.situacao == situacao)
+            .collect();
         if itens.is_empty() {
             write!(html, "<div id='{id}'>Nenhum registro encontrado.</div>")
                 .expect("formatação String");
@@ -188,8 +196,11 @@ fn html_de_retornos(mes: &Mes) -> String {
 /// Valor único de parâmetro observado na URL; repetição não seleciona mês.
 fn parametro_unico<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
-    let mut valores = query.split('&').filter_map(|parte| parte.split_once('='))
-        .filter(|(chave, _)| *chave == nome).map(|(_, valor)| valor);
+    let mut valores = query
+        .split('&')
+        .filter_map(|parte| parte.split_once('='))
+        .filter(|(chave, _)| *chave == nome)
+        .map(|(_, valor)| valor);
     let valor = valores.next()?;
     (valores.next().is_none() && !valor.is_empty()).then_some(valor)
 }
@@ -215,7 +226,7 @@ pub fn retorno_programado(
     }
     let (Some(inicio), Some(fim)) = (
         parametro_unico(alvo, "data_inicial"),
-        parametro_unico(alvo, "data_final")
+        parametro_unico(alvo, "data_final"),
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
