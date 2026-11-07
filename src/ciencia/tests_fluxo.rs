@@ -502,3 +502,25 @@ fn mime_javascript_com_parametro_nao_libera_lista_antiga() {
     );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
+
+// RED #271: a recusa por validação Infra usa HTTP 200, mas a CLI precisa
+// publicar status_http=200 no JSON, sem confundir com aceite bem-sucedido.
+#[test]
+fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    respostas.extend([
+        ok(tela()),
+        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
+        ok(arvore_com_ciencias()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("recusa HTTP 200 nao equivale a ciencia");
+    let saida = crate::ciencia_cli::json_de_erro(&erro);
+    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["status_http"], serde_json::json!(200));
+    assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
+    assert_eq!(saida["requisicoes"], 6);
+    assert_eq!(saida["retentavel"], false);
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+}
