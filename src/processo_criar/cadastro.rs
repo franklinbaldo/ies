@@ -321,6 +321,29 @@ mod tests {
         assert_eq!(observado.hipotese_legal, None);
     }
 
+    /// Atributo HTML `disabled` torna o select não selecionável. Não
+    /// converter opção visível dentro de select desabilitado em prova de
+    /// assunto/hipótese legal para a escrita #245.
+    #[test]
+    fn select_desabilitado_nao_comprova_assunto_ou_hipotese() {
+        // Teste sintético da semântica HTML; oráculo de campos:
+        // Todos tests/paginas_reais/procedimento_gerar.html @323eb01.
+        let assunto_desabilitado = tela(ASSUNTO, "", HIPOTESE)
+            .replace("name='selAssuntos'", "name='selAssuntos' disabled");
+        assert!(
+            conferir_cadastro(&assunto_desabilitado, "12", "publico").is_err(),
+            "assunto do select desabilitado não pode autorizar o POST"
+        );
+        let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE)
+            .replace("name='selHipoteseLegal'", "name='selHipoteseLegal' disabled");
+        assert!(
+            conferir_cadastro(&hipotese_desabilitada, "12", "restrito").is_err(),
+            "hipótese legal do select desabilitado não pode autorizar o POST"
+        );
+        // Hipótese desabilitada é irrelevante quando o nível é público.
+        assert!(conferir_cadastro(&hipotese_desabilitada, "12", "publico").is_ok());
+    }
+
     #[test]
     fn restrito_sem_hipotese_determinada_eh_recusado() {
         for opcoes in [
