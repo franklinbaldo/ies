@@ -19,7 +19,8 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
+use std::io::Read;
 use crate::visao_do_controle::EnvioDoControle as _;
 use tela::{DestinoConsultado, Relacionamento, ler_destino, ler_linhas, url_complementar};
 
@@ -46,6 +47,8 @@ pub(crate) enum FalhaRelacionar {
     ConsultaResposta(FalhaTransporte),
     RelacionamentoConsigoMesmo,
     RemocaoNaoOferecida,
+    DestinoDaConsultaDivergente,
+    ConsultaNaoXml,
 }
 impl FalhaRelacionar {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -63,6 +66,8 @@ impl FalhaRelacionar {
             Self::ConsultaDerivacao(erro) => erro.subcodigo(),
             Self::RelacionamentoConsigoMesmo => "relacionamento_consigo_mesmo",
             Self::RemocaoNaoOferecida => "remocao_de_relacionamento_nao_oferecida",
+            Self::DestinoDaConsultaDivergente => "destino_da_consulta_diverge_do_pedido",
+            Self::ConsultaNaoXml => "resposta_da_consulta_nao_xml",
         }
     }
 }
@@ -84,23 +89,79 @@ pub(crate) struct Previa {
     pub(crate) requisicoes: u8,
 }
 
+/// Números de processo são opacos; para buscar vínculos, diferenças de
+/// pontuação e caixa não mudam a sequência de letras e dígitos. Oráculo:
+/// Todos tipos.mesmo_protocolo e test_so_os_digitos_bastam @323eb01.
+fn forma_do_protocolo(numero: &str) -> String {
+    numero
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn mesmo_protocolo(pedido: &str, mostrado: &str) -> bool {
+    let forma = forma_do_protocolo(pedido);
+    !forma.is_empty() && forma == forma_do_protocolo(mostrado)
+}
+
+/// O texto exato tem prioridade; dois equivalentes sem texto exato
+/// são ambíguos (AB-C e A-BC não permitem escolher por acaso).
+fn linhas_do_protocolo<'a>(
+    relacionados: &'a [Relacionamento],
+    nup: &str,
+) -> Vec<&'a Relacionamento> {
+    let literal = nup.trim().to_lowercase();
+    let exatas: Vec<_> = relacionados
+        .iter()
+        .filter(|linha| linha.nup.trim().to_lowercase() == literal)
+        .collect();
+    if !exatas.is_empty() {
+        return exatas;
+    }
+    relacionados
+        .iter()
+        .filter(|linha| mesmo_protocolo(nup, &linha.nup))
+        .collect()
+}
+
 /// Só uma linha do formulário pode comprovar o vínculo, sem consulta AJAX.
 fn relacionamento_existente<'a>(
     relacionados: &'a [Relacionamento],
     nup: &str,
     id_origem: &str,
 ) -> Result<Option<&'a Relacionamento>, FalhaRelacionar> {
-    let mut linhas = relacionados.iter().filter(|linha| linha.nup == nup);
-    let primeira = linhas.next();
-    if linhas.next().is_some() {
-        return Err(FalhaRelacionar::Estrutura(
+    match linhas_do_protocolo(relacionados, nup).as_slice() {
+        [] => Ok(None),
+        [linha] if linha.id == id_origem => Err(FalhaRelacionar::RelacionamentoConsigoMesmo),
+        [linha] => Ok(Some(*linha)),
+        _ => Err(FalhaRelacionar::Estrutura(
             "relacionamentos_repetidos_na_tela",
-        ));
+        )),
     }
-    if primeira.is_some_and(|linha| linha.id == id_origem) {
-        return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
+}
+
+/// A consulta do protocolo é XML (e não a tela HTML do controle).
+/// Não reutilizar o decodificador exclusivo de text/html da infraestrutura.
+fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaRelacionar> {
+    use FalhaRelacionar as E;
+    if resposta.status_code != 200 {
+        return Err(E::ConsultaResposta(recusar_status(resposta)));
     }
-    Ok(primeira)
+    let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
+    if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
+        return Err(E::ConsultaNaoXml);
+    }
+    if resposta
+        .content_length
+        .is_some_and(|tamanho| tamanho > crate::MAX_HTML_BYTES)
+    {
+        return Err(E::ConsultaResposta(FalhaTransporte::RespostaExcessiva));
+    }
+    let bytes =
+        ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::ConsultaResposta)?;
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| E::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))
 }
 
 /// A confirmação é recusada ANTES da sessão e da primeira requisição.
@@ -137,6 +198,9 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
     })?;
     let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;
+    if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {
+        return Err(E::RelacionamentoConsigoMesmo);
+    }
     let mut previa = Previa {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: id.clone(),
@@ -147,10 +211,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         requisicoes: rede.feitas(),
     };
     if pedido.remover {
-        let achados: Vec<&Relacionamento> = relacionados
-            .iter()
-            .filter(|linha| linha.nup == pedido.com.as_str())
-            .collect();
+        let achados = linhas_do_protocolo(&relacionados, pedido.com.as_str());
         match achados.as_slice() {
             [] => previa.sem_efeito = true,
             [linha] => {
@@ -195,13 +256,16 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_relacionamento_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = xml_da_consulta(resposta.resposta)?;
     let DestinoConsultado {
         id: destino_id,
         nup,
     } = ler_destino(&xml).map_err(E::Estrutura)?;
     if destino_id == id {
         return Err(E::RelacionamentoConsigoMesmo);
+    }
+    if !mesmo_protocolo(pedido.com.as_str(), &nup) {
+        return Err(E::DestinoDaConsultaDivergente);
     }
     previa.sem_efeito = relacionados.iter().any(|linha| linha.id == destino_id);
     previa.id_destino = Some(destino_id);
