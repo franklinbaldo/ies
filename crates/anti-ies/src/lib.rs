@@ -147,7 +147,11 @@ fn renderizar_controle(observado: &ObservacaoDoControle<ProcessoNaLista>) -> Opt
                 let Cobertura::Observada(tabela) = categoria else {
                     return None;
                 };
-                let _ = write!(html, "<table id='{id}'><caption>{}</caption>", legenda(tabela));
+                let _ = write!(
+                    html,
+                    "<table id='{id}'><caption>{}</caption>",
+                    legenda(tabela)
+                );
                 linhas_html(tabela, &mut html);
                 html.push_str("</table>");
             }
