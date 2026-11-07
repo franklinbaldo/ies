@@ -137,7 +137,6 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
-    feito.requisicoes = rede.feitas();
     let mut feito = conciliar(feito, falha, verificacao)?;
     if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
         // O segundo GET não segue o 302 do envio. É uma nova consulta do
@@ -145,15 +144,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         let link = link_anotacao
             .as_deref()
             .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
-        conferir_anotacao_depois(
-            &mut rede,
-            &cookie,
-            link,
-            &feito.id_procedimento,
-            feito.depois.as_deref(),
-        )?;
+        let situacao = feito.depois.as_deref();
+        conferir_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento, situacao)?;
         feito.anotacao_depois = Some(false);
-        feito.requisicoes = rede.feitas();
     }
     feito.requisicoes = rede.feitas();
     Ok(feito)
