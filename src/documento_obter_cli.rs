@@ -199,14 +199,9 @@ fn obter(
         Ok((lidos, host))
     });
     match lido {
-        Ok(((lidos, host), nota)) => publicar(
-            cli.json,
-            lidos,
-            saida,
-            nota.as_ref(),
-            &host,
-            versoes.cache,
-        ),
+        Ok(((lidos, host), nota)) => {
+            publicar(cli.json, lidos, saida, nota.as_ref(), &host, versoes.cache)
+        }
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
