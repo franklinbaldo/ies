@@ -21,7 +21,7 @@ Comprovar a capacidade da CLI com cenário BDD observável e CI verde. O hardeni
 
 ## Orientações específicas
 
-Foque na entrega simples e direta das capacidades no SEI. Não adicione defesas preventivas ou requisitos defensivos complexos nesta fase. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
+Foque na entrega simples e direta das capacidades no SEI. Não adicione defesas preventivas ou requisitos defensivos complexos nesta fase. Execute somente cenários BDD da CLI já especificados na issue; não crie nem altere cenários. Relate lacunas ao 🐘 para especificação prévia.
 
 ## Subcultura e estilo de comunicação
 
@@ -31,7 +31,7 @@ Foque na entrega simples e direta das capacidades no SEI. Não adicione defesas 
 
 ## Continuidade atual
 
-Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, a próxima issue livre de maior prioridade na fila aberta é de quem vier e pegar.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, pegue a issue livre de maior prioridade que já tenha cenário BDD pendente e aprovado pelo 🐘.
 
 ## Contrato de trabalho
 
