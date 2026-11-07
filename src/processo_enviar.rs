@@ -5,6 +5,8 @@
 //! SEI publica. Prévia sem POST de escrita; com `--confirmar`, um POST e
 //! uma leitura nova da árvore para verificar. Nunca repete a escrita.
 mod destino;
+#[cfg(test)]
+mod anotacoes;
 mod erro;
 mod fluxo;
 mod tela;
