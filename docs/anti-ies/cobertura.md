@@ -28,6 +28,16 @@ o anti-IES o **consultará** para servir respostas. O
 [#360](https://github.com/franklinbaldo/ies/issues/360); a projeção para
 `unidade.atual` ainda depende da [#358](https://github.com/franklinbaldo/ies/issues/358).
 
+## Harness e simplificação
+
+A suíte de testes [#361](https://github.com/franklinbaldo/ies/issues/361)
+compara IES ↔ anti-IES ↔ cassettes SEI independentes.
+**INTEGRADA** só é marcada após E2E [#355](https://github.com/franklinbaldo/ies/issues/355),
+não por renderização equivalente na mesma biblioteca. A ablação
+progressiva do HTML [#362](https://github.com/franklinbaldo/ies/issues/362)
+mantém as evidências e casos negativos; consultar
+[harness de compatibilidade](harness-compatibilidade.md).
+
 ## Estados admitidos
 
 - **NÃO COBERTA:** nenhum produtor validado para a operação; HTTP 501

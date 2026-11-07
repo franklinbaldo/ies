@@ -46,6 +46,9 @@ Ele serve para testes de integração do IES por operação, **não** para
 substituir o SEI. A primeira meta é tornar `ies unidade atual` compatível
 em bancada local, com oráculo independente e teste real de cliente.
 
+O [harness diferencial](docs/anti-ies/harness-compatibilidade.md)
+protege a equivalência com SEI e permite remover HTML dispensável
+progressivamente, sem rodar no runtime de produção.
 Veja o [roadmap das PRs](docs/anti-ies/roadmap.md) e a
 [matriz de cobertura](docs/anti-ies/cobertura.md). Capacidades não
 implementadas pelo servidor devem falhar explicitamente.

@@ -155,12 +155,11 @@ issue de emulação independente para a fatia seguinte.
 Quando as dependências estiverem na main, 🐘 libera a próxima issue
 com a etiqueta `handoff-chatgpt`; nunca antes.
 
-Uma capacidade só pode ser chamada **integrada** depois de resposta
-servida pelo anti-IES, interpretada pelo caminho **real** do IES e
-conferida por oráculo SEI/cassette **independente**, inclusive recusas,
-GET/POST e efeitos observáveis. Sucesso sintético produzido e esperado
-pelo mesmo código não prova equivalência. O anti-IES devolve recusa
-explícita para operações sem evidência, sem simular sucesso.
+Uma capacidade só é **integrada** quando o caminho real do IES
+consome HTTP do anti-IES e confere saída, recusas e efeitos por
+oráculo SEI/cassette **independente**. Sem evidência, recusar.
+O [harness e ablação](docs/anti-ies/harness-compatibilidade.md)
+permitem simplificar HTML sem eliminar contratos observáveis.
 
 O IES de produção mantém HTTPS, origem autorizada, cookies privados e
 ausência de retry; qualquer transporte local alternativo é apenas de

@@ -66,12 +66,13 @@ cassette comprova a forma D.
 | 1 — oráculo | [#353](https://github.com/franklinbaldo/ies/issues/353) / PR P1 | Cassettes conferidas, contrato R/D, testes positivos e negativos **independentes do servidor**, prova de equivalência definida. |
 | 1.2 — modelo e eficiência | [#360](https://github.com/franklinbaldo/ies/issues/360) / PR P1.2 | Tipos de entidade/observação e cobertura, projeção relacional mínima, índices por consulta e baseline de parse/SQLite; medição HTTP vem nas P2/P3. |
 | 1.5 — companion | [#358](https://github.com/franklinbaldo/ies/issues/358) / PR P1.5 | **IES** registra no SQLite Controle/unidade/visão e listas observadas; consulta SQL testada, sem novos requests. |
-| 2 — produtor | [#354](https://github.com/franklinbaldo/ies/issues/354) / PR P2 | GET do Controle na rota observada; HTML e MIME gerados **a partir de uma projeção SQLite lida em modo read-only**. Estados não observados continuam recusados. |
+| 2 — servidor | [#354](https://github.com/franklinbaldo/ies/issues/354) / PR P2 | GET do Controle na rota observada; HTML e MIME gerados **a partir de uma projeção SQLite lida em modo read-only**. Estados não observados continuam recusados. |
+| 2.5 — harness | [#361](https://github.com/franklinbaldo/ies/issues/361) / PR P2.5 | Suíte diferencial com cassettes de referência independentes, HTTP real em loopback, casos negativos e infraestrutura de teste reutilizável. |
 | 3 — cruzamento | [#355](https://github.com/franklinbaldo/ies/issues/355) / PR P3 | Teste real do circuito **IES → SQLite → anti-IES → IES** em loopback e comparação com oráculo independente. Só este passo pode marcar a capacidade **INTEGRADA**. |
 
 **Dependências:** P1 só inicia sobre main que contém bootstrap e
 governança. P1.2 vem após P1; P1.5 depende do **modelo P1.2**,
-P2 após P1.5 e P3 após P2. Cada
+P2 após P1.5, P2.5 após P2 e P3 após P2.5. Cada
 issue gera uma PR Draft independente, partindo da main atual, e os
 critérios do AGENTS.md de revisão/CI/merge por SHA prevalecem.
 **Liberação automática da fila:** a 🐘 integra a PR anterior e então
@@ -82,6 +83,12 @@ Não reservar uma issue bloqueada por outra PR.
 Se qualquer PR ficar WIP, registrar resultado e continuar a própria
 issue sem declarar o marco concluído. Não criar branch nova sobre branch
 de outro agente nem fazer rebase/force-push.
+
+O [harness diferencial](harness-compatibilidade.md) é condição
+da primeira integração; a P3 usa a infraestrutura da [#361](https://github.com/franklinbaldo/ies/issues/361).
+Após P3, a [#362](https://github.com/franklinbaldo/ies/issues/362)
+abre a **ablação progressiva do HTML**, com teste metamórfico e
+oráculo externo, sem bloquear as capacidades prioritárias do IES.
 
 ## Critério verificável de INTEGRADA
 
@@ -106,6 +113,12 @@ de outro agente nem fazer rebase/force-push.
 8. O CI do **head exato** passa com Rustfmt, Clippy, testes do workspace,
    OKF e gates existentes. A issue registra RED → GREEN e quaisquer
    itens live **NOT_RUN** explicitamente.
+
+**Contrato mínimo, não cópia do HTML:** evoluir até reproduzir somente
+campos/seletores/efeitos necessários aos consumidores reais. A cada
+redução, manter os testes de cassettes autênticas, HTTP e recusas.
+Nem igualdade de HTML é obrigatória, nem a concordância IES↔anti-IES
+sozinha prova compatibilidade com SEI.
 
 **Não contar como integração:** apenas um teste da função de roteamento,
 um HTML coincidente com fixture, um parser aplicado diretamente a uma
