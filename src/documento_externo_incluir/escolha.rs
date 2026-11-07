@@ -1,7 +1,5 @@
 //! Escolha do documento externo na lista e do tipo no cadastro inicial (#332).
 //! Os links e opções provêm das telas do Todos (UnB SEI 4/PEN3 SEI 5).
-use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
-use crate::formulario_web::decodificar_atributo;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum EscolhaExterna {
