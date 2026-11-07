@@ -123,3 +123,54 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
             .any(|p| p.metodo == "POST" && p.url == absoluta(&action_anotacao()))
     );
 }
+
+#[test]
+fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
+    // Dado o envio sem checkbox e a anotação preenchida;
+    // Quando executo ies processo enviar NUP --para SIGLA --remover-anotacoes --confirmar;
+    // Então uma releitura inconclusiva retorna saída 3 sem enviar nem repetir limpeza.
+    let (resultado, pedidos) = executar(respostas_envio(
+        "Antes",
+        vec![
+            r302(&volta_a_arvore_do_envio()),
+            Err(crate::transporte::FalhaTransporte::Rede),
+        ],
+    ));
+    let erro = resultado.expect_err("sem releitura não há envio autorizado");
+    assert!(matches!(
+        erro,
+        super::ErroEnviar::EfeitoIncertoNaLimpezaDaAnotacao
+    ));
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_anotacao()))
+            .count(),
+        1
+    );
+    assert!(!pedidos.iter().any(|p| {
+        p.metodo == "POST" && p.url == absoluta(&action_de_enviar())
+    }));
+}
+
+#[test]
+fn bdd_333_03_anotacao_continua_preenchida_nao_tramita() {
+    // Dado a tentativa única de salvar a descrição vazia;
+    // Quando executo ies processo enviar NUP --para SIGLA --remover-anotacoes --confirmar;
+    // Então uma anotação ainda preenchida impede o envio.
+    let (resultado, pedidos) = executar(respostas_envio(
+        "Antes",
+        vec![
+            r302(&volta_a_arvore_do_envio()),
+            ok(form_anotacao("Ainda presente")),
+        ],
+    ));
+    assert!(matches!(
+        resultado,
+        Err(super::ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar)
+    ));
+    assert!(!pedidos.iter().any(|p| {
+        p.metodo == "POST" && p.url == absoluta(&action_de_enviar())
+    }));
+}
