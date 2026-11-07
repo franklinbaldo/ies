@@ -16,8 +16,9 @@ use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
-    SessaoDoProcesso, obter_documento_com_versoes,
+    SessaoDoProcesso, obter_documento_com_propriedades,
 };
+use crate::propriedades_documento::PropriedadesDocumento;
 use crate::relogin_cli::{self, FalhaDaLeitura, NotaDoRelogin};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
@@ -51,6 +52,17 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         Value::Object(mapa) => mapa,
         _ => serde_json::Map::new(),
     };
+    match &d.propriedades {
+        PropriedadesDocumento::NaoPedidas => {}
+        PropriedadesDocumento::NaoPublicadas => {
+            mapa.insert("propriedades".to_owned(), Value::Null);
+            mapa.insert("propriedades_motivo".to_owned(), json!("nao_publicadas_na_barra"));
+        }
+        PropriedadesDocumento::Lidas(p) => {
+            mapa.insert("propriedades".to_owned(), json!(p));
+            mapa.insert("propriedades_motivo".to_owned(), Value::Null);
+        }
+    }
     if let Some(a) = &d.anexo {
         // Externo: o título do HTML recebido é do órgão de origem (fatia 3).
         mapa.insert("tipo".to_owned(), Value::Null);
@@ -74,8 +86,7 @@ pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
 }
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
-/// opção `--com-propriedades` ainda não implementada (segue para
-/// o stub). Número inválido e
+/// opção de propriedades lida pelo link da barra. Número inválido e
 /// `--versao 0` ficam para a validação comum; NUP inválido em `--processo`
 /// é entrada inválida (saída 2).
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
@@ -83,7 +94,6 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         comando @ Documento {
             acao: None,
             html_privado: None,
-            com_propriedades: false,
             ..
         },
     ) = &cli.command
@@ -122,6 +132,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         saida,
         versoes,
         comando.ocultar_inacessiveis,
+        comando.com_propriedades,
     ))
 }
 
@@ -149,6 +160,7 @@ fn obter(
     saida: Option<&Path>,
     versoes: PedidoDeVersoes,
     ocultar_inacessiveis: bool,
+    com_propriedades: bool,
 ) -> ExitCode {
     let Some(limite) = LimiteDoAnexo::do_ambiente() else {
         return anexo::limite_invalido(cli.json);
@@ -194,7 +206,9 @@ fn obter(
                     cache_host: versoes.cache.then_some(host.as_str()),
                 },
             };
-            obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps)
+            obter_documento_com_propriedades(
+                &sessao, &pedido, versoes, &indice, &mut EnvioHttps, com_propriedades,
+            )
         })?;
         Ok((lidos, host))
     });
@@ -475,6 +489,12 @@ fn publicar(
         }
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
+            match &d.propriedades {
+                PropriedadesDocumento::NaoPedidas => {}
+                PropriedadesDocumento::NaoPublicadas => println!("Cadastro não publicado."),
+                PropriedadesDocumento::Lidas(p) =>
+                    println!("Cadastro: {} — {} ({})", p.tipo, p.descricao, p.nome_na_arvore),
+            }
             if let Some(linha) = documento_versao_cli::linha_humana(d) {
                 println!("{linha}");
             }
