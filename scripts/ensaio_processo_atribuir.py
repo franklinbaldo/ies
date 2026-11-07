@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 
 from ensaio_processo_criar import (
@@ -87,11 +88,39 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
     }
     confirmacao_iniciada = False
 
-    def gravar() -> None:
-        os.ftruncate(fd, 0)
-        os.lseek(fd, 0, os.SEEK_SET)
-        os.write(fd, (json.dumps(relatorio, ensure_ascii=False) + "\n").encode())
-        os.fsync(fd)
+    def gravar(*, atomico: bool = False) -> None:
+        dados = (json.dumps(relatorio, ensure_ascii=False) + "\n").encode()
+
+        def escrever(inode: int) -> None:
+            restante = memoryview(dados)
+            while restante:
+                escritos = os.write(inode, restante)
+                if escritos <= 0:
+                    raise OSError("checkpoint incompleto")
+                restante = restante[escritos:]
+            os.fsync(inode)
+
+        if not atomico:
+            os.ftruncate(fd, 0)
+            os.lseek(fd, 0, os.SEEK_SET)
+            escrever(fd)
+            return
+
+        # O estado final só substitui o registro depois de fsync completo.
+        # Se fsync falhar, o checkpoint anterior ainda indica efeito possível.
+        temporario_fd, temporario = tempfile.mkstemp(
+            prefix=f".{registro.name}.", dir=registro.parent
+        )
+        try:
+            escrever(temporario_fd)
+            os.close(temporario_fd)
+            temporario_fd = -1
+            os.replace(temporario, registro)
+        finally:
+            if temporario_fd != -1:
+                os.close(temporario_fd)
+            if os.path.exists(temporario):
+                os.unlink(temporario)
 
     def etapa(operacao: list[str]) -> tuple[int, dict]:
         try:
@@ -171,7 +200,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             return 3, relatorio
         relatorio["estado"] = "PASS"
         relatorio["residuo"] = "sem_atribuicao"
-        gravar()
+        gravar(atomico=True)
         return 0, relatorio
     except OSError:
         if not confirmacao_iniciada:
