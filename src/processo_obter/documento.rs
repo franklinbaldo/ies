@@ -23,6 +23,7 @@ use crate::erro_html::ErroHtml;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
+use crate::propriedades_documento::{self, PropriedadesDocumento};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "documento_erro.rs"]
@@ -45,6 +46,7 @@ pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
 pub(super) struct LeituraDoNo<'a> {
     pub(super) anexo: PedidoDoAnexo<'a>,
     pub(super) versoes: PedidoDeVersoes,
+    pub(super) propriedades: bool,
 }
 
 /// O número SEI pedido, a `--unidade` (conferida na tela), o
@@ -80,6 +82,7 @@ pub(crate) struct DocumentoObtido {
     pub(crate) requisicoes: u8,
     /// Versão lida, atual e cópia de trabalho (Refs #88).
     pub(crate) versoes: VersoesDoDocumento,
+    pub(crate) propriedades: PropriedadesDocumento,
 }
 
 #[cfg(test)]
@@ -101,10 +104,19 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
-    let leitura = LeituraDoNo {
-        anexo: pedido.anexo,
-        versoes,
-    };
+    obter_documento_com_propriedades(sessao, pedido, versoes, indice, envio, false)
+}
+
+/// Leitura Web com GET adicional do cadastro observado, quando solicitado.
+pub(crate) fn obter_documento_com_propriedades<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    versoes: PedidoDeVersoes,
+    indice: &IndiceLocal,
+    envio: &mut V,
+    propriedades: bool,
+) -> Result<DocumentoObtido, E> {
+    let leitura = LeituraDoNo { anexo: pedido.anexo, versoes, propriedades };
     abrir(sessao, pedido, leitura, indice, envio)
 }
 
@@ -375,6 +387,29 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             });
         }
     };
+    let propriedades = if !pedido.propriedades {
+        PropriedadesDocumento::NaoPedidas
+    } else {
+        match propriedades_documento::ler_link(
+            instalacao, lido.html, &no.id, &lido.processo.id,
+        ).map_err(E::Propriedades)? {
+            None => PropriedadesDocumento::NaoPublicadas,
+            Some(url) => {
+                let html = match rede.get(&url).map_err(E::Processo)? {
+                    Lida::Html { html, .. } => html,
+                    Lida::Login => return Err(E::Processo(ErroProcessoObter::SessaoEncerrada)),
+                    Lida::Redirecionamento(local) =>
+                        return Err(E::Processo(fora_de_palpite(local.as_deref()))),
+                    Lida::Falha(falha) =>
+                        return Err(E::Processo(ErroProcessoObter::Transporte(falha))),
+                };
+                PropriedadesDocumento::Lidas(
+                    propriedades_documento::ler_formulario(&html, &no.id, &lido.processo.id)
+                        .map_err(E::Propriedades)?,
+                )
+            }
+        }
+    };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),
         id_documento: no.id.clone(),
@@ -389,6 +424,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         anexo,
         requisicoes: rede.requisicoes.total_u8(),
         versoes,
+        propriedades,
     })
 }
 
