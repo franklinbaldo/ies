@@ -33,7 +33,7 @@ fn foto(novo: bool) -> FotoProcesso {
             numero_sei: Some("123".into()),
             pasta: None,
             natureza: NaturezaDoDocumento {
-                icone: Some("documento_externo".into()),
+                icone: Some("documento_pdf".into()),
                 cancelado: Some(false),
                 motivo_do_cancelamento: None,
                 dica: None,
@@ -180,4 +180,45 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
     assert_eq!(erro.codigo_saida(), 3);
     assert!(erro.temporario_possivel());
     assert_eq!(passos, ["upload", "cadastro", "reler"]);
+}
+
+#[test]
+fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
+    // BDD-332-03 exige documento EXTERNO comprovado pela releitura.
+    // Rótulo/Número novos, isoladamente, não comprovam sua natureza.
+    for icone in [Some("documento_interno"), None] {
+        let (html, instalacao) = contexto();
+        let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+        let tela = TelaServida {
+            url: URL,
+            html: &html,
+            codificacao: CodificacaoDaTela::Iso88591,
+        };
+        let erro = confirmar_sequencia(
+            &mut (),
+            &instalacao,
+            &tela,
+            "ABC",
+            &cadastro,
+            &foto(false),
+            "Anexo",
+            |()| Ok(recibo()),
+            |(), _| {
+                Ok(RespostaDoEnvio::Redirecionamento(
+                    Redirecionamento302::sintetico(
+                        Some("controlador.php?acao=arvore_visualizar&id_documento=42"),
+                        URL,
+                    ),
+                ))
+            },
+            |()| {
+                let mut leitura = foto(true);
+                leitura.documentos[0].natureza.icone = icone.map(str::to_owned);
+                Ok(leitura)
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(erro, FalhaConfirmacao::EfeitoIncerto));
+        assert_eq!(erro.codigo_saida(), 3);
+    }
 }

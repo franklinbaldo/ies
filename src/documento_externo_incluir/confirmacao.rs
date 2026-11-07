@@ -112,6 +112,14 @@ where
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
         .ok_or(E::EfeitoIncerto)?;
+    // A árvore publica "documento_pdf" para PDFs externos (UnB/GO).
+    // Número, rótulo e redirect não bastam para confirmar a inclusão externa:
+    // documento interno concorrente ou natureza não observada são incertos.
+    if novo.natureza.icone.as_deref() != Some("documento_pdf")
+        || novo.natureza.cancelado != Some(false)
+    {
+        return Err(E::EfeitoIncerto);
+    }
     let RespostaDoEnvio::Redirecionamento(redir) = resposta else {
         return Err(E::EfeitoIncerto);
     };
