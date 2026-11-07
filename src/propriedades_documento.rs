@@ -219,6 +219,58 @@ mod tests {
         assert!(ler_link(&instalacao(), &html, "21", "11").is_err());
     }
     #[test]
+    fn dado_nativo_assinado_em_processo_fechado_quando_leio_entao_consulto_cadastro() {
+        // Dado UFRJ 4.1: em processo fechado documento_consultar substitui alterar.
+        // Quando executo ies documento DOC --com-propriedades,
+        // Então sigo somente o link da barra, sem fabricar URL de alteração.
+        let html = arvore(&[
+            no_processo(0, "10", NUP),
+            no_documento(1, "21", "10", "0000101"),
+        ]);
+        let barra = barra("10", "21", None)
+            .replace("acao=documento_alterar", "acao=documento_consultar");
+        let html = com_barra(&html, 1, &barra);
+        let link = ler_link(&instalacao(), &html, "21", "10")
+            .unwrap()
+            .expect("consulta publicada na barra");
+        assert!(link.contains("acao=documento_consultar&"));
+    }
+
+    #[test]
+    fn dado_externo_fechado_quando_leio_entao_consulto_cadastro_recebido() {
+        // Dado UFRJ 4.1: externo oferece documento_consultar_recebido.
+        // Quando peço --com-propriedades, então a URL da barra é utilizada.
+        let html = arvore(&[
+            no_processo(0, "10", NUP),
+            no_documento(1, "21", "10", "0000101"),
+        ]);
+        let barra = barra("10", "21", None)
+            .replace("acao=documento_alterar", "acao=documento_consultar_recebido");
+        let html = com_barra(&html, 1, &barra);
+        let link = ler_link(&instalacao(), &html, "21", "10")
+            .unwrap()
+            .expect("consulta do externo publicada na barra");
+        assert!(link.contains("acao=documento_consultar_recebido&"));
+    }
+
+    #[test]
+    fn dado_externo_editavel_quando_leio_entao_uso_alteracao_recebida() {
+        // Dado um externo com documento_alterar_recebido observado,
+        // Quando executo --com-propriedades, então leio o link publicado.
+        let html = arvore(&[
+            no_processo(0, "10", NUP),
+            no_documento(1, "21", "10", "0000101"),
+        ]);
+        let barra = barra("10", "21", None)
+            .replace("acao=documento_alterar", "acao=documento_alterar_recebido");
+        let html = com_barra(&html, 1, &barra);
+        let link = ler_link(&instalacao(), &html, "21", "10")
+            .unwrap()
+            .expect("alteração do externo publicada na barra");
+        assert!(link.contains("acao=documento_alterar_recebido&"));
+    }
+
+    #[test]
     fn dado_formulario_observado_quando_lido_entao_preserva_campos() {
         // Caso Todos tests/paginas_reais/documento_alterar.html @323eb01.
         let html = r#"<form id="frmDocumentoCadastro" method="post">
