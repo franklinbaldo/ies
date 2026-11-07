@@ -8,7 +8,7 @@ permissions:
   issues: write
 jobs:
   previa:
-    if: contains(github.event.head_commit.message, '[live-258-preview]')
+    if: contains(github.event.head_commit.message, '[live-258-diagnostic]')
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     steps:
@@ -17,6 +17,30 @@ jobs:
           persist-credentials: false
       - name: Rust fixo
         run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Diagnostico estrutural somente neste runner
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          arquivo = Path("src/processo_relacionar.rs")
+          texto = arquivo.read_text()
+          original = "let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;"
+          novo = """let relacionados = ler_linhas(&html).map_err(|e| {
+              if let Ok(dom) = tl::parse(&html, tl::ParserOptions::default()) {
+                  let forms = dom.query_selector("form").map_or(0, |it| it.count());
+                  let tables = dom.query_selector("table").map_or(0, |it| it.count());
+                  let summaries: Vec<_> = dom.query_selector("table").into_iter().flatten()
+                      .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
+                      .filter_map(|tag| crate::html_atributos::valor_do_atributo(tag, "summary").ok().flatten())
+                      .map(|s| s.chars().take(90).collect::<String>())
+                      .collect();
+                  eprintln!("IES_RELACIONAR_DIAG forms={forms} tables={tables} summaries={summaries:?} erro={e}");
+              }
+              E::Estrutura(e)
+          })?;"""
+          if texto.count(original) != 1: raise SystemExit("ponto_de_diagnostico_ausente")
+          arquivo.write_text(texto.replace(original, novo))
+          PY
       - name: Compilar binario IES
         run: cargo +1.99.1 build --locked --release --bin ies
       - name: Login publico, lista e uma previa na PEN1
@@ -83,6 +107,11 @@ jobs:
                                 "status_http", "sem_efeito", "confirmado", "alterado")
                       reg = {"nome": nome, "exit_code": r.returncode,
                              **{k: obj[k] for k in chaves if isinstance(obj, dict) and k in obj}}
+                      if nome == "previa":
+                          diagnosticos = [linha for linha in r.stderr.splitlines()
+                                          if linha.startswith("IES_RELACIONAR_DIAG ")]
+                          if diagnosticos:
+                              reg["diagnostico_estrutural"] = diagnosticos[:2]
                       report["etapas"].append(reg)
                       gravar()
                       print("Etapa", nome, json.dumps(reg, ensure_ascii=False), flush=True)
@@ -101,9 +130,9 @@ jobs:
                               if isinstance(nup, str) and nup and nup not in numeros:
                                   numeros.append(nup)
                   report["processos_distintos_na_pagina"] = len(numeros)
-                  if len(numeros) < 2:
-                      raise RuntimeError("menos_de_dois_processos_na_pagina")
-                  origem_nup, destino_nup = numeros[:2]
+                  if len(numeros) < 4:
+                      raise RuntimeError("menos_de_quatro_processos_na_pagina")
+                  origem_nup, destino_nup = numeros[2:4]
                   report["origem_nup"] = origem_nup
                   report["destino_nup"] = destino_nup
                   gravar()
