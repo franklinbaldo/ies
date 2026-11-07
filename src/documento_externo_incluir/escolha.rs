@@ -72,6 +72,18 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
     {
         return Err(E::ForaDaForma);
     }
+    // A recarga do tipo usa flag 1; flag 2 é cadastro definitivo.
+    // Conferi-la ANTES de enviar qualquer POST evita escrita acidental.
+    let flags = nos_com_id(&dom, "hdnFlagDocumentoCadastro").map_err(|_| E::ForaDaForma)?;
+    let [no] = flags.as_slice() else { return Err(E::ForaDaForma); };
+    let flag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ForaDaForma)?;
+    if !flag.name().as_utf8_str().eq_ignore_ascii_case("input")
+        || valor_do_atributo(flag, "type").map_err(|_| E::ForaDaForma)?.as_deref() != Some("hidden")
+        || valor_do_atributo(flag, "name").map_err(|_| E::ForaDaForma)?.as_deref() != Some("hdnFlagDocumentoCadastro")
+        || valor_do_atributo(flag, "value").map_err(|_| E::ForaDaForma)?.as_deref() != Some("1")
+    {
+        return Err(E::ForaDaForma);
+    }
     let mut ids = Vec::new();
     for tag in select.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("option")
