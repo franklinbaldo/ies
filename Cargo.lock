@@ -330,6 +330,9 @@ version = "0.1.0"
 [[package]]
 name = "iesei"
 version = "0.1.0"
+dependencies = [
+ "rusqlite",
+]
 
 [[package]]
 name = "indexmap"

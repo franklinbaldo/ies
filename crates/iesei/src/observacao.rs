@@ -149,6 +149,26 @@ impl<T> FormaDoControle<T> {
     }
 }
 
+/// Identidade observada de um processo em uma linha do Controle.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProcessoNaLista {
+    pub id: String,
+    pub numero: String,
+}
+
+impl ProcessoNaLista {
+    #[must_use]
+    pub fn novo(id: &str, numero: &str) -> Option<Self> {
+        (!id.is_empty()
+            && id.bytes().all(|b| b.is_ascii_digit())
+            && !numero.is_empty())
+        .then(|| Self {
+            id: id.to_owned(),
+            numero: numero.to_owned(),
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObservacaoDoControle<T> {
     pub instalacao: Instalacao,
