@@ -2,7 +2,7 @@
 type: CommandContract
 title: Enviar o processo a uma unidade de destino
 operation: processo.enviar
-command: ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]
+command: ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
@@ -33,6 +33,12 @@ da tela declara.
   2 (`mais_de_um_destino_nao_suportado`). Antes de qualquer arquivo.
 - `--manter-aberto`: marca "Manter processo aberto na unidade atual"
   (`chkSinManterAberto=on`). Sem ele, a caixa vai como servida (desmarcada).
+- `--remover-anotacoes`: na **prévia**, solicita a opção real
+  `chkSinRemoverAnotacoes` da tela, quando presente e habilitada. Ausência
+  da opção é recusa tipada; não assumir que todas as instalações a oferecem.
+  `--confirmar` com essa opção permanece **indisponível antes da sessão/rede**
+  até a leitura independente comprovar também a remoção das anotações.
+  A leitura de `aberto_em` comprova tramitação, não exclusão de anotações.
 - `--unidade SIGLA` (global): conferida na tela do processo.
 - `--confirmar`: envia. Sem ele, só prévia.
 
@@ -85,7 +91,9 @@ da tela declara.
    3, como antes. Destino já em `aberto_em`: 1,
    `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
-   e o plano. Nenhum POST de escrita.
+   e o plano. `--remover-anotacoes` aparece explicitamente na prévia, somente
+   quando o checkbox está na tela; sem a opção, a prévia o deixa desmarcado.
+   Nenhum POST de escrita.
 8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
    de formulário (`ENVIAR_PROCESSO`).
 9. **Verifica** por uma leitura nova (a de `ies processo NUP`, em geral
@@ -199,8 +207,9 @@ testes conferem a sequência exata de cada caminho.
 
 ## Fora do escopo
 
-Vários destinos e grupos de envio (`hdnUnidades` com `¥`), "Remover
-anotação", "Enviar e-mail de notificação", retorno e reabertura
+Vários destinos e grupos de envio (`hdnUnidades` com `¥`), **confirmação de
+remoção de anotações enquanto não observável na releitura**, "Enviar e-mail
+de notificação", retorno e reabertura
 programados, a lupa de unidades, enviar vários processos.
 
 ## Evidência
