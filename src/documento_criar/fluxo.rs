@@ -93,6 +93,8 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) nup: String,
     pub(crate) tipo: String,
     pub(crate) unidade: String,
+    pub(crate) descricao: Option<String>,
+    pub(crate) nivel: Option<String>,
     pub(crate) requisicoes: u8,
     pub(crate) estado: EstadoCriacao,
 }
@@ -315,6 +317,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         nup: pedido.nup.as_str().to_owned(),
         tipo: pedido.tipo.to_owned(),
         unidade,
+        descricao: pedido.descricao.map(str::to_owned),
+        nivel: pedido.nivel.map(str::to_owned),
         requisicoes: rede.feitas(),
         estado: EstadoCriacao::Previa,
     };
