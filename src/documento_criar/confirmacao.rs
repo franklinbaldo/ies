@@ -5,6 +5,7 @@ use crate::documento_criar::conferir_criacao;
 use crate::documento_criar::fluxo::ErroPreviaCriacao;
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
 use std::io::Read;
@@ -85,7 +86,7 @@ pub(super) fn postar_e_verificar<T, R, P, L>(
 where
     R: Read,
     P: FnOnce(&mut T, SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
-    L: FnOnce(&mut T) -> Result<FotoDaCriacao, ()>,
+    L: FnOnce(&mut T) -> Result<FotoDaCriacao, ErroProcessoObter>,
 {
     // Nunca emitir uma escrita quando a própria foto inicial já impede
     // demonstrar seu efeito. Validação anterior à primeira requisição.
@@ -112,7 +113,7 @@ where
         Ok(resposta) => resposta,
         Err(causa) => return Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(causa)),
     };
-    let depois = depois.map_err(|()| ErroPreviaCriacao::EfeitoIncerto)?;
+    let depois = depois.map_err(ErroPreviaCriacao::EfeitoIncertoNaReleitura)?;
     if depois.pastas_nao_carregadas || antes.id != depois.id {
         return Err(ErroPreviaCriacao::EfeitoIncerto);
     }
