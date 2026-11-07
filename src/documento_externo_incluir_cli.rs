@@ -1,6 +1,8 @@
 //! #332 — inspeção do arquivo local antes de abrir sessão/rede.
 //! Não apresentar este resultado como prévia do formulário do SEI.
-use crate::documento_externo_incluir::{FalhaPdf, contem_controle_de_apresentacao, inspecionar_pdf};
+use crate::documento_externo_incluir::{
+    FalhaPdf, contem_controle_de_apresentacao, inspecionar_pdf,
+};
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde::Serialize;
