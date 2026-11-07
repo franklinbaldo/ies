@@ -270,7 +270,10 @@ mod tests {
         assert_eq!(saida["mensagem_do_servidor"], "Descrição obrigatória");
         assert_eq!(saida["requisicoes"], 6);
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 6, &nup_de_teste()), ExitCode::from(3));
+        assert_eq!(
+            publicar_erro(false, &erro, 6, &nup_de_teste()),
+            ExitCode::from(3)
+        );
     }
 
     #[test]
@@ -302,7 +305,10 @@ mod tests {
         assert_eq!(saida["requisicoes"], 7);
         assert!(saida["causa_releitura"].is_string());
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 7, &nup_de_teste()), ExitCode::from(3));
+        assert_eq!(
+            publicar_erro(false, &erro, 7, &nup_de_teste()),
+            ExitCode::from(3)
+        );
     }
     #[test]
     fn efeito_incerto_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
@@ -317,7 +323,10 @@ mod tests {
                 .is_some_and(|mensagem| mensagem.contains("Confira o processo"))
         );
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 7, &nup_de_teste()), ExitCode::from(3));
+        assert_eq!(
+            publicar_erro(false, &erro, 7, &nup_de_teste()),
+            ExitCode::from(3)
+        );
     }
 
     #[test]
