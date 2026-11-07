@@ -93,8 +93,8 @@ pub(crate) fn interpretar_http<R: std::io::Read>(
     {
         return Err(incerto());
     }
-    let bytes = crate::transporte::ler_limitado(resposta.corpo, 64 * 1024)
-        .map_err(|_| incerto())?;
+    let bytes =
+        crate::transporte::ler_limitado(resposta.corpo, 64 * 1024).map_err(|_| incerto())?;
     let corpo = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
         .map_err(|_| incerto())?;
     interpretar_resposta(status_http, &corpo, nome_esperado, tamanho_esperado)
