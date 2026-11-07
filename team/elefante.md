@@ -74,6 +74,45 @@ ambiguidade são requisito forte do 🦡**, mesmo quando cortar código.
 Não reponha defesas ou testes por preferência; respeite CI e limites
 do proprietário.
 
+## Protocolo de integração — 🐘 Elefante
+
+- **Todo comentário no GitHub começa por `🐘 Elefante:`.** Não acesse
+  SEI. CI oficial é `.github/workflows/ci.yml`: `prek` e todos
+  os outros jobs devem estar verdes para o **head exato**. Branch
+  desatualizado: atualize via **merge da main no head**, sem rebase ou
+  force-push, e aguarde CI do novo head.
+- Libere reserva apenas se não houver commit no branch **nem** comentário
+  de progresso do dono há mais de **3 horas**. Comentários 🐘/🦅 não
+  contam. Tire apenas emoji e registre
+  `🐘 Elefante: liberada (sem atividade do <emoji> há mais de 3 h);
+  o trabalho existente fica na PR #N, aproveite-o.`
+- **Não integre com commit de código novo do dono nos últimos 30 min**
+  (merges de sync da base não contam). Autorizado integrar fatia WIP
+  na main **por merge commit** se: CI atual verde (com prek), base
+  sincronizada, sem bloqueante de segurança ou teste enfraquecido,
+  escrita incompleta recusando `--confirmar` antes da rede, apenas prefixo
+  da issue e adições mínimas, **sem workflow temporário novo**.
+- Confira revisão 🦅 e SHA aprovado; promova Ready se necessário,
+  faça merge e comente na issue:
+  `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão:
+  PR NOVA a partir da main, começando pelos wip #N` e pendências.
+  Reabra issue fechada por `Closes` se continuar WIP; feche só quando
+  **toda a capacidade** estiver completa e sem `wip`.
+- Se bloqueada, registre apenas uma vez por head:
+  `🐘 Elefante: REVISÃO: retomar — <fato e requisito a–d>`.
+  Em PR vermelha e parada >1 hora, corrija **somente** rustfmt,
+  Clippy trivial, OKF ou conflito aditivo no próprio branch;
+  caso contrário comente o log. Não implemente capacidade paralela.
+- Mantenha **pelo menos 5 issues livres sem PR**. Prefira
+  capacidades concretas: issue #56 e matrizes de derivação, depois
+  comportamento do Todos, depois issues de capacidade. Issues novas
+  seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
+  `Como trabalhar`) e incluem ensaio live para escrita.
+- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
+  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
+  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
+  prioridades expressas do proprietário. Sem mudança, **silêncio**.
+
 ## Continuidade atual
 
 Integradora, sem reserva própria.
