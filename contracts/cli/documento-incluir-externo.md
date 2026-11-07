@@ -57,6 +57,23 @@ não prova que os bytes de um futuro envio serão idênticos aos inspecionados:
 a vinculação à mesma abertura/descritor será feita na integração com o
 transporte. `--confirmar` permanece fechado antes de sessão/rede.
 
+## Transporte e recibo HTTP — bancada sintética da PR #380
+
+O cliente HTTPS único agora aceita um POST com leitor de corpo e tamanho
+conhecido. Ele usa a mesma conexão TLS/proxy dos demais comandos, envia
+`Content-Length` explícito, transmite o PDF em fluxo e não repete a
+requisição. O interpretador consome a resposta HTTP limitada do upload
+temporário, decodifica o charset declarado e distingue recibo válido,
+recusa explícita e efeito incerto, inclusive se o corpo for ilegível.
+
+O cenário BDD no proxy local exercita, numa conexão única:
+**Dado** PDF local e URL sintética de upload, **quando** o envio multipart
+ocorre e o servidor devolve o recibo, **então** os bytes, tamanho,
+`Content-Type` e recibo temporário são conferidos sem cadastro definitivo.
+A URL/cookie do teste são sintéticos; a camada TLS é substituída.
+**Nenhum comando da CLI chama ainda esse transporte**. Não é prova live
+do SEI, não habilita `--confirmar` e não comprova documento criado.
+
 ## Escopo remoto ainda não implementado
 
 O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/documento_externo.py) descreve na UnB de TREINAMENTO (11/10/2026) **duas etapas HTTP mutadoras diferentes sob uma única confirmação**: upload temporário multipart `documento_upload_anexo` → recibo → cadastro `documento_receber` com `hdnAnexos` → releitura independente da árvore e metadados do anexo. Não é correto exigir apenas um POST total, nem interpretar recibo de upload como documento já incluído.
