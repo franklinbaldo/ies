@@ -128,14 +128,16 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
     assert_eq!(pedidos, pedidos_antes_da_escrita());
 }
 
-
 #[test]
 fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
     // Dado um pedido com descricao e nivel explicitos;
     // Quando executo a previa sem confirmar;
     // Entao ambos os dados estao disponiveis para apresentacao na CLI.
     let (resultado, pedidos) = executar(false, vec![]);
-    let previa = resultado.expect("previa com formulario observado");
+    let previa = match resultado {
+        Ok(previa) => previa,
+        Err(erro) => panic!("previa falhou: {}", erro.subcodigo()),
+    };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
     assert_eq!(previa.nivel.as_deref(), Some("publico"));
     assert_eq!(previa.requisicoes, 5);
