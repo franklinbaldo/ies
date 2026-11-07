@@ -198,11 +198,18 @@ fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
     let saida = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
         .expect("erro tipado serializável");
     assert_eq!(saida["codigo"], "efeito_incerto");
-    assert_eq!(saida["anotacao_depois"], false, "limpeza confirmada não pode desaparecer da falha");
+    assert_eq!(
+        saida["anotacao_depois"], false,
+        "limpeza confirmada não pode desaparecer da falha"
+    );
     for link in [action_anotacao(), action_de_enviar()] {
         assert_eq!(
-            pedidos.iter().filter(|p| p.metodo == "POST" && p.url == absoluta(&link)).count(),
-            1, "cada escrita é única"
+            pedidos
+                .iter()
+                .filter(|p| p.metodo == "POST" && p.url == absoluta(&link))
+                .count(),
+            1,
+            "cada escrita é única"
         );
     }
 }
