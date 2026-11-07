@@ -66,8 +66,8 @@ pub(crate) fn preparar_pdf(
         match codificacao {
             CodificacaoDaTela::Iso88591 => {
                 let codigo = u32::from(caractere);
-                let byte = u8::try_from(codigo)
-                    .map_err(|_| FalhaMultipart::NomeIncompativelComCharset)?;
+                let byte =
+                    u8::try_from(codigo).map_err(|_| FalhaMultipart::NomeIncompativelComCharset)?;
                 nome_codificado.push(byte);
             }
             CodificacaoDaTela::Utf8 => {
