@@ -190,9 +190,14 @@ fn escolher_metodo(
     }
     let metodo = if tela.remover_anotacoes_oferecida {
         MetodoRemocao::CheckboxNoEnvio
-    } else if anotacao_antes.is_some()
-        && anotacao_lida.is_some_and(|lida| super::anotacoes::salvar_oferecido(&lida.html))
-    {
+    } else if anotacao_antes.is_some() {
+        if !anotacao_lida.is_some_and(|lida| super::anotacoes::salvar_oferecido(&lida.html)) {
+            return Err(if pedido.confirmar {
+                C::RemocaoDeAnotacoesSemVerificacao
+            } else {
+                C::RemocaoDeAnotacoesNaoOferecida
+            });
+        }
         MetodoRemocao::LimparAnotacao
     } else {
         return Err(C::RemocaoDeAnotacoesNaoOferecida);
