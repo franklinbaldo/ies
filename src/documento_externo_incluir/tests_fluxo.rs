@@ -129,18 +129,32 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
             sha256: "ficticio".into(),
         };
         super::super::fluxo_confirmar::executar_confirmacao_via(
-            sessao, nup, None, "Anexo", &pdf, indice, rede,
-            |_, _, _, _, _| Err(super::super::recibo::FalhaUpload::Recusado {
-                motivo: "recusa sintetica".into(),
-            }),
+            sessao,
+            nup,
+            None,
+            "Anexo",
+            &pdf,
+            indice,
+            rede,
+            |_, _, _, _, _| {
+                Err(super::super::recibo::FalhaUpload::Recusado {
+                    motivo: "recusa sintetica".into(),
+                })
+            },
         )
     });
     assert!(matches!(
         resultado,
-        Err(super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-            super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
-        ))
+        Err(
+            super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
+                super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
+            )
+        )
     ));
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
-    assert!(pedidos.iter().all(|p| !p.url.contains("documento_upload_anexo")));
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| !p.url.contains("documento_upload_anexo"))
+    );
 }
