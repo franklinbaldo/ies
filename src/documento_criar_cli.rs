@@ -3,6 +3,7 @@
 //! depois de releitura da árvore. Não há retry.
 use crate::documento_criar::{
     ErroPreviaCriacao, EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao,
+    validar_nivel_de_confirmacao,
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
@@ -33,6 +34,13 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     };
     if tipo.trim().is_empty() {
         return Some(entrada_invalida(cli.json, "tipo_de_documento_vazio"));
+    }
+    // O nivel de escrita ja e uma pre-condicao independente da sessao.
+    // A CLI deve informar essa causa antes de abrir arquivos privados.
+    if *confirmar {
+        if let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
+            return Some(publicar_erro(cli.json, &erro, 0));
+        }
     }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoCriacao {

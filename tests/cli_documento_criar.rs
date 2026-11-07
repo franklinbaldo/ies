@@ -75,7 +75,6 @@ fn criar_sem_tipo_e_referencia_legada_sao_recusados_no_clap_ou_preflight() {
     assert_eq!(entrada_opaca.status.code(), Some(1));
 }
 
-
 #[test]
 fn dado_confirmacao_sem_nivel_quando_nao_ha_sessao_entao_recusa_antes_de_ler_arquivos() {
     // Dado NUP e tipo válidos, mas sem sessão nem nível;
