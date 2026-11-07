@@ -11,7 +11,8 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 ## Comandos
 
 - Pré-commit: `uvx --from prek==0.5.7 prek run --hook-stage pre-commit --all-files`.
-- Pré-push e CI remoto: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
+- Pré-push e CI completo: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
+- CI rápido: `uvx --from prek==0.5.7 prek run --hook-stage pre-commit --all-files`.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
 O Clippy ativa `clippy::pedantic` e trata avisos como erros. Não há exceções globais; a validação literal de extensões de evidências possui exceções locais documentadas e as flags independentes do Clap conservam uma exceção localizada de `struct_excessive_bools`.
@@ -62,15 +63,46 @@ offline não ser auditado; o CI remoto, que roda o mesmo comando, é a
 barreira que não pode ser pulada em silêncio. O resultado depende da base
 do OSV no momento: um aviso novo pode derrubar um commit que ontem passava.
 
-## GitHub Actions
+## GitHub Actions: rápido por commit, completo antes do merge
 
-O [workflow de CI](../.github/workflows/ci.yml) roda em PRs, pushes na
-`main` e por execução manual. O checkout e a instalação de uv usam
-actions fixadas por SHA, inclusive `Swatinem/rust-cache` para o cache
-de compilação Rust. A versão de Rust vem de `rust-toolchain.toml`.
-O executor roda o mesmo comando do pré-push, sem duplicar os gates.
-O token do workflow recebe apenas `contents: read`.
-Não há secrets ou acesso autenticado ao SEI.
+- `.github/workflows/ci-rapido.yml`: em cada PR e push na `main`;
+  só os hooks canônicos de **pre-commit** (tamanho, Rustfmt, OKF).
+  **Verde nesse workflow não autoriza merge.**
+- `.github/workflows/ci.yml`: suíte completa com **7 jobs** (prek
+  pre-push, cinco replays offline e binário Linux). Dispara ao passar
+  a PR de **Draft para Ready for review**, ou por `workflow_dispatch`
+  para investigação. Não roda a cada commit ou push na `main`.
+- `.github/workflows/wheel-uvx.yml`: builds das três wheels somente
+  em `workflow_dispatch` ou chamada do workflow de release; não é
+  gate de PR.
+- `build-audit.yml` e `perf-audit.yml`: auditorias exploratórias sob
+  demanda; deixam de rodar em cada alteração relevante da PR.
+- O workflow de release continua rodando os gates canônicos na tag.
+
+**Pré-merge obrigatório para 🐘/🦡:**
+
+1. Sincronize a PR com `main` por merge (nunca rebase/force-push);
+   verifique `behind=0`.
+2. Terminada a implementação, marque **Ready for review**. Se já
+   estiver Ready, converta para Draft e marque Ready de novo. Essa
+   transição dispara o CI completo na PR.
+3. Exija **success explícito, nunca skipped**, em todos os **7 jobs**
+   do último CI completo do evento `pull_request`, no `head_sha`
+   atual, além do sucesso do CI rápido. Verifique escopo e
+   `--confirmar` fechado. A execução manual é útil para diagnosticar,
+   mas não substitui a rodada do evento `pull_request`.
+4. Havendo novo commit ou mudança da `main` que exija sincronização,
+   repita a transição e todos os checks. Integre por merge commit de
+   dois pais somente depois de todos verdes.
+
+Um job pulado pode aparecer como aprovado no GitHub: para integração,
+`skipped`, `cancelled` e resultados ausentes **não** contam como
+gates verdes. A `main` estava sem proteção de branch no momento desta
+alteração; o protocolo deve ser cumprido pelo integrador até que uma
+regra de proteção seja habilitada.
+
+Os workflows usam `contents: read`, salvo permissões específicas
+de publicação. Sem acesso ao SEI.
 
 ## Decisões de engenharia
 
@@ -94,8 +126,8 @@ os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 Para medir gargalos sem especular, execute `cargo build --timings` num
 executor adequado; não mantenha o HTML de timings versionado.
 
-A auditoria de build em PRs que alteram a arquitetura (`build-audit.yml`)
-usa `scripts/build_audit.py` para compilar base e proposta no mesmo runner,
+A auditoria de build sob demanda (`build-audit.yml`, com inputs
+`base` e `head`) usa `scripts/build_audit.py` para compilar base e proposta no mesmo runner,
 em cópias descartáveis e com diretórios `target` isolados: build limpo,
 sem mudança e com comentário sintético em `processo_obter/fluxo.rs`.
 O relatório lista dependências internas do workspace e diferenças de tempo.
