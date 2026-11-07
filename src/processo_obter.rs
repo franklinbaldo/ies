@@ -81,7 +81,6 @@ pub(crate) use documento::obter_documento_com_versoes;
 pub(crate) use documento::{
     DocumentoNaArvoreAberto, DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo,
     PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_propriedades,
-
 };
 #[cfg(test)]
 pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
