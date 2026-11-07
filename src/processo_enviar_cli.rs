@@ -363,7 +363,7 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
-            valor.depois = depois.as_ref();
+            valor.depois = depois.as_deref();
         }
         ErroEnviar::EfeitoIncertoNoEnvio {
             aberto_em,
