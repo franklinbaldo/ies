@@ -154,7 +154,6 @@ where
     })
 }
 
-
 /// Ponte real da sequência #332: o mesmo POST multipart único do transporte,
 /// seguido de cadastro único e releitura pelo fluxo já ensaiado offline.
 /// Não é invocada pela CLI antes da validação em TREINAMENTO.
@@ -169,11 +168,17 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
-    let cookie = sessao.cookie.valor().map_err(|e| {
-        ErroConfirmacaoExterna::Previa(ErroPreviaExterna::Transporte(e))
-    })?;
+    let cookie = sessao
+        .cookie
+        .valor()
+        .map_err(|e| ErroConfirmacaoExterna::Previa(ErroPreviaExterna::Transporte(e)))?;
     // A origem já foi validada quando a sessão foi aberta.
-    let origem = sessao.origem.split('/').take(3).collect::<Vec<_>>().join("/");
+    let origem = sessao
+        .origem
+        .split('/')
+        .take(3)
+        .collect::<Vec<_>>()
+        .join("/");
     executar_confirmacao_via(
         sessao,
         nup,
