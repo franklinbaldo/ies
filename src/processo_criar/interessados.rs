@@ -248,6 +248,22 @@ mod tests {
             Err(ErroInteressado::Ambiguo)
         );
     }
+    /// Resposta AJAX sintética adversarial: somente `item` sob a única
+    /// raiz `itens` representa interessado oferecido pelo SEI. Um item
+    /// alheio à raiz não pode virar ID selecionável na criação #245.
+    #[test]
+    fn autocomplete_nao_aceita_item_fora_da_raiz_xml() {
+        // Estrutura dos itens: autocomplete de interessado publicado no
+        // cadastro; o segundo `item` é uma mutação sintética negativa.
+        let xml = "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>";
+        let itens = itens_da_resposta(xml).unwrap();
+        assert_eq!(itens, vec![("1".into(), "Pessoa A".into())]);
+        assert_eq!(
+            escolher("Pessoa B", &itens),
+            Err(ErroInteressado::NaoOferecido)
+        );
+    }
+
     #[test]
     fn codificacao_da_lupa_preserva_ids_e_nomes() {
         assert_eq!(
