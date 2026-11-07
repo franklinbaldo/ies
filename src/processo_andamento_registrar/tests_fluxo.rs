@@ -7,6 +7,7 @@ use crate::historico_processo::tests_apoio::{
 };
 use crate::processo_concluir::tests_apoio::{
     Ambiente, ID, NUP, Resposta, UNIDADE, abertura, ambiente, arvore, get, ok, r302, rodar_com,
+    trabalhar,
 };
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
@@ -85,7 +86,6 @@ fn previa_liga_barra_historico_e_formulario_sem_post() {
 }
 
 #[test]
-#[ignore = "wip #259: a releitura sintética ainda sai efeito_incerto_no_andamento"]
 fn confirmacao_faz_exatamente_um_post_e_releitura() {
     let amb = ambiente();
     let mut respostas = respostas_previa();
@@ -93,14 +93,15 @@ fn confirmacao_faz_exatamente_um_post_e_releitura() {
         "controlador.php?acao=procedimento_consultar_historico&id_procedimento={ID}&infra_hash={HASH}"
     );
     respostas.push(r302(&voltar));
+    respostas.push(ok(trabalhar()));
     respostas.push(ok(tree()));
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     let feito = resultado.ok().expect("andamento conferido");
     assert!(feito.confirmado);
     assert_eq!(feito.total_depois, Some(2));
-    assert_eq!(feito.requisicoes, 8);
-    assert_eq!(pedidos.len(), 8);
+    assert_eq!(feito.requisicoes, 9);
+    assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     let post = pedidos.iter().find(|p| p.metodo == "POST").unwrap();
     assert_eq!(post.url, absoluta(&link()));
@@ -109,11 +110,11 @@ fn confirmacao_faz_exatamente_um_post_e_releitura() {
 }
 
 #[test]
-#[ignore = "wip #259: a releitura sintética ainda sai efeito_incerto_no_andamento"]
 fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
     let amb = ambiente();
     let mut respostas = respostas_previa();
     respostas.push(ok("<html><body>sem redirect</body></html>".into()));
+    respostas.push(ok(trabalhar()));
     respostas.push(ok(tree()));
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
@@ -122,6 +123,7 @@ fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
         feito.resposta_inesperada,
         Some("resposta_do_andamento_nao_esperada")
     );
+    assert_eq!(feito.requisicoes, 9);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
@@ -133,12 +135,13 @@ fn se_historico_nao_mudou_o_efeito_e_incerto_sem_retry() {
         "controlador.php?acao=procedimento_consultar_historico&id_procedimento={ID}&infra_hash={HASH}"
     );
     respostas.push(r302(&voltar));
+    respostas.push(ok(trabalhar()));
     respostas.push(ok(tree()));
     respostas.push(ok(pagina(1)));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     assert!(matches!(resultado, Err(Erro::EfeitoIncerto)));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
-    assert_eq!(pedidos.len(), 8);
+    assert_eq!(pedidos.len(), 9);
 }
 
 #[test]
