@@ -9,7 +9,7 @@ implementation: partial
 
 # Incluir documento externo em processo — #332
 
-A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona **somente o arquivo local**, não a disponibilidade do formulário remoto. É uma etapa de preparação, **não uma prévia do SEI**. Não abre sessão, não consulta o processo, não oferece lista de tipos e não transmite o arquivo. A flag `--confirmar` é reconhecida, mas **recusa antes de sessão e rede** (`cadastro_externo_ainda_nao_validado`) até comprovar a operação completa.
+A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona **somente o arquivo local**, não a disponibilidade do formulário remoto. É uma etapa de preparação, **não uma prévia do SEI**. Não abre sessão, não consulta o processo, não oferece lista de tipos e não transmite o arquivo. A flag `--confirmar` é reconhecida, mas **recusa antes de sessão e rede** (causa tipada `CadastroNaoValidado`) até comprovar a operação completa.
 
 ## Contrato atual do núcleo local
 
@@ -19,21 +19,20 @@ A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo 
 - Saída `--json` de sucesso: `escopo:"inspecao_local"`, `processo`, `tipo_solicitado`, `arquivo:{nome,tamanho_bytes,sha256}`, `cadastro_sei_observado:false`, `previa_remota:false`, `confirmado:false`, `requisicoes:0`, `escrita_remota:false`. O conteúdo do arquivo e credenciais jamais são publicados.
 - Qualquer falha de entrada: saída 2, `codigo:"entrada_invalida"`, `retentavel:false` e nenhum acesso à sessão/rede.
 
-## Subcódigos da inspeção local
+## Causas tipadas na inspeção local
 
-| Subcódigo | Fato observado |
-| --- | --- |
-| `arquivo_pdf_ausente` | O caminho informado não existe |
-| `arquivo_pdf_nao_regular` | O destino é diretório ou outro objeto não regular |
-| `arquivo_pdf_link_simbolico` | Destino ou ancestral do caminho é link simbólico |
-| `arquivo_pdf_vazio` | Arquivo sem bytes |
-| `extensao_pdf_invalida` | O nome não tem extensão PDF |
-| `nome_arquivo_pdf_invalido` | O nome contém `&#` recusado pelo SEI ou caractere de controle inseguro para exibição |
-| `conteudo_nao_eh_pdf` | Os bytes iniciais não têm assinatura PDF |
-| `arquivo_pdf_acima_do_limite` | O arquivo ultrapassa limite efetivamente informado pela tela |
-| `leitura_do_arquivo_pdf_falhou` | Erro de abertura/leitura ou mudança de tamanho durante a leitura |
-| `tipo_externo_invalido` | Tipo solicitado vazio ou com caractere de controle |
-| `cadastro_externo_ainda_nao_validado` | Confirmação bloqueada até observação, cadastro e releitura |
+As recusas preservam a identidade do erro Rust. A saída JSON publica a
+variante diretamente via Serde no campo `causa`, sem `subcodigo` nem tabela
+paralela de nomes: por exemplo, `{"causa":{"Pdf":"NomeInvalido"}}`,
+`{"causa":{"Tipo":"Vazio"}}`, `{"causa":{"Processo":"Controle"}}` e
+`{"causa":"CadastroNaoValidado"}`. A mensagem humana é somente
+apresentação, nunca critério de classificação.
+
+A família `FalhaPdf` distingue ausência, arquivo não regular, link
+simbólico, arquivo vazio, extensão incorreta, nome não aceito, assinatura
+incorreta, limite observado ultrapassado e falha de leitura. A recusa
+de `--confirmar` ainda não validado sai 1; entrada não aceita sai 2.
+Nenhuma delas abre sessão ou rede.
 
 ## Escopo remoto ainda não implementado
 

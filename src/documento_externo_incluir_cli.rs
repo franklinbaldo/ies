@@ -1,28 +1,51 @@
 //! #332 — inspeção do arquivo local antes de abrir sessão/rede.
 //! Não apresentar este resultado como prévia do formulário do SEI.
-use crate::documento_externo_incluir::inspecionar_pdf;
-use crate::processo::NumeroProcesso;
+use crate::documento_externo_incluir::{FalhaPdf, inspecionar_pdf};
+use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::{Cli, Documento, DocumentoAcao, Domain};
+use serde::Serialize;
 use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-fn recusa(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+#[derive(Debug, Serialize)]
+enum FalhaTipoExterno {
+    Vazio,
+    Controle,
+}
+
+#[derive(Debug, Serialize)]
+enum FalhaInclusaoExterna {
+    Processo(NumeroProcessoInvalido),
+    Tipo(FalhaTipoExterno),
+    Pdf(FalhaPdf),
+    CadastroNaoValidado,
+}
+
+fn validar_tipo(tipo: &str) -> Result<(), FalhaTipoExterno> {
+    if tipo.chars().any(char::is_control) {
+        return Err(FalhaTipoExterno::Controle);
+    }
+    if tipo.trim().is_empty() {
+        return Err(FalhaTipoExterno::Vazio);
+    }
+    Ok(())
+}
+
+fn recusa(json_mode: bool, causa: FalhaInclusaoExterna, mensagem: &str, status: u8) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": mensagem,
+                "causa": causa,
                 "retentavel": false,
                 "escrita_remota": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]. Nenhuma requisição foi enviada.");
+        eprintln!("IES: {mensagem} ({causa:?}). Nenhuma requisição foi enviada.");
     }
-    ExitCode::from(2)
+    ExitCode::from(status)
 }
 
 pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
@@ -44,16 +67,18 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
         Err(falha) => {
             return Some(recusa(
                 cli.json,
-                falha.subcodigo(),
-                "número do processo inválido",
+                FalhaInclusaoExterna::Processo(falha),
+                "número do processo não aceito",
+                2,
             ));
         }
     };
-    if tipo.trim().is_empty() || tipo.chars().any(char::is_control) {
+    if let Err(falha) = validar_tipo(tipo) {
         return Some(recusa(
             cli.json,
-            "tipo_externo_invalido",
+            FalhaInclusaoExterna::Tipo(falha),
             "tipo externo vazio ou com caractere de controle",
+            2,
         ));
     }
     let pdf = match inspecionar_pdf(Path::new(arquivo), None) {
@@ -61,16 +86,18 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
         Err(falha) => {
             return Some(recusa(
                 cli.json,
-                falha.subcodigo(),
+                FalhaInclusaoExterna::Pdf(falha),
                 "arquivo PDF local não passou na inspeção",
+                2,
             ));
         }
     };
     if *confirmar {
-        return Some(crate::erro_fonte(
+        return Some(recusa(
             cli.json,
-            "cadastro_externo_ainda_nao_validado",
+            FalhaInclusaoExterna::CadastroNaoValidado,
             "confirmação fechada antes da sessão e da rede: faltam formulário, upload e releitura observados",
+            1,
         ));
     }
     if cli.json {

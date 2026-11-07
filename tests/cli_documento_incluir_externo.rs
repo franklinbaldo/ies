@@ -157,8 +157,15 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
 fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
-        "--json", "documento", "incluir-externo", "--processo", " ",
-        "--arquivo", pdf.caminho(), "--tipo", "Anexo",
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        " ",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);

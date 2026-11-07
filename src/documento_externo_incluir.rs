@@ -13,7 +13,7 @@ pub(crate) struct PdfLocal {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub(crate) enum FalhaPdf {
     Ausente,
     NaoRegular,
@@ -24,22 +24,6 @@ pub(crate) enum FalhaPdf {
     Conteudo,
     AcimaDoLimite,
     Leitura,
-}
-
-impl FalhaPdf {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::Ausente => "arquivo_pdf_ausente",
-            Self::NaoRegular => "arquivo_pdf_nao_regular",
-            Self::LinkSimbolico => "arquivo_pdf_link_simbolico",
-            Self::Vazio => "arquivo_pdf_vazio",
-            Self::Extensao => "extensao_pdf_invalida",
-            Self::NomeInvalido => "nome_arquivo_pdf_invalido",
-            Self::Conteudo => "conteudo_nao_eh_pdf",
-            Self::AcimaDoLimite => "arquivo_pdf_acima_do_limite",
-            Self::Leitura => "leitura_do_arquivo_pdf_falhou",
-        }
-    }
 }
 
 /// Inspeção local; não prova que a instalação oferece tipo, limite ou upload.
