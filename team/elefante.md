@@ -71,7 +71,7 @@ O [🦡 Texugo](texugo.md) pode revogar orientações do 🐘 e reclassificar ri
   `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão: PR NOVA a partir da main, começando pelos wip #N` e pendências.
   Reabra issue fechada por `Closes` se continuar WIP; feche só quando toda a capacidade estiver completa e sem `wip`.
 - Em PR parada com falhas triviais (ex: rustfmt ou Clippy), faça o ajuste direto no branch para apoiar a equipe.
-- Mantenha a fila viva ordenada por prioridade (90–100 uso diário/bugs; 70–89 desbloqueadores; 40–69 demais). Sem mudança material, **silêncio**.
+- Mantenha a fila viva ordenada por prioridade (90–100 uso diário/bugs; 70–89 desbloqueadores; 40–69 demais). Qualquer membro da equipe pode abrir issues livremente; o Elefante e o Texugo são responsáveis por classificar e atribuir a prioridade numérica na fila. Sem mudança material, **silêncio**.
 
 ## Continuidade atual
 

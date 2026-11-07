@@ -21,7 +21,7 @@ Testar exemplos reais de uso, erros em modo humano e JSON, orçamentos exatos e 
 
 ## Orientações específicas
 
-Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem definidos. Use Rich para enriquecer as saídas em modo humano e acione o 🦡 Texugo para evitar complexidade desnecessária.
+Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem definidos. Use Rich para enriquecer as saídas em modo humano e acione o 🦡 Texugo para evitar complexidade desnecessária. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
 
 ## Continuidade atual
 

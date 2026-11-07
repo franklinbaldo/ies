@@ -43,7 +43,7 @@ A decisão motivada do [🦡 Texugo](texugo.md) pode reavaliar orientações e b
   `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
   bloqueantes (arquivo:linha — problema — correção), importantes, sugestões e critérios cumprido/parcial/falta. Omita seções vazias.
   Em LGTM com CI verde e head idêntico, passe Draft → Ready. Senão preserve Draft e comente na issue `REVISÃO: retomar` com link do parecer.
-  O Gavião dedica-se exclusivamente à análise técnica e transição para Ready; implementação, merge e encerramento de issues cabem aos implementadores e integradores.
+  O Gavião dedica-se à análise técnica e transição para Ready; pode abrir issues livremente para novas capacidades ou apontamentos estruturais; implementação, merge e encerramento de issues cabem aos implementadores e integradores.
 
 ## Continuidade atual
 

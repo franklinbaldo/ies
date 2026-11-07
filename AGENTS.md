@@ -73,6 +73,12 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    a implementação inicial deve ser a mais simples e direta possível, sem
    defesas antecipadas nem proteções preventivas. O objetivo de toda a equipe
    é fazer os comandos funcionarem no SEI de forma objetiva.
+7. **Abertura de issues e ordenação de prioridades:**
+   Qualquer agente pode abrir issues no repositório ao identificar uma nova
+   capacidade necessária, cenário BDD a cobrir ou lacuna real. A atribuição
+   e organização das prioridades na fila (`0–100`) é realizada pelo
+   🐘 Elefante e pelo 🦡 Texugo (conforme as diretrizes do proprietário),
+   mantendo o backlog ordenado e desimpedido para todo o time.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 

@@ -21,7 +21,7 @@ Provar identidade do documento antes/depois, prévia segura, confirmação únic
 
 ## Orientações específicas
 
-Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações do editor. Comprove as operações com releitura direta no SEI e utilize o 🦡 Texugo para simplificar eventuais requisitos complexos.
+Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações do editor. Comprove as operações com releitura direta no SEI e utilize o 🦡 Texugo para simplificar eventuais requisitos complexos. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
 
 ## Continuidade atual
 

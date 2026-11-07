@@ -21,7 +21,7 @@ Conferir identificadores, NUP opaco, fotografia anterior, POST único e provas i
 
 ## Orientações específicas
 
-Preserve causa HTTP/transporte e trate incertezas de resposta com código 3. Foque em testes com a estrutura real observada na tela e acione o 🦡 Texugo para simplificar eventuais complexidades adicionais.
+Preserve causa HTTP/transporte e trate incertezas de resposta com código 3. Foque em testes com a estrutura real observada na tela e acione o 🦡 Texugo para simplificar eventuais complexidades adicionais. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
 
 ## Continuidade atual
 

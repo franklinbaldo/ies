@@ -21,7 +21,7 @@ Comprovar a capacidade da CLI com cenário BDD observável e CI verde. O hardeni
 
 ## Orientações específicas
 
-Foque na entrega simples e direta das capacidades no SEI. Não adicione defesas preventivas ou requisitos defensivos complexos nesta fase.
+Foque na entrega simples e direta das capacidades no SEI. Não adicione defesas preventivas ou requisitos defensivos complexos nesta fase. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
 
 ## Continuidade atual
 

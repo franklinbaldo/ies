@@ -21,7 +21,7 @@ Criar RED reproduzível para defeito real; diminuir duplicação sem alterar sem
 
 ## Orientações específicas
 
-Prefira mudanças modulares e coesas. Foque em melhorias reais de design Rust e simplificação de código; dialogue com a equipe e acione o 🦡 Texugo para manter o foco na simplicidade.
+Prefira mudanças modulares e coesas. Foque em melhorias reais de design Rust e simplificação de código; dialogue com a equipe e acione o 🦡 Texugo para manter o foco na simplicidade. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
 
 ## Continuidade atual
 
