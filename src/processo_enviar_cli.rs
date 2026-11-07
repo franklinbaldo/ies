@@ -381,7 +381,6 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
     valor
 }
 
-
 #[cfg(test)]
 #[path = "processo_enviar_cli/tests.rs"]
 mod tests;
